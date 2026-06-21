@@ -8,6 +8,7 @@
       </div>
     </div>
     <div class="detail-actions">
+      <a [routerLink]="['/app/athletes', a.id, 'analytics']" class="btn btn-ghost">Charge</a>
       <a [routerLink]="['/app/athletes', a.id, 'activities']" class="btn btn-ghost">Activités</a>
       <a [routerLink]="['/app/athletes', a.id, 'edit']" class="btn btn-ghost">Modifier</a>
       <button type="button" class="btn btn-primary" (click)="invite()">Inviter</button>
