@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { athleteGuard } from './core/guards/athlete.guard';
 import { authGuard } from './core/guards/auth.guard';
 
 /**
@@ -71,6 +72,18 @@ export const routes: Routes = [
         path: 'athletes/:athleteId/workouts/:workoutId/edit',
         loadComponent: () =>
           import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),
+      },
+    ],
+  },
+  {
+    path: 'athlete',
+    canActivate: [athleteGuard],
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'today' },
+      {
+        path: 'today',
+        loadComponent: () =>
+          import('./features/athlete/today.component').then((m) => m.TodayComponent),
       },
     ],
   },

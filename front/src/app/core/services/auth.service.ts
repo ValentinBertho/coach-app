@@ -48,6 +48,13 @@ export class AuthService {
       .pipe(tap((res) => this.applySession(res)));
   }
 
+  /** Onboarding athlète par lien magique : échange le token contre une session. */
+  acceptInvitation(token: string): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(`${environment.apiUrl}/public/invitations/${token}/accept`, {})
+      .pipe(tap((res) => this.applySession(res)));
+  }
+
   /** Recharge le profil courant depuis le token (au démarrage de l'app). */
   loadCurrentUser(): Observable<User> {
     return this.http.get<User>(`${this.base}/me`).pipe(

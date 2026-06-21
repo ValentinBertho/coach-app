@@ -27,6 +27,8 @@ export interface Workout {
   notes: string | null;
   targetDistanceM: number | null;
   targetDurationS: number | null;
+  rpe: number | null;
+  athleteComment: string | null;
   steps: WorkoutStep[];
 }
 
