@@ -1,0 +1,19 @@
+# ============================================================================
+# Profil prod — secrets OBLIGATOIRES (cf. StartupSecretsValidator).
+# L'application refuse de démarrer si JWT_SECRET / FIELD_ENCRYPTION_KEY sont
+# absents ou laissés à leurs valeurs de développement.
+# ============================================================================
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    root: INFO
+    com.coachrun: INFO
+
+app:
+  seed:
+    enabled: false

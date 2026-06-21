@@ -1,0 +1,55 @@
+# ============================================================================
+# Configuration commune — CoachRun API
+# Les valeurs sensibles proviennent de variables d'environnement (cf. .env.example).
+# Profil par défaut : dev (cf. application-dev.yml). Prod : application-prod.yml.
+# ============================================================================
+spring:
+  application:
+    name: coachrun-back
+  profiles:
+    default: dev
+  datasource:
+    url: ${JDBC_DATABASE_URL:jdbc:postgresql://localhost:5432/coachrun}
+    username: ${PGUSER:postgres}
+    password: ${PGPASSWORD:postgres}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none            # schéma piloté exclusivement par Liquibase
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+server:
+  servlet:
+    context-path: /api          # toutes les routes sont préfixées par /api
+  forward-headers-strategy: framework   # respect des en-têtes proxy (Railway/Vercel)
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+app:
+  version: @project.version@
+  cors:
+    origins: ${CORS_ORIGINS:http://localhost:4200}
+  security:
+    jwt:
+      secret: ${JWT_SECRET:dev-local-secret-change-in-production-min-256-bits-long!!}
+      access-token-ttl-seconds: ${JWT_ACCESS_TTL:900}
+    field-encryption-key: ${FIELD_ENCRYPTION_KEY:0000000000000000000000000000000000000000000000000000000000000000}
+  mail:
+    enabled: ${MAIL_ENABLED:false}

@@ -1,0 +1,23 @@
+# ============================================================================
+# Profil test — H2 en mode PostgreSQL : permet de valider le démarrage et la
+# chaîne Liquibase sans Docker (mvn verify partout). La CI exécute en plus un
+# smoke test sur un vrai PostgreSQL éphémère (cf. .github/workflows/ci.yml).
+# ============================================================================
+spring:
+  datasource:
+    url: jdbc:h2:mem:coachrun;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+app:
+  security:
+    jwt:
+      secret: test-secret-for-h2-context-only-min-512-bits-aaaaaaaaaaaaaaaaaaaa
+    field-encryption-key: "0000000000000000000000000000000000000000000000000000000000000000"
+  cors:
+    origins: http://localhost:4200

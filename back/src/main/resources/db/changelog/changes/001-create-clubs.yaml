@@ -1,0 +1,56 @@
+# ============================================================================
+# 001 — Table "clubs" (tenant principal). Changeset minimal validant la chaîne
+# JPA ↔ Liquibase ↔ PostgreSQL. Types portables (UUID/TIMESTAMP) pour H2 et PG.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-clubs
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: clubs
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: slug
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: status
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+        - createIndex:
+            indexName: idx_clubs_status
+            tableName: clubs
+            columns:
+              - column:
+                  name: status

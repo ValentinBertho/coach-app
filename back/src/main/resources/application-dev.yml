@@ -1,0 +1,19 @@
+# ============================================================================
+# Profil dev — développement local (Docker Desktop ou Postgres local).
+# Secrets de dev par défaut acceptés ; logs SQL plus verbeux ; seed possible.
+# ============================================================================
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+
+logging:
+  level:
+    com.coachrun: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+
+app:
+  seed:
+    enabled: true   # activera l'injection de données de démo quand les features arriveront

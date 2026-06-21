@@ -1,0 +1,7 @@
+# ============================================================================
+# Changelog maître Liquibase — inclure ici chaque nouveau changeset (ordre strict).
+# Convention : db/changelog/changes/NNN-description.yaml (3 chiffres).
+# ============================================================================
+databaseChangeLog:
+  - include:
+      file: db/changelog/changes/001-create-clubs.yaml
