@@ -15,8 +15,7 @@
 </div>
 
 <div class="search-bar">
-  <input type="search" class="form-control" placeholder="Rechercher…" [(ngModel)]="search" (keyup.enter)="load()" />
-  <button type="button" class="btn btn-ghost" (click)="load()">Rechercher</button>
+  <input type="search" class="form-control" placeholder="Rechercher…" [(ngModel)]="search" (ngModelChange)="onSearchChange()" />
 </div>
 
 @if (loading()) {
@@ -47,4 +46,5 @@
       </tbody>
     </table>
   </div>
+  <app-paginator [page]="page()" [totalPages]="totalPages()" (pageChange)="goToPage($event)" />
 }
