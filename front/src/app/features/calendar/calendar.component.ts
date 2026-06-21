@@ -1,3 +1,4 @@
+import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -9,6 +10,7 @@ import {
   Workout,
 } from '../../core/models/workout.model';
 import { AthleteService } from '../../core/services/athlete.service';
+import { ToastService } from '../../core/services/toast.service';
 import { WorkoutService } from '../../core/services/workout.service';
 
 interface DayCell {
@@ -36,7 +38,7 @@ function mondayOf(d: Date): Date {
   selector: 'app-calendar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, DragDropModule],
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.scss',
 })
@@ -44,6 +46,7 @@ export class CalendarComponent implements OnInit {
   private readonly athleteService = inject(AthleteService);
   private readonly workoutService = inject(WorkoutService);
   private readonly router = inject(Router);
+  private readonly toast = inject(ToastService);
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
   readonly statusLabels = STATUS_LABELS;
@@ -139,6 +142,26 @@ export class CalendarComponent implements OnInit {
 
   openWorkout(w: Workout): void {
     this.router.navigate(['/app/athletes', w.athleteId, 'workouts', w.id, 'edit']);
+  }
+
+  /** Glisser-déposer : replanifie la séance sur le jour cible (optimiste + rollback). */
+  onDrop(event: CdkDragDrop<DayCell>, targetDate: string): void {
+    if (event.previousContainer === event.container) return;
+    const w = event.item.data as Workout;
+    if (w.scheduledDate === targetDate) return;
+
+    const previous = w.scheduledDate;
+    this.workouts.update((list) =>
+      list.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x))
+    );
+    this.workoutService.reschedule(this.selectedAthleteId, w.id, targetDate).subscribe({
+      next: () => this.toast.success(`Séance déplacée au ${targetDate}`),
+      error: () => {
+        this.workouts.update((list) =>
+          list.map((x) => (x.id === w.id ? { ...x, scheduledDate: previous } : x))
+        );
+      },
+    });
   }
 
   /** Zones distinctes des étapes (ordre Z1→Z5) pour la mini-barre de la pastille. */

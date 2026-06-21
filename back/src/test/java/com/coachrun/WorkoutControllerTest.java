@@ -85,6 +85,13 @@ class WorkoutControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1));
 
+        // replanification (glisser-déposer)
+        mvc.perform(patch("/clubs/{c}/athletes/{a}/workouts/{w}/reschedule", clubId, athleteId, workoutId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"scheduledDate\":\"2026-07-02\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scheduledDate").value("2026-07-02"));
+
         // transition valide PLANNED → COMPLETED
         mvc.perform(patch("/clubs/{c}/athletes/{a}/workouts/{w}/status", clubId, athleteId, workoutId)
                         .header("Authorization", "Bearer " + token)

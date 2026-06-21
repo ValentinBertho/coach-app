@@ -38,6 +38,10 @@ export class WorkoutService {
     return this.http.patch<Workout>(`${this.base(athleteId)}/${workoutId}/status`, { status });
   }
 
+  reschedule(athleteId: string, workoutId: string, scheduledDate: string): Observable<Workout> {
+    return this.http.patch<Workout>(`${this.base(athleteId)}/${workoutId}/reschedule`, { scheduledDate });
+  }
+
   delete(athleteId: string, workoutId: string): Observable<void> {
     return this.http.delete<void>(`${this.base(athleteId)}/${workoutId}`);
   }

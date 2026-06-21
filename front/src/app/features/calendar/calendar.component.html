@@ -29,7 +29,7 @@
     <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
   </div>
 } @else {
-  <div class="week-grid" [class.loading]="loading()">
+  <div class="week-grid" [class.loading]="loading()" cdkDropListGroup>
     @for (day of days(); track day.date) {
       <div class="day-col" [class.today]="day.isToday">
         <header class="day-head">
@@ -37,9 +37,9 @@
           <span class="day-num">{{ day.dayNum }}</span>
         </header>
 
-        <div class="day-body">
+        <div class="day-body" cdkDropList [cdkDropListData]="day" (cdkDropListDropped)="onDrop($event, day.date)">
           @for (w of day.workouts; track w.id) {
-            <button type="button" class="workout-card" (click)="openWorkout(w)">
+            <button type="button" class="workout-card" cdkDrag [cdkDragData]="w" (click)="openWorkout(w)">
               <span class="badge" [class]="statusBadge[w.status]">{{ statusLabels[w.status] }}</span>
               <span class="w-type">{{ typeLabels[w.type] }}</span>
               <span class="w-title">{{ w.title }}</span>
