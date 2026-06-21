@@ -1,24 +1,59 @@
-# Compiled class file
+# ============================================================================
+# .gitignore — monorepo CoachRun (Angular front + Spring Boot back)
+# Renommer ce fichier en ".gitignore" à la racine du nouveau dépôt.
+# ============================================================================
+
+# ── Secrets / environnement ────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ── OS / éditeurs ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+*.iml
+
+# ============================================================================
+# BACKEND — Java / Maven / Spring Boot  (/back)
+# ============================================================================
+back/target/
+back/.mvn/wrapper/maven-wrapper.jar
+back/!**/src/main/**/target/
+back/!**/src/test/**/target/
+back/*.log
+back/logs/
+back/uploads/
+back/HELP.md
+
+# Compiled
 *.class
 
-# Log file
-*.log
+# ============================================================================
+# FRONTEND — Angular / Node  (/front)
+# ============================================================================
+front/node_modules/
+front/dist/
+front/.angular/
+front/tmp/
+front/out-tsc/
+front/coverage/
+front/.nx/
+front/npm-debug.log*
+front/yarn-error.log*
+front/.env.local
 
-# BlueJ files
-*.ctxt
+# ── PWA / build artefacts ──────────────────────────────────────────────────
+front/ngsw.json
+front/*.tsbuildinfo
 
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-replay_pid*
+# ============================================================================
+# DOCKER / DIVERS
+# ============================================================================
+*.local
+docker-compose.override.yml
