@@ -14,6 +14,8 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
 
     List<Activity> findByClubIdAndAthleteIdOrderByActivityDateDesc(UUID clubId, UUID athleteId);
 
+    List<Activity> findByAthleteIdOrderByActivityDateDesc(UUID athleteId);
+
     /** Déduplication des imports (cf. contrainte UNIQUE athlete/source/external_id). */
     boolean existsByAthleteIdAndSourceAndExternalId(UUID athleteId, ActivitySource source, String externalId);
 }

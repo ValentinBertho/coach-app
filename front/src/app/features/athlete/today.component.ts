@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   STATUS_BADGE,
   STATUS_LABELS,
@@ -27,7 +27,7 @@ type State = 'loading' | 'ready' | 'error';
   selector: 'app-today',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LogoComponent, InstallButtonComponent, OfflineBannerComponent],
+  imports: [FormsModule, RouterLink, LogoComponent, InstallButtonComponent, OfflineBannerComponent],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',
 })

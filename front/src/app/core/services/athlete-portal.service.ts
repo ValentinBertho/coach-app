@@ -24,4 +24,14 @@ export class AthletePortalService {
   feedback(workoutId: string, body: WorkoutFeedback): Observable<Workout> {
     return this.http.patch<Workout>(`${this.base}/workouts/${workoutId}/feedback`, body);
   }
+
+  /** RGPD — export des données personnelles (portabilité). */
+  export(): Observable<unknown> {
+    return this.http.get<unknown>(`${this.base}/export`);
+  }
+
+  /** RGPD — suppression du compte et des données (droit à l'oubli). */
+  deleteAccount(): Observable<void> {
+    return this.http.delete<void>(this.base);
+  }
 }

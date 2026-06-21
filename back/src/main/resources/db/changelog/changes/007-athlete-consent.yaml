@@ -1,0 +1,14 @@
+# ============================================================================
+# 007 — Consentement RGPD (art. 9) : horodatage du consentement à la collecte
+# des données de santé et à la connexion d'appareils.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 007-athlete-consent
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: athletes
+            columns:
+              - column: { name: health_data_consent_at, type: TIMESTAMP }
+              - column: { name: device_consent_at, type: TIMESTAMP }

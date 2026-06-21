@@ -104,11 +104,15 @@ public class AuthService {
      * ATHLETE rattaché à l'athlète, puis émet les jetons. Sans mot de passe.
      */
     @Transactional
-    public AuthResponse acceptInvitation(String token) {
+    public AuthResponse acceptInvitation(String token, boolean healthDataConsent) {
         Athlete athlete = athleteRepository.findByInviteToken(token)
                 .filter(a -> a.getInviteExpiresAt() != null
                         && a.getInviteExpiresAt().isAfter(java.time.Instant.now()))
                 .orElseThrow(() -> new NotFoundException("Invitation invalide ou expirée."));
+
+        if (healthDataConsent && athlete.getHealthDataConsentAt() == null) {
+            athlete.setHealthDataConsentAt(java.time.Instant.now());
+        }
 
         User user = userRepository.findByAthleteId(athlete.getId()).orElseGet(() -> {
             User u = new User();

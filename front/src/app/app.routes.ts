@@ -91,6 +91,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/athlete/today.component').then((m) => m.TodayComponent),
       },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('./features/athlete/profile.component').then((m) => m.AthleteProfileComponent),
+      },
     ],
   },
   {
