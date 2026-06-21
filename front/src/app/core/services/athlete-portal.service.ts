@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { RaceObjective } from '../models/race.model';
 import { Workout, WorkoutStatus } from '../models/workout.model';
 
 export interface WorkoutFeedback {
@@ -19,6 +20,11 @@ export class AthletePortalService {
   today(date?: string): Observable<Workout[]> {
     const params = date ? new HttpParams().set('date', date) : undefined;
     return this.http.get<Workout[]>(`${this.base}/today`, { params });
+  }
+
+  /** Prochaine course (204 → null). */
+  nextRace(): Observable<RaceObjective | null> {
+    return this.http.get<RaceObjective | null>(`${this.base}/next-race`);
   }
 
   feedback(workoutId: string, body: WorkoutFeedback): Observable<Workout> {

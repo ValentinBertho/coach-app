@@ -41,6 +41,7 @@ public class AthletePortalController {
     private final WorkoutService workoutService;
     private final AuthService authService;
     private final GdprService gdprService;
+    private final com.coachrun.service.RaceObjectiveService raceService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -68,6 +69,15 @@ public class AthletePortalController {
                                     @Valid @RequestBody WorkoutFeedbackRequest request) {
         return workoutService.submitFeedback(
                 principal.athleteId(), workoutId, request.status(), request.rpe(), request.comment());
+    }
+
+    /** Prochaine course cible (compte à rebours J-XX). 204 si aucune. */
+    @GetMapping("/next-race")
+    public org.springframework.http.ResponseEntity<com.coachrun.dto.response.RaceObjectiveResponse> nextRace(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return raceService.nextRace(principal.athleteId())
+                .map(org.springframework.http.ResponseEntity::ok)
+                .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
     }
 
     /** RGPD — portabilité : export des données personnelles de l'athlète. */

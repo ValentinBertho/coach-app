@@ -47,12 +47,14 @@ export class TodayComponent implements OnInit {
 
   readonly state = signal<State>('loading');
   readonly workout = signal<Workout | null>(null);
+  readonly nextRace = signal<import('../../core/models/race.model').RaceObjective | null>(null);
   readonly user = this.auth.currentUser;
   rpe: number | null = null;
   comment = '';
 
   ngOnInit(): void {
     this.load();
+    this.portal.nextRace().subscribe({ next: (r) => this.nextRace.set(r) });
   }
 
   load(): void {

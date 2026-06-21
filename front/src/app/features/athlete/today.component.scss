@@ -28,6 +28,14 @@
 }
 .subtitle { color: var(--ink-3); margin: 0; }
 
+.race-countdown {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  background: var(--gradient-brand); color: #fff; border: none;
+}
+.race-countdown .rc-label { display: block; font-size: var(--text-xs); opacity: 0.85; }
+.race-countdown strong { font-size: var(--text-lg); }
+.rc-days { font-size: var(--text-2xl); font-weight: 700; }
+
 .workout { display: flex; flex-direction: column; gap: var(--sp-2); }
 .w-head { display: flex; align-items: center; gap: var(--sp-2); }
 .w-type { color: var(--night-text-2); font-size: var(--text-xs); text-transform: uppercase; }

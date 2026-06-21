@@ -75,6 +75,11 @@ export const routes: Routes = [
           import('./features/analytics/analytics.component').then((m) => m.AnalyticsComponent),
       },
       {
+        path: 'athletes/:athleteId/races',
+        loadComponent: () =>
+          import('./features/races/race-list.component').then((m) => m.RaceListComponent),
+      },
+      {
         path: 'athletes/:athleteId/workouts/new',
         loadComponent: () =>
           import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),

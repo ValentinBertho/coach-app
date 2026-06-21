@@ -3,6 +3,7 @@ package com.coachrun.service;
 import com.coachrun.entity.Activity;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Club;
+import com.coachrun.entity.RaceObjective;
 import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.WorkoutStep;
@@ -18,9 +19,12 @@ import com.coachrun.entity.enums.UserStatus;
 import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.entity.enums.WorkoutStepType;
 import com.coachrun.entity.enums.WorkoutType;
+import com.coachrun.entity.enums.RaceObjectiveStatus;
+import com.coachrun.entity.enums.RacePriority;
 import com.coachrun.repository.ActivityRepository;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.ClubRepository;
+import com.coachrun.repository.RaceObjectiveRepository;
 import com.coachrun.repository.UserRepository;
 import com.coachrun.repository.WorkoutRepository;
 import com.coachrun.util.SlugUtil;
@@ -73,6 +77,7 @@ public class DemoSeedService {
     private final AthleteRepository athleteRepository;
     private final WorkoutRepository workoutRepository;
     private final ActivityRepository activityRepository;
+    private final RaceObjectiveRepository raceRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
 
@@ -151,6 +156,8 @@ public class DemoSeedService {
             userRepository.save(athleteUser);
             seedTraining(club, demoAthlete);
             seedTraining(club, athletes.get(2));
+            seedRace(club, demoAthlete, "Marathon de Paris", 42195, 42);
+            seedRace(club, athletes.get(2), "Semi de Lyon", 21097, 70);
         }
 
         // Dates d'inscription échelonnées (createdAt non modifiable via JPA → SQL)
@@ -196,6 +203,18 @@ public class DemoSeedService {
         orphan.setStatus(ActivityStatus.UNMATCHED);
         orphan.setTitle("Sortie libre");
         activityRepository.save(orphan);
+    }
+
+    private void seedRace(Club club, Athlete athlete, String name, int distanceM, int daysAhead) {
+        RaceObjective race = new RaceObjective();
+        race.setClub(club);
+        race.setAthlete(athlete);
+        race.setName(name);
+        race.setDistanceM(distanceM);
+        race.setRaceDate(LocalDate.now().plusDays(daysAhead));
+        race.setPriority(RacePriority.A);
+        race.setStatus(RaceObjectiveStatus.UPCOMING);
+        raceRepository.save(race);
     }
 
     private Club newClub(String name) {

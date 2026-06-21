@@ -17,3 +17,5 @@ databaseChangeLog:
       file: db/changelog/changes/006-create-activities.yaml
   - include:
       file: db/changelog/changes/007-athlete-consent.yaml
+  - include:
+      file: db/changelog/changes/008-create-race-objectives.yaml
