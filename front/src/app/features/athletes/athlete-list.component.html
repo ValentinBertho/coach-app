@@ -1,0 +1,52 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">Athlètes</h1>
+    <p class="subtitle">Gérez vos athlètes et leur profil.</p>
+  </div>
+  <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
+</section>
+
+<div class="search-bar">
+  <input type="search" class="form-control" placeholder="Rechercher un athlète…"
+         [(ngModel)]="search" (keyup.enter)="load()" />
+  <button type="button" class="btn btn-ghost" (click)="load()">Rechercher</button>
+</div>
+
+@switch (state()) {
+  @case ('loading') {
+    <div class="card skeleton-row">Chargement…</div>
+  }
+  @case ('error') {
+    <div class="card alert-danger">
+      Impossible de charger les athlètes.
+      <button type="button" class="btn btn-ghost btn-sm" (click)="load()">Réessayer</button>
+    </div>
+  }
+  @case ('ready') {
+    @if (athletes().length === 0) {
+      <div class="card empty-state">
+        <h2>Aucun athlète</h2>
+        <p class="field-hint">Commencez par créer votre premier athlète.</p>
+        <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
+      </div>
+    } @else {
+      <div class="athlete-grid">
+        @for (a of athletes(); track a.id) {
+          <a class="card card-interactive athlete-card" [routerLink]="['/app/athletes', a.id]">
+            <div class="athlete-main">
+              <span class="avatar">{{ a.firstName[0] }}{{ a.lastName[0] }}</span>
+              <div>
+                <div class="athlete-name">{{ a.firstName }} {{ a.lastName }}</div>
+                @if (a.level) { <span class="field-hint">{{ a.level }}</span> }
+              </div>
+            </div>
+            <div class="athlete-tags">
+              @if (a.invitationPending) { <span class="badge badge-info">Invité</span> }
+              <span class="badge" [class]="statusClass(a.status)">{{ statusLabel(a.status) }}</span>
+            </div>
+          </a>
+        }
+      </div>
+    }
+  }
+}

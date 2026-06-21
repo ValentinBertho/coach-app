@@ -5,7 +5,7 @@ import { AuthService } from '../services/auth.service';
 import { ToastService } from '../services/toast.service';
 
 /** Routes pour lesquelles on n'affiche pas de toast d'erreur global. */
-const SILENT_PATTERNS = [/\/auth\//, /\/oauth-callback/];
+const SILENT_PATTERNS = [/\/auth\//, /\/oauth-callback/, /\/public\/invitations\//];
 
 /**
  * Intercepteur d'erreurs global → toasts par code, logout sur 401 (cf. Techno.md §2).

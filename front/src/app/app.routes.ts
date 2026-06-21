@@ -22,6 +22,11 @@ export const routes: Routes = [
       import('./features/auth/register.component').then((m) => m.RegisterComponent),
   },
   {
+    path: 'invitation/:token',
+    loadComponent: () =>
+      import('./features/public/invitation.component').then((m) => m.InvitationComponent),
+  },
+  {
     path: 'app',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -31,6 +36,26 @@ export const routes: Routes = [
         path: '',
         loadComponent: () =>
           import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
+      },
+      {
+        path: 'athletes',
+        loadComponent: () =>
+          import('./features/athletes/athlete-list.component').then((m) => m.AthleteListComponent),
+      },
+      {
+        path: 'athletes/new',
+        loadComponent: () =>
+          import('./features/athletes/athlete-form.component').then((m) => m.AthleteFormComponent),
+      },
+      {
+        path: 'athletes/:id',
+        loadComponent: () =>
+          import('./features/athletes/athlete-detail.component').then((m) => m.AthleteDetailComponent),
+      },
+      {
+        path: 'athletes/:id/edit',
+        loadComponent: () =>
+          import('./features/athletes/athlete-form.component').then((m) => m.AthleteFormComponent),
       },
     ],
   },

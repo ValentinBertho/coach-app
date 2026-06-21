@@ -1,0 +1,171 @@
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+  flex-wrap: wrap;
+}
+
+.subtitle {
+  color: var(--ink-3);
+  margin: var(--sp-1) 0 0;
+}
+
+.search-bar {
+  display: flex;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-6);
+}
+.search-bar .form-control {
+  flex: 1;
+}
+
+/* Liste */
+.athlete-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--sp-4);
+}
+
+.athlete-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  text-decoration: none;
+  color: inherit;
+}
+
+.athlete-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.athlete-name {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.athlete-tags {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--sp-1);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--primary-wash);
+  color: var(--primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+.avatar-lg {
+  width: 56px;
+  height: 56px;
+  font-size: var(--text-lg);
+}
+
+/* États */
+.empty-state {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-12) var(--sp-6);
+}
+.alert-danger {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  justify-content: space-between;
+}
+.skeleton-row {
+  color: var(--ink-3);
+}
+
+/* Formulaire */
+.form-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.form-card h2 {
+  margin: var(--sp-4) 0 var(--sp-2);
+  font-size: var(--text-lg);
+}
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+}
+.form-row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4);
+}
+.form-actions {
+  margin-top: var(--sp-4);
+}
+
+/* Détail */
+.detail-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.detail-actions {
+  display: flex;
+  gap: var(--sp-3);
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.stat-label {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+.stat-value {
+  font-size: var(--text-2xl);
+  color: var(--ink);
+}
+.invite-panel,
+.danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+.invite-url {
+  word-break: break-all;
+  color: var(--primary);
+  font-size: var(--text-sm);
+  margin: var(--sp-1) 0 0;
+}
+
+@media (max-width: 768px) {
+  .form-row,
+  .form-row-3 {
+    grid-template-columns: 1fr;
+  }
+}

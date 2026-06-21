@@ -1,0 +1,61 @@
+@if (athlete(); as a) {
+  <section class="page-header">
+    <div class="detail-head">
+      <span class="avatar avatar-lg">{{ a.firstName[0] }}{{ a.lastName[0] }}</span>
+      <div>
+        <h1 class="display-sm">{{ a.firstName }} {{ a.lastName }}</h1>
+        <p class="subtitle">{{ a.email || 'Pas d\'email' }}</p>
+      </div>
+    </div>
+    <div class="detail-actions">
+      <a [routerLink]="['/app/athletes', a.id, 'edit']" class="btn btn-ghost">Modifier</a>
+      <button type="button" class="btn btn-primary" (click)="invite()">Inviter</button>
+    </div>
+  </section>
+
+  @if (inviteUrl(); as url) {
+    <div class="card invite-panel">
+      <div>
+        <strong>Lien d'invitation</strong>
+        <p class="invite-url metric">{{ url }}</p>
+      </div>
+      <button type="button" class="btn btn-accent btn-sm" (click)="copyInvite()">Copier</button>
+    </div>
+  }
+
+  <div class="stats-grid">
+    <div class="card stat-card">
+      <span class="stat-label">FC max</span>
+      <span class="metric stat-value">{{ a.hrMax ? a.hrMax + ' bpm' : '—' }}</span>
+    </div>
+    <div class="card stat-card">
+      <span class="stat-label">FC repos</span>
+      <span class="metric stat-value">{{ a.hrRest ? a.hrRest + ' bpm' : '—' }}</span>
+    </div>
+    <div class="card stat-card">
+      <span class="stat-label">VMA</span>
+      <span class="metric stat-value">{{ a.vma ? a.vma + ' km/h' : '—' }}</span>
+    </div>
+    <div class="card stat-card">
+      <span class="stat-label">Poids</span>
+      <span class="metric stat-value">{{ a.weightKg ? a.weightKg + ' kg' : '—' }}</span>
+    </div>
+  </div>
+
+  @if (a.medicalNotes) {
+    <div class="card">
+      <h2>Antécédents / blessures 🔒</h2>
+      <p>{{ a.medicalNotes }}</p>
+    </div>
+  }
+
+  <div class="card danger-zone">
+    <div>
+      <strong>Archiver l'athlète</strong>
+      <p class="field-hint">L'athlète n'apparaîtra plus dans la liste active.</p>
+    </div>
+    <button type="button" class="btn btn-danger btn-sm" (click)="archive()">Archiver</button>
+  </div>
+} @else if (loading()) {
+  <div class="card">Chargement…</div>
+}
