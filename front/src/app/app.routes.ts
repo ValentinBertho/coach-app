@@ -57,6 +57,21 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/athletes/athlete-form.component').then((m) => m.AthleteFormComponent),
       },
+      {
+        path: 'calendar',
+        loadComponent: () =>
+          import('./features/calendar/calendar.component').then((m) => m.CalendarComponent),
+      },
+      {
+        path: 'athletes/:athleteId/workouts/new',
+        loadComponent: () =>
+          import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),
+      },
+      {
+        path: 'athletes/:athleteId/workouts/:workoutId/edit',
+        loadComponent: () =>
+          import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),
+      },
     ],
   },
   { path: '**', redirectTo: '' },
