@@ -56,3 +56,6 @@ app:
     enabled: ${MAIL_ENABLED:false}
     resend-api-key: ${RESEND_API_KEY:}
     from: ${MAIL_FROM:CoachRun <no-reply@coachrun.fr>}
+  demo:
+    reset:
+      enabled: ${DEMO_RESET_ENABLED:false}   # RAZ démo : interdit par défaut (jamais en prod)

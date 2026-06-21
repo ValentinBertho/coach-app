@@ -16,4 +16,7 @@ logging:
 
 app:
   seed:
-    enabled: true   # activera l'injection de données de démo quand les features arriveront
+    enabled: true   # jeu de données de démo au démarrage
+  demo:
+    reset:
+      enabled: true # RAZ démo autorisée en dev

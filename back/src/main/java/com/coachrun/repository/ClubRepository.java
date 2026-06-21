@@ -12,4 +12,7 @@ import java.util.UUID;
 public interface ClubRepository extends JpaRepository<Club, UUID> {
 
     boolean existsBySlug(String slug);
+
+    org.springframework.data.domain.Page<Club> findByNameContainingIgnoreCase(
+            String name, org.springframework.data.domain.Pageable pageable);
 }
