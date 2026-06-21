@@ -1,0 +1,110 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">{{ isEdit ? 'Modifier la séance' : 'Nouvelle séance' }}</h1>
+    @if (status(); as s) {
+      <span class="badge" [class]="statusBadge[s]">{{ statusLabels[s] }}</span>
+    }
+  </div>
+  <a routerLink="/app/calendar" class="btn btn-ghost">Retour au calendrier</a>
+</section>
+
+<form class="card" [formGroup]="form" (ngSubmit)="submit()">
+  <div class="form-row">
+    <div class="form-group">
+      <label for="date">Date *</label>
+      <input id="date" type="date" class="form-control" formControlName="scheduledDate" />
+    </div>
+    <div class="form-group">
+      <label for="type">Type *</label>
+      <select id="type" class="form-control" formControlName="type">
+        @for (t of types; track t) { <option [value]="t">{{ typeLabels[t] }}</option> }
+      </select>
+    </div>
+  </div>
+
+  <div class="form-group">
+    <label for="title">Titre *</label>
+    <input id="title" class="form-control" formControlName="title" placeholder="Ex. VMA 10×400m" />
+    @if (form.controls.title.touched && form.controls.title.invalid) {
+      <span class="error-message">Titre requis.</span>
+    }
+  </div>
+
+  <div class="form-row">
+    <div class="form-group">
+      <label for="dist">Distance cible (m)</label>
+      <input id="dist" type="number" class="form-control" formControlName="targetDistanceM" />
+    </div>
+    <div class="form-group">
+      <label for="dur">Durée cible (s)</label>
+      <input id="dur" type="number" class="form-control" formControlName="targetDurationS" />
+    </div>
+  </div>
+
+  <div class="steps-head">
+    <h2>Étapes structurées</h2>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="addStep()">+ Étape</button>
+  </div>
+
+  <div formArrayName="steps" class="steps">
+    @for (step of steps.controls; track step; let i = $index) {
+      <div class="step-row" [formGroupName]="i">
+        <div class="step-grid">
+          <div class="form-group">
+            <label>Type</label>
+            <select class="form-control" formControlName="stepType">
+              @for (st of stepTypes; track st) { <option [value]="st">{{ stepLabels[st] }}</option> }
+            </select>
+          </div>
+          <div class="form-group narrow">
+            <label>×N</label>
+            <input type="number" class="form-control" formControlName="repetitions" min="1" />
+          </div>
+          <div class="form-group narrow">
+            <label>Zone</label>
+            <select class="form-control" formControlName="zone">
+              <option [ngValue]="null">—</option>
+              @for (z of zones; track z) { <option [value]="z">{{ z }}</option> }
+            </select>
+          </div>
+          <div class="form-group narrow">
+            <label>Dist. (m)</label>
+            <input type="number" class="form-control" formControlName="distanceM" />
+          </div>
+          <div class="form-group narrow">
+            <label>Durée (s)</label>
+            <input type="number" class="form-control" formControlName="durationS" />
+          </div>
+        </div>
+        <div class="step-actions">
+          <button type="button" class="icon-btn" (click)="move(i, -1)" title="Monter">↑</button>
+          <button type="button" class="icon-btn" (click)="move(i, 1)" title="Descendre">↓</button>
+          <button type="button" class="icon-btn danger" (click)="removeStep(i)" title="Supprimer">✕</button>
+        </div>
+      </div>
+    }
+    @if (steps.length === 0) {
+      <p class="field-hint">Aucune étape — ajoutez l'échauffement, les répétitions, la récupération…</p>
+    }
+  </div>
+
+  <div class="form-group">
+    <label for="notes">Consignes</label>
+    <textarea id="notes" class="form-control" rows="2" formControlName="notes"></textarea>
+  </div>
+
+  <div class="form-footer">
+    <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
+      {{ submitting() ? 'Enregistrement…' : (isEdit ? 'Enregistrer' : 'Planifier la séance') }}
+    </button>
+
+    @if (isEdit) {
+      <div class="status-actions">
+        <button type="button" class="btn btn-accent btn-sm" (click)="setStatus('COMPLETED')">Réalisée</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="setStatus('PARTIAL')">Partielle</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="setStatus('MISSED')">Manquée</button>
+        <button type="button" class="btn btn-danger btn-sm" (click)="remove()">Supprimer</button>
+      </div>
+    }
+  </div>
+</form>

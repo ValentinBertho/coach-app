@@ -1,0 +1,71 @@
+<div class="athlete-shell">
+  <header class="athlete-top">
+    <span class="logo">CoachRun</span>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Quitter</button>
+  </header>
+
+  <main class="athlete-main">
+    <h1 class="display-sm">Séance du jour</h1>
+    <p class="subtitle">Bonjour {{ user()?.fullName }} 👋</p>
+
+    @switch (state()) {
+      @case ('loading') { <div class="card">Chargement…</div> }
+      @case ('error') {
+        <div class="card">Impossible de charger votre séance.
+          <button type="button" class="btn btn-ghost btn-sm" (click)="load()">Réessayer</button>
+        </div>
+      }
+      @case ('ready') {
+        @if (workout(); as w) {
+          <article class="card card-night workout">
+            <div class="w-head">
+              <span class="badge" [class]="statusBadge[w.status]">{{ statusLabels[w.status] }}</span>
+              <span class="w-type">{{ typeLabels[w.type] }}</span>
+            </div>
+            <h2>{{ w.title }}</h2>
+            @if (w.targetDistanceM) {
+              <p class="metric w-target">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</p>
+            }
+
+            @if (w.steps.length) {
+              <ol class="steps">
+                @for (s of w.steps; track s.id) {
+                  <li class="step">
+                    <span class="step-rep">{{ s.repetitions > 1 ? s.repetitions + '×' : '' }}</span>
+                    <span class="step-label">{{ stepLabels[s.stepType] }}</span>
+                    @if (s.zone) { <span class="zone-tag" [class]="zoneClass(s.zone)">{{ s.zone }}</span> }
+                    <span class="step-target metric">
+                      {{ s.distanceM ? s.distanceM + ' m' : (s.durationS ? s.durationS + ' s' : '') }}
+                    </span>
+                  </li>
+                }
+              </ol>
+            }
+            @if (w.notes) { <p class="w-notes">{{ w.notes }}</p> }
+          </article>
+
+          <section class="card feedback">
+            <h3>Votre ressenti</h3>
+            <label class="rpe-label">Effort perçu (RPE)</label>
+            <div class="rpe-scale">
+              @for (n of rpeScale; track n) {
+                <button type="button" class="rpe-dot" [class.active]="rpe === n" (click)="rpe = n">{{ n }}</button>
+              }
+            </div>
+            <textarea class="form-control" rows="2" placeholder="Un commentaire ? (optionnel)"
+                      [(ngModel)]="comment"></textarea>
+            <div class="feedback-actions">
+              <button type="button" class="btn btn-accent btn-lg" (click)="submit(true)">Séance réalisée ✅</button>
+              <button type="button" class="btn btn-ghost" (click)="submit(false)">Partiellement</button>
+            </div>
+          </section>
+        } @else {
+          <div class="card empty">
+            <h2>Repos aujourd'hui 🌙</h2>
+            <p class="field-hint">Aucune séance prévue. Profitez-en pour récupérer.</p>
+          </div>
+        }
+      }
+    }
+  </main>
+</div>

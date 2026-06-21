@@ -1,0 +1,66 @@
+package com.coachrun.controller;
+
+import com.coachrun.dto.request.WorkoutFeedbackRequest;
+import com.coachrun.dto.response.UserResponse;
+import com.coachrun.dto.response.WorkoutResponse;
+import com.coachrun.security.AuthPrincipal;
+import com.coachrun.service.AuthService;
+import com.coachrun.service.WorkoutService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Portail athlète (PWA). Scoping par l'athleteId du principal — l'athlète n'accède
+ * qu'à ses propres séances (jamais celles d'un autre athlète du club).
+ */
+@RestController
+@RequestMapping("/me")
+@RequiredArgsConstructor
+@PreAuthorize("hasRole('ATHLETE')")
+public class AthletePortalController {
+
+    private final WorkoutService workoutService;
+    private final AuthService authService;
+
+    @GetMapping
+    public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
+        return authService.currentUser(principal.userId());
+    }
+
+    @GetMapping("/today")
+    public List<WorkoutResponse> today(@AuthenticationPrincipal AuthPrincipal principal,
+                                       @RequestParam(required = false)
+                                       @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        LocalDate day = date != null ? date : LocalDate.now();
+        return workoutService.todayForAthlete(principal.athleteId(), day);
+    }
+
+    @GetMapping("/workouts")
+    public List<WorkoutResponse> workouts(@AuthenticationPrincipal AuthPrincipal principal,
+                                          @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+                                          @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return workoutService.athleteCalendar(principal.athleteId(), from, to);
+    }
+
+    @PatchMapping("/workouts/{workoutId}/feedback")
+    public WorkoutResponse feedback(@AuthenticationPrincipal AuthPrincipal principal,
+                                    @PathVariable UUID workoutId,
+                                    @Valid @RequestBody WorkoutFeedbackRequest request) {
+        return workoutService.submitFeedback(
+                principal.athleteId(), workoutId, request.status(), request.rpe(), request.comment());
+    }
+}

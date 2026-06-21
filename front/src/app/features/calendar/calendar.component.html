@@ -1,0 +1,63 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">Calendrier</h1>
+    <p class="subtitle">Planifiez les séances de vos athlètes.</p>
+  </div>
+</section>
+
+<div class="toolbar">
+  <select class="form-control athlete-select" [(ngModel)]="selectedAthleteId" (ngModelChange)="onAthleteChange()">
+    @for (a of athletes(); track a.id) {
+      <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option>
+    }
+  </select>
+
+  <div class="week-nav">
+    <button type="button" class="btn btn-ghost btn-sm" (click)="shiftWeek(-1)">←</button>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="goToday()">Aujourd'hui</button>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="shiftWeek(1)">→</button>
+    <span class="week-label">{{ weekLabel() }}</span>
+  </div>
+
+  <span class="volume metric">{{ weeklyVolumeKm() }} km prévus</span>
+</div>
+
+@if (athletes().length === 0) {
+  <div class="card empty-state">
+    <h2>Aucun athlète actif</h2>
+    <p class="field-hint">Créez d'abord un athlète pour planifier des séances.</p>
+    <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
+  </div>
+} @else {
+  <div class="week-grid" [class.loading]="loading()">
+    @for (day of days(); track day.date) {
+      <div class="day-col" [class.today]="day.isToday">
+        <header class="day-head">
+          <span class="day-name">{{ day.label }}</span>
+          <span class="day-num">{{ day.dayNum }}</span>
+        </header>
+
+        <div class="day-body">
+          @for (w of day.workouts; track w.id) {
+            <button type="button" class="workout-card" (click)="openWorkout(w)">
+              <span class="badge" [class]="statusBadge[w.status]">{{ statusLabels[w.status] }}</span>
+              <span class="w-type">{{ typeLabels[w.type] }}</span>
+              <span class="w-title">{{ w.title }}</span>
+              @if (w.targetDistanceM) {
+                <span class="metric w-metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span>
+              }
+              @if (zonesOf(w).length) {
+                <span class="zone-bar">
+                  @for (z of zonesOf(w); track z) {
+                    <span class="zone-seg" [class]="'zone-' + z.toLowerCase()"></span>
+                  }
+                </span>
+              }
+            </button>
+          }
+          <button type="button" class="add-btn" (click)="addWorkout(day.date)">+ Séance</button>
+        </div>
+      </div>
+    }
+  </div>
+}

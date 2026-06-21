@@ -1,49 +1,71 @@
-<main class="home container-narrow">
-  <header class="hero">
-    <span class="badge badge-info">Pace Design System</span>
-    <h1 class="display-md">CoachRun</h1>
-    <p class="subtitle">Plateforme de coaching course à pied.</p>
-
-    <div class="cta">
+<div class="landing">
+  <header class="topbar container-wide">
+    <span class="logo">CoachRun</span>
+    <nav class="top-actions">
       @if (isAuthenticated()) {
-        <a routerLink="/app" class="btn btn-primary btn-lg">Mon espace coach</a>
+        <a routerLink="/app" class="btn btn-primary btn-sm">Mon espace</a>
       } @else {
-        <a routerLink="/register" class="btn btn-primary btn-lg">Créer mon club</a>
-        <a routerLink="/login" class="btn btn-ghost btn-lg">Se connecter</a>
+        <a routerLink="/login" class="btn btn-ghost btn-sm">Connexion</a>
+        <a routerLink="/register" class="btn btn-primary btn-sm">Créer mon club</a>
       }
-    </div>
+    </nav>
   </header>
 
-  <section class="card status-card">
-    <h2>État de l'API</h2>
+  <section class="hero">
+    <div class="hero-inner container-narrow">
+      <span class="badge badge-info">Coaching course à pied</span>
+      <h1 class="display-lg">Entraînez. Suivez.<br />Progressez.</h1>
+      <p class="lead">
+        La plateforme moderne et mobile-first pour prescrire des plans, suivre le réalisé
+        et piloter la charge de vos athlètes — alternative simple et abordable à Nolio.
+      </p>
+      <div class="cta">
+        @if (isAuthenticated()) {
+          <a routerLink="/app" class="btn btn-primary btn-lg">Accéder à mon espace</a>
+        } @else {
+          <a routerLink="/register" class="btn btn-primary btn-lg">Créer mon club gratuitement</a>
+          <a routerLink="/login" class="btn btn-ghost btn-lg btn-on-dark">Se connecter</a>
+        }
+      </div>
 
-    @switch (state()) {
-      @case ('loading') {
-        <div class="status-row">
-          <span class="spinner" aria-hidden="true"></span>
-          <span>Vérification de la connexion…</span>
-        </div>
-      }
-      @case ('ok') {
-        <div class="status-row">
-          <span class="badge badge-success">● En ligne</span>
-          <span class="metric">v{{ ping()?.version }}</span>
-        </div>
-        <p class="field-hint">
-          Réponse <code>/api/public/ping</code> : statut «&nbsp;{{ ping()?.status }}&nbsp;».
-          Le front et le back communiquent. ✅
-        </p>
-      }
-      @case ('error') {
-        <div class="status-row">
-          <span class="badge badge-danger">● Hors ligne</span>
-        </div>
-        <p class="field-hint">
-          Impossible de joindre l'API. Vérifiez que le backend est démarré
-          (<code>docker compose up</code> ou <code>mvn spring-boot:run</code>).
-        </p>
-        <button type="button" class="btn btn-primary btn-sm" (click)="checkApi()">Réessayer</button>
-      }
-    }
+      <div class="zones-preview">
+        <span class="zone-tag zone-z1">Z1</span>
+        <span class="zone-tag zone-z2">Z2</span>
+        <span class="zone-tag zone-z3">Z3</span>
+        <span class="zone-tag zone-z4">Z4</span>
+        <span class="zone-tag zone-z5">Z5</span>
+      </div>
+    </div>
   </section>
-</main>
+
+  <section class="features container-wide">
+    <article class="card feature">
+      <span class="feature-ic">📅</span>
+      <h3>Calendrier & séances</h3>
+      <p class="field-hint">Planifiez des séances structurées par étapes et zones, semaine après semaine.</p>
+    </article>
+    <article class="card feature">
+      <span class="feature-ic">⌚</span>
+      <h3>Prévu vs réalisé</h3>
+      <p class="field-hint">Importez les activités et rapprochez-les automatiquement des séances prévues.</p>
+    </article>
+    <article class="card feature">
+      <span class="feature-ic">📱</span>
+      <h3>Espace athlète</h3>
+      <p class="field-hint">Vos athlètes voient leur séance du jour et notent leur ressenti en un tap.</p>
+    </article>
+  </section>
+
+  <footer class="landing-foot container-wide">
+    <span class="api-status">
+      @switch (state()) {
+        @case ('loading') { <span class="dot dot-load"></span> Connexion à l'API… }
+        @case ('ok') { <span class="dot dot-ok"></span> API en ligne · v{{ ping()?.version }} }
+        @case ('error') { <span class="dot dot-err"></span> API injoignable
+          <button type="button" class="link-btn" (click)="checkApi()">réessayer</button>
+        }
+      }
+    </span>
+    <span class="muted">© CoachRun</span>
+  </footer>
+</div>

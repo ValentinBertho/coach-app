@@ -24,6 +24,7 @@ public class JwtService {
 
     private static final String CLAIM_TYPE = "typ";
     private static final String CLAIM_CLUB = "clubId";
+    private static final String CLAIM_ATHLETE = "athleteId";
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_EMAIL = "email";
 
@@ -72,6 +73,9 @@ public class JwtService {
                 .signWith(key);
         if (user.getClub() != null) {
             builder.claim(CLAIM_CLUB, user.getClub().getId().toString());
+        }
+        if (user.getAthlete() != null) {
+            builder.claim(CLAIM_ATHLETE, user.getAthlete().getId().toString());
         }
         return builder.compact();
     }

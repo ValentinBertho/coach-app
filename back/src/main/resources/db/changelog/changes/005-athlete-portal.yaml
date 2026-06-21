@@ -1,0 +1,29 @@
+# ============================================================================
+# 005 — Portail athlète : lien users ↔ athletes (compte ATHLETE via lien magique)
+# et feedback athlète (RPE + commentaire) sur les séances.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 005-athlete-portal
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column: { name: athlete_id, type: UUID }
+        - addForeignKeyConstraint:
+            constraintName: fk_users_athlete
+            baseTableName: users
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            constraintName: uk_users_athlete
+            tableName: users
+            columnNames: athlete_id
+        - addColumn:
+            tableName: workouts
+            columns:
+              - column: { name: rpe, type: INT }
+              - column: { name: athlete_comment, type: VARCHAR(1024) }

@@ -6,7 +6,7 @@ import java.util.UUID;
 
 /**
  * Identité authentifiée placée dans le SecurityContext (principal). Porte le scoping tenant
- * ({@code clubId}) utilisé par {@link ClubAccessValidator}.
+ * ({@code clubId}) et, pour un compte ATHLETE, son {@code athleteId}.
  */
-public record AuthPrincipal(UUID userId, UUID clubId, String email, UserRole role) {
+public record AuthPrincipal(UUID userId, UUID clubId, UUID athleteId, String email, UserRole role) {
 }

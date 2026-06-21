@@ -23,6 +23,10 @@ public class ClubAccessValidator {
         if (principal.role() == UserRole.PLATFORM_ADMIN) {
             return true;
         }
+        // Les athlètes passent par /me/** : pas d'accès aux routes club (anti-fuite intra-club).
+        if (principal.role() == UserRole.ATHLETE) {
+            return false;
+        }
         return clubId.equals(principal.clubId());
     }
 }

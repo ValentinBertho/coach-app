@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { athleteGuard } from './core/guards/athlete.guard';
 import { authGuard } from './core/guards/auth.guard';
 
 /**
@@ -56,6 +57,38 @@ export const routes: Routes = [
         path: 'athletes/:id/edit',
         loadComponent: () =>
           import('./features/athletes/athlete-form.component').then((m) => m.AthleteFormComponent),
+      },
+      {
+        path: 'calendar',
+        loadComponent: () =>
+          import('./features/calendar/calendar.component').then((m) => m.CalendarComponent),
+      },
+      {
+        path: 'athletes/:athleteId/activities',
+        loadComponent: () =>
+          import('./features/activities/activity-list.component').then((m) => m.ActivityListComponent),
+      },
+      {
+        path: 'athletes/:athleteId/workouts/new',
+        loadComponent: () =>
+          import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),
+      },
+      {
+        path: 'athletes/:athleteId/workouts/:workoutId/edit',
+        loadComponent: () =>
+          import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),
+      },
+    ],
+  },
+  {
+    path: 'athlete',
+    canActivate: [athleteGuard],
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'today' },
+      {
+        path: 'today',
+        loadComponent: () =>
+          import('./features/athlete/today.component').then((m) => m.TodayComponent),
       },
     ],
   },
