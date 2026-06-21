@@ -140,4 +140,11 @@ export class CalendarComponent implements OnInit {
   openWorkout(w: Workout): void {
     this.router.navigate(['/app/athletes', w.athleteId, 'workouts', w.id, 'edit']);
   }
+
+  /** Zones distinctes des étapes (ordre Z1→Z5) pour la mini-barre de la pastille. */
+  zonesOf(w: Workout): string[] {
+    const order = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
+    const present = new Set(w.steps.map((s) => s.zone).filter((z): z is NonNullable<typeof z> => !!z));
+    return order.filter((z) => present.has(z as never));
+  }
 }

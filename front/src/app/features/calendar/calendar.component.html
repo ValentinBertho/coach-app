@@ -46,6 +46,13 @@
               @if (w.targetDistanceM) {
                 <span class="metric w-metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span>
               }
+              @if (zonesOf(w).length) {
+                <span class="zone-bar">
+                  @for (z of zonesOf(w); track z) {
+                    <span class="zone-seg" [class]="'zone-' + z.toLowerCase()"></span>
+                  }
+                </span>
+              }
             </button>
           }
           <button type="button" class="add-btn" (click)="addWorkout(day.date)">+ Séance</button>
