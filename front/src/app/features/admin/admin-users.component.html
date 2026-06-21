@@ -1,0 +1,73 @@
+<section class="page-header">
+  <div><h1 class="display-sm">Utilisateurs</h1><p class="subtitle">Comptes, rôles et statuts.</p></div>
+</section>
+
+<div class="card" style="margin-bottom: var(--sp-5)">
+  <h2 style="margin-top:0;font-size:var(--text-lg)">Créer un utilisateur</h2>
+  <div class="form-row-3">
+    <div class="form-group"><label>Email</label><input class="form-control" [(ngModel)]="draft.email" /></div>
+    <div class="form-group"><label>Nom complet</label><input class="form-control" [(ngModel)]="draft.fullName" /></div>
+    <div class="form-group"><label>Mot de passe</label><input type="password" class="form-control" [(ngModel)]="draft.password" /></div>
+    <div class="form-group">
+      <label>Rôle</label>
+      <select class="form-control" [(ngModel)]="draft.role">
+        @for (r of roles; track r) { <option [value]="r">{{ roleLabels[r] }}</option> }
+      </select>
+    </div>
+    @if (needsClub(draft.role)) {
+      <div class="form-group">
+        <label>Club</label>
+        <select class="form-control" [(ngModel)]="draft.clubId">
+          <option value="">—</option>
+          @for (c of clubs(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+        </select>
+      </div>
+    }
+    <div class="form-group" style="justify-content:flex-end">
+      <button type="button" class="btn btn-primary" (click)="create()">+ Créer</button>
+    </div>
+  </div>
+</div>
+
+<div class="search-bar">
+  <select class="form-control" style="max-width:200px" [(ngModel)]="filterRole" (ngModelChange)="load()">
+    <option value="">Tous les rôles</option>
+    @for (r of roles; track r) { <option [value]="r">{{ roleLabels[r] }}</option> }
+  </select>
+  <input type="search" class="form-control" placeholder="Rechercher (email, nom)…" [(ngModel)]="search" (keyup.enter)="load()" />
+  <button type="button" class="btn btn-ghost" (click)="load()">Rechercher</button>
+</div>
+
+@if (loading()) {
+  <div class="card">Chargement…</div>
+} @else {
+  <div class="card table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Email</th><th>Nom</th><th>Rôle</th><th>Statut</th><th>Club</th><th></th></tr></thead>
+      <tbody>
+        @for (u of users(); track u.id) {
+          <tr>
+            <td>{{ u.email }}</td>
+            <td><input class="form-control" [(ngModel)]="u.fullName" /></td>
+            <td>
+              <select class="form-control" [(ngModel)]="u.role">
+                @for (r of roles; track r) { <option [value]="r">{{ roleLabels[r] }}</option> }
+              </select>
+            </td>
+            <td>
+              <select class="form-control" [(ngModel)]="u.status">
+                @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+              </select>
+            </td>
+            <td>{{ u.clubName || '—' }}</td>
+            <td class="table-actions">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="save(u)">Enregistrer</button>
+              <button type="button" class="btn btn-danger btn-sm" (click)="remove(u)">Suppr.</button>
+            </td>
+          </tr>
+        }
+        @if (users().length === 0) { <tr><td colspan="6">Aucun utilisateur.</td></tr> }
+      </tbody>
+    </table>
+  </div>
+}

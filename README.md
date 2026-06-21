@@ -56,6 +56,22 @@ La page d'accueil appelle `GET /api/public/ping` : si le statut s'affiche, front
 
 ---
 
+## 🎬 Comptes de démo
+
+En profil `dev`, un jeu de données complet est chargé automatiquement. Connexion (mot de passe `password123`) :
+
+| Rôle | Email |
+|---|---|
+| Admin plateforme | `admin@coachrun.fr` → `/admin` |
+| Responsable club | `demo@coachrun.fr` → `/app` |
+| Coach | `coach@coachrun.fr` → `/app` |
+| Athlète | `athlete@coachrun.fr` → `/athlete/today` |
+
+Réinitialiser l'état de démo (bouton « Réinitialiser la démo » dans `/admin`, ou `POST /api/admin/demo/reset`) :
+comptes, contenu et **procédure RAZ** détaillés dans [`docs/DEMO.md`](./docs/DEMO.md).
+
+---
+
 ## 🛠️ Développement local (sans Docker)
 
 ### Backend

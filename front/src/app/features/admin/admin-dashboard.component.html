@@ -1,0 +1,30 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">Administration</h1>
+    <p class="subtitle">Vue d'ensemble de la plateforme.</p>
+  </div>
+</section>
+
+@if (stats(); as s) {
+  <div class="stats-grid">
+    <div class="card stat-card"><span class="stat-label">Clubs</span><span class="metric stat-value">{{ s.clubs }}</span></div>
+    <div class="card stat-card"><span class="stat-label">Responsables</span><span class="metric stat-value">{{ s.headCoaches }}</span></div>
+    <div class="card stat-card"><span class="stat-label">Coachs</span><span class="metric stat-value">{{ s.coaches }}</span></div>
+    <div class="card stat-card"><span class="stat-label">Athlètes</span><span class="metric stat-value">{{ s.athletes }}</span></div>
+    <div class="card stat-card"><span class="stat-label">Invitations en attente</span><span class="metric stat-value">{{ s.pendingInvitations }}</span></div>
+    <div class="card stat-card"><span class="stat-label">Séances</span><span class="metric stat-value">{{ s.workouts }}</span></div>
+    <div class="card stat-card"><span class="stat-label">Activités</span><span class="metric stat-value">{{ s.activities }}</span></div>
+  </div>
+}
+
+@if (resetAvailable()) {
+  <div class="card danger-zone">
+    <div>
+      <strong>Réinitialiser la démo</strong>
+      <p class="field-hint">Efface toutes les données et recharge le jeu de démonstration.</p>
+    </div>
+    <button type="button" class="btn btn-danger" [disabled]="resetting()" (click)="resetDemo()">
+      {{ resetting() ? 'Réinitialisation…' : 'Réinitialiser la démo' }}
+    </button>
+  </div>
+}

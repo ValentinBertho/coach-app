@@ -1,0 +1,50 @@
+<section class="page-header">
+  <div><h1 class="display-sm">Clubs</h1><p class="subtitle">Gestion des clubs de la plateforme.</p></div>
+</section>
+
+<div class="card" style="margin-bottom: var(--sp-5)">
+  <div class="form-row">
+    <div class="form-group">
+      <label>Nouveau club</label>
+      <input class="form-control" [(ngModel)]="newName" placeholder="Nom du club" (keyup.enter)="create()" />
+    </div>
+    <div class="form-group" style="justify-content: flex-end">
+      <button type="button" class="btn btn-primary" (click)="create()">+ Créer le club</button>
+    </div>
+  </div>
+</div>
+
+<div class="search-bar">
+  <input type="search" class="form-control" placeholder="Rechercher…" [(ngModel)]="search" (keyup.enter)="load()" />
+  <button type="button" class="btn btn-ghost" (click)="load()">Rechercher</button>
+</div>
+
+@if (loading()) {
+  <div class="card">Chargement…</div>
+} @else {
+  <div class="card table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Nom</th><th>Slug</th><th>Statut</th><th></th></tr>
+      </thead>
+      <tbody>
+        @for (c of clubs(); track c.id) {
+          <tr>
+            <td><input class="form-control" [(ngModel)]="c.name" /></td>
+            <td>{{ c.slug }}</td>
+            <td>
+              <select class="form-control" [(ngModel)]="c.status">
+                @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+              </select>
+            </td>
+            <td class="table-actions">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="save(c)">Enregistrer</button>
+              <button type="button" class="btn btn-danger btn-sm" (click)="remove(c)">Suppr.</button>
+            </td>
+          </tr>
+        }
+        @if (clubs().length === 0) { <tr><td colspan="4">Aucun club.</td></tr> }
+      </tbody>
+    </table>
+  </div>
+}
