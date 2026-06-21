@@ -338,6 +338,29 @@ a {
 .alert-danger { background: var(--danger-bg); color: var(--danger-text); }
 .alert-info { background: var(--info-bg); color: var(--info-text); }
 
+.danger-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+  border: 1px solid var(--danger-bg);
+}
+
+/* --- Tables d'administration ---------------------------------------------- */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table th, .data-table td {
+  text-align: left;
+  padding: var(--sp-3);
+  border-bottom: 1px solid var(--paper-sunk);
+  font-size: var(--text-sm);
+  vertical-align: middle;
+}
+.data-table th { color: var(--ink-3); font-weight: 600; text-transform: uppercase; font-size: var(--text-xs); }
+.data-table .form-control { min-height: 38px; }
+.table-actions { display: flex; gap: var(--sp-2); justify-content: flex-end; }
+.table-wrap { overflow-x: auto; }
+
 .skeleton {
   background: linear-gradient(90deg, var(--paper-sunk) 25%, #e3e8f2 37%, var(--paper-sunk) 63%);
   background-size: 400% 100%;

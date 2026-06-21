@@ -1,0 +1,38 @@
+<section class="page-header">
+  <div><h1 class="display-sm">Athlètes</h1><p class="subtitle">Tous clubs confondus.</p></div>
+</section>
+
+<div class="search-bar">
+  <select class="form-control" style="max-width:220px" [(ngModel)]="filterClub" (ngModelChange)="load()">
+    <option value="">Tous les clubs</option>
+    @for (c of clubs(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+  </select>
+  <input type="search" class="form-control" placeholder="Rechercher…" [(ngModel)]="search" (keyup.enter)="load()" />
+  <button type="button" class="btn btn-ghost" (click)="load()">Rechercher</button>
+</div>
+
+@if (loading()) {
+  <div class="card">Chargement…</div>
+} @else {
+  <div class="card table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Athlète</th><th>Club</th><th>Niveau</th><th>Statut</th><th>Invitation</th><th></th></tr></thead>
+      <tbody>
+        @for (a of athletes(); track a.id) {
+          <tr>
+            <td>{{ a.firstName }} {{ a.lastName }}</td>
+            <td>{{ a.clubName }}</td>
+            <td>{{ a.level || '—' }}</td>
+            <td>{{ a.status }}</td>
+            <td>@if (a.invitationPending) { <span class="badge badge-info">En attente</span> } @else { — }</td>
+            <td class="table-actions">
+              <a class="btn btn-ghost btn-sm" [routerLink]="['/admin/athletes', a.id, 'edit']">Éditer</a>
+              <button type="button" class="btn btn-danger btn-sm" (click)="remove(a)">Suppr.</button>
+            </td>
+          </tr>
+        }
+        @if (athletes().length === 0) { <tr><td colspan="6">Aucun athlète.</td></tr> }
+      </tbody>
+    </table>
+  </div>
+}

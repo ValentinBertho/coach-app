@@ -32,11 +32,15 @@ export class LoginComponent {
     }
     this.submitting.set(true);
     this.auth.login(this.form.getRawValue()).subscribe({
-      next: () => {
+      next: (res) => {
         this.toast.success('Connexion réussie 👋');
-        this.router.navigate(['/app']);
+        this.router.navigateByUrl(this.homeFor(res.user.role));
       },
       error: () => this.submitting.set(false),
     });
+  }
+
+  private homeFor(role: string): string {
+    return role === 'PLATFORM_ADMIN' ? '/admin' : role === 'ATHLETE' ? '/athlete/today' : '/app';
   }
 }

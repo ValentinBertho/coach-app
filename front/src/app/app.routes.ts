@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { adminGuard } from './core/guards/admin.guard';
 import { athleteGuard } from './core/guards/athlete.guard';
 import { authGuard } from './core/guards/auth.guard';
 
@@ -89,6 +90,44 @@ export const routes: Routes = [
         path: 'today',
         loadComponent: () =>
           import('./features/athlete/today.component').then((m) => m.TodayComponent),
+      },
+    ],
+  },
+  {
+    path: 'admin',
+    canActivate: [adminGuard],
+    loadComponent: () =>
+      import('./features/admin/admin-layout.component').then((m) => m.AdminLayoutComponent),
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/admin/admin-dashboard.component').then((m) => m.AdminDashboardComponent),
+      },
+      {
+        path: 'clubs',
+        loadComponent: () =>
+          import('./features/admin/admin-clubs.component').then((m) => m.AdminClubsComponent),
+      },
+      {
+        path: 'users',
+        loadComponent: () =>
+          import('./features/admin/admin-users.component').then((m) => m.AdminUsersComponent),
+      },
+      {
+        path: 'athletes',
+        loadComponent: () =>
+          import('./features/admin/admin-athletes.component').then((m) => m.AdminAthletesComponent),
+      },
+      {
+        path: 'athletes/:id/edit',
+        loadComponent: () =>
+          import('./features/admin/admin-athlete-edit.component').then((m) => m.AdminAthleteEditComponent),
+      },
+      {
+        path: 'invitations',
+        loadComponent: () =>
+          import('./features/admin/admin-invitations.component').then((m) => m.AdminInvitationsComponent),
       },
     ],
   },

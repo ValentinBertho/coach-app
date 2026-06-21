@@ -1,0 +1,27 @@
+<section class="page-header">
+  <div><h1 class="display-sm">Invitations en attente</h1><p class="subtitle">Athlètes invités non encore connectés.</p></div>
+</section>
+
+@if (loading()) {
+  <div class="card">Chargement…</div>
+} @else if (invitations().length === 0) {
+  <div class="card empty-state"><h2>Aucune invitation en attente</h2></div>
+} @else {
+  <div class="card table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Athlète</th><th>Club</th><th>Expire le</th><th></th></tr></thead>
+      <tbody>
+        @for (inv of invitations(); track inv.athleteId) {
+          <tr>
+            <td>{{ inv.firstName }} {{ inv.lastName }}</td>
+            <td>{{ inv.clubName }}</td>
+            <td>{{ inv.expiresAt | date: 'dd/MM/yyyy' }}</td>
+            <td class="table-actions">
+              <button type="button" class="btn btn-danger btn-sm" (click)="revoke(inv)">Révoquer</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
