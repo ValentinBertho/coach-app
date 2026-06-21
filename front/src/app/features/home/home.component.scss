@@ -1,0 +1,50 @@
+.home {
+  padding-block: var(--sp-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+  animation: fadeIn var(--duration-slow) var(--ease);
+}
+
+.hero {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.subtitle {
+  color: var(--ink-3);
+  font-size: var(--text-lg);
+  margin: 0;
+}
+
+.status-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+code {
+  font-family: var(--font-mono);
+  background: var(--paper-sunk);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85em;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--paper-sunk);
+  border-top-color: var(--primary);
+  border-radius: var(--radius-full);
+  animation: spin 0.7s linear infinite;
+}

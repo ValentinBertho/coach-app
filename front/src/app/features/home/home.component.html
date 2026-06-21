@@ -1,0 +1,40 @@
+<main class="home container-narrow">
+  <header class="hero">
+    <span class="badge badge-info">Pace Design System</span>
+    <h1 class="display-md">CoachRun</h1>
+    <p class="subtitle">Plateforme de coaching course à pied — squelette technique.</p>
+  </header>
+
+  <section class="card status-card">
+    <h2>État de l'API</h2>
+
+    @switch (state()) {
+      @case ('loading') {
+        <div class="status-row">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Vérification de la connexion…</span>
+        </div>
+      }
+      @case ('ok') {
+        <div class="status-row">
+          <span class="badge badge-success">● En ligne</span>
+          <span class="metric">v{{ ping()?.version }}</span>
+        </div>
+        <p class="field-hint">
+          Réponse <code>/api/public/ping</code> : statut «&nbsp;{{ ping()?.status }}&nbsp;».
+          Le front et le back communiquent. ✅
+        </p>
+      }
+      @case ('error') {
+        <div class="status-row">
+          <span class="badge badge-danger">● Hors ligne</span>
+        </div>
+        <p class="field-hint">
+          Impossible de joindre l'API. Vérifiez que le backend est démarré
+          (<code>docker compose up</code> ou <code>mvn spring-boot:run</code>).
+        </p>
+        <button type="button" class="btn btn-primary btn-sm" (click)="checkApi()">Réessayer</button>
+      }
+    }
+  </section>
+</main>

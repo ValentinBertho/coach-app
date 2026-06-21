@@ -1,0 +1,8 @@
+<div class="toast-stack" role="status" aria-live="polite">
+  @for (toast of toasts(); track toast.id) {
+    <div class="toast" [class]="'toast-' + toast.level" (click)="dismiss(toast.id)">
+      <span class="toast-message">{{ toast.message }}</span>
+      <button type="button" class="toast-close" aria-label="Fermer">×</button>
+    </div>
+  }
+</div>
