@@ -1,7 +1,8 @@
 <div class="landing">
   <header class="topbar container-wide">
-    <span class="logo">CoachRun</span>
+    <app-logo [size]="32" [showText]="true" />
     <nav class="top-actions">
+      <app-install-button [ghost]="true" />
       @if (isAuthenticated()) {
         <a routerLink="/app" class="btn btn-primary btn-sm">Mon espace</a>
       } @else {

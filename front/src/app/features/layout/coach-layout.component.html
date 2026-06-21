@@ -1,27 +1,40 @@
 <div class="layout">
   <header class="topbar">
     <div class="brand">
-      <span class="logo">CoachRun</span>
+      <app-logo [size]="30" [showText]="true" />
       @if (user()?.clubName) {
-        <span class="badge badge-neutral">{{ user()?.clubName }}</span>
+        <span class="badge badge-neutral club-badge">{{ user()?.clubName }}</span>
       }
     </div>
 
-    <nav class="nav">
+    <nav class="nav desktop-only">
       <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Tableau de bord</a>
       <a routerLink="/app/athletes" routerLinkActive="active">Athlètes</a>
       <a routerLink="/app/calendar" routerLinkActive="active">Calendrier</a>
     </nav>
 
     <div class="user">
-      @if (user(); as u) {
-        <span class="user-name">{{ u.fullName }}</span>
-      }
+      @if (user(); as u) { <span class="user-name desktop-only">{{ u.fullName }}</span> }
       <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Déconnexion</button>
     </div>
   </header>
 
+  <app-offline-banner />
+
   <main class="content container-wide">
     <router-outlet />
   </main>
+
+  <!-- Bottom nav (mobile) -->
+  <nav class="bottom-nav mobile-only">
+    <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <span class="bn-ic">🏠</span><span class="bn-lb">Accueil</span>
+    </a>
+    <a routerLink="/app/athletes" routerLinkActive="active">
+      <span class="bn-ic">👥</span><span class="bn-lb">Athlètes</span>
+    </a>
+    <a routerLink="/app/calendar" routerLinkActive="active">
+      <span class="bn-ic">📅</span><span class="bn-lb">Calendrier</span>
+    </a>
+  </nav>
 </div>

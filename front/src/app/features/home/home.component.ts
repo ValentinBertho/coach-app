@@ -5,6 +5,8 @@ import { Ping } from '../../core/models/ping.model';
 import { AuthService } from '../../core/services/auth.service';
 import { PingService } from '../../core/services/ping.service';
 import { ToastService } from '../../core/services/toast.service';
+import { InstallButtonComponent } from '../../shared/components/install-button/install-button.component';
+import { LogoComponent } from '../../shared/components/logo/logo.component';
 
 type PingState = 'loading' | 'ok' | 'error';
 
@@ -16,7 +18,7 @@ type PingState = 'loading' | 'ok' | 'error';
   selector: 'app-home',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, LogoComponent, InstallButtonComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
 })
