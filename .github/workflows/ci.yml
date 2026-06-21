@@ -1,0 +1,103 @@
+# ============================================================================
+# CI CoachRun — backend (verify + smoke test Liquibase/PostgreSQL) & frontend.
+# ============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Backend : build + tests (Liquibase sur H2) puis smoke test de démarrage
+  # contre un PostgreSQL éphémère (valide les migrations via /actuator/health).
+  # --------------------------------------------------------------------------
+  backend:
+    name: Backend (Spring Boot)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: back
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: coachrun
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Build & test (Liquibase sur H2)
+        run: mvn -B -ntp clean verify
+
+      - name: Smoke test démarrage (PostgreSQL éphémère + Liquibase)
+        env:
+          SPRING_PROFILES_ACTIVE: prod
+          JDBC_DATABASE_URL: jdbc:postgresql://localhost:5432/coachrun
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          JWT_SECRET: ci-smoke-test-secret-not-for-production-rotate-me-aaaaaaaaaaaaaaaa
+          FIELD_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          CORS_ORIGINS: http://localhost:4200
+          FRONTEND_URL: http://localhost:4200
+        run: |
+          java -jar target/coachrun-back.jar &
+          APP_PID=$!
+          echo "Attente du démarrage (migrations Liquibase sur PostgreSQL)…"
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:8080/api/actuator/health | grep -q '"status":"UP"'; then
+              echo "✅ /api/actuator/health = UP"
+              curl -fsS http://localhost:8080/api/public/ping
+              kill "$APP_PID"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "❌ Le backend n'est pas devenu sain à temps."
+          kill "$APP_PID" || true
+          exit 1
+
+  # --------------------------------------------------------------------------
+  # Frontend : install + build de production (typecheck AOT).
+  # --------------------------------------------------------------------------
+  frontend:
+    name: Frontend (Angular)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: front
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (production, AOT)
+        run: npm run build
