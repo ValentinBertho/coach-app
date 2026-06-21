@@ -10,4 +10,6 @@ import java.util.UUID;
  * (cf. Claude.md : toujours scoper par clubId, jamais de findById nu sur les ressources tenant).
  */
 public interface ClubRepository extends JpaRepository<Club, UUID> {
+
+    boolean existsBySlug(String slug);
 }

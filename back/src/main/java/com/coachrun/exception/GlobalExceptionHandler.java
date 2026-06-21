@@ -22,6 +22,12 @@ import java.util.UUID;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<ApiError> handleApi(ApiException ex, HttpServletRequest request) {
+        ApiError error = ApiError.of(ex.getStatus().value(), ex.getMessage(), request.getRequestURI());
+        return ResponseEntity.status(ex.getStatus()).body(error);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(MethodArgumentNotValidException ex,
                                                      HttpServletRequest request) {
