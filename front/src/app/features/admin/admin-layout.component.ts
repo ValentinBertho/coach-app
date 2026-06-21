@@ -2,13 +2,15 @@ import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/cor
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { LogoComponent } from '../../shared/components/logo/logo.component';
+import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
 
 /** Coquille du back office admin : en-tête + navigation + router-outlet. */
 @Component({
   selector: 'app-admin-layout',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, LogoComponent, OfflineBannerComponent],
   templateUrl: './admin-layout.component.html',
   styleUrl: './admin-layout.component.scss',
 })

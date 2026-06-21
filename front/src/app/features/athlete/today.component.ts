@@ -10,7 +10,12 @@ import {
 } from '../../core/models/workout.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { AuthService } from '../../core/services/auth.service';
+import { FeedbackQueueService } from '../../core/services/feedback-queue.service';
+import { NetworkStatusService } from '../../core/services/network-status.service';
 import { ToastService } from '../../core/services/toast.service';
+import { InstallButtonComponent } from '../../shared/components/install-button/install-button.component';
+import { LogoComponent } from '../../shared/components/logo/logo.component';
+import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
 
 type State = 'loading' | 'ready' | 'error';
 
@@ -22,7 +27,7 @@ type State = 'loading' | 'ready' | 'error';
   selector: 'app-today',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [FormsModule, LogoComponent, InstallButtonComponent, OfflineBannerComponent],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',
 })
@@ -31,6 +36,8 @@ export class TodayComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly network = inject(NetworkStatusService);
+  private readonly queue = inject(FeedbackQueueService);
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
   readonly stepLabels = STEP_TYPE_LABELS;
@@ -71,18 +78,32 @@ export class TodayComponent implements OnInit {
   submit(completed: boolean): void {
     const w = this.workout();
     if (!w) return;
-    this.portal
-      .feedback(w.id, {
-        status: completed ? 'COMPLETED' : 'PARTIAL',
-        rpe: this.rpe,
-        comment: this.comment || null,
-      })
-      .subscribe({
-        next: (updated) => {
-          this.workout.set(updated);
-          this.toast.success('Ressenti enregistré 🎉');
-        },
-      });
+    const body = {
+      status: (completed ? 'COMPLETED' : 'PARTIAL') as 'COMPLETED' | 'PARTIAL',
+      rpe: this.rpe,
+      comment: this.comment || null,
+    };
+
+    // Hors ligne : mise à jour optimiste + mise en file (sync au retour réseau).
+    if (!this.network.online()) {
+      this.queue.enqueue(w.id, body);
+      this.workout.set({ ...w, status: body.status, rpe: this.rpe, athleteComment: this.comment || null });
+      this.toast.info('Enregistré hors ligne — synchronisé au retour du réseau.');
+      return;
+    }
+
+    this.portal.feedback(w.id, body).subscribe({
+      next: (updated) => {
+        this.workout.set(updated);
+        this.toast.success('Ressenti enregistré 🎉');
+      },
+      error: () => {
+        // Échec réseau : on met en file pour réessayer plus tard.
+        this.queue.enqueue(w.id, body);
+        this.workout.set({ ...w, status: body.status, rpe: this.rpe, athleteComment: this.comment || null });
+        this.toast.warning('Hors ligne — ressenti mis en file pour synchronisation.');
+      },
+    });
   }
 
   logout(): void {

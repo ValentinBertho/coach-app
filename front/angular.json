@@ -30,6 +30,10 @@
             "inlineStyleLanguage": "scss",
             "assets": [
               "src/favicon.ico",
+              "src/favicon.svg",
+              "src/favicon-16.png",
+              "src/favicon-32.png",
+              "src/apple-touch-icon.png",
               "src/assets",
               "src/manifest.webmanifest"
             ],
@@ -98,6 +102,10 @@
             "inlineStyleLanguage": "scss",
             "assets": [
               "src/favicon.ico",
+              "src/favicon.svg",
+              "src/favicon-16.png",
+              "src/favicon-32.png",
+              "src/apple-touch-icon.png",
               "src/assets",
               "src/manifest.webmanifest"
             ],

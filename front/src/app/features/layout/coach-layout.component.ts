@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/cor
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { LogoComponent } from '../../shared/components/logo/logo.component';
+import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
 
 /**
  * Coquille de l'espace coach : en-tête (club, utilisateur, déconnexion), navigation,
@@ -11,7 +13,7 @@ import { ToastService } from '../../core/services/toast.service';
   selector: 'app-coach-layout',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, LogoComponent, OfflineBannerComponent],
   templateUrl: './coach-layout.component.html',
   styleUrl: './coach-layout.component.scss',
 })

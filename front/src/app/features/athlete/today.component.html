@@ -1,8 +1,13 @@
 <div class="athlete-shell">
   <header class="athlete-top">
-    <span class="logo">CoachRun</span>
-    <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Quitter</button>
+    <app-logo [size]="28" [showText]="true" />
+    <div class="top-actions">
+      <app-install-button [ghost]="true" />
+      <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Quitter</button>
+    </div>
   </header>
+
+  <app-offline-banner />
 
   <main class="athlete-main">
     <h1 class="display-sm">Séance du jour</h1>

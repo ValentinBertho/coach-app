@@ -1,6 +1,7 @@
 <div class="layout">
   <header class="topbar">
     <div class="brand">
+      <app-logo [size]="28" [showText]="false" />
       <span class="logo">CoachRun</span>
       <span class="badge badge-danger">Admin</span>
     </div>
@@ -16,6 +17,8 @@
       <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Déconnexion</button>
     </div>
   </header>
+
+  <app-offline-banner />
 
   <main class="content container-wide">
     <router-outlet />
