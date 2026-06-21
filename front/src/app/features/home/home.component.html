@@ -2,7 +2,16 @@
   <header class="hero">
     <span class="badge badge-info">Pace Design System</span>
     <h1 class="display-md">CoachRun</h1>
-    <p class="subtitle">Plateforme de coaching course à pied — squelette technique.</p>
+    <p class="subtitle">Plateforme de coaching course à pied.</p>
+
+    <div class="cta">
+      @if (isAuthenticated()) {
+        <a routerLink="/app" class="btn btn-primary btn-lg">Mon espace coach</a>
+      } @else {
+        <a routerLink="/register" class="btn btn-primary btn-lg">Créer mon club</a>
+        <a routerLink="/login" class="btn btn-ghost btn-lg">Se connecter</a>
+      }
+    </div>
   </header>
 
   <section class="card status-card">

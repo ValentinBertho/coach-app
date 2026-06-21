@@ -1,0 +1,73 @@
+# ============================================================================
+# 003 — Table "athletes". Données physiologiques/médicales chiffrées au repos
+# (stockées en VARCHAR : ciphertext base64). Scoping par club_id.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-athletes
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: athletes
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: club_id
+                  type: UUID
+                  constraints: { nullable: false }
+              - column:
+                  name: first_name
+                  type: VARCHAR(120)
+                  constraints: { nullable: false }
+              - column:
+                  name: last_name
+                  type: VARCHAR(120)
+                  constraints: { nullable: false }
+              - column: { name: email, type: VARCHAR(255) }
+              - column: { name: birth_date, type: DATE }
+              - column: { name: sex, type: VARCHAR(16) }
+              - column: { name: level, type: VARCHAR(16) }
+              - column:
+                  name: status
+                  type: VARCHAR(16)
+                  constraints: { nullable: false }
+              - column: { name: hr_max, type: VARCHAR(255) }
+              - column: { name: hr_rest, type: VARCHAR(255) }
+              - column: { name: vma, type: VARCHAR(255) }
+              - column: { name: weight_kg, type: VARCHAR(255) }
+              - column: { name: medical_notes, type: VARCHAR(4096) }
+              - column: { name: invite_token, type: VARCHAR(64) }
+              - column: { name: invite_expires_at, type: TIMESTAMP }
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  constraints: { nullable: false }
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  constraints: { nullable: false }
+              - column:
+                  name: version
+                  type: BIGINT
+                  defaultValueNumeric: 0
+                  constraints: { nullable: false }
+        - addForeignKeyConstraint:
+            constraintName: fk_athletes_club
+            baseTableName: athletes
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_athletes_club_status
+            tableName: athletes
+            columns:
+              - column: { name: club_id }
+              - column: { name: status }
+        - addUniqueConstraint:
+            constraintName: uk_athletes_invite_token
+            tableName: athletes
+            columnNames: invite_token

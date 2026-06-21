@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { Ping } from '../../core/models/ping.model';
+import { AuthService } from '../../core/services/auth.service';
 import { PingService } from '../../core/services/ping.service';
 import { ToastService } from '../../core/services/toast.service';
 
@@ -14,13 +16,17 @@ type PingState = 'loading' | 'ok' | 'error';
   selector: 'app-home',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterLink],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
 })
 export class HomeComponent implements OnInit, OnDestroy {
   private readonly pingService = inject(PingService);
   private readonly toast = inject(ToastService);
+  private readonly auth = inject(AuthService);
   private readonly destroy$ = new Subject<void>();
+
+  readonly isAuthenticated = this.auth.isAuthenticated;
 
   readonly state = signal<PingState>('loading');
   readonly ping = signal<Ping | null>(null);

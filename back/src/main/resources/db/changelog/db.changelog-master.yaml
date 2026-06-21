@@ -5,3 +5,7 @@
 databaseChangeLog:
   - include:
       file: db/changelog/changes/001-create-clubs.yaml
+  - include:
+      file: db/changelog/changes/002-create-users.yaml
+  - include:
+      file: db/changelog/changes/003-create-athletes.yaml

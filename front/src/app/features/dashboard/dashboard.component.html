@@ -1,0 +1,29 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">Bonjour {{ user()?.fullName || 'Coach' }} 👋</h1>
+    <p class="subtitle">Voici votre espace de coaching.</p>
+  </div>
+</section>
+
+<div class="stats-grid">
+  <div class="card stat-card">
+    <span class="stat-label">Athlètes actifs</span>
+    <span class="metric stat-value">—</span>
+  </div>
+  <div class="card stat-card">
+    <span class="stat-label">Séances à valider</span>
+    <span class="metric stat-value">—</span>
+  </div>
+  <div class="card stat-card">
+    <span class="stat-label">Charge moyenne</span>
+    <span class="metric stat-value">—</span>
+  </div>
+</div>
+
+<div class="card next-step card-interactive" routerLink="/app/athletes">
+  <div>
+    <h2>Gérer mes athlètes</h2>
+    <p class="field-hint">Créez vos athlètes, renseignez leur profil et invitez-les par lien.</p>
+  </div>
+  <span class="btn btn-primary">Ouvrir →</span>
+</div>

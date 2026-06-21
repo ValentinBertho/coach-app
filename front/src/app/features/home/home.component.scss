@@ -20,6 +20,14 @@
   margin: 0;
 }
 
+.cta {
+  display: flex;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 .status-card {
   display: flex;
   flex-direction: column;

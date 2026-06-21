@@ -1,0 +1,98 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">{{ isEdit ? 'Modifier l\'athlète' : 'Nouvel athlète' }}</h1>
+    <p class="subtitle">Profil et données physiologiques.</p>
+  </div>
+  <a routerLink="/app/athletes" class="btn btn-ghost">Annuler</a>
+</section>
+
+@if (loading()) {
+  <div class="card">Chargement…</div>
+} @else {
+  <form class="card form-card" [formGroup]="form" (ngSubmit)="submit()">
+    <h2>Identité</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="firstName">Prénom *</label>
+        <input id="firstName" class="form-control" formControlName="firstName" />
+        @if (form.controls.firstName.touched && form.controls.firstName.invalid) {
+          <span class="error-message">Prénom requis.</span>
+        }
+      </div>
+      <div class="form-group">
+        <label for="lastName">Nom *</label>
+        <input id="lastName" class="form-control" formControlName="lastName" />
+        @if (form.controls.lastName.touched && form.controls.lastName.invalid) {
+          <span class="error-message">Nom requis.</span>
+        }
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input id="email" type="email" class="form-control" formControlName="email" />
+      </div>
+      <div class="form-group">
+        <label for="birthDate">Date de naissance</label>
+        <input id="birthDate" type="date" class="form-control" formControlName="birthDate" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="sex">Sexe</label>
+        <select id="sex" class="form-control" formControlName="sex">
+          <option value="">—</option>
+          <option value="FEMALE">Femme</option>
+          <option value="MALE">Homme</option>
+          <option value="OTHER">Autre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="level">Niveau</label>
+        <select id="level" class="form-control" formControlName="level">
+          <option value="">—</option>
+          <option value="BEGINNER">Débutant</option>
+          <option value="INTERMEDIATE">Intermédiaire</option>
+          <option value="ADVANCED">Avancé</option>
+          <option value="ELITE">Élite</option>
+        </select>
+      </div>
+    </div>
+
+    <h2>Données physiologiques <span class="badge badge-neutral">🔒 chiffrées</span></h2>
+    <div class="form-row-3">
+      <div class="form-group">
+        <label for="hrMax">FC max (bpm)</label>
+        <input id="hrMax" type="number" class="form-control" formControlName="hrMax" />
+      </div>
+      <div class="form-group">
+        <label for="hrRest">FC repos (bpm)</label>
+        <input id="hrRest" type="number" class="form-control" formControlName="hrRest" />
+      </div>
+      <div class="form-group">
+        <label for="vma">VMA (km/h)</label>
+        <input id="vma" type="number" step="0.1" class="form-control" formControlName="vma" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="weightKg">Poids (kg)</label>
+        <input id="weightKg" type="number" step="0.1" class="form-control" formControlName="weightKg" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="medicalNotes">Antécédents / blessures</label>
+      <textarea id="medicalNotes" class="form-control" rows="3" formControlName="medicalNotes"></textarea>
+      <span class="field-hint">Donnée de santé sensible — chiffrée au repos.</span>
+    </div>
+
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
+        {{ submitting() ? 'Enregistrement…' : (isEdit ? 'Enregistrer' : 'Créer l\'athlète') }}
+      </button>
+    </div>
+  </form>
+}

@@ -1,0 +1,40 @@
+.auth-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+  background: radial-gradient(120% 120% at 50% 0%, var(--primary-wash), var(--canvas) 60%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  animation: slideInUp var(--duration-slow) var(--ease);
+}
+
+.auth-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  text-align: center;
+}
+
+.auth-head h1 {
+  margin: var(--sp-2) 0 0;
+}
+
+.btn-lg {
+  width: 100%;
+}
+
+.auth-switch {
+  text-align: center;
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}

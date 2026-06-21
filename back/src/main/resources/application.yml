@@ -44,6 +44,7 @@ springdoc:
 
 app:
   version: @project.version@
+  frontend-url: ${FRONTEND_URL:http://localhost:4200}
   cors:
     origins: ${CORS_ORIGINS:http://localhost:4200}
   security:
