@@ -64,6 +64,13 @@ public class Workout extends BaseEntity {
     @Column(name = "target_duration_s")
     private Integer targetDurationS;
 
+    /** Feedback athlète (ressenti d'effort 1–10 + commentaire). */
+    @Column(name = "rpe")
+    private Integer rpe;
+
+    @Column(name = "athlete_comment", length = 1024)
+    private String athleteComment;
+
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderIndex ASC")
     private List<WorkoutStep> steps = new ArrayList<>();

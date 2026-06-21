@@ -45,4 +45,9 @@ public class User extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "club_id")
     private Club club;
+
+    /** Présent uniquement pour les comptes ATHLETE (onboarding par lien magique). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "athlete_id")
+    private Athlete athlete;
 }

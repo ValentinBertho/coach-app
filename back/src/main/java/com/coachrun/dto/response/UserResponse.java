@@ -12,7 +12,8 @@ public record UserResponse(
         String fullName,
         UserRole role,
         UUID clubId,
-        String clubName) {
+        String clubName,
+        UUID athleteId) {
 
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -21,6 +22,7 @@ public record UserResponse(
                 user.getFullName(),
                 user.getRole(),
                 user.getClub() != null ? user.getClub().getId() : null,
-                user.getClub() != null ? user.getClub().getName() : null);
+                user.getClub() != null ? user.getClub().getName() : null,
+                user.getAthlete() != null ? user.getAthlete().getId() : null);
     }
 }

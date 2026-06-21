@@ -65,9 +65,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private AuthPrincipal toPrincipal(Claims claims) {
         String clubId = claims.get("clubId", String.class);
+        String athleteId = claims.get("athleteId", String.class);
         return new AuthPrincipal(
                 UUID.fromString(claims.getSubject()),
                 clubId != null ? UUID.fromString(clubId) : null,
+                athleteId != null ? UUID.fromString(athleteId) : null,
                 claims.get("email", String.class),
                 UserRole.valueOf(claims.get("role", String.class)));
     }

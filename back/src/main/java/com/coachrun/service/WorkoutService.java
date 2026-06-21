@@ -83,6 +83,36 @@ public class WorkoutService {
         workoutRepository.delete(workout);
     }
 
+    // ----- Portail athlète (scoping par athleteId du principal) -----
+
+    public List<WorkoutResponse> todayForAthlete(UUID athleteId, LocalDate date) {
+        return workoutRepository.findByAthleteIdAndScheduledDateOrderByCreatedAtAsc(athleteId, date)
+                .stream().map(WorkoutResponse::from).toList();
+    }
+
+    public List<WorkoutResponse> athleteCalendar(UUID athleteId, LocalDate from, LocalDate to) {
+        return workoutRepository
+                .findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(athleteId, from, to)
+                .stream().map(WorkoutResponse::from).toList();
+    }
+
+    @Transactional
+    public WorkoutResponse submitFeedback(UUID athleteId, UUID workoutId,
+                                          WorkoutStatus status, Integer rpe, String comment) {
+        Workout workout = workoutRepository.findByIdAndAthleteId(workoutId, athleteId)
+                .orElseThrow(() -> new NotFoundException("Séance introuvable."));
+        if (status != null) {
+            if (!workout.getStatus().canTransitionTo(status)) {
+                throw new ConflictException(
+                        "Transition de statut interdite : " + workout.getStatus() + " → " + status);
+            }
+            workout.setStatus(status);
+        }
+        workout.setRpe(rpe);
+        workout.setAthleteComment(comment);
+        return WorkoutResponse.from(workout);
+    }
+
     private Workout require(UUID clubId, UUID workoutId) {
         return workoutRepository.findByIdAndClubId(workoutId, clubId)
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));

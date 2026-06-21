@@ -18,6 +18,8 @@ public record WorkoutResponse(
         String notes,
         Integer targetDistanceM,
         Integer targetDurationS,
+        Integer rpe,
+        String athleteComment,
         List<WorkoutStepResponse> steps) {
 
     public static WorkoutResponse from(Workout w) {
@@ -31,6 +33,8 @@ public record WorkoutResponse(
                 w.getNotes(),
                 w.getTargetDistanceM(),
                 w.getTargetDurationS(),
+                w.getRpe(),
+                w.getAthleteComment(),
                 w.getSteps().stream().map(WorkoutStepResponse::from).toList());
     }
 }

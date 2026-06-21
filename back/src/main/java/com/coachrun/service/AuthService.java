@@ -5,13 +5,17 @@ import com.coachrun.dto.request.RefreshRequest;
 import com.coachrun.dto.request.RegisterRequest;
 import com.coachrun.dto.response.AuthResponse;
 import com.coachrun.dto.response.UserResponse;
+import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Club;
 import com.coachrun.entity.User;
+import com.coachrun.entity.enums.AthleteStatus;
 import com.coachrun.entity.enums.ClubStatus;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.entity.enums.UserStatus;
 import com.coachrun.exception.ConflictException;
+import com.coachrun.exception.NotFoundException;
 import com.coachrun.exception.UnauthorizedException;
+import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.ClubRepository;
 import com.coachrun.repository.UserRepository;
 import com.coachrun.security.JwtService;
@@ -37,6 +41,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final ClubRepository clubRepository;
+    private final AthleteRepository athleteRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
@@ -91,6 +96,34 @@ public class AuthService {
         }
         User user = userRepository.findById(UUID.fromString(claims.getSubject()))
                 .orElseThrow(() -> new UnauthorizedException("Compte introuvable."));
+        return toAuthResponse(user);
+    }
+
+    /**
+     * Onboarding athlète par lien magique : valide le token, crée (ou réutilise) le compte
+     * ATHLETE rattaché à l'athlète, puis émet les jetons. Sans mot de passe.
+     */
+    @Transactional
+    public AuthResponse acceptInvitation(String token) {
+        Athlete athlete = athleteRepository.findByInviteToken(token)
+                .filter(a -> a.getInviteExpiresAt() != null
+                        && a.getInviteExpiresAt().isAfter(java.time.Instant.now()))
+                .orElseThrow(() -> new NotFoundException("Invitation invalide ou expirée."));
+
+        User user = userRepository.findByAthleteId(athlete.getId()).orElseGet(() -> {
+            User u = new User();
+            u.setEmail("ath-" + athlete.getId() + "@athlete.coachrun.local");
+            u.setFullName(athlete.getFirstName() + " " + athlete.getLastName());
+            u.setRole(UserRole.ATHLETE);
+            u.setStatus(UserStatus.ACTIVE);
+            u.setClub(athlete.getClub());
+            u.setAthlete(athlete);
+            return userRepository.save(u);
+        });
+
+        athlete.setStatus(AthleteStatus.ACTIVE);
+        athlete.setInviteToken(null);
+        athlete.setInviteExpiresAt(null);
         return toAuthResponse(user);
     }
 
