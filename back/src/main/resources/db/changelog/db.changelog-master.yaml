@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/changes/004-create-workouts.yaml
   - include:
       file: db/changelog/changes/005-athlete-portal.yaml
+  - include:
+      file: db/changelog/changes/006-create-activities.yaml
