@@ -1,0 +1,80 @@
+.layout {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-3) var(--sp-6);
+  background: var(--paper);
+  border-bottom: 1px solid var(--paper-sunk);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.logo {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-xl);
+  color: var(--primary);
+}
+
+.nav {
+  display: flex;
+  gap: var(--sp-2);
+  margin-right: auto;
+}
+
+.nav a {
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-full);
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.nav a.active {
+  background: var(--primary-wash);
+  color: var(--primary);
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.user-name {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.content {
+  flex: 1;
+  padding-block: var(--sp-8);
+}
+
+@media (max-width: 768px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: var(--sp-3);
+  }
+  .nav {
+    order: 3;
+    width: 100%;
+    margin-right: 0;
+  }
+  .user-name {
+    display: none;
+  }
+}

@@ -1,0 +1,53 @@
+<main class="auth-page">
+  <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
+    <header class="auth-head">
+      <span class="badge badge-info">CoachRun</span>
+      <h1 class="display-sm">Créer votre club</h1>
+      <p class="field-hint">Quelques secondes pour démarrer le coaching.</p>
+    </header>
+
+    <div class="form-group">
+      <label for="fullName">Votre nom</label>
+      <input id="fullName" type="text" class="form-control" formControlName="fullName"
+             autocomplete="name" placeholder="Jean Dupont" />
+      @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
+        <span class="error-message">Nom requis.</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="clubName">Nom du club</label>
+      <input id="clubName" type="text" class="form-control" formControlName="clubName"
+             placeholder="Running Club Lyon" />
+      @if (form.controls.clubName.touched && form.controls.clubName.invalid) {
+        <span class="error-message">Nom du club requis.</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input id="email" type="email" class="form-control" formControlName="email"
+             autocomplete="email" placeholder="vous@club.fr" />
+      @if (form.controls.email.touched && form.controls.email.invalid) {
+        <span class="error-message">Email valide requis.</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="password">Mot de passe</label>
+      <input id="password" type="password" class="form-control" formControlName="password"
+             autocomplete="new-password" placeholder="8 caractères minimum" />
+      @if (form.controls.password.touched && form.controls.password.invalid) {
+        <span class="error-message">8 caractères minimum.</span>
+      }
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
+      {{ submitting() ? 'Création…' : 'Créer mon club' }}
+    </button>
+
+    <p class="auth-switch">
+      Déjà inscrit ? <a routerLink="/login">Se connecter</a>
+    </p>
+  </form>
+</main>

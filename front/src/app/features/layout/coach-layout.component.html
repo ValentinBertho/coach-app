@@ -1,0 +1,26 @@
+<div class="layout">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">CoachRun</span>
+      @if (user()?.clubName) {
+        <span class="badge badge-neutral">{{ user()?.clubName }}</span>
+      }
+    </div>
+
+    <nav class="nav">
+      <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Tableau de bord</a>
+      <a routerLink="/app/athletes" routerLinkActive="active">Athlètes</a>
+    </nav>
+
+    <div class="user">
+      @if (user(); as u) {
+        <span class="user-name">{{ u.fullName }}</span>
+      }
+      <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Déconnexion</button>
+    </div>
+  </header>
+
+  <main class="content container-wide">
+    <router-outlet />
+  </main>
+</div>

@@ -1,0 +1,35 @@
+<main class="auth-page">
+  <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
+    <header class="auth-head">
+      <span class="badge badge-info">CoachRun</span>
+      <h1 class="display-sm">Connexion coach</h1>
+      <p class="field-hint">Accédez à votre espace d'entraînement.</p>
+    </header>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input id="email" type="email" class="form-control" formControlName="email"
+             autocomplete="email" placeholder="vous@club.fr" />
+      @if (form.controls.email.touched && form.controls.email.invalid) {
+        <span class="error-message">Email valide requis.</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="password">Mot de passe</label>
+      <input id="password" type="password" class="form-control" formControlName="password"
+             autocomplete="current-password" placeholder="••••••••" />
+      @if (form.controls.password.touched && form.controls.password.invalid) {
+        <span class="error-message">Mot de passe requis.</span>
+      }
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
+      {{ submitting() ? 'Connexion…' : 'Se connecter' }}
+    </button>
+
+    <p class="auth-switch">
+      Pas encore de compte ? <a routerLink="/register">Créer un club</a>
+    </p>
+  </form>
+</main>

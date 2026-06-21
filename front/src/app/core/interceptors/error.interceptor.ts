@@ -23,7 +23,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
             toast.error('Connexion impossible — vérifiez votre réseau.');
             break;
           case 401:
-            auth.clear();
+            auth.logout();
             toast.error('Session expirée, veuillez vous reconnecter.');
             break;
           case 403:
