@@ -32,6 +32,7 @@ public class WorkoutService {
 
     private final WorkoutRepository workoutRepository;
     private final AthleteRepository athleteRepository;
+    private final NotificationService notificationService;
 
     public List<WorkoutResponse> calendar(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         return workoutRepository
@@ -56,6 +57,7 @@ public class WorkoutService {
 
         workout = workoutRepository.save(workout);
         log.info("Séance créée {} (athlète={})", workout.getId(), athleteId);
+        notificationService.notifyWorkoutPlanned(workout);
         return WorkoutResponse.from(workout);
     }
 
@@ -110,6 +112,7 @@ public class WorkoutService {
         }
         workout.setRpe(rpe);
         workout.setAthleteComment(comment);
+        notificationService.notifyAthleteFeedback(workout);
         return WorkoutResponse.from(workout);
     }
 

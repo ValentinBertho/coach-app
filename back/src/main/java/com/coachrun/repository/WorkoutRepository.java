@@ -1,6 +1,7 @@
 package com.coachrun.repository;
 
 import com.coachrun.entity.Workout;
+import com.coachrun.entity.enums.WorkoutStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -10,6 +11,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
+
+    /** Job de rappel J-1 (tous clubs). Athlète chargé pour l'email. */
+    @EntityGraph(attributePaths = "athlete")
+    List<Workout> findByScheduledDateAndStatus(LocalDate date, WorkoutStatus status);
 
     /** Plage de dates d'un athlète (calendrier), étapes incluses. Scoping tenant. */
     @EntityGraph(attributePaths = "steps")

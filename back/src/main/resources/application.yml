@@ -54,3 +54,5 @@ app:
     field-encryption-key: ${FIELD_ENCRYPTION_KEY:0000000000000000000000000000000000000000000000000000000000000000}
   mail:
     enabled: ${MAIL_ENABLED:false}
+    resend-api-key: ${RESEND_API_KEY:}
+    from: ${MAIL_FROM:CoachRun <no-reply@coachrun.fr>}
