@@ -1,0 +1,64 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">Activités réalisées</h1>
+    <p class="subtitle">Import manuel et rapprochement prévu/réalisé.</p>
+  </div>
+  <a [routerLink]="['/app/athletes', athleteId()]" class="btn btn-ghost">← Fiche athlète</a>
+</section>
+
+<form class="card import-form" [formGroup]="form" (ngSubmit)="import()">
+  <h2>Importer une activité</h2>
+  <div class="import-grid">
+    <div class="form-group">
+      <label for="d">Date *</label>
+      <input id="d" type="date" class="form-control" formControlName="activityDate" />
+    </div>
+    <div class="form-group">
+      <label for="t">Titre</label>
+      <input id="t" class="form-control" formControlName="title" placeholder="Footing matin" />
+    </div>
+    <div class="form-group">
+      <label for="dist">Distance (m)</label>
+      <input id="dist" type="number" class="form-control" formControlName="distanceM" />
+    </div>
+    <div class="form-group">
+      <label for="dur">Durée (s)</label>
+      <input id="dur" type="number" class="form-control" formControlName="durationS" />
+    </div>
+    <div class="form-group">
+      <label for="hr">FC moy.</label>
+      <input id="hr" type="number" class="form-control" formControlName="avgHr" />
+    </div>
+    <button type="submit" class="btn btn-primary" [disabled]="submitting()">Importer</button>
+  </div>
+  <p class="field-hint">Le rapprochement avec la séance prévue (±1 jour) est automatique.</p>
+</form>
+
+@if (loading()) {
+  <div class="card">Chargement…</div>
+} @else if (activities().length === 0) {
+  <div class="card empty">Aucune activité importée pour l'instant.</div>
+} @else {
+  <div class="activity-list">
+    @for (a of activities(); track a.id) {
+      <div class="card activity-row">
+        <div class="a-main">
+          <span class="badge" [class]="statusBadge[a.status]">{{ statusLabels[a.status] }}</span>
+          <div>
+            <div class="a-title">{{ a.title || 'Activité' }} · {{ a.source }}</div>
+            <div class="field-hint">{{ a.activityDate }}</div>
+          </div>
+        </div>
+        <div class="a-metrics">
+          <span class="metric">{{ km(a.distanceM) }}</span>
+          @if (a.status === 'MATCHED' && a.distanceDeltaM != null) {
+            <span class="metric delta" [class.neg]="a.distanceDeltaM < 0">{{ delta(a.distanceDeltaM) }} vs prévu</span>
+          }
+        </div>
+        @if (a.status === 'MATCHED') {
+          <button type="button" class="btn btn-ghost btn-sm" (click)="unmatch(a)">Détacher</button>
+        }
+      </div>
+    }
+  </div>
+}
