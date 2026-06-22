@@ -6,7 +6,7 @@
     "start": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test --watch=false --browsers=ChromeHeadless"
+    "test": "ng test --watch=false --browsers=ChromeHeadlessNoSandbox"
   },
   "private": true,
   "dependencies": {
@@ -37,6 +37,7 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
+    "puppeteer": "^25.1.0",
     "sharp": "^0.35.2",
     "typescript": "~5.4.2"
   }
