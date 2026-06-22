@@ -159,13 +159,29 @@ auth fond mesh, logo de marque partout. Tokens/classes inchangés → zéro rég
 > Reste en dette (non bloquant P1) : édition de modèle côté front (create/delete/apply livrés),
 > commentaires de séance rattachés (`workoutId` supporté côté API, UI fil global pour l'instant).
 
-### P2 — partiel
+### Dette technique — traitée
+| Item | État |
+|---|---|
+| Rate limiting auth/invitations | ✅ FixedWindowRateLimiter + filtre 429 (désactivable), testé |
+| Révocation JWT au logout | ✅ jti + TokenBlacklist + `POST /auth/logout` (front câblé), testé |
+| Refresh token rotation | ✅ ancien jti révoqué à chaque rafraîchissement |
+| Tableau de bord coach (données réelles) | ✅ endpoint + KPI cliquables + prochaines courses |
+| Seed démo enrichi (groupes, modèles, messages) | ✅ tous les écrans peuplés en démo |
+| Tests front + Karma CI | ✅ Karma headless (no-sandbox) + specs + job CI (setup-chrome) |
+| Rate-limit Redis / ShedLock multi-instance | ⏳ (mono-instance OK ; à externaliser au scale-out) |
+
+### P2 — ✅ TERMINÉ
 | Item | État |
 |---|---|
 | Courses/objectifs + compte à rebours | ✅ (CRUD coach + carte J-XX athlète) |
-| Push WebPush | ⏳ à faire |
-| TrainingGroup + vue par groupe/mois | ⏳ à faire |
-| Détail activité FIT/GPX + carte | ⏳ à faire |
+| Vue mois du calendrier | ✅ (bascule semaine/mois, drag&drop conservé) |
+| TrainingGroup + filtre/badges | ✅ (CRUD groupes, affectation, filtre liste) |
+| Push WebPush (VAPID) | ✅ (abonnement SwPush + envoi serveur sur séance/feedback, désactivé sans clés) |
+| Import GPX/TCX + carte | ✅ (parser sans dépendance + tracé Leaflet/OSM) |
+
+> Notes : **FIT (binaire)** non géré (nécessite le Garmin FIT SDK) — GPX/TCX couvrent l'export courant.
+> Push : générer les clés via `web-push generate-vapid-keys` et définir `VAPID_PUBLIC_KEY` /
+> `VAPID_PRIVATE_KEY` (sinon le push est inactif, sans erreur).
 
 ### Reste à faire (prioritaire)
 1. **Tests front + Karma** dans une CI dotée de Chrome (`browser-actions/setup-chrome`).

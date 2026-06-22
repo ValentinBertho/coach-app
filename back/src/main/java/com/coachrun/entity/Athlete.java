@@ -38,6 +38,10 @@ public class Athlete extends BaseEntity {
     @JoinColumn(name = "club_id", nullable = false)
     private Club club;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id")
+    private TrainingGroup group;
+
     @Column(name = "first_name", nullable = false)
     private String firstName;
 

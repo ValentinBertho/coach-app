@@ -43,6 +43,20 @@ public class ActivityController {
         return activityService.importActivity(clubId, athleteId, request);
     }
 
+    @PostMapping("/import-file")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ActivityResponse importFile(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                       @org.springframework.web.bind.annotation.RequestParam("file")
+                                       org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        return activityService.importFile(clubId, athleteId, file.getOriginalFilename(), file.getBytes());
+    }
+
+    @GetMapping("/{activityId}/route")
+    public java.util.List<double[]> route(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                          @PathVariable UUID activityId) {
+        return activityService.route(clubId, activityId);
+    }
+
     @PostMapping("/{activityId}/match/{workoutId}")
     public ActivityResponse match(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                   @PathVariable UUID activityId, @PathVariable UUID workoutId) {

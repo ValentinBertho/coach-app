@@ -23,6 +23,7 @@ public class NotificationService {
 
     private final ResendMailClient mailClient;
     private final UserRepository userRepository;
+    private final PushNotificationService pushService;
 
     @Value("${app.mail.enabled:false}")
     private boolean enabled;
@@ -30,8 +31,12 @@ public class NotificationService {
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
-    /** Séance planifiée → notifie l'athlète (s'il a un email). */
+    /** Séance planifiée → notifie l'athlète (email + push). */
     public void notifyWorkoutPlanned(Workout workout) {
+        userRepository.findByAthleteId(workout.getAthlete().getId())
+                .ifPresent(u -> pushService.sendToUser(u.getId(), "Nouvelle séance",
+                        workout.getTitle() + " — " + workout.getScheduledDate(),
+                        frontendUrl + "/athlete/today"));
         String email = workout.getAthlete().getEmail();
         if (email == null) {
             return;
@@ -46,6 +51,11 @@ public class NotificationService {
 
     /** Feedback athlète → notifie le head coach du club. */
     public void notifyAthleteFeedback(Workout workout) {
+        userRepository.findFirstByClubIdAndRole(workout.getClub().getId(), UserRole.HEAD_COACH)
+                .ifPresent(coach -> pushService.sendToUser(coach.getId(),
+                        "Séance mise à jour",
+                        workout.getAthlete().getFirstName() + " — " + workout.getStatus(),
+                        frontendUrl + "/app"));
         userRepository.findFirstByClubIdAndRole(workout.getClub().getId(), UserRole.HEAD_COACH)
                 .map(User::getEmail)
                 .ifPresent(coachEmail -> {

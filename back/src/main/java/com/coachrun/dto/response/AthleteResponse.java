@@ -24,7 +24,9 @@ public record AthleteResponse(
         BigDecimal vma,
         BigDecimal weightKg,
         String medicalNotes,
-        boolean invitationPending) {
+        boolean invitationPending,
+        java.util.UUID groupId,
+        String groupName) {
 
     public static AthleteResponse from(Athlete a) {
         return new AthleteResponse(
@@ -32,6 +34,8 @@ public record AthleteResponse(
                 a.getBirthDate(), a.getSex(), a.getLevel(), a.getStatus(),
                 a.getHrMax(), a.getHrRest(), a.getVma(), a.getWeightKg(),
                 a.getMedicalNotes(),
-                a.getInviteToken() != null);
+                a.getInviteToken() != null,
+                a.getGroup() != null ? a.getGroup().getId() : null,
+                a.getGroup() != null ? a.getGroup().getName() : null);
     }
 }

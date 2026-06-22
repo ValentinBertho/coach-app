@@ -75,6 +75,11 @@ export const routes: Routes = [
           import('./features/plans/plan-list.component').then((m) => m.PlanListComponent),
       },
       {
+        path: 'groups',
+        loadComponent: () =>
+          import('./features/groups/group-list.component').then((m) => m.GroupListComponent),
+      },
+      {
         path: 'athletes/:athleteId/messages',
         loadComponent: () =>
           import('./features/messages/chat.component').then((m) => m.ChatComponent),
@@ -88,6 +93,11 @@ export const routes: Routes = [
         path: 'athletes/:athleteId/analytics',
         loadComponent: () =>
           import('./features/analytics/analytics.component').then((m) => m.AnalyticsComponent),
+      },
+      {
+        path: 'athletes/:athleteId/activities/:activityId/map',
+        loadComponent: () =>
+          import('./features/activities/activity-map.component').then((m) => m.ActivityMapComponent),
       },
       {
         path: 'athletes/:athleteId/races',

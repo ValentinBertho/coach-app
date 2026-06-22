@@ -4,6 +4,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
+import { PushButtonComponent } from '../../shared/components/push-button/push-button.component';
 
 /**
  * Coquille de l'espace coach : en-tête (club, utilisateur, déconnexion), navigation,
@@ -13,7 +14,7 @@ import { OfflineBannerComponent } from '../../shared/components/offline-banner/o
   selector: 'app-coach-layout',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, LogoComponent, OfflineBannerComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, LogoComponent, OfflineBannerComponent, PushButtonComponent],
   templateUrl: './coach-layout.component.html',
   styleUrl: './coach-layout.component.scss',
 })

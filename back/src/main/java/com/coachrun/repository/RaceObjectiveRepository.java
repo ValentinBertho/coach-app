@@ -17,4 +17,7 @@ public interface RaceObjectiveRepository extends JpaRepository<RaceObjective, UU
 
     Optional<RaceObjective> findFirstByAthleteIdAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(
             UUID athleteId, RaceObjectiveStatus status, LocalDate from);
+
+    List<RaceObjective> findTop5ByClubIdAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(
+            UUID clubId, RaceObjectiveStatus status, LocalDate from);
 }

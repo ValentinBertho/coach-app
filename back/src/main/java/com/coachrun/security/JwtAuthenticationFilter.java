@@ -35,6 +35,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtService jwtService;
+    private final TokenBlacklist tokenBlacklist;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -47,7 +48,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = header.substring(BEARER_PREFIX.length());
             try {
                 Claims claims = jwtService.parse(token);
-                if (JwtService.TYPE_ACCESS.equals(claims.get("typ", String.class))) {
+                if (JwtService.TYPE_ACCESS.equals(claims.get("typ", String.class))
+                        && !tokenBlacklist.isRevoked(claims.getId())) {
                     AuthPrincipal principal = toPrincipal(claims);
                     var authority = new SimpleGrantedAuthority("ROLE_" + principal.role().name());
                     var authentication = new UsernamePasswordAuthenticationToken(

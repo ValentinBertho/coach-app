@@ -30,11 +30,18 @@
   color: var(--ink);
 }
 
+.stat-card { text-decoration: none; color: inherit; }
+
+.races { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.races li { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) 0; border-bottom: 1px solid var(--hairline); flex-wrap: wrap; }
+.races li:last-child { border-bottom: none; }
+
 .next-step {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
+  margin-top: var(--sp-4);
 }
 
 .next-step h2 {

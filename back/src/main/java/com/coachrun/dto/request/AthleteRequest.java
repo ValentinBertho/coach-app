@@ -28,5 +28,6 @@ public record AthleteRequest(
         @Min(25) @Max(120) Integer hrRest,
         @DecimalMin("5.0") BigDecimal vma,
         @DecimalMin("20.0") BigDecimal weightKg,
-        @Size(max = 2048) String medicalNotes) {
+        @Size(max = 2048) String medicalNotes,
+        java.util.UUID groupId) {
 }

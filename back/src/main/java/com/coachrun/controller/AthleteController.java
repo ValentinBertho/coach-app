@@ -42,9 +42,10 @@ public class AthleteController {
     public PageResponse<AthleteSummaryResponse> list(
             @PathVariable UUID clubId,
             @RequestParam(required = false) AthleteStatus status,
+            @RequestParam(required = false) UUID groupId,
             @RequestParam(required = false) String q,
             @PageableDefault(size = 20, sort = "lastName") Pageable pageable) {
-        return athleteService.list(clubId, status, q, pageable);
+        return athleteService.list(clubId, status, groupId, q, pageable);
     }
 
     @GetMapping("/{athleteId}")

@@ -68,4 +68,8 @@ public class Activity extends BaseEntity {
 
     @Column(name = "matched_workout_id")
     private UUID matchedWorkoutId;
+
+    /** Tracé GPS sous-échantillonné, JSON [[lat,lon],…] (import GPX/TCX). */
+    @Column(name = "route_json")
+    private String routeJson;
 }

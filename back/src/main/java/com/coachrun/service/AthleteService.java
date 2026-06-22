@@ -40,15 +40,16 @@ public class AthleteService {
 
     private final AthleteRepository athleteRepository;
     private final ClubRepository clubRepository;
+    private final com.coachrun.repository.TrainingGroupRepository groupRepository;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
     public PageResponse<AthleteSummaryResponse> list(UUID clubId, AthleteStatus status,
-                                                     String query, Pageable pageable) {
+                                                     UUID groupId, String query, Pageable pageable) {
         String q = StringUtils.hasText(query) ? query.trim() : null;
         return PageResponse.from(
-                athleteRepository.search(clubId, status, q, pageable),
+                athleteRepository.search(clubId, status, groupId, q, pageable),
                 AthleteSummaryResponse::from);
     }
 
@@ -122,5 +123,11 @@ public class AthleteService {
         athlete.setVma(request.vma());
         athlete.setWeightKg(request.weightKg());
         athlete.setMedicalNotes(StringUtils.hasText(request.medicalNotes()) ? request.medicalNotes() : null);
+        if (request.groupId() != null) {
+            athlete.setGroup(groupRepository.findByIdAndClubId(request.groupId(), athlete.getClub().getId())
+                    .orElseThrow(() -> new NotFoundException("Groupe introuvable.")));
+        } else {
+            athlete.setGroup(null);
+        }
     }
 }

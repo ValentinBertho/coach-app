@@ -61,6 +61,14 @@
       </div>
     </div>
 
+    <div class="form-group">
+      <label for="group">Groupe d'entraînement</label>
+      <select id="group" class="form-control" formControlName="groupId">
+        <option value="">— Aucun —</option>
+        @for (g of groups(); track g.id) { <option [value]="g.id">{{ g.name }}</option> }
+      </select>
+    </div>
+
     <h2>Données physiologiques <span class="badge badge-neutral">🔒 chiffrées</span></h2>
     <div class="form-row-3">
       <div class="form-group">

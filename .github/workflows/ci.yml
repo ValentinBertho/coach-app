@@ -97,7 +97,18 @@ jobs:
           cache-dependency-path: front/package-lock.json
 
       - name: Install dependencies
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
         run: npm ci
 
       - name: Build (production, AOT)
         run: npm run build
+
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: setup-chrome
+
+      - name: Tests unitaires (Karma headless)
+        env:
+          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+        run: npm test

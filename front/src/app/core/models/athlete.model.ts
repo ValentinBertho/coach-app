@@ -9,9 +9,11 @@ export interface AthleteSummary {
   level: AthleteLevel | null;
   status: AthleteStatus;
   invitationPending: boolean;
+  groupName?: string | null;
 }
 
 export interface Athlete extends AthleteSummary {
+  groupId?: string | null;
   email: string | null;
   birthDate: string | null;
   sex: Sex | null;
@@ -34,6 +36,7 @@ export interface AthleteRequest {
   vma?: number | null;
   weightKg?: number | null;
   medicalNotes?: string | null;
+  groupId?: string | null;
 }
 
 export interface AthleteInvitation {

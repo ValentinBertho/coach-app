@@ -37,4 +37,8 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
 
     @EntityGraph(attributePaths = "steps")
     List<Workout> findByAthleteIdOrderByScheduledDateAsc(UUID athleteId);
+
+    long countByClubIdAndStatusAndScheduledDateLessThan(UUID clubId, WorkoutStatus status, LocalDate date);
+
+    long countByClubIdAndStatusAndScheduledDateBetween(UUID clubId, WorkoutStatus status, LocalDate from, LocalDate to);
 }

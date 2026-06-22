@@ -6,7 +6,11 @@ import com.coachrun.dto.request.RegisterRequest;
 import com.coachrun.dto.response.AuthResponse;
 import com.coachrun.dto.response.UserResponse;
 import com.coachrun.security.AuthPrincipal;
+import com.coachrun.security.JwtService;
+import com.coachrun.security.TokenBlacklist;
 import com.coachrun.service.AuthService;
+import io.jsonwebtoken.Claims;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,6 +32,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final JwtService jwtService;
+    private final TokenBlacklist tokenBlacklist;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -48,5 +54,20 @@ public class AuthController {
     @GetMapping("/me")
     public UserResponse me(@AuthenticationPrincipal AuthPrincipal principal) {
         return authService.currentUser(principal.userId());
+    }
+
+    /** Déconnexion : révoque le token courant (blacklist jusqu'à son expiration). */
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            try {
+                Claims claims = jwtService.parse(header.substring(7));
+                tokenBlacklist.revoke(claims.getId(), claims.getExpiration().toInstant());
+            } catch (RuntimeException ignored) {
+                // token déjà invalide → rien à révoquer
+            }
+        }
     }
 }

@@ -1,0 +1,24 @@
+# ============================================================================
+# 014 — Table "push_subscriptions" (abonnements WebPush par utilisateur).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 014-create-push-subscriptions
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: push_subscriptions
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: endpoint, type: VARCHAR(1000), constraints: { nullable: false, unique: true } }
+              - column: { name: p256dh, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: auth, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - createIndex:
+            indexName: idx_push_user
+            tableName: push_subscriptions
+            columns:
+              - column: { name: user_id }

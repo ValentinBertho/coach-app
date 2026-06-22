@@ -13,11 +13,13 @@ public record AthleteSummaryResponse(
         String lastName,
         AthleteLevel level,
         AthleteStatus status,
-        boolean invitationPending) {
+        boolean invitationPending,
+        String groupName) {
 
     public static AthleteSummaryResponse from(Athlete a) {
         return new AthleteSummaryResponse(
                 a.getId(), a.getFirstName(), a.getLastName(),
-                a.getLevel(), a.getStatus(), a.getInviteToken() != null);
+                a.getLevel(), a.getStatus(), a.getInviteToken() != null,
+                a.getGroup() != null ? a.getGroup().getName() : null);
     }
 }

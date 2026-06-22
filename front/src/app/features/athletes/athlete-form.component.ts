@@ -2,8 +2,10 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } fro
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteRequest } from '../../core/models/athlete.model';
+import { TrainingGroup } from '../../core/models/training-group.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { ToastService } from '../../core/services/toast.service';
+import { TrainingGroupService } from '../../core/services/training-group.service';
 
 @Component({
   selector: 'app-athlete-form',
@@ -19,11 +21,13 @@ export class AthleteFormComponent implements OnInit {
 
   private readonly fb = inject(FormBuilder);
   private readonly athleteService = inject(AthleteService);
+  private readonly groupService = inject(TrainingGroupService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
   readonly submitting = signal(false);
   readonly loading = signal(false);
+  readonly groups = signal<TrainingGroup[]>([]);
 
   get isEdit(): boolean {
     return !!this.id();
@@ -41,9 +45,11 @@ export class AthleteFormComponent implements OnInit {
     vma: [null as number | null, [Validators.min(5)]],
     weightKg: [null as number | null, [Validators.min(20)]],
     medicalNotes: ['', [Validators.maxLength(2048)]],
+    groupId: [''],
   });
 
   ngOnInit(): void {
+    this.groupService.list().subscribe((g) => this.groups.set(g));
     const id = this.id();
     if (id) {
       this.loading.set(true);
@@ -94,6 +100,7 @@ export class AthleteFormComponent implements OnInit {
       vma: v.vma ?? null,
       weightKg: v.weightKg ?? null,
       medicalNotes: blankToNull(v.medicalNotes),
+      groupId: blankToNull(v.groupId),
     };
   }
 }

@@ -64,6 +64,7 @@ public class JwtService {
     private String build(User user, String type, long ttlSeconds) {
         Instant now = Instant.now();
         var builder = Jwts.builder()
+                .id(java.util.UUID.randomUUID().toString())
                 .subject(user.getId().toString())
                 .claim(CLAIM_TYPE, type)
                 .claim(CLAIM_EMAIL, user.getEmail())
