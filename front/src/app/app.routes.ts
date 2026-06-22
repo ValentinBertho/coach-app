@@ -95,6 +95,11 @@ export const routes: Routes = [
           import('./features/analytics/analytics.component').then((m) => m.AnalyticsComponent),
       },
       {
+        path: 'athletes/:athleteId/activities/:activityId/map',
+        loadComponent: () =>
+          import('./features/activities/activity-map.component').then((m) => m.ActivityMapComponent),
+      },
+      {
         path: 'athletes/:athleteId/races',
         loadComponent: () =>
           import('./features/races/race-list.component').then((m) => m.RaceListComponent),

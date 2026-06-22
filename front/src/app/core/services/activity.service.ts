@@ -26,4 +26,14 @@ export class ActivityService {
   unmatch(athleteId: string, activityId: string): Observable<Activity> {
     return this.http.delete<Activity>(`${this.base(athleteId)}/${activityId}/match`);
   }
+
+  importFile(athleteId: string, file: File): Observable<Activity> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<Activity>(`${this.base(athleteId)}/import-file`, form);
+  }
+
+  route(athleteId: string, activityId: string): Observable<number[][]> {
+    return this.http.get<number[][]>(`${this.base(athleteId)}/${activityId}/route`);
+  }
 }

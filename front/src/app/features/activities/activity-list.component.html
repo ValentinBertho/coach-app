@@ -34,6 +34,17 @@
   <p class="field-hint">Le rapprochement avec la séance prévue (±1 jour) est automatique.</p>
 </form>
 
+<div class="card" style="margin-bottom: var(--sp-5); display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3); flex-wrap:wrap">
+  <div>
+    <strong>Importer un fichier GPS</strong>
+    <p class="field-hint">Formats GPX / TCX (montre, Strava export…). Le tracé et les métriques sont calculés.</p>
+  </div>
+  <label class="btn btn-ghost">
+    Choisir un fichier
+    <input type="file" accept=".gpx,.tcx" hidden (change)="onFile($event)" />
+  </label>
+</div>
+
 @if (loading()) {
   <div class="card">Chargement…</div>
 } @else if (activities().length === 0) {
@@ -55,6 +66,9 @@
             <span class="metric delta" [class.neg]="a.distanceDeltaM < 0">{{ delta(a.distanceDeltaM) }} vs prévu</span>
           }
         </div>
+        @if (a.source === 'FILE') {
+          <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', athleteId(), 'activities', a.id, 'map']">Carte</a>
+        }
         @if (a.status === 'MATCHED') {
           <button type="button" class="btn btn-ghost btn-sm" (click)="unmatch(a)">Détacher</button>
         }

@@ -16,6 +16,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { InstallButtonComponent } from '../../shared/components/install-button/install-button.component';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
+import { PushButtonComponent } from '../../shared/components/push-button/push-button.component';
 
 type State = 'loading' | 'ready' | 'error';
 
@@ -27,7 +28,7 @@ type State = 'loading' | 'ready' | 'error';
   selector: 'app-today',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, LogoComponent, InstallButtonComponent, OfflineBannerComponent],
+  imports: [FormsModule, RouterLink, LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',
 })

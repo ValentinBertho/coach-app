@@ -73,6 +73,20 @@ export class ActivityListComponent implements OnInit {
     });
   }
 
+  onFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    this.activityService.importFile(this.athleteId(), file).subscribe({
+      next: (a) => {
+        this.toast.success(a.status === 'MATCHED' ? 'Fichier importé et rapproché ✅' : 'Fichier importé.');
+        input.value = '';
+        this.load();
+      },
+      error: () => { input.value = ''; },
+    });
+  }
+
   unmatch(a: Activity): void {
     this.activityService.unmatch(this.athleteId(), a.id).subscribe({
       next: () => {
