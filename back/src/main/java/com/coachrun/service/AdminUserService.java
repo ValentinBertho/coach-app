@@ -30,7 +30,7 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
 
     public PageResponse<AdminUserResponse> list(UserRole role, UserStatus status, String q, Pageable pageable) {
-        String query = (q == null || q.isBlank()) ? null : q.trim();
+        String query = (q == null || q.isBlank()) ? "" : q.trim();
         return PageResponse.from(userRepository.searchAdmin(role, status, query, pageable),
                 AdminUserResponse::from);
     }

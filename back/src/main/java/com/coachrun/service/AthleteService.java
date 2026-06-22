@@ -47,7 +47,7 @@ public class AthleteService {
 
     public PageResponse<AthleteSummaryResponse> list(UUID clubId, AthleteStatus status,
                                                      UUID groupId, String query, Pageable pageable) {
-        String q = StringUtils.hasText(query) ? query.trim() : null;
+        String q = StringUtils.hasText(query) ? query.trim() : "";
         return PageResponse.from(
                 athleteRepository.search(clubId, status, groupId, q, pageable),
                 AthleteSummaryResponse::from);
