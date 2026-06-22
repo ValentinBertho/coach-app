@@ -2,6 +2,12 @@ export type Sex = 'MALE' | 'FEMALE' | 'OTHER';
 export type AthleteLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'ELITE';
 export type AthleteStatus = 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
 
+/** Référence légère (id + libellé) d'une entité liée (coach, club…). */
+export interface Ref {
+  id: string;
+  name: string;
+}
+
 export interface AthleteSummary {
   id: string;
   firstName: string;
@@ -22,6 +28,10 @@ export interface Athlete extends AthleteSummary {
   vma: number | null;
   weightKg: number | null;
   medicalNotes: string | null;
+  /** Coachs rattachés (modèle many-to-many). */
+  coaches: Ref[];
+  /** Clubs de l'athlète : principal + additionnels (modèle many-to-many). */
+  clubs: Ref[];
 }
 
 export interface AthleteRequest {

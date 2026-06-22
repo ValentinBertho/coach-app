@@ -18,9 +18,19 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
 
     Optional<Athlete> findByInviteToken(String inviteToken);
 
-    @Query("""
-            select a from Athlete a
-            where a.club.id = :clubId
+    @Query(value = """
+            select distinct a from Athlete a
+            left join a.additionalClubs ac
+            where (a.club.id = :clubId or ac.id = :clubId)
+              and (:status is null or a.status = :status)
+              and (:groupId is null or a.group.id = :groupId)
+              and (lower(a.firstName) like lower(concat('%', :q, '%'))
+                   or lower(a.lastName) like lower(concat('%', :q, '%')))
+            """,
+            countQuery = """
+            select count(distinct a) from Athlete a
+            left join a.additionalClubs ac
+            where (a.club.id = :clubId or ac.id = :clubId)
               and (:status is null or a.status = :status)
               and (:groupId is null or a.group.id = :groupId)
               and (lower(a.firstName) like lower(concat('%', :q, '%'))
@@ -32,7 +42,20 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
                          @Param("q") String q,
                          Pageable pageable);
 
+    /** Athlètes rattachés à un coach (modèle multi-club : « mes athlètes » transverse aux clubs). */
+    @Query("""
+            select distinct a from Athlete a join a.coaches co
+            where co.id = :coachId
+              and (lower(a.firstName) like lower(concat('%', :q, '%'))
+                   or lower(a.lastName) like lower(concat('%', :q, '%')))
+            """)
+    Page<Athlete> searchByCoach(@Param("coachId") UUID coachId,
+                                @Param("q") String q,
+                                Pageable pageable);
+
     long countByGroupId(UUID groupId);
+
+    java.util.List<Athlete> findByClubIdOrderByLastNameAsc(UUID clubId);
 
     // --- Admin (cross-club) ---
     @Query("""

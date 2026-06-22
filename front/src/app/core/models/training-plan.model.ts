@@ -11,6 +11,8 @@ export interface TrainingPlan {
   description: string | null;
   durationWeeks: number;
   items: PlanItem[];
+  /** Athlètes auxquels le plan est attribué (modèle many-to-many). */
+  athletes?: { id: string; name: string }[];
 }
 
 export interface TrainingPlanRequest {

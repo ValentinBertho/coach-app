@@ -46,6 +46,56 @@
     </div>
   </div>
 
+  <div class="rel-grid">
+    <div class="card">
+      <h2>Coachs</h2>
+      <p class="field-hint">Un athlète peut être suivi par plusieurs coachs.</p>
+      @if (a.coaches.length) {
+        <ul class="chip-list">
+          @for (c of a.coaches; track c.id) {
+            <li class="chip">
+              <span>{{ c.name }}</span>
+              <button type="button" class="chip-x" (click)="removeCoach(c.id)" aria-label="Retirer">×</button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="empty-hint">Aucun coach rattaché.</p>
+      }
+      @if (availableCoaches().length) {
+        <select class="form-control" (change)="assignCoach($event)">
+          <option value="">+ Rattacher un coach…</option>
+          @for (c of availableCoaches(); track c.id) {
+            <option [value]="c.id">{{ c.name }}</option>
+          }
+        </select>
+      }
+    </div>
+
+    <div class="card">
+      <h2>Clubs</h2>
+      <p class="field-hint">Un athlète peut appartenir à plusieurs clubs.</p>
+      <ul class="chip-list">
+        @for (club of a.clubs; track club.id) {
+          <li class="chip chip-static">{{ club.name }}</li>
+        }
+      </ul>
+    </div>
+
+    <div class="card">
+      <h2>Plans attribués</h2>
+      @if (plans().length) {
+        <ul class="chip-list">
+          @for (p of plans(); track p.id) {
+            <li class="chip chip-static">{{ p.name }}</li>
+          }
+        </ul>
+      } @else {
+        <p class="empty-hint">Aucun plan attribué. Attribue un plan depuis l'écran « Plans ».</p>
+      }
+    </div>
+  </div>
+
   @if (a.medicalNotes) {
     <div class="card">
       <h2>Antécédents / blessures 🔒</h2>

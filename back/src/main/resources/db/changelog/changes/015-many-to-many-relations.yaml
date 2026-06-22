@@ -1,0 +1,133 @@
+# ============================================================================
+# 015 — Relations many-to-many (ouverture du modèle, non destructive).
+# On conserve le club "principal" (athletes.club_id, users.club_id) pour la
+# compatibilité et le scoping par défaut ; ces tables d'association AJOUTENT :
+#   - un athlète peut avoir plusieurs coachs        (athlete_coaches)
+#   - un plan peut être attribué à plusieurs athlètes (training_plan_athletes)
+#   - un coach peut appartenir à plusieurs clubs     (user_clubs)
+#   - un athlète peut appartenir à plusieurs clubs   (athlete_clubs)
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 015-many-to-many-relations
+      author: coachrun
+      changes:
+        # --- Athlète ↔ Coachs ---
+        - createTable:
+            tableName: athlete_coaches
+            columns:
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: coach_id, type: UUID, constraints: { nullable: false } }
+        - addPrimaryKey:
+            tableName: athlete_coaches
+            columnNames: athlete_id, coach_id
+            constraintName: pk_athlete_coaches
+        - addForeignKeyConstraint:
+            constraintName: fk_athlete_coaches_athlete
+            baseTableName: athlete_coaches
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_athlete_coaches_coach
+            baseTableName: athlete_coaches
+            baseColumnNames: coach_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_athlete_coaches_coach
+            tableName: athlete_coaches
+            columns:
+              - column: { name: coach_id }
+
+        # --- Plan ↔ Athlètes ---
+        - createTable:
+            tableName: training_plan_athletes
+            columns:
+              - column: { name: plan_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+        - addPrimaryKey:
+            tableName: training_plan_athletes
+            columnNames: plan_id, athlete_id
+            constraintName: pk_training_plan_athletes
+        - addForeignKeyConstraint:
+            constraintName: fk_plan_athletes_plan
+            baseTableName: training_plan_athletes
+            baseColumnNames: plan_id
+            referencedTableName: training_plans
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_plan_athletes_athlete
+            baseTableName: training_plan_athletes
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_plan_athletes_athlete
+            tableName: training_plan_athletes
+            columns:
+              - column: { name: athlete_id }
+
+        # --- Utilisateur (coach) ↔ Clubs additionnels ---
+        - createTable:
+            tableName: user_clubs
+            columns:
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+        - addPrimaryKey:
+            tableName: user_clubs
+            columnNames: user_id, club_id
+            constraintName: pk_user_clubs
+        - addForeignKeyConstraint:
+            constraintName: fk_user_clubs_user
+            baseTableName: user_clubs
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_user_clubs_club
+            baseTableName: user_clubs
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_user_clubs_club
+            tableName: user_clubs
+            columns:
+              - column: { name: club_id }
+
+        # --- Athlète ↔ Clubs additionnels ---
+        - createTable:
+            tableName: athlete_clubs
+            columns:
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+        - addPrimaryKey:
+            tableName: athlete_clubs
+            columnNames: athlete_id, club_id
+            constraintName: pk_athlete_clubs
+        - addForeignKeyConstraint:
+            constraintName: fk_athlete_clubs_athlete
+            baseTableName: athlete_clubs
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_athlete_clubs_club
+            baseTableName: athlete_clubs
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_athlete_clubs_club
+            tableName: athlete_clubs
+            columns:
+              - column: { name: club_id }

@@ -13,6 +13,8 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
@@ -22,6 +24,8 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Athlète suivi par un coach, rattaché à un club (tenant). Les données physiologiques
@@ -41,6 +45,26 @@ public class Athlete extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "group_id")
     private TrainingGroup group;
+
+    /**
+     * Coachs rattachés à l'athlète (en plus de l'accès implicite des coachs du club).
+     * Ouverture many-to-many : un athlète peut être suivi par plusieurs coachs.
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "athlete_coaches",
+            joinColumns = @JoinColumn(name = "athlete_id"),
+            inverseJoinColumns = @JoinColumn(name = "coach_id"))
+    private Set<User> coaches = new HashSet<>();
+
+    /**
+     * Clubs additionnels de l'athlète (en plus du club principal {@link #club}).
+     * Ouverture many-to-many : un athlète peut appartenir à plusieurs clubs.
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "athlete_clubs",
+            joinColumns = @JoinColumn(name = "athlete_id"),
+            inverseJoinColumns = @JoinColumn(name = "club_id"))
+    private Set<Club> additionalClubs = new HashSet<>();
 
     @Column(name = "first_name", nullable = false)
     private String firstName;

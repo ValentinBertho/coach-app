@@ -6,11 +6,17 @@ import com.coachrun.dto.response.AthleteResponse;
 import com.coachrun.dto.response.AthleteSummaryResponse;
 import com.coachrun.dto.response.InvitationInfoResponse;
 import com.coachrun.dto.response.PageResponse;
+import com.coachrun.dto.response.RefResponse;
 import com.coachrun.entity.Athlete;
+import com.coachrun.entity.Club;
+import com.coachrun.entity.User;
 import com.coachrun.entity.enums.AthleteStatus;
+import com.coachrun.entity.enums.UserRole;
+import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.ClubRepository;
+import com.coachrun.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +29,7 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -40,6 +47,7 @@ public class AthleteService {
 
     private final AthleteRepository athleteRepository;
     private final ClubRepository clubRepository;
+    private final UserRepository userRepository;
     private final com.coachrun.repository.TrainingGroupRepository groupRepository;
 
     @Value("${app.frontend-url}")
@@ -55,6 +63,57 @@ public class AthleteService {
 
     public AthleteResponse get(UUID clubId, UUID athleteId) {
         return AthleteResponse.from(requireAthlete(clubId, athleteId));
+    }
+
+    // ---------------------------------------------------------------------
+    // Relations many-to-many : coachs et clubs additionnels de l'athlète
+    // ---------------------------------------------------------------------
+
+    /** Coachs du club assignables à un athlète (pour l'UI de rattachement). */
+    public List<RefResponse> assignableCoaches(UUID clubId) {
+        return userRepository.findCoachesByClub(clubId).stream()
+                .map(u -> new RefResponse(u.getId(), u.getFullName()))
+                .toList();
+    }
+
+    @Transactional
+    public AthleteResponse assignCoach(UUID clubId, UUID athleteId, UUID coachId) {
+        Athlete athlete = requireAthlete(clubId, athleteId);
+        User coach = userRepository.findById(coachId)
+                .orElseThrow(() -> new NotFoundException("Coach introuvable."));
+        if (coach.getRole() != UserRole.HEAD_COACH && coach.getRole() != UserRole.COACH) {
+            throw new ConflictException("Seul un coach peut être rattaché à un athlète.");
+        }
+        athlete.getCoaches().add(coach);
+        log.info("Coach {} rattaché à l'athlète {}", coachId, athleteId);
+        return AthleteResponse.from(athlete);
+    }
+
+    @Transactional
+    public AthleteResponse removeCoach(UUID clubId, UUID athleteId, UUID coachId) {
+        Athlete athlete = requireAthlete(clubId, athleteId);
+        athlete.getCoaches().removeIf(c -> c.getId().equals(coachId));
+        return AthleteResponse.from(athlete);
+    }
+
+    @Transactional
+    public AthleteResponse addClub(UUID clubId, UUID athleteId, UUID targetClubId) {
+        Athlete athlete = requireAthlete(clubId, athleteId);
+        if (targetClubId.equals(athlete.getClub().getId())) {
+            throw new ConflictException("Ce club est déjà le club principal de l'athlète.");
+        }
+        Club target = clubRepository.findById(targetClubId)
+                .orElseThrow(() -> new NotFoundException("Club introuvable."));
+        athlete.getAdditionalClubs().add(target);
+        log.info("Athlète {} rattaché au club additionnel {}", athleteId, targetClubId);
+        return AthleteResponse.from(athlete);
+    }
+
+    @Transactional
+    public AthleteResponse removeClub(UUID clubId, UUID athleteId, UUID targetClubId) {
+        Athlete athlete = requireAthlete(clubId, athleteId);
+        athlete.getAdditionalClubs().removeIf(c -> c.getId().equals(targetClubId));
+        return AthleteResponse.from(athlete);
     }
 
     @Transactional
