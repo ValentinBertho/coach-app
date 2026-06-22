@@ -50,4 +50,8 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
     Page<Athlete> findByInviteTokenIsNotNull(Pageable pageable);
 
     long countByInviteTokenIsNotNull();
+
+    long countByClubIdAndStatus(UUID clubId, AthleteStatus status);
+
+    long countByClubIdAndInviteTokenIsNotNull(UUID clubId);
 }

@@ -78,8 +78,13 @@ public class DemoSeedService {
     private final WorkoutRepository workoutRepository;
     private final ActivityRepository activityRepository;
     private final RaceObjectiveRepository raceRepository;
+    private final com.coachrun.repository.TrainingGroupRepository groupRepository;
+    private final com.coachrun.repository.WorkoutTemplateRepository templateRepository;
+    private final com.coachrun.repository.MessageRepository messageRepository;
+    private final com.coachrun.repository.PushSubscriptionRepository pushSubscriptionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     private final Random random = new Random(42);
 
@@ -115,10 +120,14 @@ public class DemoSeedService {
 
     @Transactional
     public void purge() {
+        pushSubscriptionRepository.deleteAllInBatch();
+        messageRepository.deleteAllInBatch();
         activityRepository.deleteAllInBatch();
         workoutRepository.deleteAllInBatch();   // workout_steps supprimés par cascade FK
         userRepository.deleteAllInBatch();
-        athleteRepository.deleteAllInBatch();
+        athleteRepository.deleteAllInBatch();    // détache d'abord les athlètes des groupes
+        groupRepository.deleteAllInBatch();
+        templateRepository.deleteAllInBatch();
         clubRepository.deleteAllInBatch();
     }
 
@@ -146,6 +155,22 @@ public class DemoSeedService {
         invited.setInviteToken("DEMO-" + UUID.randomUUID());
         invited.setInviteExpiresAt(Instant.now().plus(14, ChronoUnit.DAYS));
 
+        // Groupe d'entraînement + affectation de quelques athlètes
+        com.coachrun.entity.TrainingGroup group = new com.coachrun.entity.TrainingGroup();
+        group.setClub(club);
+        group.setName(isPrimary ? "Marathon" : "Groupe principal");
+        group = groupRepository.save(group);
+        for (int i = 0; i < Math.min(4, athletes.size()); i++) {
+            athletes.get(i).setGroup(group);
+        }
+
+        // Modèles de séances (bibliothèque)
+        seedTemplate(club, "Endurance fondamentale", WorkoutType.ENDURANCE, "Footing Z2", 12000);
+        seedTemplate(club, "VMA 10x400", WorkoutType.INTERVALS, "VMA 10×400m", 9000);
+        if (isPrimary) {
+            seedTemplate(club, "Sortie longue", WorkoutType.LONG_RUN, "Sortie longue", 20000);
+        }
+
         // Compte athlète connectable (uniquement sur le club principal)
         if (isPrimary) {
             Athlete demoAthlete = athletes.get(1);
@@ -153,11 +178,16 @@ public class DemoSeedService {
             User athleteUser = account(ATHLETE_EMAIL,
                     demoAthlete.getFirstName() + " " + demoAthlete.getLastName(),
                     UserRole.ATHLETE, club, demoAthlete);
-            userRepository.save(athleteUser);
+            athleteUser = userRepository.save(athleteUser);
+            User headCoach = userRepository.findByEmailIgnoreCase(HEAD_COACH_EMAIL).orElse(null);
             seedTraining(club, demoAthlete);
             seedTraining(club, athletes.get(2));
             seedRace(club, demoAthlete, "Marathon de Paris", 42195, 42);
             seedRace(club, athletes.get(2), "Semi de Lyon", 21097, 70);
+            if (headCoach != null) {
+                seedMessage(club, demoAthlete, headCoach, "Bravo pour ta semaine, on garde le rythme ! 💪");
+                seedMessage(club, demoAthlete, athleteUser, "Merci coach, je me sens en forme.");
+            }
         }
 
         // Dates d'inscription échelonnées (createdAt non modifiable via JPA → SQL)
@@ -215,6 +245,40 @@ public class DemoSeedService {
         race.setPriority(RacePriority.A);
         race.setStatus(RaceObjectiveStatus.UPCOMING);
         raceRepository.save(race);
+    }
+
+    private void seedTemplate(Club club, String name, WorkoutType type, String title, int distanceM) {
+        com.coachrun.entity.WorkoutTemplate t = new com.coachrun.entity.WorkoutTemplate();
+        t.setClub(club);
+        t.setName(name);
+        t.setType(type);
+        t.setTitle(title);
+        t.setTargetDistanceM(distanceM);
+        try {
+            t.setStepsJson(objectMapper.writeValueAsString(stepsFor(type).stream().map(s -> {
+                java.util.Map<String, Object> m = new java.util.HashMap<>();
+                m.put("stepType", s.getStepType().name());
+                m.put("repetitions", s.getRepetitions());
+                m.put("zone", s.getZone() == null ? null : s.getZone().name());
+                m.put("distanceM", s.getDistanceM());
+                m.put("durationS", s.getDurationS());
+                return m;
+            }).toList()));
+        } catch (Exception ignored) {
+            t.setStepsJson("[]");
+        }
+        templateRepository.save(t);
+    }
+
+    private void seedMessage(Club club, Athlete athlete, User sender, String body) {
+        com.coachrun.entity.Message m = new com.coachrun.entity.Message();
+        m.setClub(club);
+        m.setAthlete(athlete);
+        m.setSenderUserId(sender.getId());
+        m.setSenderRole(sender.getRole());
+        m.setSenderName(sender.getFullName());
+        m.setBody(body);
+        messageRepository.save(m);
     }
 
     private Club newClub(String name) {

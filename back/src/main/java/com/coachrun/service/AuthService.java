@@ -44,6 +44,7 @@ public class AuthService {
     private final AthleteRepository athleteRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final com.coachrun.security.TokenBlacklist tokenBlacklist;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -94,8 +95,13 @@ public class AuthService {
         if (!JwtService.TYPE_REFRESH.equals(claims.get("typ", String.class))) {
             throw new UnauthorizedException("Jeton de rafraîchissement invalide.");
         }
+        if (tokenBlacklist.isRevoked(claims.getId())) {
+            throw new UnauthorizedException("Jeton de rafraîchissement déjà utilisé.");
+        }
         User user = userRepository.findById(UUID.fromString(claims.getSubject()))
                 .orElseThrow(() -> new UnauthorizedException("Compte introuvable."));
+        // Rotation : on révoque l'ancien refresh avant d'en émettre un nouveau.
+        tokenBlacklist.revoke(claims.getId(), claims.getExpiration().toInstant());
         return toAuthResponse(user);
     }
 
