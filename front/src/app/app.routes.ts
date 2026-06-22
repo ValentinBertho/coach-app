@@ -75,6 +75,11 @@ export const routes: Routes = [
           import('./features/plans/plan-list.component').then((m) => m.PlanListComponent),
       },
       {
+        path: 'groups',
+        loadComponent: () =>
+          import('./features/groups/group-list.component').then((m) => m.GroupListComponent),
+      },
+      {
         path: 'athletes/:athleteId/messages',
         loadComponent: () =>
           import('./features/messages/chat.component').then((m) => m.ChatComponent),

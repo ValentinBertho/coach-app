@@ -1,0 +1,31 @@
+<section class="page-header">
+  <div><h1 class="display-sm">Groupes d'entraînement</h1><p class="subtitle">Organisez vos athlètes par groupe.</p></div>
+</section>
+
+<div class="card" style="margin-bottom: var(--sp-5)">
+  <div class="form-row">
+    <div class="form-group"><label>Nouveau groupe</label><input class="form-control" [(ngModel)]="newName" placeholder="Marathon, Débutants…" (keyup.enter)="create()" /></div>
+    <div class="form-group" style="justify-content:flex-end"><button type="button" class="btn btn-primary" (click)="create()">+ Créer</button></div>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="card">Chargement…</div>
+} @else if (groups().length === 0) {
+  <div class="card empty-state"><h2>Aucun groupe</h2><p class="field-hint">Créez votre premier groupe.</p></div>
+} @else {
+  <div class="card table-wrap">
+    <table class="data-table">
+      <thead><tr><th>Nom</th><th>Athlètes</th><th></th></tr></thead>
+      <tbody>
+        @for (g of groups(); track g.id) {
+          <tr>
+            <td><input class="form-control" [(ngModel)]="g.name" (blur)="rename(g)" /></td>
+            <td><span class="metric">{{ g.athleteCount }}</span></td>
+            <td class="table-actions"><button type="button" class="btn btn-danger btn-sm" (click)="remove(g)">Suppr.</button></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

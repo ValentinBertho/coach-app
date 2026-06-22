@@ -7,6 +7,12 @@
 </section>
 
 <div class="search-bar">
+  @if (groups().length) {
+    <select class="form-control" style="max-width:200px" [(ngModel)]="filterGroup" (ngModelChange)="goToPage(0)">
+      <option value="">Tous les groupes</option>
+      @for (g of groups(); track g.id) { <option [value]="g.id">{{ g.name }}</option> }
+    </select>
+  }
   <input type="search" class="form-control" placeholder="Rechercher un athlète…"
          [(ngModel)]="search" (ngModelChange)="onSearchChange()" />
 </div>
@@ -40,6 +46,7 @@
               </div>
             </div>
             <div class="athlete-tags">
+              @if (a.groupName) { <span class="badge badge-neutral">{{ a.groupName }}</span> }
               @if (a.invitationPending) { <span class="badge badge-info">Invité</span> }
               <span class="badge" [class]="statusClass(a.status)">{{ statusLabel(a.status) }}</span>
             </div>

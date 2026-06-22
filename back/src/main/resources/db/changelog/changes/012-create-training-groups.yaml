@@ -1,0 +1,40 @@
+# ============================================================================
+# 012 — Table "training_groups" + rattachement optionnel des athlètes à un groupe.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 012-create-training-groups
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: training_groups
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_groups_club
+            baseTableName: training_groups
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addColumn:
+            tableName: athletes
+            columns:
+              - column: { name: group_id, type: UUID }
+        - addForeignKeyConstraint:
+            constraintName: fk_athletes_group
+            baseTableName: athletes
+            baseColumnNames: group_id
+            referencedTableName: training_groups
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - createIndex:
+            indexName: idx_athletes_group
+            tableName: athletes
+            columns:
+              - column: { name: group_id }
