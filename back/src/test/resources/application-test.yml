@@ -15,6 +15,8 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
 app:
+  rate-limit:
+    enabled: false   # désactivé en tests (évite les 429 sur les inscriptions répétées)
   security:
     jwt:
       secret: test-secret-for-h2-context-only-min-512-bits-aaaaaaaaaaaaaaaaaaaa

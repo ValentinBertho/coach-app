@@ -66,6 +66,10 @@ export class AuthService {
   }
 
   logout(): void {
+    // Révocation côté serveur (best-effort) avant purge locale.
+    if (this.token()) {
+      this.http.post(`${this.base}/logout`, {}).subscribe({ next: () => {}, error: () => {} });
+    }
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(USER_KEY);

@@ -59,3 +59,7 @@ app:
   demo:
     reset:
       enabled: ${DEMO_RESET_ENABLED:false}   # RAZ démo : interdit par défaut (jamais en prod)
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    max-requests: ${RATE_LIMIT_MAX:20}
+    window-seconds: ${RATE_LIMIT_WINDOW:60}

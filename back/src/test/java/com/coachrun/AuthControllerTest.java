@@ -64,6 +64,26 @@ class AuthControllerTest {
     }
 
     @Test
+    void logoutRevokesToken() throws Exception {
+        MockMvc mvc = mockMvc();
+        String registerBody = """
+                {"email":"logout-%s@test.fr","password":"password123","fullName":"X","clubName":"L %s"}
+                """.formatted(java.util.UUID.randomUUID(), java.util.UUID.randomUUID());
+        JsonNode json = objectMapper.readTree(mvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON).content(registerBody))
+                .andReturn().getResponse().getContentAsString());
+        String token = json.get("accessToken").asText();
+
+        mvc.perform(get("/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+        mvc.perform(post("/auth/logout").header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+        // token révoqué → 401
+        mvc.perform(get("/auth/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void register_duplicateEmail_returns409() throws Exception {
         MockMvc mvc = mockMvc();
         String body = """
