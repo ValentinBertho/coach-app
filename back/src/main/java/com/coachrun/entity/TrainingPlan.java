@@ -4,11 +4,16 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Plan d'entraînement périodisé (N semaines). Les items (semaine × jour → modèle de séance)
@@ -37,4 +42,15 @@ public class TrainingPlan extends BaseEntity {
     /** JSON sérialisé de la liste d'items (PlanItemDto[]). */
     @Column(name = "items_json", length = 8000)
     private String itemsJson;
+
+    /**
+     * Athlètes auxquels ce plan est attribué.
+     * Ouverture many-to-many : un plan peut être attribué à plusieurs athlètes,
+     * et un athlète peut suivre plusieurs plans.
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "training_plan_athletes",
+            joinColumns = @JoinColumn(name = "plan_id"),
+            inverseJoinColumns = @JoinColumn(name = "athlete_id"))
+    private Set<Athlete> athletes = new HashSet<>();
 }

@@ -65,4 +65,15 @@ public class AdminUserController {
     public void delete(@PathVariable UUID id) {
         adminUserService.delete(id);
     }
+
+    /** Rattache un club additionnel à un coach (modèle multi-club). */
+    @PutMapping("/{id}/clubs/{clubId}")
+    public AdminUserResponse addClub(@PathVariable UUID id, @PathVariable UUID clubId) {
+        return adminUserService.addClub(id, clubId);
+    }
+
+    @DeleteMapping("/{id}/clubs/{clubId}")
+    public AdminUserResponse removeClub(@PathVariable UUID id, @PathVariable UUID clubId) {
+        return adminUserService.removeClub(id, clubId);
+    }
 }

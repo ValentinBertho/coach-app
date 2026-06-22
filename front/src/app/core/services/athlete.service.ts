@@ -9,7 +9,9 @@ import {
   AthleteStatus,
   AthleteSummary,
   PageResponse,
+  Ref,
 } from '../models/athlete.model';
+import { TrainingPlan } from '../models/training-plan.model';
 import { AuthService } from './auth.service';
 
 /**
@@ -50,5 +52,25 @@ export class AthleteService {
 
   invite(id: string): Observable<AthleteInvitation> {
     return this.http.post<AthleteInvitation>(`${this.base()}/${id}/invitation`, {});
+  }
+
+  // --- Relations many-to-many ---
+
+  /** Coachs du club assignables à un athlète. */
+  assignableCoaches(): Observable<Ref[]> {
+    return this.http.get<Ref[]>(`${this.base()}/assignable-coaches`);
+  }
+
+  assignCoach(athleteId: string, coachId: string): Observable<Athlete> {
+    return this.http.put<Athlete>(`${this.base()}/${athleteId}/coaches/${coachId}`, {});
+  }
+
+  removeCoach(athleteId: string, coachId: string): Observable<Athlete> {
+    return this.http.delete<Athlete>(`${this.base()}/${athleteId}/coaches/${coachId}`);
+  }
+
+  /** Plans d'entraînement attribués à un athlète. */
+  plans(athleteId: string): Observable<TrainingPlan[]> {
+    return this.http.get<TrainingPlan[]>(`${this.base()}/${athleteId}/plans`);
   }
 }

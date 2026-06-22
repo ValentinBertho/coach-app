@@ -8,11 +8,16 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Compte utilisateur (coach, head coach, athlète, admin). Rattaché à un club
@@ -45,6 +50,16 @@ public class User extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "club_id")
     private Club club;
+
+    /**
+     * Clubs additionnels du coach (en plus du club principal {@link #club}).
+     * Ouverture many-to-many : un coach peut intervenir dans plusieurs clubs.
+     */
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "user_clubs",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "club_id"))
+    private Set<Club> additionalClubs = new HashSet<>();
 
     /** Présent uniquement pour les comptes ATHLETE (onboarding par lien magique). */
     @ManyToOne(fetch = FetchType.LAZY)

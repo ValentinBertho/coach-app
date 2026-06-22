@@ -66,4 +66,11 @@ public class TrainingPlanController {
         int created = planService.applyToAthlete(clubId, id, request.athleteId(), request.startDate());
         return Map.of("created", created);
     }
+
+    /** Retire l'attribution du plan à un athlète (les séances générées restent). */
+    @DeleteMapping("/{id}/athletes/{athleteId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void unassign(@PathVariable UUID clubId, @PathVariable UUID id, @PathVariable UUID athleteId) {
+        planService.unassignAthlete(clubId, id, athleteId);
+    }
 }

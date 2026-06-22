@@ -4,6 +4,7 @@ import com.coachrun.entity.Activity;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Club;
 import com.coachrun.entity.RaceObjective;
+import com.coachrun.entity.TrainingPlan;
 import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.WorkoutStep;
@@ -82,6 +83,7 @@ public class DemoSeedService {
     private final com.coachrun.repository.WorkoutTemplateRepository templateRepository;
     private final com.coachrun.repository.MessageRepository messageRepository;
     private final com.coachrun.repository.PushSubscriptionRepository pushSubscriptionRepository;
+    private final com.coachrun.repository.TrainingPlanRepository planRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
@@ -105,6 +107,7 @@ public class DemoSeedService {
             Club club = newClub(CLUBS[c]);
             seedClub(club, c == 0);
         }
+        seedRelations();
         log.info("[seed démo] Jeu de données de démonstration généré.");
         return true;
     }
@@ -124,6 +127,7 @@ public class DemoSeedService {
         messageRepository.deleteAllInBatch();
         activityRepository.deleteAllInBatch();
         workoutRepository.deleteAllInBatch();   // workout_steps supprimés par cascade FK
+        planRepository.deleteAllInBatch();      // training_plan_athletes supprimés par cascade FK
         userRepository.deleteAllInBatch();
         athleteRepository.deleteAllInBatch();    // détache d'abord les athlètes des groupes
         groupRepository.deleteAllInBatch();
@@ -193,6 +197,58 @@ public class DemoSeedService {
         // Dates d'inscription échelonnées (createdAt non modifiable via JPA → SQL)
         for (Athlete a : athletes) {
             backdate(a.getId(), random.nextInt(330) + 5);
+        }
+    }
+
+    /**
+     * Démonstration du modèle ouvert (many-to-many) : un athlète a plusieurs coachs,
+     * un plan est attribué à plusieurs athlètes, des coachs/athlètes appartiennent à
+     * plusieurs clubs.
+     */
+    private void seedRelations() {
+        List<Club> clubs = clubRepository.findAll();
+        Club primary = clubs.stream().filter(c -> CLUBS[0].equals(c.getName())).findFirst().orElse(null);
+        Club second = clubs.stream().filter(c -> CLUBS[1].equals(c.getName())).findFirst().orElse(null);
+        if (primary == null) {
+            return;
+        }
+        User headCoach = userRepository.findByEmailIgnoreCase(HEAD_COACH_EMAIL).orElse(null);
+        User assistant = userRepository.findByEmailIgnoreCase(COACH_EMAIL).orElse(null);
+        List<Athlete> athletes = athleteRepository.findByClubIdOrderByLastNameAsc(primary.getId());
+
+        // Coach démo multi-club : il intervient aussi dans un second club.
+        if (headCoach != null && second != null) {
+            headCoach.getAdditionalClubs().add(second);
+        }
+
+        // Plusieurs coachs sur un même athlète.
+        for (int i = 0; i < Math.min(5, athletes.size()); i++) {
+            Athlete a = athletes.get(i);
+            if (headCoach != null) {
+                a.getCoaches().add(headCoach);
+            }
+            if (assistant != null && i % 2 == 0) {
+                a.getCoaches().add(assistant);
+            }
+        }
+
+        // Athlète multi-club.
+        if (second != null && !athletes.isEmpty()) {
+            athletes.get(0).getAdditionalClubs().add(second);
+        }
+
+        // Plan attribué à plusieurs athlètes.
+        if (!athletes.isEmpty()) {
+            TrainingPlan plan = new TrainingPlan();
+            plan.setClub(primary);
+            plan.setName("Prépa 10 km — 8 semaines");
+            plan.setDescription("Plan de démonstration attribué à plusieurs athlètes.");
+            plan.setDurationWeeks(8);
+            plan.setItemsJson("[]");
+            for (int i = 0; i < Math.min(3, athletes.size()); i++) {
+                plan.getAthletes().add(athletes.get(i));
+            }
+            planRepository.save(plan);
         }
     }
 

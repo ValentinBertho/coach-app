@@ -5,8 +5,11 @@ import com.coachrun.dto.response.AthleteInvitationResponse;
 import com.coachrun.dto.response.AthleteResponse;
 import com.coachrun.dto.response.AthleteSummaryResponse;
 import com.coachrun.dto.response.PageResponse;
+import com.coachrun.dto.response.RefResponse;
+import com.coachrun.dto.response.TrainingPlanResponse;
 import com.coachrun.entity.enums.AthleteStatus;
 import com.coachrun.service.AthleteService;
+import com.coachrun.service.TrainingPlanService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -24,6 +27,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -37,6 +41,7 @@ import java.util.UUID;
 public class AthleteController {
 
     private final AthleteService athleteService;
+    private final TrainingPlanService planService;
 
     @GetMapping
     public PageResponse<AthleteSummaryResponse> list(
@@ -76,5 +81,45 @@ public class AthleteController {
     public AthleteInvitationResponse invite(@PathVariable UUID clubId,
                                             @PathVariable UUID athleteId) {
         return athleteService.invite(clubId, athleteId);
+    }
+
+    // ---------------------------------------------------------------------
+    // Relations many-to-many : coachs, clubs additionnels, plans attribués
+    // ---------------------------------------------------------------------
+
+    /** Coachs du club assignables (pour l'UI de rattachement). */
+    @GetMapping("/assignable-coaches")
+    public List<RefResponse> assignableCoaches(@PathVariable UUID clubId) {
+        return athleteService.assignableCoaches(clubId);
+    }
+
+    @PutMapping("/{athleteId}/coaches/{coachId}")
+    public AthleteResponse assignCoach(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                       @PathVariable UUID coachId) {
+        return athleteService.assignCoach(clubId, athleteId, coachId);
+    }
+
+    @DeleteMapping("/{athleteId}/coaches/{coachId}")
+    public AthleteResponse removeCoach(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                       @PathVariable UUID coachId) {
+        return athleteService.removeCoach(clubId, athleteId, coachId);
+    }
+
+    @PutMapping("/{athleteId}/clubs/{targetClubId}")
+    public AthleteResponse addClub(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                   @PathVariable UUID targetClubId) {
+        return athleteService.addClub(clubId, athleteId, targetClubId);
+    }
+
+    @DeleteMapping("/{athleteId}/clubs/{targetClubId}")
+    public AthleteResponse removeClub(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                      @PathVariable UUID targetClubId) {
+        return athleteService.removeClub(clubId, athleteId, targetClubId);
+    }
+
+    /** Plans d'entraînement attribués à cet athlète. */
+    @GetMapping("/{athleteId}/plans")
+    public List<TrainingPlanResponse> plans(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
+        return planService.listForAthlete(clubId, athleteId);
     }
 }

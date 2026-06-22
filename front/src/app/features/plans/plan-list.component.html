@@ -59,6 +59,9 @@
         </div>
         <span class="field-hint">{{ p.durationWeeks }} semaines · {{ p.items.length }} séance(s)</span>
         @if (p.description) { <p class="field-hint">{{ p.description }}</p> }
+        @if (p.athletes?.length) {
+          <span class="badge badge-neutral">Attribué à {{ p.athletes!.length }} athlète(s)</span>
+        }
         <div class="apply">
           <select class="form-control" [(ngModel)]="applyFor[p.id]!.athleteId" [ngModelOptions]="{standalone:true}">
             <option value="">Athlète…</option>

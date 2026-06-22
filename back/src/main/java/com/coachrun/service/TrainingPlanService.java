@@ -3,8 +3,10 @@ package com.coachrun.service;
 import com.coachrun.dto.request.PlanItemDto;
 import com.coachrun.dto.request.TrainingPlanRequest;
 import com.coachrun.dto.response.TrainingPlanResponse;
+import com.coachrun.entity.Athlete;
 import com.coachrun.entity.TrainingPlan;
 import com.coachrun.exception.NotFoundException;
+import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.ClubRepository;
 import com.coachrun.repository.TrainingPlanRepository;
 import com.coachrun.repository.WorkoutTemplateRepository;
@@ -29,10 +31,18 @@ public class TrainingPlanService {
     private final ClubRepository clubRepository;
     private final WorkoutTemplateRepository templateRepository;
     private final WorkoutTemplateService templateService;
+    private final AthleteRepository athleteRepository;
     private final ObjectMapper objectMapper;
 
     public List<TrainingPlanResponse> list(UUID clubId) {
         return planRepository.findByClubIdOrderByNameAsc(clubId).stream()
+                .map(p -> toResponse(clubId, p)).toList();
+    }
+
+    /** Plans attribués à un athlète donné (relation many-to-many). */
+    public List<TrainingPlanResponse> listForAthlete(UUID clubId, UUID athleteId) {
+        requireAthlete(clubId, athleteId);
+        return planRepository.findByAthletes_IdOrderByNameAsc(athleteId).stream()
                 .map(p -> toResponse(clubId, p)).toList();
     }
 
@@ -60,10 +70,15 @@ public class TrainingPlanService {
         planRepository.delete(require(clubId, id));
     }
 
-    /** Applique le plan : génère une séance par item à partir de la date de départ. */
+    /**
+     * Applique le plan : génère une séance par item à partir de la date de départ
+     * ET enregistre l'attribution du plan à l'athlète (relation many-to-many).
+     */
     @Transactional
     public int applyToAthlete(UUID clubId, UUID planId, UUID athleteId, LocalDate startDate) {
         TrainingPlan p = require(clubId, planId);
+        Athlete athlete = requireAthlete(clubId, athleteId);
+        p.getAthletes().add(athlete);
         List<PlanItemDto> items = readItems(p.getItemsJson());
         int created = 0;
         for (PlanItemDto item : items) {
@@ -74,9 +89,21 @@ public class TrainingPlanService {
         return created;
     }
 
+    /** Retire l'attribution d'un plan à un athlète (ne supprime pas les séances déjà générées). */
+    @Transactional
+    public void unassignAthlete(UUID clubId, UUID planId, UUID athleteId) {
+        TrainingPlan p = require(clubId, planId);
+        p.getAthletes().removeIf(a -> a.getId().equals(athleteId));
+    }
+
     private TrainingPlan require(UUID clubId, UUID id) {
         return planRepository.findByIdAndClubId(id, clubId)
                 .orElseThrow(() -> new NotFoundException("Plan introuvable."));
+    }
+
+    private Athlete requireAthlete(UUID clubId, UUID athleteId) {
+        return athleteRepository.findByIdAndClubId(athleteId, clubId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
     }
 
     private void apply(TrainingPlan p, TrainingPlanRequest request) {

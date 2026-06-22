@@ -77,6 +77,25 @@ public class AdminUserService {
         userRepository.delete(require(id));
     }
 
+    /** Rattache un club additionnel à un coach (modèle multi-club). */
+    @Transactional
+    public AdminUserResponse addClub(UUID userId, UUID clubId) {
+        User user = require(userId);
+        if (user.getClub() != null && clubId.equals(user.getClub().getId())) {
+            throw new ConflictException("Ce club est déjà le club principal de l'utilisateur.");
+        }
+        user.getAdditionalClubs().add(clubRepository.findById(clubId)
+                .orElseThrow(() -> new NotFoundException("Club introuvable.")));
+        return AdminUserResponse.from(user);
+    }
+
+    @Transactional
+    public AdminUserResponse removeClub(UUID userId, UUID clubId) {
+        User user = require(userId);
+        user.getAdditionalClubs().removeIf(c -> c.getId().equals(clubId));
+        return AdminUserResponse.from(user);
+    }
+
     private void applyClub(User user, UserRole role, UUID clubId) {
         if (role == UserRole.HEAD_COACH || role == UserRole.COACH) {
             UUID effective = clubId;
