@@ -159,14 +159,16 @@ auth fond mesh, logo de marque partout. Tokens/classes inchangés → zéro rég
 > Reste en dette (non bloquant P1) : édition de modèle côté front (create/delete/apply livrés),
 > commentaires de séance rattachés (`workoutId` supporté côté API, UI fil global pour l'instant).
 
-### Dette technique — traitée (itération suivante)
+### Dette technique — traitée
 | Item | État |
 |---|---|
 | Rate limiting auth/invitations | ✅ FixedWindowRateLimiter + filtre 429 (désactivable), testé |
 | Révocation JWT au logout | ✅ jti + TokenBlacklist + `POST /auth/logout` (front câblé), testé |
-| Refresh token rotation/blacklist complet | ⏳ partiel (access révoqué au logout ; refresh réutilisable jusqu'à expiration) |
-| Rate-limit Redis / ShedLock multi-instance | ⏳ (mono-instance OK pour l'instant) |
-| Tests front + Karma CI | ⏳ (Chrome headless indisponible dans le build) |
+| Refresh token rotation | ✅ ancien jti révoqué à chaque rafraîchissement |
+| Tableau de bord coach (données réelles) | ✅ endpoint + KPI cliquables + prochaines courses |
+| Seed démo enrichi (groupes, modèles, messages) | ✅ tous les écrans peuplés en démo |
+| Tests front + Karma CI | ✅ Karma headless (no-sandbox) + specs + job CI (setup-chrome) |
+| Rate-limit Redis / ShedLock multi-instance | ⏳ (mono-instance OK ; à externaliser au scale-out) |
 
 ### P2 — ✅ TERMINÉ
 | Item | État |
