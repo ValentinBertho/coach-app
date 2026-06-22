@@ -159,13 +159,23 @@ auth fond mesh, logo de marque partout. Tokens/classes inchangés → zéro rég
 > Reste en dette (non bloquant P1) : édition de modèle côté front (create/delete/apply livrés),
 > commentaires de séance rattachés (`workoutId` supporté côté API, UI fil global pour l'instant).
 
+### Dette technique — traitée (itération suivante)
+| Item | État |
+|---|---|
+| Rate limiting auth/invitations | ✅ FixedWindowRateLimiter + filtre 429 (désactivable), testé |
+| Révocation JWT au logout | ✅ jti + TokenBlacklist + `POST /auth/logout` (front câblé), testé |
+| Refresh token rotation/blacklist complet | ⏳ partiel (access révoqué au logout ; refresh réutilisable jusqu'à expiration) |
+| Rate-limit Redis / ShedLock multi-instance | ⏳ (mono-instance OK pour l'instant) |
+| Tests front + Karma CI | ⏳ (Chrome headless indisponible dans le build) |
+
 ### P2 — partiel
 | Item | État |
 |---|---|
 | Courses/objectifs + compte à rebours | ✅ (CRUD coach + carte J-XX athlète) |
-| Push WebPush | ⏳ à faire |
-| TrainingGroup + vue par groupe/mois | ⏳ à faire |
-| Détail activité FIT/GPX + carte | ⏳ à faire |
+| **Vue mois du calendrier** | ✅ (bascule semaine/mois, drag&drop conservé) |
+| **TrainingGroup + filtre/badges** | ✅ (CRUD groupes, affectation, filtre liste) |
+| Push WebPush (VAPID) | ⏳ à faire (clés VAPID + handler SW push) |
+| Détail activité FIT/GPX + carte | ⏳ à faire (parsing + Leaflet) |
 
 ### Reste à faire (prioritaire)
 1. **Tests front + Karma** dans une CI dotée de Chrome (`browser-actions/setup-chrome`).
