@@ -1,0 +1,32 @@
+# ============================================================================
+# 011 — Table "training_plans" (plans périodisés, items en JSON).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 011-create-training-plans
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: training_plans
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: VARCHAR(2048) }
+              - column: { name: duration_weeks, type: INT, constraints: { nullable: false } }
+              - column: { name: items_json, type: VARCHAR(8000) }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_plans_club
+            baseTableName: training_plans
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_plans_club
+            tableName: training_plans
+            columns:
+              - column: { name: club_id }

@@ -1,0 +1,35 @@
+# ============================================================================
+# 009 — Table "workout_templates" (bibliothèque de séances réutilisables).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 009-create-workout-templates
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: workout_templates
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: type, type: VARCHAR(32), constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: notes, type: VARCHAR(2048) }
+              - column: { name: target_distance_m, type: INT }
+              - column: { name: target_duration_s, type: INT }
+              - column: { name: steps_json, type: VARCHAR(8000) }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_templates_club
+            baseTableName: workout_templates
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_templates_club
+            tableName: workout_templates
+            columns:
+              - column: { name: club_id }
