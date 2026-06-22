@@ -65,6 +65,21 @@ export const routes: Routes = [
           import('./features/calendar/calendar.component').then((m) => m.CalendarComponent),
       },
       {
+        path: 'templates',
+        loadComponent: () =>
+          import('./features/templates/template-list.component').then((m) => m.TemplateListComponent),
+      },
+      {
+        path: 'plans',
+        loadComponent: () =>
+          import('./features/plans/plan-list.component').then((m) => m.PlanListComponent),
+      },
+      {
+        path: 'athletes/:athleteId/messages',
+        loadComponent: () =>
+          import('./features/messages/chat.component').then((m) => m.ChatComponent),
+      },
+      {
         path: 'athletes/:athleteId/activities',
         loadComponent: () =>
           import('./features/activities/activity-list.component').then((m) => m.ActivityListComponent),
@@ -105,6 +120,11 @@ export const routes: Routes = [
         path: 'profile',
         loadComponent: () =>
           import('./features/athlete/profile.component').then((m) => m.AthleteProfileComponent),
+      },
+      {
+        path: 'messages',
+        loadComponent: () =>
+          import('./features/messages/chat.component').then((m) => m.ChatComponent),
       },
     ],
   },

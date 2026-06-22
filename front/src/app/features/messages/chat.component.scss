@@ -1,0 +1,20 @@
+.chat { display: flex; flex-direction: column; gap: var(--sp-4); }
+.chat.standalone { max-width: 640px; margin-inline: auto; padding: var(--sp-5) var(--sp-4); min-height: 100dvh; }
+
+.thread { display: flex; flex-direction: column; gap: var(--sp-3); min-height: 300px; max-height: 60vh; overflow-y: auto; }
+.empty { margin: auto; }
+
+.msg { display: flex; }
+.msg.mine { justify-content: flex-end; }
+.bubble {
+  max-width: 75%;
+  background: var(--paper-sunk);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-2) var(--sp-3);
+}
+.msg.mine .bubble { background: var(--gradient-brand); color: #fff; }
+.sender { font-size: var(--text-xs); opacity: 0.7; display: block; margin-bottom: 2px; }
+.bubble p { margin: 0; }
+
+.composer { display: flex; gap: var(--sp-2); }
+.composer .form-control { flex: 1; }
