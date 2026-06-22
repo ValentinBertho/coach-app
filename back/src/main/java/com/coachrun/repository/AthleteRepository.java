@@ -23,8 +23,8 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
             where a.club.id = :clubId
               and (:status is null or a.status = :status)
               and (:groupId is null or a.group.id = :groupId)
-              and (:q is null or lower(a.firstName) like lower(concat('%', :q, '%'))
-                              or lower(a.lastName)  like lower(concat('%', :q, '%')))
+              and (lower(a.firstName) like lower(concat('%', :q, '%'))
+                   or lower(a.lastName) like lower(concat('%', :q, '%')))
             """)
     Page<Athlete> search(@Param("clubId") UUID clubId,
                          @Param("status") AthleteStatus status,
@@ -39,8 +39,8 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
             select a from Athlete a
             where (:clubId is null or a.club.id = :clubId)
               and (:status is null or a.status = :status)
-              and (:q is null or lower(a.firstName) like lower(concat('%', :q, '%'))
-                              or lower(a.lastName)  like lower(concat('%', :q, '%')))
+              and (lower(a.firstName) like lower(concat('%', :q, '%'))
+                   or lower(a.lastName) like lower(concat('%', :q, '%')))
             """)
     Page<Athlete> searchAdmin(@Param("clubId") UUID clubId,
                               @Param("status") AthleteStatus status,

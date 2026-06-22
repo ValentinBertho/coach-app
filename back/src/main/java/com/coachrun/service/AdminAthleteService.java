@@ -26,7 +26,7 @@ public class AdminAthleteService {
     private final AthleteRepository athleteRepository;
 
     public PageResponse<AdminAthleteResponse> list(UUID clubId, AthleteStatus status, String q, Pageable pageable) {
-        String query = StringUtils.hasText(q) ? q.trim() : null;
+        String query = StringUtils.hasText(q) ? q.trim() : "";
         return PageResponse.from(athleteRepository.searchAdmin(clubId, status, query, pageable),
                 AdminAthleteResponse::from);
     }

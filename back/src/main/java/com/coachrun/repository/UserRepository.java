@@ -28,8 +28,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
             select u from User u
             where (:role is null or u.role = :role)
               and (:status is null or u.status = :status)
-              and (:q is null or lower(u.email) like lower(concat('%', :q, '%'))
-                              or lower(u.fullName) like lower(concat('%', :q, '%')))
+              and (lower(u.email) like lower(concat('%', :q, '%'))
+                   or lower(u.fullName) like lower(concat('%', :q, '%')))
             """)
     Page<User> searchAdmin(@Param("role") UserRole role,
                            @Param("status") UserStatus status,
