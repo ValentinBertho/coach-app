@@ -87,7 +87,62 @@
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --duration-fast: 110ms; --duration: 200ms; --duration-slow: 320ms;
+
+  /* ==========================================================================
+   * Tokens métier DARI Lab (additifs — n'imposent pas le thème sombre du CDC,
+   * conservé comme décision produit séparée). Couleurs sémantiques utilisées par
+   * les écrans physiologie / course / trail / préparation physique.
+   * ====================================================================== */
+  --dari-teal: #2dd4bf;     /* course / route / e1RM */
+  --dari-orange: #f97316;   /* trail / charge métabolique */
+  --dari-violet: #a78bfa;   /* force / préparation physique */
+  --dari-green: #10b981;    /* état de forme OK */
+  --dari-yellow: #fbbf24;   /* attention / volume */
+  --dari-red: #ef4444;      /* alerte / douleur */
+
+  /* Discipline */
+  --discipline-route: var(--dari-teal);
+  --discipline-trail: var(--dari-orange);
+
+  /* Domaines d'intensité (physiologie LT1/LT2) */
+  --domain-1: var(--dari-green);   /* sous LT1 */
+  --domain-2: var(--dari-yellow);  /* entre LT1 et LT2 */
+  --domain-3: var(--dari-red);     /* au-dessus de LT2 */
+
+  /* État de forme (fatigue + douleur, jamais le RPE) */
+  --form-green: var(--dari-green);
+  --form-orange: var(--dari-orange);
+  --form-red: var(--dari-red);
+
+  /* Formats de bloc force */
+  --block-classique: var(--dari-violet);
+  --block-emom: var(--dari-yellow);
+  --block-amrap: var(--dari-orange);
+  --block-fortime: var(--dari-red);
+  --block-circuit: var(--dari-teal);
+
+  /* Police mono pour données physiologiques chiffrées (alias DM Mono → JetBrains Mono déjà chargée) */
+  --font-data: var(--font-mono);
 }
+
+/* --- État de forme : pastille fatigue+douleur ------------------------------ */
+.form-dot {
+  display: inline-block; width: 12px; height: 12px; border-radius: 50%;
+  vertical-align: middle; flex-shrink: 0;
+}
+.form-dot--green { background: var(--form-green); }
+.form-dot--orange { background: var(--form-orange); }
+.form-dot--red { background: var(--form-red); }
+
+/* --- Chips discipline / domaines / formats de bloc ------------------------- */
+.discipline-chip { display: inline-flex; align-items: center; gap: var(--sp-1); padding: 1px 8px; border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: 700; color: #fff; }
+.discipline-chip--route { background: var(--discipline-route); color: var(--ink); }
+.discipline-chip--trail { background: var(--discipline-trail); }
+
+.domain-bar { display: inline-block; height: 6px; border-radius: var(--radius-full); }
+.domain-bar--1 { background: var(--domain-1); }
+.domain-bar--2 { background: var(--domain-2); }
+.domain-bar--3 { background: var(--domain-3); }
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; min-height: 100%; }

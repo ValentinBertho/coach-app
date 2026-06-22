@@ -33,3 +33,5 @@ databaseChangeLog:
       file: db/changelog/changes/014-create-push-subscriptions.yaml
   - include:
       file: db/changelog/changes/015-many-to-many-relations.yaml
+  - include:
+      file: db/changelog/changes/016-club-membership-permissions.yaml
