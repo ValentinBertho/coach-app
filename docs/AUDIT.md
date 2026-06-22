@@ -148,13 +148,16 @@ auth fond mesh, logo de marque partout. Tokens/classes inchangés → zéro rég
 | Strava OAuth | ⏭️ | **Reporté** à la demande. |
 | Tests front + Karma CI | ⚠️ | Non livré : Karma nécessite un Chrome headless **non disponible dans l'environnement de build actuel** → ajout différé pour ne pas livrer une CI invérifiable. Le backend reste couvert (25 tests). |
 
-### P1 — Phase 2 (cœur) — partiel
+### P1 — Phase 2 (cœur) — ✅ TERMINÉ
 | Item | État |
 |---|---|
 | Graphes de charge (volume prévu/réalisé, zones, adhérence) | ✅ (agrégation serveur + SVG) |
-| Bibliothèque de séances (`WorkoutTemplate`) | ⏳ à faire (nécessite extraire l'éditeur d'étapes en composant partagé) |
-| Plans périodisés | ⏳ à faire |
-| Messagerie | ⏳ à faire |
+| Bibliothèque de séances (`WorkoutTemplate`) | ✅ CRUD + application 1 clic au calendrier |
+| Plans périodisés (`TrainingPlan`) | ✅ builder semaine×jour→modèle + application à un athlète |
+| Messagerie coach↔athlète | ✅ fil par athlète (coach + portail athlète) |
+
+> Reste en dette (non bloquant P1) : édition de modèle côté front (create/delete/apply livrés),
+> commentaires de séance rattachés (`workoutId` supporté côté API, UI fil global pour l'instant).
 
 ### P2 — partiel
 | Item | État |
