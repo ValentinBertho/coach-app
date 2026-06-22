@@ -1,0 +1,41 @@
+<section class="page-header">
+  <div><h1 class="display-sm">Objectifs & courses</h1><p class="subtitle">Courses cibles et chronos visés.</p></div>
+  <a [routerLink]="['/app/athletes', athleteId()]" class="btn btn-ghost">← Fiche athlète</a>
+</section>
+
+<div class="card" style="margin-bottom: var(--sp-5)">
+  <h2 style="margin-top:0;font-size:var(--text-lg)">Nouvel objectif</h2>
+  <div class="form-row-3">
+    <div class="form-group"><label>Nom</label><input class="form-control" [(ngModel)]="draft.name" placeholder="Marathon de Paris" /></div>
+    <div class="form-group"><label>Date</label><input type="date" class="form-control" [(ngModel)]="draft.raceDate" /></div>
+    <div class="form-group">
+      <label>Priorité</label>
+      <select class="form-control" [(ngModel)]="draft.priority">
+        <option value="A">A — majeur</option><option value="B">B</option><option value="C">C</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Distance (m)</label><input type="number" class="form-control" [(ngModel)]="draft.distanceM" /></div>
+    <div class="form-group"><label>Chrono visé (s)</label><input type="number" class="form-control" [(ngModel)]="draft.targetTimeS" /></div>
+    <div class="form-group" style="justify-content:flex-end"><button type="button" class="btn btn-primary" (click)="create()">+ Ajouter</button></div>
+  </div>
+</div>
+
+@if (loading()) {
+  <div class="card">Chargement…</div>
+} @else if (races().length === 0) {
+  <div class="card empty-state"><h2>Aucun objectif</h2><p class="field-hint">Ajoutez une course cible.</p></div>
+} @else {
+  <div class="stats-grid">
+    @for (r of races(); track r.id) {
+      <div class="card stat-card">
+        <div style="display:flex;align-items:center;gap:var(--sp-2)">
+          <span class="badge" [class.badge-warning]="r.priority==='A'" [class.badge-neutral]="r.priority!=='A'">Priorité {{ r.priority }}</span>
+          <span class="badge badge-info">{{ countdown(r) }}</span>
+        </div>
+        <strong>{{ r.name }}</strong>
+        <span class="field-hint metric">{{ r.raceDate }}@if (r.distanceM) { · {{ (r.distanceM/1000).toFixed(1) }} km }</span>
+        <button type="button" class="btn btn-danger btn-sm" style="align-self:flex-start" (click)="remove(r)">Supprimer</button>
+      </div>
+    }
+  </div>
+}

@@ -1,6 +1,7 @@
 package com.coachrun.controller;
 
 import com.coachrun.dto.request.WorkoutRequest;
+import com.coachrun.dto.request.WorkoutRescheduleRequest;
 import com.coachrun.dto.request.WorkoutStatusRequest;
 import com.coachrun.dto.response.WorkoutResponse;
 import com.coachrun.service.WorkoutService;
@@ -63,6 +64,13 @@ public class WorkoutController {
     public WorkoutResponse update(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                   @PathVariable UUID workoutId, @Valid @RequestBody WorkoutRequest request) {
         return workoutService.update(clubId, workoutId, request);
+    }
+
+    @PatchMapping("/{workoutId}/reschedule")
+    public WorkoutResponse reschedule(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                      @PathVariable UUID workoutId,
+                                      @Valid @RequestBody WorkoutRescheduleRequest request) {
+        return workoutService.reschedule(clubId, workoutId, request.scheduledDate());
     }
 
     @PatchMapping("/{workoutId}/status")

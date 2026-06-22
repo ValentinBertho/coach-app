@@ -34,8 +34,7 @@
     <option value="">Tous les rôles</option>
     @for (r of roles; track r) { <option [value]="r">{{ roleLabels[r] }}</option> }
   </select>
-  <input type="search" class="form-control" placeholder="Rechercher (email, nom)…" [(ngModel)]="search" (keyup.enter)="load()" />
-  <button type="button" class="btn btn-ghost" (click)="load()">Rechercher</button>
+  <input type="search" class="form-control" placeholder="Rechercher (email, nom)…" [(ngModel)]="search" (ngModelChange)="onSearchChange()" />
 </div>
 
 @if (loading()) {
@@ -70,4 +69,5 @@
       </tbody>
     </table>
   </div>
+  <app-paginator [page]="page()" [totalPages]="totalPages()" (pageChange)="goToPage($event)" />
 }

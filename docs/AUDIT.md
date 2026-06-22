@@ -129,3 +129,48 @@
 *Synthèse : la Phase 1 est fonctionnellement quasi complète (il manque Strava — reporté —,
 le drag&drop et le volet RGPD opérationnel). Les fondations (sécurité tenant, chiffrement santé,
 PWA, design system, back office, seed/RAZ) sont solides pour enchaîner la Phase 2.*
+
+---
+
+## 7. Journal d'avancement (itération design + P0/P1/P2)
+
+### Design — refonte « Pace v2 » (livré)
+Palette **duotone indigo→violet**, dégradés **mesh/aurora**, **glassmorphism**, ombres colorées,
+boutons/cards/inputs premium, micro-interactions. Landing hero aurora + *gradient text*, pages
+auth fond mesh, logo de marque partout. Tokens/classes inchangés → zéro régression.
+
+### P0 — clôture Phase 1
+| Item | État | Note |
+|---|---|---|
+| Glisser-déposer calendrier | ✅ | `@angular/cdk`, `PATCH /reschedule`, optimiste + rollback. |
+| RGPD (consentement, export, oubli) | ✅ | Consentement art. 9 à l'onboarding, `/me/export`, `DELETE /me`. |
+| Pagination UI + recherche debouncée | ✅ | `PaginatorComponent` + debounce 300ms (athlètes, admin). |
+| Strava OAuth | ⏭️ | **Reporté** à la demande. |
+| Tests front + Karma CI | ⚠️ | Non livré : Karma nécessite un Chrome headless **non disponible dans l'environnement de build actuel** → ajout différé pour ne pas livrer une CI invérifiable. Le backend reste couvert (25 tests). |
+
+### P1 — Phase 2 (cœur) — partiel
+| Item | État |
+|---|---|
+| Graphes de charge (volume prévu/réalisé, zones, adhérence) | ✅ (agrégation serveur + SVG) |
+| Bibliothèque de séances (`WorkoutTemplate`) | ⏳ à faire (nécessite extraire l'éditeur d'étapes en composant partagé) |
+| Plans périodisés | ⏳ à faire |
+| Messagerie | ⏳ à faire |
+
+### P2 — partiel
+| Item | État |
+|---|---|
+| Courses/objectifs + compte à rebours | ✅ (CRUD coach + carte J-XX athlète) |
+| Push WebPush | ⏳ à faire |
+| TrainingGroup + vue par groupe/mois | ⏳ à faire |
+| Détail activité FIT/GPX + carte | ⏳ à faire |
+
+### Reste à faire (prioritaire)
+1. **Tests front + Karma** dans une CI dotée de Chrome (`browser-actions/setup-chrome`).
+2. **Bibliothèque de séances** puis **plans périodisés** (réutiliser l'éditeur d'étapes).
+3. **Messagerie** coach↔athlète (+ commentaires de séance) ; **push WebPush**.
+4. **TrainingGroup** (vue mois/groupe) ; **parsing FIT/GPX** + carte.
+5. **Strava OAuth** (quand souhaité) — moteur de rapprochement déjà prêt.
+
+*Cette itération a priorisé l'impact démo (design « wahou », charge/graphes, objectifs, RGPD,
+drag&drop) avec build front vert et 25 tests back. Les briques P1/P2 restantes sont volumineuses
+et listées ci-dessus pour la suite.*

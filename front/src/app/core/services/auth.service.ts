@@ -49,9 +49,9 @@ export class AuthService {
   }
 
   /** Onboarding athlète par lien magique : échange le token contre une session. */
-  acceptInvitation(token: string): Observable<AuthResponse> {
+  acceptInvitation(token: string, healthDataConsent: boolean): Observable<AuthResponse> {
     return this.http
-      .post<AuthResponse>(`${environment.apiUrl}/public/invitations/${token}/accept`, {})
+      .post<AuthResponse>(`${environment.apiUrl}/public/invitations/${token}/accept`, { healthDataConsent })
       .pipe(tap((res) => this.applySession(res)));
   }
 

@@ -8,8 +8,7 @@
 
 <div class="search-bar">
   <input type="search" class="form-control" placeholder="Rechercher un athlète…"
-         [(ngModel)]="search" (keyup.enter)="load()" />
-  <button type="button" class="btn btn-ghost" (click)="load()">Rechercher</button>
+         [(ngModel)]="search" (ngModelChange)="onSearchChange()" />
 </div>
 
 @switch (state()) {
@@ -47,6 +46,7 @@
           </a>
         }
       </div>
+      <app-paginator [page]="page()" [totalPages]="totalPages()" (pageChange)="goToPage($event)" />
     }
   }
 }

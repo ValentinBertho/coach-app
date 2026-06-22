@@ -4,15 +4,18 @@
   align-items: center;
   justify-content: center;
   padding: var(--sp-4);
-  background: radial-gradient(120% 120% at 50% 0%, var(--primary-wash), var(--canvas) 60%);
+  background-color: var(--night);
+  background-image: var(--mesh);
 }
 
 .auth-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
   animation: slideInUp var(--duration-slow) var(--ease);
 }
 
@@ -20,17 +23,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--sp-1);
+  gap: var(--sp-2);
   text-align: center;
 }
+.auth-head h1 { margin: var(--sp-2) 0 0; }
 
-.auth-head h1 {
-  margin: var(--sp-2) 0 0;
-}
-
-.btn-lg {
-  width: 100%;
-}
+.btn-lg { width: 100%; }
 
 .auth-switch {
   text-align: center;

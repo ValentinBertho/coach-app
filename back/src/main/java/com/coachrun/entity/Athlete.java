@@ -89,4 +89,11 @@ public class Athlete extends BaseEntity {
 
     @Column(name = "invite_expires_at")
     private Instant inviteExpiresAt;
+
+    // --- Consentement RGPD (art. 9) ---
+    @Column(name = "health_data_consent_at")
+    private Instant healthDataConsentAt;
+
+    @Column(name = "device_consent_at")
+    private Instant deviceConsentAt;
 }

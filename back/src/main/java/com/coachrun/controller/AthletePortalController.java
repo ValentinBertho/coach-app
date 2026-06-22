@@ -1,22 +1,27 @@
 package com.coachrun.controller;
 
 import com.coachrun.dto.request.WorkoutFeedbackRequest;
+import com.coachrun.dto.response.AthleteExportResponse;
 import com.coachrun.dto.response.UserResponse;
 import com.coachrun.dto.response.WorkoutResponse;
 import com.coachrun.security.AuthPrincipal;
 import com.coachrun.service.AuthService;
+import com.coachrun.service.GdprService;
 import com.coachrun.service.WorkoutService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
@@ -35,6 +40,8 @@ public class AthletePortalController {
 
     private final WorkoutService workoutService;
     private final AuthService authService;
+    private final GdprService gdprService;
+    private final com.coachrun.service.RaceObjectiveService raceService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -62,5 +69,27 @@ public class AthletePortalController {
                                     @Valid @RequestBody WorkoutFeedbackRequest request) {
         return workoutService.submitFeedback(
                 principal.athleteId(), workoutId, request.status(), request.rpe(), request.comment());
+    }
+
+    /** Prochaine course cible (compte à rebours J-XX). 204 si aucune. */
+    @GetMapping("/next-race")
+    public org.springframework.http.ResponseEntity<com.coachrun.dto.response.RaceObjectiveResponse> nextRace(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return raceService.nextRace(principal.athleteId())
+                .map(org.springframework.http.ResponseEntity::ok)
+                .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
+    }
+
+    /** RGPD — portabilité : export des données personnelles de l'athlète. */
+    @GetMapping("/export")
+    public AthleteExportResponse export(@AuthenticationPrincipal AuthPrincipal principal) {
+        return gdprService.export(principal.athleteId());
+    }
+
+    /** RGPD — droit à l'oubli : suppression du compte et de toutes les données. */
+    @DeleteMapping
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAccount(@AuthenticationPrincipal AuthPrincipal principal) {
+        gdprService.deleteAthleteData(principal.athleteId());
     }
 }

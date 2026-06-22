@@ -1,0 +1,55 @@
+<section class="page-header">
+  <div><h1 class="display-sm">Charge & progression</h1><p class="subtitle">8 dernières semaines.</p></div>
+  <a [routerLink]="['/app/athletes', athleteId()]" class="btn btn-ghost">← Fiche athlète</a>
+</section>
+
+@if (loading()) {
+  <div class="card">Chargement…</div>
+} @else {
+  <div class="card chart-card">
+    <div class="chart-head">
+      <h2>Volume hebdomadaire (km)</h2>
+      <div class="legend">
+        <span><i class="sw planned"></i> Prévu</span>
+        <span><i class="sw realized"></i> Réalisé</span>
+      </div>
+    </div>
+    <div class="bars">
+      @for (b of bars(); track b.label) {
+        <div class="bar-group" [title]="b.label + ' — prévu ' + b.planned + ' km / réalisé ' + b.realized + ' km'">
+          <div class="bars-pair">
+            <span class="bar planned" [style.height.%]="b.px"></span>
+            <span class="bar realized" [style.height.%]="b.rx"></span>
+          </div>
+          <span class="bar-label">{{ b.label }}</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h2>Répartition par zone</h2>
+      @for (z of zones(); track z.zone) {
+        <div class="zline">
+          <span class="zone-tag" [class]="'zone-' + z.zone.toLowerCase()">{{ z.zone }}</span>
+          <span class="ztrack"><span class="zfill" [class]="'zb-' + z.zone.toLowerCase()" [style.width.%]="z.pct"></span></span>
+          <span class="metric zval">{{ z.count }}</span>
+        </div>
+      }
+    </div>
+
+    <div class="card">
+      <h2>Adhérence</h2>
+      <div class="statuses">
+        @for (s of statuses(); track s[0]) {
+          <div class="stat-line">
+            <span class="badge" [class]="statusBadge(s[0])">{{ statusLabel(s[0]) }}</span>
+            <span class="metric">{{ s[1] }}</span>
+          </div>
+        }
+        @if (statuses().length === 0) { <p class="field-hint">Aucune séance sur la période.</p> }
+      </div>
+    </div>
+  </div>
+}

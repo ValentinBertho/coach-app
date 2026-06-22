@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -93,5 +94,15 @@ class AthletePortalTest {
         mvc.perform(get("/clubs/{c}/athletes", clubId)
                         .header("Authorization", "Bearer " + athToken))
                 .andExpect(status().isForbidden());
+
+        // RGPD — export de ses données
+        mvc.perform(get("/me/export").header("Authorization", "Bearer " + athToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profile.firstName").value("Lea"))
+                .andExpect(jsonPath("$.workouts").isArray());
+
+        // RGPD — droit à l'oubli
+        mvc.perform(delete("/me").header("Authorization", "Bearer " + athToken))
+                .andExpect(status().isNoContent());
     }
 }

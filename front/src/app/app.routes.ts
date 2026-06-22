@@ -70,6 +70,16 @@ export const routes: Routes = [
           import('./features/activities/activity-list.component').then((m) => m.ActivityListComponent),
       },
       {
+        path: 'athletes/:athleteId/analytics',
+        loadComponent: () =>
+          import('./features/analytics/analytics.component').then((m) => m.AnalyticsComponent),
+      },
+      {
+        path: 'athletes/:athleteId/races',
+        loadComponent: () =>
+          import('./features/races/race-list.component').then((m) => m.RaceListComponent),
+      },
+      {
         path: 'athletes/:athleteId/workouts/new',
         loadComponent: () =>
           import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),
@@ -90,6 +100,11 @@ export const routes: Routes = [
         path: 'today',
         loadComponent: () =>
           import('./features/athlete/today.component').then((m) => m.TodayComponent),
+      },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('./features/athlete/profile.component').then((m) => m.AthleteProfileComponent),
       },
     ],
   },

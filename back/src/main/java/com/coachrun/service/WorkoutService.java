@@ -79,6 +79,14 @@ public class WorkoutService {
         return WorkoutResponse.from(workout);
     }
 
+    /** Replanification (glisser-déposer) : change uniquement la date. */
+    @Transactional
+    public WorkoutResponse reschedule(UUID clubId, UUID workoutId, java.time.LocalDate date) {
+        Workout workout = require(clubId, workoutId);
+        workout.setScheduledDate(date);
+        return WorkoutResponse.from(workout);
+    }
+
     @Transactional
     public void delete(UUID clubId, UUID workoutId) {
         Workout workout = require(clubId, workoutId);
