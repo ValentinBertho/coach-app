@@ -37,6 +37,7 @@ public class ActivityService {
     private final AthleteRepository athleteRepository;
     private final WorkoutRepository workoutRepository;
     private final MatchingService matchingService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public List<ActivityResponse> list(UUID clubId, UUID athleteId) {
         return activityRepository.findByClubIdAndAthleteIdOrderByActivityDateDesc(clubId, athleteId)
@@ -71,6 +72,54 @@ public class ActivityService {
         activity = activityRepository.save(activity);
         log.info("Activité importée {} (athlète={}, statut={})", activity.getId(), athleteId, activity.getStatus());
         return toResponse(activity);
+    }
+
+    /** Import d'un fichier GPX/TCX → activité + tracé, puis rapprochement automatique. */
+    @Transactional
+    public ActivityResponse importFile(UUID clubId, UUID athleteId, String filename, byte[] bytes) {
+        com.coachrun.entity.Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        com.coachrun.util.GpxParser.ParsedActivity parsed;
+        try {
+            parsed = com.coachrun.util.GpxParser.parse(bytes);
+        } catch (IllegalArgumentException ex) {
+            throw new com.coachrun.exception.ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    ex.getMessage());
+        }
+
+        Activity activity = new Activity();
+        activity.setClub(athlete.getClub());
+        activity.setAthlete(athlete);
+        activity.setSource(ActivitySource.FILE);
+        activity.setActivityDate(parsed.date());
+        activity.setTitle(filename != null ? filename.replaceAll("\\.(gpx|tcx)$", "") : "Activité importée");
+        activity.setDistanceM(parsed.distanceM());
+        activity.setDurationS(parsed.durationS());
+        activity.setElevationGainM(parsed.elevationGainM());
+        activity.setStatus(ActivityStatus.IMPORTED);
+        try {
+            activity.setRouteJson(objectMapper.writeValueAsString(parsed.route()));
+        } catch (Exception ignored) {
+            // tracé optionnel
+        }
+        autoMatch(athleteId, activity);
+        activity = activityRepository.save(activity);
+        log.info("Activité importée par fichier {} ({} pts)", activity.getId(), parsed.route().size());
+        return toResponse(activity);
+    }
+
+    /** Détail incluant le tracé GPS décodé. */
+    public java.util.List<double[]> route(UUID clubId, UUID activityId) {
+        Activity a = require(clubId, activityId);
+        if (a.getRouteJson() == null) {
+            return java.util.List.of();
+        }
+        try {
+            return objectMapper.readValue(a.getRouteJson(),
+                    new com.fasterxml.jackson.core.type.TypeReference<java.util.List<double[]>>() { });
+        } catch (Exception e) {
+            return java.util.List.of();
+        }
     }
 
     @Transactional

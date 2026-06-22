@@ -1,0 +1,12 @@
+# ============================================================================
+# 013 — Tracé GPS des activités (route sous-échantillonnée en JSON).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 013-activity-route
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: activities
+            columns:
+              - column: { name: route_json, type: CLOB }

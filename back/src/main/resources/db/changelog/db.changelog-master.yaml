@@ -27,3 +27,7 @@ databaseChangeLog:
       file: db/changelog/changes/011-create-training-plans.yaml
   - include:
       file: db/changelog/changes/012-create-training-groups.yaml
+  - include:
+      file: db/changelog/changes/013-activity-route.yaml
+  - include:
+      file: db/changelog/changes/014-create-push-subscriptions.yaml
