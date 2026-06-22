@@ -1,0 +1,62 @@
+# ============================================================================
+# 018 — Performances athlète + allures VDOT calculées (cf. DARI Lab).
+#   - athlete_performances : chronos de référence (source du calcul VDOT)
+#   - athlete_vdot_paces   : allures d'équivalence par distance (1 ligne / athlète)
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 018-performances-vdot
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: athlete_performances
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: distance, type: VARCHAR(32), constraints: { nullable: false } }
+              - column: { name: time_seconds, type: INT, constraints: { nullable: false } }
+              - column: { name: date_set, type: DATE }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_perf_athlete
+            baseTableName: athlete_performances
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_perf_athlete
+            tableName: athlete_performances
+            columns:
+              - column: { name: athlete_id }
+
+        - createTable:
+            tableName: athlete_vdot_paces
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: vdot, type: "DECIMAL(5,2)" }
+              - column: { name: pace_800m_s, type: INT }
+              - column: { name: pace_1500m_s, type: INT }
+              - column: { name: pace_3000m_s, type: INT }
+              - column: { name: pace_5km_s, type: INT }
+              - column: { name: pace_10km_s, type: INT }
+              - column: { name: pace_15km_s, type: INT }
+              - column: { name: pace_semi_s, type: INT }
+              - column: { name: pace_marathon_s, type: INT }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: athlete_vdot_paces
+            columnNames: athlete_id
+            constraintName: uq_vdot_paces_athlete
+        - addForeignKeyConstraint:
+            constraintName: fk_vdot_paces_athlete
+            baseTableName: athlete_vdot_paces
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE

@@ -35,3 +35,7 @@ databaseChangeLog:
       file: db/changelog/changes/015-many-to-many-relations.yaml
   - include:
       file: db/changelog/changes/016-club-membership-permissions.yaml
+  - include:
+      file: db/changelog/changes/017-athlete-physio.yaml
+  - include:
+      file: db/changelog/changes/018-performances-vdot.yaml

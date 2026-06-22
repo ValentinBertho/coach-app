@@ -2,6 +2,7 @@ package com.coachrun.entity;
 
 import com.coachrun.entity.enums.AthleteLevel;
 import com.coachrun.entity.enums.AthleteStatus;
+import com.coachrun.entity.enums.Discipline;
 import com.coachrun.entity.enums.Sex;
 import com.coachrun.security.EncryptedBigDecimalConverter;
 import com.coachrun.security.EncryptedIntegerConverter;
@@ -110,6 +111,49 @@ public class Athlete extends BaseEntity {
     @Convert(converter = EncryptedStringConverter.class)
     @Column(name = "medical_notes", length = 2048)
     private String medicalNotes;
+
+    // --- Profil physiologique DARI Lab ---
+    @Enumerated(EnumType.STRING)
+    @Column(name = "discipline", length = 16)
+    private Discipline discipline = Discipline.ROUTE;
+
+    /** Seuils physiologiques en m/s (données de santé, chiffrées au repos). */
+    @Convert(converter = EncryptedBigDecimalConverter.class)
+    @Column(name = "lt1_ms")
+    private BigDecimal lt1Ms;
+
+    @Convert(converter = EncryptedBigDecimalConverter.class)
+    @Column(name = "lt2_ms")
+    private BigDecimal lt2Ms;
+
+    @Convert(converter = EncryptedBigDecimalConverter.class)
+    @Column(name = "vc_ms")
+    private BigDecimal vcMs;
+
+    @Convert(converter = EncryptedIntegerConverter.class)
+    @Column(name = "fc_lt1")
+    private Integer fcLt1;
+
+    @Convert(converter = EncryptedIntegerConverter.class)
+    @Column(name = "fc_lt2")
+    private Integer fcLt2;
+
+    /** Seuils des domaines d'intensité, configurables par athlète (non sensibles). */
+    @Column(name = "vc_domain1_pct", precision = 5, scale = 2)
+    private BigDecimal vcDomain1Pct = new BigDecimal("90.00");
+
+    @Column(name = "vc_domain2_pct", precision = 5, scale = 2)
+    private BigDecimal vcDomain2Pct = new BigDecimal("100.00");
+
+    @Column(name = "fc_domain1_pct", precision = 5, scale = 2)
+    private BigDecimal fcDomain1Pct = new BigDecimal("80.00");
+
+    @Column(name = "fc_domain2_pct", precision = 5, scale = 2)
+    private BigDecimal fcDomain2Pct = new BigDecimal("90.00");
+
+    /** VDOT calculé automatiquement à partir des performances (dérivé). */
+    @Column(name = "vdot", precision = 5, scale = 2)
+    private BigDecimal vdot;
 
     // --- Invitation par lien magique ---
     @Column(name = "invite_token", length = 64)

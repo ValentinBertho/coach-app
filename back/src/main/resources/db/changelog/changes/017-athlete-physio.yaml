@@ -1,0 +1,29 @@
+# ============================================================================
+# 017 — Profil physiologique DARI Lab sur la table athletes (additif).
+#   - discipline (route/trail)
+#   - seuils LT1/LT2/VC en m/s + FC seuils (chiffrés au repos : VARCHAR ciphertext)
+#   - bornes des domaines d'intensité (configurables, valeurs par défaut DARI Lab)
+#   - vdot dérivé (recalculé à partir des performances)
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 017-athlete-physio
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: athletes
+            columns:
+              - column: { name: discipline, type: VARCHAR(16), defaultValue: ROUTE }
+              # Seuils physiologiques chiffrés (converters Encrypted*) → VARCHAR
+              - column: { name: lt1_ms, type: VARCHAR(255) }
+              - column: { name: lt2_ms, type: VARCHAR(255) }
+              - column: { name: vc_ms, type: VARCHAR(255) }
+              - column: { name: fc_lt1, type: VARCHAR(255) }
+              - column: { name: fc_lt2, type: VARCHAR(255) }
+              # Bornes des domaines d'intensité (non sensibles, valeurs par défaut)
+              - column: { name: vc_domain1_pct, type: "DECIMAL(5,2)", defaultValueNumeric: 90 }
+              - column: { name: vc_domain2_pct, type: "DECIMAL(5,2)", defaultValueNumeric: 100 }
+              - column: { name: fc_domain1_pct, type: "DECIMAL(5,2)", defaultValueNumeric: 80 }
+              - column: { name: fc_domain2_pct, type: "DECIMAL(5,2)", defaultValueNumeric: 90 }
+              # VDOT dérivé
+              - column: { name: vdot, type: "DECIMAL(5,2)" }
