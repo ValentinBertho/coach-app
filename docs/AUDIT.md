@@ -168,14 +168,18 @@ auth fond mesh, logo de marque partout. Tokens/classes inchangés → zéro rég
 | Rate-limit Redis / ShedLock multi-instance | ⏳ (mono-instance OK pour l'instant) |
 | Tests front + Karma CI | ⏳ (Chrome headless indisponible dans le build) |
 
-### P2 — partiel
+### P2 — ✅ TERMINÉ
 | Item | État |
 |---|---|
 | Courses/objectifs + compte à rebours | ✅ (CRUD coach + carte J-XX athlète) |
-| **Vue mois du calendrier** | ✅ (bascule semaine/mois, drag&drop conservé) |
-| **TrainingGroup + filtre/badges** | ✅ (CRUD groupes, affectation, filtre liste) |
-| Push WebPush (VAPID) | ⏳ à faire (clés VAPID + handler SW push) |
-| Détail activité FIT/GPX + carte | ⏳ à faire (parsing + Leaflet) |
+| Vue mois du calendrier | ✅ (bascule semaine/mois, drag&drop conservé) |
+| TrainingGroup + filtre/badges | ✅ (CRUD groupes, affectation, filtre liste) |
+| Push WebPush (VAPID) | ✅ (abonnement SwPush + envoi serveur sur séance/feedback, désactivé sans clés) |
+| Import GPX/TCX + carte | ✅ (parser sans dépendance + tracé Leaflet/OSM) |
+
+> Notes : **FIT (binaire)** non géré (nécessite le Garmin FIT SDK) — GPX/TCX couvrent l'export courant.
+> Push : générer les clés via `web-push generate-vapid-keys` et définir `VAPID_PUBLIC_KEY` /
+> `VAPID_PRIVATE_KEY` (sinon le push est inactif, sans erreur).
 
 ### Reste à faire (prioritaire)
 1. **Tests front + Karma** dans une CI dotée de Chrome (`browser-actions/setup-chrome`).
