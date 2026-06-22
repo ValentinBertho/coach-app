@@ -1,0 +1,19 @@
+.form-card { margin-bottom: var(--sp-6); }
+.steps-head { display: flex; align-items: center; justify-content: space-between; margin: var(--sp-4) 0 var(--sp-2); }
+.steps-head h2 { margin: 0; font-size: var(--text-lg); }
+.steps { display: flex; flex-direction: column; gap: var(--sp-2); }
+.step-row { display: flex; gap: var(--sp-2); align-items: center; }
+.step-row .nm { max-width: 90px; }
+.icon-btn { width: 38px; height: 38px; border: 1px solid var(--hairline); background: var(--paper); border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; }
+.icon-btn.danger { color: var(--danger); }
+
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--sp-4); }
+.tpl { display: flex; flex-direction: column; gap: var(--sp-2); }
+.tpl-head { display: flex; align-items: center; justify-content: space-between; }
+.apply { display: flex; gap: var(--sp-2); margin-top: var(--sp-2); flex-wrap: wrap; }
+.apply .form-control { min-height: 40px; flex: 1; min-width: 110px; }
+
+@media (max-width: 768px) {
+  .step-row { flex-wrap: wrap; }
+  .step-row .nm { max-width: none; flex: 1; }
+}

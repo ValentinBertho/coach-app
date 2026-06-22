@@ -1,0 +1,28 @@
+<div class="chat" [class.standalone]="!coachMode()">
+  <section class="page-header">
+    <div><h1 class="display-sm">Messagerie</h1><p class="subtitle">{{ coachMode() ? 'Discussion avec l\'athlète' : 'Discussion avec votre coach' }}</p></div>
+    <a [routerLink]="backLink()" class="btn btn-ghost">← Retour</a>
+  </section>
+
+  <div class="thread card">
+    @if (loading()) {
+      <p class="field-hint">Chargement…</p>
+    } @else if (messages().length === 0) {
+      <p class="field-hint empty">Aucun message. Démarrez la conversation 👋</p>
+    } @else {
+      @for (m of messages(); track m.id) {
+        <div class="msg" [class.mine]="mine(m)">
+          <div class="bubble">
+            <span class="sender">{{ m.senderName }}</span>
+            <p>{{ m.body }}</p>
+          </div>
+        </div>
+      }
+    }
+  </div>
+
+  <form class="composer" (ngSubmit)="send()">
+    <input class="form-control" [(ngModel)]="draft" name="draft" placeholder="Votre message…" autocomplete="off" />
+    <button type="submit" class="btn btn-primary" [disabled]="!draft.trim()">Envoyer</button>
+  </form>
+</div>

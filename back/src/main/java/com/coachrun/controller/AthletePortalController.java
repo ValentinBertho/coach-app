@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -42,6 +43,7 @@ public class AthletePortalController {
     private final AuthService authService;
     private final GdprService gdprService;
     private final com.coachrun.service.RaceObjectiveService raceService;
+    private final com.coachrun.service.MessageService messageService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -78,6 +80,21 @@ public class AthletePortalController {
         return raceService.nextRace(principal.athleteId())
                 .map(org.springframework.http.ResponseEntity::ok)
                 .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
+    }
+
+    /** Messagerie : fil de discussion avec le coach. */
+    @GetMapping("/messages")
+    public java.util.List<com.coachrun.dto.response.MessageResponse> messages(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return messageService.athleteThread(principal.athleteId());
+    }
+
+    @PostMapping("/messages")
+    @ResponseStatus(HttpStatus.CREATED)
+    public com.coachrun.dto.response.MessageResponse sendMessage(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody com.coachrun.dto.request.MessageRequest request) {
+        return messageService.athleteSend(principal.athleteId(), principal, request);
     }
 
     /** RGPD — portabilité : export des données personnelles de l'athlète. */
