@@ -5,20 +5,42 @@
   </div>
 </section>
 
-<div class="stats-grid">
-  <div class="card stat-card">
-    <span class="stat-label">Athlètes actifs</span>
-    <span class="metric stat-value">—</span>
+@if (data(); as d) {
+  <div class="stats-grid">
+    <a class="card stat-card card-interactive" routerLink="/app/athletes">
+      <span class="stat-label">Athlètes actifs</span>
+      <span class="metric stat-value">{{ d.activeAthletes }}</span>
+    </a>
+    <a class="card stat-card card-interactive" routerLink="/app/calendar">
+      <span class="stat-label">Séances à valider</span>
+      <span class="metric stat-value">{{ d.sessionsToReview }}</span>
+    </a>
+    <div class="card stat-card">
+      <span class="stat-label">Réalisées cette semaine</span>
+      <span class="metric stat-value">{{ d.completedThisWeek }}</span>
+    </div>
+    <a class="card stat-card card-interactive" routerLink="/app/athletes">
+      <span class="stat-label">Invitations en attente</span>
+      <span class="metric stat-value">{{ d.pendingInvitations }}</span>
+    </a>
   </div>
-  <div class="card stat-card">
-    <span class="stat-label">Séances à valider</span>
-    <span class="metric stat-value">—</span>
-  </div>
-  <div class="card stat-card">
-    <span class="stat-label">Charge moyenne</span>
-    <span class="metric stat-value">—</span>
-  </div>
-</div>
+
+  @if (d.upcomingRaces.length) {
+    <div class="card">
+      <h2>Prochaines courses</h2>
+      <ul class="races">
+        @for (r of d.upcomingRaces; track r.id) {
+          <li>
+            <span class="badge badge-info">{{ countdown(r.daysUntil) }}</span>
+            <strong>{{ r.name }}</strong>
+            <span class="field-hint metric">{{ r.raceDate }}</span>
+            <span class="badge badge-neutral">Priorité {{ r.priority }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+  }
+}
 
 <div class="card next-step card-interactive" routerLink="/app/athletes">
   <div>
