@@ -33,3 +33,23 @@ databaseChangeLog:
       file: db/changelog/changes/014-create-push-subscriptions.yaml
   - include:
       file: db/changelog/changes/015-many-to-many-relations.yaml
+  - include:
+      file: db/changelog/changes/016-club-membership-permissions.yaml
+  - include:
+      file: db/changelog/changes/017-athlete-physio.yaml
+  - include:
+      file: db/changelog/changes/018-performances-vdot.yaml
+  - include:
+      file: db/changelog/changes/019-session-categories-library.yaml
+  - include:
+      file: db/changelog/changes/020-scheduled-session-extend.yaml
+  - include:
+      file: db/changelog/changes/021-lactate-tests.yaml
+  - include:
+      file: db/changelog/changes/022-pp-exercises.yaml
+  - include:
+      file: db/changelog/changes/023-strength-sessions.yaml
+  - include:
+      file: db/changelog/changes/024-scheduled-strength-sessions.yaml
+  - include:
+      file: db/changelog/changes/025-strength-results-e1rm.yaml

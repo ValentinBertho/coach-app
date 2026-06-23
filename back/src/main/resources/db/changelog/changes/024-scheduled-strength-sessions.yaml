@@ -1,0 +1,54 @@
+# ============================================================================
+# 024 — Séances de force planifiées (calendrier athlète, cf. DARI Lab).
+# Miroir de workouts pour le module force : snapshot figé + charges calculées +
+# champs adaptatifs demandés à l'athlète + retour de séance global.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 024-scheduled-strength-sessions
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: scheduled_strength_sessions
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: source_session_id, type: UUID }
+              - column: { name: title, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: session_snapshot, type: VARCHAR(20000) }
+              - column: { name: calculated_charges, type: VARCHAR(20000) }
+              - column: { name: required_fields, type: VARCHAR(1024) }
+              - column: { name: scheduled_date, type: DATE, constraints: { nullable: false } }
+              - column: { name: original_date, type: DATE }
+              - column: { name: moved_by_athlete, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: completed, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: completed_at, type: TIMESTAMP }
+              - column: { name: session_rpe, type: "DECIMAL(3,1)" }
+              - column: { name: session_fatigue, type: INT }
+              - column: { name: session_pain, type: INT }
+              - column: { name: session_comment, type: VARCHAR(1024) }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_sched_strength_club
+            baseTableName: scheduled_strength_sessions
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_sched_strength_athlete
+            baseTableName: scheduled_strength_sessions
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_sched_strength_athlete_date
+            tableName: scheduled_strength_sessions
+            columns:
+              - column: { name: club_id }
+              - column: { name: athlete_id }
+              - column: { name: scheduled_date }

@@ -2,7 +2,11 @@ package com.coachrun.service;
 
 import com.coachrun.dto.request.WorkoutRequest;
 import com.coachrun.dto.request.WorkoutStepRequest;
+import com.coachrun.dto.response.CalculatedSessionResponse;
+import com.coachrun.dto.response.WorkoutPrescriptionResponse;
 import com.coachrun.dto.response.WorkoutResponse;
+import com.coachrun.dto.session.PrescribedWorkout;
+import com.coachrun.dto.session.SessionStructure;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.WorkoutStep;
@@ -11,10 +15,12 @@ import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.WorkoutRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -33,6 +39,7 @@ public class WorkoutService {
     private final WorkoutRepository workoutRepository;
     private final AthleteRepository athleteRepository;
     private final NotificationService notificationService;
+    private final ObjectMapper objectMapper;
 
     public List<WorkoutResponse> calendar(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         return workoutRepository
@@ -87,6 +94,41 @@ public class WorkoutService {
         return WorkoutResponse.from(workout);
     }
 
+    /**
+     * Crée une séance prescrite depuis la bibliothèque avec snapshot figé + cibles calculées
+     * (cf. DARI Lab — copie figée au moment de l'assignation).
+     */
+    @Transactional
+    public WorkoutResponse createPrescribed(UUID clubId, UUID athleteId, PrescribedWorkout data) {
+        Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+
+        Workout workout = new Workout();
+        workout.setClub(athlete.getClub());
+        workout.setAthlete(athlete);
+        workout.setStatus(WorkoutStatus.PLANNED);
+        workout.setScheduledDate(data.date());
+        workout.setType(data.type());
+        workout.setTitle(data.title());
+        workout.setNotes(data.notes());
+        workout.setTargetDistanceM(data.targetDistanceM());
+        workout.setTargetDurationS(data.targetDurationS());
+        workout.setSourceTemplateId(data.sourceTemplateId());
+        workout.setSessionSnapshot(data.snapshotJson());
+        workout.setCalculatedPaces(data.calculatedJson());
+
+        workout = workoutRepository.save(workout);
+        log.info("Séance prescrite {} depuis modèle {} (athlète={})",
+                workout.getId(), data.sourceTemplateId(), athleteId);
+        notificationService.notifyWorkoutPlanned(workout);
+        return WorkoutResponse.from(workout);
+    }
+
+    /** Prescription figée d'une séance (snapshot + cibles calculées) — vue coach. */
+    public WorkoutPrescriptionResponse prescription(UUID clubId, UUID workoutId) {
+        return toPrescription(require(clubId, workoutId));
+    }
+
     @Transactional
     public void delete(UUID clubId, UUID workoutId) {
         Workout workout = require(clubId, workoutId);
@@ -107,8 +149,8 @@ public class WorkoutService {
     }
 
     @Transactional
-    public WorkoutResponse submitFeedback(UUID athleteId, UUID workoutId,
-                                          WorkoutStatus status, Integer rpe, String comment) {
+    public WorkoutResponse submitFeedback(UUID athleteId, UUID workoutId, WorkoutStatus status,
+                                          Integer rpe, Integer fatigue, Integer pain, String comment) {
         Workout workout = workoutRepository.findByIdAndAthleteId(workoutId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
         if (status != null) {
@@ -119,9 +161,52 @@ public class WorkoutService {
             workout.setStatus(status);
         }
         workout.setRpe(rpe);
+        workout.setFatigue(fatigue);
+        workout.setPain(pain);
         workout.setAthleteComment(comment);
         notificationService.notifyAthleteFeedback(workout);
         return WorkoutResponse.from(workout);
+    }
+
+    /**
+     * Déplacement d'une séance par l'athlète : change la date et marque {@code movedByAthlete}.
+     * L'athlète peut déplacer mais jamais modifier le contenu (cf. DARI Lab).
+     */
+    @Transactional
+    public WorkoutResponse moveByAthlete(UUID athleteId, UUID workoutId, LocalDate date) {
+        Workout workout = workoutRepository.findByIdAndAthleteId(workoutId, athleteId)
+                .orElseThrow(() -> new NotFoundException("Séance introuvable."));
+        if (workout.getOriginalDate() == null) {
+            workout.setOriginalDate(workout.getScheduledDate());
+        }
+        workout.setScheduledDate(date);
+        workout.setMovedByAthlete(true);
+        return WorkoutResponse.from(workout);
+    }
+
+    /** Prescription figée d'une séance — vue athlète (scopée par athleteId). */
+    public WorkoutPrescriptionResponse prescriptionForAthlete(UUID athleteId, UUID workoutId) {
+        Workout workout = workoutRepository.findByIdAndAthleteId(workoutId, athleteId)
+                .orElseThrow(() -> new NotFoundException("Séance introuvable."));
+        return toPrescription(workout);
+    }
+
+    private WorkoutPrescriptionResponse toPrescription(Workout w) {
+        SessionStructure snapshot = readJson(w.getSessionSnapshot(), SessionStructure.class);
+        CalculatedSessionResponse calculated = readJson(w.getCalculatedPaces(), CalculatedSessionResponse.class);
+        return new WorkoutPrescriptionResponse(
+                snapshot == null ? SessionStructure.empty() : snapshot, calculated);
+    }
+
+    private <T> T readJson(String json, Class<T> type) {
+        if (!StringUtils.hasText(json)) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, type);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private Workout require(UUID clubId, UUID workoutId) {

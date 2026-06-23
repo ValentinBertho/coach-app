@@ -44,6 +44,8 @@ public class AthletePortalController {
     private final GdprService gdprService;
     private final com.coachrun.service.RaceObjectiveService raceService;
     private final com.coachrun.service.MessageService messageService;
+    private final com.coachrun.service.StrengthScheduleService strengthScheduleService;
+    private final com.coachrun.service.StrengthResultService strengthResultService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -69,8 +71,61 @@ public class AthletePortalController {
     public WorkoutResponse feedback(@AuthenticationPrincipal AuthPrincipal principal,
                                     @PathVariable UUID workoutId,
                                     @Valid @RequestBody WorkoutFeedbackRequest request) {
-        return workoutService.submitFeedback(
-                principal.athleteId(), workoutId, request.status(), request.rpe(), request.comment());
+        return workoutService.submitFeedback(principal.athleteId(), workoutId, request.status(),
+                request.rpe(), request.fatigue(), request.pain(), request.comment());
+    }
+
+    /** L'athlète déplace une séance (jamais la modifier) : change la date uniquement. */
+    @PatchMapping("/workouts/{workoutId}/move")
+    public WorkoutResponse move(@AuthenticationPrincipal AuthPrincipal principal,
+                                @PathVariable UUID workoutId,
+                                @Valid @RequestBody com.coachrun.dto.request.WorkoutRescheduleRequest request) {
+        return workoutService.moveByAthlete(principal.athleteId(), workoutId, request.scheduledDate());
+    }
+
+    /** Prescription figée de la séance (snapshot + cibles calculées) — vue athlète. */
+    @GetMapping("/workouts/{workoutId}/prescription")
+    public com.coachrun.dto.response.WorkoutPrescriptionResponse prescription(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID workoutId) {
+        return workoutService.prescriptionForAthlete(principal.athleteId(), workoutId);
+    }
+
+    // --- Préparation physique (séances de force planifiées) ------------------
+
+    @GetMapping("/pp/scheduled")
+    public java.util.List<com.coachrun.dto.response.ScheduledStrengthResponse> ppScheduled(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return strengthScheduleService.athleteCalendar(principal.athleteId(), from, to);
+    }
+
+    @GetMapping("/pp/scheduled/{scheduledId}/prescription")
+    public com.coachrun.dto.response.StrengthPrescriptionResponse ppPrescription(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID scheduledId) {
+        return strengthScheduleService.prescriptionForAthlete(principal.athleteId(), scheduledId);
+    }
+
+    @PatchMapping("/pp/scheduled/{scheduledId}/move")
+    public com.coachrun.dto.response.ScheduledStrengthResponse ppMove(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID scheduledId,
+            @Valid @RequestBody com.coachrun.dto.request.WorkoutRescheduleRequest request) {
+        return strengthScheduleService.moveByAthlete(principal.athleteId(), scheduledId, request.scheduledDate());
+    }
+
+    @PatchMapping("/pp/scheduled/{scheduledId}/feedback")
+    public com.coachrun.dto.response.ScheduledStrengthResponse ppFeedback(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID scheduledId,
+            @Valid @RequestBody com.coachrun.dto.request.StrengthFeedbackRequest request) {
+        return strengthScheduleService.submitFeedback(principal.athleteId(), scheduledId, request);
+    }
+
+    /** Séries réalisées d'une séance de force → recalcul automatique du e1RM. */
+    @PostMapping("/pp/scheduled/{scheduledId}/results")
+    public java.util.List<com.coachrun.dto.response.E1rmHistoryResponse> ppResults(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID scheduledId,
+            @Valid @RequestBody java.util.List<com.coachrun.dto.request.StrengthResultRequest> results) {
+        return strengthResultService.submit(principal.athleteId(), scheduledId, results);
     }
 
     /** Prochaine course cible (compte à rebours J-XX). 204 si aucune. */

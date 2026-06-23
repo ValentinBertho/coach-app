@@ -1,0 +1,72 @@
+# ============================================================================
+# 023 — Séances de force (bibliothèque) + profil 1RM athlète (cf. DARI Lab).
+#   - strength_sessions   : séance force + structure DARI Lab en JSON
+#   - athlete_1rm_profile : 1RM courant par athlète/exercice (base de calcul %RM)
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 023-strength-sessions
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: strength_sessions
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: notes, type: VARCHAR(2048) }
+              - column: { name: is_favorite, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: is_archived, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: use_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: last_used_at, type: TIMESTAMP }
+              - column: { name: structure_json, type: VARCHAR(20000) }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_strength_sessions_club
+            baseTableName: strength_sessions
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_strength_sessions_club
+            tableName: strength_sessions
+            columns:
+              - column: { name: club_id }
+
+        - createTable:
+            tableName: athlete_1rm_profile
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: exercise_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: rm_kg, type: "DECIMAL(6,2)", constraints: { nullable: false } }
+              - column: { name: source, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: athlete_1rm_profile
+            columnNames: athlete_id, exercise_id
+            constraintName: uq_athlete_1rm
+        - addForeignKeyConstraint:
+            constraintName: fk_athlete_1rm_athlete
+            baseTableName: athlete_1rm_profile
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_athlete_1rm_exercise
+            baseTableName: athlete_1rm_profile
+            baseColumnNames: exercise_id
+            referencedTableName: pp_exercises
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_athlete_1rm_athlete
+            tableName: athlete_1rm_profile
+            columns:
+              - column: { name: athlete_id }

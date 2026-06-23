@@ -1,0 +1,75 @@
+# ============================================================================
+# 025 — Retour par exercice (strength_results) + historique e1RM (estimated_1rm).
+# Le e1RM est recalculé automatiquement à chaque série performante (cf. DARI Lab §6.5).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 025-strength-results-e1rm
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: strength_results
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: scheduled_session_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: exercise_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: set_number, type: INT, constraints: { nullable: false } }
+              - column: { name: charge_kg, type: "DECIMAL(6,2)" }
+              - column: { name: reps_done, type: INT }
+              - column: { name: duration_sec_done, type: INT }
+              - column: { name: rpe_done, type: "DECIMAL(3,1)" }
+              - column: { name: rir_done, type: INT }
+              - column: { name: pain, type: INT }
+              - column: { name: comment, type: VARCHAR(1024) }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_strength_results_scheduled
+            baseTableName: strength_results
+            baseColumnNames: scheduled_session_id
+            referencedTableName: scheduled_strength_sessions
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_strength_results_athlete
+            baseTableName: strength_results
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_strength_results_sched
+            tableName: strength_results
+            columns:
+              - column: { name: scheduled_session_id }
+
+        - createTable:
+            tableName: estimated_1rm
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: exercise_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: source_result_id, type: UUID }
+              - column: { name: charge_kg, type: "DECIMAL(6,2)", constraints: { nullable: false } }
+              - column: { name: reps, type: INT, constraints: { nullable: false } }
+              - column: { name: rpe_or_rir, type: VARCHAR(16) }
+              - column: { name: formula_used, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: e1rm_kg, type: "DECIMAL(6,2)", constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_estimated_1rm_athlete
+            baseTableName: estimated_1rm
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_estimated_1rm_athlete_exercise
+            tableName: estimated_1rm
+            columns:
+              - column: { name: athlete_id }
+              - column: { name: exercise_id }

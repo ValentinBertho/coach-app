@@ -19,7 +19,12 @@ public record WorkoutResponse(
         Integer targetDistanceM,
         Integer targetDurationS,
         Integer rpe,
+        Integer fatigue,
+        Integer pain,
         String athleteComment,
+        boolean movedByAthlete,
+        LocalDate originalDate,
+        UUID sourceTemplateId,
         List<WorkoutStepResponse> steps) {
 
     public static WorkoutResponse from(Workout w) {
@@ -34,7 +39,12 @@ public record WorkoutResponse(
                 w.getTargetDistanceM(),
                 w.getTargetDurationS(),
                 w.getRpe(),
+                w.getFatigue(),
+                w.getPain(),
                 w.getAthleteComment(),
+                w.isMovedByAthlete(),
+                w.getOriginalDate(),
+                w.getSourceTemplateId(),
                 w.getSteps().stream().map(WorkoutStepResponse::from).toList());
     }
 }

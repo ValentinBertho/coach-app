@@ -1,0 +1,144 @@
+# ============================================================================
+# 016 — Multi-coach / club DARI Lab (additif, non destructif).
+#   - club_members              : rôle club d'un coach (owner / principal / assistant)
+#   - coach_athlete_relations   : coach référent ↔ athlète, privé (club_id NULL) vs club
+#   - athlete_coach_permissions : accès gradué (read/comment/write) d'un coach non référent
+# Ces tables deviennent la source de vérité de l'accès gradué ; athlete_coaches (015)
+# est conservée pour la compatibilité du modèle multi-coach existant.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 016-club-membership-permissions
+      author: coachrun
+      changes:
+        # --- Rôle club d'un coach -------------------------------------------
+        - createTable:
+            tableName: club_members
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: coach_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: club_role, type: VARCHAR(32), constraints: { nullable: false } }
+              - column: { name: invited_by, type: UUID }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: club_members
+            columnNames: club_id, coach_id
+            constraintName: uq_club_member
+        - addForeignKeyConstraint:
+            constraintName: fk_club_members_club
+            baseTableName: club_members
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_club_members_coach
+            baseTableName: club_members
+            baseColumnNames: coach_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_club_members_invited_by
+            baseTableName: club_members
+            baseColumnNames: invited_by
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - createIndex:
+            indexName: idx_club_members_coach
+            tableName: club_members
+            columns:
+              - column: { name: coach_id }
+
+        # --- Coach référent ↔ athlète (privé / club) ------------------------
+        - createTable:
+            tableName: coach_athlete_relations
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID }            # NULL = athlète privé
+              - column: { name: coach_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: is_referent, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: active, type: BOOLEAN, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: coach_athlete_relations
+            columnNames: coach_id, athlete_id
+            constraintName: uq_coach_athlete
+        - addForeignKeyConstraint:
+            constraintName: fk_car_club
+            baseTableName: coach_athlete_relations
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - addForeignKeyConstraint:
+            constraintName: fk_car_coach
+            baseTableName: coach_athlete_relations
+            baseColumnNames: coach_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_car_athlete
+            baseTableName: coach_athlete_relations
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_car_athlete
+            tableName: coach_athlete_relations
+            columns:
+              - column: { name: athlete_id }
+
+        # --- Permissions graduées des coachs non référents ------------------
+        - createTable:
+            tableName: athlete_coach_permissions
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: coach_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: permission, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: granted_by, type: UUID }
+              - column: { name: expires_at, type: TIMESTAMP }   # NULL = permanent
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: athlete_coach_permissions
+            columnNames: athlete_id, coach_id
+            constraintName: uq_athlete_coach_perm
+        - addForeignKeyConstraint:
+            constraintName: fk_acp_athlete
+            baseTableName: athlete_coach_permissions
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_acp_coach
+            baseTableName: athlete_coach_permissions
+            baseColumnNames: coach_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_acp_granted_by
+            baseTableName: athlete_coach_permissions
+            baseColumnNames: granted_by
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - createIndex:
+            indexName: idx_acp_coach
+            tableName: athlete_coach_permissions
+            columns:
+              - column: { name: coach_id }

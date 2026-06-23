@@ -1,0 +1,29 @@
+# ============================================================================
+# 020 — Calendrier DARI Lab : extension des séances planifiées (workouts).
+#   - fatigue / pain : base de l'état de forme (jamais le RPE)
+#   - moved_by_athlete / original_date : déplacement par l'athlète
+#   - source_template_id : séance de bibliothèque source
+#   - session_snapshot / calculated_paces : copie figée de la prescription + cibles calculées
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 020-scheduled-session-extend
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workouts
+            columns:
+              - column: { name: fatigue, type: INT }
+              - column: { name: pain, type: INT }
+              - column: { name: moved_by_athlete, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: original_date, type: DATE }
+              - column: { name: source_template_id, type: UUID }
+              - column: { name: session_snapshot, type: VARCHAR(20000) }
+              - column: { name: calculated_paces, type: VARCHAR(20000) }
+        - addForeignKeyConstraint:
+            constraintName: fk_workouts_source_template
+            baseTableName: workouts
+            baseColumnNames: source_template_id
+            referencedTableName: workout_templates
+            referencedColumnNames: id
+            onDelete: SET NULL

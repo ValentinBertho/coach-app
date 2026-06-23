@@ -53,6 +53,13 @@ public class WorkoutController {
         return workoutService.get(clubId, workoutId);
     }
 
+    /** Prescription figée (snapshot des blocs + cibles calculées) d'une séance planifiée. */
+    @GetMapping("/{workoutId}/prescription")
+    public com.coachrun.dto.response.WorkoutPrescriptionResponse prescription(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID workoutId) {
+        return workoutService.prescription(clubId, workoutId);
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public WorkoutResponse create(@PathVariable UUID clubId, @PathVariable UUID athleteId,
