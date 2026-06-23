@@ -90,6 +90,26 @@ export const routes: Routes = [
           import('./features/groups/group-list.component').then((m) => m.GroupListComponent),
       },
       {
+        path: 'club',
+        loadComponent: () =>
+          import('./features/club/club.component').then((m) => m.ClubComponent),
+      },
+      {
+        path: 'sync',
+        loadComponent: () =>
+          import('./features/settings/sync.component').then((m) => m.SyncComponent),
+      },
+      {
+        path: 'settings',
+        loadComponent: () =>
+          import('./features/settings/settings.component').then((m) => m.SettingsComponent),
+      },
+      {
+        path: 'notifications',
+        loadComponent: () =>
+          import('./features/settings/notifications.component').then((m) => m.NotificationsComponent),
+      },
+      {
         path: 'athletes/:athleteId/messages',
         loadComponent: () =>
           import('./features/messages/chat.component').then((m) => m.ChatComponent),
