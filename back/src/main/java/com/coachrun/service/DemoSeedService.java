@@ -102,6 +102,7 @@ public class DemoSeedService {
     private final com.coachrun.repository.TrainingPlanRepository planRepository;
     private final AthletePhysioService physioService;
     private final LactateTestService lactateTestService;
+    private final StrengthScheduleService strengthScheduleService;
     private final com.coachrun.repository.PpExerciseRepository exerciseRepository;
     private final com.coachrun.repository.Athlete1rmProfileRepository profile1rmRepository;
     private final com.coachrun.repository.StrengthSessionRepository strengthSessionRepository;
@@ -283,7 +284,11 @@ public class DemoSeedService {
                                    "effortRefType":"RIR_RANGE","rirMin":1,"rirMax":3,"sets":4,"repsFixed":5,
                                    "tempo":"3-1-X-1","restSecMin":120,"restSecMax":180}}]}]}""")
                 .formatted(squat.getId()));
-        strengthSessionRepository.save(session);
+        session = strengthSessionRepository.save(session);
+
+        // Assignation de la séance de force au calendrier de l'athlète démo (cette semaine).
+        strengthScheduleService.schedule(club.getId(), demoAthlete.getId(), session.getId(),
+                LocalDate.now().plusDays(2), com.coachrun.entity.enums.FieldsPreset.AVANCE);
 
         // Historique e1RM (courbe de progression) sur le Squat.
         int[] daysAgo = {70, 45, 20, 5};

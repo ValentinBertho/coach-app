@@ -49,3 +49,28 @@
   .volume { margin-left: 0; }
   .day-name { display: inline; }
 }
+
+/* --- Chip séance de force (DARI Lab, violet) ------------------------------ */
+.strength-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--block-classique) 18%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--block-classique) 45%, transparent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.strength-chip.done {
+  opacity: 0.6;
+}
+.strength-chip .sc-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.strength-chip .sc-pain {
+  margin-left: auto;
+}

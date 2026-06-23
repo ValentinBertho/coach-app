@@ -146,3 +146,16 @@ export interface ChargeTarget {
 export interface CalculatedStrength {
   blocks: { block: StrengthBlock; exercises: { item: StrengthExerciseItem; charge: ChargeTarget }[] }[];
 }
+
+export interface ScheduledStrength {
+  id: string;
+  athleteId: string;
+  sourceSessionId: string | null;
+  title: string;
+  scheduledDate: string;
+  originalDate: string | null;
+  movedByAthlete: boolean;
+  completed: boolean;
+  sessionFatigue: number | null;
+  sessionPain: number | null;
+}

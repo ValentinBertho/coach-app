@@ -11,6 +11,7 @@ import {
   PpExercise,
   PpExerciseRequest,
   RmFormula,
+  ScheduledStrength,
   StrengthSession,
   StrengthStructure,
 } from '../models/strength.model';
@@ -82,5 +83,14 @@ export class StrengthService {
 
   calculatedSession(athleteId: string, sessionId: string): Observable<CalculatedStrength> {
     return this.http.get<CalculatedStrength>(`${this.club()}/athletes/${athleteId}/pp/sessions/${sessionId}/calculated`);
+  }
+
+  scheduleSession(athleteId: string, sessionId: string, body: { date: string; fieldsPreset?: string }): Observable<ScheduledStrength> {
+    return this.http.post<ScheduledStrength>(`${this.club()}/athletes/${athleteId}/pp/sessions/${sessionId}/schedule`, body);
+  }
+
+  scheduledCalendar(athleteId: string, from: string, to: string): Observable<ScheduledStrength[]> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<ScheduledStrength[]>(`${this.club()}/athletes/${athleteId}/pp/scheduled`, { params });
   }
 }
