@@ -100,6 +100,16 @@ export const routes: Routes = [
           import('./features/analytics/analytics.component').then((m) => m.AnalyticsComponent),
       },
       {
+        path: 'athletes/:athleteId/tests',
+        loadComponent: () =>
+          import('./features/physio/lactate.component').then((m) => m.LactateComponent),
+      },
+      {
+        path: 'athletes/:athleteId/load',
+        loadComponent: () =>
+          import('./features/physio/load.component').then((m) => m.LoadComponent),
+      },
+      {
         path: 'athletes/:athleteId/activities/:activityId/map',
         loadComponent: () =>
           import('./features/activities/activity-map.component').then((m) => m.ActivityMapComponent),

@@ -8,9 +8,10 @@
       </div>
     </div>
     <div class="detail-actions">
+      <a [routerLink]="['/app/athletes', a.id, 'tests']" class="btn btn-ghost">Tests lactate</a>
+      <a [routerLink]="['/app/athletes', a.id, 'load']" class="btn btn-ghost">Charge</a>
       <a [routerLink]="['/app/athletes', a.id, 'messages']" class="btn btn-ghost">Messages</a>
       <a [routerLink]="['/app/athletes', a.id, 'races']" class="btn btn-ghost">Objectifs</a>
-      <a [routerLink]="['/app/athletes', a.id, 'analytics']" class="btn btn-ghost">Charge</a>
       <a [routerLink]="['/app/athletes', a.id, 'activities']" class="btn btn-ghost">Activités</a>
       <a [routerLink]="['/app/athletes', a.id, 'edit']" class="btn btn-ghost">Modifier</a>
       <button type="button" class="btn btn-primary" (click)="invite()">Inviter</button>
