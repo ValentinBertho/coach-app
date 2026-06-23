@@ -5,8 +5,11 @@ import { Router, RouterLink } from '@angular/router';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import { STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, Workout } from '../../core/models/workout.model';
 import { AthleteService } from '../../core/services/athlete.service';
+import { CourseService } from '../../core/services/course.service';
 import { StrengthService } from '../../core/services/strength.service';
 import { ScheduledStrength, StrengthSession } from '../../core/models/strength.model';
+import { WorkoutTemplate } from '../../core/models/workout-template.model';
+import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkoutService } from '../../core/services/workout.service';
 
@@ -43,6 +46,8 @@ export class CalendarComponent implements OnInit {
   private readonly athleteService = inject(AthleteService);
   private readonly workoutService = inject(WorkoutService);
   private readonly strengthService = inject(StrengthService);
+  private readonly courseService = inject(CourseService);
+  private readonly templateService = inject(WorkoutTemplateService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
@@ -58,6 +63,7 @@ export class CalendarComponent implements OnInit {
   readonly workouts = signal<Workout[]>([]);
   readonly strength = signal<ScheduledStrength[]>([]);
   readonly librarySessions = signal<StrengthSession[]>([]);
+  readonly courseTemplates = signal<WorkoutTemplate[]>([]);
   readonly loading = signal(false);
 
   /** Cellules affichées (7 en semaine, 42 en mois). */
@@ -110,6 +116,7 @@ export class CalendarComponent implements OnInit {
       }
     });
     this.strengthService.listSessions().subscribe((p) => this.librarySessions.set(p.content));
+    this.templateService.list().subscribe((p) => this.courseTemplates.set(p.content));
   }
 
   setMode(mode: 'week' | 'month'): void {
@@ -161,17 +168,26 @@ export class CalendarComponent implements OnInit {
   }
 
   onDrop(event: CdkDragDrop<DayCell>, targetDate: string): void {
-    const data = event.item.data as Workout | StrengthSession;
+    const data = event.item.data as Workout | StrengthSession | WorkoutTemplate;
+    const rec = data as unknown as Record<string, unknown>;
 
     // Séance de force glissée depuis la bibliothèque → planification.
-    if (data && (data as Workout).scheduledDate === undefined) {
+    if ('structure' in rec) {
       const s = data as StrengthSession;
       this.strengthService
         .scheduleSession(this.selectedAthleteId, s.id, { date: targetDate, fieldsPreset: 'AVANCE' })
         .subscribe({
           next: () => { this.toast.success(`${s.name} planifiée le ${targetDate} 💪`); this.reloadStrength(); },
-          error: () => this.toast.warning('Échec de la planification.'),
         });
+      return;
+    }
+
+    // Modèle de séance course glissé depuis la bibliothèque → planification.
+    if (!('scheduledDate' in rec)) {
+      const t = data as WorkoutTemplate;
+      this.courseService.schedule(this.selectedAthleteId, t.id, { date: targetDate }).subscribe({
+        next: () => { this.toast.success(`${t.name} planifiée le ${targetDate}`); this.load(); },
+      });
       return;
     }
 

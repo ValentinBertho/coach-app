@@ -37,4 +37,9 @@ export class CourseService {
   ): Observable<CalculatedBlock> {
     return this.http.post<CalculatedBlock>(`${this.club()}/athletes/${athleteId}/session-calc`, body);
   }
+
+  /** Assigne un modèle de séance course au calendrier d'un athlète (snapshot + allures figées). */
+  schedule(athleteId: string, templateId: string, body: { date: string }): Observable<unknown> {
+    return this.http.post(`${this.club()}/athletes/${athleteId}/workout-templates/${templateId}/schedule`, body);
+  }
 }

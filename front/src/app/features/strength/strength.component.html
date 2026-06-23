@@ -51,24 +51,28 @@
     </div>
   }
 
-  <div class="ex-grid">
-    @for (e of exercises(); track e.id) {
-      <div class="card ex-card">
-        <div class="ex-head">
-          <strong>{{ e.name }}</strong>
-          <span class="badge badge-info">{{ label(e.category) }}</span>
-        </div>
-        @if (e.muscleGroups.length) {
-          <div class="ex-tags">
-            @for (m of e.muscleGroups; track m) { <span class="badge badge-neutral">{{ label(m) }}</span> }
+  @if (loadingEx()) {
+    <div class="card">Chargement…</div>
+  } @else {
+    <div class="ex-grid">
+      @for (e of exercises(); track e.id) {
+        <div class="card ex-card">
+          <div class="ex-head">
+            <strong>{{ e.name }}</strong>
+            <span class="badge badge-info">{{ label(e.category) }}</span>
           </div>
-        }
-        @if (e.videoUrl) { <a class="ex-video" [href]="e.videoUrl" target="_blank" rel="noopener">▶ Vidéo démo</a> }
-      </div>
-    } @empty {
-      <p class="empty-hint">Aucun exercice. Crée ton premier exercice.</p>
-    }
-  </div>
+          @if (e.muscleGroups.length) {
+            <div class="ex-tags">
+              @for (m of e.muscleGroups; track m) { <span class="badge badge-neutral">{{ label(m) }}</span> }
+            </div>
+          }
+          @if (e.videoUrl) { <a class="ex-video" [href]="e.videoUrl" target="_blank" rel="noopener">▶ Vidéo démo</a> }
+        </div>
+      } @empty {
+        <p class="empty-hint">Aucun exercice. Crée ton premier exercice.</p>
+      }
+    </div>
+  }
 }
 
 <!-- ===================== SÉANCES ===================== -->
@@ -77,19 +81,23 @@
     <input class="form-control" placeholder="Nom de la nouvelle séance…" [(ngModel)]="newSessionName" />
     <button type="button" class="btn btn-primary" (click)="createSession()">+ Séance</button>
   </div>
-  <div class="ex-grid">
-    @for (s of sessions(); track s.id) {
-      <div class="card ex-card">
-        <div class="ex-head">
-          <strong>{{ s.name }}</strong>
-          @if (s.favorite) { <span class="badge badge-warning">★</span> }
+  @if (loadingSes()) {
+    <div class="card">Chargement…</div>
+  } @else {
+    <div class="ex-grid">
+      @for (s of sessions(); track s.id) {
+        <div class="card ex-card">
+          <div class="ex-head">
+            <strong>{{ s.name }}</strong>
+            @if (s.favorite) { <span class="badge badge-warning">★</span> }
+          </div>
+          <p class="field-hint">{{ s.structure.blocks.length }} bloc(s) · {{ s.useCount }} utilisation(s)</p>
         </div>
-        <p class="field-hint">{{ s.structure.blocks.length }} bloc(s) · {{ s.useCount }} utilisation(s)</p>
-      </div>
-    } @empty {
-      <p class="empty-hint">Aucune séance de force.</p>
-    }
-  </div>
+      } @empty {
+        <p class="empty-hint">Aucune séance de force.</p>
+      }
+    </div>
+  }
 }
 
 <!-- ===================== TESTS 1RM ===================== -->

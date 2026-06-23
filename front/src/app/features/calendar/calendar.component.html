@@ -36,15 +36,28 @@
 } @else {
   <div class="cal-layout" cdkDropListGroup>
     <aside class="cal-sidebar">
-      <h3>💪 Bibliothèque force</h3>
+      <h3>Bibliothèque</h3>
       <p class="field-hint">Glisse une séance sur un jour pour la planifier.</p>
+
+      <h4 class="lib-sub">🏃 Course</h4>
+      <div class="lib-list" cdkDropList (cdkDropListDropped)="onLibDrop()">
+        @for (t of courseTemplates(); track t.id) {
+          <div class="lib-item course" cdkDrag [cdkDragData]="t">
+            <span class="li-icon">🏃</span><span class="li-name">{{ t.name }}</span>
+          </div>
+        } @empty {
+          <p class="field-hint">Aucun modèle course.</p>
+        }
+      </div>
+
+      <h4 class="lib-sub">💪 Force</h4>
       <div class="lib-list" cdkDropList (cdkDropListDropped)="onLibDrop()">
         @for (s of librarySessions(); track s.id) {
           <div class="lib-item" cdkDrag [cdkDragData]="s">
             <span class="li-icon">💪</span><span class="li-name">{{ s.name }}</span>
           </div>
         } @empty {
-          <p class="field-hint">Aucune séance de force. Crée-en dans « Prépa physique ».</p>
+          <p class="field-hint">Aucune séance de force.</p>
         }
       </div>
     </aside>

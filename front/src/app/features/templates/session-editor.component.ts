@@ -26,6 +26,7 @@ export class SessionEditorComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   readonly name = signal('');
+  readonly loading = signal(true);
   readonly structure = signal<SessionStructure>({ warmup: [], main: [], cooldown: [] });
   readonly calc = signal<Record<string, CalculatedBlock>>({});
   readonly athleteList = signal<AthleteSummary[]>([]);
@@ -48,9 +49,13 @@ export class SessionEditorComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.course.getStructure(this.templateId()).subscribe((s) => {
-      this.name.set(s.name);
-      this.structure.set(s.structure ?? { warmup: [], main: [], cooldown: [] });
+    this.course.getStructure(this.templateId()).subscribe({
+      next: (s) => {
+        this.name.set(s.name);
+        this.structure.set(s.structure ?? { warmup: [], main: [], cooldown: [] });
+        this.loading.set(false);
+      },
+      error: () => this.loading.set(false),
     });
     this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
   }
