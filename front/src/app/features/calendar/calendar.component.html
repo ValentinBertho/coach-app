@@ -34,12 +34,28 @@
     <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
   </div>
 } @else {
-  <div class="weekday-row">
-    @for (d of ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']; track d) { <span>{{ d }}</span> }
-  </div>
+  <div class="cal-layout" cdkDropListGroup>
+    <aside class="cal-sidebar">
+      <h3>💪 Bibliothèque force</h3>
+      <p class="field-hint">Glisse une séance sur un jour pour la planifier.</p>
+      <div class="lib-list" cdkDropList (cdkDropListDropped)="onLibDrop()">
+        @for (s of librarySessions(); track s.id) {
+          <div class="lib-item" cdkDrag [cdkDragData]="s">
+            <span class="li-icon">💪</span><span class="li-name">{{ s.name }}</span>
+          </div>
+        } @empty {
+          <p class="field-hint">Aucune séance de force. Crée-en dans « Prépa physique ».</p>
+        }
+      </div>
+    </aside>
 
-  <div class="grid" [class.month]="mode() === 'month'" [class.loading]="loading()" cdkDropListGroup>
-    @for (day of cells(); track day.date) {
+    <div class="cal-main">
+      <div class="weekday-row">
+        @for (d of ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']; track d) { <span>{{ d }}</span> }
+      </div>
+
+      <div class="grid" [class.month]="mode() === 'month'" [class.loading]="loading()">
+        @for (day of cells(); track day.date) {
       <div class="day-col" [class.today]="day.isToday" [class.dim]="!day.inMonth">
         <header class="day-head">
           @if (mode() === 'week') { <span class="day-name">{{ day.label }}</span> }
@@ -70,5 +86,7 @@
         </div>
       </div>
     }
+      </div>
+    </div>
   </div>
 }
