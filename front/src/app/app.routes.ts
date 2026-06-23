@@ -70,6 +70,11 @@ export const routes: Routes = [
           import('./features/templates/template-list.component').then((m) => m.TemplateListComponent),
       },
       {
+        path: 'templates/:templateId/structure',
+        loadComponent: () =>
+          import('./features/templates/session-editor.component').then((m) => m.SessionEditorComponent),
+      },
+      {
         path: 'strength',
         loadComponent: () =>
           import('./features/strength/strength.component').then((m) => m.StrengthComponent),

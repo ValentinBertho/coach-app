@@ -1,0 +1,60 @@
+<section class="page-header">
+  <div>
+    <a routerLink="/app/templates" class="back-link">← Bibliothèque</a>
+    <h1 class="display-sm">{{ name() || 'Éditeur de séance' }}</h1>
+    <p class="subtitle">Prescription en fourchettes — le calculateur affiche les cibles pour l'athlète sélectionné.</p>
+  </div>
+  <button type="button" class="btn btn-primary" (click)="save()">Enregistrer</button>
+</section>
+
+<div class="card calc-athlete">
+  <label>Calculateur pour :</label>
+  <select class="form-control" [ngModel]="athleteId()" (ngModelChange)="onAthleteChange($event)">
+    <option value="">Sélectionner un athlète…</option>
+    @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+  </select>
+</div>
+
+@for (sec of sections; track sec.key) {
+  <div class="card section-card">
+    <div class="section-head">
+      <h2>{{ sec.label }}</h2>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="addBlock(sec.key)">+ Bloc</button>
+    </div>
+
+    @for (b of blocks(sec.key); track b.id) {
+      <div class="block">
+        <div class="block-edit">
+          <input class="form-control type" [(ngModel)]="b.type" placeholder="type" />
+          <input type="number" class="form-control nm" [(ngModel)]="b.reps" (ngModelChange)="recalc(b)" placeholder="×N" title="Répétitions" />
+          <input type="number" class="form-control nm" [(ngModel)]="b.distanceM" (ngModelChange)="recalc(b)" placeholder="m" />
+          <input type="number" class="form-control nm" [(ngModel)]="b.durationS" (ngModelChange)="recalc(b)" placeholder="s" />
+          @if (b.prescription) {
+            <select class="form-control" [(ngModel)]="b.prescription.ref" (ngModelChange)="recalc(b)">
+              @for (r of refs; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
+            </select>
+            <input type="number" class="form-control nm" [(ngModel)]="b.prescription.minPct" (ngModelChange)="recalc(b)" title="% min" />
+            <input type="number" class="form-control nm" [(ngModel)]="b.prescription.maxPct" (ngModelChange)="recalc(b)" title="% max" />
+          }
+          <button type="button" class="icon-btn danger" (click)="removeBlock(sec.key, b.id)">✕</button>
+        </div>
+
+        @if (calc()[b.id]; as c) {
+          @if (c.computable) {
+            <div class="calc-preview">
+              <span class="calc-item"><span class="calc-lb">Allure</span><span class="metric calc-v">{{ c.paceMinLabel }}–{{ c.paceMaxLabel }}/km</span></span>
+              <span class="calc-item"><span class="calc-lb">Vitesse</span><span class="metric calc-v">{{ c.speedMinKmh }}–{{ c.speedMaxKmh }} km/h</span></span>
+              @if (c.hrMin) { <span class="calc-item"><span class="calc-lb">FC</span><span class="metric calc-v">{{ c.hrMin }}–{{ c.hrMax }} bpm</span></span> }
+              @if (c.rpeMin) { <span class="calc-item"><span class="calc-lb">RPE</span><span class="metric calc-v">{{ c.rpeMin }}–{{ c.rpeMax }}</span></span> }
+              @if (c.estimatedDistanceM) { <span class="calc-item"><span class="calc-lb">Volume</span><span class="metric calc-v">{{ (c.estimatedDistanceM / 1000).toFixed(1) }} km</span></span> }
+            </div>
+          } @else {
+            <p class="calc-na">Profil incomplet pour ce référentiel.</p>
+          }
+        }
+      </div>
+    } @empty {
+      <p class="empty-hint">Aucun bloc. Ajoute un bloc.</p>
+    }
+  </div>
+}
