@@ -51,3 +51,5 @@ databaseChangeLog:
       file: db/changelog/changes/023-strength-sessions.yaml
   - include:
       file: db/changelog/changes/024-scheduled-strength-sessions.yaml
+  - include:
+      file: db/changelog/changes/025-strength-results-e1rm.yaml

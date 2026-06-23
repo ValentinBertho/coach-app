@@ -29,6 +29,7 @@ public class Athlete1rmController {
 
     private final Athlete1rmService oneRmService;
     private final StrengthSessionService sessionService;
+    private final com.coachrun.service.StrengthResultService resultService;
 
     @GetMapping("/1rm")
     public List<Athlete1rmResponse> list(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
@@ -46,5 +47,12 @@ public class Athlete1rmController {
     public CalculatedStrengthResponse calculated(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                                  @PathVariable UUID sessionId) {
         return sessionService.calculateForAthlete(clubId, athleteId, sessionId);
+    }
+
+    /** Historique du e1RM d'un exercice (courbe d'évolution de la force). */
+    @GetMapping("/1rm/{exerciseId}/history")
+    public List<com.coachrun.dto.response.E1rmHistoryResponse> history(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID exerciseId) {
+        return resultService.history(clubId, athleteId, exerciseId);
     }
 }

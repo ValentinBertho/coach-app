@@ -45,6 +45,7 @@ public class AthletePortalController {
     private final com.coachrun.service.RaceObjectiveService raceService;
     private final com.coachrun.service.MessageService messageService;
     private final com.coachrun.service.StrengthScheduleService strengthScheduleService;
+    private final com.coachrun.service.StrengthResultService strengthResultService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -117,6 +118,14 @@ public class AthletePortalController {
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID scheduledId,
             @Valid @RequestBody com.coachrun.dto.request.StrengthFeedbackRequest request) {
         return strengthScheduleService.submitFeedback(principal.athleteId(), scheduledId, request);
+    }
+
+    /** Séries réalisées d'une séance de force → recalcul automatique du e1RM. */
+    @PostMapping("/pp/scheduled/{scheduledId}/results")
+    public java.util.List<com.coachrun.dto.response.E1rmHistoryResponse> ppResults(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID scheduledId,
+            @Valid @RequestBody java.util.List<com.coachrun.dto.request.StrengthResultRequest> results) {
+        return strengthResultService.submit(principal.athleteId(), scheduledId, results);
     }
 
     /** Prochaine course cible (compte à rebours J-XX). 204 si aucune. */
