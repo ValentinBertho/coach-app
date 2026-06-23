@@ -4,10 +4,27 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { RaceObjective } from '../models/race.model';
 import { Workout, WorkoutStatus } from '../models/workout.model';
+import { CalculatedStrength, ScheduledStrength, StrengthStructure } from '../models/strength.model';
 
 export interface WorkoutFeedback {
   status?: WorkoutStatus;
   rpe?: number | null;
+  fatigue?: number | null;
+  pain?: number | null;
+  comment?: string | null;
+}
+
+export interface StrengthPrescriptionView {
+  snapshot: StrengthStructure;
+  calculated: CalculatedStrength | null;
+  requiredFields: Record<string, boolean> | null;
+}
+
+export interface StrengthFeedback {
+  completed?: boolean;
+  sessionRpe?: number | null;
+  fatigue?: number | null;
+  pain?: number | null;
   comment?: string | null;
 }
 
@@ -29,6 +46,20 @@ export class AthletePortalService {
 
   feedback(workoutId: string, body: WorkoutFeedback): Observable<Workout> {
     return this.http.patch<Workout>(`${this.base}/workouts/${workoutId}/feedback`, body);
+  }
+
+  // --- Préparation physique (séances de force planifiées) ---
+  ppScheduled(from: string, to: string): Observable<ScheduledStrength[]> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<ScheduledStrength[]>(`${this.base}/pp/scheduled`, { params });
+  }
+
+  ppPrescription(scheduledId: string): Observable<StrengthPrescriptionView> {
+    return this.http.get<StrengthPrescriptionView>(`${this.base}/pp/scheduled/${scheduledId}/prescription`);
+  }
+
+  ppFeedback(scheduledId: string, body: StrengthFeedback): Observable<ScheduledStrength> {
+    return this.http.patch<ScheduledStrength>(`${this.base}/pp/scheduled/${scheduledId}/feedback`, body);
   }
 
   /** RGPD — export des données personnelles (portabilité). */

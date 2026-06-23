@@ -70,6 +70,18 @@
                 <button type="button" class="rpe-dot" [class.active]="rpe === n" (click)="rpe = n">{{ n }}</button>
               }
             </div>
+            <label class="rpe-label">Fatigue</label>
+            <div class="rpe-scale">
+              @for (n of rpeScale; track n) {
+                <button type="button" class="rpe-dot fatigue" [class.active]="fatigue === n" (click)="fatigue = n">{{ n }}</button>
+              }
+            </div>
+            <label class="rpe-label">Douleur</label>
+            <div class="rpe-scale">
+              @for (n of painScale; track n) {
+                <button type="button" class="rpe-dot pain" [class.active]="pain === n" (click)="pain = n">{{ n }}</button>
+              }
+            </div>
             <textarea class="form-control" rows="2" placeholder="Un commentaire ? (optionnel)"
                       [(ngModel)]="comment"></textarea>
             <div class="feedback-actions">
@@ -77,7 +89,42 @@
               <button type="button" class="btn btn-ghost" (click)="submit(false)">Partiellement</button>
             </div>
           </section>
-        } @else {
+        }
+
+        @if (strength(); as s) {
+          <article class="card card-night workout strength-day">
+            <div class="w-head">
+              <span class="badge strength-badge">💪 Renforcement</span>
+              @if (s.completed) { <span class="badge badge-success">Réalisé</span> }
+            </div>
+            <h2>{{ s.title }}</h2>
+
+            @if (strengthRx(); as rx) {
+              @for (b of rx.calculated?.blocks ?? []; track $index) {
+                @for (ex of b.exercises; track $index) {
+                  <div class="strength-ex">
+                    <strong>{{ ex.item.exerciseName }}</strong>
+                    <span class="metric ex-vol">{{ ex.item.prescription.sets }}×{{ ex.item.prescription.repsFixed }}</span>
+                    @if (ex.charge.computable) { <span class="metric ex-charge">{{ ex.charge.chargeLabel }}</span> }
+                    @if (ex.charge.effortLabel) { <span class="ex-effort">{{ ex.charge.effortLabel }}</span> }
+                  </div>
+                }
+              }
+            }
+
+            <section class="strength-fb">
+              <label class="rpe-label">RPE séance</label>
+              <div class="rpe-scale">
+                @for (n of rpeScale; track n) {
+                  <button type="button" class="rpe-dot" [class.active]="sRpe === n" (click)="sRpe = n">{{ n }}</button>
+                }
+              </div>
+              <button type="button" class="btn btn-accent btn-lg" (click)="submitStrength(true)">Renforcement réalisé ✅</button>
+            </section>
+          </article>
+        }
+
+        @if (!workout() && !strength()) {
           <div class="card empty">
             <h2>Repos aujourd'hui 🌙</h2>
             <p class="field-hint">Aucune séance prévue. Profitez-en pour récupérer.</p>
