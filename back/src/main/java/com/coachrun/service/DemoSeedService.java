@@ -129,6 +129,9 @@ public class DemoSeedService {
         if (isSeeded()) {
             return false;
         }
+        // Réinitialise la séquence pseudo-aléatoire : le service étant un singleton, chaque appel
+        // à seed() doit produire un jeu de données identique (déterminisme inter-tests).
+        random.setSeed(42);
         // Administrateur plateforme (sans club)
         userRepository.save(account(ADMIN_EMAIL, "Admin Plateforme", UserRole.PLATFORM_ADMIN, null, null));
 

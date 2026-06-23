@@ -4,9 +4,18 @@
     <h1 class="display-sm">{{ name() || 'Séance de force' }} 💪</h1>
     <p class="subtitle">Structure : blocs, formats avancés et prescription des exercices.</p>
   </div>
-  <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">
-    {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
-  </button>
+  <div class="editor-head-actions">
+    <div class="form-group preview-picker">
+      <label>Aperçu charges (athlète)</label>
+      <select class="form-control" [ngModel]="previewAthlete()" (ngModelChange)="onAthleteChange($event)">
+        <option value="">Aucun</option>
+        @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+      </select>
+    </div>
+    <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">
+      {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
+    </button>
+  </div>
 </section>
 
 @if (loading()) {
@@ -20,9 +29,11 @@
     </div>
   }
 
+  <div cdkDropList (cdkDropListDropped)="drop($event)">
   @for (block of blocks(); track block.id; let bi = $index) {
-    <div class="card block-card">
+    <div class="card block-card" cdkDrag>
       <div class="block-head">
+        <span class="drag-handle" cdkDragHandle title="Glisser pour réordonner">⠿</span>
         <div class="block-meta">
           <select class="form-control" [(ngModel)]="block.blockType" (ngModelChange)="touch()">
             @for (t of blockTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
@@ -32,8 +43,6 @@
           </select>
         </div>
         <div class="block-actions">
-          <button type="button" class="btn btn-ghost btn-sm" [disabled]="bi === 0" (click)="moveBlock(block.id, -1)">↑</button>
-          <button type="button" class="btn btn-ghost btn-sm" [disabled]="bi === blocks().length - 1" (click)="moveBlock(block.id, 1)">↓</button>
           <button type="button" class="btn btn-ghost btn-sm danger" (click)="removeBlock(block.id)">Supprimer</button>
         </div>
       </div>
@@ -58,6 +67,13 @@
         <div class="ex-row">
           <div class="ex-row-head">
             <strong>{{ item.exerciseName || label(item.exerciseId) }}</strong>
+            @if (chargeAt(bi, i); as c) {
+              @if (c.computable) {
+                <span class="charge-chip">🎯 {{ c.chargeLabel }}<span class="charge-effort">· {{ c.effortLabel }}</span></span>
+              } @else {
+                <span class="charge-chip muted">{{ c.effortLabel || '1RM manquant' }}</span>
+              }
+            }
             <button type="button" class="btn btn-ghost btn-sm danger" (click)="removeExercise(block, i)">✕</button>
           </div>
           <div class="presc-grid">
@@ -125,6 +141,7 @@
       </div>
     </div>
   }
+  </div>
 
   <button type="button" class="btn btn-ghost add-block" (click)="addBlock()">+ Ajouter un bloc</button>
 }

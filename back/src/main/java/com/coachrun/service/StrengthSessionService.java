@@ -93,8 +93,18 @@ public class StrengthSessionService {
             throw new NotFoundException("Athlète introuvable.");
         }
         StrengthSession s = require(clubId, sessionId);
-        StrengthStructure structure = readStructure(s.getStructureJson());
+        return calculate(athleteId, readStructure(s.getStructureJson()));
+    }
 
+    /** Aperçu live : calcule les charges d'une structure non encore enregistrée (éditeur). */
+    public CalculatedStrengthResponse previewForAthlete(UUID clubId, UUID athleteId, StrengthStructure structure) {
+        if (athleteRepository.findByIdAndClubId(athleteId, clubId).isEmpty()) {
+            throw new NotFoundException("Athlète introuvable.");
+        }
+        return calculate(athleteId, structure == null ? StrengthStructure.empty() : structure);
+    }
+
+    private CalculatedStrengthResponse calculate(UUID athleteId, StrengthStructure structure) {
         Map<UUID, Double> oneRmByExercise = new HashMap<>();
         for (Athlete1rmProfile p : profileRepository.findByAthleteId(athleteId)) {
             oneRmByExercise.put(p.getExerciseId(), p.getRmKg().doubleValue());

@@ -155,4 +155,37 @@ class StrengthSessionControllerTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(get.get("structure").get("blocks").get(0).get("format").asText()).isEqualTo("CIRCUIT");
     }
+
+    @Test
+    void previewsChargesFromUnsavedStructure() throws Exception {
+        String exerciseId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/pp/exercises", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Squat aperçu\",\"category\":\"FORCE_MAX\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        mvc.perform(put("/clubs/{c}/athletes/{a}/pp/1rm", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"exerciseId\":\"" + exerciseId + "\",\"rmKg\":120}"))
+                .andExpect(status().isOk());
+
+        // Aperçu sans enregistrer : 80–85 % de 120 = 96–102 → arrondi 95–102.5.
+        String body = """
+            {"structure":{"blocks":[
+              {"id":"b1","blockType":"PRINCIPAL","format":"CLASSIQUE","exercises":[
+                {"exerciseId":"%s","exerciseName":"Squat aperçu","setType":"STANDARD",
+                 "prescription":{"chargeRefType":"PCT_RM_RANGE","chargePctRmMin":80,"chargePctRmMax":85,
+                                 "effortRefType":"RIR_RANGE","rirMin":1,"rirMax":3,"sets":4,"repsFixed":5}}]}]}}
+            """.formatted(exerciseId);
+        JsonNode resp = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/pp/sessions/calculated-preview", clubId, athleteId)
+                                .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                                .content(body))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        JsonNode charge = resp.get("blocks").get(0).get("exercises").get(0).get("charge");
+        assertThat(charge.get("computable").asBoolean()).isTrue();
+        assertThat(charge.get("kgMin").asDouble()).isEqualTo(95.0);
+        assertThat(charge.get("kgMax").asDouble()).isEqualTo(102.5);
+    }
 }

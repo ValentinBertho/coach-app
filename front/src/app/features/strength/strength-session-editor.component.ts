@@ -1,12 +1,16 @@
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { AthleteService } from '../../core/services/athlete.service';
 import { StrengthService } from '../../core/services/strength.service';
 import { ToastService } from '../../core/services/toast.service';
+import { AthleteSummary } from '../../core/models/athlete.model';
 import {
   BlockFormat,
   BlockType,
   ChargeRefType,
+  ChargeTarget,
   EffortRefType,
   PpExercise,
   SetType,
@@ -23,7 +27,7 @@ import {
   selector: 'app-strength-session-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, DragDropModule],
   templateUrl: './strength-session-editor.component.html',
   styleUrl: './strength-session-editor.component.scss',
 })
@@ -31,6 +35,7 @@ export class StrengthSessionEditorComponent implements OnInit {
   readonly sessionId = input.required<string>();
 
   private readonly strength = inject(StrengthService);
+  private readonly athletes = inject(AthleteService);
   private readonly toast = inject(ToastService);
 
   readonly name = signal('');
@@ -39,6 +44,12 @@ export class StrengthSessionEditorComponent implements OnInit {
   readonly blocks = signal<StrengthBlock[]>([]);
   readonly exercises = signal<PpExercise[]>([]);
   readonly exercisePick: Record<string, string> = {};
+
+  // Aperçu live des charges
+  readonly athleteList = signal<AthleteSummary[]>([]);
+  readonly previewAthlete = signal('');
+  readonly chargePreview = signal<Record<string, ChargeTarget>>({});
+  private recomputeTimer?: ReturnType<typeof setTimeout>;
 
   readonly blockTypes: { value: BlockType; label: string }[] = [
     { value: 'ECHAUFFEMENT', label: 'Échauffement' },
@@ -92,9 +103,45 @@ export class StrengthSessionEditorComponent implements OnInit {
       error: () => this.loading.set(false),
     });
     this.strength.listExercises({ page: 0 }).subscribe((p) => this.exercises.set(p.content));
+    this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
+  }
+
+  // --- Aperçu live des charges ---
+  onAthleteChange(id: string): void {
+    this.previewAthlete.set(id);
+    this.recompute();
+  }
+
+  /** Recalcule les charges de la structure courante pour l'athlète sélectionné (débounce). */
+  private recompute(): void {
+    const a = this.previewAthlete();
+    if (!a) {
+      this.chargePreview.set({});
+      return;
+    }
+    clearTimeout(this.recomputeTimer);
+    this.recomputeTimer = setTimeout(() => {
+      this.strength.calculatePreview(a, { blocks: this.blocks() }).subscribe((res) => {
+        const map: Record<string, ChargeTarget> = {};
+        res.blocks.forEach((b, bi) =>
+          b.exercises.forEach((ex, ei) => { map[`${bi}:${ei}`] = ex.charge; }));
+        this.chargePreview.set(map);
+      });
+    }, 350);
+  }
+
+  chargeAt(bi: number, ei: number): ChargeTarget | undefined {
+    return this.chargePreview()[`${bi}:${ei}`];
   }
 
   // --- Blocs ---
+  drop(event: CdkDragDrop<StrengthBlock[]>): void {
+    const list = [...this.blocks()];
+    moveItemInArray(list, event.previousIndex, event.currentIndex);
+    this.blocks.set(list);
+    this.recompute();
+  }
+
   addBlock(): void {
     const block: StrengthBlock = {
       id: 'b-' + Math.random().toString(36).slice(2, 9),
@@ -111,15 +158,6 @@ export class StrengthSessionEditorComponent implements OnInit {
 
   removeBlock(id: string): void {
     this.blocks.update((list) => list.filter((b) => b.id !== id));
-  }
-
-  moveBlock(id: string, dir: -1 | 1): void {
-    const list = [...this.blocks()];
-    const i = list.findIndex((b) => b.id === id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= list.length) return;
-    [list[i], list[j]] = [list[j], list[i]];
-    this.blocks.set(list);
   }
 
   onFormatChange(block: StrengthBlock): void {
@@ -163,9 +201,10 @@ export class StrengthSessionEditorComponent implements OnInit {
     this.touch();
   }
 
-  /** Force la propagation du signal après mutation interne d'un bloc. */
+  /** Force la propagation du signal après mutation interne d'un bloc + rafraîchit l'aperçu. */
   touch(): void {
     this.blocks.set([...this.blocks()]);
+    this.recompute();
   }
 
   save(): void {

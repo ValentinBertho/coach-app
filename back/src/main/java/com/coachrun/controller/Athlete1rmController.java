@@ -57,6 +57,14 @@ public class Athlete1rmController {
         return sessionService.calculateForAthlete(clubId, athleteId, sessionId);
     }
 
+    /** Aperçu live des charges d'une structure en cours d'édition (non enregistrée). */
+    @PostMapping("/sessions/calculated-preview")
+    public CalculatedStrengthResponse calculatedPreview(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId,
+            @RequestBody com.coachrun.dto.request.StrengthStructureRequest request) {
+        return sessionService.previewForAthlete(clubId, athleteId, request.structure());
+    }
+
     /** Historique du e1RM d'un exercice (courbe d'évolution de la force). */
     @GetMapping("/1rm/{exerciseId}/history")
     public List<com.coachrun.dto.response.E1rmHistoryResponse> history(

@@ -106,6 +106,12 @@ export class StrengthService {
     return this.http.get<CalculatedStrength>(`${this.club()}/athletes/${athleteId}/pp/sessions/${sessionId}/calculated`);
   }
 
+  /** Aperçu live des charges d'une structure en cours d'édition (non enregistrée). */
+  calculatePreview(athleteId: string, structure: StrengthStructure): Observable<CalculatedStrength> {
+    return this.http.post<CalculatedStrength>(
+      `${this.club()}/athletes/${athleteId}/pp/sessions/calculated-preview`, { structure });
+  }
+
   scheduleSession(athleteId: string, sessionId: string, body: { date: string; fieldsPreset?: string }): Observable<ScheduledStrength> {
     return this.http.post<ScheduledStrength>(`${this.club()}/athletes/${athleteId}/pp/sessions/${sessionId}/schedule`, body);
   }
