@@ -87,13 +87,14 @@
   } @else {
     <div class="ex-grid">
       @for (s of sessions(); track s.id) {
-        <div class="card ex-card">
+        <a class="card ex-card session-card" [routerLink]="['/app/strength/sessions', s.id, 'structure']">
           <div class="ex-head">
             <strong>{{ s.name }}</strong>
             @if (s.favorite) { <span class="badge badge-warning">★</span> }
           </div>
           <p class="field-hint">{{ s.structure.blocks.length }} bloc(s) · {{ s.useCount }} utilisation(s)</p>
-        </div>
+          <span class="edit-hint">Modifier la structure →</span>
+        </a>
       } @empty {
         <p class="empty-hint">Aucune séance de force.</p>
       }

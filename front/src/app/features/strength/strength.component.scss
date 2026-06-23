@@ -200,3 +200,20 @@
 }
 .swatch-meca { background: var(--primary); }
 .swatch-metab { background: var(--accent, #f5a623); }
+
+.session-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.session-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+.session-card .edit-hint {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: 0.78rem;
+  color: var(--primary);
+}

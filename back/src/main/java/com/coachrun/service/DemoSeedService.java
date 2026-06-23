@@ -269,8 +269,8 @@ public class DemoSeedService {
         PpExercise squat = newExercise(club, "Squat barre", ExerciseCategory.FORCE_MAX,
                 MuscleGroup.QUADRICEPS, EquipmentType.BARRE);
         newExercise(club, "Soulevé de terre", ExerciseCategory.FORCE_MAX, MuscleGroup.ISCHIOS, EquipmentType.BARRE);
-        newExercise(club, "Gainage planche", ExerciseCategory.GAINAGE, MuscleGroup.TRONC, EquipmentType.POIDS_DU_CORPS);
-        newExercise(club, "Fentes haltères", ExerciseCategory.PUISSANCE, MuscleGroup.FESSIERS, EquipmentType.HALTERES);
+        PpExercise gainage = newExercise(club, "Gainage planche", ExerciseCategory.GAINAGE, MuscleGroup.TRONC, EquipmentType.POIDS_DU_CORPS);
+        PpExercise fentes = newExercise(club, "Fentes haltères", ExerciseCategory.PUISSANCE, MuscleGroup.FESSIERS, EquipmentType.HALTERES);
 
         Athlete1rmProfile rm = new Athlete1rmProfile();
         rm.setAthlete(demoAthlete);
@@ -279,18 +279,26 @@ public class DemoSeedService {
         rm.setSource("tested");
         profile1rmRepository.save(rm);
 
-        // Séance de force structurée (bloc principal : Squat 4×5 à 80–85 % RM, RIR 1–3).
+        // Séance de force structurée multi-blocs : activation (circuit) → principal (squat) → accessoire (iso).
         StrengthSession session = new StrengthSession();
         session.setClub(club);
         session.setName("Force max bas du corps");
         session.setFavorite(true);
         session.setStructureJson(("""
-                {"blocks":[{"id":"b1","blockType":"PRINCIPAL","format":"CLASSIQUE","exercises":[
-                  {"exerciseId":"%s","exerciseName":"Squat barre","setType":"STANDARD",
-                   "prescription":{"chargeRefType":"PCT_RM_RANGE","chargePctRmMin":80,"chargePctRmMax":85,
-                                   "effortRefType":"RIR_RANGE","rirMin":1,"rirMax":3,"sets":4,"repsFixed":5,
-                                   "tempo":"3-1-X-1","restSecMin":120,"restSecMax":180}}]}]}""")
-                .formatted(squat.getId()));
+                {"blocks":[
+                  {"id":"b0","blockType":"ACTIVATION","format":"CIRCUIT","rounds":3,"workSec":40,"restSec":20,"exercises":[
+                    {"exerciseId":"%s","exerciseName":"Fentes haltères","setType":"STANDARD",
+                     "prescription":{"chargeRefType":"KG_FIXE","chargeKgMin":12,
+                                     "effortRefType":"RPE","rpeMin":7,"sets":3,"repsFixed":10,"restSecMin":20,"restSecMax":20}}]},
+                  {"id":"b1","blockType":"PRINCIPAL","format":"CLASSIQUE","exercises":[
+                    {"exerciseId":"%s","exerciseName":"Squat barre","setType":"STANDARD",
+                     "prescription":{"chargeRefType":"PCT_RM_RANGE","chargePctRmMin":80,"chargePctRmMax":85,
+                                     "effortRefType":"RIR_RANGE","rirMin":1,"rirMax":3,"sets":4,"repsFixed":5,
+                                     "tempo":"3-1-X-1","restSecMin":120,"restSecMax":180}}]},
+                  {"id":"b2","blockType":"ACCESSOIRE","format":"ISOMETRIE","exercises":[
+                    {"exerciseId":"%s","exerciseName":"Gainage planche","setType":"ISO_YIELDING",
+                     "prescription":{"effortRefType":"RPE","rpeMin":8,"sets":3,"durationSec":45,"restSecMin":45,"restSecMax":60}}]}]}""")
+                .formatted(fentes.getId(), squat.getId(), gainage.getId()));
         session = strengthSessionRepository.save(session);
 
         // Assignation de la séance de force au calendrier de l'athlète démo (cette semaine).

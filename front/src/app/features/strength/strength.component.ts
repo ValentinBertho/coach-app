@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AthleteService } from '../../core/services/athlete.service';
 import { StrengthService } from '../../core/services/strength.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -27,7 +28,7 @@ type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
   selector: 'app-strength',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, RouterLink],
   templateUrl: './strength.component.html',
   styleUrl: './strength.component.scss',
 })

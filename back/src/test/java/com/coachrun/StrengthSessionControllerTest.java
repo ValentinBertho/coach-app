@@ -112,4 +112,47 @@ class StrengthSessionControllerTest {
         // ici on évite l'artefact d'encodage de MockMvc.getContentAsString().
         assertThat(charge.get("effortLabel").asText()).startsWith("RIR 1");
     }
+
+    @Test
+    void persistsAdvancedBlockFormatsAndSetTypes() throws Exception {
+        String exerciseId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/pp/exercises", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Thruster\",\"category\":\"PUISSANCE\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        String sessionId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/pp/sessions", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Métabolique\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        // Bloc Circuit (tours/effort/repos) + exercice en DROP_SET.
+        String structure = """
+            {"structure":{"blocks":[
+              {"id":"b1","blockType":"PRINCIPAL","format":"CIRCUIT","rounds":3,"workSec":40,"restSec":20,
+               "exercises":[
+                {"exerciseId":"%s","exerciseName":"Thruster","setType":"DROP_SET",
+                 "prescription":{"chargeRefType":"KG_FIXE","chargeKgMin":40,
+                                 "effortRefType":"RPE","rpeMin":8,"sets":3,"repsFixed":12,
+                                 "restSecMin":20,"restSecMax":20}}]}]}}
+            """.formatted(exerciseId);
+        JsonNode put = objectMapper.readTree(mvc.perform(
+                        put("/clubs/{c}/pp/sessions/{s}/structure", clubId, sessionId)
+                                .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                                .content(structure))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        JsonNode block = put.get("structure").get("blocks").get(0);
+        assertThat(block.get("format").asText()).isEqualTo("CIRCUIT");
+        assertThat(block.get("rounds").asInt()).isEqualTo(3);
+        assertThat(block.get("workSec").asInt()).isEqualTo(40);
+        assertThat(block.get("exercises").get(0).get("setType").asText()).isEqualTo("DROP_SET");
+
+        // Relecture : la structure avancée est bien persistée.
+        JsonNode get = objectMapper.readTree(mvc.perform(get("/clubs/{c}/pp/sessions/{s}", clubId, sessionId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(get.get("structure").get("blocks").get(0).get("format").asText()).isEqualTo("CIRCUIT");
+    }
 }

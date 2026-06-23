@@ -1,0 +1,94 @@
+.editor-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.back-link {
+  display: inline-block;
+  margin-bottom: var(--sp-2);
+  color: var(--primary);
+  font-size: 0.85rem;
+}
+
+.block-card {
+  margin-bottom: var(--sp-4);
+}
+.block-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.block-meta {
+  display: flex;
+  gap: var(--sp-2);
+  flex: 1;
+}
+.block-meta .form-control {
+  max-width: 220px;
+}
+.block-actions {
+  display: flex;
+  gap: var(--sp-1);
+}
+.btn.danger {
+  color: var(--dari-red, #d33);
+}
+
+.format-params {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0 var(--sp-3);
+  border-bottom: 1px dashed var(--hairline);
+  margin-bottom: var(--sp-3);
+}
+.format-params .form-group {
+  max-width: 140px;
+}
+
+.ex-row {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  background: var(--surface-2, rgba(0, 0, 0, 0.02));
+}
+.ex-row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-2);
+}
+.presc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--sp-2) var(--sp-3);
+}
+.presc-grid .form-group label {
+  font-size: 0.72rem;
+}
+
+.add-ex {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  margin-top: var(--sp-2);
+}
+.add-ex .form-control {
+  max-width: 320px;
+}
+.add-block {
+  width: 100%;
+  border-style: dashed;
+}
+
+@media (max-width: 768px) {
+  .editor-head {
+    flex-direction: column;
+  }
+  .block-meta .form-control {
+    max-width: none;
+  }
+}
