@@ -98,3 +98,44 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ===================== CYCLES ===================== */
+.cycle-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) 1fr;
+  gap: var(--sp-4);
+  align-items: start;
+}
+.cycle-session-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.cycle-session-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.cycle-session-opt.selected {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+.cycle-list-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.assign-card h3 {
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .cycle-layout {
+    grid-template-columns: 1fr;
+  }
+}

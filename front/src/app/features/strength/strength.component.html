@@ -8,6 +8,7 @@
 <div class="status-tabs pp-tabs">
   <button type="button" [class.active]="tab() === 'exercises'" (click)="switchTab('exercises')">📖 Exercices</button>
   <button type="button" [class.active]="tab() === 'sessions'" (click)="switchTab('sessions')">🗂️ Séances</button>
+  <button type="button" [class.active]="tab() === 'cycles'" (click)="switchTab('cycles')">🔄 Cycles</button>
   <button type="button" [class.active]="tab() === 'tests1rm'" (click)="switchTab('tests1rm')">🏋️ Tests 1RM</button>
   <button type="button" [class.active]="tab() === 'analysis'" (click)="switchTab('analysis')">📈 Suivi &amp; Analyse</button>
 </div>
@@ -98,6 +99,76 @@
       }
     </div>
   }
+}
+
+<!-- ===================== CYCLES ===================== -->
+@if (tab() === 'cycles') {
+  <div class="cycle-layout">
+    <div class="card cycle-form">
+      <h2>Nouveau cycle</h2>
+      <p class="field-hint">Programme une progression sur plusieurs semaines (charge croissante).</p>
+      <div class="form-row">
+        <div class="form-group"><label>Nom du cycle</label><input class="form-control" [(ngModel)]="newCycle.name" placeholder="Bloc force max" /></div>
+        <div class="form-group"><label>Durée (semaines)</label><input type="number" min="1" max="16" class="form-control" [(ngModel)]="newCycle.weeks" /></div>
+      </div>
+      <div class="form-group"><label>Objectif</label><input class="form-control" [(ngModel)]="newCycle.objective" placeholder="Développer la force maximale" /></div>
+      <div class="form-group">
+        <label>Séances incluses (répétées chaque semaine)</label>
+        @if (sessions().length) {
+          <div class="cycle-session-picker">
+            @for (s of sessions(); track s.id) {
+              <label class="cycle-session-opt" [class.selected]="newCycle.sessionIds.includes(s.id)">
+                <input type="checkbox" [checked]="newCycle.sessionIds.includes(s.id)" (change)="toggleCycleSession(s.id)" />
+                {{ s.name }}
+              </label>
+            }
+          </div>
+        } @else {
+          <p class="empty-hint">Crée d'abord des séances dans l'onglet Séances.</p>
+        }
+      </div>
+      <button type="button" class="btn btn-accent" [disabled]="!newCycle.name.trim() || !newCycle.sessionIds.length" (click)="createCycle()">Créer le cycle</button>
+    </div>
+
+    <div class="cycle-list-col">
+      <div class="card assign-card">
+        <h3>Assignation</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Athlète</label>
+            <select class="form-control" [ngModel]="selectedAthlete()" (ngModelChange)="onAthleteChange($event)">
+              <option value="">Sélectionner un athlète…</option>
+              @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date de début</label>
+            <input type="date" class="form-control" [ngModel]="assignDate()" (ngModelChange)="assignDate.set($event)" />
+          </div>
+        </div>
+      </div>
+
+      @if (loadingCycles()) {
+        <div class="card">Chargement…</div>
+      } @else {
+        <div class="ex-grid">
+          @for (c of cycles(); track c.id) {
+            <div class="card ex-card">
+              <div class="ex-head">
+                <strong>{{ c.name }}</strong>
+                <span class="badge badge-info">{{ c.weeks }} sem.</span>
+              </div>
+              @if (c.objective) { <p class="field-hint">{{ c.objective }}</p> }
+              <p class="field-hint">{{ c.structure.weeks.length }} semaine(s) programmée(s)</p>
+              <button type="button" class="btn btn-primary btn-sm" [disabled]="!selectedAthlete()" (click)="assignCycle(c.id)">Assigner à l'athlète</button>
+            </div>
+          } @empty {
+            <p class="empty-hint">Aucun cycle. Crée ton premier cycle.</p>
+          }
+        </div>
+      }
+    </div>
+  </div>
 }
 
 <!-- ===================== TESTS 1RM ===================== -->

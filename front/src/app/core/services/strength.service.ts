@@ -6,12 +6,14 @@ import { PageResponse } from '../models/athlete.model';
 import {
   Athlete1rm,
   CalculatedStrength,
+  CycleStructure,
   E1rmHistory,
   E1rmResult,
   PpExercise,
   PpExerciseRequest,
   RmFormula,
   ScheduledStrength,
+  StrengthCycle,
   StrengthSession,
   StrengthStructure,
 } from '../models/strength.model';
@@ -92,5 +94,18 @@ export class StrengthService {
   scheduledCalendar(athleteId: string, from: string, to: string): Observable<ScheduledStrength[]> {
     const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<ScheduledStrength[]>(`${this.club()}/athletes/${athleteId}/pp/scheduled`, { params });
+  }
+
+  // --- Cycles ---
+  listCycles(): Observable<StrengthCycle[]> {
+    return this.http.get<StrengthCycle[]>(`${this.club()}/pp/cycles`);
+  }
+
+  createCycle(body: { name: string; weeks: number; objective?: string | null; structure: CycleStructure }): Observable<StrengthCycle> {
+    return this.http.post<StrengthCycle>(`${this.club()}/pp/cycles`, body);
+  }
+
+  assignCycle(cycleId: string, athleteId: string, startDate: string): Observable<{ scheduled: number }> {
+    return this.http.post<{ scheduled: number }>(`${this.club()}/pp/cycles/${cycleId}/assign/${athleteId}`, { startDate });
   }
 }

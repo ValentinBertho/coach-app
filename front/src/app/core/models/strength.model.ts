@@ -160,6 +160,25 @@ export interface ScheduledStrength {
   sessionPain: number | null;
 }
 
+export interface CycleWeek {
+  week: number;
+  sessionIds: string[];
+  chargePctAdjustment: number;
+}
+
+export interface CycleStructure {
+  weeks: CycleWeek[];
+}
+
+export interface StrengthCycle {
+  id: string;
+  name: string;
+  weeks: number;
+  objective: string | null;
+  description: string | null;
+  structure: CycleStructure;
+}
+
 export interface StrengthResultEntry {
   exerciseId: string;
   setNumber: number;

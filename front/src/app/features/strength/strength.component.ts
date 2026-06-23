@@ -7,16 +7,18 @@ import { ToastService } from '../../core/services/toast.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import {
   Athlete1rm,
+  CycleWeek,
   E1rmHistory,
   E1rmResult,
   ExerciseCategory,
   MuscleGroup,
   PpExercise,
   RmFormula,
+  StrengthCycle,
   StrengthSession,
 } from '../../core/models/strength.model';
 
-type Tab = 'exercises' | 'sessions' | 'tests1rm' | 'analysis';
+type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
 
 @Component({
   selector: 'app-strength',
@@ -47,6 +49,12 @@ export class StrengthComponent implements OnInit {
   readonly sessions = signal<StrengthSession[]>([]);
   newSessionName = '';
 
+  // Cycles
+  readonly cycles = signal<StrengthCycle[]>([]);
+  readonly loadingCycles = signal(true);
+  newCycle = { name: '', weeks: 4, objective: '', sessionIds: [] as string[] };
+  readonly assignDate = signal(new Date().toISOString().slice(0, 10));
+
   // Tests 1RM
   rm = { weight: 100, reps: 5, formula: 'NUZZO' as RmFormula };
   readonly rmResult = signal<E1rmResult | null>(null);
@@ -68,8 +76,47 @@ export class StrengthComponent implements OnInit {
   ngOnInit(): void {
     this.loadExercises();
     this.loadSessions();
+    this.loadCycles();
     this.computeRm();
     this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
+  }
+
+  // --- Cycles ---
+  loadCycles(): void {
+    this.loadingCycles.set(true);
+    this.strength.listCycles().subscribe({
+      next: (c) => { this.cycles.set(c); this.loadingCycles.set(false); },
+      error: () => this.loadingCycles.set(false),
+    });
+  }
+
+  toggleCycleSession(id: string): void {
+    const arr = this.newCycle.sessionIds;
+    this.newCycle.sessionIds = arr.includes(id) ? arr.filter((s) => s !== id) : [...arr, id];
+  }
+
+  createCycle(): void {
+    if (!this.newCycle.name.trim() || this.newCycle.sessionIds.length === 0) return;
+    const weeks: CycleWeek[] = Array.from({ length: this.newCycle.weeks }, (_, i) => ({
+      week: i + 1,
+      sessionIds: [...this.newCycle.sessionIds],
+      chargePctAdjustment: i * 2.5,
+    }));
+    this.strength
+      .createCycle({ name: this.newCycle.name, weeks: this.newCycle.weeks, objective: this.newCycle.objective || null, structure: { weeks } })
+      .subscribe(() => {
+        this.toast.success('Cycle créé ✅');
+        this.newCycle = { name: '', weeks: 4, objective: '', sessionIds: [] };
+        this.loadCycles();
+      });
+  }
+
+  assignCycle(cycleId: string): void {
+    const a = this.selectedAthlete();
+    if (!a) { this.toast.warning('Sélectionne un athlète (onglet Suivi) d\'abord.'); return; }
+    this.strength.assignCycle(cycleId, a, this.assignDate()).subscribe((res) => {
+      this.toast.success(`${res.scheduled} séance(s) planifiée(s) ✅`);
+    });
   }
 
   switchTab(t: Tab): void {
