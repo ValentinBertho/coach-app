@@ -43,3 +43,5 @@ databaseChangeLog:
       file: db/changelog/changes/019-session-categories-library.yaml
   - include:
       file: db/changelog/changes/020-scheduled-session-extend.yaml
+  - include:
+      file: db/changelog/changes/021-lactate-tests.yaml

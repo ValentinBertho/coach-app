@@ -1,0 +1,76 @@
+# ============================================================================
+# 021 — Tests lactate + paliers (cf. DARI Lab). Valeurs de santé chiffrées au repos
+# (VARCHAR ciphertext) ; vitesse de palier en clair (donnée de performance).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 021-lactate-tests
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: lactate_tests
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: test_type, type: VARCHAR(32), constraints: { nullable: false } }
+              - column: { name: test_date, type: DATE, constraints: { nullable: false } }
+              - column: { name: notes, type: VARCHAR(2048) }
+              - column: { name: lactate_rest, type: VARCHAR(255) }
+              - column: { name: hr_rest, type: VARCHAR(255) }
+              - column: { name: hr_max, type: VARCHAR(255) }
+              - column: { name: lt1_ms, type: VARCHAR(255) }
+              - column: { name: lt2_ms, type: VARCHAR(255) }
+              - column: { name: vc_ms, type: VARCHAR(255) }
+              - column: { name: fc_lt1, type: VARCHAR(255) }
+              - column: { name: fc_lt2, type: VARCHAR(255) }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_lactate_tests_club
+            baseTableName: lactate_tests
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_lactate_tests_athlete
+            baseTableName: lactate_tests
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_lactate_tests_athlete
+            tableName: lactate_tests
+            columns:
+              - column: { name: club_id }
+              - column: { name: athlete_id }
+
+        - createTable:
+            tableName: lactate_test_steps
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: test_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: step_order, type: INT, constraints: { nullable: false } }
+              - column: { name: speed_ms, type: "DECIMAL(5,2)", constraints: { nullable: false } }
+              - column: { name: hr, type: VARCHAR(255) }
+              - column: { name: lactate, type: VARCHAR(255) }
+              - column: { name: rpe, type: INT }
+              - column: { name: duration_s, type: INT }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_lactate_steps_test
+            baseTableName: lactate_test_steps
+            baseColumnNames: test_id
+            referencedTableName: lactate_tests
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_lactate_steps_test
+            tableName: lactate_test_steps
+            columns:
+              - column: { name: test_id }
