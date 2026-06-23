@@ -1,69 +1,85 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { AthleteService } from '../../core/services/athlete.service';
 import { AuthService } from '../../core/services/auth.service';
-import { Ref } from '../../core/models/athlete.model';
+import {
+  AthleteAccess,
+  ClubMember,
+  ClubService,
+  PermissionLevel,
+} from '../../core/services/club.service';
+import { ToastService } from '../../core/services/toast.service';
+import { AthleteSummary } from '../../core/models/athlete.model';
 
-/** Écran Club (s-club) : coachs du club, rôles et modèle de permissions DARI Lab. */
+/** Écran Club (s-club) interactif : coachs, rôles, statut privé/club et permissions graduées. */
 @Component({
   selector: 'app-club',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <section class="page-header">
-      <div>
-        <h1 class="display-sm">{{ user()?.clubName || 'Mon club' }}</h1>
-        <p class="subtitle">Coachs, rôles et permissions (modèle multi-coach DARI Lab).</p>
-      </div>
-    </section>
-
-    <div class="card">
-      <h2>Coachs du club</h2>
-      <table class="data-table">
-        <thead><tr><th>Coach</th><th>Rôle</th><th>Accès</th></tr></thead>
-        <tbody>
-          @for (c of coaches(); track c.id; let first = $first) {
-            <tr>
-              <td><span class="avatar">{{ c.name[0] }}</span> {{ c.name }}</td>
-              <td><span class="badge" [class.badge-info]="first" [class.badge-neutral]="!first">{{ first ? 'Coach principal' : 'Coach assistant' }}</span></td>
-              <td class="field-hint">Athlètes du club + ses athlètes privés</td>
-            </tr>
-          } @empty {
-            <tr><td colspan="3" class="field-hint">Aucun coach.</td></tr>
-          }
-        </tbody>
-      </table>
-    </div>
-
-    <div class="rel-grid">
-      <div class="card">
-        <h2>Niveaux de permission</h2>
-        <ul class="perm-list">
-          <li><span class="badge badge-neutral">Lecture</span> Dashboard, calendrier, profil physio, analyses</li>
-          <li><span class="badge badge-info">Commentaire</span> + messagerie et retours de séance</li>
-          <li><span class="badge badge-success">Écriture</span> + prescrire, modifier, remplacer le référent</li>
-        </ul>
-      </div>
-      <div class="card">
-        <h2>Privé vs Club</h2>
-        <p><span class="badge" style="background:#ede9fe;color:#6d28d9">🔒 Privé</span> visible du seul coach référent — invisible des autres, même l'Owner.</p>
-        <p><span class="badge badge-success">🏛️ Club</span> visible par les coachs du club selon les permissions.</p>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .perm-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
-    .rel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); margin-top: var(--sp-4); }
-    .avatar { width: 28px; height: 28px; font-size: var(--text-xs); margin-right: var(--sp-2); }
-    @media (max-width: 768px) { .rel-grid { grid-template-columns: 1fr; } }
-  `],
+  imports: [FormsModule],
+  templateUrl: './club.component.html',
+  styleUrl: './club.component.scss',
 })
 export class ClubComponent implements OnInit {
+  private readonly clubService = inject(ClubService);
   private readonly athletes = inject(AthleteService);
   private readonly auth = inject(AuthService);
+  private readonly toast = inject(ToastService);
+
   readonly user = this.auth.currentUser;
-  readonly coaches = signal<Ref[]>([]);
+  readonly members = signal<ClubMember[]>([]);
+  readonly athleteList = signal<AthleteSummary[]>([]);
+  readonly selectedAthlete = signal('');
+  readonly access = signal<AthleteAccess | null>(null);
+
+  readonly levels: PermissionLevel[] = ['READ', 'COMMENT', 'WRITE'];
+  readonly levelLabels: Record<PermissionLevel, string> = { READ: 'Lecture', COMMENT: 'Commentaire', WRITE: 'Écriture' };
+  readonly roleLabels: Record<string, string> = {
+    OWNER: 'Owner', COACH_PRINCIPAL: 'Coach principal', COACH_ASSISTANT: 'Coach assistant',
+  };
 
   ngOnInit(): void {
-    this.athletes.assignableCoaches().subscribe((c) => this.coaches.set(c));
+    this.clubService.members().subscribe((m) => this.members.set(m));
+    this.athletes.list({ status: 'ACTIVE' }).subscribe((p) => this.athleteList.set(p.content));
+  }
+
+  onAthleteChange(id: string): void {
+    this.selectedAthlete.set(id);
+    this.access.set(null);
+    if (id) this.clubService.access(id).subscribe((a) => this.access.set(a));
+  }
+
+  toggleOwnership(): void {
+    const id = this.selectedAthlete();
+    const a = this.access();
+    if (!id || !a) return;
+    const next = a.ownership === 'CLUB' ? 'PRIVATE' : 'CLUB';
+    this.clubService.setOwnership(id, next).subscribe({
+      next: (res) => { this.access.set(res); this.toast.success(`Athlète ${next === 'CLUB' ? 'rattaché au club' : 'passé en privé'} ✅`); },
+      error: () => this.toast.warning('Impossible : des permissions actives existent.'),
+    });
+  }
+
+  grant(coachId: string, level: PermissionLevel): void {
+    const id = this.selectedAthlete();
+    if (!id) return;
+    this.clubService.grant(id, coachId, level).subscribe({
+      next: (res) => { this.access.set(res); this.toast.success('Permission accordée ✅'); },
+      error: () => this.toast.warning('Athlète privé : permission impossible.'),
+    });
+  }
+
+  revoke(coachId: string): void {
+    const id = this.selectedAthlete();
+    if (!id) return;
+    this.clubService.revoke(id, coachId).subscribe((res) => { this.access.set(res); this.toast.info('Permission retirée.'); });
+  }
+
+  permFor(coachId: string): PermissionLevel | null {
+    return this.access()?.permissions.find((p) => p.coachId === coachId)?.permission ?? null;
+  }
+
+  isReferent(coachId: string): boolean {
+    return this.access()?.referentCoachId === coachId;
   }
 }

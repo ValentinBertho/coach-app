@@ -107,6 +107,9 @@ public class DemoSeedService {
     private final com.coachrun.repository.Athlete1rmProfileRepository profile1rmRepository;
     private final com.coachrun.repository.StrengthSessionRepository strengthSessionRepository;
     private final com.coachrun.repository.EstimatedOneRmRepository estimatedRepository;
+    private final com.coachrun.repository.ClubMemberRepository clubMemberRepository;
+    private final com.coachrun.repository.CoachAthleteRelationRepository relationRepository;
+    private final com.coachrun.repository.AthleteCoachPermissionRepository permissionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
@@ -219,6 +222,7 @@ public class DemoSeedService {
             // Données DARI Lab : physiologie (VDOT, seuils), test lactate, préparation physique.
             seedPhysio(club, athletes, demoAthlete);
             seedPreparationPhysique(club, demoAthlete);
+            seedClubMembership(club, athletes, demoAthlete);
         }
 
         // Dates d'inscription échelonnées (createdAt non modifiable via JPA → SQL)
@@ -306,6 +310,44 @@ public class DemoSeedService {
             jdbcTemplate.update("update estimated_1rm set created_at = ? where id = ?",
                     java.sql.Timestamp.from(Instant.now().minus(daysAgo[i], ChronoUnit.DAYS)), h.getId());
         }
+    }
+
+    /** Multi-coach DARI Lab : rôles club, coach référent, statut privé/club, permission accordée. */
+    private void seedClubMembership(Club club, List<Athlete> athletes, Athlete demoAthlete) {
+        User owner = userRepository.findByEmailIgnoreCase(HEAD_COACH_EMAIL).orElse(null);
+        User assistant = userRepository.findByEmailIgnoreCase(COACH_EMAIL).orElse(null);
+        if (owner == null || assistant == null) {
+            return;
+        }
+        clubMemberRepository.save(member(club, owner, com.coachrun.entity.enums.ClubRole.OWNER));
+        clubMemberRepository.save(member(club, assistant, com.coachrun.entity.enums.ClubRole.COACH_ASSISTANT));
+
+        // Coach référent = owner ; les 2 derniers athlètes sont privés, le reste rattaché au club.
+        for (int i = 0; i < athletes.size(); i++) {
+            Athlete a = athletes.get(i);
+            com.coachrun.entity.CoachAthleteRelation r = new com.coachrun.entity.CoachAthleteRelation();
+            r.setCoach(owner);
+            r.setAthlete(a);
+            r.setClub(i >= athletes.size() - 2 ? null : club);
+            r.setReferent(true);
+            relationRepository.save(r);
+        }
+
+        // L'assistant reçoit une permission "lecture" sur l'athlète démo (athlète club).
+        com.coachrun.entity.AthleteCoachPermission perm = new com.coachrun.entity.AthleteCoachPermission();
+        perm.setAthlete(demoAthlete);
+        perm.setCoach(assistant);
+        perm.setPermission(com.coachrun.entity.enums.PermissionLevel.READ);
+        perm.setGrantedBy(owner);
+        permissionRepository.save(perm);
+    }
+
+    private com.coachrun.entity.ClubMember member(Club club, User coach, com.coachrun.entity.enums.ClubRole role) {
+        com.coachrun.entity.ClubMember m = new com.coachrun.entity.ClubMember();
+        m.setClub(club);
+        m.setCoach(coach);
+        m.setClubRole(role);
+        return m;
     }
 
     /** Structure DARI Lab (prescription en fourchettes) attachée à un modèle de séance course. */
