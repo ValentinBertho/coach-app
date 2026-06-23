@@ -66,6 +66,30 @@
   </div>
 </div>
 
+<!-- Profil lactate comparé (multi-tests) -->
+@if (multiChart(); as mc) {
+  <div class="card profile-card">
+    <h2>Profil lactate comparé</h2>
+    <svg class="lactate-chart" viewBox="0 0 320 175" preserveAspectRatio="none">
+      @for (s of mc.series; track $index) {
+        <polyline [attr.points]="s.polyline" fill="none" [attr.stroke]="s.color" stroke-width="2" />
+        @if (s.lt2x) {
+          <line [attr.x1]="s.lt2x" y1="10" [attr.x2]="s.lt2x" y2="160" [attr.stroke]="s.color" stroke-width="1" stroke-dasharray="3 3" opacity="0.6" />
+        }
+      }
+    </svg>
+    <div class="profile-legend">
+      @for (s of mc.series; track $index) {
+        <span class="pl-item">
+          <span class="pl-dot" [style.background]="s.color"></span>
+          {{ s.label | date: 'dd/MM/yy' }}
+          @if (s.lt2Kmh) { <span class="metric">· LT2 {{ s.lt2Kmh }} km/h</span> }
+        </span>
+      }
+    </div>
+  </div>
+}
+
 <!-- Historique -->
 <div class="card">
   <h2>Historique des tests</h2>
