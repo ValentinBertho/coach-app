@@ -25,6 +25,52 @@
     </a>
   </div>
 
+  @if (form(); as f) {
+    <div class="form-tables">
+      <div class="card">
+        <h2><span class="discipline-chip discipline-chip--route">🏃 Route</span> {{ f.route }}</h2>
+        @if (f.routeAthletes.length) {
+          <ul class="form-list">
+            @for (a of f.routeAthletes; track a.id) {
+              <li>
+                <a [routerLink]="['/app/athletes', a.id]" class="form-item">
+                  <span class="form-dot"
+                        [class.form-dot--green]="a.formStatus === 'GREEN'"
+                        [class.form-dot--orange]="a.formStatus === 'ORANGE'"
+                        [class.form-dot--red]="a.formStatus === 'RED'"></span>
+                  <span class="form-name">{{ a.firstName }} {{ a.lastName }}</span>
+                </a>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="empty-hint">Aucun athlète route.</p>
+        }
+      </div>
+
+      <div class="card">
+        <h2><span class="discipline-chip discipline-chip--trail">⛰️ Trail</span> {{ f.trail }}</h2>
+        @if (f.trailAthletes.length) {
+          <ul class="form-list">
+            @for (a of f.trailAthletes; track a.id) {
+              <li>
+                <a [routerLink]="['/app/athletes', a.id]" class="form-item">
+                  <span class="form-dot"
+                        [class.form-dot--green]="a.formStatus === 'GREEN'"
+                        [class.form-dot--orange]="a.formStatus === 'ORANGE'"
+                        [class.form-dot--red]="a.formStatus === 'RED'"></span>
+                  <span class="form-name">{{ a.firstName }} {{ a.lastName }}</span>
+                </a>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="empty-hint">Aucun athlète trail.</p>
+        }
+      </div>
+    </div>
+  }
+
   @if (d.upcomingRaces.length) {
     <div class="card">
       <h2>Prochaines courses</h2>
