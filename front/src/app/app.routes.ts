@@ -70,6 +70,11 @@ export const routes: Routes = [
           import('./features/templates/template-list.component').then((m) => m.TemplateListComponent),
       },
       {
+        path: 'strength',
+        loadComponent: () =>
+          import('./features/strength/strength.component').then((m) => m.StrengthComponent),
+      },
+      {
         path: 'plans',
         loadComponent: () =>
           import('./features/plans/plan-list.component').then((m) => m.PlanListComponent),

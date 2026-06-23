@@ -1,0 +1,177 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">Préparation physique 💪</h1>
+    <p class="subtitle">Bibliothèque d'exercices, séances de force, 1RM et suivi.</p>
+  </div>
+</section>
+
+<div class="status-tabs pp-tabs">
+  <button type="button" [class.active]="tab() === 'exercises'" (click)="switchTab('exercises')">📖 Exercices</button>
+  <button type="button" [class.active]="tab() === 'sessions'" (click)="switchTab('sessions')">🗂️ Séances</button>
+  <button type="button" [class.active]="tab() === 'tests1rm'" (click)="switchTab('tests1rm')">🏋️ Tests 1RM</button>
+  <button type="button" [class.active]="tab() === 'analysis'" (click)="switchTab('analysis')">📈 Suivi &amp; Analyse</button>
+</div>
+
+<!-- ===================== EXERCICES ===================== -->
+@if (tab() === 'exercises') {
+  <div class="search-bar pp-filters">
+    <input class="form-control" placeholder="Rechercher un exercice…" [(ngModel)]="searchQ" (ngModelChange)="loadExercises()" />
+    <select class="form-control" [(ngModel)]="filterCategory" (ngModelChange)="loadExercises()">
+      <option value="">Toutes catégories</option>
+      @for (c of categories; track c) { <option [value]="c">{{ label(c) }}</option> }
+    </select>
+    <select class="form-control" [(ngModel)]="filterMuscle" (ngModelChange)="loadExercises()">
+      <option value="">Tous groupes musculaires</option>
+      @for (m of muscles; track m) { <option [value]="m">{{ label(m) }}</option> }
+    </select>
+    <button type="button" class="btn btn-primary" (click)="showExerciseForm.set(!showExerciseForm())">+ Exercice</button>
+  </div>
+
+  @if (showExerciseForm()) {
+    <div class="card exercise-form">
+      <div class="form-row">
+        <div class="form-group"><label>Nom</label><input class="form-control" [(ngModel)]="newExercise.name" /></div>
+        <div class="form-group"><label>Catégorie</label>
+          <select class="form-control" [(ngModel)]="newExercise.category">
+            @for (c of categories; track c) { <option [value]="c">{{ label(c) }}</option> }
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Groupe musculaire</label>
+          <select class="form-control" [(ngModel)]="newExercise.muscle">
+            <option value="">—</option>
+            @for (m of muscles; track m) { <option [value]="m">{{ label(m) }}</option> }
+          </select>
+        </div>
+        <div class="form-group"><label>Lien vidéo démo</label><input class="form-control" [(ngModel)]="newExercise.videoUrl" placeholder="https://youtu.be/…" /></div>
+      </div>
+      <div class="form-group"><label>Consignes</label><textarea class="form-control" [(ngModel)]="newExercise.instructions"></textarea></div>
+      <button type="button" class="btn btn-accent" (click)="createExercise()">Enregistrer</button>
+    </div>
+  }
+
+  <div class="ex-grid">
+    @for (e of exercises(); track e.id) {
+      <div class="card ex-card">
+        <div class="ex-head">
+          <strong>{{ e.name }}</strong>
+          <span class="badge badge-info">{{ label(e.category) }}</span>
+        </div>
+        @if (e.muscleGroups.length) {
+          <div class="ex-tags">
+            @for (m of e.muscleGroups; track m) { <span class="badge badge-neutral">{{ label(m) }}</span> }
+          </div>
+        }
+        @if (e.videoUrl) { <a class="ex-video" [href]="e.videoUrl" target="_blank" rel="noopener">▶ Vidéo démo</a> }
+      </div>
+    } @empty {
+      <p class="empty-hint">Aucun exercice. Crée ton premier exercice.</p>
+    }
+  </div>
+}
+
+<!-- ===================== SÉANCES ===================== -->
+@if (tab() === 'sessions') {
+  <div class="search-bar">
+    <input class="form-control" placeholder="Nom de la nouvelle séance…" [(ngModel)]="newSessionName" />
+    <button type="button" class="btn btn-primary" (click)="createSession()">+ Séance</button>
+  </div>
+  <div class="ex-grid">
+    @for (s of sessions(); track s.id) {
+      <div class="card ex-card">
+        <div class="ex-head">
+          <strong>{{ s.name }}</strong>
+          @if (s.favorite) { <span class="badge badge-warning">★</span> }
+        </div>
+        <p class="field-hint">{{ s.structure.blocks.length }} bloc(s) · {{ s.useCount }} utilisation(s)</p>
+      </div>
+    } @empty {
+      <p class="empty-hint">Aucune séance de force.</p>
+    }
+  </div>
+}
+
+<!-- ===================== TESTS 1RM ===================== -->
+@if (tab() === 'tests1rm') {
+  <div class="rm-grid">
+    <div class="card">
+      <h2>Calculateur 1RM</h2>
+      <p class="field-hint">Méthode <strong>Nuzzo</strong> par défaut (Pr. Lacourpaille).</p>
+      <div class="form-row-3">
+        <div class="form-group"><label>Charge (kg)</label><input type="number" class="form-control" [(ngModel)]="rm.weight" (ngModelChange)="computeRm()" /></div>
+        <div class="form-group"><label>Répétitions</label><input type="number" class="form-control" [(ngModel)]="rm.reps" (ngModelChange)="computeRm()" /></div>
+        <div class="form-group"><label>Formule</label>
+          <select class="form-control" [(ngModel)]="rm.formula" (ngModelChange)="computeRm()">
+            @for (f of formulas; track f) { <option [value]="f">{{ f }}</option> }
+          </select>
+        </div>
+      </div>
+    </div>
+
+    @if (rmResult(); as r) {
+      <div class="card rm-result">
+        <span class="stat-label">1RM estimé</span>
+        <span class="metric rm-value">{{ r.e1rm }} kg</span>
+        <h3 class="zones-title">Zones de travail (Lacourpaille)</h3>
+        <table class="zones">
+          <tbody>
+            @for (z of r.zones; track z.name) {
+              <tr>
+                <td>{{ z.name }}</td>
+                <td class="metric">{{ z.pctMin }}–{{ z.pctMax }} %</td>
+                <td class="metric zone-kg">{{ z.kgMin }}–{{ z.kgMax }} kg</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+}
+
+<!-- ===================== SUIVI & ANALYSE ===================== -->
+@if (tab() === 'analysis') {
+  <div class="card">
+    <div class="form-group">
+      <label>Athlète</label>
+      <select class="form-control" [ngModel]="selectedAthlete()" (ngModelChange)="onAthleteChange($event)">
+        <option value="">Sélectionner un athlète…</option>
+        @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+      </select>
+    </div>
+
+    @if (selectedAthlete()) {
+      <h3>Profil de force (1RM)</h3>
+      @if (profile1rm().length) {
+        <table class="data-table">
+          <thead><tr><th>Exercice</th><th>1RM</th><th>Source</th><th></th></tr></thead>
+          <tbody>
+            @for (p of profile1rm(); track p.exerciseId) {
+              <tr>
+                <td class="metric">{{ p.exerciseId.slice(0, 8) }}…</td>
+                <td class="metric">{{ p.rmKg }} kg</td>
+                <td><span class="badge" [class.badge-success]="p.source === 'tested'" [class.badge-neutral]="p.source !== 'tested'">{{ p.source }}</span></td>
+                <td><button type="button" class="btn btn-ghost btn-sm" (click)="loadHistory(p.exerciseId)">Historique</button></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <p class="empty-hint">Aucun 1RM enregistré pour cet athlète.</p>
+      }
+
+      @if (history().length) {
+        <h3>Évolution du e1RM</h3>
+        <ul class="hist-list">
+          @for (h of history(); track h.calculatedAt) {
+            <li><span class="metric hist-e1rm">{{ h.e1rmKg }} kg</span>
+              <span class="field-hint">{{ h.chargeKg }} kg × {{ h.reps }} ({{ h.rpeOrRir }})</span>
+              <span class="field-hint metric">{{ h.calculatedAt | date: 'dd/MM/yy' }}</span>
+            </li>
+          }
+        </ul>
+      }
+    }
+  </div>
+}
