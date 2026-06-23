@@ -45,3 +45,5 @@ databaseChangeLog:
       file: db/changelog/changes/020-scheduled-session-extend.yaml
   - include:
       file: db/changelog/changes/021-lactate-tests.yaml
+  - include:
+      file: db/changelog/changes/022-pp-exercises.yaml

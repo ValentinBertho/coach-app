@@ -1,0 +1,78 @@
+# ============================================================================
+# 022 — Bibliothèque d'exercices de préparation physique (cf. DARI Lab).
+#   - pp_exercises : exercice (catégorie, niveau, vidéo, consignes, progression/régression)
+#   - pp_exercise_muscle_groups / pp_exercise_equipment : tables d'association (ElementCollection)
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 022-pp-exercises
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: pp_exercises
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: category, type: VARCHAR(32), constraints: { nullable: false } }
+              - column: { name: level, type: VARCHAR(16) }
+              - column: { name: objective, type: VARCHAR(255) }
+              - column: { name: video_url, type: VARCHAR(1024) }
+              - column: { name: image_url, type: VARCHAR(1024) }
+              - column: { name: technical_notes, type: VARCHAR(4096) }
+              - column: { name: instructions, type: VARCHAR(4096) }
+              - column: { name: contraindications, type: VARCHAR(2048) }
+              - column: { name: progression_id, type: UUID }
+              - column: { name: regression_id, type: UUID }
+              - column: { name: is_favorite, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: is_archived, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: use_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_pp_exercises_club
+            baseTableName: pp_exercises
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_pp_exercises_club
+            tableName: pp_exercises
+            columns:
+              - column: { name: club_id }
+
+        - createTable:
+            tableName: pp_exercise_muscle_groups
+            columns:
+              - column: { name: exercise_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: muscle_group, type: VARCHAR(32), constraints: { nullable: false } }
+        - addPrimaryKey:
+            tableName: pp_exercise_muscle_groups
+            columnNames: exercise_id, muscle_group
+            constraintName: pk_pp_exercise_muscle_groups
+        - addForeignKeyConstraint:
+            constraintName: fk_pp_muscle_exercise
+            baseTableName: pp_exercise_muscle_groups
+            baseColumnNames: exercise_id
+            referencedTableName: pp_exercises
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        - createTable:
+            tableName: pp_exercise_equipment
+            columns:
+              - column: { name: exercise_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: equipment, type: VARCHAR(32), constraints: { nullable: false } }
+        - addPrimaryKey:
+            tableName: pp_exercise_equipment
+            columnNames: exercise_id, equipment
+            constraintName: pk_pp_exercise_equipment
+        - addForeignKeyConstraint:
+            constraintName: fk_pp_equipment_exercise
+            baseTableName: pp_exercise_equipment
+            baseColumnNames: exercise_id
+            referencedTableName: pp_exercises
+            referencedColumnNames: id
+            onDelete: CASCADE
