@@ -179,6 +179,13 @@ export interface StrengthCycle {
   structure: CycleStructure;
 }
 
+export interface StrengthLoadPoint {
+  scheduledSessionId: string | null;
+  sessionDate: string;
+  mechanicalLoad: number;
+  metabolicLoad: number;
+}
+
 export type StrengthTestProtocol = 'TRUE_1RM' | 'REP_TEST_3_5' | 'AMRAP_TEST' | 'ISO_MVC';
 
 export interface StrengthTest {

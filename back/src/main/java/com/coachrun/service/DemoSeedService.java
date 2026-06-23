@@ -30,6 +30,7 @@ import com.coachrun.entity.enums.RunDistance;
 import com.coachrun.entity.enums.TestType;
 import com.coachrun.entity.Athlete1rmProfile;
 import com.coachrun.entity.EstimatedOneRm;
+import com.coachrun.entity.StrengthLoadTracking;
 import com.coachrun.entity.PpExercise;
 import com.coachrun.entity.StrengthSession;
 import com.coachrun.entity.WorkoutTemplate;
@@ -108,6 +109,7 @@ public class DemoSeedService {
     private final com.coachrun.repository.StrengthSessionRepository strengthSessionRepository;
     private final com.coachrun.repository.EstimatedOneRmRepository estimatedRepository;
     private final com.coachrun.repository.StrengthTestRepository strengthTestRepository;
+    private final com.coachrun.repository.StrengthLoadTrackingRepository strengthLoadRepository;
     private final com.coachrun.repository.ClubMemberRepository clubMemberRepository;
     private final com.coachrun.repository.CoachAthleteRelationRepository relationRepository;
     private final com.coachrun.repository.AthleteCoachPermissionRepository permissionRepository;
@@ -317,6 +319,19 @@ public class DemoSeedService {
                 com.coachrun.entity.enums.StrengthTestProtocol.REP_TEST_3_5, 100, 5, 70, 116.0);
         seedStrengthTest(demoAthlete, squat.getId(),
                 com.coachrun.entity.enums.StrengthTestProtocol.TRUE_1RM, 120, 1, 5, 120.0);
+
+        // Suivi de charge interne (UA méca/métab) sur les dernières séances de force.
+        int[] loadDaysAgo = {28, 21, 14, 7, 2};
+        double[] meca = {1850, 2100, 1980, 2240, 2050};
+        double[] metab = {360, 400, 380, 420, 390};
+        for (int i = 0; i < loadDaysAgo.length; i++) {
+            StrengthLoadTracking load = new StrengthLoadTracking();
+            load.setAthlete(demoAthlete);
+            load.setSessionDate(LocalDate.now().minusDays(loadDaysAgo[i]));
+            load.setMechanicalLoad(BigDecimal.valueOf(meca[i]));
+            load.setMetabolicLoad(BigDecimal.valueOf(metab[i]));
+            strengthLoadRepository.save(load);
+        }
     }
 
     private void seedStrengthTest(Athlete athlete, java.util.UUID exerciseId,

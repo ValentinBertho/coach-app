@@ -146,3 +146,57 @@
 .test-record .zones-title {
   margin-top: var(--sp-4);
 }
+
+/* ===================== CHARGE INTERNE (UA) ===================== */
+.load-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-3);
+  height: 180px;
+  padding: var(--sp-3) 0;
+}
+.load-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  gap: var(--sp-1);
+  height: 100%;
+}
+.load-bar {
+  position: relative;
+  width: 60%;
+  min-height: 4px;
+  background: var(--primary);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.load-meta {
+  display: block;
+  width: 45%;
+  min-height: 2px;
+  background: var(--accent, #f5a623);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.load-val {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.load-legend {
+  display: flex;
+  gap: var(--sp-4);
+  font-size: 0.8rem;
+  color: var(--ink-2, #888);
+}
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+}
+.swatch-meca { background: var(--primary); }
+.swatch-metab { background: var(--accent, #f5a623); }

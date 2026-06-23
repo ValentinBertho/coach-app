@@ -310,6 +310,28 @@
           }
         </ul>
       }
+
+      <h3>Charge interne (UA)</h3>
+      @if (loadPoints().length) {
+        <p class="field-hint">Mécanique = Σ(charge × reps × %1RM)/100 · Métabolique = RPE × durée (sRPE).</p>
+        <div class="load-chart">
+          @for (l of loadPoints(); track l.sessionDate) {
+            <div class="load-bar-col">
+              <div class="load-bar" [style.height.%]="l.mechanicalLoad / maxLoad() * 100">
+                <span class="load-meta" [style.height.%]="l.metabolicLoad / maxLoad() * 100"></span>
+              </div>
+              <span class="load-val metric">{{ l.mechanicalLoad }}</span>
+              <span class="field-hint">{{ l.sessionDate | date: 'dd/MM' }}</span>
+            </div>
+          }
+        </div>
+        <div class="load-legend">
+          <span><i class="swatch swatch-meca"></i> Charge mécanique (UA)</span>
+          <span><i class="swatch swatch-metab"></i> Charge métabolique (UA)</span>
+        </div>
+      } @else {
+        <p class="empty-hint">Aucune charge de force enregistrée pour cet athlète.</p>
+      }
     }
   </div>
 }

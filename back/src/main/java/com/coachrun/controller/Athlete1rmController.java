@@ -79,4 +79,13 @@ public class Athlete1rmController {
                                            @Valid @RequestBody StrengthTestRequest request) {
         return testService.record(clubId, athleteId, request);
     }
+
+    /** Suivi de charge interne force (UA méca/métab) sur une période optionnelle. */
+    @GetMapping("/load")
+    public List<com.coachrun.dto.response.StrengthLoadResponse> loadTracking(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return resultService.loadTracking(clubId, athleteId, from, to);
+    }
 }

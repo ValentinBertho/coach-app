@@ -14,6 +14,7 @@ import {
   RmFormula,
   ScheduledStrength,
   StrengthCycle,
+  StrengthLoadPoint,
   StrengthSession,
   StrengthStructure,
   StrengthTest,
@@ -94,6 +95,11 @@ export class StrengthService {
 
   recordTest(athleteId: string, body: StrengthTestRequest): Observable<StrengthTest> {
     return this.http.post<StrengthTest>(`${this.club()}/athletes/${athleteId}/pp/tests`, body);
+  }
+
+  // --- Charge interne (UA méca/métab) ---
+  loadTracking(athleteId: string): Observable<StrengthLoadPoint[]> {
+    return this.http.get<StrengthLoadPoint[]>(`${this.club()}/athletes/${athleteId}/pp/load`);
   }
 
   calculatedSession(athleteId: string, sessionId: string): Observable<CalculatedStrength> {

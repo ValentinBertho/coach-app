@@ -15,6 +15,7 @@ import {
   PpExercise,
   RmFormula,
   StrengthCycle,
+  StrengthLoadPoint,
   StrengthSession,
   StrengthTest,
   StrengthTestProtocol,
@@ -76,6 +77,7 @@ export class StrengthComponent implements OnInit {
   readonly selectedAthlete = signal('');
   readonly profile1rm = signal<Athlete1rm[]>([]);
   readonly history = signal<E1rmHistory[]>([]);
+  readonly loadPoints = signal<StrengthLoadPoint[]>([]);
 
   readonly categories: ExerciseCategory[] = [
     'FORCE_MAX', 'HYPERTROPHIE', 'PUISSANCE', 'PLIOMETRIE', 'ISOMETRIE',
@@ -237,10 +239,16 @@ export class StrengthComponent implements OnInit {
     if (!id) {
       this.profile1rm.set([]);
       this.tests.set([]);
+      this.loadPoints.set([]);
       return;
     }
     this.strength.list1rm(id).subscribe((list) => this.profile1rm.set(list));
+    this.strength.loadTracking(id).subscribe((pts) => this.loadPoints.set(pts));
     this.loadTests();
+  }
+
+  maxLoad(): number {
+    return Math.max(1, ...this.loadPoints().map((p) => p.mechanicalLoad));
   }
 
   loadHistory(exerciseId: string): void {
