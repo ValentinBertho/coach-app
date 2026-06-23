@@ -90,3 +90,20 @@
 .feedback-actions .btn { width: 100%; }
 
 .empty { text-align: center; }
+
+/* --- Renforcement du jour + fatigue/douleur (DARI Lab) -------------------- */
+.rpe-dot.fatigue.active { background: var(--dari-orange); border-color: var(--dari-orange); }
+.rpe-dot.pain.active { background: var(--dari-red); border-color: var(--dari-red); }
+
+.strength-badge { background: #a78bfa; color: #fff; }
+.strength-day .strength-ex {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.strength-day .strength-ex strong { flex: 1; }
+.ex-charge { color: #c4b5fd; font-weight: 700; }
+.ex-effort { color: var(--night-text-2); font-size: var(--text-sm); }
+.strength-fb { margin-top: var(--sp-4); }

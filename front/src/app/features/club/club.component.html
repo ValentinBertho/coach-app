@@ -1,0 +1,94 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">{{ user()?.clubName || 'Mon club' }}</h1>
+    <p class="subtitle">Coachs, rôles et permissions (multi-coach DARI Lab).</p>
+  </div>
+</section>
+
+<div class="card">
+  <h2>Coachs du club</h2>
+  <table class="data-table">
+    <thead><tr><th>Coach</th><th>Rôle</th></tr></thead>
+    <tbody>
+      @for (m of members(); track m.coachId) {
+        <tr>
+          <td><span class="avatar">{{ m.name[0] }}</span> {{ m.name }}</td>
+          <td><span class="badge" [class.badge-info]="m.clubRole === 'OWNER'" [class.badge-neutral]="m.clubRole !== 'OWNER'">{{ roleLabels[m.clubRole] }}</span></td>
+        </tr>
+      } @empty {
+        <tr><td colspan="2" class="field-hint">Aucun coach.</td></tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>Accès & permissions par athlète</h2>
+  <div class="form-group">
+    <label>Athlète</label>
+    <select class="form-control" [ngModel]="selectedAthlete()" (ngModelChange)="onAthleteChange($event)">
+      <option value="">Sélectionner un athlète…</option>
+      @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+    </select>
+  </div>
+
+  @if (access(); as acc) {
+    <div class="ownership">
+      <span>Statut :</span>
+      @if (acc.ownership === 'CLUB') {
+        <span class="badge badge-success">🏛️ Club</span>
+      } @else {
+        <span class="badge" style="background:#ede9fe;color:#6d28d9">🔒 Privé</span>
+      }
+      <button type="button" class="btn btn-ghost btn-sm" (click)="toggleOwnership()">
+        Passer en {{ acc.ownership === 'CLUB' ? 'privé' : 'club' }}
+      </button>
+      @if (acc.referentName) { <span class="field-hint">Référent : {{ acc.referentName }}</span> }
+    </div>
+
+    <table class="data-table perm-table">
+      <thead><tr><th>Coach</th><th>Accès actuel</th><th>Accorder</th></tr></thead>
+      <tbody>
+        @for (m of members(); track m.coachId) {
+          <tr>
+            <td>{{ m.name }} @if (isReferent(m.coachId)) { <span class="badge badge-info">Référent</span> }</td>
+            <td>
+              @if (isReferent(m.coachId)) {
+                <span class="badge badge-success">Écriture (référent)</span>
+              } @else {
+                @if (permFor(m.coachId); as p) {
+                  <span class="badge badge-info">{{ levelLabels[p] }}</span>
+                  <button type="button" class="chip-x" (click)="revoke(m.coachId)" title="Retirer">×</button>
+                }
+                @if (!permFor(m.coachId)) {
+                  <span class="field-hint">—</span>
+                }
+              }
+            </td>
+            <td>
+              @if (!isReferent(m.coachId) && acc.ownership === 'CLUB') {
+                <div class="grant-btns">
+                  @for (l of levels; track l) {
+                    <button type="button" class="btn btn-ghost btn-sm" (click)="grant(m.coachId, l)">{{ levelLabels[l] }}</button>
+                  }
+                </div>
+              } @else if (acc.ownership === 'PRIVATE') {
+                <span class="field-hint">Athlète privé</span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</div>
+
+<div class="card info-note">
+  <strong>Règles</strong>
+  <ul>
+    <li><span class="badge badge-neutral">Lecture</span> dashboard, calendrier, profil physio, analyses</li>
+    <li><span class="badge badge-info">Commentaire</span> + messagerie et retours de séance</li>
+    <li><span class="badge badge-success">Écriture</span> + prescrire, modifier, remplacer le référent</li>
+    <li>🔒 Un athlète <strong>privé</strong> n'est jamais visible des autres coachs — passage club→privé interdit s'il reste des permissions actives.</li>
+  </ul>
+</div>

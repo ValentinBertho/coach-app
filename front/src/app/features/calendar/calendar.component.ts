@@ -5,6 +5,8 @@ import { Router, RouterLink } from '@angular/router';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import { STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, Workout } from '../../core/models/workout.model';
 import { AthleteService } from '../../core/services/athlete.service';
+import { StrengthService } from '../../core/services/strength.service';
+import { ScheduledStrength } from '../../core/models/strength.model';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkoutService } from '../../core/services/workout.service';
 
@@ -15,6 +17,7 @@ interface DayCell {
   isToday: boolean;
   inMonth: boolean;
   workouts: Workout[];
+  strength: ScheduledStrength[];
 }
 
 function toIso(d: Date): string {
@@ -39,6 +42,7 @@ function mondayOf(d: Date): Date {
 export class CalendarComponent implements OnInit {
   private readonly athleteService = inject(AthleteService);
   private readonly workoutService = inject(WorkoutService);
+  private readonly strengthService = inject(StrengthService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
@@ -52,12 +56,14 @@ export class CalendarComponent implements OnInit {
   readonly mode = signal<'week' | 'month'>('week');
   readonly anchor = signal<Date>(new Date());
   readonly workouts = signal<Workout[]>([]);
+  readonly strength = signal<ScheduledStrength[]>([]);
   readonly loading = signal(false);
 
   /** Cellules affichées (7 en semaine, 42 en mois). */
   readonly cells = computed<DayCell[]>(() => {
     const today = toIso(new Date());
     const byDate = this.groupByDate();
+    const strengthByDate = this.groupStrengthByDate();
     const count = this.mode() === 'week' ? 7 : 42;
     const start = this.gridStart();
     const monthRef = this.anchor().getMonth();
@@ -72,6 +78,7 @@ export class CalendarComponent implements OnInit {
         isToday: iso === today,
         inMonth: this.mode() === 'week' || d.getMonth() === monthRef,
         workouts: byDate.get(iso) ?? [],
+        strength: strengthByDate.get(iso) ?? [],
       };
     });
   });
@@ -127,6 +134,10 @@ export class CalendarComponent implements OnInit {
       next: (list) => { this.workouts.set(list); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
+    this.strengthService.scheduledCalendar(this.selectedAthleteId, from, to).subscribe({
+      next: (list) => this.strength.set(list),
+      error: () => this.strength.set([]),
+    });
   }
 
   addWorkout(date: string): void {
@@ -166,6 +177,15 @@ export class CalendarComponent implements OnInit {
     for (const w of this.workouts()) {
       const arr = map.get(w.scheduledDate) ?? map.set(w.scheduledDate, []).get(w.scheduledDate)!;
       arr.push(w);
+    }
+    return map;
+  }
+
+  private groupStrengthByDate(): Map<string, ScheduledStrength[]> {
+    const map = new Map<string, ScheduledStrength[]>();
+    for (const s of this.strength()) {
+      const arr = map.get(s.scheduledDate) ?? map.set(s.scheduledDate, []).get(s.scheduledDate)!;
+      arr.push(s);
     }
     return map;
   }

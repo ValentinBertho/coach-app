@@ -125,11 +125,17 @@ class StrengthScheduleTest {
         assertThat(fb.get("completed").asBoolean()).isTrue();
         assertThat(fb.get("sessionFatigue").asInt()).isEqualTo(5);
 
-        // Le calendrier athlète liste la séance déplacée.
+        // Le calendrier athlète liste la séance déplacée (le jeu de démo peut en contenir d'autres).
         JsonNode cal = objectMapper.readTree(mvc.perform(
                         get("/me/pp/scheduled?from=2026-06-20&to=2026-06-30").header("Authorization", athleteBearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertThat(cal).hasSize(1);
-        assertThat(cal.get(0).get("scheduledDate").asText()).isEqualTo("2026-06-27");
+        JsonNode mine = null;
+        for (JsonNode s : cal) {
+            if (scheduledId.equals(s.get("id").asText())) {
+                mine = s;
+            }
+        }
+        assertThat(mine).isNotNull();
+        assertThat(mine.get("scheduledDate").asText()).isEqualTo("2026-06-27");
     }
 }

@@ -70,6 +70,16 @@ export const routes: Routes = [
           import('./features/templates/template-list.component').then((m) => m.TemplateListComponent),
       },
       {
+        path: 'templates/:templateId/structure',
+        loadComponent: () =>
+          import('./features/templates/session-editor.component').then((m) => m.SessionEditorComponent),
+      },
+      {
+        path: 'strength',
+        loadComponent: () =>
+          import('./features/strength/strength.component').then((m) => m.StrengthComponent),
+      },
+      {
         path: 'plans',
         loadComponent: () =>
           import('./features/plans/plan-list.component').then((m) => m.PlanListComponent),
@@ -78,6 +88,26 @@ export const routes: Routes = [
         path: 'groups',
         loadComponent: () =>
           import('./features/groups/group-list.component').then((m) => m.GroupListComponent),
+      },
+      {
+        path: 'club',
+        loadComponent: () =>
+          import('./features/club/club.component').then((m) => m.ClubComponent),
+      },
+      {
+        path: 'sync',
+        loadComponent: () =>
+          import('./features/settings/sync.component').then((m) => m.SyncComponent),
+      },
+      {
+        path: 'settings',
+        loadComponent: () =>
+          import('./features/settings/settings.component').then((m) => m.SettingsComponent),
+      },
+      {
+        path: 'notifications',
+        loadComponent: () =>
+          import('./features/settings/notifications.component').then((m) => m.NotificationsComponent),
       },
       {
         path: 'athletes/:athleteId/messages',
@@ -93,6 +123,16 @@ export const routes: Routes = [
         path: 'athletes/:athleteId/analytics',
         loadComponent: () =>
           import('./features/analytics/analytics.component').then((m) => m.AnalyticsComponent),
+      },
+      {
+        path: 'athletes/:athleteId/tests',
+        loadComponent: () =>
+          import('./features/physio/lactate.component').then((m) => m.LactateComponent),
+      },
+      {
+        path: 'athletes/:athleteId/load',
+        loadComponent: () =>
+          import('./features/physio/load.component').then((m) => m.LoadComponent),
       },
       {
         path: 'athletes/:athleteId/activities/:activityId/map',

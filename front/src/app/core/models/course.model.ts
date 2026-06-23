@@ -1,0 +1,64 @@
+export type PrescriptionRef =
+  | 'PCT_LT1' | 'PCT_LT2' | 'PCT_VC'
+  | 'PCT_PACE_800M' | 'PCT_PACE_1500M' | 'PCT_PACE_3000M' | 'PCT_PACE_5KM'
+  | 'PCT_PACE_10KM' | 'PCT_PACE_15KM' | 'PCT_PACE_SEMI' | 'PCT_PACE_MARATHON';
+
+export interface CoursePrescription {
+  ref: PrescriptionRef;
+  minPct: number;
+  maxPct: number;
+}
+
+export interface CourseRecovery {
+  type: string;
+  durationS?: number | null;
+  distanceM?: number | null;
+  prescription?: CoursePrescription | null;
+}
+
+export interface CourseBlock {
+  id: string;
+  type: string;
+  reps?: number | null;
+  distanceM?: number | null;
+  durationS?: number | null;
+  prescription?: CoursePrescription | null;
+  recovery?: CourseRecovery | null;
+  note?: string | null;
+}
+
+export interface SessionStructure {
+  warmup: CourseBlock[];
+  main: CourseBlock[];
+  cooldown: CourseBlock[];
+}
+
+export interface CourseStructureResponse {
+  templateId: string;
+  name: string;
+  discipline: string | null;
+  categoryId: string | null;
+  categoryName: string | null;
+  favorite: boolean;
+  archived: boolean;
+  useCount: number;
+  structure: SessionStructure;
+}
+
+export interface CalculatedBlock {
+  computable: boolean;
+  ref: PrescriptionRef;
+  basePaceSecPerKm: number | null;
+  paceMinSecPerKm: number | null;
+  paceMaxSecPerKm: number | null;
+  paceMinLabel: string | null;
+  paceMaxLabel: string | null;
+  speedMinKmh: number | null;
+  speedMaxKmh: number | null;
+  hrMin: number | null;
+  hrMax: number | null;
+  rpeMin: number | null;
+  rpeMax: number | null;
+  estimatedDurationS: number | null;
+  estimatedDistanceM: number | null;
+}

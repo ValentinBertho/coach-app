@@ -1,0 +1,90 @@
+<section class="page-header">
+  <div>
+    <a [routerLink]="['/app/athletes', athleteId()]" class="back-link">← Fiche athlète</a>
+    <h1 class="display-sm">Tests lactate</h1>
+    <p class="subtitle">Saisie des paliers, détection LT1/LT2 (Dmax modifié) et profil lactate.</p>
+  </div>
+</section>
+
+<div class="lactate-grid">
+  <!-- Saisie -->
+  <div class="card">
+    <h2>Nouveau test</h2>
+    <div class="form-row-3 rest-values">
+      <div class="form-group"><label>Lactate repos (mmol/L)</label><input type="number" step="0.1" class="form-control" [(ngModel)]="rest.lactateRest" (ngModelChange)="refresh()" /></div>
+      <div class="form-group"><label>FC repos</label><input type="number" class="form-control" [(ngModel)]="rest.hrRest" /></div>
+      <div class="form-group"><label>FC max</label><input type="number" class="form-control" [(ngModel)]="rest.hrMax" /></div>
+    </div>
+
+    <table class="data-table steps-table">
+      <thead><tr><th>Vitesse (m/s)</th><th>FC</th><th>Lactate</th><th></th></tr></thead>
+      <tbody>
+        @for (s of steps; track $index) {
+          <tr>
+            <td><input type="number" step="0.1" class="form-control" [(ngModel)]="s.speedMs" (ngModelChange)="refresh()" /></td>
+            <td><input type="number" class="form-control" [(ngModel)]="s.hr" (ngModelChange)="refresh()" /></td>
+            <td><input type="number" step="0.1" class="form-control" [(ngModel)]="s.lactate" (ngModelChange)="refresh()" /></td>
+            <td><button type="button" class="chip-x" (click)="removeStep($index)" aria-label="Retirer">×</button></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    <div class="steps-actions">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="addStep()">+ Palier</button>
+      <button type="button" class="btn btn-accent btn-sm" (click)="save()">Enregistrer le test</button>
+    </div>
+  </div>
+
+  <!-- Détection + courbe -->
+  <div class="card lactate-result">
+    <h2>Profil lactate</h2>
+    @if (detection(); as d) {
+      <div class="seuils-row">
+        <div class="seuil-box"><span class="stat-label">LT1</span><span class="metric">{{ d.lt1Kmh }} km/h</span><span class="field-hint">{{ d.fcLt1 }} bpm</span></div>
+        <div class="seuil-box"><span class="stat-label">LT2</span><span class="metric">{{ d.lt2Kmh }} km/h</span><span class="field-hint">{{ d.fcLt2 }} bpm</span></div>
+        <div class="seuil-box"><span class="stat-label">Seuil LT1</span><span class="metric">{{ d.lt1Threshold }} mmol</span></div>
+      </div>
+    } @else {
+      <p class="field-hint">Saisis au moins 3 paliers pour détecter les seuils.</p>
+    }
+
+    @if (chart(); as c) {
+      <svg class="lactate-chart" viewBox="0 0 320 175" preserveAspectRatio="none">
+        <polyline [attr.points]="c.polyline" fill="none" stroke="var(--dari-teal)" stroke-width="2" />
+        @for (p of c.points; track $index) {
+          <circle [attr.cx]="p.cx" [attr.cy]="p.cy" r="3.5" fill="var(--dari-teal)" />
+        }
+        @if (c.lt1x) {
+          <line [attr.x1]="c.lt1x" y1="10" [attr.x2]="c.lt1x" y2="160" stroke="var(--dari-yellow)" stroke-width="1.5" stroke-dasharray="4 3" />
+        }
+        @if (c.lt2x) {
+          <line [attr.x1]="c.lt2x" y1="10" [attr.x2]="c.lt2x" y2="160" stroke="var(--dari-red)" stroke-width="1.5" stroke-dasharray="4 3" />
+        }
+      </svg>
+      <p class="chart-legend"><span class="lg lg-lt1">▮ LT1</span><span class="lg lg-lt2">▮ LT2</span> · lactate (mmol/L) vs vitesse (km/h)</p>
+    }
+  </div>
+</div>
+
+<!-- Historique -->
+<div class="card">
+  <h2>Historique des tests</h2>
+  @if (tests().length) {
+    <table class="data-table">
+      <thead><tr><th>Date</th><th>LT1</th><th>LT2</th><th>FC LT2</th><th></th></tr></thead>
+      <tbody>
+        @for (t of tests(); track t.id) {
+          <tr>
+            <td class="metric">{{ t.testDate | date: 'dd/MM/yyyy' }}</td>
+            <td class="metric">{{ t.lt1Ms ? (t.lt1Ms * 3.6).toFixed(1) + ' km/h' : '—' }}</td>
+            <td class="metric">{{ t.lt2Ms ? (t.lt2Ms * 3.6).toFixed(1) + ' km/h' : '—' }}</td>
+            <td class="metric">{{ t.fcLt2 ? t.fcLt2 + ' bpm' : '—' }}</td>
+            <td><button type="button" class="btn btn-ghost btn-sm" (click)="loadTest(t)">Charger</button></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <p class="empty-hint">Aucun test enregistré.</p>
+  }
+</div>

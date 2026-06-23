@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import { WorkoutTemplate, WorkoutTemplateRequest } from '../../core/models/workout-template.model';
 import { STEP_TYPE_LABELS, WORKOUT_TYPE_LABELS } from '../../core/models/workout.model';
@@ -13,7 +14,7 @@ import { WorkoutTemplateService } from '../../core/services/workout-template.ser
   selector: 'app-template-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, FormsModule],
+  imports: [ReactiveFormsModule, FormsModule, RouterLink],
   templateUrl: './template-list.component.html',
   styleUrl: './template-list.component.scss',
 })

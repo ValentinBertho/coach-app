@@ -59,6 +59,13 @@
               }
             </button>
           }
+          @for (s of day.strength; track s.id) {
+            <div class="strength-chip" [class.done]="s.completed">
+              <span class="sc-icon">💪</span>
+              <span class="sc-title">{{ s.title }}</span>
+              @if (s.sessionPain) { <span class="sc-pain">🩹</span> }
+            </div>
+          }
           <button type="button" class="add-btn" (click)="addWorkout(day.date)">+</button>
         </div>
       </div>

@@ -8,7 +8,8 @@ import {
   WORKOUT_TYPE_LABELS,
   Workout,
 } from '../../core/models/workout.model';
-import { AthletePortalService } from '../../core/services/athlete-portal.service';
+import { AthletePortalService, StrengthPrescriptionView } from '../../core/services/athlete-portal.service';
+import { ScheduledStrength } from '../../core/models/strength.model';
 import { AuthService } from '../../core/services/auth.service';
 import { FeedbackQueueService } from '../../core/services/feedback-queue.service';
 import { NetworkStatusService } from '../../core/services/network-status.service';
@@ -45,17 +46,55 @@ export class TodayComponent implements OnInit {
   readonly statusLabels = STATUS_LABELS;
   readonly statusBadge = STATUS_BADGE;
   readonly rpeScale = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  readonly painScale = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   readonly state = signal<State>('loading');
   readonly workout = signal<Workout | null>(null);
   readonly nextRace = signal<import('../../core/models/race.model').RaceObjective | null>(null);
   readonly user = this.auth.currentUser;
   rpe: number | null = null;
+  fatigue: number | null = null;
+  pain: number | null = null;
   comment = '';
+
+  // Renforcement du jour
+  readonly strength = signal<ScheduledStrength | null>(null);
+  readonly strengthRx = signal<StrengthPrescriptionView | null>(null);
+  sRpe: number | null = null;
+  sFatigue: number | null = null;
+  sPain: number | null = null;
 
   ngOnInit(): void {
     this.load();
+    this.loadStrength();
     this.portal.nextRace().subscribe({ next: (r) => this.nextRace.set(r) });
+  }
+
+  loadStrength(): void {
+    const day = new Date().toISOString().slice(0, 10);
+    this.portal.ppScheduled(day, day).subscribe({
+      next: (list) => {
+        const s = list[0] ?? null;
+        this.strength.set(s);
+        if (s) {
+          this.sRpe = s.sessionFatigue != null ? this.sRpe : this.sRpe;
+          this.portal.ppPrescription(s.id).subscribe({ next: (p) => this.strengthRx.set(p) });
+        }
+      },
+    });
+  }
+
+  submitStrength(completed: boolean): void {
+    const s = this.strength();
+    if (!s) return;
+    this.portal
+      .ppFeedback(s.id, { completed, sessionRpe: this.sRpe, fatigue: this.sFatigue, pain: this.sPain, comment: null })
+      .subscribe({
+        next: (updated) => {
+          this.strength.set(updated);
+          this.toast.success('Renforcement enregistré 💪');
+        },
+      });
   }
 
   load(): void {
@@ -84,6 +123,8 @@ export class TodayComponent implements OnInit {
     const body = {
       status: (completed ? 'COMPLETED' : 'PARTIAL') as 'COMPLETED' | 'PARTIAL',
       rpe: this.rpe,
+      fatigue: this.fatigue,
+      pain: this.pain,
       comment: this.comment || null,
     };
 

@@ -29,7 +29,11 @@ import com.coachrun.entity.enums.MuscleGroup;
 import com.coachrun.entity.enums.RunDistance;
 import com.coachrun.entity.enums.TestType;
 import com.coachrun.entity.Athlete1rmProfile;
+import com.coachrun.entity.EstimatedOneRm;
 import com.coachrun.entity.PpExercise;
+import com.coachrun.entity.StrengthSession;
+import com.coachrun.entity.WorkoutTemplate;
+import com.coachrun.entity.enums.RmFormula;
 import com.coachrun.dto.request.LactateTestRequest;
 import com.coachrun.dto.request.LactateTestStepRequest;
 import com.coachrun.dto.request.PerformanceRequest;
@@ -98,8 +102,14 @@ public class DemoSeedService {
     private final com.coachrun.repository.TrainingPlanRepository planRepository;
     private final AthletePhysioService physioService;
     private final LactateTestService lactateTestService;
+    private final StrengthScheduleService strengthScheduleService;
     private final com.coachrun.repository.PpExerciseRepository exerciseRepository;
     private final com.coachrun.repository.Athlete1rmProfileRepository profile1rmRepository;
+    private final com.coachrun.repository.StrengthSessionRepository strengthSessionRepository;
+    private final com.coachrun.repository.EstimatedOneRmRepository estimatedRepository;
+    private final com.coachrun.repository.ClubMemberRepository clubMemberRepository;
+    private final com.coachrun.repository.CoachAthleteRelationRepository relationRepository;
+    private final com.coachrun.repository.AthleteCoachPermissionRepository permissionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
@@ -186,9 +196,10 @@ public class DemoSeedService {
 
         // Modèles de séances (bibliothèque)
         seedTemplate(club, "Endurance fondamentale", WorkoutType.ENDURANCE, "Footing Z2", 12000);
-        seedTemplate(club, "VMA 10x400", WorkoutType.INTERVALS, "VMA 10×400m", 9000);
+        WorkoutTemplate vma = seedTemplate(club, "VMA 10x400", WorkoutType.INTERVALS, "VMA 10×400m", 9000);
         if (isPrimary) {
             seedTemplate(club, "Sortie longue", WorkoutType.LONG_RUN, "Sortie longue", 20000);
+            seedCourseStructure(vma);
         }
 
         // Compte athlète connectable (uniquement sur le club principal)
@@ -211,6 +222,7 @@ public class DemoSeedService {
             // Données DARI Lab : physiologie (VDOT, seuils), test lactate, préparation physique.
             seedPhysio(club, athletes, demoAthlete);
             seedPreparationPhysique(club, demoAthlete);
+            seedClubMembership(club, athletes, demoAthlete);
         }
 
         // Dates d'inscription échelonnées (createdAt non modifiable via JPA → SQL)
@@ -249,7 +261,7 @@ public class DemoSeedService {
         return new LactateTestStepRequest(BigDecimal.valueOf(speedMs), hr, BigDecimal.valueOf(lactate), null, 180);
     }
 
-    /** Bibliothèque d'exercices de force + un 1RM pour l'athlète démo. */
+    /** Bibliothèque d'exercices de force + séance structurée + 1RM + historique e1RM. */
     private void seedPreparationPhysique(Club club, Athlete demoAthlete) {
         PpExercise squat = newExercise(club, "Squat barre", ExerciseCategory.FORCE_MAX,
                 MuscleGroup.QUADRICEPS, EquipmentType.BARRE);
@@ -263,6 +275,93 @@ public class DemoSeedService {
         rm.setRmKg(BigDecimal.valueOf(120));
         rm.setSource("tested");
         profile1rmRepository.save(rm);
+
+        // Séance de force structurée (bloc principal : Squat 4×5 à 80–85 % RM, RIR 1–3).
+        StrengthSession session = new StrengthSession();
+        session.setClub(club);
+        session.setName("Force max bas du corps");
+        session.setFavorite(true);
+        session.setStructureJson(("""
+                {"blocks":[{"id":"b1","blockType":"PRINCIPAL","format":"CLASSIQUE","exercises":[
+                  {"exerciseId":"%s","exerciseName":"Squat barre","setType":"STANDARD",
+                   "prescription":{"chargeRefType":"PCT_RM_RANGE","chargePctRmMin":80,"chargePctRmMax":85,
+                                   "effortRefType":"RIR_RANGE","rirMin":1,"rirMax":3,"sets":4,"repsFixed":5,
+                                   "tempo":"3-1-X-1","restSecMin":120,"restSecMax":180}}]}]}""")
+                .formatted(squat.getId()));
+        session = strengthSessionRepository.save(session);
+
+        // Assignation de la séance de force au calendrier de l'athlète démo (cette semaine).
+        strengthScheduleService.schedule(club.getId(), demoAthlete.getId(), session.getId(),
+                LocalDate.now().plusDays(2), com.coachrun.entity.enums.FieldsPreset.AVANCE);
+
+        // Historique e1RM (courbe de progression) sur le Squat.
+        int[] daysAgo = {70, 45, 20, 5};
+        double[] values = {110.0, 113.5, 116.0, 118.5};
+        for (int i = 0; i < daysAgo.length; i++) {
+            EstimatedOneRm h = new EstimatedOneRm();
+            h.setAthlete(demoAthlete);
+            h.setExerciseId(squat.getId());
+            h.setChargeKg(BigDecimal.valueOf(100));
+            h.setReps(5);
+            h.setRpeOrRir("RIR2");
+            h.setFormulaUsed(RmFormula.NUZZO);
+            h.setE1rmKg(BigDecimal.valueOf(values[i]));
+            h = estimatedRepository.save(h);
+            jdbcTemplate.update("update estimated_1rm set created_at = ? where id = ?",
+                    java.sql.Timestamp.from(Instant.now().minus(daysAgo[i], ChronoUnit.DAYS)), h.getId());
+        }
+    }
+
+    /** Multi-coach DARI Lab : rôles club, coach référent, statut privé/club, permission accordée. */
+    private void seedClubMembership(Club club, List<Athlete> athletes, Athlete demoAthlete) {
+        User owner = userRepository.findByEmailIgnoreCase(HEAD_COACH_EMAIL).orElse(null);
+        User assistant = userRepository.findByEmailIgnoreCase(COACH_EMAIL).orElse(null);
+        if (owner == null || assistant == null) {
+            return;
+        }
+        clubMemberRepository.save(member(club, owner, com.coachrun.entity.enums.ClubRole.OWNER));
+        clubMemberRepository.save(member(club, assistant, com.coachrun.entity.enums.ClubRole.COACH_ASSISTANT));
+
+        // Coach référent = owner ; les 2 derniers athlètes sont privés, le reste rattaché au club.
+        for (int i = 0; i < athletes.size(); i++) {
+            Athlete a = athletes.get(i);
+            com.coachrun.entity.CoachAthleteRelation r = new com.coachrun.entity.CoachAthleteRelation();
+            r.setCoach(owner);
+            r.setAthlete(a);
+            r.setClub(i >= athletes.size() - 2 ? null : club);
+            r.setReferent(true);
+            relationRepository.save(r);
+        }
+
+        // L'assistant reçoit une permission "lecture" sur l'athlète démo (athlète club).
+        com.coachrun.entity.AthleteCoachPermission perm = new com.coachrun.entity.AthleteCoachPermission();
+        perm.setAthlete(demoAthlete);
+        perm.setCoach(assistant);
+        perm.setPermission(com.coachrun.entity.enums.PermissionLevel.READ);
+        perm.setGrantedBy(owner);
+        permissionRepository.save(perm);
+    }
+
+    private com.coachrun.entity.ClubMember member(Club club, User coach, com.coachrun.entity.enums.ClubRole role) {
+        com.coachrun.entity.ClubMember m = new com.coachrun.entity.ClubMember();
+        m.setClub(club);
+        m.setCoach(coach);
+        m.setClubRole(role);
+        return m;
+    }
+
+    /** Structure DARI Lab (prescription en fourchettes) attachée à un modèle de séance course. */
+    private void seedCourseStructure(WorkoutTemplate t) {
+        t.setDiscipline(Discipline.ROUTE);
+        t.setStructureJson("""
+                {"warmup":[{"id":"wu1","type":"easy","durationS":900,
+                            "prescription":{"ref":"PCT_LT1","minPct":75,"maxPct":88}}],
+                 "main":[{"id":"m1","type":"intervals","reps":10,"distanceM":400,
+                          "prescription":{"ref":"PCT_PACE_5KM","minPct":100,"maxPct":108},
+                          "recovery":{"type":"jog","durationS":60,
+                                      "prescription":{"ref":"PCT_LT1","minPct":60,"maxPct":75}}}],
+                 "cooldown":[{"id":"cd1","type":"easy","durationS":600,
+                              "prescription":{"ref":"PCT_LT1","minPct":60,"maxPct":80}}]}""");
     }
 
     private PpExercise newExercise(Club club, String name, ExerciseCategory category,
@@ -379,8 +478,8 @@ public class DemoSeedService {
         raceRepository.save(race);
     }
 
-    private void seedTemplate(Club club, String name, WorkoutType type, String title, int distanceM) {
-        com.coachrun.entity.WorkoutTemplate t = new com.coachrun.entity.WorkoutTemplate();
+    private WorkoutTemplate seedTemplate(Club club, String name, WorkoutType type, String title, int distanceM) {
+        WorkoutTemplate t = new WorkoutTemplate();
         t.setClub(club);
         t.setName(name);
         t.setType(type);
@@ -399,7 +498,7 @@ public class DemoSeedService {
         } catch (Exception ignored) {
             t.setStepsJson("[]");
         }
-        templateRepository.save(t);
+        return templateRepository.save(t);
     }
 
     private void seedMessage(Club club, Athlete athlete, User sender, String body) {

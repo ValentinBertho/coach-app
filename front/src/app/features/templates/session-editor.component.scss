@@ -1,0 +1,76 @@
+.back-link {
+  display: inline-block;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  margin-bottom: var(--sp-2);
+}
+.calc-athlete {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.calc-athlete label {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.calc-athlete .form-control {
+  max-width: 320px;
+}
+.section-card {
+  margin-bottom: var(--sp-4);
+}
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-3);
+}
+.block {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  padding: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.block-edit {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.block-edit .form-control {
+  min-height: 38px;
+}
+.block-edit .type {
+  width: 110px;
+}
+.block-edit .nm {
+  width: 68px;
+}
+.calc-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--primary-wash);
+  border-radius: var(--radius-sm);
+}
+.calc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.calc-lb {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.calc-v {
+  color: var(--primary);
+  font-weight: 600;
+}
+.calc-na {
+  margin-top: var(--sp-2);
+  color: var(--warning-text);
+  font-size: var(--text-sm);
+}

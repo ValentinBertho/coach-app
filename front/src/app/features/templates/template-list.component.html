@@ -55,6 +55,7 @@
         </div>
         <strong>{{ t.name }}</strong>
         <span class="field-hint">{{ t.title }} · {{ t.steps.length }} étape(s)</span>
+        <a [routerLink]="['/app/templates', t.id, 'structure']" class="btn btn-ghost btn-sm edit-structure">✎ Éditer la structure (DARI Lab)</a>
         <div class="apply">
           <select class="form-control" [(ngModel)]="applyFor[t.id]!.athleteId" [ngModelOptions]="{standalone:true}">
             <option value="">Athlète…</option>
