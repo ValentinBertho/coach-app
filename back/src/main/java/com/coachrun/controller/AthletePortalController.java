@@ -69,8 +69,23 @@ public class AthletePortalController {
     public WorkoutResponse feedback(@AuthenticationPrincipal AuthPrincipal principal,
                                     @PathVariable UUID workoutId,
                                     @Valid @RequestBody WorkoutFeedbackRequest request) {
-        return workoutService.submitFeedback(
-                principal.athleteId(), workoutId, request.status(), request.rpe(), request.comment());
+        return workoutService.submitFeedback(principal.athleteId(), workoutId, request.status(),
+                request.rpe(), request.fatigue(), request.pain(), request.comment());
+    }
+
+    /** L'athlète déplace une séance (jamais la modifier) : change la date uniquement. */
+    @PatchMapping("/workouts/{workoutId}/move")
+    public WorkoutResponse move(@AuthenticationPrincipal AuthPrincipal principal,
+                                @PathVariable UUID workoutId,
+                                @Valid @RequestBody com.coachrun.dto.request.WorkoutRescheduleRequest request) {
+        return workoutService.moveByAthlete(principal.athleteId(), workoutId, request.scheduledDate());
+    }
+
+    /** Prescription figée de la séance (snapshot + cibles calculées) — vue athlète. */
+    @GetMapping("/workouts/{workoutId}/prescription")
+    public com.coachrun.dto.response.WorkoutPrescriptionResponse prescription(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID workoutId) {
+        return workoutService.prescriptionForAthlete(principal.athleteId(), workoutId);
     }
 
     /** Prochaine course cible (compte à rebours J-XX). 204 si aucune. */

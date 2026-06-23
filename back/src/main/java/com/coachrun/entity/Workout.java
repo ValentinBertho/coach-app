@@ -20,6 +20,7 @@ import lombok.Setter;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Séance prescrite (planifiée) pour un athlète, à une date donnée. Composée d'étapes
@@ -68,8 +69,37 @@ public class Workout extends BaseEntity {
     @Column(name = "rpe")
     private Integer rpe;
 
+    /** Fatigue et douleur (1–10 / 0–10) — base de l'état de forme (jamais le RPE). */
+    @Column(name = "fatigue")
+    private Integer fatigue;
+
+    @Column(name = "pain")
+    private Integer pain;
+
     @Column(name = "athlete_comment", length = 1024)
     private String athleteComment;
+
+    // --- Calendrier DARI Lab : déplacement athlète + snapshot figé -----------
+
+    /** L'athlète a déplacé la séance (il peut déplacer, jamais modifier le contenu). */
+    @Column(name = "moved_by_athlete", nullable = false)
+    private boolean movedByAthlete = false;
+
+    /** Date initiale avant le premier déplacement par l'athlète. */
+    @Column(name = "original_date")
+    private LocalDate originalDate;
+
+    /** Séance de bibliothèque source (si prescrite depuis un modèle). */
+    @Column(name = "source_template_id")
+    private UUID sourceTemplateId;
+
+    /** Copie figée de la prescription (SessionStructure JSON) au moment de l'assignation. */
+    @Column(name = "session_snapshot", length = 20000)
+    private String sessionSnapshot;
+
+    /** Allures/cibles calculées pour cet athlète au moment de l'assignation (JSON). */
+    @Column(name = "calculated_paces", length = 20000)
+    private String calculatedPaces;
 
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderIndex ASC")

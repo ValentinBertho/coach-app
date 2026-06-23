@@ -3,6 +3,8 @@ package com.coachrun.service;
 import com.coachrun.dto.request.CourseStructureRequest;
 import com.coachrun.dto.response.CalculatedSessionResponse;
 import com.coachrun.dto.response.CourseStructureResponse;
+import com.coachrun.dto.response.WorkoutResponse;
+import com.coachrun.dto.session.PrescribedWorkout;
 import com.coachrun.dto.session.SessionStructure;
 import com.coachrun.entity.WorkoutTemplate;
 import com.coachrun.exception.NotFoundException;
@@ -14,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -29,6 +33,7 @@ public class CourseSessionService {
     private final WorkoutTemplateRepository templateRepository;
     private final SessionCategoryRepository categoryRepository;
     private final SessionCalculatorService calculatorService;
+    private final WorkoutService workoutService;
     private final ObjectMapper objectMapper;
 
     public CourseStructureResponse getStructure(UUID clubId, UUID templateId) {
@@ -60,6 +65,38 @@ public class CourseSessionService {
     public CalculatedSessionResponse calculateForAthlete(UUID clubId, UUID athleteId, UUID templateId) {
         WorkoutTemplate t = require(clubId, templateId);
         return calculatorService.calculateSession(clubId, athleteId, readStructure(t.getStructureJson()));
+    }
+
+    /**
+     * Assigne une séance de bibliothèque au calendrier d'un athlète : fige la prescription
+     * (snapshot) et les cibles calculées, incrémente le compteur d'usage du modèle.
+     */
+    @Transactional
+    public WorkoutResponse scheduleForAthlete(UUID clubId, UUID athleteId, UUID templateId, LocalDate date) {
+        WorkoutTemplate t = require(clubId, templateId);
+        SessionStructure structure = readStructure(t.getStructureJson());
+        CalculatedSessionResponse calc = calculatorService.calculateSession(clubId, athleteId, structure);
+
+        String snapshotJson = writeStructure(structure);
+        String calculatedJson = writeJson(calc);
+        Integer distance = calc.totalDistanceM() != null ? calc.totalDistanceM() : t.getTargetDistanceM();
+        Integer duration = calc.totalDurationS() != null ? calc.totalDurationS() : t.getTargetDurationS();
+
+        t.setUseCount(t.getUseCount() + 1);
+        t.setLastUsedAt(Instant.now());
+
+        PrescribedWorkout data = new PrescribedWorkout(
+                date, t.getType(), t.getTitle(), t.getNotes(), distance, duration,
+                t.getId(), snapshotJson, calculatedJson);
+        return workoutService.createPrescribed(clubId, athleteId, data);
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception e) {
+            throw new IllegalStateException("Sérialisation des cibles calculées impossible.", e);
+        }
     }
 
     private WorkoutTemplate require(UUID clubId, UUID templateId) {
