@@ -52,39 +52,39 @@ class PpExerciseControllerTest {
 
     @Test
     void createsAndFiltersExercises() throws Exception {
+        // Noms et groupes musculaires distinctifs (le jeu de démo seede déjà quelques exercices).
         mvc.perform(post("/clubs/{c}/pp/exercises", clubId)
                         .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                            {"name":"Squat barre","category":"FORCE_MAX","level":"AVANCE",
-                             "muscleGroups":["QUADRICEPS","FESSIERS"],"equipment":["BARRE"],
+                            {"name":"Mollet TestUnit","category":"FORCE_MAX","level":"AVANCE",
+                             "muscleGroups":["MOLLETS"],"equipment":["BARRE"],
                              "videoUrl":"https://youtu.be/demo","instructions":"Dos gainé"}"""))
                 .andExpect(status().isCreated());
         mvc.perform(post("/clubs/{c}/pp/exercises", clubId)
                         .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                            {"name":"Gainage planche","category":"GAINAGE",
-                             "muscleGroups":["TRONC"],"equipment":["POIDS_DU_CORPS"]}"""))
+                            {"name":"Hanche TestUnit","category":"MOBILITE",
+                             "muscleGroups":["HANCHE"],"equipment":["ELASTIQUE"]}"""))
                 .andExpect(status().isCreated());
 
-        // Filtre par catégorie.
-        JsonNode forceMax = objectMapper.readTree(mvc.perform(
-                        get("/clubs/{c}/pp/exercises?category=FORCE_MAX", clubId).header("Authorization", bearer))
+        // Filtre par groupe musculaire (member of) — MOLLETS absent du jeu de démo.
+        JsonNode mollets = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/pp/exercises?muscle=MOLLETS", clubId).header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertThat(forceMax.get("content")).hasSize(1);
-        assertThat(forceMax.get("content").get(0).get("name").asText()).isEqualTo("Squat barre");
+        assertThat(mollets.get("content")).hasSize(1);
+        assertThat(mollets.get("content").get(0).get("name").asText()).isEqualTo("Mollet TestUnit");
 
-        // Filtre par groupe musculaire (member of).
-        JsonNode tronc = objectMapper.readTree(mvc.perform(
-                        get("/clubs/{c}/pp/exercises?muscle=TRONC", clubId).header("Authorization", bearer))
+        JsonNode hanche = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/pp/exercises?muscle=HANCHE", clubId).header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertThat(tronc.get("content")).hasSize(1);
-        assertThat(tronc.get("content").get(0).get("name").asText()).isEqualTo("Gainage planche");
+        assertThat(hanche.get("content")).hasSize(1);
+        assertThat(hanche.get("content").get(0).get("name").asText()).isEqualTo("Hanche TestUnit");
 
-        // Recherche texte + sans filtre.
+        // Recherche texte sur le suffixe unique.
         JsonNode all = objectMapper.readTree(mvc.perform(
-                        get("/clubs/{c}/pp/exercises?q=squat", clubId).header("Authorization", bearer))
+                        get("/clubs/{c}/pp/exercises?q=TestUnit", clubId).header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertThat(all.get("content")).hasSize(1);
+        assertThat(all.get("content")).hasSize(2);
     }
 
     @Test

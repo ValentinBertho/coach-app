@@ -101,13 +101,20 @@ class StrengthResultE1rmTest {
         double e1rm = updates.get(0).get("e1rmKg").asDouble();
         assertThat(e1rm).isBetween(110.0, 125.0);
 
-        // Le profil 1RM de l'athlète a été créé/mis à jour (source estimated).
+        // Le profil 1RM pour CET exercice a été créé en source 'estimated' (le jeu de démo peut
+        // déjà contenir d'autres profils 1RM pour l'athlète).
         JsonNode profile = objectMapper.readTree(mvc.perform(
                         get("/clubs/{c}/athletes/{a}/pp/1rm", clubId, athleteId).header("Authorization", coachBearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertThat(profile).hasSize(1);
-        assertThat(profile.get(0).get("source").asText()).isEqualTo("estimated");
-        assertThat(profile.get(0).get("rmKg").asDouble()).isEqualTo(e1rm);
+        JsonNode mine = null;
+        for (JsonNode p : profile) {
+            if (exerciseId.equals(p.get("exerciseId").asText())) {
+                mine = p;
+            }
+        }
+        assertThat(mine).isNotNull();
+        assertThat(mine.get("source").asText()).isEqualTo("estimated");
+        assertThat(mine.get("rmKg").asDouble()).isEqualTo(e1rm);
 
         // L'historique e1RM contient un point.
         JsonNode history = objectMapper.readTree(mvc.perform(
