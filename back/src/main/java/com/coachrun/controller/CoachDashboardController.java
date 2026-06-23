@@ -1,6 +1,7 @@
 package com.coachrun.controller;
 
 import com.coachrun.dto.response.CoachDashboardResponse;
+import com.coachrun.dto.response.CoachFormDashboardResponse;
 import com.coachrun.service.CoachDashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,5 +24,11 @@ public class CoachDashboardController {
     @GetMapping
     public CoachDashboardResponse dashboard(@PathVariable UUID clubId) {
         return dashboardService.compute(clubId);
+    }
+
+    /** Tableau de bord « état de forme » : athlètes Route/Trail avec leur pastille de forme. */
+    @GetMapping("/form")
+    public CoachFormDashboardResponse form(@PathVariable UUID clubId) {
+        return dashboardService.formDashboard(clubId);
     }
 }
