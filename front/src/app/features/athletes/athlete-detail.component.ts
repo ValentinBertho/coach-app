@@ -4,12 +4,13 @@ import { Athlete, Ref } from '../../core/models/athlete.model';
 import { TrainingPlan } from '../../core/models/training-plan.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { ToastService } from '../../core/services/toast.service';
+import { PhysioPanelComponent } from './physio-panel.component';
 
 @Component({
   selector: 'app-athlete-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, PhysioPanelComponent],
   templateUrl: './athlete-detail.component.html',
   styleUrl: './athletes.scss',
 })

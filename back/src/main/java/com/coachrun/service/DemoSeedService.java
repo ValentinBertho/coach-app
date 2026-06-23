@@ -22,6 +22,18 @@ import com.coachrun.entity.enums.WorkoutStepType;
 import com.coachrun.entity.enums.WorkoutType;
 import com.coachrun.entity.enums.RaceObjectiveStatus;
 import com.coachrun.entity.enums.RacePriority;
+import com.coachrun.entity.enums.Discipline;
+import com.coachrun.entity.enums.EquipmentType;
+import com.coachrun.entity.enums.ExerciseCategory;
+import com.coachrun.entity.enums.MuscleGroup;
+import com.coachrun.entity.enums.RunDistance;
+import com.coachrun.entity.enums.TestType;
+import com.coachrun.entity.Athlete1rmProfile;
+import com.coachrun.entity.PpExercise;
+import com.coachrun.dto.request.LactateTestRequest;
+import com.coachrun.dto.request.LactateTestStepRequest;
+import com.coachrun.dto.request.PerformanceRequest;
+import com.coachrun.dto.request.PhysioProfileRequest;
 import com.coachrun.repository.ActivityRepository;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.ClubRepository;
@@ -84,6 +96,10 @@ public class DemoSeedService {
     private final com.coachrun.repository.MessageRepository messageRepository;
     private final com.coachrun.repository.PushSubscriptionRepository pushSubscriptionRepository;
     private final com.coachrun.repository.TrainingPlanRepository planRepository;
+    private final AthletePhysioService physioService;
+    private final LactateTestService lactateTestService;
+    private final com.coachrun.repository.PpExerciseRepository exerciseRepository;
+    private final com.coachrun.repository.Athlete1rmProfileRepository profile1rmRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
@@ -192,12 +208,72 @@ public class DemoSeedService {
                 seedMessage(club, demoAthlete, headCoach, "Bravo pour ta semaine, on garde le rythme ! 💪");
                 seedMessage(club, demoAthlete, athleteUser, "Merci coach, je me sens en forme.");
             }
+            // Données DARI Lab : physiologie (VDOT, seuils), test lactate, préparation physique.
+            seedPhysio(club, athletes, demoAthlete);
+            seedPreparationPhysique(club, demoAthlete);
         }
 
         // Dates d'inscription échelonnées (createdAt non modifiable via JPA → SQL)
         for (Athlete a : athletes) {
             backdate(a.getId(), random.nextInt(330) + 5);
         }
+    }
+
+    /** Profil physiologique DARI Lab : discipline, seuils, performances (→ VDOT) et test lactate. */
+    private void seedPhysio(Club club, List<Athlete> athletes, Athlete demoAthlete) {
+        int n = Math.min(6, athletes.size());
+        for (int i = 0; i < n; i++) {
+            Athlete a = athletes.get(i);
+            Discipline discipline = (i % 3 == 0) ? Discipline.TRAIL : Discipline.ROUTE;
+            physioService.updateProfile(club.getId(), a.getId(), new PhysioProfileRequest(
+                    discipline,
+                    BigDecimal.valueOf(3.3 + i * 0.05), BigDecimal.valueOf(3.7 + i * 0.05),
+                    BigDecimal.valueOf(4.0 + i * 0.05),
+                    185 - i, 150, 168, null, null, null, null));
+            int fiveK = 1080 + i * 35;                                  // 18:00 et plus
+            int tenK = (int) Math.round(fiveK * Math.pow(2, 1.06));     // équivalence Riegel
+            physioService.addPerformance(club.getId(), a.getId(),
+                    new PerformanceRequest(RunDistance.D5KM, fiveK, LocalDate.now().minusDays(40 + i)));
+            physioService.addPerformance(club.getId(), a.getId(),
+                    new PerformanceRequest(RunDistance.D10KM, tenK, LocalDate.now().minusDays(20 + i)));
+        }
+        // Test lactate complet pour l'athlète démo.
+        lactateTestService.create(club.getId(), demoAthlete.getId(), new LactateTestRequest(
+                TestType.LACTATE, LocalDate.now().minusDays(30), "Test de terrain sur piste",
+                BigDecimal.valueOf(0.8), 60, 188, true, List.of(
+                lactateStep(3.0, 130, 1.0), lactateStep(3.3, 140, 1.2), lactateStep(3.6, 150, 1.8),
+                lactateStep(3.9, 160, 3.0), lactateStep(4.2, 170, 5.5), lactateStep(4.5, 178, 8.0))));
+    }
+
+    private LactateTestStepRequest lactateStep(double speedMs, int hr, double lactate) {
+        return new LactateTestStepRequest(BigDecimal.valueOf(speedMs), hr, BigDecimal.valueOf(lactate), null, 180);
+    }
+
+    /** Bibliothèque d'exercices de force + un 1RM pour l'athlète démo. */
+    private void seedPreparationPhysique(Club club, Athlete demoAthlete) {
+        PpExercise squat = newExercise(club, "Squat barre", ExerciseCategory.FORCE_MAX,
+                MuscleGroup.QUADRICEPS, EquipmentType.BARRE);
+        newExercise(club, "Soulevé de terre", ExerciseCategory.FORCE_MAX, MuscleGroup.ISCHIOS, EquipmentType.BARRE);
+        newExercise(club, "Gainage planche", ExerciseCategory.GAINAGE, MuscleGroup.TRONC, EquipmentType.POIDS_DU_CORPS);
+        newExercise(club, "Fentes haltères", ExerciseCategory.PUISSANCE, MuscleGroup.FESSIERS, EquipmentType.HALTERES);
+
+        Athlete1rmProfile rm = new Athlete1rmProfile();
+        rm.setAthlete(demoAthlete);
+        rm.setExerciseId(squat.getId());
+        rm.setRmKg(BigDecimal.valueOf(120));
+        rm.setSource("tested");
+        profile1rmRepository.save(rm);
+    }
+
+    private PpExercise newExercise(Club club, String name, ExerciseCategory category,
+                                  MuscleGroup muscle, EquipmentType equipment) {
+        PpExercise e = new PpExercise();
+        e.setClub(club);
+        e.setName(name);
+        e.setCategory(category);
+        e.setMuscleGroups(new java.util.HashSet<>(java.util.Set.of(muscle)));
+        e.setEquipment(new java.util.HashSet<>(java.util.Set.of(equipment)));
+        return exerciseRepository.save(e);
     }
 
     /**

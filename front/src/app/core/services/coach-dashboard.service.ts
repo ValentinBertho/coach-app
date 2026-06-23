@@ -13,6 +13,27 @@ export interface CoachDashboard {
   upcomingRaces: RaceObjective[];
 }
 
+export type FormStatus = 'GREEN' | 'ORANGE' | 'RED';
+
+export interface AthleteForm {
+  id: string;
+  firstName: string;
+  lastName: string;
+  discipline: 'ROUTE' | 'TRAIL';
+  formStatus: FormStatus;
+  fatigue: number | null;
+  pain: number | null;
+  lastFeedbackDate: string | null;
+}
+
+export interface CoachFormDashboard {
+  total: number;
+  route: number;
+  trail: number;
+  routeAthletes: AthleteForm[];
+  trailAthletes: AthleteForm[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class CoachDashboardService {
   private readonly http = inject(HttpClient);
@@ -20,5 +41,11 @@ export class CoachDashboardService {
 
   get(): Observable<CoachDashboard> {
     return this.http.get<CoachDashboard>(`${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard`);
+  }
+
+  form(): Observable<CoachFormDashboard> {
+    return this.http.get<CoachFormDashboard>(
+      `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard/form`,
+    );
   }
 }

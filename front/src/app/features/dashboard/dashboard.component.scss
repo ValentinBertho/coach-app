@@ -47,3 +47,46 @@
 .next-step h2 {
   margin: 0 0 var(--sp-1);
 }
+
+/* --- État de forme Route / Trail (DARI Lab) -------------------------------- */
+.form-tables {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+}
+.form-tables h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-lg);
+  margin-bottom: var(--sp-3);
+}
+.form-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.form-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  transition: background var(--duration-fast) var(--ease);
+}
+.form-item:hover {
+  background: var(--paper-sunk);
+}
+.form-name {
+  font-weight: 600;
+}
+@media (max-width: 768px) {
+  .form-tables {
+    grid-template-columns: 1fr;
+  }
+}
