@@ -26,6 +26,7 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final AthleteRepository athleteRepository;
     private final UserRepository userRepository;
+    private final MessageStreamService streamService;
 
     // --- Côté coach (scopé club) ---
     public List<MessageResponse> coachThread(UUID clubId, UUID athleteId) {
@@ -64,6 +65,8 @@ public class MessageService {
         m.setSenderName(sender.getFullName());
         m.setBody(request.body());
         m.setWorkoutId(request.workoutId());
-        return messageRepository.save(m);
+        Message saved = messageRepository.save(m);
+        streamService.broadcast(athlete.getId(), MessageResponse.from(saved));
+        return saved;
     }
 }

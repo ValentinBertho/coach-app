@@ -43,9 +43,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
-        String header = request.getHeader("Authorization");
-        if (StringUtils.hasText(header) && header.startsWith(BEARER_PREFIX)) {
-            String token = header.substring(BEARER_PREFIX.length());
+        String token = resolveToken(request);
+        if (StringUtils.hasText(token)) {
             try {
                 Claims claims = jwtService.parse(token);
                 if (JwtService.TYPE_ACCESS.equals(claims.get("typ", String.class))
@@ -63,6 +62,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Token depuis l'en-tête {@code Authorization: Bearer …}, ou à défaut depuis le paramètre
+     * {@code access_token} (flux SSE : {@code EventSource} ne peut pas porter d'en-tête).
+     */
+    private String resolveToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (StringUtils.hasText(header) && header.startsWith(BEARER_PREFIX)) {
+            return header.substring(BEARER_PREFIX.length());
+        }
+        String param = request.getParameter("access_token");
+        return StringUtils.hasText(param) ? param : null;
     }
 
     private AuthPrincipal toPrincipal(Claims claims) {
