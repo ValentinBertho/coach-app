@@ -99,17 +99,25 @@
             </div>
             <h2>{{ s.title }}</h2>
 
-            @if (strengthRx(); as rx) {
-              @for (b of rx.calculated?.blocks ?? []; track $index) {
-                @for (ex of b.exercises; track $index) {
-                  <div class="strength-ex">
-                    <strong>{{ ex.item.exerciseName }}</strong>
-                    <span class="metric ex-vol">{{ ex.item.prescription.sets }}×{{ ex.item.prescription.repsFixed }}</span>
-                    @if (ex.charge.computable) { <span class="metric ex-charge">{{ ex.charge.chargeLabel }}</span> }
-                    @if (ex.charge.effortLabel) { <span class="ex-effort">{{ ex.charge.effortLabel }}</span> }
-                  </div>
-                }
-              }
+            @for (ex of exerciseSets(); track ex.exerciseId) {
+              <div class="strength-ex-block">
+                <div class="sx-head">
+                  <strong>{{ ex.name }}</strong>
+                </div>
+                <table class="set-table">
+                  <thead><tr><th>Série</th><th>Charge</th><th>Reps</th><th>RIR</th></tr></thead>
+                  <tbody>
+                    @for (set of ex.sets; track $index) {
+                      <tr>
+                        <td class="set-n">{{ $index + 1 }}</td>
+                        <td><input type="number" inputmode="decimal" class="form-control set-in" [(ngModel)]="set.chargeKg" /></td>
+                        <td><input type="number" inputmode="numeric" class="form-control set-in" [(ngModel)]="set.repsDone" /></td>
+                        <td><input type="number" inputmode="numeric" class="form-control set-in" [(ngModel)]="set.rirDone" /></td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
             }
 
             <section class="strength-fb">
@@ -119,7 +127,7 @@
                   <button type="button" class="rpe-dot" [class.active]="sRpe === n" (click)="sRpe = n">{{ n }}</button>
                 }
               </div>
-              <button type="button" class="btn btn-accent btn-lg" (click)="submitStrength(true)">Renforcement réalisé ✅</button>
+              <button type="button" class="btn btn-accent btn-lg" (click)="submitStrength(true)">Valider mes séries 💪</button>
             </section>
           </article>
         }

@@ -107,3 +107,12 @@
 .ex-charge { color: #c4b5fd; font-weight: 700; }
 .ex-effort { color: var(--night-text-2); font-size: var(--text-sm); }
 .strength-fb { margin-top: var(--sp-4); }
+
+/* --- Saisie des séries de force ------------------------------------------- */
+.strength-ex-block { margin: var(--sp-3) 0; }
+.sx-head { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: var(--sp-1); }
+.set-table { width: 100%; border-collapse: collapse; }
+.set-table th { color: var(--night-text-2); font-size: var(--text-xs); text-align: left; font-weight: 600; padding: 2px 4px; }
+.set-table td { padding: 2px 4px; }
+.set-n { color: var(--night-text-2); width: 40px; }
+.set-in { min-height: 36px; padding: 0 var(--sp-2); background: rgba(255,255,255,0.06); color: var(--night-text); border-color: var(--night-2); }
