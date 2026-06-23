@@ -1,0 +1,60 @@
+# ============================================================================
+# 019 — Bibliothèque de séances course DARI Lab (additif, non destructif).
+#   - session_categories : arbre de catégories éditable (club-scopé)
+#   - workout_templates  : métadonnées bibliothèque + structure DARI Lab en JSON
+#     (discipline, catégorie, favori, archivé, compteur d'usage, blocs en fourchettes)
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 019-session-categories-library
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: session_categories
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: parent_id, type: UUID }
+              - column: { name: discipline, type: VARCHAR(16) }
+              - column: { name: sort_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_session_categories_club
+            baseTableName: session_categories
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_session_categories_parent
+            baseTableName: session_categories
+            baseColumnNames: parent_id
+            referencedTableName: session_categories
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - createIndex:
+            indexName: idx_session_categories_club
+            tableName: session_categories
+            columns:
+              - column: { name: club_id }
+
+        - addColumn:
+            tableName: workout_templates
+            columns:
+              - column: { name: discipline, type: VARCHAR(16) }
+              - column: { name: category_id, type: UUID }
+              - column: { name: is_favorite, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: is_archived, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: use_count, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: last_used_at, type: TIMESTAMP }
+              - column: { name: structure_json, type: VARCHAR(20000) }
+        - addForeignKeyConstraint:
+            constraintName: fk_templates_category
+            baseTableName: workout_templates
+            baseColumnNames: category_id
+            referencedTableName: session_categories
+            referencedColumnNames: id
+            onDelete: SET NULL
