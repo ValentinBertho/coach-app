@@ -49,3 +49,5 @@ databaseChangeLog:
       file: db/changelog/changes/022-pp-exercises.yaml
   - include:
       file: db/changelog/changes/023-strength-sessions.yaml
+  - include:
+      file: db/changelog/changes/024-scheduled-strength-sessions.yaml
