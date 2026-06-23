@@ -100,4 +100,23 @@ export class AthleteDetailComponent implements OnInit {
       },
     });
   }
+
+  /** Télécharge le programme PDF des 4 prochaines semaines. */
+  exportProgram(): void {
+    const today = new Date();
+    const from = today.toISOString().slice(0, 10);
+    const to = new Date(today.getTime() + 28 * 86400000).toISOString().slice(0, 10);
+    this.athleteService.exportProgram(this.id(), from, to).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'programme.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+        this.toast.success('Programme exporté (PDF) ✅');
+      },
+      error: () => this.toast.error('Export impossible.'),
+    });
+  }
 }

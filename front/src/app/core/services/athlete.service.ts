@@ -38,6 +38,12 @@ export class AthleteService {
     return this.http.get<Athlete>(`${this.base()}/${id}`);
   }
 
+  /** Export PDF du programme (séances course + force) sur une période. */
+  exportProgram(id: string, from: string, to: string): Observable<Blob> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get(`${this.base()}/${id}/program/export.pdf`, { params, responseType: 'blob' });
+  }
+
   create(request: AthleteRequest): Observable<Athlete> {
     return this.http.post<Athlete>(this.base(), request);
   }
