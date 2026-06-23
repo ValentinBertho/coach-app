@@ -108,6 +108,28 @@ class AthletePhysioControllerTest {
     }
 
     @Test
+    void sessionCalculatorReturnsRangesFromThresholds() throws Exception {
+        // Profil avec seuils → calcul d'un bloc 95–102 % LT2 sans dépendre du VDOT.
+        mvc.perform(put("/clubs/{c}/athletes/{a}/physio", clubId, athleteId)
+                        .header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"lt1Ms\":3.5,\"lt2Ms\":3.9,\"vcMs\":4.2,\"fcLt1\":148,\"fcLt2\":163,\"fcMax\":178}"))
+                .andExpect(status().isOk());
+
+        JsonNode calc = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/session-calc", clubId, athleteId)
+                                .header("Authorization", bearer)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"ref\":\"PCT_LT2\",\"minPct\":95,\"maxPct\":102,\"reps\":4,\"distanceM\":1000}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        assertThat(calc.get("computable").asBoolean()).isTrue();
+        assertThat(calc.get("paceMinSecPerKm").asInt()).isLessThan(calc.get("paceMaxSecPerKm").asInt());
+        assertThat(calc.get("hrMax").asInt()).isGreaterThan(calc.get("hrMin").asInt());
+        assertThat(calc.get("estimatedDistanceM").asInt()).isEqualTo(4000);
+    }
+
+    @Test
     void listPerformancesReturnsComputedVdot() throws Exception {
         mvc.perform(post("/clubs/{c}/athletes/{a}/performances", clubId, athleteId)
                         .header("Authorization", bearer)

@@ -2,10 +2,13 @@ package com.coachrun.controller;
 
 import com.coachrun.dto.request.PerformanceRequest;
 import com.coachrun.dto.request.PhysioProfileRequest;
+import com.coachrun.dto.request.SessionCalcRequest;
+import com.coachrun.dto.response.CalculatedBlockResponse;
 import com.coachrun.dto.response.PerformanceResponse;
 import com.coachrun.dto.response.PhysioProfileResponse;
 import com.coachrun.dto.response.VdotResponse;
 import com.coachrun.service.AthletePhysioService;
+import com.coachrun.service.SessionCalculatorService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,6 +37,7 @@ import java.util.UUID;
 public class AthletePhysioController {
 
     private final AthletePhysioService physioService;
+    private final SessionCalculatorService calculatorService;
 
     @GetMapping("/physio")
     public PhysioProfileResponse getProfile(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
@@ -69,5 +73,12 @@ public class AthletePhysioController {
     @GetMapping("/vdot")
     public VdotResponse getVdot(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
         return physioService.getVdot(clubId, athleteId);
+    }
+
+    /** Cibles calculées (allure/vitesse/FC/RPE/durée/distance) pour un bloc prescrit en fourchette. */
+    @PostMapping("/session-calc")
+    public CalculatedBlockResponse calculate(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                             @Valid @RequestBody SessionCalcRequest request) {
+        return calculatorService.calculate(clubId, athleteId, request);
     }
 }
