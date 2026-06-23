@@ -16,6 +16,8 @@ import {
   StrengthCycle,
   StrengthSession,
   StrengthStructure,
+  StrengthTest,
+  StrengthTestRequest,
 } from '../models/strength.model';
 import { AuthService } from './auth.service';
 
@@ -81,6 +83,17 @@ export class StrengthService {
 
   e1rmHistory(athleteId: string, exerciseId: string): Observable<E1rmHistory[]> {
     return this.http.get<E1rmHistory[]>(`${this.club()}/athletes/${athleteId}/pp/1rm/${exerciseId}/history`);
+  }
+
+  // --- Tests 1RM (4 protocoles) ---
+  listTests(athleteId: string, exerciseId?: string): Observable<StrengthTest[]> {
+    let params = new HttpParams();
+    if (exerciseId) params = params.set('exerciseId', exerciseId);
+    return this.http.get<StrengthTest[]>(`${this.club()}/athletes/${athleteId}/pp/tests`, { params });
+  }
+
+  recordTest(athleteId: string, body: StrengthTestRequest): Observable<StrengthTest> {
+    return this.http.post<StrengthTest>(`${this.club()}/athletes/${athleteId}/pp/tests`, body);
   }
 
   calculatedSession(athleteId: string, sessionId: string): Observable<CalculatedStrength> {

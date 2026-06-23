@@ -1,0 +1,38 @@
+# ============================================================================
+# 027 — Tests 1RM (4 protocoles) → maj profil 1RM 'tested' (cf. DARI Lab §6.5).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 027-strength-tests
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: strength_test
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: exercise_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: protocol, type: VARCHAR(24), constraints: { nullable: false } }
+              - column: { name: test_date, type: DATE, constraints: { nullable: false } }
+              - column: { name: weight_kg, type: "NUMERIC(6,2)" }
+              - column: { name: reps, type: INT }
+              - column: { name: duration_sec, type: INT }
+              - column: { name: rir, type: INT }
+              - column: { name: computed_e1rm_kg, type: "NUMERIC(6,2)", constraints: { nullable: false } }
+              - column: { name: notes, type: VARCHAR(1024) }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_strength_test_athlete
+            baseTableName: strength_test
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_strength_test_athlete_exercise
+            tableName: strength_test
+            columns:
+              - column: { name: athlete_id }
+              - column: { name: exercise_id }

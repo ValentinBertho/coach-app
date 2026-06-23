@@ -179,6 +179,32 @@ export interface StrengthCycle {
   structure: CycleStructure;
 }
 
+export type StrengthTestProtocol = 'TRUE_1RM' | 'REP_TEST_3_5' | 'AMRAP_TEST' | 'ISO_MVC';
+
+export interface StrengthTest {
+  id: string;
+  exerciseId: string;
+  protocol: StrengthTestProtocol;
+  testDate: string;
+  weightKg: number | null;
+  reps: number | null;
+  durationSec: number | null;
+  rir: number | null;
+  computedE1rmKg: number;
+  notes: string | null;
+}
+
+export interface StrengthTestRequest {
+  exerciseId: string;
+  protocol: StrengthTestProtocol;
+  testDate?: string;
+  weightKg?: number | null;
+  reps?: number | null;
+  durationSec?: number | null;
+  rir?: number | null;
+  notes?: string | null;
+}
+
 export interface StrengthResultEntry {
   exerciseId: string;
   setNumber: number;

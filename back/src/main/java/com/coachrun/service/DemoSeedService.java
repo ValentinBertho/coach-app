@@ -107,6 +107,7 @@ public class DemoSeedService {
     private final com.coachrun.repository.Athlete1rmProfileRepository profile1rmRepository;
     private final com.coachrun.repository.StrengthSessionRepository strengthSessionRepository;
     private final com.coachrun.repository.EstimatedOneRmRepository estimatedRepository;
+    private final com.coachrun.repository.StrengthTestRepository strengthTestRepository;
     private final com.coachrun.repository.ClubMemberRepository clubMemberRepository;
     private final com.coachrun.repository.CoachAthleteRelationRepository relationRepository;
     private final com.coachrun.repository.AthleteCoachPermissionRepository permissionRepository;
@@ -310,6 +311,26 @@ public class DemoSeedService {
             jdbcTemplate.update("update estimated_1rm set created_at = ? where id = ?",
                     java.sql.Timestamp.from(Instant.now().minus(daysAgo[i], ChronoUnit.DAYS)), h.getId());
         }
+
+        // Tests de force datés (protocoles DARI Lab) sur le Squat.
+        seedStrengthTest(demoAthlete, squat.getId(),
+                com.coachrun.entity.enums.StrengthTestProtocol.REP_TEST_3_5, 100, 5, 70, 116.0);
+        seedStrengthTest(demoAthlete, squat.getId(),
+                com.coachrun.entity.enums.StrengthTestProtocol.TRUE_1RM, 120, 1, 5, 120.0);
+    }
+
+    private void seedStrengthTest(Athlete athlete, java.util.UUID exerciseId,
+                                  com.coachrun.entity.enums.StrengthTestProtocol protocol,
+                                  double weightKg, int reps, int daysAgo, double e1rm) {
+        com.coachrun.entity.StrengthTest t = new com.coachrun.entity.StrengthTest();
+        t.setAthlete(athlete);
+        t.setExerciseId(exerciseId);
+        t.setProtocol(protocol);
+        t.setTestDate(LocalDate.now().minusDays(daysAgo));
+        t.setWeightKg(BigDecimal.valueOf(weightKg));
+        t.setReps(reps);
+        t.setComputedE1rmKg(BigDecimal.valueOf(e1rm));
+        strengthTestRepository.save(t);
     }
 
     /** Multi-coach DARI Lab : rôles club, coach référent, statut privé/club, permission accordée. */

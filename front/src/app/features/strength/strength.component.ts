@@ -16,6 +16,8 @@ import {
   RmFormula,
   StrengthCycle,
   StrengthSession,
+  StrengthTest,
+  StrengthTestProtocol,
 } from '../../core/models/strength.model';
 
 type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
@@ -58,6 +60,16 @@ export class StrengthComponent implements OnInit {
   // Tests 1RM
   rm = { weight: 100, reps: 5, formula: 'NUZZO' as RmFormula };
   readonly rmResult = signal<E1rmResult | null>(null);
+
+  // Tests directs (4 protocoles)
+  readonly tests = signal<StrengthTest[]>([]);
+  newTest = { exerciseId: '', protocol: 'TRUE_1RM' as StrengthTestProtocol, weightKg: 100, reps: 1, durationSec: 5 };
+  readonly protocols: { value: StrengthTestProtocol; label: string }[] = [
+    { value: 'TRUE_1RM', label: '1RM direct (1 rép. max)' },
+    { value: 'REP_TEST_3_5', label: 'Test 3–5 reps (à l\'échec)' },
+    { value: 'AMRAP_TEST', label: 'AMRAP (reps max à charge fixe)' },
+    { value: 'ISO_MVC', label: 'Isométrie max (MVC)' },
+  ];
 
   // Suivi
   readonly athleteList = signal<AthleteSummary[]>([]);
@@ -180,15 +192,55 @@ export class StrengthComponent implements OnInit {
       .subscribe((r) => this.rmResult.set(r));
   }
 
+  needsReps(): boolean {
+    return this.newTest.protocol === 'REP_TEST_3_5' || this.newTest.protocol === 'AMRAP_TEST';
+  }
+
+  needsDuration(): boolean {
+    return this.newTest.protocol === 'ISO_MVC';
+  }
+
+  loadTests(): void {
+    const a = this.selectedAthlete();
+    if (!a) { this.tests.set([]); return; }
+    this.strength.listTests(a).subscribe((t) => this.tests.set(t));
+  }
+
+  recordTest(): void {
+    const a = this.selectedAthlete();
+    if (!a) { this.toast.warning('Sélectionne un athlète d\'abord.'); return; }
+    if (!this.newTest.exerciseId) { this.toast.warning('Choisis un exercice.'); return; }
+    this.strength.recordTest(a, {
+      exerciseId: this.newTest.exerciseId,
+      protocol: this.newTest.protocol,
+      weightKg: this.newTest.weightKg,
+      reps: this.needsReps() ? this.newTest.reps : null,
+      durationSec: this.needsDuration() ? this.newTest.durationSec : null,
+    }).subscribe((t) => {
+      this.toast.success(`Test enregistré — e1RM ${t.computedE1rmKg} kg ✅`);
+      this.loadTests();
+    });
+  }
+
+  exerciseName(id: string): string {
+    return this.exercises().find((e) => e.id === id)?.name ?? id.slice(0, 8) + '…';
+  }
+
+  protocolLabel(p: StrengthTestProtocol): string {
+    return this.protocols.find((x) => x.value === p)?.label ?? p;
+  }
+
   // --- Suivi ---
   onAthleteChange(id: string): void {
     this.selectedAthlete.set(id);
     this.history.set([]);
     if (!id) {
       this.profile1rm.set([]);
+      this.tests.set([]);
       return;
     }
     this.strength.list1rm(id).subscribe((list) => this.profile1rm.set(list));
+    this.loadTests();
   }
 
   loadHistory(exerciseId: string): void {

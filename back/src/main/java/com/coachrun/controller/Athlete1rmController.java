@@ -1,19 +1,26 @@
 package com.coachrun.controller;
 
 import com.coachrun.dto.request.Athlete1rmRequest;
+import com.coachrun.dto.request.StrengthTestRequest;
 import com.coachrun.dto.response.Athlete1rmResponse;
 import com.coachrun.dto.response.CalculatedStrengthResponse;
+import com.coachrun.dto.response.StrengthTestResponse;
 import com.coachrun.service.Athlete1rmService;
 import com.coachrun.service.StrengthSessionService;
+import com.coachrun.service.StrengthTestService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -30,6 +37,7 @@ public class Athlete1rmController {
     private final Athlete1rmService oneRmService;
     private final StrengthSessionService sessionService;
     private final com.coachrun.service.StrengthResultService resultService;
+    private final StrengthTestService testService;
 
     @GetMapping("/1rm")
     public List<Athlete1rmResponse> list(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
@@ -54,5 +62,21 @@ public class Athlete1rmController {
     public List<com.coachrun.dto.response.E1rmHistoryResponse> history(
             @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID exerciseId) {
         return resultService.history(clubId, athleteId, exerciseId);
+    }
+
+    // --- Tests 1RM (4 protocoles, cf. DARI Lab §6.5) ---
+
+    @GetMapping("/tests")
+    public List<StrengthTestResponse> listTests(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                                @RequestParam(required = false) UUID exerciseId) {
+        return testService.list(clubId, athleteId, exerciseId);
+    }
+
+    /** Enregistre un test direct ; met à jour le profil 1RM (source {@code tested}). */
+    @PostMapping("/tests")
+    @ResponseStatus(HttpStatus.CREATED)
+    public StrengthTestResponse recordTest(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                           @Valid @RequestBody StrengthTestRequest request) {
+        return testService.record(clubId, athleteId, request);
     }
 }

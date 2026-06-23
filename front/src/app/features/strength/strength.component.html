@@ -207,6 +207,65 @@
       </div>
     }
   </div>
+
+  <!-- Enregistrer un test direct (met à jour le 1RM 'tested') -->
+  <div class="card test-record">
+    <h2>Enregistrer un test</h2>
+    <p class="field-hint">Un test direct met à jour le profil 1RM de l'athlète (source <strong>tested</strong>, prévaut sur l'estimation).</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Athlète</label>
+        <select class="form-control" [ngModel]="selectedAthlete()" (ngModelChange)="onAthleteChange($event)">
+          <option value="">Sélectionner un athlète…</option>
+          @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Exercice</label>
+        <select class="form-control" [(ngModel)]="newTest.exerciseId">
+          <option value="">Sélectionner…</option>
+          @for (e of exercises(); track e.id) { <option [value]="e.id">{{ e.name }}</option> }
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Protocole</label>
+        <select class="form-control" [(ngModel)]="newTest.protocol">
+          @for (p of protocols; track p.value) { <option [value]="p.value">{{ p.label }}</option> }
+        </select>
+      </div>
+      <div class="form-group">
+        <label>{{ needsDuration() ? 'Charge / valeur mesurée (kg)' : 'Charge (kg)' }}</label>
+        <input type="number" class="form-control" [(ngModel)]="newTest.weightKg" />
+      </div>
+      @if (needsReps()) {
+        <div class="form-group"><label>Répétitions</label><input type="number" class="form-control" [(ngModel)]="newTest.reps" /></div>
+      }
+      @if (needsDuration()) {
+        <div class="form-group"><label>Durée (s)</label><input type="number" class="form-control" [(ngModel)]="newTest.durationSec" /></div>
+      }
+    </div>
+    <button type="button" class="btn btn-accent" [disabled]="!selectedAthlete() || !newTest.exerciseId" (click)="recordTest()">Enregistrer le test</button>
+
+    @if (selectedAthlete() && tests().length) {
+      <h3 class="zones-title">Historique des tests</h3>
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Exercice</th><th>Protocole</th><th>Charge</th><th>e1RM</th></tr></thead>
+        <tbody>
+          @for (t of tests(); track t.id) {
+            <tr>
+              <td class="metric">{{ t.testDate | date: 'dd/MM/yy' }}</td>
+              <td>{{ exerciseName(t.exerciseId) }}</td>
+              <td><span class="badge badge-neutral">{{ protocolLabel(t.protocol) }}</span></td>
+              <td class="metric">{{ t.weightKg }} kg{{ t.reps ? ' × ' + t.reps : '' }}</td>
+              <td class="metric hist-e1rm">{{ t.computedE1rmKg }} kg</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    }
+  </div>
 }
 
 <!-- ===================== SUIVI & ANALYSE ===================== -->
