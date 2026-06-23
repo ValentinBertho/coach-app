@@ -159,3 +159,14 @@ export interface ScheduledStrength {
   sessionFatigue: number | null;
   sessionPain: number | null;
 }
+
+export interface StrengthResultEntry {
+  exerciseId: string;
+  setNumber: number;
+  chargeKg: number | null;
+  repsDone: number | null;
+  rirDone?: number | null;
+  rpeDone?: number | null;
+  pain?: number | null;
+  comment?: string | null;
+}

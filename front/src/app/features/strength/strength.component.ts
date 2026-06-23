@@ -35,6 +35,8 @@ export class StrengthComponent implements OnInit {
 
   // Exercices
   readonly exercises = signal<PpExercise[]>([]);
+  readonly loadingEx = signal(true);
+  readonly loadingSes = signal(true);
   readonly filterCategory = signal('');
   readonly filterMuscle = signal('');
   readonly searchQ = signal('');
@@ -76,13 +78,17 @@ export class StrengthComponent implements OnInit {
 
   // --- Exercices ---
   loadExercises(): void {
+    this.loadingEx.set(true);
     this.strength
       .listExercises({
         category: this.filterCategory() || undefined,
         muscle: this.filterMuscle() || undefined,
         q: this.searchQ() || undefined,
       })
-      .subscribe((p) => this.exercises.set(p.content));
+      .subscribe({
+        next: (p) => { this.exercises.set(p.content); this.loadingEx.set(false); },
+        error: () => this.loadingEx.set(false),
+      });
   }
 
   createExercise(): void {
@@ -105,7 +111,11 @@ export class StrengthComponent implements OnInit {
 
   // --- Séances ---
   loadSessions(): void {
-    this.strength.listSessions().subscribe((p) => this.sessions.set(p.content));
+    this.loadingSes.set(true);
+    this.strength.listSessions().subscribe({
+      next: (p) => { this.sessions.set(p.content); this.loadingSes.set(false); },
+      error: () => this.loadingSes.set(false),
+    });
   }
 
   createSession(): void {

@@ -28,6 +28,7 @@ export class ClubComponent implements OnInit {
 
   readonly user = this.auth.currentUser;
   readonly members = signal<ClubMember[]>([]);
+  readonly loadingMembers = signal(true);
   readonly athleteList = signal<AthleteSummary[]>([]);
   readonly selectedAthlete = signal('');
   readonly access = signal<AthleteAccess | null>(null);
@@ -39,7 +40,10 @@ export class ClubComponent implements OnInit {
   };
 
   ngOnInit(): void {
-    this.clubService.members().subscribe((m) => this.members.set(m));
+    this.clubService.members().subscribe({
+      next: (m) => { this.members.set(m); this.loadingMembers.set(false); },
+      error: () => this.loadingMembers.set(false),
+    });
     this.athletes.list({ status: 'ACTIVE' }).subscribe((p) => this.athleteList.set(p.content));
   }
 

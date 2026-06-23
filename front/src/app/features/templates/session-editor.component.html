@@ -15,6 +15,9 @@
   </select>
 </div>
 
+@if (loading()) {
+  <div class="card">Chargement de la séance…</div>
+} @else {
 @for (sec of sections; track sec.key) {
   <div class="card section-card">
     <div class="section-head">
@@ -57,4 +60,5 @@
       <p class="empty-hint">Aucun bloc. Ajoute un bloc.</p>
     }
   </div>
+}
 }

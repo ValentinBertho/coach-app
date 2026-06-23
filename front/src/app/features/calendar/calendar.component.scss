@@ -74,3 +74,42 @@
 .strength-chip .sc-pain {
   margin-left: auto;
 }
+
+/* --- Layout calendrier + bibliothèque latérale (drag&drop force) ---------- */
+.cal-layout {
+  display: grid;
+  grid-template-columns: 230px 1fr;
+  gap: var(--sp-4);
+  align-items: start;
+}
+.cal-sidebar {
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: var(--sp-4);
+  position: sticky;
+  top: var(--sp-4);
+}
+.cal-sidebar h3 { margin: 0 0 var(--sp-1); font-size: var(--text-md); }
+.lib-list { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-3); min-height: 40px; }
+.lib-item {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--block-classique) 14%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--block-classique) 40%, transparent);
+  font-size: var(--text-sm); font-weight: 600; cursor: grab;
+}
+.lib-item:active { cursor: grabbing; }
+.li-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-main { min-width: 0; }
+@media (max-width: 900px) {
+  .cal-layout { grid-template-columns: 1fr; }
+  .cal-sidebar { position: static; }
+}
+
+.lib-sub { margin: var(--sp-3) 0 var(--sp-1); font-size: var(--text-sm); color: var(--ink-3); }
+.lib-item.course {
+  background: color-mix(in srgb, var(--dari-teal) 14%, var(--paper));
+  border-color: color-mix(in srgb, var(--dari-teal) 40%, transparent);
+}

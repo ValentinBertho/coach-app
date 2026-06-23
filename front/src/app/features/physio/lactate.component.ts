@@ -2,12 +2,15 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import { LactateService } from '../../core/services/lactate.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LactateStep, LactateTest, LtDetection } from '../../core/models/lactate.model';
 
 interface ChartPoint { cx: number; cy: number; speed: string; lactate: number; }
 interface Chart { points: ChartPoint[]; polyline: string; lt1x: number | null; lt2x: number | null; }
+interface Series { polyline: string; color: string; label: string; lt2x: number | null; lt2Kmh: string | null; }
+interface MultiChart { series: Series[]; }
 
 /** Tests lactate + détection LT1/LT2 (Dmax modifié) + profil lactate (courbe). */
 @Component({
@@ -25,8 +28,12 @@ export class LactateComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   readonly tests = signal<LactateTest[]>([]);
+  readonly profileTests = signal<LactateTest[]>([]);
   readonly detection = signal<LtDetection | null>(null);
   private readonly version = signal(0);
+
+  private readonly palette = ['#2dd4bf', '#a78bfa', '#f97316', '#10b981', '#ef4444', '#fbbf24'];
+  readonly multiChart = computed<MultiChart | null>(() => this.buildMulti(this.profileTests()));
 
   rest = { lactateRest: 0.8, hrRest: 60, hrMax: 188 };
   steps: LactateStep[] = [
@@ -49,7 +56,15 @@ export class LactateComponent implements OnInit {
   }
 
   reload(): void {
-    this.lactate.list(this.athleteId()).subscribe((t) => this.tests.set(t));
+    this.lactate.list(this.athleteId()).subscribe((summaries) => {
+      this.tests.set(summaries);
+      if (summaries.length) {
+        forkJoin(summaries.slice(0, 6).map((t) => this.lactate.get(this.athleteId(), t.id)))
+          .subscribe((full) => this.profileTests.set(full));
+      } else {
+        this.profileTests.set([]);
+      }
+    });
   }
 
   addStep(): void {
@@ -97,6 +112,43 @@ export class LactateComponent implements OnInit {
     };
     this.steps = t.steps.map((s) => ({ speedMs: s.speedMs, hr: s.hr, lactate: s.lactate }));
     this.refresh();
+  }
+
+  /** Superpose les courbes lactate/vitesse de plusieurs tests (échelle commune). */
+  private buildMulti(tests: LactateTest[]): MultiChart | null {
+    const usable = tests
+      .map((t) => ({ test: t, steps: t.steps.filter((s) => s.speedMs && s.lactate != null) }))
+      .filter((e) => e.steps.length >= 2);
+    if (usable.length === 0) return null;
+
+    const allKmh: number[] = [];
+    const allLact: number[] = [];
+    for (const e of usable) {
+      for (const s of e.steps) {
+        allKmh.push((s.speedMs as number) * 3.6);
+        allLact.push(s.lactate as number);
+      }
+    }
+    const minS = Math.min(...allKmh);
+    const maxS = Math.max(...allKmh);
+    const maxL = Math.max(2, ...allLact);
+    const x = (s: number) => (maxS === minS ? 30 : 30 + ((s - minS) / (maxS - minS)) * 280);
+    const y = (l: number) => 10 + (1 - l / maxL) * 150;
+    const clampX = (kmh: number | null): number | null =>
+      kmh == null ? null : Math.max(30, Math.min(310, x(kmh)));
+
+    const series: Series[] = usable.map((e, i) => {
+      const pts = [...e.steps].sort((a, b) => (a.speedMs as number) - (b.speedMs as number));
+      const lt2Kmh = e.test.lt2Ms ? e.test.lt2Ms * 3.6 : null;
+      return {
+        polyline: pts.map((s) => `${x((s.speedMs as number) * 3.6)},${y(s.lactate as number)}`).join(' '),
+        color: this.palette[i % this.palette.length],
+        label: e.test.testDate,
+        lt2x: clampX(lt2Kmh),
+        lt2Kmh: lt2Kmh ? lt2Kmh.toFixed(1) : null,
+      };
+    });
+    return { series };
   }
 
   private buildChart(steps: LactateStep[], det: LtDetection | null): Chart | null {

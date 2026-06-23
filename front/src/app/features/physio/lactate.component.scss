@@ -69,3 +69,25 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Profil lactate comparé (multi-tests) -------------------------------- */
+.profile-card .lactate-chart {
+  background: var(--paper-sunk);
+}
+.profile-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+}
+.pl-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--text-sm);
+}
+.pl-dot {
+  width: 12px;
+  height: 3px;
+  border-radius: 2px;
+}

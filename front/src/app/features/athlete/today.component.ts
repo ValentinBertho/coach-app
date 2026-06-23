@@ -9,8 +9,11 @@ import {
   Workout,
 } from '../../core/models/workout.model';
 import { AthletePortalService, StrengthPrescriptionView } from '../../core/services/athlete-portal.service';
-import { ScheduledStrength } from '../../core/models/strength.model';
+import { ScheduledStrength, StrengthResultEntry } from '../../core/models/strength.model';
 import { AuthService } from '../../core/services/auth.service';
+
+interface SetEntry { chargeKg: number | null; repsDone: number | null; rirDone: number | null; }
+interface ExerciseSets { exerciseId: string; name: string; sets: SetEntry[]; }
 import { FeedbackQueueService } from '../../core/services/feedback-queue.service';
 import { NetworkStatusService } from '../../core/services/network-status.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -60,6 +63,7 @@ export class TodayComponent implements OnInit {
   // Renforcement du jour
   readonly strength = signal<ScheduledStrength | null>(null);
   readonly strengthRx = signal<StrengthPrescriptionView | null>(null);
+  readonly exerciseSets = signal<ExerciseSets[]>([]);
   sRpe: number | null = null;
   sFatigue: number | null = null;
   sPain: number | null = null;
@@ -77,16 +81,62 @@ export class TodayComponent implements OnInit {
         const s = list[0] ?? null;
         this.strength.set(s);
         if (s) {
-          this.sRpe = s.sessionFatigue != null ? this.sRpe : this.sRpe;
-          this.portal.ppPrescription(s.id).subscribe({ next: (p) => this.strengthRx.set(p) });
+          this.portal.ppPrescription(s.id).subscribe({
+            next: (p) => {
+              this.strengthRx.set(p);
+              this.buildSets(p);
+            },
+          });
         }
       },
     });
   }
 
+  /** Pré-remplit les séries à saisir à partir de la prescription calculée. */
+  private buildSets(rx: StrengthPrescriptionView): void {
+    const list: ExerciseSets[] = [];
+    for (const b of rx.calculated?.blocks ?? []) {
+      for (const ex of b.exercises) {
+        const presc = ex.item.prescription;
+        const count = presc.sets ?? 3;
+        const sets: SetEntry[] = Array.from({ length: count }, () => ({
+          chargeKg: ex.charge.kgMin ?? presc.chargeKgMin ?? null,
+          repsDone: presc.repsFixed ?? presc.repsMin ?? null,
+          rirDone: presc.rirMin ?? null,
+        }));
+        list.push({ exerciseId: ex.item.exerciseId, name: ex.item.exerciseName, sets });
+      }
+    }
+    this.exerciseSets.set(list);
+  }
+
   submitStrength(completed: boolean): void {
     const s = this.strength();
     if (!s) return;
+
+    // 1. Séries réalisées → recalcul automatique du e1RM.
+    const results: StrengthResultEntry[] = [];
+    for (const ex of this.exerciseSets()) {
+      ex.sets.forEach((set, i) => {
+        if (set.chargeKg != null && set.repsDone != null) {
+          results.push({
+            exerciseId: ex.exerciseId, setNumber: i + 1,
+            chargeKg: set.chargeKg, repsDone: set.repsDone, rirDone: set.rirDone,
+          });
+        }
+      });
+    }
+    if (results.length) {
+      this.portal.ppResults(s.id, results).subscribe({
+        next: (updates) => {
+          if (updates.length) {
+            this.toast.success(`e1RM mis à jour : ${updates[0].e1rmKg} kg 💪`);
+          }
+        },
+      });
+    }
+
+    // 2. Retour de séance global.
     this.portal
       .ppFeedback(s.id, { completed, sessionRpe: this.sRpe, fatigue: this.sFatigue, pain: this.sPain, comment: null })
       .subscribe({

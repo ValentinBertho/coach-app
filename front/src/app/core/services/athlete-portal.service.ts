@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { RaceObjective } from '../models/race.model';
 import { Workout, WorkoutStatus } from '../models/workout.model';
-import { CalculatedStrength, ScheduledStrength, StrengthStructure } from '../models/strength.model';
+import { CalculatedStrength, E1rmHistory, ScheduledStrength, StrengthResultEntry, StrengthStructure } from '../models/strength.model';
 
 export interface WorkoutFeedback {
   status?: WorkoutStatus;
@@ -60,6 +60,10 @@ export class AthletePortalService {
 
   ppFeedback(scheduledId: string, body: StrengthFeedback): Observable<ScheduledStrength> {
     return this.http.patch<ScheduledStrength>(`${this.base}/pp/scheduled/${scheduledId}/feedback`, body);
+  }
+
+  ppResults(scheduledId: string, results: StrengthResultEntry[]): Observable<E1rmHistory[]> {
+    return this.http.post<E1rmHistory[]>(`${this.base}/pp/scheduled/${scheduledId}/results`, results);
   }
 
   /** RGPD — export des données personnelles (portabilité). */
