@@ -15,6 +15,15 @@
           <div class="bubble">
             <span class="sender">{{ m.senderName }}</span>
             <p>{{ m.body }}</p>
+            @if (m.attachmentId) {
+              @if (isImage(m)) {
+                <a [href]="attachmentUrl(m)" target="_blank" rel="noopener">
+                  <img class="msg-image" [src]="attachmentUrl(m)" [alt]="m.attachmentFilename || 'pièce jointe'" />
+                </a>
+              } @else {
+                <a class="msg-file" [href]="attachmentUrl(m)" target="_blank" rel="noopener">📎 {{ m.attachmentFilename }}</a>
+              }
+            }
           </div>
         </div>
       }
@@ -22,6 +31,10 @@
   </div>
 
   <form class="composer" (ngSubmit)="send()">
+    <label class="btn btn-ghost attach-btn" title="Joindre une image ou un PDF">
+      📎
+      <input type="file" accept="image/*,application/pdf" hidden (change)="onFileSelected($event)" />
+    </label>
     <input class="form-control" [(ngModel)]="draft" name="draft" placeholder="Votre message…" autocomplete="off" />
     <button type="submit" class="btn btn-primary" [disabled]="!draft.trim()">Envoyer</button>
   </form>

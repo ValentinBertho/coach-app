@@ -22,6 +22,10 @@ spring:
           time_zone: UTC
   liquibase:
     change-log: classpath:db/changelog/db.changelog-master.yaml
+  servlet:
+    multipart:
+      max-file-size: 10MB        # pièces jointes messagerie
+      max-request-size: 12MB
 
 server:
   servlet:

@@ -169,6 +169,29 @@ public class AthletePortalController {
         return messageStreamService.subscribe(principal.athleteId());
     }
 
+    /** Envoi d'un message avec pièce jointe (image/PDF). */
+    @PostMapping("/messages/attachment")
+    @ResponseStatus(HttpStatus.CREATED)
+    public com.coachrun.dto.response.MessageResponse sendMessageAttachment(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam(required = false) String body,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        return messageService.athleteSendWithAttachment(principal.athleteId(), principal, body, file);
+    }
+
+    /** Téléchargement d'une pièce jointe d'un de mes messages. */
+    @GetMapping("/messages/{messageId}/attachment")
+    public org.springframework.http.ResponseEntity<byte[]> downloadMessageAttachment(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID messageId) {
+        com.coachrun.entity.MessageAttachment a =
+                messageService.attachmentForAthlete(principal.athleteId(), messageId);
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + a.getFilename() + "\"")
+                .contentType(org.springframework.http.MediaType.parseMediaType(a.getContentType()))
+                .body(a.getData());
+    }
+
     /** Mes indisponibilités en cours ou à venir. */
     @GetMapping("/unavailabilities")
     public java.util.List<com.coachrun.dto.response.UnavailabilityResponse> unavailabilities(

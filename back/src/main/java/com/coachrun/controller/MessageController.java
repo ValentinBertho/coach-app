@@ -50,4 +50,30 @@ public class MessageController {
                                 @Valid @RequestBody MessageRequest request) {
         return messageService.coachSend(clubId, athleteId, principal, request);
     }
+
+    /** Envoi d'un message avec pièce jointe (image/PDF). */
+    @PostMapping("/attachment")
+    @ResponseStatus(HttpStatus.CREATED)
+    public MessageResponse sendAttachment(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                          @AuthenticationPrincipal AuthPrincipal principal,
+                                          @org.springframework.web.bind.annotation.RequestParam(required = false) String body,
+                                          @org.springframework.web.bind.annotation.RequestParam("file")
+                                          org.springframework.web.multipart.MultipartFile file) {
+        return messageService.coachSendWithAttachment(clubId, athleteId, principal, body, file);
+    }
+
+    /** Téléchargement d'une pièce jointe. */
+    @GetMapping("/{messageId}/attachment")
+    public org.springframework.http.ResponseEntity<byte[]> download(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID messageId) {
+        return MessageController.toResponse(messageService.attachmentForCoach(clubId, athleteId, messageId));
+    }
+
+    static org.springframework.http.ResponseEntity<byte[]> toResponse(com.coachrun.entity.MessageAttachment a) {
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "inline; filename=\"" + a.getFilename() + "\"")
+                .contentType(org.springframework.http.MediaType.parseMediaType(a.getContentType()))
+                .body(a.getData());
+    }
 }

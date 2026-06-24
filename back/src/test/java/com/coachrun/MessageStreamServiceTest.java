@@ -19,7 +19,7 @@ class MessageStreamServiceTest {
 
     private MessageResponse msg(UserRole role) {
         return new MessageResponse(UUID.randomUUID(), "Bien joué !", role, "Coach Démo",
-                UUID.randomUUID(), null, Instant.now());
+                UUID.randomUUID(), null, null, null, null, Instant.now());
     }
 
     @Test

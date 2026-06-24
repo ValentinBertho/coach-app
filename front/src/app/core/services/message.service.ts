@@ -32,6 +32,30 @@ export class MessageService {
     return this.http.post<Message>(`${environment.apiUrl}/me/messages`, { body });
   }
 
+  // --- Pièces jointes ---
+  coachSendAttachment(athleteId: string, file: File, body?: string): Observable<Message> {
+    const form = new FormData();
+    form.append('file', file);
+    if (body) form.append('body', body);
+    return this.http.post<Message>(
+      `${environment.apiUrl}/clubs/${this.auth.clubId()}/athletes/${athleteId}/messages/attachment`, form);
+  }
+
+  mySendAttachment(file: File, body?: string): Observable<Message> {
+    const form = new FormData();
+    form.append('file', file);
+    if (body) form.append('body', body);
+    return this.http.post<Message>(`${environment.apiUrl}/me/messages/attachment`, form);
+  }
+
+  /** URL de téléchargement d'une pièce jointe (token en query param pour <img>/<a>). */
+  attachmentUrl(athleteId: string | undefined, messageId: string): string {
+    const base = athleteId
+      ? `${environment.apiUrl}/clubs/${this.auth.clubId()}/athletes/${athleteId}/messages/${messageId}/attachment`
+      : `${environment.apiUrl}/me/messages/${messageId}/attachment`;
+    return `${base}?access_token=${encodeURIComponent(this.auth.token() ?? '')}`;
+  }
+
   /**
    * Flux temps réel (SSE) des nouveaux messages. Côté coach si {@code athleteId} fourni,
    * sinon côté athlète. Le token est passé en query param ({@code EventSource} ne porte

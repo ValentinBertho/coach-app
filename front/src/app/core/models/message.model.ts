@@ -7,5 +7,8 @@ export interface Message {
   senderName: string;
   senderUserId: string;
   workoutId: string | null;
+  attachmentId: string | null;
+  attachmentFilename: string | null;
+  attachmentContentType: string | null;
   createdAt: string;
 }
