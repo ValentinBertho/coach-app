@@ -164,7 +164,8 @@ export class CalendarComponent implements OnInit {
     this.router.navigate(['/app/athletes', this.selectedAthleteId, 'workouts', 'new'], { queryParams: { date } });
   }
   openWorkout(w: Workout): void {
-    this.router.navigate(['/app/athletes', w.athleteId, 'workouts', w.id, 'edit']);
+    // Vue séance (lecture) ; l'édition est une action délibérée depuis la page.
+    this.router.navigate(['/app/athletes', w.athleteId, 'workouts', w.id]);
   }
 
   onDrop(event: CdkDragDrop<DayCell>, targetDate: string): void {

@@ -1,0 +1,95 @@
+@switch (state()) {
+  @case ('loading') {
+    <div class="card"><div class="skeleton" style="height: 120px;"></div></div>
+  }
+  @case ('error') {
+    <div class="card">Séance introuvable.
+      <button type="button" class="btn btn-ghost btn-sm" (click)="load()">Réessayer</button>
+    </div>
+  }
+  @case ('ready') {
+    @if (workout(); as w) {
+      <div class="session">
+        <!-- ===== Header ===== -->
+        <header class="session-head">
+          <a [routerLink]="['/app/athletes', athleteId()]" class="back">← Athlète</a>
+          <div class="session-meta">
+            <span class="badge" [class]="statusBadge[w.status]">{{ statusLabels[w.status] }}</span>
+            <span class="session-type">{{ typeLabels[w.type] }}</span>
+            <span class="session-date metric">{{ w.scheduledDate }}</span>
+          </div>
+          <h1 class="display-sm">{{ w.title }}</h1>
+          @if (w.targetDistanceM) {
+            <p class="session-target metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} <small>km</small></p>
+          }
+        </header>
+
+        <!-- ===== Prescription ===== -->
+        @if (w.steps.length) {
+          <section class="card block">
+            <h2 class="block-title">Prescription</h2>
+            <ol class="timeline">
+              @for (s of w.steps; track s.id) {
+                <li class="timeline__step">
+                  @if (s.repetitions > 1) { <span class="timeline__rep metric">{{ s.repetitions }}×</span> }
+                  <span class="timeline__label">{{ stepLabels[s.stepType] }}</span>
+                  @if (zoneNum(s.zone); as zn) {
+                    <app-intensity-zone-badge [zone]="zn" [range]="stepTarget(s.distanceM, s.durationS)" />
+                  } @else if (stepTarget(s.distanceM, s.durationS)) {
+                    <span class="timeline__target metric">{{ stepTarget(s.distanceM, s.durationS) }}</span>
+                  }
+                  @if (s.notes) { <span class="timeline__notes">{{ s.notes }}</span> }
+                </li>
+              }
+            </ol>
+          </section>
+        }
+
+        <!-- ===== Explication ===== -->
+        @if (w.notes) {
+          <section class="card block">
+            <h2 class="block-title">Intention de séance</h2>
+            <p class="block-text">{{ w.notes }}</p>
+          </section>
+        }
+
+        <!-- ===== Retour athlète (lecture seule, déclaré) ===== -->
+        <section class="card block">
+          <div class="block-title-row">
+            <h2 class="block-title">Retour athlète</h2>
+            @if (hasFeedback()) { <app-data-origin-tag origin="saisi" /> }
+          </div>
+          @if (hasFeedback()) {
+            <div class="feedback-recap">
+              @if (w.rpe != null) {
+                <div class="fb-stat">
+                  <span class="fb-stat__k">RPE ressenti</span>
+                  <span class="fb-stat__v metric">{{ w.rpe }}<small>/10</small></span>
+                </div>
+              }
+              @if (w.athleteComment) {
+                <blockquote class="fb-comment">{{ w.athleteComment }}</blockquote>
+              }
+            </div>
+          } @else {
+            <p class="field-hint">Aucun retour pour l'instant.</p>
+          }
+        </section>
+      </div>
+
+      <!-- ===== Barre d'action ===== -->
+      <app-sticky-action-bar>
+        <div slot="info">{{ statusLabels[w.status] }}</div>
+        @if (w.status !== 'COMPLETED') {
+          <button type="button" class="btn btn-ghost btn-sm" (click)="setStatus('MISSED')">Manquée</button>
+          <button type="button" class="btn btn-accent btn-sm" (click)="setStatus('COMPLETED')">Réalisée ✓</button>
+        } @else {
+          <button type="button" class="btn btn-ghost btn-sm" (click)="setStatus('PLANNED')">Rouvrir</button>
+        }
+        <a [routerLink]="['/app/athletes', athleteId(), 'workouts', workoutId(), 'edit']" class="btn btn-primary btn-sm">Modifier</a>
+      </app-sticky-action-bar>
+
+      <button type="button" class="btn btn-ghost btn-sm danger-link" (click)="remove()">Supprimer la séance</button>
+    }
+  }
+}

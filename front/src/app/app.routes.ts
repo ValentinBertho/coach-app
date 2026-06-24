@@ -172,6 +172,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),
       },
+      {
+        path: 'athletes/:athleteId/workouts/:workoutId',
+        loadComponent: () =>
+          import('./features/workouts/workout-detail.component').then((m) => m.WorkoutDetailComponent),
+      },
     ],
   },
   {
