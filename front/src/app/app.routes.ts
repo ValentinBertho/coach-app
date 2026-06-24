@@ -29,6 +29,12 @@ export const routes: Routes = [
       import('./features/public/invitation.component').then((m) => m.InvitationComponent),
   },
   {
+    // Living styleguide des primitives UI (dev). Cf. docs/ux-redesign-blueprint.md.
+    path: 'dev/ui-kit',
+    loadComponent: () =>
+      import('./features/dev/ui-kit.component').then((m) => m.UiKitComponent),
+  },
+  {
     path: 'app',
     canActivate: [authGuard],
     loadComponent: () =>
