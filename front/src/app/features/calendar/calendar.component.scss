@@ -22,17 +22,38 @@
 .day-col.today { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
 .day-col.dim { opacity: 0.5; }
 
-.day-head { display: flex; align-items: baseline; justify-content: space-between; padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--hairline); }
+.day-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--hairline); }
+.day-head__date { display: flex; align-items: baseline; gap: var(--sp-2); }
 .day-name { font-size: var(--text-xs); color: var(--ink-3); text-transform: uppercase; }
 .day-num { font-weight: 700; font-family: var(--font-display); }
+.day-flag {
+  font-size: 10px; font-weight: 800; color: var(--warning-text);
+  background: var(--warning-bg); padding: 1px var(--sp-2); border-radius: var(--radius-full);
+  white-space: nowrap;
+}
 
 .day-body { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-2); flex: 1; }
 
-.workout-card { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; background: var(--primary-wash); border: none; border-left: 3px solid var(--primary); border-radius: var(--radius-sm); padding: var(--sp-2); cursor: pointer; transition: transform var(--duration-fast) var(--ease); }
+/* Chip de séance : rail + icône colorés par type d'événement. */
+.workout-card {
+  display: flex; flex-direction: column; align-items: stretch; gap: 3px; text-align: left;
+  background: color-mix(in srgb, var(--type-color) 10%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--type-color) 22%, transparent);
+  border-left: 3px solid var(--type-color);
+  border-radius: var(--radius-sm); padding: var(--sp-2); cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease), box-shadow var(--duration-fast) var(--ease);
+}
+.workout-card:hover { box-shadow: var(--shadow-xs); }
 .workout-card:active { transform: scale(0.98); }
-.w-title { font-weight: 600; font-size: var(--text-sm); }
-.w-metric { font-size: var(--text-xs); color: var(--primary); }
-.zone-bar { display: flex; gap: 2px; margin-top: 4px; width: 100%; }
+.workout-card--key { border-left-width: 4px; }
+.wc-head { display: flex; align-items: center; gap: var(--sp-1); }
+.wc-type { font-size: 12px; line-height: 1; }
+.wc-meta { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-1); }
+.wc-type-label { font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.02em; }
+.w-title { font-weight: 700; font-size: var(--text-sm); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.w-metric { font-size: var(--text-xs); color: var(--ink-2); font-weight: 700; }
+.badge-dot { width: 8px; height: 8px; padding: 0; border-radius: 50%; flex-shrink: 0; }
+.zone-bar { display: flex; gap: 2px; margin-top: 2px; width: 100%; }
 .zone-seg { height: 4px; flex: 1; border-radius: var(--radius-full); }
 .zone-z1 { background: var(--zone-1); } .zone-z2 { background: var(--zone-2); } .zone-z3 { background: var(--zone-3); }
 .zone-z4 { background: var(--zone-4); } .zone-z5 { background: var(--zone-5); }
@@ -113,3 +134,25 @@
   background: color-mix(in srgb, var(--dari-teal) 14%, var(--paper));
   border-color: color-mix(in srgb, var(--dari-teal) 40%, transparent);
 }
+
+/* Pastille de statut (point coloré) — couleur pleine par statut. */
+.badge-dot.badge-success { background: var(--success); }
+.badge-dot.badge-warning { background: var(--warning); }
+.badge-dot.badge-danger { background: var(--danger); }
+.badge-dot.badge-info { background: var(--info); }
+.badge-dot.badge-neutral { background: var(--ink-4); }
+
+/* Barre de densité de volume par jour. */
+.day-density {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3) var(--sp-2);
+}
+.day-density__bar {
+  height: 4px; min-width: 4px; border-radius: var(--radius-full);
+  background: var(--primary); opacity: 0.55;
+}
+.day-density__val { font-size: 10px; color: var(--ink-3); font-weight: 700; white-space: nowrap; }
+.day-density__val small { font-weight: 600; }
+
+/* Chip de force : rail coloré cohérent avec les types. */
+.strength-chip { border-left: 3px solid var(--type-color, var(--dari-violet)); }

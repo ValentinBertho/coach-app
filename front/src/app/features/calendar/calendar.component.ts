@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteSummary } from '../../core/models/athlete.model';
-import { STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, Workout } from '../../core/models/workout.model';
+import { STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, Workout, WorkoutType } from '../../core/models/workout.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { CourseService } from '../../core/services/course.service';
 import { StrengthService } from '../../core/services/strength.service';
@@ -21,7 +21,26 @@ interface DayCell {
   inMonth: boolean;
   workouts: Workout[];
   strength: ScheduledStrength[];
+  km: number;
+  sessions: number;
+  /** Charge élevée : ≥ 2 séances dont au moins une séance clé (qualité). */
+  conflict: boolean;
 }
+
+/** Sémantique de type d'événement : couleur (token) + icône + nature « clé ». */
+interface TypeMeta { color: string; icon: string; key: boolean; }
+const TYPE_META: Record<WorkoutType, TypeMeta> = {
+  ENDURANCE:      { color: 'var(--zone-2)', icon: '🏃', key: false },
+  RECOVERY:       { color: 'var(--zone-1)', icon: '🧘', key: false },
+  TEMPO:          { color: 'var(--zone-3)', icon: '⏱️', key: true },
+  THRESHOLD:      { color: 'var(--zone-4)', icon: '🔥', key: true },
+  INTERVALS:      { color: 'var(--zone-5)', icon: '⚡', key: true },
+  LONG_RUN:       { color: 'var(--primary)', icon: '🏔️', key: true },
+  RACE:           { color: 'var(--energy)', icon: '🏁', key: true },
+  STRENGTH:       { color: 'var(--dari-violet)', icon: '💪', key: false },
+  CROSS_TRAINING: { color: 'var(--dari-teal)', icon: '🚴', key: false },
+  REST:           { color: 'var(--ink-4)', icon: '🌙', key: false },
+};
 
 function toIso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -78,17 +97,30 @@ export class CalendarComponent implements OnInit {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       const iso = toIso(d);
+      const workouts = byDate.get(iso) ?? [];
+      const strength = strengthByDate.get(iso) ?? [];
+      const km = workouts.reduce((s, w) => s + (w.targetDistanceM ?? 0), 0) / 1000;
+      const sessions = workouts.length + strength.length;
+      const hasKey = workouts.some((w) => TYPE_META[w.type].key);
       return {
         date: iso,
         label: this.dayNames[i % 7],
         dayNum: d.getDate(),
         isToday: iso === today,
         inMonth: this.mode() === 'week' || d.getMonth() === monthRef,
-        workouts: byDate.get(iso) ?? [],
-        strength: strengthByDate.get(iso) ?? [],
+        workouts,
+        strength,
+        km,
+        sessions,
+        conflict: sessions >= 2 && hasKey,
       };
     });
   });
+
+  /** Volume max d'un jour sur la période (pour normaliser les barres de densité). */
+  readonly maxDayKm = computed(() => Math.max(1, ...this.cells().map((c) => c.km)));
+
+  typeMeta(type: WorkoutType): TypeMeta { return TYPE_META[type]; }
 
   readonly periodLabel = computed(() => {
     const a = this.anchor();

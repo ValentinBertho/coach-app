@@ -71,16 +71,32 @@
         @for (day of cells(); track day.date) {
       <div class="day-col" [class.today]="day.isToday" [class.dim]="!day.inMonth">
         <header class="day-head">
-          @if (mode() === 'week') { <span class="day-name">{{ day.label }}</span> }
-          <span class="day-num">{{ day.dayNum }}</span>
+          <div class="day-head__date">
+            @if (mode() === 'week') { <span class="day-name">{{ day.label }}</span> }
+            <span class="day-num">{{ day.dayNum }}</span>
+          </div>
+          @if (day.conflict) {
+            <span class="day-flag" title="Charge élevée : plusieurs séances dont une séance clé">⚠ charge</span>
+          }
         </header>
 
         <div class="day-body" cdkDropList [cdkDropListData]="day" (cdkDropListDropped)="onDrop($event, day.date)">
           @for (w of day.workouts; track w.id) {
-            <button type="button" class="workout-card" cdkDrag [cdkDragData]="w" (click)="openWorkout(w)">
-              <span class="badge" [class]="statusBadge[w.status]">{{ statusLabels[w.status] }}</span>
-              <span class="w-title">{{ w.title }}</span>
-              @if (w.targetDistanceM) { <span class="metric w-metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span> }
+            <button
+              type="button"
+              class="workout-card"
+              [class.workout-card--key]="typeMeta(w.type).key"
+              [style.--type-color]="typeMeta(w.type).color"
+              cdkDrag [cdkDragData]="w" (click)="openWorkout(w)">
+              <span class="wc-head">
+                <span class="wc-type" aria-hidden="true">{{ typeMeta(w.type).icon }}</span>
+                <span class="w-title">{{ w.title }}</span>
+                <span class="badge badge-dot" [class]="statusBadge[w.status]" [title]="statusLabels[w.status]"></span>
+              </span>
+              <span class="wc-meta">
+                <span class="wc-type-label">{{ typeLabels[w.type] }}</span>
+                @if (w.targetDistanceM) { <span class="metric w-metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span> }
+              </span>
               @if (zonesOf(w).length) {
                 <span class="zone-bar">
                   @for (z of zonesOf(w); track z) { <span class="zone-seg" [class]="'zone-' + z.toLowerCase()"></span> }
@@ -89,14 +105,21 @@
             </button>
           }
           @for (s of day.strength; track s.id) {
-            <div class="strength-chip" [class.done]="s.completed">
+            <div class="strength-chip" [class.done]="s.completed" [style.--type-color]="typeMeta('STRENGTH').color">
               <span class="sc-icon">💪</span>
               <span class="sc-title">{{ s.title }}</span>
-              @if (s.sessionPain) { <span class="sc-pain">🩹</span> }
+              @if (s.sessionPain) { <span class="sc-pain" title="Douleur signalée">🩹</span> }
             </div>
           }
           <button type="button" class="add-btn" (click)="addWorkout(day.date)">+</button>
         </div>
+
+        @if (day.km > 0) {
+          <div class="day-density" [title]="day.km.toFixed(1) + ' km prévus'">
+            <span class="day-density__bar" [style.width.%]="(day.km / maxDayKm()) * 100"></span>
+            <span class="day-density__val metric">{{ day.km.toFixed(0) }}<small>km</small></span>
+          </div>
+        }
       </div>
     }
       </div>
