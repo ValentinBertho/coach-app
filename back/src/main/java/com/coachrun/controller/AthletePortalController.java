@@ -44,6 +44,7 @@ public class AthletePortalController {
     private final GdprService gdprService;
     private final com.coachrun.service.RaceObjectiveService raceService;
     private final com.coachrun.service.MessageService messageService;
+    private final com.coachrun.service.MessageStreamService messageStreamService;
     private final com.coachrun.service.StrengthScheduleService strengthScheduleService;
     private final com.coachrun.service.StrengthResultService strengthResultService;
 
@@ -150,6 +151,13 @@ public class AthletePortalController {
             @AuthenticationPrincipal AuthPrincipal principal,
             @Valid @RequestBody com.coachrun.dto.request.MessageRequest request) {
         return messageService.athleteSend(principal.athleteId(), principal, request);
+    }
+
+    /** Flux temps réel (SSE) des nouveaux messages pour l'athlète. */
+    @GetMapping("/messages/stream")
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter messageStream(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return messageStreamService.subscribe(principal.athleteId());
     }
 
     /** RGPD — portabilité : export des données personnelles de l'athlète. */

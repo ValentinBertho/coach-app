@@ -31,4 +31,25 @@ export class MessageService {
   mySend(body: string): Observable<Message> {
     return this.http.post<Message>(`${environment.apiUrl}/me/messages`, { body });
   }
+
+  /**
+   * Flux temps réel (SSE) des nouveaux messages. Côté coach si {@code athleteId} fourni,
+   * sinon côté athlète. Le token est passé en query param ({@code EventSource} ne porte
+   * pas d'en-tête). Retourne la source ouverte ; l'appelant doit la fermer.
+   */
+  stream(athleteId: string | undefined, onMessage: (m: Message) => void): EventSource {
+    const base = athleteId
+      ? `${environment.apiUrl}/clubs/${this.auth.clubId()}/athletes/${athleteId}/messages/stream`
+      : `${environment.apiUrl}/me/messages/stream`;
+    const url = `${base}?access_token=${encodeURIComponent(this.auth.token() ?? '')}`;
+    const source = new EventSource(url);
+    source.addEventListener('message', (ev) => {
+      try {
+        onMessage(JSON.parse((ev as MessageEvent).data) as Message);
+      } catch {
+        /* ignore malformed event */
+      }
+    });
+    return source;
+  }
 }

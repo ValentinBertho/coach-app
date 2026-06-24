@@ -6,14 +6,19 @@ import { PageResponse } from '../models/athlete.model';
 import {
   Athlete1rm,
   CalculatedStrength,
+  CycleStructure,
   E1rmHistory,
   E1rmResult,
   PpExercise,
   PpExerciseRequest,
   RmFormula,
   ScheduledStrength,
+  StrengthCycle,
+  StrengthLoadPoint,
   StrengthSession,
   StrengthStructure,
+  StrengthTest,
+  StrengthTestRequest,
 } from '../models/strength.model';
 import { AuthService } from './auth.service';
 
@@ -81,8 +86,30 @@ export class StrengthService {
     return this.http.get<E1rmHistory[]>(`${this.club()}/athletes/${athleteId}/pp/1rm/${exerciseId}/history`);
   }
 
+  // --- Tests 1RM (4 protocoles) ---
+  listTests(athleteId: string, exerciseId?: string): Observable<StrengthTest[]> {
+    let params = new HttpParams();
+    if (exerciseId) params = params.set('exerciseId', exerciseId);
+    return this.http.get<StrengthTest[]>(`${this.club()}/athletes/${athleteId}/pp/tests`, { params });
+  }
+
+  recordTest(athleteId: string, body: StrengthTestRequest): Observable<StrengthTest> {
+    return this.http.post<StrengthTest>(`${this.club()}/athletes/${athleteId}/pp/tests`, body);
+  }
+
+  // --- Charge interne (UA méca/métab) ---
+  loadTracking(athleteId: string): Observable<StrengthLoadPoint[]> {
+    return this.http.get<StrengthLoadPoint[]>(`${this.club()}/athletes/${athleteId}/pp/load`);
+  }
+
   calculatedSession(athleteId: string, sessionId: string): Observable<CalculatedStrength> {
     return this.http.get<CalculatedStrength>(`${this.club()}/athletes/${athleteId}/pp/sessions/${sessionId}/calculated`);
+  }
+
+  /** Aperçu live des charges d'une structure en cours d'édition (non enregistrée). */
+  calculatePreview(athleteId: string, structure: StrengthStructure): Observable<CalculatedStrength> {
+    return this.http.post<CalculatedStrength>(
+      `${this.club()}/athletes/${athleteId}/pp/sessions/calculated-preview`, { structure });
   }
 
   scheduleSession(athleteId: string, sessionId: string, body: { date: string; fieldsPreset?: string }): Observable<ScheduledStrength> {
@@ -92,5 +119,18 @@ export class StrengthService {
   scheduledCalendar(athleteId: string, from: string, to: string): Observable<ScheduledStrength[]> {
     const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<ScheduledStrength[]>(`${this.club()}/athletes/${athleteId}/pp/scheduled`, { params });
+  }
+
+  // --- Cycles ---
+  listCycles(): Observable<StrengthCycle[]> {
+    return this.http.get<StrengthCycle[]>(`${this.club()}/pp/cycles`);
+  }
+
+  createCycle(body: { name: string; weeks: number; objective?: string | null; structure: CycleStructure }): Observable<StrengthCycle> {
+    return this.http.post<StrengthCycle>(`${this.club()}/pp/cycles`, body);
+  }
+
+  assignCycle(cycleId: string, athleteId: string, startDate: string): Observable<{ scheduled: number }> {
+    return this.http.post<{ scheduled: number }>(`${this.club()}/pp/cycles/${cycleId}/assign/${athleteId}`, { startDate });
   }
 }

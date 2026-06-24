@@ -160,6 +160,58 @@ export interface ScheduledStrength {
   sessionPain: number | null;
 }
 
+export interface CycleWeek {
+  week: number;
+  sessionIds: string[];
+  chargePctAdjustment: number;
+}
+
+export interface CycleStructure {
+  weeks: CycleWeek[];
+}
+
+export interface StrengthCycle {
+  id: string;
+  name: string;
+  weeks: number;
+  objective: string | null;
+  description: string | null;
+  structure: CycleStructure;
+}
+
+export interface StrengthLoadPoint {
+  scheduledSessionId: string | null;
+  sessionDate: string;
+  mechanicalLoad: number;
+  metabolicLoad: number;
+}
+
+export type StrengthTestProtocol = 'TRUE_1RM' | 'REP_TEST_3_5' | 'AMRAP_TEST' | 'ISO_MVC';
+
+export interface StrengthTest {
+  id: string;
+  exerciseId: string;
+  protocol: StrengthTestProtocol;
+  testDate: string;
+  weightKg: number | null;
+  reps: number | null;
+  durationSec: number | null;
+  rir: number | null;
+  computedE1rmKg: number;
+  notes: string | null;
+}
+
+export interface StrengthTestRequest {
+  exerciseId: string;
+  protocol: StrengthTestProtocol;
+  testDate?: string;
+  weightKg?: number | null;
+  reps?: number | null;
+  durationSec?: number | null;
+  rir?: number | null;
+  notes?: string | null;
+}
+
 export interface StrengthResultEntry {
   exerciseId: string;
   setNumber: number;

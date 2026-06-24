@@ -8,6 +8,7 @@
 <div class="status-tabs pp-tabs">
   <button type="button" [class.active]="tab() === 'exercises'" (click)="switchTab('exercises')">📖 Exercices</button>
   <button type="button" [class.active]="tab() === 'sessions'" (click)="switchTab('sessions')">🗂️ Séances</button>
+  <button type="button" [class.active]="tab() === 'cycles'" (click)="switchTab('cycles')">🔄 Cycles</button>
   <button type="button" [class.active]="tab() === 'tests1rm'" (click)="switchTab('tests1rm')">🏋️ Tests 1RM</button>
   <button type="button" [class.active]="tab() === 'analysis'" (click)="switchTab('analysis')">📈 Suivi &amp; Analyse</button>
 </div>
@@ -86,18 +87,89 @@
   } @else {
     <div class="ex-grid">
       @for (s of sessions(); track s.id) {
-        <div class="card ex-card">
+        <a class="card ex-card session-card" [routerLink]="['/app/strength/sessions', s.id, 'structure']">
           <div class="ex-head">
             <strong>{{ s.name }}</strong>
             @if (s.favorite) { <span class="badge badge-warning">★</span> }
           </div>
           <p class="field-hint">{{ s.structure.blocks.length }} bloc(s) · {{ s.useCount }} utilisation(s)</p>
-        </div>
+          <span class="edit-hint">Modifier la structure →</span>
+        </a>
       } @empty {
         <p class="empty-hint">Aucune séance de force.</p>
       }
     </div>
   }
+}
+
+<!-- ===================== CYCLES ===================== -->
+@if (tab() === 'cycles') {
+  <div class="cycle-layout">
+    <div class="card cycle-form">
+      <h2>Nouveau cycle</h2>
+      <p class="field-hint">Programme une progression sur plusieurs semaines (charge croissante).</p>
+      <div class="form-row">
+        <div class="form-group"><label>Nom du cycle</label><input class="form-control" [(ngModel)]="newCycle.name" placeholder="Bloc force max" /></div>
+        <div class="form-group"><label>Durée (semaines)</label><input type="number" min="1" max="16" class="form-control" [(ngModel)]="newCycle.weeks" /></div>
+      </div>
+      <div class="form-group"><label>Objectif</label><input class="form-control" [(ngModel)]="newCycle.objective" placeholder="Développer la force maximale" /></div>
+      <div class="form-group">
+        <label>Séances incluses (répétées chaque semaine)</label>
+        @if (sessions().length) {
+          <div class="cycle-session-picker">
+            @for (s of sessions(); track s.id) {
+              <label class="cycle-session-opt" [class.selected]="newCycle.sessionIds.includes(s.id)">
+                <input type="checkbox" [checked]="newCycle.sessionIds.includes(s.id)" (change)="toggleCycleSession(s.id)" />
+                {{ s.name }}
+              </label>
+            }
+          </div>
+        } @else {
+          <p class="empty-hint">Crée d'abord des séances dans l'onglet Séances.</p>
+        }
+      </div>
+      <button type="button" class="btn btn-accent" [disabled]="!newCycle.name.trim() || !newCycle.sessionIds.length" (click)="createCycle()">Créer le cycle</button>
+    </div>
+
+    <div class="cycle-list-col">
+      <div class="card assign-card">
+        <h3>Assignation</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Athlète</label>
+            <select class="form-control" [ngModel]="selectedAthlete()" (ngModelChange)="onAthleteChange($event)">
+              <option value="">Sélectionner un athlète…</option>
+              @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date de début</label>
+            <input type="date" class="form-control" [ngModel]="assignDate()" (ngModelChange)="assignDate.set($event)" />
+          </div>
+        </div>
+      </div>
+
+      @if (loadingCycles()) {
+        <div class="card">Chargement…</div>
+      } @else {
+        <div class="ex-grid">
+          @for (c of cycles(); track c.id) {
+            <div class="card ex-card">
+              <div class="ex-head">
+                <strong>{{ c.name }}</strong>
+                <span class="badge badge-info">{{ c.weeks }} sem.</span>
+              </div>
+              @if (c.objective) { <p class="field-hint">{{ c.objective }}</p> }
+              <p class="field-hint">{{ c.structure.weeks.length }} semaine(s) programmée(s)</p>
+              <button type="button" class="btn btn-primary btn-sm" [disabled]="!selectedAthlete()" (click)="assignCycle(c.id)">Assigner à l'athlète</button>
+            </div>
+          } @empty {
+            <p class="empty-hint">Aucun cycle. Crée ton premier cycle.</p>
+          }
+        </div>
+      }
+    </div>
+  </div>
 }
 
 <!-- ===================== TESTS 1RM ===================== -->
@@ -134,6 +206,65 @@
           </tbody>
         </table>
       </div>
+    }
+  </div>
+
+  <!-- Enregistrer un test direct (met à jour le 1RM 'tested') -->
+  <div class="card test-record">
+    <h2>Enregistrer un test</h2>
+    <p class="field-hint">Un test direct met à jour le profil 1RM de l'athlète (source <strong>tested</strong>, prévaut sur l'estimation).</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Athlète</label>
+        <select class="form-control" [ngModel]="selectedAthlete()" (ngModelChange)="onAthleteChange($event)">
+          <option value="">Sélectionner un athlète…</option>
+          @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Exercice</label>
+        <select class="form-control" [(ngModel)]="newTest.exerciseId">
+          <option value="">Sélectionner…</option>
+          @for (e of exercises(); track e.id) { <option [value]="e.id">{{ e.name }}</option> }
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Protocole</label>
+        <select class="form-control" [(ngModel)]="newTest.protocol">
+          @for (p of protocols; track p.value) { <option [value]="p.value">{{ p.label }}</option> }
+        </select>
+      </div>
+      <div class="form-group">
+        <label>{{ needsDuration() ? 'Charge / valeur mesurée (kg)' : 'Charge (kg)' }}</label>
+        <input type="number" class="form-control" [(ngModel)]="newTest.weightKg" />
+      </div>
+      @if (needsReps()) {
+        <div class="form-group"><label>Répétitions</label><input type="number" class="form-control" [(ngModel)]="newTest.reps" /></div>
+      }
+      @if (needsDuration()) {
+        <div class="form-group"><label>Durée (s)</label><input type="number" class="form-control" [(ngModel)]="newTest.durationSec" /></div>
+      }
+    </div>
+    <button type="button" class="btn btn-accent" [disabled]="!selectedAthlete() || !newTest.exerciseId" (click)="recordTest()">Enregistrer le test</button>
+
+    @if (selectedAthlete() && tests().length) {
+      <h3 class="zones-title">Historique des tests</h3>
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Exercice</th><th>Protocole</th><th>Charge</th><th>e1RM</th></tr></thead>
+        <tbody>
+          @for (t of tests(); track t.id) {
+            <tr>
+              <td class="metric">{{ t.testDate | date: 'dd/MM/yy' }}</td>
+              <td>{{ exerciseName(t.exerciseId) }}</td>
+              <td><span class="badge badge-neutral">{{ protocolLabel(t.protocol) }}</span></td>
+              <td class="metric">{{ t.weightKg }} kg{{ t.reps ? ' × ' + t.reps : '' }}</td>
+              <td class="metric hist-e1rm">{{ t.computedE1rmKg }} kg</td>
+            </tr>
+          }
+        </tbody>
+      </table>
     }
   </div>
 }
@@ -179,6 +310,28 @@
             </li>
           }
         </ul>
+      }
+
+      <h3>Charge interne (UA)</h3>
+      @if (loadPoints().length) {
+        <p class="field-hint">Mécanique = Σ(charge × reps × %1RM)/100 · Métabolique = RPE × durée (sRPE).</p>
+        <div class="load-chart">
+          @for (l of loadPoints(); track l.sessionDate) {
+            <div class="load-bar-col">
+              <div class="load-bar" [style.height.%]="l.mechanicalLoad / maxLoad() * 100">
+                <span class="load-meta" [style.height.%]="l.metabolicLoad / maxLoad() * 100"></span>
+              </div>
+              <span class="load-val metric">{{ l.mechanicalLoad }}</span>
+              <span class="field-hint">{{ l.sessionDate | date: 'dd/MM' }}</span>
+            </div>
+          }
+        </div>
+        <div class="load-legend">
+          <span><i class="swatch swatch-meca"></i> Charge mécanique (UA)</span>
+          <span><i class="swatch swatch-metab"></i> Charge métabolique (UA)</span>
+        </div>
+      } @else {
+        <p class="empty-hint">Aucune charge de force enregistrée pour cet athlète.</p>
       }
     }
   </div>

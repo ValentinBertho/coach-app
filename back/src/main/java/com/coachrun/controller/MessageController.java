@@ -4,6 +4,8 @@ import com.coachrun.dto.request.MessageRequest;
 import com.coachrun.dto.response.MessageResponse;
 import com.coachrun.security.AuthPrincipal;
 import com.coachrun.service.MessageService;
+import com.coachrun.service.MessageStreamService;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,10 +30,17 @@ import java.util.UUID;
 public class MessageController {
 
     private final MessageService messageService;
+    private final MessageStreamService streamService;
 
     @GetMapping
     public List<MessageResponse> thread(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
         return messageService.coachThread(clubId, athleteId);
+    }
+
+    /** Flux temps réel (SSE) des nouveaux messages du fil de l'athlète. */
+    @GetMapping("/stream")
+    public SseEmitter stream(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
+        return streamService.subscribe(athleteId);
     }
 
     @PostMapping

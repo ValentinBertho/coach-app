@@ -98,3 +98,122 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ===================== CYCLES ===================== */
+.cycle-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) 1fr;
+  gap: var(--sp-4);
+  align-items: start;
+}
+.cycle-session-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.cycle-session-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.cycle-session-opt.selected {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+.cycle-list-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.assign-card h3 {
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .cycle-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.test-record {
+  margin-top: var(--sp-4);
+}
+.test-record .zones-title {
+  margin-top: var(--sp-4);
+}
+
+/* ===================== CHARGE INTERNE (UA) ===================== */
+.load-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-3);
+  height: 180px;
+  padding: var(--sp-3) 0;
+}
+.load-bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 1;
+  gap: var(--sp-1);
+  height: 100%;
+}
+.load-bar {
+  position: relative;
+  width: 60%;
+  min-height: 4px;
+  background: var(--primary);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.load-meta {
+  display: block;
+  width: 45%;
+  min-height: 2px;
+  background: var(--accent, #f5a623);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.load-val {
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.load-legend {
+  display: flex;
+  gap: var(--sp-4);
+  font-size: 0.8rem;
+  color: var(--ink-2, #888);
+}
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+}
+.swatch-meca { background: var(--primary); }
+.swatch-metab { background: var(--accent, #f5a623); }
+
+.session-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.session-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+.session-card .edit-hint {
+  display: block;
+  margin-top: var(--sp-2);
+  font-size: 0.78rem;
+  color: var(--primary);
+}

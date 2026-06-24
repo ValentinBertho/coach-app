@@ -1,6 +1,7 @@
 package com.coachrun.engine;
 
 import com.coachrun.entity.enums.RmFormula;
+import com.coachrun.entity.enums.StrengthTestProtocol;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -62,6 +63,20 @@ public class OneRmEngine {
             case EPLEY -> epley1RM(weight, reps);
             case BRZYCKI -> brzycki1RM(weight, reps);
             case RIR_BASED -> rirBased1RM(weight, reps, rir == null ? 0 : rir);
+        };
+    }
+
+    /**
+     * Dérive le e1RM d'un test selon son protocole (cf. DARI Lab §6.5).
+     * <ul>
+     *   <li>{@code TRUE_1RM} et {@code ISO_MVC} : la charge mesurée est le 1RM.</li>
+     *   <li>{@code REP_TEST_3_5} et {@code AMRAP_TEST} : estimation Nuzzo sur les reps réalisées.</li>
+     * </ul>
+     */
+    public double e1rmForTest(StrengthTestProtocol protocol, double weight, Integer reps) {
+        return switch (protocol) {
+            case TRUE_1RM, ISO_MVC -> weight;
+            case REP_TEST_3_5, AMRAP_TEST -> nuzzo1RM(weight, reps == null || reps < 1 ? 1 : reps);
         };
     }
 

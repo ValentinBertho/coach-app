@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Message } from '../../core/models/message.model';
@@ -18,7 +18,7 @@ import { ToastService } from '../../core/services/toast.service';
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.scss',
 })
-export class ChatComponent implements OnInit {
+export class ChatComponent implements OnInit, OnDestroy {
   readonly athleteId = input<string>();
 
   private readonly messageService = inject(MessageService);
@@ -31,8 +31,20 @@ export class ChatComponent implements OnInit {
   readonly backLink = computed(() => (this.athleteId() ? ['/app/athletes', this.athleteId()!] : ['/athlete/today']));
   draft = '';
 
+  private stream?: EventSource;
+
   ngOnInit(): void {
     this.load();
+    this.stream = this.messageService.stream(this.athleteId(), (m) => this.append(m));
+  }
+
+  ngOnDestroy(): void {
+    this.stream?.close();
+  }
+
+  /** Ajoute un message reçu en temps réel, en évitant les doublons (écho de notre envoi). */
+  private append(m: Message): void {
+    this.messages.update((list) => (list.some((x) => x.id === m.id) ? list : [...list, m]));
   }
 
   load(): void {
@@ -58,7 +70,7 @@ export class ChatComponent implements OnInit {
       : this.messageService.mySend(body);
     obs.subscribe({
       next: (m) => {
-        this.messages.update((list) => [...list, m]);
+        this.append(m);
         this.draft = '';
       },
       error: () => this.toast.error('Envoi impossible.'),

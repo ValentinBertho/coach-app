@@ -7,6 +7,7 @@ import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Athlete1rmProfile;
 import com.coachrun.entity.EstimatedOneRm;
 import com.coachrun.entity.ScheduledStrengthSession;
+import com.coachrun.entity.StrengthLoadTracking;
 import com.coachrun.entity.StrengthResult;
 import com.coachrun.entity.enums.RmFormula;
 import com.coachrun.exception.NotFoundException;
@@ -44,7 +45,9 @@ public class StrengthResultService {
     private final EstimatedOneRmRepository estimatedRepository;
     private final Athlete1rmProfileRepository profileRepository;
     private final AthleteRepository athleteRepository;
+    private final com.coachrun.repository.StrengthLoadTrackingRepository loadTrackingRepository;
     private final OneRmEngine oneRmEngine;
+    private final com.coachrun.engine.StrengthLoadEngine loadEngine;
 
     /** Enregistre les séries réalisées d'une séance et met à jour le e1RM par exercice. */
     @Transactional
@@ -56,6 +59,9 @@ public class StrengthResultService {
 
         // Meilleur e1RM par exercice (et la série source associée).
         Map<UUID, BestSet> bestByExercise = new LinkedHashMap<>();
+        // Séries pour le calcul de charge interne (UA) ; 1RM mis en cache par exercice.
+        List<com.coachrun.engine.StrengthLoadEngine.SetLoad> setLoads = new ArrayList<>();
+        Map<UUID, Double> oneRmByExercise = new LinkedHashMap<>();
 
         for (StrengthResultRequest e : entries) {
             StrengthResult r = new StrengthResult();
@@ -79,13 +85,57 @@ public class StrengthResultService {
                     bestByExercise.put(e.exerciseId(), new BestSet(e1rm, e, r.getId()));
                 }
             }
+
+            if (e.chargeKg() != null && e.repsDone() != null && e.repsDone() > 0) {
+                Double oneRm = oneRmByExercise.computeIfAbsent(e.exerciseId(), id ->
+                        profileRepository.findByAthleteIdAndExerciseId(athlete.getId(), id)
+                                .map(p -> p.getRmKg().doubleValue()).orElse(null));
+                setLoads.add(new com.coachrun.engine.StrengthLoadEngine.SetLoad(
+                        e.chargeKg().doubleValue(), e.repsDone(), oneRm,
+                        e.rpeDone() == null ? null : e.rpeDone().intValue(),
+                        e.durationSecDone()));
+            }
         }
 
         List<E1rmHistoryResponse> updates = new ArrayList<>();
         for (Map.Entry<UUID, BestSet> ex : bestByExercise.entrySet()) {
             updates.add(applyBest(athlete, ex.getKey(), ex.getValue()));
         }
+
+        trackLoad(athlete, scheduled, setLoads);
         return updates;
+    }
+
+    /** Calcule et historise la charge interne (UA) de la séance réalisée. */
+    private void trackLoad(Athlete athlete, ScheduledStrengthSession scheduled,
+                           List<com.coachrun.engine.StrengthLoadEngine.SetLoad> setLoads) {
+        if (setLoads.isEmpty()) {
+            return;
+        }
+        double mechanical = loadEngine.mechanicalLoad(setLoads);
+        Integer sessionRpe = loadEngine.sessionRpe(setLoads);
+        double durationMin = loadEngine.totalDurationMin(setLoads);
+        double metabolic = loadEngine.metabolicLoad(sessionRpe, durationMin);
+
+        StrengthLoadTracking load = new StrengthLoadTracking();
+        load.setAthlete(athlete);
+        load.setScheduledSessionId(scheduled.getId());
+        load.setSessionDate(scheduled.getScheduledDate());
+        load.setMechanicalLoad(BigDecimal.valueOf(mechanical));
+        load.setMetabolicLoad(BigDecimal.valueOf(metabolic));
+        loadTrackingRepository.save(load);
+        log.info("Charge force athlète={} → méca {} UA / métab {} UA", athlete.getId(), mechanical, metabolic);
+    }
+
+    public List<com.coachrun.dto.response.StrengthLoadResponse> loadTracking(
+            UUID clubId, UUID athleteId, java.time.LocalDate from, java.time.LocalDate to) {
+        if (athleteRepository.findByIdAndClubId(athleteId, clubId).isEmpty()) {
+            throw new NotFoundException("Athlète introuvable.");
+        }
+        List<StrengthLoadTracking> rows = (from != null && to != null)
+                ? loadTrackingRepository.findByAthleteIdAndSessionDateBetweenOrderBySessionDateAsc(athleteId, from, to)
+                : loadTrackingRepository.findByAthleteIdOrderBySessionDateAsc(athleteId);
+        return rows.stream().map(com.coachrun.dto.response.StrengthLoadResponse::from).toList();
     }
 
     public List<E1rmHistoryResponse> history(UUID clubId, UUID athleteId, UUID exerciseId) {

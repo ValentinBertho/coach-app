@@ -1,0 +1,147 @@
+<section class="page-header editor-head">
+  <div>
+    <a [routerLink]="['/app/strength']" class="back-link">← Séances de force</a>
+    <h1 class="display-sm">{{ name() || 'Séance de force' }} 💪</h1>
+    <p class="subtitle">Structure : blocs, formats avancés et prescription des exercices.</p>
+  </div>
+  <div class="editor-head-actions">
+    <div class="form-group preview-picker">
+      <label>Aperçu charges (athlète)</label>
+      <select class="form-control" [ngModel]="previewAthlete()" (ngModelChange)="onAthleteChange($event)">
+        <option value="">Aucun</option>
+        @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+      </select>
+    </div>
+    <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">
+      {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
+    </button>
+  </div>
+</section>
+
+@if (loading()) {
+  <div class="card">Chargement…</div>
+} @else {
+  @if (empty()) {
+    <div class="card empty-state">
+      <span style="font-size:32px">🧱</span>
+      <h2>Séance vide</h2>
+      <p class="field-hint">Ajoute un premier bloc (échauffement, principal, accessoire…).</p>
+    </div>
+  }
+
+  <div cdkDropList (cdkDropListDropped)="drop($event)">
+  @for (block of blocks(); track block.id; let bi = $index) {
+    <div class="card block-card" cdkDrag>
+      <div class="block-head">
+        <span class="drag-handle" cdkDragHandle title="Glisser pour réordonner">⠿</span>
+        <div class="block-meta">
+          <select class="form-control" [(ngModel)]="block.blockType" (ngModelChange)="touch()">
+            @for (t of blockTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
+          </select>
+          <select class="form-control" [(ngModel)]="block.format" (ngModelChange)="onFormatChange(block)">
+            @for (f of formats; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
+          </select>
+        </div>
+        <div class="block-actions">
+          <button type="button" class="btn btn-ghost btn-sm danger" (click)="removeBlock(block.id)">Supprimer</button>
+        </div>
+      </div>
+
+      <!-- Paramètres spécifiques au format -->
+      @if (showDuration(block)) {
+        <div class="format-params">
+          <div class="form-group"><label>Durée totale (s)</label>
+            <input type="number" class="form-control" [(ngModel)]="block.durationSec" (ngModelChange)="touch()" /></div>
+        </div>
+      }
+      @if (showCircuit(block)) {
+        <div class="format-params">
+          <div class="form-group"><label>Tours</label><input type="number" class="form-control" [(ngModel)]="block.rounds" (ngModelChange)="touch()" /></div>
+          <div class="form-group"><label>Effort (s)</label><input type="number" class="form-control" [(ngModel)]="block.workSec" (ngModelChange)="touch()" /></div>
+          <div class="form-group"><label>Repos (s)</label><input type="number" class="form-control" [(ngModel)]="block.restSec" (ngModelChange)="touch()" /></div>
+        </div>
+      }
+
+      <!-- Exercices -->
+      @for (item of block.exercises; track item; let i = $index) {
+        <div class="ex-row">
+          <div class="ex-row-head">
+            <strong>{{ item.exerciseName || label(item.exerciseId) }}</strong>
+            @if (chargeAt(bi, i); as c) {
+              @if (c.computable) {
+                <span class="charge-chip">🎯 {{ c.chargeLabel }}<span class="charge-effort">· {{ c.effortLabel }}</span></span>
+              } @else {
+                <span class="charge-chip muted">{{ c.effortLabel || '1RM manquant' }}</span>
+              }
+            }
+            <button type="button" class="btn btn-ghost btn-sm danger" (click)="removeExercise(block, i)">✕</button>
+          </div>
+          <div class="presc-grid">
+            <div class="form-group"><label>Type de série</label>
+              <select class="form-control" [(ngModel)]="item.setType" (ngModelChange)="touch()">
+                @for (st of setTypes; track st.value) { <option [value]="st.value">{{ st.label }}</option> }
+              </select>
+            </div>
+            <div class="form-group"><label>Séries</label><input type="number" class="form-control" [(ngModel)]="item.prescription.sets" (ngModelChange)="touch()" /></div>
+            @if (block.format === 'ISOMETRIE') {
+              <div class="form-group"><label>Durée (s)</label><input type="number" class="form-control" [(ngModel)]="item.prescription.durationSec" (ngModelChange)="touch()" /></div>
+            } @else {
+              <div class="form-group"><label>Répétitions</label><input type="number" class="form-control" [(ngModel)]="item.prescription.repsFixed" (ngModelChange)="touch()" /></div>
+            }
+
+            <div class="form-group"><label>Réf. charge</label>
+              <select class="form-control" [(ngModel)]="item.prescription.chargeRefType" (ngModelChange)="touch()">
+                @for (c of chargeRefs; track c.value) { <option [value]="c.value">{{ c.label }}</option> }
+              </select>
+            </div>
+            @if (item.prescription.chargeRefType === 'PCT_RM_RANGE') {
+              <div class="form-group"><label>% RM min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargePctRmMin" (ngModelChange)="touch()" /></div>
+              <div class="form-group"><label>% RM max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargePctRmMax" (ngModelChange)="touch()" /></div>
+            } @else if (item.prescription.chargeRefType === 'PCT_RM') {
+              <div class="form-group"><label>% RM</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargePctRmMin" (ngModelChange)="touch()" /></div>
+            } @else if (item.prescription.chargeRefType === 'KG_RANGE') {
+              <div class="form-group"><label>kg min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargeKgMin" (ngModelChange)="touch()" /></div>
+              <div class="form-group"><label>kg max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargeKgMax" (ngModelChange)="touch()" /></div>
+            } @else if (item.prescription.chargeRefType === 'KG_FIXE') {
+              <div class="form-group"><label>kg</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargeKgMin" (ngModelChange)="touch()" /></div>
+            }
+
+            <div class="form-group"><label>Réf. effort</label>
+              <select class="form-control" [(ngModel)]="item.prescription.effortRefType" (ngModelChange)="touch()">
+                @for (e of effortRefs; track e.value) { <option [value]="e.value">{{ e.label }}</option> }
+              </select>
+            </div>
+            @if (item.prescription.effortRefType === 'RIR_RANGE') {
+              <div class="form-group"><label>RIR min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rirMin" (ngModelChange)="touch()" /></div>
+              <div class="form-group"><label>RIR max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rirMax" (ngModelChange)="touch()" /></div>
+            } @else if (item.prescription.effortRefType === 'RIR') {
+              <div class="form-group"><label>RIR</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rirMin" (ngModelChange)="touch()" /></div>
+            } @else if (item.prescription.effortRefType === 'RPE_RANGE') {
+              <div class="form-group"><label>RPE min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rpeMin" (ngModelChange)="touch()" /></div>
+              <div class="form-group"><label>RPE max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rpeMax" (ngModelChange)="touch()" /></div>
+            } @else if (item.prescription.effortRefType === 'RPE') {
+              <div class="form-group"><label>RPE</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rpeMin" (ngModelChange)="touch()" /></div>
+            }
+
+            <div class="form-group"><label>Tempo</label><input class="form-control" placeholder="3-1-X-1" [(ngModel)]="item.prescription.tempo" (ngModelChange)="touch()" /></div>
+            <div class="form-group"><label>Repos min (s)</label><input type="number" class="form-control" [(ngModel)]="item.prescription.restSecMin" (ngModelChange)="touch()" /></div>
+            <div class="form-group"><label>Repos max (s)</label><input type="number" class="form-control" [(ngModel)]="item.prescription.restSecMax" (ngModelChange)="touch()" /></div>
+          </div>
+        </div>
+      } @empty {
+        <p class="field-hint">Aucun exercice dans ce bloc.</p>
+      }
+
+      <div class="add-ex">
+        <select class="form-control" [(ngModel)]="exercisePick[block.id]">
+          <option value="">+ Ajouter un exercice…</option>
+          @for (e of exercises(); track e.id) { <option [value]="e.id">{{ e.name }}</option> }
+        </select>
+        <button type="button" class="btn btn-accent btn-sm" [disabled]="!exercisePick[block.id]" (click)="addExercise(block)">Ajouter</button>
+      </div>
+    </div>
+  }
+  </div>
+
+  <button type="button" class="btn btn-ghost add-block" (click)="addBlock()">+ Ajouter un bloc</button>
+}

@@ -30,6 +30,7 @@ import com.coachrun.entity.enums.RunDistance;
 import com.coachrun.entity.enums.TestType;
 import com.coachrun.entity.Athlete1rmProfile;
 import com.coachrun.entity.EstimatedOneRm;
+import com.coachrun.entity.StrengthLoadTracking;
 import com.coachrun.entity.PpExercise;
 import com.coachrun.entity.StrengthSession;
 import com.coachrun.entity.WorkoutTemplate;
@@ -107,6 +108,8 @@ public class DemoSeedService {
     private final com.coachrun.repository.Athlete1rmProfileRepository profile1rmRepository;
     private final com.coachrun.repository.StrengthSessionRepository strengthSessionRepository;
     private final com.coachrun.repository.EstimatedOneRmRepository estimatedRepository;
+    private final com.coachrun.repository.StrengthTestRepository strengthTestRepository;
+    private final com.coachrun.repository.StrengthLoadTrackingRepository strengthLoadRepository;
     private final com.coachrun.repository.ClubMemberRepository clubMemberRepository;
     private final com.coachrun.repository.CoachAthleteRelationRepository relationRepository;
     private final com.coachrun.repository.AthleteCoachPermissionRepository permissionRepository;
@@ -126,6 +129,9 @@ public class DemoSeedService {
         if (isSeeded()) {
             return false;
         }
+        // Réinitialise la séquence pseudo-aléatoire : le service étant un singleton, chaque appel
+        // à seed() doit produire un jeu de données identique (déterminisme inter-tests).
+        random.setSeed(42);
         // Administrateur plateforme (sans club)
         userRepository.save(account(ADMIN_EMAIL, "Admin Plateforme", UserRole.PLATFORM_ADMIN, null, null));
 
@@ -266,8 +272,8 @@ public class DemoSeedService {
         PpExercise squat = newExercise(club, "Squat barre", ExerciseCategory.FORCE_MAX,
                 MuscleGroup.QUADRICEPS, EquipmentType.BARRE);
         newExercise(club, "Soulevé de terre", ExerciseCategory.FORCE_MAX, MuscleGroup.ISCHIOS, EquipmentType.BARRE);
-        newExercise(club, "Gainage planche", ExerciseCategory.GAINAGE, MuscleGroup.TRONC, EquipmentType.POIDS_DU_CORPS);
-        newExercise(club, "Fentes haltères", ExerciseCategory.PUISSANCE, MuscleGroup.FESSIERS, EquipmentType.HALTERES);
+        PpExercise gainage = newExercise(club, "Gainage planche", ExerciseCategory.GAINAGE, MuscleGroup.TRONC, EquipmentType.POIDS_DU_CORPS);
+        PpExercise fentes = newExercise(club, "Fentes haltères", ExerciseCategory.PUISSANCE, MuscleGroup.FESSIERS, EquipmentType.HALTERES);
 
         Athlete1rmProfile rm = new Athlete1rmProfile();
         rm.setAthlete(demoAthlete);
@@ -276,18 +282,26 @@ public class DemoSeedService {
         rm.setSource("tested");
         profile1rmRepository.save(rm);
 
-        // Séance de force structurée (bloc principal : Squat 4×5 à 80–85 % RM, RIR 1–3).
+        // Séance de force structurée multi-blocs : activation (circuit) → principal (squat) → accessoire (iso).
         StrengthSession session = new StrengthSession();
         session.setClub(club);
         session.setName("Force max bas du corps");
         session.setFavorite(true);
         session.setStructureJson(("""
-                {"blocks":[{"id":"b1","blockType":"PRINCIPAL","format":"CLASSIQUE","exercises":[
-                  {"exerciseId":"%s","exerciseName":"Squat barre","setType":"STANDARD",
-                   "prescription":{"chargeRefType":"PCT_RM_RANGE","chargePctRmMin":80,"chargePctRmMax":85,
-                                   "effortRefType":"RIR_RANGE","rirMin":1,"rirMax":3,"sets":4,"repsFixed":5,
-                                   "tempo":"3-1-X-1","restSecMin":120,"restSecMax":180}}]}]}""")
-                .formatted(squat.getId()));
+                {"blocks":[
+                  {"id":"b0","blockType":"ACTIVATION","format":"CIRCUIT","rounds":3,"workSec":40,"restSec":20,"exercises":[
+                    {"exerciseId":"%s","exerciseName":"Fentes haltères","setType":"STANDARD",
+                     "prescription":{"chargeRefType":"KG_FIXE","chargeKgMin":12,
+                                     "effortRefType":"RPE","rpeMin":7,"sets":3,"repsFixed":10,"restSecMin":20,"restSecMax":20}}]},
+                  {"id":"b1","blockType":"PRINCIPAL","format":"CLASSIQUE","exercises":[
+                    {"exerciseId":"%s","exerciseName":"Squat barre","setType":"STANDARD",
+                     "prescription":{"chargeRefType":"PCT_RM_RANGE","chargePctRmMin":80,"chargePctRmMax":85,
+                                     "effortRefType":"RIR_RANGE","rirMin":1,"rirMax":3,"sets":4,"repsFixed":5,
+                                     "tempo":"3-1-X-1","restSecMin":120,"restSecMax":180}}]},
+                  {"id":"b2","blockType":"ACCESSOIRE","format":"ISOMETRIE","exercises":[
+                    {"exerciseId":"%s","exerciseName":"Gainage planche","setType":"ISO_YIELDING",
+                     "prescription":{"effortRefType":"RPE","rpeMin":8,"sets":3,"durationSec":45,"restSecMin":45,"restSecMax":60}}]}]}""")
+                .formatted(fentes.getId(), squat.getId(), gainage.getId()));
         session = strengthSessionRepository.save(session);
 
         // Assignation de la séance de force au calendrier de l'athlète démo (cette semaine).
@@ -310,6 +324,39 @@ public class DemoSeedService {
             jdbcTemplate.update("update estimated_1rm set created_at = ? where id = ?",
                     java.sql.Timestamp.from(Instant.now().minus(daysAgo[i], ChronoUnit.DAYS)), h.getId());
         }
+
+        // Tests de force datés (protocoles DARI Lab) sur le Squat.
+        seedStrengthTest(demoAthlete, squat.getId(),
+                com.coachrun.entity.enums.StrengthTestProtocol.REP_TEST_3_5, 100, 5, 70, 116.0);
+        seedStrengthTest(demoAthlete, squat.getId(),
+                com.coachrun.entity.enums.StrengthTestProtocol.TRUE_1RM, 120, 1, 5, 120.0);
+
+        // Suivi de charge interne (UA méca/métab) sur les dernières séances de force.
+        int[] loadDaysAgo = {28, 21, 14, 7, 2};
+        double[] meca = {1850, 2100, 1980, 2240, 2050};
+        double[] metab = {360, 400, 380, 420, 390};
+        for (int i = 0; i < loadDaysAgo.length; i++) {
+            StrengthLoadTracking load = new StrengthLoadTracking();
+            load.setAthlete(demoAthlete);
+            load.setSessionDate(LocalDate.now().minusDays(loadDaysAgo[i]));
+            load.setMechanicalLoad(BigDecimal.valueOf(meca[i]));
+            load.setMetabolicLoad(BigDecimal.valueOf(metab[i]));
+            strengthLoadRepository.save(load);
+        }
+    }
+
+    private void seedStrengthTest(Athlete athlete, java.util.UUID exerciseId,
+                                  com.coachrun.entity.enums.StrengthTestProtocol protocol,
+                                  double weightKg, int reps, int daysAgo, double e1rm) {
+        com.coachrun.entity.StrengthTest t = new com.coachrun.entity.StrengthTest();
+        t.setAthlete(athlete);
+        t.setExerciseId(exerciseId);
+        t.setProtocol(protocol);
+        t.setTestDate(LocalDate.now().minusDays(daysAgo));
+        t.setWeightKg(BigDecimal.valueOf(weightKg));
+        t.setReps(reps);
+        t.setComputedE1rmKg(BigDecimal.valueOf(e1rm));
+        strengthTestRepository.save(t);
     }
 
     /** Multi-coach DARI Lab : rôles club, coach référent, statut privé/club, permission accordée. */

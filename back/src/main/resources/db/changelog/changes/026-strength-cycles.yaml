@@ -1,0 +1,33 @@
+# ============================================================================
+# 026 — Cycles de préparation physique (cf. DARI Lab §7.6).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 026-strength-cycles
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: strength_cycles
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: weeks, type: INT, constraints: { nullable: false } }
+              - column: { name: objective, type: VARCHAR(255) }
+              - column: { name: description, type: VARCHAR(2048) }
+              - column: { name: structure_json, type: VARCHAR(20000) }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_strength_cycles_club
+            baseTableName: strength_cycles
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_strength_cycles_club
+            tableName: strength_cycles
+            columns:
+              - column: { name: club_id }

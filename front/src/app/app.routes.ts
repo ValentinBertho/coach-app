@@ -80,6 +80,13 @@ export const routes: Routes = [
           import('./features/strength/strength.component').then((m) => m.StrengthComponent),
       },
       {
+        path: 'strength/sessions/:sessionId/structure',
+        loadComponent: () =>
+          import('./features/strength/strength-session-editor.component').then(
+            (m) => m.StrengthSessionEditorComponent
+          ),
+      },
+      {
         path: 'plans',
         loadComponent: () =>
           import('./features/plans/plan-list.component').then((m) => m.PlanListComponent),
