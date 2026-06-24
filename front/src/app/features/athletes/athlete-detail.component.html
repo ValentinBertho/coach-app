@@ -1,23 +1,50 @@
 @if (athlete(); as a) {
-  <section class="page-header">
-    <div class="detail-head">
+  <!-- ===== Header cockpit sticky ===== -->
+  <header class="cockpit-head">
+    <div class="cockpit-head__main">
       <span class="avatar avatar-lg">{{ a.firstName[0] }}{{ a.lastName[0] }}</span>
-      <div>
-        <h1 class="display-sm">{{ a.firstName }} {{ a.lastName }}</h1>
-        <p class="subtitle">{{ a.email || 'Pas d\'email' }}</p>
+      <div class="cockpit-id">
+        <div class="cockpit-id__title">
+          <h1 class="display-sm">{{ a.firstName }} {{ a.lastName }}</h1>
+          <span class="badge" [class]="statusBadges[a.status]">{{ statusLabels[a.status] }}</span>
+          @if (isPrivate()) {
+            <span class="badge badge-neutral" title="Athlète privé (hors club)">🔒 Privé</span>
+          } @else {
+            @for (club of a.clubs; track club.id) { <span class="badge badge-info">{{ club.name }}</span> }
+          }
+          @if (a.level) { <span class="badge badge-neutral">{{ levelLabels[a.level] }}</span> }
+        </div>
+        <p class="subtitle">
+          {{ a.email || 'Pas d\'email' }}
+          @if (a.coaches.length) {
+            · Coachs : {{ a.coaches.length }}
+          }
+        </p>
+      </div>
+      <div class="cockpit-actions">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="exportProgram()">📄 PDF</button>
+        <a [routerLink]="['/app/athletes', a.id, 'edit']" class="btn btn-ghost btn-sm">Modifier</a>
+        <button type="button" class="btn btn-primary btn-sm" (click)="invite()">Inviter</button>
       </div>
     </div>
-    <div class="detail-actions">
-      <a [routerLink]="['/app/athletes', a.id, 'tests']" class="btn btn-ghost">Tests lactate</a>
-      <a [routerLink]="['/app/athletes', a.id, 'load']" class="btn btn-ghost">Charge</a>
-      <a [routerLink]="['/app/athletes', a.id, 'messages']" class="btn btn-ghost">Messages</a>
-      <a [routerLink]="['/app/athletes', a.id, 'races']" class="btn btn-ghost">Objectifs</a>
-      <a [routerLink]="['/app/athletes', a.id, 'activities']" class="btn btn-ghost">Activités</a>
-      <a [routerLink]="['/app/athletes', a.id, 'edit']" class="btn btn-ghost">Modifier</a>
-      <button type="button" class="btn btn-ghost" (click)="exportProgram()">📄 Programme PDF</button>
-      <button type="button" class="btn btn-primary" (click)="invite()">Inviter</button>
-    </div>
-  </section>
+
+    <!-- Stat strip : valeurs de référence en tabular -->
+    <dl class="stat-strip">
+      <div class="stat-strip__item"><dt>FC max</dt><dd class="metric">{{ a.hrMax ?? '—' }}<small>{{ a.hrMax ? 'bpm' : '' }}</small></dd></div>
+      <div class="stat-strip__item"><dt>FC repos</dt><dd class="metric">{{ a.hrRest ?? '—' }}<small>{{ a.hrRest ? 'bpm' : '' }}</small></dd></div>
+      <div class="stat-strip__item"><dt>VMA</dt><dd class="metric">{{ a.vma ?? '—' }}<small>{{ a.vma ? 'km/h' : '' }}</small></dd></div>
+      <div class="stat-strip__item"><dt>Poids</dt><dd class="metric">{{ a.weightKg ?? '—' }}<small>{{ a.weightKg ? 'kg' : '' }}</small></dd></div>
+    </dl>
+
+    <!-- Sous-navigation (onglets vers les modules de l'athlète) -->
+    <nav class="sub-nav" aria-label="Sections de l'athlète">
+      <a [routerLink]="['/app/athletes', a.id, 'tests']" routerLinkActive="active">Tests lactate</a>
+      <a [routerLink]="['/app/athletes', a.id, 'load']" routerLinkActive="active">Charge</a>
+      <a [routerLink]="['/app/athletes', a.id, 'races']" routerLinkActive="active">Objectifs</a>
+      <a [routerLink]="['/app/athletes', a.id, 'activities']" routerLinkActive="active">Activités</a>
+      <a [routerLink]="['/app/athletes', a.id, 'messages']" routerLinkActive="active">Messages</a>
+    </nav>
+  </header>
 
   @if (inviteUrl(); as url) {
     <div class="card invite-panel">
@@ -28,25 +55,6 @@
       <button type="button" class="btn btn-accent btn-sm" (click)="copyInvite()">Copier</button>
     </div>
   }
-
-  <div class="stats-grid">
-    <div class="card stat-card">
-      <span class="stat-label">FC max</span>
-      <span class="metric stat-value">{{ a.hrMax ? a.hrMax + ' bpm' : '—' }}</span>
-    </div>
-    <div class="card stat-card">
-      <span class="stat-label">FC repos</span>
-      <span class="metric stat-value">{{ a.hrRest ? a.hrRest + ' bpm' : '—' }}</span>
-    </div>
-    <div class="card stat-card">
-      <span class="stat-label">VMA</span>
-      <span class="metric stat-value">{{ a.vma ? a.vma + ' km/h' : '—' }}</span>
-    </div>
-    <div class="card stat-card">
-      <span class="stat-label">Poids</span>
-      <span class="metric stat-value">{{ a.weightKg ? a.weightKg + ' kg' : '—' }}</span>
-    </div>
-  </div>
 
   <app-physio-panel [athleteId]="a.id" />
 

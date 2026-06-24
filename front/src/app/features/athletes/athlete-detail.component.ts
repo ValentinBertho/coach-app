@@ -1,8 +1,8 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { Athlete, Ref } from '../../core/models/athlete.model';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { Athlete, AthleteLevel, AthleteStatus, Ref } from '../../core/models/athlete.model';
 import { TrainingPlan } from '../../core/models/training-plan.model';
 import { StravaStatus } from '../../core/models/strava.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
@@ -10,11 +10,15 @@ import { AthleteService } from '../../core/services/athlete.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PhysioPanelComponent } from './physio-panel.component';
 
+const STATUS_LABELS: Record<AthleteStatus, string> = { ACTIVE: 'Actif', PAUSED: 'En pause', ARCHIVED: 'Archivé' };
+const STATUS_BADGES: Record<AthleteStatus, string> = { ACTIVE: 'badge-success', PAUSED: 'badge-warning', ARCHIVED: 'badge-neutral' };
+const LEVEL_LABELS: Record<AthleteLevel, string> = { BEGINNER: 'Débutant', INTERMEDIATE: 'Intermédiaire', ADVANCED: 'Avancé', ELITE: 'Élite' };
+
 @Component({
   selector: 'app-athlete-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, FormsModule, DatePipe, PhysioPanelComponent],
+  imports: [RouterLink, RouterLinkActive, FormsModule, DatePipe, PhysioPanelComponent],
   templateUrl: './athlete-detail.component.html',
   styleUrl: './athletes.scss',
 })
@@ -28,6 +32,13 @@ export class AthleteDetailComponent implements OnInit {
   readonly athlete = signal<Athlete | null>(null);
   readonly loading = signal(true);
   readonly inviteUrl = signal<string | null>(null);
+
+  readonly statusLabels = STATUS_LABELS;
+  readonly statusBadges = STATUS_BADGES;
+  readonly levelLabels = LEVEL_LABELS;
+
+  /** Multi-tenant : athlète privé (hors club) vs rattaché à un ou plusieurs clubs. */
+  readonly isPrivate = computed(() => (this.athlete()?.clubs ?? []).length === 0);
 
   readonly assignableCoaches = signal<Ref[]>([]);
   readonly plans = signal<TrainingPlan[]>([]);
