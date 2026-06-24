@@ -1,7 +1,10 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import {
+  AcwrIndicatorComponent,
   DataOriginTagComponent,
+  EffortBadgeComponent,
   IntensityZoneBadgeComponent,
+  PainFatigueSelectorComponent,
   RangePrescriptionPillComponent,
   ReadinessGaugeComponent,
 } from '../../shared/components/physiology';
@@ -16,8 +19,11 @@ import {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    AcwrIndicatorComponent,
     DataOriginTagComponent,
+    EffortBadgeComponent,
     IntensityZoneBadgeComponent,
+    PainFatigueSelectorComponent,
     RangePrescriptionPillComponent,
     ReadinessGaugeComponent,
   ],
@@ -70,7 +76,7 @@ import {
       </section>
 
       <!-- État de forme -->
-      <section class="card">
+      <section class="card" style="margin-bottom: var(--sp-6);">
         <h3>État de forme (jamais dérivé du RPE seul)</h3>
         <div class="gauges">
           <app-readiness-gauge level="green" [fatigue]="3" [pain]="0" [acwr]="1.05" />
@@ -79,11 +85,44 @@ import {
           <app-readiness-gauge level="red" [fatigue]="8" [pain]="6" [acwr]="1.6" />
         </div>
       </section>
+
+      <!-- ACWR -->
+      <section class="card" style="margin-bottom: var(--sp-6);">
+        <h3>ACWR (bande de sécurité annotée)</h3>
+        <div class="gauges">
+          <app-acwr-indicator [value]="0.7" />
+          <app-acwr-indicator [value]="1.05" />
+          <app-acwr-indicator [value]="1.35" />
+          <app-acwr-indicator [value]="1.62" />
+        </div>
+      </section>
+
+      <!-- Effort RPE / RIR -->
+      <section class="card" style="margin-bottom: var(--sp-6);">
+        <h3>Effort prescrit vs ressenti</h3>
+        <div class="row">
+          <app-effort-badge kind="RPE" [min]="6" [max]="7" />
+          <app-effort-badge kind="RPE" [min]="6" [max]="7" [actual]="7" />
+          <app-effort-badge kind="RPE" [min]="6" [max]="7" [actual]="9" />
+          <app-effort-badge kind="RIR" [min]="1" [max]="2" />
+          <app-effort-badge kind="RIR" [min]="1" [max]="2" [actual]="0" />
+        </div>
+      </section>
+
+      <!-- Retour athlète : check 10 s -->
+      <section class="card">
+        <h3>Retour athlète (check 10 s)</h3>
+        <div class="feedback">
+          <app-pain-fatigue-selector kind="fatigue" [(value)]="fatigue" />
+          <app-pain-fatigue-selector kind="pain" [(value)]="pain" />
+        </div>
+      </section>
     </div>
   `,
   styles: [`
     .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-top: var(--sp-3); }
     .gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-4); margin-top: var(--sp-3); }
+    .feedback { display: flex; flex-direction: column; gap: var(--sp-5); margin-top: var(--sp-3); max-width: 520px; }
     h3 { margin: 0; }
   `],
 })
@@ -94,4 +133,8 @@ export class UiKitComponent {
     const s = Math.round(sec % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
+
+  /** État local du check 10 s (démo two-way). */
+  protected readonly fatigue = signal<number | null>(5);
+  protected readonly pain = signal<number | null>(null);
 }
