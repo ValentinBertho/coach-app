@@ -8,9 +8,16 @@ import {
   RangePrescriptionPillComponent,
   ReadinessGaugeComponent,
 } from '../../shared/components/physiology';
+import {
+  BottomSheetComponent,
+  MetricCardComponent,
+  SegmentedControlComponent,
+  StickyActionBarComponent,
+  type SegmentOption,
+} from '../../shared/components/ui';
 
 /**
- * Living styleguide des primitives physiologie (cf. docs/ux-redesign-blueprint.md).
+ * Living styleguide des primitives (cf. docs/ux-redesign-blueprint.md).
  * Sert de banc de validation visuelle ET de référence d'usage pour l'équipe.
  * Route dev : /dev/ui-kit.
  */
@@ -26,6 +33,10 @@ import {
     PainFatigueSelectorComponent,
     RangePrescriptionPillComponent,
     ReadinessGaugeComponent,
+    BottomSheetComponent,
+    MetricCardComponent,
+    SegmentedControlComponent,
+    StickyActionBarComponent,
   ],
   template: `
     <div class="container-standard" style="padding-block: var(--sp-8);">
@@ -110,19 +121,54 @@ import {
       </section>
 
       <!-- Retour athlète : check 10 s -->
-      <section class="card">
+      <section class="card" style="margin-bottom: var(--sp-6);">
         <h3>Retour athlète (check 10 s)</h3>
         <div class="feedback">
           <app-pain-fatigue-selector kind="fatigue" [(value)]="fatigue" />
           <app-pain-fatigue-selector kind="pain" [(value)]="pain" />
         </div>
       </section>
+
+      <!-- Primitives UI transverses -->
+      <section class="card" style="margin-bottom: var(--sp-6);">
+        <h3>Cartes métriques</h3>
+        <div class="metrics">
+          <app-metric-card label="VDOT" [value]="54" origin="estime" [delta]="2" deltaLabel="vs M-1" />
+          <app-metric-card label="CTL (forme)" [value]="78" unit="UA" origin="calcule" [delta]="4" />
+          <app-metric-card label="Charge aiguë" [value]="412" unit="UA" tone="alert" [delta]="9" goodWhen="down" />
+          <app-metric-card label="Compliance" [loading]="true" />
+        </div>
+      </section>
+
+      <section class="card" style="margin-bottom: var(--sp-6);">
+        <h3>Contrôle segmenté</h3>
+        <div class="row">
+          <app-segmented-control [options]="viewOptions" [(value)]="calendarView" />
+          <span class="subtitle">Vue : {{ calendarView() }}</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Bottom sheet &amp; barre d'action</h3>
+        <button class="btn btn-primary" (click)="sheetOpen.set(true)">Ouvrir le bottom sheet</button>
+        <app-sticky-action-bar [floating]="true" style="margin-top: var(--sp-4);">
+          <div slot="info">Séance du jour · Tempo 8 km</div>
+          <button class="btn btn-ghost btn-sm">Reporter</button>
+          <button class="btn btn-primary btn-sm">Démarrer</button>
+        </app-sticky-action-bar>
+      </section>
     </div>
+
+    <app-bottom-sheet [(open)]="sheetOpen" title="Déplacer la séance">
+      <p class="subtitle">Choisissez un nouveau jour. Le contenu de la séance reste inchangé.</p>
+      <app-segmented-control [options]="dayOptions" [(value)]="targetDay" [ariaLabel]="'Jour cible'" />
+    </app-bottom-sheet>
   `,
   styles: [`
     .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-top: var(--sp-3); }
     .gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-4); margin-top: var(--sp-3); }
     .feedback { display: flex; flex-direction: column; gap: var(--sp-5); margin-top: var(--sp-3); max-width: 520px; }
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--sp-4); margin-top: var(--sp-3); }
     h3 { margin: 0; }
   `],
 })
@@ -137,4 +183,21 @@ export class UiKitComponent {
   /** État local du check 10 s (démo two-way). */
   protected readonly fatigue = signal<number | null>(5);
   protected readonly pain = signal<number | null>(null);
+
+  protected readonly viewOptions: SegmentOption[] = [
+    { value: 'day', label: 'Jour' },
+    { value: 'week', label: 'Semaine' },
+    { value: 'month', label: 'Mois' },
+  ];
+  protected readonly calendarView = signal('week');
+
+  protected readonly sheetOpen = signal(false);
+  protected readonly dayOptions: SegmentOption[] = [
+    { value: 'mon', label: 'Lun' },
+    { value: 'tue', label: 'Mar' },
+    { value: 'wed', label: 'Mer' },
+    { value: 'thu', label: 'Jeu' },
+    { value: 'fri', label: 'Ven' },
+  ];
+  protected readonly targetDay = signal('wed');
 }
