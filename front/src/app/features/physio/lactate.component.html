@@ -37,12 +37,26 @@
 
   <!-- Détection + courbe -->
   <div class="card lactate-result">
-    <h2>Profil lactate</h2>
+    <div class="result-head">
+      <h2>Profil lactate</h2>
+      @if (detection()) { <app-data-origin-tag origin="calcule" label="Détection Dmax" /> }
+    </div>
     @if (detection(); as d) {
       <div class="seuils-row">
-        <div class="seuil-box"><span class="stat-label">LT1</span><span class="metric">{{ d.lt1Kmh }} km/h</span><span class="field-hint">{{ d.fcLt1 }} bpm</span></div>
-        <div class="seuil-box"><span class="stat-label">LT2</span><span class="metric">{{ d.lt2Kmh }} km/h</span><span class="field-hint">{{ d.fcLt2 }} bpm</span></div>
-        <div class="seuil-box"><span class="stat-label">Seuil LT1</span><span class="metric">{{ d.lt1Threshold }} mmol</span></div>
+        <div class="seuil-box seuil-box--lt1">
+          <span class="stat-label">LT1 · sous-seuil</span>
+          <span class="metric seuil-val">{{ d.lt1Kmh }}<small>km/h</small></span>
+          <span class="field-hint">{{ d.fcLt1 }} bpm</span>
+        </div>
+        <div class="seuil-box seuil-box--lt2">
+          <span class="stat-label">LT2 · seuil</span>
+          <span class="metric seuil-val">{{ d.lt2Kmh }}<small>km/h</small></span>
+          <span class="field-hint">{{ d.fcLt2 }} bpm</span>
+        </div>
+        <div class="seuil-box">
+          <span class="stat-label">Seuil LT1</span>
+          <span class="metric seuil-val">{{ d.lt1Threshold }}<small>mmol</small></span>
+        </div>
       </div>
     } @else {
       <p class="field-hint">Saisis au moins 3 paliers pour détecter les seuils.</p>

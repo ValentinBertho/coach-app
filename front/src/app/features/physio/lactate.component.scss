@@ -91,3 +91,11 @@
   height: 3px;
   border-radius: 2px;
 }
+
+/* --- Refonte : en-tête origine + rails de seuils cohérents avec la courbe -- */
+.result-head { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.result-head h2 { margin: 0; }
+.seuil-val { font-size: var(--text-xl); font-weight: 800; font-variant-numeric: tabular-nums; }
+.seuil-val small { font-size: var(--text-xs); font-weight: 600; color: var(--ink-3); margin-left: 3px; }
+.seuil-box--lt1 { border-left: 3px solid var(--dari-yellow); padding-left: var(--sp-2); }
+.seuil-box--lt2 { border-left: 3px solid var(--dari-red); padding-left: var(--sp-2); }
