@@ -12,6 +12,7 @@ import {
   Ref,
 } from '../models/athlete.model';
 import { TrainingPlan } from '../models/training-plan.model';
+import { StravaStatus } from '../models/strava.model';
 import { Unavailability, UnavailabilityRequest } from '../models/unavailability.model';
 import { AuthService } from './auth.service';
 
@@ -43,6 +44,23 @@ export class AthleteService {
   exportProgram(id: string, from: string, to: string): Observable<Blob> {
     const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get(`${this.base()}/${id}/program/export.pdf`, { params, responseType: 'blob' });
+  }
+
+  // --- Strava ---
+  stravaStatus(id: string): Observable<StravaStatus> {
+    return this.http.get<StravaStatus>(`${this.base()}/${id}/strava`);
+  }
+  stravaAuthorizeUrl(id: string): Observable<{ url: string }> {
+    return this.http.get<{ url: string }>(`${this.base()}/${id}/strava/authorize`);
+  }
+  stravaConnect(id: string, code: string): Observable<StravaStatus> {
+    return this.http.post<StravaStatus>(`${this.base()}/${id}/strava/connect`, { code });
+  }
+  stravaImport(id: string): Observable<{ imported: number }> {
+    return this.http.post<{ imported: number }>(`${this.base()}/${id}/strava/import`, {});
+  }
+  stravaDisconnect(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base()}/${id}/strava`);
   }
 
   // --- Indisponibilités ---

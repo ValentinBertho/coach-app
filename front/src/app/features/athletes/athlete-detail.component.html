@@ -107,6 +107,27 @@
     </div>
   }
 
+  @if (strava(); as st) {
+    <div class="card">
+      <div class="card-head-row">
+        <h2>Sync Strava</h2>
+        @if (st.connected) { <span class="badge badge-success">Connecté</span> }
+      </div>
+      @if (!st.configured) {
+        <p class="empty-hint">L'intégration Strava n'est pas configurée sur ce serveur (identifiants OAuth manquants).</p>
+      } @else if (st.connected) {
+        <p class="field-hint">Compte Strava #{{ st.providerAthleteId }} lié.</p>
+        <div class="strava-actions">
+          <button type="button" class="btn btn-primary btn-sm" (click)="importStrava()">Importer les activités</button>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="disconnectStrava()">Déconnecter</button>
+        </div>
+      } @else {
+        <p class="field-hint">Connecte le compte Strava de l'athlète pour importer ses activités automatiquement.</p>
+        <button type="button" class="btn btn-accent btn-sm" (click)="connectStrava()">Connecter Strava</button>
+      }
+    </div>
+  }
+
   <div class="card">
     <div class="card-head-row">
       <h2>Indisponibilités</h2>

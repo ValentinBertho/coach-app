@@ -250,3 +250,9 @@
 .unavail-item .btn {
   margin-left: auto;
 }
+
+.strava-actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}

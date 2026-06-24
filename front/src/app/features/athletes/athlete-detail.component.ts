@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Athlete, Ref } from '../../core/models/athlete.model';
 import { TrainingPlan } from '../../core/models/training-plan.model';
+import { StravaStatus } from '../../core/models/strava.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -43,7 +44,11 @@ export class AthleteDetailComponent implements OnInit {
     { value: 'OTHER', label: 'Autre' },
   ];
 
+  // Strava
+  readonly strava = signal<StravaStatus | null>(null);
+
   ngOnInit(): void {
+    this.athleteService.stravaStatus(this.id()).subscribe((s) => this.strava.set(s));
     this.athleteService.get(this.id()).subscribe({
       next: (a) => {
         this.athlete.set(a);
@@ -94,6 +99,32 @@ export class AthleteDetailComponent implements OnInit {
 
   reasonLabel(reason: UnavailabilityReason): string {
     return this.reasons.find((r) => r.value === reason)?.label ?? reason;
+  }
+
+  // --- Strava ---
+  connectStrava(): void {
+    this.athleteService.stravaAuthorizeUrl(this.id()).subscribe({
+      next: ({ url }) => { window.location.href = url; },
+      error: () => this.toast.error('Intégration Strava non configurée sur ce serveur.'),
+    });
+  }
+
+  importStrava(): void {
+    this.toast.info('Import Strava en cours…');
+    this.athleteService.stravaImport(this.id()).subscribe({
+      next: ({ imported }) => {
+        this.toast.success(`${imported} activité(s) importée(s) ✅`);
+        this.athleteService.stravaStatus(this.id()).subscribe((s) => this.strava.set(s));
+      },
+      error: () => this.toast.error('Import impossible.'),
+    });
+  }
+
+  disconnectStrava(): void {
+    this.athleteService.stravaDisconnect(this.id()).subscribe(() => {
+      this.toast.info('Strava déconnecté.');
+      this.athleteService.stravaStatus(this.id()).subscribe((s) => this.strava.set(s));
+    });
   }
 
   /** Coachs du club non encore rattachés à cet athlète. */
