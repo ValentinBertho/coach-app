@@ -47,6 +47,7 @@ public class AthletePortalController {
     private final com.coachrun.service.MessageStreamService messageStreamService;
     private final com.coachrun.service.StrengthScheduleService strengthScheduleService;
     private final com.coachrun.service.StrengthResultService strengthResultService;
+    private final com.coachrun.service.ProgressionService progressionService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -105,6 +106,13 @@ public class AthletePortalController {
     public com.coachrun.dto.response.StrengthPrescriptionResponse ppPrescription(
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID scheduledId) {
         return strengthScheduleService.prescriptionForAthlete(principal.athleteId(), scheduledId);
+    }
+
+    /** Suggestion de progression du coach après une séance de force réalisée (§6.7). */
+    @GetMapping("/pp/scheduled/{scheduledId}/progression")
+    public com.coachrun.dto.response.ProgressionResponse ppProgression(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID scheduledId) {
+        return progressionService.forAthlete(principal.athleteId(), scheduledId);
     }
 
     @PatchMapping("/pp/scheduled/{scheduledId}/move")

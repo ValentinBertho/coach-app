@@ -38,6 +38,7 @@ public class Athlete1rmController {
     private final StrengthSessionService sessionService;
     private final com.coachrun.service.StrengthResultService resultService;
     private final StrengthTestService testService;
+    private final com.coachrun.service.ProgressionService progressionService;
 
     @GetMapping("/1rm")
     public List<Athlete1rmResponse> list(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
@@ -86,6 +87,13 @@ public class Athlete1rmController {
     public StrengthTestResponse recordTest(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                            @Valid @RequestBody StrengthTestRequest request) {
         return testService.record(clubId, athleteId, request);
+    }
+
+    /** Progression auto + alertes coach d'une séance de force réalisée (§6.7 / §6.8). */
+    @GetMapping("/scheduled/{scheduledId}/progression")
+    public com.coachrun.dto.response.ProgressionResponse progression(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID scheduledId) {
+        return progressionService.forCoach(clubId, athleteId, scheduledId);
     }
 
     /** Suivi de charge interne force (UA méca/métab) sur une période optionnelle. */

@@ -129,6 +129,21 @@
               </div>
               <button type="button" class="btn btn-accent btn-lg" (click)="submitStrength(true)">Valider mes séries 💪</button>
             </section>
+
+            @if (progression(); as prog) {
+              <section class="strength-progression">
+                @for (e of prog.exercises; track e.exerciseId) {
+                  @if (e.recommended) {
+                    <p class="progression-line">📈 <strong>{{ e.exerciseName }}</strong> — prochaine fois : {{ e.suggestionLabel }}</p>
+                  }
+                }
+                @for (a of prog.alerts; track a.code + a.exerciseId) {
+                  <p class="alert-line" [class.alert-high]="a.level === 'HIGH'">
+                    {{ a.level === 'HIGH' ? '🔴' : '🟠' }} {{ a.exerciseName }} — {{ a.message }}
+                  </p>
+                }
+              </section>
+            }
           </article>
         }
 

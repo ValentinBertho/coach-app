@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface StrengthResultRepository extends JpaRepository<StrengthResult, UUID> {
 
     List<StrengthResult> findByScheduledSessionIdOrderByExerciseIdAscSetNumberAsc(UUID scheduledSessionId);
+
+    List<StrengthResult> findByAthleteIdAndExerciseIdOrderByCreatedAtDesc(UUID athleteId, UUID exerciseId);
 }
