@@ -29,6 +29,12 @@ export const routes: Routes = [
       import('./features/public/invitation.component').then((m) => m.InvitationComponent),
   },
   {
+    // Living styleguide des primitives UI (dev). Cf. docs/ux-redesign-blueprint.md.
+    path: 'dev/ui-kit',
+    loadComponent: () =>
+      import('./features/dev/ui-kit.component').then((m) => m.UiKitComponent),
+  },
+  {
     path: 'app',
     canActivate: [authGuard],
     loadComponent: () =>
@@ -165,6 +171,11 @@ export const routes: Routes = [
         path: 'athletes/:athleteId/workouts/:workoutId/edit',
         loadComponent: () =>
           import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),
+      },
+      {
+        path: 'athletes/:athleteId/workouts/:workoutId',
+        loadComponent: () =>
+          import('./features/workouts/workout-detail.component').then((m) => m.WorkoutDetailComponent),
       },
     ],
   },

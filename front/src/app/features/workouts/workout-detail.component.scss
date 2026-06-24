@@ -1,0 +1,48 @@
+.session {
+  max-width: 720px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+/* --- Header --------------------------------------------------------------- */
+.session-head { display: flex; flex-direction: column; gap: var(--sp-2); }
+.back { color: var(--ink-3); font-size: var(--text-sm); font-weight: 600; width: fit-content; }
+.session-meta { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.session-type { color: var(--ink-3); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; }
+.session-date { color: var(--ink-3); font-size: var(--text-sm); margin-left: auto; }
+.session-head h1 { margin: var(--sp-1) 0 0; }
+.session-target { color: var(--primary); font-size: var(--text-3xl); font-weight: 800; line-height: 1.05; }
+.session-target small { font-size: var(--text-md); font-weight: 600; color: var(--ink-3); }
+
+/* --- Blocs ---------------------------------------------------------------- */
+.block { display: flex; flex-direction: column; gap: var(--sp-3); }
+.block-title { margin: 0; font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
+.block-title-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.block-text { margin: 0; color: var(--ink-2); line-height: 1.6; }
+
+/* --- Timeline ------------------------------------------------------------- */
+.timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.timeline__step {
+  display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  padding: var(--sp-3); background: var(--paper-sunk); border-radius: var(--radius-sm);
+}
+.timeline__rep { font-weight: 800; color: var(--primary); min-width: 28px; }
+.timeline__label { flex: 1; font-weight: 600; font-size: var(--text-sm); }
+.timeline__target { color: var(--ink-2); font-size: var(--text-sm); }
+.timeline__notes { flex-basis: 100%; color: var(--ink-3); font-size: var(--text-sm); }
+
+/* --- Retour athlète ------------------------------------------------------- */
+.feedback-recap { display: flex; flex-direction: column; gap: var(--sp-3); }
+.fb-stat { display: flex; align-items: baseline; gap: var(--sp-2); }
+.fb-stat__k { color: var(--ink-3); font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.fb-stat__v { font-size: var(--text-xl); font-weight: 800; color: var(--ink); }
+.fb-stat__v small { font-size: var(--text-sm); color: var(--ink-3); font-weight: 600; }
+.fb-comment {
+  margin: 0; padding: var(--sp-3); border-left: 3px solid var(--hairline);
+  background: var(--paper-sunk); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--ink-2); font-style: italic;
+}
+
+.danger-link { color: var(--danger-text); align-self: center; margin-top: var(--sp-4); }

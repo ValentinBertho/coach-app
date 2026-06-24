@@ -123,6 +123,15 @@
 
   /* Police mono pour données physiologiques chiffrées (alias DM Mono → JetBrains Mono déjà chargée) */
   --font-data: var(--font-mono);
+
+  /* Origine de la donnée (invariant UX : distinguer saisi / calculé / estimé /
+   * mesuré / alerté / complété). Couleur + icône + libellé, jamais couleur seule. */
+  --origin-saisi: var(--info);       /* déclaré par l'athlète (RPE, ressenti) */
+  --origin-calcule: var(--primary);  /* moteur backend (ACWR, état de forme) */
+  --origin-estime: var(--ink-3);     /* dérivé/estimé (VDOT depuis course) */
+  --origin-mesure: var(--accent-2);  /* test labo (LT1/LT2/VC) */
+  --origin-alerte: var(--danger);    /* seuil critique dépassé */
+  --origin-fait: var(--success);     /* complété */
 }
 
 /* --- État de forme : pastille fatigue+douleur ------------------------------ */

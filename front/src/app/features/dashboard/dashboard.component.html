@@ -1,90 +1,122 @@
 <section class="page-header">
   <div>
     <h1 class="display-sm">Bonjour {{ user()?.fullName || 'Coach' }} 👋</h1>
-    <p class="subtitle">Voici votre espace de coaching.</p>
+    <p class="subtitle">Cockpit — périmètre club</p>
   </div>
 </section>
 
-@if (data(); as d) {
-  <div class="stats-grid">
-    <a class="card stat-card card-interactive" routerLink="/app/athletes">
-      <span class="stat-label">Athlètes actifs</span>
-      <span class="metric stat-value">{{ d.activeAthletes }}</span>
-    </a>
-    <a class="card stat-card card-interactive" routerLink="/app/calendar">
-      <span class="stat-label">Séances à valider</span>
-      <span class="metric stat-value">{{ d.sessionsToReview }}</span>
-    </a>
-    <div class="card stat-card">
-      <span class="stat-label">Réalisées cette semaine</span>
-      <span class="metric stat-value">{{ d.completedThisWeek }}</span>
-    </div>
-    <a class="card stat-card card-interactive" routerLink="/app/athletes">
-      <span class="stat-label">Invitations en attente</span>
-      <span class="metric stat-value">{{ d.pendingInvitations }}</span>
-    </a>
-  </div>
+<!-- ===== Zone 1 : à surveiller aujourd'hui (priorité) ===== -->
+<section class="cockpit-zone">
+  <header class="zone-head">
+    <h2>À surveiller aujourd'hui</h2>
+    @if (attention().length) { <span class="zone-count">{{ attention().length }}</span> }
+  </header>
 
   @if (form(); as f) {
-    <div class="form-tables">
-      <div class="card">
-        <h2><span class="discipline-chip discipline-chip--route">🏃 Route</span> {{ f.route }}</h2>
-        @if (f.routeAthletes.length) {
-          <ul class="form-list">
-            @for (a of f.routeAthletes; track a.id) {
-              <li>
-                <a [routerLink]="['/app/athletes', a.id]" class="form-item">
-                  <span class="form-dot"
-                        [class.form-dot--green]="a.formStatus === 'GREEN'"
-                        [class.form-dot--orange]="a.formStatus === 'ORANGE'"
-                        [class.form-dot--red]="a.formStatus === 'RED'"></span>
-                  <span class="form-name">{{ a.firstName }} {{ a.lastName }}</span>
-                </a>
-              </li>
-            }
-          </ul>
-        } @else {
-          <p class="empty-hint">Aucun athlète route.</p>
+    @if (attention().length) {
+      <p class="zone-lead">
+        {{ attention().length === 1 ? '1 athlète mérite' : attention().length + ' athlètes méritent' }} votre attention.
+      </p>
+      <div class="attention-grid">
+        @for (a of attention(); track a.id) {
+          <a class="attention-card card-interactive" [routerLink]="['/app/athletes', a.id]">
+            <div class="attention-head">
+              <span class="avatar avatar-sm">{{ a.firstName[0] }}{{ a.lastName[0] }}</span>
+              <div class="attention-id">
+                <strong>{{ a.firstName }} {{ a.lastName }}</strong>
+                <span class="discipline-chip"
+                      [class.discipline-chip--route]="a.discipline === 'ROUTE'"
+                      [class.discipline-chip--trail]="a.discipline === 'TRAIL'">
+                  {{ a.discipline === 'ROUTE' ? '🏃 Route' : '⛰️ Trail' }}
+                </span>
+              </div>
+              <span class="attention-go">→</span>
+            </div>
+            <app-readiness-gauge
+              [level]="level(a.formStatus)"
+              [fatigue]="a.fatigue"
+              [pain]="a.pain"
+              [note]="feedbackNote(a)" />
+          </a>
         }
       </div>
+    } @else {
+      <div class="card zone-ok">
+        <span class="zone-ok__icon">✓</span>
+        <div>
+          <strong>Tout le monde est en forme</strong>
+          <p class="field-hint">Aucun signal de fatigue ou de douleur à traiter sur votre périmètre.</p>
+        </div>
+      </div>
+    }
+  } @else {
+    <div class="card"><div class="skeleton" style="height: 80px;"></div></div>
+  }
+</section>
 
-      <div class="card">
-        <h2><span class="discipline-chip discipline-chip--trail">⛰️ Trail</span> {{ f.trail }}</h2>
-        @if (f.trailAthletes.length) {
-          <ul class="form-list">
-            @for (a of f.trailAthletes; track a.id) {
-              <li>
-                <a [routerLink]="['/app/athletes', a.id]" class="form-item">
-                  <span class="form-dot"
-                        [class.form-dot--green]="a.formStatus === 'GREEN'"
-                        [class.form-dot--orange]="a.formStatus === 'ORANGE'"
-                        [class.form-dot--red]="a.formStatus === 'RED'"></span>
-                  <span class="form-name">{{ a.firstName }} {{ a.lastName }}</span>
-                </a>
-              </li>
-            }
-          </ul>
-        } @else {
-          <p class="empty-hint">Aucun athlète trail.</p>
-        }
-      </div>
+<!-- ===== Zone 2 : KPI rail ===== -->
+@if (data(); as d) {
+  <section class="cockpit-zone">
+    <header class="zone-head"><h2>Vue d'ensemble</h2></header>
+    <div class="kpi-rail">
+      <a routerLink="/app/athletes"><app-metric-card label="Athlètes actifs" [value]="d.activeAthletes" /></a>
+      <a routerLink="/app/calendar">
+        <app-metric-card label="Séances à valider" [value]="d.sessionsToReview"
+          [tone]="d.sessionsToReview > 0 ? 'alert' : 'neutral'" />
+      </a>
+      <app-metric-card label="Réalisées cette semaine" [value]="d.completedThisWeek" tone="success" />
+      <a routerLink="/app/athletes"><app-metric-card label="Invitations en attente" [value]="d.pendingInvitations" /></a>
     </div>
+  </section>
+
+  <!-- ===== Zone 3 : club overview ===== -->
+  @if (form(); as f) {
+    <section class="cockpit-zone">
+      <header class="zone-head"><h2>Club</h2></header>
+      <div class="club-grid">
+        <div class="card club-distrib">
+          <span class="stat-label">Répartition de la forme</span>
+          <div class="distrib-bar" role="img"
+               [attr.aria-label]="formCounts().GREEN + ' en forme, ' + formCounts().ORANGE + ' à surveiller, ' + formCounts().RED + ' en vigilance'">
+            @if (formCounts().GREEN) { <span class="seg seg--green" [style.flex]="formCounts().GREEN"></span> }
+            @if (formCounts().ORANGE) { <span class="seg seg--orange" [style.flex]="formCounts().ORANGE"></span> }
+            @if (formCounts().RED) { <span class="seg seg--red" [style.flex]="formCounts().RED"></span> }
+          </div>
+          <div class="distrib-legend">
+            <span><span class="form-dot form-dot--green"></span> {{ formCounts().GREEN }} en forme</span>
+            <span><span class="form-dot form-dot--orange"></span> {{ formCounts().ORANGE }} à surveiller</span>
+            <span><span class="form-dot form-dot--red"></span> {{ formCounts().RED }} vigilance</span>
+          </div>
+        </div>
+        <a class="card stat-card card-interactive" routerLink="/app/athletes">
+          <span class="stat-label">🏃 Route</span>
+          <span class="metric stat-value">{{ f.route }}</span>
+        </a>
+        <a class="card stat-card card-interactive" routerLink="/app/athletes">
+          <span class="stat-label">⛰️ Trail</span>
+          <span class="metric stat-value">{{ f.trail }}</span>
+        </a>
+      </div>
+    </section>
   }
 
+  <!-- ===== Zone 4 : prochaines courses ===== -->
   @if (d.upcomingRaces.length) {
-    <div class="card">
-      <h2>Prochaines courses</h2>
-      <ul class="races">
-        @for (r of d.upcomingRaces; track r.id) {
-          <li>
-            <span class="badge badge-info">{{ countdown(r.daysUntil) }}</span>
-            <strong>{{ r.name }}</strong>
-            <span class="field-hint metric">{{ r.raceDate }}</span>
-            <span class="badge badge-neutral">Priorité {{ r.priority }}</span>
-          </li>
-        }
-      </ul>
-    </div>
+    <section class="cockpit-zone">
+      <header class="zone-head"><h2>Prochaines courses</h2></header>
+      <div class="card">
+        <ul class="races">
+          @for (r of d.upcomingRaces; track r.id) {
+            <li>
+              <span class="badge badge-info">{{ countdown(r.daysUntil) }}</span>
+              <strong>{{ r.name }}</strong>
+              <span class="field-hint metric">{{ r.raceDate }}</span>
+              <span class="badge badge-neutral">Priorité {{ r.priority }}</span>
+            </li>
+          }
+        </ul>
+      </div>
+    </section>
   }
 }
 
