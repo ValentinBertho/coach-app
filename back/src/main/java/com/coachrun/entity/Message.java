@@ -49,4 +49,14 @@ public class Message extends BaseEntity {
 
     @Column(name = "workout_id")
     private UUID workoutId;
+
+    /** Pièce jointe optionnelle : id + métadonnée dénormalisée (octets dans message_attachments). */
+    @Column(name = "attachment_id")
+    private UUID attachmentId;
+
+    @Column(name = "attachment_filename")
+    private String attachmentFilename;
+
+    @Column(name = "attachment_content_type", length = 128)
+    private String attachmentContentType;
 }

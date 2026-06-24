@@ -13,11 +13,16 @@ public record MessageResponse(
         String senderName,
         UUID senderUserId,
         UUID workoutId,
+        UUID attachmentId,
+        String attachmentFilename,
+        String attachmentContentType,
         Instant createdAt) {
 
     public static MessageResponse from(Message m) {
         return new MessageResponse(
                 m.getId(), m.getBody(), m.getSenderRole(), m.getSenderName(),
-                m.getSenderUserId(), m.getWorkoutId(), m.getCreatedAt());
+                m.getSenderUserId(), m.getWorkoutId(),
+                m.getAttachmentId(), m.getAttachmentFilename(), m.getAttachmentContentType(),
+                m.getCreatedAt());
     }
 }

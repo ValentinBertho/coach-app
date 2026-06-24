@@ -186,6 +186,28 @@ export interface StrengthLoadPoint {
   metabolicLoad: number;
 }
 
+export interface ExerciseProgression {
+  exerciseId: string;
+  exerciseName: string;
+  recommended: boolean;
+  suggestionLabel: string;
+  deltaKg: number | null;
+}
+
+export interface ProgressionAlert {
+  level: 'HIGH' | 'MEDIUM';
+  code: string;
+  message: string;
+  exerciseId: string;
+  exerciseName: string;
+}
+
+export interface Progression {
+  scheduledId: string;
+  exercises: ExerciseProgression[];
+  alerts: ProgressionAlert[];
+}
+
 export type StrengthTestProtocol = 'TRUE_1RM' | 'REP_TEST_3_5' | 'AMRAP_TEST' | 'ISO_MVC';
 
 export interface StrengthTest {

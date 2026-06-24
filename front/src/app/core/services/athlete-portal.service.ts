@@ -4,7 +4,7 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { RaceObjective } from '../models/race.model';
 import { Workout, WorkoutStatus } from '../models/workout.model';
-import { CalculatedStrength, E1rmHistory, ScheduledStrength, StrengthResultEntry, StrengthStructure } from '../models/strength.model';
+import { CalculatedStrength, E1rmHistory, Progression, ScheduledStrength, StrengthResultEntry, StrengthStructure } from '../models/strength.model';
 
 export interface WorkoutFeedback {
   status?: WorkoutStatus;
@@ -64,6 +64,11 @@ export class AthletePortalService {
 
   ppResults(scheduledId: string, results: StrengthResultEntry[]): Observable<E1rmHistory[]> {
     return this.http.post<E1rmHistory[]>(`${this.base}/pp/scheduled/${scheduledId}/results`, results);
+  }
+
+  /** Suggestion de progression du coach après une séance de force réalisée. */
+  ppProgression(scheduledId: string): Observable<Progression> {
+    return this.http.get<Progression>(`${this.base}/pp/scheduled/${scheduledId}/progression`);
   }
 
   /** RGPD — export des données personnelles (portabilité). */

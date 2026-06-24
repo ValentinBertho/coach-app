@@ -18,3 +18,22 @@
 
 .composer { display: flex; gap: var(--sp-2); }
 .composer .form-control { flex: 1; }
+
+.msg-image {
+  display: block;
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: var(--radius-sm);
+  margin-top: var(--sp-2);
+}
+.msg-file {
+  display: inline-block;
+  margin-top: var(--sp-2);
+  font-size: 0.85rem;
+  color: var(--primary);
+}
+.attach-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}

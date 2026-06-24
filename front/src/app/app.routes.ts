@@ -87,6 +87,11 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'strava/callback',
+        loadComponent: () =>
+          import('./features/athletes/strava-callback.component').then((m) => m.StravaCallbackComponent),
+      },
+      {
         path: 'plans',
         loadComponent: () =>
           import('./features/plans/plan-list.component').then((m) => m.PlanListComponent),

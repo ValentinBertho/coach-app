@@ -1,0 +1,34 @@
+# ============================================================================
+# 029 — Indisponibilités athlète (blessure/maladie/vacances), cf. DARI Lab.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 029-athlete-unavailability
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: athlete_unavailabilities
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: start_date, type: DATE, constraints: { nullable: false } }
+              - column: { name: end_date, type: DATE, constraints: { nullable: false } }
+              - column: { name: reason, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: notes, type: VARCHAR(512) }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_unavailability_athlete
+            baseTableName: athlete_unavailabilities
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_unavailability_athlete_dates
+            tableName: athlete_unavailabilities
+            columns:
+              - column: { name: athlete_id }
+              - column: { name: start_date }

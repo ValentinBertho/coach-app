@@ -76,4 +76,30 @@ export class ChatComponent implements OnInit, OnDestroy {
       error: () => this.toast.error('Envoi impossible.'),
     });
   }
+
+  /** Envoi d'une pièce jointe (image ou PDF) sélectionnée. */
+  onFileSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    const obs = this.athleteId()
+      ? this.messageService.coachSendAttachment(this.athleteId()!, file, this.draft.trim() || undefined)
+      : this.messageService.mySendAttachment(file, this.draft.trim() || undefined);
+    obs.subscribe({
+      next: (m) => {
+        this.append(m);
+        this.draft = '';
+        input.value = '';
+      },
+      error: () => this.toast.error('Pièce jointe refusée (image ou PDF, max 10 Mo).'),
+    });
+  }
+
+  attachmentUrl(m: Message): string {
+    return this.messageService.attachmentUrl(this.athleteId(), m.id);
+  }
+
+  isImage(m: Message): boolean {
+    return (m.attachmentContentType ?? '').startsWith('image/');
+  }
 }

@@ -9,7 +9,7 @@ import {
   Workout,
 } from '../../core/models/workout.model';
 import { AthletePortalService, StrengthPrescriptionView } from '../../core/services/athlete-portal.service';
-import { ScheduledStrength, StrengthResultEntry } from '../../core/models/strength.model';
+import { Progression, ScheduledStrength, StrengthResultEntry } from '../../core/models/strength.model';
 import { AuthService } from '../../core/services/auth.service';
 
 interface SetEntry { chargeKg: number | null; repsDone: number | null; rirDone: number | null; }
@@ -64,6 +64,7 @@ export class TodayComponent implements OnInit {
   readonly strength = signal<ScheduledStrength | null>(null);
   readonly strengthRx = signal<StrengthPrescriptionView | null>(null);
   readonly exerciseSets = signal<ExerciseSets[]>([]);
+  readonly progression = signal<Progression | null>(null);
   sRpe: number | null = null;
   sFatigue: number | null = null;
   sPain: number | null = null;
@@ -132,6 +133,8 @@ export class TodayComponent implements OnInit {
           if (updates.length) {
             this.toast.success(`e1RM mis à jour : ${updates[0].e1rmKg} kg 💪`);
           }
+          // Suggestion de progression du coach pour la prochaine fois.
+          this.portal.ppProgression(s.id).subscribe((p) => this.progression.set(p));
         },
       });
     }
