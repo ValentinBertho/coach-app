@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -11,9 +11,6 @@ import {
 import { AthletePortalService, StrengthPrescriptionView } from '../../core/services/athlete-portal.service';
 import { Progression, ScheduledStrength, StrengthResultEntry } from '../../core/models/strength.model';
 import { AuthService } from '../../core/services/auth.service';
-
-interface SetEntry { chargeKg: number | null; repsDone: number | null; rirDone: number | null; }
-interface ExerciseSets { exerciseId: string; name: string; sets: SetEntry[]; }
 import { FeedbackQueueService } from '../../core/services/feedback-queue.service';
 import { NetworkStatusService } from '../../core/services/network-status.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -21,18 +18,52 @@ import { InstallButtonComponent } from '../../shared/components/install-button/i
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
 import { PushButtonComponent } from '../../shared/components/push-button/push-button.component';
+import {
+  EffortBadgeComponent,
+  type EffortKind,
+  IntensityZoneBadgeComponent,
+  type IntensityZone as ZoneNum,
+  PainFatigueSelectorComponent,
+  RangePrescriptionPillComponent,
+} from '../../shared/components/physiology';
+import {
+  BottomSheetComponent,
+  StickyActionBarComponent,
+} from '../../shared/components/ui';
+
+interface SetEntry { chargeKg: number | null; repsDone: number | null; rirDone: number | null; }
+
+/** Résumé de la prescription d'un exercice (fourchettes), pour l'affichage lecture seule. */
+interface ExerciseRx {
+  chargeKgMin: number | null;
+  chargeKgMax: number | null;
+  repsMin: number | null;
+  repsMax: number | null;
+  repsFixed: number | null;
+  effortKind: EffortKind | null;
+  effortMin: number | null;
+  effortMax: number | null;
+}
+interface ExerciseSets { exerciseId: string; name: string; sets: SetEntry[]; rx: ExerciseRx; }
 
 type State = 'loading' | 'ready' | 'error';
 
 /**
- * Portail athlète — « séance du jour » (mobile-first). Affiche la séance, ses étapes,
- * et permet de saisir le ressenti (RPE 1–10 + commentaire) et de la valider.
+ * Portail athlète — « Aujourd'hui » (mobile-first PWA).
+ * Refonte blueprint : carte héro de la séance, zones d'intensité explicites,
+ * retour rapide (RPE + fatigue + douleur) dans un bottom sheet déclenché par la
+ * barre d'action collante. Préserve le câblage services et la file offline.
  */
 @Component({
   selector: 'app-today',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent],
+  imports: [
+    FormsModule, RouterLink,
+    LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent,
+    IntensityZoneBadgeComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
+    PainFatigueSelectorComponent, BottomSheetComponent, StickyActionBarComponent,
+  ],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',
 })
@@ -49,25 +80,33 @@ export class TodayComponent implements OnInit {
   readonly statusLabels = STATUS_LABELS;
   readonly statusBadge = STATUS_BADGE;
   readonly rpeScale = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-  readonly painScale = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   readonly state = signal<State>('loading');
   readonly workout = signal<Workout | null>(null);
   readonly nextRace = signal<import('../../core/models/race.model').RaceObjective | null>(null);
   readonly user = this.auth.currentUser;
-  rpe: number | null = null;
-  fatigue: number | null = null;
-  pain: number | null = null;
-  comment = '';
+
+  // Retour course (signals pour two-way binding des sélecteurs).
+  readonly rpe = signal<number | null>(null);
+  readonly fatigue = signal<number | null>(null);
+  readonly pain = signal<number | null>(null);
+  readonly comment = signal('');
+  readonly feedbackOpen = signal(false);
+
+  /** La course attend-elle encore un retour ? (PLANNED ou PARTIAL) */
+  readonly runNeedsFeedback = computed(() => {
+    const w = this.workout();
+    return !!w && (w.status === 'PLANNED' || w.status === 'PARTIAL');
+  });
 
   // Renforcement du jour
   readonly strength = signal<ScheduledStrength | null>(null);
   readonly strengthRx = signal<StrengthPrescriptionView | null>(null);
   readonly exerciseSets = signal<ExerciseSets[]>([]);
   readonly progression = signal<Progression | null>(null);
-  sRpe: number | null = null;
-  sFatigue: number | null = null;
-  sPain: number | null = null;
+  readonly sRpe = signal<number | null>(null);
+  readonly sFatigue = signal<number | null>(null);
+  readonly sPain = signal<number | null>(null);
 
   ngOnInit(): void {
     this.load();
@@ -93,7 +132,7 @@ export class TodayComponent implements OnInit {
     });
   }
 
-  /** Pré-remplit les séries à saisir à partir de la prescription calculée. */
+  /** Pré-remplit les séries à saisir + capture les fourchettes prescrites (lecture seule). */
   private buildSets(rx: StrengthPrescriptionView): void {
     const list: ExerciseSets[] = [];
     for (const b of rx.calculated?.blocks ?? []) {
@@ -105,7 +144,22 @@ export class TodayComponent implements OnInit {
           repsDone: presc.repsFixed ?? presc.repsMin ?? null,
           rirDone: presc.rirMin ?? null,
         }));
-        list.push({ exerciseId: ex.item.exerciseId, name: ex.item.exerciseName, sets });
+        const isRir = presc.effortRefType === 'RIR' || presc.effortRefType === 'RIR_RANGE';
+        list.push({
+          exerciseId: ex.item.exerciseId,
+          name: ex.item.exerciseName,
+          sets,
+          rx: {
+            chargeKgMin: ex.charge.kgMin ?? presc.chargeKgMin ?? null,
+            chargeKgMax: ex.charge.kgMax ?? presc.chargeKgMax ?? null,
+            repsMin: presc.repsMin ?? null,
+            repsMax: presc.repsMax ?? null,
+            repsFixed: presc.repsFixed ?? null,
+            effortKind: presc.effortRefType ? (isRir ? 'RIR' : 'RPE') : null,
+            effortMin: isRir ? presc.rirMin ?? null : presc.rpeMin ?? null,
+            effortMax: isRir ? presc.rirMax ?? null : presc.rpeMax ?? null,
+          },
+        });
       }
     }
     this.exerciseSets.set(list);
@@ -133,7 +187,6 @@ export class TodayComponent implements OnInit {
           if (updates.length) {
             this.toast.success(`e1RM mis à jour : ${updates[0].e1rmKg} kg 💪`);
           }
-          // Suggestion de progression du coach pour la prochaine fois.
           this.portal.ppProgression(s.id).subscribe((p) => this.progression.set(p));
         },
       });
@@ -141,7 +194,7 @@ export class TodayComponent implements OnInit {
 
     // 2. Retour de séance global.
     this.portal
-      .ppFeedback(s.id, { completed, sessionRpe: this.sRpe, fatigue: this.sFatigue, pain: this.sPain, comment: null })
+      .ppFeedback(s.id, { completed, sessionRpe: this.sRpe(), fatigue: this.sFatigue(), pain: this.sPain(), comment: null })
       .subscribe({
         next: (updated) => {
           this.strength.set(updated);
@@ -157,8 +210,8 @@ export class TodayComponent implements OnInit {
         const w = list[0] ?? null;
         this.workout.set(w);
         if (w) {
-          this.rpe = w.rpe ?? null;
-          this.comment = w.athleteComment ?? '';
+          this.rpe.set(w.rpe ?? null);
+          this.comment.set(w.athleteComment ?? '');
         }
         this.state.set('ready');
       },
@@ -166,8 +219,22 @@ export class TodayComponent implements OnInit {
     });
   }
 
-  zoneClass(zone: string | null): string {
-    return zone ? `zone-${zone.toLowerCase()}` : '';
+  /** 'Z3' → 3 pour le badge de zone (sécurisé). */
+  zoneNum(zone: string | null): ZoneNum | null {
+    if (!zone) return null;
+    const n = Number(zone.replace(/\D/g, ''));
+    return n >= 1 && n <= 5 ? (n as ZoneNum) : null;
+  }
+
+  /** Cible d'un pas course (distance ou durée) en texte tabulaire. */
+  stepTarget(distanceM: number | null, durationS: number | null): string {
+    if (distanceM) return distanceM >= 1000 ? `${(distanceM / 1000).toFixed(1)} km` : `${distanceM} m`;
+    if (durationS) {
+      const m = Math.floor(durationS / 60);
+      const s = durationS % 60;
+      return m ? `${m}:${s.toString().padStart(2, '0')}` : `${s} s`;
+    }
+    return '';
   }
 
   submit(completed: boolean): void {
@@ -175,16 +242,17 @@ export class TodayComponent implements OnInit {
     if (!w) return;
     const body = {
       status: (completed ? 'COMPLETED' : 'PARTIAL') as 'COMPLETED' | 'PARTIAL',
-      rpe: this.rpe,
-      fatigue: this.fatigue,
-      pain: this.pain,
-      comment: this.comment || null,
+      rpe: this.rpe(),
+      fatigue: this.fatigue(),
+      pain: this.pain(),
+      comment: this.comment() || null,
     };
 
     // Hors ligne : mise à jour optimiste + mise en file (sync au retour réseau).
     if (!this.network.online()) {
       this.queue.enqueue(w.id, body);
-      this.workout.set({ ...w, status: body.status, rpe: this.rpe, athleteComment: this.comment || null });
+      this.workout.set({ ...w, status: body.status, rpe: this.rpe(), athleteComment: this.comment() || null });
+      this.feedbackOpen.set(false);
       this.toast.info('Enregistré hors ligne — synchronisé au retour du réseau.');
       return;
     }
@@ -192,12 +260,13 @@ export class TodayComponent implements OnInit {
     this.portal.feedback(w.id, body).subscribe({
       next: (updated) => {
         this.workout.set(updated);
+        this.feedbackOpen.set(false);
         this.toast.success('Ressenti enregistré 🎉');
       },
       error: () => {
-        // Échec réseau : on met en file pour réessayer plus tard.
         this.queue.enqueue(w.id, body);
-        this.workout.set({ ...w, status: body.status, rpe: this.rpe, athleteComment: this.comment || null });
+        this.workout.set({ ...w, status: body.status, rpe: this.rpe(), athleteComment: this.comment() || null });
+        this.feedbackOpen.set(false);
         this.toast.warning('Hors ligne — ressenti mis en file pour synchronisation.');
       },
     });
