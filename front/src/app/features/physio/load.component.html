@@ -7,26 +7,21 @@
 </section>
 
 @if (load(); as l) {
-  <div class="stats-grid">
-    <div class="card stat-card">
-      <span class="stat-label">Charge aiguë (7 j)</span>
-      <span class="metric stat-value">{{ l.acuteLoad7d | number: '1.0-0' }}</span>
-    </div>
-    <div class="card stat-card">
-      <span class="stat-label">Charge chronique (28 j)</span>
-      <span class="metric stat-value">{{ l.chronicLoad28d | number: '1.0-0' }}</span>
-    </div>
-    <div class="card stat-card">
-      <span class="stat-label">Ratio ACWR</span>
-      <span class="metric stat-value">
-        {{ l.ratio ? (l.ratio | number: '1.2-2') : '—' }}
-        @if (l.ratio) { <span class="badge" [class]="ratioClass(l.ratio)">{{ l.ratio > 1.3 ? '⚠' : '✅' }}</span> }
-      </span>
-    </div>
-    <div class="card stat-card">
-      <span class="stat-label">Monotonie</span>
-      <span class="metric stat-value">{{ l.monotony ? (l.monotony | number: '1.2-2') : '—' }}</span>
-    </div>
+  <!-- ACWR : indicateur dominant avec bande de sécurité -->
+  <div class="card acwr-card">
+    @if (l.ratio != null) {
+      <app-acwr-indicator [value]="l.ratio" />
+    } @else {
+      <p class="field-hint">ACWR indisponible (données de charge insuffisantes).</p>
+    }
+  </div>
+
+  <div class="kpi-rail">
+    <app-metric-card label="Charge aiguë (7 j)" [value]="l.acuteLoad7d | number: '1.0-0'" unit="UA" origin="calcule" />
+    <app-metric-card label="Charge chronique (28 j)" [value]="l.chronicLoad28d | number: '1.0-0'" unit="UA" origin="calcule" />
+    <app-metric-card label="Monotonie" [value]="l.monotony ? (l.monotony | number: '1.2-2') : '—'" origin="calcule"
+      [tone]="(l.monotony ?? 0) >= 2 ? 'alert' : 'neutral'" />
+    <app-metric-card label="Séances (7 j)" [value]="l.sessions7d" />
   </div>
 
   <div class="card">
