@@ -96,6 +96,7 @@ public class DemoSeedService {
     private final WorkoutRepository workoutRepository;
     private final ActivityRepository activityRepository;
     private final RaceObjectiveRepository raceRepository;
+    private final com.coachrun.repository.AthleteUnavailabilityRepository unavailabilityRepository;
     private final com.coachrun.repository.TrainingGroupRepository groupRepository;
     private final com.coachrun.repository.WorkoutTemplateRepository templateRepository;
     private final com.coachrun.repository.MessageRepository messageRepository;
@@ -221,6 +222,8 @@ public class DemoSeedService {
             seedTraining(club, athletes.get(2));
             seedRace(club, demoAthlete, "Marathon de Paris", 42195, 42);
             seedRace(club, athletes.get(2), "Semi de Lyon", 21097, 70);
+            seedUnavailability(club, athletes.get(3), com.coachrun.entity.enums.UnavailabilityReason.INJURY,
+                    -3, 10, "Entorse cheville — reprise progressive");
             if (headCoach != null) {
                 seedMessage(club, demoAthlete, headCoach, "Bravo pour ta semaine, on garde le rythme ! 💪");
                 seedMessage(club, demoAthlete, athleteUser, "Merci coach, je me sens en forme.");
@@ -511,6 +514,19 @@ public class DemoSeedService {
         orphan.setStatus(ActivityStatus.UNMATCHED);
         orphan.setTitle("Sortie libre");
         activityRepository.save(orphan);
+    }
+
+    private void seedUnavailability(Club club, Athlete athlete,
+                                    com.coachrun.entity.enums.UnavailabilityReason reason,
+                                    int startOffset, int endOffset, String notes) {
+        com.coachrun.entity.AthleteUnavailability u = new com.coachrun.entity.AthleteUnavailability();
+        u.setClub(club);
+        u.setAthlete(athlete);
+        u.setStartDate(LocalDate.now().plusDays(startOffset));
+        u.setEndDate(LocalDate.now().plusDays(endOffset));
+        u.setReason(reason);
+        u.setNotes(notes);
+        unavailabilityRepository.save(u);
     }
 
     private void seedRace(Club club, Athlete athlete, String name, int distanceM, int daysAhead) {

@@ -107,6 +107,44 @@
     </div>
   }
 
+  <div class="card">
+    <div class="card-head-row">
+      <h2>Indisponibilités</h2>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="showUnavailForm.set(!showUnavailForm())">+ Ajouter</button>
+    </div>
+
+    @if (showUnavailForm()) {
+      <div class="unavail-form">
+        <div class="form-row">
+          <div class="form-group"><label>Du</label><input type="date" class="form-control" [(ngModel)]="newUnavail.startDate" /></div>
+          <div class="form-group"><label>Au</label><input type="date" class="form-control" [(ngModel)]="newUnavail.endDate" /></div>
+          <div class="form-group"><label>Motif</label>
+            <select class="form-control" [(ngModel)]="newUnavail.reason">
+              @for (r of reasons; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>Notes</label><input class="form-control" [(ngModel)]="newUnavail.notes" placeholder="Optionnel" /></div>
+        <button type="button" class="btn btn-accent btn-sm" (click)="addUnavailability()">Enregistrer</button>
+      </div>
+    }
+
+    @if (unavailabilities().length) {
+      <ul class="unavail-list">
+        @for (u of unavailabilities(); track u.id) {
+          <li class="unavail-item">
+            <span class="badge" [class.badge-warning]="u.reason === 'INJURY'" [class.badge-neutral]="u.reason !== 'INJURY'">{{ reasonLabel(u.reason) }}</span>
+            <span class="metric">{{ u.startDate | date: 'dd/MM/yy' }} → {{ u.endDate | date: 'dd/MM/yy' }}</span>
+            @if (u.notes) { <span class="field-hint">{{ u.notes }}</span> }
+            <button type="button" class="btn btn-ghost btn-sm" (click)="removeUnavailability(u.id)">✕</button>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="empty-hint">Aucune indisponibilité enregistrée.</p>
+    }
+  </div>
+
   <div class="card danger-zone">
     <div>
       <strong>Archiver l'athlète</strong>

@@ -12,6 +12,7 @@ import {
   Ref,
 } from '../models/athlete.model';
 import { TrainingPlan } from '../models/training-plan.model';
+import { Unavailability, UnavailabilityRequest } from '../models/unavailability.model';
 import { AuthService } from './auth.service';
 
 /**
@@ -42,6 +43,19 @@ export class AthleteService {
   exportProgram(id: string, from: string, to: string): Observable<Blob> {
     const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get(`${this.base()}/${id}/program/export.pdf`, { params, responseType: 'blob' });
+  }
+
+  // --- Indisponibilités ---
+  listUnavailabilities(id: string): Observable<Unavailability[]> {
+    return this.http.get<Unavailability[]>(`${this.base()}/${id}/unavailabilities`);
+  }
+
+  createUnavailability(id: string, body: UnavailabilityRequest): Observable<Unavailability> {
+    return this.http.post<Unavailability>(`${this.base()}/${id}/unavailabilities`, body);
+  }
+
+  deleteUnavailability(id: string, unavailabilityId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base()}/${id}/unavailabilities/${unavailabilityId}`);
   }
 
   create(request: AthleteRequest): Observable<Athlete> {

@@ -1,7 +1,10 @@
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Athlete, Ref } from '../../core/models/athlete.model';
 import { TrainingPlan } from '../../core/models/training-plan.model';
+import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PhysioPanelComponent } from './physio-panel.component';
@@ -10,7 +13,7 @@ import { PhysioPanelComponent } from './physio-panel.component';
   selector: 'app-athlete-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, PhysioPanelComponent],
+  imports: [RouterLink, FormsModule, DatePipe, PhysioPanelComponent],
   templateUrl: './athlete-detail.component.html',
   styleUrl: './athletes.scss',
 })
@@ -27,6 +30,18 @@ export class AthleteDetailComponent implements OnInit {
 
   readonly assignableCoaches = signal<Ref[]>([]);
   readonly plans = signal<TrainingPlan[]>([]);
+
+  // Indisponibilités
+  readonly unavailabilities = signal<Unavailability[]>([]);
+  readonly showUnavailForm = signal(false);
+  newUnavail = { startDate: '', endDate: '', reason: 'INJURY' as UnavailabilityReason, notes: '' };
+  readonly reasons: { value: UnavailabilityReason; label: string }[] = [
+    { value: 'INJURY', label: 'Blessure' },
+    { value: 'ILLNESS', label: 'Maladie' },
+    { value: 'VACATION', label: 'Vacances' },
+    { value: 'PERSONAL', label: 'Personnel' },
+    { value: 'OTHER', label: 'Autre' },
+  ];
 
   ngOnInit(): void {
     this.athleteService.get(this.id()).subscribe({
@@ -45,6 +60,40 @@ export class AthleteDetailComponent implements OnInit {
     this.athleteService.plans(this.id()).subscribe({
       next: (plans) => this.plans.set(plans),
     });
+    this.loadUnavailabilities();
+  }
+
+  loadUnavailabilities(): void {
+    this.athleteService.listUnavailabilities(this.id()).subscribe((u) => this.unavailabilities.set(u));
+  }
+
+  addUnavailability(): void {
+    if (!this.newUnavail.startDate || !this.newUnavail.endDate) {
+      this.toast.warning('Renseigne les dates de début et de fin.');
+      return;
+    }
+    this.athleteService.createUnavailability(this.id(), {
+      startDate: this.newUnavail.startDate,
+      endDate: this.newUnavail.endDate,
+      reason: this.newUnavail.reason,
+      notes: this.newUnavail.notes || null,
+    }).subscribe(() => {
+      this.toast.success('Indisponibilité ajoutée ✅');
+      this.newUnavail = { startDate: '', endDate: '', reason: 'INJURY', notes: '' };
+      this.showUnavailForm.set(false);
+      this.loadUnavailabilities();
+    });
+  }
+
+  removeUnavailability(unavailabilityId: string): void {
+    this.athleteService.deleteUnavailability(this.id(), unavailabilityId).subscribe(() => {
+      this.toast.info('Indisponibilité supprimée.');
+      this.loadUnavailabilities();
+    });
+  }
+
+  reasonLabel(reason: UnavailabilityReason): string {
+    return this.reasons.find((r) => r.value === reason)?.label ?? reason;
   }
 
   /** Coachs du club non encore rattachés à cet athlète. */

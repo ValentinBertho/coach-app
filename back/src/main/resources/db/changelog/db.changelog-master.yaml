@@ -59,3 +59,5 @@ databaseChangeLog:
       file: db/changelog/changes/027-strength-tests.yaml
   - include:
       file: db/changelog/changes/028-strength-load-tracking.yaml
+  - include:
+      file: db/changelog/changes/029-athlete-unavailability.yaml

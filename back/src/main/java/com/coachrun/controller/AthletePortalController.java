@@ -48,6 +48,7 @@ public class AthletePortalController {
     private final com.coachrun.service.StrengthScheduleService strengthScheduleService;
     private final com.coachrun.service.StrengthResultService strengthResultService;
     private final com.coachrun.service.ProgressionService progressionService;
+    private final com.coachrun.service.UnavailabilityService unavailabilityService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -166,6 +167,13 @@ public class AthletePortalController {
     public org.springframework.web.servlet.mvc.method.annotation.SseEmitter messageStream(
             @AuthenticationPrincipal AuthPrincipal principal) {
         return messageStreamService.subscribe(principal.athleteId());
+    }
+
+    /** Mes indisponibilités en cours ou à venir. */
+    @GetMapping("/unavailabilities")
+    public java.util.List<com.coachrun.dto.response.UnavailabilityResponse> unavailabilities(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return unavailabilityService.current(principal.athleteId());
     }
 
     /** RGPD — portabilité : export des données personnelles de l'athlète. */
