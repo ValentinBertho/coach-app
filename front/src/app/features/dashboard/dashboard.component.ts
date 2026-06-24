@@ -1,18 +1,29 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import {
+  AthleteForm,
   CoachDashboard,
   CoachDashboardService,
   CoachFormDashboard,
+  FormStatus,
 } from '../../core/services/coach-dashboard.service';
+import { ReadinessGaugeComponent, type FormLevel } from '../../shared/components/physiology';
+import { MetricCardComponent } from '../../shared/components/ui';
 
-/** Tableau de bord coach : KPI réels + état de forme Route/Trail + prochaines courses. */
+const LEVEL_OF: Record<FormStatus, FormLevel> = { GREEN: 'green', ORANGE: 'orange', RED: 'red' };
+const SEVERITY: Record<FormStatus, number> = { RED: 2, ORANGE: 1, GREEN: 0 };
+
+/**
+ * Cockpit coach (blueprint §7.2) : zone « à surveiller » dominante, KPI rail,
+ * club overview, prochaines courses. Câblé sur CoachDashboardService (données
+ * réelles, scope club). L'état de forme est calculé backend (formStatus).
+ */
 @Component({
   selector: 'app-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, ReadinessGaugeComponent, MetricCardComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
@@ -23,10 +34,44 @@ export class DashboardComponent implements OnInit {
   readonly user = this.auth.currentUser;
   readonly data = signal<CoachDashboard | null>(null);
   readonly form = signal<CoachFormDashboard | null>(null);
+  readonly loading = signal(true);
+
+  private readonly allAthletes = computed<AthleteForm[]>(() => {
+    const f = this.form();
+    return f ? [...f.routeAthletes, ...f.trailAthletes] : [];
+  });
+
+  /** Athlètes nécessitant une attention : forme non verte ou douleur ≥ 4, triés par criticité. */
+  readonly attention = computed<AthleteForm[]>(() =>
+    this.allAthletes()
+      .filter((a) => a.formStatus !== 'GREEN' || (a.pain ?? 0) >= 4)
+      .sort((a, b) =>
+        SEVERITY[b.formStatus] - SEVERITY[a.formStatus] ||
+        (b.pain ?? 0) - (a.pain ?? 0) ||
+        (b.fatigue ?? 0) - (a.fatigue ?? 0),
+      ),
+  );
+
+  /** Répartition de la forme sur tout le périmètre. */
+  readonly formCounts = computed(() => {
+    const c = { GREEN: 0, ORANGE: 0, RED: 0 } as Record<FormStatus, number>;
+    for (const a of this.allAthletes()) c[a.formStatus]++;
+    return c;
+  });
 
   ngOnInit(): void {
-    this.dashboardService.get().subscribe((d) => this.data.set(d));
+    this.dashboardService.get().subscribe({
+      next: (d) => this.data.set(d),
+      complete: () => this.loading.set(false),
+    });
     this.dashboardService.form().subscribe((f) => this.form.set(f));
+  }
+
+  level(status: FormStatus): FormLevel { return LEVEL_OF[status]; }
+
+  /** Note contextuelle pour la jauge (dernier retour). */
+  feedbackNote(a: AthleteForm): string {
+    return a.lastFeedbackDate ? '' : 'Aucun retour récent';
   }
 
   countdown(days: number): string {
