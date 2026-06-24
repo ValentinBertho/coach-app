@@ -4,29 +4,49 @@
     <a [routerLink]="backLink()" class="btn btn-ghost">← Retour</a>
   </section>
 
-  <div class="thread card">
+  <div #thread class="thread card">
     @if (loading()) {
       <p class="field-hint">Chargement…</p>
     } @else if (messages().length === 0) {
       <p class="field-hint empty">Aucun message. Démarrez la conversation 👋</p>
     } @else {
-      @for (m of messages(); track m.id) {
-        <div class="msg" [class.mine]="mine(m)">
+      @for (it of items(); track it.m.id) {
+        @if (it.showDay) {
+          <div class="day-sep"><span>{{ it.dayLabel }}</span></div>
+        }
+        <div class="msg" [class.mine]="mine(it.m)">
           <div class="bubble">
-            <span class="sender">{{ m.senderName }}</span>
-            <p>{{ m.body }}</p>
-            @if (m.attachmentId) {
-              @if (isImage(m)) {
-                <a [href]="attachmentUrl(m)" target="_blank" rel="noopener">
-                  <img class="msg-image" [src]="attachmentUrl(m)" [alt]="m.attachmentFilename || 'pièce jointe'" />
+            @if (!mine(it.m)) { <span class="sender">{{ it.m.senderName }}</span> }
+
+            @if (workoutLink(it.m); as link) {
+              <a class="ctx-chip" [routerLink]="link">🏃 Séance liée</a>
+            } @else if (it.m.workoutId) {
+              <span class="ctx-chip ctx-chip--static">🏃 Séance liée</span>
+            }
+
+            @if (it.m.body) { <p>{{ it.m.body }}</p> }
+
+            @if (it.m.attachmentId) {
+              @if (isImage(it.m)) {
+                <a [href]="attachmentUrl(it.m)" target="_blank" rel="noopener">
+                  <img class="msg-image" [src]="attachmentUrl(it.m)" [alt]="it.m.attachmentFilename || 'pièce jointe'" />
                 </a>
               } @else {
-                <a class="msg-file" [href]="attachmentUrl(m)" target="_blank" rel="noopener">📎 {{ m.attachmentFilename }}</a>
+                <a class="msg-file" [href]="attachmentUrl(it.m)" target="_blank" rel="noopener">📎 {{ it.m.attachmentFilename }}</a>
               }
             }
+
+            <time class="msg-time">{{ timeLabel(it.m.createdAt) }}</time>
           </div>
         </div>
       }
+    }
+  </div>
+
+  <!-- Réponses rapides -->
+  <div class="quick-replies">
+    @for (q of quickReplies(); track q) {
+      <button type="button" class="qr-chip" (click)="send(q)">{{ q }}</button>
     }
   </div>
 
