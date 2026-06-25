@@ -6,6 +6,11 @@
   </div>
 </section>
 
+<div class="lactate-toolbar">
+  <app-segmented-control [options]="speedOptions" [value]="speedUnit()" (valueChange)="speedUnit.set($any($event))" [ariaLabel]="'Unité de vitesse'" />
+  <button type="button" class="btn btn-ghost btn-sm" (click)="exportCsv()" [disabled]="!tests().length">Exporter CSV</button>
+</div>
+
 <div class="lactate-grid">
   <!-- Saisie -->
   <div class="card">
@@ -45,12 +50,12 @@
       <div class="seuils-row">
         <div class="seuil-box seuil-box--lt1">
           <span class="stat-label">LT1 · sous-seuil</span>
-          <span class="metric seuil-val">{{ d.lt1Kmh }}<small>km/h</small></span>
+          <span class="metric seuil-val">{{ fmtSpeed(d.lt1Kmh) }}</span>
           <span class="field-hint">{{ d.fcLt1 }} bpm</span>
         </div>
         <div class="seuil-box seuil-box--lt2">
           <span class="stat-label">LT2 · seuil</span>
-          <span class="metric seuil-val">{{ d.lt2Kmh }}<small>km/h</small></span>
+          <span class="metric seuil-val">{{ fmtSpeed(d.lt2Kmh) }}</span>
           <span class="field-hint">{{ d.fcLt2 }} bpm</span>
         </div>
         <div class="seuil-box">
@@ -114,8 +119,8 @@
         @for (t of tests(); track t.id) {
           <tr>
             <td class="metric">{{ t.testDate | date: 'dd/MM/yyyy' }}</td>
-            <td class="metric">{{ t.lt1Ms ? (t.lt1Ms * 3.6).toFixed(1) + ' km/h' : '—' }}</td>
-            <td class="metric">{{ t.lt2Ms ? (t.lt2Ms * 3.6).toFixed(1) + ' km/h' : '—' }}</td>
+            <td class="metric">{{ fmtSpeed(t.lt1Ms ? t.lt1Ms * 3.6 : null) }}</td>
+            <td class="metric">{{ fmtSpeed(t.lt2Ms ? t.lt2Ms * 3.6 : null) }}</td>
             <td class="metric">{{ t.fcLt2 ? t.fcLt2 + ' bpm' : '—' }}</td>
             <td><button type="button" class="btn btn-ghost btn-sm" (click)="loadTest(t)">Charger</button></td>
           </tr>

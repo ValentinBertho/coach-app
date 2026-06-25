@@ -7,6 +7,7 @@ import { LactateService } from '../../core/services/lactate.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LactateStep, LactateTest, LtDetection } from '../../core/models/lactate.model';
 import { DataOriginTagComponent } from '../../shared/components/physiology';
+import { SegmentedControlComponent, type SegmentOption } from '../../shared/components/ui';
 
 interface ChartPoint { cx: number; cy: number; speed: string; lactate: number; }
 interface Chart { points: ChartPoint[]; polyline: string; lt1x: number | null; lt2x: number | null; }
@@ -18,7 +19,7 @@ interface MultiChart { series: Series[]; }
   selector: 'app-lactate',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DatePipe, DataOriginTagComponent],
+  imports: [FormsModule, RouterLink, DatePipe, DataOriginTagComponent, SegmentedControlComponent],
   templateUrl: './lactate.component.html',
   styleUrl: './lactate.component.scss',
 })
@@ -35,6 +36,43 @@ export class LactateComponent implements OnInit {
 
   private readonly palette = ['#2dd4bf', '#a78bfa', '#f97316', '#10b981', '#ef4444', '#fbbf24'];
   readonly multiChart = computed<MultiChart | null>(() => this.buildMulti(this.profileTests()));
+
+  /** Unité d'affichage des vitesses (toggle km/h ↔ allure min/km). */
+  readonly speedUnit = signal<'kmh' | 'pace'>('kmh');
+  readonly speedOptions: SegmentOption[] = [
+    { value: 'kmh', label: 'km/h' },
+    { value: 'pace', label: 'min/km' },
+  ];
+
+  /** Formate une vitesse (km/h) selon l'unité choisie. */
+  fmtSpeed(kmh: number | null | undefined): string {
+    if (kmh == null) return '—';
+    if (this.speedUnit() === 'kmh') return `${kmh.toFixed(1)} km/h`;
+    const secPerKm = 3600 / kmh;
+    const m = Math.floor(secPerKm / 60);
+    const s = Math.round(secPerKm % 60);
+    return `${m}:${s.toString().padStart(2, '0')} /km`;
+  }
+
+  /** Export CSV de l'historique des tests (date, LT1, LT2, FC LT2). */
+  exportCsv(): void {
+    const rows: string[][] = [['Date', 'LT1 (km/h)', 'LT2 (km/h)', 'FC LT2']];
+    for (const t of this.tests()) {
+      rows.push([
+        t.testDate,
+        t.lt1Ms ? (t.lt1Ms * 3.6).toFixed(1) : '',
+        t.lt2Ms ? (t.lt2Ms * 3.6).toFixed(1) : '',
+        t.fcLt2 != null ? String(t.fcLt2) : '',
+      ]);
+    }
+    const csv = rows.map((r) => r.join(';')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tests-lactate.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   rest = { lactateRest: 0.8, hrRest: 60, hrMax: 188 };
   steps: LactateStep[] = [
