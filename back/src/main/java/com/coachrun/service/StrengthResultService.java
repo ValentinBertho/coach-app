@@ -138,6 +138,12 @@ public class StrengthResultService {
         return rows.stream().map(com.coachrun.dto.response.StrengthLoadResponse::from).toList();
     }
 
+    /** Charge méca/métab de force — variante athlète-scopée (portail /me, lecture seule). */
+    public List<com.coachrun.dto.response.StrengthLoadResponse> loadTrackingForAthlete(UUID athleteId) {
+        return loadTrackingRepository.findByAthleteIdOrderBySessionDateAsc(athleteId).stream()
+                .map(com.coachrun.dto.response.StrengthLoadResponse::from).toList();
+    }
+
     public List<E1rmHistoryResponse> history(UUID clubId, UUID athleteId, UUID exerciseId) {
         if (athleteRepository.findByIdAndClubId(athleteId, clubId).isEmpty()) {
             throw new NotFoundException("Athlète introuvable.");

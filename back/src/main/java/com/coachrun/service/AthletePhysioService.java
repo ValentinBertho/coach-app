@@ -135,6 +135,13 @@ public class AthletePhysioService {
         return buildVdot(athleteId);
     }
 
+    /** Mes performances/records — variante athlète-scopée (portail /me, lecture seule). */
+    public List<PerformanceResponse> listPerformancesForAthlete(UUID athleteId) {
+        return performanceRepository.findByAthleteIdOrderByDateSetDescCreatedAtDesc(athleteId).stream()
+                .map(p -> PerformanceResponse.from(p, vdotOf(p)))
+                .toList();
+    }
+
     private VdotResponse buildVdot(UUID athleteId) {
         AthleteVdotPace paces = vdotPaceRepository.findByAthleteId(athleteId).orElse(null);
         if (paces == null || paces.getVdot() == null) {

@@ -52,6 +52,9 @@ public class AthletePortalController {
     private final com.coachrun.service.Athlete1rmService oneRmService;
     private final com.coachrun.service.AthletePhysioService physioService;
     private final com.coachrun.service.AthleteLoadService loadService;
+    private final com.coachrun.service.AnalyticsService analyticsService;
+    private final com.coachrun.service.ActivityService activityService;
+    private final com.coachrun.service.LactateTestService lactateTestService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -181,6 +184,60 @@ public class AthletePortalController {
     public java.util.List<com.coachrun.dto.response.RaceObjectiveResponse> myRaces(
             @AuthenticationPrincipal AuthPrincipal principal) {
         return raceService.listForAthlete(principal.athleteId());
+    }
+
+    // --- Phase 2 « Mon histoire » (lecture seule) ----------------------------
+
+    /** Mes analytics : volume hebdo prévu/réalisé, répartition de zones, adhérence. */
+    @GetMapping("/analytics")
+    public com.coachrun.dto.response.AnalyticsResponse myAnalytics(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam(defaultValue = "8") int weeks) {
+        return analyticsService.computeForAthlete(principal.athleteId(), weeks);
+    }
+
+    /** Mes activités réalisées (Strava/GPX/manuel), du plus récent au plus ancien. */
+    @GetMapping("/activities")
+    public java.util.List<com.coachrun.dto.response.ActivityResponse> myActivities(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return activityService.listForAthlete(principal.athleteId());
+    }
+
+    /** Tracé GPS d'une de mes activités (carte). */
+    @GetMapping("/activities/{activityId}/route")
+    public java.util.List<double[]> myActivityRoute(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID activityId) {
+        return activityService.routeForAthlete(principal.athleteId(), activityId);
+    }
+
+    /** Mes performances / records (par distance), avec le VDOT impliqué. */
+    @GetMapping("/performances")
+    public java.util.List<com.coachrun.dto.response.PerformanceResponse> myPerformances(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return physioService.listPerformancesForAthlete(principal.athleteId());
+    }
+
+    // --- Phase 3 « Aller plus loin » (lecture seule) -------------------------
+
+    /** Mes tests lactate (résumés : seuils + dates). */
+    @GetMapping("/lactate-tests")
+    public java.util.List<com.coachrun.dto.response.LactateTestResponse> myLactateTests(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return lactateTestService.listForAthlete(principal.athleteId());
+    }
+
+    /** Détail d'un de mes tests lactate (paliers pour la courbe de profil). */
+    @GetMapping("/lactate-tests/{testId}")
+    public com.coachrun.dto.response.LactateTestResponse myLactateTest(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID testId) {
+        return lactateTestService.getForAthlete(principal.athleteId(), testId);
+    }
+
+    /** Ma charge de force (méca/métab, UA) par séance réalisée. */
+    @GetMapping("/pp/strength-load")
+    public java.util.List<com.coachrun.dto.response.StrengthLoadResponse> myStrengthLoad(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return strengthResultService.loadTrackingForAthlete(principal.athleteId());
     }
 
     /** Prochaine course cible (compte à rebours J-XX). 204 si aucune. */

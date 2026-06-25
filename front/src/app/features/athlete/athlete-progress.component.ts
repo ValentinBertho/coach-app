@@ -1,9 +1,12 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { E1rmHistory, MyOneRm } from '../../core/models/strength.model';
-import { Load } from '../../core/models/lactate.model';
+import { Load, StrengthLoadPoint } from '../../core/models/lactate.model';
+import { Performance } from '../../core/models/physio.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
+import { Analytics } from '../../core/services/analytics.service';
 import { AcwrIndicatorComponent, DataOriginTagComponent, type DataOrigin } from '../../shared/components/physiology';
 import { MetricCardComponent } from '../../shared/components/ui';
 
@@ -22,13 +25,106 @@ const SOURCE_LABEL: Record<string, string> = {
   selector: 'app-athlete-progress',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, DatePipe, DecimalPipe, DataOriginTagComponent, AcwrIndicatorComponent, MetricCardComponent],
+  imports: [IconComponent, RouterLink, DatePipe, DecimalPipe, DataOriginTagComponent, AcwrIndicatorComponent, MetricCardComponent],
   template: `
     <div class="prog">
       <header class="prog-top">
-        <h1 class="display-sm">Mes progrès</h1>
-        <p class="subtitle">Ta charge et l'évolution de ta force.</p>
+        <div class="prog-h">
+          <div>
+            <h1 class="display-sm">Mes progrès</h1>
+            <p class="subtitle">Ta charge et l'évolution de ta force.</p>
+          </div>
+          @if (streak() > 0) {
+            <span class="streak" [title]="'Semaines consécutives avec au moins une séance réalisée'">
+              <app-icon name="flame" [size]="18" /> {{ streak() }} sem.
+            </span>
+          }
+        </div>
       </header>
+
+      <!-- Accès rapides -->
+      <nav class="quick">
+        <a routerLink="/athlete/history" class="quick-l card">
+          <app-icon name="calendar-days" [size]="20" /><span>Mon historique</span>
+          <app-icon name="chevron-right" [size]="18" />
+        </a>
+        <a routerLink="/athlete/activities" class="quick-l card">
+          <app-icon name="footprints" [size]="20" /><span>Mes activités</span>
+          <app-icon name="chevron-right" [size]="18" />
+        </a>
+        <a routerLink="/athlete/lactate" class="quick-l card">
+          <app-icon name="activity" [size]="20" /><span>Mes tests lactate</span>
+          <app-icon name="chevron-right" [size]="18" />
+        </a>
+      </nav>
+
+      <!-- Mon volume (analytics) -->
+      @if (analytics(); as a) {
+        <section class="sect">
+          <h2 class="sect-h">Mon volume</h2>
+          @if (totals(); as t) {
+            <div class="charge-kpis">
+              <app-metric-card label="Prévu (8 sem.)" [value]="t.planned" unit="km" origin="calcule" />
+              <app-metric-card label="Réalisé (8 sem.)" [value]="t.realized" unit="km" origin="calcule" />
+              <app-metric-card label="Adhérence" [value]="t.compliance != null ? t.compliance : '—'"
+                [unit]="t.compliance != null ? '%' : ''" origin="calcule"
+                [tone]="t.compliance != null && t.compliance >= 85 ? 'success' : (t.compliance != null && t.compliance < 60 ? 'alert' : 'neutral')" />
+            </div>
+          }
+          @if (bars().length > 0) {
+            <div class="card chart">
+              <div class="chart-hd">
+                <span class="field-hint">Volume hebdomadaire (km)</span>
+                <span class="legend"><i class="sw planned"></i>Prévu <i class="sw realized"></i>Réalisé</span>
+              </div>
+              <div class="bars">
+                @for (b of bars(); track b.label) {
+                  <div class="bgrp" [title]="b.label + ' — prévu ' + b.planned + ' / réalisé ' + b.realized + ' km'">
+                    <div class="bpair">
+                      <span class="bar planned" [style.height.%]="b.px"></span>
+                      <span class="bar realized" [style.height.%]="b.rx"></span>
+                    </div>
+                    <span class="blab">{{ b.label }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+          @if (zones().length > 0) {
+            <div class="card">
+              <span class="field-hint">Répartition par zone</span>
+              @for (z of zones(); track z.zone) {
+                <div class="zline">
+                  <span class="ztag">{{ z.zone }}</span>
+                  <span class="ztrack"><span class="zfill" [style.width.%]="z.pct"></span></span>
+                  <span class="metric zval">{{ z.count }}</span>
+                </div>
+              }
+            </div>
+          }
+        </section>
+      }
+
+      <!-- Mes records -->
+      @if (performances(); as ps) {
+        @if (ps.length > 0) {
+          <section class="sect">
+            <h2 class="sect-h">Mes records</h2>
+            <div class="card">
+              <ul class="perf">
+                @for (p of ps; track p.id) {
+                  <li>
+                    <span class="perf-d">{{ p.distanceCode }}</span>
+                    <span class="perf-t metric">{{ fmtTime(p.timeSeconds) }}</span>
+                    @if (p.vdot != null) { <span class="perf-v field-hint">VDOT {{ p.vdot | number: '1.0-1' }}</span> }
+                    @if (p.dateSet) { <span class="perf-dt field-hint">{{ p.dateSet | date: 'MM/yy' }}</span> }
+                  </li>
+                }
+              </ul>
+            </div>
+          </section>
+        }
+      }
 
       <!-- Ma charge d'entraînement -->
       @if (load(); as l) {
@@ -42,6 +138,30 @@ const SOURCE_LABEL: Record<string, string> = {
             <app-metric-card label="Charge chronique (28 j)" [value]="round(l.chronicLoad28d)" unit="UA" origin="calcule" />
             <app-metric-card label="Monotonie" [value]="l.monotony != null ? l.monotony.toFixed(2) : '—'" origin="calcule"
               [tone]="(l.monotony ?? 0) >= 2 ? 'alert' : 'neutral'" />
+          </div>
+        </section>
+      }
+
+      <!-- Ma charge de force (méca vs métab) -->
+      @if (strengthBars().length > 0) {
+        <section class="sect">
+          <h2 class="sect-h">Ma charge de force</h2>
+          <div class="card chart">
+            <div class="chart-hd">
+              <span class="field-hint">Charge par séance (UA)</span>
+              <span class="legend"><i class="sw mech"></i>Mécanique <i class="sw metab"></i>Métabolique</span>
+            </div>
+            <div class="bars">
+              @for (b of strengthBars(); track b.label) {
+                <div class="bgrp" [title]="b.label + ' — méca ' + b.mech + ' / métab ' + b.metab + ' UA'">
+                  <div class="bpair">
+                    <span class="bar mech" [style.height.%]="b.mx"></span>
+                    <span class="bar metab" [style.height.%]="b.tx"></span>
+                  </div>
+                  <span class="blab">{{ b.label }}</span>
+                </div>
+              }
+            </div>
           </div>
         </section>
       }
@@ -136,8 +256,49 @@ const SOURCE_LABEL: Record<string, string> = {
     .hist-detail { margin-left: auto; }
 
     .sect-h { font-size: var(--text-lg); margin: var(--sp-2) 0; }
+    .sect { display: flex; flex-direction: column; gap: var(--sp-3); }
     .charge { display: flex; flex-direction: column; gap: var(--sp-3); }
     .charge-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3); }
+
+    .prog-h { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
+    .streak { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 4px 10px; border-radius: var(--radius-full); background: var(--form-orange-wash, var(--paper-sunk)); color: var(--form-orange, var(--ink-2)); font-weight: 800; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+
+    .sw.mech { background: var(--dari-teal); }
+    .sw.metab { background: var(--form-orange, #ff8a3c); }
+    .bar.mech { background: var(--dari-teal); }
+    .bar.metab { background: var(--form-orange, #ff8a3c); }
+
+    .quick { display: grid; gap: var(--sp-2); }
+    .quick-l { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); text-decoration: none; color: var(--ink); font-weight: 700; }
+    .quick-l span { flex: 1; }
+    .quick-l :last-child { color: var(--ink-4); }
+
+    .chart { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .chart-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+    .legend { display: flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--ink-3); }
+    .legend .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+    .sw.planned { background: var(--ink-4); }
+    .sw.realized { background: var(--dari-violet); }
+    .bars { display: flex; align-items: flex-end; gap: 6px; height: 110px; }
+    .bgrp { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+    .bpair { display: flex; align-items: flex-end; gap: 2px; height: 100%; width: 100%; justify-content: center; }
+    .bar { width: 40%; min-height: 2px; border-radius: 3px 3px 0 0; }
+    .bar.planned { background: var(--ink-4); }
+    .bar.realized { background: var(--dari-violet); }
+    .blab { font-size: 9px; color: var(--ink-4); white-space: nowrap; }
+
+    .zline { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) 0; }
+    .ztag { width: 28px; font-size: var(--text-sm); font-weight: 700; color: var(--ink-3); }
+    .ztrack { flex: 1; height: 8px; background: var(--paper-sunk); border-radius: var(--radius-full); overflow: hidden; }
+    .zfill { display: block; height: 100%; background: var(--dari-violet); border-radius: var(--radius-full); }
+    .zval { width: 32px; text-align: right; font-weight: 700; }
+
+    .perf { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+    .perf li { display: flex; align-items: baseline; gap: var(--sp-3); padding: var(--sp-2) 0; border-top: 1px solid var(--hairline); }
+    .perf li:first-child { border-top: none; }
+    .perf-d { flex: 1; font-weight: 700; color: var(--ink); }
+    .perf-t { font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .perf-dt { width: 48px; text-align: right; }
   `],
 })
 export class AthleteProgressComponent implements OnInit {
@@ -148,11 +309,88 @@ export class AthleteProgressComponent implements OnInit {
   readonly expanded = signal<string | null>(null);
   readonly history = signal<Record<string, E1rmHistory[]>>({});
   readonly load = signal<Load | null>(null);
+  readonly analytics = signal<Analytics | null>(null);
+  readonly performances = signal<Performance[] | null>(null);
+  readonly strengthLoad = signal<StrengthLoadPoint[]>([]);
+
+  /** Régularité : nb de semaines consécutives (jusqu'à cette semaine) avec ≥1 km réalisé. */
+  readonly streak = computed(() => {
+    const a = this.analytics();
+    if (!a) return 0;
+    let n = 0;
+    for (let i = a.weeklyVolume.length - 1; i >= 0; i--) {
+      if (a.weeklyVolume[i].realizedKm > 0) n++;
+      else break;
+    }
+    return n;
+  });
+
+  /** Barres charge de force (12 dernières séances) : méca vs métab, % du max. */
+  readonly strengthBars = computed(() => {
+    const rows = this.strengthLoad().slice(-12);
+    if (rows.length === 0) return [];
+    const max = Math.max(1, ...rows.flatMap((r) => [r.mechanicalLoad, r.metabolicLoad]));
+    return rows.map((r) => ({
+      label: r.sessionDate.slice(5),
+      mech: Math.round(r.mechanicalLoad),
+      metab: Math.round(r.metabolicLoad),
+      mx: Math.round((r.mechanicalLoad / max) * 100),
+      tx: Math.round((r.metabolicLoad / max) * 100),
+    }));
+  });
+
+  /** Totaux volume + adhérence (% séances réalisées) sur la période. */
+  readonly totals = computed(() => {
+    const a = this.analytics();
+    if (!a) return null;
+    const planned = Math.round(a.weeklyVolume.reduce((s, w) => s + w.plannedKm, 0));
+    const realized = Math.round(a.weeklyVolume.reduce((s, w) => s + w.realizedKm, 0));
+    const counts = a.statusCounts ?? {};
+    const total = Object.values(counts).reduce((s, n) => s + n, 0);
+    const done = (counts['COMPLETED'] ?? 0) + (counts['PARTIAL'] ?? 0);
+    const compliance = total > 0 ? Math.round((done / total) * 100) : null;
+    return { planned, realized, compliance };
+  });
+
+  /** Barres de volume hebdo (hauteur en % du max prévu/réalisé). */
+  readonly bars = computed(() => {
+    const a = this.analytics();
+    if (!a) return [];
+    const max = Math.max(1, ...a.weeklyVolume.flatMap((w) => [w.plannedKm, w.realizedKm]));
+    return a.weeklyVolume.map((w) => ({
+      label: w.weekStart.slice(5),
+      planned: Math.round(w.plannedKm * 10) / 10,
+      realized: Math.round(w.realizedKm * 10) / 10,
+      px: Math.round((w.plannedKm / max) * 100),
+      rx: Math.round((w.realizedKm / max) * 100),
+    }));
+  });
+
+  /** Répartition par zone (largeur en % du max). */
+  readonly zones = computed(() => {
+    const a = this.analytics();
+    if (!a) return [];
+    const entries = Object.entries(a.zoneDistribution ?? {}).filter(([, n]) => n > 0);
+    const max = Math.max(1, ...entries.map(([, n]) => n));
+    return entries.map(([zone, count]) => ({ zone, count, pct: Math.round((count / max) * 100) }));
+  });
 
   round(v: number): number { return Math.round(v); }
 
+  /** Chrono « h:mm:ss » ou « m:ss ». */
+  fmtTime(s: number): string {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`;
+  }
+
   ngOnInit(): void {
     this.portal.load().subscribe({ next: (l) => this.load.set(l), error: () => this.load.set(null) });
+    this.portal.analytics(8).subscribe({ next: (a) => this.analytics.set(a), error: () => this.analytics.set(null) });
+    this.portal.performances().subscribe({ next: (p) => this.performances.set(p), error: () => this.performances.set(null) });
+    this.portal.strengthLoad().subscribe({ next: (s) => this.strengthLoad.set(s), error: () => this.strengthLoad.set([]) });
     this.portal.my1rm().subscribe({
       next: (p) => { this.profiles.set(p); this.loading.set(false); },
       error: () => this.loading.set(false),

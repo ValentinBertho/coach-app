@@ -4,7 +4,9 @@ import com.coachrun.dto.response.AnalyticsResponse;
 import com.coachrun.entity.Activity;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.WorkoutStep;
+import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.ActivityRepository;
+import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.WorkoutRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,14 @@ public class AnalyticsService {
 
     private final WorkoutRepository workoutRepository;
     private final ActivityRepository activityRepository;
+    private final AthleteRepository athleteRepository;
+
+    /** Analytics — variante athlète-scopée (portail /me) : résout le club de l'athlète. */
+    public AnalyticsResponse computeForAthlete(UUID athleteId, int weeks) {
+        com.coachrun.entity.Athlete a = athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        return compute(a.getClub().getId(), athleteId, weeks);
+    }
 
     public AnalyticsResponse compute(UUID clubId, UUID athleteId, int weeks) {
         int n = Math.max(1, Math.min(weeks, 26));

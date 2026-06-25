@@ -4,8 +4,10 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { RaceObjective } from '../models/race.model';
 import { Unavailability } from '../models/unavailability.model';
-import { PhysioProfile, Vdot } from '../models/physio.model';
-import { Load } from '../models/lactate.model';
+import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
+import { Activity } from '../models/activity.model';
+import { Analytics } from './analytics.service';
+import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
 import { Workout, WorkoutStatus } from '../models/workout.model';
 import { CalculatedStrength, E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthResultEntry, StrengthStructure } from '../models/strength.model';
 
@@ -88,6 +90,39 @@ export class AthletePortalService {
   /** Mes objectifs (liste complète). */
   races(): Observable<RaceObjective[]> {
     return this.http.get<RaceObjective[]>(`${this.base}/races`);
+  }
+
+  // --- Phase 2 « Mon histoire » (lecture seule) ---
+  /** Mes analytics (volume hebdo prévu/réalisé, zones, adhérence). */
+  analytics(weeks = 8): Observable<Analytics> {
+    const params = new HttpParams().set('weeks', weeks);
+    return this.http.get<Analytics>(`${this.base}/analytics`, { params });
+  }
+  /** Mes activités réalisées (Strava/GPX/manuel). */
+  activities(): Observable<Activity[]> {
+    return this.http.get<Activity[]>(`${this.base}/activities`);
+  }
+  /** Tracé GPS d'une de mes activités. */
+  activityRoute(activityId: string): Observable<number[][]> {
+    return this.http.get<number[][]>(`${this.base}/activities/${activityId}/route`);
+  }
+  /** Mes performances / records par distance. */
+  performances(): Observable<Performance[]> {
+    return this.http.get<Performance[]>(`${this.base}/performances`);
+  }
+
+  // --- Phase 3 « Aller plus loin » (lecture seule) ---
+  /** Mes tests lactate (résumés). */
+  lactateTests(): Observable<LactateTest[]> {
+    return this.http.get<LactateTest[]>(`${this.base}/lactate-tests`);
+  }
+  /** Détail d'un test lactate (paliers pour la courbe). */
+  lactateTest(testId: string): Observable<LactateTest> {
+    return this.http.get<LactateTest>(`${this.base}/lactate-tests/${testId}`);
+  }
+  /** Ma charge de force (méca/métab, UA) par séance réalisée. */
+  strengthLoad(): Observable<StrengthLoadPoint[]> {
+    return this.http.get<StrengthLoadPoint[]>(`${this.base}/pp/strength-load`);
   }
 
   /** Mon profil de force : 1RM courant par exercice (lecture seule). */

@@ -44,6 +44,28 @@ public class ActivityService {
                 .stream().map(this::toResponse).toList();
     }
 
+    /** Liste — variante athlète-scopée (portail /me) : ne renvoie que mes activités. */
+    public List<ActivityResponse> listForAthlete(UUID athleteId) {
+        return activityRepository.findByAthleteIdOrderByActivityDateDesc(athleteId)
+                .stream().map(this::toResponse).toList();
+    }
+
+    /** Tracé GPS — variante athlète-scopée : l'activité doit appartenir à l'athlète. */
+    public java.util.List<double[]> routeForAthlete(UUID athleteId, UUID activityId) {
+        Activity a = activityRepository.findById(activityId)
+                .filter(act -> act.getAthlete().getId().equals(athleteId))
+                .orElseThrow(() -> new NotFoundException("Activité introuvable."));
+        if (a.getRouteJson() == null) {
+            return java.util.List.of();
+        }
+        try {
+            return objectMapper.readValue(a.getRouteJson(),
+                    new com.fasterxml.jackson.core.type.TypeReference<java.util.List<double[]>>() { });
+        } catch (Exception e) {
+            return java.util.List.of();
+        }
+    }
+
     @Transactional
     public ActivityResponse importActivity(UUID clubId, UUID athleteId, ActivityImportRequest request) {
         Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)

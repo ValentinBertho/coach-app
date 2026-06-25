@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
-import { WORKOUT_TYPE_LABELS, Workout } from '../../core/models/workout.model';
+import { STEP_TYPE_LABELS, WORKOUT_TYPE_LABELS, Workout } from '../../core/models/workout.model';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
@@ -69,16 +69,20 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
 
           <div class="day-items">
             @for (w of day.workouts; track w.id) {
-              <button type="button" class="ses ses--run" (click)="openMove('run', w.id, w.title, w.scheduledDate)">
-                <span class="ses-main">
-                  <span class="ses-title">{{ typeLabels[w.type] }} · {{ w.title }}</span>
-                  @if (w.targetDistanceM) { <span class="ses-km metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span> }
-                </span>
-                <span class="ses-zones">
-                  @for (z of zonesOf(w); track z) { <app-intensity-zone-badge [zone]="z" /> }
-                </span>
-                <span class="ses-move" aria-hidden="true"><app-icon name="move" [size]="13" /> déplacer</span>
-              </button>
+              <div class="ses ses--run">
+                <button type="button" class="ses-body" (click)="openDetail(w)">
+                  <span class="ses-main">
+                    <span class="ses-title">{{ typeLabels[w.type] }} · {{ w.title }}</span>
+                    @if (w.targetDistanceM) { <span class="ses-km metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span> }
+                  </span>
+                  <span class="ses-zones">
+                    @for (z of zonesOf(w); track z) { <app-intensity-zone-badge [zone]="z" /> }
+                  </span>
+                </button>
+                <button type="button" class="ses-move-btn" (click)="openMove('run', w.id, w.title, w.scheduledDate)">
+                  <app-icon name="move" [size]="13" /> déplacer
+                </button>
+              </div>
             }
             @for (s of day.strength; track s.id) {
               <button type="button" class="ses ses--strength" (click)="openMove('strength', s.id, s.title, s.scheduledDate)">
@@ -110,6 +114,44 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
         </div>
       }
     </app-bottom-sheet>
+
+    <!-- Détail (lecture seule) d'une séance course -->
+    <app-bottom-sheet [(open)]="detailOpen" title="Détail de la séance">
+      @if (detailWorkout(); as w) {
+        <div class="det">
+          <div class="det-hd">
+            <strong>{{ typeLabels[w.type] }} · {{ w.title }}</strong>
+            <div class="det-meta field-hint">
+              @if (w.targetDistanceM) { <span>{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span> }
+              @if (w.targetDurationS) { <span>· {{ fmtDur(w.targetDurationS) }}</span> }
+            </div>
+          </div>
+          @if (w.notes) { <p class="det-notes">{{ w.notes }}</p> }
+
+          @if (w.steps.length > 0) {
+            <ul class="blocks">
+              @for (s of w.steps; track $index) {
+                <li class="blk">
+                  <div class="blk-hd">
+                    @if (s.zone) { <app-intensity-zone-badge [zone]="zoneNum(s.zone)" /> }
+                    <span class="blk-type">{{ stepLabels[s.stepType] }}</span>
+                    @if (s.repetitions > 1) { <span class="blk-rep metric">×{{ s.repetitions }}</span> }
+                  </div>
+                  <div class="blk-target field-hint">
+                    @if (s.distanceM) { <span>{{ s.distanceM }} m</span> }
+                    @if (s.durationS) { <span>{{ fmtDur(s.durationS) }}</span> }
+                    @if (s.notes) { <span>· {{ s.notes }}</span> }
+                  </div>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="field-hint">Séance libre — pas de blocs détaillés.</p>
+          }
+          <p class="det-foot field-hint">Lecture seule. Pour décaler la séance, utilise « déplacer ».</p>
+        </div>
+      }
+    </app-bottom-sheet>
   `,
   styles: [`
     :host { display: block; }
@@ -138,11 +180,31 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     .ses:active { transform: scale(0.99); }
     .ses--run { --type-c: var(--dari-teal); }
     .ses--strength { --type-c: var(--dari-violet); }
+    .ses-body { display: flex; flex-direction: column; gap: var(--sp-1); text-align: left; width: 100%; background: transparent; border: none; padding: 0; cursor: pointer; }
     .ses-main { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
     .ses-title { font-weight: 700; color: var(--ink); flex: 1; }
     .ses-km { color: var(--ink-2); font-weight: 700; font-size: var(--text-sm); }
     .ses-zones { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
     .ses-move { font-size: var(--text-xs); color: var(--ink-3); font-weight: 600; }
+    .ses-move-btn {
+      align-self: flex-start; margin-top: var(--sp-1); display: inline-flex; align-items: center; gap: 4px;
+      font-size: var(--text-xs); color: var(--ink-3); font-weight: 700; background: transparent;
+      border: none; padding: var(--sp-1) 0; cursor: pointer;
+    }
+    .ses-move-btn:active { transform: scale(0.97); }
+
+    .det { display: flex; flex-direction: column; gap: var(--sp-3); }
+    .det-hd strong { color: var(--ink); }
+    .det-meta { display: flex; gap: 4px; margin-top: 2px; }
+    .det-notes { margin: 0; color: var(--ink-2); }
+    .blocks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+    .blk { padding: var(--sp-2) 0; border-top: 1px solid var(--hairline); }
+    .blk:first-child { border-top: none; }
+    .blk-hd { display: flex; align-items: center; gap: var(--sp-2); }
+    .blk-type { font-weight: 700; color: var(--ink); }
+    .blk-rep { color: var(--ink-2); font-weight: 800; }
+    .blk-target { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+    .det-foot { margin: 0; }
 
     .move-lead { font-weight: 700; color: var(--ink); margin: 0 0 var(--sp-4); }
     .pick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); }
@@ -160,6 +222,7 @@ export class AthleteCalendarComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
+  readonly stepLabels = STEP_TYPE_LABELS;
   readonly reasonIcon = REASON_ICON;
   private readonly weekdays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -170,6 +233,8 @@ export class AthleteCalendarComponent implements OnInit {
 
   readonly moveOpen = signal(false);
   readonly moveTarget = signal<MoveTarget | null>(null);
+  readonly detailOpen = signal(false);
+  readonly detailWorkout = signal<Workout | null>(null);
 
   readonly days = computed<DayRow[]>(() => {
     const today = toIso(new Date());
@@ -238,6 +303,23 @@ export class AthleteCalendarComponent implements OnInit {
   openMove(kind: 'run' | 'strength', id: string, title: string, date: string): void {
     this.moveTarget.set({ kind, id, title, date });
     this.moveOpen.set(true);
+  }
+
+  openDetail(w: Workout): void {
+    this.detailWorkout.set(w);
+    this.detailOpen.set(true);
+  }
+
+  /** Durée « h:mm » ou « m min ». */
+  fmtDur(s: number): string {
+    const h = Math.floor(s / 3600);
+    const m = Math.round((s % 3600) / 60);
+    return h > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${m} min`;
+  }
+
+  /** Zone 'Z3' → 3 (pour le badge). */
+  zoneNum(zone: string): ZoneNum {
+    return Number(zone.replace(/\D/g, '')) as ZoneNum;
   }
 
   confirmMove(targetDate: string): void {

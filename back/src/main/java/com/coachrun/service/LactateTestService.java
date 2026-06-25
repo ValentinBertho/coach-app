@@ -57,6 +57,19 @@ public class LactateTestService {
         return LactateTestResponse.from(requireTest(clubId, testId));
     }
 
+    /** Liste — variante athlète-scopée (portail /me, lecture seule). */
+    public List<LactateTestResponse> listForAthlete(UUID athleteId) {
+        return testRepository.findByAthleteIdOrderByTestDateDesc(athleteId).stream()
+                .map(LactateTestResponse::summary)
+                .toList();
+    }
+
+    /** Détail (avec paliers pour la courbe) — variante athlète-scopée. */
+    public LactateTestResponse getForAthlete(UUID athleteId, UUID testId) {
+        return LactateTestResponse.from(testRepository.findByIdAndAthleteId(testId, athleteId)
+                .orElseThrow(() -> new NotFoundException("Test introuvable.")));
+    }
+
     @Transactional
     public LactateTestResponse create(UUID clubId, UUID athleteId, LactateTestRequest req) {
         Athlete a = requireAthlete(clubId, athleteId);

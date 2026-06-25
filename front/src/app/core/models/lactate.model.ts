@@ -50,3 +50,11 @@ export interface Load {
   sessions7d: number;
   sessions28d: number;
 }
+
+/** Charge interne d'une séance de force réalisée (UA), méca vs métab. */
+export interface StrengthLoadPoint {
+  scheduledSessionId: string | null;
+  sessionDate: string;
+  mechanicalLoad: number;
+  metabolicLoad: number;
+}
