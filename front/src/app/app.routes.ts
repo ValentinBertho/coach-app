@@ -86,6 +86,11 @@ export const routes: Routes = [
           import('./features/strength/strength.component').then((m) => m.StrengthComponent),
       },
       {
+        path: 'run-drills',
+        loadComponent: () =>
+          import('./features/templates/run-drills.component').then((m) => m.RunDrillsComponent),
+      },
+      {
         path: 'strength/sessions/:sessionId/structure',
         loadComponent: () =>
           import('./features/strength/strength-session-editor.component').then(

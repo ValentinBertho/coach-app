@@ -1,0 +1,33 @@
+# ============================================================================
+# 032 — Table "run_drills" : éducatifs de course (gammes techniques).
+# Distincts du renforcement (prépa physique). Cf. CDC §9 s-exercises.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 032-create-run-drills
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: run_drills
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: category, type: VARCHAR(32), constraints: { nullable: false } }
+              - column: { name: description, type: TEXT }
+              - column: { name: video_url, type: VARCHAR(512) }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_run_drills_club
+            baseTableName: run_drills
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_run_drills_club
+            tableName: run_drills
+            columns:
+              - column: { name: club_id }
