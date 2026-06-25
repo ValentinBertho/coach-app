@@ -29,3 +29,11 @@
 .stat-line { display: flex; align-items: center; justify-content: space-between; }
 
 @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+/* --- Refonte : KPI rail + actions de période ------------------------------ */
+.head-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.kpi-rail {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-4); margin-bottom: var(--sp-5);
+}
+.zline { display: flex; align-items: center; gap: var(--sp-3); margin: var(--sp-2) 0; }
