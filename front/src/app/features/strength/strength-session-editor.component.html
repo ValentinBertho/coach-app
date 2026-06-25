@@ -5,6 +5,7 @@
     <p class="subtitle">Structure : blocs, formats avancés et prescription des exercices.</p>
   </div>
   <div class="editor-head-actions">
+    <app-segmented-control [options]="viewOptions" [(value)]="viewMode" [ariaLabel]="'Mode d\'affichage'" />
     <div class="form-group preview-picker">
       <label>Aperçu charges (athlète)</label>
       <select class="form-control" [ngModel]="previewAthlete()" (ngModelChange)="onAthleteChange($event)">
@@ -20,7 +21,7 @@
 
 @if (loading()) {
   <div class="card">Chargement…</div>
-} @else {
+} @else if (viewMode() === 'edit') {
   @if (empty()) {
     <div class="card empty-state">
       <span style="font-size:32px">🧱</span>
@@ -144,4 +145,42 @@
   </div>
 
   <button type="button" class="btn btn-ghost add-block" (click)="addBlock()">+ Ajouter un bloc</button>
+} @else {
+  <!-- ===== Aperçu athlète (lecture seule, primitives) ===== -->
+  @if (empty()) {
+    <div class="card empty-state"><p class="field-hint">Séance vide — rien à prévisualiser.</p></div>
+  }
+  @for (block of blocks(); track block.id; let bi = $index) {
+    <div class="card preview-block">
+      <div class="pv-head">
+        <span class="badge badge-neutral">{{ blockTypeLabel(block.blockType) }}</span>
+        <span class="badge badge-info">{{ formatLabel(block.format) }}</span>
+        @if (showDuration(block) && block.durationSec) { <span class="pv-dur metric">{{ block.durationSec }} s</span> }
+        @if (showCircuit(block)) { <span class="pv-dur metric">{{ block.rounds }} tours · {{ block.workSec }}/{{ block.restSec }} s</span> }
+      </div>
+      @for (item of block.exercises; track item; let i = $index) {
+        <div class="pv-ex">
+          <div class="pv-ex-head">
+            <strong>{{ item.exerciseName || label(item.exerciseId) }}</strong>
+            @if (item.prescription.sets) { <span class="pv-sets metric">{{ item.prescription.sets }} séries</span> }
+          </div>
+          <div class="pv-pills">
+            @if (repsInfo(block, item.prescription); as r) {
+              <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" />
+            }
+            @if (chargePill(item.prescription); as c) {
+              <app-range-prescription-pill label="Charge" [min]="c.min" [max]="c.max" [unit]="c.unit" />
+            }
+            @if (effortInfo(item.prescription); as e) {
+              <app-effort-badge [kind]="e.kind" [min]="e.min" [max]="e.max" />
+            }
+            @if (item.prescription.tempo) { <span class="pv-tempo">Tempo {{ item.prescription.tempo }}</span> }
+            @if (chargeAt(bi, i); as ct) {
+              @if (ct.computable && ct.chargeLabel) { <span class="pv-computed">🎯 {{ ct.chargeLabel }}</span> }
+            }
+          </div>
+        </div>
+      } @empty { <p class="field-hint">Aucun exercice dans ce bloc.</p> }
+    </div>
+  }
 }

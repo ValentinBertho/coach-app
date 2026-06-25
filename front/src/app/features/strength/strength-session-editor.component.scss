@@ -149,3 +149,21 @@
 .cdk-drag-animating {
   transition: transform 180ms cubic-bezier(0, 0, 0.2, 1);
 }
+
+/* --- Aperçu athlète (lecture seule) --------------------------------------- */
+.editor-head-actions { display: flex; align-items: flex-end; gap: var(--sp-3); flex-wrap: wrap; }
+.preview-block { margin-bottom: var(--sp-3); }
+.pv-head { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-2); }
+.pv-dur { color: var(--ink-3); font-size: var(--text-sm); }
+.pv-ex { padding: var(--sp-3) 0; border-top: 1px solid var(--hairline); }
+.pv-ex:first-of-type { border-top: none; }
+.pv-ex-head { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: var(--sp-2); }
+.pv-ex-head strong { color: var(--ink); }
+.pv-sets { color: var(--ink-3); font-size: var(--text-sm); font-weight: 700; }
+.pv-pills { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.pv-tempo { font-size: var(--text-xs); color: var(--ink-3); font-weight: 600; }
+.pv-computed {
+  font-family: var(--font-data); font-variant-numeric: tabular-nums;
+  font-size: var(--text-xs); font-weight: 700; color: var(--primary);
+  background: var(--primary-wash); padding: 1px var(--sp-2); border-radius: var(--radius-full);
+}

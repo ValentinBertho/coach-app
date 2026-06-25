@@ -16,7 +16,14 @@ import {
   SetType,
   StrengthBlock,
   StrengthExerciseItem,
+  StrengthPrescription,
 } from '../../core/models/strength.model';
+import {
+  EffortBadgeComponent,
+  type EffortKind,
+  RangePrescriptionPillComponent,
+} from '../../shared/components/physiology';
+import { SegmentedControlComponent, type SegmentOption } from '../../shared/components/ui';
 
 /**
  * Éditeur de structure d'une séance de force (cf. DARI Lab) : blocs typés, formats avancés
@@ -27,7 +34,10 @@ import {
   selector: 'app-strength-session-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DragDropModule],
+  imports: [
+    FormsModule, RouterLink, DragDropModule,
+    SegmentedControlComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
+  ],
   templateUrl: './strength-session-editor.component.html',
   styleUrl: './strength-session-editor.component.scss',
 })
@@ -92,6 +102,48 @@ export class StrengthSessionEditorComponent implements OnInit {
   ];
 
   readonly empty = computed(() => this.blocks().length === 0);
+
+  // --- Mode édition / aperçu athlète ---
+  readonly viewMode = signal<'edit' | 'preview'>('edit');
+  readonly viewOptions: SegmentOption[] = [
+    { value: 'edit', label: 'Édition' },
+    { value: 'preview', label: 'Aperçu athlète' },
+  ];
+
+  blockTypeLabel(t: BlockType): string { return this.blockTypes.find((x) => x.value === t)?.label ?? t; }
+  formatLabel(f: BlockFormat): string { return this.formats.find((x) => x.value === f)?.label ?? f; }
+
+  /** Fourchette de charge à afficher (lecture seule), ou null si non renseignée. */
+  chargePill(p: StrengthPrescription): { min: number; max: number; unit: string } | null {
+    switch (p.chargeRefType) {
+      case 'KG_RANGE': return p.chargeKgMin != null ? { min: p.chargeKgMin, max: p.chargeKgMax ?? p.chargeKgMin, unit: 'kg' } : null;
+      case 'KG_FIXE': return p.chargeKgMin != null ? { min: p.chargeKgMin, max: p.chargeKgMin, unit: 'kg' } : null;
+      case 'PCT_RM_RANGE': return p.chargePctRmMin != null ? { min: p.chargePctRmMin, max: p.chargePctRmMax ?? p.chargePctRmMin, unit: '% RM' } : null;
+      case 'PCT_RM': return p.chargePctRmMin != null ? { min: p.chargePctRmMin, max: p.chargePctRmMin, unit: '% RM' } : null;
+      default: return null;
+    }
+  }
+
+  /** Volume (reps ou durée d'isométrie) à afficher. */
+  repsInfo(block: StrengthBlock, p: StrengthPrescription): { label: string; min: number; max: number; unit: string } | null {
+    if (block.format === 'ISOMETRIE') {
+      return p.durationSec != null ? { label: 'Durée', min: p.durationSec, max: p.durationSec, unit: 's' } : null;
+    }
+    if (p.repsFixed != null) return { label: 'Reps', min: p.repsFixed, max: p.repsFixed, unit: '' };
+    if (p.repsMin != null) return { label: 'Reps', min: p.repsMin, max: p.repsMax ?? p.repsMin, unit: '' };
+    return null;
+  }
+
+  /** Effort prescrit (RPE/RIR) à afficher, ou null. */
+  effortInfo(p: StrengthPrescription): { kind: EffortKind; min: number; max: number } | null {
+    switch (p.effortRefType) {
+      case 'RIR_RANGE': return p.rirMin != null ? { kind: 'RIR', min: p.rirMin, max: p.rirMax ?? p.rirMin } : null;
+      case 'RIR': return p.rirMin != null ? { kind: 'RIR', min: p.rirMin, max: p.rirMin } : null;
+      case 'RPE_RANGE': return p.rpeMin != null ? { kind: 'RPE', min: p.rpeMin, max: p.rpeMax ?? p.rpeMin } : null;
+      case 'RPE': return p.rpeMin != null ? { kind: 'RPE', min: p.rpeMin, max: p.rpeMin } : null;
+      default: return null;
+    }
+  }
 
   ngOnInit(): void {
     this.strength.getSession(this.sessionId()).subscribe({
