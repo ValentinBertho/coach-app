@@ -49,6 +49,7 @@ public class AthletePortalController {
     private final com.coachrun.service.StrengthResultService strengthResultService;
     private final com.coachrun.service.ProgressionService progressionService;
     private final com.coachrun.service.UnavailabilityService unavailabilityService;
+    private final com.coachrun.service.Athlete1rmService oneRmService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -136,6 +137,20 @@ public class AthletePortalController {
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID scheduledId,
             @Valid @RequestBody java.util.List<com.coachrun.dto.request.StrengthResultRequest> results) {
         return strengthResultService.submit(principal.athleteId(), scheduledId, results);
+    }
+
+    /** Mon profil de force : 1RM courant par exercice (lecture seule, CDC §10). */
+    @GetMapping("/pp/1rm")
+    public java.util.List<com.coachrun.dto.response.MyOneRmResponse> my1rm(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return oneRmService.listForAthlete(principal.athleteId());
+    }
+
+    /** Mon historique e1RM d'un exercice (courbe de progression de la force). */
+    @GetMapping("/pp/1rm/{exerciseId}/history")
+    public java.util.List<com.coachrun.dto.response.E1rmHistoryResponse> my1rmHistory(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID exerciseId) {
+        return strengthResultService.historyForAthlete(principal.athleteId(), exerciseId);
     }
 
     /** Prochaine course cible (compte à rebours J-XX). 204 si aucune. */

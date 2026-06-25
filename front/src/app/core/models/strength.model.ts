@@ -125,6 +125,14 @@ export interface Athlete1rm {
   source: string;
 }
 
+/** 1RM courant enrichi du nom d'exercice (portail athlète /me). */
+export interface MyOneRm {
+  exerciseId: string;
+  exerciseName: string;
+  rmKg: number;
+  source: string;
+}
+
 export interface E1rmHistory {
   exerciseId: string;
   e1rmKg: number;

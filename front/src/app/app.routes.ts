@@ -197,6 +197,11 @@ export const routes: Routes = [
           import('./features/athlete/athlete-calendar.component').then((m) => m.AthleteCalendarComponent),
       },
       {
+        path: 'progress',
+        loadComponent: () =>
+          import('./features/athlete/athlete-progress.component').then((m) => m.AthleteProgressComponent),
+      },
+      {
         path: 'profile',
         loadComponent: () =>
           import('./features/athlete/profile.component').then((m) => m.AthleteProfileComponent),
