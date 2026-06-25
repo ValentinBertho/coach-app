@@ -69,7 +69,7 @@
 
       <div class="grid" [class.month]="mode() === 'month'" [class.loading]="loading()">
         @for (day of cells(); track day.date) {
-      <div class="day-col" [class.today]="day.isToday" [class.dim]="!day.inMonth">
+      <div class="day-col" [class.today]="day.isToday" [class.dim]="!day.inMonth" [class.day-col--unavailable]="day.unavailability">
         <header class="day-head">
           <div class="day-head__date">
             @if (mode() === 'week') { <span class="day-name">{{ day.label }}</span> }
@@ -79,6 +79,25 @@
             <span class="day-flag" title="Charge élevée : plusieurs séances dont une séance clé">⚠ charge</span>
           }
         </header>
+
+        <!-- Indisponibilité (bandeau) -->
+        @if (day.unavailability; as u) {
+          <div class="unavail-chip" [title]="reasonMeta[u.reason].label + (u.notes ? ' — ' + u.notes : '')">
+            <span>{{ reasonMeta[u.reason].icon }}</span> {{ reasonMeta[u.reason].label }}
+          </div>
+        }
+
+        <!-- Objectifs & tests (events non-séance) -->
+        @for (o of day.objectives; track o.id) {
+          <button type="button" class="event-chip event-chip--objective" (click)="openObjectives()" [title]="o.name + ' — priorité ' + o.priority">
+            <span>🎯</span><span class="ec-prio">{{ o.priority }}</span><span class="ec-name">{{ o.name }}</span>
+          </button>
+        }
+        @for (t of day.tests; track t.id) {
+          <button type="button" class="event-chip event-chip--test" (click)="openTests()" title="Test lactate">
+            <span>🧪</span><span class="ec-name">Test lactate</span>
+          </button>
+        }
 
         <div class="day-body" cdkDropList [cdkDropListData]="day" (cdkDropListDropped)="onDrop($event, day.date)">
           @for (w of day.workouts; track w.id) {

@@ -12,6 +12,11 @@ import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkoutService } from '../../core/services/workout.service';
+import { RaceService } from '../../core/services/race.service';
+import { LactateService } from '../../core/services/lactate.service';
+import { RaceObjective } from '../../core/models/race.model';
+import { LactateTest } from '../../core/models/lactate.model';
+import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
 
 interface DayCell {
   date: string;
@@ -21,11 +26,22 @@ interface DayCell {
   inMonth: boolean;
   workouts: Workout[];
   strength: ScheduledStrength[];
+  objectives: RaceObjective[];
+  tests: LactateTest[];
+  unavailability: Unavailability | null;
   km: number;
   sessions: number;
   /** Charge élevée : ≥ 2 séances dont au moins une séance clé (qualité). */
   conflict: boolean;
 }
+
+const REASON_META: Record<UnavailabilityReason, { label: string; icon: string }> = {
+  INJURY: { label: 'Blessure', icon: '🩹' },
+  ILLNESS: { label: 'Maladie', icon: '🤒' },
+  VACATION: { label: 'Vacances', icon: '🏖️' },
+  PERSONAL: { label: 'Personnel', icon: '📌' },
+  OTHER: { label: 'Indispo', icon: '🚫' },
+};
 
 /** Sémantique de type d'événement : couleur (token) + icône + nature « clé ». */
 interface TypeMeta { color: string; icon: string; key: boolean; }
@@ -67,8 +83,12 @@ export class CalendarComponent implements OnInit {
   private readonly strengthService = inject(StrengthService);
   private readonly courseService = inject(CourseService);
   private readonly templateService = inject(WorkoutTemplateService);
+  private readonly raceService = inject(RaceService);
+  private readonly lactateService = inject(LactateService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+
+  readonly reasonMeta = REASON_META;
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
   readonly statusLabels = STATUS_LABELS;
@@ -81,6 +101,9 @@ export class CalendarComponent implements OnInit {
   readonly anchor = signal<Date>(new Date());
   readonly workouts = signal<Workout[]>([]);
   readonly strength = signal<ScheduledStrength[]>([]);
+  readonly objectives = signal<RaceObjective[]>([]);
+  readonly tests = signal<LactateTest[]>([]);
+  readonly unavailabilities = signal<Unavailability[]>([]);
   readonly librarySessions = signal<StrengthSession[]>([]);
   readonly courseTemplates = signal<WorkoutTemplate[]>([]);
   readonly loading = signal(false);
@@ -90,6 +113,9 @@ export class CalendarComponent implements OnInit {
     const today = toIso(new Date());
     const byDate = this.groupByDate();
     const strengthByDate = this.groupStrengthByDate();
+    const objByDate = this.groupBy(this.objectives(), (o) => o.raceDate);
+    const testByDate = this.groupBy(this.tests(), (t) => t.testDate);
+    const unavail = this.unavailabilities();
     const count = this.mode() === 'week' ? 7 : 42;
     const start = this.gridStart();
     const monthRef = this.anchor().getMonth();
@@ -110,6 +136,9 @@ export class CalendarComponent implements OnInit {
         inMonth: this.mode() === 'week' || d.getMonth() === monthRef,
         workouts,
         strength,
+        objectives: objByDate.get(iso) ?? [],
+        tests: testByDate.get(iso) ?? [],
+        unavailability: unavail.find((u) => iso >= u.startDate && iso <= u.endDate) ?? null,
         km,
         sessions,
         conflict: sessions >= 2 && hasKey,
@@ -145,17 +174,26 @@ export class CalendarComponent implements OnInit {
       if (page.content.length && !this.selectedAthleteId) {
         this.selectedAthleteId = page.content[0].id;
         this.load();
+        this.loadOverlays();
       }
     });
     this.strengthService.listSessions().subscribe((p) => this.librarySessions.set(p.content));
     this.templateService.list().subscribe((p) => this.courseTemplates.set(p.content));
   }
 
+  /** Objectifs, tests et indisponibilités de l'athlète (listes complètes, filtrées par jour). */
+  loadOverlays(): void {
+    if (!this.selectedAthleteId) return;
+    this.raceService.list(this.selectedAthleteId).subscribe({ next: (r) => this.objectives.set(r), error: () => this.objectives.set([]) });
+    this.lactateService.list(this.selectedAthleteId).subscribe({ next: (t) => this.tests.set(t), error: () => this.tests.set([]) });
+    this.athleteService.listUnavailabilities(this.selectedAthleteId).subscribe({ next: (u) => this.unavailabilities.set(u), error: () => this.unavailabilities.set([]) });
+  }
+
   setMode(mode: 'week' | 'month'): void {
     this.mode.set(mode);
     this.load();
   }
-  onAthleteChange(): void { this.load(); }
+  onAthleteChange(): void { this.load(); this.loadOverlays(); }
   shift(step: number): void {
     const d = new Date(this.anchor());
     if (this.mode() === 'week') d.setDate(d.getDate() + step * 7);
@@ -199,6 +237,8 @@ export class CalendarComponent implements OnInit {
     // Vue séance (lecture) ; l'édition est une action délibérée depuis la page.
     this.router.navigate(['/app/athletes', w.athleteId, 'workouts', w.id]);
   }
+  openObjectives(): void { this.router.navigate(['/app/athletes', this.selectedAthleteId, 'races']); }
+  openTests(): void { this.router.navigate(['/app/athletes', this.selectedAthleteId, 'tests']); }
 
   onDrop(event: CdkDragDrop<DayCell>, targetDate: string): void {
     const data = event.item.data as Workout | StrengthSession | WorkoutTemplate;
@@ -247,6 +287,17 @@ export class CalendarComponent implements OnInit {
     const first = new Date(this.anchor());
     first.setDate(1);
     return mondayOf(first);
+  }
+
+  /** Regroupe une liste par clé de date (générique). */
+  private groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
+    const map = new Map<string, T[]>();
+    for (const it of items) {
+      const k = key(it);
+      const arr = map.get(k) ?? map.set(k, []).get(k)!;
+      arr.push(it);
+    }
+    return map;
   }
 
   private groupByDate(): Map<string, Workout[]> {
