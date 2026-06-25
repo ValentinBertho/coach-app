@@ -1,15 +1,19 @@
 package com.coachrun.service;
 
+import com.coachrun.entity.CoachAthleteRelation;
 import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.integration.ResendMailClient;
+import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
+
+import java.util.Optional;
 
 /**
  * Déclencheur centralisé de notifications email (cf. Techno.md §3). Désactivé par défaut
@@ -24,6 +28,7 @@ public class NotificationService {
     private final ResendMailClient mailClient;
     private final UserRepository userRepository;
     private final PushNotificationService pushService;
+    private final CoachAthleteRelationRepository relationRepository;
 
     @Value("${app.mail.enabled:false}")
     private boolean enabled;
@@ -49,24 +54,37 @@ public class NotificationService {
         send(email, subject, html);
     }
 
-    /** Feedback athlète → notifie le head coach du club. */
+    /** Feedback athlète → notifie le coach <strong>référent</strong> de l'athlète (repli : head coach). */
     public void notifyAthleteFeedback(Workout workout) {
-        userRepository.findFirstByClubIdAndRole(workout.getClub().getId(), UserRole.HEAD_COACH)
-                .ifPresent(coach -> pushService.sendToUser(coach.getId(),
-                        "Séance mise à jour",
-                        workout.getAthlete().getFirstName() + " — " + workout.getStatus(),
-                        frontendUrl + "/app"));
-        userRepository.findFirstByClubIdAndRole(workout.getClub().getId(), UserRole.HEAD_COACH)
-                .map(User::getEmail)
+        Optional<User> coach = coachToNotify(workout);
+        coach.ifPresent(c -> pushService.sendToUser(c.getId(),
+                "Séance mise à jour",
+                workout.getAthlete().getFirstName() + " — " + workout.getStatus(),
+                frontendUrl + "/app"));
+        coach.map(User::getEmail)
                 .ifPresent(coachEmail -> {
                     String athlete = esc(workout.getAthlete().getFirstName() + " "
                             + workout.getAthlete().getLastName());
                     String subject = athlete + " a renseigné une séance";
                     String html = "<p>" + athlete + " a mis à jour la séance <strong>"
                             + esc(workout.getTitle()) + "</strong> (" + workout.getStatus() + ").</p>"
-                            + cta("Ouvrir CoachRun", frontendUrl + "/app");
+                            + cta("Ouvrir Darilab", frontendUrl + "/app");
                     send(coachEmail, subject, html);
                 });
+    }
+
+    /**
+     * Coach à notifier pour un athlète : son coach <strong>référent</strong> (relation active),
+     * sinon repli sur le head coach du club. Évite qu'en multi-coach un retour parte au mauvais coach.
+     */
+    private Optional<User> coachToNotify(Workout workout) {
+        Optional<User> referent = relationRepository
+                .findByAthleteIdAndReferentTrueAndActiveTrue(workout.getAthlete().getId())
+                .map(CoachAthleteRelation::getCoach);
+        if (referent.isPresent()) {
+            return referent;
+        }
+        return userRepository.findFirstByClubIdAndRole(workout.getClub().getId(), UserRole.HEAD_COACH);
     }
 
     /** Rappel J-1 → notifie l'athlète d'une séance prévue le lendemain. */
