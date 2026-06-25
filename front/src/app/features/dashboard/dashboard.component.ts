@@ -10,7 +10,9 @@ import {
   FormStatus,
 } from '../../core/services/coach-dashboard.service';
 import { ReadinessGaugeComponent, type FormLevel } from '../../shared/components/physiology';
-import { MetricCardComponent } from '../../shared/components/ui';
+import { MetricCardComponent, SegmentedControlComponent, type SegmentOption } from '../../shared/components/ui';
+
+type Scope = 'all' | 'mine' | 'private' | 'club';
 
 const LEVEL_OF: Record<FormStatus, FormLevel> = { GREEN: 'green', ORANGE: 'orange', RED: 'red' };
 const SEVERITY: Record<FormStatus, number> = { RED: 2, ORANGE: 1, GREEN: 0 };
@@ -24,7 +26,7 @@ const SEVERITY: Record<FormStatus, number> = { RED: 2, ORANGE: 1, GREEN: 0 };
   selector: 'app-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink, ReadinessGaugeComponent, MetricCardComponent],
+  imports: [IconComponent, RouterLink, ReadinessGaugeComponent, MetricCardComponent, SegmentedControlComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
@@ -60,12 +62,30 @@ export class DashboardComponent implements OnInit {
     return c;
   });
 
+  // --- Périmètre (scope) ---
+  readonly scope = signal<Scope>('all');
+  readonly scopeOptions: SegmentOption[] = [
+    { value: 'all', label: 'Tout le club' },
+    { value: 'mine', label: 'Mes athlètes' },
+    { value: 'private', label: 'Privés' },
+    { value: 'club', label: 'Club' },
+  ];
+
   ngOnInit(): void {
     this.dashboardService.get().subscribe({
       next: (d) => this.data.set(d),
       complete: () => this.loading.set(false),
     });
-    this.dashboardService.form().subscribe((f) => this.form.set(f));
+    this.loadForm();
+  }
+
+  loadForm(): void {
+    this.dashboardService.form(this.scope()).subscribe((f) => this.form.set(f));
+  }
+
+  setScope(value: string): void {
+    this.scope.set(value as Scope);
+    this.loadForm();
   }
 
   level(status: FormStatus): FormLevel { return LEVEL_OF[status]; }

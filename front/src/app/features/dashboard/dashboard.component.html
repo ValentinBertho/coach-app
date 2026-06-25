@@ -1,8 +1,9 @@
 <section class="page-header">
   <div>
     <h1 class="display-sm">Bonjour {{ user()?.fullName || 'Coach' }}</h1>
-    <p class="subtitle">Cockpit — périmètre club</p>
+    <p class="subtitle">Cockpit coach</p>
   </div>
+  <app-segmented-control [options]="scopeOptions" [value]="scope()" (valueChange)="setScope($event)" [ariaLabel]="'Périmètre'" />
 </section>
 
 <!-- ===== Zone 1 : à surveiller aujourd'hui (priorité) ===== -->
