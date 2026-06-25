@@ -25,17 +25,35 @@
 } @else if (races().length === 0) {
   <div class="card empty-state"><h2>Aucun objectif</h2><p class="field-hint">Ajoutez une course cible.</p></div>
 } @else {
-  <div class="stats-grid">
+  <div class="objectives-grid">
     @for (r of races(); track r.id) {
-      <div class="card stat-card">
-        <div style="display:flex;align-items:center;gap:var(--sp-2)">
-          <span class="badge" [class.badge-warning]="r.priority==='A'" [class.badge-neutral]="r.priority!=='A'">Priorité {{ r.priority }}</span>
-          <span class="badge badge-info">{{ countdown(r) }}</span>
+      <article class="card objective" [class.objective--past]="r.daysUntil < 0 || r.status !== 'UPCOMING'">
+        <header class="obj-head">
+          <span class="badge" [class]="priorityClass(r.priority)">{{ priorityLabel(r.priority) }}</span>
+          @if (r.status !== 'UPCOMING') { <span class="badge badge-neutral">{{ statusLabel(r.status) }}</span> }
+        </header>
+
+        <div class="obj-main">
+          <div class="obj-id">
+            <strong class="obj-name">{{ r.name }}</strong>
+            <span class="field-hint metric">{{ r.raceDate }}</span>
+          </div>
+          <span class="obj-countdown metric" [class.obj-countdown--soon]="r.daysUntil >= 0 && r.daysUntil <= 14">
+            {{ countdown(r) }}
+          </span>
         </div>
-        <strong>{{ r.name }}</strong>
-        <span class="field-hint metric">{{ r.raceDate }}@if (r.distanceM) { · {{ (r.distanceM/1000).toFixed(1) }} km }</span>
-        <button type="button" class="btn btn-danger btn-sm" style="align-self:flex-start" (click)="remove(r)">Supprimer</button>
-      </div>
+
+        <dl class="obj-stats">
+          @if (r.distanceM) {
+            <div><dt>Distance</dt><dd class="metric">{{ (r.distanceM / 1000).toFixed(1) }}<small>km</small></dd></div>
+          }
+          @if (targetTime(r.targetTimeS); as tt) {
+            <div><dt>Chrono visé</dt><dd class="metric">{{ tt }}</dd></div>
+          }
+        </dl>
+
+        <button type="button" class="btn btn-ghost btn-sm obj-del" (click)="remove(r)">Supprimer</button>
+      </article>
     }
   </div>
 }

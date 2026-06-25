@@ -50,3 +50,10 @@
 .lg1 { color: var(--domain-1); }
 .lg2 { color: var(--domain-2); }
 .lg3 { color: var(--domain-3); }
+
+/* --- Refonte : ACWR dominant + rail de cartes ----------------------------- */
+.acwr-card { margin-bottom: var(--sp-4); }
+.kpi-rail {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-4); margin-bottom: var(--sp-6);
+}

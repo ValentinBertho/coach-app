@@ -13,8 +13,40 @@
   padding: var(--sp-2) var(--sp-3);
 }
 .msg.mine .bubble { background: var(--gradient-brand); color: #fff; }
-.sender { font-size: var(--text-xs); opacity: 0.7; display: block; margin-bottom: 2px; }
-.bubble p { margin: 0; }
+.sender { font-size: var(--text-xs); opacity: 0.7; display: block; margin-bottom: 2px; font-weight: 700; }
+.bubble p { margin: 0; white-space: pre-wrap; word-break: break-word; }
+
+/* Horodatage discret en bas de bulle */
+.msg-time { display: block; font-size: 10px; opacity: 0.6; margin-top: 3px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Séparateur de jour */
+.day-sep { display: flex; align-items: center; justify-content: center; margin: var(--sp-2) 0; }
+.day-sep span {
+  font-size: var(--text-xs); font-weight: 700; color: var(--ink-3);
+  background: var(--paper-sunk); padding: 2px var(--sp-3); border-radius: var(--radius-full);
+  text-transform: capitalize;
+}
+
+/* Chip de rattachement à une séance */
+.ctx-chip {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  font-size: var(--text-xs); font-weight: 700; margin-bottom: var(--sp-1);
+  padding: 1px var(--sp-2); border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--primary) 14%, transparent);
+  color: var(--primary); text-decoration: none; width: fit-content;
+}
+.msg.mine .ctx-chip { background: rgba(255, 255, 255, 0.22); color: #fff; }
+.ctx-chip--static { cursor: default; }
+
+/* Réponses rapides */
+.quick-replies { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+.qr-chip {
+  border: 1px solid var(--hairline); background: var(--paper);
+  color: var(--ink-2); font-size: var(--text-sm); font-weight: 600;
+  padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-full); cursor: pointer;
+  transition: background var(--duration-fast) var(--ease), border-color var(--duration-fast) var(--ease);
+}
+.qr-chip:hover { background: var(--primary-wash); border-color: var(--primary-light); color: var(--primary); }
 
 .composer { display: flex; gap: var(--sp-2); }
 .composer .form-control { flex: 1; }

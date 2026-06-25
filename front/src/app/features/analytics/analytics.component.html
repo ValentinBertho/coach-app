@@ -1,11 +1,24 @@
 <section class="page-header">
-  <div><h1 class="display-sm">Charge & progression</h1><p class="subtitle">8 dernières semaines.</p></div>
-  <a [routerLink]="['/app/athletes', athleteId()]" class="btn btn-ghost">← Fiche athlète</a>
+  <div><h1 class="display-sm">Charge &amp; progression</h1><p class="subtitle">Volume, intensité et adhérence sur la période.</p></div>
+  <div class="head-actions">
+    <app-segmented-control [options]="periodOptions" [value]="period()" (valueChange)="setPeriod($event)" [ariaLabel]="'Période'" />
+    <a [routerLink]="['/app/athletes', athleteId()]" class="btn btn-ghost">← Fiche athlète</a>
+  </div>
 </section>
 
 @if (loading()) {
-  <div class="card">Chargement…</div>
+  <div class="card"><div class="skeleton" style="height: 120px;"></div></div>
 } @else {
+  <!-- KPI de synthèse -->
+  @if (totals(); as t) {
+    <div class="kpi-rail">
+      <app-metric-card label="Volume prévu" [value]="t.planned" unit="km" origin="calcule" />
+      <app-metric-card label="Volume réalisé" [value]="t.realized" unit="km" origin="calcule" />
+      <app-metric-card label="Adhérence volume" [value]="t.compliance ?? '—'" [unit]="t.compliance != null ? '%' : ''"
+        [tone]="complianceTone(t.compliance)" origin="calcule" />
+    </div>
+  }
+
   <div class="card chart-card">
     <div class="chart-head">
       <h2>Volume hebdomadaire (km)</h2>
@@ -16,7 +29,7 @@
     </div>
     <div class="bars">
       @for (b of bars(); track b.label) {
-        <div class="bar-group" [title]="b.label + ' — prévu ' + b.planned + ' km / réalisé ' + b.realized + ' km'">
+        <div class="bar-group" [title]="b.label + ' — prévu ' + b.planned + ' km / réalisé ' + b.realized + ' km' + (b.compliance != null ? ' (' + b.compliance + ' %)' : '')">
           <div class="bars-pair">
             <span class="bar planned" [style.height.%]="b.px"></span>
             <span class="bar realized" [style.height.%]="b.rx"></span>
@@ -32,11 +45,16 @@
       <h2>Répartition par zone</h2>
       @for (z of zones(); track z.zone) {
         <div class="zline">
-          <span class="zone-tag" [class]="'zone-' + z.zone.toLowerCase()">{{ z.zone }}</span>
+          @if (z.num) {
+            <app-intensity-zone-badge [zone]="z.num" />
+          } @else {
+            <span class="zone-tag">{{ z.zone }}</span>
+          }
           <span class="ztrack"><span class="zfill" [class]="'zb-' + z.zone.toLowerCase()" [style.width.%]="z.pct"></span></span>
           <span class="metric zval">{{ z.count }}</span>
         </div>
       }
+      @if (zones().length === 0) { <p class="field-hint">Aucune donnée de zone sur la période.</p> }
     </div>
 
     <div class="card">
