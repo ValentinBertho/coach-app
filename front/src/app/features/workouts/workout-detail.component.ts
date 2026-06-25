@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { Router, RouterLink } from '@angular/router';
 import {
   STATUS_BADGE,
@@ -30,7 +31,7 @@ type State = 'loading' | 'ready' | 'error';
   selector: 'app-workout-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IntensityZoneBadgeComponent, DataOriginTagComponent, StickyActionBarComponent],
+  imports: [IconComponent, RouterLink, IntensityZoneBadgeComponent, DataOriginTagComponent, StickyActionBarComponent],
   templateUrl: './workout-detail.component.html',
   styleUrl: './workout-detail.component.scss',
 })

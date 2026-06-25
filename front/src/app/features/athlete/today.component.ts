@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -58,7 +59,7 @@ type State = 'loading' | 'ready' | 'error';
   selector: 'app-today',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [IconComponent, 
     FormsModule, RouterLink,
     LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent,
     IntensityZoneBadgeComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
@@ -185,7 +186,7 @@ export class TodayComponent implements OnInit {
       this.portal.ppResults(s.id, results).subscribe({
         next: (updates) => {
           if (updates.length) {
-            this.toast.success(`e1RM mis à jour : ${updates[0].e1rmKg} kg 💪`);
+            this.toast.success(`e1RM mis à jour : ${updates[0].e1rmKg} kg`);
           }
           this.portal.ppProgression(s.id).subscribe((p) => this.progression.set(p));
         },
@@ -198,7 +199,7 @@ export class TodayComponent implements OnInit {
       .subscribe({
         next: (updated) => {
           this.strength.set(updated);
-          this.toast.success('Renforcement enregistré 💪');
+          this.toast.success('Renforcement enregistré');
         },
       });
   }
@@ -261,7 +262,7 @@ export class TodayComponent implements OnInit {
       next: (updated) => {
         this.workout.set(updated);
         this.feedbackOpen.set(false);
-        this.toast.success('Ressenti enregistré 🎉');
+        this.toast.success('Ressenti enregistré');
       },
       error: () => {
         this.queue.enqueue(w.id, body);

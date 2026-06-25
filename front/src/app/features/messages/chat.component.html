@@ -8,7 +8,7 @@
     @if (loading()) {
       <p class="field-hint">Chargement…</p>
     } @else if (messages().length === 0) {
-      <p class="field-hint empty">Aucun message. Démarrez la conversation 👋</p>
+      <p class="field-hint empty">Aucun message. Démarrez la conversation</p>
     } @else {
       @for (it of items(); track it.m.id) {
         @if (it.showDay) {
@@ -19,9 +19,9 @@
             @if (!mine(it.m)) { <span class="sender">{{ it.m.senderName }}</span> }
 
             @if (workoutLink(it.m); as link) {
-              <a class="ctx-chip" [routerLink]="link">🏃 Séance liée</a>
+              <a class="ctx-chip" [routerLink]="link"><app-icon name="footprints" [size]="13" /> Séance liée</a>
             } @else if (it.m.workoutId) {
-              <span class="ctx-chip ctx-chip--static">🏃 Séance liée</span>
+              <span class="ctx-chip ctx-chip--static"><app-icon name="footprints" [size]="13" /> Séance liée</span>
             }
 
             @if (it.m.body) { <p>{{ it.m.body }}</p> }
@@ -32,7 +32,7 @@
                   <img class="msg-image" [src]="attachmentUrl(it.m)" [alt]="it.m.attachmentFilename || 'pièce jointe'" />
                 </a>
               } @else {
-                <a class="msg-file" [href]="attachmentUrl(it.m)" target="_blank" rel="noopener">📎 {{ it.m.attachmentFilename }}</a>
+                <a class="msg-file" [href]="attachmentUrl(it.m)" target="_blank" rel="noopener"><app-icon name="paperclip" [size]="14" /> {{ it.m.attachmentFilename }}</a>
               }
             }
 

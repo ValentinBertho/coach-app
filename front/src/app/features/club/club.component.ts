@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { AthleteService } from '../../core/services/athlete.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -16,7 +17,7 @@ import { AthleteSummary } from '../../core/models/athlete.model';
   selector: 'app-club',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [IconComponent, FormsModule],
   templateUrl: './club.component.html',
   styleUrl: './club.component.scss',
 })
@@ -59,7 +60,7 @@ export class ClubComponent implements OnInit {
     if (!id || !a) return;
     const next = a.ownership === 'CLUB' ? 'PRIVATE' : 'CLUB';
     this.clubService.setOwnership(id, next).subscribe({
-      next: (res) => { this.access.set(res); this.toast.success(`Athlète ${next === 'CLUB' ? 'rattaché au club' : 'passé en privé'} ✅`); },
+      next: (res) => { this.access.set(res); this.toast.success(`Athlète ${next === 'CLUB' ? 'rattaché au club' : 'passé en privé'}`); },
       error: () => this.toast.warning('Impossible : des permissions actives existent.'),
     });
   }
@@ -68,7 +69,7 @@ export class ClubComponent implements OnInit {
     const id = this.selectedAthlete();
     if (!id) return;
     this.clubService.grant(id, coachId, level).subscribe({
-      next: (res) => { this.access.set(res); this.toast.success('Permission accordée ✅'); },
+      next: (res) => { this.access.set(res); this.toast.success('Permission accordée'); },
       error: () => this.toast.warning('Athlète privé : permission impossible.'),
     });
   }

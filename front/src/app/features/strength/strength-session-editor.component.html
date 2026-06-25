@@ -1,7 +1,7 @@
 <section class="page-header editor-head">
   <div>
     <a [routerLink]="['/app/strength']" class="back-link">← Séances de force</a>
-    <h1 class="display-sm">{{ name() || 'Séance de force' }} 💪</h1>
+    <h1 class="display-sm">{{ name() || 'Séance de force' }}</h1>
     <p class="subtitle">Structure : blocs, formats avancés et prescription des exercices.</p>
   </div>
   <div class="editor-head-actions">
@@ -24,7 +24,7 @@
 } @else if (viewMode() === 'edit') {
   @if (empty()) {
     <div class="card empty-state">
-      <span style="font-size:32px">🧱</span>
+      <app-icon name="blocks" [size]="32" />
       <h2>Séance vide</h2>
       <p class="field-hint">Ajoute un premier bloc (échauffement, principal, accessoire…).</p>
     </div>
@@ -84,7 +84,7 @@
               <app-effort-badge [kind]="e.kind" [min]="e.min" [max]="e.max" />
             }
             @if (chargeAt(bi, i); as ct) {
-              @if (ct.computable && ct.chargeLabel) { <span class="charge-chip">🎯 {{ ct.chargeLabel }}</span> }
+              @if (ct.computable && ct.chargeLabel) { <span class="charge-chip"><app-icon name="target" [size]="12" /> {{ ct.chargeLabel }}</span> }
             }
           </div>
         </div>
@@ -135,7 +135,7 @@
             }
             @if (item.prescription.tempo) { <span class="pv-tempo">Tempo {{ item.prescription.tempo }}</span> }
             @if (chargeAt(bi, i); as ct) {
-              @if (ct.computable && ct.chargeLabel) { <span class="pv-computed">🎯 {{ ct.chargeLabel }}</span> }
+              @if (ct.computable && ct.chargeLabel) { <span class="pv-computed"><app-icon name="target" [size]="12" /> {{ ct.chargeLabel }}</span> }
             }
           </div>
         </div>

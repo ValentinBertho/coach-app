@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { RouterLink } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
 import { Ping } from '../../core/models/ping.model';
@@ -18,7 +19,7 @@ type PingState = 'loading' | 'ok' | 'error';
   selector: 'app-home',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, LogoComponent, InstallButtonComponent],
+  imports: [IconComponent, RouterLink, LogoComponent, InstallButtonComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
 })
@@ -46,7 +47,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         next: (ping) => {
           this.ping.set(ping);
           this.state.set('ok');
-          this.toast.success('API connectée ✅');
+          this.toast.success('API connectée');
         },
         error: () => {
           this.state.set('error');

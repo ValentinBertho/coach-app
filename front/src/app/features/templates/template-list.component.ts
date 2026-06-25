@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -14,7 +15,7 @@ import { WorkoutTemplateService } from '../../core/services/workout-template.ser
   selector: 'app-template-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, FormsModule, RouterLink],
+  imports: [IconComponent, ReactiveFormsModule, FormsModule, RouterLink],
   templateUrl: './template-list.component.html',
   styleUrl: './template-list.component.scss',
 })
@@ -91,7 +92,7 @@ export class TemplateListComponent implements OnInit {
   save(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     this.templateService.create(this.form.getRawValue() as unknown as WorkoutTemplateRequest).subscribe(() => {
-      this.toast.success('Modèle créé 📚');
+      this.toast.success('Modèle créé');
       this.form.reset({ type: 'ENDURANCE' });
       this.steps.clear();
       this.showForm.set(false);
@@ -103,7 +104,7 @@ export class TemplateListComponent implements OnInit {
     const sel = this.applyFor[t.id];
     if (!sel?.athleteId || !sel?.date) { this.toast.warning('Choisissez un athlète et une date.'); return; }
     this.templateService.apply(t.id, sel.athleteId, sel.date).subscribe(() => {
-      this.toast.success('Séance ajoutée au calendrier ✅');
+      this.toast.success('Séance ajoutée au calendrier');
       this.applyFor[t.id] = { athleteId: '', date: '' };
     });
   }

@@ -12,7 +12,7 @@
 
   <main class="athlete-main">
     <h1 class="display-sm">Aujourd'hui</h1>
-    <p class="subtitle">Bonjour {{ user()?.fullName }} 👋</p>
+    <p class="subtitle">Bonjour {{ user()?.fullName }}</p>
 
     @if (nextRace(); as r) {
       <div class="race-countdown card">
@@ -72,7 +72,7 @@
             @if (w.notes) { <p class="hero__notes">{{ w.notes }}</p> }
 
             @if (w.status === 'COMPLETED') {
-              <p class="hero__recap">Ressenti enregistré@if (w.rpe) { · RPE {{ w.rpe }}/10 } ✓</p>
+              <p class="hero__recap">Ressenti enregistré@if (w.rpe) { · RPE {{ w.rpe }}/10 } <app-icon name="check" [size]="14" /></p>
             }
           </article>
 
@@ -89,7 +89,7 @@
         @if (strength(); as s) {
           <article class="card card-night strength-day">
             <div class="hero__head">
-              <span class="badge strength-badge">💪 Renforcement</span>
+              <span class="badge strength-badge"><app-icon name="dumbbell" [size]="13" /> Renforcement</span>
               @if (s.completed) { <span class="badge badge-success">Réalisé</span> }
             </div>
             <h2 class="hero__title">{{ s.title }}</h2>
@@ -138,19 +138,19 @@
                   }
                 </div>
               </div>
-              <button type="button" class="btn btn-accent btn-lg" (click)="submitStrength(true)">Valider mes séries 💪</button>
+              <button type="button" class="btn btn-accent btn-lg" (click)="submitStrength(true)">Valider mes séries</button>
             </section>
 
             @if (progression(); as prog) {
               <section class="strength-progression">
                 @for (e of prog.exercises; track e.exerciseId) {
                   @if (e.recommended) {
-                    <p class="progression-line">📈 <strong>{{ e.exerciseName }}</strong> — prochaine fois : {{ e.suggestionLabel }}</p>
+                    <p class="progression-line"><app-icon name="trending-up" [size]="14" /> <strong>{{ e.exerciseName }}</strong> — prochaine fois : {{ e.suggestionLabel }}</p>
                   }
                 }
                 @for (a of prog.alerts; track a.code + a.exerciseId) {
                   <p class="alert-line" [class.alert-high]="a.level === 'HIGH'">
-                    {{ a.level === 'HIGH' ? '🔴' : '🟠' }} {{ a.exerciseName }} — {{ a.message }}
+                    <app-icon name="alert-triangle" [size]="13" /> {{ a.exerciseName }} — {{ a.message }}
                   </p>
                 }
               </section>
@@ -160,7 +160,7 @@
 
         @if (!workout() && !strength()) {
           <div class="card empty">
-            <h2>Repos aujourd'hui 🌙</h2>
+            <h2>Repos aujourd'hui <app-icon name="moon" [size]="20" /></h2>
             <p class="field-hint">Aucune séance prévue. Profitez-en pour récupérer.</p>
           </div>
         }
@@ -188,7 +188,7 @@
               [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
 
     <div class="fb__actions">
-      <button type="button" class="btn btn-accent btn-lg" (click)="submit(true)">Séance réalisée ✅</button>
+      <button type="button" class="btn btn-accent btn-lg" (click)="submit(true)">Séance réalisée <app-icon name="check" [size]="16" /></button>
       <button type="button" class="btn btn-ghost" (click)="submit(false)">Partiellement</button>
     </div>
   </div>

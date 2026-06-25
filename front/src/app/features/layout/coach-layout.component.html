@@ -1,48 +1,64 @@
 <div class="layout">
-  <header class="topbar">
+  <!-- Sidebar (desktop / tablette) -->
+  <aside class="sidebar desktop-only">
     <div class="brand">
       <app-logo [size]="30" [showText]="true" />
-      @if (user()?.clubName) {
-        <span class="badge badge-neutral club-badge">{{ user()?.clubName }}</span>
-      }
     </div>
+    @if (user()?.clubName) {
+      <span class="badge badge-neutral club-badge">{{ user()?.clubName }}</span>
+    }
 
-    <nav class="nav desktop-only">
-      <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Tableau de bord</a>
-      <a routerLink="/app/athletes" routerLinkActive="active">Athlètes</a>
-      <a routerLink="/app/groups" routerLinkActive="active">Groupes</a>
-      <a routerLink="/app/calendar" routerLinkActive="active">Calendrier</a>
-      <a routerLink="/app/templates" routerLinkActive="active">Bibliothèque</a>
-      <a routerLink="/app/run-drills" routerLinkActive="active">Éducatifs</a>
-      <a routerLink="/app/strength" routerLinkActive="active">Prépa physique</a>
-      <a routerLink="/app/club" routerLinkActive="active">Club</a>
-      <a routerLink="/app/sync" routerLinkActive="active">Synchros</a>
-      <a routerLink="/app/settings" routerLinkActive="active">Paramètres</a>
+    <nav class="snav">
+      <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+        <app-icon name="layout-dashboard" [size]="18" /><span>Tableau de bord</span>
+      </a>
+      <a routerLink="/app/athletes" routerLinkActive="active"><app-icon name="users" [size]="18" /><span>Athlètes</span></a>
+      <a routerLink="/app/groups" routerLinkActive="active"><app-icon name="users-round" [size]="18" /><span>Groupes</span></a>
+      <a routerLink="/app/calendar" routerLinkActive="active"><app-icon name="calendar" [size]="18" /><span>Calendrier</span></a>
+      <a routerLink="/app/templates" routerLinkActive="active"><app-icon name="library" [size]="18" /><span>Bibliothèque</span></a>
+      <a routerLink="/app/run-drills" routerLinkActive="active"><app-icon name="graduation-cap" [size]="18" /><span>Éducatifs</span></a>
+      <a routerLink="/app/strength" routerLinkActive="active"><app-icon name="dumbbell" [size]="18" /><span>Prépa physique</span></a>
+      <a routerLink="/app/club" routerLinkActive="active"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
+      <a routerLink="/app/sync" routerLinkActive="active"><app-icon name="refresh-cw" [size]="18" /><span>Synchros</span></a>
+      <a routerLink="/app/settings" routerLinkActive="active"><app-icon name="settings" [size]="18" /><span>Paramètres</span></a>
     </nav>
 
-    <div class="user">
-      @if (user(); as u) { <span class="user-name desktop-only">{{ u.fullName }}</span> }
-      <app-push-button />
-      <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Déconnexion</button>
+    <div class="side-user">
+      @if (user(); as u) { <span class="user-name">{{ u.fullName }}</span> }
+      <div class="side-user__actions">
+        <app-push-button />
+        <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Déconnexion</button>
+      </div>
     </div>
-  </header>
+  </aside>
 
-  <app-offline-banner />
+  <div class="main">
+    <!-- Topbar (mobile uniquement) -->
+    <header class="topbar mobile-only">
+      <app-logo [size]="26" [showText]="true" />
+      <div class="user">
+        <app-push-button />
+        <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Quitter</button>
+      </div>
+    </header>
 
-  <main class="content container-wide">
-    <router-outlet />
-  </main>
+    <app-offline-banner />
+
+    <main class="content container-wide">
+      <router-outlet />
+    </main>
+  </div>
 
   <!-- Bottom nav (mobile) -->
   <nav class="bottom-nav mobile-only">
     <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-      <span class="bn-ic">🏠</span><span class="bn-lb">Accueil</span>
+      <app-icon name="layout-dashboard" [size]="20" /><span class="bn-lb">Accueil</span>
     </a>
     <a routerLink="/app/athletes" routerLinkActive="active">
-      <span class="bn-ic">👥</span><span class="bn-lb">Athlètes</span>
+      <app-icon name="users" [size]="20" /><span class="bn-lb">Athlètes</span>
     </a>
     <a routerLink="/app/calendar" routerLinkActive="active">
-      <span class="bn-ic">📅</span><span class="bn-lb">Calendrier</span>
+      <app-icon name="calendar" [size]="20" /><span class="bn-lb">Calendrier</span>
     </a>
   </nav>
 </div>

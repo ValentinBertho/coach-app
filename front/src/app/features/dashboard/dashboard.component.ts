@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import {
@@ -23,7 +24,7 @@ const SEVERITY: Record<FormStatus, number> = { RED: 2, ORANGE: 1, GREEN: 0 };
   selector: 'app-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ReadinessGaugeComponent, MetricCardComponent],
+  imports: [IconComponent, RouterLink, ReadinessGaugeComponent, MetricCardComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })

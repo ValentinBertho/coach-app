@@ -75,7 +75,7 @@ export class PlanListComponent implements OnInit {
       return;
     }
     this.planService.create(this.draft).subscribe(() => {
-      this.toast.success('Plan créé 🗓️');
+      this.toast.success('Plan créé');
       this.draft = { name: '', description: '', durationWeeks: 4, items: [] };
       this.showForm.set(false);
       this.load();
@@ -86,7 +86,7 @@ export class PlanListComponent implements OnInit {
     const sel = this.applyFor[plan.id];
     if (!sel?.athleteId || !sel?.startDate) { this.toast.warning('Athlète et date de départ requis.'); return; }
     this.planService.apply(plan.id, sel.athleteId, sel.startDate).subscribe((r) => {
-      this.toast.success(`${r.created} séance(s) planifiée(s) ✅`);
+      this.toast.success(`${r.created} séance(s) planifiée(s)`);
       this.applyFor[plan.id] = { athleteId: '', startDate: '' };
     });
   }

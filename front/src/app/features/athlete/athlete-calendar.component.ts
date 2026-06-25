@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { WORKOUT_TYPE_LABELS, Workout } from '../../core/models/workout.model';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
@@ -31,7 +32,7 @@ function mondayOf(d: Date): Date {
 }
 
 const REASON_ICON: Record<UnavailabilityReason, string> = {
-  INJURY: '🩹', ILLNESS: '🤒', VACATION: '🏖️', PERSONAL: '📌', OTHER: '🚫',
+  INJURY: 'heart-pulse', ILLNESS: 'thermometer', VACATION: 'palmtree', PERSONAL: 'pin', OTHER: 'ban',
 };
 
 /**
@@ -43,7 +44,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
   selector: 'app-athlete-calendar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IntensityZoneBadgeComponent, BottomSheetComponent],
+  imports: [IconComponent, IntensityZoneBadgeComponent, BottomSheetComponent],
   template: `
     <header class="cal-top">
       <h1 class="display-sm">Mon calendrier</h1>
@@ -62,7 +63,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
             <span class="day-wd">{{ day.weekday }}</span>
             <span class="day-n metric">{{ day.dayNum }}</span>
             @if (day.unavailability; as u) {
-              <span class="day-unavail">{{ reasonIcon[u.reason] }} indispo</span>
+              <span class="day-unavail"><app-icon [name]="reasonIcon[u.reason]" [size]="12" /> indispo</span>
             }
           </div>
 
@@ -76,16 +77,16 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                 <span class="ses-zones">
                   @for (z of zonesOf(w); track z) { <app-intensity-zone-badge [zone]="z" /> }
                 </span>
-                <span class="ses-move" aria-hidden="true">⤺ déplacer</span>
+                <span class="ses-move" aria-hidden="true"><app-icon name="move" [size]="13" /> déplacer</span>
               </button>
             }
             @for (s of day.strength; track s.id) {
               <button type="button" class="ses ses--strength" (click)="openMove('strength', s.id, s.title, s.scheduledDate)">
                 <span class="ses-main">
-                  <span class="ses-title">💪 {{ s.title }}</span>
+                  <span class="ses-title"><app-icon name="dumbbell" [size]="14" /> {{ s.title }}</span>
                   @if (s.completed) { <span class="badge badge-success">Réalisé</span> }
                 </span>
-                <span class="ses-move" aria-hidden="true">⤺ déplacer</span>
+                <span class="ses-move" aria-hidden="true"><app-icon name="move" [size]="13" /> déplacer</span>
               </button>
             }
             @if (day.workouts.length === 0 && day.strength.length === 0) {
@@ -248,14 +249,14 @@ export class AthleteCalendarComponent implements OnInit {
       const prev = this.workouts();
       this.workouts.set(prev.map((w) => (w.id === t.id ? { ...w, scheduledDate: targetDate } : w)));
       this.portal.moveWorkout(t.id, targetDate).subscribe({
-        next: () => this.toast.success('Séance déplacée ✅'),
+        next: () => this.toast.success('Séance déplacée'),
         error: () => { this.workouts.set(prev); this.toast.error('Déplacement impossible.'); },
       });
     } else {
       const prev = this.strength();
       this.strength.set(prev.map((s) => (s.id === t.id ? { ...s, scheduledDate: targetDate } : s)));
       this.portal.ppMove(t.id, targetDate).subscribe({
-        next: () => this.toast.success('Séance déplacée ✅'),
+        next: () => this.toast.success('Séance déplacée'),
         error: () => { this.strength.set(prev); this.toast.error('Déplacement impossible.'); },
       });
     }

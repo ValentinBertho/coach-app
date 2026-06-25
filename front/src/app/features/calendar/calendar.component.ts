@@ -12,6 +12,7 @@ import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkoutService } from '../../core/services/workout.service';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { RaceService } from '../../core/services/race.service';
 import { LactateService } from '../../core/services/lactate.service';
 import { RaceObjective } from '../../core/models/race.model';
@@ -36,26 +37,26 @@ interface DayCell {
 }
 
 const REASON_META: Record<UnavailabilityReason, { label: string; icon: string }> = {
-  INJURY: { label: 'Blessure', icon: '🩹' },
-  ILLNESS: { label: 'Maladie', icon: '🤒' },
-  VACATION: { label: 'Vacances', icon: '🏖️' },
-  PERSONAL: { label: 'Personnel', icon: '📌' },
-  OTHER: { label: 'Indispo', icon: '🚫' },
+  INJURY: { label: 'Blessure', icon: 'heart-pulse' },
+  ILLNESS: { label: 'Maladie', icon: 'thermometer' },
+  VACATION: { label: 'Vacances', icon: 'palmtree' },
+  PERSONAL: { label: 'Personnel', icon: 'pin' },
+  OTHER: { label: 'Indispo', icon: 'ban' },
 };
 
 /** Sémantique de type d'événement : couleur (token) + icône + nature « clé ». */
 interface TypeMeta { color: string; icon: string; key: boolean; }
 const TYPE_META: Record<WorkoutType, TypeMeta> = {
-  ENDURANCE:      { color: 'var(--zone-2)', icon: '🏃', key: false },
-  RECOVERY:       { color: 'var(--zone-1)', icon: '🧘', key: false },
-  TEMPO:          { color: 'var(--zone-3)', icon: '⏱️', key: true },
-  THRESHOLD:      { color: 'var(--zone-4)', icon: '🔥', key: true },
-  INTERVALS:      { color: 'var(--zone-5)', icon: '⚡', key: true },
-  LONG_RUN:       { color: 'var(--primary)', icon: '🏔️', key: true },
-  RACE:           { color: 'var(--energy)', icon: '🏁', key: true },
-  STRENGTH:       { color: 'var(--dari-violet)', icon: '💪', key: false },
-  CROSS_TRAINING: { color: 'var(--dari-teal)', icon: '🚴', key: false },
-  REST:           { color: 'var(--ink-4)', icon: '🌙', key: false },
+  ENDURANCE:      { color: 'var(--zone-2)', icon: 'footprints', key: false },
+  RECOVERY:       { color: 'var(--zone-1)', icon: 'wind', key: false },
+  TEMPO:          { color: 'var(--zone-3)', icon: 'timer', key: true },
+  THRESHOLD:      { color: 'var(--zone-4)', icon: 'flame', key: true },
+  INTERVALS:      { color: 'var(--zone-5)', icon: 'zap', key: true },
+  LONG_RUN:       { color: 'var(--primary)', icon: 'mountain-snow', key: true },
+  RACE:           { color: 'var(--energy)', icon: 'flag', key: true },
+  STRENGTH:       { color: 'var(--dari-violet)', icon: 'dumbbell', key: false },
+  CROSS_TRAINING: { color: 'var(--dari-teal)', icon: 'bike', key: false },
+  REST:           { color: 'var(--ink-4)', icon: 'moon', key: false },
 };
 
 function toIso(d: Date): string {
@@ -73,7 +74,7 @@ function mondayOf(d: Date): Date {
   selector: 'app-calendar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DragDropModule],
+  imports: [FormsModule, RouterLink, DragDropModule, IconComponent],
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.scss',
 })
@@ -250,7 +251,7 @@ export class CalendarComponent implements OnInit {
       this.strengthService
         .scheduleSession(this.selectedAthleteId, s.id, { date: targetDate, fieldsPreset: 'AVANCE' })
         .subscribe({
-          next: () => { this.toast.success(`${s.name} planifiée le ${targetDate} 💪`); this.reloadStrength(); },
+          next: () => { this.toast.success(`${s.name} planifiée le ${targetDate}`); this.reloadStrength(); },
         });
       return;
     }

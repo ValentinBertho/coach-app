@@ -1,16 +1,16 @@
 <section class="page-header">
   <div>
-    <h1 class="display-sm">Préparation physique 💪</h1>
+    <h1 class="display-sm">Préparation physique</h1>
     <p class="subtitle">Bibliothèque d'exercices, séances de force, 1RM et suivi.</p>
   </div>
 </section>
 
 <div class="status-tabs pp-tabs">
-  <button type="button" [class.active]="tab() === 'exercises'" (click)="switchTab('exercises')">📖 Exercices</button>
-  <button type="button" [class.active]="tab() === 'sessions'" (click)="switchTab('sessions')">🗂️ Séances</button>
-  <button type="button" [class.active]="tab() === 'cycles'" (click)="switchTab('cycles')">🔄 Cycles</button>
-  <button type="button" [class.active]="tab() === 'tests1rm'" (click)="switchTab('tests1rm')">🏋️ Tests 1RM</button>
-  <button type="button" [class.active]="tab() === 'analysis'" (click)="switchTab('analysis')">📈 Suivi &amp; Analyse</button>
+  <button type="button" [class.active]="tab() === 'exercises'" (click)="switchTab('exercises')"><app-icon name="book-open" [size]="15" /> Exercices</button>
+  <button type="button" [class.active]="tab() === 'sessions'" (click)="switchTab('sessions')"><app-icon name="folder-open" [size]="15" /> Séances</button>
+  <button type="button" [class.active]="tab() === 'cycles'" (click)="switchTab('cycles')"><app-icon name="refresh-cw" [size]="15" /> Cycles</button>
+  <button type="button" [class.active]="tab() === 'tests1rm'" (click)="switchTab('tests1rm')"><app-icon name="dumbbell" [size]="15" /> Tests 1RM</button>
+  <button type="button" [class.active]="tab() === 'analysis'" (click)="switchTab('analysis')"><app-icon name="trending-up" [size]="15" /> Suivi &amp; Analyse</button>
 </div>
 
 <!-- ===================== EXERCICES ===================== -->
@@ -90,7 +90,7 @@
         <a class="card ex-card session-card" [routerLink]="['/app/strength/sessions', s.id, 'structure']">
           <div class="ex-head">
             <strong>{{ s.name }}</strong>
-            @if (s.favorite) { <span class="badge badge-warning">★</span> }
+            @if (s.favorite) { <span class="badge badge-warning"><app-icon name="star" [size]="12" /></span> }
           </div>
           <p class="field-hint">{{ s.structure.blocks.length }} bloc(s) · {{ s.useCount }} utilisation(s)</p>
           <span class="edit-hint">Modifier la structure →</span>

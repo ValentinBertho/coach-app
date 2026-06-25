@@ -100,7 +100,7 @@ export class LactateComponent implements OnInit {
         steps: this.steps.filter((s) => s.speedMs),
       })
       .subscribe(() => {
-        this.toast.success('Test enregistré — profil physio mis à jour ✅');
+        this.toast.success('Test enregistré — profil physio mis à jour');
         this.reload();
       });
   }

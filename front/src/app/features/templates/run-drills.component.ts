@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { RunDrill, RunDrillCategory, RUN_DRILL_CATEGORY_LABELS } from '../../core/models/run-drill.model';
 import { RunDrillService } from '../../core/services/run-drill.service';
@@ -13,11 +14,11 @@ import { ToastService } from '../../core/services/toast.service';
   selector: 'app-run-drills',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [IconComponent, FormsModule],
   template: `
     <section class="page-header">
       <div>
-        <h1 class="display-sm">Éducatifs course 🏃</h1>
+        <h1 class="display-sm">Éducatifs course</h1>
         <p class="subtitle">Gammes techniques et d'amplitude — la prépa physique (force/gainage) est dans son propre module.</p>
       </div>
     </section>
@@ -118,7 +119,7 @@ export class RunDrillsComponent implements OnInit {
       description: this.draft.description || null,
       videoUrl: this.draft.videoUrl || null,
     }).subscribe(() => {
-      this.toast.success('Éducatif ajouté ✅');
+      this.toast.success('Éducatif ajouté');
       this.draft = { name: '', category: this.draft.category, description: '', videoUrl: '' };
       this.load();
     });

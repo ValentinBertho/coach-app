@@ -42,7 +42,7 @@ export class RaceListComponent implements OnInit {
       return;
     }
     this.raceService.create(this.athleteId(), { ...this.draft }).subscribe(() => {
-      this.toast.success('Objectif ajouté 🎯');
+      this.toast.success('Objectif ajouté');
       this.draft = { name: '', raceDate: '', distanceM: null, targetTimeS: null, priority: 'B' };
       this.load();
     });

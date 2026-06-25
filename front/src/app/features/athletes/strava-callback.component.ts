@@ -38,7 +38,7 @@ export class StravaCallbackComponent implements OnInit {
     }
     this.athletes.stravaConnect(athleteId, code).subscribe({
       next: () => {
-        this.toast.success('Compte Strava connecté ✅');
+        this.toast.success('Compte Strava connecté');
         this.router.navigate(['/app/athletes', athleteId]);
       },
       error: () => {

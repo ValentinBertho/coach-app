@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { Athlete, AthleteLevel, AthleteStatus, Ref } from '../../core/models/athlete.model';
@@ -18,7 +19,7 @@ const LEVEL_LABELS: Record<AthleteLevel, string> = { BEGINNER: 'Débutant', INTE
   selector: 'app-athlete-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, RouterLinkActive, FormsModule, DatePipe, PhysioPanelComponent],
+  imports: [IconComponent, RouterLink, RouterLinkActive, FormsModule, DatePipe, PhysioPanelComponent],
   templateUrl: './athlete-detail.component.html',
   styleUrl: './athletes.scss',
 })
@@ -94,7 +95,7 @@ export class AthleteDetailComponent implements OnInit {
       reason: this.newUnavail.reason,
       notes: this.newUnavail.notes || null,
     }).subscribe(() => {
-      this.toast.success('Indisponibilité ajoutée ✅');
+      this.toast.success('Indisponibilité ajoutée');
       this.newUnavail = { startDate: '', endDate: '', reason: 'INJURY', notes: '' };
       this.showUnavailForm.set(false);
       this.loadUnavailabilities();
@@ -124,7 +125,7 @@ export class AthleteDetailComponent implements OnInit {
     this.toast.info('Import Strava en cours…');
     this.athleteService.stravaImport(this.id()).subscribe({
       next: ({ imported }) => {
-        this.toast.success(`${imported} activité(s) importée(s) ✅`);
+        this.toast.success(`${imported} activité(s) importée(s)`);
         this.athleteService.stravaStatus(this.id()).subscribe((s) => this.strava.set(s));
       },
       error: () => this.toast.error('Import impossible.'),
@@ -152,7 +153,7 @@ export class AthleteDetailComponent implements OnInit {
     this.athleteService.assignCoach(this.id(), coachId).subscribe({
       next: (a) => {
         this.athlete.set(a);
-        this.toast.success('Coach rattaché ✅');
+        this.toast.success('Coach rattaché');
       },
     });
   }
@@ -170,7 +171,7 @@ export class AthleteDetailComponent implements OnInit {
     this.athleteService.invite(this.id()).subscribe({
       next: (res) => {
         this.inviteUrl.set(res.inviteUrl);
-        this.toast.success("Lien d'invitation généré ✅");
+        this.toast.success("Lien d'invitation généré");
       },
     });
   }
@@ -205,7 +206,7 @@ export class AthleteDetailComponent implements OnInit {
         a.download = 'programme.pdf';
         a.click();
         URL.revokeObjectURL(url);
-        this.toast.success('Programme exporté (PDF) ✅');
+        this.toast.success('Programme exporté (PDF)');
       },
       error: () => this.toast.error('Export impossible.'),
     });

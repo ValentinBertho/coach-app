@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 
 /** Écran Notifications (s-notifications) : alertes que le système DARI Lab déclenche. */
 @Component({
   selector: 'app-notifications',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [IconComponent],
   template: `
     <section class="page-header">
       <div>
@@ -18,7 +20,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
       <ul class="notif-list">
         @for (n of types; track n.label) {
           <li class="notif">
-            <span class="notif-ic" [style.background]="n.color">{{ n.icon }}</span>
+            <span class="notif-ic" [style.background]="n.color"><app-icon [name]="n.icon" [size]="16" /></span>
             <div><strong>{{ n.label }}</strong><span class="field-hint">{{ n.desc }}</span></div>
           </li>
         }
@@ -26,7 +28,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
     </div>
 
     <div class="card empty-state">
-      <span style="font-size:32px">🔔</span>
+      <app-icon name="bell" [size]="32" />
       <h2>Aucune notification pour le moment</h2>
       <p class="field-hint">Les alertes apparaîtront ici dès qu'un athlète renseigne une fatigue/douleur élevée ou déplace une séance.</p>
     </div>
@@ -40,10 +42,10 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 })
 export class NotificationsComponent {
   readonly types = [
-    { icon: '🔴', color: 'var(--dari-red)', label: 'Fatigue élevée', desc: 'Un athlète a renseigné une fatigue ≥ 8' },
-    { icon: '🩹', color: 'var(--dari-orange)', label: 'Douleur', desc: 'Douleur ≥ 5, ou ≥ 3 en réathlétisation' },
-    { icon: '📅', color: 'var(--dari-teal)', label: 'Séance déplacée', desc: 'Un athlète a déplacé une séance' },
-    { icon: '💬', color: 'var(--primary)', label: 'Nouveau retour', desc: 'Une séance a été renseignée' },
-    { icon: '⚡', color: 'var(--block-classique)', label: 'Activité synchronisée', desc: 'Nouvelle activité importée (Strava/Garmin)' },
+    { icon: 'alert-triangle', color: 'var(--dari-red)', label: 'Fatigue élevée', desc: 'Un athlète a renseigné une fatigue ≥ 8' },
+    { icon: 'heart-pulse', color: 'var(--dari-orange)', label: 'Douleur', desc: 'Douleur ≥ 5, ou ≥ 3 en réathlétisation' },
+    { icon: 'calendar', color: 'var(--dari-teal)', label: 'Séance déplacée', desc: 'Un athlète a déplacé une séance' },
+    { icon: 'message-square', color: 'var(--primary)', label: 'Nouveau retour', desc: 'Une séance a été renseignée' },
+    { icon: 'zap', color: 'var(--block-classique)', label: 'Activité synchronisée', desc: 'Nouvelle activité importée (Strava/Garmin)' },
   ];
 }

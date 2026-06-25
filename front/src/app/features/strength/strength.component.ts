@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AthleteService } from '../../core/services/athlete.service';
@@ -28,7 +29,7 @@ type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
   selector: 'app-strength',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DatePipe, RouterLink],
+  imports: [IconComponent, FormsModule, DatePipe, RouterLink],
   templateUrl: './strength.component.html',
   styleUrl: './strength.component.scss',
 })
@@ -120,7 +121,7 @@ export class StrengthComponent implements OnInit {
     this.strength
       .createCycle({ name: this.newCycle.name, weeks: this.newCycle.weeks, objective: this.newCycle.objective || null, structure: { weeks } })
       .subscribe(() => {
-        this.toast.success('Cycle créé ✅');
+        this.toast.success('Cycle créé');
         this.newCycle = { name: '', weeks: 4, objective: '', sessionIds: [] };
         this.loadCycles();
       });
@@ -130,7 +131,7 @@ export class StrengthComponent implements OnInit {
     const a = this.selectedAthlete();
     if (!a) { this.toast.warning('Sélectionne un athlète (onglet Suivi) d\'abord.'); return; }
     this.strength.assignCycle(cycleId, a, this.assignDate()).subscribe((res) => {
-      this.toast.success(`${res.scheduled} séance(s) planifiée(s) ✅`);
+      this.toast.success(`${res.scheduled} séance(s) planifiée(s)`);
     });
   }
 
@@ -164,7 +165,7 @@ export class StrengthComponent implements OnInit {
         instructions: this.newExercise.instructions || null,
       })
       .subscribe(() => {
-        this.toast.success('Exercice créé ✅');
+        this.toast.success('Exercice créé');
         this.newExercise = { name: '', category: 'FORCE_MAX', muscle: '', videoUrl: '', instructions: '' };
         this.showExerciseForm.set(false);
         this.loadExercises();
@@ -183,7 +184,7 @@ export class StrengthComponent implements OnInit {
   createSession(): void {
     if (!this.newSessionName.trim()) return;
     this.strength.createSession({ name: this.newSessionName }).subscribe(() => {
-      this.toast.success('Séance créée ✅');
+      this.toast.success('Séance créée');
       this.newSessionName = '';
       this.loadSessions();
     });
@@ -220,7 +221,7 @@ export class StrengthComponent implements OnInit {
       reps: this.needsReps() ? this.newTest.reps : null,
       durationSec: this.needsDuration() ? this.newTest.durationSec : null,
     }).subscribe((t) => {
-      this.toast.success(`Test enregistré — e1RM ${t.computedE1rmKg} kg ✅`);
+      this.toast.success(`Test enregistré — e1RM ${t.computedE1rmKg} kg`);
       this.loadTests();
     });
   }

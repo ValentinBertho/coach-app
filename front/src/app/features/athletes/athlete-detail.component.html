@@ -8,7 +8,7 @@
           <h1 class="display-sm">{{ a.firstName }} {{ a.lastName }}</h1>
           <span class="badge" [class]="statusBadges[a.status]">{{ statusLabels[a.status] }}</span>
           @if (isPrivate()) {
-            <span class="badge badge-neutral" title="Athlète privé (hors club)">🔒 Privé</span>
+            <span class="badge badge-neutral" title="Athlète privé (hors club)"><app-icon name="lock" [size]="13" /> Privé</span>
           } @else {
             @for (club of a.clubs; track club.id) { <span class="badge badge-info">{{ club.name }}</span> }
           }
@@ -22,7 +22,7 @@
         </p>
       </div>
       <div class="cockpit-actions">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="exportProgram()">📄 PDF</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="exportProgram()"><app-icon name="file-text" [size]="15" /> PDF</button>
         <a [routerLink]="['/app/athletes', a.id, 'edit']" class="btn btn-ghost btn-sm">Modifier</a>
         <button type="button" class="btn btn-primary btn-sm" (click)="invite()">Inviter</button>
       </div>
@@ -110,7 +110,7 @@
 
   @if (a.medicalNotes) {
     <div class="card">
-      <h2>Antécédents / blessures 🔒</h2>
+      <h2>Antécédents / blessures <app-icon name="lock" [size]="16" /></h2>
       <p>{{ a.medicalNotes }}</p>
     </div>
   }

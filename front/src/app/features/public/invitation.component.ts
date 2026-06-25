@@ -30,7 +30,7 @@ type State = 'loading' | 'ok' | 'invalid';
           @case ('ok') {
             <app-logo [size]="44" [showText]="false" />
             <span class="badge badge-info">{{ info()?.clubName }}</span>
-            <h1 class="display-sm">Bienvenue {{ info()?.athleteFirstName }} 👋</h1>
+            <h1 class="display-sm">Bienvenue {{ info()?.athleteFirstName }}</h1>
             <p class="field-hint">
               Votre coach vous invite à rejoindre CoachRun. Accédez à votre espace pour suivre
               votre séance du jour et donner votre ressenti.
