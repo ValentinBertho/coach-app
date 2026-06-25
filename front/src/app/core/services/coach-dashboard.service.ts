@@ -34,6 +34,18 @@ export interface CoachFormDashboard {
   trailAthletes: AthleteForm[];
 }
 
+export type AlertSeverity = 'RED' | 'ORANGE';
+
+export interface CoachAlert {
+  athleteId: string;
+  athleteName: string;
+  discipline: 'ROUTE' | 'TRAIL';
+  severity: AlertSeverity;
+  type: string;
+  title: string;
+  detail: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class CoachDashboardService {
   private readonly http = inject(HttpClient);
@@ -48,6 +60,15 @@ export class CoachDashboardService {
     const params = new HttpParams().set('scope', scope);
     return this.http.get<CoachFormDashboard>(
       `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard/form`,
+      { params },
+    );
+  }
+
+  /** File d'alertes actionnables (douleur, charge, séances manquées, silence). */
+  alerts(scope: 'all' | 'mine' | 'private' | 'club' = 'all'): Observable<CoachAlert[]> {
+    const params = new HttpParams().set('scope', scope);
+    return this.http.get<CoachAlert[]>(
+      `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard/alerts`,
       { params },
     );
   }

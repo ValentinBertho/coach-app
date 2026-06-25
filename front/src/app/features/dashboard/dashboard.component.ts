@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import {
   AthleteForm,
+  CoachAlert,
   CoachDashboard,
   CoachDashboardService,
   CoachFormDashboard,
@@ -37,6 +38,7 @@ export class DashboardComponent implements OnInit {
   readonly user = this.auth.currentUser;
   readonly data = signal<CoachDashboard | null>(null);
   readonly form = signal<CoachFormDashboard | null>(null);
+  readonly alerts = signal<CoachAlert[]>([]);
   readonly loading = signal(true);
 
   private readonly allAthletes = computed<AthleteForm[]>(() => {
@@ -81,6 +83,10 @@ export class DashboardComponent implements OnInit {
 
   loadForm(): void {
     this.dashboardService.form(this.scope()).subscribe((f) => this.form.set(f));
+    this.dashboardService.alerts(this.scope()).subscribe({
+      next: (a) => this.alerts.set(a),
+      error: () => this.alerts.set([]),
+    });
   }
 
   setScope(value: string): void {

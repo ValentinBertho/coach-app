@@ -40,4 +40,13 @@ public class CoachDashboardController {
                                            @AuthenticationPrincipal AuthPrincipal principal) {
         return dashboardService.formDashboard(clubId, scope, principal.userId());
     }
+
+    /** File d'alertes actionnables (douleur, charge, séances manquées, silence), triées par gravité. */
+    @GetMapping("/alerts")
+    public java.util.List<com.coachrun.dto.response.CoachAlertResponse> alerts(
+            @PathVariable UUID clubId,
+            @RequestParam(defaultValue = "all") String scope,
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return dashboardService.alerts(clubId, scope, principal.userId());
+    }
 }
