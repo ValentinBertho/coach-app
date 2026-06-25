@@ -41,10 +41,10 @@ import { AuthService } from '../../core/services/auth.service';
         <h2>Prescription</h2>
         <p class="field-hint">Règles DARI Lab appliquées partout :</p>
         <ul class="rules">
-          <li>✅ Prescription en <strong>fourchettes</strong> (min–max), jamais de valeur sèche</li>
-          <li>✅ État de forme = <strong>fatigue + douleur</strong> (jamais le RPE)</li>
-          <li>✅ Charge unifiée <strong>course + force</strong> (sRPE Foster)</li>
-          <li>✅ 1RM par défaut : <strong>Nuzzo</strong> (Pr. Lacourpaille)</li>
+          <li> Prescription en <strong>fourchettes</strong> (min–max), jamais de valeur sèche</li>
+          <li> État de forme = <strong>fatigue + douleur</strong> (jamais le RPE)</li>
+          <li> Charge unifiée <strong>course + force</strong> (sRPE Foster)</li>
+          <li> 1RM par défaut : <strong>Nuzzo</strong> (Pr. Lacourpaille)</li>
         </ul>
       </div>
     </div>

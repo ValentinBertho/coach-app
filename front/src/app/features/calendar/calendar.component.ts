@@ -251,7 +251,7 @@ export class CalendarComponent implements OnInit {
       this.strengthService
         .scheduleSession(this.selectedAthleteId, s.id, { date: targetDate, fieldsPreset: 'AVANCE' })
         .subscribe({
-          next: () => { this.toast.success(`${s.name} planifiée le ${targetDate} 💪`); this.reloadStrength(); },
+          next: () => { this.toast.success(`${s.name} planifiée le ${targetDate}`); this.reloadStrength(); },
         });
       return;
     }

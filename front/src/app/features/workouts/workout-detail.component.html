@@ -82,7 +82,7 @@
         <div slot="info">{{ statusLabels[w.status] }}</div>
         @if (w.status !== 'COMPLETED') {
           <button type="button" class="btn btn-ghost btn-sm" (click)="setStatus('MISSED')">Manquée</button>
-          <button type="button" class="btn btn-accent btn-sm" (click)="setStatus('COMPLETED')">Réalisée ✓</button>
+          <button type="button" class="btn btn-accent btn-sm" (click)="setStatus('COMPLETED')">Réalisée <app-icon name="check" [size]="15" /></button>
         } @else {
           <button type="button" class="btn btn-ghost btn-sm" (click)="setStatus('PLANNED')">Rouvrir</button>
         }

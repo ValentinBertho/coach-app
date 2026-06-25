@@ -249,14 +249,14 @@ export class AthleteCalendarComponent implements OnInit {
       const prev = this.workouts();
       this.workouts.set(prev.map((w) => (w.id === t.id ? { ...w, scheduledDate: targetDate } : w)));
       this.portal.moveWorkout(t.id, targetDate).subscribe({
-        next: () => this.toast.success('Séance déplacée ✅'),
+        next: () => this.toast.success('Séance déplacée'),
         error: () => { this.workouts.set(prev); this.toast.error('Déplacement impossible.'); },
       });
     } else {
       const prev = this.strength();
       this.strength.set(prev.map((s) => (s.id === t.id ? { ...s, scheduledDate: targetDate } : s)));
       this.portal.ppMove(t.id, targetDate).subscribe({
-        next: () => this.toast.success('Séance déplacée ✅'),
+        next: () => this.toast.success('Séance déplacée'),
         error: () => { this.strength.set(prev); this.toast.error('Déplacement impossible.'); },
       });
     }

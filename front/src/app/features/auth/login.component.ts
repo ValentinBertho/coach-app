@@ -34,7 +34,7 @@ export class LoginComponent {
     this.submitting.set(true);
     this.auth.login(this.form.getRawValue()).subscribe({
       next: (res) => {
-        this.toast.success('Connexion réussie 👋');
+        this.toast.success('Connexion réussie');
         this.router.navigateByUrl(this.homeFor(res.user.role));
       },
       error: () => this.submitting.set(false),

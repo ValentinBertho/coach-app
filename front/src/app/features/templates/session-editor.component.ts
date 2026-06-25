@@ -103,7 +103,7 @@ export class SessionEditorComponent implements OnInit {
 
   save(): void {
     this.course.putStructure(this.templateId(), { structure: this.structure() }).subscribe(() => {
-      this.toast.success('Structure enregistrée ✅');
+      this.toast.success('Structure enregistrée');
     });
   }
 }

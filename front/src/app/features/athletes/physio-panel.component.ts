@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { PhysioService } from '../../core/services/physio.service';
 import { PhysioProfile, Vdot } from '../../core/models/physio.model';
 
@@ -10,6 +11,7 @@ import { PhysioProfile, Vdot } from '../../core/models/physio.model';
   selector: 'app-physio-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [IconComponent],
   template: `
     <div class="card physio-card">
       <div class="physio-head">
@@ -17,7 +19,7 @@ import { PhysioProfile, Vdot } from '../../core/models/physio.model';
         @if (profile()?.discipline; as d) {
           <span class="discipline-chip" [class.discipline-chip--route]="d === 'ROUTE'"
                 [class.discipline-chip--trail]="d === 'TRAIL'">
-            {{ d === 'TRAIL' ? '⛰️ Trail' : '🏃 Route' }}
+            <app-icon [name]="d === 'TRAIL' ? 'mountain' : 'footprints'" [size]="13" /> {{ d === 'TRAIL' ? 'Trail' : 'Route' }}
           </span>
         }
       </div>

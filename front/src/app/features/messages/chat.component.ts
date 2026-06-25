@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit,
   computed, effect, inject, input, signal, viewChild,
 } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Message } from '../../core/models/message.model';
@@ -20,7 +21,7 @@ interface ThreadItem { m: Message; showDay: boolean; dayLabel: string; }
   selector: 'app-chat',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink],
+  imports: [IconComponent, FormsModule, RouterLink],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.scss',
 })

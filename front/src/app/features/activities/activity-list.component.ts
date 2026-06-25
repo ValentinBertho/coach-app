@@ -63,7 +63,7 @@ export class ActivityListComponent implements OnInit {
     this.activityService.import(this.athleteId(), this.form.getRawValue() as never).subscribe({
       next: (a) => {
         this.toast.success(
-          a.status === 'MATCHED' ? 'Activité importée et rapprochée ✅' : 'Activité importée.'
+          a.status === 'MATCHED' ? 'Activité importée et rapprochée' : 'Activité importée.'
         );
         this.form.reset();
         this.submitting.set(false);
@@ -79,7 +79,7 @@ export class ActivityListComponent implements OnInit {
     if (!file) return;
     this.activityService.importFile(this.athleteId(), file).subscribe({
       next: (a) => {
-        this.toast.success(a.status === 'MATCHED' ? 'Fichier importé et rapproché ✅' : 'Fichier importé.');
+        this.toast.success(a.status === 'MATCHED' ? 'Fichier importé et rapproché' : 'Fichier importé.');
         input.value = '';
         this.load();
       },

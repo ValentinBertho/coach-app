@@ -1,5 +1,6 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AthleteService } from '../../core/services/athlete.service';
@@ -34,7 +35,7 @@ import { SegmentedControlComponent, type SegmentOption, SidePanelComponent } fro
   selector: 'app-strength-session-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [IconComponent, 
     FormsModule, RouterLink, DragDropModule,
     SegmentedControlComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
     SidePanelComponent,
@@ -275,7 +276,7 @@ export class StrengthSessionEditorComponent implements OnInit {
     this.saving.set(true);
     this.strength.putStructure(this.sessionId(), { blocks: this.blocks() }).subscribe({
       next: () => {
-        this.toast.success('Structure enregistrée ✅');
+        this.toast.success('Structure enregistrée');
         this.saving.set(false);
       },
       error: () => this.saving.set(false),

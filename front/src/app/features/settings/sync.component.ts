@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 
 /** Écran Synchronisations (s-sync) : connexion des montres/plateformes (cf. DARI Lab §12). */
 @Component({
   selector: 'app-sync',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [IconComponent],
   template: `
     <section class="page-header">
       <div>
@@ -16,7 +18,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
     <div class="sync-grid">
       @for (p of providers; track p.name) {
         <div class="card sync-card">
-          <span class="sync-logo">{{ p.icon }}</span>
+          <span class="sync-logo"><app-icon [name]="p.icon" [size]="20" /></span>
           <div class="sync-info">
             <strong>{{ p.name }}</strong>
             <span class="field-hint">{{ p.desc }}</span>
@@ -46,9 +48,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 })
 export class SyncComponent {
   readonly providers = [
-    { name: 'Strava', icon: '🟠', desc: 'Import automatique des activités', status: 'Bientôt' },
+    { name: 'Strava', icon: 'watch', desc: 'Import automatique des activités', status: 'Bientôt' },
     { name: 'Garmin Connect', icon: '⌚', desc: 'Pull activités + push séances', status: 'Bientôt' },
-    { name: 'COROS', icon: '🔵', desc: 'Import des activités', status: 'Bientôt' },
-    { name: 'Polar', icon: '🔴', desc: 'Import des activités', status: 'Bientôt' },
+    { name: 'COROS', icon: 'watch', desc: 'Import des activités', status: 'Bientôt' },
+    { name: 'Polar', icon: 'watch', desc: 'Import des activités', status: 'Bientôt' },
   ];
 }

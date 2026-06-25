@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteRequest } from '../../core/models/athlete.model';
@@ -11,7 +12,7 @@ import { TrainingGroupService } from '../../core/services/training-group.service
   selector: 'app-athlete-form',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [IconComponent, ReactiveFormsModule, RouterLink],
   templateUrl: './athlete-form.component.html',
   styleUrl: './athletes.scss',
 })
@@ -78,7 +79,7 @@ export class AthleteFormComponent implements OnInit {
 
     call.subscribe({
       next: (athlete) => {
-        this.toast.success(id ? 'Athlète mis à jour ✅' : 'Athlète créé 🎉');
+        this.toast.success(id ? 'Athlète mis à jour' : 'Athlète créé');
         this.router.navigate(['/app/athletes', athlete.id]);
       },
       error: () => this.submitting.set(false),

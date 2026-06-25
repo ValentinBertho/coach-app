@@ -40,9 +40,9 @@
     <div class="ownership">
       <span>Statut :</span>
       @if (acc.ownership === 'CLUB') {
-        <span class="badge badge-success">🏛️ Club</span>
+        <span class="badge badge-success"><app-icon name="building-2" [size]="13" /> Club</span>
       } @else {
-        <span class="badge" style="background:#ede9fe;color:#6d28d9">🔒 Privé</span>
+        <span class="badge" style="background:#ede9fe;color:#6d28d9"><app-icon name="lock" [size]="13" /> Privé</span>
       }
       <button type="button" class="btn btn-ghost btn-sm" (click)="toggleOwnership()">
         Passer en {{ acc.ownership === 'CLUB' ? 'privé' : 'club' }}
@@ -93,6 +93,6 @@
     <li><span class="badge badge-neutral">Lecture</span> dashboard, calendrier, profil physio, analyses</li>
     <li><span class="badge badge-info">Commentaire</span> + messagerie et retours de séance</li>
     <li><span class="badge badge-success">Écriture</span> + prescrire, modifier, remplacer le référent</li>
-    <li>🔒 Un athlète <strong>privé</strong> n'est jamais visible des autres coachs — passage club→privé interdit s'il reste des permissions actives.</li>
+    <li><app-icon name="lock" [size]="13" /> Un athlète <strong>privé</strong> n'est jamais visible des autres coachs — passage club→privé interdit s'il reste des permissions actives.</li>
   </ul>
 </div>

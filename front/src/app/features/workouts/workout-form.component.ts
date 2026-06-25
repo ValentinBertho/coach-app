@@ -126,7 +126,7 @@ export class WorkoutFormComponent implements OnInit {
 
     call.subscribe({
       next: () => {
-        this.toast.success(id ? 'Séance mise à jour ✅' : 'Séance planifiée 🎉');
+        this.toast.success(id ? 'Séance mise à jour' : 'Séance planifiée');
         this.router.navigate(['/app/calendar']);
       },
       error: () => this.submitting.set(false),

@@ -27,7 +27,7 @@ export class PushButtonComponent {
     this.busy.set(true);
     try {
       const ok = await this.push.enable();
-      if (ok) { this.done.set(true); this.toast.success('Notifications activées 🔔'); }
+      if (ok) { this.done.set(true); this.toast.success('Notifications activées'); }
       else this.toast.info('Notifications indisponibles.');
     } catch {
       this.toast.error('Autorisation refusée.');
