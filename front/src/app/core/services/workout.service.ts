@@ -45,4 +45,12 @@ export class WorkoutService {
   delete(athleteId: string, workoutId: string): Observable<void> {
     return this.http.delete<void>(`${this.base(athleteId)}/${workoutId}`);
   }
+
+  /** Duplique une semaine de séances (lundis) vers une autre semaine. Renvoie le nb créé. */
+  duplicateWeek(athleteId: string, sourceWeekStart: string, targetWeekStart: string): Observable<{ created: number }> {
+    return this.http.post<{ created: number }>(
+      `${this.base(athleteId)}/duplicate-week`,
+      { sourceWeekStart, targetWeekStart },
+    );
+  }
 }

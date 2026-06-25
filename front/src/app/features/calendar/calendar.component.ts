@@ -11,6 +11,7 @@ import { ScheduledStrength, StrengthSession } from '../../core/models/strength.m
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { WorkoutService } from '../../core/services/workout.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { RaceService } from '../../core/services/race.service';
@@ -88,6 +89,7 @@ export class CalendarComponent implements OnInit {
   private readonly lactateService = inject(LactateService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
 
   readonly reasonMeta = REASON_META;
 
@@ -225,6 +227,34 @@ export class CalendarComponent implements OnInit {
     this.strengthService.scheduledCalendar(this.selectedAthleteId, from, to).subscribe({
       next: (list) => this.strength.set(list),
       error: () => this.strength.set([]),
+    });
+  }
+
+  /** Duplique la semaine course affichée vers la semaine suivante (planification en cycles). */
+  async duplicateWeek(): Promise<void> {
+    if (!this.selectedAthleteId || this.mode() !== 'week') return;
+    const sourceStart = mondayOf(this.anchor());
+    const source = toIso(sourceStart);
+    const targetStart = new Date(sourceStart);
+    targetStart.setDate(targetStart.getDate() + 7);
+    const target = toIso(targetStart);
+
+    const ok = await this.confirm.ask({
+      title: 'Dupliquer la semaine',
+      message: `Copier les séances course de cette semaine vers la semaine du ${target} ? Les séances existantes de la semaine cible sont conservées.`,
+      confirmLabel: 'Dupliquer',
+    });
+    if (!ok) return;
+
+    this.workoutService.duplicateWeek(this.selectedAthleteId, source, target).subscribe({
+      next: (r) => {
+        this.toast.success(r.created > 0
+          ? `${r.created} séance(s) copiée(s) sur la semaine suivante`
+          : 'Aucune séance à copier cette semaine');
+        this.anchor.set(targetStart); // basculer sur la semaine cible pour voir le résultat
+        this.load();
+      },
+      error: () => this.toast.error('Duplication impossible.'),
     });
   }
 

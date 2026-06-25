@@ -98,4 +98,15 @@ public class WorkoutController {
                        @PathVariable UUID workoutId) {
         workoutService.delete(clubId, workoutId);
     }
+
+    /** Planification en cycles : duplique une semaine de séances vers une autre semaine. */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PostMapping("/duplicate-week")
+    public java.util.Map<String, Integer> duplicateWeek(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId,
+            @Valid @RequestBody com.coachrun.dto.request.DuplicateWeekRequest request) {
+        int created = workoutService.duplicateWeek(
+                clubId, athleteId, request.sourceWeekStart(), request.targetWeekStart());
+        return java.util.Map.of("created", created);
+    }
 }

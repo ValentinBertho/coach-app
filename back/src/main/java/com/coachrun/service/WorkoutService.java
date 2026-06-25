@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -92,6 +93,57 @@ public class WorkoutService {
         Workout workout = require(clubId, workoutId);
         workout.setScheduledDate(date);
         return WorkoutResponse.from(workout);
+    }
+
+    /**
+     * Duplique une semaine de séances course vers une autre semaine (planification en cycles) :
+     * recopie chaque séance en conservant son décalage de jour, le contenu et la prescription figée,
+     * en statut {@code PLANNED} et sans retour. Ne notifie pas (édition en cours côté coach).
+     */
+    @Transactional
+    public int duplicateWeek(UUID clubId, UUID athleteId, LocalDate sourceWeekStart, LocalDate targetWeekStart) {
+        athleteRepository.findByIdAndClubId(athleteId, clubId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        if (sourceWeekStart.equals(targetWeekStart)) {
+            throw new ConflictException("La semaine cible doit être différente de la semaine source.");
+        }
+        List<Workout> source = workoutRepository
+                .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
+                        clubId, athleteId, sourceWeekStart, sourceWeekStart.plusDays(6));
+        int created = 0;
+        for (Workout w : source) {
+            long offset = ChronoUnit.DAYS.between(sourceWeekStart, w.getScheduledDate());
+            Workout copy = new Workout();
+            copy.setClub(w.getClub());
+            copy.setAthlete(w.getAthlete());
+            copy.setStatus(WorkoutStatus.PLANNED);
+            copy.setScheduledDate(targetWeekStart.plusDays(offset));
+            copy.setType(w.getType());
+            copy.setTitle(w.getTitle());
+            copy.setNotes(w.getNotes());
+            copy.setTargetDistanceM(w.getTargetDistanceM());
+            copy.setTargetDurationS(w.getTargetDurationS());
+            copy.setSourceTemplateId(w.getSourceTemplateId());
+            copy.setSessionSnapshot(w.getSessionSnapshot());
+            copy.setCalculatedPaces(w.getCalculatedPaces());
+            for (WorkoutStep s : w.getSteps()) {
+                WorkoutStep ns = new WorkoutStep();
+                ns.setWorkout(copy);
+                ns.setOrderIndex(s.getOrderIndex());
+                ns.setStepType(s.getStepType());
+                ns.setRepetitions(s.getRepetitions());
+                ns.setZone(s.getZone());
+                ns.setDistanceM(s.getDistanceM());
+                ns.setDurationS(s.getDurationS());
+                ns.setNotes(s.getNotes());
+                copy.getSteps().add(ns);
+            }
+            workoutRepository.save(copy);
+            created++;
+        }
+        log.info("Semaine dupliquée athlète={} : {} séance(s) ({} → {})",
+                athleteId, created, sourceWeekStart, targetWeekStart);
+        return created;
     }
 
     /**

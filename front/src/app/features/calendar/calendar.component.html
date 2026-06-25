@@ -24,7 +24,13 @@
     <span class="week-label">{{ periodLabel() }}</span>
   </div>
 
-  @if (mode() === 'week') { <span class="volume metric">{{ weeklyVolumeKm() }} km prévus</span> }
+  @if (mode() === 'week') {
+    <span class="volume metric">{{ weeklyVolumeKm() }} km prévus</span>
+    <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="duplicateWeek()"
+            [disabled]="!selectedAthleteId || workouts().length === 0" title="Copier cette semaine vers la suivante">
+      <app-icon name="copy" [size]="15" /> Dupliquer la semaine
+    </button>
+  }
 </div>
 
 @if (athletes().length === 0) {
