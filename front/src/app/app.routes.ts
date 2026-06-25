@@ -192,6 +192,11 @@ export const routes: Routes = [
           import('./features/athlete/today.component').then((m) => m.TodayComponent),
       },
       {
+        path: 'calendar',
+        loadComponent: () =>
+          import('./features/athlete/athlete-calendar.component').then((m) => m.AthleteCalendarComponent),
+      },
+      {
         path: 'profile',
         loadComponent: () =>
           import('./features/athlete/profile.component').then((m) => m.AthleteProfileComponent),

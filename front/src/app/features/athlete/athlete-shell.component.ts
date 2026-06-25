@@ -18,6 +18,9 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
         <a routerLink="/athlete/today" routerLinkActive="active">
           <span class="ic" aria-hidden="true">🏠</span><span class="lb">Aujourd'hui</span>
         </a>
+        <a routerLink="/athlete/calendar" routerLinkActive="active">
+          <span class="ic" aria-hidden="true">📅</span><span class="lb">Calendrier</span>
+        </a>
         <a routerLink="/athlete/messages" routerLinkActive="active">
           <span class="ic" aria-hidden="true">💬</span><span class="lb">Messages</span>
         </a>
@@ -33,7 +36,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 
     .ashell__nav {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 200;
-      display: grid; grid-template-columns: repeat(3, 1fr);
+      display: grid; grid-template-columns: repeat(4, 1fr);
       background: var(--glass); backdrop-filter: saturate(180%) blur(16px);
       -webkit-backdrop-filter: saturate(180%) blur(16px);
       border-top: 1px solid var(--hairline);

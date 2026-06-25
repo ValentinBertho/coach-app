@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { RaceObjective } from '../models/race.model';
+import { Unavailability } from '../models/unavailability.model';
 import { Workout, WorkoutStatus } from '../models/workout.model';
 import { CalculatedStrength, E1rmHistory, Progression, ScheduledStrength, StrengthResultEntry, StrengthStructure } from '../models/strength.model';
 
@@ -46,6 +47,27 @@ export class AthletePortalService {
 
   feedback(workoutId: string, body: WorkoutFeedback): Observable<Workout> {
     return this.http.patch<Workout>(`${this.base}/workouts/${workoutId}/feedback`, body);
+  }
+
+  /** Calendrier course de l'athlète sur une plage. */
+  workouts(from: string, to: string): Observable<Workout[]> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<Workout[]>(`${this.base}/workouts`, { params });
+  }
+
+  /** L'athlète déplace une séance course (change la date, jamais le contenu). */
+  moveWorkout(workoutId: string, scheduledDate: string): Observable<Workout> {
+    return this.http.patch<Workout>(`${this.base}/workouts/${workoutId}/move`, { scheduledDate });
+  }
+
+  /** L'athlète déplace une séance de force planifiée. */
+  ppMove(scheduledId: string, scheduledDate: string): Observable<ScheduledStrength> {
+    return this.http.patch<ScheduledStrength>(`${this.base}/pp/scheduled/${scheduledId}/move`, { scheduledDate });
+  }
+
+  /** Mes indisponibilités (en cours/à venir). */
+  unavailabilities(): Observable<Unavailability[]> {
+    return this.http.get<Unavailability[]>(`${this.base}/unavailabilities`);
   }
 
   // --- Préparation physique (séances de force planifiées) ---
