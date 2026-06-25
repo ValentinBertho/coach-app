@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 
 /**
  * Shell mobile-first du portail athlète (PWA) : contenu + bottom-nav persistante.
@@ -9,26 +10,26 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
   selector: 'app-athlete-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent],
   template: `
     <div class="ashell">
       <div class="ashell__content"><router-outlet /></div>
 
       <nav class="ashell__nav" aria-label="Navigation athlète">
         <a routerLink="/athlete/today" routerLinkActive="active">
-          <span class="ic" aria-hidden="true">🏠</span><span class="lb">Séance</span>
+          <app-icon name="house" [size]="22" /><span class="lb">Séance</span>
         </a>
         <a routerLink="/athlete/calendar" routerLinkActive="active">
-          <span class="ic" aria-hidden="true">📅</span><span class="lb">Agenda</span>
+          <app-icon name="calendar" [size]="22" /><span class="lb">Agenda</span>
         </a>
         <a routerLink="/athlete/progress" routerLinkActive="active">
-          <span class="ic" aria-hidden="true">📈</span><span class="lb">Progrès</span>
+          <app-icon name="trending-up" [size]="22" /><span class="lb">Progrès</span>
         </a>
         <a routerLink="/athlete/messages" routerLinkActive="active">
-          <span class="ic" aria-hidden="true">💬</span><span class="lb">Messages</span>
+          <app-icon name="message-square" [size]="22" /><span class="lb">Messages</span>
         </a>
         <a routerLink="/athlete/profile" routerLinkActive="active">
-          <span class="ic" aria-hidden="true">👤</span><span class="lb">Profil</span>
+          <app-icon name="user" [size]="22" /><span class="lb">Profil</span>
         </a>
       </nav>
     </div>

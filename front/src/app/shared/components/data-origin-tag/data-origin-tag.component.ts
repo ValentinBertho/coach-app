@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { IconComponent } from '../icon/icon.component';
 
 /**
  * Origine d'une donnée affichée. Invariant UX DARI Lab : une donnée
@@ -19,12 +20,12 @@ interface OriginMeta {
 }
 
 const ORIGIN_META: Record<DataOrigin, OriginMeta> = {
-  saisi:   { icon: '✎', label: 'Saisi',   cssVar: 'var(--origin-saisi)' },
-  calcule: { icon: '⚙', label: 'Calculé', cssVar: 'var(--origin-calcule)' },
-  estime:  { icon: '≈', label: 'Estimé',  cssVar: 'var(--origin-estime)' },
-  mesure:  { icon: '🧪', label: 'Mesuré',  cssVar: 'var(--origin-mesure)' },
-  alerte:  { icon: '⚠', label: 'Alerte',  cssVar: 'var(--origin-alerte)' },
-  fait:    { icon: '✓', label: 'Fait',    cssVar: 'var(--origin-fait)' },
+  saisi:   { icon: 'pencil',         label: 'Saisi',   cssVar: 'var(--origin-saisi)' },
+  calcule: { icon: 'cog',            label: 'Calculé', cssVar: 'var(--origin-calcule)' },
+  estime:  { icon: 'activity',       label: 'Estimé',  cssVar: 'var(--origin-estime)' },
+  mesure:  { icon: 'flask-conical',  label: 'Mesuré',  cssVar: 'var(--origin-mesure)' },
+  alerte:  { icon: 'alert-triangle', label: 'Alerte',  cssVar: 'var(--origin-alerte)' },
+  fait:    { icon: 'check',          label: 'Fait',    cssVar: 'var(--origin-fait)' },
 };
 
 /**
@@ -39,6 +40,7 @@ const ORIGIN_META: Record<DataOrigin, OriginMeta> = {
   selector: 'app-data-origin-tag',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [IconComponent],
   template: `
     <span
       class="origin"
@@ -47,7 +49,7 @@ const ORIGIN_META: Record<DataOrigin, OriginMeta> = {
       [attr.aria-label]="'Origine : ' + meta().label"
       [attr.title]="meta().label"
     >
-      <span class="origin__icon" aria-hidden="true">{{ meta().icon }}</span>
+      <app-icon class="origin__icon" [name]="meta().icon" [size]="12" />
       @if (!compact()) {
         <span class="origin__label">{{ label() || meta().label }}</span>
       }
