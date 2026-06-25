@@ -36,11 +36,23 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics
   endpoint:
     health:
       probes:
         enabled: true
+      show-details: when_authorized
+  info:
+    env:
+      enabled: true
+
+# Sentry : remontée des erreurs serveur. No-op si SENTRY_DSN absent.
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENV:dev}
+  release: @project.version@
+  traces-sample-rate: 0.1
+  send-default-pii: false
 
 springdoc:
   swagger-ui:

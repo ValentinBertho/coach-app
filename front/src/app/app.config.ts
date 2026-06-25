@@ -1,8 +1,10 @@
 import { registerLocaleData } from '@angular/common';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import localeFr from '@angular/common/locales/fr';
-import { ApplicationConfig, LOCALE_ID, importProvidersFrom, isDevMode } from '@angular/core';
+import { ApplicationConfig, ErrorHandler, LOCALE_ID, importProvidersFrom, isDevMode } from '@angular/core';
+import * as Sentry from '@sentry/angular-ivy';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
+import { environment } from '../environments/environment';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import {
@@ -33,6 +35,10 @@ const ICONS = {
 export const appConfig: ApplicationConfig = {
   providers: [
     { provide: LOCALE_ID, useValue: 'fr-FR' },
+    // Sentry : remonte les erreurs non gérées (actif si DSN configuré).
+    ...(environment.sentryDsn
+      ? [{ provide: ErrorHandler, useValue: Sentry.createErrorHandler({ showDialog: false }) }]
+      : []),
     importProvidersFrom(LucideAngularModule.pick(ICONS)),
     provideAnimationsAsync(),
     provideRouter(routes, withComponentInputBinding()),
