@@ -2,8 +2,10 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { E1rmHistory, MyOneRm } from '../../core/models/strength.model';
+import { Load } from '../../core/models/lactate.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
-import { DataOriginTagComponent, type DataOrigin } from '../../shared/components/physiology';
+import { AcwrIndicatorComponent, DataOriginTagComponent, type DataOrigin } from '../../shared/components/physiology';
+import { MetricCardComponent } from '../../shared/components/ui';
 
 const SOURCE_ORIGIN: Record<string, DataOrigin> = {
   tested: 'mesure', estimated: 'calcule', manual: 'saisi',
@@ -20,14 +22,31 @@ const SOURCE_LABEL: Record<string, string> = {
   selector: 'app-athlete-progress',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, DatePipe, DecimalPipe, DataOriginTagComponent],
+  imports: [IconComponent, DatePipe, DecimalPipe, DataOriginTagComponent, AcwrIndicatorComponent, MetricCardComponent],
   template: `
     <div class="prog">
       <header class="prog-top">
         <h1 class="display-sm">Mes progrès</h1>
-        <p class="subtitle">Évolution de ta force par exercice.</p>
+        <p class="subtitle">Ta charge et l'évolution de ta force.</p>
       </header>
 
+      <!-- Ma charge d'entraînement -->
+      @if (load(); as l) {
+        <section class="charge">
+          <h2 class="sect-h">Ma charge</h2>
+          @if (l.ratio != null) {
+            <div class="card"><app-acwr-indicator [value]="l.ratio" /></div>
+          }
+          <div class="charge-kpis">
+            <app-metric-card label="Charge aiguë (7 j)" [value]="round(l.acuteLoad7d)" unit="UA" origin="calcule" />
+            <app-metric-card label="Charge chronique (28 j)" [value]="round(l.chronicLoad28d)" unit="UA" origin="calcule" />
+            <app-metric-card label="Monotonie" [value]="l.monotony != null ? l.monotony.toFixed(2) : '—'" origin="calcule"
+              [tone]="(l.monotony ?? 0) >= 2 ? 'alert' : 'neutral'" />
+          </div>
+        </section>
+      }
+
+      <h2 class="sect-h">Ma force</h2>
       @if (loading()) {
         <div class="card"><div class="skeleton" style="height: 64px;"></div></div>
       } @else if (profiles().length === 0) {
@@ -115,6 +134,10 @@ const SOURCE_LABEL: Record<string, string> = {
     .hist-date { color: var(--ink-3); font-size: var(--text-sm); width: 64px; }
     .hist-e { font-weight: 800; color: var(--ink); }
     .hist-detail { margin-left: auto; }
+
+    .sect-h { font-size: var(--text-lg); margin: var(--sp-2) 0; }
+    .charge { display: flex; flex-direction: column; gap: var(--sp-3); }
+    .charge-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3); }
   `],
 })
 export class AthleteProgressComponent implements OnInit {
@@ -124,8 +147,12 @@ export class AthleteProgressComponent implements OnInit {
   readonly loading = signal(true);
   readonly expanded = signal<string | null>(null);
   readonly history = signal<Record<string, E1rmHistory[]>>({});
+  readonly load = signal<Load | null>(null);
+
+  round(v: number): number { return Math.round(v); }
 
   ngOnInit(): void {
+    this.portal.load().subscribe({ next: (l) => this.load.set(l), error: () => this.load.set(null) });
     this.portal.my1rm().subscribe({
       next: (p) => { this.profiles.set(p); this.loading.set(false); },
       error: () => this.loading.set(false),

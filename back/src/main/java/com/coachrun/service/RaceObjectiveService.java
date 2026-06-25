@@ -26,6 +26,13 @@ public class RaceObjectiveService {
     private final RaceObjectiveRepository raceRepository;
     private final AthleteRepository athleteRepository;
 
+    /** Liste complète de mes objectifs — variante athlète-scopée (portail /me). */
+    public List<RaceObjectiveResponse> listForAthlete(UUID athleteId) {
+        com.coachrun.entity.Athlete a = athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        return list(a.getClub().getId(), athleteId);
+    }
+
     public List<RaceObjectiveResponse> list(UUID clubId, UUID athleteId) {
         return raceRepository.findByClubIdAndAthleteIdOrderByRaceDateAsc(clubId, athleteId)
                 .stream().map(RaceObjectiveResponse::from).toList();

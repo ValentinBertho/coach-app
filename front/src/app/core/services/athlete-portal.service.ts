@@ -4,6 +4,8 @@ import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { RaceObjective } from '../models/race.model';
 import { Unavailability } from '../models/unavailability.model';
+import { PhysioProfile, Vdot } from '../models/physio.model';
+import { Load } from '../models/lactate.model';
 import { Workout, WorkoutStatus } from '../models/workout.model';
 import { CalculatedStrength, E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthResultEntry, StrengthStructure } from '../models/strength.model';
 
@@ -68,6 +70,24 @@ export class AthletePortalService {
   /** Mes indisponibilités (en cours/à venir). */
   unavailabilities(): Observable<Unavailability[]> {
     return this.http.get<Unavailability[]>(`${this.base}/unavailabilities`);
+  }
+
+  // --- Phase 1 « Me connaître » (lecture seule) ---
+  /** Mon profil physiologique (VDOT, LT1/LT2, VC, domaines). */
+  physio(): Observable<PhysioProfile> {
+    return this.http.get<PhysioProfile>(`${this.base}/physio`);
+  }
+  /** Mes allures d'entraînement (VDOT). */
+  vdot(): Observable<Vdot> {
+    return this.http.get<Vdot>(`${this.base}/vdot`);
+  }
+  /** Ma charge d'entraînement (ACWR, ATL/CTL, monotonie). */
+  load(): Observable<Load> {
+    return this.http.get<Load>(`${this.base}/load`);
+  }
+  /** Mes objectifs (liste complète). */
+  races(): Observable<RaceObjective[]> {
+    return this.http.get<RaceObjective[]>(`${this.base}/races`);
   }
 
   /** Mon profil de force : 1RM courant par exercice (lecture seule). */
