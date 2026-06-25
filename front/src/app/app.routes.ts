@@ -207,6 +207,16 @@ export const routes: Routes = [
           import('./features/athlete/athlete-progress.component').then((m) => m.AthleteProgressComponent),
       },
       {
+        path: 'history',
+        loadComponent: () =>
+          import('./features/athlete/athlete-history.component').then((m) => m.AthleteHistoryComponent),
+      },
+      {
+        path: 'activities',
+        loadComponent: () =>
+          import('./features/athlete/athlete-activities.component').then((m) => m.AthleteActivitiesComponent),
+      },
+      {
         path: 'profile',
         loadComponent: () =>
           import('./features/athlete/profile.component').then((m) => m.AthleteProfileComponent),

@@ -57,7 +57,14 @@ Ces données sont calculées/stockées et exposées **côté coach uniquement**
 
 ## 3. Plan d'évolution (par phases, par valeur)
 
-### Phase 1 — « Me connaître » (fort impact, faible effort : données déjà calculées)
+> **État d'avancement** — ✅ **Phase 1 livrée** (`/me/physio`, `/me/vdot`, `/me/load`,
+> `/me/races` + Profil enrichi & section « Ma charge »). ✅ **Phase 2 livrée**
+> (`/me/analytics`, `/me/activities`, `/me/activities/{id}/route`, `/me/performances` +
+> écrans **Historique** et **Activités**, sections **Mon volume** & **Mes records** dans
+> *Mes progrès*). L'historique réutilise l'endpoint existant `/me/workouts` (plage).
+> Reste la **Phase 3**.
+
+### Phase 1 — « Me connaître » ✅ (fort impact, faible effort : données déjà calculées)
 1. **Mon profil physio** (lecture) : VDOT, LT1/LT2, VC, domaines + **mes allures d'entraînement**.
    - Back : `GET /me/physio`, `GET /me/vdot` (athlète-scopé).
    - Front : onglet **Profil** enrichi (badges physio + table d'allures).
@@ -66,7 +73,7 @@ Ces données sont calculées/stockées et exposées **côté coach uniquement**
    - Front : section dans **Mes progrès** (réutilise `AcwrIndicator`, `MetricCard`).
 3. **Mes objectifs** (liste complète, lecture) : `GET /me/races` → bloc dans Aujourd'hui/Profil.
 
-### Phase 2 — « Mon histoire » (engagement, régularité)
+### Phase 2 — « Mon histoire » ✅ (engagement, régularité)
 4. **Mon historique de séances** : séances passées (course + force) avec mon ressenti
    (RPE/fatigue/douleur) et le réalisé vs prescrit. Filtres par période/type.
    - Back : `workouts` accepte déjà une plage → ajouter une vue « passées » + récap feedback.
