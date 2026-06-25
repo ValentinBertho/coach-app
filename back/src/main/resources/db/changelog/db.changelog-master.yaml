@@ -65,3 +65,5 @@ databaseChangeLog:
       file: db/changelog/changes/030-message-attachments.yaml
   - include:
       file: db/changelog/changes/031-device-connections.yaml
+  - include:
+      file: db/changelog/changes/032-run-drills.yaml

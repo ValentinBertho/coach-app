@@ -33,6 +33,17 @@ public class Athlete1rmService {
                 .toList();
     }
 
+    /** Profil 1RM par exercice (enrichi du nom) — variante athlète-scoped (portail /me). */
+    public List<com.coachrun.dto.response.MyOneRmResponse> listForAthlete(UUID athleteId) {
+        return profileRepository.findByAthleteId(athleteId).stream()
+                .map(p -> new com.coachrun.dto.response.MyOneRmResponse(
+                        p.getExerciseId(),
+                        exerciseRepository.findById(p.getExerciseId())
+                                .map(com.coachrun.entity.PpExercise::getName).orElse("Exercice"),
+                        p.getRmKg(), p.getSource()))
+                .toList();
+    }
+
     @Transactional
     public Athlete1rmResponse set(UUID clubId, UUID athleteId, Athlete1rmRequest req) {
         Athlete athlete = requireAthlete(clubId, athleteId);

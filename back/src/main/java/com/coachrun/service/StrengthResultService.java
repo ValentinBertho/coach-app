@@ -146,6 +146,12 @@ public class StrengthResultService {
                 .stream().map(E1rmHistoryResponse::from).toList();
     }
 
+    /** Historique e1RM d'un exercice — variante athlète-scoped (portail /me). */
+    public List<E1rmHistoryResponse> historyForAthlete(UUID athleteId, UUID exerciseId) {
+        return estimatedRepository.findByAthleteIdAndExerciseIdOrderByCreatedAtAsc(athleteId, exerciseId)
+                .stream().map(E1rmHistoryResponse::from).toList();
+    }
+
     // --- Recalcul -------------------------------------------------------------
 
     private Double estimate(StrengthResultRequest e) {

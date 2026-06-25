@@ -86,6 +86,11 @@ export const routes: Routes = [
           import('./features/strength/strength.component').then((m) => m.StrengthComponent),
       },
       {
+        path: 'run-drills',
+        loadComponent: () =>
+          import('./features/templates/run-drills.component').then((m) => m.RunDrillsComponent),
+      },
+      {
         path: 'strength/sessions/:sessionId/structure',
         loadComponent: () =>
           import('./features/strength/strength-session-editor.component').then(
@@ -182,12 +187,24 @@ export const routes: Routes = [
   {
     path: 'athlete',
     canActivate: [athleteGuard],
+    loadComponent: () =>
+      import('./features/athlete/athlete-shell.component').then((m) => m.AthleteShellComponent),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'today' },
       {
         path: 'today',
         loadComponent: () =>
           import('./features/athlete/today.component').then((m) => m.TodayComponent),
+      },
+      {
+        path: 'calendar',
+        loadComponent: () =>
+          import('./features/athlete/athlete-calendar.component').then((m) => m.AthleteCalendarComponent),
+      },
+      {
+        path: 'progress',
+        loadComponent: () =>
+          import('./features/athlete/athlete-progress.component').then((m) => m.AthleteProgressComponent),
       },
       {
         path: 'profile',

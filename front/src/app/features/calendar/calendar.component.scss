@@ -156,3 +156,33 @@
 
 /* Chip de force : rail coloré cohérent avec les types. */
 .strength-chip { border-left: 3px solid var(--type-color, var(--dari-violet)); }
+
+/* --- Events non-séance : objectifs, tests, indisponibilités --------------- */
+.day-col--unavailable { background: repeating-linear-gradient(135deg, var(--paper) 0 10px, var(--paper-sunk) 10px 20px); }
+
+.unavail-chip {
+  display: flex; align-items: center; gap: var(--sp-1);
+  margin: 0 var(--sp-2) var(--sp-1); padding: 2px var(--sp-2);
+  border-radius: var(--radius-sm); font-size: var(--text-xs); font-weight: 700;
+  color: var(--ink-3); background: var(--paper-sunk); border: 1px dashed var(--border, var(--hairline));
+}
+
+.event-chip {
+  display: flex; align-items: center; gap: var(--sp-1);
+  width: calc(100% - var(--sp-4)); margin: 0 var(--sp-2) var(--sp-1);
+  padding: 3px var(--sp-2); border: none; border-radius: var(--radius-sm);
+  font-size: var(--text-xs); font-weight: 700; cursor: pointer; text-align: left;
+}
+.event-chip .ec-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.event-chip--objective {
+  background: color-mix(in srgb, var(--energy) 16%, var(--paper));
+  border-left: 3px solid var(--energy); color: var(--ink);
+}
+.event-chip--objective .ec-prio {
+  font-family: var(--font-data); background: var(--energy); color: #fff;
+  border-radius: var(--radius-full); padding: 0 5px; font-size: 10px;
+}
+.event-chip--test {
+  background: color-mix(in srgb, var(--accent-2) 14%, var(--paper));
+  border-left: 3px solid var(--accent-2); color: var(--ink);
+}
