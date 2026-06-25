@@ -23,7 +23,7 @@ import {
   type EffortKind,
   RangePrescriptionPillComponent,
 } from '../../shared/components/physiology';
-import { SegmentedControlComponent, type SegmentOption } from '../../shared/components/ui';
+import { SegmentedControlComponent, type SegmentOption, SidePanelComponent } from '../../shared/components/ui';
 
 /**
  * Éditeur de structure d'une séance de force (cf. DARI Lab) : blocs typés, formats avancés
@@ -37,6 +37,7 @@ import { SegmentedControlComponent, type SegmentOption } from '../../shared/comp
   imports: [
     FormsModule, RouterLink, DragDropModule,
     SegmentedControlComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
+    SidePanelComponent,
   ],
   templateUrl: './strength-session-editor.component.html',
   styleUrl: './strength-session-editor.component.scss',
@@ -109,6 +110,17 @@ export class StrengthSessionEditorComponent implements OnInit {
     { value: 'edit', label: 'Édition' },
     { value: 'preview', label: 'Aperçu athlète' },
   ];
+
+  // --- Panneau latéral d'édition d'un exercice ---
+  readonly panelOpen = signal(false);
+  readonly editingBlock = signal<StrengthBlock | null>(null);
+  readonly editingItem = signal<StrengthExerciseItem | null>(null);
+
+  openEditor(block: StrengthBlock, item: StrengthExerciseItem): void {
+    this.editingBlock.set(block);
+    this.editingItem.set(item);
+    this.panelOpen.set(true);
+  }
 
   blockTypeLabel(t: BlockType): string { return this.blockTypes.find((x) => x.value === t)?.label ?? t; }
   formatLabel(f: BlockFormat): string { return this.formats.find((x) => x.value === f)?.label ?? f; }

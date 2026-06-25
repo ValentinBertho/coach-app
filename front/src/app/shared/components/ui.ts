@@ -6,3 +6,4 @@ export { MetricCardComponent, type MetricTone } from './metric-card/metric-card.
 export { SegmentedControlComponent, type SegmentOption } from './segmented-control/segmented-control.component';
 export { StickyActionBarComponent } from './sticky-action-bar/sticky-action-bar.component';
 export { BottomSheetComponent } from './bottom-sheet/bottom-sheet.component';
+export { SidePanelComponent } from './side-panel/side-panel.component';

@@ -167,3 +167,19 @@
   font-size: var(--text-xs); font-weight: 700; color: var(--primary);
   background: var(--primary-wash); padding: 1px var(--sp-2); border-radius: var(--radius-full);
 }
+
+/* --- Résumé compact d'exercice (édition au panneau) ----------------------- */
+.ex-row--compact { padding: var(--sp-3) 0; border-top: 1px solid var(--hairline); }
+.ex-row--compact:first-of-type { border-top: none; }
+.ex-spacer { flex: 1; }
+.ex-summary { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2); }
+.ex-sum-sets { color: var(--ink-3); font-size: var(--text-sm); font-weight: 700; }
+
+/* --- Panneau d'édition ---------------------------------------------------- */
+.sp-ex-name { margin: 0 0 var(--sp-4); }
+.sp-preview {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2);
+  margin: var(--sp-4) 0; padding: var(--sp-3);
+  background: var(--paper-sunk); border-radius: var(--radius);
+}
+.sp-done { width: 100%; }

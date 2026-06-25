@@ -63,70 +63,29 @@
         </div>
       }
 
-      <!-- Exercices -->
+      <!-- Exercices : résumé compact + édition au panneau -->
       @for (item of block.exercises; track item; let i = $index) {
-        <div class="ex-row">
+        <div class="ex-row ex-row--compact">
           <div class="ex-row-head">
             <strong>{{ item.exerciseName || label(item.exerciseId) }}</strong>
-            @if (chargeAt(bi, i); as c) {
-              @if (c.computable) {
-                <span class="charge-chip">🎯 {{ c.chargeLabel }}<span class="charge-effort">· {{ c.effortLabel }}</span></span>
-              } @else {
-                <span class="charge-chip muted">{{ c.effortLabel || '1RM manquant' }}</span>
-              }
-            }
-            <button type="button" class="btn btn-ghost btn-sm danger" (click)="removeExercise(block, i)">✕</button>
+            <span class="ex-spacer"></span>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="openEditor(block, item)">Éditer</button>
+            <button type="button" class="btn btn-ghost btn-sm danger" (click)="removeExercise(block, i)" aria-label="Retirer">✕</button>
           </div>
-          <div class="presc-grid">
-            <div class="form-group"><label>Type de série</label>
-              <select class="form-control" [(ngModel)]="item.setType" (ngModelChange)="touch()">
-                @for (st of setTypes; track st.value) { <option [value]="st.value">{{ st.label }}</option> }
-              </select>
-            </div>
-            <div class="form-group"><label>Séries</label><input type="number" class="form-control" [(ngModel)]="item.prescription.sets" (ngModelChange)="touch()" /></div>
-            @if (block.format === 'ISOMETRIE') {
-              <div class="form-group"><label>Durée (s)</label><input type="number" class="form-control" [(ngModel)]="item.prescription.durationSec" (ngModelChange)="touch()" /></div>
-            } @else {
-              <div class="form-group"><label>Répétitions</label><input type="number" class="form-control" [(ngModel)]="item.prescription.repsFixed" (ngModelChange)="touch()" /></div>
+          <div class="ex-summary">
+            @if (item.prescription.sets) { <span class="ex-sum-sets metric">{{ item.prescription.sets }} séries</span> }
+            @if (repsInfo(block, item.prescription); as r) {
+              <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" />
             }
-
-            <div class="form-group"><label>Réf. charge</label>
-              <select class="form-control" [(ngModel)]="item.prescription.chargeRefType" (ngModelChange)="touch()">
-                @for (c of chargeRefs; track c.value) { <option [value]="c.value">{{ c.label }}</option> }
-              </select>
-            </div>
-            @if (item.prescription.chargeRefType === 'PCT_RM_RANGE') {
-              <div class="form-group"><label>% RM min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargePctRmMin" (ngModelChange)="touch()" /></div>
-              <div class="form-group"><label>% RM max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargePctRmMax" (ngModelChange)="touch()" /></div>
-            } @else if (item.prescription.chargeRefType === 'PCT_RM') {
-              <div class="form-group"><label>% RM</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargePctRmMin" (ngModelChange)="touch()" /></div>
-            } @else if (item.prescription.chargeRefType === 'KG_RANGE') {
-              <div class="form-group"><label>kg min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargeKgMin" (ngModelChange)="touch()" /></div>
-              <div class="form-group"><label>kg max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargeKgMax" (ngModelChange)="touch()" /></div>
-            } @else if (item.prescription.chargeRefType === 'KG_FIXE') {
-              <div class="form-group"><label>kg</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargeKgMin" (ngModelChange)="touch()" /></div>
+            @if (chargePill(item.prescription); as c) {
+              <app-range-prescription-pill label="Charge" [min]="c.min" [max]="c.max" [unit]="c.unit" />
             }
-
-            <div class="form-group"><label>Réf. effort</label>
-              <select class="form-control" [(ngModel)]="item.prescription.effortRefType" (ngModelChange)="touch()">
-                @for (e of effortRefs; track e.value) { <option [value]="e.value">{{ e.label }}</option> }
-              </select>
-            </div>
-            @if (item.prescription.effortRefType === 'RIR_RANGE') {
-              <div class="form-group"><label>RIR min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rirMin" (ngModelChange)="touch()" /></div>
-              <div class="form-group"><label>RIR max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rirMax" (ngModelChange)="touch()" /></div>
-            } @else if (item.prescription.effortRefType === 'RIR') {
-              <div class="form-group"><label>RIR</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rirMin" (ngModelChange)="touch()" /></div>
-            } @else if (item.prescription.effortRefType === 'RPE_RANGE') {
-              <div class="form-group"><label>RPE min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rpeMin" (ngModelChange)="touch()" /></div>
-              <div class="form-group"><label>RPE max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rpeMax" (ngModelChange)="touch()" /></div>
-            } @else if (item.prescription.effortRefType === 'RPE') {
-              <div class="form-group"><label>RPE</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rpeMin" (ngModelChange)="touch()" /></div>
+            @if (effortInfo(item.prescription); as e) {
+              <app-effort-badge [kind]="e.kind" [min]="e.min" [max]="e.max" />
             }
-
-            <div class="form-group"><label>Tempo</label><input class="form-control" placeholder="3-1-X-1" [(ngModel)]="item.prescription.tempo" (ngModelChange)="touch()" /></div>
-            <div class="form-group"><label>Repos min (s)</label><input type="number" class="form-control" [(ngModel)]="item.prescription.restSecMin" (ngModelChange)="touch()" /></div>
-            <div class="form-group"><label>Repos max (s)</label><input type="number" class="form-control" [(ngModel)]="item.prescription.restSecMax" (ngModelChange)="touch()" /></div>
+            @if (chargeAt(bi, i); as ct) {
+              @if (ct.computable && ct.chargeLabel) { <span class="charge-chip">🎯 {{ ct.chargeLabel }}</span> }
+            }
           </div>
         </div>
       } @empty {
@@ -184,3 +143,79 @@
     </div>
   }
 }
+
+<!-- ===== Panneau latéral : édition d'un exercice ===== -->
+<app-side-panel [(open)]="panelOpen" title="Éditer l'exercice" [width]="460">
+  @if (editingItem(); as item) {
+    @if (editingBlock(); as block) {
+      <h4 class="sp-ex-name">{{ item.exerciseName || label(item.exerciseId) }}</h4>
+
+      <div class="presc-grid">
+        <div class="form-group"><label>Type de série</label>
+          <select class="form-control" [(ngModel)]="item.setType" (ngModelChange)="touch()">
+            @for (st of setTypes; track st.value) { <option [value]="st.value">{{ st.label }}</option> }
+          </select>
+        </div>
+        <div class="form-group"><label>Séries</label><input type="number" class="form-control" [(ngModel)]="item.prescription.sets" (ngModelChange)="touch()" /></div>
+        @if (block.format === 'ISOMETRIE') {
+          <div class="form-group"><label>Durée (s)</label><input type="number" class="form-control" [(ngModel)]="item.prescription.durationSec" (ngModelChange)="touch()" /></div>
+        } @else {
+          <div class="form-group"><label>Répétitions</label><input type="number" class="form-control" [(ngModel)]="item.prescription.repsFixed" (ngModelChange)="touch()" /></div>
+        }
+
+        <div class="form-group"><label>Réf. charge</label>
+          <select class="form-control" [(ngModel)]="item.prescription.chargeRefType" (ngModelChange)="touch()">
+            @for (c of chargeRefs; track c.value) { <option [value]="c.value">{{ c.label }}</option> }
+          </select>
+        </div>
+        @if (item.prescription.chargeRefType === 'PCT_RM_RANGE') {
+          <div class="form-group"><label>% RM min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargePctRmMin" (ngModelChange)="touch()" /></div>
+          <div class="form-group"><label>% RM max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargePctRmMax" (ngModelChange)="touch()" /></div>
+        } @else if (item.prescription.chargeRefType === 'PCT_RM') {
+          <div class="form-group"><label>% RM</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargePctRmMin" (ngModelChange)="touch()" /></div>
+        } @else if (item.prescription.chargeRefType === 'KG_RANGE') {
+          <div class="form-group"><label>kg min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargeKgMin" (ngModelChange)="touch()" /></div>
+          <div class="form-group"><label>kg max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargeKgMax" (ngModelChange)="touch()" /></div>
+        } @else if (item.prescription.chargeRefType === 'KG_FIXE') {
+          <div class="form-group"><label>kg</label><input type="number" class="form-control" [(ngModel)]="item.prescription.chargeKgMin" (ngModelChange)="touch()" /></div>
+        }
+
+        <div class="form-group"><label>Réf. effort</label>
+          <select class="form-control" [(ngModel)]="item.prescription.effortRefType" (ngModelChange)="touch()">
+            @for (e of effortRefs; track e.value) { <option [value]="e.value">{{ e.label }}</option> }
+          </select>
+        </div>
+        @if (item.prescription.effortRefType === 'RIR_RANGE') {
+          <div class="form-group"><label>RIR min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rirMin" (ngModelChange)="touch()" /></div>
+          <div class="form-group"><label>RIR max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rirMax" (ngModelChange)="touch()" /></div>
+        } @else if (item.prescription.effortRefType === 'RIR') {
+          <div class="form-group"><label>RIR</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rirMin" (ngModelChange)="touch()" /></div>
+        } @else if (item.prescription.effortRefType === 'RPE_RANGE') {
+          <div class="form-group"><label>RPE min</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rpeMin" (ngModelChange)="touch()" /></div>
+          <div class="form-group"><label>RPE max</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rpeMax" (ngModelChange)="touch()" /></div>
+        } @else if (item.prescription.effortRefType === 'RPE') {
+          <div class="form-group"><label>RPE</label><input type="number" class="form-control" [(ngModel)]="item.prescription.rpeMin" (ngModelChange)="touch()" /></div>
+        }
+
+        <div class="form-group"><label>Tempo</label><input class="form-control" placeholder="3-1-X-1" [(ngModel)]="item.prescription.tempo" (ngModelChange)="touch()" /></div>
+        <div class="form-group"><label>Repos min (s)</label><input type="number" class="form-control" [(ngModel)]="item.prescription.restSecMin" (ngModelChange)="touch()" /></div>
+        <div class="form-group"><label>Repos max (s)</label><input type="number" class="form-control" [(ngModel)]="item.prescription.restSecMax" (ngModelChange)="touch()" /></div>
+      </div>
+
+      <!-- Aperçu live de la prescription dans le panneau -->
+      <div class="sp-preview">
+        @if (repsInfo(block, item.prescription); as r) {
+          <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" />
+        }
+        @if (chargePill(item.prescription); as c) {
+          <app-range-prescription-pill label="Charge" [min]="c.min" [max]="c.max" [unit]="c.unit" />
+        }
+        @if (effortInfo(item.prescription); as e) {
+          <app-effort-badge [kind]="e.kind" [min]="e.min" [max]="e.max" />
+        }
+      </div>
+
+      <button type="button" class="btn btn-primary sp-done" (click)="panelOpen.set(false)">Terminé</button>
+    }
+  }
+</app-side-panel>
