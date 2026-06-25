@@ -5,8 +5,9 @@ import { ScheduledStrength } from '../../core/models/strength.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { ToastService } from '../../core/services/toast.service';
-import { IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
+import { DataOriginTagComponent, IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
 import { BottomSheetComponent } from '../../shared/components/ui';
+import { CalculatedBlockEntry, CourseBlock, WorkoutPrescription } from '../../core/models/course.model';
 
 interface DayRow {
   date: string;
@@ -44,7 +45,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
   selector: 'app-athlete-calendar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, IntensityZoneBadgeComponent, BottomSheetComponent],
+  imports: [IconComponent, IntensityZoneBadgeComponent, DataOriginTagComponent, BottomSheetComponent],
   template: `
     <header class="cal-top">
       <h1 class="display-sm">Mon calendrier</h1>
@@ -128,7 +129,42 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
           </div>
           @if (w.notes) { <p class="det-notes">{{ w.notes }}</p> }
 
-          @if (w.steps.length > 0) {
+          @if (detailLoading()) {
+            <div class="skeleton" style="height: 72px; border-radius: var(--radius);"></div>
+          } @else if (detailGroups().length > 0) {
+            @for (g of detailGroups(); track g.section) {
+              <section class="grp">
+                <h4 class="grp-h">{{ g.section }}</h4>
+                @for (e of g.entries; track $index) {
+                  <div class="blk">
+                    <div class="blk-hd">
+                      <span class="blk-type">{{ blockLabel(e.block) }}</span>
+                    </div>
+                    @if (e.calc?.computable) {
+                      <div class="targets">
+                        @if (e.calc!.paceMinLabel) {
+                          <span class="tgt"><app-icon name="footprints" [size]="13" /> {{ e.calc!.paceMinLabel }}–{{ e.calc!.paceMaxLabel }}/km</span>
+                        }
+                        @if (e.calc!.hrMin != null) {
+                          <span class="tgt"><app-icon name="heart-pulse" [size]="13" /> {{ e.calc!.hrMin }}–{{ e.calc!.hrMax }} bpm</span>
+                        }
+                        @if (e.calc!.rpeMin != null) {
+                          <span class="tgt">RPE {{ e.calc!.rpeMin }}–{{ e.calc!.rpeMax }}</span>
+                        }
+                      </div>
+                    }
+                    @if (e.recoveryCalc?.computable && e.recoveryCalc!.paceMinLabel) {
+                      <div class="targets recov field-hint">
+                        récup · {{ e.recoveryCalc!.paceMinLabel }}–{{ e.recoveryCalc!.paceMaxLabel }}/km
+                      </div>
+                    }
+                    @if (e.block.note) { <p class="blk-note field-hint">{{ e.block.note }}</p> }
+                  </div>
+                }
+              </section>
+            }
+            <app-data-origin-tag origin="calcule" label="Allures calculées pour toi" />
+          } @else if (w.steps.length > 0) {
             <ul class="blocks">
               @for (s of w.steps; track $index) {
                 <li class="blk">
@@ -206,6 +242,14 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     .blk-target { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
     .det-foot { margin: 0; }
 
+    .grp { display: flex; flex-direction: column; }
+    .grp-h { margin: var(--sp-2) 0 0; font-size: var(--text-sm); color: var(--ink-3); text-transform: uppercase; letter-spacing: .03em; }
+    .targets { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: 4px; }
+    .tgt { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: var(--radius-full);
+      background: var(--paper-sunk); color: var(--ink); font-weight: 700; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+    .targets.recov { margin-top: 2px; }
+    .blk-note { margin: 2px 0 0; }
+
     .move-lead { font-weight: 700; color: var(--ink); margin: 0 0 var(--sp-4); }
     .pick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); }
     .pick {
@@ -235,6 +279,19 @@ export class AthleteCalendarComponent implements OnInit {
   readonly moveTarget = signal<MoveTarget | null>(null);
   readonly detailOpen = signal(false);
   readonly detailWorkout = signal<Workout | null>(null);
+  readonly detailPrescription = signal<WorkoutPrescription | null>(null);
+  readonly detailLoading = signal(false);
+
+  /** Blocs calculés groupés par phase (échauffement / principal / retour au calme). */
+  readonly detailGroups = computed<{ section: string; entries: CalculatedBlockEntry[] }[]>(() => {
+    const c = this.detailPrescription()?.calculated;
+    if (!c) return [];
+    return [
+      { section: 'Échauffement', entries: c.warmup ?? [] },
+      { section: 'Bloc principal', entries: c.main ?? [] },
+      { section: 'Retour au calme', entries: c.cooldown ?? [] },
+    ].filter((g) => g.entries.length > 0);
+  });
 
   readonly days = computed<DayRow[]>(() => {
     const today = toIso(new Date());
@@ -307,7 +364,20 @@ export class AthleteCalendarComponent implements OnInit {
 
   openDetail(w: Workout): void {
     this.detailWorkout.set(w);
+    this.detailPrescription.set(null);
     this.detailOpen.set(true);
+    this.detailLoading.set(true);
+    this.portal.workoutPrescription(w.id).subscribe({
+      next: (p) => { this.detailPrescription.set(p); this.detailLoading.set(false); },
+      error: () => this.detailLoading.set(false),
+    });
+  }
+
+  /** Libellé d'un bloc : « 6 × 1000 m » / « 20 min ». */
+  blockLabel(b: CourseBlock): string {
+    const reps = (b.reps ?? 1) > 1 ? `${b.reps} × ` : '';
+    const size = b.distanceM ? `${b.distanceM} m` : (b.durationS ? this.fmtDur(b.durationS) : '');
+    return (reps + size).trim() || (b.type ?? 'Bloc');
   }
 
   /** Durée « h:mm » ou « m min ». */

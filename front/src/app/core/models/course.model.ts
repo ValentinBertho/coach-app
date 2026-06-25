@@ -62,3 +62,25 @@ export interface CalculatedBlock {
   estimatedDurationS: number | null;
   estimatedDistanceM: number | null;
 }
+
+/** Un bloc de séance avec ses cibles calculées (et celles de sa récupération). */
+export interface CalculatedBlockEntry {
+  block: CourseBlock;
+  calc: CalculatedBlock | null;
+  recoveryCalc: CalculatedBlock | null;
+}
+
+/** Séance course entièrement calculée pour un athlète. */
+export interface CalculatedSession {
+  warmup: CalculatedBlockEntry[];
+  main: CalculatedBlockEntry[];
+  cooldown: CalculatedBlockEntry[];
+  totalDistanceM: number | null;
+  totalDurationS: number | null;
+}
+
+/** Prescription figée d'une séance planifiée : snapshot des blocs + cibles calculées. */
+export interface WorkoutPrescription {
+  snapshot: SessionStructure;
+  calculated: CalculatedSession | null;
+}
