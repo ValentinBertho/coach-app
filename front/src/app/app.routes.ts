@@ -182,6 +182,8 @@ export const routes: Routes = [
   {
     path: 'athlete',
     canActivate: [athleteGuard],
+    loadComponent: () =>
+      import('./features/athlete/athlete-shell.component').then((m) => m.AthleteShellComponent),
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'today' },
       {
