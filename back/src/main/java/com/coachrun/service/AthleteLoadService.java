@@ -31,6 +31,13 @@ public class AthleteLoadService {
     private final WorkoutRepository workoutRepository;
     private final LoadEngine loadEngine;
 
+    /** Charge — variante athlète-scopée (portail /me) : résout le club de l'athlète. */
+    public LoadResponse loadForAthlete(UUID athleteId) {
+        com.coachrun.entity.Athlete a = athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        return load(a.getClub().getId(), athleteId);
+    }
+
     public LoadResponse load(UUID clubId, UUID athleteId) {
         if (athleteRepository.findByIdAndClubId(athleteId, clubId).isEmpty()) {
             throw new NotFoundException("Athlète introuvable.");

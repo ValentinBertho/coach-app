@@ -50,6 +50,8 @@ public class AthletePortalController {
     private final com.coachrun.service.ProgressionService progressionService;
     private final com.coachrun.service.UnavailabilityService unavailabilityService;
     private final com.coachrun.service.Athlete1rmService oneRmService;
+    private final com.coachrun.service.AthletePhysioService physioService;
+    private final com.coachrun.service.AthleteLoadService loadService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -151,6 +153,34 @@ public class AthletePortalController {
     public java.util.List<com.coachrun.dto.response.E1rmHistoryResponse> my1rmHistory(
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID exerciseId) {
         return strengthResultService.historyForAthlete(principal.athleteId(), exerciseId);
+    }
+
+    /** Mon profil physiologique (VDOT, LT1/LT2, VC, domaines) — lecture seule. */
+    @GetMapping("/physio")
+    public com.coachrun.dto.response.PhysioProfileResponse myPhysio(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return physioService.getProfileForAthlete(principal.athleteId());
+    }
+
+    /** Mes allures d'entraînement (VDOT). */
+    @GetMapping("/vdot")
+    public com.coachrun.dto.response.VdotResponse myVdot(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return physioService.getVdotForAthlete(principal.athleteId());
+    }
+
+    /** Ma charge d'entraînement (ACWR, ATL/CTL, monotonie, répartition). */
+    @GetMapping("/load")
+    public com.coachrun.dto.response.LoadResponse myLoad(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return loadService.loadForAthlete(principal.athleteId());
+    }
+
+    /** Mes objectifs (liste complète). */
+    @GetMapping("/races")
+    public java.util.List<com.coachrun.dto.response.RaceObjectiveResponse> myRaces(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return raceService.listForAthlete(principal.athleteId());
     }
 
     /** Prochaine course cible (compte à rebours J-XX). 204 si aucune. */

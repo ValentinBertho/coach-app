@@ -121,6 +121,21 @@ public class AthletePhysioService {
 
     public VdotResponse getVdot(UUID clubId, UUID athleteId) {
         requireAthlete(clubId, athleteId);
+        return buildVdot(athleteId);
+    }
+
+    /** Profil physio — variante athlète-scopée (portail /me, lecture seule). */
+    public PhysioProfileResponse getProfileForAthlete(UUID athleteId) {
+        return PhysioProfileResponse.from(athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new com.coachrun.exception.NotFoundException("Athlète introuvable.")));
+    }
+
+    /** VDOT + allures — variante athlète-scopée (portail /me). */
+    public VdotResponse getVdotForAthlete(UUID athleteId) {
+        return buildVdot(athleteId);
+    }
+
+    private VdotResponse buildVdot(UUID athleteId) {
         AthleteVdotPace paces = vdotPaceRepository.findByAthleteId(athleteId).orElse(null);
         if (paces == null || paces.getVdot() == null) {
             return new VdotResponse(null, List.of());
