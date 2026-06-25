@@ -70,6 +70,16 @@ public class AthletePhysioController {
         physioService.deletePerformance(clubId, athleteId, performanceId);
     }
 
+
+    /** Test de Vitesse Critique : calcule la VC (+ D') depuis plusieurs efforts. */
+    @org.springframework.web.bind.annotation.PostMapping("/vc-test")
+    public com.coachrun.dto.response.VcTestResponse vcTest(
+            @org.springframework.web.bind.annotation.PathVariable java.util.UUID clubId,
+            @org.springframework.web.bind.annotation.PathVariable java.util.UUID athleteId,
+            @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody com.coachrun.dto.request.VcTestRequest request) {
+        return physioService.computeVc(clubId, athleteId, request);
+    }
+
     @GetMapping("/vdot")
     public VdotResponse getVdot(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
         return physioService.getVdot(clubId, athleteId);

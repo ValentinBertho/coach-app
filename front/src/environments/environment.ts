@@ -6,4 +6,6 @@
 export const environment = {
   production: true,
   apiUrl: '/api',
+  sentryDsn: '',   // renseigner en prod (variable d'env au build)
+  appVersion: '0.1.0',
 };

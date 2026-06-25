@@ -36,7 +36,7 @@ export class RegisterComponent {
     this.submitting.set(true);
     this.auth.register(this.form.getRawValue()).subscribe({
       next: () => {
-        this.toast.success('Club créé, bienvenue sur CoachRun');
+        this.toast.success('Club créé, bienvenue sur Darilab');
         this.router.navigate(['/app']);
       },
       error: () => this.submitting.set(false),

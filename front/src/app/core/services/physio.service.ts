@@ -6,7 +6,7 @@ import { Performance, PhysioProfile, Vdot } from '../models/physio.model';
 import { AuthService } from './auth.service';
 
 /**
- * Profil physiologique DARI Lab d'un athlète : seuils, performances et VDOT.
+ * Profil physiologique Darilab d'un athlète : seuils, performances et VDOT.
  * Scoping tenant : /clubs/{clubId}/athletes/{athleteId}/...
  */
 @Injectable({ providedIn: 'root' })
@@ -28,6 +28,16 @@ export class PhysioService {
 
   vdot(athleteId: string): Observable<Vdot> {
     return this.http.get<Vdot>(`${this.base(athleteId)}/vdot`);
+  }
+
+  /** Test de Vitesse Critique : calcule la VC (+ D') depuis plusieurs efforts. */
+  vcTest(
+    athleteId: string,
+    body: { trials: { distanceM: number; timeS: number }[]; applyToProfile: boolean },
+  ): Observable<{ vcMs: number; vcKmh: number; dPrimeM: number }> {
+    return this.http.post<{ vcMs: number; vcKmh: number; dPrimeM: number }>(
+      `${this.base(athleteId)}/vc-test`, body,
+    );
   }
 
   performances(athleteId: string): Observable<Performance[]> {

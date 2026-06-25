@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -43,9 +43,12 @@ export class CoachDashboardService {
     return this.http.get<CoachDashboard>(`${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard`);
   }
 
-  form(): Observable<CoachFormDashboard> {
+  /** Périmètre : all (club) | mine (mes athlètes) | private (mes privés) | club (mes athlètes club). */
+  form(scope: 'all' | 'mine' | 'private' | 'club' = 'all'): Observable<CoachFormDashboard> {
+    const params = new HttpParams().set('scope', scope);
     return this.http.get<CoachFormDashboard>(
       `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard/form`,
+      { params },
     );
   }
 }

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 
-/** Écran Notifications (s-notifications) : alertes que le système DARI Lab déclenche. */
+/** Écran Notifications (s-notifications) : alertes que le système Darilab déclenche. */
 @Component({
   selector: 'app-notifications',
   standalone: true,

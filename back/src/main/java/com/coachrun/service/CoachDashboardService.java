@@ -5,6 +5,7 @@ import com.coachrun.dto.response.CoachDashboardResponse;
 import com.coachrun.dto.response.CoachFormDashboardResponse;
 import com.coachrun.dto.response.RaceObjectiveResponse;
 import com.coachrun.engine.FormStatusEngine;
+import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.enums.AthleteStatus;
@@ -34,6 +35,7 @@ public class CoachDashboardService {
     private final WorkoutRepository workoutRepository;
     private final RaceObjectiveRepository raceRepository;
     private final FormStatusEngine formStatusEngine;
+    private final CoachAthleteRelationRepository relationRepository;
 
     public CoachDashboardResponse compute(UUID clubId) {
         LocalDate today = LocalDate.now();
@@ -59,11 +61,29 @@ public class CoachDashboardService {
      * Tableau de bord « état de forme » : athlètes actifs répartis Route/Trail, chacun avec sa
      * pastille de forme (fatigue + douleur du dernier retour).
      */
-    public CoachFormDashboardResponse formDashboard(UUID clubId) {
+    public CoachFormDashboardResponse formDashboard(UUID clubId, String scope, UUID coachId) {
         List<AthleteFormResponse> route = new ArrayList<>();
         List<AthleteFormResponse> trail = new ArrayList<>();
 
-        for (Athlete a : athleteRepository.findByClubIdOrderByLastNameAsc(clubId)) {
+        List<Athlete> source;
+        if (scope == null || scope.isBlank() || "all".equalsIgnoreCase(scope)) {
+            source = athleteRepository.findByClubIdOrderByLastNameAsc(clubId);
+        } else {
+            // « mes athlètes » via les relations coach↔athlète ; privé = club null.
+            source = relationRepository.findByCoachIdAndActiveTrue(coachId).stream()
+                    .filter(rel -> switch (scope.toLowerCase()) {
+                        case "private" -> rel.getClub() == null;
+                        case "club" -> rel.getClub() != null;
+                        default -> true;            // "mine" = privés + club
+                    })
+                    .map(rel -> rel.getAthlete())
+                    .filter(a -> a.getClub() != null && clubId.equals(a.getClub().getId()))
+                    .distinct()
+                    .sorted(java.util.Comparator.comparing(Athlete::getLastName, java.util.Comparator.nullsLast(String::compareTo)))
+                    .toList();
+        }
+
+        for (Athlete a : source) {
             if (a.getStatus() != AthleteStatus.ACTIVE) {
                 continue;
             }

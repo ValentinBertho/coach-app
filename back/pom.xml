@@ -55,6 +55,13 @@
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
+        <!-- Sentry : remontée des erreurs (actif uniquement si SENTRY_DSN défini) -->
+        <dependency>
+            <groupId>io.sentry</groupId>
+            <artifactId>sentry-spring-boot-starter-jakarta</artifactId>
+            <version>7.14.0</version>
+        </dependency>
+
         <!-- JWT (jjwt, HS512) -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

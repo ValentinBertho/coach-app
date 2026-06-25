@@ -39,7 +39,7 @@ import { AuthService } from '../../core/services/auth.service';
 
       <div class="card">
         <h2>Prescription</h2>
-        <p class="field-hint">Règles DARI Lab appliquées partout :</p>
+        <p class="field-hint">Règles Darilab appliquées partout :</p>
         <ul class="rules">
           <li> Prescription en <strong>fourchettes</strong> (min–max), jamais de valeur sèche</li>
           <li> État de forme = <strong>fatigue + douleur</strong> (jamais le RPE)</li>
@@ -47,9 +47,25 @@ import { AuthService } from '../../core/services/auth.service';
           <li> 1RM par défaut : <strong>Nuzzo</strong> (Pr. Lacourpaille)</li>
         </ul>
       </div>
+
+      <div class="card">
+        <h2>Facturation</h2>
+        @if (user(); as u) {
+          <dl class="billing">
+            <div><dt>Club</dt><dd>{{ u.clubName || '—' }}</dd></div>
+            <div><dt>Offre</dt><dd><span class="badge badge-info">Bêta — gratuite</span></dd></div>
+            <div><dt>Statut</dt><dd><span class="badge badge-success">Active</span></dd></div>
+          </dl>
+        }
+        <p class="field-hint">La facturation par abonnement (paiement en ligne) sera disponible à la sortie de bêta. Aucune carte requise pour l'instant.</p>
+      </div>
     </div>
   `,
   styles: [`
+    .billing { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-6); margin: 0 0 var(--sp-3); }
+    .billing div { display: flex; flex-direction: column; gap: 2px; }
+    .billing dt { color: var(--ink-3); font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+    .billing dd { margin: 0; font-weight: 600; color: var(--ink); }
     .rel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--sp-4); }
     .kv { display: grid; grid-template-columns: 100px 1fr; gap: var(--sp-2) var(--sp-3); margin: 0; }
     .kv dt { color: var(--ink-3); font-size: var(--text-sm); }

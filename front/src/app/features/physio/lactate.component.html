@@ -6,6 +6,11 @@
   </div>
 </section>
 
+<div class="lactate-toolbar">
+  <app-segmented-control [options]="speedOptions" [value]="speedUnit()" (valueChange)="speedUnit.set($any($event))" [ariaLabel]="'Unité de vitesse'" />
+  <button type="button" class="btn btn-ghost btn-sm" (click)="exportCsv()" [disabled]="!tests().length">Exporter CSV</button>
+</div>
+
 <div class="lactate-grid">
   <!-- Saisie -->
   <div class="card">
@@ -45,12 +50,12 @@
       <div class="seuils-row">
         <div class="seuil-box seuil-box--lt1">
           <span class="stat-label">LT1 · sous-seuil</span>
-          <span class="metric seuil-val">{{ d.lt1Kmh }}<small>km/h</small></span>
+          <span class="metric seuil-val">{{ fmtSpeed(d.lt1Kmh) }}</span>
           <span class="field-hint">{{ d.fcLt1 }} bpm</span>
         </div>
         <div class="seuil-box seuil-box--lt2">
           <span class="stat-label">LT2 · seuil</span>
-          <span class="metric seuil-val">{{ d.lt2Kmh }}<small>km/h</small></span>
+          <span class="metric seuil-val">{{ fmtSpeed(d.lt2Kmh) }}</span>
           <span class="field-hint">{{ d.fcLt2 }} bpm</span>
         </div>
         <div class="seuil-box">
@@ -104,6 +109,35 @@
   </div>
 }
 
+<!-- Test Vitesse Critique -->
+<div class="card vc-card">
+  <h2>Test Vitesse Critique</h2>
+  <p class="field-hint">Au moins deux efforts maximaux (distance parcourue / temps). VC = pente de la régression distance–temps.</p>
+  <table class="data-table">
+    <thead><tr><th>Distance (m)</th><th>Temps (s)</th><th></th></tr></thead>
+    <tbody>
+      @for (tr of vcTrials; track $index) {
+        <tr>
+          <td><input type="number" class="form-control" [(ngModel)]="tr.distanceM" /></td>
+          <td><input type="number" class="form-control" [(ngModel)]="tr.timeS" /></td>
+          <td><button type="button" class="chip-x" (click)="removeVcTrial($index)" aria-label="Retirer">×</button></td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  <div class="steps-actions">
+    <button type="button" class="btn btn-ghost btn-sm" (click)="addVcTrial()">+ Effort</button>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="computeVc(false)">Calculer</button>
+    <button type="button" class="btn btn-accent btn-sm" (click)="computeVc(true)">Appliquer au profil</button>
+  </div>
+  @if (vcResult(); as r) {
+    <div class="vc-result">
+      <span class="seuil-val metric">{{ fmtSpeed(r.vcKmh) }}</span>
+      <span class="field-hint">VC · D' ≈ {{ r.dPrimeM | number: '1.0-0' }} m</span>
+    </div>
+  }
+</div>
+
 <!-- Historique -->
 <div class="card">
   <h2>Historique des tests</h2>
@@ -114,8 +148,8 @@
         @for (t of tests(); track t.id) {
           <tr>
             <td class="metric">{{ t.testDate | date: 'dd/MM/yyyy' }}</td>
-            <td class="metric">{{ t.lt1Ms ? (t.lt1Ms * 3.6).toFixed(1) + ' km/h' : '—' }}</td>
-            <td class="metric">{{ t.lt2Ms ? (t.lt2Ms * 3.6).toFixed(1) + ' km/h' : '—' }}</td>
+            <td class="metric">{{ fmtSpeed(t.lt1Ms ? t.lt1Ms * 3.6 : null) }}</td>
+            <td class="metric">{{ fmtSpeed(t.lt2Ms ? t.lt2Ms * 3.6 : null) }}</td>
             <td class="metric">{{ t.fcLt2 ? t.fcLt2 + ' bpm' : '—' }}</td>
             <td><button type="button" class="btn btn-ghost btn-sm" (click)="loadTest(t)">Charger</button></td>
           </tr>

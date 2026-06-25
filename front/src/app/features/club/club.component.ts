@@ -11,6 +11,10 @@ import {
 } from '../../core/services/club.service';
 import { ToastService } from '../../core/services/toast.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
+import { WorkoutTemplateService } from '../../core/services/workout-template.service';
+import { StrengthService } from '../../core/services/strength.service';
+import { WorkoutTemplate } from '../../core/models/workout-template.model';
+import { StrengthSession } from '../../core/models/strength.model';
 
 /** Écran Club (s-club) interactif : coachs, rôles, statut privé/club et permissions graduées. */
 @Component({
@@ -26,6 +30,12 @@ export class ClubComponent implements OnInit {
   private readonly athletes = inject(AthleteService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly templateService = inject(WorkoutTemplateService);
+  private readonly strengthService = inject(StrengthService);
+
+  // Bibliothèques partagées (scopées club → accessibles à tous les coachs du club).
+  readonly courseTemplates = signal<WorkoutTemplate[]>([]);
+  readonly strengthSessions = signal<StrengthSession[]>([]);
 
   readonly user = this.auth.currentUser;
   readonly members = signal<ClubMember[]>([]);
@@ -46,6 +56,8 @@ export class ClubComponent implements OnInit {
       error: () => this.loadingMembers.set(false),
     });
     this.athletes.list({ status: 'ACTIVE' }).subscribe((p) => this.athleteList.set(p.content));
+    this.templateService.list().subscribe((p) => this.courseTemplates.set(p.content));
+    this.strengthService.listSessions().subscribe((p) => this.strengthSessions.set(p.content));
   }
 
   onAthleteChange(id: string): void {

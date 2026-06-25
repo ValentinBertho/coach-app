@@ -28,7 +28,7 @@ export interface AthleteAccess {
   permissions: PermissionEntry[];
 }
 
-/** Multi-coach / club : membres, statut privé/club et permissions (cf. DARI Lab). */
+/** Multi-coach / club : membres, statut privé/club et permissions (cf. Darilab). */
 @Injectable({ providedIn: 'root' })
 export class ClubService {
   private readonly http = inject(HttpClient);

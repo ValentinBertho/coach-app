@@ -6,7 +6,7 @@ import { Load } from '../../core/models/lactate.model';
 import { AcwrIndicatorComponent } from '../../shared/components/physiology';
 import { MetricCardComponent } from '../../shared/components/ui';
 
-/** Charge d'entraînement (ACWR, monotonie, répartition par domaines) — cf. DARI Lab s-data. */
+/** Charge d'entraînement (ACWR, monotonie, répartition par domaines) — cf. Darilab s-data. */
 @Component({
   selector: 'app-load',
   standalone: true,

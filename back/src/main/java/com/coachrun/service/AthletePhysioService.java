@@ -2,6 +2,9 @@ package com.coachrun.service;
 
 import com.coachrun.dto.request.PerformanceRequest;
 import com.coachrun.dto.request.PhysioProfileRequest;
+import com.coachrun.dto.request.VcTestRequest;
+import com.coachrun.dto.response.VcTestResponse;
+import com.coachrun.engine.CriticalSpeedEngine;
 import com.coachrun.dto.response.PerformanceResponse;
 import com.coachrun.dto.response.PhysioProfileResponse;
 import com.coachrun.dto.response.VdotResponse;
@@ -40,6 +43,7 @@ public class AthletePhysioService {
     private final AthleteRepository athleteRepository;
     private final AthletePerformanceRepository performanceRepository;
     private final AthleteVdotPaceRepository vdotPaceRepository;
+    private final CriticalSpeedEngine criticalSpeedEngine;
     private final VdotEngine vdotEngine;
 
     // ---------------------------------------------------------------------
@@ -200,6 +204,20 @@ public class AthletePhysioService {
         double kmh = Math.round(PaceUtil.secPerKmToKmh(paceSecPerKm) * 10.0) / 10.0;
         return new VdotResponse.VdotPaceItem(distance.code(), paceSecPerKm,
                 PaceUtil.formatPace(paceSecPerKm), kmh);
+    }
+
+
+    @org.springframework.transaction.annotation.Transactional
+    public VcTestResponse computeVc(UUID clubId, UUID athleteId, VcTestRequest req) {
+        Athlete a = requireAthlete(clubId, athleteId);
+        var trials = req.trials().stream()
+                .map(t -> new CriticalSpeedEngine.Trial(t.distanceM(), t.timeS()))
+                .toList();
+        CriticalSpeedEngine.Result r = criticalSpeedEngine.compute(trials);
+        if (req.applyToProfile()) {
+            a.setVcMs(java.math.BigDecimal.valueOf(r.vcMs()).setScale(3, java.math.RoundingMode.HALF_UP));
+        }
+        return new VcTestResponse(r.vcMs(), r.vcMs() * 3.6, r.dPrimeM());
     }
 
     private Athlete requireAthlete(UUID clubId, UUID athleteId) {

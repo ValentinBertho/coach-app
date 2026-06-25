@@ -10,7 +10,7 @@ import {
 } from '../models/course.model';
 import { AuthService } from './auth.service';
 
-/** Structure DARI Lab des séances course (prescription en fourchettes) + calculateur. */
+/** Structure Darilab des séances course (prescription en fourchettes) + calculateur. */
 @Injectable({ providedIn: 'root' })
 export class CourseService {
   private readonly http = inject(HttpClient);

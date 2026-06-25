@@ -9,9 +9,9 @@ import {
   User,
 } from '../models/user.model';
 
-const ACCESS_KEY = 'coachrun.accessToken';
-const REFRESH_KEY = 'coachrun.refreshToken';
-const USER_KEY = 'coachrun.user';
+const ACCESS_KEY = 'darilab.accessToken';
+const REFRESH_KEY = 'darilab.refreshToken';
+const USER_KEY = 'darilab.user';
 
 function readStoredUser(): User | null {
   const raw = localStorage.getItem(USER_KEY);

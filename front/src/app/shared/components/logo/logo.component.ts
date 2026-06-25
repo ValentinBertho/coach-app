@@ -25,7 +25,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
         <circle cx="788" cy="338" r="86" stroke="#fff" stroke-width="22" fill="none"/>
       </svg>
       @if (showText()) {
-        <span class="wordmark">Coach<span class="accent">Run</span></span>
+        <span class="wordmark">Dari<span class="accent">lab</span></span>
       }
     </span>
   `,
