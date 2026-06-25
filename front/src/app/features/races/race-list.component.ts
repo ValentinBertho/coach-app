@@ -12,6 +12,7 @@ import { ToastService } from '../../core/services/toast.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, RouterLink],
   templateUrl: './race-list.component.html',
+  styleUrl: './race-list.component.scss',
 })
 export class RaceListComponent implements OnInit {
   readonly athleteId = input.required<string>();
@@ -56,6 +57,28 @@ export class RaceListComponent implements OnInit {
   }
 
   countdown(r: RaceObjective): string {
-    return r.daysUntil > 0 ? `J-${r.daysUntil}` : r.daysUntil === 0 ? "Aujourd'hui" : 'passée';
+    return r.daysUntil > 0 ? `J-${r.daysUntil}` : r.daysUntil === 0 ? "Jour J" : 'passée';
+  }
+
+  priorityClass(p: string): string {
+    return { A: 'badge-danger', B: 'badge-info', C: 'badge-neutral' }[p] ?? 'badge-neutral';
+  }
+  priorityLabel(p: string): string {
+    return { A: 'A — majeur', B: 'B — intermédiaire', C: 'C — préparation' }[p] ?? p;
+  }
+
+  statusLabel(s: string): string {
+    return { UPCOMING: 'À venir', DONE: 'Courue', CANCELLED: 'Annulée' }[s] ?? s;
+  }
+
+  /** Chrono visé formaté h:mm:ss ou m:ss. */
+  targetTime(seconds: number | null): string | null {
+    if (seconds == null) return null;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.round(seconds % 60);
+    const mm = m.toString().padStart(2, '0');
+    const ss = s.toString().padStart(2, '0');
+    return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
   }
 }
