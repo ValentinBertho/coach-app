@@ -32,7 +32,7 @@ type State = 'loading' | 'ok' | 'invalid';
             <span class="badge badge-info">{{ info()?.clubName }}</span>
             <h1 class="display-sm">Bienvenue {{ info()?.athleteFirstName }}</h1>
             <p class="field-hint">
-              Votre coach vous invite à rejoindre CoachRun. Accédez à votre espace pour suivre
+              Votre coach vous invite à rejoindre Darilab. Accédez à votre espace pour suivre
               votre séance du jour et donner votre ressenti.
             </p>
             <label class="consent">

@@ -60,7 +60,7 @@ export class AthleteProfileComponent {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'coachrun-mes-donnees.json';
+      a.download = 'darilab-mes-donnees.json';
       a.click();
       URL.revokeObjectURL(url);
       this.toast.success('Export téléchargé.');
