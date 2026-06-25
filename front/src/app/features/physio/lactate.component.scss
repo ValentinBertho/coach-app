@@ -102,3 +102,7 @@
 
 /* Toolbar tests : unité de vitesse + export */
 .lactate-toolbar { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-4); }
+
+/* Carte VC */
+.vc-card { margin-top: var(--sp-4); }
+.vc-result { display: flex; align-items: baseline; gap: var(--sp-3); margin-top: var(--sp-3); }

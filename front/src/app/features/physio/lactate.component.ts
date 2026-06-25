@@ -1,9 +1,10 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { LactateService } from '../../core/services/lactate.service';
+import { PhysioService } from '../../core/services/physio.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LactateStep, LactateTest, LtDetection } from '../../core/models/lactate.model';
 import { DataOriginTagComponent } from '../../shared/components/physiology';
@@ -19,7 +20,7 @@ interface MultiChart { series: Series[]; }
   selector: 'app-lactate',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DatePipe, DataOriginTagComponent, SegmentedControlComponent],
+  imports: [FormsModule, RouterLink, DatePipe, DecimalPipe, DataOriginTagComponent, SegmentedControlComponent],
   templateUrl: './lactate.component.html',
   styleUrl: './lactate.component.scss',
 })
@@ -27,7 +28,32 @@ export class LactateComponent implements OnInit {
   readonly athleteId = input.required<string>();
 
   private readonly lactate = inject(LactateService);
+  private readonly physio = inject(PhysioService);
   private readonly toast = inject(ToastService);
+
+  // --- Test Vitesse Critique ---
+  vcTrials: { distanceM: number | null; timeS: number | null }[] = [
+    { distanceM: 1200, timeS: 240 },
+    { distanceM: 3000, timeS: 720 },
+  ];
+  readonly vcResult = signal<{ vcMs: number; vcKmh: number; dPrimeM: number } | null>(null);
+
+  addVcTrial(): void { this.vcTrials = [...this.vcTrials, { distanceM: null, timeS: null }]; }
+  removeVcTrial(i: number): void { this.vcTrials = this.vcTrials.filter((_, idx) => idx !== i); }
+
+  computeVc(apply: boolean): void {
+    const trials = this.vcTrials
+      .filter((t) => t.distanceM && t.timeS)
+      .map((t) => ({ distanceM: t.distanceM as number, timeS: t.timeS as number }));
+    if (trials.length < 2) { this.toast.warning('Renseigne au moins deux efforts.'); return; }
+    this.physio.vcTest(this.athleteId(), { trials, applyToProfile: apply }).subscribe({
+      next: (r) => {
+        this.vcResult.set(r);
+        if (apply) this.toast.success(`VC ${r.vcKmh.toFixed(1)} km/h appliquée au profil`);
+      },
+      error: () => this.toast.error('Calcul impossible (efforts incohérents ?).'),
+    });
+  }
 
   readonly tests = signal<LactateTest[]>([]);
   readonly profileTests = signal<LactateTest[]>([]);

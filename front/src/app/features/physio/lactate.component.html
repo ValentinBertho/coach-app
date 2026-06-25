@@ -109,6 +109,35 @@
   </div>
 }
 
+<!-- Test Vitesse Critique -->
+<div class="card vc-card">
+  <h2>Test Vitesse Critique</h2>
+  <p class="field-hint">Au moins deux efforts maximaux (distance parcourue / temps). VC = pente de la régression distance–temps.</p>
+  <table class="data-table">
+    <thead><tr><th>Distance (m)</th><th>Temps (s)</th><th></th></tr></thead>
+    <tbody>
+      @for (tr of vcTrials; track $index) {
+        <tr>
+          <td><input type="number" class="form-control" [(ngModel)]="tr.distanceM" /></td>
+          <td><input type="number" class="form-control" [(ngModel)]="tr.timeS" /></td>
+          <td><button type="button" class="chip-x" (click)="removeVcTrial($index)" aria-label="Retirer">×</button></td>
+        </tr>
+      }
+    </tbody>
+  </table>
+  <div class="steps-actions">
+    <button type="button" class="btn btn-ghost btn-sm" (click)="addVcTrial()">+ Effort</button>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="computeVc(false)">Calculer</button>
+    <button type="button" class="btn btn-accent btn-sm" (click)="computeVc(true)">Appliquer au profil</button>
+  </div>
+  @if (vcResult(); as r) {
+    <div class="vc-result">
+      <span class="seuil-val metric">{{ fmtSpeed(r.vcKmh) }}</span>
+      <span class="field-hint">VC · D' ≈ {{ r.dPrimeM | number: '1.0-0' }} m</span>
+    </div>
+  }
+</div>
+
 <!-- Historique -->
 <div class="card">
   <h2>Historique des tests</h2>
