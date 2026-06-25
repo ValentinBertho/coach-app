@@ -2,11 +2,13 @@ package com.coachrun.service;
 
 import com.coachrun.dto.response.CoachAlertResponse;
 import com.coachrun.entity.CoachAthleteRelation;
+import com.coachrun.entity.Notification;
 import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.integration.ResendMailClient;
 import com.coachrun.repository.CoachAthleteRelationRepository;
+import com.coachrun.repository.NotificationRepository;
 import com.coachrun.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +36,7 @@ public class NotificationService {
     private final UserRepository userRepository;
     private final PushNotificationService pushService;
     private final CoachAthleteRelationRepository relationRepository;
+    private final NotificationRepository notificationRepository;
 
     @Value("${app.mail.enabled:false}")
     private boolean enabled;
@@ -41,12 +44,16 @@ public class NotificationService {
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
-    /** Séance planifiée → notifie l'athlète (email + push). */
+    /** Séance planifiée → notifie l'athlète (in-app + email + push). */
     public void notifyWorkoutPlanned(Workout workout) {
         userRepository.findByAthleteId(workout.getAthlete().getId())
-                .ifPresent(u -> pushService.sendToUser(u.getId(), "Nouvelle séance",
-                        workout.getTitle() + " — " + workout.getScheduledDate(),
-                        frontendUrl + "/athlete/today"));
+                .ifPresent(u -> {
+                    record(u.getId(), "WORKOUT_PLANNED", "Nouvelle séance",
+                            workout.getTitle() + " — " + workout.getScheduledDate(), "/athlete/today");
+                    pushService.sendToUser(u.getId(), "Nouvelle séance",
+                            workout.getTitle() + " — " + workout.getScheduledDate(),
+                            frontendUrl + "/athlete/today");
+                });
         String email = workout.getAthlete().getEmail();
         if (email == null) {
             return;
@@ -62,10 +69,14 @@ public class NotificationService {
     /** Feedback athlète → notifie le coach <strong>référent</strong> de l'athlète (repli : head coach). */
     public void notifyAthleteFeedback(Workout workout) {
         Optional<User> coach = coachToNotify(workout);
-        coach.ifPresent(c -> pushService.sendToUser(c.getId(),
-                "Séance mise à jour",
-                workout.getAthlete().getFirstName() + " — " + workout.getStatus(),
-                frontendUrl + "/app"));
+        coach.ifPresent(c -> {
+            record(c.getId(), "ATHLETE_FEEDBACK", "Séance mise à jour",
+                    workout.getAthlete().getFirstName() + " " + workout.getAthlete().getLastName()
+                            + " — " + workout.getStatus(), "/app");
+            pushService.sendToUser(c.getId(), "Séance mise à jour",
+                    workout.getAthlete().getFirstName() + " — " + workout.getStatus(),
+                    frontendUrl + "/app");
+        });
         coach.map(User::getEmail)
                 .ifPresent(coachEmail -> {
                     String athlete = esc(workout.getAthlete().getFirstName() + " "
@@ -86,6 +97,31 @@ public class NotificationService {
      * Coach responsable d'un athlète : son coach <strong>référent</strong> (relation active),
      * sinon repli sur le head coach du club. Évite qu'en multi-coach une notif parte au mauvais coach.
      */
+    /**
+     * Persiste une notification in-app pour un utilisateur (centre de notifications). Best-effort :
+     * un échec n'interrompt jamais l'action métier. {@code body} ne contient aucune donnée de santé.
+     */
+    public void record(UUID userId, String type, String title, String body, String link) {
+        if (userId == null) {
+            return;
+        }
+        try {
+            User u = userRepository.findById(userId).orElse(null);
+            if (u == null) {
+                return;
+            }
+            Notification n = new Notification();
+            n.setUser(u);
+            n.setType(type);
+            n.setTitle(title);
+            n.setBody(body);
+            n.setLink(link);
+            notificationRepository.save(n);
+        } catch (RuntimeException ex) {
+            log.warn("Échec d'enregistrement d'une notification in-app ({}): {}", type, ex.getMessage());
+        }
+    }
+
     public Optional<User> referentCoach(UUID athleteId, UUID clubId) {
         Optional<User> referent = relationRepository
                 .findByAthleteIdAndReferentTrueAndActiveTrue(athleteId)
@@ -112,6 +148,9 @@ public class NotificationService {
         }
         int count = perAthlete.size();
 
+        record(coach.getId(), "COACH_ALERTS", "Alertes à traiter",
+                count + (count > 1 ? " athlètes nécessitent votre attention" : " athlète nécessite votre attention"),
+                "/app");
         pushService.sendToUser(coach.getId(), "Alertes à traiter",
                 count + (count > 1 ? " athlètes à surveiller" : " athlète à surveiller"),
                 frontendUrl + "/app");

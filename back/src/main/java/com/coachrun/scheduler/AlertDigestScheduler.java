@@ -36,7 +36,7 @@ public class AlertDigestScheduler {
     private final NotificationService notificationService;
 
     @Scheduled(cron = "${app.alerts.digest-cron:0 0 7 * * *}")
-    @Transactional(readOnly = true)
+    @Transactional // écriture : persiste aussi les notifications in-app du digest
     public void sendDailyAlertDigests() {
         int clubsWithAlerts = 0;
         for (Club club : clubRepository.findAll()) {

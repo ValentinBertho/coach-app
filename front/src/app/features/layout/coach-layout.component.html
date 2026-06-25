@@ -3,6 +3,7 @@
   <aside class="sidebar desktop-only">
     <div class="brand">
       <app-logo [size]="30" [showText]="true" />
+      <app-notification-bell />
     </div>
     @if (user()?.clubName) {
       <span class="badge badge-neutral club-badge">{{ user()?.clubName }}</span>
@@ -37,6 +38,7 @@
     <header class="topbar mobile-only">
       <app-logo [size]="26" [showText]="true" />
       <div class="user">
+        <app-notification-bell />
         <app-push-button />
         <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Quitter</button>
       </div>

@@ -6,6 +6,7 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
 import { PushButtonComponent } from '../../shared/components/push-button/push-button.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { NotificationBellComponent } from '../../shared/components/notification-bell/notification-bell.component';
 
 /**
  * Coquille de l'espace coach : en-tête (club, utilisateur, déconnexion), navigation,
@@ -15,7 +16,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
   selector: 'app-coach-layout',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, LogoComponent, OfflineBannerComponent, PushButtonComponent, IconComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, LogoComponent, OfflineBannerComponent, PushButtonComponent, IconComponent, NotificationBellComponent],
   templateUrl: './coach-layout.component.html',
   styleUrl: './coach-layout.component.scss',
 })

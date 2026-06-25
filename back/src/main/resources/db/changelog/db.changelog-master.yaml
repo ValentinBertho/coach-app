@@ -67,3 +67,5 @@ databaseChangeLog:
       file: db/changelog/changes/031-device-connections.yaml
   - include:
       file: db/changelog/changes/032-run-drills.yaml
+  - include:
+      file: db/changelog/changes/033-notifications.yaml
