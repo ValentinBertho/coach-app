@@ -240,9 +240,17 @@ Copier `.env.example` → `.env` (local) ou configurer dans Railway/Vercel. Clé
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | notifications push | optionnel |
 | `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REDIRECT_URI` | intégration Strava | optionnel |
 | `DEMO_RESET_ENABLED` | autorise la RAZ démo (jamais en prod) | défaut `false` |
+| `SENTRY_DSN` | DSN Sentry **backend** (remontée d'erreurs) — no-op si vide | optionnel |
+| `SENTRY_ENV` | environnement Sentry backend (`production` / `staging`…) | défaut `dev` |
+
+### Monitoring (Sentry)
+- **Backend** : `SENTRY_DSN` + `SENTRY_ENV` (variables d'environnement). Sentry est **inactif tant que `SENTRY_DSN` est vide**.
+- **Frontend** : le DSN se renseigne dans `front/src/environments/environment.ts` (clé `sentryDsn`)
+  au moment du build de prod (idéalement injecté via une variable CI), avec `appVersion` pour le suivi par release.
 
 > L'intégration Strava se **désactive proprement** si les identifiants sont absents
 > (l'UI affiche « non configuré » au lieu d'échouer). Tableau complet : [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md).
+> **Mise en place pas-à-pas de Sentry, des sauvegardes BDD et du monitoring : [`docs/OPERATIONS.md`](./docs/OPERATIONS.md).**
 
 ---
 
@@ -283,6 +291,8 @@ et [`docs/RAF.md`](./docs/RAF.md)) :
 | [`docs/Design.md`](./docs/Design.md) | design system (tokens, charte) |
 | [`docs/DEMO.md`](./docs/DEMO.md) | comptes & procédure de démonstration |
 | [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md) | déploiement Railway/Vercel + variables |
+| [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | **exploitation : Sentry, sauvegardes BDD, Actuator, CI (pas-à-pas)** |
+| [`docs/ATHLETE-ROADMAP.md`](./docs/ATHLETE-ROADMAP.md) | audit des données visibles par l'athlète + plan d'évolution |
 | [`docs/AUDIT.md`](./docs/AUDIT.md) · [`docs/RAF.md`](./docs/RAF.md) | audit & reste-à-faire |
 | [`docs/Claude.md`](./docs/Claude.md) | conventions de code (IA & humains) |
 
