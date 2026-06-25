@@ -115,6 +115,35 @@ class NotificationServiceTest {
     }
 
     @Test
+    void alertDigestDedupesPerAthleteAndOmitsHealthDetail() {
+        ReflectionTestUtils.setField(notificationService, "enabled", true);
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        UUID a1 = UUID.randomUUID();
+        UUID a2 = UUID.randomUUID();
+        java.util.List<com.coachrun.dto.response.CoachAlertResponse> alerts = java.util.List.of(
+                new com.coachrun.dto.response.CoachAlertResponse(a1, "Marie Durand", "ROUTE",
+                        "RED", "PAIN", "Douleur élevée", "Douleur 8/10 au dernier retour."),
+                new com.coachrun.dto.response.CoachAlertResponse(a1, "Marie Durand", "ROUTE",
+                        "ORANGE", "ACWR_HIGH", "Charge en hausse", "ACWR 1.4."),
+                new com.coachrun.dto.response.CoachAlertResponse(a2, "Paul Roy", "TRAIL",
+                        "ORANGE", "MISSED", "2 séances manquées", "Sur les 14 derniers jours."));
+
+        notificationService.notifyCoachAlertDigest(coach("coach@test.fr"), alerts);
+
+        org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(mailClient).send(eq("coach@test.fr"), contains("2 alerte"), html.capture());
+        // Dédoublonnage par athlète (Marie une seule fois) et aucune donnée de santé (pas de "8/10").
+        assertThatHtml(html.getValue());
+    }
+
+    private void assertThatHtml(String html) {
+        org.assertj.core.api.Assertions.assertThat(html).contains("Marie Durand").contains("Paul Roy");
+        org.assertj.core.api.Assertions.assertThat(html).doesNotContain("8/10").doesNotContain("Douleur");
+        int firstMarie = html.indexOf("Marie Durand");
+        org.assertj.core.api.Assertions.assertThat(html.indexOf("Marie Durand", firstMarie + 1)).isEqualTo(-1);
+    }
+
+    @Test
     void feedbackFallsBackToHeadCoachWhenNoReferent() {
         ReflectionTestUtils.setField(notificationService, "enabled", true);
         ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");

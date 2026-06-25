@@ -71,7 +71,9 @@ app:
   mail:
     enabled: ${MAIL_ENABLED:false}
     resend-api-key: ${RESEND_API_KEY:}
-    from: ${MAIL_FROM:CoachRun <no-reply@coachrun.fr>}
+    from: ${MAIL_FROM:Darilab <no-reply@darilab.app>}
+  alerts:
+    digest-cron: ${ALERTS_DIGEST_CRON:0 0 7 * * *}
   vapid:
     public-key: ${VAPID_PUBLIC_KEY:}
     private-key: ${VAPID_PRIVATE_KEY:}

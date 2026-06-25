@@ -1,5 +1,6 @@
 package com.coachrun.service;
 
+import com.coachrun.dto.response.CoachAlertResponse;
 import com.coachrun.entity.CoachAthleteRelation;
 import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
@@ -13,7 +14,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Déclencheur centralisé de notifications email (cf. Techno.md §3). Désactivé par défaut
@@ -73,18 +78,68 @@ public class NotificationService {
                 });
     }
 
-    /**
-     * Coach à notifier pour un athlète : son coach <strong>référent</strong> (relation active),
-     * sinon repli sur le head coach du club. Évite qu'en multi-coach un retour parte au mauvais coach.
-     */
     private Optional<User> coachToNotify(Workout workout) {
+        return referentCoach(workout.getAthlete().getId(), workout.getClub().getId());
+    }
+
+    /**
+     * Coach responsable d'un athlète : son coach <strong>référent</strong> (relation active),
+     * sinon repli sur le head coach du club. Évite qu'en multi-coach une notif parte au mauvais coach.
+     */
+    public Optional<User> referentCoach(UUID athleteId, UUID clubId) {
         Optional<User> referent = relationRepository
-                .findByAthleteIdAndReferentTrueAndActiveTrue(workout.getAthlete().getId())
+                .findByAthleteIdAndReferentTrueAndActiveTrue(athleteId)
                 .map(CoachAthleteRelation::getCoach);
         if (referent.isPresent()) {
             return referent;
         }
-        return userRepository.findFirstByClubIdAndRole(workout.getClub().getId(), UserRole.HEAD_COACH);
+        return clubId == null ? Optional.empty()
+                : userRepository.findFirstByClubIdAndRole(clubId, UserRole.HEAD_COACH);
+    }
+
+    /**
+     * Digest d'alertes pour un coach (push + email). Ne contient <strong>aucune donnée de santé</strong> :
+     * uniquement le nom de l'athlète et une catégorie générique, avec un lien vers le tableau de bord.
+     */
+    public void notifyCoachAlertDigest(User coach, List<CoachAlertResponse> alerts) {
+        if (coach == null || alerts == null || alerts.isEmpty()) {
+            return;
+        }
+        // Une ligne par athlète (la plus grave d'abord, déjà triée).
+        Map<UUID, CoachAlertResponse> perAthlete = new LinkedHashMap<>();
+        for (CoachAlertResponse a : alerts) {
+            perAthlete.putIfAbsent(a.athleteId(), a);
+        }
+        int count = perAthlete.size();
+
+        pushService.sendToUser(coach.getId(), "Alertes à traiter",
+                count + (count > 1 ? " athlètes à surveiller" : " athlète à surveiller"),
+                frontendUrl + "/app");
+
+        if (coach.getEmail() == null) {
+            return;
+        }
+        StringBuilder items = new StringBuilder();
+        perAthlete.values().stream().limit(15).forEach(a -> items
+                .append("<li>").append(esc(a.athleteName())).append(" — ")
+                .append(esc(category(a.type()))).append("</li>"));
+        String subject = count + (count > 1 ? " alertes à traiter" : " alerte à traiter") + " sur Darilab";
+        String html = "<p>Bonjour " + esc(coach.getFullName()) + ",</p>"
+                + "<p>" + count + (count > 1 ? " athlètes nécessitent" : " athlète nécessite")
+                + " votre attention :</p><ul>" + items + "</ul>"
+                + cta("Ouvrir le tableau de bord", frontendUrl + "/app");
+        send(coach.getEmail(), subject, html);
+    }
+
+    /** Catégorie générique (sans détail de santé) d'une alerte, pour l'email. */
+    private String category(String type) {
+        return switch (type) {
+            case "PAIN" -> "à surveiller";
+            case "ACWR_HIGH", "ACWR_LOW", "MONOTONY" -> "charge à surveiller";
+            case "MISSED" -> "séances manquées";
+            case "SILENCE" -> "sans retour récent";
+            default -> "à surveiller";
+        };
     }
 
     /** Rappel J-1 → notifie l'athlète d'une séance prévue le lendemain. */
