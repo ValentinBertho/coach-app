@@ -1,16 +1,18 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { PushService } from '../../../core/services/push.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { IconComponent } from '../icon/icon.component';
 
 /** Bouton d'activation des notifications push (affiché si le SW est actif). */
 @Component({
   selector: 'app-push-button',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [IconComponent],
   template: `
     @if (push.available && !done()) {
       <button type="button" class="btn btn-ghost btn-sm" [disabled]="busy()" (click)="enable()">
-        🔔 Notifications
+        <app-icon name="bell" [size]="15" /> Notifications
       </button>
     }
   `,

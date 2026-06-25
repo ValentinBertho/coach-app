@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { E1rmHistory, MyOneRm } from '../../core/models/strength.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
@@ -19,7 +20,7 @@ const SOURCE_LABEL: Record<string, string> = {
   selector: 'app-athlete-progress',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, DecimalPipe, DataOriginTagComponent],
+  imports: [IconComponent, DatePipe, DecimalPipe, DataOriginTagComponent],
   template: `
     <div class="prog">
       <header class="prog-top">
@@ -31,7 +32,7 @@ const SOURCE_LABEL: Record<string, string> = {
         <div class="card"><div class="skeleton" style="height: 64px;"></div></div>
       } @else if (profiles().length === 0) {
         <div class="card empty">
-          <h2>Pas encore de données 💪</h2>
+          <h2>Pas encore de données</h2>
           <p class="field-hint">Tes 1RM apparaîtront ici après tes premières séances de force.</p>
         </div>
       } @else {

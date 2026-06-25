@@ -1,6 +1,6 @@
 <section class="page-header">
   <div>
-    <h1 class="display-sm">Bonjour {{ user()?.fullName || 'Coach' }} 👋</h1>
+    <h1 class="display-sm">Bonjour {{ user()?.fullName || 'Coach' }}</h1>
     <p class="subtitle">Cockpit — périmètre club</p>
   </div>
 </section>
@@ -27,7 +27,7 @@
                 <span class="discipline-chip"
                       [class.discipline-chip--route]="a.discipline === 'ROUTE'"
                       [class.discipline-chip--trail]="a.discipline === 'TRAIL'">
-                  {{ a.discipline === 'ROUTE' ? '🏃 Route' : '⛰️ Trail' }}
+                  <app-icon [name]="a.discipline === 'ROUTE' ? 'footprints' : 'mountain'" [size]="13" /> {{ a.discipline === 'ROUTE' ? 'Route' : 'Trail' }}
                 </span>
               </div>
               <span class="attention-go">→</span>
@@ -42,7 +42,7 @@
       </div>
     } @else {
       <div class="card zone-ok">
-        <span class="zone-ok__icon">✓</span>
+        <span class="zone-ok__icon"><app-icon name="check" [size]="20" /></span>
         <div>
           <strong>Tout le monde est en forme</strong>
           <p class="field-hint">Aucun signal de fatigue ou de douleur à traiter sur votre périmètre.</p>
@@ -89,11 +89,11 @@
           </div>
         </div>
         <a class="card stat-card card-interactive" routerLink="/app/athletes">
-          <span class="stat-label">🏃 Route</span>
+          <span class="stat-label"><app-icon name="footprints" [size]="14" /> Route</span>
           <span class="metric stat-value">{{ f.route }}</span>
         </a>
         <a class="card stat-card card-interactive" routerLink="/app/athletes">
-          <span class="stat-label">⛰️ Trail</span>
+          <span class="stat-label"><app-icon name="mountain" [size]="14" /> Trail</span>
           <span class="metric stat-value">{{ f.trail }}</span>
         </a>
       </div>

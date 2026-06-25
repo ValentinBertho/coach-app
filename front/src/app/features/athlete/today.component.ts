@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -58,7 +59,7 @@ type State = 'loading' | 'ready' | 'error';
   selector: 'app-today',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [IconComponent, 
     FormsModule, RouterLink,
     LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent,
     IntensityZoneBadgeComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
