@@ -26,7 +26,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clubs/{clubId}/athletes/{athleteId}/activities")
 @RequiredArgsConstructor
-@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)")
+@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
 public class ActivityController {
 
     private final ActivityService activityService;
@@ -36,6 +36,7 @@ public class ActivityController {
         return activityService.list(clubId, athleteId);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ActivityResponse importActivity(@PathVariable UUID clubId, @PathVariable UUID athleteId,
@@ -43,6 +44,7 @@ public class ActivityController {
         return activityService.importActivity(clubId, athleteId, request);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/import-file")
     @ResponseStatus(HttpStatus.CREATED)
     public ActivityResponse importFile(@PathVariable UUID clubId, @PathVariable UUID athleteId,
@@ -57,12 +59,14 @@ public class ActivityController {
         return activityService.route(clubId, activityId);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/{activityId}/match/{workoutId}")
     public ActivityResponse match(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                   @PathVariable UUID activityId, @PathVariable UUID workoutId) {
         return activityService.matchManually(clubId, activityId, workoutId);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/{activityId}/match")
     public ActivityResponse unmatch(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                     @PathVariable UUID activityId) {

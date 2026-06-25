@@ -164,3 +164,25 @@ Sentry est **inactif tant que le DSN est vide** (no-op).
 - [ ] Logs centralisés + rétention.
 - [ ] Dépendances surveillées (Dependabot/Snyk).
 - [ ] HTTPS + en-têtes proxy (déjà : `forward-headers-strategy: framework`).
+
+---
+
+## 7. Modèle d'accès coach ↔ athlète
+
+L'accès d'un coach à un athlète est résolu par `AthleteAccessValidator` et appliqué
+par `@PreAuthorize` sur les routes `/clubs/{clubId}/athletes/{athleteId}/**`
+(`canRead` en lecture, `canWrite`/`canComment` en écriture) :
+
+1. **Coach référent** (relation active) ⇒ écriture complète.
+2. **Athlète privé** (`coach_athlete_relations.club_id IS NULL`) ⇒ accessible au seul référent.
+3. **Athlète club** ⇒ coach assigné (`athlete_coaches`) ou permission explicite
+   (`athlete_coach_permissions`) ⇒ niveau correspondant ; Owner/Coach principal ⇒ lecture par défaut.
+4. **Fallback** : athlète sans relation référent (données antérieures) ⇒ accès club-level
+   historique, pour ne jamais verrouiller.
+
+- La **création d'athlète** crée désormais systématiquement la relation référent (coach créateur).
+- Un **backfill idempotent** (`MultiCoachBackfill`, `ApplicationRunner`) crée au démarrage la
+  relation référent manquante (référent = head coach du club) pour les athlètes existants. Sûr à
+  relancer : il n'agit que sur les athlètes sans référent.
+- `PLATFORM_ADMIN` a un accès transverse ; un compte `ATHLETE` n'emprunte jamais ces routes
+  (il passe par `/me/**`).

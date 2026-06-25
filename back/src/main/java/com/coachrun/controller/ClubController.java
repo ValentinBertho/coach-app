@@ -37,23 +37,27 @@ public class ClubController {
     }
 
     @GetMapping("/athletes/{athleteId}/access")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
     public AthleteAccessResponse access(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
         return clubService.access(athleteId);
     }
 
     @PatchMapping("/athletes/{athleteId}/ownership")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     public AthleteAccessResponse ownership(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                            @Valid @RequestBody OwnershipRequest request) {
         return clubService.setOwnership(clubId, athleteId, request.ownership());
     }
 
     @PutMapping("/athletes/{athleteId}/permissions/{coachId}")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     public AthleteAccessResponse grant(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                        @PathVariable UUID coachId, @Valid @RequestBody GrantPermissionRequest request) {
         return clubService.grant(athleteId, coachId, request.permission(), request.expiresAt());
     }
 
     @DeleteMapping("/athletes/{athleteId}/permissions/{coachId}")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     public AthleteAccessResponse revoke(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                         @PathVariable UUID coachId) {
         return clubService.revoke(athleteId, coachId);

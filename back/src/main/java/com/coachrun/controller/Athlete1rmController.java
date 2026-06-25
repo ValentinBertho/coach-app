@@ -31,7 +31,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clubs/{clubId}/athletes/{athleteId}/pp")
 @RequiredArgsConstructor
-@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)")
+@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
 public class Athlete1rmController {
 
     private final Athlete1rmService oneRmService;
@@ -45,6 +45,7 @@ public class Athlete1rmController {
         return oneRmService.list(clubId, athleteId);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PutMapping("/1rm")
     public Athlete1rmResponse set(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                   @Valid @RequestBody Athlete1rmRequest request) {
@@ -82,6 +83,7 @@ public class Athlete1rmController {
     }
 
     /** Enregistre un test direct ; met à jour le profil 1RM (source {@code tested}). */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/tests")
     @ResponseStatus(HttpStatus.CREATED)
     public StrengthTestResponse recordTest(@PathVariable UUID clubId, @PathVariable UUID athleteId,

@@ -61,6 +61,7 @@ public class TrainingPlanController {
     }
 
     @PostMapping("/{id}/apply")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #request.athleteId())")
     public Map<String, Integer> apply(@PathVariable UUID clubId, @PathVariable UUID id,
                                       @Valid @RequestBody PlanApplyRequest request) {
         int created = planService.applyToAthlete(clubId, id, request.athleteId(), request.startDate());
@@ -70,6 +71,7 @@ public class TrainingPlanController {
     /** Retire l'attribution du plan à un athlète (les séances générées restent). */
     @DeleteMapping("/{id}/athletes/{athleteId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     public void unassign(@PathVariable UUID clubId, @PathVariable UUID id, @PathVariable UUID athleteId) {
         planService.unassignAthlete(clubId, id, athleteId);
     }

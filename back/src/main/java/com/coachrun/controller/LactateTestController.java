@@ -27,7 +27,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clubs/{clubId}/athletes/{athleteId}/lactate-tests")
 @RequiredArgsConstructor
-@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)")
+@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
 public class LactateTestController {
 
     private final LactateTestService testService;
@@ -50,6 +50,7 @@ public class LactateTestController {
         return testService.detect(clubId, athleteId, request);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public LactateTestResponse create(@PathVariable UUID clubId, @PathVariable UUID athleteId,
@@ -57,6 +58,7 @@ public class LactateTestController {
         return testService.create(clubId, athleteId, request);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/{testId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID clubId, @PathVariable UUID athleteId,

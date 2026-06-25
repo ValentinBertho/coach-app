@@ -49,6 +49,7 @@ public class AthleteService {
     private final ClubRepository clubRepository;
     private final UserRepository userRepository;
     private final com.coachrun.repository.TrainingGroupRepository groupRepository;
+    private final com.coachrun.repository.CoachAthleteRelationRepository relationRepository;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -117,14 +118,40 @@ public class AthleteService {
     }
 
     @Transactional
-    public AthleteResponse create(UUID clubId, AthleteRequest request) {
+    public AthleteResponse create(UUID clubId, AthleteRequest request, UUID creatorCoachId) {
+        Club club = clubRepository.getReferenceById(clubId);
         Athlete athlete = new Athlete();
-        athlete.setClub(clubRepository.getReferenceById(clubId));
+        athlete.setClub(club);
         athlete.setStatus(AthleteStatus.ACTIVE);
         apply(athlete, request);
         athlete = athleteRepository.save(athlete);
-        log.info("Athlète créé {} (club={})", athlete.getId(), clubId);
+        createReferentRelation(athlete, club, creatorCoachId);
+        log.info("Athlète créé {} (club={}, référent={})", athlete.getId(), clubId, creatorCoachId);
         return AthleteResponse.from(athlete);
+    }
+
+    /**
+     * Crée la relation référent (coach créateur ↔ athlète, rattachée au club) qui rend l'athlète
+     * pilotable par le modèle multi-coach. Idempotent : ne recrée pas si elle existe déjà.
+     */
+    private void createReferentRelation(Athlete athlete, Club club, UUID coachId) {
+        if (coachId == null) {
+            return; // sécurité : pas de référent identifiable → l'athlète reste sur le fallback club.
+        }
+        if (relationRepository.findByCoachIdAndAthleteIdAndActiveTrue(coachId, athlete.getId()).isPresent()) {
+            return;
+        }
+        User coach = userRepository.findById(coachId).orElse(null);
+        if (coach == null) {
+            return;
+        }
+        com.coachrun.entity.CoachAthleteRelation rel = new com.coachrun.entity.CoachAthleteRelation();
+        rel.setAthlete(athlete);
+        rel.setCoach(coach);
+        rel.setClub(club);          // rattaché au club (non privé) par défaut
+        rel.setReferent(true);
+        rel.setActive(true);
+        relationRepository.save(rel);
     }
 
     @Transactional

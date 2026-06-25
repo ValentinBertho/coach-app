@@ -26,7 +26,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clubs/{clubId}/athletes/{athleteId}/messages")
 @RequiredArgsConstructor
-@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)")
+@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
 public class MessageController {
 
     private final MessageService messageService;
@@ -43,6 +43,7 @@ public class MessageController {
         return streamService.subscribe(athleteId);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canComment(authentication, #athleteId)")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public MessageResponse send(@PathVariable UUID clubId, @PathVariable UUID athleteId,
@@ -52,6 +53,7 @@ public class MessageController {
     }
 
     /** Envoi d'un message avec pièce jointe (image/PDF). */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canComment(authentication, #athleteId)")
     @PostMapping("/attachment")
     @ResponseStatus(HttpStatus.CREATED)
     public MessageResponse sendAttachment(@PathVariable UUID clubId, @PathVariable UUID athleteId,

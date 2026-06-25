@@ -24,7 +24,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clubs/{clubId}/athletes/{athleteId}/unavailabilities")
 @RequiredArgsConstructor
-@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)")
+@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
 public class UnavailabilityController {
 
     private final UnavailabilityService service;
@@ -34,6 +34,7 @@ public class UnavailabilityController {
         return service.list(clubId, athleteId);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UnavailabilityResponse create(@PathVariable UUID clubId, @PathVariable UUID athleteId,
@@ -41,12 +42,14 @@ public class UnavailabilityController {
         return service.create(clubId, athleteId, request);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PutMapping("/{id}")
     public UnavailabilityResponse update(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                          @PathVariable UUID id, @Valid @RequestBody UnavailabilityRequest request) {
         return service.update(clubId, id, request);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID id) {
