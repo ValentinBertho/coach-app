@@ -96,3 +96,26 @@
     <li><app-icon name="lock" [size]="13" /> Un athlète <strong>privé</strong> n'est jamais visible des autres coachs — passage club→privé interdit s'il reste des permissions actives.</li>
   </ul>
 </div>
+
+<div class="card">
+  <h2><app-icon name="library" [size]="18" /> Bibliothèques partagées</h2>
+  <p class="field-hint">Modèles de séance et séances de force du club — accessibles à tous ses coachs.</p>
+  <div class="shared-grid">
+    <div>
+      <h3 class="shared-h"><app-icon name="footprints" [size]="15" /> Course ({{ courseTemplates().length }})</h3>
+      @if (courseTemplates().length) {
+        <ul class="shared-list">
+          @for (t of courseTemplates(); track t.id) { <li>{{ t.name }}</li> }
+        </ul>
+      } @else { <p class="empty-hint">Aucun modèle de course.</p> }
+    </div>
+    <div>
+      <h3 class="shared-h"><app-icon name="dumbbell" [size]="15" /> Force ({{ strengthSessions().length }})</h3>
+      @if (strengthSessions().length) {
+        <ul class="shared-list">
+          @for (s of strengthSessions(); track s.id) { <li>{{ s.name }}</li> }
+        </ul>
+      } @else { <p class="empty-hint">Aucune séance de force.</p> }
+    </div>
+  </div>
+</div>
