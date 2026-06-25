@@ -27,7 +27,7 @@ import {
 import { SegmentedControlComponent, type SegmentOption, SidePanelComponent } from '../../shared/components/ui';
 
 /**
- * Éditeur de structure d'une séance de force (cf. DARI Lab) : blocs typés, formats avancés
+ * Éditeur de structure d'une séance de force (cf. Darilab) : blocs typés, formats avancés
  * (EMOM / AMRAP / Circuit / Isométrie / Pliométrie), exercices avec type de série et prescription
  * (charge + effort indépendants, volume, tempo, repos).
  */

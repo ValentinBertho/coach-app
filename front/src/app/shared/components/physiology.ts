@@ -1,5 +1,5 @@
 /**
- * Primitives physiologie DARI Lab — composants standalone présentationnels qui
+ * Primitives physiologie Darilab — composants standalone présentationnels qui
  * encodent les invariants métier de l'UI (cf. docs/ux-redesign-blueprint.md §4).
  * Aucun calcul métier ici : les valeurs proviennent des moteurs backend.
  */

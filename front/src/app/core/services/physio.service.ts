@@ -6,7 +6,7 @@ import { Performance, PhysioProfile, Vdot } from '../models/physio.model';
 import { AuthService } from './auth.service';
 
 /**
- * Profil physiologique DARI Lab d'un athlète : seuils, performances et VDOT.
+ * Profil physiologique Darilab d'un athlète : seuils, performances et VDOT.
  * Scoping tenant : /clubs/{clubId}/athletes/{athleteId}/...
  */
 @Injectable({ providedIn: 'root' })

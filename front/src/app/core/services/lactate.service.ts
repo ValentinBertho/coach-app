@@ -5,7 +5,7 @@ import { environment } from '../../../environments/environment';
 import { LactateStep, LactateTest, Load, LtDetection } from '../models/lactate.model';
 import { AuthService } from './auth.service';
 
-/** Tests lactate, détection LT1/LT2 et charge d'entraînement (cf. DARI Lab). */
+/** Tests lactate, détection LT1/LT2 et charge d'entraînement (cf. Darilab). */
 @Injectable({ providedIn: 'root' })
 export class LactateService {
   private readonly http = inject(HttpClient);

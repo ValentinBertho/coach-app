@@ -43,7 +43,7 @@ import {
       <header class="page-header">
         <div>
           <h1>UI Kit — Primitives physiologie</h1>
-          <p class="subtitle">Composants standalone qui encodent les invariants métier DARI Lab.</p>
+          <p class="subtitle">Composants standalone qui encodent les invariants métier Darilab.</p>
         </div>
       </header>
 

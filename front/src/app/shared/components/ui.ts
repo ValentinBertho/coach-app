@@ -1,5 +1,5 @@
 /**
- * Primitives UI transverses DARI Lab — composants standalone présentationnels,
+ * Primitives UI transverses Darilab — composants standalone présentationnels,
  * théméables via tokens, réutilisés par tous les écrans (cf. blueprint §4).
  */
 export { MetricCardComponent, type MetricTone } from './metric-card/metric-card.component';

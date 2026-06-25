@@ -13,7 +13,7 @@ const LEVEL_META: Record<FormLevel, { label: string; cssVar: string }> = {
 /**
  * Jauge d'état de forme.
  *
- * Invariant métier DARI Lab : l'état de forme N'EST JAMAIS dérivé du RPE seul.
+ * Invariant métier Darilab : l'état de forme N'EST JAMAIS dérivé du RPE seul.
  * Ce composant reçoit le niveau déjà calculé par le backend (`level`) ET rend
  * explicites ses entrées (fatigue, douleur, charge) avec un marqueur d'origine
  * « calculé ». Il n'effectue aucun calcul métier : il affiche et hiérarchise.

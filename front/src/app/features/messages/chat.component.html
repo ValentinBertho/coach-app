@@ -52,7 +52,7 @@
 
   <form class="composer" (ngSubmit)="send()">
     <label class="btn btn-ghost attach-btn" title="Joindre une image ou un PDF">
-      📎
+      <app-icon name="paperclip" [size]="18" />
       <input type="file" accept="image/*,application/pdf" hidden (change)="onFileSelected($event)" />
     </label>
     <input class="form-control" [(ngModel)]="draft" name="draft" placeholder="Votre message…" autocomplete="off" />

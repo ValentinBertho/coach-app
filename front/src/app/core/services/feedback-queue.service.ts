@@ -7,7 +7,7 @@ interface QueuedFeedback {
   body: WorkoutFeedback;
 }
 
-const KEY = 'coachrun.feedbackQueue';
+const KEY = 'darilab.feedbackQueue';
 
 /**
  * File de synchronisation pour le feedback athlète saisi hors ligne.

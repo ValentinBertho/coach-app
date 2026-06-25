@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 
-/** Écran Synchronisations (s-sync) : connexion des montres/plateformes (cf. DARI Lab §12). */
+/** Écran Synchronisations (s-sync) : connexion des montres/plateformes (cf. Darilab §12). */
 @Component({
   selector: 'app-sync',
   standalone: true,

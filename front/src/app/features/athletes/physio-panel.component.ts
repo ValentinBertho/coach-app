@@ -4,7 +4,7 @@ import { PhysioService } from '../../core/services/physio.service';
 import { PhysioProfile, Vdot } from '../../core/models/physio.model';
 
 /**
- * Panneau « Profil physiologique » DARI Lab : VDOT, allures d'équivalence et seuils LT1/LT2/VC.
+ * Panneau « Profil physiologique » Darilab : VDOT, allures d'équivalence et seuils LT1/LT2/VC.
  * Affiché sur la fiche athlète.
  */
 @Component({

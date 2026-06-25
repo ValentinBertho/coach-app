@@ -25,7 +25,7 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
         <div class="card">
           <h2>Mes données (RGPD)</h2>
           <p class="field-hint">Téléchargez l'ensemble de vos données personnelles (portabilité).</p>
-          <button type="button" class="btn btn-ghost" (click)="exportData()">⬇ Exporter mes données (JSON)</button>
+          <button type="button" class="btn btn-ghost" (click)="exportData()">Exporter mes données (JSON)</button>
         </div>
 
         <div class="card danger-zone">

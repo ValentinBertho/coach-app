@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { IconComponent } from '../icon/icon.component';
 
 /**
  * Pastille de prescription en fourchette min–max.
  *
- * Invariant métier DARI Lab : une prescription est TOUJOURS une fourchette,
+ * Invariant métier Darilab : une prescription est TOUJOURS une fourchette,
  * jamais une valeur sèche. Ce composant impose donc deux bornes. Si une seule
  * valeur est fournie (anti-pattern), il l'affiche en mode dégradé visible
  * (« ⚠ valeur unique ») plutôt que de masquer le problème.
@@ -21,13 +22,14 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
   selector: 'app-range-prescription-pill',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [IconComponent],
   template: `
     <span class="rx" [class.rx--invalid]="invalid()" [attr.aria-label]="ariaLabel()">
       @if (label()) { <span class="rx__label">{{ label() }}</span> }
 
       <span class="rx__range">
         @if (invalid()) {
-          <span class="rx__warn" aria-hidden="true">⚠</span>
+          <app-icon class="rx__warn" name="alert-triangle" [size]="12" />
           <span class="rx__val">{{ display(min() ?? max()) }}</span>
         } @else {
           <span class="rx__val">{{ display(min()) }}</span>

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { IconComponent } from '../icon/icon.component';
 
 /**
- * Origine d'une donnée affichée. Invariant UX DARI Lab : une donnée
+ * Origine d'une donnée affichée. Invariant UX Darilab : une donnée
  * physiologique ne doit jamais être ambiguë sur sa provenance.
  *  - saisi   : déclaré par l'athlète (RPE, ressenti, commentaire)
  *  - calcule : produit par un moteur backend (ACWR, état de forme) — source de vérité

@@ -39,7 +39,7 @@ import { AuthService } from '../../core/services/auth.service';
 
       <div class="card">
         <h2>Prescription</h2>
-        <p class="field-hint">Règles DARI Lab appliquées partout :</p>
+        <p class="field-hint">Règles Darilab appliquées partout :</p>
         <ul class="rules">
           <li> Prescription en <strong>fourchettes</strong> (min–max), jamais de valeur sèche</li>
           <li> État de forme = <strong>fatigue + douleur</strong> (jamais le RPE)</li>

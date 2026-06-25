@@ -22,7 +22,7 @@ import {
 } from '../models/strength.model';
 import { AuthService } from './auth.service';
 
-/** Module Préparation Physique : exercices, séances, 1RM, calculs (cf. DARI Lab). */
+/** Module Préparation Physique : exercices, séances, 1RM, calculs (cf. Darilab). */
 @Injectable({ providedIn: 'root' })
 export class StrengthService {
   private readonly http = inject(HttpClient);
