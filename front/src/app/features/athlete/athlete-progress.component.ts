@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { E1rmHistory, MyOneRm } from '../../core/models/strength.model';
-import { Load } from '../../core/models/lactate.model';
+import { Load, StrengthLoadPoint } from '../../core/models/lactate.model';
 import { Performance } from '../../core/models/physio.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { Analytics } from '../../core/services/analytics.service';
@@ -29,11 +29,20 @@ const SOURCE_LABEL: Record<string, string> = {
   template: `
     <div class="prog">
       <header class="prog-top">
-        <h1 class="display-sm">Mes progrès</h1>
-        <p class="subtitle">Ta charge et l'évolution de ta force.</p>
+        <div class="prog-h">
+          <div>
+            <h1 class="display-sm">Mes progrès</h1>
+            <p class="subtitle">Ta charge et l'évolution de ta force.</p>
+          </div>
+          @if (streak() > 0) {
+            <span class="streak" [title]="'Semaines consécutives avec au moins une séance réalisée'">
+              <app-icon name="flame" [size]="18" /> {{ streak() }} sem.
+            </span>
+          }
+        </div>
       </header>
 
-      <!-- Accès rapides : Historique & Activités -->
+      <!-- Accès rapides -->
       <nav class="quick">
         <a routerLink="/athlete/history" class="quick-l card">
           <app-icon name="calendar-days" [size]="20" /><span>Mon historique</span>
@@ -41,6 +50,10 @@ const SOURCE_LABEL: Record<string, string> = {
         </a>
         <a routerLink="/athlete/activities" class="quick-l card">
           <app-icon name="footprints" [size]="20" /><span>Mes activités</span>
+          <app-icon name="chevron-right" [size]="18" />
+        </a>
+        <a routerLink="/athlete/lactate" class="quick-l card">
+          <app-icon name="activity" [size]="20" /><span>Mes tests lactate</span>
           <app-icon name="chevron-right" [size]="18" />
         </a>
       </nav>
@@ -125,6 +138,30 @@ const SOURCE_LABEL: Record<string, string> = {
             <app-metric-card label="Charge chronique (28 j)" [value]="round(l.chronicLoad28d)" unit="UA" origin="calcule" />
             <app-metric-card label="Monotonie" [value]="l.monotony != null ? l.monotony.toFixed(2) : '—'" origin="calcule"
               [tone]="(l.monotony ?? 0) >= 2 ? 'alert' : 'neutral'" />
+          </div>
+        </section>
+      }
+
+      <!-- Ma charge de force (méca vs métab) -->
+      @if (strengthBars().length > 0) {
+        <section class="sect">
+          <h2 class="sect-h">Ma charge de force</h2>
+          <div class="card chart">
+            <div class="chart-hd">
+              <span class="field-hint">Charge par séance (UA)</span>
+              <span class="legend"><i class="sw mech"></i>Mécanique <i class="sw metab"></i>Métabolique</span>
+            </div>
+            <div class="bars">
+              @for (b of strengthBars(); track b.label) {
+                <div class="bgrp" [title]="b.label + ' — méca ' + b.mech + ' / métab ' + b.metab + ' UA'">
+                  <div class="bpair">
+                    <span class="bar mech" [style.height.%]="b.mx"></span>
+                    <span class="bar metab" [style.height.%]="b.tx"></span>
+                  </div>
+                  <span class="blab">{{ b.label }}</span>
+                </div>
+              }
+            </div>
           </div>
         </section>
       }
@@ -223,6 +260,14 @@ const SOURCE_LABEL: Record<string, string> = {
     .charge { display: flex; flex-direction: column; gap: var(--sp-3); }
     .charge-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3); }
 
+    .prog-h { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
+    .streak { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 4px 10px; border-radius: var(--radius-full); background: var(--form-orange-wash, var(--paper-sunk)); color: var(--form-orange, var(--ink-2)); font-weight: 800; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+
+    .sw.mech { background: var(--dari-teal); }
+    .sw.metab { background: var(--form-orange, #ff8a3c); }
+    .bar.mech { background: var(--dari-teal); }
+    .bar.metab { background: var(--form-orange, #ff8a3c); }
+
     .quick { display: grid; gap: var(--sp-2); }
     .quick-l { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); text-decoration: none; color: var(--ink); font-weight: 700; }
     .quick-l span { flex: 1; }
@@ -266,6 +311,33 @@ export class AthleteProgressComponent implements OnInit {
   readonly load = signal<Load | null>(null);
   readonly analytics = signal<Analytics | null>(null);
   readonly performances = signal<Performance[] | null>(null);
+  readonly strengthLoad = signal<StrengthLoadPoint[]>([]);
+
+  /** Régularité : nb de semaines consécutives (jusqu'à cette semaine) avec ≥1 km réalisé. */
+  readonly streak = computed(() => {
+    const a = this.analytics();
+    if (!a) return 0;
+    let n = 0;
+    for (let i = a.weeklyVolume.length - 1; i >= 0; i--) {
+      if (a.weeklyVolume[i].realizedKm > 0) n++;
+      else break;
+    }
+    return n;
+  });
+
+  /** Barres charge de force (12 dernières séances) : méca vs métab, % du max. */
+  readonly strengthBars = computed(() => {
+    const rows = this.strengthLoad().slice(-12);
+    if (rows.length === 0) return [];
+    const max = Math.max(1, ...rows.flatMap((r) => [r.mechanicalLoad, r.metabolicLoad]));
+    return rows.map((r) => ({
+      label: r.sessionDate.slice(5),
+      mech: Math.round(r.mechanicalLoad),
+      metab: Math.round(r.metabolicLoad),
+      mx: Math.round((r.mechanicalLoad / max) * 100),
+      tx: Math.round((r.metabolicLoad / max) * 100),
+    }));
+  });
 
   /** Totaux volume + adhérence (% séances réalisées) sur la période. */
   readonly totals = computed(() => {
@@ -318,6 +390,7 @@ export class AthleteProgressComponent implements OnInit {
     this.portal.load().subscribe({ next: (l) => this.load.set(l), error: () => this.load.set(null) });
     this.portal.analytics(8).subscribe({ next: (a) => this.analytics.set(a), error: () => this.analytics.set(null) });
     this.portal.performances().subscribe({ next: (p) => this.performances.set(p), error: () => this.performances.set(null) });
+    this.portal.strengthLoad().subscribe({ next: (s) => this.strengthLoad.set(s), error: () => this.strengthLoad.set([]) });
     this.portal.my1rm().subscribe({
       next: (p) => { this.profiles.set(p); this.loading.set(false); },
       error: () => this.loading.set(false),

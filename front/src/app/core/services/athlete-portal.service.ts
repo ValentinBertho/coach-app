@@ -7,7 +7,7 @@ import { Unavailability } from '../models/unavailability.model';
 import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
 import { Activity } from '../models/activity.model';
 import { Analytics } from './analytics.service';
-import { Load } from '../models/lactate.model';
+import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
 import { Workout, WorkoutStatus } from '../models/workout.model';
 import { CalculatedStrength, E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthResultEntry, StrengthStructure } from '../models/strength.model';
 
@@ -109,6 +109,20 @@ export class AthletePortalService {
   /** Mes performances / records par distance. */
   performances(): Observable<Performance[]> {
     return this.http.get<Performance[]>(`${this.base}/performances`);
+  }
+
+  // --- Phase 3 « Aller plus loin » (lecture seule) ---
+  /** Mes tests lactate (résumés). */
+  lactateTests(): Observable<LactateTest[]> {
+    return this.http.get<LactateTest[]>(`${this.base}/lactate-tests`);
+  }
+  /** Détail d'un test lactate (paliers pour la courbe). */
+  lactateTest(testId: string): Observable<LactateTest> {
+    return this.http.get<LactateTest>(`${this.base}/lactate-tests/${testId}`);
+  }
+  /** Ma charge de force (méca/métab, UA) par séance réalisée. */
+  strengthLoad(): Observable<StrengthLoadPoint[]> {
+    return this.http.get<StrengthLoadPoint[]>(`${this.base}/pp/strength-load`);
   }
 
   /** Mon profil de force : 1RM courant par exercice (lecture seule). */

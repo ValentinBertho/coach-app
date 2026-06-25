@@ -54,6 +54,7 @@ public class AthletePortalController {
     private final com.coachrun.service.AthleteLoadService loadService;
     private final com.coachrun.service.AnalyticsService analyticsService;
     private final com.coachrun.service.ActivityService activityService;
+    private final com.coachrun.service.LactateTestService lactateTestService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -214,6 +215,29 @@ public class AthletePortalController {
     public java.util.List<com.coachrun.dto.response.PerformanceResponse> myPerformances(
             @AuthenticationPrincipal AuthPrincipal principal) {
         return physioService.listPerformancesForAthlete(principal.athleteId());
+    }
+
+    // --- Phase 3 « Aller plus loin » (lecture seule) -------------------------
+
+    /** Mes tests lactate (résumés : seuils + dates). */
+    @GetMapping("/lactate-tests")
+    public java.util.List<com.coachrun.dto.response.LactateTestResponse> myLactateTests(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return lactateTestService.listForAthlete(principal.athleteId());
+    }
+
+    /** Détail d'un de mes tests lactate (paliers pour la courbe de profil). */
+    @GetMapping("/lactate-tests/{testId}")
+    public com.coachrun.dto.response.LactateTestResponse myLactateTest(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID testId) {
+        return lactateTestService.getForAthlete(principal.athleteId(), testId);
+    }
+
+    /** Ma charge de force (méca/métab, UA) par séance réalisée. */
+    @GetMapping("/pp/strength-load")
+    public java.util.List<com.coachrun.dto.response.StrengthLoadResponse> myStrengthLoad(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return strengthResultService.loadTrackingForAthlete(principal.athleteId());
     }
 
     /** Prochaine course cible (compte à rebours J-XX). 204 si aucune. */
