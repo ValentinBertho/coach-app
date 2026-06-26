@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { DataOriginTagComponent } from '../data-origin-tag/data-origin-tag.component';
+import { CounterComponent } from '../counter/counter.component';
 
 /** Statut ACWR dérivé des seuils (affichage uniquement, valeur calculée backend). */
 type AcwrStatus = 'detraining' | 'optimal' | 'caution' | 'risk';
@@ -26,12 +27,12 @@ const STATUS_META: Record<AcwrStatus, { label: string; cssVar: string; origin: '
   selector: 'app-acwr-indicator',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DataOriginTagComponent],
+  imports: [DataOriginTagComponent, CounterComponent],
   template: `
     <div class="acwr" [style.--ac]="meta().cssVar" role="group" [attr.aria-label]="ariaLabel()">
       <div class="acwr__head">
         <span class="acwr__title">ACWR</span>
-        <span class="acwr__value">{{ value().toFixed(2) }}</span>
+        <app-counter class="acwr__value" [value]="value()" [decimals]="2" />
         <span class="acwr__status">{{ meta().label }}</span>
         <app-data-origin-tag class="acwr__origin" [origin]="meta().origin" [compact]="true" />
       </div>

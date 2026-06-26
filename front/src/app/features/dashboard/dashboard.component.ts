@@ -12,6 +12,7 @@ import {
 } from '../../core/services/coach-dashboard.service';
 import { ReadinessGaugeComponent, type FormLevel } from '../../shared/components/physiology';
 import { MetricCardComponent, SegmentedControlComponent, type SegmentOption } from '../../shared/components/ui';
+import { RevealDirective } from '../../shared/directives/reveal.directive';
 
 type Scope = 'all' | 'mine' | 'private' | 'club';
 
@@ -27,7 +28,7 @@ const SEVERITY: Record<FormStatus, number> = { RED: 2, ORANGE: 1, GREEN: 0 };
   selector: 'app-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink, ReadinessGaugeComponent, MetricCardComponent, SegmentedControlComponent],
+  imports: [IconComponent, RouterLink, ReadinessGaugeComponent, MetricCardComponent, SegmentedControlComponent, RevealDirective],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
