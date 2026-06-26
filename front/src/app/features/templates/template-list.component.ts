@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
@@ -36,6 +36,26 @@ export class TemplateListComponent implements OnInit {
   readonly athletes = signal<AthleteSummary[]>([]);
   readonly loading = signal(true);
   readonly showForm = signal(false);
+
+  // Affichage : cards compactes ↔ liste dense, recherche + filtre par type.
+  readonly viewMode = signal<'cards' | 'list'>('cards');
+  readonly search = signal('');
+  readonly typeFilter = signal<string>('');
+
+  /** Modèles filtrés (recherche nom/titre + type), pour densifier la navigation. */
+  readonly filtered = computed(() => {
+    const q = this.search().trim().toLowerCase();
+    const type = this.typeFilter();
+    return this.templates().filter((t) => {
+      const matchesType = !type || t.type === type;
+      const matchesQ = !q
+        || t.name.toLowerCase().includes(q)
+        || (t.title ?? '').toLowerCase().includes(q);
+      return matchesType && matchesQ;
+    });
+  });
+
+  setView(mode: 'cards' | 'list'): void { this.viewMode.set(mode); }
 
   // état d'application par modèle
   applyFor: Record<string, { athleteId: string; date: string }> = {};

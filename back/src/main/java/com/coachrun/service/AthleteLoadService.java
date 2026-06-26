@@ -40,7 +40,7 @@ public class AthleteLoadService {
     }
 
     public LoadResponse load(UUID clubId, UUID athleteId) {
-        if (athleteRepository.findByIdAndClubId(athleteId, clubId).isEmpty()) {
+        if (athleteRepository.findByIdAndClubMembership(athleteId, clubId).isEmpty()) {
             throw new NotFoundException("Athlète introuvable.");
         }
         LocalDate today = LocalDate.now();

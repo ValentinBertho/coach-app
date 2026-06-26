@@ -15,6 +15,7 @@ import {
   HeartPulse, Thermometer, Palmtree, Pin, Ban, Bell, FileText, Paperclip, Lock, Blocks, BookOpen,
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, Copy, Save,
+  LayoutGrid, List, PanelLeft,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -30,6 +31,7 @@ const ICONS = {
   HeartPulse, Thermometer, Palmtree, Pin, Ban, Bell, FileText, Paperclip, Lock, Blocks, BookOpen,
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, Copy, Save,
+  LayoutGrid, List, PanelLeft,
 };
 
 export const appConfig: ApplicationConfig = {

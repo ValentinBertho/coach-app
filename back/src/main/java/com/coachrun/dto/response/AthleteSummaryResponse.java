@@ -14,12 +14,19 @@ public record AthleteSummaryResponse(
         AthleteLevel level,
         AthleteStatus status,
         boolean invitationPending,
-        String groupName) {
+        String groupName,
+        /** Le coach courant peut-il prescrire/modifier cet athlète (sinon lecture seule) ? */
+        boolean canWrite) {
 
     public static AthleteSummaryResponse from(Athlete a) {
+        return from(a, true);
+    }
+
+    public static AthleteSummaryResponse from(Athlete a, boolean canWrite) {
         return new AthleteSummaryResponse(
                 a.getId(), a.getFirstName(), a.getLastName(),
                 a.getLevel(), a.getStatus(), a.getInviteToken() != null,
-                a.getGroup() != null ? a.getGroup().getName() : null);
+                a.getGroup() != null ? a.getGroup().getName() : null,
+                canWrite);
     }
 }

@@ -16,6 +16,8 @@ export interface AthleteSummary {
   status: AthleteStatus;
   invitationPending: boolean;
   groupName?: string | null;
+  /** Le coach courant peut-il prescrire/modifier cet athlète (sinon lecture seule) ? */
+  canWrite?: boolean;
 }
 
 export interface Athlete extends AthleteSummary {

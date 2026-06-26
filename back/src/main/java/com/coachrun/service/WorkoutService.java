@@ -72,7 +72,7 @@ public class WorkoutService {
     /** Création avec rattachement optionnel à un plan ({@code planId}) pour le suivi d'avancement. */
     @Transactional
     public WorkoutResponse create(UUID clubId, UUID athleteId, WorkoutRequest request, UUID planId) {
-        Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
 
         Workout workout = new Workout();
@@ -121,7 +121,7 @@ public class WorkoutService {
      */
     @Transactional
     public int duplicateWeek(UUID clubId, UUID athleteId, LocalDate sourceWeekStart, LocalDate targetWeekStart) {
-        athleteRepository.findByIdAndClubId(athleteId, clubId)
+        athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         if (sourceWeekStart.equals(targetWeekStart)) {
             throw new ConflictException("La semaine cible doit être différente de la semaine source.");
@@ -142,7 +142,7 @@ public class WorkoutService {
     public int generateMesocycle(UUID clubId, UUID athleteId, LocalDate sourceWeekStart,
                                  LocalDate firstWeekStart, int weeks, double increasePct,
                                  int deloadEvery, double deloadPct) {
-        athleteRepository.findByIdAndClubId(athleteId, clubId)
+        athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         int n = Math.max(1, Math.min(weeks, 16));
         int blockLen = Math.max(2, deloadEvery);
@@ -285,7 +285,7 @@ public class WorkoutService {
      */
     @Transactional
     public WorkoutResponse createPrescribed(UUID clubId, UUID athleteId, PrescribedWorkout data) {
-        Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
 
         Workout workout = new Workout();

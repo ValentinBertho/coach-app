@@ -68,7 +68,7 @@ public class ActivityService {
 
     @Transactional
     public ActivityResponse importActivity(UUID clubId, UUID athleteId, ActivityImportRequest request) {
-        Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
 
         ActivitySource source = request.sourceOrDefault();
@@ -99,7 +99,7 @@ public class ActivityService {
     /** Import d'un fichier GPX/TCX → activité + tracé, puis rapprochement automatique. */
     @Transactional
     public ActivityResponse importFile(UUID clubId, UUID athleteId, String filename, byte[] bytes) {
-        com.coachrun.entity.Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        com.coachrun.entity.Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         return createFromFile(athlete, athleteId, filename, bytes);
     }

@@ -113,7 +113,7 @@ public class SessionCalculatorService {
     }
 
     private AthletePaceContext contextFor(UUID clubId, UUID athleteId) {
-        Athlete a = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        Athlete a = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         AthleteVdotPace paces = vdotPaceRepository.findByAthleteId(athleteId).orElse(null);
         return new AthletePaceContext(

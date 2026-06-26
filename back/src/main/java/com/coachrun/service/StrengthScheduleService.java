@@ -48,7 +48,7 @@ public class StrengthScheduleService {
     @Transactional
     public ScheduledStrengthResponse schedule(UUID clubId, UUID athleteId, UUID sessionId,
                                               LocalDate date, FieldsPreset preset, UUID planId) {
-        Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         StrengthSessionResponse session = strengthSessionService.get(clubId, sessionId);
         CalculatedStrengthResponse calc = strengthSessionService.calculateForAthlete(clubId, athleteId, sessionId);

@@ -46,25 +46,74 @@
 } @else if (templates().length === 0) {
   <div class="card empty-state"><h2>Aucun modèle</h2><p class="field-hint">Créez votre premier modèle de séance.</p></div>
 } @else {
-  <div class="tpl-grid">
-    @for (t of templates(); track t.id) {
-      <div class="card tpl">
-        <div class="tpl-head">
-          <span class="badge badge-info">{{ typeLabels[t.type] }}</span>
-          <button type="button" class="icon-btn danger" (click)="remove(t)">✕</button>
-        </div>
-        <strong>{{ t.name }}</strong>
-        <span class="field-hint">{{ t.title }} · {{ t.steps.length }} étape(s)</span>
-        <a [routerLink]="['/app/templates', t.id, 'structure']" class="btn btn-ghost btn-sm edit-structure"><app-icon name="pencil" [size]="14" /> Éditer la structure (Darilab)</a>
-        <div class="apply">
-          <select class="form-control" [(ngModel)]="applyFor[t.id]!.athleteId" [ngModelOptions]="{standalone:true}">
-            <option value="">Athlète…</option>
-            @for (a of athletes(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
-          </select>
-          <input type="date" class="form-control" [(ngModel)]="applyFor[t.id]!.date" [ngModelOptions]="{standalone:true}" />
-          <button type="button" class="btn btn-accent btn-sm" (click)="apply(t)">Appliquer</button>
-        </div>
-      </div>
-    }
+  <!-- Barre de filtres + densité : recherche, filtre par type, switch cards/liste. -->
+  <div class="tpl-toolbar">
+    <input class="form-control tpl-search" type="search" placeholder="Rechercher une séance…"
+           [ngModel]="search()" (ngModelChange)="search.set($event)" />
+    <select class="form-control tpl-type" [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event)">
+      <option value="">Tous les types</option>
+      @for (t of types; track t) { <option [value]="t">{{ typeLabels[t] }}</option> }
+    </select>
+    <span class="tpl-count">{{ filtered().length }} séance(s)</span>
+    <div class="view-switch">
+      <button type="button" [class.active]="viewMode() === 'cards'" (click)="setView('cards')" title="Cartes">
+        <app-icon name="layout-grid" [size]="15" />
+      </button>
+      <button type="button" [class.active]="viewMode() === 'list'" (click)="setView('list')" title="Liste dense">
+        <app-icon name="list" [size]="15" />
+      </button>
+    </div>
   </div>
+
+  @if (filtered().length === 0) {
+    <div class="card empty-state"><p class="field-hint">Aucune séance ne correspond à ces filtres.</p></div>
+  } @else if (viewMode() === 'cards') {
+    <div class="tpl-grid compact">
+      @for (t of filtered(); track t.id) {
+        <div class="card tpl">
+          <div class="tpl-head">
+            <span class="badge badge-info">{{ typeLabels[t.type] }}</span>
+            <div class="tpl-head-actions">
+              <a [routerLink]="['/app/templates', t.id, 'structure']" class="icon-btn" title="Éditer la structure"><app-icon name="pencil" [size]="14" /></a>
+              <button type="button" class="icon-btn danger" (click)="remove(t)" title="Supprimer">✕</button>
+            </div>
+          </div>
+          <strong class="tpl-name">{{ t.name }}</strong>
+          <span class="field-hint tpl-sub">{{ t.title }} · {{ t.steps.length }} étape(s)</span>
+          <div class="apply">
+            <select class="form-control" [(ngModel)]="applyFor[t.id]!.athleteId" [ngModelOptions]="{standalone:true}">
+              <option value="">Athlète…</option>
+              @for (a of athletes(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+            </select>
+            <input type="date" class="form-control" [(ngModel)]="applyFor[t.id]!.date" [ngModelOptions]="{standalone:true}" />
+            <button type="button" class="btn btn-accent btn-sm" (click)="apply(t)">Appliquer</button>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="card tpl-table">
+      @for (t of filtered(); track t.id) {
+        <div class="tpl-row">
+          <span class="badge badge-info tpl-row-type">{{ typeLabels[t.type] }}</span>
+          <div class="tpl-row-id">
+            <strong>{{ t.name }}</strong>
+            <span class="field-hint">{{ t.title }} · {{ t.steps.length }} étape(s)</span>
+          </div>
+          <div class="tpl-row-apply">
+            <select class="form-control" [(ngModel)]="applyFor[t.id]!.athleteId" [ngModelOptions]="{standalone:true}">
+              <option value="">Athlète…</option>
+              @for (a of athletes(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+            </select>
+            <input type="date" class="form-control" [(ngModel)]="applyFor[t.id]!.date" [ngModelOptions]="{standalone:true}" />
+            <button type="button" class="btn btn-accent btn-sm" (click)="apply(t)">Appliquer</button>
+          </div>
+          <div class="tpl-row-actions">
+            <a [routerLink]="['/app/templates', t.id, 'structure']" class="icon-btn" title="Éditer la structure"><app-icon name="pencil" [size]="14" /></a>
+            <button type="button" class="icon-btn danger" (click)="remove(t)" title="Supprimer">✕</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
 }

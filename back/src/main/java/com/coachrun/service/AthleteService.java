@@ -50,16 +50,25 @@ public class AthleteService {
     private final UserRepository userRepository;
     private final com.coachrun.repository.TrainingGroupRepository groupRepository;
     private final com.coachrun.repository.CoachAthleteRelationRepository relationRepository;
+    private final com.coachrun.security.AthleteAccessValidator accessValidator;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
     public PageResponse<AthleteSummaryResponse> list(UUID clubId, AthleteStatus status,
-                                                     UUID groupId, String query, Pageable pageable) {
+                                                     UUID groupId, String query, Pageable pageable,
+                                                     UUID coachId) {
         String q = StringUtils.hasText(query) ? query.trim() : "";
         return PageResponse.from(
                 athleteRepository.search(clubId, status, groupId, q, pageable),
-                AthleteSummaryResponse::from);
+                a -> AthleteSummaryResponse.from(a, canWrite(coachId, a.getId())));
+    }
+
+    /** Le coach peut-il prescrire/modifier cet athlète ? (cohérent avec @athleteAccessValidator) */
+    private boolean canWrite(UUID coachId, UUID athleteId) {
+        return accessValidator.effectiveLevel(coachId, athleteId)
+                .map(l -> l.atLeast(com.coachrun.entity.enums.PermissionLevel.WRITE))
+                .orElse(false);
     }
 
     public AthleteResponse get(UUID clubId, UUID athleteId) {
@@ -195,7 +204,7 @@ public class AthleteService {
     }
 
     private Athlete requireAthlete(UUID clubId, UUID athleteId) {
-        return athleteRepository.findByIdAndClubId(athleteId, clubId)
+        return athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
     }
 
