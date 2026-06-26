@@ -117,16 +117,24 @@ public class AthleteAccessValidator {
             level = PermissionLevel.max(level, permission.getPermission());
         }
 
-        // 4. Lecture par défaut pour Owner / coach principal du club de l'athlète.
+        // 4. Athlète club : lecture par défaut pour tout coach ayant accès au club. Un athlète
+        //    « club » est partagé au sein du club (la confidentialité passe par le statut privé) ;
+        //    l'écriture reste réservée au référent / coach assigné / permission explicite.
         UUID clubId = referent.getClub().getId();
-        ClubMember member =
-                clubMemberRepository.findByClubIdAndCoachIdAndActiveTrue(clubId, coachId).orElse(null);
-        if (member != null && (member.getClubRole() == ClubRole.OWNER
-                || member.getClubRole() == ClubRole.COACH_PRINCIPAL)) {
+        if (hasClubAccess(coachId, clubId)) {
             level = PermissionLevel.max(level, PermissionLevel.READ);
         }
 
         return Optional.ofNullable(level);
+    }
+
+    /** Le coach a-t-il accès au club (club principal ou club additionnel) ? */
+    private boolean hasClubAccess(UUID coachId, UUID clubId) {
+        User coach = userRepository.findById(coachId).orElse(null);
+        if (coach != null && coach.getClub() != null && clubId.equals(coach.getClub().getId())) {
+            return true;
+        }
+        return userRepository.hasClubAccess(coachId, clubId);
     }
 
     /**
@@ -139,14 +147,9 @@ public class AthleteAccessValidator {
         if (athlete == null || athlete.getClub() == null) {
             return Optional.empty();
         }
-        UUID clubId = athlete.getClub().getId();
-        User coach = userRepository.findById(coachId).orElse(null);
-        boolean sameMainClub = coach != null && coach.getClub() != null
-                && clubId.equals(coach.getClub().getId());
-        if (sameMainClub || userRepository.hasClubAccess(coachId, clubId)) {
-            return Optional.of(PermissionLevel.WRITE);
-        }
-        return Optional.empty();
+        return hasClubAccess(coachId, athlete.getClub().getId())
+                ? Optional.of(PermissionLevel.WRITE)
+                : Optional.empty();
     }
 
     public boolean canRead(Authentication authentication, UUID athleteId) {

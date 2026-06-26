@@ -47,6 +47,7 @@ export interface AthleteRequest {
   weightKg?: number | null;
   medicalNotes?: string | null;
   groupId?: string | null;
+  privateAthlete?: boolean;
 }
 
 export interface AthleteInvitation {

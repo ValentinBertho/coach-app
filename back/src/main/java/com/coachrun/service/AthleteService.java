@@ -125,16 +125,18 @@ public class AthleteService {
         athlete.setStatus(AthleteStatus.ACTIVE);
         apply(athlete, request);
         athlete = athleteRepository.save(athlete);
-        createReferentRelation(athlete, club, creatorCoachId);
-        log.info("Athlète créé {} (club={}, référent={})", athlete.getId(), clubId, creatorCoachId);
+        boolean privat = Boolean.TRUE.equals(request.privateAthlete());
+        createReferentRelation(athlete, club, creatorCoachId, privat);
+        log.info("Athlète créé {} (club={}, référent={}, privé={})", athlete.getId(), clubId, creatorCoachId, privat);
         return AthleteResponse.from(athlete);
     }
 
     /**
-     * Crée la relation référent (coach créateur ↔ athlète, rattachée au club) qui rend l'athlète
-     * pilotable par le modèle multi-coach. Idempotent : ne recrée pas si elle existe déjà.
+     * Crée la relation référent (coach créateur ↔ athlète) qui rend l'athlète pilotable par le modèle
+     * multi-coach. {@code privat} = athlète privé (relation sans club → invisible des autres coachs).
+     * Idempotent : ne recrée pas si elle existe déjà.
      */
-    private void createReferentRelation(Athlete athlete, Club club, UUID coachId) {
+    private void createReferentRelation(Athlete athlete, Club club, UUID coachId, boolean privat) {
         if (coachId == null) {
             return; // sécurité : pas de référent identifiable → l'athlète reste sur le fallback club.
         }
@@ -148,7 +150,7 @@ public class AthleteService {
         com.coachrun.entity.CoachAthleteRelation rel = new com.coachrun.entity.CoachAthleteRelation();
         rel.setAthlete(athlete);
         rel.setCoach(coach);
-        rel.setClub(club);          // rattaché au club (non privé) par défaut
+        rel.setClub(privat ? null : club);   // null = privé (coaching hors club)
         rel.setReferent(true);
         rel.setActive(true);
         relationRepository.save(rel);

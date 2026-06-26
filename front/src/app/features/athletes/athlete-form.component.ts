@@ -47,6 +47,7 @@ export class AthleteFormComponent implements OnInit {
     weightKg: [null as number | null, [Validators.min(20)]],
     medicalNotes: ['', [Validators.maxLength(2048)]],
     groupId: [''],
+    privateAthlete: [false],
   });
 
   ngOnInit(): void {
@@ -102,6 +103,7 @@ export class AthleteFormComponent implements OnInit {
       weightKg: v.weightKg ?? null,
       medicalNotes: blankToNull(v.medicalNotes),
       groupId: blankToNull(v.groupId),
+      privateAthlete: !!v.privateAthlete,
     };
   }
 }

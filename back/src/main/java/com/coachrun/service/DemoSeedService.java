@@ -218,8 +218,15 @@ public class DemoSeedService {
                     UserRole.ATHLETE, club, demoAthlete);
             athleteUser = userRepository.save(athleteUser);
             User headCoach = userRepository.findByEmailIgnoreCase(HEAD_COACH_EMAIL).orElse(null);
-            seedTraining(club, demoAthlete);
-            seedTraining(club, athletes.get(2));
+            // États de forme variés pour une démo réaliste du cockpit (vert / orange / rouge).
+            seedTraining(club, demoAthlete, 4, 0);                  // sain
+            seedTraining(club, athletes.get(2), 9, 1);             // fatigue élevée + charge → rouge
+            seedTraining(club, athletes.get(3), 6, 5);             // douleur signalée → alerte
+            seedTraining(club, athletes.get(4), 5, 0);             // à surveiller (orange)
+            seedTraining(club, athletes.get(5), 2, 0);             // vert
+            if (athletes.size() > 6) {
+                seedPlannedWeek(club, athletes.get(6));            // silencieux → alerte de suivi
+            }
             seedRace(club, demoAthlete, "Marathon de Paris", 42195, 42);
             seedRace(club, athletes.get(2), "Semi de Lyon", 21097, 70);
             seedUnavailability(club, athletes.get(3), com.coachrun.entity.enums.UnavailabilityReason.INJURY,
@@ -478,11 +485,21 @@ public class DemoSeedService {
     }
 
     private void seedTraining(Club club, Athlete athlete) {
-        LocalDate monday = LocalDate.now().with(java.time.DayOfWeek.MONDAY).minusWeeks(1);
+        seedTraining(club, athlete, 4, 0); // profil sain par défaut
+    }
+
+    /**
+     * Historique d'entraînement sur 3 semaines (réalisé + retours), avec un état de forme cible
+     * ({@code peakFatigue}, {@code peakPain} portés par le dernier retour) — pour une démo réaliste
+     * du cockpit coach (pastilles de forme, alertes, charge, analytics).
+     */
+    private void seedTraining(Club club, Athlete athlete, int peakFatigue, int peakPain) {
+        LocalDate monday = LocalDate.now().with(java.time.DayOfWeek.MONDAY).minusWeeks(2);
         WorkoutType[] week = {
                 WorkoutType.ENDURANCE, WorkoutType.INTERVALS, WorkoutType.RECOVERY,
                 WorkoutType.TEMPO, WorkoutType.REST, WorkoutType.LONG_RUN, WorkoutType.RECOVERY};
-        for (int d = 0; d < 12; d++) {
+        Workout lastCompleted = null;
+        for (int d = 0; d < 19; d++) {
             LocalDate date = monday.plusDays(d);
             WorkoutType type = week[d % 7];
             if (type == WorkoutType.REST) {
@@ -497,23 +514,51 @@ public class DemoSeedService {
             w.setTargetDistanceM(distanceFor(type));
             w.setTargetDurationS(distanceFor(type) / 3); // ~allure indicative
             w.setStatus(date.isBefore(LocalDate.now())
-                    ? (random.nextInt(5) == 0 ? WorkoutStatus.MISSED : WorkoutStatus.COMPLETED)
+                    ? (random.nextInt(6) == 0 ? WorkoutStatus.MISSED : WorkoutStatus.COMPLETED)
                     : WorkoutStatus.PLANNED);
             if (w.getStatus() == WorkoutStatus.COMPLETED) {
                 w.setRpe(4 + random.nextInt(5));
+                w.setFatigue(Math.max(1, Math.min(10, peakFatigue - 2 + random.nextInt(3))));
+                w.setPain(peakPain == 0 ? 0 : Math.max(0, Math.min(10, peakPain - 1 + random.nextInt(2))));
             }
             w.replaceSteps(stepsFor(type));
             workoutRepository.save(w);
-
-            if (w.getStatus() == WorkoutStatus.COMPLETED && random.nextBoolean()) {
-                activityRepository.save(matchedActivity(club, athlete, w));
+            if (w.getStatus() == WorkoutStatus.COMPLETED) {
+                lastCompleted = w;
+                if (random.nextBoolean()) {
+                    activityRepository.save(matchedActivity(club, athlete, w));
+                }
             }
+        }
+        // Le dernier retour porte l'état de forme cible (pilote la pastille + les alertes).
+        if (lastCompleted != null) {
+            lastCompleted.setFatigue(peakFatigue);
+            lastCompleted.setPain(peakPain);
         }
         // une activité non rattachée
         Activity orphan = baseActivity(club, athlete, LocalDate.now().minusDays(3));
         orphan.setStatus(ActivityStatus.UNMATCHED);
         orphan.setTitle("Sortie libre");
         activityRepository.save(orphan);
+    }
+
+    /** Semaine planifiée sans retour (athlète « silencieux » → alerte de suivi). */
+    private void seedPlannedWeek(Club club, Athlete athlete) {
+        LocalDate monday = LocalDate.now().with(java.time.DayOfWeek.MONDAY).minusWeeks(1);
+        WorkoutType[] week = {WorkoutType.ENDURANCE, WorkoutType.TEMPO, WorkoutType.LONG_RUN};
+        for (int i = 0; i < week.length; i++) {
+            Workout w = new Workout();
+            w.setClub(club);
+            w.setAthlete(athlete);
+            w.setScheduledDate(monday.plusDays(i * 2L));
+            w.setType(week[i]);
+            w.setTitle(titleFor(week[i]));
+            w.setTargetDistanceM(distanceFor(week[i]));
+            w.setTargetDurationS(distanceFor(week[i]) / 3);
+            w.setStatus(WorkoutStatus.PLANNED);
+            w.replaceSteps(stepsFor(week[i]));
+            workoutRepository.save(w);
+        }
     }
 
     private void seedUnavailability(Club club, Athlete athlete,

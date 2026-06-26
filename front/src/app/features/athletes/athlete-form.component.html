@@ -69,6 +69,15 @@
       </select>
     </div>
 
+    @if (!isEdit) {
+      <div class="form-group">
+        <label class="check-inline">
+          <input type="checkbox" formControlName="privateAthlete" />
+          <span>Athlète <strong>privé</strong> (coaching hors club — invisible des autres coachs du club)</span>
+        </label>
+      </div>
+    }
+
     <h2>Données physiologiques <span class="badge badge-neutral"><app-icon name="lock" [size]="13" /> chiffrées</span></h2>
     <div class="form-row-3">
       <div class="form-group">
