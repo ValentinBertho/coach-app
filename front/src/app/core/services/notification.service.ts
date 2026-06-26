@@ -6,6 +6,11 @@ import { AppNotification } from '../models/notification.model';
 
 interface Page<T> { content: T[]; }
 
+export interface NotificationPreferences {
+  emailEnabled: boolean;
+  pushEnabled: boolean;
+}
+
 /** Centre de notifications de l'utilisateur connecté (coach ou athlète). */
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
@@ -34,5 +39,13 @@ export class NotificationService {
 
   markAllRead(): Observable<void> {
     return this.http.post<void>(`${this.base}/read-all`, {}).pipe(tap(() => this.unread.set(0)));
+  }
+
+  preferences(): Observable<NotificationPreferences> {
+    return this.http.get<NotificationPreferences>(`${this.base}/preferences`);
+  }
+
+  savePreferences(prefs: Partial<NotificationPreferences>): Observable<NotificationPreferences> {
+    return this.http.put<NotificationPreferences>(`${this.base}/preferences`, prefs);
   }
 }

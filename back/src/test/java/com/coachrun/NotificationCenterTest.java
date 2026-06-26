@@ -94,6 +94,29 @@ class NotificationCenterTest {
     }
 
     @Test
+    void notificationPreferencesDefaultTrueAndUpdate() throws Exception {
+        JsonNode def = objectMapper.readTree(mvc.perform(get("/notifications/preferences")
+                        .header("Authorization", athleteBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(def.get("emailEnabled").asBoolean()).isTrue();
+        assertThat(def.get("pushEnabled").asBoolean()).isTrue();
+
+        JsonNode upd = objectMapper.readTree(mvc.perform(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .put("/notifications/preferences")
+                                .header("Authorization", athleteBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"pushEnabled\":false}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(upd.get("pushEnabled").asBoolean()).isFalse();
+        assertThat(upd.get("emailEnabled").asBoolean()).isTrue();
+
+        JsonNode after = objectMapper.readTree(mvc.perform(get("/notifications/preferences")
+                        .header("Authorization", athleteBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(after.get("pushEnabled").asBoolean()).isFalse();
+    }
+
+    @Test
     void notificationsAreScopedToTheUser() throws Exception {
         // Le coach ne voit pas les notifications de l'athlète (chacun son centre).
         mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)

@@ -55,4 +55,18 @@ public class NotificationController {
     public void markAllRead(@AuthenticationPrincipal AuthPrincipal principal) {
         notificationService.markAllRead(principal.userId());
     }
+
+    @GetMapping("/preferences")
+    public com.coachrun.dto.response.NotificationPreferencesResponse preferences(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return notificationService.preferences(principal.userId());
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/preferences")
+    public com.coachrun.dto.response.NotificationPreferencesResponse updatePreferences(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @org.springframework.web.bind.annotation.RequestBody
+            com.coachrun.dto.request.NotificationPreferencesRequest request) {
+        return notificationService.updatePreferences(principal.userId(), request);
+    }
 }

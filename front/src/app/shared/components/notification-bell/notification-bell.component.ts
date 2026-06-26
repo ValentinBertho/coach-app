@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { IconComponent } from '../icon/icon.component';
-import { NotificationService } from '../../../core/services/notification.service';
+import { NotificationService, NotificationPreferences } from '../../../core/services/notification.service';
 import { AppNotification } from '../../../core/models/notification.model';
 
 /**
@@ -13,7 +14,7 @@ import { AppNotification } from '../../../core/models/notification.model';
   selector: 'app-notification-bell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, IconComponent],
+  imports: [DatePipe, FormsModule, IconComponent],
   template: `
     <div class="bell">
       <button type="button" class="bell-btn" (click)="toggle()" [attr.aria-label]="'Notifications'"
@@ -29,10 +30,23 @@ import { AppNotification } from '../../../core/models/notification.model';
         <div class="bell-panel" role="dialog" aria-label="Notifications">
           <header class="bell-hd">
             <strong>Notifications</strong>
-            @if (notif.unread() > 0) {
-              <button type="button" class="btn btn-ghost btn-sm" (click)="markAll()">Tout marquer lu</button>
-            }
+            <span class="bell-hd-actions">
+              @if (notif.unread() > 0) {
+                <button type="button" class="btn btn-ghost btn-sm" (click)="markAll()">Tout marquer lu</button>
+              }
+              <button type="button" class="bell-gear" (click)="togglePrefs()" aria-label="Préférences">
+                <app-icon name="settings" [size]="16" />
+              </button>
+            </span>
           </header>
+
+          @if (showPrefs()) {
+            <div class="bell-prefs">
+              <span class="field-hint">Canaux (l'app reste toujours active)</span>
+              <label class="pref"><input type="checkbox" [ngModel]="prefs().emailEnabled" (ngModelChange)="setPref('email', $event)" /> E-mail</label>
+              <label class="pref"><input type="checkbox" [ngModel]="prefs().pushEnabled" (ngModelChange)="setPref('push', $event)" /> Push</label>
+            </div>
+          }
 
           @if (loading()) {
             <div class="bell-empty field-hint">Chargement…</div>
@@ -74,7 +88,13 @@ import { AppNotification } from '../../../core/models/notification.model';
       border-radius: var(--radius-lg); box-shadow: var(--shadow-lg, 0 12px 32px rgba(0,0,0,.18)); }
     .bell-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
       padding: var(--sp-3) var(--sp-3); border-bottom: 1px solid var(--hairline); position: sticky; top: 0;
-      background: var(--paper); }
+      background: var(--paper); z-index: 1; }
+    .bell-hd-actions { display: inline-flex; align-items: center; gap: var(--sp-1); }
+    .bell-gear { display: inline-flex; padding: 4px; border: none; background: transparent; color: var(--ink-3); cursor: pointer; border-radius: var(--radius); }
+    .bell-gear:hover { background: var(--paper-sunk); color: var(--ink); }
+    .bell-prefs { display: flex; flex-direction: column; gap: 4px; padding: var(--sp-3); border-bottom: 1px solid var(--hairline); background: var(--paper-sunk); }
+    .bell-prefs .pref { display: flex; align-items: center; gap: var(--sp-2); font-weight: 600; color: var(--ink-2); }
+    .bell-prefs input { width: 16px; height: 16px; }
     .bell-empty { padding: var(--sp-5); text-align: center; }
 
     .bell-list { list-style: none; margin: 0; padding: 0; }
@@ -98,6 +118,8 @@ export class NotificationBellComponent implements OnInit {
   readonly open = signal(false);
   readonly loading = signal(false);
   readonly items = signal<AppNotification[]>([]);
+  readonly showPrefs = signal(false);
+  readonly prefs = signal<NotificationPreferences>({ emailEnabled: true, pushEnabled: true });
 
   ngOnInit(): void {
     this.notif.refreshUnread().subscribe({ error: () => {} });
@@ -113,7 +135,24 @@ export class NotificationBellComponent implements OnInit {
     });
   }
 
-  close(): void { this.open.set(false); }
+  close(): void { this.open.set(false); this.showPrefs.set(false); }
+
+  togglePrefs(): void {
+    const next = !this.showPrefs();
+    this.showPrefs.set(next);
+    if (next) {
+      this.notif.preferences().subscribe({ next: (p) => this.prefs.set(p), error: () => {} });
+    }
+  }
+
+  setPref(channel: 'email' | 'push', enabled: boolean): void {
+    const patch = channel === 'email' ? { emailEnabled: enabled } : { pushEnabled: enabled };
+    this.prefs.update((p) => ({ ...p, ...patch }));
+    this.notif.savePreferences(patch).subscribe({
+      next: (p) => this.prefs.set(p),
+      error: () => {},
+    });
+  }
 
   onClick(n: AppNotification): void {
     if (!n.read) {

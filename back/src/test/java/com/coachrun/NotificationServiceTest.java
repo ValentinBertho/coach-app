@@ -144,6 +144,27 @@ class NotificationServiceTest {
     }
 
     @Test
+    void mutedEmailSuppressesFeedbackEmailButKeepsInApp() {
+        ReflectionTestUtils.setField(notificationService, "enabled", true);
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Workout w = feedbackWorkout();
+        User coach = coach("muted@test.fr");
+        coach.setNotifyEmailEnabled(false);
+        when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
+                .thenReturn(Optional.of(relWith(coach)));
+
+        notificationService.notifyAthleteFeedback(w);
+
+        verify(mailClient, never()).send(any(), any(), any());
+    }
+
+    private CoachAthleteRelation relWith(User coach) {
+        CoachAthleteRelation rel = new CoachAthleteRelation();
+        rel.setCoach(coach);
+        return rel;
+    }
+
+    @Test
     void feedbackFallsBackToHeadCoachWhenNoReferent() {
         ReflectionTestUtils.setField(notificationService, "enabled", true);
         ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");

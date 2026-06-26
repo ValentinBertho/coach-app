@@ -46,16 +46,18 @@ public class NotificationService {
 
     /** Séance planifiée → notifie l'athlète (in-app + email + push). */
     public void notifyWorkoutPlanned(Workout workout) {
-        userRepository.findByAthleteId(workout.getAthlete().getId())
-                .ifPresent(u -> {
-                    record(u.getId(), "WORKOUT_PLANNED", "Nouvelle séance",
-                            workout.getTitle() + " — " + workout.getScheduledDate(), "/athlete/today");
-                    pushService.sendToUser(u.getId(), "Nouvelle séance",
-                            workout.getTitle() + " — " + workout.getScheduledDate(),
-                            frontendUrl + "/athlete/today");
-                });
+        User athleteUser = userRepository.findByAthleteId(workout.getAthlete().getId()).orElse(null);
+        if (athleteUser != null) {
+            record(athleteUser.getId(), "WORKOUT_PLANNED", "Nouvelle séance",
+                    workout.getTitle() + " — " + workout.getScheduledDate(), "/athlete/today");
+            if (athleteUser.isNotifyPushEnabled()) {
+                pushService.sendToUser(athleteUser.getId(), "Nouvelle séance",
+                        workout.getTitle() + " — " + workout.getScheduledDate(),
+                        frontendUrl + "/athlete/today");
+            }
+        }
         String email = workout.getAthlete().getEmail();
-        if (email == null) {
+        if (email == null || (athleteUser != null && !athleteUser.isNotifyEmailEnabled())) {
             return;
         }
         String subject = "Nouvelle séance planifiée";
@@ -68,25 +70,25 @@ public class NotificationService {
 
     /** Feedback athlète → notifie le coach <strong>référent</strong> de l'athlète (repli : head coach). */
     public void notifyAthleteFeedback(Workout workout) {
-        Optional<User> coach = coachToNotify(workout);
-        coach.ifPresent(c -> {
+        coachToNotify(workout).ifPresent(c -> {
             record(c.getId(), "ATHLETE_FEEDBACK", "Séance mise à jour",
                     workout.getAthlete().getFirstName() + " " + workout.getAthlete().getLastName()
                             + " — " + workout.getStatus(), "/app");
-            pushService.sendToUser(c.getId(), "Séance mise à jour",
-                    workout.getAthlete().getFirstName() + " — " + workout.getStatus(),
-                    frontendUrl + "/app");
+            if (c.isNotifyPushEnabled()) {
+                pushService.sendToUser(c.getId(), "Séance mise à jour",
+                        workout.getAthlete().getFirstName() + " — " + workout.getStatus(),
+                        frontendUrl + "/app");
+            }
+            if (c.getEmail() != null && c.isNotifyEmailEnabled()) {
+                String athlete = esc(workout.getAthlete().getFirstName() + " "
+                        + workout.getAthlete().getLastName());
+                String subject = athlete + " a renseigné une séance";
+                String html = "<p>" + athlete + " a mis à jour la séance <strong>"
+                        + esc(workout.getTitle()) + "</strong> (" + workout.getStatus() + ").</p>"
+                        + cta("Ouvrir Darilab", frontendUrl + "/app");
+                send(c.getEmail(), subject, html);
+            }
         });
-        coach.map(User::getEmail)
-                .ifPresent(coachEmail -> {
-                    String athlete = esc(workout.getAthlete().getFirstName() + " "
-                            + workout.getAthlete().getLastName());
-                    String subject = athlete + " a renseigné une séance";
-                    String html = "<p>" + athlete + " a mis à jour la séance <strong>"
-                            + esc(workout.getTitle()) + "</strong> (" + workout.getStatus() + ").</p>"
-                            + cta("Ouvrir Darilab", frontendUrl + "/app");
-                    send(coachEmail, subject, html);
-                });
     }
 
     private Optional<User> coachToNotify(Workout workout) {
@@ -151,11 +153,13 @@ public class NotificationService {
         record(coach.getId(), "COACH_ALERTS", "Alertes à traiter",
                 count + (count > 1 ? " athlètes nécessitent votre attention" : " athlète nécessite votre attention"),
                 "/app");
-        pushService.sendToUser(coach.getId(), "Alertes à traiter",
-                count + (count > 1 ? " athlètes à surveiller" : " athlète à surveiller"),
-                frontendUrl + "/app");
+        if (coach.isNotifyPushEnabled()) {
+            pushService.sendToUser(coach.getId(), "Alertes à traiter",
+                    count + (count > 1 ? " athlètes à surveiller" : " athlète à surveiller"),
+                    frontendUrl + "/app");
+        }
 
-        if (coach.getEmail() == null) {
+        if (coach.getEmail() == null || !coach.isNotifyEmailEnabled()) {
             return;
         }
         StringBuilder items = new StringBuilder();
@@ -185,6 +189,11 @@ public class NotificationService {
     public void notifyWorkoutReminder(Workout workout) {
         String email = workout.getAthlete().getEmail();
         if (email == null) {
+            return;
+        }
+        boolean emailMuted = userRepository.findByAthleteId(workout.getAthlete().getId())
+                .map(u -> !u.isNotifyEmailEnabled()).orElse(false);
+        if (emailMuted) {
             return;
         }
         send(email, "Rappel : séance demain",

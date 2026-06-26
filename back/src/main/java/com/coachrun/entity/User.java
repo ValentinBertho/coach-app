@@ -72,4 +72,11 @@ public class User extends BaseEntity {
 
     @Column(name = "invite_expires_at")
     private java.time.Instant inviteExpiresAt;
+
+    /** Préférences de notification (l'in-app reste toujours actif). */
+    @Column(name = "notify_email_enabled", nullable = false)
+    private boolean notifyEmailEnabled = true;
+
+    @Column(name = "notify_push_enabled", nullable = false)
+    private boolean notifyPushEnabled = true;
 }
