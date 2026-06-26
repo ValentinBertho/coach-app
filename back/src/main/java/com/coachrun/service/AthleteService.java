@@ -191,7 +191,7 @@ public class AthleteService {
                 .filter(a -> a.getInviteExpiresAt() != null
                         && a.getInviteExpiresAt().isAfter(Instant.now()))
                 .orElseThrow(() -> new NotFoundException("Invitation invalide ou expirée."));
-        return new InvitationInfoResponse(athlete.getFirstName(), athlete.getClub().getName());
+        return new InvitationInfoResponse(athlete.getFirstName(), athlete.getClub().getName(), athlete.getEmail());
     }
 
     private Athlete requireAthlete(UUID clubId, UUID athleteId) {

@@ -46,6 +46,12 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final com.coachrun.security.TokenBlacklist tokenBlacklist;
+    private final NotificationService notificationService;
+
+    private static final java.security.SecureRandom RESET_RANDOM = new java.security.SecureRandom();
+
+    @org.springframework.beans.factory.annotation.Value("${app.frontend-url}")
+    private String frontendUrl;
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -119,7 +125,7 @@ public class AuthService {
      * ATHLETE rattaché à l'athlète, puis émet les jetons. Sans mot de passe.
      */
     @Transactional
-    public AuthResponse acceptInvitation(String token, boolean healthDataConsent) {
+    public AuthResponse acceptInvitation(String token, boolean healthDataConsent, String email, String password) {
         Athlete athlete = athleteRepository.findByInviteToken(token)
                 .filter(a -> a.getInviteExpiresAt() != null
                         && a.getInviteExpiresAt().isAfter(java.time.Instant.now()))
@@ -129,16 +135,37 @@ public class AuthService {
             athlete.setHealthDataConsentAt(java.time.Instant.now());
         }
 
-        User user = userRepository.findByAthleteId(athlete.getId()).orElseGet(() -> {
-            User u = new User();
-            u.setEmail("ath-" + athlete.getId() + "@athlete.coachrun.local");
-            u.setFullName(athlete.getFirstName() + " " + athlete.getLastName());
-            u.setRole(UserRole.ATHLETE);
-            u.setStatus(UserStatus.ACTIVE);
-            u.setClub(athlete.getClub());
-            u.setAthlete(athlete);
-            return userRepository.save(u);
-        });
+        // Identifiant de connexion : e-mail fourni, sinon e-mail de l'athlète, sinon adresse interne.
+        String provided = org.springframework.util.StringUtils.hasText(email) ? email.trim().toLowerCase() : null;
+        String existing = org.springframework.util.StringUtils.hasText(athlete.getEmail())
+                ? athlete.getEmail().toLowerCase() : null;
+        String loginEmail = provided != null ? provided
+                : (existing != null ? existing : "ath-" + athlete.getId() + "@athlete.coachrun.local");
+
+        User user = userRepository.findByAthleteId(athlete.getId()).orElse(null);
+        if (user == null) {
+            user = new User();
+            user.setFullName(athlete.getFirstName() + " " + athlete.getLastName());
+            user.setRole(UserRole.ATHLETE);
+            user.setClub(athlete.getClub());
+            user.setAthlete(athlete);
+        }
+        // Anti-collision : un autre compte ne doit pas déjà porter cet e-mail réel.
+        if (!loginEmail.endsWith("@athlete.coachrun.local")) {
+            User other = userRepository.findByEmailIgnoreCase(loginEmail).orElse(null);
+            if (other != null && !other.getId().equals(user.getId())) {
+                throw new ConflictException("Un compte existe déjà avec cet e-mail.");
+            }
+        }
+        user.setEmail(loginEmail);
+        user.setStatus(UserStatus.ACTIVE);
+        if (org.springframework.util.StringUtils.hasText(password)) {
+            user.setPasswordHash(passwordEncoder.encode(password));
+        }
+        user = userRepository.save(user);
+        if (provided != null && existing == null) {
+            athlete.setEmail(loginEmail);
+        }
 
         athlete.setStatus(AthleteStatus.ACTIVE);
         athlete.setInviteToken(null);
@@ -166,6 +193,53 @@ public class AuthService {
         user.setInviteToken(null);
         user.setInviteExpiresAt(null);
         log.info("Invitation coach acceptée (user={})", user.getId());
+        return toAuthResponse(user);
+    }
+
+    /**
+     * Demande de réinitialisation : envoie un lien si un compte avec e-mail réel existe. Ne révèle
+     * jamais l'existence du compte (réponse identique dans tous les cas).
+     */
+    @Transactional
+    public void requestPasswordReset(String email) {
+        if (!org.springframework.util.StringUtils.hasText(email)) {
+            return;
+        }
+        userRepository.findByEmailIgnoreCase(email.trim().toLowerCase()).ifPresent(u -> {
+            if (u.getEmail() == null || u.getEmail().endsWith("@athlete.coachrun.local")) {
+                return; // compte sans e-mail réel (athlète lien magique) → pas de reset par e-mail
+            }
+            byte[] bytes = new byte[32];
+            RESET_RANDOM.nextBytes(bytes);
+            String token = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+            u.setResetToken(token);
+            u.setResetExpiresAt(java.time.Instant.now().plus(2, java.time.temporal.ChronoUnit.HOURS));
+            notificationService.notifyPasswordReset(u.getEmail(), u.getFullName(),
+                    frontendUrl + "/reset-password/" + token);
+            log.info("Réinitialisation de mot de passe demandée (user={})", u.getId());
+        });
+    }
+
+    /** Vrai si le jeton de réinitialisation est valide et non expiré. */
+    public boolean resetTokenValid(String token) {
+        return userRepository.findByResetToken(token)
+                .filter(u -> u.getResetExpiresAt() != null
+                        && u.getResetExpiresAt().isAfter(java.time.Instant.now()))
+                .isPresent();
+    }
+
+    /** Applique le nouveau mot de passe et ouvre une session. */
+    @Transactional
+    public AuthResponse resetPassword(String token, String password) {
+        User user = userRepository.findByResetToken(token)
+                .filter(u -> u.getResetExpiresAt() != null
+                        && u.getResetExpiresAt().isAfter(java.time.Instant.now()))
+                .orElseThrow(() -> new NotFoundException("Lien de réinitialisation invalide ou expiré."));
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setStatus(UserStatus.ACTIVE);
+        user.setResetToken(null);
+        user.setResetExpiresAt(null);
+        log.info("Mot de passe réinitialisé (user={})", user.getId());
         return toAuthResponse(user);
     }
 

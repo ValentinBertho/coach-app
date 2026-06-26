@@ -204,6 +204,18 @@ public class NotificationService {
                         + cta("Voir ma séance", frontendUrl + "/athlete/today"));
     }
 
+    /** Réinitialisation de mot de passe : e-mail avec le lien de redéfinition. */
+    public void notifyPasswordReset(String email, String fullName, String url) {
+        if (email == null) {
+            return;
+        }
+        String html = "<p>Bonjour " + esc(fullName) + ",</p>"
+                + "<p>Vous avez demandé à réinitialiser votre mot de passe Darilab.</p>"
+                + cta("Choisir un nouveau mot de passe", url)
+                + "<p>Ce lien expire dans 2 heures. Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.</p>";
+        send(email, "Réinitialisation de votre mot de passe Darilab", html);
+    }
+
     /** Invitation d'un coach au club : e-mail avec le lien d'acceptation (création de compte). */
     public void notifyCoachInvitation(String email, String fullName, String clubName, String url) {
         if (email == null) {
