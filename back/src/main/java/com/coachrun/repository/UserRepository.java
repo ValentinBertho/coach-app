@@ -20,6 +20,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByAthleteId(UUID athleteId);
 
+    Optional<User> findByInviteToken(String inviteToken);
+
     Optional<User> findFirstByClubIdAndRole(UUID clubId, UserRole role);
 
     long countByRole(UserRole role);

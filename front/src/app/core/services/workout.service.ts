@@ -45,4 +45,22 @@ export class WorkoutService {
   delete(athleteId: string, workoutId: string): Observable<void> {
     return this.http.delete<void>(`${this.base(athleteId)}/${workoutId}`);
   }
+
+  /** Duplique une semaine de séances (lundis) vers une autre semaine. Renvoie le nb créé. */
+  duplicateWeek(athleteId: string, sourceWeekStart: string, targetWeekStart: string): Observable<{ created: number }> {
+    return this.http.post<{ created: number }>(
+      `${this.base(athleteId)}/duplicate-week`,
+      { sourceWeekStart, targetWeekStart },
+    );
+  }
+
+  /** Génère un mésocycle progressif à partir d'une semaine type. */
+  generateMesocycle(athleteId: string, params: {
+    sourceWeekStart: string; firstWeekStart: string; weeks: number;
+    increasePct: number; deloadEvery: number; deloadPct: number;
+  }): Observable<{ created: number; weeks: number }> {
+    return this.http.post<{ created: number; weeks: number }>(
+      `${this.base(athleteId)}/generate-mesocycle`, params,
+    );
+  }
 }

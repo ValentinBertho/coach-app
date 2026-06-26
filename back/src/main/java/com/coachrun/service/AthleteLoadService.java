@@ -29,6 +29,7 @@ public class AthleteLoadService {
 
     private final AthleteRepository athleteRepository;
     private final WorkoutRepository workoutRepository;
+    private final com.coachrun.repository.StrengthLoadTrackingRepository strengthLoadRepository;
     private final LoadEngine loadEngine;
 
     /** Charge — variante athlète-scopée (portail /me) : résout le club de l'athlète. */
@@ -58,6 +59,19 @@ public class AthleteLoadService {
             }
             double load = w.getRpe() * (durationS / 60.0);
             sessions.add(new SessionLoad(w.getScheduledDate(), load, w.getRpe()));
+        }
+
+        // Fusion de la charge de force (charge métabolique, UA) dans le score sRPE global, pour
+        // que l'ACWR/monotonie reflètent course ET renforcement (cf. DARI Lab — charge unifiée).
+        for (var t : strengthLoadRepository
+                .findByAthleteIdAndSessionDateBetweenOrderBySessionDateAsc(athleteId, from, today)) {
+            if (t.getMetabolicLoad() == null) {
+                continue;
+            }
+            double load = t.getMetabolicLoad().doubleValue();
+            if (load > 0) {
+                sessions.add(new SessionLoad(t.getSessionDate(), load, 6)); // force ≈ domaine 2
+            }
         }
 
         return LoadResponse.from(loadEngine.compute(sessions, today));

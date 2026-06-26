@@ -6,6 +6,34 @@
   <app-segmented-control [options]="scopeOptions" [value]="scope()" (valueChange)="setScope($event)" [ariaLabel]="'Périmètre'" />
 </section>
 
+<!-- ===== Zone 0 : alertes actionnables (pilotage par exception) ===== -->
+@if (alerts().length) {
+  <section class="cockpit-zone">
+    <header class="zone-head">
+      <h2>Alertes à traiter</h2>
+      <span class="zone-count">{{ alerts().length }}</span>
+    </header>
+    <ul class="alert-list">
+      @for (al of alerts(); track $index) {
+        <li>
+          <a class="alert-row card-interactive" [routerLink]="['/app/athletes', al.athleteId]">
+            <span class="alert-dot" [class.alert-dot--red]="al.severity === 'RED'"
+                  [class.alert-dot--orange]="al.severity === 'ORANGE'"></span>
+            <div class="alert-body">
+              <div class="alert-line">
+                <strong>{{ al.athleteName }}</strong>
+                <span class="alert-title">{{ al.title }}</span>
+              </div>
+              <span class="field-hint">{{ al.detail }}</span>
+            </div>
+            <span class="alert-go">→</span>
+          </a>
+        </li>
+      }
+    </ul>
+  </section>
+}
+
 <!-- ===== Zone 1 : à surveiller aujourd'hui (priorité) ===== -->
 <section class="cockpit-zone">
   <header class="zone-head">

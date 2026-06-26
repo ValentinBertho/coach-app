@@ -33,7 +33,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clubs/{clubId}/athletes/{athleteId}")
 @RequiredArgsConstructor
-@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)")
+@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
 public class AthletePhysioController {
 
     private final AthletePhysioService physioService;
@@ -44,6 +44,7 @@ public class AthletePhysioController {
         return physioService.getProfile(clubId, athleteId);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PutMapping("/physio")
     public PhysioProfileResponse updateProfile(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                                @Valid @RequestBody PhysioProfileRequest request) {
@@ -56,6 +57,7 @@ public class AthletePhysioController {
         return physioService.listPerformances(clubId, athleteId);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/performances")
     @ResponseStatus(HttpStatus.CREATED)
     public PerformanceResponse addPerformance(@PathVariable UUID clubId, @PathVariable UUID athleteId,
@@ -63,6 +65,7 @@ public class AthletePhysioController {
         return physioService.addPerformance(clubId, athleteId, request);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/performances/{performanceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deletePerformance(@PathVariable UUID clubId, @PathVariable UUID athleteId,
@@ -72,6 +75,7 @@ public class AthletePhysioController {
 
 
     /** Test de Vitesse Critique : calcule la VC (+ D') depuis plusieurs efforts. */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @org.springframework.web.bind.annotation.PostMapping("/vc-test")
     public com.coachrun.dto.response.VcTestResponse vcTest(
             @org.springframework.web.bind.annotation.PathVariable java.util.UUID clubId,

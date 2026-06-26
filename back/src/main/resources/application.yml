@@ -71,7 +71,9 @@ app:
   mail:
     enabled: ${MAIL_ENABLED:false}
     resend-api-key: ${RESEND_API_KEY:}
-    from: ${MAIL_FROM:CoachRun <no-reply@coachrun.fr>}
+    from: ${MAIL_FROM:Darilab <no-reply@darilab.app>}
+  alerts:
+    digest-cron: ${ALERTS_DIGEST_CRON:0 0 7 * * *}
   vapid:
     public-key: ${VAPID_PUBLIC_KEY:}
     private-key: ${VAPID_PRIVATE_KEY:}
@@ -80,6 +82,7 @@ app:
     client-id: ${STRAVA_CLIENT_ID:}
     client-secret: ${STRAVA_CLIENT_SECRET:}
     redirect-uri: ${STRAVA_REDIRECT_URI:http://localhost:4200/app/strava/callback}
+    sync-cron: ${STRAVA_SYNC_CRON:0 30 * * * *}
   demo:
     reset:
       enabled: ${DEMO_RESET_ENABLED:false}   # RAZ démo : interdit par défaut (jamais en prod)

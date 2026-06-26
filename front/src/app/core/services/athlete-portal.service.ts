@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { RaceObjective } from '../models/race.model';
+import { WorkoutPrescription } from '../models/course.model';
 import { Unavailability } from '../models/unavailability.model';
 import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
 import { Activity } from '../models/activity.model';
@@ -57,6 +58,11 @@ export class AthletePortalService {
   workouts(from: string, to: string): Observable<Workout[]> {
     const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<Workout[]>(`${this.base}/workouts`, { params });
+  }
+
+  /** Prescription calculée d'une séance course (cibles allure/FC/RPE personnalisées). */
+  workoutPrescription(workoutId: string): Observable<WorkoutPrescription> {
+    return this.http.get<WorkoutPrescription>(`${this.base}/workouts/${workoutId}/prescription`);
   }
 
   /** L'athlète déplace une séance course (change la date, jamais le contenu). */

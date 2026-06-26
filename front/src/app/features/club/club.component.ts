@@ -6,6 +6,7 @@ import { AuthService } from '../../core/services/auth.service';
 import {
   AthleteAccess,
   ClubMember,
+  ClubRole,
   ClubService,
   PermissionLevel,
 } from '../../core/services/club.service';
@@ -50,6 +51,14 @@ export class ClubComponent implements OnInit {
     OWNER: 'Owner', COACH_PRINCIPAL: 'Coach principal', COACH_ASSISTANT: 'Coach assistant',
   };
 
+  // Ajout / invitation d'un coach au club.
+  newCoachEmail = '';
+  newCoachName = '';
+  newCoachRole: ClubRole = 'COACH_ASSISTANT';
+  readonly addableRoles: ClubRole[] = ['COACH_PRINCIPAL', 'COACH_ASSISTANT'];
+  readonly addingCoach = signal(false);
+  readonly lastInviteUrl = signal<string | null>(null);
+
   ngOnInit(): void {
     this.clubService.members().subscribe({
       next: (m) => { this.members.set(m); this.loadingMembers.set(false); },
@@ -58,6 +67,43 @@ export class ClubComponent implements OnInit {
     this.athletes.list({ status: 'ACTIVE' }).subscribe((p) => this.athleteList.set(p.content));
     this.templateService.list().subscribe((p) => this.courseTemplates.set(p.content));
     this.strengthService.listSessions().subscribe((p) => this.strengthSessions.set(p.content));
+  }
+
+  addCoach(): void {
+    const email = this.newCoachEmail.trim();
+    if (!email || this.addingCoach()) return;
+    this.addingCoach.set(true);
+    this.lastInviteUrl.set(null);
+    this.clubService.addCoach(email, this.newCoachRole, this.newCoachName.trim() || undefined).subscribe({
+      next: (r) => {
+        this.addingCoach.set(false);
+        this.newCoachEmail = '';
+        this.newCoachName = '';
+        if (r.invited) {
+          this.lastInviteUrl.set(r.inviteUrl);
+          this.toast.success(`${r.name} invité·e — lien d'activation envoyé par e-mail`);
+        } else {
+          this.toast.success(`${r.name} ajouté au club`);
+        }
+        // Rafraîchir la liste (statut en attente, rôle).
+        this.clubService.members().subscribe((m) => this.members.set(m));
+      },
+      error: (e) => {
+        this.addingCoach.set(false);
+        this.toast.warning(e?.error?.message ?? 'Ajout impossible (déjà membre, ou compte non-coach).');
+      },
+    });
+  }
+
+  removeMember(m: ClubMember): void {
+    if (m.clubRole === 'OWNER') return;
+    this.clubService.removeCoach(m.coachId).subscribe({
+      next: () => {
+        this.members.update((list) => list.filter((x) => x.coachId !== m.coachId));
+        this.toast.info(`${m.name} retiré du club.`);
+      },
+      error: () => this.toast.error('Retrait impossible.'),
+    });
   }
 
   onAthleteChange(id: string): void {

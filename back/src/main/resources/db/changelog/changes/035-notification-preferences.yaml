@@ -1,0 +1,22 @@
+# ============================================================================
+# 035 — Préférences de notification par utilisateur (additif) :
+#   notify_email_enabled / notify_push_enabled sur users (l'in-app reste toujours actif).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 035-notification-preferences
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: notify_email_enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints: { nullable: false }
+              - column:
+                  name: notify_push_enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints: { nullable: false }

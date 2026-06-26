@@ -48,6 +48,7 @@ public class CourseSessionController {
 
     /** Séance entièrement calculée (allures/FC/RPE/totaux) pour un athlète. */
     @GetMapping("/athletes/{athleteId}/workout-templates/{templateId}/calculated")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
     public CalculatedSessionResponse calculated(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                                 @PathVariable UUID templateId) {
         return courseSessionService.calculateForAthlete(clubId, athleteId, templateId);
@@ -56,6 +57,7 @@ public class CourseSessionController {
     /** Assigne la séance au calendrier de l'athlète (snapshot figé + cibles calculées). */
     @PostMapping("/athletes/{athleteId}/workout-templates/{templateId}/schedule")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     public WorkoutResponse schedule(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                     @PathVariable UUID templateId,
                                     @Valid @RequestBody ScheduleSessionRequest request) {

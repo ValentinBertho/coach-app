@@ -1,0 +1,35 @@
+# ============================================================================
+# 033 — Centre de notifications in-app (additif).
+#   notifications : notification persistée par utilisateur (lu/non-lu).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 033-notifications
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: notifications
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: type, type: VARCHAR(48), constraints: { nullable: false } }
+              - column: { name: title, type: VARCHAR(160), constraints: { nullable: false } }
+              - column: { name: body, type: VARCHAR(500) }
+              - column: { name: link, type: VARCHAR(255) }
+              - column: { name: read_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_notifications_user
+            baseTableName: notifications
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_notifications_user_created
+            tableName: notifications
+            columns:
+              - column: { name: user_id }
+              - column: { name: created_at }

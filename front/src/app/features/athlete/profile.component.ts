@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
@@ -7,8 +7,12 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { DataOriginTagComponent } from '../../shared/components/physiology';
-import { PhysioProfile, Vdot } from '../../core/models/physio.model';
+import { PhysioProfile, Performance, Vdot } from '../../core/models/physio.model';
+import { LactateTest } from '../../core/models/lactate.model';
 import { RaceObjective } from '../../core/models/race.model';
+
+interface TrendPoint { date: string; value: number; }
+interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
 
 /**
  * Profil & confidentialité athlète (mobile-first). Phase 1 « Me connaître » :
@@ -63,6 +67,51 @@ import { RaceObjective } from '../../core/models/race.model';
               </div>
             } @else {
               <p class="field-hint">Ton profil sera renseigné par ton coach après tes premiers tests.</p>
+            }
+          </section>
+        }
+
+        <!-- Ma progression physio (tendance VDOT + seuils) -->
+        @if (vdotPoints().length >= 2 || ltPoints().length >= 2) {
+          <section class="card">
+            <div class="card-hd">
+              <h2>Ma progression</h2>
+              <app-data-origin-tag origin="mesure" label="Mesuré" />
+            </div>
+
+            @if (vdotPoints().length >= 2) {
+              <div class="trend">
+                <div class="trend-hd">
+                  <span class="field-hint">VDOT</span>
+                  <span class="trend-delta" [class.up]="vdotDelta() >= 0" [class.down]="vdotDelta() < 0">
+                    {{ vdotDelta() >= 0 ? '▲' : '▼' }} {{ absVdot() | number: '1.0-1' }}
+                  </span>
+                </div>
+                <svg viewBox="0 0 300 90" class="trend-svg" preserveAspectRatio="none" role="img" aria-label="Évolution du VDOT">
+                  <polyline [attr.points]="vdotLine()" fill="none" stroke="var(--dari-violet)" stroke-width="2.5" />
+                </svg>
+                <div class="trend-x field-hint">
+                  <span>{{ vdotPoints()[0].date | date: 'MM/yy' }}</span>
+                  <span>{{ vdotPoints()[vdotPoints().length - 1].date | date: 'MM/yy' }}</span>
+                </div>
+              </div>
+            }
+
+            @if (ltPoints().length >= 2) {
+              <div class="trend">
+                <div class="trend-hd">
+                  <span class="field-hint">Seuils (km/h)</span>
+                  <span class="legend"><i class="sw sw-1"></i>LT1 <i class="sw sw-2"></i>LT2</span>
+                </div>
+                <svg viewBox="0 0 300 90" class="trend-svg" preserveAspectRatio="none" role="img" aria-label="Évolution des seuils">
+                  @if (lt1Line()) { <polyline [attr.points]="lt1Line()" fill="none" stroke="var(--form-green, #11c08b)" stroke-width="2.5" /> }
+                  @if (lt2Line()) { <polyline [attr.points]="lt2Line()" fill="none" stroke="var(--form-orange, #ff8a3c)" stroke-width="2.5" /> }
+                </svg>
+                <div class="trend-x field-hint">
+                  <span>{{ ltPoints()[0].date | date: 'MM/yy' }}</span>
+                  <span>{{ ltPoints()[ltPoints().length - 1].date | date: 'MM/yy' }}</span>
+                </div>
+              </div>
             }
           </section>
         }
@@ -163,6 +212,19 @@ import { RaceObjective } from '../../core/models/race.model';
     .prio-C { background: var(--canvas); color: var(--ink-3); }
     .race-j { font-weight: 800; color: var(--dari-violet); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .race-j.past { color: var(--ink-4); }
+
+    .trend { margin-top: var(--sp-3); }
+    .trend:first-of-type { margin-top: var(--sp-2); }
+    .trend-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+    .trend-svg { width: 100%; height: 90px; }
+    .trend-delta { font-weight: 800; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+    .trend-delta.up { color: var(--success-text); }
+    .trend-delta.down { color: var(--danger-text); }
+    .trend-x { display: flex; justify-content: space-between; }
+    .legend { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--ink-3); }
+    .legend .sw { width: 12px; height: 0; border-top: 2px solid; display: inline-block; vertical-align: middle; }
+    .legend .sw-1 { border-color: var(--form-green, #11c08b); }
+    .legend .sw-2 { border-color: var(--form-orange, #ff8a3c); }
   `],
 })
 export class AthleteProfileComponent implements OnInit {
@@ -176,11 +238,72 @@ export class AthleteProfileComponent implements OnInit {
   readonly physio = signal<PhysioProfile | null>(null);
   readonly vdot = signal<Vdot | null>(null);
   readonly races = signal<RaceObjective[] | null>(null);
+  readonly performances = signal<Performance[]>([]);
+  readonly lactateTests = signal<LactateTest[]>([]);
+
+  /** Points VDOT datés (depuis les performances), ordonnés dans le temps. */
+  readonly vdotPoints = computed<TrendPoint[]>(() =>
+    this.performances()
+      .filter((p) => p.vdot != null && p.dateSet)
+      .map((p) => ({ date: p.dateSet as string, value: p.vdot as number }))
+      .sort((a, b) => a.date.localeCompare(b.date)));
+
+  /** Points seuils datés (depuis les tests lactate), en km/h, ordonnés dans le temps. */
+  readonly ltPoints = computed<LtPoint[]>(() =>
+    this.lactateTests()
+      .filter((t) => t.testDate && (t.lt1Ms != null || t.lt2Ms != null))
+      .map((t) => ({
+        date: t.testDate,
+        lt1: t.lt1Ms != null ? Math.round(t.lt1Ms * 3.6 * 10) / 10 : null,
+        lt2: t.lt2Ms != null ? Math.round(t.lt2Ms * 3.6 * 10) / 10 : null,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date)));
+
+  readonly vdotDelta = computed(() => {
+    const p = this.vdotPoints();
+    return p.length >= 2 ? p[p.length - 1].value - p[0].value : 0;
+  });
+  absVdot(): number { return Math.abs(this.vdotDelta()); }
+
+  readonly vdotLine = computed(() => {
+    const vals = this.vdotPoints().map((p) => p.value);
+    return this.poly(vals, Math.min(...vals), Math.max(...vals));
+  });
+
+  readonly lt1Line = computed(() => this.ltLine((p) => p.lt1));
+  readonly lt2Line = computed(() => this.ltLine((p) => p.lt2));
+
+  private ltLine(pick: (p: LtPoint) => number | null): string {
+    const pts = this.ltPoints();
+    const all = pts.flatMap((p) => [p.lt1, p.lt2]).filter((v): v is number => v != null);
+    if (all.length === 0) return '';
+    const min = Math.min(...all);
+    const max = Math.max(...all);
+    return this.poly(pts.map(pick), min, max);
+  }
+
+  /** Polyligne SVG (viewBox 300×90) d'une série, valeurs nulles omises. */
+  private poly(vals: (number | null)[], min: number, max: number): string {
+    const W = 300, H = 90, PT = 8, PB = 8;
+    const span = max - min || 1;
+    const n = vals.length;
+    return vals
+      .map((v, i) => {
+        if (v == null) return null;
+        const x = n === 1 ? W / 2 : (i / (n - 1)) * W;
+        const y = (H - PB) - ((v - min) / span) * (H - PT - PB);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .filter((s): s is string => s != null)
+      .join(' ');
+  }
 
   ngOnInit(): void {
     this.portal.physio().subscribe({ next: (p) => this.physio.set(p), error: () => this.physio.set(null) });
     this.portal.vdot().subscribe({ next: (v) => this.vdot.set(v), error: () => this.vdot.set(null) });
     this.portal.races().subscribe({ next: (r) => this.races.set(r), error: () => this.races.set(null) });
+    this.portal.performances().subscribe({ next: (p) => this.performances.set(p), error: () => this.performances.set([]) });
+    this.portal.lactateTests().subscribe({ next: (t) => this.lactateTests.set(t), error: () => this.lactateTests.set([]) });
   }
 
   /** Au moins une donnée physio renseignée (sinon on affiche un message d'attente). */

@@ -33,7 +33,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clubs/{clubId}/athletes/{athleteId}/workouts")
 @RequiredArgsConstructor
-@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)")
+@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
 public class WorkoutController {
 
     private final WorkoutService workoutService;
@@ -60,6 +60,7 @@ public class WorkoutController {
         return workoutService.prescription(clubId, workoutId);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public WorkoutResponse create(@PathVariable UUID clubId, @PathVariable UUID athleteId,
@@ -67,12 +68,14 @@ public class WorkoutController {
         return workoutService.create(clubId, athleteId, request);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PutMapping("/{workoutId}")
     public WorkoutResponse update(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                   @PathVariable UUID workoutId, @Valid @RequestBody WorkoutRequest request) {
         return workoutService.update(clubId, workoutId, request);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PatchMapping("/{workoutId}/reschedule")
     public WorkoutResponse reschedule(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                       @PathVariable UUID workoutId,
@@ -80,6 +83,7 @@ public class WorkoutController {
         return workoutService.reschedule(clubId, workoutId, request.scheduledDate());
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PatchMapping("/{workoutId}/status")
     public WorkoutResponse updateStatus(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                         @PathVariable UUID workoutId,
@@ -87,10 +91,35 @@ public class WorkoutController {
         return workoutService.updateStatus(clubId, workoutId, request.status());
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/{workoutId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                        @PathVariable UUID workoutId) {
         workoutService.delete(clubId, workoutId);
+    }
+
+    /** Planification en cycles : duplique une semaine de séances vers une autre semaine. */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PostMapping("/duplicate-week")
+    public java.util.Map<String, Integer> duplicateWeek(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId,
+            @Valid @RequestBody com.coachrun.dto.request.DuplicateWeekRequest request) {
+        int created = workoutService.duplicateWeek(
+                clubId, athleteId, request.sourceWeekStart(), request.targetWeekStart());
+        return java.util.Map.of("created", created);
+    }
+
+    /** Périodisation assistée : génère un mésocycle progressif depuis une semaine type. */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PostMapping("/generate-mesocycle")
+    public java.util.Map<String, Integer> generateMesocycle(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId,
+            @Valid @RequestBody com.coachrun.dto.request.GenerateMesocycleRequest request) {
+        int created = workoutService.generateMesocycle(
+                clubId, athleteId, request.sourceWeekStart(), request.firstWeekStart(),
+                request.weeks(), request.increasePctOrDefault(),
+                request.deloadEveryOrDefault(), request.deloadPctOrDefault());
+        return java.util.Map.of("created", created, "weeks", request.weeks());
     }
 }

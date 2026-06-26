@@ -28,11 +28,12 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clubs/{clubId}/athletes/{athleteId}/pp")
 @RequiredArgsConstructor
-@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)")
+@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
 public class StrengthScheduleController {
 
     private final StrengthScheduleService scheduleService;
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/sessions/{sessionId}/schedule")
     @ResponseStatus(HttpStatus.CREATED)
     public ScheduledStrengthResponse schedule(@PathVariable UUID clubId, @PathVariable UUID athleteId,

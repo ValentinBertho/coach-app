@@ -14,7 +14,7 @@ import {
   Mountain, MountainSnow, Bike, Moon, Timer, Flame, Zap, Wind, Target, FlaskConical, Flag,
   HeartPulse, Thermometer, Palmtree, Pin, Ban, Bell, FileText, Paperclip, Lock, Blocks, BookOpen,
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
-  Move, Hand, PartyPopper, Circle, Activity, ChevronRight,
+  Move, Hand, PartyPopper, Circle, Activity, ChevronRight, Copy,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -29,7 +29,7 @@ const ICONS = {
   Mountain, MountainSnow, Bike, Moon, Timer, Flame, Zap, Wind, Target, FlaskConical, Flag,
   HeartPulse, Thermometer, Palmtree, Pin, Ban, Bell, FileText, Paperclip, Lock, Blocks, BookOpen,
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
-  Move, Hand, PartyPopper, Circle, Activity, ChevronRight,
+  Move, Hand, PartyPopper, Circle, Activity, ChevronRight, Copy,
 };
 
 export const appConfig: ApplicationConfig = {

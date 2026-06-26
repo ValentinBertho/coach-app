@@ -42,6 +42,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final ClubRepository clubRepository;
     private final AthleteRepository athleteRepository;
+    private final com.coachrun.repository.ClubMemberRepository clubMemberRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final com.coachrun.security.TokenBlacklist tokenBlacklist;
@@ -66,6 +67,14 @@ public class AuthService {
         user.setStatus(UserStatus.ACTIVE);
         user.setClub(club);
         user = userRepository.save(user);
+
+        // Le créateur du club en est le propriétaire (membership multi-coach).
+        com.coachrun.entity.ClubMember owner = new com.coachrun.entity.ClubMember();
+        owner.setClub(club);
+        owner.setCoach(user);
+        owner.setClubRole(com.coachrun.entity.enums.ClubRole.OWNER);
+        owner.setActive(true);
+        clubMemberRepository.save(owner);
 
         log.info("Nouveau coach inscrit (club={})", club.getId());
         return toAuthResponse(user);
@@ -135,6 +144,36 @@ public class AuthService {
         athlete.setInviteToken(null);
         athlete.setInviteExpiresAt(null);
         return toAuthResponse(user);
+    }
+
+    /** Infos publiques d'une invitation coach (page d'acceptation). */
+    public com.coachrun.dto.response.CoachInvitationInfoResponse coachInvitationInfo(String token) {
+        User user = requireCoachInvite(token);
+        String clubName = user.getClub() != null ? user.getClub().getName() : null;
+        return new com.coachrun.dto.response.CoachInvitationInfoResponse(
+                user.getEmail(), user.getFullName(), clubName);
+    }
+
+    /** Acceptation d'une invitation coach : définit le mot de passe et active le compte. */
+    @Transactional
+    public AuthResponse acceptCoachInvitation(String token, String password, String fullName) {
+        User user = requireCoachInvite(token);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        if (org.springframework.util.StringUtils.hasText(fullName)) {
+            user.setFullName(fullName.trim());
+        }
+        user.setStatus(UserStatus.ACTIVE);
+        user.setInviteToken(null);
+        user.setInviteExpiresAt(null);
+        log.info("Invitation coach acceptée (user={})", user.getId());
+        return toAuthResponse(user);
+    }
+
+    private User requireCoachInvite(String token) {
+        return userRepository.findByInviteToken(token)
+                .filter(u -> u.getInviteExpiresAt() != null
+                        && u.getInviteExpiresAt().isAfter(java.time.Instant.now()))
+                .orElseThrow(() -> new NotFoundException("Invitation invalide ou expirée."));
     }
 
     public UserResponse currentUser(UUID userId) {

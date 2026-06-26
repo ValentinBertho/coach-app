@@ -186,3 +186,10 @@
   background: color-mix(in srgb, var(--accent-2) 14%, var(--paper));
   border-left: 3px solid var(--accent-2); color: var(--ink);
 }
+
+/* --- Mésocycle (périodisation assistée) ----------------------------------- */
+.meso-panel { margin: 0 0 var(--sp-4); }
+.meso-panel h2 { margin: 0 0 var(--sp-1); font-size: var(--text-lg); }
+.meso-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--sp-3); margin: var(--sp-3) 0; }
+.meso-grid label { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); color: var(--ink-2); font-weight: 600; }
+.meso-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); }

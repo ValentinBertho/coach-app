@@ -8,6 +8,7 @@ import com.coachrun.dto.response.PageResponse;
 import com.coachrun.dto.response.RefResponse;
 import com.coachrun.dto.response.TrainingPlanResponse;
 import com.coachrun.entity.enums.AthleteStatus;
+import com.coachrun.security.AuthPrincipal;
 import com.coachrun.service.AthleteService;
 import com.coachrun.service.TrainingPlanService;
 import jakarta.validation.Valid;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -54,6 +56,7 @@ public class AthleteController {
     }
 
     @GetMapping("/{athleteId}")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
     public AthleteResponse get(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
         return athleteService.get(clubId, athleteId);
     }
@@ -61,11 +64,13 @@ public class AthleteController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public AthleteResponse create(@PathVariable UUID clubId,
-                                  @Valid @RequestBody AthleteRequest request) {
-        return athleteService.create(clubId, request);
+                                  @Valid @RequestBody AthleteRequest request,
+                                  @AuthenticationPrincipal AuthPrincipal principal) {
+        return athleteService.create(clubId, request, principal.userId());
     }
 
     @PutMapping("/{athleteId}")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     public AthleteResponse update(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                   @Valid @RequestBody AthleteRequest request) {
         return athleteService.update(clubId, athleteId, request);
@@ -73,11 +78,13 @@ public class AthleteController {
 
     @DeleteMapping("/{athleteId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     public void archive(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
         athleteService.archive(clubId, athleteId);
     }
 
     @PostMapping("/{athleteId}/invitation")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     public AthleteInvitationResponse invite(@PathVariable UUID clubId,
                                             @PathVariable UUID athleteId) {
         return athleteService.invite(clubId, athleteId);
@@ -94,24 +101,28 @@ public class AthleteController {
     }
 
     @PutMapping("/{athleteId}/coaches/{coachId}")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     public AthleteResponse assignCoach(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                        @PathVariable UUID coachId) {
         return athleteService.assignCoach(clubId, athleteId, coachId);
     }
 
     @DeleteMapping("/{athleteId}/coaches/{coachId}")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     public AthleteResponse removeCoach(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                        @PathVariable UUID coachId) {
         return athleteService.removeCoach(clubId, athleteId, coachId);
     }
 
     @PutMapping("/{athleteId}/clubs/{targetClubId}")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     public AthleteResponse addClub(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                    @PathVariable UUID targetClubId) {
         return athleteService.addClub(clubId, athleteId, targetClubId);
     }
 
     @DeleteMapping("/{athleteId}/clubs/{targetClubId}")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     public AthleteResponse removeClub(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                       @PathVariable UUID targetClubId) {
         return athleteService.removeClub(clubId, athleteId, targetClubId);
@@ -119,6 +130,7 @@ public class AthleteController {
 
     /** Plans d'entraînement attribués à cet athlète. */
     @GetMapping("/{athleteId}/plans")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
     public List<TrainingPlanResponse> plans(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
         return planService.listForAthlete(clubId, athleteId);
     }

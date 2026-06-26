@@ -29,6 +29,11 @@ export const routes: Routes = [
       import('./features/public/invitation.component').then((m) => m.InvitationComponent),
   },
   {
+    path: 'coach-invitation/:token',
+    loadComponent: () =>
+      import('./features/public/coach-invitation.component').then((m) => m.CoachInvitationComponent),
+  },
+  {
     // Living styleguide des primitives UI (dev). Cf. docs/ux-redesign-blueprint.md.
     path: 'dev/ui-kit',
     loadComponent: () =>

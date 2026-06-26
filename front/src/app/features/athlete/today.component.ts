@@ -19,6 +19,7 @@ import { InstallButtonComponent } from '../../shared/components/install-button/i
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
 import { PushButtonComponent } from '../../shared/components/push-button/push-button.component';
+import { NotificationBellComponent } from '../../shared/components/notification-bell/notification-bell.component';
 import {
   EffortBadgeComponent,
   type EffortKind,
@@ -61,7 +62,7 @@ type State = 'loading' | 'ready' | 'error';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent, 
     FormsModule, RouterLink,
-    LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent,
+    LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent, NotificationBellComponent,
     IntensityZoneBadgeComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
     PainFatigueSelectorComponent, BottomSheetComponent, StickyActionBarComponent,
   ],

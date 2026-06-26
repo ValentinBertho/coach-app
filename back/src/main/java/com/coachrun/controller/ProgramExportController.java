@@ -22,7 +22,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clubs/{clubId}/athletes/{athleteId}/program")
 @RequiredArgsConstructor
-@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)")
+@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
 public class ProgramExportController {
 
     private final ProgramPdfService programPdfService;

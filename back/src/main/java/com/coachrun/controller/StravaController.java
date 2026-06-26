@@ -22,7 +22,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clubs/{clubId}/athletes/{athleteId}/strava")
 @RequiredArgsConstructor
-@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)")
+@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
 public class StravaController {
 
     private final StravaService stravaService;
@@ -39,6 +39,7 @@ public class StravaController {
     }
 
     /** Finalise la connexion avec le code d'autorisation renvoyé par Strava. */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/connect")
     public StravaStatusResponse connect(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                         @RequestBody Map<String, String> body) {
@@ -46,11 +47,13 @@ public class StravaController {
     }
 
     /** Importe les nouvelles activités Strava. */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/import")
     public Map<String, Integer> importActivities(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
         return Map.of("imported", stravaService.importActivities(clubId, athleteId));
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping
     @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
     public void disconnect(@PathVariable UUID clubId, @PathVariable UUID athleteId) {

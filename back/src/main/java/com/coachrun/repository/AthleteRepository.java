@@ -18,6 +18,9 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
 
     Optional<Athlete> findByInviteToken(String inviteToken);
 
+    /** Vrai si le coach est explicitement assigné à l'athlète (ManyToMany athlete_coaches). */
+    boolean existsByIdAndCoaches_Id(UUID athleteId, UUID coachId);
+
     @Query(value = """
             select distinct a from Athlete a
             left join a.additionalClubs ac

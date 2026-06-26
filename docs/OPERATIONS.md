@@ -158,9 +158,75 @@ Sentry est **inactif tant que le DSN est vide** (no-op).
 
 - [ ] Backups automatisés **+ une restauration testée**.
 - [ ] `SENTRY_DSN` (back) et `sentryDsn` (front) renseignés.
+- [ ] Canal email **activé et testé** : `MAIL_ENABLED=true`, `RESEND_API_KEY`, domaine `MAIL_FROM` vérifié (cf. §8).
 - [ ] Uptime monitor sur `/api/actuator/health`.
 - [ ] Secrets via variables d'env (jamais commités) : `JWT_SECRET`, `FIELD_ENCRYPTION_KEY`,
       `STRAVA_*`, `VAPID_*`, `SENTRY_DSN`.
 - [ ] Logs centralisés + rétention.
 - [ ] Dépendances surveillées (Dependabot/Snyk).
 - [ ] HTTPS + en-têtes proxy (déjà : `forward-headers-strategy: framework`).
+
+---
+
+## 7. Modèle d'accès coach ↔ athlète
+
+L'accès d'un coach à un athlète est résolu par `AthleteAccessValidator` et appliqué
+par `@PreAuthorize` sur les routes `/clubs/{clubId}/athletes/{athleteId}/**`
+(`canRead` en lecture, `canWrite`/`canComment` en écriture) :
+
+1. **Coach référent** (relation active) ⇒ écriture complète.
+2. **Athlète privé** (`coach_athlete_relations.club_id IS NULL`) ⇒ accessible au seul référent.
+3. **Athlète club** ⇒ coach assigné (`athlete_coaches`) ou permission explicite
+   (`athlete_coach_permissions`) ⇒ niveau correspondant ; Owner/Coach principal ⇒ lecture par défaut.
+4. **Fallback** : athlète sans relation référent (données antérieures) ⇒ accès club-level
+   historique, pour ne jamais verrouiller.
+
+- La **création d'athlète** crée désormais systématiquement la relation référent (coach créateur).
+- Un **backfill idempotent** (`MultiCoachBackfill`, `ApplicationRunner`) crée au démarrage la
+  relation référent manquante (référent = head coach du club) pour les athlètes existants. Sûr à
+  relancer : il n'agit que sur les athlètes sans référent.
+- `PLATFORM_ADMIN` a un accès transverse ; un compte `ATHLETE` n'emprunte jamais ces routes
+  (il passe par `/me/**`).
+
+**Membres du club.** L'inscription crée le coach comme **membre `OWNER`** de son club. Via la page
+Club (`POST /clubs/{clubId}/members`), on **ajoute un coach par e-mail** : s'il a déjà un compte, il
+est rattaché immédiatement (accès tenant) ; sinon un **compte coach en attente** est créé et un lien
+d'invitation est généré (envoyé par e-mail si configuré, sinon renvoyé dans la réponse). Le coach
+**accepte** via `/public/coach-invitations/{token}` (définit son mot de passe → compte actif + session).
+Retrait via `DELETE …/members/{coachId}` (l'`OWNER` est protégé). Les permissions par athlète
+(read/comment/write) et le statut privé/club se gèrent ensuite sur la même page.
+
+---
+
+## 8. Emails & notifications (Resend) — pas-à-pas
+
+Le canal email est **déjà branché** (client Resend, `NotificationService`, schedulers) ; il est
+**inactif tant que `MAIL_ENABLED=false`** (les envois sont simplement loggués). Aucune donnée de
+santé n'est jamais incluse dans un email.
+
+### 8.1 Activer Resend
+1. Créer un compte sur **https://resend.com**.
+2. **Vérifier un domaine** d'envoi (`darilab.app`) : ajouter les enregistrements DNS (SPF/DKIM)
+   fournis par Resend. Sans domaine vérifié, seuls les envois de test vers votre propre adresse passent.
+3. Créer une **clé API** (`re_...`).
+4. Renseigner les variables d'environnement du service :
+   ```bash
+   MAIL_ENABLED=true
+   RESEND_API_KEY=re_xxxxxxxx
+   MAIL_FROM=Darilab <no-reply@darilab.app>   # le domaine doit être vérifié
+   ```
+5. Redéployer. Au prochain événement (invitation athlète, rappel J-1, retour de séance), l'email part.
+
+### 8.2 Vérifier de bout en bout
+- **Invitation** : depuis une fiche athlète, générer une invitation → l'athlète reçoit le lien.
+- **Rappel J-1** : planifié à 18h (`app.reminders.cron`) — notifie les athlètes ayant une séance le lendemain.
+- **Digest d'alertes coach** : planifié à 7h (`ALERTS_DIGEST_CRON`) — chaque coach **référent** reçoit
+  le récapitulatif des athlètes à surveiller (douleur, charge, séances manquées, silence), **sans détail
+  médical**, avec un lien vers le tableau de bord. C'est le branchement des alertes du dashboard
+  (cf. `CoachDashboardService.alerts`) sur le canal.
+
+### 8.3 Routage
+- Les retours de séance et le digest sont envoyés au **coach référent** de l'athlète (repli : head coach
+  du club) — jamais à un coach non concerné.
+- Le **push web** (VAPID) suit le même routage ; il dépend des souscriptions navigateur (renseigner
+  `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`).

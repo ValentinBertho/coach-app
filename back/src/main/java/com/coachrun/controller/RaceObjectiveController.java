@@ -24,7 +24,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/clubs/{clubId}/athletes/{athleteId}/races")
 @RequiredArgsConstructor
-@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)")
+@PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
 public class RaceObjectiveController {
 
     private final RaceObjectiveService raceService;
@@ -34,6 +34,7 @@ public class RaceObjectiveController {
         return raceService.list(clubId, athleteId);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public RaceObjectiveResponse create(@PathVariable UUID clubId, @PathVariable UUID athleteId,
@@ -41,12 +42,14 @@ public class RaceObjectiveController {
         return raceService.create(clubId, athleteId, request);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PutMapping("/{raceId}")
     public RaceObjectiveResponse update(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                         @PathVariable UUID raceId, @Valid @RequestBody RaceObjectiveRequest request) {
         return raceService.update(clubId, raceId, request);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/{raceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID raceId) {

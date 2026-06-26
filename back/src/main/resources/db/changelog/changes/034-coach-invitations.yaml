@@ -1,0 +1,17 @@
+# ============================================================================
+# 034 — Invitation de coach par e-mail (additif) : jeton + expiration sur users.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 034-coach-invitations
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column: { name: invite_token, type: VARCHAR(64) }
+              - column: { name: invite_expires_at, type: TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: users
+            columnNames: invite_token
+            constraintName: uq_users_invite_token

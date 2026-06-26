@@ -65,4 +65,18 @@ public class User extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "athlete_id")
     private Athlete athlete;
+
+    /** Invitation coach (lien magique) : jeton et expiration ; nuls une fois acceptée. */
+    @Column(name = "invite_token", length = 64, unique = true)
+    private String inviteToken;
+
+    @Column(name = "invite_expires_at")
+    private java.time.Instant inviteExpiresAt;
+
+    /** Préférences de notification (l'in-app reste toujours actif). */
+    @Column(name = "notify_email_enabled", nullable = false)
+    private boolean notifyEmailEnabled = true;
+
+    @Column(name = "notify_push_enabled", nullable = false)
+    private boolean notifyPushEnabled = true;
 }
