@@ -1,52 +1,52 @@
 /* ============================================================================
- * Pace Design System v2 — « track & data », moderne & premium (cf. docs/Design.md)
- * Duotone indigo→violet, dégradés aurora, glassmorphism, ombres colorées.
- * Tout passe par var(--…) : rebrandable via --primary / --primary-2 / --accent.
+ * Darilab Design System v3 — « l'instrument de labo »
+ * Un instrument de précision pour le moteur de l'athlète : papier chaud, encre
+ * vraie, une signature petrol-teal, la donnée en mono tabulaire comme héros.
+ * Plus de dégradé indigo→violet ni d'aurora multicolore : dégradés tonaux,
+ * surfaces sobres, contrôles nets. Tout passe par var(--…) → rebrandable.
  * ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Surfaces */
-  --canvas: #f5f6fb;
-  --paper: #ffffff;
+  /* Surfaces — papier chaud (« feuille de relevé »), pas de blanc-bleu froid */
+  --canvas: #f4f2ec;
+  --paper: #fffefb;
   --paper-2: #ffffff;
-  --paper-sunk: #eceff7;
-  --hairline: #e6e9f2;
-  --night: #0b1020;
-  --night-2: #141b30;
-  --bg-overlay: rgba(8, 12, 24, 0.6);
-  --glass: rgba(255, 255, 255, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.6);
+  --paper-sunk: #ebe7dd;
+  --hairline: #e3ddd0;
+  --night: #0a1518;
+  --night-2: #0f2125;
+  --bg-overlay: rgba(8, 16, 18, 0.62);
+  --glass: rgba(255, 254, 251, 0.74);
+  --glass-border: rgba(255, 255, 255, 0.55);
 
-  /* Encre */
-  --ink: #0c1226;
-  --ink-2: #38415c;
-  --ink-3: #6b7493;
-  --ink-4: #a6adc6;
-  --night-text: #eaf0ff;
-  --night-text-2: #9aa6c2;
+  /* Encre — neutre quasi-noire, lisible comme une impression de labo */
+  --ink: #18191c;
+  --ink-2: #44464d;
+  --ink-3: #74767f;
+  --ink-4: #aaaab2;
+  --night-text: #eef3f2;
+  --night-text-2: #9bb0ad;
 
-  /* Marque & énergie (duotone) */
-  --primary: #4361ff;
-  --primary-hover: #2f49e0;
-  --primary-2: #7c3aed;        /* violet partenaire (dégradés) */
-  --primary-light: #e2e7ff;
-  --primary-wash: #f0f2ff;
-  --accent: #11c08b;           /* performance / réalisé */
-  --accent-2: #06b6d4;         /* cyan secondaire (data) */
-  --energy: #ff5a3c;           /* effort / alerte */
+  /* Marque & signal — signature petrol-teal (instrument), tons monochromes */
+  --primary: #0e6e78;          /* petrol-teal signature */
+  --primary-hover: #0a565f;
+  --primary-2: #0a4f58;        /* partenaire tonal (foncé), pas de violet */
+  --primary-light: #c5e6e8;
+  --primary-wash: #edf6f6;
+  --accent: #0e9e74;           /* performance / réalisé */
+  --accent-2: #0aa3bf;         /* cyan instrument (mesure / data) */
+  --energy: #e25e3a;           /* effort / braise */
 
-  /* Dégradés signature */
-  --gradient-brand: linear-gradient(135deg, #4361ff 0%, #7c3aed 100%);
-  --gradient-accent: linear-gradient(135deg, #11c08b 0%, #06b6d4 100%);
-  --gradient-energy: linear-gradient(135deg, #ff7a3c 0%, #ff3d6e 100%);
-  --gradient-night: linear-gradient(160deg, #141b30 0%, #0b1020 70%);
+  /* Dégradés signature — tonaux (profondeur d'une même teinte), jamais arc-en-ciel */
+  --gradient-brand: linear-gradient(140deg, #128591 0%, #0a4f58 100%);
+  --gradient-accent: linear-gradient(140deg, #12b083 0%, #0a8f8f 100%);
+  --gradient-energy: linear-gradient(140deg, #ef6b42 0%, #d4452f 100%);
+  --gradient-night: linear-gradient(165deg, #0f2125 0%, #081316 78%);
   --mesh:
-    radial-gradient(60% 60% at 15% 10%, rgba(67, 97, 255, 0.35) 0%, transparent 60%),
-    radial-gradient(50% 50% at 90% 0%, rgba(124, 58, 237, 0.30) 0%, transparent 60%),
-    radial-gradient(60% 60% at 80% 90%, rgba(6, 182, 212, 0.22) 0%, transparent 60%),
-    radial-gradient(50% 50% at 10% 100%, rgba(17, 192, 139, 0.20) 0%, transparent 55%);
+    radial-gradient(70% 70% at 18% 0%, rgba(18, 133, 145, 0.22) 0%, transparent 60%),
+    radial-gradient(60% 60% at 92% 100%, rgba(10, 79, 88, 0.18) 0%, transparent 62%);
 
   /* Zones d'intensité (canoniques) */
   --zone-1: #7c8aa5;
@@ -56,15 +56,15 @@
   --zone-5: #e5392e;
 
   /* Statuts */
-  --success: #119d6b; --success-bg: #d8f3e7; --success-text: #0b5e40;
-  --warning: #c77a0a; --warning-bg: #fbeed2; --warning-text: #7a4a06;
-  --danger: #dc3024;  --danger-bg: #fbe0dd;  --danger-text: #8a1810;
-  --info: #4361ff;    --info-bg: #e2e7ff;    --info-text: #1e2a9e;
+  --success: #0e8d5f; --success-bg: #d6f0e3; --success-text: #0a5639;
+  --warning: #b5740c; --warning-bg: #f7ead0; --warning-text: #6e4708;
+  --danger: #cf3322;  --danger-bg: #f8ded9;  --danger-text: #821810;
+  --info: #3a63c4;    --info-bg: #e2e8f8;    --info-text: #213d8e;
 
-  /* Typographie */
-  --font-display: 'Space Grotesk', 'Poppins', system-ui, sans-serif;
-  --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* Typographie — superfamille technique IBM Plex (lab/ingénierie) + Archivo display */
+  --font-display: 'Archivo', 'Space Grotesk', system-ui, sans-serif;
+  --font-ui: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
   --text-xs: 0.75rem; --text-sm: 0.8125rem; --text-md: 0.875rem; --text-lg: 1rem;
   --text-xl: 1.25rem; --text-2xl: 1.5rem; --text-3xl: 2rem;
 
@@ -72,15 +72,15 @@
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px;
   --sp-6: 24px; --sp-8: 32px; --sp-10: 40px; --sp-12: 48px; --sp-16: 64px;
 
-  /* Rayons */
-  --radius-sm: 12px; --radius: 16px; --radius-lg: 22px; --radius-xl: 30px; --radius-full: 9999px;
+  /* Rayons — nets, « contrôle d'instrument » (moins bulleux que le SaaS générique) */
+  --radius-sm: 8px; --radius: 10px; --radius-lg: 14px; --radius-xl: 20px; --radius-full: 9999px;
 
-  /* Ombres (douces + colorées) */
-  --shadow-xs: 0 1px 2px rgba(12, 18, 38, 0.06);
-  --shadow-sm: 0 4px 14px rgba(12, 18, 38, 0.07);
-  --shadow: 0 10px 30px rgba(12, 18, 38, 0.10);
-  --shadow-lg: 0 24px 60px rgba(12, 18, 38, 0.16);
-  --shadow-colored: 0 12px 30px rgba(67, 97, 255, 0.38);
+  /* Ombres — serrées et neutres (pas de halo coloré « premium ») */
+  --shadow-xs: 0 1px 2px rgba(20, 22, 26, 0.06);
+  --shadow-sm: 0 2px 8px rgba(20, 22, 26, 0.06);
+  --shadow: 0 8px 24px rgba(20, 22, 26, 0.09);
+  --shadow-lg: 0 20px 48px rgba(20, 22, 26, 0.14);
+  --shadow-colored: 0 8px 20px rgba(14, 110, 120, 0.26);
   --shadow-night: 0 24px 60px rgba(0, 0, 0, 0.5);
 
   /* Animations */
@@ -210,7 +210,7 @@ a { color: var(--primary); text-decoration: none; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
   min-height: 48px; padding: 0 var(--sp-5);
-  border: 1px solid transparent; border-radius: var(--radius-full);
+  border: 1px solid transparent; border-radius: var(--radius);
   font-family: var(--font-ui); font-size: var(--text-md); font-weight: 600;
   cursor: pointer; user-select: none; white-space: nowrap;
   transition: transform var(--duration-fast) var(--ease),
@@ -221,10 +221,11 @@ a { color: var(--primary); text-decoration: none; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
-.btn-primary { background: var(--gradient-brand); color: #fff; box-shadow: var(--shadow-colored); }
-.btn-primary:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.05); }
-.btn-accent { background: var(--gradient-accent); color: #fff; box-shadow: 0 12px 30px rgba(17, 192, 139, 0.32); }
-.btn-energy { background: var(--gradient-energy); color: #fff; }
+.btn-primary { background: var(--primary); color: #fff; box-shadow: var(--shadow-colored); }
+.btn-primary:hover:not(:disabled) { transform: translateY(-1px); background: var(--primary-hover); }
+.btn-accent { background: var(--accent); color: #fff; box-shadow: 0 8px 18px rgba(14, 158, 116, 0.26); }
+.btn-accent:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.04); }
+.btn-energy { background: var(--energy); color: #fff; }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-ghost { background: transparent; color: var(--ink-2); border-color: var(--hairline); }
 .btn-ghost:hover:not(:disabled) { background: var(--paper-sunk); }
@@ -308,7 +309,7 @@ textarea.form-control { min-height: 80px; padding: var(--sp-3) var(--sp-4); line
 .alert-danger { background: var(--danger-bg); color: var(--danger-text); }
 .alert-info { background: var(--info-bg); color: var(--info-text); }
 .danger-zone { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; border: 1px solid var(--danger-bg); }
-.skeleton { background: linear-gradient(90deg, var(--paper-sunk) 25%, #e9edf7 37%, var(--paper-sunk) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; border-radius: var(--radius-sm); }
+.skeleton { background: linear-gradient(90deg, var(--paper-sunk) 25%, #f1ede3 37%, var(--paper-sunk) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; border-radius: var(--radius-sm); }
 
 /* --- Tables admin ---------------------------------------------------------- */
 .data-table { width: 100%; border-collapse: collapse; }

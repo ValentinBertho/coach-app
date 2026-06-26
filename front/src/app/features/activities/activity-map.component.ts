@@ -51,9 +51,9 @@ export class ActivityMapComponent implements OnInit, OnDestroy {
       attribution: '© OpenStreetMap',
       maxZoom: 18,
     }).addTo(this.map);
-    const line = L.polyline(latlngs, { color: '#4361ff', weight: 4 }).addTo(this.map);
-    L.circleMarker(latlngs[0], { color: '#11c08b', radius: 7 }).addTo(this.map);
-    L.circleMarker(latlngs[latlngs.length - 1], { color: '#ff5a3c', radius: 7 }).addTo(this.map);
+    const line = L.polyline(latlngs, { color: '#0e6e78', weight: 4 }).addTo(this.map);
+    L.circleMarker(latlngs[0], { color: '#0e9e74', radius: 7 }).addTo(this.map);
+    L.circleMarker(latlngs[latlngs.length - 1], { color: '#e25e3a', radius: 7 }).addTo(this.map);
     this.map.fitBounds(line.getBounds(), { padding: [24, 24] });
   }
 
