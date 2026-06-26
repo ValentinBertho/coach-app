@@ -25,6 +25,7 @@ public class UserNotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final NotificationStreamService streamService;
 
     public PageResponse<NotificationResponse> list(UUID userId, Pageable pageable) {
         return PageResponse.from(
@@ -43,11 +44,13 @@ public class UserNotificationService {
         if (n.getReadAt() == null) {
             n.setReadAt(Instant.now());
         }
+        streamService.publishUnread(userId, notificationRepository.countByUserIdAndReadAtIsNull(userId));
     }
 
     @Transactional
     public void markAllRead(UUID userId) {
         notificationRepository.markAllRead(userId, Instant.now());
+        streamService.publishUnread(userId, 0);
     }
 
     public NotificationPreferencesResponse preferences(UUID userId) {

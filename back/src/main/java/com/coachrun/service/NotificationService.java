@@ -37,6 +37,7 @@ public class NotificationService {
     private final PushNotificationService pushService;
     private final CoachAthleteRelationRepository relationRepository;
     private final NotificationRepository notificationRepository;
+    private final NotificationStreamService streamService;
 
     @Value("${app.mail.enabled:false}")
     private boolean enabled;
@@ -119,6 +120,7 @@ public class NotificationService {
             n.setBody(body);
             n.setLink(link);
             notificationRepository.save(n);
+            streamService.publishUnread(userId, notificationRepository.countByUserIdAndReadAtIsNull(userId));
         } catch (RuntimeException ex) {
             log.warn("Échec d'enregistrement d'une notification in-app ({}): {}", type, ex.getMessage());
         }

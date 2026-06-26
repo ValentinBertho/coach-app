@@ -31,6 +31,14 @@ import java.util.UUID;
 public class NotificationController {
 
     private final UserNotificationService notificationService;
+    private final com.coachrun.service.NotificationStreamService streamService;
+
+    /** Flux temps réel (SSE) du compteur de non-lues. Token via ?access_token= (EventSource). */
+    @GetMapping("/stream")
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter stream(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return streamService.subscribe(principal.userId());
+    }
 
     @GetMapping
     public PageResponse<NotificationResponse> list(

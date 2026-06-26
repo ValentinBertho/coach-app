@@ -94,6 +94,12 @@ class NotificationCenterTest {
     }
 
     @Test
+    void streamEndpointStartsAsync() throws Exception {
+        mvc.perform(get("/notifications/stream").header("Authorization", athleteBearer))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.request().asyncStarted());
+    }
+
+    @Test
     void notificationPreferencesDefaultTrueAndUpdate() throws Exception {
         JsonNode def = objectMapper.readTree(mvc.perform(get("/notifications/preferences")
                         .header("Authorization", athleteBearer))

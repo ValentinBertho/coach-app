@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, effect, inject, signal } from '@angular/core';
 import { Observable, map, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AppNotification } from '../models/notification.model';
+import { AuthService } from './auth.service';
 
 interface Page<T> { content: T[]; }
 
@@ -15,10 +16,36 @@ export interface NotificationPreferences {
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
   private readonly http = inject(HttpClient);
+  private readonly auth = inject(AuthService);
   private readonly base = `${environment.apiUrl}/notifications`;
+  private source?: EventSource;
 
   /** Compteur de non-lues, partagé (badge de la cloche). */
   readonly unread = signal(0);
+
+  constructor() {
+    // Flux SSE temps réel piloté par l'état d'authentification (connexion ↔ déconnexion).
+    effect(() => {
+      const token = this.auth.token();
+      if (token) { this.connect(token); } else { this.disconnect(); }
+    });
+  }
+
+  private connect(token: string): void {
+    if (this.source || typeof EventSource === 'undefined') return;
+    const src = new EventSource(`${this.base}/stream?access_token=${encodeURIComponent(token)}`);
+    src.addEventListener('unread', (e) => {
+      const n = Number((e as MessageEvent).data);
+      if (!Number.isNaN(n)) this.unread.set(n);
+    });
+    this.source = src;
+  }
+
+  private disconnect(): void {
+    this.source?.close();
+    this.source = undefined;
+    this.unread.set(0);
+  }
 
   list(): Observable<AppNotification[]> {
     return this.http.get<Page<AppNotification>>(this.base).pipe(map((p) => p.content ?? []));
