@@ -42,6 +42,16 @@ export class ClubService {
     return this.http.get<ClubMember[]>(`${this.club()}/members`);
   }
 
+  /** Ajoute un coach existant (par e-mail) au club avec un rôle. */
+  addCoach(email: string, role: ClubRole): Observable<ClubMember> {
+    return this.http.post<ClubMember>(`${this.club()}/members`, { email, role });
+  }
+
+  /** Retire un coach du club. */
+  removeCoach(coachId: string): Observable<void> {
+    return this.http.delete<void>(`${this.club()}/members/${coachId}`);
+  }
+
   access(athleteId: string): Observable<AthleteAccess> {
     return this.http.get<AthleteAccess>(`${this.club()}/athletes/${athleteId}/access`);
   }

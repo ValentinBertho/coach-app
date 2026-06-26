@@ -34,3 +34,10 @@
 .shared-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
 .shared-list li { padding: var(--sp-1) var(--sp-2); background: var(--paper-sunk); border-radius: var(--radius-sm); font-size: var(--text-sm); }
 @media (max-width: 640px) { .shared-grid { grid-template-columns: 1fr; } }
+
+/* --- Ajout d'un coach ------------------------------------------------------ */
+.add-coach { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); align-items: center; }
+.add-coach input[type="email"] { flex: 1; min-width: 200px; }
+.add-coach select { width: auto; }
+.add-hint { margin-top: var(--sp-2); }
+.data-table .row-end { text-align: right; white-space: nowrap; }

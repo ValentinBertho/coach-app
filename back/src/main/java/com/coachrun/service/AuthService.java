@@ -42,6 +42,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final ClubRepository clubRepository;
     private final AthleteRepository athleteRepository;
+    private final com.coachrun.repository.ClubMemberRepository clubMemberRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final com.coachrun.security.TokenBlacklist tokenBlacklist;
@@ -66,6 +67,14 @@ public class AuthService {
         user.setStatus(UserStatus.ACTIVE);
         user.setClub(club);
         user = userRepository.save(user);
+
+        // Le créateur du club en est le propriétaire (membership multi-coach).
+        com.coachrun.entity.ClubMember owner = new com.coachrun.entity.ClubMember();
+        owner.setClub(club);
+        owner.setCoach(user);
+        owner.setClubRole(com.coachrun.entity.enums.ClubRole.OWNER);
+        owner.setActive(true);
+        clubMemberRepository.save(owner);
 
         log.info("Nouveau coach inscrit (club={})", club.getId());
         return toAuthResponse(user);

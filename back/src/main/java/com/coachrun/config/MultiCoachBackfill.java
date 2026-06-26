@@ -1,10 +1,15 @@
 package com.coachrun.config;
 
 import com.coachrun.entity.Athlete;
+import com.coachrun.entity.Club;
+import com.coachrun.entity.ClubMember;
 import com.coachrun.entity.CoachAthleteRelation;
 import com.coachrun.entity.User;
+import com.coachrun.entity.enums.ClubRole;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.repository.AthleteRepository;
+import com.coachrun.repository.ClubMemberRepository;
+import com.coachrun.repository.ClubRepository;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -34,10 +39,14 @@ public class MultiCoachBackfill implements ApplicationRunner {
     private final AthleteRepository athleteRepository;
     private final CoachAthleteRelationRepository relationRepository;
     private final UserRepository userRepository;
+    private final ClubRepository clubRepository;
+    private final ClubMemberRepository clubMemberRepository;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        ensureClubOwners();
+
         Set<UUID> withReferent = relationRepository.findAthleteIdsWithActiveReferent();
         int created = 0;
         for (Athlete athlete : athleteRepository.findAll()) {
@@ -61,6 +70,29 @@ public class MultiCoachBackfill implements ApplicationRunner {
         }
         if (created > 0) {
             log.info("Backfill multi-coach : {} relation(s) référent créée(s).", created);
+        }
+    }
+
+    /** Garantit que le head coach de chaque club en est membre OWNER (membership multi-coach). */
+    private void ensureClubOwners() {
+        int created = 0;
+        for (Club club : clubRepository.findAll()) {
+            User headCoach = userRepository
+                    .findFirstByClubIdAndRole(club.getId(), UserRole.HEAD_COACH).orElse(null);
+            if (headCoach == null
+                    || clubMemberRepository.findByClubIdAndCoachIdAndActiveTrue(club.getId(), headCoach.getId()).isPresent()) {
+                continue;
+            }
+            ClubMember owner = new ClubMember();
+            owner.setClub(club);
+            owner.setCoach(headCoach);
+            owner.setClubRole(ClubRole.OWNER);
+            owner.setActive(true);
+            clubMemberRepository.save(owner);
+            created++;
+        }
+        if (created > 0) {
+            log.info("Backfill multi-coach : {} propriétaire(s) de club créé(s).", created);
         }
     }
 }

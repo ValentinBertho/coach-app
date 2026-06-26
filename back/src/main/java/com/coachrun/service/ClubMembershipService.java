@@ -4,10 +4,14 @@ import com.coachrun.dto.response.AthleteAccessResponse;
 import com.coachrun.dto.response.AthleteAccessResponse.PermissionEntry;
 import com.coachrun.dto.response.ClubMemberResponse;
 import com.coachrun.entity.AthleteCoachPermission;
+import com.coachrun.entity.Club;
+import com.coachrun.entity.ClubMember;
 import com.coachrun.entity.CoachAthleteRelation;
 import com.coachrun.entity.User;
 import com.coachrun.entity.enums.AthleteOwnershipType;
+import com.coachrun.entity.enums.ClubRole;
 import com.coachrun.entity.enums.PermissionLevel;
+import com.coachrun.entity.enums.UserRole;
 import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteCoachPermissionRepository;
@@ -42,6 +46,55 @@ public class ClubMembershipService {
         return memberRepository.findByClubIdAndActiveTrue(clubId).stream()
                 .map(ClubMemberResponse::from)
                 .toList();
+    }
+
+    /**
+     * Ajoute un coach <strong>existant</strong> (compte Darilab) au club avec un rôle donné, et lui
+     * accorde l'accès tenant (club additionnel). L'invitation d'un coach <em>sans compte</em>
+     * (création + e-mail) est un chantier ultérieur.
+     */
+    @Transactional
+    public ClubMemberResponse addCoach(UUID clubId, String email, ClubRole role, UUID invitedByUserId) {
+        User coach = userRepository.findByEmailIgnoreCase(email == null ? "" : email.trim())
+                .orElseThrow(() -> new NotFoundException(
+                        "Aucun compte avec cet e-mail. Le coach doit déjà avoir un compte Darilab."));
+        if (coach.getRole() == UserRole.ATHLETE || coach.getRole() == UserRole.PLATFORM_ADMIN) {
+            throw new ConflictException("Ce compte n'est pas un coach.");
+        }
+        if (memberRepository.findByClubIdAndCoachIdAndActiveTrue(clubId, coach.getId()).isPresent()) {
+            throw new ConflictException("Ce coach est déjà membre du club.");
+        }
+        Club club = clubRepository.getReferenceById(clubId);
+        ClubMember member = new ClubMember();
+        member.setClub(club);
+        member.setCoach(coach);
+        member.setClubRole(role != null ? role : ClubRole.COACH_ASSISTANT);
+        if (invitedByUserId != null) {
+            member.setInvitedBy(userRepository.getReferenceById(invitedByUserId));
+        }
+        member.setActive(true);
+        memberRepository.save(member);
+
+        // Accès tenant au club additionnel (clubAccessValidator) si ce n'est pas son club principal.
+        if (coach.getClub() == null || !clubId.equals(coach.getClub().getId())) {
+            coach.getAdditionalClubs().add(club);
+        }
+        return ClubMemberResponse.from(member);
+    }
+
+    /** Retire un coach du club (désactive l'adhésion). Le propriétaire ne peut pas être retiré. */
+    @Transactional
+    public void removeCoach(UUID clubId, UUID coachId) {
+        ClubMember member = memberRepository.findByClubIdAndCoachIdAndActiveTrue(clubId, coachId)
+                .orElseThrow(() -> new NotFoundException("Membre introuvable."));
+        if (member.getClubRole() == ClubRole.OWNER) {
+            throw new ConflictException("Le propriétaire du club ne peut pas être retiré.");
+        }
+        member.setActive(false);
+        User coach = member.getCoach();
+        if (coach.getClub() == null || !clubId.equals(coach.getClub().getId())) {
+            coach.getAdditionalClubs().removeIf(c -> c.getId().equals(clubId));
+        }
     }
 
     public AthleteAccessResponse access(UUID athleteId) {

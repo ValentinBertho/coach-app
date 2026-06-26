@@ -8,22 +8,41 @@
 <div class="card">
   <h2>Coachs du club</h2>
   <table class="data-table">
-    <thead><tr><th>Coach</th><th>Rôle</th></tr></thead>
+    <thead><tr><th>Coach</th><th>Rôle</th><th></th></tr></thead>
     <tbody>
       @if (loadingMembers()) {
-        <tr><td colspan="2" class="field-hint">Chargement…</td></tr>
+        <tr><td colspan="3" class="field-hint">Chargement…</td></tr>
       } @else {
         @for (m of members(); track m.coachId) {
           <tr>
             <td><span class="avatar">{{ m.name[0] }}</span> {{ m.name }}</td>
             <td><span class="badge" [class.badge-info]="m.clubRole === 'OWNER'" [class.badge-neutral]="m.clubRole !== 'OWNER'">{{ roleLabels[m.clubRole] }}</span></td>
+            <td class="row-end">
+              @if (m.clubRole !== 'OWNER') {
+                <button type="button" class="btn btn-ghost btn-sm" (click)="removeMember(m)" title="Retirer du club">
+                  <app-icon name="x" [size]="14" /> Retirer
+                </button>
+              }
+            </td>
           </tr>
         } @empty {
-          <tr><td colspan="2" class="field-hint">Aucun coach.</td></tr>
+          <tr><td colspan="3" class="field-hint">Aucun coach.</td></tr>
         }
       }
     </tbody>
   </table>
+
+  <form class="add-coach" (ngSubmit)="addCoach()">
+    <input type="email" class="form-control" name="coachEmail" placeholder="email du coach (compte existant)"
+           [(ngModel)]="newCoachEmail" required autocomplete="off" />
+    <select class="form-control" name="coachRole" [(ngModel)]="newCoachRole">
+      @for (r of addableRoles; track r) { <option [value]="r">{{ roleLabels[r] }}</option> }
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm" [disabled]="!newCoachEmail.trim() || addingCoach()">
+      <app-icon name="user" [size]="15" /> Ajouter
+    </button>
+  </form>
+  <p class="field-hint add-hint">Le coach doit déjà avoir un compte Darilab. L'invitation par e-mail (création de compte) arrivera prochainement.</p>
 </div>
 
 <div class="card">
