@@ -29,5 +29,7 @@ public record AthleteRequest(
         @DecimalMin("5.0") BigDecimal vma,
         @DecimalMin("20.0") BigDecimal weightKg,
         @Size(max = 2048) String medicalNotes,
-        java.util.UUID groupId) {
+        java.util.UUID groupId,
+        /** À la création : athlète privé (coaching hors club, invisible des autres coachs). */
+        Boolean privateAthlete) {
 }
