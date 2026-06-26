@@ -51,6 +51,7 @@ class AthleteAccessValidatorTest {
     @Autowired private AthleteCoachPermissionRepository permissionRepository;
 
     private Club club;
+    private Club otherClub;
     private User referentCoach;
     private User ownerCoach;
     private User assistantCoach;
@@ -62,11 +63,13 @@ class AthleteAccessValidatorTest {
     void setUp() {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         club = clubRepository.save(newClub("Club " + suffix, "club-" + suffix));
+        otherClub = clubRepository.save(newClub("Other " + suffix, "other-" + suffix));
 
         referentCoach = userRepository.save(newCoach("referent-" + suffix + "@t.io"));
         ownerCoach = userRepository.save(newCoach("owner-" + suffix + "@t.io"));
         assistantCoach = userRepository.save(newCoach("assistant-" + suffix + "@t.io"));
-        outsiderCoach = userRepository.save(newCoach("outsider-" + suffix + "@t.io"));
+        // outsiderCoach : coach d'un AUTRE club (aucun accès tenant à ce club).
+        outsiderCoach = userRepository.save(newCoachInClub("outsider-" + suffix + "@t.io", otherClub));
 
         clubMemberRepository.save(member(ownerCoach, ClubRole.OWNER));
         clubMemberRepository.save(member(referentCoach, ClubRole.COACH_PRINCIPAL));
@@ -114,15 +117,15 @@ class AthleteAccessValidatorTest {
     }
 
     @Test
-    void coachWithoutRelationPermissionOrRoleHasNoAccess() {
+    void coachOfAnotherClubHasNoAccess() {
         assertThat(validator.effectiveLevel(outsiderCoach.getId(), clubAthlete.getId())).isEmpty();
     }
 
     @Test
     void expiredPermissionIsIgnored() {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
-        User tempCoach = userRepository.save(newCoach("temp-" + suffix + "@t.io"));
-        // Non membre du club, permission COMMENT expirée hier.
+        // Coach d'un autre club avec une permission COMMENT expirée hier ⇒ aucun accès.
+        User tempCoach = userRepository.save(newCoachInClub("temp-" + suffix + "@t.io", otherClub));
         permissionRepository.save(permission(tempCoach, clubAthlete, PermissionLevel.COMMENT,
                 Instant.now().minus(1, ChronoUnit.DAYS)));
         assertThat(validator.effectiveLevel(tempCoach.getId(), clubAthlete.getId())).isEmpty();
@@ -166,11 +169,15 @@ class AthleteAccessValidatorTest {
     }
 
     private User newCoach(String email) {
+        return newCoachInClub(email, club);
+    }
+
+    private User newCoachInClub(String email, Club homeClub) {
         User u = new User();
         u.setEmail(email);
         u.setFullName("Coach " + email);
         u.setRole(UserRole.COACH);
-        u.setClub(club);
+        u.setClub(homeClub);
         return u;
     }
 
