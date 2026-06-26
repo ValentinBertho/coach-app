@@ -35,10 +35,19 @@ public class TrainingGroupController {
 
     private final TrainingGroupService groupService;
     private final WorkoutService workoutService;
+    private final com.coachrun.service.GroupAnalyticsService groupAnalyticsService;
 
     @GetMapping
     public List<TrainingGroupResponse> list(@PathVariable UUID clubId) {
         return groupService.list(clubId);
+    }
+
+    /** Analytics agrégées d'un groupe (état de forme, ACWR moyen, volume, adhérence). */
+    @GetMapping("/{id}/analytics")
+    public com.coachrun.dto.response.GroupAnalyticsResponse analytics(
+            @PathVariable UUID clubId, @PathVariable UUID id,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "8") int weeks) {
+        return groupAnalyticsService.compute(clubId, id, weeks);
     }
 
     /**

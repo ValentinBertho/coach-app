@@ -218,6 +218,27 @@ public class AthletePortalController {
         return activityService.routeForAthlete(principal.athleteId(), activityId);
     }
 
+    /** Je consigne une sortie libre (saisie manuelle). */
+    @PostMapping("/activities")
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.CREATED)
+    public com.coachrun.dto.response.ActivityResponse logActivity(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @org.springframework.web.bind.annotation.RequestBody @jakarta.validation.Valid
+            com.coachrun.dto.request.ActivityImportRequest request) {
+        return activityService.logForAthlete(principal.athleteId(), request);
+    }
+
+    /** J'importe ma propre trace (GPX/TCX). */
+    @PostMapping("/activities/import-file")
+    @org.springframework.web.bind.annotation.ResponseStatus(org.springframework.http.HttpStatus.CREATED)
+    public com.coachrun.dto.response.ActivityResponse importMyFile(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @org.springframework.web.bind.annotation.RequestParam("file")
+            org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+        return activityService.importFileForAthlete(
+                principal.athleteId(), file.getOriginalFilename(), file.getBytes());
+    }
+
     /** Mes performances / records (par distance), avec le VDOT impliqué. */
     @GetMapping("/performances")
     public java.util.List<com.coachrun.dto.response.PerformanceResponse> myPerformances(

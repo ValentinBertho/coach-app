@@ -79,3 +79,7 @@ databaseChangeLog:
       file: db/changelog/changes/037-mesocycle-templates.yaml
   - include:
       file: db/changelog/changes/038-plan-link-progress.yaml
+  - include:
+      file: db/changelog/changes/039-strength-plan-link.yaml
+  - include:
+      file: db/changelog/changes/040-plan-mesocycle.yaml

@@ -30,6 +30,15 @@ export interface AthletePlan {
   progress: AthletePlanProgress | null;
 }
 
+export interface ActivityLog {
+  activityDate: string;
+  title?: string;
+  distanceM?: number | null;
+  durationS?: number | null;
+  avgHr?: number | null;
+  elevationGainM?: number | null;
+}
+
 export interface WorkoutFeedback {
   status?: WorkoutStatus;
   rpe?: number | null;
@@ -66,6 +75,18 @@ export class AthletePortalService {
   /** Mon programme : plans attribués avec avancement. */
   plans(): Observable<AthletePlan[]> {
     return this.http.get<AthletePlan[]>(`${this.base}/plans`);
+  }
+
+  /** Je consigne une sortie libre (saisie manuelle). */
+  logActivity(body: ActivityLog): Observable<Activity> {
+    return this.http.post<Activity>(`${this.base}/activities`, body);
+  }
+
+  /** J'importe ma propre trace (GPX/TCX). */
+  importActivityFile(file: File): Observable<Activity> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<Activity>(`${this.base}/activities/import-file`, form);
   }
 
   /** Prochaine course (204 → null). */

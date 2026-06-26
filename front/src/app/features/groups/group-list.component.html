@@ -25,7 +25,10 @@
           <tr>
             <td><input class="form-control" [(ngModel)]="g.name" (blur)="rename(g)" /></td>
             <td><span class="metric">{{ g.athleteCount }}</span></td>
-            <td class="table-actions"><button type="button" class="btn btn-danger btn-sm" (click)="remove(g)">Suppr.</button></td>
+            <td class="table-actions">
+              <a class="btn btn-ghost btn-sm" [routerLink]="['/app/groups', g.id, 'analytics']">Analytics</a>
+              <button type="button" class="btn btn-danger btn-sm" (click)="remove(g)">Suppr.</button>
+            </td>
           </tr>
         }
       </tbody>

@@ -20,4 +20,12 @@ public interface ScheduledStrengthSessionRepository extends JpaRepository<Schedu
             UUID athleteId, LocalDate from, LocalDate to);
 
     Optional<ScheduledStrengthSession> findByIdAndAthleteId(UUID id, UUID athleteId);
+
+    // --- Suivi de plan (séances de force liées via plan_id) ---
+    long countByPlanIdAndAthleteId(UUID planId, UUID athleteId);
+
+    long countByPlanIdAndAthleteIdAndCompletedTrue(UUID planId, UUID athleteId);
+
+    /** Suppression propre : retire les séances de force d'un plan non encore réalisées. */
+    void deleteByPlanIdAndAthleteIdAndCompletedFalse(UUID planId, UUID athleteId);
 }

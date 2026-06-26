@@ -1,0 +1,13 @@
+# ============================================================================
+# 040 — Plan ↔ mésocycle : un plan peut porter une progression de charge
+#   (référence optionnelle à un modèle de mésocycle).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 040-plan-mesocycle-template
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: training_plans
+            columns:
+              - column: { name: mesocycle_template_id, type: UUID }

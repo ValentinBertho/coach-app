@@ -1,16 +1,21 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AthleteSummary } from '../../core/models/athlete.model';
-import { PlanItem, TrainingPlan } from '../../core/models/training-plan.model';
+import { PlanItem, PlanItemKind, TrainingPlan } from '../../core/models/training-plan.model';
 import { TrainingGroup } from '../../core/models/training-group.model';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
+import { StrengthSession } from '../../core/models/strength.model';
+import { MesocycleTemplate } from '../../core/models/mesocycle-template.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { ConfirmService } from '../../core/services/confirm.service';
+import { MesocycleTemplateService } from '../../core/services/mesocycle-template.service';
+import { StrengthService } from '../../core/services/strength.service';
 import { ToastService } from '../../core/services/toast.service';
 import { TrainingGroupService } from '../../core/services/training-group.service';
 import { TrainingPlanService } from '../../core/services/training-plan.service';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { EmptyStateComponent, LoaderComponent } from '../../shared/components/ui';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 
 const DAYS = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -18,7 +23,7 @@ const DAYS = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
   selector: 'app-plan-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, EmptyStateComponent, LoaderComponent],
+  imports: [FormsModule, EmptyStateComponent, LoaderComponent, IconComponent],
   templateUrl: './plan-list.component.html',
   styleUrl: './plan-list.component.scss',
 })
@@ -27,12 +32,16 @@ export class PlanListComponent implements OnInit {
   private readonly templateService = inject(WorkoutTemplateService);
   private readonly athleteService = inject(AthleteService);
   private readonly groupService = inject(TrainingGroupService);
+  private readonly strengthService = inject(StrengthService);
+  private readonly mesocycleService = inject(MesocycleTemplateService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
 
   readonly days = DAYS;
   readonly plans = signal<TrainingPlan[]>([]);
   readonly templates = signal<WorkoutTemplate[]>([]);
+  readonly strengthSessions = signal<StrengthSession[]>([]);
+  readonly mesocycles = signal<MesocycleTemplate[]>([]);
   readonly athletes = signal<AthleteSummary[]>([]);
   readonly groups = signal<TrainingGroup[]>([]);
   readonly loading = signal(true);
@@ -40,17 +49,25 @@ export class PlanListComponent implements OnInit {
   /** Plan en cours d'édition (null = création). */
   readonly editingId = signal<string | null>(null);
 
-  draft: { name: string; description: string; durationWeeks: number; items: PlanItem[] } = {
-    name: '', description: '', durationWeeks: 4, items: [],
+  draft: { name: string; description: string; durationWeeks: number; mesocycleTemplateId: string; items: PlanItem[] } = {
+    name: '', description: '', durationWeeks: 4, mesocycleTemplateId: '', items: [],
   };
-  itemDraft = { weekIndex: 0, dayOfWeek: 1, templateId: '' };
+  itemDraft: { weekIndex: number; dayOfWeek: number; kind: PlanItemKind; templateId: string } =
+    { weekIndex: 0, dayOfWeek: 1, kind: 'COURSE', templateId: '' };
   applyFor: Record<string, { target: 'athlete' | 'group'; athleteId: string; groupId: string; startDate: string }> = {};
 
   ngOnInit(): void {
     this.load();
     this.templateService.list(undefined, 0).subscribe((p) => this.templates.set(p.content));
+    this.strengthService.listSessions(undefined, 0).subscribe((p) => this.strengthSessions.set(p.content));
+    this.mesocycleService.list().subscribe((m) => this.mesocycles.set(m));
     this.athleteService.list({ status: 'ACTIVE' }).subscribe((p) => this.athletes.set(p.content));
     this.groupService.list().subscribe((g) => this.groups.set(g));
+  }
+
+  /** Bascule de nature : réinitialise la sélection de modèle. */
+  onKindChange(): void {
+    this.itemDraft.templateId = '';
   }
 
   load(): void {
@@ -65,8 +82,18 @@ export class PlanListComponent implements OnInit {
     });
   }
 
-  templateName(id: string): string {
-    return this.templates().find((t) => t.id === id)?.name ?? '?';
+  /** Nom d'un item selon sa nature (modèle course ou séance de force). */
+  itemName(item: PlanItem): string {
+    if (item.kind === 'STRENGTH') {
+      return this.strengthSessions().find((s) => s.id === item.templateId)?.name ?? '?';
+    }
+    return this.templates().find((t) => t.id === item.templateId)?.name ?? '?';
+  }
+
+  /** Nom du mésocycle porté par un plan (badge « charge progressive »). */
+  mesoName(id: string | null | undefined): string | null {
+    if (!id) return null;
+    return this.mesocycles().find((m) => m.id === id)?.name ?? 'Mésocycle';
   }
 
   /** Items planifiés sur une cellule (semaine 0-based × jour 1..7) — aperçu grille. */
@@ -80,7 +107,7 @@ export class PlanListComponent implements OnInit {
   }
 
   addItem(): void {
-    if (!this.itemDraft.templateId) { this.toast.warning('Choisissez un modèle.'); return; }
+    if (!this.itemDraft.templateId) { this.toast.warning('Choisissez une séance.'); return; }
     this.draft.items = [...this.draft.items, { ...this.itemDraft }];
   }
   removeItem(i: number): void {
@@ -103,7 +130,11 @@ export class PlanListComponent implements OnInit {
       name: plan.name,
       description: plan.description ?? '',
       durationWeeks: plan.durationWeeks,
-      items: plan.items.map((it) => ({ weekIndex: it.weekIndex, dayOfWeek: it.dayOfWeek, templateId: it.templateId })),
+      mesocycleTemplateId: plan.mesocycleTemplateId ?? '',
+      items: plan.items.map((it) => ({
+        weekIndex: it.weekIndex, dayOfWeek: it.dayOfWeek,
+        kind: it.kind ?? 'COURSE', templateId: it.templateId,
+      })),
     };
     this.showForm.set(true);
   }
@@ -115,8 +146,8 @@ export class PlanListComponent implements OnInit {
 
   private resetForm(): void {
     this.editingId.set(null);
-    this.draft = { name: '', description: '', durationWeeks: 4, items: [] };
-    this.itemDraft = { weekIndex: 0, dayOfWeek: 1, templateId: '' };
+    this.draft = { name: '', description: '', durationWeeks: 4, mesocycleTemplateId: '', items: [] };
+    this.itemDraft = { weekIndex: 0, dayOfWeek: 1, kind: 'COURSE', templateId: '' };
   }
 
   save(): void {
@@ -124,8 +155,9 @@ export class PlanListComponent implements OnInit {
       this.toast.warning('Nom et au moins un item requis.');
       return;
     }
+    const payload = { ...this.draft, mesocycleTemplateId: this.draft.mesocycleTemplateId || null };
     const id = this.editingId();
-    const op = id ? this.planService.update(id, this.draft) : this.planService.create(this.draft);
+    const op = id ? this.planService.update(id, payload) : this.planService.create(payload);
     op.subscribe(() => {
       this.toast.success(id ? 'Plan mis à jour' : 'Plan créé');
       this.resetForm();

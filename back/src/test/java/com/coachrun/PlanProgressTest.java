@@ -116,4 +116,76 @@ class PlanProgressTest {
                         .param("from", "2026-09-07").param("to", "2026-09-13"))
                 .andExpect(jsonPath("$.length()").value(1)); // la séance réalisée est conservée
     }
+
+    @Test
+    void planWithStrengthItemSchedulesAndCounts() throws Exception {
+        auth();
+        String athleteId = objectMapper.readTree(postJson("/clubs/{c}/athletes",
+                "{\"firstName\":\"Tom\",\"lastName\":\"Force\"}")).get("id").asText();
+        String sessionId = objectMapper.readTree(postJson("/clubs/{c}/pp/sessions",
+                "{\"name\":\"Renfo bas du corps\"}")).get("id").asText();
+
+        // Plan mixte : un item de force.
+        String planId = objectMapper.readTree(postJson("/clubs/{c}/training-plans",
+                "{\"name\":\"Mixte\",\"durationWeeks\":1,\"items\":[{\"weekIndex\":0,\"dayOfWeek\":3,"
+                        + "\"kind\":\"STRENGTH\",\"templateId\":\"" + sessionId + "\"}]}")).get("id").asText();
+
+        mvc.perform(post("/clubs/{c}/training-plans/{p}/apply", clubId, planId)
+                        .header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"athleteId\":\"" + athleteId + "\",\"startDate\":\"2026-09-07\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.created").value(1));
+
+        // L'avancement compte la séance de force (1 totale, 0 réalisée).
+        mvc.perform(get("/clubs/{c}/training-plans/{p}/athletes/{a}/progress", clubId, planId, athleteId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalSessions").value(1))
+                .andExpect(jsonPath("$.completedSessions").value(0));
+
+        // Le plan expose l'item avec sa nature.
+        mvc.perform(get("/clubs/{c}/training-plans/{p}", clubId, planId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].kind").value("STRENGTH"))
+                .andExpect(jsonPath("$.items[0].templateName").value("Renfo bas du corps"));
+    }
+
+    @Test
+    void planWithMesocycleScalesLoadPerWeek() throws Exception {
+        auth();
+        String athleteId = objectMapper.readTree(postJson("/clubs/{c}/athletes",
+                "{\"firstName\":\"Max\",\"lastName\":\"Charge\"}")).get("id").asText();
+        String templateId = objectMapper.readTree(postJson("/clubs/{c}/workout-templates",
+                "{\"name\":\"SL\",\"type\":\"ENDURANCE\",\"title\":\"Sortie longue\",\"targetDistanceM\":10000,\"steps\":[]}"))
+                .get("id").asText();
+        String mesoId = objectMapper.readTree(postJson("/clubs/{c}/mesocycle-templates",
+                "{\"name\":\"3:1\",\"weeks\":4,\"increasePct\":10,\"deloadEvery\":4,\"deloadPct\":60}")).get("id").asText();
+
+        // Plan de 4 semaines (1 séance/sem) porté par le mésocycle.
+        String planId = objectMapper.readTree(postJson("/clubs/{c}/training-plans",
+                "{\"name\":\"Bloc\",\"durationWeeks\":4,\"mesocycleTemplateId\":\"" + mesoId + "\",\"items\":["
+                        + "{\"weekIndex\":0,\"dayOfWeek\":2,\"templateId\":\"" + templateId + "\"},"
+                        + "{\"weekIndex\":1,\"dayOfWeek\":2,\"templateId\":\"" + templateId + "\"},"
+                        + "{\"weekIndex\":2,\"dayOfWeek\":2,\"templateId\":\"" + templateId + "\"},"
+                        + "{\"weekIndex\":3,\"dayOfWeek\":2,\"templateId\":\"" + templateId + "\"}]}")).get("id").asText();
+
+        mvc.perform(post("/clubs/{c}/training-plans/{p}/apply", clubId, planId)
+                        .header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"athleteId\":\"" + athleteId + "\",\"startDate\":\"2026-09-07\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.created").value(4));
+
+        // Montée 10k → 11k → 12k puis décharge à 6k (×0.6).
+        assertDistance(athleteId, "2026-09-08", 10000);
+        assertDistance(athleteId, "2026-09-15", 11000);
+        assertDistance(athleteId, "2026-09-22", 12000);
+        assertDistance(athleteId, "2026-09-29", 6000);
+    }
+
+    private void assertDistance(String athleteId, String date, int expected) throws Exception {
+        mvc.perform(get("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .param("from", date).param("to", date))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].targetDistanceM").value(expected));
+    }
 }

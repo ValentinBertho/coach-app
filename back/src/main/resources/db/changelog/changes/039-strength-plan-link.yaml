@@ -1,0 +1,18 @@
+# ============================================================================
+# 039 — Lien plan ↔ séances de force : les items d'un plan peuvent être des
+#   séances de renforcement, rattachées au plan (suivi multi-disciplines).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 039-scheduled-strength-plan-id
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: scheduled_strength_sessions
+            columns:
+              - column: { name: plan_id, type: UUID }
+        - createIndex:
+            indexName: idx_scheduled_strength_plan
+            tableName: scheduled_strength_sessions
+            columns:
+              - column: { name: plan_id }

@@ -39,6 +39,13 @@ public class TrainingPlan extends BaseEntity {
     @Column(name = "duration_weeks", nullable = false)
     private int durationWeeks;
 
+    /**
+     * Modèle de mésocycle optionnel : si présent, l'application du plan met la charge de chaque
+     * semaine à l'échelle (montée progressive + décharges) au lieu d'une séquence figée.
+     */
+    @Column(name = "mesocycle_template_id")
+    private java.util.UUID mesocycleTemplateId;
+
     /** JSON sérialisé de la liste d'items (PlanItemDto[]). */
     @Column(name = "items_json", length = 8000)
     private String itemsJson;
