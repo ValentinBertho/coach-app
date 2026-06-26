@@ -109,6 +109,14 @@ public class AthletePhysioService {
         return PerformanceResponse.from(perf, vdotOf(perf));
     }
 
+    /** Portail athlète : l'athlète déclare lui-même une perf de référence (bootstrap VDOT/allures). */
+    @Transactional
+    public PerformanceResponse addPerformanceForAthlete(UUID athleteId, PerformanceRequest req) {
+        Athlete a = athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        return addPerformance(a.getClub().getId(), athleteId, req);
+    }
+
     @Transactional
     public void deletePerformance(UUID clubId, UUID athleteId, UUID performanceId) {
         Athlete a = requireAthlete(clubId, athleteId);

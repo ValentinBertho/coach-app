@@ -119,10 +119,17 @@ export class TodayComponent implements OnInit {
   readonly sFatigue = signal<number | null>(null);
   readonly sPain = signal<number | null>(null);
 
+  /** L'athlète a-t-il des allures de travail (VDOT) ? Sinon on l'invite à saisir une perf. */
+  readonly hasPaces = signal(true);
+
   ngOnInit(): void {
     this.load();
     this.loadStrength();
     this.portal.nextRace().subscribe({ next: (r) => this.nextRace.set(r) });
+    this.portal.vdot().subscribe({
+      next: (v) => this.hasPaces.set((v.paces?.length ?? 0) > 0),
+      error: () => this.hasPaces.set(true),
+    });
   }
 
   loadStrength(): void {

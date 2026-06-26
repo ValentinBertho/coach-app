@@ -85,3 +85,5 @@ databaseChangeLog:
       file: db/changelog/changes/040-plan-mesocycle.yaml
   - include:
       file: db/changelog/changes/041-email-verification.yaml
+  - include:
+      file: db/changelog/changes/042-calendar-notes.yaml

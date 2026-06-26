@@ -190,6 +190,10 @@ export class AthletePortalService {
   performances(): Observable<Performance[]> {
     return this.http.get<Performance[]>(`${this.base}/performances`);
   }
+  /** Je déclare une performance de référence (bootstrap VDOT / allures). */
+  addPerformance(req: { distance: string; timeSeconds: number; dateSet?: string | null }): Observable<Performance> {
+    return this.http.post<Performance>(`${this.base}/performances`, req);
+  }
 
   // --- Phase 3 « Aller plus loin » (lecture seule) ---
   /** Mes tests lactate (résumés). */

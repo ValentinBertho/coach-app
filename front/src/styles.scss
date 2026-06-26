@@ -412,3 +412,5 @@ textarea.form-control { min-height: 80px; padding: var(--sp-3) var(--sp-4); line
 .cal-layout.sidebar-collapsed { grid-template-columns: 1fr; }
 .cal-sidebar__hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
 .cal-sidebar__hd h3 { margin: 0; }
+.event-chip--note { --type-color: var(--ink-4); }
+.event-chip--note .ec-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

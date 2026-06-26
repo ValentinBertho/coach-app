@@ -111,3 +111,7 @@
 .alert-line.alert-high { color: var(--dari-red); font-weight: 600; }
 
 .hero-skeleton { display: flex; flex-direction: column; }
+
+/* Incitation à saisir une perf quand l'athlète n'a pas d'allures (VDOT). */
+.paces-prompt { display: flex; align-items: center; gap: var(--sp-2); text-decoration: none; color: var(--ink); padding: var(--sp-3); }
+.paces-prompt span { flex: 1; font-size: var(--text-sm); }
