@@ -1,6 +1,9 @@
+export type PlanItemKind = 'COURSE' | 'STRENGTH';
+
 export interface PlanItem {
   weekIndex: number;
   dayOfWeek: number;
+  kind?: PlanItemKind;
   templateId: string;
   templateName?: string;
 }

@@ -38,6 +38,10 @@ public class ScheduledStrengthSession extends BaseEntity {
     @Column(name = "source_session_id")
     private UUID sourceSessionId;
 
+    /** Plan d'entraînement dont cette séance de force est issue (si générée par un plan). */
+    @Column(name = "plan_id")
+    private UUID planId;
+
     @Column(name = "title", nullable = false)
     private String title;
 

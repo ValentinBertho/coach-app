@@ -116,4 +116,37 @@ class PlanProgressTest {
                         .param("from", "2026-09-07").param("to", "2026-09-13"))
                 .andExpect(jsonPath("$.length()").value(1)); // la séance réalisée est conservée
     }
+
+    @Test
+    void planWithStrengthItemSchedulesAndCounts() throws Exception {
+        auth();
+        String athleteId = objectMapper.readTree(postJson("/clubs/{c}/athletes",
+                "{\"firstName\":\"Tom\",\"lastName\":\"Force\"}")).get("id").asText();
+        String sessionId = objectMapper.readTree(postJson("/clubs/{c}/pp/sessions",
+                "{\"name\":\"Renfo bas du corps\"}")).get("id").asText();
+
+        // Plan mixte : un item de force.
+        String planId = objectMapper.readTree(postJson("/clubs/{c}/training-plans",
+                "{\"name\":\"Mixte\",\"durationWeeks\":1,\"items\":[{\"weekIndex\":0,\"dayOfWeek\":3,"
+                        + "\"kind\":\"STRENGTH\",\"templateId\":\"" + sessionId + "\"}]}")).get("id").asText();
+
+        mvc.perform(post("/clubs/{c}/training-plans/{p}/apply", clubId, planId)
+                        .header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"athleteId\":\"" + athleteId + "\",\"startDate\":\"2026-09-07\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.created").value(1));
+
+        // L'avancement compte la séance de force (1 totale, 0 réalisée).
+        mvc.perform(get("/clubs/{c}/training-plans/{p}/athletes/{a}/progress", clubId, planId, athleteId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalSessions").value(1))
+                .andExpect(jsonPath("$.completedSessions").value(0));
+
+        // Le plan expose l'item avec sa nature.
+        mvc.perform(get("/clubs/{c}/training-plans/{p}", clubId, planId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].kind").value("STRENGTH"))
+                .andExpect(jsonPath("$.items[0].templateName").value("Renfo bas du corps"));
+    }
 }

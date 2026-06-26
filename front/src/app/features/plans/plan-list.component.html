@@ -12,15 +12,26 @@
     </div>
     <div class="form-group"><label>Description</label><input class="form-control" [(ngModel)]="draft.description" name="desc" /></div>
 
-    @if (templates().length === 0) {
-      <div class="alert alert-info">Créez d'abord des modèles dans la bibliothèque pour composer un plan.</div>
+    @if (templates().length === 0 && strengthSessions().length === 0) {
+      <div class="alert alert-info">Créez d'abord des modèles de séance (course ou force) pour composer un plan.</div>
     } @else {
       <h2>Composition</h2>
       <div class="item-builder">
-        <select class="form-control" [(ngModel)]="itemDraft.templateId" name="tpl">
-          <option value="">Modèle…</option>
-          @for (t of templates(); track t.id) { <option [value]="t.id">{{ t.name }}</option> }
+        <select class="form-control nm" [(ngModel)]="itemDraft.kind" name="kind" (ngModelChange)="onKindChange()" title="Nature">
+          <option value="COURSE">Course</option>
+          <option value="STRENGTH">Force</option>
         </select>
+        @if (itemDraft.kind === 'STRENGTH') {
+          <select class="form-control" [(ngModel)]="itemDraft.templateId" name="tpl">
+            <option value="">Séance de force…</option>
+            @for (s of strengthSessions(); track s.id) { <option [value]="s.id">{{ s.name }}</option> }
+          </select>
+        } @else {
+          <select class="form-control" [(ngModel)]="itemDraft.templateId" name="tpl">
+            <option value="">Modèle course…</option>
+            @for (t of templates(); track t.id) { <option [value]="t.id">{{ t.name }}</option> }
+          </select>
+        }
         <select class="form-control nm" [(ngModel)]="itemDraft.weekIndex" name="wk">
           @for (w of [].constructor(draft.durationWeeks); track $index) { <option [ngValue]="$index">Sem. {{ $index + 1 }}</option> }
         </select>
@@ -46,8 +57,9 @@
                 @for (d of [1,2,3,4,5,6,7]; track d) {
                   <td [class.has]="cellItems(w, d).length">
                     @for (it of cellItems(w, d); track $index) {
-                      <span class="cell-chip" (click)="removeCellItem(it)" title="Retirer">
-                        {{ templateName(it.templateId) }} <span class="x">✕</span>
+                      <span class="cell-chip" [class.cell-chip--strength]="it.kind === 'STRENGTH'"
+                            (click)="removeCellItem(it)" title="Retirer">
+                        {{ itemName(it) }} <span class="x">✕</span>
                       </span>
                     }
                   </td>

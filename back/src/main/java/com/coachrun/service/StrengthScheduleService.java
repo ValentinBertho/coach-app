@@ -41,6 +41,13 @@ public class StrengthScheduleService {
     @Transactional
     public ScheduledStrengthResponse schedule(UUID clubId, UUID athleteId, UUID sessionId,
                                               LocalDate date, FieldsPreset preset) {
+        return schedule(clubId, athleteId, sessionId, date, preset, null);
+    }
+
+    /** Planifie une séance de force en la rattachant à un plan ({@code planId}) pour le suivi. */
+    @Transactional
+    public ScheduledStrengthResponse schedule(UUID clubId, UUID athleteId, UUID sessionId,
+                                              LocalDate date, FieldsPreset preset, UUID planId) {
         Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         StrengthSessionResponse session = strengthSessionService.get(clubId, sessionId);
@@ -50,6 +57,7 @@ public class StrengthScheduleService {
         ss.setClub(athlete.getClub());
         ss.setAthlete(athlete);
         ss.setSourceSessionId(sessionId);
+        ss.setPlanId(planId);
         ss.setTitle(session.name());
         ss.setSessionSnapshot(writeJson(session.structure()));
         ss.setCalculatedCharges(writeJson(calc));

@@ -9,12 +9,16 @@ import com.coachrun.entity.Athlete;
 import com.coachrun.entity.PlanAssignment;
 import com.coachrun.entity.TrainingPlan;
 import com.coachrun.entity.enums.AthleteStatus;
+import com.coachrun.entity.enums.FieldsPreset;
 import com.coachrun.entity.enums.PermissionLevel;
+import com.coachrun.entity.enums.PlanItemKind;
 import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.ClubRepository;
 import com.coachrun.repository.PlanAssignmentRepository;
+import com.coachrun.repository.ScheduledStrengthSessionRepository;
+import com.coachrun.repository.StrengthSessionRepository;
 import com.coachrun.repository.TrainingGroupRepository;
 import com.coachrun.repository.TrainingPlanRepository;
 import com.coachrun.repository.WorkoutRepository;
@@ -46,6 +50,9 @@ public class TrainingPlanService {
     private final AthleteAccessValidator accessValidator;
     private final PlanAssignmentRepository assignmentRepository;
     private final WorkoutRepository workoutRepository;
+    private final StrengthScheduleService strengthScheduleService;
+    private final ScheduledStrengthSessionRepository scheduledStrengthRepository;
+    private final StrengthSessionRepository strengthSessionRepository;
     private final ObjectMapper objectMapper;
 
     public List<TrainingPlanResponse> list(UUID clubId) {
@@ -96,8 +103,10 @@ public class TrainingPlanService {
         Athlete athlete = requireAthlete(clubId, athleteId);
         p.getAthletes().add(athlete);
 
-        // Idempotence : on retire les séances encore planifiées de ce plan avant de regénérer.
+        // Idempotence : on retire les séances non encore réalisées de ce plan avant de regénérer
+        // (course planifiées + force non complétées). L'historique réalisé est préservé.
         workoutRepository.deleteByPlanIdAndAthleteIdAndStatus(planId, athleteId, WorkoutStatus.PLANNED);
+        scheduledStrengthRepository.deleteByPlanIdAndAthleteIdAndCompletedFalse(planId, athleteId);
 
         // Attribution datée (source de vérité du suivi) : upsert.
         PlanAssignment assignment = assignmentRepository.findByPlanIdAndAthleteId(planId, athleteId)
@@ -114,7 +123,12 @@ public class TrainingPlanService {
         int created = 0;
         for (PlanItemDto item : items) {
             LocalDate date = startDate.plusWeeks(item.weekIndex()).plusDays(item.dayOfWeek() - 1L);
-            templateService.apply(clubId, item.templateId(), athleteId, date, planId);
+            if (item.kindOrDefault() == PlanItemKind.STRENGTH) {
+                strengthScheduleService.schedule(clubId, athleteId, item.templateId(), date,
+                        FieldsPreset.DEBUTANT, planId);
+            } else {
+                templateService.apply(clubId, item.templateId(), athleteId, date, planId);
+            }
             created++;
         }
         return created;
@@ -147,9 +161,12 @@ public class TrainingPlanService {
         int currentWeek = (int) Math.max(1, Math.min(weeks, elapsedWeeks + 1));
         boolean finished = LocalDate.now().isAfter(start.plusWeeks(weeks));
 
-        long total = workoutRepository.countByPlanIdAndAthleteId(p.getId(), athleteId);
+        // Avancement multi-disciplines : course (séances liées) + force (séances de renfo liées).
+        long total = workoutRepository.countByPlanIdAndAthleteId(p.getId(), athleteId)
+                + scheduledStrengthRepository.countByPlanIdAndAthleteId(p.getId(), athleteId);
         long completed = workoutRepository.countByPlanIdAndAthleteIdAndStatus(
-                p.getId(), athleteId, WorkoutStatus.COMPLETED);
+                p.getId(), athleteId, WorkoutStatus.COMPLETED)
+                + scheduledStrengthRepository.countByPlanIdAndAthleteIdAndCompletedTrue(p.getId(), athleteId);
         int percent = total == 0 ? 0 : (int) Math.round(100.0 * completed / total);
 
         return new PlanProgressResponse(start, weeks, finished ? weeks : currentWeek,
@@ -196,6 +213,7 @@ public class TrainingPlanService {
         TrainingPlan p = require(clubId, planId);
         p.getAthletes().removeIf(a -> a.getId().equals(athleteId));
         workoutRepository.deleteByPlanIdAndAthleteIdAndStatus(planId, athleteId, WorkoutStatus.PLANNED);
+        scheduledStrengthRepository.deleteByPlanIdAndAthleteIdAndCompletedFalse(planId, athleteId);
         assignmentRepository.deleteByPlanIdAndAthleteId(planId, athleteId);
     }
 
@@ -223,11 +241,20 @@ public class TrainingPlanService {
     private TrainingPlanResponse toResponse(UUID clubId, TrainingPlan p) {
         List<TrainingPlanResponse.PlanItem> items = readItems(p.getItemsJson()).stream()
                 .map(i -> new TrainingPlanResponse.PlanItem(
-                        i.weekIndex(), i.dayOfWeek(), i.templateId(),
-                        templateRepository.findByIdAndClubId(i.templateId(), clubId)
-                                .map(t -> t.getName()).orElse("(modèle supprimé)")))
+                        i.weekIndex(), i.dayOfWeek(), i.kindOrDefault(), i.templateId(),
+                        resolveItemName(clubId, i)))
                 .toList();
         return TrainingPlanResponse.of(p, items);
+    }
+
+    /** Nom lisible d'un item selon sa nature (modèle course ou séance de force). */
+    private String resolveItemName(UUID clubId, PlanItemDto item) {
+        if (item.kindOrDefault() == PlanItemKind.STRENGTH) {
+            return strengthSessionRepository.findByIdAndClubId(item.templateId(), clubId)
+                    .map(s -> s.getName()).orElse("(séance supprimée)");
+        }
+        return templateRepository.findByIdAndClubId(item.templateId(), clubId)
+                .map(t -> t.getName()).orElse("(modèle supprimé)");
     }
 
     private List<PlanItemDto> readItems(String json) {

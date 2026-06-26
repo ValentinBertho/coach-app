@@ -1,6 +1,7 @@
 package com.coachrun.dto.response;
 
 import com.coachrun.entity.TrainingPlan;
+import com.coachrun.entity.enums.PlanItemKind;
 
 import java.util.Comparator;
 import java.util.List;
@@ -14,7 +15,7 @@ public record TrainingPlanResponse(
         List<PlanItem> items,
         List<RefResponse> athletes) {
 
-    public record PlanItem(int weekIndex, int dayOfWeek, UUID templateId, String templateName) {
+    public record PlanItem(int weekIndex, int dayOfWeek, PlanItemKind kind, UUID templateId, String templateName) {
     }
 
     public static TrainingPlanResponse of(TrainingPlan p, List<PlanItem> items) {
