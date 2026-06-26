@@ -193,16 +193,6 @@ export const routes: Routes = [
           import('./features/races/race-list.component').then((m) => m.RaceListComponent),
       },
       {
-        path: 'athletes/:athleteId/workouts/new',
-        loadComponent: () =>
-          import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),
-      },
-      {
-        path: 'athletes/:athleteId/workouts/:workoutId/edit',
-        loadComponent: () =>
-          import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),
-      },
-      {
         path: 'athletes/:athleteId/workouts/:workoutId',
         loadComponent: () =>
           import('./features/workouts/workout-detail.component').then((m) => m.WorkoutDetailComponent),

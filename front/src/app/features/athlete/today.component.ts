@@ -11,6 +11,8 @@ import {
 } from '../../core/models/workout.model';
 import { AthletePortalService, StrengthPrescriptionView } from '../../core/services/athlete-portal.service';
 import { Progression, ScheduledStrength, StrengthResultEntry } from '../../core/models/strength.model';
+import { WorkoutPrescription } from '../../core/models/course.model';
+import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
 import { AuthService } from '../../core/services/auth.service';
 import { FeedbackQueueService } from '../../core/services/feedback-queue.service';
 import { NetworkStatusService } from '../../core/services/network-status.service';
@@ -65,6 +67,7 @@ type State = 'loading' | 'ready' | 'error';
     LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent, NotificationBellComponent,
     IntensityZoneBadgeComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
     PainFatigueSelectorComponent, BottomSheetComponent, StickyActionBarComponent,
+    CoursePrescriptionViewComponent,
   ],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',
@@ -85,6 +88,12 @@ export class TodayComponent implements OnInit {
 
   readonly state = signal<State>('loading');
   readonly workout = signal<Workout | null>(null);
+  /** Prescription course en fourchettes (snapshot + cibles calculées) — affichage prioritaire. */
+  readonly courseRx = signal<WorkoutPrescription | null>(null);
+  readonly courseRxHasContent = computed(() => {
+    const c = this.courseRx()?.calculated;
+    return !!c && (c.warmup.length + c.main.length + c.cooldown.length) > 0;
+  });
   readonly nextRace = signal<import('../../core/models/race.model').RaceObjective | null>(null);
   readonly user = this.auth.currentUser;
 
@@ -211,9 +220,14 @@ export class TodayComponent implements OnInit {
       next: (list) => {
         const w = list[0] ?? null;
         this.workout.set(w);
+        this.courseRx.set(null);
         if (w) {
           this.rpe.set(w.rpe ?? null);
           this.comment.set(w.athleteComment ?? '');
+          this.portal.workoutPrescription(w.id).subscribe({
+            next: (p) => this.courseRx.set(p),
+            error: () => this.courseRx.set(null),
+          });
         }
         this.state.set('ready');
       },

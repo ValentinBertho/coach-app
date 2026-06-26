@@ -54,7 +54,9 @@
               <p class="hero__target metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} <small>km</small></p>
             }
 
-            @if (w.steps.length) {
+            @if (courseRxHasContent()) {
+              <app-course-prescription-view [prescription]="courseRx()" />
+            } @else if (w.steps.length) {
               <ol class="timeline">
                 @for (s of w.steps; track s.id) {
                   <li class="timeline__step">

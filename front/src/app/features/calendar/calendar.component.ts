@@ -381,8 +381,25 @@ export class CalendarComponent implements OnInit {
   /** Drop dans la bibliothèque (retour) : aucune action, l'élément revient à sa place. */
   onLibDrop(): void { /* no-op */ }
 
+  /** Date pour laquelle le sélecteur de séance course est ouvert (null = fermé). */
+  readonly pickerDate = signal<string | null>(null);
+
+  /** Ouvre le sélecteur de modèle de séance course (planification structurée, en fourchettes). */
   addWorkout(date: string): void {
-    this.router.navigate(['/app/athletes', this.selectedAthleteId, 'workouts', 'new'], { queryParams: { date } });
+    if (!this.selectedAthleteId) { this.toast.error('Sélectionne un athlète.'); return; }
+    this.pickerDate.set(date);
+  }
+
+  closePicker(): void { this.pickerDate.set(null); }
+
+  /** Planifie un modèle de séance course sur la date choisie (snapshot figé + cibles en fourchettes). */
+  scheduleTemplateOn(t: WorkoutTemplate): void {
+    const date = this.pickerDate();
+    if (!date) return;
+    this.courseService.schedule(this.selectedAthleteId, t.id, { date }).subscribe({
+      next: () => { this.toast.success(`${t.name} planifiée le ${date}`); this.closePicker(); this.load(); },
+      error: () => this.toast.error('Planification impossible.'),
+    });
   }
   openWorkout(w: Workout): void {
     // Vue séance (lecture) ; l'édition est une action délibérée depuis la page.

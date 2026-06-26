@@ -216,3 +216,30 @@
     </div>
   </div>
 }
+
+<!-- Sélecteur de séance course (clic sur « + » d'un jour) : planification structurée en fourchettes.
+     L'ancien éditeur « par zones » (valeurs sèches) a été retiré au profit du modèle unique DARI Lab. -->
+@if (pickerDate(); as date) {
+  <div class="picker-overlay" (click)="closePicker()">
+    <div class="picker" (click)="$event.stopPropagation()">
+      <header class="picker__head">
+        <h3>Planifier une séance — {{ date }}</h3>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="closePicker()">Fermer</button>
+      </header>
+      @if (courseTemplates().length) {
+        <ul class="picker__list">
+          @for (t of courseTemplates(); track t.id) {
+            <li>
+              <button type="button" class="picker__item" (click)="scheduleTemplateOn(t)">
+                <span class="picker__name">{{ t.name }}</span>
+                <span class="picker__type">{{ typeLabels[t.type] }}</span>
+              </button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="field-hint">Aucun modèle de séance course. Crée-en dans la bibliothèque (prescription en fourchettes).</p>
+      }
+    </div>
+  </div>
+}

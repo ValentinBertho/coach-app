@@ -22,16 +22,30 @@
   <div class="card section-card">
     <div class="section-head">
       <h2>{{ sec.label }}</h2>
-      <button type="button" class="btn btn-ghost btn-sm" (click)="addBlock(sec.key)">+ Bloc</button>
+      <div class="preset-row">
+        @for (p of presetsFor(sec.key); track p.label) {
+          <button type="button" class="btn btn-ghost btn-sm" (click)="addBlock(sec.key, p.block)">+ {{ p.label }}</button>
+        }
+        <button type="button" class="btn btn-ghost btn-sm" (click)="addBlock(sec.key)">+ Bloc vierge</button>
+      </div>
     </div>
 
     @for (b of blocks(sec.key); track b.id) {
       <div class="block">
         <div class="block-edit">
-          <input class="form-control type" [(ngModel)]="b.type" placeholder="type" />
+          <select class="form-control type" [(ngModel)]="b.type" (ngModelChange)="recalc(b)" title="Type de bloc">
+            @for (t of blockTypes; track t) { <option [value]="t">{{ t }}</option> }
+          </select>
           <input type="number" class="form-control nm" [(ngModel)]="b.reps" (ngModelChange)="recalc(b)" placeholder="×N" title="Répétitions" />
-          <input type="number" class="form-control nm" [(ngModel)]="b.distanceM" (ngModelChange)="recalc(b)" placeholder="m" />
-          <input type="number" class="form-control nm" [(ngModel)]="b.durationS" (ngModelChange)="recalc(b)" placeholder="s" />
+          <select class="form-control" [ngModel]="measureOf(b)" (ngModelChange)="setMeasure(b, $event)" title="Mesurer par">
+            <option value="distance">Distance</option>
+            <option value="duration">Durée</option>
+          </select>
+          @if (measureOf(b) === 'distance') {
+            <input type="number" class="form-control nm" [(ngModel)]="b.distanceM" (ngModelChange)="recalc(b)" placeholder="m" title="Distance (m)" />
+          } @else {
+            <input type="number" class="form-control nm" [ngModel]="durMin(b)" (ngModelChange)="setDurMin(b, $event)" placeholder="min" title="Durée (min)" />
+          }
           @if (b.prescription) {
             <select class="form-control" [(ngModel)]="b.prescription.ref" (ngModelChange)="recalc(b)">
               @for (r of refs; track r.value) { <option [value]="r.value">{{ r.label }}</option> }

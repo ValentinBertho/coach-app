@@ -64,18 +64,71 @@ export class SessionEditorComponent implements OnInit {
     return this.structure()[key];
   }
 
-  addBlock(key: keyof SessionStructure): void {
-    const block: CourseBlock = {
+  /** Types de bloc proposés (liste fermée plutôt qu'un champ libre, plus intuitif). */
+  readonly blockTypes = ['easy', 'warmup', 'cooldown', 'intervals', 'tempo', 'threshold', 'recovery', 'long', 'run'];
+
+  /** Blocs pré-remplis en un clic, par section (valeurs de départ raisonnables, en fourchettes). */
+  presetsFor(key: keyof SessionStructure): { label: string; block: Partial<CourseBlock> }[] {
+    if (key === 'warmup') {
+      return [
+        { label: 'Échauffement 15 min', block: { type: 'warmup', durationS: 900, prescription: { ref: 'PCT_LT1', minPct: 60, maxPct: 75 } } },
+      ];
+    }
+    if (key === 'cooldown') {
+      return [
+        { label: 'Retour au calme 10 min', block: { type: 'cooldown', durationS: 600, prescription: { ref: 'PCT_LT1', minPct: 55, maxPct: 70 } } },
+      ];
+    }
+    return [
+      { label: 'Intervalles 6×400 m', block: { type: 'intervals', reps: 6, distanceM: 400, prescription: { ref: 'PCT_PACE_5KM', minPct: 98, maxPct: 105 } } },
+      { label: 'Seuil 20 min', block: { type: 'threshold', durationS: 1200, prescription: { ref: 'PCT_LT2', minPct: 95, maxPct: 100 } } },
+      { label: 'Tempo 4 km', block: { type: 'tempo', distanceM: 4000, prescription: { ref: 'PCT_PACE_10KM', minPct: 95, maxPct: 100 } } },
+    ];
+  }
+
+  addBlock(key: keyof SessionStructure, preset?: Partial<CourseBlock>): void {
+    const isMain = key === 'main';
+    const base: CourseBlock = {
       id: 'b-' + Math.random().toString(36).slice(2, 9),
-      type: key === 'main' ? 'intervals' : 'easy',
-      reps: key === 'main' ? 6 : null,
-      distanceM: key === 'main' ? 1000 : null,
-      durationS: key === 'main' ? null : 600,
-      prescription: { ref: key === 'main' ? 'PCT_PACE_5KM' : 'PCT_LT1', minPct: 95, maxPct: 100 },
+      type: isMain ? 'intervals' : (key === 'warmup' ? 'warmup' : 'cooldown'),
+      reps: isMain ? 6 : null,
+      distanceM: isMain ? 1000 : null,
+      durationS: isMain ? null : 600,
+      prescription: { ref: isMain ? 'PCT_PACE_5KM' : 'PCT_LT1', minPct: 95, maxPct: 100 },
     };
+    const block: CourseBlock = { ...base, ...preset, id: base.id };
+    // Un bloc se mesure soit en distance, soit en durée : on garde un seul des deux.
+    if (preset?.durationS != null) { block.distanceM = null; }
+    else if (preset?.distanceM != null) { block.durationS = null; }
     const s = this.structure();
     this.structure.set({ ...s, [key]: [...s[key], block] });
     this.recalc(block);
+  }
+
+  /** Mode de mesure d'un bloc : par distance ou par durée (jamais les deux). */
+  measureOf(b: CourseBlock): 'distance' | 'duration' {
+    return b.durationS != null && b.distanceM == null ? 'duration' : 'distance';
+  }
+
+  setMeasure(b: CourseBlock, mode: 'distance' | 'duration'): void {
+    if (mode === 'duration') {
+      b.distanceM = null;
+      b.durationS = b.durationS ?? 600;
+    } else {
+      b.durationS = null;
+      b.distanceM = b.distanceM ?? 1000;
+    }
+    this.recalc(b);
+  }
+
+  /** Durée exposée en minutes (plus lisible que des secondes) ; stockée en secondes. */
+  durMin(b: CourseBlock): number | null {
+    return b.durationS != null ? Math.round((b.durationS / 60) * 10) / 10 : null;
+  }
+
+  setDurMin(b: CourseBlock, min: number | null): void {
+    b.durationS = min != null ? Math.round(min * 60) : null;
+    this.recalc(b);
   }
 
   removeBlock(key: keyof SessionStructure, id: string): void {
