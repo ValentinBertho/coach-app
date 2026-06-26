@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { TrainingGroup } from '../../core/models/training-group.model';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -10,7 +11,7 @@ import { EmptyStateComponent, LoaderComponent } from '../../shared/components/ui
   selector: 'app-group-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, EmptyStateComponent, LoaderComponent],
+  imports: [FormsModule, RouterLink, EmptyStateComponent, LoaderComponent],
   templateUrl: './group-list.component.html',
 })
 export class GroupListComponent implements OnInit {

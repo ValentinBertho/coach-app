@@ -128,6 +128,11 @@ export const routes: Routes = [
           import('./features/groups/group-list.component').then((m) => m.GroupListComponent),
       },
       {
+        path: 'groups/:id/analytics',
+        loadComponent: () =>
+          import('./features/groups/group-analytics.component').then((m) => m.GroupAnalyticsComponent),
+      },
+      {
         path: 'club',
         loadComponent: () =>
           import('./features/club/club.component').then((m) => m.ClubComponent),

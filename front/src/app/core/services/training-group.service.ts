@@ -26,4 +26,34 @@ export class TrainingGroupService {
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base()}/${id}`);
   }
+  /** Analytics agrégées d'un groupe (forme, ACWR moyen, volume, adhérence). */
+  analytics(id: string, weeks = 8): Observable<GroupAnalytics> {
+    return this.http.get<GroupAnalytics>(`${this.base()}/${id}/analytics?weeks=${weeks}`);
+  }
+}
+
+export type FormStatus = 'GREEN' | 'ORANGE' | 'RED';
+
+export interface GroupAnalyticsRow {
+  id: string;
+  firstName: string;
+  lastName: string;
+  discipline: string;
+  formStatus: FormStatus;
+  fatigue: number | null;
+  pain: number | null;
+  acwr: number | null;
+  plannedKm: number;
+  realizedKm: number;
+  compliancePct: number | null;
+  lastFeedbackDate: string | null;
+}
+
+export interface GroupAnalytics {
+  groupId: string;
+  name: string;
+  athleteCount: number;
+  form: { green: number; orange: number; red: number };
+  totals: { avgAcwr: number | null; plannedKm: number; realizedKm: number; compliancePct: number | null };
+  athletes: GroupAnalyticsRow[];
 }
