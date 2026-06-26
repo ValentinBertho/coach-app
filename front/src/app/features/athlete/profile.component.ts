@@ -163,6 +163,12 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
         }
 
         <div class="card">
+          <h2>Synchronisation</h2>
+          <p class="field-hint">Connecte ta montre (Strava) pour importer tes activités automatiquement.</p>
+          <a routerLink="/athlete/sync" class="btn btn-ghost">Gérer mes connexions</a>
+        </div>
+
+        <div class="card">
           <h2>Mes données (RGPD)</h2>
           <p class="field-hint">Téléchargez l'ensemble de vos données personnelles (portabilité).</p>
           <button type="button" class="btn btn-ghost" (click)="exportData()">Exporter mes données (JSON)</button>

@@ -61,6 +61,34 @@ public class RaceObjectiveService {
         raceRepository.delete(require(clubId, raceId));
     }
 
+    // --- Portail athlète : l'athlète gère ses propres objectifs (CDC §10) -----
+
+    @Transactional
+    public RaceObjectiveResponse createForAthlete(UUID athleteId, RaceObjectiveRequest request) {
+        com.coachrun.entity.Athlete a = athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        return create(a.getClub().getId(), athleteId, request);
+    }
+
+    @Transactional
+    public RaceObjectiveResponse updateForAthlete(UUID athleteId, UUID raceId, RaceObjectiveRequest request) {
+        RaceObjective race = requireForAthlete(athleteId, raceId);
+        apply(race, request);
+        return RaceObjectiveResponse.from(race);
+    }
+
+    @Transactional
+    public void deleteForAthlete(UUID athleteId, UUID raceId) {
+        raceRepository.delete(requireForAthlete(athleteId, raceId));
+    }
+
+    /** Garde-fou anti-IDOR : l'objectif doit appartenir à l'athlète du principal. */
+    private RaceObjective requireForAthlete(UUID athleteId, UUID raceId) {
+        return raceRepository.findById(raceId)
+                .filter(r -> r.getAthlete().getId().equals(athleteId))
+                .orElseThrow(() -> new NotFoundException("Course introuvable."));
+    }
+
     public Optional<RaceObjectiveResponse> nextRace(UUID athleteId) {
         return raceRepository
                 .findFirstByAthleteIdAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(

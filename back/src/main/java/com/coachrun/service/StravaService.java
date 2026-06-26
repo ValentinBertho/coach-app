@@ -136,6 +136,38 @@ public class StravaService {
                 .ifPresent(connectionRepository::delete);
     }
 
+    // --- Portail athlète : l'athlète connecte SA propre montre (CDC §12) -------
+    // L'intégration est d'abord côté athlète ; le clubId est résolu depuis l'athlète.
+
+    public StravaStatusResponse statusForAthlete(UUID athleteId) {
+        return status(clubIdOf(athleteId), athleteId);
+    }
+
+    public String authorizeUrlForAthlete(UUID athleteId) {
+        return authorizeUrl(clubIdOf(athleteId), athleteId);
+    }
+
+    @Transactional
+    public StravaStatusResponse connectForAthlete(UUID athleteId, String code) {
+        return connect(clubIdOf(athleteId), athleteId, code);
+    }
+
+    @Transactional
+    public int importForAthlete(UUID athleteId) {
+        return importActivities(clubIdOf(athleteId), athleteId);
+    }
+
+    @Transactional
+    public void disconnectForAthlete(UUID athleteId) {
+        disconnect(clubIdOf(athleteId), athleteId);
+    }
+
+    private UUID clubIdOf(UUID athleteId) {
+        return athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."))
+                .getClub().getId();
+    }
+
     /** Rafraîchit l'access token s'il expire dans moins de 60 s. */
     private String freshAccessToken(DeviceConnection conn) {
         if (conn.getExpiresAt() > Instant.now().getEpochSecond() + 60) {

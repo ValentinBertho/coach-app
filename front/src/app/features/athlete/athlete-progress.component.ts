@@ -52,6 +52,10 @@ const SOURCE_LABEL: Record<string, string> = {
           <app-icon name="footprints" [size]="20" /><span>Mes activités</span>
           <app-icon name="chevron-right" [size]="18" />
         </a>
+        <a routerLink="/athlete/races" class="quick-l card">
+          <app-icon name="flag" [size]="20" /><span>Mes objectifs</span>
+          <app-icon name="chevron-right" [size]="18" />
+        </a>
         <a routerLink="/athlete/lactate" class="quick-l card">
           <app-icon name="activity" [size]="20" /><span>Mes tests lactate</span>
           <app-icon name="chevron-right" [size]="18" />

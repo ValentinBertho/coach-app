@@ -56,6 +56,7 @@ public class AthletePortalController {
     private final com.coachrun.service.ActivityService activityService;
     private final com.coachrun.service.LactateTestService lactateTestService;
     private final com.coachrun.service.TrainingPlanService trainingPlanService;
+    private final com.coachrun.service.StravaService stravaService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -194,6 +195,30 @@ public class AthletePortalController {
         return raceService.listForAthlete(principal.athleteId());
     }
 
+    /** Je crée un objectif de course. */
+    @PostMapping("/races")
+    @ResponseStatus(HttpStatus.CREATED)
+    public com.coachrun.dto.response.RaceObjectiveResponse createRace(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody com.coachrun.dto.request.RaceObjectiveRequest request) {
+        return raceService.createForAthlete(principal.athleteId(), request);
+    }
+
+    /** Je modifie un de mes objectifs. */
+    @PatchMapping("/races/{raceId}")
+    public com.coachrun.dto.response.RaceObjectiveResponse updateRace(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID raceId,
+            @Valid @RequestBody com.coachrun.dto.request.RaceObjectiveRequest request) {
+        return raceService.updateForAthlete(principal.athleteId(), raceId, request);
+    }
+
+    /** Je supprime un de mes objectifs. */
+    @DeleteMapping("/races/{raceId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteRace(@AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID raceId) {
+        raceService.deleteForAthlete(principal.athleteId(), raceId);
+    }
+
     // --- Phase 2 « Mon histoire » (lecture seule) ----------------------------
 
     /** Mes analytics : volume hebdo prévu/réalisé, répartition de zones, adhérence. */
@@ -321,6 +346,41 @@ public class AthletePortalController {
                         "inline; filename=\"" + a.getFilename() + "\"")
                 .contentType(org.springframework.http.MediaType.parseMediaType(a.getContentType()))
                 .body(a.getData());
+    }
+
+    // --- Synchronisation Strava (côté athlète : je connecte MA propre montre, CDC §12) ---
+
+    /** Statut de ma connexion Strava. */
+    @GetMapping("/strava")
+    public com.coachrun.dto.response.StravaStatusResponse stravaStatus(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return stravaService.statusForAthlete(principal.athleteId());
+    }
+
+    /** URL d'autorisation Strava à ouvrir dans le navigateur. */
+    @GetMapping("/strava/authorize")
+    public java.util.Map<String, String> stravaAuthorize(@AuthenticationPrincipal AuthPrincipal principal) {
+        return java.util.Map.of("url", stravaService.authorizeUrlForAthlete(principal.athleteId()));
+    }
+
+    /** Finalise ma connexion Strava avec le code d'autorisation. */
+    @PostMapping("/strava/connect")
+    public com.coachrun.dto.response.StravaStatusResponse stravaConnect(
+            @AuthenticationPrincipal AuthPrincipal principal, @RequestBody java.util.Map<String, String> body) {
+        return stravaService.connectForAthlete(principal.athleteId(), body.get("code"));
+    }
+
+    /** J'importe maintenant mes nouvelles activités Strava. */
+    @PostMapping("/strava/import")
+    public java.util.Map<String, Integer> stravaImport(@AuthenticationPrincipal AuthPrincipal principal) {
+        return java.util.Map.of("imported", stravaService.importForAthlete(principal.athleteId()));
+    }
+
+    /** Je déconnecte mon compte Strava. */
+    @DeleteMapping("/strava")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void stravaDisconnect(@AuthenticationPrincipal AuthPrincipal principal) {
+        stravaService.disconnectForAthlete(principal.athleteId());
     }
 
     /** Mes indisponibilités en cours ou à venir. */
