@@ -12,6 +12,7 @@ public record TrainingPlanResponse(
         String name,
         String description,
         int durationWeeks,
+        UUID mesocycleTemplateId,
         List<PlanItem> items,
         List<RefResponse> athletes) {
 
@@ -24,6 +25,6 @@ public record TrainingPlanResponse(
                 .sorted(Comparator.comparing(RefResponse::name, Comparator.nullsLast(String::compareTo)))
                 .toList();
         return new TrainingPlanResponse(p.getId(), p.getName(), p.getDescription(),
-                p.getDurationWeeks(), items, athletes);
+                p.getDurationWeeks(), p.getMesocycleTemplateId(), items, athletes);
     }
 }

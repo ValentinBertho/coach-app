@@ -73,11 +73,40 @@ public class WorkoutTemplateService {
     @Transactional
     public WorkoutResponse apply(UUID clubId, UUID templateId, UUID athleteId,
                                  java.time.LocalDate date, java.util.UUID planId) {
+        return apply(clubId, templateId, athleteId, date, planId, 1.0);
+    }
+
+    /**
+     * Applique un modèle en mettant la charge (distance/durée) à l'échelle d'un facteur
+     * {@code multiplier} — pour la périodisation d'un plan (montée de charge / décharge).
+     */
+    @Transactional
+    public WorkoutResponse apply(UUID clubId, UUID templateId, UUID athleteId,
+                                 java.time.LocalDate date, java.util.UUID planId, double multiplier) {
         WorkoutTemplate t = require(clubId, templateId);
+        java.util.List<com.coachrun.dto.request.WorkoutStepRequest> steps = readSteps(t.getStepsJson())
+                .stream().map(s -> scaleStep(s, multiplier)).toList();
         WorkoutRequest req = new WorkoutRequest(
                 date, t.getType(), t.getTitle(), t.getNotes(),
-                t.getTargetDistanceM(), t.getTargetDurationS(), readSteps(t.getStepsJson()));
+                scale(t.getTargetDistanceM(), multiplier), scale(t.getTargetDurationS(), multiplier), steps);
         return workoutService.create(clubId, athleteId, req, planId);
+    }
+
+    private com.coachrun.dto.request.WorkoutStepRequest scaleStep(
+            com.coachrun.dto.request.WorkoutStepRequest s, double multiplier) {
+        if (multiplier == 1.0) {
+            return s;
+        }
+        return new com.coachrun.dto.request.WorkoutStepRequest(
+                s.stepType(), s.repetitions(), s.zone(),
+                scale(s.distanceM(), multiplier), scale(s.durationS(), multiplier), s.notes());
+    }
+
+    private Integer scale(Integer value, double multiplier) {
+        if (value == null || multiplier == 1.0) {
+            return value;
+        }
+        return (int) Math.round(value * multiplier);
     }
 
     private WorkoutTemplate require(UUID clubId, UUID id) {

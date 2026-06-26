@@ -6,6 +6,7 @@ import com.coachrun.dto.response.GroupApplyResponse;
 import com.coachrun.dto.response.PlanProgressResponse;
 import com.coachrun.dto.response.TrainingPlanResponse;
 import com.coachrun.entity.Athlete;
+import com.coachrun.entity.MesocycleTemplate;
 import com.coachrun.entity.PlanAssignment;
 import com.coachrun.entity.TrainingPlan;
 import com.coachrun.entity.enums.AthleteStatus;
@@ -16,6 +17,7 @@ import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.ClubRepository;
+import com.coachrun.repository.MesocycleTemplateRepository;
 import com.coachrun.repository.PlanAssignmentRepository;
 import com.coachrun.repository.ScheduledStrengthSessionRepository;
 import com.coachrun.repository.StrengthSessionRepository;
@@ -53,6 +55,7 @@ public class TrainingPlanService {
     private final StrengthScheduleService strengthScheduleService;
     private final ScheduledStrengthSessionRepository scheduledStrengthRepository;
     private final StrengthSessionRepository strengthSessionRepository;
+    private final MesocycleTemplateRepository mesocycleTemplateRepository;
     private final ObjectMapper objectMapper;
 
     public List<TrainingPlanResponse> list(UUID clubId) {
@@ -119,6 +122,10 @@ public class TrainingPlanService {
         assignment.setStartDate(startDate);
         assignmentRepository.save(assignment);
 
+        // Périodisation optionnelle : un modèle de mésocycle module la charge semaine par semaine.
+        MesocycleTemplate meso = p.getMesocycleTemplateId() == null ? null
+                : mesocycleTemplateRepository.findByIdAndClubId(p.getMesocycleTemplateId(), clubId).orElse(null);
+
         List<PlanItemDto> items = readItems(p.getItemsJson());
         int created = 0;
         for (PlanItemDto item : items) {
@@ -127,7 +134,9 @@ public class TrainingPlanService {
                 strengthScheduleService.schedule(clubId, athleteId, item.templateId(), date,
                         FieldsPreset.DEBUTANT, planId);
             } else {
-                templateService.apply(clubId, item.templateId(), athleteId, date, planId);
+                double multiplier = meso == null ? 1.0 : com.coachrun.util.MesocycleMath.multiplierForWeek(
+                        item.weekIndex(), meso.getIncreasePct(), meso.getDeloadEvery(), meso.getDeloadPct());
+                templateService.apply(clubId, item.templateId(), athleteId, date, planId, multiplier);
             }
             created++;
         }
@@ -231,6 +240,7 @@ public class TrainingPlanService {
         p.setName(request.name());
         p.setDescription(request.description());
         p.setDurationWeeks(request.durationWeeks());
+        p.setMesocycleTemplateId(request.mesocycleTemplateId());
         try {
             p.setItemsJson(objectMapper.writeValueAsString(request.items()));
         } catch (Exception e) {
