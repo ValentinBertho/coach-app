@@ -1,10 +1,11 @@
 <section class="page-header">
   <div><h1 class="display-sm">Plans périodisés</h1><p class="subtitle">Construisez un plan sur N semaines à partir de vos modèles.</p></div>
-  <button type="button" class="btn btn-primary" (click)="showForm.set(!showForm())">{{ showForm() ? 'Fermer' : '+ Nouveau plan' }}</button>
+  <button type="button" class="btn btn-primary" (click)="showForm() ? cancelForm() : newPlan()">{{ showForm() ? 'Fermer' : '+ Nouveau plan' }}</button>
 </section>
 
 @if (showForm()) {
   <form class="card form-card" (ngSubmit)="save()">
+    <h2>{{ editingId() ? 'Modifier le plan' : 'Nouveau plan' }}</h2>
     <div class="form-row">
       <div class="form-group"><label>Nom *</label><input class="form-control" [(ngModel)]="draft.name" name="name" placeholder="Prépa 10 km" /></div>
       <div class="form-group"><label>Durée (semaines)</label><input type="number" min="1" max="52" class="form-control" [(ngModel)]="draft.durationWeeks" name="weeks" /></div>
@@ -29,18 +30,37 @@
         <button type="button" class="btn btn-ghost" (click)="addItem()">+ Ajouter</button>
       </div>
 
-      @if (draft.items.length) {
-        <ul class="items">
-          @for (it of draft.items; track $index) {
-            <li>
-              <span class="badge badge-neutral">S{{ it.weekIndex + 1 }} · {{ days[it.dayOfWeek] }}</span>
-              {{ templateName(it.templateId) }}
-              <button type="button" class="icon-btn danger" (click)="removeItem($index)">✕</button>
-            </li>
-          }
-        </ul>
-      }
-      <button type="submit" class="btn btn-primary btn-lg" style="margin-top:var(--sp-4)">Enregistrer le plan</button>
+      <!-- Aperçu grille : où chaque séance tombe sur le bloc (semaine × jour). -->
+      <div class="grid-preview table-wrap">
+        <table class="plan-grid-table">
+          <thead>
+            <tr>
+              <th class="corner">Sem.</th>
+              @for (d of [1,2,3,4,5,6,7]; track d) { <th>{{ days[d] }}</th> }
+            </tr>
+          </thead>
+          <tbody>
+            @for (w of weekIndexes(); track w) {
+              <tr>
+                <th class="wk">{{ w + 1 }}</th>
+                @for (d of [1,2,3,4,5,6,7]; track d) {
+                  <td [class.has]="cellItems(w, d).length">
+                    @for (it of cellItems(w, d); track $index) {
+                      <span class="cell-chip" (click)="removeCellItem(it)" title="Retirer">
+                        {{ templateName(it.templateId) }} <span class="x">✕</span>
+                      </span>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg" style="margin-top:var(--sp-4)">
+        {{ editingId() ? 'Mettre à jour le plan' : 'Enregistrer le plan' }}
+      </button>
     }
   </form>
 }
@@ -58,7 +78,10 @@
       <div class="card plan">
         <div class="plan-head">
           <strong>{{ p.name }}</strong>
-          <button type="button" class="icon-btn danger" (click)="remove(p)">✕</button>
+          <div class="plan-head__actions">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="edit(p)">Modifier</button>
+            <button type="button" class="icon-btn danger" (click)="remove(p)" title="Supprimer">✕</button>
+          </div>
         </div>
         <span class="field-hint">{{ p.durationWeeks }} semaines · {{ p.items.length }} séance(s)</span>
         @if (p.description) { <p class="field-hint">{{ p.description }}</p> }

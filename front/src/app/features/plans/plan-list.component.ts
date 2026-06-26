@@ -37,6 +37,8 @@ export class PlanListComponent implements OnInit {
   readonly groups = signal<TrainingGroup[]>([]);
   readonly loading = signal(true);
   readonly showForm = signal(false);
+  /** Plan en cours d'édition (null = création). */
+  readonly editingId = signal<string | null>(null);
 
   draft: { name: string; description: string; durationWeeks: number; items: PlanItem[] } = {
     name: '', description: '', durationWeeks: 4, items: [],
@@ -67,6 +69,16 @@ export class PlanListComponent implements OnInit {
     return this.templates().find((t) => t.id === id)?.name ?? '?';
   }
 
+  /** Items planifiés sur une cellule (semaine 0-based × jour 1..7) — aperçu grille. */
+  cellItems(weekIndex: number, dayOfWeek: number): PlanItem[] {
+    return this.draft.items.filter((it) => it.weekIndex === weekIndex && it.dayOfWeek === dayOfWeek);
+  }
+
+  /** Bornes de semaines pour l'itération de la grille (0..durationWeeks-1). */
+  weekIndexes(): number[] {
+    return Array.from({ length: Math.max(1, this.draft.durationWeeks) }, (_, i) => i);
+  }
+
   addItem(): void {
     if (!this.itemDraft.templateId) { this.toast.warning('Choisissez un modèle.'); return; }
     this.draft.items = [...this.draft.items, { ...this.itemDraft }];
@@ -74,15 +86,49 @@ export class PlanListComponent implements OnInit {
   removeItem(i: number): void {
     this.draft.items = this.draft.items.filter((_, idx) => idx !== i);
   }
+  /** Retire un item depuis la grille (par semaine/jour/modèle). */
+  removeCellItem(item: PlanItem): void {
+    const i = this.draft.items.indexOf(item);
+    if (i >= 0) this.removeItem(i);
+  }
+
+  newPlan(): void {
+    this.resetForm();
+    this.showForm.set(true);
+  }
+
+  edit(plan: TrainingPlan): void {
+    this.editingId.set(plan.id);
+    this.draft = {
+      name: plan.name,
+      description: plan.description ?? '',
+      durationWeeks: plan.durationWeeks,
+      items: plan.items.map((it) => ({ weekIndex: it.weekIndex, dayOfWeek: it.dayOfWeek, templateId: it.templateId })),
+    };
+    this.showForm.set(true);
+  }
+
+  cancelForm(): void {
+    this.resetForm();
+    this.showForm.set(false);
+  }
+
+  private resetForm(): void {
+    this.editingId.set(null);
+    this.draft = { name: '', description: '', durationWeeks: 4, items: [] };
+    this.itemDraft = { weekIndex: 0, dayOfWeek: 1, templateId: '' };
+  }
 
   save(): void {
     if (!this.draft.name || this.draft.items.length === 0) {
       this.toast.warning('Nom et au moins un item requis.');
       return;
     }
-    this.planService.create(this.draft).subscribe(() => {
-      this.toast.success('Plan créé');
-      this.draft = { name: '', description: '', durationWeeks: 4, items: [] };
+    const id = this.editingId();
+    const op = id ? this.planService.update(id, this.draft) : this.planService.create(this.draft);
+    op.subscribe(() => {
+      this.toast.success(id ? 'Plan mis à jour' : 'Plan créé');
+      this.resetForm();
       this.showForm.set(false);
       this.load();
     });

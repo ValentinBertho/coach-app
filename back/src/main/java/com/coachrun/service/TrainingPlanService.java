@@ -126,16 +126,30 @@ public class TrainingPlanService {
         requireAthlete(clubId, athleteId);
         PlanAssignment assignment = assignmentRepository.findByPlanIdAndAthleteId(planId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Plan non attribué à cet athlète."));
+        return computeProgress(p, athleteId, assignment);
+    }
 
+    /** Mon programme (portail athlète) : plans attribués avec leur avancement, scopé par l'athlète. */
+    public List<com.coachrun.dto.response.AthletePlanResponse> myPlans(UUID athleteId) {
+        return planRepository.findByAthletes_IdOrderByNameAsc(athleteId).stream().map(p -> {
+            PlanAssignment a = assignmentRepository.findByPlanIdAndAthleteId(p.getId(), athleteId).orElse(null);
+            PlanProgressResponse pr = a == null ? null : computeProgress(p, athleteId, a);
+            return new com.coachrun.dto.response.AthletePlanResponse(
+                    p.getId(), p.getName(), p.getDescription(), p.getDurationWeeks(), pr);
+        }).toList();
+    }
+
+    /** Calcul commun de l'avancement (semaine courante, séances réalisées). */
+    private PlanProgressResponse computeProgress(TrainingPlan p, UUID athleteId, PlanAssignment assignment) {
         LocalDate start = assignment.getStartDate();
         int weeks = Math.max(1, p.getDurationWeeks());
         long elapsedWeeks = java.time.temporal.ChronoUnit.WEEKS.between(start, LocalDate.now());
         int currentWeek = (int) Math.max(1, Math.min(weeks, elapsedWeeks + 1));
         boolean finished = LocalDate.now().isAfter(start.plusWeeks(weeks));
 
-        long total = workoutRepository.countByPlanIdAndAthleteId(planId, athleteId);
+        long total = workoutRepository.countByPlanIdAndAthleteId(p.getId(), athleteId);
         long completed = workoutRepository.countByPlanIdAndAthleteIdAndStatus(
-                planId, athleteId, WorkoutStatus.COMPLETED);
+                p.getId(), athleteId, WorkoutStatus.COMPLETED);
         int percent = total == 0 ? 0 : (int) Math.round(100.0 * completed / total);
 
         return new PlanProgressResponse(start, weeks, finished ? weeks : currentWeek,

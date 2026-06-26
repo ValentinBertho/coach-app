@@ -55,10 +55,18 @@ public class AthletePortalController {
     private final com.coachrun.service.AnalyticsService analyticsService;
     private final com.coachrun.service.ActivityService activityService;
     private final com.coachrun.service.LactateTestService lactateTestService;
+    private final com.coachrun.service.TrainingPlanService trainingPlanService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
         return authService.currentUser(principal.userId());
+    }
+
+    /** Mon programme : plans attribués à l'athlète avec leur avancement. */
+    @GetMapping("/plans")
+    public List<com.coachrun.dto.response.AthletePlanResponse> myPlans(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return trainingPlanService.myPlans(principal.athleteId());
     }
 
     @GetMapping("/today")

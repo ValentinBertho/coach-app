@@ -20,6 +20,9 @@ export class TrainingPlanService {
   create(body: TrainingPlanRequest): Observable<TrainingPlan> {
     return this.http.post<TrainingPlan>(this.base(), body);
   }
+  update(id: string, body: TrainingPlanRequest): Observable<TrainingPlan> {
+    return this.http.put<TrainingPlan>(`${this.base()}/${id}`, body);
+  }
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base()}/${id}`);
   }
