@@ -61,6 +61,53 @@ class WeekDuplicationTest {
     }
 
     @Test
+    void generateMesocycleScalesLoadWithDeload() throws Exception {
+        String athleteId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"Meso\",\"lastName\":\"Test\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        LocalDate source = LocalDate.now().with(DayOfWeek.MONDAY);
+        // Séance source (lundi) avec une distance cible.
+        mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scheduledDate\":\"" + source + "\",\"type\":\"ENDURANCE\","
+                                + "\"title\":\"Sortie\",\"targetDistanceM\":10000}"))
+                .andExpect(status().isCreated());
+
+        LocalDate first = source.plusWeeks(1);
+        JsonNode res = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/workouts/generate-mesocycle", clubId, athleteId)
+                                .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"sourceWeekStart\":\"" + source + "\",\"firstWeekStart\":\"" + first
+                                        + "\",\"weeks\":4,\"increasePct\":10,\"deloadEvery\":4,\"deloadPct\":60}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(res.get("created").asInt()).isEqualTo(4);
+
+        JsonNode week = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                                .param("from", first.toString()).param("to", first.plusWeeks(4).toString())
+                                .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        // Progression +10 %/sem puis décharge à 60 % la 4e semaine.
+        assertThat(distanceOn(week, first)).isEqualTo(10000);
+        assertThat(distanceOn(week, first.plusWeeks(1))).isEqualTo(11000);
+        assertThat(distanceOn(week, first.plusWeeks(2))).isEqualTo(12000);
+        assertThat(distanceOn(week, first.plusWeeks(3))).isEqualTo(6000);
+    }
+
+    private int distanceOn(JsonNode workouts, LocalDate date) {
+        for (JsonNode w : workouts) {
+            if (date.toString().equals(w.get("scheduledDate").asText())) {
+                return w.get("targetDistanceM").asInt();
+            }
+        }
+        return -1;
+    }
+
+    @Test
     void duplicateWeekCopiesSessionsKeepingDayOffset() throws Exception {
         String athleteId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes", clubId)
                         .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)

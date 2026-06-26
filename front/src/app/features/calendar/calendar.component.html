@@ -30,8 +30,39 @@
             [disabled]="!selectedAthleteId || workouts().length === 0" title="Copier cette semaine vers la suivante">
       <app-icon name="copy" [size]="15" /> Dupliquer la semaine
     </button>
+    <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="toggleMeso()"
+            [disabled]="!selectedAthleteId || workouts().length === 0" title="Générer un mésocycle progressif">
+      <app-icon name="trending-up" [size]="15" /> Mésocycle
+    </button>
   }
 </div>
+
+@if (showMeso() && mode() === 'week') {
+  <section class="card meso-panel">
+    <h2>Générer un mésocycle</h2>
+    <p class="field-hint">À partir de la semaine affichée (semaine type), génère les semaines suivantes avec une montée de charge progressive et des décharges.</p>
+    <div class="meso-grid">
+      <label>Nombre de semaines
+        <input type="number" class="form-control" [(ngModel)]="mesoWeeks" min="1" max="16" />
+      </label>
+      <label>Progression / semaine (%)
+        <input type="number" class="form-control" [(ngModel)]="mesoIncrease" min="0" max="50" />
+      </label>
+      <label>Décharge toutes les (sem.)
+        <input type="number" class="form-control" [(ngModel)]="mesoDeloadEvery" min="2" max="8" />
+      </label>
+      <label>Volume de décharge (%)
+        <input type="number" class="form-control" [(ngModel)]="mesoDeloadPct" min="30" max="100" />
+      </label>
+    </div>
+    <div class="meso-actions">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="toggleMeso()">Annuler</button>
+      <button type="button" class="btn btn-primary btn-sm" (click)="generateMeso()" [disabled]="mesoBusy()">
+        <app-icon name="trending-up" [size]="15" /> Générer
+      </button>
+    </div>
+  </section>
+}
 
 @if (athletes().length === 0) {
   <div class="card empty-state">

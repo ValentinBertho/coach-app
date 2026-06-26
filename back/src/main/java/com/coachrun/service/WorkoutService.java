@@ -107,6 +107,51 @@ public class WorkoutService {
         if (sourceWeekStart.equals(targetWeekStart)) {
             throw new ConflictException("La semaine cible doit être différente de la semaine source.");
         }
+        int created = copyWeek(clubId, athleteId, sourceWeekStart, targetWeekStart, 1.0);
+        log.info("Semaine dupliquée athlète={} : {} séance(s) ({} → {})",
+                athleteId, created, sourceWeekStart, targetWeekStart);
+        return created;
+    }
+
+    /**
+     * Périodisation assistée : génère un mésocycle progressif à partir d'une semaine type. Chaque
+     * semaine recopie la semaine source en mettant à l'échelle distance/durée par un facteur de
+     * progression ({@code +increasePct} par semaine d'accumulation, semaine de décharge toutes les
+     * {@code deloadEvery} semaines à {@code deloadPct}). Statut PLANNED, sans retour, sans notif.
+     */
+    @Transactional
+    public int generateMesocycle(UUID clubId, UUID athleteId, LocalDate sourceWeekStart,
+                                 LocalDate firstWeekStart, int weeks, double increasePct,
+                                 int deloadEvery, double deloadPct) {
+        athleteRepository.findByIdAndClubId(athleteId, clubId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        int n = Math.max(1, Math.min(weeks, 16));
+        int blockLen = Math.max(2, deloadEvery);
+        int created = 0;
+        int buildIndex = 0;
+        for (int i = 0; i < n; i++) {
+            boolean deload = (i % blockLen) == blockLen - 1;
+            double multiplier;
+            if (deload) {
+                multiplier = deloadPct / 100.0;
+            } else {
+                multiplier = 1.0 + (increasePct / 100.0) * buildIndex;
+                buildIndex++;
+            }
+            LocalDate target = firstWeekStart.plusWeeks(i);
+            if (target.equals(sourceWeekStart)) {
+                continue; // ne pas réécrire la semaine source
+            }
+            created += copyWeek(clubId, athleteId, sourceWeekStart, target, multiplier);
+        }
+        log.info("Mésocycle généré athlète={} : {} séance(s) sur {} semaines (à partir de {})",
+                athleteId, created, n, firstWeekStart);
+        return created;
+    }
+
+    /** Recopie une semaine de séances en mettant la charge à l'échelle (facteur multiplicatif). */
+    private int copyWeek(UUID clubId, UUID athleteId, LocalDate sourceWeekStart,
+                         LocalDate targetWeekStart, double multiplier) {
         List<Workout> source = workoutRepository
                 .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
                         clubId, athleteId, sourceWeekStart, sourceWeekStart.plusDays(6));
@@ -121,11 +166,15 @@ public class WorkoutService {
             copy.setType(w.getType());
             copy.setTitle(w.getTitle());
             copy.setNotes(w.getNotes());
-            copy.setTargetDistanceM(w.getTargetDistanceM());
-            copy.setTargetDurationS(w.getTargetDurationS());
+            copy.setTargetDistanceM(scale(w.getTargetDistanceM(), multiplier));
+            copy.setTargetDurationS(scale(w.getTargetDurationS(), multiplier));
             copy.setSourceTemplateId(w.getSourceTemplateId());
-            copy.setSessionSnapshot(w.getSessionSnapshot());
-            copy.setCalculatedPaces(w.getCalculatedPaces());
+            // Le snapshot/cibles ne sont recopiés qu'à l'identique (multiplier 1.0) : une mise à
+            // l'échelle invaliderait les cibles figées calculées.
+            if (multiplier == 1.0) {
+                copy.setSessionSnapshot(w.getSessionSnapshot());
+                copy.setCalculatedPaces(w.getCalculatedPaces());
+            }
             for (WorkoutStep s : w.getSteps()) {
                 WorkoutStep ns = new WorkoutStep();
                 ns.setWorkout(copy);
@@ -133,17 +182,22 @@ public class WorkoutService {
                 ns.setStepType(s.getStepType());
                 ns.setRepetitions(s.getRepetitions());
                 ns.setZone(s.getZone());
-                ns.setDistanceM(s.getDistanceM());
-                ns.setDurationS(s.getDurationS());
+                ns.setDistanceM(scale(s.getDistanceM(), multiplier));
+                ns.setDurationS(scale(s.getDurationS(), multiplier));
                 ns.setNotes(s.getNotes());
                 copy.getSteps().add(ns);
             }
             workoutRepository.save(copy);
             created++;
         }
-        log.info("Semaine dupliquée athlète={} : {} séance(s) ({} → {})",
-                athleteId, created, sourceWeekStart, targetWeekStart);
         return created;
+    }
+
+    private Integer scale(Integer value, double multiplier) {
+        if (value == null || multiplier == 1.0) {
+            return value;
+        }
+        return (int) Math.round(value * multiplier);
     }
 
     /**

@@ -109,4 +109,17 @@ public class WorkoutController {
                 clubId, athleteId, request.sourceWeekStart(), request.targetWeekStart());
         return java.util.Map.of("created", created);
     }
+
+    /** Périodisation assistée : génère un mésocycle progressif depuis une semaine type. */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PostMapping("/generate-mesocycle")
+    public java.util.Map<String, Integer> generateMesocycle(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId,
+            @Valid @RequestBody com.coachrun.dto.request.GenerateMesocycleRequest request) {
+        int created = workoutService.generateMesocycle(
+                clubId, athleteId, request.sourceWeekStart(), request.firstWeekStart(),
+                request.weeks(), request.increasePctOrDefault(),
+                request.deloadEveryOrDefault(), request.deloadPctOrDefault());
+        return java.util.Map.of("created", created, "weeks", request.weeks());
+    }
 }

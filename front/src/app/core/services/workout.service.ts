@@ -53,4 +53,14 @@ export class WorkoutService {
       { sourceWeekStart, targetWeekStart },
     );
   }
+
+  /** Génère un mésocycle progressif à partir d'une semaine type. */
+  generateMesocycle(athleteId: string, params: {
+    sourceWeekStart: string; firstWeekStart: string; weeks: number;
+    increasePct: number; deloadEvery: number; deloadPct: number;
+  }): Observable<{ created: number; weeks: number }> {
+    return this.http.post<{ created: number; weeks: number }>(
+      `${this.base(athleteId)}/generate-mesocycle`, params,
+    );
+  }
 }

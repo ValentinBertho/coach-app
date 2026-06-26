@@ -230,6 +230,42 @@ export class CalendarComponent implements OnInit {
     });
   }
 
+  // Périodisation assistée (mésocycle progressif).
+  readonly showMeso = signal(false);
+  mesoWeeks = 4;
+  mesoIncrease = 10;
+  mesoDeloadEvery = 4;
+  mesoDeloadPct = 60;
+  readonly mesoBusy = signal(false);
+
+  toggleMeso(): void { this.showMeso.update((v) => !v); }
+
+  /** Génère un mésocycle progressif à partir de la semaine affichée (= semaine type). */
+  generateMeso(): void {
+    if (!this.selectedAthleteId || this.mode() !== 'week' || this.mesoBusy()) return;
+    const sourceStart = mondayOf(this.anchor());
+    const firstStart = new Date(sourceStart);
+    firstStart.setDate(firstStart.getDate() + 7); // le mésocycle démarre la semaine suivante
+    this.mesoBusy.set(true);
+    this.workoutService.generateMesocycle(this.selectedAthleteId, {
+      sourceWeekStart: toIso(sourceStart),
+      firstWeekStart: toIso(firstStart),
+      weeks: this.mesoWeeks,
+      increasePct: this.mesoIncrease,
+      deloadEvery: this.mesoDeloadEvery,
+      deloadPct: this.mesoDeloadPct,
+    }).subscribe({
+      next: (r) => {
+        this.mesoBusy.set(false);
+        this.showMeso.set(false);
+        this.toast.success(`Mésocycle généré : ${r.created} séance(s) sur ${r.weeks} semaines`);
+        this.anchor.set(firstStart);
+        this.load();
+      },
+      error: () => { this.mesoBusy.set(false); this.toast.error('Génération impossible.'); },
+    });
+  }
+
   /** Duplique la semaine course affichée vers la semaine suivante (planification en cycles). */
   async duplicateWeek(): Promise<void> {
     if (!this.selectedAthleteId || this.mode() !== 'week') return;
