@@ -53,6 +53,7 @@ public class WorkoutService {
     private final AthleteAccessValidator accessValidator;
     private final ObjectMapper objectMapper;
     private final com.coachrun.repository.RunDrillRepository runDrillRepository;
+    private final SessionCalculatorService sessionCalculatorService;
 
     public List<WorkoutResponse> calendar(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         return workoutRepository
@@ -374,6 +375,37 @@ public class WorkoutService {
         Workout workout = workoutRepository.findByIdAndAthleteId(workoutId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
         return toPrescription(workout);
+    }
+
+    /**
+     * Édite la structure d'une séance planifiée pour son athlète : recalcule les cibles en
+     * fourchettes et met à jour le snapshot figé + les totaux. Permet d'adapter une séance à un
+     * athlète sans toucher au modèle de bibliothèque.
+     */
+    @Transactional
+    public WorkoutPrescriptionResponse updateStructure(UUID clubId, UUID workoutId, SessionStructure structure) {
+        Workout w = require(clubId, workoutId);
+        SessionStructure safe = structure == null ? SessionStructure.empty() : structure;
+        CalculatedSessionResponse calc =
+                sessionCalculatorService.calculateSession(clubId, w.getAthlete().getId(), safe);
+        w.setSessionSnapshot(writeJson(safe));
+        w.setCalculatedPaces(writeJson(calc));
+        if (calc.totalDistanceM() != null) {
+            w.setTargetDistanceM(calc.totalDistanceM());
+        }
+        if (calc.totalDurationS() != null) {
+            w.setTargetDurationS(calc.totalDurationS());
+        }
+        log.info("Structure de séance {} mise à jour (athlète={})", workoutId, w.getAthlete().getId());
+        return toPrescription(w);
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception e) {
+            throw new IllegalStateException("Sérialisation de la structure impossible.", e);
+        }
     }
 
     private WorkoutPrescriptionResponse toPrescription(Workout w) {

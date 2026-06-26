@@ -188,6 +188,11 @@ export const routes: Routes = [
           import('./features/races/race-list.component').then((m) => m.RaceListComponent),
       },
       {
+        path: 'athletes/:athleteId/workouts/:workoutId/structure',
+        loadComponent: () =>
+          import('./features/templates/session-editor.component').then((m) => m.SessionEditorComponent),
+      },
+      {
         path: 'athletes/:athleteId/workouts/:workoutId',
         loadComponent: () =>
           import('./features/workouts/workout-detail.component').then((m) => m.WorkoutDetailComponent),

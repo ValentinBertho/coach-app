@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AthleteService } from '../../core/services/athlete.service';
 import { CourseService } from '../../core/services/course.service';
+import { WorkoutService } from '../../core/services/workout.service';
 import { ToastService } from '../../core/services/toast.service';
 import { RunDrillService } from '../../core/services/run-drill.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
@@ -11,7 +12,13 @@ import { RunDrill } from '../../core/models/run-drill.model';
 
 interface Section { key: keyof SessionStructure; label: string; }
 
-/** Éditeur de séance course (s-session-editor) : blocs prescrits en fourchettes + calculateur live. */
+/**
+ * Éditeur de structure de séance course (blocs prescrits en fourchettes + calculateur live).
+ * Deux modes, selon les paramètres de route :
+ *  - **modèle** (`templateId`) : édite la bibliothèque (course.getStructure/putStructure) ;
+ *  - **séance planifiée** (`athleteId` + `workoutId`) : adapte une séance d'un athlète au
+ *    calendrier (workout.prescription/updateStructure), athlète fixe.
+ */
 @Component({
   selector: 'app-session-editor',
   standalone: true,
@@ -21,21 +28,30 @@ interface Section { key: keyof SessionStructure; label: string; }
   styleUrl: './session-editor.component.scss',
 })
 export class SessionEditorComponent implements OnInit {
-  readonly templateId = input.required<string>();
+  // Paramètres de route (component input binding). Un seul jeu est renseigné selon le mode.
+  readonly templateId = input<string>('');
+  readonly workoutId = input<string>('');
+  readonly athleteId = input<string>('');
 
   private readonly course = inject(CourseService);
   private readonly athletes = inject(AthleteService);
+  private readonly workoutService = inject(WorkoutService);
   private readonly drillService = inject(RunDrillService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
 
   readonly drills = signal<RunDrill[]>([]);
+
+  /** Mode édition d'une séance planifiée (vs modèle de bibliothèque). */
+  readonly isWorkout = computed(() => !!this.workoutId());
 
   readonly name = signal('');
   readonly loading = signal(true);
   readonly structure = signal<SessionStructure>({ warmup: [], main: [], cooldown: [] });
   readonly calc = signal<Record<string, CalculatedBlock>>({});
   readonly athleteList = signal<AthleteSummary[]>([]);
-  readonly athleteId = signal('');
+  /** Athlète du calculateur live (sélectionnable en mode modèle, fixe en mode séance planifiée). */
+  readonly calcAthleteId = signal('');
 
   readonly sections: Section[] = [
     { key: 'warmup', label: 'Échauffement' },
@@ -54,6 +70,24 @@ export class SessionEditorComponent implements OnInit {
   ];
 
   ngOnInit(): void {
+    this.drillService.list().subscribe((d) => this.drills.set(d));
+
+    if (this.isWorkout()) {
+      // Mode séance planifiée : athlète fixe, on charge le snapshot puis on recalcule.
+      this.name.set('Adapter la séance');
+      this.calcAthleteId.set(this.athleteId());
+      this.workoutService.prescription(this.athleteId(), this.workoutId()).subscribe({
+        next: (p) => {
+          this.structure.set(p.snapshot ?? { warmup: [], main: [], cooldown: [] });
+          this.loading.set(false);
+          this.recalcAll();
+        },
+        error: () => this.loading.set(false),
+      });
+      return;
+    }
+
+    // Mode modèle de bibliothèque.
     this.course.getStructure(this.templateId()).subscribe({
       next: (s) => {
         this.name.set(s.name);
@@ -63,7 +97,14 @@ export class SessionEditorComponent implements OnInit {
       error: () => this.loading.set(false),
     });
     this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
-    this.drillService.list().subscribe((d) => this.drills.set(d));
+  }
+
+  /** Recalcule les cibles de tous les blocs pour l'athlète courant du calculateur. */
+  private recalcAll(): void {
+    if (!this.calcAthleteId()) return;
+    for (const sec of this.sections) {
+      for (const b of this.blocks(sec.key)) this.recalc(b);
+    }
   }
 
   /** Le bloc référence-t-il cet éducatif ? */
@@ -154,16 +195,13 @@ export class SessionEditorComponent implements OnInit {
   }
 
   onAthleteChange(id: string): void {
-    this.athleteId.set(id);
+    this.calcAthleteId.set(id);
     this.calc.set({});
-    if (!id) return;
-    for (const sec of this.sections) {
-      for (const b of this.blocks(sec.key)) this.recalc(b);
-    }
+    this.recalcAll();
   }
 
   recalc(b: CourseBlock): void {
-    const a = this.athleteId();
+    const a = this.calcAthleteId();
     const p = b.prescription;
     if (!a || !p?.ref || p.minPct == null || p.maxPct == null) return;
     this.course
@@ -172,6 +210,16 @@ export class SessionEditorComponent implements OnInit {
   }
 
   save(): void {
+    if (this.isWorkout()) {
+      this.workoutService.updateStructure(this.athleteId(), this.workoutId(), this.structure()).subscribe({
+        next: () => {
+          this.toast.success('Séance adaptée pour l’athlète');
+          this.router.navigate(['/app/athletes', this.athleteId(), 'workouts', this.workoutId()]);
+        },
+        error: () => this.toast.error('Enregistrement impossible.'),
+      });
+      return;
+    }
     this.course.putStructure(this.templateId(), { structure: this.structure() }).subscribe(() => {
       this.toast.success('Structure enregistrée');
     });

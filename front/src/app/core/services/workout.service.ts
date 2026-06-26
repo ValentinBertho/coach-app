@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Workout, WorkoutRequest, WorkoutStatus } from '../models/workout.model';
-import { WorkoutPrescription } from '../models/course.model';
+import { WorkoutPrescription, SessionStructure } from '../models/course.model';
 import { AuthService } from './auth.service';
 
 /**
@@ -30,6 +30,11 @@ export class WorkoutService {
   /** Prescription figée (snapshot + cibles calculées en fourchettes) — vue coach. */
   prescription(athleteId: string, workoutId: string): Observable<WorkoutPrescription> {
     return this.http.get<WorkoutPrescription>(`${this.base(athleteId)}/${workoutId}/prescription`);
+  }
+
+  /** Adapte la structure (blocs en fourchettes) d'une séance planifiée pour cet athlète. */
+  updateStructure(athleteId: string, workoutId: string, structure: SessionStructure): Observable<WorkoutPrescription> {
+    return this.http.put<WorkoutPrescription>(`${this.base(athleteId)}/${workoutId}/structure`, structure);
   }
 
   create(athleteId: string, request: WorkoutRequest): Observable<Workout> {
