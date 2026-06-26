@@ -106,9 +106,18 @@ public class SessionCalculatorEngine {
 
     private Integer resolveBasePace(PrescriptionRef ref, AthletePaceContext c) {
         return switch (ref) {
-            case PCT_LT1 -> toPace(c.lt1Ms());
-            case PCT_LT2 -> toPace(c.lt2Ms());
-            case PCT_VC -> toPace(c.vcMs());
+            // Seuils : valeur mesurée (test lactate) prioritaire ; à défaut, repli sur des
+            // équivalents dérivés du VDOT (allures de course) pour que l'athlète ait malgré tout
+            // des allures de travail. Correspondances physiologiques (Daniels) :
+            //  - LT1 (seuil aérobie)  ≈ allure marathon ;
+            //  - LT2 (seuil lactique) ≈ allure ~1 h de course (10–15 km / semi) ;
+            //  - VC  (vitesse critique) ≈ allure 3–5 km.
+            case PCT_LT1 -> firstNonNull(toPace(c.lt1Ms()),
+                    c.paceMarathonS(), c.paceSemiS(), c.pace10kmS());
+            case PCT_LT2 -> firstNonNull(toPace(c.lt2Ms()),
+                    c.pace10kmS(), c.pace15kmS(), c.paceSemiS(), c.pace5kmS());
+            case PCT_VC -> firstNonNull(toPace(c.vcMs()),
+                    c.pace3000S(), c.pace5kmS(), c.pace10kmS());
             case PCT_PACE_800M -> c.pace800S();
             case PCT_PACE_1500M -> c.pace1500S();
             case PCT_PACE_3000M -> c.pace3000S();
@@ -118,6 +127,16 @@ public class SessionCalculatorEngine {
             case PCT_PACE_SEMI -> c.paceSemiS();
             case PCT_PACE_MARATHON -> c.paceMarathonS();
         };
+    }
+
+    /** Première valeur non nulle et positive (priorité mesurée → repli VDOT). */
+    private Integer firstNonNull(Integer... candidates) {
+        for (Integer v : candidates) {
+            if (v != null && v > 0) {
+                return v;
+            }
+        }
+        return null;
     }
 
     private Integer toPace(Double ms) {
