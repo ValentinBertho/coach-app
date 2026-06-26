@@ -204,6 +204,18 @@ public class NotificationService {
                         + cta("Voir ma séance", frontendUrl + "/athlete/today"));
     }
 
+    /** Vérification d'e-mail à l'inscription : e-mail avec le lien de confirmation. */
+    public void notifyEmailVerification(String email, String fullName, String url) {
+        if (email == null) {
+            return;
+        }
+        String html = "<p>Bonjour " + esc(fullName) + ",</p>"
+                + "<p>Bienvenue sur Darilab. Confirmez votre adresse e-mail pour sécuriser votre compte.</p>"
+                + cta("Confirmer mon e-mail", url)
+                + "<p>Ce lien expire dans 7 jours.</p>";
+        send(email, "Confirmez votre adresse e-mail Darilab", html);
+    }
+
     /** Réinitialisation de mot de passe : e-mail avec le lien de redéfinition. */
     public void notifyPasswordReset(String email, String fullName, String url) {
         if (email == null) {

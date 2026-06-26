@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -26,11 +26,22 @@ export class CoachLayoutComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   readonly user = this.auth.currentUser;
+  readonly resending = signal(false);
 
   ngOnInit(): void {
     if (!this.auth.currentUser()) {
       this.auth.loadCurrentUser().subscribe({ error: () => this.logout() });
     }
+  }
+
+  /** Renvoie l'e-mail de vérification (bandeau « e-mail non confirmé »). */
+  resendVerification(): void {
+    if (this.resending()) return;
+    this.resending.set(true);
+    this.auth.resendVerification().subscribe({
+      next: () => { this.resending.set(false); this.toast.success('E-mail de vérification renvoyé.'); },
+      error: () => { this.resending.set(false); this.toast.error('Envoi impossible.'); },
+    });
   }
 
   logout(): void {

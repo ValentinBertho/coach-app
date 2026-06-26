@@ -81,6 +81,26 @@ export class AuthService {
       .pipe(tap((res) => this.applySession(res)));
   }
 
+  /** Confirme l'adresse e-mail à partir du jeton reçu par e-mail. */
+  verifyEmail(token: string): Observable<{ verified: boolean }> {
+    return this.http.post<{ verified: boolean }>(`${environment.apiUrl}/public/verify-email/${token}`, {});
+  }
+
+  /** Renvoie l'e-mail de vérification au compte courant. */
+  resendVerification(): Observable<void> {
+    return this.http.post<void>(`${this.base}/resend-verification`, {});
+  }
+
+  /** Met à jour localement le drapeau de vérification (après confirmation). */
+  markEmailVerified(): void {
+    const u = this.currentUser();
+    if (u) {
+      const next = { ...u, emailVerified: true };
+      localStorage.setItem(USER_KEY, JSON.stringify(next));
+      this.currentUser.set(next);
+    }
+  }
+
   /** Onboarding coach par lien magique : définit le mot de passe et ouvre la session. */
   acceptCoachInvitation(token: string, password: string, fullName?: string): Observable<AuthResponse> {
     return this.http

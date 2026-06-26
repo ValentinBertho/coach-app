@@ -7,6 +7,7 @@ export interface User {
   role: UserRole;
   clubId: string | null;
   clubName: string | null;
+  emailVerified?: boolean;
 }
 
 export interface AuthResponse {
