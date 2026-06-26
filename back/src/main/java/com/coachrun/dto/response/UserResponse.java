@@ -13,7 +13,8 @@ public record UserResponse(
         UserRole role,
         UUID clubId,
         String clubName,
-        UUID athleteId) {
+        UUID athleteId,
+        boolean emailVerified) {
 
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -23,6 +24,7 @@ public record UserResponse(
                 user.getRole(),
                 user.getClub() != null ? user.getClub().getId() : null,
                 user.getClub() != null ? user.getClub().getName() : null,
-                user.getAthlete() != null ? user.getAthlete().getId() : null);
+                user.getAthlete() != null ? user.getAthlete().getId() : null,
+                user.isEmailVerified());
     }
 }

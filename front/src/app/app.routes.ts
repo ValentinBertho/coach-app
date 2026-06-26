@@ -34,6 +34,11 @@ export const routes: Routes = [
       import('./features/auth/reset-password.component').then((m) => m.ResetPasswordComponent),
   },
   {
+    path: 'verify-email/:token',
+    loadComponent: () =>
+      import('./features/auth/verify-email.component').then((m) => m.VerifyEmailComponent),
+  },
+  {
     path: 'invitation/:token',
     loadComponent: () =>
       import('./features/public/invitation.component').then((m) => m.InvitationComponent),

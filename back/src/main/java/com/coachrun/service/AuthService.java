@@ -72,6 +72,10 @@ public class AuthService {
         user.setRole(UserRole.HEAD_COACH);
         user.setStatus(UserStatus.ACTIVE);
         user.setClub(club);
+        // E-mail à vérifier : on n'enferme pas le coach hors de son espace, mais on l'invite à confirmer.
+        user.setEmailVerified(false);
+        user.setVerifyToken(randomToken());
+        user.setVerifyExpiresAt(java.time.Instant.now().plus(7, java.time.temporal.ChronoUnit.DAYS));
         user = userRepository.save(user);
 
         // Le créateur du club en est le propriétaire (membership multi-coach).
@@ -82,8 +86,45 @@ public class AuthService {
         owner.setActive(true);
         clubMemberRepository.save(owner);
 
-        log.info("Nouveau coach inscrit (club={})", club.getId());
+        notificationService.notifyEmailVerification(user.getEmail(), user.getFullName(),
+                frontendUrl + "/verify-email/" + user.getVerifyToken());
+        log.info("Nouveau coach inscrit (club={}, e-mail à vérifier)", club.getId());
         return toAuthResponse(user);
+    }
+
+    /** Confirme l'adresse e-mail à partir du jeton de vérification (lien d'inscription). */
+    @Transactional
+    public void verifyEmail(String token) {
+        User user = userRepository.findByVerifyToken(token)
+                .filter(u -> u.getVerifyExpiresAt() != null
+                        && u.getVerifyExpiresAt().isAfter(java.time.Instant.now()))
+                .orElseThrow(() -> new NotFoundException("Lien de vérification invalide ou expiré."));
+        user.setEmailVerified(true);
+        user.setVerifyToken(null);
+        user.setVerifyExpiresAt(null);
+        log.info("E-mail vérifié (user={})", user.getId());
+    }
+
+    /** Renvoie un e-mail de vérification au compte courant (s'il n'est pas déjà vérifié). */
+    @Transactional
+    public void resendVerification(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("Session invalide."));
+        if (user.isEmailVerified() || user.getEmail() == null
+                || user.getEmail().endsWith("@athlete.coachrun.local")) {
+            return; // déjà vérifié ou compte sans e-mail réel : rien à faire
+        }
+        user.setVerifyToken(randomToken());
+        user.setVerifyExpiresAt(java.time.Instant.now().plus(7, java.time.temporal.ChronoUnit.DAYS));
+        notificationService.notifyEmailVerification(user.getEmail(), user.getFullName(),
+                frontendUrl + "/verify-email/" + user.getVerifyToken());
+        log.info("E-mail de vérification renvoyé (user={})", user.getId());
+    }
+
+    private String randomToken() {
+        byte[] bytes = new byte[32];
+        RESET_RANDOM.nextBytes(bytes);
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
     public AuthResponse login(LoginRequest request) {

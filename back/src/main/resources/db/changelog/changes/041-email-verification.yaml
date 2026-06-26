@@ -1,0 +1,23 @@
+# ============================================================================
+# 041 — Vérification d'e-mail à l'inscription (coach) : drapeau + jeton.
+#   Les comptes existants sont considérés vérifiés (defaultValueBoolean true).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 041-email-verification
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: email_verified
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints: { nullable: false }
+              - column: { name: verify_token, type: VARCHAR(64) }
+              - column: { name: verify_expires_at, type: TIMESTAMP }
+        - addUniqueConstraint:
+            tableName: users
+            columnNames: verify_token
+            constraintName: uq_users_verify_token

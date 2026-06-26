@@ -56,6 +56,13 @@ public class AuthController {
         return authService.currentUser(principal.userId());
     }
 
+    /** Renvoie l'e-mail de vérification au compte courant. */
+    @PostMapping("/resend-verification")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void resendVerification(@AuthenticationPrincipal AuthPrincipal principal) {
+        authService.resendVerification(principal.userId());
+    }
+
     /** Déconnexion : révoque le token courant (blacklist jusqu'à son expiration). */
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)

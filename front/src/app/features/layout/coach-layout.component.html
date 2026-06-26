@@ -46,6 +46,15 @@
 
     <app-offline-banner />
 
+    @if (user()?.emailVerified === false) {
+      <div class="verify-banner">
+        <span><app-icon name="bell" [size]="16" /> Confirmez votre adresse e-mail pour sécuriser votre compte.</span>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="resendVerification()" [disabled]="resending()">
+          {{ resending() ? 'Envoi…' : 'Renvoyer l\'e-mail' }}
+        </button>
+      </div>
+    }
+
     <main class="content container-wide">
       <router-outlet />
     </main>

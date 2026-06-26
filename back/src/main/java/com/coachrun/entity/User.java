@@ -86,4 +86,17 @@ public class User extends BaseEntity {
 
     @Column(name = "reset_expires_at")
     private java.time.Instant resetExpiresAt;
+
+    /**
+     * Vérification d'e-mail (inscription coach). Vrai par défaut (comptes seedés / athlètes via
+     * lien magique) ; passé à faux à l'inscription jusqu'à confirmation du lien.
+     */
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = true;
+
+    @Column(name = "verify_token", length = 64, unique = true)
+    private String verifyToken;
+
+    @Column(name = "verify_expires_at")
+    private java.time.Instant verifyExpiresAt;
 }
