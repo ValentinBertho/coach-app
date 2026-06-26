@@ -69,6 +69,17 @@
             <p class="calc-na">Profil incomplet pour ce référentiel.</p>
           }
         }
+
+        @if (drills().length) {
+          <div class="block-drills">
+            <span class="bd-lb">Éducatifs</span>
+            @for (d of drills(); track d.id) {
+              <button type="button" class="bd-chip" [class.on]="hasDrill(b, d.id)" (click)="toggleDrill(b, d.id)">
+                {{ d.name }}
+              </button>
+            }
+          </div>
+        }
       </div>
     } @empty {
       <p class="empty-hint">Aucun bloc. Ajoute un bloc.</p>

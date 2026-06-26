@@ -4,8 +4,10 @@ import { RouterLink } from '@angular/router';
 import { AthleteService } from '../../core/services/athlete.service';
 import { CourseService } from '../../core/services/course.service';
 import { ToastService } from '../../core/services/toast.service';
+import { RunDrillService } from '../../core/services/run-drill.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import { CalculatedBlock, CourseBlock, PrescriptionRef, SessionStructure } from '../../core/models/course.model';
+import { RunDrill } from '../../core/models/run-drill.model';
 
 interface Section { key: keyof SessionStructure; label: string; }
 
@@ -23,7 +25,10 @@ export class SessionEditorComponent implements OnInit {
 
   private readonly course = inject(CourseService);
   private readonly athletes = inject(AthleteService);
+  private readonly drillService = inject(RunDrillService);
   private readonly toast = inject(ToastService);
+
+  readonly drills = signal<RunDrill[]>([]);
 
   readonly name = signal('');
   readonly loading = signal(true);
@@ -58,6 +63,18 @@ export class SessionEditorComponent implements OnInit {
       error: () => this.loading.set(false),
     });
     this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
+    this.drillService.list().subscribe((d) => this.drills.set(d));
+  }
+
+  /** Le bloc référence-t-il cet éducatif ? */
+  hasDrill(b: CourseBlock, id: string): boolean {
+    return (b.drillIds ?? []).includes(id);
+  }
+
+  /** Attache / détache un éducatif (gamme) au bloc. */
+  toggleDrill(b: CourseBlock, id: string): void {
+    const cur = b.drillIds ?? [];
+    b.drillIds = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
   }
 
   blocks(key: keyof SessionStructure): CourseBlock[] {

@@ -25,6 +25,8 @@ export interface CourseBlock {
   prescription?: CoursePrescription | null;
   recovery?: CourseRecovery | null;
   note?: string | null;
+  /** Éducatifs (gammes) attachés au bloc (ids) — ex. échauffement. */
+  drillIds?: string[] | null;
 }
 
 export interface SessionStructure {
@@ -79,8 +81,19 @@ export interface CalculatedSession {
   totalDurationS: number | null;
 }
 
+/** Éducatif (gamme) résolu pour l'affichage dans une séance. */
+export interface CourseDrill {
+  id: string;
+  name: string;
+  category: 'TECHNIQUE' | 'AMPLITUDE';
+  description: string | null;
+  videoUrl: string | null;
+}
+
 /** Prescription figée d'une séance planifiée : snapshot des blocs + cibles calculées. */
 export interface WorkoutPrescription {
   snapshot: SessionStructure;
   calculated: CalculatedSession | null;
+  /** Éducatifs référencés par les blocs, résolus (nom, vidéo). */
+  drills?: CourseDrill[] | null;
 }

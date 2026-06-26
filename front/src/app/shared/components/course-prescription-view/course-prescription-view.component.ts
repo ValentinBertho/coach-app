@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { CalculatedBlockEntry, WorkoutPrescription } from '../../../core/models/course.model';
+import { CalculatedBlockEntry, CourseDrill, WorkoutPrescription } from '../../../core/models/course.model';
 import { RangePrescriptionPillComponent } from '../range-prescription-pill/range-prescription-pill.component';
 
 interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
@@ -54,6 +54,20 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                       }
                     </div>
                   }
+                  @if (drillsOf(e); as ds) {
+                    @if (ds.length) {
+                      <div class="cpv__drills">
+                        <span class="cpv__drills-lb">Éducatifs</span>
+                        @for (d of ds; track d.id) {
+                          @if (d.videoUrl) {
+                            <a class="cpv__drill" [href]="d.videoUrl" target="_blank" rel="noopener">▶ {{ d.name }}</a>
+                          } @else {
+                            <span class="cpv__drill">{{ d.name }}</span>
+                          }
+                        }
+                      </div>
+                    }
+                  }
                   @if (e.block.note) { <p class="cpv__note">{{ e.block.note }}</p> }
                 </div>
               }
@@ -75,6 +89,10 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
     .cpv__rec { font-size: var(--text-sm); color: var(--ink-3); }
     .cpv__rec-pace { font-variant-numeric: tabular-nums; color: var(--ink-2); }
     .cpv__note { margin: 0; font-size: var(--text-sm); color: var(--ink-3); font-style: italic; }
+    .cpv__drills { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+    .cpv__drills-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
+    .cpv__drill { font-size: var(--text-sm); color: var(--primary); text-decoration: none; padding: 2px 8px; border: 1px solid var(--hairline); border-radius: var(--radius-full); }
+    a.cpv__drill:hover { background: var(--paper-sunk); }
   `],
 })
 export class CoursePrescriptionViewComponent {
@@ -98,8 +116,21 @@ export class CoursePrescriptionViewComponent {
     return !!c && (c.warmup.length + c.main.length + c.cooldown.length) > 0;
   });
 
+  /** Index id → éducatif, pour résoudre les drills attachés à un bloc. */
+  readonly drillsById = computed(() => {
+    const map = new Map<string, CourseDrill>();
+    for (const d of this.prescription()?.drills ?? []) { map.set(d.id, d); }
+    return map;
+  });
+
   entries(key: Section['key']): CalculatedBlockEntry[] {
     return this.prescription()?.calculated?.[key] ?? [];
+  }
+
+  drillsOf(e: CalculatedBlockEntry): CourseDrill[] {
+    const ids = e.block.drillIds ?? [];
+    const map = this.drillsById();
+    return ids.map((id) => map.get(id)).filter((d): d is CourseDrill => !!d);
   }
 
   blockTitle(e: CalculatedBlockEntry): string {

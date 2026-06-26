@@ -8,6 +8,8 @@ import com.coachrun.dto.session.SessionStructure;
  */
 public record WorkoutPrescriptionResponse(
         SessionStructure snapshot,
-        CalculatedSessionResponse calculated
+        CalculatedSessionResponse calculated,
+        /** Éducatifs (gammes) référencés par les blocs, résolus pour l'affichage (nom, vidéo). */
+        java.util.List<RunDrillResponse> drills
 ) {
 }
