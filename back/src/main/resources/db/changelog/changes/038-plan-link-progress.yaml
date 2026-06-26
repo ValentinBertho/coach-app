@@ -1,0 +1,52 @@
+# ============================================================================
+# 038 — Lien séance ↔ plan + suivi d'avancement.
+#   - workouts.plan_id : la séance générée connaît le plan dont elle provient.
+#   - plan_assignments : attribution d'un plan à un athlète avec date de départ,
+#     source de vérité du suivi (semaine courante, % réalisé).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 038-workout-plan-id
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workouts
+            columns:
+              - column: { name: plan_id, type: UUID }
+        - createIndex:
+            indexName: idx_workouts_plan
+            tableName: workouts
+            columns:
+              - column: { name: plan_id }
+  - changeSet:
+      id: 038-plan-assignments
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: plan_assignments
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: plan_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: start_date, type: DATE, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_plan_assignments_plan
+            baseTableName: plan_assignments
+            baseColumnNames: plan_id
+            referencedTableName: training_plans
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_plan_assignments_athlete
+            baseTableName: plan_assignments
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: plan_assignments
+            columnNames: plan_id, athlete_id
+            constraintName: uq_plan_assignments_plan_athlete

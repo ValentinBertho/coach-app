@@ -4,6 +4,7 @@ import com.coachrun.dto.request.PlanApplyGroupRequest;
 import com.coachrun.dto.request.PlanApplyRequest;
 import com.coachrun.dto.request.TrainingPlanRequest;
 import com.coachrun.dto.response.GroupApplyResponse;
+import com.coachrun.dto.response.PlanProgressResponse;
 import com.coachrun.dto.response.TrainingPlanResponse;
 import com.coachrun.security.AuthPrincipal;
 import com.coachrun.service.TrainingPlanService;
@@ -83,7 +84,15 @@ public class TrainingPlanController {
         return planService.applyToGroup(clubId, id, request.groupId(), request.startDate(), principal.userId());
     }
 
-    /** Retire l'attribution du plan à un athlète (les séances générées restent). */
+    /** Avancement du plan pour un athlète (semaine courante, % réalisé). */
+    @GetMapping("/{id}/athletes/{athleteId}/progress")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
+    public PlanProgressResponse progress(@PathVariable UUID clubId, @PathVariable UUID id,
+                                         @PathVariable UUID athleteId) {
+        return planService.progress(clubId, id, athleteId);
+    }
+
+    /** Retire l'attribution du plan à un athlète et supprime ses séances encore planifiées. */
     @DeleteMapping("/{id}/athletes/{athleteId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")

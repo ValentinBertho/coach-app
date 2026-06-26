@@ -65,6 +65,12 @@ public class WorkoutService {
 
     @Transactional
     public WorkoutResponse create(UUID clubId, UUID athleteId, WorkoutRequest request) {
+        return create(clubId, athleteId, request, null);
+    }
+
+    /** Création avec rattachement optionnel à un plan ({@code planId}) pour le suivi d'avancement. */
+    @Transactional
+    public WorkoutResponse create(UUID clubId, UUID athleteId, WorkoutRequest request, UUID planId) {
         Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
 
@@ -72,10 +78,11 @@ public class WorkoutService {
         workout.setClub(athlete.getClub());
         workout.setAthlete(athlete);
         workout.setStatus(WorkoutStatus.PLANNED);
+        workout.setPlanId(planId);
         apply(workout, request);
 
         workout = workoutRepository.save(workout);
-        log.info("Séance créée {} (athlète={})", workout.getId(), athleteId);
+        log.info("Séance créée {} (athlète={}, plan={})", workout.getId(), athleteId, planId);
         notificationService.notifyWorkoutPlanned(workout);
         return WorkoutResponse.from(workout);
     }

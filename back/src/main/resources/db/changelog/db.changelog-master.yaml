@@ -77,3 +77,5 @@ databaseChangeLog:
       file: db/changelog/changes/036-password-reset.yaml
   - include:
       file: db/changelog/changes/037-mesocycle-templates.yaml
+  - include:
+      file: db/changelog/changes/038-plan-link-progress.yaml

@@ -8,6 +8,7 @@ import { TrainingPlan } from '../../core/models/training-plan.model';
 import { StravaStatus } from '../../core/models/strava.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
 import { AthleteService } from '../../core/services/athlete.service';
+import { PlanProgress, TrainingPlanService } from '../../core/services/training-plan.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PhysioPanelComponent } from './physio-panel.component';
 
@@ -27,6 +28,7 @@ export class AthleteDetailComponent implements OnInit {
   readonly id = input.required<string>();
 
   private readonly athleteService = inject(AthleteService);
+  private readonly planService = inject(TrainingPlanService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
@@ -43,6 +45,8 @@ export class AthleteDetailComponent implements OnInit {
 
   readonly assignableCoaches = signal<Ref[]>([]);
   readonly plans = signal<TrainingPlan[]>([]);
+  /** Avancement par plan (clé = planId) ; absent si le plan n'a pas d'attribution datée. */
+  readonly planProgress = signal<Record<string, PlanProgress>>({});
 
   // Indisponibilités
   readonly unavailabilities = signal<Unavailability[]>([]);
@@ -75,7 +79,15 @@ export class AthleteDetailComponent implements OnInit {
       next: (coaches) => this.assignableCoaches.set(coaches),
     });
     this.athleteService.plans(this.id()).subscribe({
-      next: (plans) => this.plans.set(plans),
+      next: (plans) => {
+        this.plans.set(plans);
+        for (const p of plans) {
+          this.planService.progress(p.id, this.id()).subscribe({
+            next: (pr) => this.planProgress.update((m) => ({ ...m, [p.id]: pr })),
+            error: () => { /* plan sans attribution datée (legacy) : pas de barre */ },
+          });
+        }
+      },
     });
     this.loadUnavailabilities();
   }

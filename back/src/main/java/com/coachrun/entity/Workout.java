@@ -93,6 +93,10 @@ public class Workout extends BaseEntity {
     @Column(name = "source_template_id")
     private UUID sourceTemplateId;
 
+    /** Plan d'entraînement dont cette séance est issue (si générée par l'application d'un plan). */
+    @Column(name = "plan_id")
+    private UUID planId;
+
     /** Copie figée de la prescription (SessionStructure JSON) au moment de l'assignation. */
     @Column(name = "session_snapshot", length = 20000)
     private String sessionSnapshot;
