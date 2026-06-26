@@ -4,12 +4,13 @@ import { TrainingGroup } from '../../core/models/training-group.model';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { TrainingGroupService } from '../../core/services/training-group.service';
+import { EmptyStateComponent, LoaderComponent } from '../../shared/components/ui';
 
 @Component({
   selector: 'app-group-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [FormsModule, EmptyStateComponent, LoaderComponent],
   templateUrl: './group-list.component.html',
 })
 export class GroupListComponent implements OnInit {

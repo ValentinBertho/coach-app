@@ -10,6 +10,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { TrainingGroupService } from '../../core/services/training-group.service';
 import { TrainingPlanService } from '../../core/services/training-plan.service';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
+import { EmptyStateComponent, LoaderComponent } from '../../shared/components/ui';
 
 const DAYS = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -17,7 +18,7 @@ const DAYS = ['', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
   selector: 'app-plan-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule],
+  imports: [FormsModule, EmptyStateComponent, LoaderComponent],
   templateUrl: './plan-list.component.html',
   styleUrl: './plan-list.component.scss',
 })

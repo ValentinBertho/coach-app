@@ -46,9 +46,12 @@
 }
 
 @if (loading()) {
-  <div class="card">Chargement…</div>
+  <div class="card"><app-loader label="Lecture des plans…" /></div>
 } @else if (plans().length === 0) {
-  <div class="card empty-state"><h2>Aucun plan</h2><p class="field-hint">Composez un plan à partir de vos modèles.</p></div>
+  <div class="card">
+    <app-empty-state icon="graduation-cap" title="Aucun plan"
+      hint="Composez un plan périodisé à partir de vos modèles de séance, puis appliquez-le à un athlète ou à un groupe entier." />
+  </div>
 } @else {
   <div class="plan-grid">
     @for (p of plans(); track p.id) {

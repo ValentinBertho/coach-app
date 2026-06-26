@@ -1,11 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { AuthService } from '../../core/services/auth.service';
+import { ThemeService, type ThemePref } from '../../core/services/theme.service';
+import { SegmentedControlComponent, type SegmentOption } from '../../shared/components/ui';
 
 /** Écran Paramètres (s-settings) : profil coach, club et réglages physiologiques par défaut. */
 @Component({
   selector: 'app-settings',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [SegmentedControlComponent],
   template: `
     <section class="page-header">
       <div>
@@ -15,6 +18,13 @@ import { AuthService } from '../../core/services/auth.service';
     </section>
 
     <div class="rel-grid">
+      <div class="card">
+        <h2>Apparence</h2>
+        <p class="field-hint">Thème de l'interface. « Système » suit les réglages de votre appareil.</p>
+        <app-segmented-control [options]="themeOptions" [value]="theme.preference()"
+          (valueChange)="setTheme($any($event))" />
+      </div>
+
       <div class="card">
         <h2>Profil coach</h2>
         @if (user(); as u) {
@@ -80,5 +90,16 @@ import { AuthService } from '../../core/services/auth.service';
 })
 export class SettingsComponent {
   private readonly auth = inject(AuthService);
+  readonly theme = inject(ThemeService);
   readonly user = this.auth.currentUser;
+
+  readonly themeOptions: SegmentOption[] = [
+    { value: 'light', label: 'Clair' },
+    { value: 'dark', label: 'Sombre' },
+    { value: 'system', label: 'Système' },
+  ];
+
+  setTheme(pref: ThemePref): void {
+    this.theme.set(pref);
+  }
 }

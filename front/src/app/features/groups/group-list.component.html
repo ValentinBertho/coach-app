@@ -10,9 +10,12 @@
 </div>
 
 @if (loading()) {
-  <div class="card">Chargement…</div>
+  <div class="card"><app-loader label="Lecture des groupes…" /></div>
 } @else if (groups().length === 0) {
-  <div class="card empty-state"><h2>Aucun groupe</h2><p class="field-hint">Créez votre premier groupe.</p></div>
+  <div class="card">
+    <app-empty-state icon="users-round" title="Aucun groupe"
+      hint="Regroupez vos athlètes (Marathon, Débutants…) pour appliquer un plan ou un mésocycle à tout le groupe en une action." />
+  </div>
 } @else {
   <div class="card table-wrap">
     <table class="data-table">
