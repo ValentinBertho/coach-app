@@ -79,4 +79,11 @@ public class User extends BaseEntity {
 
     @Column(name = "notify_push_enabled", nullable = false)
     private boolean notifyPushEnabled = true;
+
+    /** Réinitialisation de mot de passe : jeton et expiration ; nuls une fois utilisé. */
+    @Column(name = "reset_token", length = 64, unique = true)
+    private String resetToken;
+
+    @Column(name = "reset_expires_at")
+    private java.time.Instant resetExpiresAt;
 }

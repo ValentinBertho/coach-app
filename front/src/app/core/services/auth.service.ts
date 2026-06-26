@@ -48,10 +48,36 @@ export class AuthService {
       .pipe(tap((res) => this.applySession(res)));
   }
 
-  /** Onboarding athlète par lien magique : échange le token contre une session. */
-  acceptInvitation(token: string, healthDataConsent: boolean): Observable<AuthResponse> {
+  /** Onboarding athlète par lien magique : définit identifiants + session. */
+  acceptInvitation(
+    token: string,
+    healthDataConsent: boolean,
+    email?: string,
+    password?: string,
+  ): Observable<AuthResponse> {
     return this.http
-      .post<AuthResponse>(`${environment.apiUrl}/public/invitations/${token}/accept`, { healthDataConsent })
+      .post<AuthResponse>(`${environment.apiUrl}/public/invitations/${token}/accept`, {
+        healthDataConsent,
+        email,
+        password,
+      })
+      .pipe(tap((res) => this.applySession(res)));
+  }
+
+  /** Demande de réinitialisation de mot de passe (réponse identique quel que soit le compte). */
+  forgotPassword(email: string): Observable<{ ok: boolean }> {
+    return this.http.post<{ ok: boolean }>(`${environment.apiUrl}/public/password-reset`, { email });
+  }
+
+  /** Valide un lien de réinitialisation. */
+  checkReset(token: string): Observable<{ valid: boolean }> {
+    return this.http.get<{ valid: boolean }>(`${environment.apiUrl}/public/password-reset/${token}`);
+  }
+
+  /** Applique le nouveau mot de passe et ouvre une session. */
+  resetPassword(token: string, password: string): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(`${environment.apiUrl}/public/password-reset/${token}`, { password })
       .pipe(tap((res) => this.applySession(res)));
   }
 

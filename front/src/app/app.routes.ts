@@ -24,6 +24,16 @@ export const routes: Routes = [
       import('./features/auth/register.component').then((m) => m.RegisterComponent),
   },
   {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./features/auth/forgot-password.component').then((m) => m.ForgotPasswordComponent),
+  },
+  {
+    path: 'reset-password/:token',
+    loadComponent: () =>
+      import('./features/auth/reset-password.component').then((m) => m.ResetPasswordComponent),
+  },
+  {
     path: 'invitation/:token',
     loadComponent: () =>
       import('./features/public/invitation.component').then((m) => m.InvitationComponent),
