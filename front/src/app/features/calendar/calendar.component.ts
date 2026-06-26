@@ -19,6 +19,11 @@ import { LactateService } from '../../core/services/lactate.service';
 import { RaceObjective } from '../../core/models/race.model';
 import { LactateTest } from '../../core/models/lactate.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
+import { MesocycleTemplate } from '../../core/models/mesocycle-template.model';
+import { MesocycleTemplateService } from '../../core/services/mesocycle-template.service';
+import { TrainingGroup } from '../../core/models/training-group.model';
+import { TrainingGroupService } from '../../core/services/training-group.service';
+import { MesocycleParams } from '../../core/services/workout.service';
 
 interface DayCell {
   date: string;
@@ -85,6 +90,8 @@ export class CalendarComponent implements OnInit {
   private readonly strengthService = inject(StrengthService);
   private readonly courseService = inject(CourseService);
   private readonly templateService = inject(WorkoutTemplateService);
+  private readonly mesoTemplateService = inject(MesocycleTemplateService);
+  private readonly groupService = inject(TrainingGroupService);
   private readonly raceService = inject(RaceService);
   private readonly lactateService = inject(LactateService);
   private readonly router = inject(Router);
@@ -238,27 +245,104 @@ export class CalendarComponent implements OnInit {
   mesoDeloadPct = 60;
   readonly mesoBusy = signal(false);
 
-  toggleMeso(): void { this.showMeso.update((v) => !v); }
+  /** Modèles de mésocycle réutilisables + cible (athlète courant ou groupe). */
+  readonly mesoTemplates = signal<MesocycleTemplate[]>([]);
+  readonly groups = signal<TrainingGroup[]>([]);
+  mesoTemplateId = '';
+  mesoTarget: 'athlete' | 'group' = 'athlete';
+  mesoGroupId = '';
+  mesoSaveName = '';
+  readonly mesoSaving = signal(false);
 
-  /** Génère un mésocycle progressif à partir de la semaine affichée (= semaine type). */
-  generateMeso(): void {
-    if (!this.selectedAthleteId || this.mode() !== 'week' || this.mesoBusy()) return;
-    const sourceStart = mondayOf(this.anchor());
-    const firstStart = new Date(sourceStart);
-    firstStart.setDate(firstStart.getDate() + 7); // le mésocycle démarre la semaine suivante
-    this.mesoBusy.set(true);
-    this.workoutService.generateMesocycle(this.selectedAthleteId, {
-      sourceWeekStart: toIso(sourceStart),
-      firstWeekStart: toIso(firstStart),
+  toggleMeso(): void {
+    this.showMeso.update((v) => !v);
+    if (this.showMeso() && this.mesoTemplates().length === 0) {
+      this.mesoTemplateService.list().subscribe((t) => this.mesoTemplates.set(t));
+    }
+    if (this.showMeso() && this.groups().length === 0) {
+      this.groupService.list().subscribe((g) => this.groups.set(g));
+    }
+  }
+
+  /** Pré-remplit les paramètres depuis le modèle choisi (ou repasse en saisie libre). */
+  onMesoTemplateChange(): void {
+    const t = this.mesoTemplates().find((m) => m.id === this.mesoTemplateId);
+    if (t) {
+      this.mesoWeeks = t.weeks;
+      this.mesoIncrease = t.increasePct;
+      this.mesoDeloadEvery = t.deloadEvery;
+      this.mesoDeloadPct = t.deloadPct;
+    }
+  }
+
+  /** Enregistre les paramètres courants comme « méso type » réutilisable. */
+  saveMesoTemplate(): void {
+    if (!this.mesoSaveName.trim() || this.mesoSaving()) {
+      this.toast.warning('Donnez un nom au modèle.');
+      return;
+    }
+    this.mesoSaving.set(true);
+    this.mesoTemplateService.create({
+      name: this.mesoSaveName.trim(),
       weeks: this.mesoWeeks,
       increasePct: this.mesoIncrease,
       deloadEvery: this.mesoDeloadEvery,
       deloadPct: this.mesoDeloadPct,
     }).subscribe({
+      next: (t) => {
+        this.mesoTemplates.update((list) => [...list, t].sort((a, b) => a.name.localeCompare(b.name)));
+        this.mesoTemplateId = t.id;
+        this.mesoSaveName = '';
+        this.mesoSaving.set(false);
+        this.toast.success('Modèle de mésocycle enregistré');
+      },
+      error: () => { this.mesoSaving.set(false); this.toast.error('Enregistrement impossible.'); },
+    });
+  }
+
+  /** Génère un mésocycle à partir de la semaine affichée (= semaine type), pour l'athlète ou le groupe. */
+  generateMeso(): void {
+    if (this.mode() !== 'week' || this.mesoBusy()) return;
+    const sourceStart = mondayOf(this.anchor());
+    const firstStart = new Date(sourceStart);
+    firstStart.setDate(firstStart.getDate() + 7); // le mésocycle démarre la semaine suivante
+    const params: MesocycleParams = {
+      sourceWeekStart: toIso(sourceStart),
+      firstWeekStart: toIso(firstStart),
+    };
+    if (this.mesoTemplateId) {
+      params.mesocycleTemplateId = this.mesoTemplateId;
+    } else {
+      params.weeks = this.mesoWeeks;
+      params.increasePct = this.mesoIncrease;
+      params.deloadEvery = this.mesoDeloadEvery;
+      params.deloadPct = this.mesoDeloadPct;
+    }
+
+    if (this.mesoTarget === 'group') {
+      if (!this.mesoGroupId) { this.toast.warning('Choisissez un groupe.'); return; }
+      this.mesoBusy.set(true);
+      this.workoutService.generateMesocycleForGroup(this.mesoGroupId, params).subscribe({
+        next: (r) => {
+          this.mesoBusy.set(false);
+          this.showMeso.set(false);
+          const skip = r.skipped ? `, ${r.skipped} ignoré(s)` : '';
+          this.toast.success(`Mésocycle généré : ${r.created} séance(s) sur ${r.athletes} athlète(s)${skip}`);
+          this.anchor.set(firstStart);
+          this.load();
+        },
+        error: () => { this.mesoBusy.set(false); this.toast.error('Génération impossible.'); },
+      });
+      return;
+    }
+
+    if (!this.selectedAthleteId) return;
+    this.mesoBusy.set(true);
+    this.workoutService.generateMesocycle(this.selectedAthleteId, params).subscribe({
       next: (r) => {
         this.mesoBusy.set(false);
         this.showMeso.set(false);
-        this.toast.success(`Mésocycle généré : ${r.created} séance(s) sur ${r.weeks} semaines`);
+        this.toast.success(`Mésocycle généré : ${r.created} séance(s)`);
         this.anchor.set(firstStart);
         this.load();
       },

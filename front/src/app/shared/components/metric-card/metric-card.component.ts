@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 import { DataOriginTagComponent, type DataOrigin } from '../data-origin-tag/data-origin-tag.component';
+import { CounterComponent } from '../counter/counter.component';
 
 /** Tonalité sémantique de la carte (encadre la décision, pas la déco). */
 export type MetricTone = 'neutral' | 'alert' | 'success';
@@ -19,7 +20,7 @@ export type MetricTone = 'neutral' | 'alert' | 'success';
   selector: 'app-metric-card',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DataOriginTagComponent],
+  imports: [DataOriginTagComponent, CounterComponent],
   template: `
     <article class="mc" [class.mc--alert]="tone() === 'alert'" [class.mc--success]="tone() === 'success'">
       <header class="mc__head">
@@ -31,7 +32,7 @@ export type MetricTone = 'neutral' | 'alert' | 'success';
         <div class="skeleton mc__skeleton"></div>
       } @else {
         <div class="mc__value">
-          <span class="mc__num metric">{{ value() }}</span>
+          <app-counter class="mc__num" [value]="value()" [decimals]="decimals()" />
           @if (unit()) { <span class="mc__unit">{{ unit() }}</span> }
         </div>
 
@@ -79,6 +80,8 @@ export type MetricTone = 'neutral' | 'alert' | 'success';
 export class MetricCardComponent {
   readonly label = input.required<string>();
   readonly value = input<string | number | null>(null);
+  /** Décimales pour l'animation du compteur (les valeurs numériques sont animées). */
+  readonly decimals = input(0);
   readonly unit = input<string>('');
   readonly origin = input<DataOrigin | null>(null);
   readonly tone = input<MetricTone>('neutral');

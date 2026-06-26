@@ -5,17 +5,20 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 /**
- * Génération d'un mésocycle progressif à partir d'une semaine type. {@code increasePct},
- * {@code deloadEvery} et {@code deloadPct} sont optionnels (défauts : +10 %/sem, décharge toutes
- * les 4 semaines à 60 %).
+ * Génération d'un mésocycle progressif à partir d'une semaine type. Les paramètres de
+ * périodisation peuvent provenir d'un {@code mesocycleTemplateId} (« méso type » réutilisable) ;
+ * sinon ils sont fournis directement ({@code increasePct}, {@code deloadEvery}, {@code deloadPct}
+ * optionnels — défauts : +10 %/sem, décharge toutes les 4 semaines à 60 %).
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record GenerateMesocycleRequest(
         @NotNull LocalDate sourceWeekStart,
         @NotNull LocalDate firstWeekStart,
-        @NotNull @Min(1) Integer weeks,
+        UUID mesocycleTemplateId,
+        @Min(1) Integer weeks,
         Double increasePct,
         Integer deloadEvery,
         Double deloadPct) {

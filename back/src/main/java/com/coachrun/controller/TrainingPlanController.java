@@ -1,9 +1,13 @@
 package com.coachrun.controller;
 
+import com.coachrun.dto.request.PlanApplyGroupRequest;
 import com.coachrun.dto.request.PlanApplyRequest;
 import com.coachrun.dto.request.TrainingPlanRequest;
+import com.coachrun.dto.response.GroupApplyResponse;
 import com.coachrun.dto.response.TrainingPlanResponse;
+import com.coachrun.security.AuthPrincipal;
 import com.coachrun.service.TrainingPlanService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -66,6 +70,17 @@ public class TrainingPlanController {
                                       @Valid @RequestBody PlanApplyRequest request) {
         int created = planService.applyToAthlete(clubId, id, request.athleteId(), request.startDate());
         return Map.of("created", created);
+    }
+
+    /**
+     * Applique le plan à tout un groupe (athlètes actifs accessibles en écriture).
+     * L'accès en écriture est vérifié athlète par athlète dans le service.
+     */
+    @PostMapping("/{id}/apply-group")
+    public GroupApplyResponse applyGroup(@PathVariable UUID clubId, @PathVariable UUID id,
+                                         @Valid @RequestBody PlanApplyGroupRequest request,
+                                         @AuthenticationPrincipal AuthPrincipal principal) {
+        return planService.applyToGroup(clubId, id, request.groupId(), request.startDate(), principal.userId());
     }
 
     /** Retire l'attribution du plan à un athlète (les séances générées restent). */

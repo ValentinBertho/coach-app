@@ -2,14 +2,19 @@ package com.coachrun.service;
 
 import com.coachrun.dto.request.PlanItemDto;
 import com.coachrun.dto.request.TrainingPlanRequest;
+import com.coachrun.dto.response.GroupApplyResponse;
 import com.coachrun.dto.response.TrainingPlanResponse;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.TrainingPlan;
+import com.coachrun.entity.enums.AthleteStatus;
+import com.coachrun.entity.enums.PermissionLevel;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.ClubRepository;
+import com.coachrun.repository.TrainingGroupRepository;
 import com.coachrun.repository.TrainingPlanRepository;
 import com.coachrun.repository.WorkoutTemplateRepository;
+import com.coachrun.security.AthleteAccessValidator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +37,8 @@ public class TrainingPlanService {
     private final WorkoutTemplateRepository templateRepository;
     private final WorkoutTemplateService templateService;
     private final AthleteRepository athleteRepository;
+    private final TrainingGroupRepository groupRepository;
+    private final AthleteAccessValidator accessValidator;
     private final ObjectMapper objectMapper;
 
     public List<TrainingPlanResponse> list(UUID clubId) {
@@ -87,6 +94,37 @@ public class TrainingPlanService {
             created++;
         }
         return created;
+    }
+
+    /**
+     * Applique le plan à tous les athlètes <strong>actifs</strong> d'un groupe pour lesquels le
+     * coach dispose d'un accès en écriture (les autres sont ignorés sans bloquer l'opération).
+     * Gros gain de temps : un plan périodisé attribué à tout un groupe en une action.
+     */
+    @Transactional
+    public GroupApplyResponse applyToGroup(UUID clubId, UUID planId, UUID groupId,
+                                           LocalDate startDate, UUID coachId) {
+        require(clubId, planId); // valide l'existence/scope du plan
+        groupRepository.findByIdAndClubId(groupId, clubId)
+                .orElseThrow(() -> new NotFoundException("Groupe introuvable."));
+        List<Athlete> athletes = athleteRepository.findActiveByGroup(groupId, clubId, AthleteStatus.ACTIVE);
+        int created = 0;
+        int skipped = 0;
+        int applied = 0;
+        for (Athlete a : athletes) {
+            if (!canWrite(coachId, a.getId())) {
+                skipped++;
+                continue;
+            }
+            created += applyToAthlete(clubId, planId, a.getId(), startDate);
+            applied++;
+        }
+        return new GroupApplyResponse(applied, skipped, created);
+    }
+
+    private boolean canWrite(UUID coachId, UUID athleteId) {
+        return accessValidator.effectiveLevel(coachId, athleteId)
+                .map(l -> l.atLeast(PermissionLevel.WRITE)).orElse(false);
     }
 
     /** Retire l'attribution d'un plan à un athlète (ne supprime pas les séances déjà générées). */

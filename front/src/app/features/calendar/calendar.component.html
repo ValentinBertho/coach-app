@@ -41,20 +41,54 @@
   <section class="card meso-panel">
     <h2>Générer un mésocycle</h2>
     <p class="field-hint">À partir de la semaine affichée (semaine type), génère les semaines suivantes avec une montée de charge progressive et des décharges.</p>
+
+    <div class="meso-grid">
+      <label>Modèle de mésocycle
+        <select class="form-control" [(ngModel)]="mesoTemplateId" (ngModelChange)="onMesoTemplateChange()">
+          <option value="">Paramètres libres…</option>
+          @for (m of mesoTemplates(); track m.id) { <option [value]="m.id">{{ m.name }}</option> }
+        </select>
+      </label>
+      <label>Cible
+        <select class="form-control" [(ngModel)]="mesoTarget">
+          <option value="athlete">Athlète courant</option>
+          <option value="group">Groupe entier</option>
+        </select>
+      </label>
+      @if (mesoTarget === 'group') {
+        <label>Groupe
+          <select class="form-control" [(ngModel)]="mesoGroupId">
+            <option value="">Groupe…</option>
+            @for (g of groups(); track g.id) { <option [value]="g.id">{{ g.name }} ({{ g.athleteCount }})</option> }
+          </select>
+        </label>
+      }
+    </div>
+
     <div class="meso-grid">
       <label>Nombre de semaines
-        <input type="number" class="form-control" [(ngModel)]="mesoWeeks" min="1" max="16" />
+        <input type="number" class="form-control" [(ngModel)]="mesoWeeks" min="1" max="16" [disabled]="!!mesoTemplateId" />
       </label>
       <label>Progression / semaine (%)
-        <input type="number" class="form-control" [(ngModel)]="mesoIncrease" min="0" max="50" />
+        <input type="number" class="form-control" [(ngModel)]="mesoIncrease" min="0" max="50" [disabled]="!!mesoTemplateId" />
       </label>
       <label>Décharge toutes les (sem.)
-        <input type="number" class="form-control" [(ngModel)]="mesoDeloadEvery" min="2" max="8" />
+        <input type="number" class="form-control" [(ngModel)]="mesoDeloadEvery" min="2" max="8" [disabled]="!!mesoTemplateId" />
       </label>
       <label>Volume de décharge (%)
-        <input type="number" class="form-control" [(ngModel)]="mesoDeloadPct" min="30" max="100" />
+        <input type="number" class="form-control" [(ngModel)]="mesoDeloadPct" min="30" max="100" [disabled]="!!mesoTemplateId" />
       </label>
     </div>
+
+    @if (!mesoTemplateId) {
+      <div class="meso-save">
+        <input type="text" class="form-control" [(ngModel)]="mesoSaveName" placeholder="Enregistrer comme modèle (ex. Bloc 4 sem 3:1)" maxlength="255" />
+        <button type="button" class="btn btn-ghost btn-sm" (click)="saveMesoTemplate()" [disabled]="mesoSaving()">
+          <app-icon name="save" [size]="15" /> Enregistrer le modèle
+        </button>
+      </div>
+    }
+
     <div class="meso-actions">
       <button type="button" class="btn btn-ghost btn-sm" (click)="toggleMeso()">Annuler</button>
       <button type="button" class="btn btn-primary btn-sm" (click)="generateMeso()" [disabled]="mesoBusy()">

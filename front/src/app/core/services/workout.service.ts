@@ -54,13 +54,36 @@ export class WorkoutService {
     );
   }
 
-  /** Génère un mésocycle progressif à partir d'une semaine type. */
-  generateMesocycle(athleteId: string, params: {
-    sourceWeekStart: string; firstWeekStart: string; weeks: number;
-    increasePct: number; deloadEvery: number; deloadPct: number;
-  }): Observable<{ created: number; weeks: number }> {
-    return this.http.post<{ created: number; weeks: number }>(
+  /**
+   * Génère un mésocycle progressif à partir d'une semaine type. Les paramètres de périodisation
+   * peuvent venir d'un modèle ({@code mesocycleTemplateId}) ou être fournis directement.
+   */
+  generateMesocycle(athleteId: string, params: MesocycleParams): Observable<{ created: number }> {
+    return this.http.post<{ created: number }>(
       `${this.base(athleteId)}/generate-mesocycle`, params,
     );
   }
+
+  /** Génère le mésocycle pour tout un groupe (semaine source de chaque athlète). */
+  generateMesocycleForGroup(groupId: string, params: MesocycleParams): Observable<GroupApplyResult> {
+    return this.http.post<GroupApplyResult>(
+      `${environment.apiUrl}/clubs/${this.auth.clubId()}/groups/${groupId}/generate-mesocycle`, params,
+    );
+  }
+}
+
+export interface MesocycleParams {
+  sourceWeekStart: string;
+  firstWeekStart: string;
+  mesocycleTemplateId?: string;
+  weeks?: number;
+  increasePct?: number;
+  deloadEvery?: number;
+  deloadPct?: number;
+}
+
+export interface GroupApplyResult {
+  athletes: number;
+  skipped: number;
+  created: number;
 }
