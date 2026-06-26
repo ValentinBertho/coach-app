@@ -12,6 +12,8 @@ public record CourseBlock(
         Integer durationS,
         CoursePrescription prescription,
         CourseRecovery recovery,
-        String note
+        String note,
+        /** Éducatifs de course (gammes) attachés au bloc — ex. échauffement (CDC §8/§9). */
+        java.util.List<java.util.UUID> drillIds
 ) {
 }

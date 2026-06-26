@@ -143,11 +143,6 @@ export const routes: Routes = [
           import('./features/club/club.component').then((m) => m.ClubComponent),
       },
       {
-        path: 'sync',
-        loadComponent: () =>
-          import('./features/settings/sync.component').then((m) => m.SyncComponent),
-      },
-      {
         path: 'settings',
         loadComponent: () =>
           import('./features/settings/settings.component').then((m) => m.SettingsComponent),
@@ -193,16 +188,6 @@ export const routes: Routes = [
           import('./features/races/race-list.component').then((m) => m.RaceListComponent),
       },
       {
-        path: 'athletes/:athleteId/workouts/new',
-        loadComponent: () =>
-          import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),
-      },
-      {
-        path: 'athletes/:athleteId/workouts/:workoutId/edit',
-        loadComponent: () =>
-          import('./features/workouts/workout-form.component').then((m) => m.WorkoutFormComponent),
-      },
-      {
         path: 'athletes/:athleteId/workouts/:workoutId',
         loadComponent: () =>
           import('./features/workouts/workout-detail.component').then((m) => m.WorkoutDetailComponent),
@@ -245,6 +230,16 @@ export const routes: Routes = [
         path: 'lactate',
         loadComponent: () =>
           import('./features/athlete/athlete-lactate.component').then((m) => m.AthleteLactateComponent),
+      },
+      {
+        path: 'races',
+        loadComponent: () =>
+          import('./features/athlete/athlete-races.component').then((m) => m.AthleteRacesComponent),
+      },
+      {
+        path: 'sync',
+        loadComponent: () =>
+          import('./features/athlete/athlete-sync.component').then((m) => m.AthleteSyncComponent),
       },
       {
         path: 'profile',

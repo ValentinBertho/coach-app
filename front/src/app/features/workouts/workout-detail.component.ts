@@ -18,6 +18,8 @@ import {
   type IntensityZone as ZoneNum,
 } from '../../shared/components/physiology';
 import { StickyActionBarComponent } from '../../shared/components/ui';
+import { WorkoutPrescription } from '../../core/models/course.model';
+import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
 
 type State = 'loading' | 'ready' | 'error';
 
@@ -31,7 +33,7 @@ type State = 'loading' | 'ready' | 'error';
   selector: 'app-workout-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink, IntensityZoneBadgeComponent, DataOriginTagComponent, StickyActionBarComponent],
+  imports: [IconComponent, RouterLink, IntensityZoneBadgeComponent, DataOriginTagComponent, StickyActionBarComponent, CoursePrescriptionViewComponent],
   templateUrl: './workout-detail.component.html',
   styleUrl: './workout-detail.component.scss',
 })
@@ -51,6 +53,12 @@ export class WorkoutDetailComponent implements OnInit {
 
   readonly state = signal<State>('loading');
   readonly workout = signal<Workout | null>(null);
+  /** Prescription course en fourchettes (snapshot + cibles calculées) — affichage prioritaire. */
+  readonly courseRx = signal<WorkoutPrescription | null>(null);
+  readonly courseRxHasContent = computed(() => {
+    const c = this.courseRx()?.calculated;
+    return !!c && (c.warmup.length + c.main.length + c.cooldown.length) > 0;
+  });
 
   /** La séance a-t-elle un retour athlète déclaré ? */
   readonly hasFeedback = computed(() => {
@@ -62,9 +70,14 @@ export class WorkoutDetailComponent implements OnInit {
 
   load(): void {
     this.state.set('loading');
+    this.courseRx.set(null);
     this.workoutService.get(this.athleteId(), this.workoutId()).subscribe({
       next: (w) => { this.workout.set(w); this.state.set('ready'); },
       error: () => this.state.set('error'),
+    });
+    this.workoutService.prescription(this.athleteId(), this.workoutId()).subscribe({
+      next: (p) => this.courseRx.set(p),
+      error: () => this.courseRx.set(null),
     });
   }
 

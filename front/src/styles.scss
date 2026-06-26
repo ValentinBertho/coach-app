@@ -394,3 +394,14 @@ textarea.form-control { min-height: 80px; padding: var(--sp-3) var(--sp-4); line
 .cdk-drag-placeholder { opacity: 0.35; }
 .cdk-drag-animating { transition: transform 200ms var(--ease); }
 .cdk-drop-list-dragging .cdk-drag { transition: transform 200ms var(--ease); }
+
+/* Sélecteur de séance course du calendrier (modal global, hors budget composant). */
+.picker-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: var(--sp-4); }
+.picker { width: min(440px,100%); max-height: 80vh; overflow: auto; background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+.picker__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); border-bottom: 1px solid var(--hairline); }
+.picker__head h3 { margin: 0; font-size: var(--text-md); }
+.picker__list { list-style: none; margin: 0; padding: var(--sp-2); display: flex; flex-direction: column; gap: 4px; }
+.picker__item { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius-md); background: transparent; cursor: pointer; text-align: left; }
+.picker__item:hover { background: var(--paper-sunk); }
+.picker__name { font-weight: 600; color: var(--ink); }
+.picker__type { font-size: var(--text-xs); color: var(--ink-3); }

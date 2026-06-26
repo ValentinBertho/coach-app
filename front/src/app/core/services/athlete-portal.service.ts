@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { RaceObjective } from '../models/race.model';
+import { RaceObjective, RaceObjectiveRequest } from '../models/race.model';
 import { WorkoutPrescription } from '../models/course.model';
 import { Unavailability } from '../models/unavailability.model';
 import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
@@ -10,6 +10,7 @@ import { Activity } from '../models/activity.model';
 import { Analytics } from './analytics.service';
 import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
 import { Workout, WorkoutStatus } from '../models/workout.model';
+import { StravaStatus } from '../models/strava.model';
 import { CalculatedStrength, E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthResultEntry, StrengthStructure } from '../models/strength.model';
 
 export interface AthletePlanProgress {
@@ -140,6 +141,35 @@ export class AthletePortalService {
   /** Mes objectifs (liste complète). */
   races(): Observable<RaceObjective[]> {
     return this.http.get<RaceObjective[]>(`${this.base}/races`);
+  }
+  /** Je crée un objectif. */
+  createRace(req: RaceObjectiveRequest): Observable<RaceObjective> {
+    return this.http.post<RaceObjective>(`${this.base}/races`, req);
+  }
+  /** Je modifie un objectif. */
+  updateRace(raceId: string, req: RaceObjectiveRequest): Observable<RaceObjective> {
+    return this.http.patch<RaceObjective>(`${this.base}/races/${raceId}`, req);
+  }
+  /** Je supprime un objectif. */
+  deleteRace(raceId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/races/${raceId}`);
+  }
+
+  // --- Synchronisation Strava (côté athlète : je connecte MA montre) ---
+  stravaStatus(): Observable<StravaStatus> {
+    return this.http.get<StravaStatus>(`${this.base}/strava`);
+  }
+  stravaAuthorizeUrl(): Observable<{ url: string }> {
+    return this.http.get<{ url: string }>(`${this.base}/strava/authorize`);
+  }
+  stravaConnect(code: string): Observable<StravaStatus> {
+    return this.http.post<StravaStatus>(`${this.base}/strava/connect`, { code });
+  }
+  stravaImport(): Observable<{ imported: number }> {
+    return this.http.post<{ imported: number }>(`${this.base}/strava/import`, {});
+  }
+  stravaDisconnect(): Observable<void> {
+    return this.http.delete<void>(`${this.base}/strava`);
   }
 
   // --- Phase 2 « Mon histoire » (lecture seule) ---

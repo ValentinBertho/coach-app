@@ -24,6 +24,9 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
         <a routerLink="/athlete/calendar" routerLinkActive="active">
           <app-icon name="calendar" [size]="22" /><span class="lb">Agenda</span>
         </a>
+        <a routerLink="/athlete/activities" routerLinkActive="active">
+          <app-icon name="footprints" [size]="22" /><span class="lb">Sorties</span>
+        </a>
         <a routerLink="/athlete/progress" routerLinkActive="active">
           <app-icon name="trending-up" [size]="22" /><span class="lb">Progrès</span>
         </a>
@@ -42,7 +45,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 
     .ashell__nav {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 200;
-      display: grid; grid-template-columns: repeat(5, 1fr);
+      display: grid; grid-template-columns: repeat(6, 1fr);
       background: var(--glass); backdrop-filter: saturate(180%) blur(16px);
       -webkit-backdrop-filter: saturate(180%) blur(16px);
       border-top: 1px solid var(--hairline);

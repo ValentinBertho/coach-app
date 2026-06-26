@@ -25,7 +25,12 @@
         </header>
 
         <!-- ===== Prescription ===== -->
-        @if (w.steps.length) {
+        @if (courseRxHasContent()) {
+          <section class="card block">
+            <h2 class="block-title">Prescription</h2>
+            <app-course-prescription-view [prescription]="courseRx()" />
+          </section>
+        } @else if (w.steps.length) {
           <section class="card block">
             <h2 class="block-title">Prescription</h2>
             <ol class="timeline">
@@ -86,7 +91,6 @@
         } @else {
           <button type="button" class="btn btn-ghost btn-sm" (click)="setStatus('PLANNED')">Rouvrir</button>
         }
-        <a [routerLink]="['/app/athletes', athleteId(), 'workouts', workoutId(), 'edit']" class="btn btn-primary btn-sm">Modifier</a>
       </app-sticky-action-bar>
 
       <button type="button" class="btn btn-ghost btn-sm danger-link" (click)="remove()">Supprimer la séance</button>

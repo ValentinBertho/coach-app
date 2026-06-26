@@ -52,6 +52,7 @@ public class WorkoutService {
     private final TrainingGroupRepository groupRepository;
     private final AthleteAccessValidator accessValidator;
     private final ObjectMapper objectMapper;
+    private final com.coachrun.repository.RunDrillRepository runDrillRepository;
 
     public List<WorkoutResponse> calendar(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         return workoutRepository
@@ -378,8 +379,27 @@ public class WorkoutService {
     private WorkoutPrescriptionResponse toPrescription(Workout w) {
         SessionStructure snapshot = readJson(w.getSessionSnapshot(), SessionStructure.class);
         CalculatedSessionResponse calculated = readJson(w.getCalculatedPaces(), CalculatedSessionResponse.class);
-        return new WorkoutPrescriptionResponse(
-                snapshot == null ? SessionStructure.empty() : snapshot, calculated);
+        SessionStructure safe = snapshot == null ? SessionStructure.empty() : snapshot;
+        return new WorkoutPrescriptionResponse(safe, calculated, resolveDrills(safe, w.getClub().getId()));
+    }
+
+    /** Résout les éducatifs (gammes) référencés par les blocs du snapshot, scopés au club. */
+    private java.util.List<com.coachrun.dto.response.RunDrillResponse> resolveDrills(
+            SessionStructure s, UUID clubId) {
+        java.util.LinkedHashSet<UUID> ids = new java.util.LinkedHashSet<>();
+        java.util.stream.Stream.of(s.warmup(), s.main(), s.cooldown())
+                .filter(java.util.Objects::nonNull)
+                .flatMap(java.util.List::stream)
+                .filter(b -> b.drillIds() != null)
+                .forEach(b -> ids.addAll(b.drillIds()));
+        if (ids.isEmpty()) {
+            return java.util.List.of();
+        }
+        return ids.stream()
+                .map(id -> runDrillRepository.findByIdAndClubId(id, clubId).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .map(com.coachrun.dto.response.RunDrillResponse::of)
+                .toList();
     }
 
     private <T> T readJson(String json, Class<T> type) {

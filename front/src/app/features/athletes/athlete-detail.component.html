@@ -138,17 +138,14 @@
         <h2>Sync Strava</h2>
         @if (st.connected) { <span class="badge badge-success">Connecté</span> }
       </div>
+      <!-- Lecture seule : la connexion des montres se fait côté athlète (CDC §12).
+           Le coach voit l'état, il n'initie pas la connexion à la place de l'athlète. -->
       @if (!st.configured) {
         <p class="empty-hint">L'intégration Strava n'est pas configurée sur ce serveur (identifiants OAuth manquants).</p>
       } @else if (st.connected) {
-        <p class="field-hint">Compte Strava #{{ st.providerAthleteId }} lié.</p>
-        <div class="strava-actions">
-          <button type="button" class="btn btn-primary btn-sm" (click)="importStrava()">Importer les activités</button>
-          <button type="button" class="btn btn-ghost btn-sm" (click)="disconnectStrava()">Déconnecter</button>
-        </div>
+        <p class="field-hint">Compte Strava #{{ st.providerAthleteId }} lié. Import automatique des activités actif.</p>
       } @else {
-        <p class="field-hint">Connecte le compte Strava de l'athlète pour importer ses activités automatiquement.</p>
-        <button type="button" class="btn btn-accent btn-sm" (click)="connectStrava()">Connecter Strava</button>
+        <p class="field-hint">L'athlète n'a pas connecté Strava. Il peut le faire depuis son espace (Profil → Synchronisation).</p>
       }
     </div>
   }
