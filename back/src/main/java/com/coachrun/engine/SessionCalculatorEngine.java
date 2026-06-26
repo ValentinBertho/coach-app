@@ -49,11 +49,13 @@ public class SessionCalculatorEngine {
             Double speedMinKmh, Double speedMaxKmh,
             Integer hrMin, Integer hrMax,
             Integer rpeMin, Integer rpeMax,
-            Integer estimatedDurationS, Integer estimatedDistanceM
+            Integer estimatedDurationS, Integer estimatedDistanceM,
+            /** Allure dérivée du VDOT faute de seuil mesuré (test lactate) — à afficher comme « estimée ». */
+            boolean paceEstimated
     ) {
         static Result notComputable(PrescriptionRef ref) {
             return new Result(false, ref, null, null, null, null, null, null, null,
-                    null, null, null, null, null, null);
+                    null, null, null, null, null, null, false);
         }
     }
 
@@ -99,7 +101,18 @@ public class SessionCalculatorEngine {
                 speedSlowKmh, speedFastKmh,
                 hrLow, hrHigh,
                 rpe[0], rpe[1],
-                estimatedDurationS, estimatedDistanceM);
+                estimatedDurationS, estimatedDistanceM,
+                isEstimatedThreshold(in.ref(), ctx));
+    }
+
+    /** Vrai si la prescription vise un seuil (LT1/LT2/VC) non mesuré → allure dérivée du VDOT. */
+    private boolean isEstimatedThreshold(PrescriptionRef ref, AthletePaceContext c) {
+        return switch (ref) {
+            case PCT_LT1 -> c.lt1Ms() == null;
+            case PCT_LT2 -> c.lt2Ms() == null;
+            case PCT_VC -> c.vcMs() == null;
+            default -> false;
+        };
     }
 
     // --- Helpers --------------------------------------------------------------
