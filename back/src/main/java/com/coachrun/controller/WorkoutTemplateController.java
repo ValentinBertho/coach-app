@@ -1,10 +1,13 @@
 package com.coachrun.controller;
 
+import com.coachrun.dto.request.TemplateApplyGroupRequest;
 import com.coachrun.dto.request.TemplateApplyRequest;
 import com.coachrun.dto.request.WorkoutTemplateRequest;
+import com.coachrun.dto.response.GroupApplyResponse;
 import com.coachrun.dto.response.PageResponse;
 import com.coachrun.dto.response.WorkoutResponse;
 import com.coachrun.dto.response.WorkoutTemplateResponse;
+import com.coachrun.security.AuthPrincipal;
 import com.coachrun.service.WorkoutTemplateService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -66,10 +69,21 @@ public class WorkoutTemplateController {
         templateService.delete(clubId, id);
     }
 
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #request.athleteId())")
     @PostMapping("/{id}/apply")
     @ResponseStatus(HttpStatus.CREATED)
     public WorkoutResponse apply(@PathVariable UUID clubId, @PathVariable UUID id,
                                  @Valid @RequestBody TemplateApplyRequest request) {
         return templateService.apply(clubId, id, request.athleteId(), request.date());
+    }
+
+    /** Applique le modèle à tout un groupe (athlètes en lecture seule ignorés). */
+    @PostMapping("/{id}/apply-group")
+    @ResponseStatus(HttpStatus.CREATED)
+    public GroupApplyResponse applyToGroup(
+            @PathVariable UUID clubId, @PathVariable UUID id,
+            @Valid @RequestBody TemplateApplyGroupRequest request,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal AuthPrincipal principal) {
+        return templateService.applyToGroup(clubId, id, request.groupId(), request.date(), principal.userId());
     }
 }

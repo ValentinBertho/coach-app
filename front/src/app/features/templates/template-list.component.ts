@@ -10,6 +10,8 @@ import { AthleteService } from '../../core/services/athlete.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
+import { TrainingGroupService } from '../../core/services/training-group.service';
+import { TrainingGroup } from '../../core/models/training-group.model';
 
 @Component({
   selector: 'app-template-list',
@@ -26,6 +28,9 @@ export class TemplateListComponent implements OnInit {
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly groupService = inject(TrainingGroupService);
+
+  readonly groups = signal<TrainingGroup[]>([]);
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
   readonly types = Object.keys(WORKOUT_TYPE_LABELS) as (keyof typeof WORKOUT_TYPE_LABELS)[];
@@ -55,8 +60,8 @@ export class TemplateListComponent implements OnInit {
 
   setView(mode: 'cards' | 'list'): void { this.viewMode.set(mode); }
 
-  // état d'application par modèle
-  applyFor: Record<string, { athleteId: string; date: string }> = {};
+  // état d'application par modèle. `target` = "a:<athleteId>" ou "g:<groupId>".
+  applyFor: Record<string, { target: string; date: string }> = {};
 
   // Création minimale : la prescription en fourchettes se construit ensuite dans l'éditeur
   // de structure (modèle unique DARI Lab — plus de saisie « par zones » en valeur sèche).
@@ -70,6 +75,7 @@ export class TemplateListComponent implements OnInit {
   ngOnInit(): void {
     this.load();
     this.athleteService.list({ status: 'ACTIVE' }).subscribe((p) => this.athletes.set(p.content));
+    this.groupService.list().subscribe((g) => this.groups.set(g));
   }
 
   load(): void {
@@ -77,7 +83,7 @@ export class TemplateListComponent implements OnInit {
     this.templateService.list().subscribe({
       next: (p) => {
         this.templates.set(p.content);
-        p.content.forEach((t) => (this.applyFor[t.id] ??= { athleteId: '', date: '' }));
+        p.content.forEach((t) => (this.applyFor[t.id] ??= { target: '', date: '' }));
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -104,10 +110,26 @@ export class TemplateListComponent implements OnInit {
 
   apply(t: WorkoutTemplate): void {
     const sel = this.applyFor[t.id];
-    if (!sel?.athleteId || !sel?.date) { this.toast.warning('Choisissez un athlète et une date.'); return; }
-    this.templateService.apply(t.id, sel.athleteId, sel.date).subscribe(() => {
-      this.toast.success('Séance ajoutée au calendrier');
-      this.applyFor[t.id] = { athleteId: '', date: '' };
+    if (!sel?.target || !sel?.date) { this.toast.warning('Choisis une cible (athlète ou groupe) et une date.'); return; }
+    const [kind, id] = sel.target.split(':');
+    if (kind === 'g') {
+      this.templateService.applyGroup(t.id, id, sel.date).subscribe({
+        next: (r) => {
+          this.toast.success(r.created > 0
+            ? `Séance ajoutée à ${r.created} athlète(s)${r.skipped ? ` (${r.skipped} ignoré·s : lecture seule)` : ''}`
+            : 'Aucun athlète modifiable dans ce groupe');
+          this.applyFor[t.id] = { target: '', date: '' };
+        },
+        error: () => this.toast.error('Application au groupe impossible.'),
+      });
+      return;
+    }
+    this.templateService.apply(t.id, id, sel.date).subscribe({
+      next: () => {
+        this.toast.success('Séance ajoutée au calendrier');
+        this.applyFor[t.id] = { target: '', date: '' };
+      },
+      error: () => this.toast.error('Application impossible.'),
     });
   }
 

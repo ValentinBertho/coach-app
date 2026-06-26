@@ -36,4 +36,9 @@ export class WorkoutTemplateService {
   apply(id: string, athleteId: string, date: string): Observable<Workout> {
     return this.http.post<Workout>(`${this.base()}/${id}/apply`, { athleteId, date });
   }
+  /** Applique le modèle à tout un groupe (athlètes en lecture seule ignorés côté serveur). */
+  applyGroup(id: string, groupId: string, date: string): Observable<{ athletes: number; skipped: number; created: number }> {
+    return this.http.post<{ athletes: number; skipped: number; created: number }>(
+      `${this.base()}/${id}/apply-group`, { groupId, date });
+  }
 }

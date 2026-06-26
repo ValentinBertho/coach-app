@@ -61,9 +61,16 @@
           <strong class="tpl-name">{{ t.name }}</strong>
           <span class="field-hint tpl-sub">{{ t.title }} · {{ t.steps.length }} étape(s)</span>
           <div class="apply">
-            <select class="form-control" [(ngModel)]="applyFor[t.id]!.athleteId" [ngModelOptions]="{standalone:true}">
-              <option value="">Athlète…</option>
-              @for (a of athletes(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+            <select class="form-control" [(ngModel)]="applyFor[t.id]!.target" [ngModelOptions]="{standalone:true}">
+              <option value="">Athlète ou groupe…</option>
+              <optgroup label="Athlètes">
+                @for (a of athletes(); track a.id) { <option [value]="'a:' + a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+              </optgroup>
+              @if (groups().length) {
+                <optgroup label="Groupes">
+                  @for (g of groups(); track g.id) { <option [value]="'g:' + g.id">{{ g.name }} ({{ g.athleteCount }})</option> }
+                </optgroup>
+              }
             </select>
             <input type="date" class="form-control" [(ngModel)]="applyFor[t.id]!.date" [ngModelOptions]="{standalone:true}" />
             <button type="button" class="btn btn-accent btn-sm" (click)="apply(t)">Appliquer</button>
@@ -81,9 +88,16 @@
             <span class="field-hint">{{ t.title }} · {{ t.steps.length }} étape(s)</span>
           </div>
           <div class="tpl-row-apply">
-            <select class="form-control" [(ngModel)]="applyFor[t.id]!.athleteId" [ngModelOptions]="{standalone:true}">
-              <option value="">Athlète…</option>
-              @for (a of athletes(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+            <select class="form-control" [(ngModel)]="applyFor[t.id]!.target" [ngModelOptions]="{standalone:true}">
+              <option value="">Athlète ou groupe…</option>
+              <optgroup label="Athlètes">
+                @for (a of athletes(); track a.id) { <option [value]="'a:' + a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+              </optgroup>
+              @if (groups().length) {
+                <optgroup label="Groupes">
+                  @for (g of groups(); track g.id) { <option [value]="'g:' + g.id">{{ g.name }} ({{ g.athleteCount }})</option> }
+                </optgroup>
+              }
             </select>
             <input type="date" class="form-control" [(ngModel)]="applyFor[t.id]!.date" [ngModelOptions]="{standalone:true}" />
             <button type="button" class="btn btn-accent btn-sm" (click)="apply(t)">Appliquer</button>
