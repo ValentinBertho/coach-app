@@ -101,6 +101,43 @@ public class ActivityService {
     public ActivityResponse importFile(UUID clubId, UUID athleteId, String filename, byte[] bytes) {
         com.coachrun.entity.Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        return createFromFile(athlete, athleteId, filename, bytes);
+    }
+
+    // --- Portail athlète : saisie / import par l'athlète sur ses propres données ---
+
+    /** L'athlète enregistre une sortie libre (source toujours MANUAL). Scopé par son propre id. */
+    @Transactional
+    public ActivityResponse logForAthlete(UUID athleteId, ActivityImportRequest request) {
+        com.coachrun.entity.Athlete athlete = athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        Activity activity = new Activity();
+        activity.setClub(athlete.getClub());
+        activity.setAthlete(athlete);
+        activity.setSource(ActivitySource.MANUAL);
+        activity.setActivityDate(request.activityDate());
+        activity.setTitle(request.title());
+        activity.setDistanceM(request.distanceM());
+        activity.setDurationS(request.durationS());
+        activity.setAvgHr(request.avgHr());
+        activity.setElevationGainM(request.elevationGainM());
+        activity.setStatus(ActivityStatus.IMPORTED);
+        autoMatch(athleteId, activity);
+        activity = activityRepository.save(activity);
+        log.info("Sortie libre enregistrée {} (athlète={})", activity.getId(), athleteId);
+        return toResponse(activity);
+    }
+
+    /** L'athlète importe sa propre trace (GPX/TCX). Scopé par son propre id. */
+    @Transactional
+    public ActivityResponse importFileForAthlete(UUID athleteId, String filename, byte[] bytes) {
+        com.coachrun.entity.Athlete athlete = athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        return createFromFile(athlete, athleteId, filename, bytes);
+    }
+
+    private ActivityResponse createFromFile(com.coachrun.entity.Athlete athlete, UUID athleteId,
+                                            String filename, byte[] bytes) {
         com.coachrun.util.GpxParser.ParsedActivity parsed;
         try {
             parsed = com.coachrun.util.GpxParser.parse(bytes);
