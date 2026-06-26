@@ -12,7 +12,9 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent],
   template: `
-    <div class="ashell">
+    <!-- Peau « night-track » : le portail athlète est toujours sombre (immersion mobile),
+         indépendamment du thème du coach. Les tokens sombres sont scopés à ce sous-arbre. -->
+    <div class="ashell" data-theme="dark">
       <div class="ashell__content"><router-outlet /></div>
 
       <nav class="ashell__nav" aria-label="Navigation athlète">

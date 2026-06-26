@@ -157,8 +157,9 @@
   --primary: #2fb3c0;
   --primary-hover: #54c5d0;
   --primary-2: #0a4f58;
-  --primary-light: rgba(47, 179, 192, 0.22);
-  --primary-wash: rgba(47, 179, 192, 0.12);
+  /* Solide (sert aussi de couleur de texte sur les héros sombres et de remplissage clair). */
+  --primary-light: #8fdbe3;
+  --primary-wash: rgba(47, 179, 192, 0.14);
   --accent: #1fbf90;
   --accent-2: #2cc4dd;
   --energy: #ff7a52;

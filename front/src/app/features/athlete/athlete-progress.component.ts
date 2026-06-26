@@ -5,7 +5,7 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { E1rmHistory, MyOneRm } from '../../core/models/strength.model';
 import { Load, StrengthLoadPoint } from '../../core/models/lactate.model';
 import { Performance } from '../../core/models/physio.model';
-import { AthletePortalService } from '../../core/services/athlete-portal.service';
+import { AthletePlan, AthletePortalService } from '../../core/services/athlete-portal.service';
 import { Analytics } from '../../core/services/analytics.service';
 import { AcwrIndicatorComponent, DataOriginTagComponent, type DataOrigin } from '../../shared/components/physiology';
 import { MetricCardComponent } from '../../shared/components/ui';
@@ -57,6 +57,32 @@ const SOURCE_LABEL: Record<string, string> = {
           <app-icon name="chevron-right" [size]="18" />
         </a>
       </nav>
+
+      <!-- Mon programme (plans attribués + avancement) -->
+      @if (plans().length) {
+        <section class="sect">
+          <h2 class="sect-h">Mon programme</h2>
+          @for (p of plans(); track p.planId) {
+            <div class="card prog-plan">
+              <div class="prog-plan__top">
+                <strong>{{ p.name }}</strong>
+                @if (p.progress; as pr) {
+                  <span class="prog-plan__meta metric">
+                    @if (pr.finished) { Terminé } @else { Sem. {{ pr.currentWeek }}/{{ pr.durationWeeks }} }
+                  </span>
+                } @else {
+                  <span class="prog-plan__meta">{{ p.durationWeeks }} sem.</span>
+                }
+              </div>
+              @if (p.description) { <p class="prog-plan__desc">{{ p.description }}</p> }
+              @if (p.progress; as pr) {
+                <div class="prog-plan__bar"><span class="prog-plan__fill" [style.width.%]="pr.percent"></span></div>
+                <span class="prog-plan__pct metric">{{ pr.completedSessions }}/{{ pr.totalSessions }} séances · {{ pr.percent }}%</span>
+              }
+            </div>
+          }
+        </section>
+      }
 
       <!-- Mon volume (analytics) -->
       @if (analytics(); as a) {
@@ -257,6 +283,14 @@ const SOURCE_LABEL: Record<string, string> = {
 
     .sect-h { font-size: var(--text-lg); margin: var(--sp-2) 0; }
     .sect { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+    .prog-plan { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .prog-plan__top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
+    .prog-plan__meta { font-size: var(--text-xs); color: var(--ink-3); }
+    .prog-plan__desc { font-size: var(--text-sm); color: var(--ink-3); margin: 0; }
+    .prog-plan__bar { height: 8px; border-radius: var(--radius-full); background: var(--paper-sunk); overflow: hidden; }
+    .prog-plan__fill { display: block; height: 100%; border-radius: var(--radius-full); background: var(--gradient-accent); transition: width var(--duration-slow) var(--ease); }
+    .prog-plan__pct { font-size: var(--text-xs); color: var(--accent); font-weight: 700; }
     .charge { display: flex; flex-direction: column; gap: var(--sp-3); }
     .charge-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-3); }
 
@@ -309,6 +343,7 @@ export class AthleteProgressComponent implements OnInit {
   readonly expanded = signal<string | null>(null);
   readonly history = signal<Record<string, E1rmHistory[]>>({});
   readonly load = signal<Load | null>(null);
+  readonly plans = signal<AthletePlan[]>([]);
   readonly analytics = signal<Analytics | null>(null);
   readonly performances = signal<Performance[] | null>(null);
   readonly strengthLoad = signal<StrengthLoadPoint[]>([]);
@@ -388,6 +423,7 @@ export class AthleteProgressComponent implements OnInit {
 
   ngOnInit(): void {
     this.portal.load().subscribe({ next: (l) => this.load.set(l), error: () => this.load.set(null) });
+    this.portal.plans().subscribe({ next: (p) => this.plans.set(p), error: () => this.plans.set([]) });
     this.portal.analytics(8).subscribe({ next: (a) => this.analytics.set(a), error: () => this.analytics.set(null) });
     this.portal.performances().subscribe({ next: (p) => this.performances.set(p), error: () => this.performances.set(null) });
     this.portal.strengthLoad().subscribe({ next: (s) => this.strengthLoad.set(s), error: () => this.strengthLoad.set([]) });

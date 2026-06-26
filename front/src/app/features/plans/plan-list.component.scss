@@ -9,8 +9,21 @@
 .icon-btn { width: 32px; height: 32px; border: 1px solid var(--hairline); background: var(--paper); border-radius: var(--radius-sm); cursor: pointer; }
 .icon-btn.danger { color: var(--danger); }
 
+/* Aperçu grille semaine × jour du plan en cours d'édition. */
+.grid-preview { margin-top: var(--sp-3); }
+.plan-grid-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.plan-grid-table th, .plan-grid-table td { border: 1px solid var(--hairline); padding: var(--sp-1); text-align: center; vertical-align: top; }
+.plan-grid-table thead th { background: var(--paper-sunk); color: var(--ink-3); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.03em; font-weight: 700; }
+.plan-grid-table th.wk { background: var(--paper-sunk); color: var(--ink-2); font-family: var(--font-mono); width: 44px; }
+.plan-grid-table td { min-width: 64px; height: 40px; }
+.plan-grid-table td.has { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.cell-chip { display: inline-flex; align-items: center; gap: 4px; margin: 2px; padding: 2px 7px; border-radius: var(--radius-full); background: var(--primary-wash); color: var(--primary); font-size: var(--text-xs); font-weight: 600; cursor: pointer; }
+.cell-chip .x { opacity: 0.55; }
+.cell-chip:hover .x { opacity: 1; }
+
 .plan-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--sp-4); }
 .plan { display: flex; flex-direction: column; gap: var(--sp-2); }
-.plan-head { display: flex; align-items: center; justify-content: space-between; }
+.plan-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.plan-head__actions { display: flex; align-items: center; gap: var(--sp-2); }
 .apply { display: flex; gap: var(--sp-2); margin-top: var(--sp-2); flex-wrap: wrap; }
 .apply .form-control { flex: 1; min-width: 110px; min-height: 40px; }

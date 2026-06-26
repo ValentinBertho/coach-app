@@ -66,11 +66,18 @@ public class WorkoutTemplateService {
     /** Crée une séance datée pour un athlète à partir du modèle (1 clic). */
     @Transactional
     public WorkoutResponse apply(UUID clubId, UUID templateId, UUID athleteId, java.time.LocalDate date) {
+        return apply(clubId, templateId, athleteId, date, null);
+    }
+
+    /** Applique un modèle en rattachant la séance générée à un plan ({@code planId}) pour le suivi. */
+    @Transactional
+    public WorkoutResponse apply(UUID clubId, UUID templateId, UUID athleteId,
+                                 java.time.LocalDate date, java.util.UUID planId) {
         WorkoutTemplate t = require(clubId, templateId);
         WorkoutRequest req = new WorkoutRequest(
                 date, t.getType(), t.getTitle(), t.getNotes(),
                 t.getTargetDistanceM(), t.getTargetDurationS(), readSteps(t.getStepsJson()));
-        return workoutService.create(clubId, athleteId, req);
+        return workoutService.create(clubId, athleteId, req, planId);
     }
 
     private WorkoutTemplate require(UUID clubId, UUID id) {

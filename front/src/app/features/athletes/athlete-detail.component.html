@@ -97,9 +97,26 @@
     <div class="card">
       <h2>Plans attribués</h2>
       @if (plans().length) {
-        <ul class="chip-list">
+        <ul class="plan-progress-list">
           @for (p of plans(); track p.id) {
-            <li class="chip chip-static">{{ p.name }}</li>
+            <li class="plan-prog">
+              <div class="plan-prog__head">
+                <strong>{{ p.name }}</strong>
+                @if (planProgress()[p.id]; as pr) {
+                  <span class="plan-prog__meta metric">
+                    @if (pr.finished) { Terminé } @else { Sem. {{ pr.currentWeek }}/{{ pr.durationWeeks }} }
+                    · {{ pr.completedSessions }}/{{ pr.totalSessions }} séances
+                  </span>
+                }
+              </div>
+              @if (planProgress()[p.id]; as pr) {
+                <div class="plan-prog__bar" role="img"
+                     [attr.aria-label]="pr.percent + '% réalisé'">
+                  <span class="plan-prog__fill" [style.width.%]="pr.percent"></span>
+                </div>
+                <span class="plan-prog__pct metric">{{ pr.percent }}%</span>
+              }
+            </li>
           }
         </ul>
       } @else {

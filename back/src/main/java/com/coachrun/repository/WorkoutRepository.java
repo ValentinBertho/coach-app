@@ -44,4 +44,12 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
 
     /** Dernier retour renseigné (fatigue/douleur) d'un athlète — base de l'état de forme. */
     Optional<Workout> findFirstByAthleteIdAndFatigueIsNotNullOrderByScheduledDateDescCreatedAtDesc(UUID athleteId);
+
+    // --- Suivi de plan (séances liées via plan_id) ---
+    long countByPlanIdAndAthleteId(UUID planId, UUID athleteId);
+
+    long countByPlanIdAndAthleteIdAndStatus(UUID planId, UUID athleteId, WorkoutStatus status);
+
+    /** Suppression propre : retire les séances d'un plan encore planifiées (préserve l'historique réalisé). */
+    void deleteByPlanIdAndAthleteIdAndStatus(UUID planId, UUID athleteId, WorkoutStatus status);
 }

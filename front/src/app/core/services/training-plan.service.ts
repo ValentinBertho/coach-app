@@ -20,6 +20,9 @@ export class TrainingPlanService {
   create(body: TrainingPlanRequest): Observable<TrainingPlan> {
     return this.http.post<TrainingPlan>(this.base(), body);
   }
+  update(id: string, body: TrainingPlanRequest): Observable<TrainingPlan> {
+    return this.http.put<TrainingPlan>(`${this.base()}/${id}`, body);
+  }
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base()}/${id}`);
   }
@@ -30,6 +33,22 @@ export class TrainingPlanService {
   applyGroup(id: string, groupId: string, startDate: string): Observable<GroupApplyResult> {
     return this.http.post<GroupApplyResult>(`${this.base()}/${id}/apply-group`, { groupId, startDate });
   }
+
+  /** Avancement d'un plan pour un athlète (semaine courante, % réalisé). */
+  progress(id: string, athleteId: string): Observable<PlanProgress> {
+    return this.http.get<PlanProgress>(`${this.base()}/${id}/athletes/${athleteId}/progress`);
+  }
+}
+
+/** Avancement d'un plan pour un athlète. */
+export interface PlanProgress {
+  startDate: string;
+  durationWeeks: number;
+  currentWeek: number;
+  totalSessions: number;
+  completedSessions: number;
+  percent: number;
+  finished: boolean;
 }
 
 /** Résultat d'une application en masse (plan ou mésocycle) à un groupe. */

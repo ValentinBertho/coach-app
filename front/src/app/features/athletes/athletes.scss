@@ -224,6 +224,15 @@
   margin: var(--sp-2) 0;
 }
 
+/* Avancement d'un plan attribué (semaine courante + % réalisé). */
+.plan-progress-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.plan-prog { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--sp-1) var(--sp-3); }
+.plan-prog__head { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.plan-prog__meta { font-size: var(--text-xs); color: var(--ink-3); }
+.plan-prog__bar { height: 8px; border-radius: var(--radius-full); background: var(--paper-sunk); overflow: hidden; }
+.plan-prog__fill { display: block; height: 100%; border-radius: var(--radius-full); background: var(--gradient-accent); transition: width var(--duration-slow) var(--ease); }
+.plan-prog__pct { font-size: var(--text-sm); font-weight: 700; color: var(--accent); min-width: 40px; text-align: right; }
+
 .card-head-row {
   display: flex;
   align-items: center;

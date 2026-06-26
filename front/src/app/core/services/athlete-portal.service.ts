@@ -12,6 +12,24 @@ import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
 import { Workout, WorkoutStatus } from '../models/workout.model';
 import { CalculatedStrength, E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthResultEntry, StrengthStructure } from '../models/strength.model';
 
+export interface AthletePlanProgress {
+  startDate: string;
+  durationWeeks: number;
+  currentWeek: number;
+  totalSessions: number;
+  completedSessions: number;
+  percent: number;
+  finished: boolean;
+}
+
+export interface AthletePlan {
+  planId: string;
+  name: string;
+  description: string | null;
+  durationWeeks: number;
+  progress: AthletePlanProgress | null;
+}
+
 export interface WorkoutFeedback {
   status?: WorkoutStatus;
   rpe?: number | null;
@@ -43,6 +61,11 @@ export class AthletePortalService {
   today(date?: string): Observable<Workout[]> {
     const params = date ? new HttpParams().set('date', date) : undefined;
     return this.http.get<Workout[]>(`${this.base}/today`, { params });
+  }
+
+  /** Mon programme : plans attribués avec avancement. */
+  plans(): Observable<AthletePlan[]> {
+    return this.http.get<AthletePlan[]>(`${this.base}/plans`);
   }
 
   /** Prochaine course (204 → null). */
