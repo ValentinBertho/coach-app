@@ -58,6 +58,16 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
 
     long countByGroupId(UUID groupId);
 
+    /** Athlètes actifs d'un groupe (scopé club) — pour l'application en masse d'un plan/mésocycle. */
+    @Query("""
+            select a from Athlete a
+            where a.group.id = :groupId and a.club.id = :clubId and a.status = :status
+            order by a.lastName asc
+            """)
+    java.util.List<Athlete> findActiveByGroup(@Param("groupId") UUID groupId,
+                                              @Param("clubId") UUID clubId,
+                                              @Param("status") AthleteStatus status);
+
     java.util.List<Athlete> findByClubIdOrderByLastNameAsc(UUID clubId);
 
     // --- Admin (cross-club) ---

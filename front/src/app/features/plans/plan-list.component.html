@@ -63,10 +63,21 @@
           <span class="badge badge-neutral">Attribué à {{ p.athletes!.length }} athlète(s)</span>
         }
         <div class="apply">
-          <select class="form-control" [(ngModel)]="applyFor[p.id]!.athleteId" [ngModelOptions]="{standalone:true}">
-            <option value="">Athlète…</option>
-            @for (a of athletes(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+          <select class="form-control nm" [(ngModel)]="applyFor[p.id]!.target" [ngModelOptions]="{standalone:true}" title="Cible">
+            <option value="athlete">Athlète</option>
+            <option value="group">Groupe</option>
           </select>
+          @if (applyFor[p.id]!.target === 'group') {
+            <select class="form-control" [(ngModel)]="applyFor[p.id]!.groupId" [ngModelOptions]="{standalone:true}">
+              <option value="">Groupe…</option>
+              @for (g of groups(); track g.id) { <option [value]="g.id">{{ g.name }} ({{ g.athleteCount }})</option> }
+            </select>
+          } @else {
+            <select class="form-control" [(ngModel)]="applyFor[p.id]!.athleteId" [ngModelOptions]="{standalone:true}">
+              <option value="">Athlète…</option>
+              @for (a of athletes(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+            </select>
+          }
           <input type="date" class="form-control" [(ngModel)]="applyFor[p.id]!.startDate" [ngModelOptions]="{standalone:true}" title="Lundi de départ" />
           <button type="button" class="btn btn-accent btn-sm" (click)="apply(p)">Appliquer</button>
         </div>

@@ -1,11 +1,16 @@
 package com.coachrun.controller;
 
+import com.coachrun.dto.request.GenerateMesocycleRequest;
 import com.coachrun.dto.request.TrainingGroupRequest;
+import com.coachrun.dto.response.GroupApplyResponse;
 import com.coachrun.dto.response.TrainingGroupResponse;
+import com.coachrun.security.AuthPrincipal;
 import com.coachrun.service.TrainingGroupService;
+import com.coachrun.service.WorkoutService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -29,10 +34,23 @@ import java.util.UUID;
 public class TrainingGroupController {
 
     private final TrainingGroupService groupService;
+    private final WorkoutService workoutService;
 
     @GetMapping
     public List<TrainingGroupResponse> list(@PathVariable UUID clubId) {
         return groupService.list(clubId);
+    }
+
+    /**
+     * Génère un mésocycle pour tout le groupe à partir de la semaine source de chaque athlète
+     * (modèle de mésocycle ou paramètres directs). L'accès en écriture est vérifié athlète par
+     * athlète : les athlètes non accessibles sont ignorés.
+     */
+    @PostMapping("/{id}/generate-mesocycle")
+    public GroupApplyResponse generateMesocycle(@PathVariable UUID clubId, @PathVariable UUID id,
+                                                @Valid @RequestBody GenerateMesocycleRequest request,
+                                                @AuthenticationPrincipal AuthPrincipal principal) {
+        return workoutService.generateMesocycleForGroup(clubId, id, request, principal.userId());
     }
 
     @PostMapping

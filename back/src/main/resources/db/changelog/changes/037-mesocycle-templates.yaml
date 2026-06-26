@@ -1,0 +1,35 @@
+# ============================================================================
+# 037 — Modèles de mésocycle réutilisables (« méso type ») : forme de périodisation
+#       (nombre de semaines, progression, décharge) enregistrée et réutilisable.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 037-mesocycle-templates
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: mesocycle_templates
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: description, type: VARCHAR(2048) }
+              - column: { name: weeks, type: INT, constraints: { nullable: false } }
+              - column: { name: increase_pct, type: DOUBLE, constraints: { nullable: false } }
+              - column: { name: deload_every, type: INT, constraints: { nullable: false } }
+              - column: { name: deload_pct, type: DOUBLE, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_mesocycle_templates_club
+            baseTableName: mesocycle_templates
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_mesocycle_templates_club
+            tableName: mesocycle_templates
+            columns:
+              - column: { name: club_id }

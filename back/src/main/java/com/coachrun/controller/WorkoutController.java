@@ -116,10 +116,7 @@ public class WorkoutController {
     public java.util.Map<String, Integer> generateMesocycle(
             @PathVariable UUID clubId, @PathVariable UUID athleteId,
             @Valid @RequestBody com.coachrun.dto.request.GenerateMesocycleRequest request) {
-        int created = workoutService.generateMesocycle(
-                clubId, athleteId, request.sourceWeekStart(), request.firstWeekStart(),
-                request.weeks(), request.increasePctOrDefault(),
-                request.deloadEveryOrDefault(), request.deloadPctOrDefault());
-        return java.util.Map.of("created", created, "weeks", request.weeks());
+        int created = workoutService.generateMesocycle(clubId, athleteId, request);
+        return java.util.Map.of("created", created);
     }
 }

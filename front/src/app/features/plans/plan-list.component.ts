@@ -2,10 +2,12 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import { PlanItem, TrainingPlan } from '../../core/models/training-plan.model';
+import { TrainingGroup } from '../../core/models/training-group.model';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
+import { TrainingGroupService } from '../../core/services/training-group.service';
 import { TrainingPlanService } from '../../core/services/training-plan.service';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 
@@ -23,6 +25,7 @@ export class PlanListComponent implements OnInit {
   private readonly planService = inject(TrainingPlanService);
   private readonly templateService = inject(WorkoutTemplateService);
   private readonly athleteService = inject(AthleteService);
+  private readonly groupService = inject(TrainingGroupService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
 
@@ -30,6 +33,7 @@ export class PlanListComponent implements OnInit {
   readonly plans = signal<TrainingPlan[]>([]);
   readonly templates = signal<WorkoutTemplate[]>([]);
   readonly athletes = signal<AthleteSummary[]>([]);
+  readonly groups = signal<TrainingGroup[]>([]);
   readonly loading = signal(true);
   readonly showForm = signal(false);
 
@@ -37,12 +41,13 @@ export class PlanListComponent implements OnInit {
     name: '', description: '', durationWeeks: 4, items: [],
   };
   itemDraft = { weekIndex: 0, dayOfWeek: 1, templateId: '' };
-  applyFor: Record<string, { athleteId: string; startDate: string }> = {};
+  applyFor: Record<string, { target: 'athlete' | 'group'; athleteId: string; groupId: string; startDate: string }> = {};
 
   ngOnInit(): void {
     this.load();
     this.templateService.list(undefined, 0).subscribe((p) => this.templates.set(p.content));
     this.athleteService.list({ status: 'ACTIVE' }).subscribe((p) => this.athletes.set(p.content));
+    this.groupService.list().subscribe((g) => this.groups.set(g));
   }
 
   load(): void {
@@ -50,7 +55,7 @@ export class PlanListComponent implements OnInit {
     this.planService.list().subscribe({
       next: (p) => {
         this.plans.set(p);
-        p.forEach((pl) => (this.applyFor[pl.id] ??= { athleteId: '', startDate: '' }));
+        p.forEach((pl) => (this.applyFor[pl.id] ??= { target: 'athlete', athleteId: '', groupId: '', startDate: '' }));
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
@@ -84,10 +89,22 @@ export class PlanListComponent implements OnInit {
 
   apply(plan: TrainingPlan): void {
     const sel = this.applyFor[plan.id];
-    if (!sel?.athleteId || !sel?.startDate) { this.toast.warning('Athlète et date de départ requis.'); return; }
+    if (!sel?.startDate) { this.toast.warning('Date de départ requise.'); return; }
+    if (sel.target === 'group') {
+      if (!sel.groupId) { this.toast.warning('Choisissez un groupe.'); return; }
+      this.planService.applyGroup(plan.id, sel.groupId, sel.startDate).subscribe((r) => {
+        const skip = r.skipped ? `, ${r.skipped} ignoré(s)` : '';
+        this.toast.success(`${r.created} séance(s) sur ${r.athletes} athlète(s)${skip}`);
+        this.applyFor[plan.id] = { target: 'group', athleteId: '', groupId: '', startDate: '' };
+        this.load();
+      });
+      return;
+    }
+    if (!sel.athleteId) { this.toast.warning('Choisissez un athlète.'); return; }
     this.planService.apply(plan.id, sel.athleteId, sel.startDate).subscribe((r) => {
       this.toast.success(`${r.created} séance(s) planifiée(s)`);
-      this.applyFor[plan.id] = { athleteId: '', startDate: '' };
+      this.applyFor[plan.id] = { target: 'athlete', athleteId: '', groupId: '', startDate: '' };
+      this.load();
     });
   }
 

@@ -1,20 +1,28 @@
 package com.coachrun.service;
 
+import com.coachrun.dto.request.GenerateMesocycleRequest;
 import com.coachrun.dto.request.WorkoutRequest;
 import com.coachrun.dto.request.WorkoutStepRequest;
 import com.coachrun.dto.response.CalculatedSessionResponse;
+import com.coachrun.dto.response.GroupApplyResponse;
 import com.coachrun.dto.response.WorkoutPrescriptionResponse;
 import com.coachrun.dto.response.WorkoutResponse;
 import com.coachrun.dto.session.PrescribedWorkout;
 import com.coachrun.dto.session.SessionStructure;
 import com.coachrun.entity.Athlete;
+import com.coachrun.entity.MesocycleTemplate;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.WorkoutStep;
+import com.coachrun.entity.enums.AthleteStatus;
+import com.coachrun.entity.enums.PermissionLevel;
 import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
+import com.coachrun.repository.MesocycleTemplateRepository;
+import com.coachrun.repository.TrainingGroupRepository;
 import com.coachrun.repository.WorkoutRepository;
+import com.coachrun.security.AthleteAccessValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +48,9 @@ public class WorkoutService {
     private final WorkoutRepository workoutRepository;
     private final AthleteRepository athleteRepository;
     private final NotificationService notificationService;
+    private final MesocycleTemplateRepository mesocycleTemplateRepository;
+    private final TrainingGroupRepository groupRepository;
+    private final AthleteAccessValidator accessValidator;
     private final ObjectMapper objectMapper;
 
     public List<WorkoutResponse> calendar(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
@@ -147,6 +158,66 @@ public class WorkoutService {
         log.info("Mésocycle généré athlète={} : {} séance(s) sur {} semaines (à partir de {})",
                 athleteId, created, n, firstWeekStart);
         return created;
+    }
+
+    /** Paramètres de périodisation résolus (depuis un « méso type » ou la requête directe). */
+    private record MesoParams(int weeks, double increasePct, int deloadEvery, double deloadPct) { }
+
+    /**
+     * Résout les paramètres de périodisation : depuis le modèle de mésocycle s'il est fourni,
+     * sinon depuis la requête (avec valeurs par défaut). {@code weeks} est alors obligatoire.
+     */
+    private MesoParams resolveParams(UUID clubId, GenerateMesocycleRequest req) {
+        if (req.mesocycleTemplateId() != null) {
+            MesocycleTemplate t = mesocycleTemplateRepository
+                    .findByIdAndClubId(req.mesocycleTemplateId(), clubId)
+                    .orElseThrow(() -> new NotFoundException("Modèle de mésocycle introuvable."));
+            return new MesoParams(t.getWeeks(), t.getIncreasePct(), t.getDeloadEvery(), t.getDeloadPct());
+        }
+        if (req.weeks() == null) {
+            throw new ConflictException("Indiquez un nombre de semaines ou choisissez un modèle de mésocycle.");
+        }
+        return new MesoParams(req.weeks(), req.increasePctOrDefault(),
+                req.deloadEveryOrDefault(), req.deloadPctOrDefault());
+    }
+
+    /** Génération de mésocycle pour un athlète à partir d'une requête (modèle ou paramètres directs). */
+    @Transactional
+    public int generateMesocycle(UUID clubId, UUID athleteId, GenerateMesocycleRequest req) {
+        MesoParams p = resolveParams(clubId, req);
+        return generateMesocycle(clubId, athleteId, req.sourceWeekStart(), req.firstWeekStart(),
+                p.weeks(), p.increasePct(), p.deloadEvery(), p.deloadPct());
+    }
+
+    /**
+     * Génère le mésocycle pour <strong>tous les athlètes actifs d'un groupe</strong> accessibles en
+     * écriture (les autres sont ignorés). Chaque athlète est projeté à partir de sa propre semaine
+     * source ({@code sourceWeekStart}) ; gros gain de temps pour piloter un groupe homogène.
+     */
+    @Transactional
+    public GroupApplyResponse generateMesocycleForGroup(UUID clubId, UUID groupId,
+                                                        GenerateMesocycleRequest req, UUID coachId) {
+        groupRepository.findByIdAndClubId(groupId, clubId)
+                .orElseThrow(() -> new NotFoundException("Groupe introuvable."));
+        MesoParams p = resolveParams(clubId, req);
+        List<Athlete> athletes = athleteRepository.findActiveByGroup(groupId, clubId, AthleteStatus.ACTIVE);
+        int created = 0;
+        int skipped = 0;
+        int applied = 0;
+        for (Athlete a : athletes) {
+            boolean canWrite = accessValidator.effectiveLevel(coachId, a.getId())
+                    .map(l -> l.atLeast(PermissionLevel.WRITE)).orElse(false);
+            if (!canWrite) {
+                skipped++;
+                continue;
+            }
+            created += generateMesocycle(clubId, a.getId(), req.sourceWeekStart(), req.firstWeekStart(),
+                    p.weeks(), p.increasePct(), p.deloadEvery(), p.deloadPct());
+            applied++;
+        }
+        log.info("Mésocycle de groupe généré (groupe={}) : {} athlète(s), {} ignoré(s), {} séance(s)",
+                groupId, applied, skipped, created);
+        return new GroupApplyResponse(applied, skipped, created);
     }
 
     /** Recopie une semaine de séances en mettant la charge à l'échelle (facteur multiplicatif). */

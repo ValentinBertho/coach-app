@@ -26,4 +26,15 @@ export class TrainingPlanService {
   apply(id: string, athleteId: string, startDate: string): Observable<{ created: number }> {
     return this.http.post<{ created: number }>(`${this.base()}/${id}/apply`, { athleteId, startDate });
   }
+  /** Applique le plan à tous les athlètes actifs d'un groupe (accessibles en écriture). */
+  applyGroup(id: string, groupId: string, startDate: string): Observable<GroupApplyResult> {
+    return this.http.post<GroupApplyResult>(`${this.base()}/${id}/apply-group`, { groupId, startDate });
+  }
+}
+
+/** Résultat d'une application en masse (plan ou mésocycle) à un groupe. */
+export interface GroupApplyResult {
+  athletes: number;
+  skipped: number;
+  created: number;
 }
