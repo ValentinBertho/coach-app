@@ -42,13 +42,15 @@ public class ClubController {
         return clubService.members(clubId);
     }
 
-    /** Ajoute un coach existant au club (par e-mail) avec un rôle. */
+    /** Ajoute un coach au club (par e-mail) : rattachement immédiat s'il a un compte, sinon invitation. */
     @PostMapping("/members")
     @ResponseStatus(HttpStatus.CREATED)
-    public ClubMemberResponse addCoach(@PathVariable UUID clubId,
-                                       @Valid @RequestBody AddCoachRequest request,
-                                       @AuthenticationPrincipal AuthPrincipal principal) {
-        return clubService.addCoach(clubId, request.email(), request.role(), principal.userId());
+    public com.coachrun.dto.response.CoachInviteResponse addCoach(
+            @PathVariable UUID clubId,
+            @Valid @RequestBody AddCoachRequest request,
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return clubService.addCoach(clubId, request.email(), request.role(),
+                request.fullName(), principal.userId());
     }
 
     /** Retire un coach du club (le propriétaire ne peut pas être retiré). */

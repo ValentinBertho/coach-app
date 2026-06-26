@@ -12,6 +12,15 @@ export interface ClubMember {
   coachId: string;
   name: string;
   clubRole: ClubRole;
+  pending?: boolean;
+}
+
+export interface CoachInviteResult {
+  coachId: string;
+  name: string;
+  clubRole: ClubRole;
+  invited: boolean;
+  inviteUrl: string | null;
 }
 
 export interface PermissionEntry {
@@ -42,9 +51,9 @@ export class ClubService {
     return this.http.get<ClubMember[]>(`${this.club()}/members`);
   }
 
-  /** Ajoute un coach existant (par e-mail) au club avec un rôle. */
-  addCoach(email: string, role: ClubRole): Observable<ClubMember> {
-    return this.http.post<ClubMember>(`${this.club()}/members`, { email, role });
+  /** Ajoute (ou invite, si pas de compte) un coach par e-mail avec un rôle. */
+  addCoach(email: string, role: ClubRole, fullName?: string): Observable<CoachInviteResult> {
+    return this.http.post<CoachInviteResult>(`${this.club()}/members`, { email, role, fullName });
   }
 
   /** Retire un coach du club. */

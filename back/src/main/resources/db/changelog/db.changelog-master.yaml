@@ -69,3 +69,5 @@ databaseChangeLog:
       file: db/changelog/changes/032-run-drills.yaml
   - include:
       file: db/changelog/changes/033-notifications.yaml
+  - include:
+      file: db/changelog/changes/034-coach-invitations.yaml

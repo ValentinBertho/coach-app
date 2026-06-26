@@ -146,6 +146,36 @@ public class AuthService {
         return toAuthResponse(user);
     }
 
+    /** Infos publiques d'une invitation coach (page d'acceptation). */
+    public com.coachrun.dto.response.CoachInvitationInfoResponse coachInvitationInfo(String token) {
+        User user = requireCoachInvite(token);
+        String clubName = user.getClub() != null ? user.getClub().getName() : null;
+        return new com.coachrun.dto.response.CoachInvitationInfoResponse(
+                user.getEmail(), user.getFullName(), clubName);
+    }
+
+    /** Acceptation d'une invitation coach : définit le mot de passe et active le compte. */
+    @Transactional
+    public AuthResponse acceptCoachInvitation(String token, String password, String fullName) {
+        User user = requireCoachInvite(token);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        if (org.springframework.util.StringUtils.hasText(fullName)) {
+            user.setFullName(fullName.trim());
+        }
+        user.setStatus(UserStatus.ACTIVE);
+        user.setInviteToken(null);
+        user.setInviteExpiresAt(null);
+        log.info("Invitation coach acceptée (user={})", user.getId());
+        return toAuthResponse(user);
+    }
+
+    private User requireCoachInvite(String token) {
+        return userRepository.findByInviteToken(token)
+                .filter(u -> u.getInviteExpiresAt() != null
+                        && u.getInviteExpiresAt().isAfter(java.time.Instant.now()))
+                .orElseThrow(() -> new NotFoundException("Invitation invalide ou expirée."));
+    }
+
     public UserResponse currentUser(UUID userId) {
         return userRepository.findById(userId)
                 .map(UserResponse::from)

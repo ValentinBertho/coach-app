@@ -12,5 +12,7 @@ import jakarta.validation.constraints.NotBlank;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AddCoachRequest(
         @NotBlank @Email String email,
-        ClubRole role) {
+        ClubRole role,
+        /** Requis seulement si le coach n'a pas encore de compte (invitation). */
+        String fullName) {
 }

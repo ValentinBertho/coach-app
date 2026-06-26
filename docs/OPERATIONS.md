@@ -188,11 +188,13 @@ par `@PreAuthorize` sur les routes `/clubs/{clubId}/athletes/{athleteId}/**`
 - `PLATFORM_ADMIN` a un accès transverse ; un compte `ATHLETE` n'emprunte jamais ces routes
   (il passe par `/me/**`).
 
-**Membres du club.** L'inscription crée le coach comme **membre `OWNER`** de son club. Un
-propriétaire/coach principal peut **ajouter un coach existant** (par e-mail) via la page Club
-(`POST /clubs/{clubId}/members`) — ce qui lui donne l'accès tenant et permet de lui accorder des
-permissions par athlète — et le **retirer** (`DELETE …/members/{coachId}`, l'`OWNER` est protégé).
-L'invitation d'un coach **sans compte** (création + e-mail) reste à faire.
+**Membres du club.** L'inscription crée le coach comme **membre `OWNER`** de son club. Via la page
+Club (`POST /clubs/{clubId}/members`), on **ajoute un coach par e-mail** : s'il a déjà un compte, il
+est rattaché immédiatement (accès tenant) ; sinon un **compte coach en attente** est créé et un lien
+d'invitation est généré (envoyé par e-mail si configuré, sinon renvoyé dans la réponse). Le coach
+**accepte** via `/public/coach-invitations/{token}` (définit son mot de passe → compte actif + session).
+Retrait via `DELETE …/members/{coachId}` (l'`OWNER` est protégé). Les permissions par athlète
+(read/comment/write) et le statut privé/club se gèrent ensuite sur la même page.
 
 ---
 

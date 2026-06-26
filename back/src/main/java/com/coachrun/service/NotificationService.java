@@ -193,6 +193,20 @@ public class NotificationService {
                         + cta("Voir ma séance", frontendUrl + "/athlete/today"));
     }
 
+    /** Invitation d'un coach au club : e-mail avec le lien d'acceptation (création de compte). */
+    public void notifyCoachInvitation(String email, String fullName, String clubName, String url) {
+        if (email == null) {
+            return;
+        }
+        String subject = "Invitation à rejoindre " + clubName + " sur Darilab";
+        String html = "<p>Bonjour " + esc(fullName) + ",</p>"
+                + "<p>Vous êtes invité·e à rejoindre le club <strong>" + esc(clubName)
+                + "</strong> en tant que coach sur Darilab.</p>"
+                + cta("Accepter l'invitation et créer mon mot de passe", url)
+                + "<p>Ce lien expire dans 14 jours.</p>";
+        send(email, subject, html);
+    }
+
     private void send(String to, String subject, String html) {
         if (!enabled) {
             log.info("[mail désactivé] -> {} : {}", to, subject);

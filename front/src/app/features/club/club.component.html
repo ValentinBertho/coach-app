@@ -15,7 +15,10 @@
       } @else {
         @for (m of members(); track m.coachId) {
           <tr>
-            <td><span class="avatar">{{ m.name[0] }}</span> {{ m.name }}</td>
+            <td>
+              <span class="avatar">{{ m.name[0] }}</span> {{ m.name }}
+              @if (m.pending) { <span class="badge badge-warning">Invité·e</span> }
+            </td>
             <td><span class="badge" [class.badge-info]="m.clubRole === 'OWNER'" [class.badge-neutral]="m.clubRole !== 'OWNER'">{{ roleLabels[m.clubRole] }}</span></td>
             <td class="row-end">
               @if (m.clubRole !== 'OWNER') {
@@ -33,16 +36,21 @@
   </table>
 
   <form class="add-coach" (ngSubmit)="addCoach()">
-    <input type="email" class="form-control" name="coachEmail" placeholder="email du coach (compte existant)"
+    <input type="email" class="form-control" name="coachEmail" placeholder="email du coach"
            [(ngModel)]="newCoachEmail" required autocomplete="off" />
+    <input type="text" class="form-control" name="coachName" placeholder="nom (si nouveau coach)"
+           [(ngModel)]="newCoachName" autocomplete="off" />
     <select class="form-control" name="coachRole" [(ngModel)]="newCoachRole">
       @for (r of addableRoles; track r) { <option [value]="r">{{ roleLabels[r] }}</option> }
     </select>
     <button type="submit" class="btn btn-primary btn-sm" [disabled]="!newCoachEmail.trim() || addingCoach()">
-      <app-icon name="user" [size]="15" /> Ajouter
+      <app-icon name="user" [size]="15" /> Ajouter / inviter
     </button>
   </form>
-  <p class="field-hint add-hint">Le coach doit déjà avoir un compte Darilab. L'invitation par e-mail (création de compte) arrivera prochainement.</p>
+  <p class="field-hint add-hint">S'il a déjà un compte Darilab, le coach est ajouté immédiatement ; sinon une invitation lui est envoyée par e-mail.</p>
+  @if (lastInviteUrl(); as url) {
+    <p class="field-hint invite-url">Lien d'invitation (si l'e-mail n'est pas configuré) : <a [href]="url">{{ url }}</a></p>
+  }
 </div>
 
 <div class="card">

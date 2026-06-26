@@ -55,6 +55,13 @@ export class AuthService {
       .pipe(tap((res) => this.applySession(res)));
   }
 
+  /** Onboarding coach par lien magique : définit le mot de passe et ouvre la session. */
+  acceptCoachInvitation(token: string, password: string, fullName?: string): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(`${environment.apiUrl}/public/coach-invitations/${token}/accept`, { password, fullName })
+      .pipe(tap((res) => this.applySession(res)));
+  }
+
   /** Recharge le profil courant depuis le token (au démarrage de l'app). */
   loadCurrentUser(): Observable<User> {
     return this.http.get<User>(`${this.base}/me`).pipe(

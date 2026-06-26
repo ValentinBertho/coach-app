@@ -51,11 +51,13 @@ export class ClubComponent implements OnInit {
     OWNER: 'Owner', COACH_PRINCIPAL: 'Coach principal', COACH_ASSISTANT: 'Coach assistant',
   };
 
-  // Ajout d'un coach existant au club.
+  // Ajout / invitation d'un coach au club.
   newCoachEmail = '';
+  newCoachName = '';
   newCoachRole: ClubRole = 'COACH_ASSISTANT';
   readonly addableRoles: ClubRole[] = ['COACH_PRINCIPAL', 'COACH_ASSISTANT'];
   readonly addingCoach = signal(false);
+  readonly lastInviteUrl = signal<string | null>(null);
 
   ngOnInit(): void {
     this.clubService.members().subscribe({
@@ -71,16 +73,24 @@ export class ClubComponent implements OnInit {
     const email = this.newCoachEmail.trim();
     if (!email || this.addingCoach()) return;
     this.addingCoach.set(true);
-    this.clubService.addCoach(email, this.newCoachRole).subscribe({
-      next: (m) => {
-        this.members.update((list) => [...list, m]);
-        this.newCoachEmail = '';
+    this.lastInviteUrl.set(null);
+    this.clubService.addCoach(email, this.newCoachRole, this.newCoachName.trim() || undefined).subscribe({
+      next: (r) => {
         this.addingCoach.set(false);
-        this.toast.success(`${m.name} ajouté au club`);
+        this.newCoachEmail = '';
+        this.newCoachName = '';
+        if (r.invited) {
+          this.lastInviteUrl.set(r.inviteUrl);
+          this.toast.success(`${r.name} invité·e — lien d'activation envoyé par e-mail`);
+        } else {
+          this.toast.success(`${r.name} ajouté au club`);
+        }
+        // Rafraîchir la liste (statut en attente, rôle).
+        this.clubService.members().subscribe((m) => this.members.set(m));
       },
       error: (e) => {
         this.addingCoach.set(false);
-        this.toast.warning(e?.error?.message ?? 'Ajout impossible (compte introuvable ou déjà membre).');
+        this.toast.warning(e?.error?.message ?? 'Ajout impossible (déjà membre, ou compte non-coach).');
       },
     });
   }
