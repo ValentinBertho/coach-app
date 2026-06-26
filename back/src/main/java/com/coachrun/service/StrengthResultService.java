@@ -129,7 +129,7 @@ public class StrengthResultService {
 
     public List<com.coachrun.dto.response.StrengthLoadResponse> loadTracking(
             UUID clubId, UUID athleteId, java.time.LocalDate from, java.time.LocalDate to) {
-        if (athleteRepository.findByIdAndClubId(athleteId, clubId).isEmpty()) {
+        if (athleteRepository.findByIdAndClubMembership(athleteId, clubId).isEmpty()) {
             throw new NotFoundException("Athlète introuvable.");
         }
         List<StrengthLoadTracking> rows = (from != null && to != null)
@@ -145,7 +145,7 @@ public class StrengthResultService {
     }
 
     public List<E1rmHistoryResponse> history(UUID clubId, UUID athleteId, UUID exerciseId) {
-        if (athleteRepository.findByIdAndClubId(athleteId, clubId).isEmpty()) {
+        if (athleteRepository.findByIdAndClubMembership(athleteId, clubId).isEmpty()) {
             throw new NotFoundException("Athlète introuvable.");
         }
         return estimatedRepository.findByAthleteIdAndExerciseIdOrderByCreatedAtAsc(athleteId, exerciseId)

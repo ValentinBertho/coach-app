@@ -243,7 +243,7 @@ public class AthletePhysioService {
     }
 
     private Athlete requireAthlete(UUID clubId, UUID athleteId) {
-        return athleteRepository.findByIdAndClubId(athleteId, clubId)
+        return athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
     }
 }

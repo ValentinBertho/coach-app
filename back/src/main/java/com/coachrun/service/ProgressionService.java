@@ -49,7 +49,7 @@ public class ProgressionService {
 
     /** Côté coach : valide l'appartenance de l'athlète au club. */
     public ProgressionResponse forCoach(UUID clubId, UUID athleteId, UUID scheduledId) {
-        if (athleteRepository.findByIdAndClubId(athleteId, clubId).isEmpty()) {
+        if (athleteRepository.findByIdAndClubMembership(athleteId, clubId).isEmpty()) {
             throw new NotFoundException("Athlète introuvable.");
         }
         return compute(requireScheduled(scheduledId, athleteId));

@@ -13,8 +13,22 @@ import java.util.UUID;
 
 public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
 
-    /** Scoping tenant systématique (anti-IDOR) : jamais de findById nu. */
+    /** Scoping tenant systématique (anti-IDOR) : jamais de findById nu. Club principal uniquement. */
     Optional<Athlete> findByIdAndClubId(UUID id, UUID clubId);
+
+    /**
+     * Scoping tenant aligné sur le modèle multi-club : l'athlète appartient au club soit comme
+     * club principal, soit comme club additionnel — cohérent avec {@link #search}. À utiliser pour
+     * tout accès athlète scopé par club (l'autorisation fine reste portée par
+     * {@code @athleteAccessValidator}). Évite les faux 404 sur les athlètes multi-clubs.
+     */
+    @Query("""
+            select distinct a from Athlete a
+            left join a.additionalClubs ac
+            where a.id = :athleteId and (a.club.id = :clubId or ac.id = :clubId)
+            """)
+    Optional<Athlete> findByIdAndClubMembership(@Param("athleteId") UUID athleteId,
+                                                @Param("clubId") UUID clubId);
 
     Optional<Athlete> findByInviteToken(String inviteToken);
 

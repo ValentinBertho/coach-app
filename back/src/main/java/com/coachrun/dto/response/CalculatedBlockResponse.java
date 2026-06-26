@@ -15,7 +15,9 @@ public record CalculatedBlockResponse(
         Double speedMinKmh, Double speedMaxKmh,
         Integer hrMin, Integer hrMax,
         Integer rpeMin, Integer rpeMax,
-        Integer estimatedDurationS, Integer estimatedDistanceM
+        Integer estimatedDurationS, Integer estimatedDistanceM,
+        /** Allure estimée depuis le VDOT (pas de seuil mesuré) — à signaler dans l'UI. */
+        boolean paceEstimated
 ) {
 
     public static CalculatedBlockResponse from(SessionCalculatorEngine.Result r) {
@@ -26,6 +28,7 @@ public record CalculatedBlockResponse(
                 r.speedMinKmh(), r.speedMaxKmh(),
                 r.hrMin(), r.hrMax(),
                 r.rpeMin(), r.rpeMax(),
-                r.estimatedDurationS(), r.estimatedDistanceM());
+                r.estimatedDurationS(), r.estimatedDistanceM(),
+                r.paceEstimated());
     }
 }

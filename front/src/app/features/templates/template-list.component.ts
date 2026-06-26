@@ -1,15 +1,17 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
-import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import { WorkoutTemplate, WorkoutTemplateRequest } from '../../core/models/workout-template.model';
-import { STEP_TYPE_LABELS, WORKOUT_TYPE_LABELS } from '../../core/models/workout.model';
+import { WORKOUT_TYPE_LABELS } from '../../core/models/workout.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
+import { TrainingGroupService } from '../../core/services/training-group.service';
+import { TrainingGroup } from '../../core/models/training-group.model';
 
 @Component({
   selector: 'app-template-list',
@@ -25,38 +27,55 @@ export class TemplateListComponent implements OnInit {
   private readonly athleteService = inject(AthleteService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
+  private readonly groupService = inject(TrainingGroupService);
+
+  readonly groups = signal<TrainingGroup[]>([]);
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
-  readonly stepLabels = STEP_TYPE_LABELS;
   readonly types = Object.keys(WORKOUT_TYPE_LABELS) as (keyof typeof WORKOUT_TYPE_LABELS)[];
-  readonly stepTypes = Object.keys(STEP_TYPE_LABELS) as (keyof typeof STEP_TYPE_LABELS)[];
-  readonly zones = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'] as const;
 
   readonly templates = signal<WorkoutTemplate[]>([]);
   readonly athletes = signal<AthleteSummary[]>([]);
   readonly loading = signal(true);
   readonly showForm = signal(false);
 
-  // état d'application par modèle
-  applyFor: Record<string, { athleteId: string; date: string }> = {};
+  // Affichage : cards compactes ↔ liste dense, recherche + filtre par type.
+  readonly viewMode = signal<'cards' | 'list'>('cards');
+  readonly search = signal('');
+  readonly typeFilter = signal<string>('');
 
+  /** Modèles filtrés (recherche nom/titre + type), pour densifier la navigation. */
+  readonly filtered = computed(() => {
+    const q = this.search().trim().toLowerCase();
+    const type = this.typeFilter();
+    return this.templates().filter((t) => {
+      const matchesType = !type || t.type === type;
+      const matchesQ = !q
+        || t.name.toLowerCase().includes(q)
+        || (t.title ?? '').toLowerCase().includes(q);
+      return matchesType && matchesQ;
+    });
+  });
+
+  setView(mode: 'cards' | 'list'): void { this.viewMode.set(mode); }
+
+  // état d'application par modèle. `target` = "a:<athleteId>" ou "g:<groupId>".
+  applyFor: Record<string, { target: string; date: string }> = {};
+
+  // Création minimale : la prescription en fourchettes se construit ensuite dans l'éditeur
+  // de structure (modèle unique DARI Lab — plus de saisie « par zones » en valeur sèche).
   readonly form = this.fb.group({
     name: ['', Validators.required],
     type: ['ENDURANCE', Validators.required],
     title: ['', Validators.required],
-    targetDistanceM: [null as number | null],
-    targetDurationS: [null as number | null],
     notes: [''],
-    steps: this.fb.array<ReturnType<TemplateListComponent['newStep']>>([]),
   });
-
-  get steps(): FormArray {
-    return this.form.get('steps') as FormArray;
-  }
 
   ngOnInit(): void {
     this.load();
     this.athleteService.list({ status: 'ACTIVE' }).subscribe((p) => this.athletes.set(p.content));
+    this.groupService.list().subscribe((g) => this.groups.set(g));
   }
 
   load(): void {
@@ -64,48 +83,53 @@ export class TemplateListComponent implements OnInit {
     this.templateService.list().subscribe({
       next: (p) => {
         this.templates.set(p.content);
-        p.content.forEach((t) => (this.applyFor[t.id] ??= { athleteId: '', date: '' }));
+        p.content.forEach((t) => (this.applyFor[t.id] ??= { target: '', date: '' }));
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
     });
   }
 
-  newStep() {
-    return this.fb.group({
-      stepType: ['REPETITION', Validators.required],
-      repetitions: [1, [Validators.required, Validators.min(1)]],
-      zone: [null as string | null],
-      distanceM: [null as number | null],
-      durationS: [null as number | null],
-      notes: [''],
-    });
-  }
-  addStep(): void { this.steps.push(this.newStep()); }
-  removeStep(i: number): void { this.steps.removeAt(i); }
-
   toggleForm(): void {
     this.showForm.update((v) => !v);
-    if (this.showForm() && this.steps.length === 0) this.addStep();
   }
 
+  /** Crée le modèle (métadonnées) puis ouvre l'éditeur de structure (blocs en fourchettes). */
   save(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
-    this.templateService.create(this.form.getRawValue() as unknown as WorkoutTemplateRequest).subscribe(() => {
-      this.toast.success('Modèle créé');
-      this.form.reset({ type: 'ENDURANCE' });
-      this.steps.clear();
-      this.showForm.set(false);
-      this.load();
+    this.templateService.create(this.form.getRawValue() as unknown as WorkoutTemplateRequest).subscribe({
+      next: (created) => {
+        this.toast.success('Modèle créé — construis la structure en fourchettes');
+        this.form.reset({ type: 'ENDURANCE' });
+        this.showForm.set(false);
+        this.router.navigate(['/app/templates', created.id, 'structure']);
+      },
+      error: () => this.toast.error('Création impossible.'),
     });
   }
 
   apply(t: WorkoutTemplate): void {
     const sel = this.applyFor[t.id];
-    if (!sel?.athleteId || !sel?.date) { this.toast.warning('Choisissez un athlète et une date.'); return; }
-    this.templateService.apply(t.id, sel.athleteId, sel.date).subscribe(() => {
-      this.toast.success('Séance ajoutée au calendrier');
-      this.applyFor[t.id] = { athleteId: '', date: '' };
+    if (!sel?.target || !sel?.date) { this.toast.warning('Choisis une cible (athlète ou groupe) et une date.'); return; }
+    const [kind, id] = sel.target.split(':');
+    if (kind === 'g') {
+      this.templateService.applyGroup(t.id, id, sel.date).subscribe({
+        next: (r) => {
+          this.toast.success(r.created > 0
+            ? `Séance ajoutée à ${r.created} athlète(s)${r.skipped ? ` (${r.skipped} ignoré·s : lecture seule)` : ''}`
+            : 'Aucun athlète modifiable dans ce groupe');
+          this.applyFor[t.id] = { target: '', date: '' };
+        },
+        error: () => this.toast.error('Application au groupe impossible.'),
+      });
+      return;
+    }
+    this.templateService.apply(t.id, id, sel.date).subscribe({
+      next: () => {
+        this.toast.success('Séance ajoutée au calendrier');
+        this.applyFor[t.id] = { target: '', date: '' };
+      },
+      error: () => this.toast.error('Application impossible.'),
     });
   }
 

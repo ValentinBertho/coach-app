@@ -82,6 +82,26 @@ class SessionCalculatorEngineTest {
     }
 
     @Test
+    void thresholdReferenceFallsBackToVdotPacesWhenNoLactateTest() {
+        // Aucun seuil mesuré (pas de test lactate) mais des allures VDOT présentes :
+        // une prescription en % LT2 doit rester calculable via le repli (≈ allure 10 km).
+        AthletePaceContext noLactate = new AthletePaceContext(
+                null, null, null,            // LT1/LT2/VC non mesurés
+                null, null, null, 80, 90,
+                null, null, 230, 245, 260, null, 285, 300); // 3000=230, 5km=245, 10km=260, semi=285, marathon=300
+        PrescriptionInput lt2 = new PrescriptionInput(PrescriptionRef.PCT_LT2, 95, 102, null, null, 1200);
+        Result r = engine.calculate(lt2, noLactate);
+        assertThat(r.computable()).isTrue();
+        assertThat(r.basePaceSecPerKm()).isEqualTo(260);  // repli sur l'allure 10 km
+
+        // LT1 ≈ allure marathon ; VC ≈ allure 3 km.
+        assertThat(engine.calculate(new PrescriptionInput(PrescriptionRef.PCT_LT1, 80, 90, null, null, 600), noLactate)
+                .basePaceSecPerKm()).isEqualTo(300);
+        assertThat(engine.calculate(new PrescriptionInput(PrescriptionRef.PCT_VC, 95, 100, null, 1000, null), noLactate)
+                .basePaceSecPerKm()).isEqualTo(230);
+    }
+
+    @Test
     void heartRateNullWhenNoFcAnchors() {
         AthletePaceContext noFc = new AthletePaceContext(
                 3.5, 3.9, 4.2, null, null, null, 80, 90,

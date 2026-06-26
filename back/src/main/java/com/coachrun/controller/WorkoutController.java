@@ -60,6 +60,18 @@ public class WorkoutController {
         return workoutService.prescription(clubId, workoutId);
     }
 
+    /**
+     * Édite la structure (blocs en fourchettes) d'une séance déjà planifiée pour CET athlète :
+     * recalcule les cibles et met à jour le snapshot figé. Réservé à l'écriture (canWrite).
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PutMapping("/{workoutId}/structure")
+    public com.coachrun.dto.response.WorkoutPrescriptionResponse updateStructure(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID workoutId,
+            @RequestBody com.coachrun.dto.session.SessionStructure structure) {
+        return workoutService.updateStructure(clubId, workoutId, structure);
+    }
+
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)

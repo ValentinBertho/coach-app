@@ -37,7 +37,7 @@ public class MessageService {
 
     @Transactional
     public MessageResponse coachSend(UUID clubId, UUID athleteId, AuthPrincipal principal, MessageRequest request) {
-        Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         return MessageResponse.from(persist(athlete, principal, request));
     }
@@ -79,7 +79,7 @@ public class MessageService {
     @Transactional
     public MessageResponse coachSendWithAttachment(UUID clubId, UUID athleteId, AuthPrincipal principal,
                                                    String body, org.springframework.web.multipart.MultipartFile file) {
-        Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         return MessageResponse.from(persistWithAttachment(athlete, principal, body, file));
     }

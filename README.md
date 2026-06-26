@@ -38,14 +38,21 @@ assistant), et athlète (PWA mobile).
 ### Module course à pied
 - **Profil physiologique** par athlète : performances de référence → **VDOT** + allures, seuils
   **LT1/LT2** (tests lactate), **domaines d'intensité** (1/2/3), FC de seuil.
-- **Bibliothèque de séances** + catégories, **éditeur de prescription en fourchettes**
-  (% LT1/LT2/VC/allures) avec **calculateur live** par athlète.
+- **Bibliothèque de séances** + catégories, **éditeur de structure unique** (échauffement / corps /
+  retour au calme) en **fourchettes** (% LT1/LT2/VC/allures) avec **calculateur live** par athlète.
+  Saisie simplifiée (bascule Distance/Durée, durée en minutes, blocs pré-remplis) ; **éducatifs de
+  course** (gammes technique/amplitude) attachables aux blocs. Affichage **cartes compactes ↔ liste
+  dense** avec recherche et filtre par type.
 - **Calendrier** multi-types (course / force / test / objectif / indispo) avec drag & drop et
-  snapshot figé de la prescription.
+  snapshot figé de la prescription. **Bibliothèque latérale repliable** (semaine pleine largeur) ;
+  les actions d'écriture (planifier, dupliquer la semaine, mésocycle) sont **désactivées sur un
+  athlète en lecture seule** (cohérent avec la permission `write`).
 - **Dashboard coach** : tableaux Route/Trail, **pastilles de forme** (fatigue + douleur, jamais RPE),
   portée mes athlètes / privés / club.
-- **Portail athlète** (PWA, offline-friendly) : séance du jour, retour (RPE / fatigue / douleur /
-  commentaire), déplacement de séance.
+- **Portail athlète** (PWA, offline-friendly) : séance du jour **avec cibles en fourchettes**
+  (allure/FC/RPE) et éducatifs liés, retour (RPE / fatigue / douleur / commentaire), **déplacement**
+  de séance (jamais de modification/suppression), **mes activités** (saisie manuelle + import GPX/TCX),
+  **mes objectifs** (CRUD A/B/C) et **connexion de sa montre** (Strava) directement côté athlète.
 
 ### Module préparation physique (force)
 - **Bibliothèque d'exercices** (catégories, groupes musculaires, matériel, vidéo, progression/régression).
@@ -62,8 +69,12 @@ assistant), et athlète (PWA mobile).
 
 ### Communication & données
 - **Messagerie temps réel** (Server-Sent Events) coach ↔ athlète, avec **pièces jointes** (images / PDF).
-- **Objectifs A/B/C** et **indisponibilités** (blessure / maladie / vacances).
-- **Sync Strava** (OAuth) + import d'activités avec déduplication ; import fichier GPX et manuel.
+- **Objectifs A/B/C** (gérables par le coach **et** par l'athlète) et **indisponibilités**
+  (blessure / maladie / vacances).
+- **Sync Strava** (OAuth) **initiée par l'athlète** (l'intégration est d'abord côté athlète, CDC §12),
+  import automatique des activités avec déduplication ; le coach voit l'état en lecture seule. Import
+  fichier **GPX/TCX** et **saisie manuelle** d'une sortie par l'athlète. Garmin / COROS : prévus
+  (enum présent), non implémentés.
 - **Export PDF** du programme d'un athlète.
 - Notifications e-mail (Resend) et push (Web Push / VAPID).
 
@@ -96,7 +107,7 @@ unitairement et **source de vérité** (recalcul à la sauvegarde, équivalent d
 |---|---|
 | **Frontend** | Angular 17 (standalone components, signals, control-flow `@if`/`@for`, OnPush), PWA, TypeScript 5.4, Leaflet (cartes) |
 | **Backend** | Spring Boot 3.2.5, Java 21, API REST (~174 endpoints), Springdoc/OpenAPI |
-| **Base de données** | PostgreSQL 16 · **Liquibase** (31 migrations versionnées) |
+| **Base de données** | PostgreSQL 16 · **Liquibase** (41 migrations versionnées) |
 | **Auth** | JWT (access tokens) + liens magiques d'invitation athlète · `@PreAuthorize` multi-tenant |
 | **Sécurité** | AES-256-GCM (données santé + jetons OAuth chiffrés au repos), CSP, CORS allowlist, rate-limiting |
 | **Intégrations** | Strava (OAuth), import GPX/FIT, e-mail Resend, Web Push (VAPID), export PDF (OpenPDF) |
@@ -177,7 +188,7 @@ npm start                       # proxy vers http://localhost:8080/api
 │       ├── repository/         # Spring Data JPA
 │       ├── security/           # JWT, chiffrement, CORS, rate-limit, anti-IDOR
 │       └── integration/        # Strava, Resend (clients HTTP)
-│   └── src/main/resources/db/changelog/   # 31 migrations Liquibase
+│   └── src/main/resources/db/changelog/   # 41 migrations Liquibase
 ├── front/                      # App Angular (PWA)
 │   └── src/app/
 │       ├── core/               # services, models, guards, intercepteurs

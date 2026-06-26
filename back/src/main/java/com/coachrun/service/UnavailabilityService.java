@@ -39,7 +39,7 @@ public class UnavailabilityService {
 
     @Transactional
     public UnavailabilityResponse create(UUID clubId, UUID athleteId, UnavailabilityRequest req) {
-        Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         AthleteUnavailability u = new AthleteUnavailability();
         u.setClub(athlete.getClub());

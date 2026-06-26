@@ -38,6 +38,9 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                         [min]="e.calc!.paceMinSecPerKm"
                         [max]="e.calc!.paceMaxSecPerKm"
                         [format]="paceFmt" unit="/km" />
+                      @if (e.calc?.paceEstimated) {
+                        <span class="cpv__est" title="Allure estimée à partir du VDOT (pas de test lactate)">estimée</span>
+                      }
                     }
                     @if (e.calc?.hrMin != null) {
                       <app-range-prescription-pill label="FC" [min]="e.calc!.hrMin" [max]="e.calc!.hrMax" unit="bpm" />
@@ -74,6 +77,10 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
             </section>
           }
         }
+        @if (hasEstimated()) {
+          <p class="cpv__legend">⚠︎ Allures <strong>estimées</strong> à partir du VDOT (aucun test lactate).
+            Un test lactate affinera tes seuils.</p>
+        }
       </div>
     }
   `,
@@ -93,6 +100,8 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
     .cpv__drills-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
     .cpv__drill { font-size: var(--text-sm); color: var(--primary); text-decoration: none; padding: 2px 8px; border: 1px solid var(--hairline); border-radius: var(--radius-full); }
     a.cpv__drill:hover { background: var(--paper-sunk); }
+    .cpv__est { align-self: center; font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--warning-text, var(--ink-2)); background: var(--warning-bg); padding: 2px 8px; border-radius: var(--radius-full); }
+    .cpv__legend { margin: 0; font-size: var(--text-xs); color: var(--ink-3); }
   `],
 })
 export class CoursePrescriptionViewComponent {
@@ -114,6 +123,13 @@ export class CoursePrescriptionViewComponent {
   readonly hasContent = computed(() => {
     const c = this.prescription()?.calculated;
     return !!c && (c.warmup.length + c.main.length + c.cooldown.length) > 0;
+  });
+
+  /** Au moins une allure estimée (VDOT, sans seuil mesuré) → affiche la légende. */
+  readonly hasEstimated = computed(() => {
+    const c = this.prescription()?.calculated;
+    if (!c) return false;
+    return [...c.warmup, ...c.main, ...c.cooldown].some((e) => e.calc?.paceEstimated);
   });
 
   /** Index id → éducatif, pour résoudre les drills attachés à un bloc. */

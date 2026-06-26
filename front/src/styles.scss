@@ -405,3 +405,10 @@ textarea.form-control { min-height: 80px; padding: var(--sp-3) var(--sp-4); line
 .picker__item:hover { background: var(--paper-sunk); }
 .picker__name { font-weight: 600; color: var(--ink); }
 .picker__type { font-size: var(--text-xs); color: var(--ink-3); }
+
+/* Calendrier coach : bannière lecture seule + bouton bibliothèque. */
+.readonly-banner { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-md); background: var(--warning-bg); color: var(--warning-text, var(--ink)); font-size: var(--text-sm); font-weight: 600; }
+.lib-toggle { margin-left: auto; }
+.cal-layout.sidebar-collapsed { grid-template-columns: 1fr; }
+.cal-sidebar__hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.cal-sidebar__hd h3 { margin: 0; }

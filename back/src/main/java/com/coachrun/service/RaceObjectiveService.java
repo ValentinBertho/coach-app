@@ -40,7 +40,7 @@ public class RaceObjectiveService {
 
     @Transactional
     public RaceObjectiveResponse create(UUID clubId, UUID athleteId, RaceObjectiveRequest request) {
-        var athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        var athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         RaceObjective race = new RaceObjective();
         race.setClub(athlete.getClub());

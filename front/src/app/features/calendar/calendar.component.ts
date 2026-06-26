@@ -182,7 +182,10 @@ export class CalendarComponent implements OnInit {
     this.athleteService.list({ status: 'ACTIVE' }).subscribe((page) => {
       this.athletes.set(page.content);
       if (page.content.length && !this.selectedAthleteId) {
-        this.selectedAthleteId = page.content[0].id;
+        // Sélectionner par défaut un athlète sur lequel on peut écrire (planifier),
+        // pour éviter d'atterrir sur un athlète en lecture seule.
+        const writable = page.content.find((a) => a.canWrite !== false);
+        this.selectedAthleteId = (writable ?? page.content[0]).id;
         this.load();
         this.loadOverlays();
       }
@@ -384,9 +387,20 @@ export class CalendarComponent implements OnInit {
   /** Date pour laquelle le sélecteur de séance course est ouvert (null = fermé). */
   readonly pickerDate = signal<string | null>(null);
 
+  /** Bibliothèque latérale dépliée (desktop) — repliable pour voir la semaine complète. */
+  readonly sidebarOpen = signal(true);
+  toggleSidebar(): void { this.sidebarOpen.update((v) => !v); }
+
+  /** Le coach peut-il prescrire à l'athlète sélectionné ? (false = lecture seule). */
+  canWriteSelected(): boolean {
+    const a = this.athletes().find((x) => x.id === this.selectedAthleteId);
+    return a?.canWrite !== false;
+  }
+
   /** Ouvre le sélecteur de modèle de séance course (planification structurée, en fourchettes). */
   addWorkout(date: string): void {
     if (!this.selectedAthleteId) { this.toast.error('Sélectionne un athlète.'); return; }
+    if (!this.canWriteSelected()) { this.toast.warning('Lecture seule : tu n’as pas les droits de prescription sur cet athlète.'); return; }
     this.pickerDate.set(date);
   }
 
@@ -411,6 +425,13 @@ export class CalendarComponent implements OnInit {
   onDrop(event: CdkDragDrop<DayCell>, targetDate: string): void {
     const data = event.item.data as Workout | StrengthSession | WorkoutTemplate;
     const rec = data as unknown as Record<string, unknown>;
+
+    // Garde-fou UX : pas de planification/déplacement sur un athlète en lecture seule
+    // (le backend renverrait 403). Cohérent avec la permission write côté serveur.
+    if (!this.canWriteSelected()) {
+      this.toast.warning('Lecture seule : tu n’as pas les droits de prescription sur cet athlète.');
+      return;
+    }
 
     // Séance de force glissée depuis la bibliothèque → planification.
     if ('structure' in rec) {

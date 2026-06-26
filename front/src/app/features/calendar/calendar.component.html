@@ -27,15 +27,28 @@
   @if (mode() === 'week') {
     <span class="volume metric">{{ weeklyVolumeKm() }} km prévus</span>
     <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="duplicateWeek()"
-            [disabled]="!selectedAthleteId || workouts().length === 0" title="Copier cette semaine vers la suivante">
+            [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
+            title="Copier cette semaine vers la suivante">
       <app-icon name="copy" [size]="15" /> Dupliquer la semaine
     </button>
     <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="toggleMeso()"
-            [disabled]="!selectedAthleteId || workouts().length === 0" title="Générer un mésocycle progressif">
+            [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
+            title="Générer un mésocycle progressif">
       <app-icon name="trending-up" [size]="15" /> Mésocycle
     </button>
   }
+
+  <button type="button" class="btn btn-ghost btn-sm lib-toggle" (click)="toggleSidebar()"
+          [title]="sidebarOpen() ? 'Masquer la bibliothèque' : 'Afficher la bibliothèque'">
+    <app-icon name="panel-left" [size]="15" /> {{ sidebarOpen() ? 'Masquer' : 'Bibliothèque' }}
+  </button>
 </div>
+
+@if (selectedAthleteId && !canWriteSelected()) {
+  <div class="readonly-banner">
+    <app-icon name="lock" [size]="15" /> Lecture seule — tu n'es pas référent ni en écriture sur cet athlète. Planification et déplacement désactivés.
+  </div>
+}
 
 @if (showMeso() && mode() === 'week') {
   <section class="card meso-panel">
@@ -105,9 +118,13 @@
     <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
   </div>
 } @else {
-  <div class="cal-layout" cdkDropListGroup>
+  <div class="cal-layout" [class.sidebar-collapsed]="!sidebarOpen()" cdkDropListGroup>
+    @if (sidebarOpen()) {
     <aside class="cal-sidebar">
-      <h3>Bibliothèque</h3>
+      <div class="cal-sidebar__hd">
+        <h3>Bibliothèque</h3>
+        <button type="button" class="icon-btn" (click)="toggleSidebar()" title="Masquer la bibliothèque">✕</button>
+      </div>
       <p class="field-hint">Glisse une séance sur un jour pour la planifier.</p>
 
       <h4 class="lib-sub"><app-icon name="footprints" [size]="14" /> Course</h4>
@@ -132,6 +149,7 @@
         }
       </div>
     </aside>
+    }
 
     <div class="cal-main">
       <div class="weekday-row">
@@ -201,7 +219,9 @@
               @if (s.sessionPain) { <app-icon class="sc-pain" name="heart-pulse" [size]="12" /> }
             </div>
           }
-          <button type="button" class="add-btn" (click)="addWorkout(day.date)">+</button>
+          @if (canWriteSelected()) {
+            <button type="button" class="add-btn" (click)="addWorkout(day.date)">+</button>
+          }
         </div>
 
         @if (day.km > 0) {

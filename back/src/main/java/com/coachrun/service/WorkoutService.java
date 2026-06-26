@@ -53,6 +53,7 @@ public class WorkoutService {
     private final AthleteAccessValidator accessValidator;
     private final ObjectMapper objectMapper;
     private final com.coachrun.repository.RunDrillRepository runDrillRepository;
+    private final SessionCalculatorService sessionCalculatorService;
 
     public List<WorkoutResponse> calendar(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         return workoutRepository
@@ -72,7 +73,7 @@ public class WorkoutService {
     /** Création avec rattachement optionnel à un plan ({@code planId}) pour le suivi d'avancement. */
     @Transactional
     public WorkoutResponse create(UUID clubId, UUID athleteId, WorkoutRequest request, UUID planId) {
-        Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
 
         Workout workout = new Workout();
@@ -121,7 +122,7 @@ public class WorkoutService {
      */
     @Transactional
     public int duplicateWeek(UUID clubId, UUID athleteId, LocalDate sourceWeekStart, LocalDate targetWeekStart) {
-        athleteRepository.findByIdAndClubId(athleteId, clubId)
+        athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         if (sourceWeekStart.equals(targetWeekStart)) {
             throw new ConflictException("La semaine cible doit être différente de la semaine source.");
@@ -142,7 +143,7 @@ public class WorkoutService {
     public int generateMesocycle(UUID clubId, UUID athleteId, LocalDate sourceWeekStart,
                                  LocalDate firstWeekStart, int weeks, double increasePct,
                                  int deloadEvery, double deloadPct) {
-        athleteRepository.findByIdAndClubId(athleteId, clubId)
+        athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         int n = Math.max(1, Math.min(weeks, 16));
         int blockLen = Math.max(2, deloadEvery);
@@ -285,7 +286,7 @@ public class WorkoutService {
      */
     @Transactional
     public WorkoutResponse createPrescribed(UUID clubId, UUID athleteId, PrescribedWorkout data) {
-        Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
 
         Workout workout = new Workout();
@@ -374,6 +375,37 @@ public class WorkoutService {
         Workout workout = workoutRepository.findByIdAndAthleteId(workoutId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
         return toPrescription(workout);
+    }
+
+    /**
+     * Édite la structure d'une séance planifiée pour son athlète : recalcule les cibles en
+     * fourchettes et met à jour le snapshot figé + les totaux. Permet d'adapter une séance à un
+     * athlète sans toucher au modèle de bibliothèque.
+     */
+    @Transactional
+    public WorkoutPrescriptionResponse updateStructure(UUID clubId, UUID workoutId, SessionStructure structure) {
+        Workout w = require(clubId, workoutId);
+        SessionStructure safe = structure == null ? SessionStructure.empty() : structure;
+        CalculatedSessionResponse calc =
+                sessionCalculatorService.calculateSession(clubId, w.getAthlete().getId(), safe);
+        w.setSessionSnapshot(writeJson(safe));
+        w.setCalculatedPaces(writeJson(calc));
+        if (calc.totalDistanceM() != null) {
+            w.setTargetDistanceM(calc.totalDistanceM());
+        }
+        if (calc.totalDurationS() != null) {
+            w.setTargetDurationS(calc.totalDurationS());
+        }
+        log.info("Structure de séance {} mise à jour (athlète={})", workoutId, w.getAthlete().getId());
+        return toPrescription(w);
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception e) {
+            throw new IllegalStateException("Sérialisation de la structure impossible.", e);
+        }
     }
 
     private WorkoutPrescriptionResponse toPrescription(Workout w) {

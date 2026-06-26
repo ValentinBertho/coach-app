@@ -52,7 +52,7 @@ public class ProgramPdfService {
     }
 
     public byte[] generate(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
-        Athlete athlete = athleteRepository.findByIdAndClubId(athleteId, clubId)
+        Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
 
         List<Item> items = new ArrayList<>();

@@ -63,6 +63,8 @@ export interface CalculatedBlock {
   rpeMax: number | null;
   estimatedDurationS: number | null;
   estimatedDistanceM: number | null;
+  /** Allure estimée depuis le VDOT (pas de seuil mesuré) — à signaler comme « estimée ». */
+  paceEstimated?: boolean;
 }
 
 /** Un bloc de séance avec ses cibles calculées (et celles de sa récupération). */

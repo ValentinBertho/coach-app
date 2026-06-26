@@ -89,7 +89,7 @@ public class StrengthSessionService {
 
     /** Calcule les charges cibles (kg) de toute la séance pour un athlète, via son profil 1RM. */
     public CalculatedStrengthResponse calculateForAthlete(UUID clubId, UUID athleteId, UUID sessionId) {
-        if (athleteRepository.findByIdAndClubId(athleteId, clubId).isEmpty()) {
+        if (athleteRepository.findByIdAndClubMembership(athleteId, clubId).isEmpty()) {
             throw new NotFoundException("Athlète introuvable.");
         }
         StrengthSession s = require(clubId, sessionId);
@@ -98,7 +98,7 @@ public class StrengthSessionService {
 
     /** Aperçu live : calcule les charges d'une structure non encore enregistrée (éditeur). */
     public CalculatedStrengthResponse previewForAthlete(UUID clubId, UUID athleteId, StrengthStructure structure) {
-        if (athleteRepository.findByIdAndClubId(athleteId, clubId).isEmpty()) {
+        if (athleteRepository.findByIdAndClubMembership(athleteId, clubId).isEmpty()) {
             throw new NotFoundException("Athlète introuvable.");
         }
         return calculate(athleteId, structure == null ? StrengthStructure.empty() : structure);

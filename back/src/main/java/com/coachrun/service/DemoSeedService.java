@@ -23,6 +23,7 @@ import com.coachrun.entity.enums.WorkoutType;
 import com.coachrun.entity.enums.RaceObjectiveStatus;
 import com.coachrun.entity.enums.RacePriority;
 import com.coachrun.entity.enums.Discipline;
+import com.coachrun.entity.enums.RunDrillCategory;
 import com.coachrun.entity.enums.EquipmentType;
 import com.coachrun.entity.enums.ExerciseCategory;
 import com.coachrun.entity.enums.MuscleGroup;
@@ -99,6 +100,7 @@ public class DemoSeedService {
     private final com.coachrun.repository.AthleteUnavailabilityRepository unavailabilityRepository;
     private final com.coachrun.repository.TrainingGroupRepository groupRepository;
     private final com.coachrun.repository.WorkoutTemplateRepository templateRepository;
+    private final com.coachrun.repository.RunDrillRepository runDrillRepository;
     private final com.coachrun.repository.MessageRepository messageRepository;
     private final com.coachrun.repository.PushSubscriptionRepository pushSubscriptionRepository;
     private final com.coachrun.repository.TrainingPlanRepository planRepository;
@@ -201,12 +203,17 @@ public class DemoSeedService {
             athletes.get(i).setGroup(group);
         }
 
-        // Modèles de séances (bibliothèque)
-        seedTemplate(club, "Endurance fondamentale", WorkoutType.ENDURANCE, "Footing Z2", 12000);
+        // Éducatifs de course (gammes) — réutilisés dans les structures de séance.
+        UUID warmupDrillId = seedRunDrills(club);
+
+        // Modèles de séances (bibliothèque) — structure DARI Lab en fourchettes (modèle unique).
+        WorkoutTemplate endurance = seedTemplate(club, "Endurance fondamentale", WorkoutType.ENDURANCE, "Footing Z2", 12000);
         WorkoutTemplate vma = seedTemplate(club, "VMA 10x400", WorkoutType.INTERVALS, "VMA 10×400m", 9000);
+        seedCourseStructure(endurance, warmupDrillId);
+        seedCourseStructure(vma, warmupDrillId);
         if (isPrimary) {
-            seedTemplate(club, "Sortie longue", WorkoutType.LONG_RUN, "Sortie longue", 20000);
-            seedCourseStructure(vma);
+            WorkoutTemplate longRun = seedTemplate(club, "Sortie longue", WorkoutType.LONG_RUN, "Sortie longue", 20000);
+            seedCourseStructure(longRun, warmupDrillId);
         }
 
         // Compte athlète connectable (uniquement sur le club principal)
@@ -407,18 +414,62 @@ public class DemoSeedService {
         return m;
     }
 
-    /** Structure DARI Lab (prescription en fourchettes) attachée à un modèle de séance course. */
-    private void seedCourseStructure(WorkoutTemplate t) {
+    /**
+     * Éducatifs de course (gammes technique/amplitude) du club, distincts du renforcement (CDC §9).
+     * Renvoie l'id d'un éducatif d'échauffement, à attacher au bloc d'échauffement des séances.
+     */
+    private UUID seedRunDrills(Club club) {
+        UUID montees = newRunDrill(club, "Montées de genoux", RunDrillCategory.TECHNIQUE,
+                "Genoux hauts, gainage actif, contact pied dynamique.").getId();
+        newRunDrill(club, "Talons-fesses", RunDrillCategory.TECHNIQUE,
+                "Ramener le talon sous la fesse, buste droit.");
+        newRunDrill(club, "Foulées bondissantes", RunDrillCategory.AMPLITUDE,
+                "Grandes foulées, poussée complète, suspension.");
+        newRunDrill(club, "Pas chassés", RunDrillCategory.AMPLITUDE,
+                "Travail latéral, hanches mobiles.");
+        return montees;
+    }
+
+    private com.coachrun.entity.RunDrill newRunDrill(Club club, String name, RunDrillCategory category,
+                                                     String description) {
+        com.coachrun.entity.RunDrill d = new com.coachrun.entity.RunDrill();
+        d.setClub(club);
+        d.setName(name);
+        d.setCategory(category);
+        d.setDescription(description);
+        d.setVideoUrl("https://www.youtube.com/results?search_query=" + name.replace(' ', '+') + "+course");
+        return runDrillRepository.save(d);
+    }
+
+    /**
+     * Structure DARI Lab (prescription en fourchettes) attachée à un modèle de séance course, adaptée
+     * au type, avec un éducatif de course attaché à l'échauffement (intégration éducatifs ↔ séance).
+     */
+    private void seedCourseStructure(WorkoutTemplate t, UUID warmupDrillId) {
         t.setDiscipline(Discipline.ROUTE);
+        String warmup = """
+                {"id":"wu1","type":"warmup","durationS":900,
+                 "prescription":{"ref":"PCT_LT1","minPct":75,"maxPct":88},
+                 "drillIds":["%s"]}""".formatted(warmupDrillId);
+        String main = switch (t.getType()) {
+            case INTERVALS -> """
+                {"id":"m1","type":"intervals","reps":10,"distanceM":400,
+                 "prescription":{"ref":"PCT_PACE_5KM","minPct":100,"maxPct":108},
+                 "recovery":{"type":"jog","durationS":60,
+                             "prescription":{"ref":"PCT_LT1","minPct":60,"maxPct":75}}}""";
+            case LONG_RUN -> """
+                {"id":"m1","type":"long","distanceM":18000,
+                 "prescription":{"ref":"PCT_LT1","minPct":70,"maxPct":82}}""";
+            default -> """
+                {"id":"m1","type":"easy","durationS":2400,
+                 "prescription":{"ref":"PCT_LT1","minPct":72,"maxPct":85}}""";
+        };
         t.setStructureJson("""
-                {"warmup":[{"id":"wu1","type":"easy","durationS":900,
-                            "prescription":{"ref":"PCT_LT1","minPct":75,"maxPct":88}}],
-                 "main":[{"id":"m1","type":"intervals","reps":10,"distanceM":400,
-                          "prescription":{"ref":"PCT_PACE_5KM","minPct":100,"maxPct":108},
-                          "recovery":{"type":"jog","durationS":60,
-                                      "prescription":{"ref":"PCT_LT1","minPct":60,"maxPct":75}}}],
-                 "cooldown":[{"id":"cd1","type":"easy","durationS":600,
-                              "prescription":{"ref":"PCT_LT1","minPct":60,"maxPct":80}}]}""");
+                {"warmup":[%s],
+                 "main":[%s],
+                 "cooldown":[{"id":"cd1","type":"cooldown","durationS":600,
+                              "prescription":{"ref":"PCT_LT1","minPct":60,"maxPct":80}}]}"""
+                .formatted(warmup, main));
     }
 
     private PpExercise newExercise(Club club, String name, ExerciseCategory category,

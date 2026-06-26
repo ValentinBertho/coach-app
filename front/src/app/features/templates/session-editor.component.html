@@ -1,19 +1,31 @@
 <section class="page-header">
   <div>
-    <a routerLink="/app/templates" class="back-link">← Bibliothèque</a>
+    @if (isWorkout()) {
+      <a [routerLink]="['/app/athletes', athleteId(), 'workouts', workoutId()]" class="back-link">← Séance</a>
+    } @else {
+      <a routerLink="/app/templates" class="back-link">← Bibliothèque</a>
+    }
     <h1 class="display-sm">{{ name() || 'Éditeur de séance' }}</h1>
-    <p class="subtitle">Prescription en fourchettes — le calculateur affiche les cibles pour l'athlète sélectionné.</p>
+    <p class="subtitle">
+      @if (isWorkout()) {
+        Adaptation de cette séance pour l'athlète — cibles recalculées en fourchettes.
+      } @else {
+        Prescription en fourchettes — le calculateur affiche les cibles pour l'athlète sélectionné.
+      }
+    </p>
   </div>
   <button type="button" class="btn btn-primary" (click)="save()">Enregistrer</button>
 </section>
 
-<div class="card calc-athlete">
-  <label>Calculateur pour :</label>
-  <select class="form-control" [ngModel]="athleteId()" (ngModelChange)="onAthleteChange($event)">
-    <option value="">Sélectionner un athlète…</option>
-    @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
-  </select>
-</div>
+@if (!isWorkout()) {
+  <div class="card calc-athlete">
+    <label>Calculateur pour :</label>
+    <select class="form-control" [ngModel]="calcAthleteId()" (ngModelChange)="onAthleteChange($event)">
+      <option value="">Sélectionner un athlète…</option>
+      @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+    </select>
+  </div>
+}
 
 @if (loading()) {
   <div class="card">Chargement de la séance…</div>
@@ -59,7 +71,7 @@
         @if (calc()[b.id]; as c) {
           @if (c.computable) {
             <div class="calc-preview">
-              <span class="calc-item"><span class="calc-lb">Allure</span><span class="metric calc-v">{{ c.paceMinLabel }}–{{ c.paceMaxLabel }}/km</span></span>
+              <span class="calc-item"><span class="calc-lb">Allure{{ c.paceEstimated ? ' (estimée)' : '' }}</span><span class="metric calc-v">{{ c.paceMinLabel }}–{{ c.paceMaxLabel }}/km</span></span>
               <span class="calc-item"><span class="calc-lb">Vitesse</span><span class="metric calc-v">{{ c.speedMinKmh }}–{{ c.speedMaxKmh }} km/h</span></span>
               @if (c.hrMin) { <span class="calc-item"><span class="calc-lb">FC</span><span class="metric calc-v">{{ c.hrMin }}–{{ c.hrMax }} bpm</span></span> }
               @if (c.rpeMin) { <span class="calc-item"><span class="calc-lb">RPE</span><span class="metric calc-v">{{ c.rpeMin }}–{{ c.rpeMax }}</span></span> }
