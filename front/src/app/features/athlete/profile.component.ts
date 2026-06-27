@@ -6,6 +6,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { DataOriginTagComponent } from '../../shared/components/physiology';
 import { PhysioProfile, Performance, Vdot } from '../../core/models/physio.model';
 import { LactateTest } from '../../core/models/lactate.model';
@@ -23,7 +24,7 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
   selector: 'app-athlete-profile',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, LogoComponent, DataOriginTagComponent, DatePipe, DecimalPipe],
+  imports: [RouterLink, LogoComponent, IconComponent, DataOriginTagComponent, DatePipe, DecimalPipe],
   template: `
     <div class="shell">
       <header class="top">
@@ -33,6 +34,15 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
       <main class="wrap">
         <h1 class="display-sm">Profil & confidentialité</h1>
         <p class="subtitle">{{ user()?.fullName }}</p>
+
+        <a routerLink="/athlete/help" class="card help-link">
+          <span class="help-link__ic"><app-icon name="life-buoy" [size]="20" /></span>
+          <span class="help-link__txt">
+            <strong>Aide & guide</strong>
+            <span class="field-hint">Comment utiliser l'app, pas à pas.</span>
+          </span>
+          <app-icon name="chevron-right" [size]="18" />
+        </a>
 
         <!-- Mon profil physio (lecture seule) -->
         @if (physio(); as p) {
@@ -189,6 +199,10 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
     .top { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-3) var(--sp-4); padding-top: max(var(--sp-3), env(safe-area-inset-top)); background: var(--paper); border-bottom: 1px solid var(--hairline); position: sticky; top: 0; }
     .wrap { max-width: 560px; margin-inline: auto; padding: var(--sp-5) var(--sp-4) var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-4); }
     .subtitle { color: var(--ink-3); margin: 0; }
+    .help-link { display: flex; align-items: center; gap: var(--sp-3); text-decoration: none; color: var(--ink); padding: var(--sp-3); }
+    .help-link__ic { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-lg); background: var(--gradient-brand, var(--primary)); color: #fff; }
+    .help-link__txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+    .help-link__txt strong { color: var(--ink); }
     .card h2 { margin: 0 0 var(--sp-2); font-size: var(--text-lg); }
     .card-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-3); }
     .card-hd h2 { margin: 0; }

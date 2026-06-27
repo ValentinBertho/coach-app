@@ -16,6 +16,7 @@ import {
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, Copy, Save,
   LayoutGrid, List, PanelLeft,
+  LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -32,6 +33,7 @@ const ICONS = {
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, Copy, Save,
   LayoutGrid, List, PanelLeft,
+  LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck,
 };
 
 export const appConfig: ApplicationConfig = {

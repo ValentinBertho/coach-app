@@ -308,6 +308,10 @@ Transparence sur ce qui reste à durcir (détail et priorisation dans
 | [`docs/AUDIT-BETA-2026-06.md`](./docs/AUDIT-BETA-2026-06.md) | audit de préparation à la bêta, dette & plan d'action priorisé |
 | [`docs/Claude.md`](./docs/Claude.md) | conventions de code (IA & humains) |
 
+> **Aide utilisateur intégrée** : chaque espace dispose d'un **centre d'aide** adapté à son profil
+> (athlète `/athlete/help`, coach `/app/aide`, admin `/admin/aide`). Le contenu — éditable sans
+> toucher au rendu — vit dans [`front/src/app/features/help/help-content.ts`](./front/src/app/features/help/help-content.ts).
+
 ---
 
 ## Conventions
