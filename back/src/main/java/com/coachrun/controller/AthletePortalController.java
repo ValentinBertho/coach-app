@@ -271,6 +271,15 @@ public class AthletePortalController {
         return physioService.listPerformancesForAthlete(principal.athleteId());
     }
 
+    /** Je déclare une performance de référence (chrono sur une distance) → recalcul VDOT + allures. */
+    @PostMapping("/performances")
+    @ResponseStatus(HttpStatus.CREATED)
+    public com.coachrun.dto.response.PerformanceResponse addPerformance(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody com.coachrun.dto.request.PerformanceRequest request) {
+        return physioService.addPerformanceForAthlete(principal.athleteId(), request);
+    }
+
     // --- Phase 3 « Aller plus loin » (lecture seule) -------------------------
 
     /** Mes tests lactate (résumés : seuils + dates). */

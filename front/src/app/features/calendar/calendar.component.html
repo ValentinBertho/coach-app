@@ -148,6 +148,17 @@
           <p class="field-hint">Aucune séance de force.</p>
         }
       </div>
+
+      <h4 class="lib-sub"><app-icon name="graduation-cap" [size]="14" /> Éducatifs</h4>
+      <div class="lib-list" cdkDropList (cdkDropListDropped)="onLibDrop()">
+        @for (d of drills(); track d.id) {
+          <div class="lib-item drill" cdkDrag [cdkDragData]="d">
+            <app-icon class="li-icon" name="graduation-cap" [size]="16" /><span class="li-name">{{ d.name }}</span>
+          </div>
+        } @empty {
+          <p class="field-hint">Aucun éducatif.</p>
+        }
+      </div>
     </aside>
     }
 
@@ -185,6 +196,11 @@
         @for (t of day.tests; track t.id) {
           <button type="button" class="event-chip event-chip--test" (click)="openTests()" title="Test lactate">
             <app-icon name="flask-conical" [size]="13" /><span class="ec-name">Test lactate</span>
+          </button>
+        }
+        @for (n of day.notes; track n.id) {
+          <button type="button" class="event-chip event-chip--note" (click)="deleteNote(n, $event)" [title]="n.text + ' — cliquer pour supprimer'">
+            <app-icon name="file-text" [size]="13" /><span class="ec-name">{{ n.text }}</span>
           </button>
         }
 
@@ -246,7 +262,16 @@
         <h3>Planifier une séance — {{ date }}</h3>
         <button type="button" class="btn btn-ghost btn-sm" (click)="closePicker()">Fermer</button>
       </header>
+      <button type="button" class="picker__item picker__adhoc" (click)="createAdHoc()">
+        <span class="picker__name">＋ Séance vierge (ad hoc)</span>
+        <span class="picker__type">construire la structure</span>
+      </button>
+      <button type="button" class="picker__item" (click)="addNote()">
+        <span class="picker__name">＋ Note</span>
+        <span class="picker__type">aide-mémoire sur le jour</span>
+      </button>
       @if (courseTemplates().length) {
+        <p class="field-hint picker__or">ou depuis un modèle :</p>
         <ul class="picker__list">
           @for (t of courseTemplates(); track t.id) {
             <li>

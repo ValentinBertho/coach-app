@@ -15,6 +15,14 @@
     <h1 class="display-sm">Aujourd'hui</h1>
     <p class="subtitle">Bonjour {{ user()?.fullName }}</p>
 
+    @if (!hasPaces()) {
+      <a routerLink="/athlete/performances" class="card paces-prompt">
+        <app-icon name="timer" [size]="18" />
+        <span>Ajoute un chrono récent pour débloquer tes <strong>allures de travail</strong>.</span>
+        <app-icon name="chevron-right" [size]="18" />
+      </a>
+    }
+
     @if (nextRace(); as r) {
       <div class="race-countdown card">
         <div>

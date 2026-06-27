@@ -24,6 +24,10 @@ import { MesocycleTemplateService } from '../../core/services/mesocycle-template
 import { TrainingGroup } from '../../core/models/training-group.model';
 import { TrainingGroupService } from '../../core/services/training-group.service';
 import { MesocycleParams } from '../../core/services/workout.service';
+import { RunDrill } from '../../core/models/run-drill.model';
+import { RunDrillService } from '../../core/services/run-drill.service';
+import { CalendarNote } from '../../core/models/calendar-note.model';
+import { CalendarNoteService } from '../../core/services/calendar-note.service';
 
 interface DayCell {
   date: string;
@@ -35,6 +39,7 @@ interface DayCell {
   strength: ScheduledStrength[];
   objectives: RaceObjective[];
   tests: LactateTest[];
+  notes: CalendarNote[];
   unavailability: Unavailability | null;
   km: number;
   sessions: number;
@@ -92,6 +97,11 @@ export class CalendarComponent implements OnInit {
   private readonly templateService = inject(WorkoutTemplateService);
   private readonly mesoTemplateService = inject(MesocycleTemplateService);
   private readonly groupService = inject(TrainingGroupService);
+  private readonly drillService = inject(RunDrillService);
+  private readonly noteService = inject(CalendarNoteService);
+
+  readonly drills = signal<RunDrill[]>([]);
+  readonly notes = signal<CalendarNote[]>([]);
   private readonly raceService = inject(RaceService);
   private readonly lactateService = inject(LactateService);
   private readonly router = inject(Router);
@@ -125,6 +135,7 @@ export class CalendarComponent implements OnInit {
     const strengthByDate = this.groupStrengthByDate();
     const objByDate = this.groupBy(this.objectives(), (o) => o.raceDate);
     const testByDate = this.groupBy(this.tests(), (t) => t.testDate);
+    const noteByDate = this.groupBy(this.notes(), (n) => n.noteDate);
     const unavail = this.unavailabilities();
     const count = this.mode() === 'week' ? 7 : 42;
     const start = this.gridStart();
@@ -148,6 +159,7 @@ export class CalendarComponent implements OnInit {
         strength,
         objectives: objByDate.get(iso) ?? [],
         tests: testByDate.get(iso) ?? [],
+        notes: noteByDate.get(iso) ?? [],
         unavailability: unavail.find((u) => iso >= u.startDate && iso <= u.endDate) ?? null,
         km,
         sessions,
@@ -192,6 +204,7 @@ export class CalendarComponent implements OnInit {
     });
     this.strengthService.listSessions().subscribe((p) => this.librarySessions.set(p.content));
     this.templateService.list().subscribe((p) => this.courseTemplates.set(p.content));
+    this.drillService.list().subscribe((d) => this.drills.set(d));
   }
 
   /** Objectifs, tests et indisponibilités de l'athlète (listes complètes, filtrées par jour). */
@@ -225,6 +238,9 @@ export class CalendarComponent implements OnInit {
     this.workoutService.calendar(this.selectedAthleteId, from, to).subscribe({
       next: (list) => { this.workouts.set(list); this.loading.set(false); },
       error: () => this.loading.set(false),
+    });
+    this.noteService.list(this.selectedAthleteId, from, to).subscribe({
+      next: (n) => this.notes.set(n), error: () => this.notes.set([]),
     });
     this.reloadStrength();
   }
@@ -406,6 +422,63 @@ export class CalendarComponent implements OnInit {
 
   closePicker(): void { this.pickerDate.set(null); }
 
+  /** Drop d'un éducatif : crée une courte séance technique avec la gamme attachée à l'échauffement. */
+  private dropDrill(drill: RunDrill, date: string): void {
+    this.workoutService.create(this.selectedAthleteId, {
+      scheduledDate: date, type: 'ENDURANCE', title: 'Technique — ' + drill.name, notes: null, steps: [],
+    }).subscribe({
+      next: (w) => {
+        this.workoutService.updateStructure(this.selectedAthleteId, w.id, {
+          warmup: [{ id: 'wu-' + Math.random().toString(36).slice(2, 8), type: 'warmup', drillIds: [drill.id] }],
+          main: [], cooldown: [],
+        }).subscribe({
+          next: () => { this.toast.success(`${drill.name} planifié le ${date}`); this.load(); },
+          error: () => this.toast.error('Création impossible.'),
+        });
+      },
+      error: () => this.toast.error('Création impossible.'),
+    });
+  }
+
+  /** Ajoute une note libre sur la date du picker (chip note, CDC §8). */
+  addNote(): void {
+    const date = this.pickerDate();
+    if (!date) return;
+    const text = window.prompt('Note pour le ' + date + ' :')?.trim();
+    if (!text) return;
+    this.noteService.create(this.selectedAthleteId, { noteDate: date, text }).subscribe({
+      next: () => { this.closePicker(); this.toast.success('Note ajoutée'); this.load(); },
+      error: () => this.toast.error('Ajout impossible.'),
+    });
+  }
+
+  async deleteNote(n: CalendarNote, ev: Event): Promise<void> {
+    ev.stopPropagation();
+    const ok = await this.confirm.ask({
+      title: 'Supprimer la note ?', message: n.text, confirmLabel: 'Supprimer', danger: true,
+    });
+    if (!ok) return;
+    this.noteService.delete(this.selectedAthleteId, n.id).subscribe({
+      next: () => { this.toast.info('Note supprimée.'); this.load(); },
+      error: () => this.toast.error('Suppression impossible.'),
+    });
+  }
+
+  /** Crée une séance course vierge (ad hoc) sur la date puis ouvre l'éditeur de structure. */
+  createAdHoc(): void {
+    const date = this.pickerDate();
+    if (!date) return;
+    this.workoutService.create(this.selectedAthleteId, {
+      scheduledDate: date, type: 'ENDURANCE', title: 'Séance', notes: null, steps: [],
+    }).subscribe({
+      next: (w) => {
+        this.closePicker();
+        this.router.navigate(['/app/athletes', this.selectedAthleteId, 'workouts', w.id, 'structure']);
+      },
+      error: () => this.toast.error('Création impossible.'),
+    });
+  }
+
   /** Planifie un modèle de séance course sur la date choisie (snapshot figé + cibles en fourchettes). */
   scheduleTemplateOn(t: WorkoutTemplate): void {
     const date = this.pickerDate();
@@ -430,6 +503,12 @@ export class CalendarComponent implements OnInit {
     // (le backend renverrait 403). Cohérent avec la permission write côté serveur.
     if (!this.canWriteSelected()) {
       this.toast.warning('Lecture seule : tu n’as pas les droits de prescription sur cet athlète.');
+      return;
+    }
+
+    // Éducatif (gamme) glissé depuis la bibliothèque → séance technique ad hoc avec l'éducatif.
+    if (rec['category'] === 'TECHNIQUE' || rec['category'] === 'AMPLITUDE') {
+      this.dropDrill(data as unknown as RunDrill, targetDate);
       return;
     }
 

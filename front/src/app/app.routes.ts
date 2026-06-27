@@ -247,6 +247,11 @@ export const routes: Routes = [
           import('./features/athlete/athlete-sync.component').then((m) => m.AthleteSyncComponent),
       },
       {
+        path: 'performances',
+        loadComponent: () =>
+          import('./features/athlete/athlete-performances.component').then((m) => m.AthletePerformancesComponent),
+      },
+      {
         path: 'profile',
         loadComponent: () =>
           import('./features/athlete/profile.component').then((m) => m.AthleteProfileComponent),
