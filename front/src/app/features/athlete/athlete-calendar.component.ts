@@ -7,6 +7,7 @@ import { AthletePortalService } from '../../core/services/athlete-portal.service
 import { ToastService } from '../../core/services/toast.service';
 import { DataOriginTagComponent, IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
 import { BottomSheetComponent } from '../../shared/components/ui';
+import { HelpHintComponent } from '../help/help-hint.component';
 import { CalculatedBlockEntry, CourseBlock, WorkoutPrescription } from '../../core/models/course.model';
 
 interface DayRow {
@@ -45,10 +46,10 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
   selector: 'app-athlete-calendar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, IntensityZoneBadgeComponent, DataOriginTagComponent, BottomSheetComponent],
+  imports: [IconComponent, IntensityZoneBadgeComponent, DataOriginTagComponent, BottomSheetComponent, HelpHintComponent],
   template: `
     <header class="cal-top">
-      <h1 class="display-sm">Mon calendrier</h1>
+      <div class="cal-title"><h1 class="display-sm">Mon calendrier</h1><app-help-hint section="agenda" label="Aide : mon agenda" /></div>
       <div class="week-nav">
         <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)" aria-label="Semaine précédente">←</button>
         <button type="button" class="btn btn-ghost btn-sm" (click)="goThisWeek()">Cette semaine</button>
@@ -193,6 +194,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     :host { display: block; }
     .cal-top { padding: var(--sp-4) var(--sp-4) 0; max-width: 560px; margin-inline: auto; }
     .cal-top h1 { margin: 0; }
+    .cal-title { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
     .week-nav { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0 var(--sp-1); }
     .subtitle { color: var(--ink-3); margin: 0; text-transform: capitalize; }
 

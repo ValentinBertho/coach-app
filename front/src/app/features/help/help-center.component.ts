@@ -1,9 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { AuthService } from '../../core/services/auth.service';
-import { HELP_GUIDES, HelpAudience, HelpSection } from './help-content';
+import { HelpService } from './help.service';
+import { HELP_GUIDES, HelpAudience, HelpBlock, HelpGuide, HelpSection } from './help-content';
 
 /**
  * Centre d'aide intégré, adaptatif selon le profil (athlète / coach / admin).
@@ -21,7 +22,17 @@ import { HELP_GUIDES, HelpAudience, HelpSection } from './help-content';
   template: `
     <div class="help">
       <header class="help-top">
-        <a [routerLink]="backLink()" class="btn btn-ghost btn-sm">← Retour</a>
+        <div class="help-bar">
+          <a [routerLink]="backLink()" class="btn btn-ghost btn-sm">← Retour</a>
+          <div class="help-bar__actions">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="help.openSearch()">
+              <app-icon name="search" [size]="15" /> Rechercher
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="exportPdf()">
+              <app-icon name="download" [size]="15" /> PDF
+            </button>
+          </div>
+        </div>
         <div class="help-title">
           <span class="help-ic"><app-icon name="life-buoy" [size]="22" /></span>
           <div>
@@ -46,7 +57,7 @@ import { HELP_GUIDES, HelpAudience, HelpSection } from './help-content';
 
       <div class="help-list">
         @for (s of sections(); track s.id) {
-          <section class="help-section card" [class.open]="isOpen(s.id)">
+          <section class="help-section card" [id]="'help-' + s.id" [class.open]="isOpen(s.id)">
             <button type="button" class="hs-head" (click)="toggle(s.id)" [attr.aria-expanded]="isOpen(s.id)">
               <span class="hs-ic"><app-icon [name]="s.icon" [size]="18" /></span>
               <span class="hs-txt">
@@ -94,6 +105,8 @@ import { HELP_GUIDES, HelpAudience, HelpSection } from './help-content';
     .help { max-width: 760px; margin-inline: auto; padding: var(--sp-5) var(--sp-4) var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-4); }
 
     .help-top { display: flex; flex-direction: column; gap: var(--sp-3); }
+    .help-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+    .help-bar__actions { display: flex; align-items: center; gap: var(--sp-2); }
     .help-title { display: flex; align-items: center; gap: var(--sp-3); }
     .help-title h1 { margin: 0; }
     .help-title .subtitle { color: var(--ink-3); margin: 2px 0 0; font-size: var(--text-sm); }
@@ -131,12 +144,28 @@ import { HELP_GUIDES, HelpAudience, HelpSection } from './help-content';
 })
 export class HelpCenterComponent {
   private readonly auth = inject(AuthService);
+  readonly help = inject(HelpService);
 
   /** Public cible, fourni par la route (`data.audience`). */
   readonly audience = input<HelpAudience | undefined>(undefined);
+  /** Section à ouvrir directement, fournie par la route (`?section=`). */
+  readonly section = input<string | undefined>(undefined);
 
   readonly query = signal('');
   private readonly openIds = signal<Set<string>>(new Set());
+
+  constructor() {
+    // Lien contextuel (« ? » d'un écran ou résultat de recherche) : ouvre la
+    // section ciblée et y fait défiler.
+    effect(() => {
+      const target = this.section();
+      if (!target) return;
+      this.openIds.update((s) => new Set(s).add(target));
+      setTimeout(() => {
+        document.getElementById('help-' + target)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 60);
+    }, { allowSignalWrites: true });
+  }
 
   /** Public effectif : route en priorité, sinon déduit du rôle connecté. */
   readonly effectiveAudience = computed<HelpAudience>(() => this.audience() ?? this.fromRole());
@@ -192,5 +221,73 @@ export class HelpCenterComponent {
     return this.effectiveAudience() === 'athlete'
       ? 'Écris à ton coach depuis l\'onglet Messages.'
       : 'Contactez le support de la plateforme.';
+  }
+
+  /**
+   * Génère un document imprimable (toutes sections dépliées) dans une fenêtre
+   * dédiée et déclenche l'impression → l'utilisateur choisit « Enregistrer en PDF ».
+   * Sans dépendance : pas de lib PDF côté front.
+   */
+  exportPdf(): void {
+    const html = this.buildPrintable(this.guide());
+    const w = window.open('', '_blank', 'width=820,height=1000');
+    if (!w) return; // bloqueur de pop-up : on renonce silencieusement
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    // Laisse le navigateur peindre avant d'ouvrir la boîte d'impression.
+    setTimeout(() => w.print(), 250);
+  }
+
+  private buildPrintable(guide: HelpGuide): string {
+    const esc = (t: string) =>
+      t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const block = (b: HelpBlock): string => {
+      switch (b.kind) {
+        case 'steps': return `<ol>${(b.items ?? []).map((i) => `<li>${esc(i)}</li>`).join('')}</ol>`;
+        case 'list': return `<ul>${(b.items ?? []).map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
+        case 'callout': {
+          const tag = b.tone === 'tip' ? 'Astuce' : b.tone === 'warn' ? 'Important' : 'À noter';
+          return `<div class="callout ${b.tone ?? 'info'}"><strong>${tag}.</strong> ${esc(b.text ?? '')}</div>`;
+        }
+        default: return `<p>${esc(b.text ?? '')}</p>`;
+      }
+    };
+    const sections = guide.sections.map((s) => `
+      <section>
+        <h2>${esc(s.title)}</h2>
+        <p class="sum">${esc(s.summary)}</p>
+        ${s.blocks.map(block).join('\n')}
+      </section>`).join('\n');
+
+    return `<!doctype html><html lang="fr"><head><meta charset="utf-8" />
+      <title>${esc(guide.title)} — Darilab</title>
+      <style>
+        @page { margin: 18mm 16mm; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1a1d29; line-height: 1.55; margin: 0; }
+        h1 { font-size: 24px; margin: 0 0 4px; }
+        .subtitle { color: #6b7280; margin: 0 0 6px; }
+        .meta { color: #9aa1ad; font-size: 12px; margin: 0 0 20px; }
+        section { break-inside: avoid; padding: 14px 0; border-top: 1px solid #e6e8ee; }
+        h2 { font-size: 16px; margin: 0 0 2px; color: #2d45d6; }
+        .sum { color: #6b7280; font-size: 13px; margin: 0 0 8px; }
+        p { margin: 0 0 8px; }
+        ul, ol { margin: 0 0 8px; padding-left: 20px; }
+        li { margin: 0 0 4px; }
+        .callout { padding: 8px 12px; border-radius: 8px; margin: 0 0 10px; font-size: 13px; border: 1px solid; }
+        .callout.tip { background: #eafaf3; border-color: #b6e8d4; }
+        .callout.info { background: #eef1ff; border-color: #cdd6ff; }
+        .callout.warn { background: #fff2e8; border-color: #ffd5b3; }
+        footer { margin-top: 22px; color: #9aa1ad; font-size: 11px; text-align: center; }
+      </style></head>
+      <body>
+        <h1>${esc(guide.title)}</h1>
+        <p class="subtitle">${esc(guide.subtitle)}</p>
+        <p class="meta">Darilab Training — document généré le ${new Date().toLocaleDateString('fr-FR')}</p>
+        ${sections}
+        <footer>Darilab Training — guide d'utilisation</footer>
+      </body></html>`;
   }
 }

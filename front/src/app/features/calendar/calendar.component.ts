@@ -14,6 +14,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { WorkoutService } from '../../core/services/workout.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { HelpHintComponent } from '../help/help-hint.component';
 import { RaceService } from '../../core/services/race.service';
 import { LactateService } from '../../core/services/lactate.service';
 import { RaceObjective } from '../../core/models/race.model';
@@ -85,7 +86,7 @@ function mondayOf(d: Date): Date {
   selector: 'app-calendar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DragDropModule, IconComponent],
+  imports: [FormsModule, RouterLink, DragDropModule, IconComponent, HelpHintComponent],
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.scss',
 })

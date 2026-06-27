@@ -309,8 +309,10 @@ Transparence sur ce qui reste à durcir (détail et priorisation dans
 | [`docs/Claude.md`](./docs/Claude.md) | conventions de code (IA & humains) |
 
 > **Aide utilisateur intégrée** : chaque espace dispose d'un **centre d'aide** adapté à son profil
-> (athlète `/athlete/help`, coach `/app/aide`, admin `/admin/aide`). Le contenu — éditable sans
-> toucher au rendu — vit dans [`front/src/app/features/help/help-content.ts`](./front/src/app/features/help/help-content.ts).
+> (athlète `/athlete/help`, coach `/app/aide`, admin `/admin/aide`), avec **recherche globale**
+> (icône loupe dans chaque en-tête), **liens contextuels** (`<app-help-hint section="…">` ouvre la
+> bonne rubrique depuis un écran) et **export PDF** d'un guide. Le contenu — éditable sans toucher au
+> rendu — vit dans [`front/src/app/features/help/help-content.ts`](./front/src/app/features/help/help-content.ts).
 
 ---
 

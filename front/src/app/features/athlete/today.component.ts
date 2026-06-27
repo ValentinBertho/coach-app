@@ -33,6 +33,8 @@ import {
 import {
   BottomSheetComponent,
 } from '../../shared/components/ui';
+import { HelpService } from '../help/help.service';
+import { HelpHintComponent } from '../help/help-hint.component';
 
 interface SetEntry { chargeKg: number | null; repsDone: number | null; rirDone: number | null; }
 
@@ -84,7 +86,7 @@ type State = 'loading' | 'ready' | 'error';
     LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent, NotificationBellComponent,
     IntensityZoneBadgeComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
     PainFatigueSelectorComponent, BottomSheetComponent,
-    CoursePrescriptionViewComponent,
+    CoursePrescriptionViewComponent, HelpHintComponent,
   ],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',
@@ -96,6 +98,7 @@ export class TodayComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly network = inject(NetworkStatusService);
   private readonly queue = inject(FeedbackQueueService);
+  readonly help = inject(HelpService);
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
   readonly stepLabels = STEP_TYPE_LABELS;

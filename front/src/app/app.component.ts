@@ -6,19 +6,21 @@ import { PwaInstallService } from './core/services/pwa-install.service';
 import { ThemeService } from './core/services/theme.service';
 import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confirm-dialog.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
+import { HelpSearchOverlayComponent } from './features/help/help-search-overlay.component';
 
 /**
- * Shell applicatif : router-outlet + toasts + modale de confirmation.
+ * Shell applicatif : router-outlet + toasts + modale de confirmation + recherche d'aide.
  * Instancie tôt les services PWA (réseau, installation, file de synchronisation).
  */
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent],
+  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent],
   template: `
     <router-outlet />
     <app-toast />
     <app-confirm-dialog />
+    <app-help-search-overlay />
   `,
 })
 export class AppComponent {

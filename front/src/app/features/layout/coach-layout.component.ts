@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { HelpService } from '../help/help.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
 import { PushButtonComponent } from '../../shared/components/push-button/push-button.component';
@@ -24,6 +25,7 @@ export class CoachLayoutComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  readonly help = inject(HelpService);
 
   readonly user = this.auth.currentUser;
   readonly resending = signal(false);
