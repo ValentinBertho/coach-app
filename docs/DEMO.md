@@ -92,5 +92,5 @@ avec **`demo@coachrun.fr` / `password123`**.
    `GET …/load` (ACWR/monotonie), `GET …/pp/sessions/{id}/calculated` (charges en kg depuis le 1RM).
 
 > Le socle DARI Lab (physiologie, lactate, charge, préparation physique) est **entièrement
-> opérationnel côté API** (91 tests). Les écrans coach **Dashboard** et **Profil physiologique**
+> opérationnel côté API** (151 tests backend). Les écrans coach **Dashboard** et **Profil physiologique**
 > sont câblés ; les autres écrans DARI Lab consomment ces mêmes endpoints.

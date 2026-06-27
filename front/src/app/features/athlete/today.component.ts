@@ -32,8 +32,9 @@ import {
 } from '../../shared/components/physiology';
 import {
   BottomSheetComponent,
-  StickyActionBarComponent,
 } from '../../shared/components/ui';
+import { HelpService } from '../help/help.service';
+import { HelpHintComponent } from '../help/help-hint.component';
 
 interface SetEntry { chargeKg: number | null; repsDone: number | null; rirDone: number | null; }
 
@@ -50,24 +51,42 @@ interface ExerciseRx {
 }
 interface ExerciseSets { exerciseId: string; name: string; sets: SetEntry[]; rx: ExerciseRx; }
 
+/**
+ * Carte de renforcement du jour. Chaque séance de force planifiée a sa propre
+ * saisie de séries, son retour (RPE/fatigue/douleur) et sa progression — pour
+ * supporter plusieurs séances de force le même jour (double séance).
+ */
+interface StrengthCard {
+  session: ScheduledStrength;
+  rx: StrengthPrescriptionView | null;
+  exercises: ExerciseSets[];
+  progression: Progression | null;
+  sRpe: number | null;
+  sFatigue: number | null;
+  sPain: number | null;
+}
+
 type State = 'loading' | 'ready' | 'error';
 
 /**
  * Portail athlète — « Aujourd'hui » (mobile-first PWA).
  * Refonte blueprint : carte héro de la séance, zones d'intensité explicites,
- * retour rapide (RPE + fatigue + douleur) dans un bottom sheet déclenché par la
- * barre d'action collante. Préserve le câblage services et la file offline.
+ * retour rapide (RPE + fatigue + douleur) dans un bottom sheet. Préserve le
+ * câblage services et la file offline.
+ *
+ * Supporte **plusieurs séances course ET force le même jour** (double séance) :
+ * chaque séance est une carte autonome avec son propre retour.
  */
 @Component({
   selector: 'app-today',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, 
+  imports: [IconComponent,
     FormsModule, RouterLink,
     LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent, NotificationBellComponent,
     IntensityZoneBadgeComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
-    PainFatigueSelectorComponent, BottomSheetComponent, StickyActionBarComponent,
-    CoursePrescriptionViewComponent,
+    PainFatigueSelectorComponent, BottomSheetComponent,
+    CoursePrescriptionViewComponent, HelpHintComponent,
   ],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',
@@ -79,6 +98,7 @@ export class TodayComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly network = inject(NetworkStatusService);
   private readonly queue = inject(FeedbackQueueService);
+  readonly help = inject(HelpService);
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
   readonly stepLabels = STEP_TYPE_LABELS;
@@ -87,37 +107,24 @@ export class TodayComponent implements OnInit {
   readonly rpeScale = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
   readonly state = signal<State>('loading');
-  readonly workout = signal<Workout | null>(null);
-  /** Prescription course en fourchettes (snapshot + cibles calculées) — affichage prioritaire. */
-  readonly courseRx = signal<WorkoutPrescription | null>(null);
-  readonly courseRxHasContent = computed(() => {
-    const c = this.courseRx()?.calculated;
-    return !!c && (c.warmup.length + c.main.length + c.cooldown.length) > 0;
-  });
+  /** Toutes les séances de course du jour (double séance possible). */
+  readonly workouts = signal<Workout[]>([]);
+  /** Prescription course en fourchettes par séance (clé = id séance). */
+  readonly courseRx = signal<Record<string, WorkoutPrescription | null>>({});
   readonly nextRace = signal<import('../../core/models/race.model').RaceObjective | null>(null);
   readonly user = this.auth.currentUser;
 
-  // Retour course (signals pour two-way binding des sélecteurs).
+  // Retour course (signals pour two-way binding des sélecteurs du bottom sheet).
   readonly rpe = signal<number | null>(null);
   readonly fatigue = signal<number | null>(null);
   readonly pain = signal<number | null>(null);
   readonly comment = signal('');
   readonly feedbackOpen = signal(false);
+  /** Séance de course visée par le bottom sheet de retour. */
+  readonly activeWorkout = signal<Workout | null>(null);
 
-  /** La course attend-elle encore un retour ? (PLANNED ou PARTIAL) */
-  readonly runNeedsFeedback = computed(() => {
-    const w = this.workout();
-    return !!w && (w.status === 'PLANNED' || w.status === 'PARTIAL');
-  });
-
-  // Renforcement du jour
-  readonly strength = signal<ScheduledStrength | null>(null);
-  readonly strengthRx = signal<StrengthPrescriptionView | null>(null);
-  readonly exerciseSets = signal<ExerciseSets[]>([]);
-  readonly progression = signal<Progression | null>(null);
-  readonly sRpe = signal<number | null>(null);
-  readonly sFatigue = signal<number | null>(null);
-  readonly sPain = signal<number | null>(null);
+  /** Toutes les séances de force du jour (double séance possible). */
+  readonly strengthCards = signal<StrengthCard[]>([]);
 
   /** L'athlète a-t-il des allures de travail (VDOT) ? Sinon on l'invite à saisir une perf. */
   readonly hasPaces = signal(true);
@@ -132,17 +139,35 @@ export class TodayComponent implements OnInit {
     });
   }
 
+  /** La prescription course d'une séance a-t-elle du contenu calculé à afficher ? */
+  rxHasContent(workoutId: string): boolean {
+    const c = this.courseRx()[workoutId]?.calculated;
+    return !!c && (c.warmup.length + c.main.length + c.cooldown.length) > 0;
+  }
+  rxFor(workoutId: string): WorkoutPrescription | null {
+    return this.courseRx()[workoutId] ?? null;
+  }
+  /** Une séance attend-elle encore un retour ? (PLANNED ou PARTIAL) */
+  needsFeedback(w: Workout): boolean {
+    return w.status === 'PLANNED' || w.status === 'PARTIAL';
+  }
+
   loadStrength(): void {
     const day = new Date().toISOString().slice(0, 10);
     this.portal.ppScheduled(day, day).subscribe({
       next: (list) => {
-        const s = list[0] ?? null;
-        this.strength.set(s);
-        if (s) {
-          this.portal.ppPrescription(s.id).subscribe({
+        const cards: StrengthCard[] = list.map((session) => ({
+          session, rx: null, exercises: [], progression: null,
+          sRpe: null, sFatigue: null, sPain: null,
+        }));
+        this.strengthCards.set(cards);
+        for (const card of cards) {
+          this.portal.ppPrescription(card.session.id).subscribe({
             next: (p) => {
-              this.strengthRx.set(p);
-              this.buildSets(p);
+              card.rx = p;
+              card.exercises = this.buildSets(p);
+              // Re-set pour notifier le signal (OnPush) après l'arrivée asynchrone.
+              this.strengthCards.set([...this.strengthCards()]);
             },
           });
         }
@@ -151,7 +176,7 @@ export class TodayComponent implements OnInit {
   }
 
   /** Pré-remplit les séries à saisir + capture les fourchettes prescrites (lecture seule). */
-  private buildSets(rx: StrengthPrescriptionView): void {
+  private buildSets(rx: StrengthPrescriptionView): ExerciseSets[] {
     const list: ExerciseSets[] = [];
     for (const b of rx.calculated?.blocks ?? []) {
       for (const ex of b.exercises) {
@@ -180,16 +205,21 @@ export class TodayComponent implements OnInit {
         });
       }
     }
-    this.exerciseSets.set(list);
+    return list;
   }
 
-  submitStrength(completed: boolean): void {
-    const s = this.strength();
-    if (!s) return;
+  /** Sélection d'un RPE de séance de force (mutation + notification OnPush). */
+  setStrengthRpe(card: StrengthCard, n: number): void {
+    card.sRpe = n;
+    this.strengthCards.set([...this.strengthCards()]);
+  }
+
+  submitStrength(card: StrengthCard, completed: boolean): void {
+    const s = card.session;
 
     // 1. Séries réalisées → recalcul automatique du e1RM.
     const results: StrengthResultEntry[] = [];
-    for (const ex of this.exerciseSets()) {
+    for (const ex of card.exercises) {
       ex.sets.forEach((set, i) => {
         if (set.chargeKg != null && set.repsDone != null) {
           results.push({
@@ -205,17 +235,21 @@ export class TodayComponent implements OnInit {
           if (updates.length) {
             this.toast.success(`e1RM mis à jour : ${updates[0].e1rmKg} kg`);
           }
-          this.portal.ppProgression(s.id).subscribe((p) => this.progression.set(p));
+          this.portal.ppProgression(s.id).subscribe((p) => {
+            card.progression = p;
+            this.strengthCards.set([...this.strengthCards()]);
+          });
         },
       });
     }
 
     // 2. Retour de séance global.
     this.portal
-      .ppFeedback(s.id, { completed, sessionRpe: this.sRpe(), fatigue: this.sFatigue(), pain: this.sPain(), comment: null })
+      .ppFeedback(s.id, { completed, sessionRpe: card.sRpe, fatigue: card.sFatigue, pain: card.sPain, comment: null })
       .subscribe({
         next: (updated) => {
-          this.strength.set(updated);
+          card.session = updated;
+          this.strengthCards.set([...this.strengthCards()]);
           this.toast.success('Renforcement enregistré');
         },
       });
@@ -225,15 +259,12 @@ export class TodayComponent implements OnInit {
     this.state.set('loading');
     this.portal.today().subscribe({
       next: (list) => {
-        const w = list[0] ?? null;
-        this.workout.set(w);
-        this.courseRx.set(null);
-        if (w) {
-          this.rpe.set(w.rpe ?? null);
-          this.comment.set(w.athleteComment ?? '');
+        this.workouts.set(list);
+        this.courseRx.set({});
+        for (const w of list) {
           this.portal.workoutPrescription(w.id).subscribe({
-            next: (p) => this.courseRx.set(p),
-            error: () => this.courseRx.set(null),
+            next: (p) => this.courseRx.set({ ...this.courseRx(), [w.id]: p }),
+            error: () => this.courseRx.set({ ...this.courseRx(), [w.id]: null }),
           });
         }
         this.state.set('ready');
@@ -260,8 +291,18 @@ export class TodayComponent implements OnInit {
     return '';
   }
 
+  /** Ouvre le bottom sheet de retour pour une séance de course donnée. */
+  openFeedback(w: Workout): void {
+    this.activeWorkout.set(w);
+    this.rpe.set(w.rpe ?? null);
+    this.fatigue.set(null);
+    this.pain.set(null);
+    this.comment.set(w.athleteComment ?? '');
+    this.feedbackOpen.set(true);
+  }
+
   submit(completed: boolean): void {
-    const w = this.workout();
+    const w = this.activeWorkout();
     if (!w) return;
     const body = {
       status: (completed ? 'COMPLETED' : 'PARTIAL') as 'COMPLETED' | 'PARTIAL',
@@ -271,10 +312,17 @@ export class TodayComponent implements OnInit {
       comment: this.comment() || null,
     };
 
+    const applyLocal = (status: 'COMPLETED' | 'PARTIAL') =>
+      this.workouts.set(
+        this.workouts().map((x) =>
+          x.id === w.id ? { ...x, status, rpe: this.rpe(), athleteComment: this.comment() || null } : x,
+        ),
+      );
+
     // Hors ligne : mise à jour optimiste + mise en file (sync au retour réseau).
     if (!this.network.online()) {
       this.queue.enqueue(w.id, body);
-      this.workout.set({ ...w, status: body.status, rpe: this.rpe(), athleteComment: this.comment() || null });
+      applyLocal(body.status);
       this.feedbackOpen.set(false);
       this.toast.info('Enregistré hors ligne — synchronisé au retour du réseau.');
       return;
@@ -282,13 +330,13 @@ export class TodayComponent implements OnInit {
 
     this.portal.feedback(w.id, body).subscribe({
       next: (updated) => {
-        this.workout.set(updated);
+        this.workouts.set(this.workouts().map((x) => (x.id === updated.id ? updated : x)));
         this.feedbackOpen.set(false);
         this.toast.success('Ressenti enregistré');
       },
       error: () => {
         this.queue.enqueue(w.id, body);
-        this.workout.set({ ...w, status: body.status, rpe: this.rpe(), athleteComment: this.comment() || null });
+        applyLocal(body.status);
         this.feedbackOpen.set(false);
         this.toast.warning('Hors ligne — ressenti mis en file pour synchronisation.');
       },

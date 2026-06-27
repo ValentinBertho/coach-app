@@ -106,8 +106,8 @@ unitairement et **source de vérité** (recalcul à la sauvegarde, équivalent d
 | Couche | Techno |
 |---|---|
 | **Frontend** | Angular 17 (standalone components, signals, control-flow `@if`/`@for`, OnPush), PWA, TypeScript 5.4, Leaflet (cartes) |
-| **Backend** | Spring Boot 3.2.5, Java 21, API REST (~174 endpoints), Springdoc/OpenAPI |
-| **Base de données** | PostgreSQL 16 · **Liquibase** (41 migrations versionnées) |
+| **Backend** | Spring Boot 3.2.5, Java 21, API REST (~236 endpoints), Springdoc/OpenAPI |
+| **Base de données** | PostgreSQL 16 · **Liquibase** (42 migrations versionnées) |
 | **Auth** | JWT (access tokens) + liens magiques d'invitation athlète · `@PreAuthorize` multi-tenant |
 | **Sécurité** | AES-256-GCM (données santé + jetons OAuth chiffrés au repos), CSP, CORS allowlist, rate-limiting |
 | **Intégrations** | Strava (OAuth), import GPX/FIT, e-mail Resend, Web Push (VAPID), export PDF (OpenPDF) |
@@ -180,15 +180,15 @@ npm start                       # proxy vers http://localhost:8080/api
 .
 ├── back/                       # API Spring Boot (Java 21, Maven)
 │   └── src/main/java/com/coachrun/
-│       ├── controller/         # ~34 contrôleurs REST
-│       ├── service/            # ~41 services métier
-│       ├── engine/             # 11 moteurs de calcul (physiologie pure)
+│       ├── controller/         # 41 contrôleurs REST
+│       ├── service/            # 47 services métier
+│       ├── engine/             # 11 moteurs de calcul (physiologie pure) + PaceUtil
 │       ├── entity/             # entités JPA (héritent de BaseEntity)
 │       ├── dto/                # request/ et response/ séparés
 │       ├── repository/         # Spring Data JPA
 │       ├── security/           # JWT, chiffrement, CORS, rate-limit, anti-IDOR
 │       └── integration/        # Strava, Resend (clients HTTP)
-│   └── src/main/resources/db/changelog/   # 41 migrations Liquibase
+│   └── src/main/resources/db/changelog/   # 42 migrations Liquibase
 ├── front/                      # App Angular (PWA)
 │   └── src/app/
 │       ├── core/               # services, models, guards, intercepteurs
@@ -208,14 +208,14 @@ npm start                       # proxy vers http://localhost:8080/api
 ## Qualité, tests & CI
 
 ```bash
-# Backend : build + 121 tests + smoke test de démarrage
+# Backend : build + 151 tests + smoke test de démarrage
 cd back && ./mvnw -B -ntp clean verify
 
 # Frontend : build de production (typecheck AOT)
 cd front && npm run build
 ```
 
-- **121 tests backend** (moteurs purs + intégration MockMvc), exécutés sur **H2 en mode PostgreSQL**.
+- **151 tests backend** (moteurs purs + intégration MockMvc), exécutés sur **H2 en mode PostgreSQL**.
 - **Smoke test de démarrage** en CI sur un **PostgreSQL réel** (migrations Liquibase appliquées) pour
   attraper les écarts H2↔PG.
 - CI GitHub Actions (`.github/workflows/ci.yml`) : jobs back (`mvn verify` + smoke PG) et front (`npm ci` + build).
@@ -233,7 +233,8 @@ cd front && npm run build
 - **CORS** restreint à une allowlist · **rate-limiting** par fenêtre fixe.
 - **Anti-IDOR** : toute route club passe par `@clubAccessValidator` (privé / club / permissions).
 
-> Voir l'audit honnête de l'état sécurité/scalabilité dans [`docs/AUDIT.md`](./docs/AUDIT.md).
+> Voir l'audit de préparation à la bêta (sécurité, scalabilité, plan d'action) dans
+> [`docs/AUDIT-BETA-2026-06.md`](./docs/AUDIT-BETA-2026-06.md).
 
 ---
 
@@ -277,8 +278,8 @@ Procédure pas-à-pas (ordre de déploiement, variables, CORS, redirect URIs) :
 
 ## Limites connues & pistes d'amélioration
 
-Transparence sur ce qui reste à durcir (détail et priorisation dans [`docs/AUDIT.md`](./docs/AUDIT.md)
-et [`docs/RAF.md`](./docs/RAF.md)) :
+Transparence sur ce qui reste à durcir (détail et priorisation dans
+[`docs/AUDIT-BETA-2026-06.md`](./docs/AUDIT-BETA-2026-06.md)) :
 
 - **Tests sur PG réel** : les assertions tournent sur H2 (mode PostgreSQL) ; **Testcontainers**
   fermerait le risque H2↔PG (le CI ne fait qu'un smoke de démarrage sur PG).
@@ -304,8 +305,14 @@ et [`docs/RAF.md`](./docs/RAF.md)) :
 | [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md) | déploiement Railway/Vercel + variables |
 | [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | **exploitation : Sentry, sauvegardes BDD, Actuator, CI (pas-à-pas)** |
 | [`docs/ATHLETE-ROADMAP.md`](./docs/ATHLETE-ROADMAP.md) | audit des données visibles par l'athlète + plan d'évolution |
-| [`docs/AUDIT.md`](./docs/AUDIT.md) · [`docs/RAF.md`](./docs/RAF.md) | audit & reste-à-faire |
+| [`docs/AUDIT-BETA-2026-06.md`](./docs/AUDIT-BETA-2026-06.md) | audit de préparation à la bêta, dette & plan d'action priorisé |
 | [`docs/Claude.md`](./docs/Claude.md) | conventions de code (IA & humains) |
+
+> **Aide utilisateur intégrée** : chaque espace dispose d'un **centre d'aide** adapté à son profil
+> (athlète `/athlete/help`, coach `/app/aide`, admin `/admin/aide`), avec **recherche globale**
+> (icône loupe dans chaque en-tête), **liens contextuels** (`<app-help-hint section="…">` ouvre la
+> bonne rubrique depuis un écran) et **export PDF** d'un guide. Le contenu — éditable sans toucher au
+> rendu — vit dans [`front/src/app/features/help/help-content.ts`](./front/src/app/features/help/help-content.ts).
 
 ---
 

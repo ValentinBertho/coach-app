@@ -153,6 +153,12 @@ export const routes: Routes = [
           import('./features/settings/notifications.component').then((m) => m.NotificationsComponent),
       },
       {
+        path: 'aide',
+        data: { audience: 'coach' },
+        loadComponent: () =>
+          import('./features/help/help-center.component').then((m) => m.HelpCenterComponent),
+      },
+      {
         path: 'athletes/:athleteId/messages',
         loadComponent: () =>
           import('./features/messages/chat.component').then((m) => m.ChatComponent),
@@ -261,6 +267,12 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/messages/chat.component').then((m) => m.ChatComponent),
       },
+      {
+        path: 'help',
+        data: { audience: 'athlete' },
+        loadComponent: () =>
+          import('./features/help/help-center.component').then((m) => m.HelpCenterComponent),
+      },
     ],
   },
   {
@@ -298,6 +310,12 @@ export const routes: Routes = [
         path: 'invitations',
         loadComponent: () =>
           import('./features/admin/admin-invitations.component').then((m) => m.AdminInvitationsComponent),
+      },
+      {
+        path: 'aide',
+        data: { audience: 'admin' },
+        loadComponent: () =>
+          import('./features/help/help-center.component').then((m) => m.HelpCenterComponent),
       },
     ],
   },
