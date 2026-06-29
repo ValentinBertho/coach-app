@@ -266,10 +266,20 @@
         <span class="picker__name">＋ Séance vierge (ad hoc)</span>
         <span class="picker__type">construire la structure</span>
       </button>
-      <button type="button" class="picker__item" (click)="addNote()">
-        <span class="picker__name">＋ Note</span>
-        <span class="picker__type">aide-mémoire sur le jour</span>
-      </button>
+      @if (noteOpen()) {
+        <div class="picker__note">
+          <textarea class="form-control" rows="2" [(ngModel)]="noteText" placeholder="Note pour le {{ date }}…" (keydown.escape)="toggleNote()"></textarea>
+          <div class="picker__note-actions">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="toggleNote()">Annuler</button>
+            <button type="button" class="btn btn-primary btn-sm" [disabled]="!noteText.trim()" (click)="addNote()">Ajouter la note</button>
+          </div>
+        </div>
+      } @else {
+        <button type="button" class="picker__item" (click)="toggleNote()">
+          <span class="picker__name">＋ Note</span>
+          <span class="picker__type">aide-mémoire sur le jour</span>
+        </button>
+      }
       @if (courseTemplates().length) {
         <p class="field-hint picker__or">ou depuis un modèle :</p>
         <ul class="picker__list">

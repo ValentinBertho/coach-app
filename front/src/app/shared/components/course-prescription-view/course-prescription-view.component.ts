@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { CalculatedBlockEntry, CourseDrill, WorkoutPrescription } from '../../../core/models/course.model';
+import { CalculatedBlockEntry, courseBlockTypeLabel, CourseDrill, WorkoutPrescription } from '../../../core/models/course.model';
 import { RangePrescriptionPillComponent } from '../range-prescription-pill/range-prescription-pill.component';
 
 interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
@@ -150,8 +150,7 @@ export class CoursePrescriptionViewComponent {
   }
 
   blockTitle(e: CalculatedBlockEntry): string {
-    const t = e.block.type ?? 'Bloc';
-    return t.charAt(0).toUpperCase() + t.slice(1);
+    return courseBlockTypeLabel(e.block.type);
   }
 
   volume(e: CalculatedBlockEntry): string | null {

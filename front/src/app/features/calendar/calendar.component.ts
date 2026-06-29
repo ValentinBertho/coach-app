@@ -421,7 +421,12 @@ export class CalendarComponent implements OnInit {
     this.pickerDate.set(date);
   }
 
-  closePicker(): void { this.pickerDate.set(null); }
+  closePicker(): void { this.pickerDate.set(null); this.noteOpen.set(false); this.noteText = ''; }
+
+  /** Saisie de note inline dans le picker (remplace l'ancien window.prompt). */
+  readonly noteOpen = signal(false);
+  noteText = '';
+  toggleNote(): void { this.noteOpen.update((v) => !v); if (!this.noteOpen()) this.noteText = ''; }
 
   /** Drop d'un éducatif : crée une courte séance technique avec la gamme attachée à l'échauffement. */
   private dropDrill(drill: RunDrill, date: string): void {
@@ -444,9 +449,8 @@ export class CalendarComponent implements OnInit {
   /** Ajoute une note libre sur la date du picker (chip note, CDC §8). */
   addNote(): void {
     const date = this.pickerDate();
-    if (!date) return;
-    const text = window.prompt('Note pour le ' + date + ' :')?.trim();
-    if (!text) return;
+    const text = this.noteText.trim();
+    if (!date || !text) return;
     this.noteService.create(this.selectedAthleteId, { noteDate: date, text }).subscribe({
       next: () => { this.closePicker(); this.toast.success('Note ajoutée'); this.load(); },
       error: () => this.toast.error('Ajout impossible.'),

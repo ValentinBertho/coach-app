@@ -6,9 +6,14 @@ import { CourseService } from '../../core/services/course.service';
 import { WorkoutService } from '../../core/services/workout.service';
 import { ToastService } from '../../core/services/toast.service';
 import { RunDrillService } from '../../core/services/run-drill.service';
+import { PhysioService } from '../../core/services/physio.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
-import { CalculatedBlock, CourseBlock, PrescriptionRef, SessionStructure } from '../../core/models/course.model';
+import { CalculatedBlock, COURSE_BLOCK_TYPE_LABELS, CourseBlock, CourseBlockType, PrescriptionRef, SessionStructure } from '../../core/models/course.model';
+import { PhysioProfile } from '../../core/models/physio.model';
 import { RunDrill } from '../../core/models/run-drill.model';
+
+/** Statut de complétude du profil pour la prescription course. */
+export type ProfileStatus = 'measured' | 'estimated' | 'incomplete';
 
 interface Section { key: keyof SessionStructure; label: string; }
 
@@ -37,10 +42,28 @@ export class SessionEditorComponent implements OnInit {
   private readonly athletes = inject(AthleteService);
   private readonly workoutService = inject(WorkoutService);
   private readonly drillService = inject(RunDrillService);
+  private readonly physio = inject(PhysioService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
 
   readonly drills = signal<RunDrill[]>([]);
+
+  /** Profil physio de l'athlète du calculateur (null tant qu'aucun athlète n'est choisi). */
+  readonly profile = signal<PhysioProfile | null>(null);
+
+  /**
+   * Complétude du profil pour la prescription course :
+   *  - `measured`   : au moins un seuil mesuré (LT1/LT2/VC) → cibles fiables ;
+   *  - `estimated`  : pas de seuil mais un VDOT (chrono saisi) → allures dérivées, « estimées » ;
+   *  - `incomplete` : ni seuil ni VDOT → rien de calculable (proposer un chrono de référence).
+   */
+  readonly profileStatus = computed<ProfileStatus | null>(() => {
+    const p = this.profile();
+    if (!this.calcAthleteId() || !p) return null;
+    if (p.lt1Ms != null || p.lt2Ms != null || p.vcMs != null) return 'measured';
+    if (p.vdot != null) return 'estimated';
+    return 'incomplete';
+  });
 
   /** Mode édition d'une séance planifiée (vs modèle de bibliothèque). */
   readonly isWorkout = computed(() => !!this.workoutId());
@@ -76,6 +99,7 @@ export class SessionEditorComponent implements OnInit {
       // Mode séance planifiée : athlète fixe, on charge le snapshot puis on recalcule.
       this.name.set('Adapter la séance');
       this.calcAthleteId.set(this.athleteId());
+      this.loadProfile(this.athleteId());
       this.workoutService.prescription(this.athleteId(), this.workoutId()).subscribe({
         next: (p) => {
           this.structure.set(p.snapshot ?? { warmup: [], main: [], cooldown: [] });
@@ -122,24 +146,63 @@ export class SessionEditorComponent implements OnInit {
     return this.structure()[key];
   }
 
-  /** Types de bloc proposés (liste fermée plutôt qu'un champ libre, plus intuitif). */
-  readonly blockTypes = ['easy', 'warmup', 'cooldown', 'intervals', 'tempo', 'threshold', 'recovery', 'long', 'run'];
+  /** Total estimé de la séance (durée + distance), agrégé depuis les cibles calculées par bloc. */
+  readonly sessionTotals = computed(() => {
+    const calc = this.calc();
+    let durationS = 0;
+    let distanceM = 0;
+    let hasAny = false;
+    for (const sec of this.sections) {
+      for (const b of this.structure()[sec.key]) {
+        const c = calc[b.id];
+        if (!c?.computable) continue;
+        if (c.estimatedDurationS) { durationS += c.estimatedDurationS; hasAny = true; }
+        if (c.estimatedDistanceM) { distanceM += c.estimatedDistanceM; hasAny = true; }
+      }
+    }
+    if (!hasAny) return null;
+    const min = Math.round(durationS / 60);
+    const durationLabel = min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}` : `${min} min`;
+    return { durationLabel: durationS ? durationLabel : null, distanceKm: distanceM ? distanceM / 1000 : null };
+  });
+
+  /** Types de bloc proposés (liste fermée plutôt qu'un champ libre, plus intuitif) ; libellés FR. */
+  readonly blockTypes: { value: CourseBlockType; label: string }[] =
+    (Object.keys(COURSE_BLOCK_TYPE_LABELS) as CourseBlockType[])
+      .map((value) => ({ value, label: COURSE_BLOCK_TYPE_LABELS[value] }));
+
+  /**
+   * Référentiel adapté au profil : sans seuil mesuré, on prescrit en allures de course plutôt
+   * qu'en % LT1/LT2/VC. Le moteur applique le même repli (LT1≈marathon, LT2≈10 km, VC≈5 km),
+   * donc les cibles calculées sont identiques — mais la référence affichée reste cohérente avec
+   * ce que l'athlète possède réellement.
+   */
+  private adaptRef(ref: PrescriptionRef): PrescriptionRef {
+    if (this.profileStatus() === 'measured') return ref;
+    switch (ref) {
+      case 'PCT_LT1': return 'PCT_PACE_MARATHON';
+      case 'PCT_LT2': return 'PCT_PACE_10KM';
+      case 'PCT_VC': return 'PCT_PACE_5KM';
+      default: return ref;
+    }
+  }
 
   /** Blocs pré-remplis en un clic, par section (valeurs de départ raisonnables, en fourchettes). */
   presetsFor(key: keyof SessionStructure): { label: string; block: Partial<CourseBlock> }[] {
+    const ref = (r: PrescriptionRef) => this.adaptRef(r);
     if (key === 'warmup') {
       return [
-        { label: 'Échauffement 15 min', block: { type: 'warmup', durationS: 900, prescription: { ref: 'PCT_LT1', minPct: 60, maxPct: 75 } } },
+        { label: 'Échauffement 15 min', block: { type: 'warmup', durationS: 900, prescription: { ref: ref('PCT_LT1'), minPct: 60, maxPct: 75 } } },
       ];
     }
     if (key === 'cooldown') {
       return [
-        { label: 'Retour au calme 10 min', block: { type: 'cooldown', durationS: 600, prescription: { ref: 'PCT_LT1', minPct: 55, maxPct: 70 } } },
+        { label: 'Retour au calme 10 min', block: { type: 'cooldown', durationS: 600, prescription: { ref: ref('PCT_LT1'), minPct: 55, maxPct: 70 } } },
       ];
     }
     return [
       { label: 'Intervalles 6×400 m', block: { type: 'intervals', reps: 6, distanceM: 400, prescription: { ref: 'PCT_PACE_5KM', minPct: 98, maxPct: 105 } } },
-      { label: 'Seuil 20 min', block: { type: 'threshold', durationS: 1200, prescription: { ref: 'PCT_LT2', minPct: 95, maxPct: 100 } } },
+      { label: 'Seuil 20 min', block: { type: 'threshold', durationS: 1200, prescription: { ref: ref('PCT_LT2'), minPct: 95, maxPct: 100 } } },
       { label: 'Tempo 4 km', block: { type: 'tempo', distanceM: 4000, prescription: { ref: 'PCT_PACE_10KM', minPct: 95, maxPct: 100 } } },
     ];
   }
@@ -197,7 +260,63 @@ export class SessionEditorComponent implements OnInit {
   onAthleteChange(id: string): void {
     this.calcAthleteId.set(id);
     this.calc.set({});
+    this.profile.set(null);
+    if (id) this.loadProfile(id);
     this.recalcAll();
+  }
+
+  /** Charge le profil physio de l'athlète du calculateur (pour le statut + le bootstrap chrono). */
+  private loadProfile(athleteId: string): void {
+    this.physio.profile(athleteId).subscribe({
+      next: (p) => this.profile.set(p),
+      error: () => this.profile.set(null),
+    });
+  }
+
+  // --- Bootstrap : saisir un chrono de référence quand le profil est incomplet -------------
+
+  /** Distances proposées pour amorcer le VDOT (chronos de référence). */
+  readonly bootstrapDistances: { value: string; label: string }[] = [
+    { value: 'D1500', label: '1500 m' },
+    { value: 'D3000', label: '3000 m' },
+    { value: 'D5KM', label: '5 km' },
+    { value: 'D10KM', label: '10 km' },
+    { value: 'D15KM', label: '15 km' },
+    { value: 'SEMI', label: 'Semi-marathon' },
+    { value: 'MARATHON', label: 'Marathon' },
+  ];
+  bootstrapDistance = 'D10KM';
+  bootstrapTime = '';
+  readonly bootstrapBusy = signal(false);
+
+  /** Parse « mm:ss » ou « hh:mm:ss » en secondes ; null si invalide. */
+  private parseTime(input: string): number | null {
+    const parts = input.trim().split(':').map((p) => Number(p));
+    if (parts.some((n) => Number.isNaN(n) || n < 0)) return null;
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return null;
+  }
+
+  /** Enregistre un chrono de référence pour l'athlète → débloque VDOT + allures, puis recalcule. */
+  submitBootstrap(): void {
+    const athleteId = this.calcAthleteId();
+    const seconds = this.parseTime(this.bootstrapTime);
+    if (!athleteId || seconds == null || seconds <= 0) {
+      this.toast.warning('Renseigne un temps valide (mm:ss ou hh:mm:ss).');
+      return;
+    }
+    this.bootstrapBusy.set(true);
+    this.physio.addPerformance(athleteId, { distance: this.bootstrapDistance, timeSeconds: seconds }).subscribe({
+      next: () => {
+        this.bootstrapTime = '';
+        this.toast.success('Chrono enregistré — allures estimées disponibles.');
+        this.loadProfile(athleteId);
+        this.recalcAll();
+        this.bootstrapBusy.set(false);
+      },
+      error: () => { this.bootstrapBusy.set(false); this.toast.error('Enregistrement impossible.'); },
+    });
   }
 
   recalc(b: CourseBlock): void {
