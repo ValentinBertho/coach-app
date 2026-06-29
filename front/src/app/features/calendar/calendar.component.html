@@ -120,11 +120,9 @@
     <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
   </div>
 } @else {
-  <div class="cal-layout" cdkDropListGroup>
+  <div class="cal-layout" [class.with-lib]="sidebarOpen()" cdkDropListGroup>
     @if (sidebarOpen()) {
-      <div class="lib-backdrop" (click)="toggleSidebar()" aria-hidden="true"></div>
-    }
-    <aside class="cal-sidebar lib-drawer" [class.open]="sidebarOpen()" aria-label="Bibliothèque de séances">
+    <aside class="cal-sidebar" aria-label="Bibliothèque de séances">
       <div class="cal-sidebar__hd">
         <h3>Bibliothèque</h3>
         <button type="button" class="icon-btn" (click)="toggleSidebar()" title="Masquer la bibliothèque">✕</button>
@@ -164,6 +162,7 @@
         }
       </div>
     </aside>
+    }
 
     <div class="cal-main">
       <div class="weekday-row">
