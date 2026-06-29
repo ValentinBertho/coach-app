@@ -26,16 +26,18 @@
 
   @if (mode() === 'week') {
     <span class="volume metric">{{ weeklyVolumeKm() }} km prévus</span>
-    <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="duplicateWeek()"
-            [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
-            title="Copier cette semaine vers la suivante">
-      <app-icon name="copy" [size]="15" /> Dupliquer la semaine
-    </button>
-    <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="toggleMeso()"
-            [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
-            title="Générer un mésocycle progressif">
-      <app-icon name="trending-up" [size]="15" /> Mésocycle
-    </button>
+    @if (advancedPlanning) {
+      <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="duplicateWeek()"
+              [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
+              title="Copier cette semaine vers la suivante">
+        <app-icon name="copy" [size]="15" /> Dupliquer la semaine
+      </button>
+      <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="toggleMeso()"
+              [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
+              title="Générer un mésocycle progressif">
+        <app-icon name="trending-up" [size]="15" /> Mésocycle
+      </button>
+    }
   }
 
   <button type="button" class="btn btn-ghost btn-sm lib-toggle" (click)="toggleSidebar()"
@@ -50,7 +52,7 @@
   </div>
 }
 
-@if (showMeso() && mode() === 'week') {
+@if (advancedPlanning && showMeso() && mode() === 'week') {
   <section class="card meso-panel">
     <h2>Générer un mésocycle</h2>
     <p class="field-hint">À partir de la semaine affichée (semaine type), génère les semaines suivantes avec une montée de charge progressive et des décharges.</p>
@@ -118,9 +120,11 @@
     <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
   </div>
 } @else {
-  <div class="cal-layout" [class.sidebar-collapsed]="!sidebarOpen()" cdkDropListGroup>
+  <div class="cal-layout" cdkDropListGroup>
     @if (sidebarOpen()) {
-    <aside class="cal-sidebar">
+      <div class="lib-backdrop" (click)="toggleSidebar()" aria-hidden="true"></div>
+    }
+    <aside class="cal-sidebar lib-drawer" [class.open]="sidebarOpen()" aria-label="Bibliothèque de séances">
       <div class="cal-sidebar__hd">
         <h3>Bibliothèque</h3>
         <button type="button" class="icon-btn" (click)="toggleSidebar()" title="Masquer la bibliothèque">✕</button>
@@ -160,7 +164,6 @@
         }
       </div>
     </aside>
-    }
 
     <div class="cal-main">
       <div class="weekday-row">

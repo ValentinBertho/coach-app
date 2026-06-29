@@ -1,28 +1,35 @@
 <div class="layout">
   <!-- Sidebar (desktop / tablette) -->
-  <aside class="sidebar desktop-only">
+  <aside class="sidebar desktop-only" [class.collapsed]="navCollapsed()">
     <div class="brand">
-      <app-logo [size]="30" [showText]="true" />
-      <button type="button" class="btn btn-ghost btn-sm" (click)="help.openSearch()" aria-label="Rechercher dans l'aide"><app-icon name="search" [size]="18" /></button>
-      <app-notification-bell />
+      <app-logo [size]="30" [showText]="!navCollapsed()" />
+      @if (!navCollapsed()) {
+        <button type="button" class="btn btn-ghost btn-sm" (click)="help.openSearch()" aria-label="Rechercher dans l'aide"><app-icon name="search" [size]="18" /></button>
+        <app-notification-bell />
+      }
     </div>
-    @if (user()?.clubName) {
+    <button type="button" class="nav-toggle" (click)="toggleNav()"
+            [title]="navCollapsed() ? 'Déplier le menu' : 'Replier le menu'"
+            [attr.aria-label]="navCollapsed() ? 'Déplier le menu' : 'Replier le menu'">
+      <app-icon [name]="navCollapsed() ? 'chevrons-right' : 'chevrons-left'" [size]="16" />
+    </button>
+    @if (user()?.clubName && !navCollapsed()) {
       <span class="badge badge-neutral club-badge">{{ user()?.clubName }}</span>
     }
 
     <nav class="snav">
-      <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+      <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" title="Tableau de bord">
         <app-icon name="layout-dashboard" [size]="18" /><span>Tableau de bord</span>
       </a>
-      <a routerLink="/app/athletes" routerLinkActive="active"><app-icon name="users" [size]="18" /><span>Athlètes</span></a>
-      <a routerLink="/app/groups" routerLinkActive="active"><app-icon name="users-round" [size]="18" /><span>Groupes</span></a>
-      <a routerLink="/app/calendar" routerLinkActive="active"><app-icon name="calendar" [size]="18" /><span>Calendrier</span></a>
-      <a routerLink="/app/templates" routerLinkActive="active"><app-icon name="library" [size]="18" /><span>Bibliothèque</span></a>
-      <a routerLink="/app/run-drills" routerLinkActive="active"><app-icon name="graduation-cap" [size]="18" /><span>Éducatifs</span></a>
-      <a routerLink="/app/strength" routerLinkActive="active"><app-icon name="dumbbell" [size]="18" /><span>Prépa physique</span></a>
-      <a routerLink="/app/club" routerLinkActive="active"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
-      <a routerLink="/app/settings" routerLinkActive="active"><app-icon name="settings" [size]="18" /><span>Paramètres</span></a>
-      <a routerLink="/app/aide" routerLinkActive="active"><app-icon name="life-buoy" [size]="18" /><span>Aide</span></a>
+      <a routerLink="/app/athletes" routerLinkActive="active" title="Athlètes"><app-icon name="users" [size]="18" /><span>Athlètes</span></a>
+      <a routerLink="/app/groups" routerLinkActive="active" title="Groupes"><app-icon name="users-round" [size]="18" /><span>Groupes</span></a>
+      <a routerLink="/app/calendar" routerLinkActive="active" title="Calendrier"><app-icon name="calendar" [size]="18" /><span>Calendrier</span></a>
+      <a routerLink="/app/templates" routerLinkActive="active" title="Bibliothèque"><app-icon name="library" [size]="18" /><span>Bibliothèque</span></a>
+      <a routerLink="/app/run-drills" routerLinkActive="active" title="Éducatifs"><app-icon name="graduation-cap" [size]="18" /><span>Éducatifs</span></a>
+      <a routerLink="/app/strength" routerLinkActive="active" title="Prépa physique"><app-icon name="dumbbell" [size]="18" /><span>Prépa physique</span></a>
+      <a routerLink="/app/club" routerLinkActive="active" title="Club"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
+      <a routerLink="/app/settings" routerLinkActive="active" title="Paramètres"><app-icon name="settings" [size]="18" /><span>Paramètres</span></a>
+      <a routerLink="/app/aide" routerLinkActive="active" title="Aide"><app-icon name="life-buoy" [size]="18" /><span>Aide</span></a>
     </nav>
 
     <div class="side-user">

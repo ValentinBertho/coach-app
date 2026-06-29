@@ -14,7 +14,7 @@ import {
   Mountain, MountainSnow, Bike, Moon, Timer, Flame, Zap, Wind, Target, FlaskConical, Flag,
   HeartPulse, Thermometer, Palmtree, Pin, Ban, Bell, FileText, Paperclip, Lock, Blocks, BookOpen,
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
-  Move, Hand, PartyPopper, Circle, Activity, ChevronRight, Copy, Save,
+  Move, Hand, PartyPopper, Circle, Activity, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Save,
   LayoutGrid, List, PanelLeft,
   LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck,
 } from 'lucide-angular';
@@ -31,7 +31,7 @@ const ICONS = {
   Mountain, MountainSnow, Bike, Moon, Timer, Flame, Zap, Wind, Target, FlaskConical, Flag,
   HeartPulse, Thermometer, Palmtree, Pin, Ban, Bell, FileText, Paperclip, Lock, Blocks, BookOpen,
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
-  Move, Hand, PartyPopper, Circle, Activity, ChevronRight, Copy, Save,
+  Move, Hand, PartyPopper, Circle, Activity, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Save,
   LayoutGrid, List, PanelLeft,
   LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck,
 };

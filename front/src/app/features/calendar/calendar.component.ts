@@ -119,6 +119,8 @@ export class CalendarComponent implements OnInit {
   readonly athletes = signal<AthleteSummary[]>([]);
   selectedAthleteId = '';
   readonly mode = signal<'week' | 'month'>('week');
+  /** Actions de planification avancées (duplication de semaine, mésocycle) — masquées pour l'instant. */
+  readonly advancedPlanning = false;
   readonly anchor = signal<Date>(new Date());
   readonly workouts = signal<Workout[]>([]);
   readonly strength = signal<ScheduledStrength[]>([]);
@@ -404,8 +406,8 @@ export class CalendarComponent implements OnInit {
   /** Date pour laquelle le sélecteur de séance course est ouvert (null = fermé). */
   readonly pickerDate = signal<string | null>(null);
 
-  /** Bibliothèque latérale dépliée (desktop) — repliable pour voir la semaine complète. */
-  readonly sidebarOpen = signal(true);
+  /** Tiroir bibliothèque (droite) — fermé par défaut : le calendrier occupe toute la largeur. */
+  readonly sidebarOpen = signal(false);
   toggleSidebar(): void { this.sidebarOpen.update((v) => !v); }
 
   /** Le coach peut-il prescrire à l'athlète sélectionné ? (false = lecture seule). */
