@@ -16,6 +16,31 @@ export interface CourseRecovery {
   prescription?: CoursePrescription | null;
 }
 
+/** Types de bloc course (liste fermée). La clé reste en anglais (stockage) ; l'UI affiche le libellé FR. */
+export type CourseBlockType =
+  | 'easy' | 'warmup' | 'cooldown' | 'intervals'
+  | 'tempo' | 'threshold' | 'recovery' | 'long' | 'run';
+
+/** Libellés français des types de bloc (affichage UI). Voir convention README : code EN, UI FR. */
+export const COURSE_BLOCK_TYPE_LABELS: Record<CourseBlockType, string> = {
+  easy: 'Footing',
+  warmup: 'Échauffement',
+  cooldown: 'Retour au calme',
+  intervals: 'Intervalles',
+  tempo: 'Tempo',
+  threshold: 'Seuil',
+  recovery: 'Récupération',
+  long: 'Sortie longue',
+  run: 'Course',
+};
+
+/** Libellé FR d'un type de bloc ; repli capitalisé pour les types hors liste. */
+export function courseBlockTypeLabel(type: string | null | undefined): string {
+  if (!type) return 'Bloc';
+  const known = COURSE_BLOCK_TYPE_LABELS[type as CourseBlockType];
+  return known ?? type.charAt(0).toUpperCase() + type.slice(1);
+}
+
 export interface CourseBlock {
   id: string;
   type: string;

@@ -83,3 +83,21 @@
 .bd-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
 .bd-chip { font-size: var(--text-sm); padding: 2px 10px; border: 1px solid var(--hairline); border-radius: var(--radius-full); background: transparent; cursor: pointer; color: var(--ink-2); }
 .bd-chip.on { background: var(--primary-wash); color: var(--primary); border-color: var(--primary); }
+
+/* Statut de complétude du profil (planification sans test LT) */
+.profile-status { margin-bottom: var(--sp-3); border-left: 3px solid var(--hairline); }
+.profile-status .ps-line { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
+.ps-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-4); transform: translateY(-1px); }
+.profile-status.measured { border-left-color: var(--success, #16a34a); }
+.profile-status.measured .ps-dot { background: var(--success, #16a34a); }
+.profile-status.estimated { border-left-color: var(--warning-text, #b45309); }
+.profile-status.estimated .ps-dot { background: var(--warning-text, #b45309); }
+.profile-status.incomplete { border-left-color: var(--danger, #dc2626); }
+.profile-status.incomplete .ps-dot { background: var(--danger, #dc2626); }
+.bootstrap-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--sp-2); align-items: center; }
+.bootstrap-row .nm { max-width: 120px; }
+
+/* Total estimé de la séance (en-tête) */
+.header-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; justify-content: flex-end; }
+.session-total { font-size: var(--text-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.session-total strong { color: var(--primary); }

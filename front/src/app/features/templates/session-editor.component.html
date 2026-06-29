@@ -14,7 +14,17 @@
       }
     </p>
   </div>
-  <button type="button" class="btn btn-primary" (click)="save()">Enregistrer</button>
+  <div class="header-actions">
+    @if (sessionTotals(); as t) {
+      <span class="session-total" title="Total estimé pour l'athlète du calculateur">
+        Total estimé :
+        @if (t.durationLabel) { <strong>{{ t.durationLabel }}</strong> }
+        @if (t.durationLabel && t.distanceKm) { · }
+        @if (t.distanceKm) { <strong>{{ t.distanceKm.toFixed(1) }} km</strong> }
+      </span>
+    }
+    <button type="button" class="btn btn-primary" (click)="save()">Enregistrer</button>
+  </div>
 </section>
 
 @if (!isWorkout()) {
@@ -24,6 +34,25 @@
       <option value="">Sélectionner un athlète…</option>
       @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
     </select>
+  </div>
+}
+
+@if (profileStatus(); as st) {
+  <div class="card profile-status" [class.measured]="st === 'measured'" [class.estimated]="st === 'estimated'" [class.incomplete]="st === 'incomplete'">
+    @if (st === 'measured') {
+      <p class="ps-line"><span class="ps-dot"></span><strong>Seuils mesurés</strong> — cibles d'allure et de FC fiables.</p>
+    } @else if (st === 'estimated') {
+      <p class="ps-line"><span class="ps-dot"></span><strong>Allures estimées</strong> (dérivées du VDOT, aucun test lactate). Les fourchettes restent exploitables ; un test lactate les affinera. La FC cible n'est pas calculée sans seuils.</p>
+    } @else {
+      <p class="ps-line"><span class="ps-dot"></span><strong>Profil incomplet</strong> — ni test lactate ni chrono. Saisis un chrono de référence pour débloquer des allures estimées :</p>
+      <div class="bootstrap-row">
+        <select class="form-control" [(ngModel)]="bootstrapDistance" title="Distance du chrono">
+          @for (d of bootstrapDistances; track d.value) { <option [value]="d.value">{{ d.label }}</option> }
+        </select>
+        <input class="form-control nm" [(ngModel)]="bootstrapTime" placeholder="mm:ss" title="Temps (mm:ss ou hh:mm:ss)" />
+        <button type="button" class="btn btn-sm btn-primary" [disabled]="bootstrapBusy()" (click)="submitBootstrap()">Enregistrer le chrono</button>
+      </div>
+    }
   </div>
 }
 
@@ -46,7 +75,7 @@
       <div class="block">
         <div class="block-edit">
           <select class="form-control type" [(ngModel)]="b.type" (ngModelChange)="recalc(b)" title="Type de bloc">
-            @for (t of blockTypes; track t) { <option [value]="t">{{ t }}</option> }
+            @for (t of blockTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
           </select>
           <input type="number" class="form-control nm" [(ngModel)]="b.reps" (ngModelChange)="recalc(b)" placeholder="×N" title="Répétitions" />
           <select class="form-control" [ngModel]="measureOf(b)" (ngModelChange)="setMeasure(b, $event)" title="Mesurer par">

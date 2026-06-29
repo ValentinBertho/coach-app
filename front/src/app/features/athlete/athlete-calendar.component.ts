@@ -8,7 +8,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { DataOriginTagComponent, IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
 import { BottomSheetComponent } from '../../shared/components/ui';
 import { HelpHintComponent } from '../help/help-hint.component';
-import { CalculatedBlockEntry, CourseBlock, WorkoutPrescription } from '../../core/models/course.model';
+import { CalculatedBlockEntry, courseBlockTypeLabel, CourseBlock, WorkoutPrescription } from '../../core/models/course.model';
 
 interface DayRow {
   date: string;
@@ -379,7 +379,7 @@ export class AthleteCalendarComponent implements OnInit {
   blockLabel(b: CourseBlock): string {
     const reps = (b.reps ?? 1) > 1 ? `${b.reps} × ` : '';
     const size = b.distanceM ? `${b.distanceM} m` : (b.durationS ? this.fmtDur(b.durationS) : '');
-    return (reps + size).trim() || (b.type ?? 'Bloc');
+    return (reps + size).trim() || courseBlockTypeLabel(b.type);
   }
 
   /** Durée « h:mm » ou « m min ». */
