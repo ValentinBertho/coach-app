@@ -30,6 +30,21 @@ export class CoachLayoutComponent implements OnInit {
   readonly user = this.auth.currentUser;
   readonly resending = signal(false);
 
+  /** Nav latérale repliée en rail d'icônes — préférence mémorisée entre sessions. */
+  private static readonly NAV_KEY = 'coach-nav-collapsed';
+  readonly navCollapsed = signal(this.readNavPref());
+
+  private readNavPref(): boolean {
+    try { return localStorage.getItem(CoachLayoutComponent.NAV_KEY) === '1'; }
+    catch { return false; }
+  }
+
+  toggleNav(): void {
+    this.navCollapsed.update((v) => !v);
+    try { localStorage.setItem(CoachLayoutComponent.NAV_KEY, this.navCollapsed() ? '1' : '0'); }
+    catch { /* stockage indisponible : préférence non persistée, sans gravité */ }
+  }
+
   ngOnInit(): void {
     if (!this.auth.currentUser()) {
       this.auth.loadCurrentUser().subscribe({ error: () => this.logout() });

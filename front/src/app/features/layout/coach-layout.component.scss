@@ -22,6 +22,17 @@
 .brand { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: 0 var(--sp-2); }
 .club-badge { width: fit-content; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Bouton de repli de la nav (rail d'icônes) */
+.nav-toggle {
+  align-self: flex-end;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border: 1px solid var(--hairline); border-radius: var(--radius);
+  background: var(--paper); color: var(--ink-3); cursor: pointer;
+  transition: background var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
+}
+.nav-toggle:hover { background: var(--paper-sunk); color: var(--ink); }
+
 .snav { display: flex; flex-direction: column; gap: 2px; margin-top: var(--sp-2); }
 .snav a {
   display: flex;
@@ -48,6 +59,21 @@
 }
 .user-name { font-size: var(--text-sm); color: var(--ink-3); font-weight: 600; padding: 0 var(--sp-2); }
 .side-user__actions { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+
+/* --- Nav repliée (rail d'icônes) --- */
+.sidebar.collapsed {
+  width: 72px;
+  padding-left: var(--sp-2);
+  padding-right: var(--sp-2);
+  align-items: stretch;
+}
+.sidebar.collapsed .brand { justify-content: center; padding: 0; }
+.sidebar.collapsed .nav-toggle { align-self: center; }
+.sidebar.collapsed .snav a { justify-content: center; gap: 0; padding: var(--sp-2); }
+.sidebar.collapsed .snav span { display: none; }
+.sidebar.collapsed .side-user { align-items: center; }
+.sidebar.collapsed .user-name { display: none; }
+.sidebar.collapsed .side-user__actions { justify-content: center; }
 
 /* --- Main --- */
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
