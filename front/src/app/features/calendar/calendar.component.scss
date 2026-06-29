@@ -96,21 +96,22 @@
   margin-left: auto;
 }
 
-/* --- Calendrier pleine largeur + bibliothèque en tiroir droit ----- */
-.cal-layout { display: block; }
-.cal-main { min-width: 0; }
-.lib-backdrop { position: fixed; inset: 0; z-index: 39; background: color-mix(in srgb, var(--ink) 28%, transparent); }
-.lib-drawer {
-  position: fixed; top: 0; right: 0; z-index: 40;
-  width: min(320px, 88vw); height: 100dvh;
-  display: flex; flex-direction: column;
-  background: var(--paper); border-left: 1px solid var(--hairline);
-  box-shadow: var(--shadow-lg, 0 8px 40px rgba(0,0,0,.18));
-  padding: var(--sp-4); overflow-y: auto;
-  transform: translateX(100%); transition: transform .22s var(--ease, ease);
+/* --- Calendrier pleine largeur ; bibliothèque inline repliable (drag&drop) ----- */
+/* Fermée : le calendrier occupe toute la largeur. Ouverte : colonne latérale qui
+   décale le calendrier (sans le recouvrir) → le glisser-déposer reste fonctionnel. */
+.cal-layout { display: flex; gap: var(--sp-4); align-items: start; }
+.cal-layout.with-lib { display: grid; grid-template-columns: 240px 1fr; }
+.cal-main { min-width: 0; flex: 1; }
+.cal-sidebar {
+  background: var(--paper); border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg); padding: var(--sp-4);
+  position: sticky; top: var(--sp-4); max-height: calc(100dvh - var(--sp-8)); overflow-y: auto;
 }
-.lib-drawer.open { transform: none; }
 .cal-sidebar__hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+@media (max-width: 900px) {
+  .cal-layout.with-lib { grid-template-columns: 1fr; }
+  .cal-sidebar { position: static; max-height: none; }
+}
 .cal-sidebar h3 { margin: 0 0 var(--sp-1); font-size: var(--text-md); }
 .lib-list { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-3); min-height: 40px; }
 .lib-item {
