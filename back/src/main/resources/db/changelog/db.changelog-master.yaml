@@ -93,3 +93,5 @@ databaseChangeLog:
       file: db/changelog/changes/044-metric-types.yaml
   - include:
       file: db/changelog/changes/045-training-zones.yaml
+  - include:
+      file: db/changelog/changes/046-athlete-zone-values.yaml

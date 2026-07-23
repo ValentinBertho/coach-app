@@ -112,7 +112,8 @@ public class SessionCalculatorService {
         return CalculatedBlockResponse.from(engine.calculate(input, ctx));
     }
 
-    private AthletePaceContext contextFor(UUID clubId, UUID athleteId) {
+    /** Assemble le contexte physio d'un athlète (seuils + allures VDOT) — réutilisable (ex. resync des zones). */
+    public AthletePaceContext contextFor(UUID clubId, UUID athleteId) {
         Athlete a = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         AthleteVdotPace paces = vdotPaceRepository.findByAthleteId(athleteId).orElse(null);
