@@ -24,6 +24,8 @@ export interface PpExercise {
   id: string;
   name: string;
   category: ExerciseCategory;
+  /** Catégorie de l'arbre unifié (domaine STRENGTH), optionnelle (QA1). */
+  categoryId: string | null;
   level: ExerciseLevel | null;
   objective: string | null;
   muscleGroups: MuscleGroup[];
@@ -42,12 +44,18 @@ export interface PpExercise {
 export interface PpExerciseRequest {
   name: string;
   category: ExerciseCategory;
+  categoryId?: string | null;
   level?: ExerciseLevel | null;
   objective?: string | null;
   muscleGroups?: MuscleGroup[];
   equipment?: EquipmentType[];
   videoUrl?: string | null;
+  imageUrl?: string | null;
   instructions?: string | null;
+  technicalNotes?: string | null;
+  contraindications?: string | null;
+  progressionId?: string | null;
+  regressionId?: string | null;
 }
 
 export interface WorkZone {

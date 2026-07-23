@@ -1,11 +1,14 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { SessionCategory, SessionCategoryRequest } from '../models/session-category.model';
+import { CategoryDomain, SessionCategory, SessionCategoryRequest } from '../models/session-category.model';
 import { AuthService } from './auth.service';
 
-/** Catégories de la bibliothèque de séances course (CRUD scopé club). */
+/**
+ * Catégories de bibliothèque (CRUD scopé club), unifiées sur les trois domaines (QA1).
+ * Le domaine par défaut reste COURSE (rétrocompatible) ; `domain` cible prépa physique / éducatifs.
+ */
 @Injectable({ providedIn: 'root' })
 export class SessionCategoryService {
   private readonly http = inject(HttpClient);
@@ -15,11 +18,15 @@ export class SessionCategoryService {
     return `${environment.apiUrl}/clubs/${this.auth.clubId()}/session-categories`;
   }
 
-  list(): Observable<SessionCategory[]> {
-    return this.http.get<SessionCategory[]>(this.base());
+  private domainParams(domain?: CategoryDomain): { params?: HttpParams } {
+    return domain ? { params: new HttpParams().set('domain', domain) } : {};
   }
-  create(body: SessionCategoryRequest): Observable<SessionCategory> {
-    return this.http.post<SessionCategory>(this.base(), body);
+
+  list(domain?: CategoryDomain): Observable<SessionCategory[]> {
+    return this.http.get<SessionCategory[]>(this.base(), this.domainParams(domain));
+  }
+  create(body: SessionCategoryRequest, domain?: CategoryDomain): Observable<SessionCategory> {
+    return this.http.post<SessionCategory>(this.base(), body, this.domainParams(domain));
   }
   update(id: string, body: SessionCategoryRequest): Observable<SessionCategory> {
     return this.http.put<SessionCategory>(`${this.base()}/${id}`, body);
