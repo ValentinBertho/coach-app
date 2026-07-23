@@ -145,6 +145,8 @@ MetricType (catalogue)            TrainingZone (club)              AthleteZoneVa
 | **E5** | **Granularité fixe (6 zones)** | Pas d'échelle fine allures de compétition (5k/3k/1500/800/400) comme les 13 zones Nolio. |
 | **E6** | **Éditeur de séance encore dense** (voir §3.7) | Malgré Z3, trop d'éléments à l'écran (aperçu calculé complet, éducatifs, bootstrap, sélecteur d'athlète) → perçu « complexe et pas clair ». |
 | **E7** | **Temps-en-zone réalisé absent** | Pas de flux FC/allure stocké (résumés seulement). Chantier data séparé. |
+| **E8** | **Récup inter-répétitions non éditable** | `CourseBlock.recovery` existe dans le modèle et s'affiche en lecture, mais **l'éditeur ne permet pas de la saisir** → impossible de définir « 6×400 m **récup 1'** » depuis l'UI. **Manque bloquant** pour les séances de fractionné. |
+| **E9** | **Création lente : la zone ne « tire » pas ses cibles en évidence** | On sélectionne une zone mais son paramétrage (« EF = 60 % », « Seuil = 80 % ») n'est pas montré au moment du choix → le coach ne va pas assez vite / ne voit pas ce qu'il prescrit. |
 
 ---
 
@@ -232,21 +234,28 @@ poignée · type · reps · bascule mesure · champ · pastille zone · sélecte
 **Cible — un builder guidé et épuré :**
 
 1. **Sections claires** Échauffement · Corps · Retour au calme (conservé).
-2. **Groupes de répétitions** façon Nolio : un bloc à `reps > 1` s'affiche dans un **cadre `×N`** qui
-   **englobe sa récupération** (l'effort **et** sa récup dans le même bloc visuel), au lieu de deux
-   lignes séparées.
-3. **Carte de bloc minimale** : `[type] [ ×N · volume (toggle dist/durée) ] [ ● zone ]` + une cible
-   **lue en petit** dessous (`3:35–3:45/km · 178–185 bpm`). 3 contrôles, pas 7.
-4. **Secondaire replié par défaut** : l'aperçu détaillé (vitesse, RPE), les éducatifs et le
+2. **Groupes de répétitions avec récup éditable** (corrige **E8**) façon Nolio : un bloc à `reps > 1`
+   s'affiche dans un **cadre `×N`** qui **englobe sa récupération éditable** :
+   `12× { 400 m · VO2 } + { récup 1' · Récupération }`. La récup est un **sous-bloc à part entière**
+   (type trot/marche · volume durée/distance · zone), plus deux lignes séparées ni un champ manquant.
+   Presets d'intervalles pré-remplis **avec** leur récup (ex. « 10×400 m r1' », « 6×1000 m R2' »).
+3. **La zone tire ses cibles pré-paramétrées, en évidence** (corrige **E9**) — le point clé pour
+   **aller vite** : le sélecteur de zone montre **le paramétrage** au moment du choix
+   (`EF · 60–70 % · 5:00–5:25/km`, `Seuil · 96–103 % · 4:00–4:08/km`). On choisit un **libellé** et la
+   cible tombe toute seule (allure + FC), lue depuis la zone/les règles. Zéro saisie de chiffres.
+4. **Carte de bloc minimale** : `[type] [ ×N · volume (toggle dist/durée) ] [ ● zone (avec sa cible) ]`.
+   3 contrôles, pas 7 ; la cible **lue** en petit dessous (`3:35–3:45/km · 178–185 bpm`).
+5. **Secondaire replié par défaut** : l'aperçu détaillé (vitesse, RPE), les éducatifs et le
    commentaire par bloc passent derrière un **« ⋯ / Détails »**. On ne les voit que si on les demande.
-5. **Commentaire coach par bloc** (parité Nolio) : champ optionnel « 1'13-1'14, plus vite si ok ».
-6. **Ajout guidé** : gros boutons `+ Intervalles` · `+ Seuil` · `+ Endurance` · `+ Bloc` avec zone
-   **pré-sélectionnée par type** (déjà en place), pour construire une séance en quelques clics.
-7. **Sélecteur d'athlète / bootstrap** : sortis du flux principal (repliés en haut), car en mode
+6. **Commentaire coach par bloc** (parité Nolio) : champ optionnel « 1'13-1'14, plus vite si ok ».
+7. **Ajout guidé** : gros boutons `+ Intervalles` · `+ Seuil` · `+ Endurance` · `+ Bloc` avec zone
+   **pré-sélectionnée par type** (déjà en place) **et récup pré-remplie** pour les fractionnés,
+   pour construire une séance de fractionné complète en 2–3 clics.
+8. **Sélecteur d'athlète / bootstrap** : sortis du flux principal (repliés en haut), car en mode
    **modèle** on prescrit des **zones** (les cibles concrètes apparaissent à la planification sur un
    athlète). Zéro cul-de-sac : zone non renseignée → chip cliquable → fiche athlète.
-8. **Total de séance** (durée · distance estimées) conservé en pied, discret.
-9. *(Optionnel, plus tard)* **export montre** (« envoyer vers Garmin/Coros ») façon Nolio.
+9. **Total de séance** (durée · distance estimées) conservé en pied, discret.
+10. *(Optionnel, plus tard)* **export montre** (« envoyer vers Garmin/Coros ») façon Nolio.
 
 Résultat : un écran qui **ressemble à Nolio** (blocs encadrés, cibles lues, peu de contrôles) mais qui
 **reste supérieur** grâce à la prescription par zone unifiée (une zone = allure **+** FC).
@@ -272,7 +281,7 @@ Résultat : un écran qui **ressemble à Nolio** (blocs encadrés, cibles lues, 
 | **V2-2** | **Recalcul automatique** : brancher la resync (AUTO non verrouillées) sur maj physio / nouveau chrono / test. | S | Faible |
 | **V2-3** | **Fiche athlète — bloc Références** (ancres visibles + provenance) + tooltip « règle » sur chaque cellule. | M | Faible |
 | **V2-4** | **Écran Zones club — éditeur de règles** (onglets par métrique, colonne Définition ancre + %, aperçu athlète témoin). | M | Faible |
-| **V2-5** | **Refonte éditeur de séance** (§3.7 : groupes ×N encadrés, carte minimale, secondaire replié, commentaire par bloc). | M/L | Moyen (écran très utilisé → tests + captures) |
+| **V2-5** | **Refonte éditeur de séance** (§3.7) : groupes ×N encadrés **avec récup éditable** (corrige E8), sélecteur de zone **montrant sa cible pré-paramétrée** (corrige E9, création rapide), carte minimale, secondaire replié, commentaire par bloc. | M/L | Moyen (écran très utilisé → tests + captures) |
 | **V2-6** *(option)* | Échelle fine / bornes contiguës + zones de compétition (5k…400m) ; multi-sport « tout sport ». | M | Faible |
 | **V2-7** *(option, data)* | Ingestion des **flux** d'activité → **temps-en-zone réalisé** (barre Nolio côté réalisé). | L | Élevé (dépend des API montres) |
 
