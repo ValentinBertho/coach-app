@@ -74,7 +74,7 @@ export class TimeInZoneBarComponent {
       const a = this.athleteId();
       const id = this.activityId();
       if (a && id) this.fetch(a, id);
-    });
+    }, { allowSignalWrites: true });
   }
 
   private fetch(athleteId: string, activityId: string): void {
