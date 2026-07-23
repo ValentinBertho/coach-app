@@ -42,6 +42,13 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                         <span class="cpv__est" title="Allure estimée à partir du VDOT (pas de test lactate)">estimée</span>
                       }
                     }
+                    @if (e.calc?.computable && e.calc?.speedMinKmh != null) {
+                      <app-range-prescription-pill
+                        label="Vitesse"
+                        [min]="e.calc!.speedMinKmh"
+                        [max]="e.calc!.speedMaxKmh"
+                        [format]="speedFmt" unit="km/h" />
+                    }
                     @if (e.calc?.hrMin != null) {
                       <app-range-prescription-pill label="FC" [min]="e.calc!.hrMin" [max]="e.calc!.hrMax" unit="bpm" />
                     }
@@ -118,6 +125,9 @@ export class CoursePrescriptionViewComponent {
     const s = Math.round(secPerKm % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
+
+  /** Vitesse à une décimale (ex. « 14,4 »), virgule décimale FR. */
+  readonly speedFmt = (kmh: number): string => (Math.round(kmh * 10) / 10).toString().replace('.', ',');
 
   /** Au moins un bloc dans le snapshot calculé : sinon le parent garde le rendu zones. */
   readonly hasContent = computed(() => {

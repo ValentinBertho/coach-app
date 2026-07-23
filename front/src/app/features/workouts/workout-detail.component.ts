@@ -66,6 +66,35 @@ export class WorkoutDetailComponent implements OnInit {
     return !!w && (w.rpe != null || !!w.athleteComment);
   });
 
+  /** Bandeau de stats façon Nolio : durée · distance · allure moyenne · charge estimée. */
+  readonly sessionStats = computed(() => {
+    const w = this.workout();
+    if (!w) return null;
+    const calc = this.courseRx()?.calculated;
+    const durationS = calc?.totalDurationS ?? w.targetDurationS ?? null;
+    const distanceM = calc?.totalDistanceM ?? w.targetDistanceM ?? null;
+    const paceLabel = durationS && distanceM ? this.fmtPace(durationS / (distanceM / 1000)) : null;
+    const loadUA = w.rpe != null && durationS ? Math.round(w.rpe * (durationS / 60)) : null;
+    return {
+      durationLabel: durationS ? this.fmtDuration(durationS) : null,
+      distanceKm: distanceM ? distanceM / 1000 : null,
+      paceLabel,
+      loadUA,
+    };
+  });
+
+  fmtDuration(totalS: number): string {
+    const min = Math.round(totalS / 60);
+    if (min < 60) return `${min} min`;
+    return `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+  }
+
+  fmtPace(secPerKm: number): string {
+    const m = Math.floor(secPerKm / 60);
+    const s = Math.round(secPerKm % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
   ngOnInit(): void { this.load(); }
 
   load(): void {

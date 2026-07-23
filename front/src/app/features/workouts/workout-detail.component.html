@@ -19,10 +19,29 @@
             <span class="session-date metric">{{ w.scheduledDate }}</span>
           </div>
           <h1 class="display-sm">{{ w.title }}</h1>
-          @if (w.targetDistanceM) {
-            <p class="session-target metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} <small>km</small></p>
-          }
         </header>
+
+        <!-- ===== Stats (façon Nolio) ===== -->
+        @if (sessionStats(); as st) {
+          <div class="stat-strip card">
+            <div class="stat">
+              <span class="stat__lb">Durée</span>
+              <span class="stat__v metric">{{ st.durationLabel ?? '—' }}</span>
+            </div>
+            <div class="stat">
+              <span class="stat__lb">Distance</span>
+              <span class="stat__v metric">@if (st.distanceKm) { {{ st.distanceKm.toFixed(2) }} <small>km</small> } @else { — }</span>
+            </div>
+            <div class="stat">
+              <span class="stat__lb">Allure</span>
+              <span class="stat__v metric">@if (st.paceLabel) { {{ st.paceLabel }} <small>/km</small> } @else { — }</span>
+            </div>
+            <div class="stat">
+              <span class="stat__lb">Charge estimée</span>
+              <span class="stat__v metric">@if (st.loadUA != null) { {{ st.loadUA }} <small>UA</small> } @else { — }</span>
+            </div>
+          </div>
+        }
 
         <!-- ===== Prescription ===== -->
         @if (courseRxHasContent()) {

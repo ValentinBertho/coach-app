@@ -1,9 +1,24 @@
 .session {
-  max-width: 720px;
+  max-width: 1040px;
   margin-inline: auto;
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
+}
+
+/* --- Bandeau de stats (façon Nolio) -------------------------------------- */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+}
+.stat { display: flex; flex-direction: column; gap: 2px; text-align: center; }
+.stat__lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; }
+.stat__v { font-size: var(--text-2xl); font-weight: 800; color: var(--ink); line-height: 1.1; }
+.stat__v small { font-size: 0.5em; font-weight: 600; color: var(--ink-3); }
+@media (max-width: 640px) {
+  .stat-strip { grid-template-columns: repeat(2, 1fr); gap: var(--sp-4); }
 }
 
 /* --- Header --------------------------------------------------------------- */
