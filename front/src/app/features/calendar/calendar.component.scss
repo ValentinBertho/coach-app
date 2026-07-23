@@ -100,7 +100,7 @@
 /* Fermée : le calendrier occupe toute la largeur. Ouverte : colonne latérale qui
    décale le calendrier (sans le recouvrir) → le glisser-déposer reste fonctionnel. */
 .cal-layout { display: flex; gap: var(--sp-4); align-items: start; }
-.cal-layout.with-lib { display: grid; grid-template-columns: 240px 1fr; }
+.cal-layout.with-lib { display: grid; grid-template-columns: 264px 1fr; }
 .cal-main { min-width: 0; flex: 1; }
 .cal-sidebar {
   background: var(--paper); border: 1px solid var(--hairline);
@@ -113,6 +113,15 @@
   .cal-sidebar { position: static; max-height: none; }
 }
 .cal-sidebar h3 { margin: 0 0 var(--sp-1); font-size: var(--text-md); }
+
+/* Recherche instantanée dans le panneau (icône + champ). */
+.lib-search { position: relative; margin-top: var(--sp-3); }
+.lib-search app-icon {
+  position: absolute; left: var(--sp-2); top: 50%; transform: translateY(-50%);
+  color: var(--ink-3); pointer-events: none;
+}
+.lib-search .form-control { padding-left: calc(var(--sp-2) + 20px); }
+
 .lib-list { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-3); min-height: 40px; }
 .lib-item {
   display: flex; align-items: center; gap: var(--sp-2);
@@ -125,10 +134,42 @@
 .lib-item:active { cursor: grabbing; }
 .li-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.lib-sub { margin: var(--sp-3) 0 var(--sp-1); font-size: var(--text-sm); color: var(--ink-3); }
+.lib-sub {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin: var(--sp-3) 0 var(--sp-1); font-size: var(--text-sm); color: var(--ink-3);
+}
+.lib-count {
+  font-family: var(--font-data); font-size: 10px; font-weight: 800;
+  background: var(--paper-sunk); color: var(--ink-3);
+  padding: 0 var(--sp-2); border-radius: var(--radius-full); margin-left: auto;
+}
 .lib-item.course {
   background: color-mix(in srgb, var(--dari-teal) 14%, var(--paper));
   border-color: color-mix(in srgb, var(--dari-teal) 40%, transparent);
+}
+
+/* --- Feedback drag & drop (QW5) ------------------------------------------- */
+/* Aperçu flottant suivant le curseur pendant le drag. */
+.cdk-drag-preview {
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
+  border-radius: var(--radius-sm);
+  opacity: 0.95;
+}
+/* Trou laissé à la place de l'élément déplacé. */
+.cdk-drag-placeholder {
+  opacity: 0.4;
+  border: 1px dashed var(--primary) !important;
+  background: var(--primary-wash) !important;
+}
+.cdk-drag-animating { transition: transform var(--duration) cubic-bezier(0, 0, 0.2, 1); }
+
+/* Jours pouvant recevoir l'élément en cours de drag → surbrillance de la zone. */
+.day-body.cdk-drop-list-receiving,
+.day-body.cdk-drop-list-dragging {
+  outline: 2px dashed color-mix(in srgb, var(--primary) 55%, transparent);
+  outline-offset: -3px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
 }
 
 /* Pastille de statut (point coloré) — couleur pleine par statut. */

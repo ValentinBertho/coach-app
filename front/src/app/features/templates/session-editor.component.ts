@@ -1,3 +1,4 @@
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -28,7 +29,7 @@ interface Section { key: keyof SessionStructure; label: string; }
   selector: 'app-session-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, DragDropModule],
   templateUrl: './session-editor.component.html',
   styleUrl: './session-editor.component.scss',
 })
@@ -255,6 +256,15 @@ export class SessionEditorComponent implements OnInit {
   removeBlock(key: keyof SessionStructure, id: string): void {
     const s = this.structure();
     this.structure.set({ ...s, [key]: s[key].filter((b) => b.id !== id) });
+  }
+
+  /** Réordonne les blocs d'une section par glisser-déposer (cohérent avec l'éditeur de force). */
+  dropBlock(key: keyof SessionStructure, event: CdkDragDrop<CourseBlock[]>): void {
+    if (event.previousIndex === event.currentIndex) return;
+    const s = this.structure();
+    const arr = [...s[key]];
+    moveItemInArray(arr, event.previousIndex, event.currentIndex);
+    this.structure.set({ ...s, [key]: arr });
   }
 
   onAthleteChange(id: string): void {

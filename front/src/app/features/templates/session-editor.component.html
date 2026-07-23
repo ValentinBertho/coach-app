@@ -71,9 +71,11 @@
       </div>
     </div>
 
+    <div class="block-list" cdkDropList (cdkDropListDropped)="dropBlock(sec.key, $event)">
     @for (b of blocks(sec.key); track b.id) {
-      <div class="block">
+      <div class="block" cdkDrag>
         <div class="block-edit">
+          <span class="drag-handle" cdkDragHandle title="Glisser pour réordonner">⠿</span>
           <select class="form-control type" [(ngModel)]="b.type" (ngModelChange)="recalc(b)" title="Type de bloc">
             @for (t of blockTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
           </select>
@@ -125,6 +127,7 @@
     } @empty {
       <p class="empty-hint">Aucun bloc. Ajoute un bloc.</p>
     }
+    </div>
   </div>
 }
 }
