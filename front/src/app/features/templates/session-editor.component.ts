@@ -1,6 +1,7 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteService } from '../../core/services/athlete.service';
 import { CourseService } from '../../core/services/course.service';
@@ -9,7 +10,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { RunDrillService } from '../../core/services/run-drill.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
-import { CalculatedBlock, COURSE_BLOCK_TYPE_LABELS, CourseBlock, CourseBlockType, SessionStructure } from '../../core/models/course.model';
+import { CalculatedBlock, COURSE_BLOCK_TYPE_LABELS, CourseBlock, CourseBlockType, CourseRecovery, SessionStructure } from '../../core/models/course.model';
 import { PhysioProfile } from '../../core/models/physio.model';
 import { RunDrill } from '../../core/models/run-drill.model';
 import { TrainingZone } from '../../core/models/training-zone.model';
@@ -31,7 +32,7 @@ interface Section { key: keyof SessionStructure; label: string; }
   selector: 'app-session-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DragDropModule],
+  imports: [FormsModule, RouterLink, DragDropModule, IconComponent],
   templateUrl: './session-editor.component.html',
   styleUrl: './session-editor.component.scss',
 })
@@ -76,9 +77,36 @@ export class SessionEditorComponent implements OnInit {
   readonly loading = signal(true);
   readonly structure = signal<SessionStructure>({ warmup: [], main: [], cooldown: [] });
   readonly calc = signal<Record<string, CalculatedBlock>>({});
+  /** Cibles calculées des récupérations inter-répétitions (clé = id du bloc parent). */
+  readonly recCalc = signal<Record<string, CalculatedBlock>>({});
   readonly athleteList = signal<AthleteSummary[]>([]);
   /** Athlète du calculateur live (sélectionnable en mode modèle, fixe en mode séance planifiée). */
   readonly calcAthleteId = signal('');
+  /** Panneau « aperçu athlète » (sélecteur + statut profil) replié par défaut pour épurer. */
+  readonly athletePanelOpen = signal(false);
+  /** Blocs dont le volet « détails » (éducatifs, cible détaillée) est ouvert. */
+  readonly detailsOpen = signal<Set<string>>(new Set());
+
+  /** Types de récupération inter-répétitions. */
+  readonly recoveryTypes: { value: string; label: string }[] = [
+    { value: 'jog', label: 'Trot' },
+    { value: 'walk', label: 'Marche' },
+    { value: 'static', label: 'Statique' },
+  ];
+
+  readonly calcAthleteName = computed(() => {
+    const a = this.athleteList().find((x) => x.id === this.calcAthleteId());
+    return a ? `${a.firstName} ${a.lastName}` : '';
+  });
+
+  toggleDetails(id: string): void {
+    this.detailsOpen.update((s) => {
+      const next = new Set(s);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  isDetailsOpen(id: string): boolean { return this.detailsOpen().has(id); }
 
   readonly sections: Section[] = [
     { key: 'warmup', label: 'Échauffement' },
@@ -183,6 +211,7 @@ export class SessionEditorComponent implements OnInit {
   /** Total estimé de la séance (durée + distance), agrégé depuis les cibles calculées par bloc. */
   readonly sessionTotals = computed(() => {
     const calc = this.calc();
+    const recCalc = this.recCalc();
     let durationS = 0;
     let distanceM = 0;
     let hasAny = false;
@@ -192,6 +221,13 @@ export class SessionEditorComponent implements OnInit {
         if (!c?.computable) continue;
         if (c.estimatedDurationS) { durationS += c.estimatedDurationS; hasAny = true; }
         if (c.estimatedDistanceM) { distanceM += c.estimatedDistanceM; hasAny = true; }
+        // Récup entre répétitions : (reps - 1) × la récup.
+        const rc = recCalc[b.id];
+        const inter = b.reps && b.reps > 1 ? b.reps - 1 : 0;
+        if (rc?.computable && inter) {
+          if (rc.estimatedDurationS) durationS += rc.estimatedDurationS * inter;
+          if (rc.estimatedDistanceM) distanceM += rc.estimatedDistanceM * inter;
+        }
       }
     }
     if (!hasAny) return null;
@@ -218,8 +254,10 @@ export class SessionEditorComponent implements OnInit {
         { label: 'Retour au calme 10 min', block: { type: 'cooldown', durationS: 600, prescription: { zoneId: z('Récupération') } } },
       ];
     }
+    const rec = (durationS: number): CourseRecovery => ({ type: 'jog', durationS, distanceM: null, prescription: { zoneId: z('Récupération') } });
     return [
-      { label: 'Intervalles 6×400 m', block: { type: 'intervals', reps: 6, distanceM: 400, prescription: { zoneId: z('VO2') } } },
+      { label: '10×400 m r1\'', block: { type: 'intervals', reps: 10, distanceM: 400, prescription: { zoneId: z('VO2') }, recovery: rec(60) } },
+      { label: '6×1000 m R2\'', block: { type: 'intervals', reps: 6, distanceM: 1000, prescription: { zoneId: z('VO2') }, recovery: rec(120) } },
       { label: 'Seuil 20 min', block: { type: 'threshold', durationS: 1200, prescription: { zoneId: z('Seuil') } } },
       { label: 'Tempo 4 km', block: { type: 'tempo', distanceM: 4000, prescription: { zoneId: z('Marathon') } } },
     ];
@@ -269,6 +307,59 @@ export class SessionEditorComponent implements OnInit {
   setDurMin(b: CourseBlock, min: number | null): void {
     b.durationS = min != null ? Math.round(min * 60) : null;
     this.recalc(b);
+  }
+
+  // --- Récupération inter-répétitions (fractionnés) --------------------------
+
+  hasRecovery(b: CourseBlock): boolean { return !!b.recovery; }
+
+  /** Ajoute une récupération par défaut (trot 1', zone Récupération). */
+  addRecovery(b: CourseBlock): void {
+    b.recovery = { type: 'jog', durationS: 60, distanceM: null, prescription: { zoneId: this.zoneIdByName('Récupération') } };
+    this.recalcRecovery(b);
+  }
+
+  removeRecovery(b: CourseBlock): void {
+    b.recovery = null;
+    this.recCalc.update((m) => { const c = { ...m }; delete c[b.id]; return c; });
+  }
+
+  recMeasureOf(b: CourseBlock): 'distance' | 'duration' {
+    const r = b.recovery;
+    return r && r.durationS != null && r.distanceM == null ? 'duration' : 'distance';
+  }
+
+  setRecMeasure(b: CourseBlock, mode: 'distance' | 'duration'): void {
+    const r = b.recovery;
+    if (!r) return;
+    if (mode === 'duration') { r.distanceM = null; r.durationS = r.durationS ?? 60; }
+    else { r.durationS = null; r.distanceM = r.distanceM ?? 200; }
+    this.recalcRecovery(b);
+  }
+
+  /** Durée de récup en secondes (les récups sont courtes → secondes plus lisibles que minutes). */
+  recDurS(b: CourseBlock): number | null { return b.recovery?.durationS ?? null; }
+  setRecDurS(b: CourseBlock, s: number | null): void {
+    if (b.recovery) { b.recovery.durationS = s != null ? Math.round(s) : null; this.recalcRecovery(b); }
+  }
+  recDistM(b: CourseBlock): number | null { return b.recovery?.distanceM ?? null; }
+  setRecDistM(b: CourseBlock, m: number | null): void {
+    if (b.recovery) { b.recovery.distanceM = m != null ? Math.round(m) : null; this.recalcRecovery(b); }
+  }
+  setRecZone(b: CourseBlock, zoneId: string): void {
+    if (b.recovery?.prescription) { b.recovery.prescription.zoneId = zoneId; this.recalcRecovery(b); }
+  }
+  setRecType(b: CourseBlock, type: string): void {
+    if (b.recovery) { b.recovery.type = type; }
+  }
+
+  /** Recalcule la cible de la récupération d'un bloc (lecture depuis la zone de l'athlète). */
+  recalcRecovery(b: CourseBlock): void {
+    const a = this.calcAthleteId();
+    const r = b.recovery;
+    if (!a || !r?.prescription?.zoneId) return;
+    this.course.sessionCalc(a, { zoneId: r.prescription.zoneId, distanceM: r.distanceM, durationS: r.durationS })
+      .subscribe((c) => this.recCalc.update((map) => ({ ...map, [b.id]: c })));
   }
 
   removeBlock(key: keyof SessionStructure, id: string): void {
@@ -361,6 +452,22 @@ export class SessionEditorComponent implements OnInit {
     }
     if (!body) return;
     this.course.sessionCalc(a, body).subscribe((c) => this.calc.update((map) => ({ ...map, [b.id]: c })));
+    if (b.recovery) this.recalcRecovery(b);
+  }
+
+  /** Cible compacte d'un bloc (« 3:35–3:45/km · 178–185 bpm ») pour affichage en regard de la zone. */
+  targetLabel(blockId: string): string | null {
+    return this.compactTarget(this.calc()[blockId]);
+  }
+  recoveryTargetLabel(blockId: string): string | null {
+    return this.compactTarget(this.recCalc()[blockId]);
+  }
+  private compactTarget(c: CalculatedBlock | undefined): string | null {
+    if (!c?.computable) return null;
+    const parts: string[] = [];
+    if (c.paceMinLabel && c.paceMaxLabel) parts.push(`${c.paceMinLabel}–${c.paceMaxLabel}/km`);
+    if (c.hrMin && c.hrMax) parts.push(`${c.hrMin}–${c.hrMax} bpm`);
+    return parts.length ? parts.join(' · ') : null;
   }
 
   save(): void {

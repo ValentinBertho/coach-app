@@ -1,164 +1,89 @@
-.back-link {
-  display: inline-block;
-  color: var(--ink-3);
-  font-size: var(--text-sm);
-  margin-bottom: var(--sp-2);
-}
-.calc-athlete {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-4);
-}
-.calc-athlete label {
-  font-weight: 600;
-  white-space: nowrap;
-}
-.calc-athlete .form-control {
-  max-width: 320px;
-}
-.section-card {
-  margin-bottom: var(--sp-4);
-}
-.section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--sp-3);
-}
-.block {
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius);
-  padding: var(--sp-3);
-  margin-bottom: var(--sp-3);
-}
-.block-edit {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2);
-  align-items: center;
-}
-.block-edit .form-control {
-  min-height: 38px;
-}
-.block-edit .type {
-  width: 110px;
-}
-.block-edit .nm {
-  width: 68px;
-}
-.block-edit .zone-select {
-  min-width: 150px;
-}
-.zone-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: var(--radius-full);
-  flex: none;
-}
-.measure-toggle {
-  display: inline-flex;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-}
-.measure-toggle button {
-  border: none;
-  background: var(--paper);
-  color: var(--ink-2);
-  padding: 0 var(--sp-3);
-  min-height: 38px;
-  cursor: pointer;
-  font-size: var(--text-sm);
-  font-weight: 600;
-}
-.measure-toggle button.on {
-  background: var(--dari-teal);
-  color: #fff;
-}
-.measure-toggle button + button {
-  border-left: 1px solid var(--line);
-}
-.calc-na a {
-  margin-left: var(--sp-2);
-  font-weight: 600;
-}
-.calc-preview {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-4);
-  margin-top: var(--sp-3);
-  padding: var(--sp-3);
-  background: var(--primary-wash);
-  border-radius: var(--radius-sm);
-}
-.calc-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.calc-lb {
-  font-size: var(--text-xs);
-  color: var(--ink-3);
-}
-.calc-v {
-  color: var(--primary);
-  font-weight: 600;
-}
-.calc-na {
-  margin-top: var(--sp-2);
-  color: var(--warning-text);
-  font-size: var(--text-sm);
-}
+.back-link { display: inline-block; color: var(--ink-3); font-size: var(--text-sm); margin-bottom: var(--sp-2); }
 
-/* Boutons de blocs pré-remplis (saisie simplifiée) */
+/* --- Aperçu athlète (replié) --------------------------------------------- */
+.athlete-panel { margin-bottom: var(--sp-4); padding: var(--sp-3) var(--sp-4); }
+.ap-toggle {
+  display: flex; align-items: center; gap: var(--sp-2); width: 100%;
+  background: none; border: none; cursor: pointer; color: var(--ink-2);
+  font-size: var(--text-sm); font-weight: 600; text-align: left;
+}
+.ap-toggle strong { color: var(--ink); }
+.ap-body { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-top: var(--sp-3); }
+.ap-body > .form-control { max-width: 320px; }
+.ps-mini { font-size: var(--text-sm); color: var(--ink-3); }
+.bootstrap-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.bootstrap-row .nm { max-width: 110px; }
+
+.section-card { margin-bottom: var(--sp-4); }
+.section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-3); flex-wrap: wrap; }
 .preset-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
 
-/* Sélecteur d'éducatifs (gammes) par bloc */
+/* --- Bloc ---------------------------------------------------------------- */
+.block { border: 1px solid var(--hairline); border-radius: var(--radius); padding: var(--sp-3); margin-bottom: var(--sp-3); }
+.block--rep { border-left: 3px solid var(--dari-teal); background: color-mix(in srgb, var(--dari-teal) 4%, var(--paper)); }
+
+.block-line { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.block-line .form-control { min-height: 38px; }
+.block-line .type { width: 120px; }
+.block-line .nm { width: 68px; }
+.block-line .zone-select { min-width: 150px; }
+
+/* Badge ×N des groupes de répétitions */
+.rep-badge { display: inline-flex; align-items: center; font-weight: 800; color: var(--dari-teal); font-family: var(--font-data); }
+.rep-input { width: 42px; border: 1px solid var(--line); border-radius: var(--radius-sm); min-height: 34px; text-align: center; font-weight: 800; color: var(--dari-teal); background: var(--paper); }
+.rep-plain { width: 68px; }
+
+.zone-dot { width: 12px; height: 12px; border-radius: var(--radius-full); flex: none; }
+
+.measure-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; }
+.measure-toggle button { border: none; background: var(--paper); color: var(--ink-2); padding: 0 var(--sp-2); min-height: 38px; cursor: pointer; font-size: var(--text-sm); font-weight: 600; }
+.measure-toggle button.on { background: var(--dari-teal); color: #fff; }
+.measure-toggle button + button { border-left: 1px solid var(--line); }
+
+.icon-btn { border: 1px solid transparent; background: none; cursor: pointer; color: var(--ink-3); min-height: 34px; min-width: 30px; border-radius: var(--radius-sm); font-size: var(--text-md); }
+.icon-btn:hover { background: var(--paper-sunk); color: var(--ink); }
+.icon-btn.on { background: var(--paper-sunk); color: var(--ink); }
+.icon-btn.danger:hover { color: var(--danger); }
+
+/* Cible lue (compacte) sous l'effort */
+.block-target { margin: var(--sp-2) 0 0; font-weight: 700; color: var(--primary); font-size: var(--text-sm); }
+.block-target--na { color: var(--warning-text, var(--ink-2)); font-weight: 600; }
+.block-target--na a { font-weight: 700; }
+
+/* --- Récupération inter-répétitions --------------------------------------- */
+.rec-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2); padding: var(--sp-2); border-radius: var(--radius-sm); background: var(--paper-sunk); }
+.rec-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 800; }
+.rec-line .rec-type { width: 110px; min-height: 34px; }
+.rec-line .form-control { min-height: 34px; }
+.rec-line .nm { width: 64px; }
+.rec-line .zone-select { min-width: 140px; }
+.rec-target { font-size: var(--text-xs); color: var(--ink-2); font-weight: 700; margin-left: auto; }
+.add-rec { margin-top: var(--sp-2); background: transparent; border: 1px dashed var(--line); border-radius: var(--radius-sm); color: var(--ink-3); padding: var(--sp-1) var(--sp-3); font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+.add-rec:hover { border-color: var(--dari-teal); color: var(--dari-teal); }
+
+/* --- Détails repliés ------------------------------------------------------ */
+.block-details { margin-top: var(--sp-2); }
+.calc-preview { display: flex; flex-wrap: wrap; gap: var(--sp-4); padding: var(--sp-3); background: var(--primary-wash); border-radius: var(--radius-sm); }
+.calc-item { display: flex; flex-direction: column; gap: 2px; }
+.calc-lb { font-size: var(--text-xs); color: var(--ink-3); }
+.calc-v { color: var(--primary); font-weight: 600; }
 .block-drills { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: var(--sp-2); }
 .bd-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
 .bd-chip { font-size: var(--text-sm); padding: 2px 10px; border: 1px solid var(--hairline); border-radius: var(--radius-full); background: transparent; cursor: pointer; color: var(--ink-2); }
 .bd-chip.on { background: var(--primary-wash); color: var(--primary); border-color: var(--primary); }
 
-/* Statut de complétude du profil (planification sans test LT) */
-.profile-status { margin-bottom: var(--sp-3); border-left: 3px solid var(--hairline); }
-.profile-status .ps-line { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
-.ps-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ink-4); transform: translateY(-1px); }
-.profile-status.measured { border-left-color: var(--success, #16a34a); }
-.profile-status.measured .ps-dot { background: var(--success, #16a34a); }
-.profile-status.estimated { border-left-color: var(--warning-text, #b45309); }
-.profile-status.estimated .ps-dot { background: var(--warning-text, #b45309); }
-.profile-status.incomplete { border-left-color: var(--danger, #dc2626); }
-.profile-status.incomplete .ps-dot { background: var(--danger, #dc2626); }
-.bootstrap-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: var(--sp-2); align-items: center; }
-.bootstrap-row .nm { max-width: 120px; }
+.empty-hint { color: var(--ink-3); font-size: var(--text-sm); }
 
-/* Total estimé de la séance (en-tête) */
+/* Total estimé (en-tête) */
 .header-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; justify-content: flex-end; }
 .session-total { font-size: var(--text-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .session-total strong { color: var(--primary); }
 
-/* --- Réordonnancement des blocs par glisser-déposer (QW4) ------------------ */
+/* --- Glisser-déposer des blocs ------------------------------------------- */
 .block-list { min-height: 8px; }
 .block.cdk-drag { position: relative; }
-.drag-handle {
-  cursor: grab;
-  color: var(--ink-3);
-  font-size: 1.1rem;
-  line-height: 1;
-  padding: 0 var(--sp-1) 0 0;
-  user-select: none;
-}
+.drag-handle { cursor: grab; color: var(--ink-3); font-size: 1.1rem; line-height: 1; padding: 0 var(--sp-1) 0 0; user-select: none; }
 .drag-handle:active { cursor: grabbing; }
-
-.cdk-drag-preview {
-  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
-  border-radius: var(--radius);
-  background: var(--paper);
-}
-.cdk-drag-placeholder {
-  opacity: 0.4;
-  border: 1px dashed var(--primary);
-  border-radius: var(--radius);
-}
+.cdk-drag-preview { box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18)); border-radius: var(--radius); background: var(--paper); }
+.cdk-drag-placeholder { opacity: 0.4; border: 1px dashed var(--primary); border-radius: var(--radius); }
 .cdk-drag-animating { transition: transform 180ms cubic-bezier(0, 0, 0.2, 1); }
