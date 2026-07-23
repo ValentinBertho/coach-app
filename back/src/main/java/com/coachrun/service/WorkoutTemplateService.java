@@ -34,6 +34,7 @@ public class WorkoutTemplateService {
     private final ObjectMapper objectMapper;
     private final CourseSessionService courseSessionService;
     private final com.coachrun.repository.AthleteRepository athleteRepository;
+    private final com.coachrun.repository.SessionCategoryRepository categoryRepository;
     private final com.coachrun.security.AthleteAccessValidator accessValidator;
 
     public PageResponse<WorkoutTemplateResponse> list(UUID clubId, String q, Pageable pageable) {
@@ -160,6 +161,18 @@ public class WorkoutTemplateService {
         t.setTargetDistanceM(request.targetDistanceM());
         t.setTargetDurationS(request.targetDurationS());
         t.setStepsJson(writeSteps(request.steps()));
+        applyCategory(t, request.categoryId());
+    }
+
+    /** Rattache le modèle à une catégorie du club (ou détache si {@code null}). Scopé club. */
+    private void applyCategory(WorkoutTemplate t, UUID categoryId) {
+        if (categoryId == null) {
+            t.setCategory(null);
+            return;
+        }
+        UUID clubId = t.getClub().getId();
+        t.setCategory(categoryRepository.findByIdAndClubId(categoryId, clubId)
+                .orElseThrow(() -> new NotFoundException("Catégorie introuvable.")));
     }
 
     private WorkoutTemplateResponse toResponse(WorkoutTemplate t) {

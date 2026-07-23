@@ -1,7 +1,39 @@
 <section class="page-header">
   <div><h1 class="display-sm">Bibliothèque de séances</h1><p class="subtitle">Modèles réutilisables, applicables en un clic.</p></div>
-  <button type="button" class="btn btn-primary" (click)="toggleForm()">{{ showForm() ? 'Fermer' : '+ Nouveau modèle' }}</button>
+  <div class="header-actions">
+    <button type="button" class="btn btn-ghost" (click)="toggleCategories()" title="Gérer les catégories">
+      <app-icon name="library" [size]="16" /> Catégories
+    </button>
+    <button type="button" class="btn btn-primary" (click)="toggleForm()">{{ showForm() ? 'Fermer' : '+ Nouveau modèle' }}</button>
+  </div>
 </section>
+
+@if (showCategories()) {
+  <section class="card cat-manager">
+    <h2>Catégories de la bibliothèque</h2>
+    <p class="field-hint">Range tes séances par catégorie personnalisée (VMA courte, Seuil, Fartlek…). La suppression détache les séances sans les effacer.</p>
+    <div class="cat-create">
+      <input class="form-control" [(ngModel)]="newCategoryName" placeholder="Nouvelle catégorie…" maxlength="255"
+             (keydown.enter)="createCategory()" />
+      <button type="button" class="btn btn-primary btn-sm" (click)="createCategory()" [disabled]="savingCategory() || !newCategoryName.trim()">
+        <app-icon name="check" [size]="15" /> Ajouter
+      </button>
+    </div>
+    @if (categories().length) {
+      <ul class="cat-list">
+        @for (c of categories(); track c.id) {
+          <li class="cat-row">
+            <span class="cat-name">{{ c.name }}</span>
+            <button type="button" class="icon-btn" (click)="renameCategory(c)" title="Renommer"><app-icon name="pencil" [size]="14" /></button>
+            <button type="button" class="icon-btn danger" (click)="deleteCategory(c)" title="Supprimer">✕</button>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="field-hint">Aucune catégorie pour l'instant.</p>
+    }
+  </section>
+}
 
 @if (showForm()) {
   <form class="card form-card" [formGroup]="form" (ngSubmit)="save()">
@@ -12,6 +44,12 @@
       <div class="form-group"><label>Type *</label>
         <select class="form-control" formControlName="type">
           @for (t of types; track t) { <option [value]="t">{{ typeLabels[t] }}</option> }
+        </select>
+      </div>
+      <div class="form-group"><label>Catégorie</label>
+        <select class="form-control" formControlName="categoryId">
+          <option value="">Sans catégorie</option>
+          @for (c of categories(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
         </select>
       </div>
     </div>
@@ -34,6 +72,11 @@
       <option value="">Tous les types</option>
       @for (t of types; track t) { <option [value]="t">{{ typeLabels[t] }}</option> }
     </select>
+    <select class="form-control tpl-type" [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)" title="Filtrer par catégorie">
+      <option value="">Toutes catégories</option>
+      @if (uncategorizedCount()) { <option value="none">Sans catégorie ({{ uncategorizedCount() }})</option> }
+      @for (c of categories(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+    </select>
     <span class="tpl-count">{{ filtered().length }} séance(s)</span>
     <div class="view-switch">
       <button type="button" [class.active]="viewMode() === 'cards'" (click)="setView('cards')" title="Cartes">
@@ -53,6 +96,7 @@
         <div class="card tpl">
           <div class="tpl-head">
             <span class="badge badge-info">{{ typeLabels[t.type] }}</span>
+            @if (t.categoryName) { <span class="badge badge-neutral tpl-cat-badge">{{ t.categoryName }}</span> }
             <div class="tpl-head-actions">
               <a [routerLink]="['/app/templates', t.id, 'structure']" class="icon-btn" title="Éditer la structure"><app-icon name="pencil" [size]="14" /></a>
               <button type="button" class="icon-btn danger" (click)="remove(t)" title="Supprimer">✕</button>
@@ -60,6 +104,13 @@
           </div>
           <strong class="tpl-name">{{ t.name }}</strong>
           <span class="field-hint tpl-sub">{{ t.title }} · {{ t.steps.length }} étape(s)</span>
+          @if (categories().length) {
+            <select class="form-control tpl-cat-select" [ngModel]="t.categoryId ?? ''" (ngModelChange)="assignCategory(t, $event)"
+                    [ngModelOptions]="{standalone:true}" title="Catégorie">
+              <option value="">Sans catégorie</option>
+              @for (c of categories(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+            </select>
+          }
           <div class="apply">
             <select class="form-control" [(ngModel)]="applyFor[t.id]!.target" [ngModelOptions]="{standalone:true}">
               <option value="">Athlète ou groupe…</option>
@@ -85,7 +136,7 @@
           <span class="badge badge-info tpl-row-type">{{ typeLabels[t.type] }}</span>
           <div class="tpl-row-id">
             <strong>{{ t.name }}</strong>
-            <span class="field-hint">{{ t.title }} · {{ t.steps.length }} étape(s)</span>
+            <span class="field-hint">{{ t.title }} · {{ t.steps.length }} étape(s)@if (t.categoryName) { · {{ t.categoryName }} }</span>
           </div>
           <div class="tpl-row-apply">
             <select class="form-control" [(ngModel)]="applyFor[t.id]!.target" [ngModelOptions]="{standalone:true}">

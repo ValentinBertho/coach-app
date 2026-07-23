@@ -48,3 +48,24 @@
   .tpl-row { flex-wrap: wrap; }
   .tpl-row-apply { justify-content: flex-start; }
 }
+
+/* --- Catégories personnalisées (Phase 2) ---------------------------------- */
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+.header-actions { display: inline-flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+
+.cat-manager { margin-bottom: var(--sp-4); }
+.cat-manager h2 { margin: 0 0 var(--sp-1); font-size: var(--text-lg); }
+.cat-create { display: flex; gap: var(--sp-2); align-items: center; margin: var(--sp-3) 0; }
+.cat-create .form-control { max-width: 320px; }
+.cat-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.cat-row {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-sm);
+  background: var(--paper-sunk);
+}
+.cat-name { flex: 1; font-weight: 600; color: var(--ink); }
+
+.tpl-cat-badge {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;
+}
+.tpl-cat-select { margin-top: var(--sp-2); font-size: var(--text-sm); height: 34px; }

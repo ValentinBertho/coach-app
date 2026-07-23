@@ -17,6 +17,11 @@ export interface WorkoutTemplate {
   notes: string | null;
   targetDistanceM: number | null;
   targetDurationS: number | null;
+  /** Catégorie de bibliothèque (personnalisée, scopée club) — null si non catégorisé. */
+  categoryId: string | null;
+  categoryName: string | null;
+  favorite: boolean;
+  useCount: number;
   steps: TemplateStep[];
 }
 
@@ -27,5 +32,6 @@ export interface WorkoutTemplateRequest {
   notes?: string | null;
   targetDistanceM?: number | null;
   targetDurationS?: number | null;
+  categoryId?: string | null;
   steps: TemplateStep[];
 }
