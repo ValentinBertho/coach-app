@@ -25,7 +25,10 @@
   align-items: center;
   gap: var(--sp-4);
   justify-content: space-between;
+  flex-wrap: wrap;
 }
+.a-zones { flex-basis: 100%; border-top: 1px solid var(--hairline); padding-top: var(--sp-3); margin-top: var(--sp-1); }
+.btn.active { background: var(--paper-sunk); }
 .a-main { display: flex; align-items: center; gap: var(--sp-3); }
 .a-title { font-weight: 600; }
 .a-metrics { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; margin-left: auto; }

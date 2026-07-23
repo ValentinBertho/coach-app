@@ -1,0 +1,161 @@
+package com.coachrun;
+
+import com.coachrun.service.DemoSeedService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.WebApplicationContext;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+/**
+ * Chantier zones v2 — phase 1 : règles de calcul (ancre + %) éditables sur les zones,
+ * calcul data-driven des valeurs, et recalcul automatique quand une ancre de l'athlète change.
+ */
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
+class ZoneRuleEngineTest {
+
+    @Autowired private WebApplicationContext context;
+    @Autowired private DemoSeedService demoSeedService;
+    @Autowired private ObjectMapper objectMapper;
+
+    private MockMvc mvc;
+    private String bearer;
+    private String clubId;
+    private String athleteId;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        demoSeedService.seed();
+        mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + DemoSeedService.HEAD_COACH_EMAIL
+                                + "\",\"password\":\"" + DemoSeedService.DEMO_PASSWORD + "\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        bearer = "Bearer " + auth.get("accessToken").asText();
+        clubId = auth.get("user").get("clubId").asText();
+        JsonNode athletes = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes?size=50", clubId).header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        athleteId = athletes.get("content").get(0).get("id").asText();
+        mvc.perform(put("/clubs/{c}/athletes/{a}/physio", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"lt1Ms\":3.5,\"lt2Ms\":3.9,\"vcMs\":4.2,\"fcLt1\":148,\"fcLt2\":163,\"fcMax\":185}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void zonesCarryEditableRules() throws Exception {
+        JsonNode zones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        // La zone Seuil porte une règle allure LT2 96–103 % (seedée).
+        JsonNode seuil = null;
+        for (JsonNode z : zones) if ("Seuil".equals(z.get("name").asText())) seuil = z;
+        assertThat(seuil).isNotNull();
+        boolean hasLt2 = false;
+        for (JsonNode r : seuil.get("rules")) {
+            if ("LT2".equals(r.path("anchor").asText())) {
+                hasLt2 = true;
+                assertThat(r.get("lowPct").asDouble()).isEqualTo(96.0);
+                assertThat(r.get("highPct").asDouble()).isEqualTo(103.0);
+            }
+        }
+        assertThat(hasLt2).isTrue();
+    }
+
+    @Test
+    void autoRecomputeOnAnchorChange() throws Exception {
+        String hrId = metricId("HR");
+        // Pré-remplissage initial.
+        JsonNode before = objectMapper.readTree(mvc.perform(get("/clubs/{c}/athletes/{a}/zone-values", clubId, athleteId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        double hrMaxValBefore = maxHrValue(before, hrId);
+        assertThat(hrMaxValBefore).isGreaterThan(0);
+
+        // Change une ancre (FC max 185 → 200) → recalcul AUTO automatique (sans bouton resync).
+        mvc.perform(put("/clubs/{c}/athletes/{a}/physio", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"lt1Ms\":3.5,\"lt2Ms\":3.9,\"vcMs\":4.2,\"fcLt1\":148,\"fcLt2\":163,\"fcMax\":200}"))
+                .andExpect(status().isOk());
+
+        JsonNode after = objectMapper.readTree(mvc.perform(get("/clubs/{c}/athletes/{a}/zone-values", clubId, athleteId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        // Les FC de zone (calculées en % de FCmax) ont augmenté avec la FCmax.
+        assertThat(maxHrValue(after, hrId)).isGreaterThan(hrMaxValBefore);
+    }
+
+    private String metricId(String code) throws Exception {
+        JsonNode metrics = objectMapper.readTree(mvc.perform(get("/clubs/{c}/metric-types", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        for (JsonNode m : metrics) if (code.equals(m.get("code").asText())) return m.get("id").asText();
+        return null;
+    }
+
+    private double maxHrValue(JsonNode values, String hrId) {
+        double max = 0;
+        for (JsonNode v : values) {
+            if (hrId.equals(v.get("metricTypeId").asText()) && !v.get("valueMax").isNull()) {
+                max = Math.max(max, v.get("valueMax").asDouble());
+            }
+        }
+        return max;
+    }
+
+    @Test
+    void editingRuleThenResyncChangesValues() throws Exception {
+        // id métrique HR + une zone.
+        JsonNode metrics = objectMapper.readTree(mvc.perform(get("/clubs/{c}/metric-types", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String hrId = null;
+        for (JsonNode m : metrics) if ("HR".equals(m.get("code").asText())) hrId = m.get("id").asText();
+
+        JsonNode zones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String zoneId = null;
+        for (JsonNode z : zones) if ("Endurance fondamentale".equals(z.get("name").asText())) zoneId = z.get("id").asText();
+
+        // Édite la règle HR → 50–60 % FCmax.
+        mvc.perform(put("/clubs/{c}/training-zones/{z}/metrics/{m}/rule", clubId, zoneId, hrId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"anchor\":\"FCMAX\",\"lowPct\":50,\"highPct\":60,\"model\":\"PCT_FCMAX\"}"))
+                .andExpect(status().isOk());
+
+        // Resync → la FC de cette zone devient 50–60 % de 185 ≈ 93–111.
+        mvc.perform(post("/clubs/{c}/athletes/{a}/zone-values/resync", clubId, athleteId)
+                .header("Authorization", bearer)).andExpect(status().isOk());
+        JsonNode values = objectMapper.readTree(mvc.perform(get("/clubs/{c}/athletes/{a}/zone-values", clubId, athleteId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        boolean found = false;
+        for (JsonNode v : values) {
+            if (v.get("zoneId").asText().equals(zoneId) && v.get("metricTypeId").asText().equals(hrId)) {
+                found = true;
+                assertThat(v.get("valueMin").asDouble()).isEqualTo(Math.round(185 * 0.50));
+                assertThat(v.get("valueMax").asDouble()).isEqualTo(Math.round(185 * 0.60));
+            }
+        }
+        assertThat(found).isTrue();
+    }
+}

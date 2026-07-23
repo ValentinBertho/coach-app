@@ -6,18 +6,12 @@
       <a routerLink="/app/templates" class="back-link">← Bibliothèque</a>
     }
     <h1 class="display-sm">{{ name() || 'Éditeur de séance' }}</h1>
-    <p class="subtitle">
-      @if (isWorkout()) {
-        Adaptation de cette séance pour l'athlète — un bloc = type · volume · zone, la cible est lue sur la fiche.
-      } @else {
-        Un bloc = type · volume · zone. La cible allure/FC est lue sur la fiche de l'athlète sélectionné.
-      }
-    </p>
+    <p class="subtitle">Un bloc = type · volume · zone. La cible (allure/FC) est lue depuis la fiche athlète.</p>
   </div>
   <div class="header-actions">
     @if (sessionTotals(); as t) {
-      <span class="session-total" title="Total estimé pour l'athlète du calculateur">
-        Total estimé :
+      <span class="session-total" title="Total estimé pour l'athlète d'aperçu">
+        Total :
         @if (t.durationLabel) { <strong>{{ t.durationLabel }}</strong> }
         @if (t.durationLabel && t.distanceKm) { · }
         @if (t.distanceKm) { <strong>{{ t.distanceKm.toFixed(1) }} km</strong> }
@@ -27,30 +21,33 @@
   </div>
 </section>
 
+<!-- Aperçu athlète (replié par défaut) : ne pollue pas la construction de la séance. -->
 @if (!isWorkout()) {
-  <div class="card calc-athlete">
-    <label>Calculateur pour :</label>
-    <select class="form-control" [ngModel]="calcAthleteId()" (ngModelChange)="onAthleteChange($event)">
-      <option value="">Sélectionner un athlète…</option>
-      @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
-    </select>
-  </div>
-}
-
-@if (profileStatus(); as st) {
-  <div class="card profile-status" [class.measured]="st === 'measured'" [class.estimated]="st === 'estimated'" [class.incomplete]="st === 'incomplete'">
-    @if (st === 'measured') {
-      <p class="ps-line"><span class="ps-dot"></span><strong>Seuils mesurés</strong> — cibles d'allure et de FC fiables.</p>
-    } @else if (st === 'estimated') {
-      <p class="ps-line"><span class="ps-dot"></span><strong>Allures estimées</strong> (dérivées du VDOT, aucun test lactate). Les fourchettes restent exploitables ; un test lactate les affinera. La FC cible n'est pas calculée sans seuils.</p>
-    } @else {
-      <p class="ps-line"><span class="ps-dot"></span><strong>Profil incomplet</strong> — ni test lactate ni chrono. Saisis un chrono de référence pour débloquer des allures estimées :</p>
-      <div class="bootstrap-row">
-        <select class="form-control" [(ngModel)]="bootstrapDistance" title="Distance du chrono">
-          @for (d of bootstrapDistances; track d.value) { <option [value]="d.value">{{ d.label }}</option> }
+  <div class="card athlete-panel">
+    <button type="button" class="ap-toggle" (click)="athletePanelOpen.set(!athletePanelOpen())">
+      <app-icon [name]="athletePanelOpen() ? 'chevron-down' : 'chevron-right'" [size]="16" />
+      <span>Aperçu des cibles pour : <strong>{{ calcAthleteName() || 'aucun athlète' }}</strong></span>
+    </button>
+    @if (athletePanelOpen()) {
+      <div class="ap-body">
+        <select class="form-control" [ngModel]="calcAthleteId()" (ngModelChange)="onAthleteChange($event)">
+          <option value="">Sélectionner un athlète…</option>
+          @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
         </select>
-        <input class="form-control nm" [(ngModel)]="bootstrapTime" placeholder="mm:ss" title="Temps (mm:ss ou hh:mm:ss)" />
-        <button type="button" class="btn btn-sm btn-primary" [disabled]="bootstrapBusy()" (click)="submitBootstrap()">Enregistrer le chrono</button>
+        @if (profileStatus(); as st) {
+          @if (st === 'incomplete') {
+            <div class="bootstrap-row">
+              <span class="ps-mini">Profil incomplet — saisis un chrono de référence :</span>
+              <select class="form-control" [(ngModel)]="bootstrapDistance">
+                @for (d of bootstrapDistances; track d.value) { <option [value]="d.value">{{ d.label }}</option> }
+              </select>
+              <input class="form-control nm" [(ngModel)]="bootstrapTime" placeholder="mm:ss" />
+              <button type="button" class="btn btn-sm btn-primary" [disabled]="bootstrapBusy()" (click)="submitBootstrap()">Enregistrer</button>
+            </div>
+          } @else {
+            <span class="ps-mini">{{ st === 'measured' ? 'Seuils mesurés — cibles fiables.' : 'Allures estimées (VDOT).' }}</span>
+          }
+        }
       </div>
     }
   </div>
@@ -67,70 +64,109 @@
         @for (p of presetsFor(sec.key); track p.label) {
           <button type="button" class="btn btn-ghost btn-sm" (click)="addBlock(sec.key, p.block)">+ {{ p.label }}</button>
         }
-        <button type="button" class="btn btn-ghost btn-sm" (click)="addBlock(sec.key)">+ Bloc vierge</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="addBlock(sec.key)">+ Bloc</button>
       </div>
     </div>
 
     <div class="block-list" cdkDropList (cdkDropListDropped)="dropBlock(sec.key, $event)">
     @for (b of blocks(sec.key); track b.id) {
-      <div class="block" cdkDrag>
-        <div class="block-edit">
+      <div class="block" [class.block--rep]="(b.reps ?? 0) > 1" cdkDrag>
+        <!-- Effort -->
+        <div class="block-line">
           <span class="drag-handle" cdkDragHandle title="Glisser pour réordonner">⠿</span>
+          @if ((b.reps ?? 0) > 1) {
+            <span class="rep-badge">
+              <input type="number" class="rep-input" [(ngModel)]="b.reps" (ngModelChange)="recalc(b)" min="1" title="Répétitions" />×
+            </span>
+          } @else {
+            <input type="number" class="form-control nm rep-plain" [(ngModel)]="b.reps" (ngModelChange)="recalc(b)" placeholder="×N" title="Répétitions" />
+          }
           <select class="form-control type" [(ngModel)]="b.type" (ngModelChange)="recalc(b)" title="Type de bloc">
             @for (t of blockTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
           </select>
-          <input type="number" class="form-control nm" [(ngModel)]="b.reps" (ngModelChange)="recalc(b)" placeholder="×N" title="Répétitions" />
           <div class="measure-toggle" role="group" aria-label="Mesurer par">
-            <button type="button" [class.on]="measureOf(b) === 'distance'" (click)="setMeasure(b, 'distance')" title="Mesurer en distance">Dist.</button>
-            <button type="button" [class.on]="measureOf(b) === 'duration'" (click)="setMeasure(b, 'duration')" title="Mesurer en durée">Durée</button>
+            <button type="button" [class.on]="measureOf(b) === 'distance'" (click)="setMeasure(b, 'distance')">Dist.</button>
+            <button type="button" [class.on]="measureOf(b) === 'duration'" (click)="setMeasure(b, 'duration')">Durée</button>
           </div>
           @if (measureOf(b) === 'distance') {
-            <input type="number" class="form-control nm" [(ngModel)]="b.distanceM" (ngModelChange)="recalc(b)" placeholder="m" title="Distance (m)" />
+            <input type="number" class="form-control nm" [(ngModel)]="b.distanceM" (ngModelChange)="recalc(b)" placeholder="m" />
           } @else {
-            <input type="number" class="form-control nm" [ngModel]="durMin(b)" (ngModelChange)="setDurMin(b, $event)" placeholder="min" title="Durée (min)" />
+            <input type="number" class="form-control nm" [ngModel]="durMin(b)" (ngModelChange)="setDurMin(b, $event)" placeholder="min" />
           }
           @if (b.prescription) {
-            <span class="zone-dot" [style.background]="zoneColor(b.prescription.zoneId)" [title]="zoneName(b.prescription.zoneId)"></span>
-            <select class="form-control zone-select" [(ngModel)]="b.prescription.zoneId" (ngModelChange)="recalc(b)" title="Zone de travail">
-              <option [ngValue]="null" disabled>Zone…</option>
-              @for (z of zones(); track z.id) { <option [ngValue]="z.id">{{ z.name }}</option> }
-            </select>
+            <app-zone-picker
+              [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
+              [selectedId]="b.prescription.zoneId" (zoneChange)="onBlockZone(b, $event)" />
           }
-          <button type="button" class="icon-btn danger" (click)="removeBlock(sec.key, b.id)">✕</button>
+          <button type="button" class="icon-btn" [class.on]="isDetailsOpen(b.id)" (click)="toggleDetails(b.id)" title="Détails">⋯</button>
+          <button type="button" class="icon-btn danger" (click)="removeBlock(sec.key, b.id)" title="Supprimer">✕</button>
         </div>
 
-        @if (calc()[b.id]; as c) {
-          @if (c.computable) {
-            <div class="calc-preview">
-              <span class="calc-item"><span class="calc-lb">Allure{{ c.paceEstimated ? ' (estimée)' : '' }}</span><span class="metric calc-v">{{ c.paceMinLabel }}–{{ c.paceMaxLabel }}/km</span></span>
-              <span class="calc-item"><span class="calc-lb">Vitesse</span><span class="metric calc-v">{{ c.speedMinKmh }}–{{ c.speedMaxKmh }} km/h</span></span>
-              @if (c.hrMin) { <span class="calc-item"><span class="calc-lb">FC</span><span class="metric calc-v">{{ c.hrMin }}–{{ c.hrMax }} bpm</span></span> }
-              @if (c.rpeMin) { <span class="calc-item"><span class="calc-lb">RPE</span><span class="metric calc-v">{{ c.rpeMin }}–{{ c.rpeMax }}</span></span> }
-              @if (c.estimatedDistanceM) { <span class="calc-item"><span class="calc-lb">Volume</span><span class="metric calc-v">{{ (c.estimatedDistanceM / 1000).toFixed(1) }} km</span></span> }
+        <!-- Cible lue (compacte) -->
+        @if (targetLabel(b.id); as t) {
+          <p class="block-target metric">{{ t }}</p>
+        } @else if (calc()[b.id] && !calc()[b.id].computable) {
+          <p class="block-target block-target--na">
+            Cible non renseignée
+            @if (calcAthleteId(); as aid) { · <a [routerLink]="['/app/athletes', aid, 'zones']">fiche athlète →</a> }
+          </p>
+        }
+
+        <!-- Récupération inter-répétitions (fractionnés) -->
+        @if ((b.reps ?? 0) > 1) {
+          @if (hasRecovery(b) && b.recovery; as r) {
+            <div class="rec-line">
+              <span class="rec-lb">récup</span>
+              <select class="form-control rec-type" [ngModel]="r.type" (ngModelChange)="setRecType(b, $event)" title="Type de récup">
+                @for (rt of recoveryTypes; track rt.value) { <option [value]="rt.value">{{ rt.label }}</option> }
+              </select>
+              <div class="measure-toggle" role="group" aria-label="Mesurer la récup par">
+                <button type="button" [class.on]="recMeasureOf(b) === 'duration'" (click)="setRecMeasure(b, 'duration')">Durée</button>
+                <button type="button" [class.on]="recMeasureOf(b) === 'distance'" (click)="setRecMeasure(b, 'distance')">Dist.</button>
+              </div>
+              @if (recMeasureOf(b) === 'duration') {
+                <input type="number" class="form-control nm" [ngModel]="recDurS(b)" (ngModelChange)="setRecDurS(b, $event)" placeholder="s" title="Durée (s)" />
+              } @else {
+                <input type="number" class="form-control nm" [ngModel]="recDistM(b)" (ngModelChange)="setRecDistM(b, $event)" placeholder="m" title="Distance (m)" />
+              }
+              @if (r.prescription) {
+                <app-zone-picker
+                  [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
+                  [selectedId]="r.prescription.zoneId" (zoneChange)="setRecZone(b, $event)" />
+              }
+              <button type="button" class="icon-btn danger" (click)="removeRecovery(b)" title="Retirer la récup">✕</button>
+              @if (recoveryTargetLabel(b.id); as rt) { <span class="rec-target metric">{{ rt }}</span> }
             </div>
           } @else {
-            <p class="calc-na">
-              Cible non renseignée pour cette zone.
-              @if (calcAthleteId(); as aid) {
-                <a [routerLink]="['/app/athletes', aid, 'zones']">Renseigner sur la fiche athlète →</a>
-              }
-            </p>
+            <button type="button" class="add-rec" (click)="addRecovery(b)">+ Récupération entre répétitions</button>
           }
         }
 
-        @if (drills().length) {
-          <div class="block-drills">
-            <span class="bd-lb">Éducatifs</span>
-            @for (d of drills(); track d.id) {
-              <button type="button" class="bd-chip" [class.on]="hasDrill(b, d.id)" (click)="toggleDrill(b, d.id)">
-                {{ d.name }}
-              </button>
+        <!-- Détails repliés : aperçu complet + éducatifs -->
+        @if (isDetailsOpen(b.id)) {
+          <div class="block-details">
+            @if (calc()[b.id]; as c) {
+              @if (c.computable) {
+                <div class="calc-preview">
+                  <span class="calc-item"><span class="calc-lb">Vitesse</span><span class="metric calc-v">{{ c.speedMinKmh }}–{{ c.speedMaxKmh }} km/h</span></span>
+                  @if (c.rpeMin) { <span class="calc-item"><span class="calc-lb">RPE</span><span class="metric calc-v">{{ c.rpeMin }}–{{ c.rpeMax }}</span></span> }
+                  @if (c.estimatedDistanceM) { <span class="calc-item"><span class="calc-lb">Volume</span><span class="metric calc-v">{{ (c.estimatedDistanceM / 1000).toFixed(1) }} km</span></span> }
+                </div>
+              }
+            }
+            @if (drills().length) {
+              <div class="block-drills">
+                <span class="bd-lb">Éducatifs</span>
+                @for (d of drills(); track d.id) {
+                  <button type="button" class="bd-chip" [class.on]="hasDrill(b, d.id)" (click)="toggleDrill(b, d.id)">{{ d.name }}</button>
+                }
+              </div>
             }
           </div>
         }
       </div>
     } @empty {
-      <p class="empty-hint">Aucun bloc. Ajoute un bloc.</p>
+      <p class="empty-hint">Aucun bloc. Ajoute un bloc via les boutons ci-dessus.</p>
     }
     </div>
   </div>

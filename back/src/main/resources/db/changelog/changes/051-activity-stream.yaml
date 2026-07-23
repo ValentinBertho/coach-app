@@ -1,0 +1,14 @@
+# ============================================================================
+# 051 — Flux échantillonné d'activité (FC + allure par point) pour le temps-en-zone.
+#   Stocké en JSON compact [[elapsedS, hr, paceSecPerKm], …] à l'import de fichier.
+#   Additif, nullable, non destructif. Cf. PROPOSITION-ZONES-ET-EDITEUR-V2 §3.7 / E7 (V2-7).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 051-activity-stream
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: activities
+            columns:
+              - column: { name: stream_json, type: CLOB }

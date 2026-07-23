@@ -4,11 +4,13 @@ import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { MetricType } from '../../core/models/metric-type.model';
-import { TrainingZone } from '../../core/models/training-zone.model';
+import { TrainingZone, ZONE_ANCHOR_LABELS } from '../../core/models/training-zone.model';
 import { AthleteZoneValue } from '../../core/models/athlete-zone-value.model';
+import { PhysioProfile } from '../../core/models/physio.model';
 import { MetricTypeService } from '../../core/services/metric-type.service';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
 import { AthleteZoneValueService } from '../../core/services/athlete-zone-value.service';
+import { PhysioService } from '../../core/services/physio.service';
 import { ToastService } from '../../core/services/toast.service';
 
 interface EditState {
@@ -51,10 +53,42 @@ interface EditState {
         <p class="field-hint">Définissez d'abord vos zones dans <a routerLink="/app/training-zones">Zones &amp; métriques</a> (club).</p>
       </div>
     } @else {
+      <!-- Références (ancres) : pilotent le calcul des zones. -->
+      @if (references().length) {
+        <div class="card refs">
+          <span class="refs-lb">Références</span>
+          @for (r of references(); track r.label) {
+            <span class="ref-chip"><span class="ref-k">{{ r.label }}</span><span class="ref-v metric">{{ r.value }}</span></span>
+          }
+          <a class="refs-edit" [routerLink]="['/app/athletes', athleteId(), 'tests']">Modifier →</a>
+        </div>
+      }
+
+      <!-- Échelles par métrique (façon Nolio) : chaque onglet isole l'échelle d'une métrique. -->
+      <div class="scale-tabs" role="tablist">
+        <button type="button" class="scale-tab" [class.active]="scaleTab() === null" (click)="scaleTab.set(null)">Toutes</button>
+        @for (m of columns(); track m.id) {
+          <button type="button" class="scale-tab" [class.active]="scaleTab() === m.id" (click)="scaleTab.set(m.id)">{{ m.name }}</button>
+        }
+      </div>
+
+      <!-- Échelle contiguë (façon Nolio) : bandes accolées de la plus lente à la plus rapide. -->
+      @if (scaleTab() && scaleStripCells().length) {
+        <div class="card scale-strip">
+          @for (c of scaleStripCells(); track c.zone.id) {
+            <div class="ss-seg" [style.background]="c.zone.color || 'var(--ink-3)'" [title]="c.zone.name + ' · ' + c.label">
+              <span class="ss-name">{{ c.zone.name }}</span>
+              <span class="ss-val metric">{{ c.label }}</span>
+            </div>
+          }
+        </div>
+      }
+
       <div class="card legend">
         <span><app-icon name="refresh-cw" [size]="14" /> auto</span>
         <span><app-icon name="pencil" [size]="14" /> manuel</span>
         <span><app-icon name="lock" [size]="14" /> verrouillé</span>
+        <span class="legend-hint">Survolez une cible pour voir sa règle.</span>
       </div>
 
       <div class="card table-wrap">
@@ -62,16 +96,16 @@ interface EditState {
           <thead>
             <tr>
               <th class="zone-col">Zone</th>
-              @for (m of columns(); track m.id) { <th>{{ m.name }}</th> }
+              @for (m of displayedColumns(); track m.id) { <th>{{ m.name }}</th> }
             </tr>
           </thead>
           <tbody>
-            @for (z of zones(); track z.id) {
+            @for (z of displayedZones(); track z.id) {
               <tr>
                 <th class="zone-col">
                   <span class="dot" [style.background]="z.color || 'var(--ink-3)'"></span> {{ z.name }}
                 </th>
-                @for (m of columns(); track m.id) {
+                @for (m of displayedColumns(); track m.id) {
                   <td>
                     @if (!z.metricTypeIds.includes(m.id)) {
                       <span class="na">—</span>
@@ -85,7 +119,7 @@ interface EditState {
                       </div>
                     } @else {
                       @if (value(z.id, m.id); as v) {
-                        <button type="button" class="cell" (click)="startEdit(z, m, v)" [title]="v.source === 'MANUAL' ? 'Valeur manuelle' : 'Valeur auto'">
+                        <button type="button" class="cell" (click)="startEdit(z, m, v)" [title]="cellTitle(z, m, v)">
                           <span class="val">{{ formatPair(m, v) }}</span>
                           <span class="marks">
                             <app-icon [name]="v.source === 'MANUAL' ? 'pencil' : 'refresh-cw'" [size]="13" />
@@ -114,8 +148,26 @@ interface EditState {
     .back-link { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-sm); color: var(--ink-3); text-decoration: none; }
     .back-link app-icon { transform: rotate(180deg); }
 
-    .legend { display: flex; gap: var(--sp-4); font-size: var(--text-sm); color: var(--ink-3); padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-3); }
+    .refs { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-3); margin-bottom: var(--sp-3); }
+    .refs-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; }
+    .ref-chip { display: inline-flex; align-items: baseline; gap: var(--sp-1); padding: 2px var(--sp-2); background: var(--paper-sunk); border-radius: var(--radius-full); }
+    .ref-k { font-size: var(--text-xs); color: var(--ink-3); }
+    .ref-v { font-family: var(--font-data); font-weight: 700; font-size: var(--text-sm); }
+    .refs-edit { margin-left: auto; font-size: var(--text-sm); color: var(--dari-teal); text-decoration: none; }
+    .refs-edit:hover { text-decoration: underline; }
+
+    .scale-tabs { display: flex; gap: var(--sp-1); margin-bottom: var(--sp-3); flex-wrap: wrap; }
+    .scale-tab { border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-full); cursor: pointer; font-size: var(--text-sm); font-weight: 700; }
+    .scale-tab.active { background: var(--dari-teal); border-color: var(--dari-teal); color: #fff; }
+
+    .scale-strip { display: flex; gap: 2px; padding: var(--sp-2); margin-bottom: var(--sp-3); overflow-x: auto; }
+    .ss-seg { flex: 1 0 auto; min-width: 82px; display: flex; flex-direction: column; gap: 2px; padding: var(--sp-2); border-radius: var(--radius-sm); color: #fff; }
+    .ss-name { font-size: var(--text-xs); font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ss-val { font-size: var(--text-xs); text-shadow: 0 1px 2px rgba(0,0,0,0.35); white-space: nowrap; }
+
+    .legend { display: flex; align-items: center; gap: var(--sp-4); font-size: var(--text-sm); color: var(--ink-3); padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-3); }
     .legend span { display: inline-flex; align-items: center; gap: var(--sp-1); }
+    .legend-hint { margin-left: auto; font-style: italic; }
 
     .table-wrap { overflow-x: auto; padding: 0; }
     table.zv { border-collapse: collapse; width: 100%; min-width: 480px; }
@@ -144,6 +196,7 @@ export class AthleteZonesComponent implements OnInit {
   private readonly zoneService = inject(TrainingZoneService);
   private readonly metricService = inject(MetricTypeService);
   private readonly valueService = inject(AthleteZoneValueService);
+  private readonly physio = inject(PhysioService);
   private readonly toast = inject(ToastService);
 
   readonly zones = signal<TrainingZone[]>([]);
@@ -172,6 +225,49 @@ export class AthleteZonesComponent implements OnInit {
     return this.metrics().filter((m) => ids.has(m.id));
   });
 
+  /** Onglet d'échelle actif : null = toutes les métriques, sinon l'id d'une métrique. */
+  readonly scaleTab = signal<string | null>(null);
+
+  /** Colonnes affichées selon l'onglet (toutes, ou la seule métrique sélectionnée). */
+  readonly displayedColumns = computed<MetricType[]>(() => {
+    const tab = this.scaleTab();
+    return tab ? this.columns().filter((m) => m.id === tab) : this.columns();
+  });
+
+  /** Zones affichées : toutes, ou celles portant la métrique de l'onglet actif. */
+  readonly displayedZones = computed<TrainingZone[]>(() => {
+    const tab = this.scaleTab();
+    return tab ? this.zones().filter((z) => z.metricTypeIds.includes(tab)) : this.zones();
+  });
+
+  /** Bandes de l'échelle contiguë (onglet métrique actif) : zone + valeur formatée de l'athlète. */
+  readonly scaleStripCells = computed<{ zone: TrainingZone; label: string }[]>(() => {
+    const tab = this.scaleTab();
+    if (!tab) return [];
+    const m = this.metricMap().get(tab);
+    if (!m) return [];
+    return this.displayedZones().map((z) => {
+      const v = this.valueMap().get(`${z.id}:${tab}`);
+      return { zone: z, label: v ? this.formatPair(m, v) : '—' };
+    });
+  });
+
+  readonly physioProfile = signal<PhysioProfile | null>(null);
+
+  /** Valeurs de référence (ancres) qui pilotent le calcul des zones. */
+  readonly references = computed(() => {
+    const p = this.physioProfile();
+    if (!p) return [];
+    const out: { label: string; value: string }[] = [];
+    if (p.vdot != null) out.push({ label: 'VDOT', value: p.vdot.toFixed(1) });
+    if (p.fcMax != null) out.push({ label: 'FC max', value: `${p.fcMax} bpm` });
+    if (p.fcLt2 != null) out.push({ label: 'FC seuil', value: `${p.fcLt2} bpm` });
+    if (p.lt2Kmh != null) out.push({ label: 'LT2', value: `${p.lt2Kmh.toFixed(1)} km/h` });
+    if (p.vcKmh != null) out.push({ label: 'VC', value: `${p.vcKmh.toFixed(1)} km/h` });
+    if (p.lt1Kmh != null) out.push({ label: 'LT1', value: `${p.lt1Kmh.toFixed(1)} km/h` });
+    return out;
+  });
+
   ngOnInit(): void {
     forkJoin({
       zones: this.zoneService.list(),
@@ -186,6 +282,24 @@ export class AthleteZonesComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
+    this.physio.profile(this.athleteId()).subscribe({
+      next: (p) => this.physioProfile.set(p),
+      error: () => this.physioProfile.set(null),
+    });
+  }
+
+  /** Libellé de la règle d'un couple (zone, métrique) : « 95–102 % · Seuil lactique (LT2) ». */
+  ruleLabel(z: TrainingZone, metricId: string): string | null {
+    const r = z.rules?.find((x) => x.metricTypeId === metricId);
+    if (!r || r.anchor == null || r.lowPct == null || r.highPct == null) return null;
+    return `${r.lowPct}–${r.highPct} % · ${ZONE_ANCHOR_LABELS[r.anchor]}`;
+  }
+
+  /** Infobulle d'une cible : source + règle de calcul (traçabilité « d'où vient la cible »). */
+  cellTitle(z: TrainingZone, m: MetricType, v: AthleteZoneValue): string {
+    const src = v.source === 'MANUAL' ? 'Valeur manuelle' : 'Valeur auto';
+    const rule = this.ruleLabel(z, m.id);
+    return rule ? `${src} — ${rule}` : src;
   }
 
   cellKey(zoneId: string, metricId: string): string {

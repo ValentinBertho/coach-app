@@ -2,7 +2,9 @@ package com.coachrun.controller;
 
 import com.coachrun.dto.request.ActivityImportRequest;
 import com.coachrun.dto.response.ActivityResponse;
+import com.coachrun.dto.response.TimeInZoneResponse;
 import com.coachrun.service.ActivityService;
+import com.coachrun.service.TimeInZoneService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -30,10 +32,18 @@ import java.util.UUID;
 public class ActivityController {
 
     private final ActivityService activityService;
+    private final TimeInZoneService timeInZoneService;
 
     @GetMapping
     public List<ActivityResponse> list(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
         return activityService.list(clubId, athleteId);
+    }
+
+    /** Temps passé par zone (allure + FC) pour cette activité — barre « zones d'entraînement ». */
+    @GetMapping("/{activityId}/time-in-zone")
+    public TimeInZoneResponse timeInZone(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                         @PathVariable UUID activityId) {
+        return timeInZoneService.forActivity(clubId, activityId);
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")

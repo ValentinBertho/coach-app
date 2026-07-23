@@ -39,3 +39,23 @@ export const ACTIVITY_STATUS_BADGE: Record<ActivityStatus, string> = {
   MATCHED: 'badge-success',
   UNMATCHED: 'badge-warning',
 };
+
+/** Temps passé par zone pour une activité (une échelle par métrique : Allure, FC…). V2-7. */
+export interface TimeInZoneBucket {
+  zoneId: string;
+  zoneName: string;
+  color: string | null;
+  seconds: number;
+  pct: number;
+}
+
+export interface TimeInZoneScale {
+  metricCode: string;
+  metricName: string;
+  totalS: number;
+  buckets: TimeInZoneBucket[];
+}
+
+export interface TimeInZone {
+  scales: TimeInZoneScale[];
+}

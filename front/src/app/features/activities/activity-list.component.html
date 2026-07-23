@@ -67,10 +67,16 @@
           }
         </div>
         @if (a.source === 'FILE') {
+          <button type="button" class="btn btn-ghost btn-sm" [class.active]="zonesOpen() === a.id" (click)="toggleZones(a.id)">Zones</button>
           <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', athleteId(), 'activities', a.id, 'map']">Carte</a>
         }
         @if (a.status === 'MATCHED') {
           <button type="button" class="btn btn-ghost btn-sm" (click)="unmatch(a)">Détacher</button>
+        }
+        @if (zonesOpen() === a.id) {
+          <div class="a-zones">
+            <app-time-in-zone-bar [athleteId]="athleteId()" [activityId]="a.id" />
+          </div>
         }
       </div>
     }

@@ -1,6 +1,7 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteService } from '../../core/services/athlete.service';
 import { CourseService } from '../../core/services/course.service';
@@ -9,11 +10,16 @@ import { ToastService } from '../../core/services/toast.service';
 import { RunDrillService } from '../../core/services/run-drill.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
-import { CalculatedBlock, COURSE_BLOCK_TYPE_LABELS, CourseBlock, CourseBlockType, SessionStructure } from '../../core/models/course.model';
+import { CalculatedBlock, COURSE_BLOCK_TYPE_LABELS, CourseBlock, CourseBlockType, CourseRecovery, SessionStructure } from '../../core/models/course.model';
 import { PhysioProfile } from '../../core/models/physio.model';
 import { RunDrill } from '../../core/models/run-drill.model';
 import { TrainingZone } from '../../core/models/training-zone.model';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
+import { MetricType } from '../../core/models/metric-type.model';
+import { MetricTypeService } from '../../core/services/metric-type.service';
+import { AthleteZoneValue } from '../../core/models/athlete-zone-value.model';
+import { AthleteZoneValueService } from '../../core/services/athlete-zone-value.service';
+import { ZonePickerComponent } from '../../shared/components/zone-picker/zone-picker.component';
 
 /** Statut de complétude du profil pour la prescription course. */
 export type ProfileStatus = 'measured' | 'estimated' | 'incomplete';
@@ -31,7 +37,7 @@ interface Section { key: keyof SessionStructure; label: string; }
   selector: 'app-session-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DragDropModule],
+  imports: [FormsModule, RouterLink, DragDropModule, IconComponent, ZonePickerComponent],
   templateUrl: './session-editor.component.html',
   styleUrl: './session-editor.component.scss',
 })
@@ -43,6 +49,8 @@ export class SessionEditorComponent implements OnInit {
 
   private readonly course = inject(CourseService);
   private readonly zoneService = inject(TrainingZoneService);
+  private readonly metricService = inject(MetricTypeService);
+  private readonly zoneValueService = inject(AthleteZoneValueService);
   private readonly athletes = inject(AthleteService);
   private readonly workoutService = inject(WorkoutService);
   private readonly drillService = inject(RunDrillService);
@@ -76,9 +84,36 @@ export class SessionEditorComponent implements OnInit {
   readonly loading = signal(true);
   readonly structure = signal<SessionStructure>({ warmup: [], main: [], cooldown: [] });
   readonly calc = signal<Record<string, CalculatedBlock>>({});
+  /** Cibles calculées des récupérations inter-répétitions (clé = id du bloc parent). */
+  readonly recCalc = signal<Record<string, CalculatedBlock>>({});
   readonly athleteList = signal<AthleteSummary[]>([]);
   /** Athlète du calculateur live (sélectionnable en mode modèle, fixe en mode séance planifiée). */
   readonly calcAthleteId = signal('');
+  /** Panneau « aperçu athlète » (sélecteur + statut profil) replié par défaut pour épurer. */
+  readonly athletePanelOpen = signal(false);
+  /** Blocs dont le volet « détails » (éducatifs, cible détaillée) est ouvert. */
+  readonly detailsOpen = signal<Set<string>>(new Set());
+
+  /** Types de récupération inter-répétitions. */
+  readonly recoveryTypes: { value: string; label: string }[] = [
+    { value: 'jog', label: 'Trot' },
+    { value: 'walk', label: 'Marche' },
+    { value: 'static', label: 'Statique' },
+  ];
+
+  readonly calcAthleteName = computed(() => {
+    const a = this.athleteList().find((x) => x.id === this.calcAthleteId());
+    return a ? `${a.firstName} ${a.lastName}` : '';
+  });
+
+  toggleDetails(id: string): void {
+    this.detailsOpen.update((s) => {
+      const next = new Set(s);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+  isDetailsOpen(id: string): boolean { return this.detailsOpen().has(id); }
 
   readonly sections: Section[] = [
     { key: 'warmup', label: 'Échauffement' },
@@ -88,12 +123,10 @@ export class SessionEditorComponent implements OnInit {
 
   /** Zones du club (authoring Z3 : un bloc = type + volume + zone). */
   readonly zones = signal<TrainingZone[]>([]);
-
-  private readonly zoneById = computed(() => {
-    const map = new Map<string, TrainingZone>();
-    for (const z of this.zones()) map.set(z.id, z);
-    return map;
-  });
+  /** Catalogue de métriques (formatage des cibles dans le sélecteur de zone). */
+  readonly metrics = signal<MetricType[]>([]);
+  /** Valeurs de zones de l'athlète du calculateur (cibles concrètes montrées au choix de zone). */
+  readonly zoneValues = signal<AthleteZoneValue[]>([]);
 
   /** Zone pré-sélectionnée selon le type de bloc (QA4). */
   private readonly DEFAULT_ZONE_BY_TYPE: Record<string, string> = {
@@ -108,14 +141,6 @@ export class SessionEditorComponent implements OnInit {
     run: 'Endurance fondamentale',
   };
 
-  zoneName(id: string | null | undefined): string {
-    return id ? this.zoneById().get(id)?.name ?? 'Zone' : '';
-  }
-
-  zoneColor(id: string | null | undefined): string {
-    return (id && this.zoneById().get(id)?.color) || 'var(--ink-3)';
-  }
-
   private zoneIdByName(name: string): string | null {
     const found = this.zones().find((z) => z.name === name);
     return found?.id ?? this.zones()[0]?.id ?? null;
@@ -125,15 +150,24 @@ export class SessionEditorComponent implements OnInit {
     return this.zoneIdByName(this.DEFAULT_ZONE_BY_TYPE[type] ?? 'Endurance fondamentale');
   }
 
+  /** Choix de zone d'un bloc (via le sélecteur riche) → met à jour la prescription + recalcule. */
+  onBlockZone(b: CourseBlock, zoneId: string): void {
+    if (!b.prescription) b.prescription = { zoneId };
+    else b.prescription.zoneId = zoneId;
+    this.recalc(b);
+  }
+
   ngOnInit(): void {
     this.drillService.list().subscribe((d) => this.drills.set(d));
     this.zoneService.list().subscribe((z) => this.zones.set(z));
+    this.metricService.list().subscribe((m) => this.metrics.set(m));
 
     if (this.isWorkout()) {
       // Mode séance planifiée : athlète fixe, on charge le snapshot puis on recalcule.
       this.name.set('Adapter la séance');
       this.calcAthleteId.set(this.athleteId());
       this.loadProfile(this.athleteId());
+      this.loadZoneValues(this.athleteId());
       this.workoutService.prescription(this.athleteId(), this.workoutId()).subscribe({
         next: (p) => {
           this.structure.set(p.snapshot ?? { warmup: [], main: [], cooldown: [] });
@@ -183,6 +217,7 @@ export class SessionEditorComponent implements OnInit {
   /** Total estimé de la séance (durée + distance), agrégé depuis les cibles calculées par bloc. */
   readonly sessionTotals = computed(() => {
     const calc = this.calc();
+    const recCalc = this.recCalc();
     let durationS = 0;
     let distanceM = 0;
     let hasAny = false;
@@ -192,6 +227,13 @@ export class SessionEditorComponent implements OnInit {
         if (!c?.computable) continue;
         if (c.estimatedDurationS) { durationS += c.estimatedDurationS; hasAny = true; }
         if (c.estimatedDistanceM) { distanceM += c.estimatedDistanceM; hasAny = true; }
+        // Récup entre répétitions : (reps - 1) × la récup.
+        const rc = recCalc[b.id];
+        const inter = b.reps && b.reps > 1 ? b.reps - 1 : 0;
+        if (rc?.computable && inter) {
+          if (rc.estimatedDurationS) durationS += rc.estimatedDurationS * inter;
+          if (rc.estimatedDistanceM) distanceM += rc.estimatedDistanceM * inter;
+        }
       }
     }
     if (!hasAny) return null;
@@ -218,8 +260,10 @@ export class SessionEditorComponent implements OnInit {
         { label: 'Retour au calme 10 min', block: { type: 'cooldown', durationS: 600, prescription: { zoneId: z('Récupération') } } },
       ];
     }
+    const rec = (durationS: number): CourseRecovery => ({ type: 'jog', durationS, distanceM: null, prescription: { zoneId: z('Récupération') } });
     return [
-      { label: 'Intervalles 6×400 m', block: { type: 'intervals', reps: 6, distanceM: 400, prescription: { zoneId: z('VO2') } } },
+      { label: '10×400 m r1\'', block: { type: 'intervals', reps: 10, distanceM: 400, prescription: { zoneId: z('VO2') }, recovery: rec(60) } },
+      { label: '6×1000 m R2\'', block: { type: 'intervals', reps: 6, distanceM: 1000, prescription: { zoneId: z('VO2') }, recovery: rec(120) } },
       { label: 'Seuil 20 min', block: { type: 'threshold', durationS: 1200, prescription: { zoneId: z('Seuil') } } },
       { label: 'Tempo 4 km', block: { type: 'tempo', distanceM: 4000, prescription: { zoneId: z('Marathon') } } },
     ];
@@ -271,6 +315,59 @@ export class SessionEditorComponent implements OnInit {
     this.recalc(b);
   }
 
+  // --- Récupération inter-répétitions (fractionnés) --------------------------
+
+  hasRecovery(b: CourseBlock): boolean { return !!b.recovery; }
+
+  /** Ajoute une récupération par défaut (trot 1', zone Récupération). */
+  addRecovery(b: CourseBlock): void {
+    b.recovery = { type: 'jog', durationS: 60, distanceM: null, prescription: { zoneId: this.zoneIdByName('Récupération') } };
+    this.recalcRecovery(b);
+  }
+
+  removeRecovery(b: CourseBlock): void {
+    b.recovery = null;
+    this.recCalc.update((m) => { const c = { ...m }; delete c[b.id]; return c; });
+  }
+
+  recMeasureOf(b: CourseBlock): 'distance' | 'duration' {
+    const r = b.recovery;
+    return r && r.durationS != null && r.distanceM == null ? 'duration' : 'distance';
+  }
+
+  setRecMeasure(b: CourseBlock, mode: 'distance' | 'duration'): void {
+    const r = b.recovery;
+    if (!r) return;
+    if (mode === 'duration') { r.distanceM = null; r.durationS = r.durationS ?? 60; }
+    else { r.durationS = null; r.distanceM = r.distanceM ?? 200; }
+    this.recalcRecovery(b);
+  }
+
+  /** Durée de récup en secondes (les récups sont courtes → secondes plus lisibles que minutes). */
+  recDurS(b: CourseBlock): number | null { return b.recovery?.durationS ?? null; }
+  setRecDurS(b: CourseBlock, s: number | null): void {
+    if (b.recovery) { b.recovery.durationS = s != null ? Math.round(s) : null; this.recalcRecovery(b); }
+  }
+  recDistM(b: CourseBlock): number | null { return b.recovery?.distanceM ?? null; }
+  setRecDistM(b: CourseBlock, m: number | null): void {
+    if (b.recovery) { b.recovery.distanceM = m != null ? Math.round(m) : null; this.recalcRecovery(b); }
+  }
+  setRecZone(b: CourseBlock, zoneId: string): void {
+    if (b.recovery?.prescription) { b.recovery.prescription.zoneId = zoneId; this.recalcRecovery(b); }
+  }
+  setRecType(b: CourseBlock, type: string): void {
+    if (b.recovery) { b.recovery.type = type; }
+  }
+
+  /** Recalcule la cible de la récupération d'un bloc (lecture depuis la zone de l'athlète). */
+  recalcRecovery(b: CourseBlock): void {
+    const a = this.calcAthleteId();
+    const r = b.recovery;
+    if (!a || !r?.prescription?.zoneId) return;
+    this.course.sessionCalc(a, { zoneId: r.prescription.zoneId, distanceM: r.distanceM, durationS: r.durationS })
+      .subscribe((c) => this.recCalc.update((map) => ({ ...map, [b.id]: c })));
+  }
+
   removeBlock(key: keyof SessionStructure, id: string): void {
     const s = this.structure();
     this.structure.set({ ...s, [key]: s[key].filter((b) => b.id !== id) });
@@ -289,7 +386,8 @@ export class SessionEditorComponent implements OnInit {
     this.calcAthleteId.set(id);
     this.calc.set({});
     this.profile.set(null);
-    if (id) this.loadProfile(id);
+    this.zoneValues.set([]);
+    if (id) { this.loadProfile(id); this.loadZoneValues(id); }
     this.recalcAll();
   }
 
@@ -298,6 +396,14 @@ export class SessionEditorComponent implements OnInit {
     this.physio.profile(athleteId).subscribe({
       next: (p) => this.profile.set(p),
       error: () => this.profile.set(null),
+    });
+  }
+
+  /** Charge les valeurs de zones de l'athlète (cibles concrètes affichées dans le sélecteur). */
+  private loadZoneValues(athleteId: string): void {
+    this.zoneValueService.list(athleteId).subscribe({
+      next: (v) => this.zoneValues.set(v),
+      error: () => this.zoneValues.set([]),
     });
   }
 
@@ -340,6 +446,7 @@ export class SessionEditorComponent implements OnInit {
         this.bootstrapTime = '';
         this.toast.success('Chrono enregistré — allures estimées disponibles.');
         this.loadProfile(athleteId);
+        this.loadZoneValues(athleteId);
         this.recalcAll();
         this.bootstrapBusy.set(false);
       },
@@ -361,6 +468,22 @@ export class SessionEditorComponent implements OnInit {
     }
     if (!body) return;
     this.course.sessionCalc(a, body).subscribe((c) => this.calc.update((map) => ({ ...map, [b.id]: c })));
+    if (b.recovery) this.recalcRecovery(b);
+  }
+
+  /** Cible compacte d'un bloc (« 3:35–3:45/km · 178–185 bpm ») pour affichage en regard de la zone. */
+  targetLabel(blockId: string): string | null {
+    return this.compactTarget(this.calc()[blockId]);
+  }
+  recoveryTargetLabel(blockId: string): string | null {
+    return this.compactTarget(this.recCalc()[blockId]);
+  }
+  private compactTarget(c: CalculatedBlock | undefined): string | null {
+    if (!c?.computable) return null;
+    const parts: string[] = [];
+    if (c.paceMinLabel && c.paceMaxLabel) parts.push(`${c.paceMinLabel}–${c.paceMaxLabel}/km`);
+    if (c.hrMin && c.hrMax) parts.push(`${c.hrMin}–${c.hrMax} bpm`);
+    return parts.length ? parts.join(' · ') : null;
   }
 
   save(): void {

@@ -25,12 +25,19 @@ public final class GpxParser {
     private GpxParser() {
     }
 
-    public record Point(double lat, double lon, Double ele, Instant time) {
+    public record Point(double lat, double lon, Double ele, Instant time, Integer hr) {
+    }
+
+    /**
+     * Échantillon de flux (temps-en-zone) : secondes écoulées depuis le départ, FC instantanée et
+     * allure instantanée (s/km). {@code -1} = valeur absente. Cf. PROPOSITION-ZONES §3.7 / E7 (V2-7).
+     */
+    public record Sample(int elapsedS, int hr, int paceSecPerKm) {
     }
 
     public record ParsedActivity(
             LocalDate date, Integer distanceM, Integer durationS, Integer elevationGainM,
-            List<double[]> route) {
+            List<double[]> route, List<int[]> stream) {
     }
 
     public static ParsedActivity parse(byte[] content) {
@@ -57,7 +64,58 @@ public final class GpxParser {
         LocalDate date = first != null ? first.atZone(ZoneOffset.UTC).toLocalDate() : LocalDate.now();
 
         return new ParsedActivity(date, (int) Math.round(distance), durationS,
-                (int) Math.round(elevationGain), downsample(points));
+                (int) Math.round(elevationGain), downsample(points), buildStream(points));
+    }
+
+    /**
+     * Flux échantillonné [elapsedS, hr, paceSecPerKm] (-1 = absent) pour le calcul du temps-en-zone.
+     * L'allure instantanée est lissée sur une fenêtre (~15 s / plusieurs points) pour amortir le
+     * bruit GPS. Vide si aucun horodatage exploitable.
+     */
+    private static List<int[]> buildStream(List<Point> points) {
+        Instant start = points.get(0).time();
+        if (start == null) {
+            return List.of();
+        }
+        int step = Math.max(1, points.size() / MAX_POINTS);
+        List<int[]> stream = new ArrayList<>();
+        for (int i = 0; i < points.size(); i += step) {
+            Point p = points.get(i);
+            if (p.time() == null) {
+                continue;
+            }
+            int elapsed = (int) Duration.between(start, p.time()).getSeconds();
+            int hr = p.hr() != null ? p.hr() : -1;
+            int pace = instantPace(points, i, step);
+            stream.add(new int[] {elapsed, hr, pace});
+        }
+        return stream;
+    }
+
+    /** Allure instantanée (s/km) autour du point i, moyennée sur la fenêtre [i, i+step] ; -1 si N/A. */
+    private static int instantPace(List<Point> points, int i, int step) {
+        int j = Math.min(points.size() - 1, i + step);
+        if (j <= i) {
+            return -1;
+        }
+        Point a = points.get(i);
+        Point b = points.get(j);
+        if (a.time() == null || b.time() == null) {
+            return -1;
+        }
+        double dtS = Duration.between(a.time(), b.time()).toMillis() / 1000.0;
+        double dm = 0;
+        for (int k = i + 1; k <= j; k++) {
+            dm += haversine(points.get(k - 1), points.get(k));
+        }
+        if (dtS <= 0 || dm < 1) {
+            return -1; // arrêt / GPS immobile → allure non définie
+        }
+        double secPerKm = dtS / (dm / 1000.0);
+        if (secPerKm < 120 || secPerKm > 1800) {
+            return -1; // hors plage plausible (2:00 → 30:00 /km)
+        }
+        return (int) Math.round(secPerKm);
     }
 
     private static List<Point> readPoints(byte[] content) {
@@ -74,7 +132,7 @@ public final class GpxParser {
                 Element e = (Element) trkpts.item(i);
                 points.add(new Point(
                         parseD(e.getAttribute("lat")), parseD(e.getAttribute("lon")),
-                        childDouble(e, "ele"), childInstant(e, "time")));
+                        childDouble(e, "ele"), childInstant(e, "time"), gpxHr(e)));
             }
             if (!points.isEmpty()) {
                 return points;
@@ -88,7 +146,8 @@ public final class GpxParser {
                 if (lat == null || lon == null) {
                     continue;
                 }
-                points.add(new Point(lat, lon, childDouble(e, "AltitudeMeters"), childInstant(e, "Time")));
+                points.add(new Point(lat, lon, childDouble(e, "AltitudeMeters"),
+                        childInstant(e, "Time"), tcxHr(e)));
             }
             return points;
         } catch (Exception e) {
@@ -135,7 +194,8 @@ public final class GpxParser {
         for (int i = 0; i < nl.getLength(); i++) {
             Node n = nl.item(i);
             if (n.getParentNode() == parent || tag.equals("ele") || tag.equals("time")
-                    || tag.equals("AltitudeMeters") || tag.equals("Time")) {
+                    || tag.equals("AltitudeMeters") || tag.equals("Time")
+                    || tag.equals("LatitudeDegrees") || tag.equals("LongitudeDegrees")) {
                 String t = n.getTextContent();
                 if (t != null && !t.isBlank()) {
                     return t.trim();
@@ -147,5 +207,42 @@ public final class GpxParser {
 
     private static double parseD(String s) {
         return Double.parseDouble(s.trim());
+    }
+
+    /** FC d'un {@code <trkpt>} GPX : dans {@code <extensions>…<gpxtpx:hr>} (préfixe de ns variable). */
+    private static Integer gpxHr(Element trkpt) {
+        NodeList all = trkpt.getElementsByTagName("*");
+        for (int i = 0; i < all.getLength(); i++) {
+            String name = all.item(i).getNodeName();
+            int c = name.indexOf(':');
+            String local = c >= 0 ? name.substring(c + 1) : name;
+            if (local.equalsIgnoreCase("hr")) {
+                return parseIntOrNull(all.item(i).getTextContent());
+            }
+        }
+        return null;
+    }
+
+    /** FC d'un {@code <Trackpoint>} TCX : {@code <HeartRateBpm><Value>142</Value></HeartRateBpm>}. */
+    private static Integer tcxHr(Element tp) {
+        NodeList hb = tp.getElementsByTagName("HeartRateBpm");
+        if (hb.getLength() == 0) {
+            return null;
+        }
+        Element h = (Element) hb.item(0);
+        NodeList v = h.getElementsByTagName("Value");
+        return parseIntOrNull(v.getLength() > 0 ? v.item(0).getTextContent() : h.getTextContent());
+    }
+
+    private static Integer parseIntOrNull(String s) {
+        if (s == null || s.isBlank()) {
+            return null;
+        }
+        try {
+            int v = (int) Math.round(Double.parseDouble(s.trim()));
+            return v > 0 ? v : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

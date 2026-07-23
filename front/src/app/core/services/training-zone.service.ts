@@ -6,6 +6,7 @@ import {
   TrainingZone,
   TrainingZoneRequest,
   ZoneMetricsRequest,
+  ZoneRuleRequest,
 } from '../models/training-zone.model';
 import { AuthService } from './auth.service';
 
@@ -36,5 +37,8 @@ export class TrainingZoneService {
   }
   setMetrics(id: string, body: ZoneMetricsRequest): Observable<TrainingZone> {
     return this.http.put<TrainingZone>(`${this.base()}/${id}/metrics`, body);
+  }
+  setRule(id: string, metricId: string, body: ZoneRuleRequest): Observable<TrainingZone> {
+    return this.http.put<TrainingZone>(`${this.base()}/${id}/metrics/${metricId}/rule`, body);
   }
 }
