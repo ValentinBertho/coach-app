@@ -199,6 +199,11 @@ export const routes: Routes = [
           import('./features/races/race-list.component').then((m) => m.RaceListComponent),
       },
       {
+        path: 'athletes/:athleteId/zones',
+        loadComponent: () =>
+          import('./features/athletes/athlete-zones.component').then((m) => m.AthleteZonesComponent),
+      },
+      {
         path: 'athletes/:athleteId/workouts/:workoutId/structure',
         loadComponent: () =>
           import('./features/templates/session-editor.component').then((m) => m.SessionEditorComponent),

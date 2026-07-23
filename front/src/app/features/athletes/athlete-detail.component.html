@@ -39,6 +39,7 @@
     <!-- Sous-navigation (onglets vers les modules de l'athlète) -->
     <nav class="sub-nav" aria-label="Sections de l'athlète">
       <a [routerLink]="['/app/athletes', a.id, 'tests']" routerLinkActive="active">Tests lactate</a>
+      <a [routerLink]="['/app/athletes', a.id, 'zones']" routerLinkActive="active">Zones &amp; métriques</a>
       <a [routerLink]="['/app/athletes', a.id, 'load']" routerLinkActive="active">Charge</a>
       <a [routerLink]="['/app/athletes', a.id, 'races']" routerLinkActive="active">Objectifs</a>
       <a [routerLink]="['/app/athletes', a.id, 'activities']" routerLinkActive="active">Activités</a>
