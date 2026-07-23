@@ -94,11 +94,9 @@
             <input type="number" class="form-control nm" [ngModel]="durMin(b)" (ngModelChange)="setDurMin(b, $event)" placeholder="min" />
           }
           @if (b.prescription) {
-            <span class="zone-dot" [style.background]="zoneColor(b.prescription.zoneId)" [title]="zoneName(b.prescription.zoneId)"></span>
-            <select class="form-control zone-select" [(ngModel)]="b.prescription.zoneId" (ngModelChange)="recalc(b)" title="Zone">
-              <option [ngValue]="null" disabled>Zone…</option>
-              @for (z of zones(); track z.id) { <option [ngValue]="z.id">{{ z.name }}</option> }
-            </select>
+            <app-zone-picker
+              [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
+              [selectedId]="b.prescription.zoneId" (zoneChange)="onBlockZone(b, $event)" />
           }
           <button type="button" class="icon-btn" [class.on]="isDetailsOpen(b.id)" (click)="toggleDetails(b.id)" title="Détails">⋯</button>
           <button type="button" class="icon-btn danger" (click)="removeBlock(sec.key, b.id)" title="Supprimer">✕</button>
@@ -132,10 +130,9 @@
                 <input type="number" class="form-control nm" [ngModel]="recDistM(b)" (ngModelChange)="setRecDistM(b, $event)" placeholder="m" title="Distance (m)" />
               }
               @if (r.prescription) {
-                <span class="zone-dot" [style.background]="zoneColor(r.prescription.zoneId)" [title]="zoneName(r.prescription.zoneId)"></span>
-                <select class="form-control zone-select" [ngModel]="r.prescription.zoneId" (ngModelChange)="setRecZone(b, $event)" title="Zone de récup">
-                  @for (z of zones(); track z.id) { <option [ngValue]="z.id">{{ z.name }}</option> }
-                </select>
+                <app-zone-picker
+                  [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
+                  [selectedId]="r.prescription.zoneId" (zoneChange)="setRecZone(b, $event)" />
               }
               <button type="button" class="icon-btn danger" (click)="removeRecovery(b)" title="Retirer la récup">✕</button>
               @if (recoveryTargetLabel(b.id); as rt) { <span class="rec-target metric">{{ rt }}</span> }

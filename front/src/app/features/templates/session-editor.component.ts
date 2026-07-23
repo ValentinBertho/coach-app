@@ -15,6 +15,11 @@ import { PhysioProfile } from '../../core/models/physio.model';
 import { RunDrill } from '../../core/models/run-drill.model';
 import { TrainingZone } from '../../core/models/training-zone.model';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
+import { MetricType } from '../../core/models/metric-type.model';
+import { MetricTypeService } from '../../core/services/metric-type.service';
+import { AthleteZoneValue } from '../../core/models/athlete-zone-value.model';
+import { AthleteZoneValueService } from '../../core/services/athlete-zone-value.service';
+import { ZonePickerComponent } from '../../shared/components/zone-picker/zone-picker.component';
 
 /** Statut de complétude du profil pour la prescription course. */
 export type ProfileStatus = 'measured' | 'estimated' | 'incomplete';
@@ -32,7 +37,7 @@ interface Section { key: keyof SessionStructure; label: string; }
   selector: 'app-session-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DragDropModule, IconComponent],
+  imports: [FormsModule, RouterLink, DragDropModule, IconComponent, ZonePickerComponent],
   templateUrl: './session-editor.component.html',
   styleUrl: './session-editor.component.scss',
 })
@@ -44,6 +49,8 @@ export class SessionEditorComponent implements OnInit {
 
   private readonly course = inject(CourseService);
   private readonly zoneService = inject(TrainingZoneService);
+  private readonly metricService = inject(MetricTypeService);
+  private readonly zoneValueService = inject(AthleteZoneValueService);
   private readonly athletes = inject(AthleteService);
   private readonly workoutService = inject(WorkoutService);
   private readonly drillService = inject(RunDrillService);
@@ -116,12 +123,10 @@ export class SessionEditorComponent implements OnInit {
 
   /** Zones du club (authoring Z3 : un bloc = type + volume + zone). */
   readonly zones = signal<TrainingZone[]>([]);
-
-  private readonly zoneById = computed(() => {
-    const map = new Map<string, TrainingZone>();
-    for (const z of this.zones()) map.set(z.id, z);
-    return map;
-  });
+  /** Catalogue de métriques (formatage des cibles dans le sélecteur de zone). */
+  readonly metrics = signal<MetricType[]>([]);
+  /** Valeurs de zones de l'athlète du calculateur (cibles concrètes montrées au choix de zone). */
+  readonly zoneValues = signal<AthleteZoneValue[]>([]);
 
   /** Zone pré-sélectionnée selon le type de bloc (QA4). */
   private readonly DEFAULT_ZONE_BY_TYPE: Record<string, string> = {
@@ -136,14 +141,6 @@ export class SessionEditorComponent implements OnInit {
     run: 'Endurance fondamentale',
   };
 
-  zoneName(id: string | null | undefined): string {
-    return id ? this.zoneById().get(id)?.name ?? 'Zone' : '';
-  }
-
-  zoneColor(id: string | null | undefined): string {
-    return (id && this.zoneById().get(id)?.color) || 'var(--ink-3)';
-  }
-
   private zoneIdByName(name: string): string | null {
     const found = this.zones().find((z) => z.name === name);
     return found?.id ?? this.zones()[0]?.id ?? null;
@@ -153,15 +150,24 @@ export class SessionEditorComponent implements OnInit {
     return this.zoneIdByName(this.DEFAULT_ZONE_BY_TYPE[type] ?? 'Endurance fondamentale');
   }
 
+  /** Choix de zone d'un bloc (via le sélecteur riche) → met à jour la prescription + recalcule. */
+  onBlockZone(b: CourseBlock, zoneId: string): void {
+    if (!b.prescription) b.prescription = { zoneId };
+    else b.prescription.zoneId = zoneId;
+    this.recalc(b);
+  }
+
   ngOnInit(): void {
     this.drillService.list().subscribe((d) => this.drills.set(d));
     this.zoneService.list().subscribe((z) => this.zones.set(z));
+    this.metricService.list().subscribe((m) => this.metrics.set(m));
 
     if (this.isWorkout()) {
       // Mode séance planifiée : athlète fixe, on charge le snapshot puis on recalcule.
       this.name.set('Adapter la séance');
       this.calcAthleteId.set(this.athleteId());
       this.loadProfile(this.athleteId());
+      this.loadZoneValues(this.athleteId());
       this.workoutService.prescription(this.athleteId(), this.workoutId()).subscribe({
         next: (p) => {
           this.structure.set(p.snapshot ?? { warmup: [], main: [], cooldown: [] });
@@ -380,7 +386,8 @@ export class SessionEditorComponent implements OnInit {
     this.calcAthleteId.set(id);
     this.calc.set({});
     this.profile.set(null);
-    if (id) this.loadProfile(id);
+    this.zoneValues.set([]);
+    if (id) { this.loadProfile(id); this.loadZoneValues(id); }
     this.recalcAll();
   }
 
@@ -389,6 +396,14 @@ export class SessionEditorComponent implements OnInit {
     this.physio.profile(athleteId).subscribe({
       next: (p) => this.profile.set(p),
       error: () => this.profile.set(null),
+    });
+  }
+
+  /** Charge les valeurs de zones de l'athlète (cibles concrètes affichées dans le sélecteur). */
+  private loadZoneValues(athleteId: string): void {
+    this.zoneValueService.list(athleteId).subscribe({
+      next: (v) => this.zoneValues.set(v),
+      error: () => this.zoneValues.set([]),
     });
   }
 
@@ -431,6 +446,7 @@ export class SessionEditorComponent implements OnInit {
         this.bootstrapTime = '';
         this.toast.success('Chrono enregistré — allures estimées disponibles.');
         this.loadProfile(athleteId);
+        this.loadZoneValues(athleteId);
         this.recalcAll();
         this.bootstrapBusy.set(false);
       },
