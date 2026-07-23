@@ -4,7 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { MetricType } from '../../core/models/metric-type.model';
-import { TrainingZone } from '../../core/models/training-zone.model';
+import {
+  TrainingZone,
+  ZoneAnchor,
+  ZoneModel,
+  ZoneRule,
+  ZoneRuleRequest,
+  ZONE_ANCHOR_LABELS,
+  ZONE_MODEL_LABELS,
+} from '../../core/models/training-zone.model';
 import { MetricTypeService } from '../../core/services/metric-type.service';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
 import { ConfirmService } from '../../core/services/confirm.service';
@@ -105,6 +113,29 @@ import { ToastService } from '../../core/services/toast.service';
                       <button type="button" class="toggle" [class.on]="z.metricTypeIds.includes(m.id)" (click)="toggleMetric(z, m)">{{ m.name }}</button>
                     }
                   </div>
+
+                  <span class="config-label">Règle de calcul par métrique :</span>
+                  @for (mid of z.metricTypeIds; track mid) {
+                    @if (ruleFor(z, mid); as r) {
+                      <div class="rule-row">
+                        <span class="rule-metric">{{ metricName(mid) }}</span>
+                        <select class="form-control" [ngModel]="r.anchor" (ngModelChange)="saveRule(z, mid, { anchor: $event })" title="Ancre">
+                          <option [ngValue]="null">— ancre —</option>
+                          @for (a of anchors; track a) { <option [ngValue]="a">{{ anchorLabels[a] }}</option> }
+                        </select>
+                        <span class="rule-pct">
+                          <input type="number" class="form-control mini" [ngModel]="r.lowPct" (ngModelChange)="saveRule(z, mid, { lowPct: $event })" placeholder="min %" />
+                          –
+                          <input type="number" class="form-control mini" [ngModel]="r.highPct" (ngModelChange)="saveRule(z, mid, { highPct: $event })" placeholder="max %" />
+                          <span class="rule-unit">%</span>
+                        </span>
+                        <select class="form-control" [ngModel]="r.model" (ngModelChange)="saveRule(z, mid, { model: $event })" title="Modèle">
+                          @for (mo of models; track mo) { <option [ngValue]="mo">{{ modelLabels[mo] }}</option> }
+                        </select>
+                      </div>
+                    }
+                  }
+                  <p class="rule-hint field-hint">Les valeurs par athlète sont recalculées depuis ces règles (ancre × %), automatiquement quand une valeur de référence change.</p>
                 </div>
               }
             </div>
@@ -158,6 +189,14 @@ import { ToastService } from '../../core/services/toast.service';
     .metric-toggles { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
     .toggle { border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-full); cursor: pointer; font-size: var(--text-sm); font-weight: 600; }
     .toggle.on { background: var(--dari-teal); border-color: var(--dari-teal); color: #fff; }
+
+    .rule-row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+    .rule-metric { min-width: 96px; font-weight: 700; font-size: var(--text-sm); color: var(--ink-2); }
+    .rule-row .form-control { min-height: 32px; padding: 2px var(--sp-2); }
+    .rule-pct { display: inline-flex; align-items: center; gap: var(--sp-1); }
+    .rule-pct .mini { width: 62px; }
+    .rule-unit { color: var(--ink-3); font-weight: 700; }
+    .rule-hint { margin: var(--sp-1) 0 0; }
 
     @media (max-width: 760px) {
       .zt-head { display: none; }
@@ -270,6 +309,37 @@ export class TrainingZonesComponent implements OnInit {
     const ids = has ? z.metricTypeIds.filter((x) => x !== m.id) : [...z.metricTypeIds, m.id];
     this.zoneService.setMetrics(z.id, { metricTypeIds: ids }).subscribe((updated) => {
       this.zones.update((list) => list.map((x) => (x.id === z.id ? updated : x)));
+    });
+  }
+
+  // --- Règles de calcul (chantier zones v2) --------------------------------
+
+  readonly anchors: ZoneAnchor[] = [
+    'LT1', 'LT2', 'VC', 'PACE_800M', 'PACE_1500M', 'PACE_3000M', 'PACE_5KM',
+    'PACE_10KM', 'PACE_15KM', 'PACE_SEMI', 'PACE_MARATHON', 'FCMAX', 'LTHR', 'HRR',
+  ];
+  readonly models: ZoneModel[] = ['VMA', 'VC', 'DANIELS_VDOT', 'LACTATE_THRESHOLD', 'PCT_FCMAX', 'CUSTOM'];
+  readonly anchorLabels = ZONE_ANCHOR_LABELS;
+  readonly modelLabels = ZONE_MODEL_LABELS;
+
+  /** Règle courante d'un couple (zone, métrique), ou une règle vide par défaut. */
+  ruleFor(z: TrainingZone, metricId: string): ZoneRule {
+    return z.rules?.find((r) => r.metricTypeId === metricId)
+      ?? { metricTypeId: metricId, anchor: null, lowPct: null, highPct: null, model: 'CUSTOM' };
+  }
+
+  /** Enregistre une modification partielle de règle (fusionnée avec l'existante). */
+  saveRule(z: TrainingZone, metricId: string, patch: Partial<ZoneRuleRequest>): void {
+    const cur = this.ruleFor(z, metricId);
+    const body: ZoneRuleRequest = {
+      anchor: patch.anchor !== undefined ? patch.anchor : cur.anchor,
+      lowPct: patch.lowPct !== undefined ? patch.lowPct : cur.lowPct,
+      highPct: patch.highPct !== undefined ? patch.highPct : cur.highPct,
+      model: patch.model !== undefined ? patch.model : (cur.model ?? 'CUSTOM'),
+    };
+    this.zoneService.setRule(z.id, metricId, body).subscribe((updated) => {
+      this.zones.update((list) => list.map((x) => (x.id === z.id ? updated : x)));
+      this.toast.success('Règle mise à jour.');
     });
   }
 }
