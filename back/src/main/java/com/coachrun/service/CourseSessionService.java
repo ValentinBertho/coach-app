@@ -34,11 +34,18 @@ public class CourseSessionService {
     private final SessionCategoryRepository categoryRepository;
     private final SessionCalculatorService calculatorService;
     private final WorkoutService workoutService;
+    private final PrescriptionZoneMapper zoneMapper;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Structure d'un modèle pour l'éditeur. Migration douce Z4 : les blocs legacy ({@code ref + %})
+     * reçoivent à la lecture un {@code zoneId} déduit (les champs legacy sont conservés) afin que
+     * l'éditeur épuré affiche la zone ; l'enregistrement persiste la migration.
+     */
+    @Transactional
     public CourseStructureResponse getStructure(UUID clubId, UUID templateId) {
         WorkoutTemplate t = require(clubId, templateId);
-        return CourseStructureResponse.of(t, readStructure(t.getStructureJson()));
+        return CourseStructureResponse.of(t, zoneMapper.withZones(clubId, readStructure(t.getStructureJson())));
     }
 
     @Transactional

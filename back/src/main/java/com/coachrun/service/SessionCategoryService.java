@@ -3,6 +3,7 @@ package com.coachrun.service;
 import com.coachrun.dto.request.SessionCategoryRequest;
 import com.coachrun.dto.response.SessionCategoryResponse;
 import com.coachrun.entity.SessionCategory;
+import com.coachrun.entity.enums.CategoryDomain;
 import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.ClubRepository;
@@ -15,8 +16,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Arbre de catégories de la bibliothèque de séances course (cf. DARI Lab — « s-library »).
- * CRUD scopé club ; la suppression d'une catégorie détache ses enfants et séances (FK SET NULL).
+ * Arbre de catégories unifié des bibliothèques (course · prépa physique · éducatifs), discriminé
+ * par {@link CategoryDomain}. CRUD scopé club ; la suppression d'une catégorie détache ses enfants
+ * et les items rattachés (FK SET NULL).
  */
 @Service
 @RequiredArgsConstructor
@@ -26,16 +28,17 @@ public class SessionCategoryService {
     private final SessionCategoryRepository categoryRepository;
     private final ClubRepository clubRepository;
 
-    public List<SessionCategoryResponse> list(UUID clubId) {
-        return categoryRepository.findByClubIdOrderBySortOrderAscNameAsc(clubId).stream()
+    public List<SessionCategoryResponse> list(UUID clubId, CategoryDomain domain) {
+        return categoryRepository.findByClubIdAndDomainOrderBySortOrderAscNameAsc(clubId, domain).stream()
                 .map(SessionCategoryResponse::from)
                 .toList();
     }
 
     @Transactional
-    public SessionCategoryResponse create(UUID clubId, SessionCategoryRequest req) {
+    public SessionCategoryResponse create(UUID clubId, CategoryDomain domain, SessionCategoryRequest req) {
         SessionCategory c = new SessionCategory();
         c.setClub(clubRepository.getReferenceById(clubId));
+        c.setDomain(domain);
         apply(clubId, c, req);
         return SessionCategoryResponse.from(categoryRepository.save(c));
     }
@@ -53,6 +56,12 @@ public class SessionCategoryService {
     @Transactional
     public void delete(UUID clubId, UUID id) {
         categoryRepository.delete(require(clubId, id));
+    }
+
+    /** Catégorie d'un domaine donné (validation d'assignation à un exercice / éducatif). */
+    public SessionCategory requireForDomain(UUID clubId, UUID id, CategoryDomain domain) {
+        return categoryRepository.findByIdAndClubIdAndDomain(id, clubId, domain)
+                .orElseThrow(() -> new NotFoundException("Catégorie introuvable."));
     }
 
     private void apply(UUID clubId, SessionCategory c, SessionCategoryRequest req) {

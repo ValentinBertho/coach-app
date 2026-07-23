@@ -3,10 +3,16 @@ export type PrescriptionRef =
   | 'PCT_PACE_800M' | 'PCT_PACE_1500M' | 'PCT_PACE_3000M' | 'PCT_PACE_5KM'
   | 'PCT_PACE_10KM' | 'PCT_PACE_15KM' | 'PCT_PACE_SEMI' | 'PCT_PACE_MARATHON';
 
+/**
+ * Prescription d'intensité d'un bloc. Authoring cible (Z3) : `zoneId` seul (zone à 100 %),
+ * la cible allure/FC est lue sur la fiche athlète. Champs legacy `ref/minPct/maxPct` conservés
+ * pour la lecture des snapshots figés et anciens modèles.
+ */
 export interface CoursePrescription {
-  ref: PrescriptionRef;
-  minPct: number;
-  maxPct: number;
+  zoneId?: string | null;
+  ref?: PrescriptionRef | null;
+  minPct?: number | null;
+  maxPct?: number | null;
 }
 
 export interface CourseRecovery {
@@ -74,7 +80,8 @@ export interface CourseStructureResponse {
 
 export interface CalculatedBlock {
   computable: boolean;
-  ref: PrescriptionRef;
+  /** Référentiel legacy (null pour une cible lue depuis une zone). */
+  ref?: PrescriptionRef | null;
   basePaceSecPerKm: number | null;
   paceMinSecPerKm: number | null;
   paceMaxSecPerKm: number | null;

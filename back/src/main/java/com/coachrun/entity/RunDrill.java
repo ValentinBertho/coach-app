@@ -32,6 +32,11 @@ public class RunDrill extends BaseEntity {
     @Column(name = "category", nullable = false, length = 32)
     private RunDrillCategory category;
 
+    /** Catégorie de l'arbre unifié (domaine DRILL), nullable — coexiste avec l'enum legacy (QA1). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private SessionCategory categoryRef;
+
     @Column(name = "description", columnDefinition = "text")
     private String description;
 

@@ -47,6 +47,42 @@
 .block-edit .nm {
   width: 68px;
 }
+.block-edit .zone-select {
+  min-width: 150px;
+}
+.zone-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: var(--radius-full);
+  flex: none;
+}
+.measure-toggle {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.measure-toggle button {
+  border: none;
+  background: var(--paper);
+  color: var(--ink-2);
+  padding: 0 var(--sp-3);
+  min-height: 38px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.measure-toggle button.on {
+  background: var(--dari-teal);
+  color: #fff;
+}
+.measure-toggle button + button {
+  border-left: 1px solid var(--line);
+}
+.calc-na a {
+  margin-left: var(--sp-2);
+  font-weight: 600;
+}
 .calc-preview {
   display: flex;
   flex-wrap: wrap;

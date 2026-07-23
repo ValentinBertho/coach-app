@@ -1,5 +1,6 @@
 package com.coachrun.entity;
 
+import com.coachrun.entity.enums.CategoryDomain;
 import com.coachrun.entity.enums.Discipline;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -27,6 +28,11 @@ public class SessionCategory extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "club_id", nullable = false)
     private Club club;
+
+    /** Domaine de bibliothèque (course / prépa physique / éducatifs) — arbre unifié (QA1). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "domain", nullable = false, length = 16)
+    private CategoryDomain domain = CategoryDomain.COURSE;
 
     @Column(name = "name", nullable = false)
     private String name;

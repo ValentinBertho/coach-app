@@ -3,6 +3,7 @@ package com.coachrun.service;
 import com.coachrun.dto.request.RunDrillRequest;
 import com.coachrun.dto.response.RunDrillResponse;
 import com.coachrun.entity.RunDrill;
+import com.coachrun.entity.enums.CategoryDomain;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.ClubRepository;
 import com.coachrun.repository.RunDrillRepository;
@@ -21,6 +22,7 @@ public class RunDrillService {
 
     private final RunDrillRepository drillRepository;
     private final ClubRepository clubRepository;
+    private final SessionCategoryService categoryService;
 
     public List<RunDrillResponse> list(UUID clubId) {
         return drillRepository.findByClubIdOrderByCategoryAscNameAsc(clubId).stream()
@@ -32,14 +34,14 @@ public class RunDrillService {
     public RunDrillResponse create(UUID clubId, RunDrillRequest request) {
         RunDrill d = new RunDrill();
         d.setClub(clubRepository.getReferenceById(clubId));
-        apply(d, request);
+        apply(clubId, d, request);
         return RunDrillResponse.of(drillRepository.save(d));
     }
 
     @Transactional
     public RunDrillResponse update(UUID clubId, UUID id, RunDrillRequest request) {
         RunDrill d = require(clubId, id);
-        apply(d, request);
+        apply(clubId, d, request);
         return RunDrillResponse.of(d);
     }
 
@@ -48,9 +50,11 @@ public class RunDrillService {
         drillRepository.delete(require(clubId, id));
     }
 
-    private void apply(RunDrill d, RunDrillRequest r) {
+    private void apply(UUID clubId, RunDrill d, RunDrillRequest r) {
         d.setName(r.name());
         d.setCategory(r.category());
+        d.setCategoryRef(r.categoryId() == null ? null
+                : categoryService.requireForDomain(clubId, r.categoryId(), CategoryDomain.DRILL));
         d.setDescription(r.description());
         d.setVideoUrl(r.videoUrl());
     }

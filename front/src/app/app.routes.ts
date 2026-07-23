@@ -91,6 +91,11 @@ export const routes: Routes = [
           import('./features/calendar/calendar.component').then((m) => m.CalendarComponent),
       },
       {
+        path: 'library',
+        loadComponent: () =>
+          import('./features/library/library.component').then((m) => m.LibraryComponent),
+      },
+      {
         path: 'templates',
         loadComponent: () =>
           import('./features/templates/template-list.component').then((m) => m.TemplateListComponent),
@@ -143,6 +148,11 @@ export const routes: Routes = [
           import('./features/club/club.component').then((m) => m.ClubComponent),
       },
       {
+        path: 'training-zones',
+        loadComponent: () =>
+          import('./features/zones/training-zones.component').then((m) => m.TrainingZonesComponent),
+      },
+      {
         path: 'settings',
         loadComponent: () =>
           import('./features/settings/settings.component').then((m) => m.SettingsComponent),
@@ -192,6 +202,11 @@ export const routes: Routes = [
         path: 'athletes/:athleteId/races',
         loadComponent: () =>
           import('./features/races/race-list.component').then((m) => m.RaceListComponent),
+      },
+      {
+        path: 'athletes/:athleteId/zones',
+        loadComponent: () =>
+          import('./features/athletes/athlete-zones.component').then((m) => m.AthleteZonesComponent),
       },
       {
         path: 'athletes/:athleteId/workouts/:workoutId/structure',

@@ -25,16 +25,35 @@
       <option value="">Tous groupes musculaires</option>
       @for (m of muscles; track m) { <option [value]="m">{{ label(m) }}</option> }
     </select>
+    <select class="form-control" [ngModel]="filterCategoryId()" (ngModelChange)="filterCategoryId.set($event)" title="Catégorie">
+      <option value="">Toutes catégories (perso.)</option>
+      @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+      <option value="__none__">Sans catégorie</option>
+    </select>
     <button type="button" class="btn btn-primary" (click)="showExerciseForm.set(!showExerciseForm())">+ Exercice</button>
+  </div>
+
+  <div class="card cat-manage">
+    <span class="cf-lb">Catégories (perso.) :</span>
+    <input class="form-control" [(ngModel)]="newStrengthCatName" placeholder="Nouvelle catégorie…" (keyup.enter)="createStrengthCategory()" />
+    <button type="button" class="btn btn-ghost btn-sm" (click)="createStrengthCategory()">+ Catégorie</button>
   </div>
 
   @if (showExerciseForm()) {
     <div class="card exercise-form">
       <div class="form-row">
         <div class="form-group"><label>Nom</label><input class="form-control" [(ngModel)]="newExercise.name" /></div>
-        <div class="form-group"><label>Catégorie</label>
+        <div class="form-group"><label>Type</label>
           <select class="form-control" [(ngModel)]="newExercise.category">
             @for (c of categories; track c) { <option [value]="c">{{ label(c) }}</option> }
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Catégorie (perso.)</label>
+          <select class="form-control" [(ngModel)]="newExercise.categoryId">
+            <option value="">Sans catégorie</option>
+            @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
           </select>
         </div>
       </div>
@@ -56,18 +75,26 @@
     <div class="card">Chargement…</div>
   } @else {
     <div class="ex-grid">
-      @for (e of exercises(); track e.id) {
+      @for (e of filteredExercises(); track e.id) {
         <div class="card ex-card">
           <div class="ex-head">
             <strong>{{ e.name }}</strong>
             <span class="badge badge-info">{{ label(e.category) }}</span>
           </div>
+          @if (e.categoryId) { <span class="badge badge-neutral cat-badge">{{ catName(e.categoryId) }}</span> }
           @if (e.muscleGroups.length) {
             <div class="ex-tags">
               @for (m of e.muscleGroups; track m) { <span class="badge badge-neutral">{{ label(m) }}</span> }
             </div>
           }
           @if (e.videoUrl) { <a class="ex-video" [href]="e.videoUrl" target="_blank" rel="noopener">▶ Vidéo démo</a> }
+          <label class="ex-assign">
+            <span>Catégorie</span>
+            <select class="form-control" [ngModel]="e.categoryId ?? ''" (ngModelChange)="assignExerciseCategory(e, $event)">
+              <option value="">Sans catégorie</option>
+              @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+            </select>
+          </label>
         </div>
       } @empty {
         <p class="empty-hint">Aucun exercice. Crée ton premier exercice.</p>

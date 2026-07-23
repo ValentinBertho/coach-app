@@ -9,9 +9,11 @@ import { ToastService } from '../../core/services/toast.service';
 import { RunDrillService } from '../../core/services/run-drill.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
-import { CalculatedBlock, COURSE_BLOCK_TYPE_LABELS, CourseBlock, CourseBlockType, PrescriptionRef, SessionStructure } from '../../core/models/course.model';
+import { CalculatedBlock, COURSE_BLOCK_TYPE_LABELS, CourseBlock, CourseBlockType, SessionStructure } from '../../core/models/course.model';
 import { PhysioProfile } from '../../core/models/physio.model';
 import { RunDrill } from '../../core/models/run-drill.model';
+import { TrainingZone } from '../../core/models/training-zone.model';
+import { TrainingZoneService } from '../../core/services/training-zone.service';
 
 /** Statut de complétude du profil pour la prescription course. */
 export type ProfileStatus = 'measured' | 'estimated' | 'incomplete';
@@ -40,6 +42,7 @@ export class SessionEditorComponent implements OnInit {
   readonly athleteId = input<string>('');
 
   private readonly course = inject(CourseService);
+  private readonly zoneService = inject(TrainingZoneService);
   private readonly athletes = inject(AthleteService);
   private readonly workoutService = inject(WorkoutService);
   private readonly drillService = inject(RunDrillService);
@@ -83,18 +86,48 @@ export class SessionEditorComponent implements OnInit {
     { key: 'cooldown', label: 'Retour au calme' },
   ];
 
-  readonly refs: { value: PrescriptionRef; label: string }[] = [
-    { value: 'PCT_LT1', label: '% LT1' },
-    { value: 'PCT_LT2', label: '% LT2' },
-    { value: 'PCT_VC', label: '% VC' },
-    { value: 'PCT_PACE_5KM', label: '% allure 5 km' },
-    { value: 'PCT_PACE_10KM', label: '% allure 10 km' },
-    { value: 'PCT_PACE_SEMI', label: '% allure semi' },
-    { value: 'PCT_PACE_MARATHON', label: '% allure marathon' },
-  ];
+  /** Zones du club (authoring Z3 : un bloc = type + volume + zone). */
+  readonly zones = signal<TrainingZone[]>([]);
+
+  private readonly zoneById = computed(() => {
+    const map = new Map<string, TrainingZone>();
+    for (const z of this.zones()) map.set(z.id, z);
+    return map;
+  });
+
+  /** Zone pré-sélectionnée selon le type de bloc (QA4). */
+  private readonly DEFAULT_ZONE_BY_TYPE: Record<string, string> = {
+    intervals: 'VO2',
+    tempo: 'Marathon',
+    threshold: 'Seuil',
+    easy: 'Endurance fondamentale',
+    warmup: 'Endurance fondamentale',
+    cooldown: 'Récupération',
+    recovery: 'Récupération',
+    long: 'Endurance fondamentale',
+    run: 'Endurance fondamentale',
+  };
+
+  zoneName(id: string | null | undefined): string {
+    return id ? this.zoneById().get(id)?.name ?? 'Zone' : '';
+  }
+
+  zoneColor(id: string | null | undefined): string {
+    return (id && this.zoneById().get(id)?.color) || 'var(--ink-3)';
+  }
+
+  private zoneIdByName(name: string): string | null {
+    const found = this.zones().find((z) => z.name === name);
+    return found?.id ?? this.zones()[0]?.id ?? null;
+  }
+
+  private defaultZoneIdForType(type: string): string | null {
+    return this.zoneIdByName(this.DEFAULT_ZONE_BY_TYPE[type] ?? 'Endurance fondamentale');
+  }
 
   ngOnInit(): void {
     this.drillService.list().subscribe((d) => this.drills.set(d));
+    this.zoneService.list().subscribe((z) => this.zones.set(z));
 
     if (this.isWorkout()) {
       // Mode séance planifiée : athlète fixe, on charge le snapshot puis on recalcule.
@@ -172,51 +205,36 @@ export class SessionEditorComponent implements OnInit {
     (Object.keys(COURSE_BLOCK_TYPE_LABELS) as CourseBlockType[])
       .map((value) => ({ value, label: COURSE_BLOCK_TYPE_LABELS[value] }));
 
-  /**
-   * Référentiel adapté au profil : sans seuil mesuré, on prescrit en allures de course plutôt
-   * qu'en % LT1/LT2/VC. Le moteur applique le même repli (LT1≈marathon, LT2≈10 km, VC≈5 km),
-   * donc les cibles calculées sont identiques — mais la référence affichée reste cohérente avec
-   * ce que l'athlète possède réellement.
-   */
-  private adaptRef(ref: PrescriptionRef): PrescriptionRef {
-    if (this.profileStatus() === 'measured') return ref;
-    switch (ref) {
-      case 'PCT_LT1': return 'PCT_PACE_MARATHON';
-      case 'PCT_LT2': return 'PCT_PACE_10KM';
-      case 'PCT_VC': return 'PCT_PACE_5KM';
-      default: return ref;
-    }
-  }
-
-  /** Blocs pré-remplis en un clic, par section (valeurs de départ raisonnables, en fourchettes). */
+  /** Blocs pré-remplis en un clic, par section : type + volume + zone (la cible est lue, pas saisie). */
   presetsFor(key: keyof SessionStructure): { label: string; block: Partial<CourseBlock> }[] {
-    const ref = (r: PrescriptionRef) => this.adaptRef(r);
+    const z = (name: string) => this.zoneIdByName(name);
     if (key === 'warmup') {
       return [
-        { label: 'Échauffement 15 min', block: { type: 'warmup', durationS: 900, prescription: { ref: ref('PCT_LT1'), minPct: 60, maxPct: 75 } } },
+        { label: 'Échauffement 15 min', block: { type: 'warmup', durationS: 900, prescription: { zoneId: z('Endurance fondamentale') } } },
       ];
     }
     if (key === 'cooldown') {
       return [
-        { label: 'Retour au calme 10 min', block: { type: 'cooldown', durationS: 600, prescription: { ref: ref('PCT_LT1'), minPct: 55, maxPct: 70 } } },
+        { label: 'Retour au calme 10 min', block: { type: 'cooldown', durationS: 600, prescription: { zoneId: z('Récupération') } } },
       ];
     }
     return [
-      { label: 'Intervalles 6×400 m', block: { type: 'intervals', reps: 6, distanceM: 400, prescription: { ref: 'PCT_PACE_5KM', minPct: 98, maxPct: 105 } } },
-      { label: 'Seuil 20 min', block: { type: 'threshold', durationS: 1200, prescription: { ref: ref('PCT_LT2'), minPct: 95, maxPct: 100 } } },
-      { label: 'Tempo 4 km', block: { type: 'tempo', distanceM: 4000, prescription: { ref: 'PCT_PACE_10KM', minPct: 95, maxPct: 100 } } },
+      { label: 'Intervalles 6×400 m', block: { type: 'intervals', reps: 6, distanceM: 400, prescription: { zoneId: z('VO2') } } },
+      { label: 'Seuil 20 min', block: { type: 'threshold', durationS: 1200, prescription: { zoneId: z('Seuil') } } },
+      { label: 'Tempo 4 km', block: { type: 'tempo', distanceM: 4000, prescription: { zoneId: z('Marathon') } } },
     ];
   }
 
   addBlock(key: keyof SessionStructure, preset?: Partial<CourseBlock>): void {
     const isMain = key === 'main';
+    const type = isMain ? 'intervals' : (key === 'warmup' ? 'warmup' : 'cooldown');
     const base: CourseBlock = {
       id: 'b-' + Math.random().toString(36).slice(2, 9),
-      type: isMain ? 'intervals' : (key === 'warmup' ? 'warmup' : 'cooldown'),
+      type,
       reps: isMain ? 6 : null,
       distanceM: isMain ? 1000 : null,
       durationS: isMain ? null : 600,
-      prescription: { ref: isMain ? 'PCT_PACE_5KM' : 'PCT_LT1', minPct: 95, maxPct: 100 },
+      prescription: { zoneId: this.defaultZoneIdForType(type) },
     };
     const block: CourseBlock = { ...base, ...preset, id: base.id };
     // Un bloc se mesure soit en distance, soit en durée : on garde un seul des deux.
@@ -332,10 +350,17 @@ export class SessionEditorComponent implements OnInit {
   recalc(b: CourseBlock): void {
     const a = this.calcAthleteId();
     const p = b.prescription;
-    if (!a || !p?.ref || p.minPct == null || p.maxPct == null) return;
-    this.course
-      .sessionCalc(a, { ref: p.ref, minPct: p.minPct, maxPct: p.maxPct, reps: b.reps, distanceM: b.distanceM, durationS: b.durationS })
-      .subscribe((c) => this.calc.update((map) => ({ ...map, [b.id]: c })));
+    if (!a || !p) return;
+    // Chemin Z3 : cible lue depuis la zone de l'athlète. Repli legacy (ref + %) pour l'adaptation
+    // d'anciens snapshots non encore migrés vers une zone.
+    let body: Parameters<CourseService['sessionCalc']>[1] | null = null;
+    if (p.zoneId) {
+      body = { zoneId: p.zoneId, reps: b.reps, distanceM: b.distanceM, durationS: b.durationS };
+    } else if (p.ref && p.minPct != null && p.maxPct != null) {
+      body = { ref: p.ref, minPct: p.minPct, maxPct: p.maxPct, reps: b.reps, distanceM: b.distanceM, durationS: b.durationS };
+    }
+    if (!body) return;
+    this.course.sessionCalc(a, body).subscribe((c) => this.calc.update((map) => ({ ...map, [b.id]: c })));
   }
 
   save(): void {

@@ -1,0 +1,132 @@
+# ============================================================================
+# 044 — Catalogue de métriques de zone (allure, FC, vitesse, %FCmax, puissance, RPE).
+#   Table additive + seed du catalogue GLOBAL (club_id NULL, is_builtin=true) avec des
+#   UUID fixes, portables H2/PostgreSQL. Les métriques custom d'un club se rattachent via club_id.
+#   Cf. docs/AUDIT-COACH-ZONES-METRIQUES.md §3.1-3.2 (chantier Z1).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 044-create-metric-types
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: metric_types
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID }
+              - column: { name: code, type: VARCHAR(32), constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: unit, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: format, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: direction, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: sort_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: is_builtin, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_metric_types_club
+            baseTableName: metric_types
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_metric_types_club
+            tableName: metric_types
+            columns:
+              - column: { name: club_id }
+
+  # --- Seed du catalogue global (UUID fixes) -------------------------------
+  - changeSet:
+      id: 044-seed-builtin-metrics
+      author: coachrun
+      changes:
+        - insert:
+            tableName: metric_types
+            columns:
+              - column: { name: id, value: "11111111-0000-0000-0000-000000000001" }
+              - column: { name: code, value: PACE }
+              - column: { name: name, value: Allure }
+              - column: { name: unit, value: S_PER_KM }
+              - column: { name: format, value: MMSS }
+              - column: { name: direction, value: LOWER_HARDER }
+              - column: { name: sort_order, valueNumeric: 1 }
+              - column: { name: is_builtin, valueBoolean: true }
+              - column: { name: created_at, valueComputed: CURRENT_TIMESTAMP }
+              - column: { name: updated_at, valueComputed: CURRENT_TIMESTAMP }
+              - column: { name: version, valueNumeric: 0 }
+        - insert:
+            tableName: metric_types
+            columns:
+              - column: { name: id, value: "11111111-0000-0000-0000-000000000002" }
+              - column: { name: code, value: HR }
+              - column: { name: name, value: "Fréquence cardiaque" }
+              - column: { name: unit, value: BPM }
+              - column: { name: format, value: INT }
+              - column: { name: direction, value: HIGHER_HARDER }
+              - column: { name: sort_order, valueNumeric: 2 }
+              - column: { name: is_builtin, valueBoolean: true }
+              - column: { name: created_at, valueComputed: CURRENT_TIMESTAMP }
+              - column: { name: updated_at, valueComputed: CURRENT_TIMESTAMP }
+              - column: { name: version, valueNumeric: 0 }
+        - insert:
+            tableName: metric_types
+            columns:
+              - column: { name: id, value: "11111111-0000-0000-0000-000000000003" }
+              - column: { name: code, value: SPEED }
+              - column: { name: name, value: Vitesse }
+              - column: { name: unit, value: KMH }
+              - column: { name: format, value: DEC1 }
+              - column: { name: direction, value: HIGHER_HARDER }
+              - column: { name: sort_order, valueNumeric: 3 }
+              - column: { name: is_builtin, valueBoolean: true }
+              - column: { name: created_at, valueComputed: CURRENT_TIMESTAMP }
+              - column: { name: updated_at, valueComputed: CURRENT_TIMESTAMP }
+              - column: { name: version, valueNumeric: 0 }
+        - insert:
+            tableName: metric_types
+            columns:
+              - column: { name: id, value: "11111111-0000-0000-0000-000000000004" }
+              - column: { name: code, value: PCT_HRMAX }
+              - column: { name: name, value: "% FC max" }
+              - column: { name: unit, value: PCT }
+              - column: { name: format, value: INT }
+              - column: { name: direction, value: HIGHER_HARDER }
+              - column: { name: sort_order, valueNumeric: 4 }
+              - column: { name: is_builtin, valueBoolean: true }
+              - column: { name: created_at, valueComputed: CURRENT_TIMESTAMP }
+              - column: { name: updated_at, valueComputed: CURRENT_TIMESTAMP }
+              - column: { name: version, valueNumeric: 0 }
+        - insert:
+            tableName: metric_types
+            columns:
+              - column: { name: id, value: "11111111-0000-0000-0000-000000000005" }
+              - column: { name: code, value: POWER }
+              - column: { name: name, value: Puissance }
+              - column: { name: unit, value: W }
+              - column: { name: format, value: INT }
+              - column: { name: direction, value: HIGHER_HARDER }
+              - column: { name: sort_order, valueNumeric: 5 }
+              - column: { name: is_builtin, valueBoolean: true }
+              - column: { name: created_at, valueComputed: CURRENT_TIMESTAMP }
+              - column: { name: updated_at, valueComputed: CURRENT_TIMESTAMP }
+              - column: { name: version, valueNumeric: 0 }
+        - insert:
+            tableName: metric_types
+            columns:
+              - column: { name: id, value: "11111111-0000-0000-0000-000000000006" }
+              - column: { name: code, value: RPE }
+              - column: { name: name, value: "Effort perçu (RPE)" }
+              - column: { name: unit, value: RPE }
+              - column: { name: format, value: INT }
+              - column: { name: direction, value: HIGHER_HARDER }
+              - column: { name: sort_order, valueNumeric: 6 }
+              - column: { name: is_builtin, valueBoolean: true }
+              - column: { name: created_at, valueComputed: CURRENT_TIMESTAMP }
+              - column: { name: updated_at, valueComputed: CURRENT_TIMESTAMP }
+              - column: { name: version, valueNumeric: 0 }
+      rollback:
+        - delete:
+            tableName: metric_types
+            where: is_builtin = TRUE AND club_id IS NULL

@@ -1,0 +1,77 @@
+# ============================================================================
+# 045 — Zones de travail du coach + jointure zone×métrique.
+#   Tables additives, non destructives. Le jeu de zones standard est seedé PAR CLUB au niveau
+#   applicatif (TrainingZoneSeedService) : provisionnement à la première lecture d'un club sans
+#   zone, ce qui couvre uniformément les clubs existants comme les futurs (pas de génération
+#   d'UUID par club dans le YAML → portable H2/PostgreSQL).
+#   Cf. docs/AUDIT-COACH-ZONES-METRIQUES.md §3.1-3.2 (chantier Z1).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 045-create-training-zones
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: training_zones
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: color, type: VARCHAR(16) }
+              - column: { name: sort_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: scope, type: VARCHAR(16), defaultValue: CLUB, constraints: { nullable: false } }
+              - column: { name: discipline, type: VARCHAR(16) }
+              - column: { name: is_builtin, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_training_zones_club
+            baseTableName: training_zones
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_training_zones_club
+            tableName: training_zones
+            columns:
+              - column: { name: club_id }
+
+  - changeSet:
+      id: 045-create-zone-metrics
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: zone_metrics
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: zone_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: metric_type_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: sort_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_zone_metrics_zone
+            baseTableName: zone_metrics
+            baseColumnNames: zone_id
+            referencedTableName: training_zones
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_zone_metrics_metric
+            baseTableName: zone_metrics
+            baseColumnNames: metric_type_id
+            referencedTableName: metric_types
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            constraintName: uk_zone_metric
+            tableName: zone_metrics
+            columnNames: zone_id, metric_type_id
+        - createIndex:
+            indexName: idx_zone_metrics_zone
+            tableName: zone_metrics
+            columns:
+              - column: { name: zone_id }

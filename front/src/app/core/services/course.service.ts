@@ -33,7 +33,15 @@ export class CourseService {
 
   sessionCalc(
     athleteId: string,
-    body: { ref: PrescriptionRef; minPct: number; maxPct: number; reps?: number | null; distanceM?: number | null; durationS?: number | null },
+    body: {
+      zoneId?: string | null;
+      ref?: PrescriptionRef | null;
+      minPct?: number | null;
+      maxPct?: number | null;
+      reps?: number | null;
+      distanceM?: number | null;
+      durationS?: number | null;
+    },
   ): Observable<CalculatedBlock> {
     return this.http.post<CalculatedBlock>(`${this.club()}/athletes/${athleteId}/session-calc`, body);
   }

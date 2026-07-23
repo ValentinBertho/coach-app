@@ -21,6 +21,9 @@ export class RunDrillService {
   create(body: RunDrillRequest): Observable<RunDrill> {
     return this.http.post<RunDrill>(this.base(), body);
   }
+  update(id: string, body: RunDrillRequest): Observable<RunDrill> {
+    return this.http.put<RunDrill>(`${this.base()}/${id}`, body);
+  }
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base()}/${id}`);
   }

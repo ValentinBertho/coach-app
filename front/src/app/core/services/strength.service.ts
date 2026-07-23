@@ -45,6 +45,10 @@ export class StrengthService {
     return this.http.post<PpExercise>(`${this.club()}/pp/exercises`, body);
   }
 
+  updateExercise(id: string, body: PpExerciseRequest): Observable<PpExercise> {
+    return this.http.put<PpExercise>(`${this.club()}/pp/exercises/${id}`, body);
+  }
+
   getExercise(id: string): Observable<PpExercise> {
     return this.http.get<PpExercise>(`${this.club()}/pp/exercises/${id}`);
   }

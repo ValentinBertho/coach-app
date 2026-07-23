@@ -1,10 +1,12 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AthleteService } from '../../core/services/athlete.service';
 import { StrengthService } from '../../core/services/strength.service';
+import { SessionCategoryService } from '../../core/services/session-category.service';
+import { SessionCategory } from '../../core/models/session-category.model';
 import { ToastService } from '../../core/services/toast.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import {
@@ -36,6 +38,7 @@ type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
 export class StrengthComponent implements OnInit {
   private readonly strength = inject(StrengthService);
   private readonly athletes = inject(AthleteService);
+  private readonly categoryService = inject(SessionCategoryService);
   private readonly toast = inject(ToastService);
 
   readonly tab = signal<Tab>('exercises');
@@ -48,7 +51,30 @@ export class StrengthComponent implements OnInit {
   readonly filterMuscle = signal('');
   readonly searchQ = signal('');
   readonly showExerciseForm = signal(false);
-  newExercise = { name: '', category: 'FORCE_MAX' as ExerciseCategory, muscle: '' as MuscleGroup | '', videoUrl: '', instructions: '' };
+  newExercise = { name: '', category: 'FORCE_MAX' as ExerciseCategory, categoryId: '' as string, muscle: '' as MuscleGroup | '', videoUrl: '', instructions: '' };
+
+  /** Catégories unifiées du domaine prépa physique (QA1). */
+  readonly strengthCats = signal<SessionCategory[]>([]);
+  /** Filtre par catégorie unifiée : '' = toutes, '__none__' = sans catégorie, sinon id. */
+  readonly filterCategoryId = signal('');
+  newStrengthCatName = '';
+
+  private readonly catNameById = computed(() => {
+    const map = new Map<string, string>();
+    for (const c of this.strengthCats()) map.set(c.id, c.name);
+    return map;
+  });
+
+  catName(id: string | null): string {
+    return id ? this.catNameById().get(id) ?? '' : '';
+  }
+
+  /** Exercices filtrés par catégorie unifiée (le filtre enum/muscle reste côté serveur). */
+  readonly filteredExercises = computed(() => {
+    const f = this.filterCategoryId();
+    return this.exercises().filter((e) =>
+      !f || (f === '__none__' ? !e.categoryId : e.categoryId === f));
+  });
 
   // Séances
   readonly sessions = signal<StrengthSession[]>([]);
@@ -91,10 +117,42 @@ export class StrengthComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadExercises();
+    this.loadStrengthCategories();
     this.loadSessions();
     this.loadCycles();
     this.computeRm();
     this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
+  }
+
+  private loadStrengthCategories(): void {
+    this.categoryService.list('STRENGTH').subscribe({
+      next: (c) => this.strengthCats.set(c),
+      error: () => this.strengthCats.set([]),
+    });
+  }
+
+  createStrengthCategory(): void {
+    const name = this.newStrengthCatName.trim();
+    if (!name) return;
+    this.categoryService.create({ name }, 'STRENGTH').subscribe((c) => {
+      this.strengthCats.update((list) => [...list, c]);
+      this.newStrengthCatName = '';
+      this.toast.success('Catégorie ajoutée.');
+    });
+  }
+
+  /** Réassigne la catégorie unifiée d'un exercice existant (mise à jour sans perte des autres champs). */
+  assignExerciseCategory(e: PpExercise, categoryId: string): void {
+    this.strength.updateExercise(e.id, {
+      name: e.name, category: e.category, categoryId: categoryId || null,
+      level: e.level, objective: e.objective,
+      muscleGroups: e.muscleGroups, equipment: e.equipment,
+      videoUrl: e.videoUrl, imageUrl: e.imageUrl, instructions: e.instructions,
+      technicalNotes: e.technicalNotes, contraindications: e.contraindications,
+      progressionId: e.progressionId, regressionId: e.regressionId,
+    }).subscribe((updated) => {
+      this.exercises.update((list) => list.map((x) => (x.id === e.id ? updated : x)));
+    });
   }
 
   // --- Cycles ---
@@ -160,13 +218,14 @@ export class StrengthComponent implements OnInit {
       .createExercise({
         name: this.newExercise.name,
         category: this.newExercise.category,
+        categoryId: this.newExercise.categoryId || null,
         muscleGroups: this.newExercise.muscle ? [this.newExercise.muscle] : [],
         videoUrl: this.newExercise.videoUrl || null,
         instructions: this.newExercise.instructions || null,
       })
       .subscribe(() => {
         this.toast.success('Exercice créé');
-        this.newExercise = { name: '', category: 'FORCE_MAX', muscle: '', videoUrl: '', instructions: '' };
+        this.newExercise = { name: '', category: 'FORCE_MAX', categoryId: this.newExercise.categoryId, muscle: '', videoUrl: '', instructions: '' };
         this.showExerciseForm.set(false);
         this.loadExercises();
       });

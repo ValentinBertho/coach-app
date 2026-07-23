@@ -105,6 +105,48 @@ public class SessionCalculatorEngine {
                 isEstimatedThreshold(in.ref(), ctx));
     }
 
+    /**
+     * Chemin Z3 : cible <b>lue</b> directement depuis les valeurs de zone de l'athlète
+     * ({@code AthleteZoneValue}) — plus de base × %. La fourchette d'allure pilote vitesse, durée et
+     * distance estimées ; la FC et le RPE sont repris tels quels s'ils sont fournis.
+     *
+     * @param paceFastS allure la plus rapide (min s/km) ; {@code null} si la zone n'a pas d'allure.
+     * @param paceSlowS allure la plus lente (max s/km).
+     */
+    public Result calculateFromZone(Integer paceFastS, Integer paceSlowS,
+                                    Integer hrLow, Integer hrHigh, Integer rpeMin, Integer rpeMax,
+                                    Integer reps, Integer distanceM, Integer durationS) {
+        if (paceFastS == null || paceSlowS == null || paceFastS <= 0 || paceSlowS <= 0) {
+            // Sans allure cible, le bloc n'est pas chiffrable (la zone reste « à renseigner »).
+            return new Result(false, null, null, null, null, null, null, null, null,
+                    hrLow, hrHigh, rpeMin, rpeMax, null, null, false);
+        }
+        int paceFast = Math.min(paceFastS, paceSlowS);
+        int paceSlow = Math.max(paceFastS, paceSlowS);
+
+        double speedFastKmh = round1(PaceUtil.secPerKmToKmh(paceFast));
+        double speedSlowKmh = round1(PaceUtil.secPerKmToKmh(paceSlow));
+
+        int meanPace = (paceFast + paceSlow) / 2;
+        Integer estimatedDistanceM = null;
+        Integer estimatedDurationS = null;
+        int r = reps == null || reps <= 0 ? 1 : reps;
+        if (distanceM != null && distanceM > 0) {
+            estimatedDistanceM = distanceM * r;
+            estimatedDurationS = (int) Math.round(estimatedDistanceM / 1000.0 * meanPace);
+        } else if (durationS != null && durationS > 0) {
+            estimatedDurationS = durationS * r;
+            estimatedDistanceM = (int) Math.round(estimatedDurationS / (double) meanPace * 1000.0);
+        }
+
+        return new Result(true, null, null,
+                paceFast, paceSlow,
+                PaceUtil.formatPace(paceFast), PaceUtil.formatPace(paceSlow),
+                speedSlowKmh, speedFastKmh,
+                hrLow, hrHigh, rpeMin, rpeMax,
+                estimatedDurationS, estimatedDistanceM, false);
+    }
+
     /** Vrai si la prescription vise un seuil (LT1/LT2/VC) non mesuré → allure dérivée du VDOT. */
     private boolean isEstimatedThreshold(PrescriptionRef ref, AthletePaceContext c) {
         return switch (ref) {

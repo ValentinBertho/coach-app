@@ -1,0 +1,49 @@
+# ============================================================================
+# 048 — FK catégorie (nullable) sur pp_exercises et run_drills.
+#   Additif, non destructif : la colonne enum "category" existante est conservée (legacy) ;
+#   category_id rattache l'item à l'arbre unifié (session_categories). ON DELETE SET NULL :
+#   supprimer une catégorie détache les items sans les supprimer.
+#   Cf. AUDIT-COACH-ZONES-METRIQUES §4.1 (résidu QA1).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 048-pp-exercises-category-fk
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: pp_exercises
+            columns:
+              - column: { name: category_id, type: UUID }
+        - addForeignKeyConstraint:
+            constraintName: fk_pp_exercises_category
+            baseTableName: pp_exercises
+            baseColumnNames: category_id
+            referencedTableName: session_categories
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - createIndex:
+            indexName: idx_pp_exercises_category
+            tableName: pp_exercises
+            columns:
+              - column: { name: category_id }
+
+  - changeSet:
+      id: 048-run-drills-category-fk
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: run_drills
+            columns:
+              - column: { name: category_id, type: UUID }
+        - addForeignKeyConstraint:
+            constraintName: fk_run_drills_category
+            baseTableName: run_drills
+            baseColumnNames: category_id
+            referencedTableName: session_categories
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - createIndex:
+            indexName: idx_run_drills_category
+            tableName: run_drills
+            columns:
+              - column: { name: category_id }

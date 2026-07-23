@@ -15,6 +15,8 @@ import java.util.UUID;
 public record PpExerciseRequest(
         @NotBlank @Size(max = 255) String name,
         @NotNull ExerciseCategory category,
+        /** Catégorie de l'arbre unifié (domaine STRENGTH), optionnelle (QA1). */
+        UUID categoryId,
         ExerciseLevel level,
         String objective,
         List<MuscleGroup> muscleGroups,

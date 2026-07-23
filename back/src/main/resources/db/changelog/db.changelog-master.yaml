@@ -89,3 +89,13 @@ databaseChangeLog:
       file: db/changelog/changes/042-calendar-notes.yaml
   - include:
       file: db/changelog/changes/043-workout-order-index.yaml
+  - include:
+      file: db/changelog/changes/044-metric-types.yaml
+  - include:
+      file: db/changelog/changes/045-training-zones.yaml
+  - include:
+      file: db/changelog/changes/046-athlete-zone-values.yaml
+  - include:
+      file: db/changelog/changes/047-category-domain.yaml
+  - include:
+      file: db/changelog/changes/048-exercise-drill-category.yaml

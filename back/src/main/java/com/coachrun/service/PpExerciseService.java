@@ -28,6 +28,7 @@ public class PpExerciseService {
 
     private final PpExerciseRepository exerciseRepository;
     private final ClubRepository clubRepository;
+    private final SessionCategoryService categoryService;
 
     public PageResponse<PpExerciseResponse> search(UUID clubId, ExerciseCategory category,
                                                    ExerciseLevel level, MuscleGroup muscle,
@@ -46,14 +47,14 @@ public class PpExerciseService {
     public PpExerciseResponse create(UUID clubId, PpExerciseRequest req) {
         PpExercise e = new PpExercise();
         e.setClub(clubRepository.getReferenceById(clubId));
-        apply(e, req);
+        apply(clubId, e, req);
         return PpExerciseResponse.from(exerciseRepository.save(e));
     }
 
     @Transactional
     public PpExerciseResponse update(UUID clubId, UUID id, PpExerciseRequest req) {
         PpExercise e = require(clubId, id);
-        apply(e, req);
+        apply(clubId, e, req);
         return PpExerciseResponse.from(e);
     }
 
@@ -62,9 +63,11 @@ public class PpExerciseService {
         require(clubId, id).setArchived(true);
     }
 
-    private void apply(PpExercise e, PpExerciseRequest req) {
+    private void apply(UUID clubId, PpExercise e, PpExerciseRequest req) {
         e.setName(req.name().trim());
         e.setCategory(req.category());
+        e.setCategoryRef(req.categoryId() == null ? null
+                : categoryService.requireForDomain(clubId, req.categoryId(), com.coachrun.entity.enums.CategoryDomain.STRENGTH));
         e.setLevel(req.level() != null ? req.level() : ExerciseLevel.INTERMEDIAIRE);
         e.setObjective(req.objective());
         e.setMuscleGroups(req.muscleGroups() == null ? new HashSet<>() : new HashSet<>(req.muscleGroups()));
