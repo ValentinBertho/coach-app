@@ -84,17 +84,21 @@ class TrainingZoneCatalogTest {
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
 
-        assertThat(zones).hasSize(6);
+        // Échelle Allure (13) + échelle FC (6 zones physiologiques dual) façon Nolio — P3.
+        assertThat(zones).hasSize(13);
         assertThat(zones.get(0).get("name").asText()).isEqualTo("Récupération");
         assertThat(zones.get(0).get("builtin").asBoolean()).isTrue();
-        // Chaque zone standard porte par défaut allure + FC.
+        // Les zones physiologiques portent allure + FC.
         assertThat(zones.get(0).get("metricTypeIds")).hasSize(2);
+        // Les zones d'allure de compétition ne portent que l'allure.
+        assertThat(zones.get(12).get("name").asText()).isEqualTo("Allure 400 m");
+        assertThat(zones.get(12).get("metricTypeIds")).hasSize(1);
 
         // Idempotent : une 2ᵉ lecture ne re-seed pas.
         JsonNode again = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertThat(again).hasSize(6);
+        assertThat(again).hasSize(13);
     }
 
     @Test
@@ -119,11 +123,11 @@ class TrainingZoneCatalogTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(updated.get("name").asText()).isEqualTo("Fartlek");
 
-        // Liste : 6 standard + 1 custom.
+        // Liste : 13 standard + 1 custom.
         JsonNode zones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertThat(zones).hasSize(7);
+        assertThat(zones).hasSize(14);
 
         // Réordonnancement : on met la zone custom en tête.
         List<String> ids = new ArrayList<>();

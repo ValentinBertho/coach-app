@@ -64,6 +64,14 @@ interface EditState {
         </div>
       }
 
+      <!-- Échelles par métrique (façon Nolio) : chaque onglet isole l'échelle d'une métrique. -->
+      <div class="scale-tabs" role="tablist">
+        <button type="button" class="scale-tab" [class.active]="scaleTab() === null" (click)="scaleTab.set(null)">Toutes</button>
+        @for (m of columns(); track m.id) {
+          <button type="button" class="scale-tab" [class.active]="scaleTab() === m.id" (click)="scaleTab.set(m.id)">{{ m.name }}</button>
+        }
+      </div>
+
       <div class="card legend">
         <span><app-icon name="refresh-cw" [size]="14" /> auto</span>
         <span><app-icon name="pencil" [size]="14" /> manuel</span>
@@ -76,16 +84,16 @@ interface EditState {
           <thead>
             <tr>
               <th class="zone-col">Zone</th>
-              @for (m of columns(); track m.id) { <th>{{ m.name }}</th> }
+              @for (m of displayedColumns(); track m.id) { <th>{{ m.name }}</th> }
             </tr>
           </thead>
           <tbody>
-            @for (z of zones(); track z.id) {
+            @for (z of displayedZones(); track z.id) {
               <tr>
                 <th class="zone-col">
                   <span class="dot" [style.background]="z.color || 'var(--ink-3)'"></span> {{ z.name }}
                 </th>
-                @for (m of columns(); track m.id) {
+                @for (m of displayedColumns(); track m.id) {
                   <td>
                     @if (!z.metricTypeIds.includes(m.id)) {
                       <span class="na">—</span>
@@ -135,6 +143,10 @@ interface EditState {
     .ref-v { font-family: var(--font-data); font-weight: 700; font-size: var(--text-sm); }
     .refs-edit { margin-left: auto; font-size: var(--text-sm); color: var(--dari-teal); text-decoration: none; }
     .refs-edit:hover { text-decoration: underline; }
+
+    .scale-tabs { display: flex; gap: var(--sp-1); margin-bottom: var(--sp-3); flex-wrap: wrap; }
+    .scale-tab { border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-full); cursor: pointer; font-size: var(--text-sm); font-weight: 700; }
+    .scale-tab.active { background: var(--dari-teal); border-color: var(--dari-teal); color: #fff; }
 
     .legend { display: flex; align-items: center; gap: var(--sp-4); font-size: var(--text-sm); color: var(--ink-3); padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-3); }
     .legend span { display: inline-flex; align-items: center; gap: var(--sp-1); }
@@ -194,6 +206,21 @@ export class AthleteZonesComponent implements OnInit {
     const ids = new Set<string>();
     for (const z of this.zones()) for (const id of z.metricTypeIds) ids.add(id);
     return this.metrics().filter((m) => ids.has(m.id));
+  });
+
+  /** Onglet d'échelle actif : null = toutes les métriques, sinon l'id d'une métrique. */
+  readonly scaleTab = signal<string | null>(null);
+
+  /** Colonnes affichées selon l'onglet (toutes, ou la seule métrique sélectionnée). */
+  readonly displayedColumns = computed<MetricType[]>(() => {
+    const tab = this.scaleTab();
+    return tab ? this.columns().filter((m) => m.id === tab) : this.columns();
+  });
+
+  /** Zones affichées : toutes, ou celles portant la métrique de l'onglet actif. */
+  readonly displayedZones = computed<TrainingZone[]>(() => {
+    const tab = this.scaleTab();
+    return tab ? this.zones().filter((z) => z.metricTypeIds.includes(tab)) : this.zones();
   });
 
   readonly physioProfile = signal<PhysioProfile | null>(null);

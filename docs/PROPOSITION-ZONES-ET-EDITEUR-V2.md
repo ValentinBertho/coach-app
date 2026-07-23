@@ -316,6 +316,24 @@ Résultat : un écran qui **ressemble à Nolio** (blocs encadrés, cibles lues, 
 Contraintes respectées : migrations Liquibase additives/réversibles ; moteur historique conservé
 comme socle ; snapshots figés immuables ; AUTO/MANUAL/verrou préservés ; budget CSS par composant.
 
+### État d'avancement (suivi)
+
+- ✅ **P1** (= V2-1 + V2-2) — moteur de règles data-driven (`ZoneMetric` porte ancre + % + modèle),
+  `ZoneValueSyncService` lit les règles, recalcul automatique sur maj physio / nouveau chrono.
+- ✅ **P2** (= V2-3 + V2-4) — front : éditeur de règles sur l'écran zones club, bloc Références +
+  tooltip « d'où vient la cible » sur la fiche athlète.
+- ✅ **P3 — échelles par métrique + granularité fine** (approche additive, sans big-bang) :
+  - Seed en **deux échelles** : **Allure** (13 bandes — 6 physiologiques + 7 allures de compétition
+    Semi/10k/5k/3k/1500/800/400, dérivées du VDOT) et **FC** (6 bandes physiologiques). Les zones de
+    compétition ne portent que l'allure.
+  - Écrans zones club **et** fiche athlète : **onglets par échelle** (Toutes · Allure · FC) qui
+    isolent l'échelle d'une métrique (filtre lignes + colonnes), façon Nolio.
+  - Réversible : les échelles sont **dérivées** du groupement `zone × métriques portées` — pas de
+    nouvelle entité, pas de migration. Prescription inchangée (une zone d'allure prescrit son allure).
+  - **Reste (V2-6/futur)** : bornes contiguës strictes, split de modèle dur `MetricZoneScale`/`ZoneBand`
+    avec re-pointage de la prescription vers la bande primaire + FC affichée en regard, multi-sport.
+- ⏭️ **V2-5** — refonte éditeur de séance (déjà en partie livrée : récup éditable, groupes ×N).
+
 ---
 
 ## 5. Décisions à valider (avant de coder)

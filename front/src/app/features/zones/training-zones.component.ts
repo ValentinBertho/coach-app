@@ -53,6 +53,18 @@ import { ToastService } from '../../core/services/toast.service';
     } @else if (zones().length === 0) {
       <div class="card empty-state"><h2>Aucune zone</h2><p class="field-hint">Ajoutez votre première zone de travail.</p></div>
     } @else {
+      <!-- Échelles par métrique (façon Nolio) : chaque onglet montre l'échelle d'une métrique. -->
+      <div class="scale-tabs" role="tablist">
+        <button type="button" class="scale-tab" [class.active]="scaleTab() === null" (click)="scaleTab.set(null)">
+          Toutes <span class="scale-count">{{ zones().length }}</span>
+        </button>
+        @for (m of scaleMetrics(); track m.id) {
+          <button type="button" class="scale-tab" [class.active]="scaleTab() === m.id" (click)="scaleTab.set(m.id)">
+            {{ m.name }} <span class="scale-count">{{ zoneCountFor(m.id) }}</span>
+          </button>
+        }
+      </div>
+
       <div class="card ztable">
         <div class="zt-head">
           <span class="zt-order">Ordre</span>
@@ -63,9 +75,9 @@ import { ToastService } from '../../core/services/toast.service';
           <span></span>
         </div>
         <div cdkDropList (cdkDropListDropped)="drop($event)">
-          @for (z of zones(); track z.id; let i = $index) {
+          @for (z of displayedZones(); track z.id) {
             <div class="zrow" cdkDrag [cdkDragData]="z">
-              <span class="zt-order metric">{{ i + 1 }}</span>
+              <span class="zt-order metric">{{ globalRank(z) }}</span>
               <button type="button" class="drag-handle" cdkDragHandle aria-label="Réordonner">
                 <app-icon name="grip-vertical" [size]="16" />
               </button>
@@ -152,6 +164,12 @@ import { ToastService } from '../../core/services/toast.service';
 
     .swatch-input { width: 40px; height: 38px; padding: 2px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--paper); cursor: pointer; flex: none; }
 
+    .scale-tabs { display: flex; gap: var(--sp-1); margin-bottom: var(--sp-3); flex-wrap: wrap; }
+    .scale-tab { display: inline-flex; align-items: center; gap: var(--sp-1); border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-full); cursor: pointer; font-size: var(--text-sm); font-weight: 700; }
+    .scale-tab.active { background: var(--dari-teal); border-color: var(--dari-teal); color: #fff; }
+    .scale-count { font-family: var(--font-data); font-size: var(--text-xs); background: rgba(0,0,0,0.08); border-radius: var(--radius-full); padding: 0 var(--sp-1); min-width: 18px; text-align: center; }
+    .scale-tab.active .scale-count { background: rgba(255,255,255,0.25); }
+
     .ztable { padding: 0; overflow: hidden; }
     .zt-head, .zrow {
       display: grid;
@@ -221,6 +239,22 @@ export class TrainingZonesComponent implements OnInit {
   readonly loading = signal(true);
   readonly editingId = signal<string | null>(null);
   readonly configId = signal<string | null>(null);
+  /** Onglet d'échelle actif : null = toutes les zones, sinon l'id d'une métrique. */
+  readonly scaleTab = signal<string | null>(null);
+
+  /** Métriques portées par au moins une zone (onglets d'échelle), dans l'ordre du catalogue. */
+  readonly scaleMetrics = computed<MetricType[]>(() => {
+    const carried = new Set<string>();
+    for (const z of this.zones()) for (const id of z.metricTypeIds) carried.add(id);
+    return this.metrics().filter((m) => carried.has(m.id));
+  });
+
+  /** Zones affichées selon l'onglet : toutes, ou celles portant la métrique sélectionnée. */
+  readonly displayedZones = computed<TrainingZone[]>(() => {
+    const tab = this.scaleTab();
+    if (!tab) return this.zones();
+    return this.zones().filter((z) => z.metricTypeIds.includes(tab));
+  });
 
   draft = { name: '', color: '#22c55e', description: '' };
   editDraft = { name: '', color: '#22c55e', description: '' };
@@ -244,6 +278,16 @@ export class TrainingZonesComponent implements OnInit {
 
   metricName(id: string): string {
     return this.metricMap().get(id)?.name ?? '—';
+  }
+
+  /** Nombre de zones portant une métrique (badge d'onglet). */
+  zoneCountFor(metricId: string): number {
+    return this.zones().filter((z) => z.metricTypeIds.includes(metricId)).length;
+  }
+
+  /** Rang global (1-based) d'une zone dans l'ordre complet, indépendant du filtre. */
+  globalRank(z: TrainingZone): number {
+    return this.zones().findIndex((x) => x.id === z.id) + 1;
   }
 
   create(): void {
@@ -292,10 +336,15 @@ export class TrainingZonesComponent implements OnInit {
 
   drop(event: CdkDragDrop<TrainingZone[]>): void {
     if (event.previousIndex === event.currentIndex) return;
-    const list = [...this.zones()];
-    moveItemInArray(list, event.previousIndex, event.currentIndex);
-    this.zones.set(list);
-    this.zoneService.reorder(list.map((z) => z.id)).subscribe({
+    // Réordonne au sein de la vue filtrée, puis réinjecte dans l'ordre global (les zones hors
+    // filtre gardent leur position) avant d'envoyer l'ordre complet au serveur.
+    const shown = [...this.displayedZones()];
+    moveItemInArray(shown, event.previousIndex, event.currentIndex);
+    const shownIds = new Set(shown.map((z) => z.id));
+    let k = 0;
+    const full = this.zones().map((z) => (shownIds.has(z.id) ? shown[k++] : z));
+    this.zones.set(full);
+    this.zoneService.reorder(full.map((z) => z.id)).subscribe({
       error: () => this.toast.error('Réordonnancement non enregistré.'),
     });
   }

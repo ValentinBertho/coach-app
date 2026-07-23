@@ -23,24 +23,42 @@ import java.util.UUID;
  * paresseusement à la première lecture d'un club (cf. {@link TrainingZoneService#list}), ce qui
  * couvre uniformément les clubs existants comme les futurs.
  *
- * <p>Chaque zone porte par défaut les métriques builtin PACE + HR (résolues par code dans le
- * catalogue global seedé en migration 044).</p>
+ * <p>Deux échelles par métrique (façon Nolio, chantier zones v2 — P3) : une <b>échelle Allure</b>
+ * fine (13 zones, des allures d'endurance jusqu'aux allures de compétition 5k/3k/1500/800/400) et une
+ * <b>échelle FC</b> (6 zones physiologiques). Les zones d'endurance portent allure + FC ; les zones
+ * de compétition ne portent que l'allure. Les métriques builtin sont résolues par code dans le
+ * catalogue global seedé en migration 044.</p>
  */
 @Service
 @RequiredArgsConstructor
 public class TrainingZoneSeedService {
 
-    /** Jeu de zones standard : nom + couleur d'affichage, dans l'ordre. */
-    private static final List<String[]> STANDARD_ZONES = List.of(
-            new String[]{"Récupération", "#94a3b8"},
-            new String[]{"Endurance fondamentale", "#22c55e"},
-            new String[]{"Marathon", "#84cc16"},
-            new String[]{"Seuil", "#eab308"},
-            new String[]{"VO2", "#f97316"},
-            new String[]{"Anaérobie / Sprint", "#ef4444"});
+    /** Définition d'une zone seedée : nom, couleur, et métriques portées (codes). */
+    private record ZoneDef(String name, String color, List<String> metricCodes) {
+    }
 
-    /** Métriques portées par défaut (codes du catalogue builtin). */
-    private static final List<String> DEFAULT_METRIC_CODES = List.of("PACE", "HR");
+    private static final List<String> PACE_AND_HR = List.of("PACE", "HR");
+    private static final List<String> PACE_ONLY = List.of("PACE");
+
+    /**
+     * Jeu de zones standard, dans l'ordre. Les 6 premières (physiologiques) portent allure + FC et
+     * constituent l'échelle FC ; les 7 suivantes (allures de compétition) ne portent que l'allure et
+     * complètent l'échelle Allure à 13 bandes façon Nolio.
+     */
+    private static final List<ZoneDef> STANDARD_ZONES = List.of(
+            new ZoneDef("Récupération", "#94a3b8", PACE_AND_HR),
+            new ZoneDef("Endurance fondamentale", "#22c55e", PACE_AND_HR),
+            new ZoneDef("Marathon", "#84cc16", PACE_AND_HR),
+            new ZoneDef("Seuil", "#eab308", PACE_AND_HR),
+            new ZoneDef("VO2", "#f97316", PACE_AND_HR),
+            new ZoneDef("Anaérobie / Sprint", "#ef4444", PACE_AND_HR),
+            new ZoneDef("Allure semi", "#16a34a", PACE_ONLY),
+            new ZoneDef("Allure 10 km", "#65a30d", PACE_ONLY),
+            new ZoneDef("Allure 5 km", "#ca8a04", PACE_ONLY),
+            new ZoneDef("Allure 3 km", "#ea580c", PACE_ONLY),
+            new ZoneDef("Allure 1500 m", "#dc2626", PACE_ONLY),
+            new ZoneDef("Allure 800 m", "#b91c1c", PACE_ONLY),
+            new ZoneDef("Allure 400 m", "#7f1d1d", PACE_ONLY));
 
     /** Règle par défaut d'un couple (zone, métrique) : ancre + %min + %max + modèle nommé. */
     private record Rule(ZoneAnchor anchor, double low, double high, ZoneModel model) {
@@ -62,7 +80,15 @@ public class TrainingZoneSeedService {
             Map.entry("VO2|PACE", new Rule(ZoneAnchor.VC, 100, 107, ZoneModel.VC)),
             Map.entry("VO2|HR", new Rule(ZoneAnchor.FCMAX, 90, 95, ZoneModel.PCT_FCMAX)),
             Map.entry("Anaérobie / Sprint|PACE", new Rule(ZoneAnchor.PACE_800M, 98, 110, ZoneModel.DANIELS_VDOT)),
-            Map.entry("Anaérobie / Sprint|HR", new Rule(ZoneAnchor.FCMAX, 95, 100, ZoneModel.PCT_FCMAX)));
+            Map.entry("Anaérobie / Sprint|HR", new Rule(ZoneAnchor.FCMAX, 95, 100, ZoneModel.PCT_FCMAX)),
+            // Allures de compétition (échelle Allure fine, dérivées du VDOT) : la bande encadre l'allure de la distance.
+            Map.entry("Allure semi|PACE", new Rule(ZoneAnchor.PACE_SEMI, 98, 102, ZoneModel.DANIELS_VDOT)),
+            Map.entry("Allure 10 km|PACE", new Rule(ZoneAnchor.PACE_10KM, 98, 102, ZoneModel.DANIELS_VDOT)),
+            Map.entry("Allure 5 km|PACE", new Rule(ZoneAnchor.PACE_5KM, 98, 102, ZoneModel.DANIELS_VDOT)),
+            Map.entry("Allure 3 km|PACE", new Rule(ZoneAnchor.PACE_3000M, 98, 102, ZoneModel.DANIELS_VDOT)),
+            Map.entry("Allure 1500 m|PACE", new Rule(ZoneAnchor.PACE_1500M, 98, 103, ZoneModel.DANIELS_VDOT)),
+            Map.entry("Allure 800 m|PACE", new Rule(ZoneAnchor.PACE_800M, 98, 103, ZoneModel.DANIELS_VDOT)),
+            Map.entry("Allure 400 m|PACE", new Rule(ZoneAnchor.PACE_800M, 104, 112, ZoneModel.DANIELS_VDOT)));
 
     private final TrainingZoneRepository zoneRepository;
     private final MetricTypeRepository metricTypeRepository;
@@ -76,23 +102,27 @@ public class TrainingZoneSeedService {
         if (zoneRepository.existsByClubId(club.getId())) {
             return false;
         }
-        List<MetricType> defaultMetrics = resolveDefaultMetrics(club.getId());
+        Map<String, MetricType> byCode = resolveBuiltinMetrics(club.getId());
         int order = 0;
-        for (String[] def : STANDARD_ZONES) {
+        for (ZoneDef def : STANDARD_ZONES) {
             TrainingZone zone = new TrainingZone();
             zone.setClub(club);
-            zone.setName(def[0]);
-            zone.setColor(def[1]);
+            zone.setName(def.name());
+            zone.setColor(def.color());
             zone.setSortOrder(order++);
             zone.setScope(ZoneScope.CLUB);
             zone.setBuiltin(true);
             int metricOrder = 0;
-            for (MetricType metric : defaultMetrics) {
+            for (String code : def.metricCodes()) {
+                MetricType metric = byCode.get(code);
+                if (metric == null) {
+                    continue;
+                }
                 ZoneMetric zm = new ZoneMetric();
                 zm.setZone(zone);
                 zm.setMetricType(metric);
                 zm.setSortOrder(metricOrder++);
-                Rule rule = RULES.get(def[0] + "|" + metric.getCode());
+                Rule rule = RULES.get(def.name() + "|" + code);
                 if (rule != null) {
                     zm.setAnchor(rule.anchor());
                     zm.setLowPct(rule.low());
@@ -106,14 +136,14 @@ public class TrainingZoneSeedService {
         return true;
     }
 
-    private List<MetricType> resolveDefaultMetrics(UUID clubId) {
-        List<MetricType> visible = metricTypeRepository.findVisibleForClub(clubId);
-        return DEFAULT_METRIC_CODES.stream()
-                .map(code -> visible.stream()
-                        .filter(m -> m.isBuiltin() && code.equals(m.getCode()))
-                        .findFirst()
-                        .orElse(null))
-                .filter(m -> m != null)
-                .toList();
+    /** Métriques builtin du club indexées par code (PACE, HR, …). */
+    private Map<String, MetricType> resolveBuiltinMetrics(UUID clubId) {
+        Map<String, MetricType> byCode = new java.util.HashMap<>();
+        for (MetricType m : metricTypeRepository.findVisibleForClub(clubId)) {
+            if (m.isBuiltin()) {
+                byCode.putIfAbsent(m.getCode(), m);
+            }
+        }
+        return byCode;
     }
 }
