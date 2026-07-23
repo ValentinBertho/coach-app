@@ -305,6 +305,7 @@ Transparence sur ce qui reste à durcir (détail et priorisation dans
 | [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md) | déploiement Railway/Vercel + variables |
 | [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | **exploitation : Sentry, sauvegardes BDD, Actuator, CI (pas-à-pas)** |
 | [`docs/ATHLETE-ROADMAP.md`](./docs/ATHLETE-ROADMAP.md) | audit des données visibles par l'athlète + plan d'évolution |
+| [`docs/SYNC-WEARABLES-PLAN.md`](./docs/SYNC-WEARABLES-PLAN.md) | **plan d'action sync montres** : import auto Strava/Garmin/Coros + push des séances sur la montre (à la Nolio) |
 | [`docs/AUDIT-BETA-2026-06.md`](./docs/AUDIT-BETA-2026-06.md) | audit de préparation à la bêta, dette & plan d'action priorisé |
 | [`docs/Claude.md`](./docs/Claude.md) | conventions de code (IA & humains) |
 
