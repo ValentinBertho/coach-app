@@ -4,6 +4,13 @@
 > **Itération = audit + plan + proposition technique. Aucun code avant validation.**
 > Stack : Angular standalone + signals + OnPush + CDK DragDrop (front) ; Spring/JPA + Liquibase (back).
 
+> ✅ **Statut d'implémentation (Axe B — chantier zones/métriques) : Z1→Z4 LIVRÉS.**
+> - **Z1** — `MetricType`/`TrainingZone`/`ZoneMetric` + CRUD + seed standard par club (lazy) + migrations 044-045 + écran club `/app/training-zones`.
+> - **Z2** — `AthleteZoneValue` + `ZoneValueSyncService` (pré-remplissage physio, respecte MANUAL/verrou) + migration 046 + écran fiche athlète `/app/athletes/:id/zones`.
+> - **Z3** — prescription par zone en lecture directe (`SessionCalculatorEngine.calculateFromZone`) + éditeur épuré (type · volume · zone) ; champs legacy conservés en lecture (aucune migration DDL, structure en JSON).
+> - **Z4** — `PrescriptionZoneMapper` : migration douce des modèles legacy → zone à la lecture (réversible) ; non-régression du calcul/snapshots figés.
+> Vérifs : back **162** tests / H2, front build + 4/4. Le moteur historique reste le **socle de pré-remplissage** (jamais supprimé). Résidus Axe A (QA1/QA2) non traités.
+
 > ⚠️ **État du dépôt au moment de cet audit.** L'Axe A (navigation, catégories, panneau gauche, drag & drop)
 > a **déjà été largement implémenté** lors des phases 1→4 (voir `docs/AUDIT-COACH-PLANIFICATEUR.md`). Cet
 > audit décrit donc l'Axe A **dans son état actuel** (post-implémentation) et se concentre sur l'**Axe B**
