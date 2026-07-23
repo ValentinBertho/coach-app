@@ -91,6 +91,11 @@ export const routes: Routes = [
           import('./features/calendar/calendar.component').then((m) => m.CalendarComponent),
       },
       {
+        path: 'library',
+        loadComponent: () =>
+          import('./features/library/library.component').then((m) => m.LibraryComponent),
+      },
+      {
         path: 'templates',
         loadComponent: () =>
           import('./features/templates/template-list.component').then((m) => m.TemplateListComponent),
