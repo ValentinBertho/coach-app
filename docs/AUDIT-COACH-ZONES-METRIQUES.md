@@ -9,7 +9,9 @@
 > - **Z2** — `AthleteZoneValue` + `ZoneValueSyncService` (pré-remplissage physio, respecte MANUAL/verrou) + migration 046 + écran fiche athlète `/app/athletes/:id/zones`.
 > - **Z3** — prescription par zone en lecture directe (`SessionCalculatorEngine.calculateFromZone`) + éditeur épuré (type · volume · zone) ; champs legacy conservés en lecture (aucune migration DDL, structure en JSON).
 > - **Z4** — `PrescriptionZoneMapper` : migration douce des modèles legacy → zone à la lecture (réversible) ; non-régression du calcul/snapshots figés.
-> Vérifs : back **162** tests / H2, front build + 4/4. Le moteur historique reste le **socle de pré-remplissage** (jamais supprimé). Résidus Axe A (QA1/QA2) non traités.
+> Vérifs : back **165** tests / H2, front build + 4/4. Le moteur historique reste le **socle de pré-remplissage** (jamais supprimé).
+>
+> ✅ **Résidus Axe A traités :** **QA1** — arbre de catégories unifié (course/prépa/éducatifs) via `CategoryDomain` (migrations 047-048, enums legacy conservés) + filtres/badges/assignation dans prépa physique et éducatifs. **QA2** — page `/library` réutilisant `<app-session-library-panel>`.
 
 > ⚠️ **État du dépôt au moment de cet audit.** L'Axe A (navigation, catégories, panneau gauche, drag & drop)
 > a **déjà été largement implémenté** lors des phases 1→4 (voir `docs/AUDIT-COACH-PLANIFICATEUR.md`). Cet
