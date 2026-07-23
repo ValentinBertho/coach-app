@@ -45,6 +45,11 @@ public class PpExercise extends BaseEntity {
     @Column(name = "category", nullable = false, length = 32)
     private ExerciseCategory category;
 
+    /** Catégorie de l'arbre unifié (domaine STRENGTH), nullable — coexiste avec l'enum legacy (QA1). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private SessionCategory categoryRef;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "level", length = 16)
     private ExerciseLevel level = ExerciseLevel.INTERMEDIAIRE;

@@ -2,6 +2,7 @@ package com.coachrun.controller;
 
 import com.coachrun.dto.request.SessionCategoryRequest;
 import com.coachrun.dto.response.SessionCategoryResponse;
+import com.coachrun.entity.enums.CategoryDomain;
 import com.coachrun.service.SessionCategoryService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,15 +34,19 @@ public class SessionCategoryController {
     private final SessionCategoryService categoryService;
 
     @GetMapping
-    public List<SessionCategoryResponse> list(@PathVariable UUID clubId) {
-        return categoryService.list(clubId);
+    public List<SessionCategoryResponse> list(
+            @PathVariable UUID clubId,
+            @RequestParam(name = "domain", defaultValue = "COURSE") CategoryDomain domain) {
+        return categoryService.list(clubId, domain);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public SessionCategoryResponse create(@PathVariable UUID clubId,
-                                          @Valid @RequestBody SessionCategoryRequest request) {
-        return categoryService.create(clubId, request);
+    public SessionCategoryResponse create(
+            @PathVariable UUID clubId,
+            @RequestParam(name = "domain", defaultValue = "COURSE") CategoryDomain domain,
+            @Valid @RequestBody SessionCategoryRequest request) {
+        return categoryService.create(clubId, domain, request);
     }
 
     @PutMapping("/{id}")

@@ -1,0 +1,15 @@
+# ============================================================================
+# 047 — Arbre de catégories unifié : discriminant "domain" sur session_categories.
+#   Additif, non destructif : les catégories existantes (course) prennent COURSE par défaut.
+#   Permet de porter les catégories prépa physique (STRENGTH) et éducatifs (DRILL) dans le
+#   même arbre. Cf. AUDIT-COACH-ZONES-METRIQUES §4.1 (résidu QA1).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 047-session-categories-domain
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: session_categories
+            columns:
+              - column: { name: domain, type: VARCHAR(16), defaultValue: COURSE, constraints: { nullable: false } }

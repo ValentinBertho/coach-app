@@ -9,10 +9,14 @@ public record RunDrillResponse(
         UUID id,
         String name,
         RunDrillCategory category,
+        UUID categoryId,
         String description,
         String videoUrl
 ) {
     public static RunDrillResponse of(RunDrill d) {
-        return new RunDrillResponse(d.getId(), d.getName(), d.getCategory(), d.getDescription(), d.getVideoUrl());
+        return new RunDrillResponse(
+                d.getId(), d.getName(), d.getCategory(),
+                d.getCategoryRef() == null ? null : d.getCategoryRef().getId(),
+                d.getDescription(), d.getVideoUrl());
     }
 }

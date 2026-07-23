@@ -14,6 +14,7 @@ public record PpExerciseResponse(
         UUID id,
         String name,
         ExerciseCategory category,
+        UUID categoryId,
         ExerciseLevel level,
         String objective,
         List<MuscleGroup> muscleGroups,
@@ -31,7 +32,9 @@ public record PpExerciseResponse(
 
     public static PpExerciseResponse from(PpExercise e) {
         return new PpExerciseResponse(
-                e.getId(), e.getName(), e.getCategory(), e.getLevel(), e.getObjective(),
+                e.getId(), e.getName(), e.getCategory(),
+                e.getCategoryRef() == null ? null : e.getCategoryRef().getId(),
+                e.getLevel(), e.getObjective(),
                 e.getMuscleGroups().stream().sorted().toList(),
                 e.getEquipment().stream().sorted().toList(),
                 e.getVideoUrl(), e.getImageUrl(), e.getInstructions(),
