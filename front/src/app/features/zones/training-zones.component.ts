@@ -32,11 +32,10 @@ import { ToastService } from '../../core/services/toast.service';
     </section>
 
     <div class="card create">
-      <h2>Nouvelle zone</h2>
       <div class="create-row">
         <input type="color" class="swatch-input" [(ngModel)]="draft.color" aria-label="Couleur de la zone" />
-        <input class="form-control" [(ngModel)]="draft.name" placeholder="Nom de la zone (ex. Fartlek)"
-               (keyup.enter)="create()" />
+        <input class="form-control name-in" [(ngModel)]="draft.name" placeholder="Nom de la zone (ex. Fartlek)" (keyup.enter)="create()" />
+        <input class="form-control" [(ngModel)]="draft.description" placeholder="Description (optionnel)" (keyup.enter)="create()" />
         <button type="button" class="btn btn-primary" (click)="create()" [disabled]="!draft.name.trim()">+ Ajouter</button>
       </div>
     </div>
@@ -46,96 +45,126 @@ import { ToastService } from '../../core/services/toast.service';
     } @else if (zones().length === 0) {
       <div class="card empty-state"><h2>Aucune zone</h2><p class="field-hint">Ajoutez votre première zone de travail.</p></div>
     } @else {
-      <div class="card zones" cdkDropList (cdkDropListDropped)="drop($event)">
-        @for (z of zones(); track z.id) {
-          <article class="zone" cdkDrag [cdkDragData]="z">
-            <div class="zone-main">
+      <div class="card ztable">
+        <div class="zt-head">
+          <span class="zt-order">Ordre</span>
+          <span></span>
+          <span>Zone</span>
+          <span>Métriques</span>
+          <span>Description</span>
+          <span></span>
+        </div>
+        <div cdkDropList (cdkDropListDropped)="drop($event)">
+          @for (z of zones(); track z.id; let i = $index) {
+            <div class="zrow" cdkDrag [cdkDragData]="z">
+              <span class="zt-order metric">{{ i + 1 }}</span>
               <button type="button" class="drag-handle" cdkDragHandle aria-label="Réordonner">
-                <app-icon name="grip-vertical" [size]="18" />
+                <app-icon name="grip-vertical" [size]="16" />
               </button>
-              <span class="dot" [style.background]="z.color || 'var(--ink-3)'"></span>
 
               @if (editingId() === z.id) {
-                <input type="color" class="swatch-input" [(ngModel)]="editDraft.color" aria-label="Couleur" />
-                <input class="form-control edit-name" [(ngModel)]="editDraft.name" (keyup.enter)="saveEdit(z)" />
-                <button type="button" class="btn btn-primary btn-sm" (click)="saveEdit(z)">Enregistrer</button>
-                <button type="button" class="btn btn-ghost btn-sm" (click)="cancelEdit()">Annuler</button>
+                <span class="zcell zcell--name edit">
+                  <input type="color" class="swatch-input" [(ngModel)]="editDraft.color" aria-label="Couleur" />
+                  <input class="form-control" [(ngModel)]="editDraft.name" (keyup.enter)="saveEdit(z)" />
+                </span>
+                <span class="zcell zcell--metrics"></span>
+                <span class="zcell zcell--desc">
+                  <input class="form-control" [(ngModel)]="editDraft.description" placeholder="Description" (keyup.enter)="saveEdit(z)" />
+                </span>
+                <span class="zcell zcell--actions">
+                  <button type="button" class="btn btn-primary btn-sm" (click)="saveEdit(z)">OK</button>
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="cancelEdit()">✕</button>
+                </span>
               } @else {
-                <strong class="zone-name">{{ z.name }}</strong>
-                @if (z.builtin) { <span class="badge badge-neutral">standard</span> }
-
-                <div class="zone-metrics">
-                  @for (mid of z.metricTypeIds; track mid) {
-                    <span class="metric-chip">{{ metricName(mid) }}</span>
-                  }
-                  @if (z.metricTypeIds.length === 0) {
-                    <span class="field-hint">Aucune métrique</span>
-                  }
-                </div>
-
-                <div class="zone-actions">
-                  <button type="button" class="btn btn-ghost btn-sm" (click)="toggleConfig(z.id)"
-                          [class.active]="configId() === z.id" title="Métriques portées">
-                    <app-icon name="settings" [size]="16" /> Métriques
+                <span class="zcell zcell--name">
+                  <span class="dot" [style.background]="z.color || 'var(--ink-3)'"></span>
+                  <strong class="zone-name">{{ z.name }}</strong>
+                  @if (z.builtin) { <span class="badge badge-neutral">std</span> }
+                </span>
+                <span class="zcell zcell--metrics">
+                  @for (mid of z.metricTypeIds; track mid) { <span class="metric-chip">{{ metricName(mid) }}</span> }
+                  @if (z.metricTypeIds.length === 0) { <span class="field-hint">—</span> }
+                </span>
+                <span class="zcell zcell--desc">{{ z.description || '—' }}</span>
+                <span class="zcell zcell--actions">
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="toggleConfig(z.id)" [class.active]="configId() === z.id" title="Métriques portées">
+                    <app-icon name="settings" [size]="16" />
                   </button>
-                  <button type="button" class="btn btn-ghost btn-sm" (click)="startEdit(z)" aria-label="Renommer">
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="startEdit(z)" aria-label="Modifier">
                     <app-icon name="pencil" [size]="16" />
                   </button>
                   <button type="button" class="btn btn-ghost btn-sm danger" (click)="remove(z)" aria-label="Supprimer">✕</button>
+                </span>
+              }
+
+              @if (configId() === z.id) {
+                <div class="config">
+                  <span class="config-label">Métriques portées par cette zone :</span>
+                  <div class="metric-toggles">
+                    @for (m of metrics(); track m.id) {
+                      <button type="button" class="toggle" [class.on]="z.metricTypeIds.includes(m.id)" (click)="toggleMetric(z, m)">{{ m.name }}</button>
+                    }
+                  </div>
                 </div>
               }
             </div>
-
-            @if (configId() === z.id) {
-              <div class="config">
-                <span class="config-label">Métriques portées par cette zone :</span>
-                <div class="metric-toggles">
-                  @for (m of metrics(); track m.id) {
-                    <button type="button" class="toggle" [class.on]="z.metricTypeIds.includes(m.id)"
-                            (click)="toggleMetric(z, m)">
-                      {{ m.name }}
-                    </button>
-                  }
-                </div>
-              </div>
-            }
-          </article>
-        }
+          }
+        </div>
       </div>
     }
   `,
   styles: [`
-    .create { margin-bottom: var(--sp-6); display: flex; flex-direction: column; gap: var(--sp-2); }
-    .create h2 { margin: 0 0 var(--sp-2); font-size: var(--text-lg); }
+    .create { margin-bottom: var(--sp-5); }
     .create-row { display: flex; align-items: center; gap: var(--sp-3); }
     .create-row .form-control { flex: 1; }
+    .create-row .name-in { flex: 0 1 260px; }
 
     .swatch-input { width: 40px; height: 38px; padding: 2px; border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--paper); cursor: pointer; flex: none; }
 
-    .zones { display: flex; flex-direction: column; gap: var(--sp-2); }
-    .zone { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--paper); }
-    .zone.cdk-drag-preview { box-shadow: var(--shadow-lg); }
-    .zone.cdk-drag-placeholder { opacity: 0.4; }
+    .ztable { padding: 0; overflow: hidden; }
+    .zt-head, .zrow {
+      display: grid;
+      grid-template-columns: 56px 28px minmax(180px, 1.3fr) minmax(160px, 1.4fr) minmax(160px, 2fr) auto;
+      align-items: center; gap: var(--sp-2);
+      padding: var(--sp-2) var(--sp-4);
+    }
+    .zt-head { border-bottom: 1px solid var(--line); }
+    .zt-head span { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; }
+    .zt-order { text-align: center; }
 
-    .zone-main { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3); flex-wrap: wrap; }
-    .drag-handle { border: none; background: none; color: var(--ink-3); cursor: grab; display: flex; padding: 0; }
+    .zrow { border-bottom: 1px solid var(--hairline); background: var(--paper); position: relative; }
+    .zrow:last-child { border-bottom: none; }
+    .zrow.cdk-drag-preview { box-shadow: var(--shadow-lg); border-radius: var(--radius-md); }
+    .zrow.cdk-drag-placeholder { opacity: 0.4; }
+    .zt-order.metric { text-align: center; font-weight: 800; color: var(--ink-3); }
+
+    .drag-handle { border: none; background: none; color: var(--ink-4); cursor: grab; display: flex; padding: 0; }
     .drag-handle:active { cursor: grabbing; }
+
+    .zcell { min-width: 0; }
+    .zcell--name { display: flex; align-items: center; gap: var(--sp-2); }
+    .zcell--name.edit { gap: var(--sp-2); }
     .dot { width: 14px; height: 14px; border-radius: var(--radius-full); flex: none; }
     .zone-name { font-size: var(--text-md); }
-    .edit-name { flex: 1; min-width: 160px; }
-
-    .zone-metrics { display: flex; gap: var(--sp-1); flex-wrap: wrap; margin-left: var(--sp-2); }
+    .zcell--metrics { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
     .metric-chip { font-size: var(--text-xs); font-weight: 700; background: var(--paper-sunk); color: var(--ink-2); padding: 0 var(--sp-2); border-radius: var(--radius-full); line-height: 1.6; }
-
-    .zone-actions { display: flex; align-items: center; gap: var(--sp-1); margin-left: auto; }
+    .zcell--desc { color: var(--ink-2); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .zcell--actions { display: flex; align-items: center; gap: var(--sp-1); justify-content: flex-end; }
     .btn.active { background: var(--paper-sunk); }
     .danger { color: var(--danger); }
 
-    .config { border-top: 1px solid var(--line); padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
+    .config { grid-column: 1 / -1; border-top: 1px dashed var(--line); margin-top: var(--sp-2); padding-top: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
     .config-label { font-size: var(--text-sm); color: var(--ink-2); font-weight: 700; }
     .metric-toggles { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
     .toggle { border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-full); cursor: pointer; font-size: var(--text-sm); font-weight: 600; }
     .toggle.on { background: var(--dari-teal); border-color: var(--dari-teal); color: #fff; }
+
+    @media (max-width: 760px) {
+      .zt-head { display: none; }
+      .zrow { grid-template-columns: 40px 24px 1fr auto; row-gap: var(--sp-1); }
+      .zcell--metrics { grid-column: 3 / -1; }
+      .zcell--desc { grid-column: 3 / -1; white-space: normal; }
+    }
 
     @media (max-width: 640px) {
       .zone-actions { margin-left: 0; width: 100%; justify-content: flex-end; }
@@ -154,8 +183,8 @@ export class TrainingZonesComponent implements OnInit {
   readonly editingId = signal<string | null>(null);
   readonly configId = signal<string | null>(null);
 
-  draft = { name: '', color: '#22c55e' };
-  editDraft = { name: '', color: '#22c55e' };
+  draft = { name: '', color: '#22c55e', description: '' };
+  editDraft = { name: '', color: '#22c55e', description: '' };
 
   private readonly metricMap = computed(() => {
     const map = new Map<string, MetricType>();
@@ -181,15 +210,15 @@ export class TrainingZonesComponent implements OnInit {
   create(): void {
     const name = this.draft.name.trim();
     if (!name) return;
-    this.zoneService.create({ name, color: this.draft.color }).subscribe((z) => {
+    this.zoneService.create({ name, color: this.draft.color, description: this.draft.description || null }).subscribe((z) => {
       this.zones.update((list) => [...list, z]);
-      this.draft = { name: '', color: '#22c55e' };
+      this.draft = { name: '', color: '#22c55e', description: '' };
       this.toast.success('Zone ajoutée.');
     });
   }
 
   startEdit(z: TrainingZone): void {
-    this.editDraft = { name: z.name, color: z.color || '#22c55e' };
+    this.editDraft = { name: z.name, color: z.color || '#22c55e', description: z.description || '' };
     this.configId.set(null);
     this.editingId.set(z.id);
   }
@@ -201,7 +230,7 @@ export class TrainingZonesComponent implements OnInit {
   saveEdit(z: TrainingZone): void {
     const name = this.editDraft.name.trim();
     if (!name) return;
-    this.zoneService.update(z.id, { name, color: this.editDraft.color }).subscribe((updated) => {
+    this.zoneService.update(z.id, { name, color: this.editDraft.color, description: this.editDraft.description || null }).subscribe((updated) => {
       this.zones.update((list) => list.map((x) => (x.id === z.id ? updated : x)));
       this.editingId.set(null);
       this.toast.success('Zone mise à jour.');

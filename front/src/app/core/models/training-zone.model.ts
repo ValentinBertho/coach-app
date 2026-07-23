@@ -8,6 +8,7 @@ export interface TrainingZone {
   id: string;
   name: string;
   color: string | null;
+  description: string | null;
   sortOrder: number;
   scope: ZoneScope;
   discipline: string | null;
@@ -18,6 +19,7 @@ export interface TrainingZone {
 export interface TrainingZoneRequest {
   name: string;
   color?: string | null;
+  description?: string | null;
   scope?: ZoneScope | null;
   discipline?: string | null;
   sortOrder?: number | null;

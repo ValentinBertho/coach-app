@@ -1,0 +1,13 @@
+# ============================================================================
+# 049 — Description libre sur les zones de travail (parité Nolio : colonne Description).
+#   Colonne additive, non destructive.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 049-training-zones-description
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: training_zones
+            columns:
+              - column: { name: description, type: VARCHAR(1024) }

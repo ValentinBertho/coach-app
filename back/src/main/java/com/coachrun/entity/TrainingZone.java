@@ -45,6 +45,10 @@ public class TrainingZone extends BaseEntity {
     @Column(name = "color", length = 16)
     private String color;
 
+    /** Description libre de la zone (objectif, ressenti attendu…). */
+    @Column(name = "description", length = 1024)
+    private String description;
+
     @Column(name = "sort_order", nullable = false)
     private int sortOrder = 0;
 

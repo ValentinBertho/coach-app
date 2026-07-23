@@ -103,6 +103,7 @@ public class TrainingZoneService {
     private void apply(TrainingZone z, TrainingZoneRequest req) {
         z.setName(req.name().trim());
         z.setColor(req.color() == null || req.color().isBlank() ? null : req.color().trim());
+        z.setDescription(req.description() == null || req.description().isBlank() ? null : req.description().trim());
         z.setScope(req.scope() != null ? req.scope() : ZoneScope.CLUB);
         z.setDiscipline(req.discipline());
         if (req.sortOrder() != null) {
