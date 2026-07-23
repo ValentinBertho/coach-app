@@ -8,9 +8,9 @@
     <h1 class="display-sm">{{ name() || 'Éditeur de séance' }}</h1>
     <p class="subtitle">
       @if (isWorkout()) {
-        Adaptation de cette séance pour l'athlète — cibles recalculées en fourchettes.
+        Adaptation de cette séance pour l'athlète — un bloc = type · volume · zone, la cible est lue sur la fiche.
       } @else {
-        Prescription en fourchettes — le calculateur affiche les cibles pour l'athlète sélectionné.
+        Un bloc = type · volume · zone. La cible allure/FC est lue sur la fiche de l'athlète sélectionné.
       }
     </p>
   </div>
@@ -80,21 +80,21 @@
             @for (t of blockTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
           </select>
           <input type="number" class="form-control nm" [(ngModel)]="b.reps" (ngModelChange)="recalc(b)" placeholder="×N" title="Répétitions" />
-          <select class="form-control" [ngModel]="measureOf(b)" (ngModelChange)="setMeasure(b, $event)" title="Mesurer par">
-            <option value="distance">Distance</option>
-            <option value="duration">Durée</option>
-          </select>
+          <div class="measure-toggle" role="group" aria-label="Mesurer par">
+            <button type="button" [class.on]="measureOf(b) === 'distance'" (click)="setMeasure(b, 'distance')" title="Mesurer en distance">Dist.</button>
+            <button type="button" [class.on]="measureOf(b) === 'duration'" (click)="setMeasure(b, 'duration')" title="Mesurer en durée">Durée</button>
+          </div>
           @if (measureOf(b) === 'distance') {
             <input type="number" class="form-control nm" [(ngModel)]="b.distanceM" (ngModelChange)="recalc(b)" placeholder="m" title="Distance (m)" />
           } @else {
             <input type="number" class="form-control nm" [ngModel]="durMin(b)" (ngModelChange)="setDurMin(b, $event)" placeholder="min" title="Durée (min)" />
           }
           @if (b.prescription) {
-            <select class="form-control" [(ngModel)]="b.prescription.ref" (ngModelChange)="recalc(b)">
-              @for (r of refs; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
+            <span class="zone-dot" [style.background]="zoneColor(b.prescription.zoneId)" [title]="zoneName(b.prescription.zoneId)"></span>
+            <select class="form-control zone-select" [(ngModel)]="b.prescription.zoneId" (ngModelChange)="recalc(b)" title="Zone de travail">
+              <option [ngValue]="null" disabled>Zone…</option>
+              @for (z of zones(); track z.id) { <option [ngValue]="z.id">{{ z.name }}</option> }
             </select>
-            <input type="number" class="form-control nm" [(ngModel)]="b.prescription.minPct" (ngModelChange)="recalc(b)" title="% min" />
-            <input type="number" class="form-control nm" [(ngModel)]="b.prescription.maxPct" (ngModelChange)="recalc(b)" title="% max" />
           }
           <button type="button" class="icon-btn danger" (click)="removeBlock(sec.key, b.id)">✕</button>
         </div>
@@ -109,7 +109,12 @@
               @if (c.estimatedDistanceM) { <span class="calc-item"><span class="calc-lb">Volume</span><span class="metric calc-v">{{ (c.estimatedDistanceM / 1000).toFixed(1) }} km</span></span> }
             </div>
           } @else {
-            <p class="calc-na">Profil incomplet pour ce référentiel.</p>
+            <p class="calc-na">
+              Cible non renseignée pour cette zone.
+              @if (calcAthleteId(); as aid) {
+                <a [routerLink]="['/app/athletes', aid, 'zones']">Renseigner sur la fiche athlète →</a>
+              }
+            </p>
           }
         }
 
