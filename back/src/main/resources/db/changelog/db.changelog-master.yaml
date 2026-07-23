@@ -89,3 +89,7 @@ databaseChangeLog:
       file: db/changelog/changes/042-calendar-notes.yaml
   - include:
       file: db/changelog/changes/043-workout-order-index.yaml
+  - include:
+      file: db/changelog/changes/044-metric-types.yaml
+  - include:
+      file: db/changelog/changes/045-training-zones.yaml
