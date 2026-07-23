@@ -32,6 +32,11 @@ import { CalendarNoteService } from '../../core/services/calendar-note.service';
 import { SessionCategory } from '../../core/models/session-category.model';
 import { SessionCategoryService } from '../../core/services/session-category.service';
 import { SessionLibraryPanelComponent } from '../../shared/components/session-library-panel/session-library-panel.component';
+import { Activity } from '../../core/models/activity.model';
+import { ActivityService } from '../../core/services/activity.service';
+
+/** Vue du calendrier : séances prévues, activités réalisées, ou les deux (façon Nolio). */
+type CalView = 'planned' | 'realized' | 'both';
 
 interface DayCell {
   date: string;
@@ -45,18 +50,23 @@ interface DayCell {
   tests: LactateTest[];
   notes: CalendarNote[];
   unavailability: Unavailability | null;
+  /** Activités réalisées (importées) ce jour-là. */
+  activities: Activity[];
   km: number;
   sessions: number;
   /** Charge élevée : ≥ 2 séances dont au moins une séance clé (qualité). */
   conflict: boolean;
 }
 
-/** Semaine (7 jours) + totaux agrégés, façon Nolio (colonne de droite). */
+/** Semaine (7 jours) + totaux agrégés (prévu et réalisé), façon Nolio (colonne de droite). */
 interface WeekRow {
   days: DayCell[];
   km: number;
   durationS: number;
   sessions: number;
+  realKm: number;
+  realDurationS: number;
+  realSessions: number;
 }
 
 const REASON_META: Record<UnavailabilityReason, { label: string; icon: string }> = {
@@ -113,6 +123,7 @@ export class CalendarComponent implements OnInit {
   private readonly drillService = inject(RunDrillService);
   private readonly noteService = inject(CalendarNoteService);
   private readonly categoryService = inject(SessionCategoryService);
+  private readonly activityService = inject(ActivityService);
 
   readonly drills = signal<RunDrill[]>([]);
   readonly notes = signal<CalendarNote[]>([]);
@@ -133,10 +144,15 @@ export class CalendarComponent implements OnInit {
   readonly athletes = signal<AthleteSummary[]>([]);
   selectedAthleteId = '';
   readonly mode = signal<'week' | 'month'>('week');
+  /** Vue prévu / réalisé / les deux (façon Nolio). */
+  readonly view = signal<CalView>('both');
+  readonly showPlanned = computed(() => this.view() !== 'realized');
+  readonly showRealized = computed(() => this.view() !== 'planned');
   /** Actions de planification avancées (duplication de semaine, mésocycle) — masquées pour l'instant. */
   readonly advancedPlanning = false;
   readonly anchor = signal<Date>(new Date());
   readonly workouts = signal<Workout[]>([]);
+  readonly activities = signal<Activity[]>([]);
   readonly strength = signal<ScheduledStrength[]>([]);
   readonly objectives = signal<RaceObjective[]>([]);
   readonly tests = signal<LactateTest[]>([]);
@@ -153,6 +169,7 @@ export class CalendarComponent implements OnInit {
     const objByDate = this.groupBy(this.objectives(), (o) => o.raceDate);
     const testByDate = this.groupBy(this.tests(), (t) => t.testDate);
     const noteByDate = this.groupBy(this.notes(), (n) => n.noteDate);
+    const activityByDate = this.groupBy(this.activities(), (a) => a.activityDate);
     const unavail = this.unavailabilities();
     const count = this.mode() === 'week' ? 7 : 42;
     const start = this.gridStart();
@@ -177,6 +194,7 @@ export class CalendarComponent implements OnInit {
         objectives: objByDate.get(iso) ?? [],
         tests: testByDate.get(iso) ?? [],
         notes: noteByDate.get(iso) ?? [],
+        activities: activityByDate.get(iso) ?? [],
         unavailability: unavail.find((u) => iso >= u.startDate && iso <= u.endDate) ?? null,
         km,
         sessions,
@@ -198,7 +216,10 @@ export class CalendarComponent implements OnInit {
       const durationS = days.reduce(
         (s, d) => s + d.workouts.reduce((a, w) => a + (w.targetDurationS ?? 0), 0), 0);
       const sessions = days.reduce((s, d) => s + d.sessions, 0);
-      rows.push({ days, km, durationS, sessions });
+      const realKm = days.reduce((s, d) => s + d.activities.reduce((a, x) => a + (x.distanceM ?? 0), 0), 0) / 1000;
+      const realDurationS = days.reduce((s, d) => s + d.activities.reduce((a, x) => a + (x.durationS ?? 0), 0), 0);
+      const realSessions = days.reduce((s, d) => s + d.activities.length, 0);
+      rows.push({ days, km, durationS, sessions, realKm, realDurationS, realSessions });
     }
     return rows;
   });
@@ -209,6 +230,22 @@ export class CalendarComponent implements OnInit {
     const min = Math.round(totalS / 60);
     if (min < 60) return `${min} min`;
     return `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+  }
+
+  setView(v: CalView): void { this.view.set(v); }
+
+  /** Km d'une activité réalisée (pour la pastille). */
+  activityKm(a: Activity): string | null {
+    return a.distanceM ? (a.distanceM / 1000).toFixed(1) : null;
+  }
+
+  /** Ouvre l'activité réalisée : la séance rapprochée si elle existe, sinon la liste d'activités. */
+  openActivity(a: Activity): void {
+    if (a.matchedWorkoutId) {
+      this.router.navigate(['/app/athletes', this.selectedAthleteId, 'workouts', a.matchedWorkoutId]);
+    } else {
+      this.router.navigate(['/app/athletes', this.selectedAthleteId, 'activities']);
+    }
   }
 
   typeMeta(type: WorkoutType): TypeMeta { return TYPE_META[type]; }
@@ -251,6 +288,7 @@ export class CalendarComponent implements OnInit {
   /** Objectifs, tests et indisponibilités de l'athlète (listes complètes, filtrées par jour). */
   loadOverlays(): void {
     if (!this.selectedAthleteId) return;
+    this.activityService.list(this.selectedAthleteId).subscribe({ next: (a) => this.activities.set(a), error: () => this.activities.set([]) });
     this.raceService.list(this.selectedAthleteId).subscribe({ next: (r) => this.objectives.set(r), error: () => this.objectives.set([]) });
     this.lactateService.list(this.selectedAthleteId).subscribe({ next: (t) => this.tests.set(t), error: () => this.tests.set([]) });
     this.athleteService.listUnavailabilities(this.selectedAthleteId).subscribe({ next: (u) => this.unavailabilities.set(u), error: () => this.unavailabilities.set([]) });
