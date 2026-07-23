@@ -37,6 +37,17 @@ import java.util.UUID;
 public class WorkoutController {
 
     private final WorkoutService workoutService;
+    private final com.coachrun.service.ActivityService activityService;
+
+    /** Activité réalisée rapprochée de cette séance (vue « réalisé »), ou 204 si aucune. */
+    @GetMapping("/{workoutId}/activity")
+    public org.springframework.http.ResponseEntity<com.coachrun.dto.response.ActivityResponse> matchedActivity(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID workoutId) {
+        var activity = activityService.getForWorkout(clubId, athleteId, workoutId);
+        return activity == null
+                ? org.springframework.http.ResponseEntity.noContent().build()
+                : org.springframework.http.ResponseEntity.ok(activity);
+    }
 
     @GetMapping
     public List<WorkoutResponse> calendar(

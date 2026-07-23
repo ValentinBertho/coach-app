@@ -75,6 +75,75 @@ class ActivityControllerTest {
     }
 
     @Test
+    void matchedActivityIsExposedOnTheWorkout() throws Exception {
+        MockMvc mvc = mockMvc();
+        JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"act3-%s@test.fr","password":"password123","fullName":"C","clubName":"AC3 %s"}
+                                """.formatted(UUID.randomUUID(), UUID.randomUUID())))
+                .andReturn().getResponse().getContentAsString());
+        String token = auth.get("accessToken").asText();
+        String clubId = auth.get("user").get("clubId").asText();
+        String athleteId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes", clubId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"A\",\"lastName\":\"B\"}"))
+                .andReturn().getResponse().getContentAsString()).get("id").asText();
+
+        String workoutId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scheduledDate\":\"2026-07-02\",\"type\":\"ENDURANCE\",\"title\":\"10k\",\"targetDistanceM\":10000,\"targetDurationS\":2600}"))
+                .andReturn().getResponse().getContentAsString()).get("id").asText();
+
+        mvc.perform(post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source\":\"STRAVA\",\"externalId\":\"456\",\"activityDate\":\"2026-07-02\",\"distanceM\":10300,\"durationS\":2700,\"avgHr\":152}"))
+                .andExpect(status().isCreated());
+
+        // La séance expose l'activité réalisée + les écarts prévu/réalisé.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/clubs/{c}/athletes/{a}/workouts/{w}/activity", clubId, athleteId, workoutId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.distanceM").value(10300))
+                .andExpect(jsonPath("$.avgHr").value(152))
+                .andExpect(jsonPath("$.matchedWorkoutId").value(workoutId))
+                .andExpect(jsonPath("$.distanceDeltaM").value(300))
+                .andExpect(jsonPath("$.durationDeltaS").value(100));
+    }
+
+    @Test
+    void workoutWithoutActivityReturnsNoContent() throws Exception {
+        MockMvc mvc = mockMvc();
+        JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"act4-%s@test.fr","password":"password123","fullName":"C","clubName":"AC4 %s"}
+                                """.formatted(UUID.randomUUID(), UUID.randomUUID())))
+                .andReturn().getResponse().getContentAsString());
+        String token = auth.get("accessToken").asText();
+        String clubId = auth.get("user").get("clubId").asText();
+        String athleteId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes", clubId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"A\",\"lastName\":\"B\"}"))
+                .andReturn().getResponse().getContentAsString()).get("id").asText();
+        String workoutId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scheduledDate\":\"2026-07-03\",\"type\":\"ENDURANCE\",\"title\":\"EF\"}"))
+                .andReturn().getResponse().getContentAsString()).get("id").asText();
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/clubs/{c}/athletes/{a}/workouts/{w}/activity", clubId, athleteId, workoutId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
     void importWithoutMatchIsUnmatched() throws Exception {
         MockMvc mvc = mockMvc();
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")

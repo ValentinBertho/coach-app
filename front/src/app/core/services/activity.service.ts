@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Activity, ActivityImportRequest } from '../models/activity.model';
 import { AuthService } from './auth.service';
@@ -17,6 +17,14 @@ export class ActivityService {
 
   list(athleteId: string): Observable<Activity[]> {
     return this.http.get<Activity[]>(this.base(athleteId));
+  }
+
+  /** Activité réalisée rapprochée d'une séance (204 → null). */
+  forWorkout(athleteId: string, workoutId: string): Observable<Activity | null> {
+    return this.http.get<Activity>(
+      `${environment.apiUrl}/clubs/${this.auth.clubId()}/athletes/${athleteId}/workouts/${workoutId}/activity`,
+      { observe: 'response' },
+    ).pipe(map((res) => res.body ?? null));
   }
 
   import(athleteId: string, request: ActivityImportRequest): Observable<Activity> {

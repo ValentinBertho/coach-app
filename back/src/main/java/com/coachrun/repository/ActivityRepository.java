@@ -16,6 +16,9 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
 
     List<Activity> findByAthleteIdOrderByActivityDateDesc(UUID athleteId);
 
+    /** Activité réalisée rapprochée d'une séance planifiée (vue « réalisé » de la fiche séance). */
+    Optional<Activity> findByClubIdAndAthleteIdAndMatchedWorkoutId(UUID clubId, UUID athleteId, UUID workoutId);
+
     /** Déduplication des imports (cf. contrainte UNIQUE athlete/source/external_id). */
     boolean existsByAthleteIdAndSourceAndExternalId(UUID athleteId, ActivitySource source, String externalId);
 }

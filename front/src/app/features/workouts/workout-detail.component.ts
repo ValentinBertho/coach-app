@@ -22,6 +22,8 @@ import { CalculatedBlockEntry, WorkoutPrescription } from '../../core/models/cou
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
 import { TrainingZone } from '../../core/models/training-zone.model';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
+import { Activity } from '../../core/models/activity.model';
+import { ActivityService } from '../../core/services/activity.service';
 
 /** Segment de la barre de répartition du temps par zone (façon Nolio). */
 interface ZoneSegment {
@@ -50,9 +52,31 @@ type State = 'loading' | 'ready' | 'error';
 export class WorkoutDetailComponent implements OnInit {
   private readonly workoutService = inject(WorkoutService);
   private readonly zoneService = inject(TrainingZoneService);
+  private readonly activityService = inject(ActivityService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
   private readonly router = inject(Router);
+
+  /** Activité réalisée rapprochée de la séance (vue « réalisé » façon Nolio). */
+  readonly activity = signal<Activity | null>(null);
+
+  /** Stats du réalisé + écarts prévu/réalisé, dérivés de l'activité rapprochée. */
+  readonly realizedStats = computed(() => {
+    const a = this.activity();
+    if (!a) return null;
+    const paceLabel = a.durationS && a.distanceM ? this.fmtPace(a.durationS / (a.distanceM / 1000)) : null;
+    return {
+      durationLabel: a.durationS ? this.fmtDuration(a.durationS) : null,
+      distanceKm: a.distanceM ? a.distanceM / 1000 : null,
+      paceLabel,
+      elevationM: a.elevationGainM,
+      avgHr: a.avgHr,
+      distanceDeltaKm: a.distanceDeltaM != null ? a.distanceDeltaM / 1000 : null,
+      durationDeltaS: a.durationDeltaS,
+      source: a.source,
+      date: a.activityDate,
+    };
+  });
 
   /** Zones du club (id → nom/couleur), pour la répartition du temps par zone. */
   readonly zones = signal<TrainingZone[]>([]);
@@ -149,6 +173,7 @@ export class WorkoutDetailComponent implements OnInit {
   load(): void {
     this.state.set('loading');
     this.courseRx.set(null);
+    this.activity.set(null);
     this.workoutService.get(this.athleteId(), this.workoutId()).subscribe({
       next: (w) => { this.workout.set(w); this.state.set('ready'); },
       error: () => this.state.set('error'),
@@ -158,6 +183,19 @@ export class WorkoutDetailComponent implements OnInit {
       error: () => this.courseRx.set(null),
     });
     this.zoneService.list().subscribe({ next: (z) => this.zones.set(z), error: () => this.zones.set([]) });
+    this.activityService.forWorkout(this.athleteId(), this.workoutId()).subscribe({
+      next: (a) => this.activity.set(a),
+      error: () => this.activity.set(null),
+    });
+  }
+
+  /** Écart de durée signé (« +2:15 » / « -0:40 ») pour l'affichage prévu/réalisé. */
+  fmtDeltaDuration(deltaS: number): string {
+    const sign = deltaS >= 0 ? '+' : '−';
+    const abs = Math.abs(deltaS);
+    const m = Math.floor(abs / 60);
+    const s = abs % 60;
+    return `${sign}${m}:${s.toString().padStart(2, '0')}`;
   }
 
   setStatus(status: WorkoutStatus): void {
