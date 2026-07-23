@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { Observable, tap } from 'rxjs';
+import { Observable, finalize, shareReplay, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
   AuthResponse,
@@ -30,6 +30,35 @@ export class AuthService {
   readonly token = signal<string | null>(localStorage.getItem(ACCESS_KEY));
   readonly currentUser = signal<User | null>(readStoredUser());
   readonly isAuthenticated = computed(() => this.token() !== null);
+
+  /** Refresh en cours partagé : évite les rafraîchissements concurrents sur une salve de 401. */
+  private refreshInFlight: Observable<AuthResponse> | null = null;
+
+  refreshTokenValue(): string | null {
+    return localStorage.getItem(REFRESH_KEY);
+  }
+
+  /**
+   * Rafraîchit silencieusement l'access token via le refresh token (rotation côté serveur).
+   * Partagé entre appelants concurrents. Émet une erreur si aucun refresh token n'est disponible.
+   */
+  refresh(): Observable<AuthResponse> {
+    if (this.refreshInFlight) {
+      return this.refreshInFlight;
+    }
+    const refreshToken = this.refreshTokenValue();
+    if (!refreshToken) {
+      return throwError(() => new Error('Aucun refresh token disponible.'));
+    }
+    this.refreshInFlight = this.http
+      .post<AuthResponse>(`${this.base}/refresh`, { refreshToken })
+      .pipe(
+        tap((res) => this.applySession(res)),
+        shareReplay(1),
+        finalize(() => { this.refreshInFlight = null; }),
+      );
+    return this.refreshInFlight;
+  }
 
   /** Identifiant du club courant (scoping tenant des appels API). */
   clubId(): string | null {
