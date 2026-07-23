@@ -143,6 +143,11 @@ export const routes: Routes = [
           import('./features/club/club.component').then((m) => m.ClubComponent),
       },
       {
+        path: 'training-zones',
+        loadComponent: () =>
+          import('./features/zones/training-zones.component').then((m) => m.TrainingZonesComponent),
+      },
+      {
         path: 'settings',
         loadComponent: () =>
           import('./features/settings/settings.component').then((m) => m.SettingsComponent),
