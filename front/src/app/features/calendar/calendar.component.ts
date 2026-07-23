@@ -51,6 +51,14 @@ interface DayCell {
   conflict: boolean;
 }
 
+/** Semaine (7 jours) + totaux agrégés, façon Nolio (colonne de droite). */
+interface WeekRow {
+  days: DayCell[];
+  km: number;
+  durationS: number;
+  sessions: number;
+}
+
 const REASON_META: Record<UnavailabilityReason, { label: string; icon: string }> = {
   INJURY: { label: 'Blessure', icon: 'heart-pulse' },
   ILLNESS: { label: 'Maladie', icon: 'thermometer' },
@@ -179,6 +187,29 @@ export class CalendarComponent implements OnInit {
 
   /** Volume max d'un jour sur la période (pour normaliser les barres de densité). */
   readonly maxDayKm = computed(() => Math.max(1, ...this.cells().map((c) => c.km)));
+
+  /** Semaines (lignes de 7 jours) + totaux — colonne de droite façon Nolio. */
+  readonly weeks = computed<WeekRow[]>(() => {
+    const cells = this.cells();
+    const rows: WeekRow[] = [];
+    for (let i = 0; i < cells.length; i += 7) {
+      const days = cells.slice(i, i + 7);
+      const km = days.reduce((s, d) => s + d.km, 0);
+      const durationS = days.reduce(
+        (s, d) => s + d.workouts.reduce((a, w) => a + (w.targetDurationS ?? 0), 0), 0);
+      const sessions = days.reduce((s, d) => s + d.sessions, 0);
+      rows.push({ days, km, durationS, sessions });
+    }
+    return rows;
+  });
+
+  /** Formatte une durée en « 3h25 » / « 45 min » (totaux hebdo). */
+  fmtDuration(totalS: number): string {
+    if (!totalS) return '—';
+    const min = Math.round(totalS / 60);
+    if (min < 60) return `${min} min`;
+    return `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+  }
 
   typeMeta(type: WorkoutType): TypeMeta { return TYPE_META[type]; }
 

@@ -140,10 +140,12 @@
     <div class="cal-main">
       <div class="weekday-row">
         @for (d of ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']; track d) { <span>{{ d }}</span> }
+        <span class="wd-total">Total</span>
       </div>
 
       <div class="grid" [class.month]="mode() === 'month'" [class.loading]="loading()">
-        @for (day of cells(); track day.date) {
+        @for (week of weeks(); track $index) {
+        @for (day of week.days; track day.date) {
       <div class="day-col" [class.today]="day.isToday" [class.dim]="!day.inMonth" [class.day-col--unavailable]="day.unavailability">
         <header class="day-head">
           <div class="day-head__date">
@@ -223,6 +225,20 @@
           </div>
         }
       </div>
+    }
+        <!-- Totaux de la semaine (colonne de droite, façon Nolio) -->
+        <div class="week-total" [class.week-total--empty]="week.sessions === 0">
+          @if (week.sessions > 0) {
+            <span class="wt-val metric">{{ fmtDuration(week.durationS) }}</span>
+            <span class="wt-lb">temps</span>
+            <span class="wt-val metric">{{ week.km.toFixed(1) }}<small>km</small></span>
+            <span class="wt-lb">distance</span>
+            <span class="wt-val metric">{{ week.sessions }}</span>
+            <span class="wt-lb">séance{{ week.sessions > 1 ? 's' : '' }}</span>
+          } @else {
+            <span class="wt-dash">—</span>
+          }
+        </div>
     }
       </div>
     </div>
