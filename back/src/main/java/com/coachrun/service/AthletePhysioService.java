@@ -45,6 +45,7 @@ public class AthletePhysioService {
     private final AthleteVdotPaceRepository vdotPaceRepository;
     private final CriticalSpeedEngine criticalSpeedEngine;
     private final VdotEngine vdotEngine;
+    private final ZoneValueSyncService zoneValueSyncService;
 
     // ---------------------------------------------------------------------
     // Profil physiologique
@@ -80,7 +81,9 @@ public class AthletePhysioService {
         if (req.fcDomain2Pct() != null) {
             a.setFcDomain2Pct(req.fcDomain2Pct());
         }
-        log.info("Profil physio mis à jour pour l'athlète {}", athleteId);
+        // Recalcul auto des zones (valeurs AUTO non verrouillées) : une ancre a changé.
+        zoneValueSyncService.resync(clubId, athleteId);
+        log.info("Profil physio mis à jour pour l'athlète {} (zones resynchronisées)", athleteId);
         return PhysioProfileResponse.from(a);
     }
 
@@ -105,7 +108,9 @@ public class AthletePhysioService {
         perf.setDateSet(req.dateSet());
         perf = performanceRepository.save(perf);
         recomputeVdot(a);
-        log.info("Performance {} ajoutée pour l'athlète {} (recalcul VDOT)", req.distance(), athleteId);
+        // Recalcul auto des zones : les allures VDOT (ancres) ont changé.
+        zoneValueSyncService.resync(clubId, athleteId);
+        log.info("Performance {} ajoutée pour l'athlète {} (recalcul VDOT + zones)", req.distance(), athleteId);
         return PerformanceResponse.from(perf, vdotOf(perf));
     }
 

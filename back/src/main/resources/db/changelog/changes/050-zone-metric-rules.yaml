@@ -1,0 +1,17 @@
+# ============================================================================
+# 050 — Règle de calcul sur zone_metrics (ancre + fourchette % + modèle nommé).
+#   Rend éditable/traçable ce qui était codé en dur dans ZoneValueSyncService.
+#   Additif, non destructif. Cf. PROPOSITION-ZONES-ET-EDITEUR-V2 §3.2 (chantier zones v2).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 050-zone-metric-rules
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: zone_metrics
+            columns:
+              - column: { name: anchor, type: VARCHAR(24) }
+              - column: { name: low_pct, type: DOUBLE }
+              - column: { name: high_pct, type: DOUBLE }
+              - column: { name: model, type: VARCHAR(24), defaultValue: CUSTOM }

@@ -28,8 +28,14 @@ public class SessionCalculatorEngine {
             Integer fcLt1, Integer fcLt2, Integer fcMax,
             double fcDomain1Pct, double fcDomain2Pct,
             Integer pace800S, Integer pace1500S, Integer pace3000S, Integer pace5kmS,
-            Integer pace10kmS, Integer pace15kmS, Integer paceSemiS, Integer paceMarathonS
+            Integer pace10kmS, Integer pace15kmS, Integer paceSemiS, Integer paceMarathonS,
+            Integer hrRest
     ) {
+    }
+
+    /** Allure de base (s/km) associée à un référentiel pour cet athlète — réutilisable (règles de zones). */
+    public Integer basePaceFor(PrescriptionRef ref, AthletePaceContext ctx) {
+        return resolveBasePace(ref, ctx);
     }
 
     /** Prescription d'un bloc : référentiel, fourchette en %, et volume (reps/distance/durée). */

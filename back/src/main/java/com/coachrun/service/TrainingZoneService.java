@@ -82,6 +82,22 @@ public class TrainingZoneService {
         }
     }
 
+    /** Édite la règle de calcul (ancre + %min/max + modèle) d'une métrique d'une zone. */
+    @Transactional
+    public TrainingZoneResponse setRule(UUID clubId, UUID zoneId, UUID metricId,
+                                        com.coachrun.dto.request.ZoneRuleRequest req) {
+        TrainingZone z = require(clubId, zoneId);
+        com.coachrun.entity.ZoneMetric zm = z.getMetrics().stream()
+                .filter(m -> m.getMetricType().getId().equals(metricId))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("Métrique de zone introuvable."));
+        zm.setAnchor(req.anchor());
+        zm.setLowPct(req.lowPct());
+        zm.setHighPct(req.highPct());
+        zm.setModel(req.model() != null ? req.model() : com.coachrun.entity.enums.ZoneModel.CUSTOM);
+        return TrainingZoneResponse.from(z);
+    }
+
     /** Remplace les métriques portées par la zone (dans l'ordre fourni). */
     @Transactional
     public TrainingZoneResponse setMetrics(UUID clubId, UUID zoneId, ZoneMetricsRequest req) {

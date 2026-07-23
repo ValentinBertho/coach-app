@@ -70,4 +70,12 @@ public class TrainingZoneController {
                                            @Valid @RequestBody ZoneMetricsRequest request) {
         return zoneService.setMetrics(clubId, id, request);
     }
+
+    /** Édite la règle de calcul (ancre + %) d'une métrique de la zone. */
+    @PutMapping("/{id}/metrics/{metricId}/rule")
+    public TrainingZoneResponse setRule(@PathVariable UUID clubId, @PathVariable UUID id,
+                                        @PathVariable UUID metricId,
+                                        @Valid @RequestBody com.coachrun.dto.request.ZoneRuleRequest request) {
+        return zoneService.setRule(clubId, id, metricId, request);
+    }
 }

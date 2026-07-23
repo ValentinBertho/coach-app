@@ -2,13 +2,13 @@ package com.coachrun.service;
 
 import com.coachrun.engine.SessionCalculatorEngine;
 import com.coachrun.engine.SessionCalculatorEngine.AthletePaceContext;
-import com.coachrun.engine.SessionCalculatorEngine.PrescriptionInput;
-import com.coachrun.engine.SessionCalculatorEngine.Result;
+import com.coachrun.engine.PaceUtil;
 import com.coachrun.entity.AthleteZoneValue;
 import com.coachrun.entity.MetricType;
 import com.coachrun.entity.TrainingZone;
 import com.coachrun.entity.ZoneMetric;
 import com.coachrun.entity.enums.PrescriptionRef;
+import com.coachrun.entity.enums.ZoneAnchor;
 import com.coachrun.entity.enums.ZoneValueSource;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.AthleteZoneValueRepository;
@@ -19,32 +19,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
- * Pré-remplit les valeurs de zones d'un athlète (source AUTO) à partir du moteur physio existant
- * (VDOT / seuils LT1-LT2-VC) — le socle de pré-remplissage façon Nolio. Cf. §3.5.
+ * Pré-remplit les valeurs de zones d'un athlète (source AUTO) à partir de la <b>règle</b> portée par
+ * chaque {@code ZoneMetric} (ancre + fourchette %) et des valeurs de référence de l'athlète.
+ * Cf. PROPOSITION-ZONES-ET-EDITEUR-V2 §3.3 (chantier zones v2).
  *
- * <p>Correspondance zone standard → prescription (référentiel + bande %), puis lecture directe des
- * cibles du moteur pour chaque métrique portée. Les valeurs MANUAL ou verrouillées ne sont jamais
- * écrasées. Les zones custom (hors table de correspondance) restent à renseigner manuellement.</p>
+ * <p>La règle est désormais une <b>donnée</b> (éditable, traçable), plus une table Java figée. Les
+ * ancres d'allure (LT1/LT2/VC/allures VDOT) se résolvent via le moteur ; les ancres de FC
+ * (FCMAX/LTHR/HRR) se calculent directement. Les valeurs MANUAL ou verrouillées ne sont jamais
+ * écrasées.</p>
  */
 @Service
 @RequiredArgsConstructor
 public class ZoneValueSyncService {
-
-    /** Table de correspondance versionnée : nom de zone standard → (référentiel, %min, %max). */
-    private record ZoneRx(PrescriptionRef ref, double minPct, double maxPct) {
-    }
-
-    private static final Map<String, ZoneRx> MAPPING = Map.of(
-            "Récupération", new ZoneRx(PrescriptionRef.PCT_LT1, 60, 72),
-            "Endurance fondamentale", new ZoneRx(PrescriptionRef.PCT_LT1, 80, 92),
-            "Marathon", new ZoneRx(PrescriptionRef.PCT_LT1, 95, 102),
-            "Seuil", new ZoneRx(PrescriptionRef.PCT_LT2, 96, 103),
-            "VO2", new ZoneRx(PrescriptionRef.PCT_VC, 100, 107),
-            "Anaérobie / Sprint", new ZoneRx(PrescriptionRef.PCT_PACE_800M, 98, 110));
 
     private final SessionCalculatorService calculatorService;
     private final SessionCalculatorEngine engine;
@@ -54,10 +43,7 @@ public class ZoneValueSyncService {
     private final AthleteRepository athleteRepository;
     private final ClubRepository clubRepository;
 
-    /**
-     * (Re)génère les valeurs AUTO non verrouillées de l'athlète. Idempotent. Retourne le nombre
-     * de valeurs écrites (créées ou mises à jour).
-     */
+    /** (Re)génère les valeurs AUTO non verrouillées de l'athlète depuis les règles. Idempotent. */
     @Transactional
     public int resync(UUID clubId, UUID athleteId) {
         AthletePaceContext ctx = calculatorService.contextFor(clubId, athleteId);
@@ -70,28 +56,86 @@ public class ZoneValueSyncService {
 
         int written = 0;
         for (TrainingZone zone : zones) {
-            ZoneRx rx = MAPPING.get(zone.getName());
-            if (rx == null) {
-                continue; // zone custom : pas de pré-remplissage automatique.
-            }
-            Result result = engine.calculate(
-                    new PrescriptionInput(rx.ref(), rx.minPct(), rx.maxPct(), null, null, null), ctx);
-            if (!result.computable()) {
-                continue; // profil physio insuffisant : la zone reste « à renseigner ».
-            }
             for (ZoneMetric zm : zone.getMetrics()) {
-                MetricType metric = zm.getMetricType();
-                double[] range = extract(result, metric.getCode(), ctx);
+                double[] range = computeRange(zm, ctx);
                 if (range == null) {
                     continue;
                 }
-                if (upsertAuto(athlete, zone, metric, athleteId, range)) {
+                if (upsertAuto(athlete, zone, zm.getMetricType(), athleteId, range)) {
                     written++;
                 }
             }
         }
         return written;
     }
+
+    /** Calcule la fourchette [min, max] d'un couple (zone, métrique) depuis sa règle, ou null. */
+    double[] computeRange(ZoneMetric zm, AthletePaceContext ctx) {
+        ZoneAnchor anchor = zm.getAnchor();
+        Double low = zm.getLowPct();
+        Double high = zm.getHighPct();
+        if (anchor == null || low == null || high == null || low <= 0 || high <= 0) {
+            return null;
+        }
+        String code = zm.getMetricType().getCode();
+        return switch (code) {
+            case "PACE", "SPEED" -> {
+                PrescriptionRef ref = paceRefOf(anchor);
+                if (ref == null) yield null;
+                Integer base = engine.basePaceFor(ref, ctx);
+                if (base == null || base <= 0) yield null;
+                int fast = (int) Math.round(base / (high / 100.0)); // % haut ⇒ plus rapide
+                int slow = (int) Math.round(base / (low / 100.0));
+                if ("PACE".equals(code)) yield new double[]{fast, slow};
+                // SPEED : vitesse mini (allure lente) → maxi (allure rapide)
+                yield new double[]{round1(PaceUtil.secPerKmToKmh(slow)), round1(PaceUtil.secPerKmToKmh(fast))};
+            }
+            case "HR", "PCT_HRMAX" -> {
+                double[] hr = hrRange(anchor, low, high, ctx);
+                if (hr == null) yield null;
+                if ("HR".equals(code)) yield hr;
+                // PCT_HRMAX : convertit en % de FCmax si dispo, sinon les % de la règle.
+                if (anchor == ZoneAnchor.FCMAX) yield new double[]{low, high};
+                if (ctx.fcMax() == null || ctx.fcMax() <= 0) yield null;
+                yield new double[]{Math.round(100.0 * hr[0] / ctx.fcMax()), Math.round(100.0 * hr[1] / ctx.fcMax())};
+            }
+            default -> null; // POWER, RPE : pas de règle → saisie manuelle.
+        };
+    }
+
+    private double[] hrRange(ZoneAnchor anchor, double low, double high, AthletePaceContext ctx) {
+        return switch (anchor) {
+            case FCMAX -> ctx.fcMax() == null ? null
+                    : new double[]{Math.round(ctx.fcMax() * low / 100.0), Math.round(ctx.fcMax() * high / 100.0)};
+            case LTHR -> ctx.fcLt2() == null ? null
+                    : new double[]{Math.round(ctx.fcLt2() * low / 100.0), Math.round(ctx.fcLt2() * high / 100.0)};
+            case HRR -> (ctx.fcMax() == null || ctx.hrRest() == null) ? null
+                    : new double[]{
+                        Math.round(ctx.hrRest() + (ctx.fcMax() - ctx.hrRest()) * low / 100.0),
+                        Math.round(ctx.hrRest() + (ctx.fcMax() - ctx.hrRest()) * high / 100.0)};
+            default -> null; // ancre d'allure avec métrique FC → incohérent.
+        };
+    }
+
+    /** Mappe une ancre d'allure vers le référentiel du moteur ; null pour les ancres de FC. */
+    private PrescriptionRef paceRefOf(ZoneAnchor a) {
+        return switch (a) {
+            case LT1 -> PrescriptionRef.PCT_LT1;
+            case LT2 -> PrescriptionRef.PCT_LT2;
+            case VC -> PrescriptionRef.PCT_VC;
+            case PACE_800M -> PrescriptionRef.PCT_PACE_800M;
+            case PACE_1500M -> PrescriptionRef.PCT_PACE_1500M;
+            case PACE_3000M -> PrescriptionRef.PCT_PACE_3000M;
+            case PACE_5KM -> PrescriptionRef.PCT_PACE_5KM;
+            case PACE_10KM -> PrescriptionRef.PCT_PACE_10KM;
+            case PACE_15KM -> PrescriptionRef.PCT_PACE_15KM;
+            case PACE_SEMI -> PrescriptionRef.PCT_PACE_SEMI;
+            case PACE_MARATHON -> PrescriptionRef.PCT_PACE_MARATHON;
+            case FCMAX, LTHR, HRR -> null;
+        };
+    }
+
+    private double round1(double v) { return Math.round(v * 10.0) / 10.0; }
 
     /** Écrit une valeur AUTO ; ne touche jamais une valeur MANUAL ou verrouillée. */
     private boolean upsertAuto(com.coachrun.entity.Athlete athlete, TrainingZone zone,
@@ -113,23 +157,5 @@ public class ZoneValueSyncService {
         value.setSource(ZoneValueSource.AUTO);
         valueRepository.save(value);
         return true;
-    }
-
-    /** Extrait la fourchette [min, max] du résultat moteur selon le code de métrique, ou null. */
-    private double[] extract(Result r, String code, AthletePaceContext ctx) {
-        return switch (code) {
-            case "PACE" -> r.paceMinSecPerKm() != null && r.paceMaxSecPerKm() != null
-                    ? new double[]{r.paceMinSecPerKm(), r.paceMaxSecPerKm()} : null;
-            case "HR" -> r.hrMin() != null && r.hrMax() != null
-                    ? new double[]{r.hrMin(), r.hrMax()} : null;
-            case "SPEED" -> r.speedMinKmh() != null && r.speedMaxKmh() != null
-                    ? new double[]{r.speedMinKmh(), r.speedMaxKmh()} : null;
-            case "PCT_HRMAX" -> (r.hrMin() != null && r.hrMax() != null && ctx.fcMax() != null && ctx.fcMax() > 0)
-                    ? new double[]{Math.round(100.0 * r.hrMin() / ctx.fcMax()),
-                                   Math.round(100.0 * r.hrMax() / ctx.fcMax())} : null;
-            case "RPE" -> r.rpeMin() != null && r.rpeMax() != null
-                    ? new double[]{r.rpeMin(), r.rpeMax()} : null;
-            default -> null; // POWER et métriques custom : pas de source physio → saisie manuelle.
-        };
     }
 }

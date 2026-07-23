@@ -4,6 +4,8 @@ import com.coachrun.entity.Club;
 import com.coachrun.entity.MetricType;
 import com.coachrun.entity.TrainingZone;
 import com.coachrun.entity.ZoneMetric;
+import com.coachrun.entity.enums.ZoneAnchor;
+import com.coachrun.entity.enums.ZoneModel;
 import com.coachrun.entity.enums.ZoneScope;
 import com.coachrun.repository.MetricTypeRepository;
 import com.coachrun.repository.TrainingZoneRepository;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -38,6 +41,28 @@ public class TrainingZoneSeedService {
 
     /** Métriques portées par défaut (codes du catalogue builtin). */
     private static final List<String> DEFAULT_METRIC_CODES = List.of("PACE", "HR");
+
+    /** Règle par défaut d'un couple (zone, métrique) : ancre + %min + %max + modèle nommé. */
+    private record Rule(ZoneAnchor anchor, double low, double high, ZoneModel model) {
+    }
+
+    /**
+     * Règles standard seedées : allure dérivée des seuils/VDOT, FC en % de la FC max.
+     * Clé = "nom de zone|code métrique".
+     */
+    private static final Map<String, Rule> RULES = Map.ofEntries(
+            Map.entry("Récupération|PACE", new Rule(ZoneAnchor.LT1, 60, 72, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Récupération|HR", new Rule(ZoneAnchor.FCMAX, 60, 70, ZoneModel.PCT_FCMAX)),
+            Map.entry("Endurance fondamentale|PACE", new Rule(ZoneAnchor.LT1, 80, 92, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Endurance fondamentale|HR", new Rule(ZoneAnchor.FCMAX, 70, 80, ZoneModel.PCT_FCMAX)),
+            Map.entry("Marathon|PACE", new Rule(ZoneAnchor.LT1, 95, 102, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Marathon|HR", new Rule(ZoneAnchor.FCMAX, 80, 85, ZoneModel.PCT_FCMAX)),
+            Map.entry("Seuil|PACE", new Rule(ZoneAnchor.LT2, 96, 103, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Seuil|HR", new Rule(ZoneAnchor.FCMAX, 85, 90, ZoneModel.PCT_FCMAX)),
+            Map.entry("VO2|PACE", new Rule(ZoneAnchor.VC, 100, 107, ZoneModel.VC)),
+            Map.entry("VO2|HR", new Rule(ZoneAnchor.FCMAX, 90, 95, ZoneModel.PCT_FCMAX)),
+            Map.entry("Anaérobie / Sprint|PACE", new Rule(ZoneAnchor.PACE_800M, 98, 110, ZoneModel.DANIELS_VDOT)),
+            Map.entry("Anaérobie / Sprint|HR", new Rule(ZoneAnchor.FCMAX, 95, 100, ZoneModel.PCT_FCMAX)));
 
     private final TrainingZoneRepository zoneRepository;
     private final MetricTypeRepository metricTypeRepository;
@@ -67,6 +92,13 @@ public class TrainingZoneSeedService {
                 zm.setZone(zone);
                 zm.setMetricType(metric);
                 zm.setSortOrder(metricOrder++);
+                Rule rule = RULES.get(def[0] + "|" + metric.getCode());
+                if (rule != null) {
+                    zm.setAnchor(rule.anchor());
+                    zm.setLowPct(rule.low());
+                    zm.setHighPct(rule.high());
+                    zm.setModel(rule.model());
+                }
                 zone.getMetrics().add(zm);
             }
             zoneRepository.save(zone);
