@@ -40,6 +40,34 @@ et masquage par défaut de tout ce qui est secondaire (aperçu calculé détaill
 
 ---
 
+## 0 bis. Décisions validées (arbitrage du coach — fait foi)
+
+> Ces choix **priment** sur les recommandations des §3 ci-dessous (qui proposaient la zone unifiée).
+
+1. **Ordre : l'éditeur de séance d'abord** (récup éditable des fractionnés + création rapide via
+   zones), puis le moteur de règles et les écrans zones/athlète.
+2. **Échelles séparées par métrique** (façon Nolio) : une échelle **Allure** indépendante d'une
+   échelle **FC** (onglets), au lieu d'une zone unifiée portant les deux. → le modèle passe de
+   « une zone porte n métriques » à « une **échelle de zones par métrique** ».
+3. **13 zones par défaut** façon Nolio pour l'allure (Footing récup · EF · Steady · Seuil 1 · Tempo ·
+   Seuil 2 bas · Seuil 2 haut · 10k · 5k · 3k · 1500m · 800m · 400m), + un jeu FC cohérent.
+4. **Modèles nommés** (VMA · Vitesse Critique · Daniels/VDOT · %FCmax) sélectionnables, **en plus**
+   du réglage fin ancre + %.
+
+**Conséquence sur le modèle** (révision de §3.1-3.2) : les zones deviennent **par métrique**
+(`MetricZoneScale` : une échelle ordonnée de `ZoneBand` pour une métrique donnée), chaque bande ayant
+sa **règle** (`modèle nommé` **ou** ancre + %). La prescription d'un bloc pointe vers une bande de
+l'**échelle primaire** (l'allure en course) ; les autres métriques (FC) sont **affichées en regard**.
+Le verrou/override par athlète est conservé. Détail d'implémentation à la bascule du chantier zones
+(après l'éditeur).
+
+**Impact sur l'éditeur (fait en premier)** : la refonte §3.7 (récup éditable, groupes ×N, cartes
+épurées, zone qui montre sa cible) est **indépendante** du modèle de zones — je la livre sur le modèle
+**actuel** (les cibles sont lues depuis `AthleteZoneValue`), puis le sélecteur de zone basculera vers
+les échelles par métrique quand le chantier zones arrivera.
+
+---
+
 ## 1. Audit Nolio (détaillé)
 
 ### 1.1 Le modèle de zones
