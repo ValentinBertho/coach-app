@@ -57,8 +57,21 @@ public class WorkoutService {
 
     public List<WorkoutResponse> calendar(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         return workoutRepository
-                .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(clubId, athleteId, from, to)
+                .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAscOrderIndexAsc(clubId, athleteId, from, to)
                 .stream().map(WorkoutResponse::from).toList();
+    }
+
+    /**
+     * Réordonne les séances d'un même jour (glisser-déposer intra-jour) : {@code orderIndex} suit
+     * la position dans {@code orderedIds}. Les séances du jour non listées sont poussées à la fin.
+     */
+    @Transactional
+    public void reorder(UUID clubId, UUID athleteId, LocalDate date, List<UUID> orderedIds) {
+        List<Workout> dayWorkouts = workoutRepository.findByClubIdAndAthleteIdAndScheduledDate(clubId, athleteId, date);
+        for (Workout w : dayWorkouts) {
+            int idx = orderedIds.indexOf(w.getId());
+            w.setOrderIndex(idx >= 0 ? idx : orderedIds.size());
+        }
     }
 
     public WorkoutResponse get(UUID clubId, UUID workoutId) {

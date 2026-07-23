@@ -1,4 +1,4 @@
-import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -573,9 +573,29 @@ export class CalendarComponent implements OnInit {
       return;
     }
 
-    // Déplacement d'une séance course existante.
-    if (event.previousContainer === event.container) return;
+    // Réordonnancement au sein d'un même jour (matin / soir).
+    if (event.previousContainer === event.container) {
+      this.reorderWithinDay(targetDate, event.previousIndex, event.currentIndex);
+      return;
+    }
+
+    // Déplacement d'une séance course existante vers un autre jour.
     this.moveWorkout(w, targetDate);
+  }
+
+  /** Réordonne les séances d'un jour (glisser intra-jour) : mise à jour optimiste des orderIndex. */
+  private reorderWithinDay(date: string, from: number, to: number): void {
+    if (from === to) return;
+    const dayWorkouts = this.workouts()
+      .filter((w) => w.scheduledDate === date)
+      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+    if (from < 0 || to < 0 || from >= dayWorkouts.length || to >= dayWorkouts.length) return;
+    moveItemInArray(dayWorkouts, from, to);
+    const orderById = new Map(dayWorkouts.map((w, i) => [w.id, i]));
+    this.workouts.update((l) => l.map((w) => (orderById.has(w.id) ? { ...w, orderIndex: orderById.get(w.id)! } : w)));
+    this.workoutService.reorder(this.selectedAthleteId, date, [...orderById.keys()]).subscribe({
+      error: () => { this.toast.error('Réordonnancement impossible.'); this.load(); },
+    });
   }
 
   /** Déplace une séance vers une date (optimiste + rollback en cas d'échec back). */
@@ -688,6 +708,8 @@ export class CalendarComponent implements OnInit {
       const arr = map.get(w.scheduledDate) ?? map.set(w.scheduledDate, []).get(w.scheduledDate)!;
       arr.push(w);
     }
+    // Ordre intra-jour (glisser-déposer) : trie chaque jour par orderIndex.
+    for (const arr of map.values()) arr.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
     return map;
   }
 

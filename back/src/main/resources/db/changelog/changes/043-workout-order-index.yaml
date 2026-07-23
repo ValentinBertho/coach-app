@@ -1,0 +1,13 @@
+# ============================================================================
+# 043 — Ordre d'affichage intra-jour des séances (glisser-déposer du calendrier).
+#   Colonne additive, non destructive : order_index (défaut 0).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 043-workout-order-index
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workouts
+            columns:
+              - column: { name: order_index, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }

@@ -95,6 +95,15 @@ public class WorkoutController {
         return workoutService.reschedule(clubId, workoutId, request.scheduledDate());
     }
 
+    /** Réordonne les séances d'un même jour (glisser-déposer intra-jour). */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PatchMapping("/reorder")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void reorder(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                        @Valid @RequestBody com.coachrun.dto.request.WorkoutReorderRequest request) {
+        workoutService.reorder(clubId, athleteId, request.date(), request.orderedIds());
+    }
+
     /** Duplique la séance vers une date (glisser + Alt, ou menu contextuel). */
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/{workoutId}/copy")

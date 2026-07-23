@@ -29,6 +29,8 @@ export interface Workout {
   targetDurationS: number | null;
   rpe: number | null;
   athleteComment: string | null;
+  /** Ordre d'affichage au sein d'un même jour (glisser-déposer intra-jour). */
+  orderIndex: number;
   steps: WorkoutStep[];
 }
 

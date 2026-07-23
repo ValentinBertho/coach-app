@@ -58,6 +58,11 @@ export class WorkoutService {
     return this.http.post<Workout>(`${this.base(athleteId)}/${workoutId}/copy`, { scheduledDate });
   }
 
+  /** Réordonne les séances d'un même jour (glisser-déposer intra-jour). */
+  reorder(athleteId: string, date: string, orderedIds: string[]): Observable<void> {
+    return this.http.patch<void>(`${this.base(athleteId)}/reorder`, { date, orderedIds });
+  }
+
   delete(athleteId: string, workoutId: string): Observable<void> {
     return this.http.delete<void>(`${this.base(athleteId)}/${workoutId}`);
   }

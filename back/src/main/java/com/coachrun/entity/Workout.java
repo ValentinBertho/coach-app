@@ -105,6 +105,10 @@ public class Workout extends BaseEntity {
     @Column(name = "calculated_paces", length = 20000)
     private String calculatedPaces;
 
+    /** Ordre d'affichage au sein d'un même jour (glisser-déposer intra-jour). */
+    @Column(name = "order_index", nullable = false)
+    private int orderIndex = 0;
+
     @OneToMany(mappedBy = "workout", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderIndex ASC")
     private List<WorkoutStep> steps = new ArrayList<>();
