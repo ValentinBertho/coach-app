@@ -114,39 +114,7 @@
 }
 .cal-sidebar h3 { margin: 0 0 var(--sp-1); font-size: var(--text-md); }
 
-/* Recherche instantanée dans le panneau (icône + champ). */
-.lib-search { position: relative; margin-top: var(--sp-3); }
-.lib-search app-icon {
-  position: absolute; left: var(--sp-2); top: 50%; transform: translateY(-50%);
-  color: var(--ink-3); pointer-events: none;
-}
-.lib-search .form-control { padding-left: calc(var(--sp-2) + 20px); }
-
-.lib-list { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-3); min-height: 40px; }
-.lib-item {
-  display: flex; align-items: center; gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--block-classique) 14%, var(--paper));
-  border: 1px solid color-mix(in srgb, var(--block-classique) 40%, transparent);
-  font-size: var(--text-sm); font-weight: 600; cursor: grab;
-}
-.lib-item:active { cursor: grabbing; }
-.li-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-.lib-sub {
-  display: flex; align-items: center; gap: var(--sp-2);
-  margin: var(--sp-3) 0 var(--sp-1); font-size: var(--text-sm); color: var(--ink-3);
-}
-.lib-count {
-  font-family: var(--font-data); font-size: 10px; font-weight: 800;
-  background: var(--paper-sunk); color: var(--ink-3);
-  padding: 0 var(--sp-2); border-radius: var(--radius-full); margin-left: auto;
-}
-.lib-item.course {
-  background: color-mix(in srgb, var(--dari-teal) 14%, var(--paper));
-  border-color: color-mix(in srgb, var(--dari-teal) 40%, transparent);
-}
+/* La liste catégorisée de la bibliothèque est rendue par <app-session-library-panel>. */
 
 /* --- Feedback drag & drop (QW5) ------------------------------------------- */
 /* Aperçu flottant suivant le curseur pendant le drag. */

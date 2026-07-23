@@ -1,0 +1,59 @@
+:host { display: block; }
+
+.slp { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+/* Recherche */
+.slp-search { position: relative; margin-bottom: var(--sp-2); }
+.slp-search app-icon {
+  position: absolute; left: var(--sp-2); top: 50%; transform: translateY(-50%);
+  color: var(--ink-3); pointer-events: none;
+}
+.slp-search .form-control { padding-left: calc(var(--sp-2) + 20px); }
+
+/* Accordéon de catégorie */
+.slp-group { border-top: 1px solid var(--hairline); }
+.slp-group:first-of-type { border-top: none; }
+.slp-group__hd {
+  display: flex; align-items: center; gap: var(--sp-2);
+  width: 100%; padding: var(--sp-2) var(--sp-1);
+  background: transparent; border: none; cursor: pointer;
+  color: var(--ink-2); font-weight: 700; font-size: var(--text-sm);
+  text-align: left;
+}
+.slp-group__hd:hover { color: var(--ink); }
+.slp-group__name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slp-chevron { color: var(--ink-3); }
+.slp-count {
+  font-family: var(--font-data); font-size: 10px; font-weight: 800;
+  background: var(--paper-sunk); color: var(--ink-3);
+  padding: 0 var(--sp-2); border-radius: var(--radius-full);
+}
+
+/* Liste d'items draggables */
+.lib-list { display: flex; flex-direction: column; gap: var(--sp-2); padding: 0 0 var(--sp-2); min-height: 8px; }
+.lib-item {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--block-classique) 14%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--block-classique) 40%, transparent);
+  font-size: var(--text-sm); font-weight: 600; cursor: grab;
+}
+.lib-item:active { cursor: grabbing; }
+.li-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-item.course {
+  background: color-mix(in srgb, var(--dari-teal) 14%, var(--paper));
+  border-color: color-mix(in srgb, var(--dari-teal) 40%, transparent);
+}
+.lib-item.drill {
+  background: color-mix(in srgb, var(--dari-violet) 12%, var(--paper));
+  border-color: color-mix(in srgb, var(--dari-violet) 38%, transparent);
+}
+
+/* Aperçu / placeholder du drag (cohérent avec le calendrier) */
+.cdk-drag-preview {
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
+  border-radius: var(--radius-sm);
+  opacity: 0.95;
+}
+.cdk-drag-placeholder { opacity: 0.4; }

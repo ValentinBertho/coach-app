@@ -15,7 +15,7 @@ import {
   HeartPulse, Thermometer, Palmtree, Pin, Ban, Bell, FileText, Paperclip, Lock, Blocks, BookOpen,
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Save,
-  LayoutGrid, List, PanelLeft, Menu, GripVertical,
+  LayoutGrid, List, PanelLeft, Menu, GripVertical, ChevronDown,
   LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck,
 } from 'lucide-angular';
 
@@ -32,7 +32,7 @@ const ICONS = {
   HeartPulse, Thermometer, Palmtree, Pin, Ban, Bell, FileText, Paperclip, Lock, Blocks, BookOpen,
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Save,
-  LayoutGrid, List, PanelLeft, Menu, GripVertical,
+  LayoutGrid, List, PanelLeft, Menu, GripVertical, ChevronDown,
   LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck,
 };
 

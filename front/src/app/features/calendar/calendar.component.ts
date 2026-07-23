@@ -29,6 +29,9 @@ import { RunDrill } from '../../core/models/run-drill.model';
 import { RunDrillService } from '../../core/services/run-drill.service';
 import { CalendarNote } from '../../core/models/calendar-note.model';
 import { CalendarNoteService } from '../../core/services/calendar-note.service';
+import { SessionCategory } from '../../core/models/session-category.model';
+import { SessionCategoryService } from '../../core/services/session-category.service';
+import { SessionLibraryPanelComponent } from '../../shared/components/session-library-panel/session-library-panel.component';
 
 interface DayCell {
   date: string;
@@ -86,7 +89,7 @@ function mondayOf(d: Date): Date {
   selector: 'app-calendar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DragDropModule, IconComponent, HelpHintComponent],
+  imports: [FormsModule, RouterLink, DragDropModule, IconComponent, HelpHintComponent, SessionLibraryPanelComponent],
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.scss',
 })
@@ -100,9 +103,11 @@ export class CalendarComponent implements OnInit {
   private readonly groupService = inject(TrainingGroupService);
   private readonly drillService = inject(RunDrillService);
   private readonly noteService = inject(CalendarNoteService);
+  private readonly categoryService = inject(SessionCategoryService);
 
   readonly drills = signal<RunDrill[]>([]);
   readonly notes = signal<CalendarNote[]>([]);
+  readonly categories = signal<SessionCategory[]>([]);
   private readonly raceService = inject(RaceService);
   private readonly lactateService = inject(LactateService);
   private readonly router = inject(Router);
@@ -208,6 +213,7 @@ export class CalendarComponent implements OnInit {
     this.strengthService.listSessions().subscribe((p) => this.librarySessions.set(p.content));
     this.templateService.list().subscribe((p) => this.courseTemplates.set(p.content));
     this.drillService.list().subscribe((d) => this.drills.set(d));
+    this.categoryService.list().subscribe({ next: (c) => this.categories.set(c), error: () => this.categories.set([]) });
   }
 
   /** Objectifs, tests et indisponibilités de l'athlète (listes complètes, filtrées par jour). */
@@ -400,9 +406,6 @@ export class CalendarComponent implements OnInit {
     });
   }
 
-  /** Drop dans la bibliothèque (retour) : aucune action, l'élément revient à sa place. */
-  onLibDrop(): void { /* no-op */ }
-
   /** Date pour laquelle le sélecteur de séance course est ouvert (null = fermé). */
   readonly pickerDate = signal<string | null>(null);
 
@@ -428,27 +431,6 @@ export class CalendarComponent implements OnInit {
     try { localStorage.setItem(CalendarComponent.LIB_KEY, this.sidebarOpen() ? '1' : '0'); }
     catch { /* préférence non persistée, sans gravité */ }
   }
-
-  /** Recherche instantanée dans le panneau bibliothèque (filtre course + force + éducatifs). */
-  readonly librarySearch = signal('');
-
-  private matchesLibrary(name: string): boolean {
-    const q = this.librarySearch().trim().toLowerCase();
-    return !q || name.toLowerCase().includes(q);
-  }
-
-  readonly filteredCourseTemplates = computed(() =>
-    this.courseTemplates().filter((t) => this.matchesLibrary(t.name)));
-  readonly filteredLibrarySessions = computed(() =>
-    this.librarySessions().filter((s) => this.matchesLibrary(s.name)));
-  readonly filteredDrills = computed(() =>
-    this.drills().filter((d) => this.matchesLibrary(d.name)));
-
-  /** Total de séances visibles dans le panneau (pour l'état « aucun résultat »). */
-  readonly libraryResultCount = computed(() =>
-    this.filteredCourseTemplates().length
-    + this.filteredLibrarySessions().length
-    + this.filteredDrills().length);
 
   /** Le coach peut-il prescrire à l'athlète sélectionné ? (false = lecture seule). */
   canWriteSelected(): boolean {
