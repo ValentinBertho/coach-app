@@ -18,8 +18,18 @@ import {
   type IntensityZone as ZoneNum,
 } from '../../shared/components/physiology';
 import { StickyActionBarComponent } from '../../shared/components/ui';
-import { WorkoutPrescription } from '../../core/models/course.model';
+import { CalculatedBlockEntry, WorkoutPrescription } from '../../core/models/course.model';
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
+import { TrainingZone } from '../../core/models/training-zone.model';
+import { TrainingZoneService } from '../../core/services/training-zone.service';
+
+/** Segment de la barre de répartition du temps par zone (façon Nolio). */
+interface ZoneSegment {
+  name: string;
+  color: string;
+  durationS: number;
+  pct: number;
+}
 
 type State = 'loading' | 'ready' | 'error';
 
@@ -39,9 +49,48 @@ type State = 'loading' | 'ready' | 'error';
 })
 export class WorkoutDetailComponent implements OnInit {
   private readonly workoutService = inject(WorkoutService);
+  private readonly zoneService = inject(TrainingZoneService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
   private readonly router = inject(Router);
+
+  /** Zones du club (id → nom/couleur), pour la répartition du temps par zone. */
+  readonly zones = signal<TrainingZone[]>([]);
+  private readonly zoneById = computed(() => {
+    const map = new Map<string, TrainingZone>();
+    for (const z of this.zones()) map.set(z.id, z);
+    return map;
+  });
+
+  /** Répartition du temps planifié par zone (barre + légende façon Nolio). */
+  readonly zoneDistribution = computed<{ segments: ZoneSegment[]; totalS: number }>(() => {
+    const calc = this.courseRx()?.calculated;
+    if (!calc) return { segments: [], totalS: 0 };
+    const byZone = new Map<string, number>();
+    const add = (zoneId: string | null | undefined, s: number | null | undefined) => {
+      if (!zoneId || !s) return;
+      byZone.set(zoneId, (byZone.get(zoneId) ?? 0) + s);
+    };
+    const acc = (entries: CalculatedBlockEntry[]) => {
+      for (const e of entries) {
+        add(e.block.prescription?.zoneId, e.calc?.estimatedDurationS);
+        const reps = e.block.reps && e.block.reps > 1 ? e.block.reps - 1 : 0;
+        if (reps && e.recoveryCalc?.estimatedDurationS) {
+          add(e.block.recovery?.prescription?.zoneId, e.recoveryCalc.estimatedDurationS * reps);
+        }
+      }
+    };
+    acc(calc.warmup); acc(calc.main); acc(calc.cooldown);
+    const totalS = [...byZone.values()].reduce((s, v) => s + v, 0);
+    if (!totalS) return { segments: [], totalS: 0 };
+    const segments = [...byZone.entries()]
+      .map(([zoneId, durationS]) => {
+        const z = this.zoneById().get(zoneId);
+        return { name: z?.name ?? 'Zone', color: z?.color || 'var(--ink-3)', durationS, pct: (durationS / totalS) * 100 };
+      })
+      .sort((a, b) => b.durationS - a.durationS);
+    return { segments, totalS };
+  });
 
   readonly athleteId = input.required<string>();
   readonly workoutId = input.required<string>();
@@ -108,6 +157,7 @@ export class WorkoutDetailComponent implements OnInit {
       next: (p) => this.courseRx.set(p),
       error: () => this.courseRx.set(null),
     });
+    this.zoneService.list().subscribe({ next: (z) => this.zones.set(z), error: () => this.zones.set([]) });
   }
 
   setStatus(status: WorkoutStatus): void {

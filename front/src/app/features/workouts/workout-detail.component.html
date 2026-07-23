@@ -43,6 +43,28 @@
           </div>
         }
 
+        <!-- ===== Répartition par zone (façon Nolio) ===== -->
+        @if (zoneDistribution().segments.length) {
+          <section class="card block">
+            <h2 class="block-title">Répartition par zone (planifié)</h2>
+            <div class="zdist-bar">
+              @for (s of zoneDistribution().segments; track s.name) {
+                <span class="zdist-seg" [style.width.%]="s.pct" [style.background]="s.color"
+                      [title]="s.name + ' · ' + fmtDuration(s.durationS)"></span>
+              }
+            </div>
+            <div class="zdist-legend">
+              @for (s of zoneDistribution().segments; track s.name) {
+                <span class="zdist-item">
+                  <span class="zdist-dot" [style.background]="s.color"></span>
+                  {{ s.name }}
+                  <span class="zdist-time metric">{{ fmtDuration(s.durationS) }} · {{ s.pct.toFixed(0) }}%</span>
+                </span>
+              }
+            </div>
+          </section>
+        }
+
         <!-- ===== Prescription ===== -->
         @if (courseRxHasContent()) {
           <section class="card block">
