@@ -1,0 +1,79 @@
+<div class="slp">
+  <div class="slp-search">
+    <app-icon name="search" [size]="15" />
+    <input type="search" class="form-control" placeholder="Rechercher une séance…"
+           [ngModel]="search()" (ngModelChange)="search.set($event)"
+           aria-label="Rechercher dans la bibliothèque" />
+  </div>
+
+  @if (search().trim() && resultCount() === 0) {
+    <p class="field-hint">Aucune séance ne correspond à « {{ search() }} ».</p>
+  }
+
+  <!-- Course : accordéons par catégorie -->
+  @for (g of courseGroups(); track g.id) {
+    <section class="slp-group">
+      <button type="button" class="slp-group__hd" (click)="toggleGroup(g.id)" [attr.aria-expanded]="!isCollapsed(g.id)">
+        <app-icon class="slp-chevron" [name]="isCollapsed(g.id) ? 'chevron-right' : 'chevron-down'" [size]="14" />
+        <app-icon name="footprints" [size]="14" />
+        <span class="slp-group__name">{{ g.name }}</span>
+        <span class="slp-count">{{ g.items.length }}</span>
+      </button>
+      @if (!isCollapsed(g.id)) {
+        <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
+          @for (t of g.items; track t.id) {
+            <div class="lib-item course" cdkDrag [cdkDragData]="t">
+              <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ t.name }}</span>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  }
+
+  <!-- Force -->
+  @if (filteredStrength().length) {
+    <section class="slp-group">
+      <button type="button" class="slp-group__hd" (click)="toggleGroup(STRENGTH_ID)" [attr.aria-expanded]="!isCollapsed(STRENGTH_ID)">
+        <app-icon class="slp-chevron" [name]="isCollapsed(STRENGTH_ID) ? 'chevron-right' : 'chevron-down'" [size]="14" />
+        <app-icon name="dumbbell" [size]="14" />
+        <span class="slp-group__name">Prépa physique</span>
+        <span class="slp-count">{{ filteredStrength().length }}</span>
+      </button>
+      @if (!isCollapsed(STRENGTH_ID)) {
+        <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
+          @for (s of filteredStrength(); track s.id) {
+            <div class="lib-item" cdkDrag [cdkDragData]="s">
+              <app-icon class="li-icon" name="dumbbell" [size]="16" /><span class="li-name">{{ s.name }}</span>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  }
+
+  <!-- Éducatifs -->
+  @if (filteredDrills().length) {
+    <section class="slp-group">
+      <button type="button" class="slp-group__hd" (click)="toggleGroup(DRILLS_ID)" [attr.aria-expanded]="!isCollapsed(DRILLS_ID)">
+        <app-icon class="slp-chevron" [name]="isCollapsed(DRILLS_ID) ? 'chevron-right' : 'chevron-down'" [size]="14" />
+        <app-icon name="graduation-cap" [size]="14" />
+        <span class="slp-group__name">Éducatifs</span>
+        <span class="slp-count">{{ filteredDrills().length }}</span>
+      </button>
+      @if (!isCollapsed(DRILLS_ID)) {
+        <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
+          @for (d of filteredDrills(); track d.id) {
+            <div class="lib-item drill" cdkDrag [cdkDragData]="d">
+              <app-icon class="li-icon" name="graduation-cap" [size]="16" /><span class="li-name">{{ d.name }}</span>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  }
+
+  @if (!courseTemplates().length && !strengthSessions().length && !drills().length) {
+    <p class="field-hint">Aucune séance en bibliothèque. Crée des modèles dans la bibliothèque.</p>
+  }
+</div>

@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.util.List;
+import java.util.UUID;
 
 /** Création / mise à jour d'un modèle de séance (bibliothèque). */
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -19,6 +20,7 @@ public record WorkoutTemplateRequest(
         @Size(max = 2048) String notes,
         @Min(0) Integer targetDistanceM,
         @Min(0) Integer targetDurationS,
+        UUID categoryId,
         @Valid List<WorkoutStepRequest> steps) {
 
     public List<WorkoutStepRequest> steps() {

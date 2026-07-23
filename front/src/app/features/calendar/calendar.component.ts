@@ -1,4 +1,4 @@
-import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -29,6 +29,9 @@ import { RunDrill } from '../../core/models/run-drill.model';
 import { RunDrillService } from '../../core/services/run-drill.service';
 import { CalendarNote } from '../../core/models/calendar-note.model';
 import { CalendarNoteService } from '../../core/services/calendar-note.service';
+import { SessionCategory } from '../../core/models/session-category.model';
+import { SessionCategoryService } from '../../core/services/session-category.service';
+import { SessionLibraryPanelComponent } from '../../shared/components/session-library-panel/session-library-panel.component';
 
 interface DayCell {
   date: string;
@@ -86,7 +89,8 @@ function mondayOf(d: Date): Date {
   selector: 'app-calendar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DragDropModule, IconComponent, HelpHintComponent],
+  imports: [FormsModule, RouterLink, DragDropModule, IconComponent, HelpHintComponent, SessionLibraryPanelComponent],
+  host: { '(document:keydown)': 'onKeydown($event)' },
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.scss',
 })
@@ -100,9 +104,11 @@ export class CalendarComponent implements OnInit {
   private readonly groupService = inject(TrainingGroupService);
   private readonly drillService = inject(RunDrillService);
   private readonly noteService = inject(CalendarNoteService);
+  private readonly categoryService = inject(SessionCategoryService);
 
   readonly drills = signal<RunDrill[]>([]);
   readonly notes = signal<CalendarNote[]>([]);
+  readonly categories = signal<SessionCategory[]>([]);
   private readonly raceService = inject(RaceService);
   private readonly lactateService = inject(LactateService);
   private readonly router = inject(Router);
@@ -208,6 +214,7 @@ export class CalendarComponent implements OnInit {
     this.strengthService.listSessions().subscribe((p) => this.librarySessions.set(p.content));
     this.templateService.list().subscribe((p) => this.courseTemplates.set(p.content));
     this.drillService.list().subscribe((d) => this.drills.set(d));
+    this.categoryService.list().subscribe({ next: (c) => this.categories.set(c), error: () => this.categories.set([]) });
   }
 
   /** Objectifs, tests et indisponibilités de l'athlète (listes complètes, filtrées par jour). */
@@ -400,9 +407,6 @@ export class CalendarComponent implements OnInit {
     });
   }
 
-  /** Drop dans la bibliothèque (retour) : aucune action, l'élément revient à sa place. */
-  onLibDrop(): void { /* no-op */ }
-
   /** Date pour laquelle le sélecteur de séance course est ouvert (null = fermé). */
   readonly pickerDate = signal<string | null>(null);
 
@@ -428,27 +432,6 @@ export class CalendarComponent implements OnInit {
     try { localStorage.setItem(CalendarComponent.LIB_KEY, this.sidebarOpen() ? '1' : '0'); }
     catch { /* préférence non persistée, sans gravité */ }
   }
-
-  /** Recherche instantanée dans le panneau bibliothèque (filtre course + force + éducatifs). */
-  readonly librarySearch = signal('');
-
-  private matchesLibrary(name: string): boolean {
-    const q = this.librarySearch().trim().toLowerCase();
-    return !q || name.toLowerCase().includes(q);
-  }
-
-  readonly filteredCourseTemplates = computed(() =>
-    this.courseTemplates().filter((t) => this.matchesLibrary(t.name)));
-  readonly filteredLibrarySessions = computed(() =>
-    this.librarySessions().filter((s) => this.matchesLibrary(s.name)));
-  readonly filteredDrills = computed(() =>
-    this.drills().filter((d) => this.matchesLibrary(d.name)));
-
-  /** Total de séances visibles dans le panneau (pour l'état « aucun résultat »). */
-  readonly libraryResultCount = computed(() =>
-    this.filteredCourseTemplates().length
-    + this.filteredLibrarySessions().length
-    + this.filteredDrills().length);
 
   /** Le coach peut-il prescrire à l'athlète sélectionné ? (false = lecture seule). */
   canWriteSelected(): boolean {
@@ -566,6 +549,7 @@ export class CalendarComponent implements OnInit {
         .scheduleSession(this.selectedAthleteId, s.id, { date: targetDate, fieldsPreset: 'AVANCE' })
         .subscribe({
           next: () => { this.toast.success(`${s.name} planifiée le ${targetDate}`); this.reloadStrength(); },
+          error: () => this.toast.error('Planification impossible.'),
         });
       return;
     }
@@ -575,20 +559,123 @@ export class CalendarComponent implements OnInit {
       const t = data as WorkoutTemplate;
       this.courseService.schedule(this.selectedAthleteId, t.id, { date: targetDate }).subscribe({
         next: () => { this.toast.success(`${t.name} planifiée le ${targetDate}`); this.load(); },
+        error: () => this.toast.error('Planification impossible.'),
       });
       return;
     }
 
-    // Déplacement d'une séance course existante.
-    if (event.previousContainer === event.container) return;
     const w = data as Workout;
+
+    // Glisser + Alt/Ctrl → duplication de la séance vers le jour cible (au lieu d'un déplacement).
+    const native = event.event as MouseEvent;
+    if (native && (native.altKey || native.ctrlKey || native.metaKey)) {
+      this.copyWorkout(w, targetDate);
+      return;
+    }
+
+    // Réordonnancement au sein d'un même jour (matin / soir).
+    if (event.previousContainer === event.container) {
+      this.reorderWithinDay(targetDate, event.previousIndex, event.currentIndex);
+      return;
+    }
+
+    // Déplacement d'une séance course existante vers un autre jour.
+    this.moveWorkout(w, targetDate);
+  }
+
+  /** Réordonne les séances d'un jour (glisser intra-jour) : mise à jour optimiste des orderIndex. */
+  private reorderWithinDay(date: string, from: number, to: number): void {
+    if (from === to) return;
+    const dayWorkouts = this.workouts()
+      .filter((w) => w.scheduledDate === date)
+      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+    if (from < 0 || to < 0 || from >= dayWorkouts.length || to >= dayWorkouts.length) return;
+    moveItemInArray(dayWorkouts, from, to);
+    const orderById = new Map(dayWorkouts.map((w, i) => [w.id, i]));
+    this.workouts.update((l) => l.map((w) => (orderById.has(w.id) ? { ...w, orderIndex: orderById.get(w.id)! } : w)));
+    this.workoutService.reorder(this.selectedAthleteId, date, [...orderById.keys()]).subscribe({
+      error: () => { this.toast.error('Réordonnancement impossible.'); this.load(); },
+    });
+  }
+
+  /** Déplace une séance vers une date (optimiste + rollback en cas d'échec back). */
+  private moveWorkout(w: Workout, targetDate: string): void {
     if (w.scheduledDate === targetDate) return;
     const previous = w.scheduledDate;
     this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x)));
     this.workoutService.reschedule(this.selectedAthleteId, w.id, targetDate).subscribe({
       next: () => this.toast.success(`Séance déplacée au ${targetDate}`),
-      error: () => this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: previous } : x))),
+      error: () => {
+        this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: previous } : x)));
+        this.toast.error('Déplacement impossible.');
+      },
     });
+  }
+
+  /** Duplique une séance vers une date (copie figée côté back). */
+  private copyWorkout(w: Workout, targetDate: string): void {
+    this.workoutService.copy(this.selectedAthleteId, w.id, targetDate).subscribe({
+      next: () => { this.toast.success(`Séance dupliquée au ${targetDate}`); this.load(); },
+      error: () => this.toast.error('Duplication impossible.'),
+    });
+  }
+
+  // --- Menu contextuel (clic droit) : alternative souris/clavier au glisser-déposer ----------
+  readonly ctxMenu = signal<{ workout: Workout; x: number; y: number } | null>(null);
+  ctxDate = '';
+
+  openContextMenu(w: Workout, ev: MouseEvent): void {
+    ev.preventDefault();
+    if (!this.canWriteSelected()) return;
+    this.ctxDate = w.scheduledDate;
+    // Position bornée à la fenêtre pour éviter le débordement.
+    const x = Math.min(ev.clientX, window.innerWidth - 220);
+    const y = Math.min(ev.clientY, window.innerHeight - 260);
+    this.ctxMenu.set({ workout: w, x, y });
+  }
+  closeContextMenu(): void { this.ctxMenu.set(null); }
+
+  ctxOpen(): void {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu(); this.openWorkout(m.workout);
+  }
+  ctxAdapt(): void {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu();
+    this.router.navigate(['/app/athletes', m.workout.athleteId, 'workouts', m.workout.id, 'structure']);
+  }
+  ctxMoveTo(date: string): void {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu();
+    if (date) this.moveWorkout(m.workout, date);
+  }
+  ctxCopyTo(date: string): void {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu();
+    if (date) this.copyWorkout(m.workout, date);
+  }
+  async ctxDelete(): Promise<void> {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu();
+    const ok = await this.confirm.ask({
+      title: 'Supprimer la séance', message: m.workout.title, confirmLabel: 'Supprimer', danger: true,
+    });
+    if (!ok) return;
+    this.workoutService.delete(this.selectedAthleteId, m.workout.id).subscribe({
+      next: () => { this.toast.info('Séance supprimée.'); this.load(); },
+      error: () => this.toast.error('Suppression impossible.'),
+    });
+  }
+
+  /** Raccourcis clavier de navigation (hors champ de saisie) : ←/→ période, T = aujourd'hui. */
+  onKeydown(ev: KeyboardEvent): void {
+    const el = ev.target as HTMLElement | null;
+    if (el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if (this.ctxMenu()) return;
+    if (ev.key === 'ArrowLeft') { this.shift(-1); ev.preventDefault(); }
+    else if (ev.key === 'ArrowRight') { this.shift(1); ev.preventDefault(); }
+    else if (ev.key === 't' || ev.key === 'T') { this.goToday(); ev.preventDefault(); }
   }
 
   zonesOf(w: Workout): string[] {
@@ -621,6 +708,8 @@ export class CalendarComponent implements OnInit {
       const arr = map.get(w.scheduledDate) ?? map.set(w.scheduledDate, []).get(w.scheduledDate)!;
       arr.push(w);
     }
+    // Ordre intra-jour (glisser-déposer) : trie chaque jour par orderIndex.
+    for (const arr of map.values()) arr.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
     return map;
   }
 

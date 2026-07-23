@@ -129,58 +129,11 @@
       </div>
       <p class="field-hint">Glisse une séance sur un jour pour la planifier.</p>
 
-      <div class="lib-search">
-        <app-icon name="search" [size]="15" />
-        <input type="search" class="form-control" placeholder="Rechercher une séance…"
-               [ngModel]="librarySearch()" (ngModelChange)="librarySearch.set($event)"
-               aria-label="Rechercher dans la bibliothèque" />
-      </div>
-
-      @if (librarySearch().trim() && libraryResultCount() === 0) {
-        <p class="field-hint">Aucune séance ne correspond à « {{ librarySearch() }} ».</p>
-      }
-
-      <h4 class="lib-sub">
-        <app-icon name="footprints" [size]="14" /> Course
-        <span class="lib-count">{{ filteredCourseTemplates().length }}</span>
-      </h4>
-      <div class="lib-list" cdkDropList (cdkDropListDropped)="onLibDrop()">
-        @for (t of filteredCourseTemplates(); track t.id) {
-          <div class="lib-item course" cdkDrag [cdkDragData]="t">
-            <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ t.name }}</span>
-          </div>
-        } @empty {
-          <p class="field-hint">{{ librarySearch().trim() ? 'Aucun résultat.' : 'Aucun modèle course.' }}</p>
-        }
-      </div>
-
-      <h4 class="lib-sub">
-        <app-icon name="dumbbell" [size]="14" /> Force
-        <span class="lib-count">{{ filteredLibrarySessions().length }}</span>
-      </h4>
-      <div class="lib-list" cdkDropList (cdkDropListDropped)="onLibDrop()">
-        @for (s of filteredLibrarySessions(); track s.id) {
-          <div class="lib-item" cdkDrag [cdkDragData]="s">
-            <app-icon class="li-icon" name="dumbbell" [size]="16" /><span class="li-name">{{ s.name }}</span>
-          </div>
-        } @empty {
-          <p class="field-hint">{{ librarySearch().trim() ? 'Aucun résultat.' : 'Aucune séance de force.' }}</p>
-        }
-      </div>
-
-      <h4 class="lib-sub">
-        <app-icon name="graduation-cap" [size]="14" /> Éducatifs
-        <span class="lib-count">{{ filteredDrills().length }}</span>
-      </h4>
-      <div class="lib-list" cdkDropList (cdkDropListDropped)="onLibDrop()">
-        @for (d of filteredDrills(); track d.id) {
-          <div class="lib-item drill" cdkDrag [cdkDragData]="d">
-            <app-icon class="li-icon" name="graduation-cap" [size]="16" /><span class="li-name">{{ d.name }}</span>
-          </div>
-        } @empty {
-          <p class="field-hint">{{ librarySearch().trim() ? 'Aucun résultat.' : 'Aucun éducatif.' }}</p>
-        }
-      </div>
+      <app-session-library-panel
+        [courseTemplates]="courseTemplates()"
+        [strengthSessions]="librarySessions()"
+        [drills]="drills()"
+        [categories]="categories()" />
     </aside>
     }
 
@@ -233,7 +186,8 @@
               class="workout-card"
               [class.workout-card--key]="typeMeta(w.type).key"
               [style.--type-color]="typeMeta(w.type).color"
-              cdkDrag [cdkDragData]="w" (click)="openWorkout(w)">
+              cdkDrag [cdkDragData]="w" (click)="openWorkout(w)"
+              (contextmenu)="openContextMenu(w, $event)">
               <span class="wc-head">
                 <app-icon class="wc-type" [name]="typeMeta(w.type).icon" [size]="13" />
                 <span class="w-title">{{ w.title }}</span>
@@ -272,6 +226,25 @@
     }
       </div>
     </div>
+  </div>
+}
+
+<!-- Menu contextuel (clic droit sur une séance) : accélérateur souris + alternative au glisser-déposer -->
+@if (ctxMenu(); as m) {
+  <div class="ctx-backdrop" (click)="closeContextMenu()" (contextmenu)="$event.preventDefault(); closeContextMenu()"></div>
+  <div class="ctx-menu" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
+    <span class="ctx-title">{{ m.workout.title }}</span>
+    <button type="button" class="ctx-item" (click)="ctxOpen()"><app-icon name="footprints" [size]="14" /> Ouvrir la séance</button>
+    <button type="button" class="ctx-item" (click)="ctxAdapt()"><app-icon name="pencil" [size]="14" /> Adapter la structure</button>
+    <div class="ctx-sep"></div>
+    <label class="ctx-field">Déplacer vers
+      <input type="date" class="form-control" [ngModel]="ctxDate" (ngModelChange)="ctxMoveTo($event)" />
+    </label>
+    <label class="ctx-field">Dupliquer vers
+      <input type="date" class="form-control" [ngModel]="ctxDate" (ngModelChange)="ctxCopyTo($event)" />
+    </label>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item danger" (click)="ctxDelete()"><app-icon name="ban" [size]="14" /> Supprimer</button>
   </div>
 }
 

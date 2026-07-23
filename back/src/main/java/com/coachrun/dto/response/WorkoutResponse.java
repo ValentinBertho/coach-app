@@ -25,6 +25,7 @@ public record WorkoutResponse(
         boolean movedByAthlete,
         LocalDate originalDate,
         UUID sourceTemplateId,
+        int orderIndex,
         List<WorkoutStepResponse> steps) {
 
     public static WorkoutResponse from(Workout w) {
@@ -45,6 +46,7 @@ public record WorkoutResponse(
                 w.isMovedByAthlete(),
                 w.getOriginalDate(),
                 w.getSourceTemplateId(),
+                w.getOrderIndex(),
                 w.getSteps().stream().map(WorkoutStepResponse::from).toList());
     }
 }

@@ -57,8 +57,21 @@ public class WorkoutService {
 
     public List<WorkoutResponse> calendar(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         return workoutRepository
-                .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(clubId, athleteId, from, to)
+                .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAscOrderIndexAsc(clubId, athleteId, from, to)
                 .stream().map(WorkoutResponse::from).toList();
+    }
+
+    /**
+     * Réordonne les séances d'un même jour (glisser-déposer intra-jour) : {@code orderIndex} suit
+     * la position dans {@code orderedIds}. Les séances du jour non listées sont poussées à la fin.
+     */
+    @Transactional
+    public void reorder(UUID clubId, UUID athleteId, LocalDate date, List<UUID> orderedIds) {
+        List<Workout> dayWorkouts = workoutRepository.findByClubIdAndAthleteIdAndScheduledDate(clubId, athleteId, date);
+        for (Workout w : dayWorkouts) {
+            int idx = orderedIds.indexOf(w.getId());
+            w.setOrderIndex(idx >= 0 ? idx : orderedIds.size());
+        }
     }
 
     public WorkoutResponse get(UUID clubId, UUID workoutId) {
@@ -319,6 +332,41 @@ public class WorkoutService {
     public void delete(UUID clubId, UUID workoutId) {
         Workout workout = require(clubId, workoutId);
         workoutRepository.delete(workout);
+    }
+
+    /**
+     * Duplique une séance course vers une date (glisser + Alt, ou menu contextuel). Recopie le
+     * contenu et la prescription figée à l'identique, en statut {@code PLANNED} et sans retour.
+     */
+    @Transactional
+    public WorkoutResponse copyToDate(UUID clubId, UUID workoutId, LocalDate date) {
+        Workout w = require(clubId, workoutId);
+        Workout copy = new Workout();
+        copy.setClub(w.getClub());
+        copy.setAthlete(w.getAthlete());
+        copy.setStatus(WorkoutStatus.PLANNED);
+        copy.setScheduledDate(date);
+        copy.setType(w.getType());
+        copy.setTitle(w.getTitle());
+        copy.setNotes(w.getNotes());
+        copy.setTargetDistanceM(w.getTargetDistanceM());
+        copy.setTargetDurationS(w.getTargetDurationS());
+        copy.setSourceTemplateId(w.getSourceTemplateId());
+        copy.setSessionSnapshot(w.getSessionSnapshot());
+        copy.setCalculatedPaces(w.getCalculatedPaces());
+        for (WorkoutStep s : w.getSteps()) {
+            WorkoutStep ns = new WorkoutStep();
+            ns.setWorkout(copy);
+            ns.setOrderIndex(s.getOrderIndex());
+            ns.setStepType(s.getStepType());
+            ns.setRepetitions(s.getRepetitions());
+            ns.setZone(s.getZone());
+            ns.setDistanceM(s.getDistanceM());
+            ns.setDurationS(s.getDurationS());
+            ns.setNotes(s.getNotes());
+            copy.getSteps().add(ns);
+        }
+        return WorkoutResponse.from(workoutRepository.save(copy));
     }
 
     // ----- Portail athlète (scoping par athleteId du principal) -----

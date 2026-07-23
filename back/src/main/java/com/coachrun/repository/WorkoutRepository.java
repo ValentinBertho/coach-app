@@ -21,6 +21,13 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
     List<Workout> findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
             UUID clubId, UUID athleteId, LocalDate from, LocalDate to);
 
+    /** Idem, mais ordonné aussi par ordre intra-jour (glisser-déposer du calendrier coach). */
+    @EntityGraph(attributePaths = "steps")
+    List<Workout> findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAscOrderIndexAsc(
+            UUID clubId, UUID athleteId, LocalDate from, LocalDate to);
+
+    List<Workout> findByClubIdAndAthleteIdAndScheduledDate(UUID clubId, UUID athleteId, LocalDate date);
+
     @EntityGraph(attributePaths = "steps")
     Optional<Workout> findByIdAndClubId(UUID id, UUID clubId);
 
