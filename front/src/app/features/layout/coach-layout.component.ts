@@ -45,6 +45,11 @@ export class CoachLayoutComponent implements OnInit {
     catch { /* stockage indisponible : préférence non persistée, sans gravité */ }
   }
 
+  /** Panneau « Plus » mobile : donne accès à la nav complète groupée (bottom-nav limitée à 4 slots). */
+  readonly moreOpen = signal(false);
+  toggleMore(): void { this.moreOpen.update((v) => !v); }
+  closeMore(): void { this.moreOpen.set(false); }
+
   ngOnInit(): void {
     if (!this.auth.currentUser()) {
       this.auth.loadCurrentUser().subscribe({ error: () => this.logout() });

@@ -101,3 +101,28 @@
 .header-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; justify-content: flex-end; }
 .session-total { font-size: var(--text-sm); color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .session-total strong { color: var(--primary); }
+
+/* --- Réordonnancement des blocs par glisser-déposer (QW4) ------------------ */
+.block-list { min-height: 8px; }
+.block.cdk-drag { position: relative; }
+.drag-handle {
+  cursor: grab;
+  color: var(--ink-3);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 var(--sp-1) 0 0;
+  user-select: none;
+}
+.drag-handle:active { cursor: grabbing; }
+
+.cdk-drag-preview {
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+.cdk-drag-placeholder {
+  opacity: 0.4;
+  border: 1px dashed var(--primary);
+  border-radius: var(--radius);
+}
+.cdk-drag-animating { transition: transform 180ms cubic-bezier(0, 0, 0.2, 1); }

@@ -406,9 +406,49 @@ export class CalendarComponent implements OnInit {
   /** Date pour laquelle le sélecteur de séance course est ouvert (null = fermé). */
   readonly pickerDate = signal<string | null>(null);
 
-  /** Tiroir bibliothèque (droite) — fermé par défaut : le calendrier occupe toute la largeur. */
-  readonly sidebarOpen = signal(false);
-  toggleSidebar(): void { this.sidebarOpen.update((v) => !v); }
+  /**
+   * Panneau bibliothèque (colonne de gauche) — le geste central de la planification desktop.
+   * Ouvert par défaut sur desktop large (poste de planification), replié sur petit écran.
+   * Préférence mémorisée entre sessions (comme la nav latérale).
+   */
+  private static readonly LIB_KEY = 'coach-cal-lib-open';
+  readonly sidebarOpen = signal(this.readLibPref());
+
+  private readLibPref(): boolean {
+    try {
+      const saved = localStorage.getItem(CalendarComponent.LIB_KEY);
+      if (saved !== null) return saved === '1';
+    } catch { /* stockage indisponible : on retombe sur le défaut selon la largeur */ }
+    // Défaut : ouvert sur desktop large, fermé sinon (le mobile reste de la consultation).
+    return typeof window !== 'undefined' && window.innerWidth >= 1024;
+  }
+
+  toggleSidebar(): void {
+    this.sidebarOpen.update((v) => !v);
+    try { localStorage.setItem(CalendarComponent.LIB_KEY, this.sidebarOpen() ? '1' : '0'); }
+    catch { /* préférence non persistée, sans gravité */ }
+  }
+
+  /** Recherche instantanée dans le panneau bibliothèque (filtre course + force + éducatifs). */
+  readonly librarySearch = signal('');
+
+  private matchesLibrary(name: string): boolean {
+    const q = this.librarySearch().trim().toLowerCase();
+    return !q || name.toLowerCase().includes(q);
+  }
+
+  readonly filteredCourseTemplates = computed(() =>
+    this.courseTemplates().filter((t) => this.matchesLibrary(t.name)));
+  readonly filteredLibrarySessions = computed(() =>
+    this.librarySessions().filter((s) => this.matchesLibrary(s.name)));
+  readonly filteredDrills = computed(() =>
+    this.drills().filter((d) => this.matchesLibrary(d.name)));
+
+  /** Total de séances visibles dans le panneau (pour l'état « aucun résultat »). */
+  readonly libraryResultCount = computed(() =>
+    this.filteredCourseTemplates().length
+    + this.filteredLibrarySessions().length
+    + this.filteredDrills().length);
 
   /** Le coach peut-il prescrire à l'athlète sélectionné ? (false = lecture seule). */
   canWriteSelected(): boolean {
