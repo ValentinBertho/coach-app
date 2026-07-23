@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 public record TrainingZoneRequest(
         @NotBlank @Size(max = 255) String name,
         @Size(max = 16) String color,
+        @Size(max = 1024) String description,
         ZoneScope scope,
         Discipline discipline,
         Integer sortOrder

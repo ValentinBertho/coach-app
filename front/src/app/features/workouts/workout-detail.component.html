@@ -19,10 +19,51 @@
             <span class="session-date metric">{{ w.scheduledDate }}</span>
           </div>
           <h1 class="display-sm">{{ w.title }}</h1>
-          @if (w.targetDistanceM) {
-            <p class="session-target metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} <small>km</small></p>
-          }
         </header>
+
+        <!-- ===== Stats (façon Nolio) ===== -->
+        @if (sessionStats(); as st) {
+          <div class="stat-strip card">
+            <div class="stat">
+              <span class="stat__lb">Durée</span>
+              <span class="stat__v metric">{{ st.durationLabel ?? '—' }}</span>
+            </div>
+            <div class="stat">
+              <span class="stat__lb">Distance</span>
+              <span class="stat__v metric">@if (st.distanceKm) { {{ st.distanceKm.toFixed(2) }} <small>km</small> } @else { — }</span>
+            </div>
+            <div class="stat">
+              <span class="stat__lb">Allure</span>
+              <span class="stat__v metric">@if (st.paceLabel) { {{ st.paceLabel }} <small>/km</small> } @else { — }</span>
+            </div>
+            <div class="stat">
+              <span class="stat__lb">Charge estimée</span>
+              <span class="stat__v metric">@if (st.loadUA != null) { {{ st.loadUA }} <small>UA</small> } @else { — }</span>
+            </div>
+          </div>
+        }
+
+        <!-- ===== Répartition par zone (façon Nolio) ===== -->
+        @if (zoneDistribution().segments.length) {
+          <section class="card block">
+            <h2 class="block-title">Répartition par zone (planifié)</h2>
+            <div class="zdist-bar">
+              @for (s of zoneDistribution().segments; track s.name) {
+                <span class="zdist-seg" [style.width.%]="s.pct" [style.background]="s.color"
+                      [title]="s.name + ' · ' + fmtDuration(s.durationS)"></span>
+              }
+            </div>
+            <div class="zdist-legend">
+              @for (s of zoneDistribution().segments; track s.name) {
+                <span class="zdist-item">
+                  <span class="zdist-dot" [style.background]="s.color"></span>
+                  {{ s.name }}
+                  <span class="zdist-time metric">{{ fmtDuration(s.durationS) }} · {{ s.pct.toFixed(0) }}%</span>
+                </span>
+              }
+            </div>
+          </section>
+        }
 
         <!-- ===== Prescription ===== -->
         @if (courseRxHasContent()) {
@@ -47,6 +88,44 @@
                 </li>
               }
             </ol>
+          </section>
+        }
+
+        <!-- ===== Réalisé (activité rapprochée) façon Nolio ===== -->
+        @if (realizedStats(); as r) {
+          <section class="card block realized">
+            <div class="realized-head">
+              <h2 class="block-title">Réalisé</h2>
+              <span class="badge badge-success">{{ r.source }} · {{ r.date }}</span>
+            </div>
+            <div class="stat-strip stat-strip--realized">
+              <div class="stat">
+                <span class="stat__lb">Durée</span>
+                <span class="stat__v metric">{{ r.durationLabel ?? '—' }}</span>
+                @if (r.durationDeltaS != null) {
+                  <span class="stat__delta" [class.pos]="r.durationDeltaS > 0" [class.neg]="r.durationDeltaS < 0">{{ fmtDeltaDuration(r.durationDeltaS) }}</span>
+                }
+              </div>
+              <div class="stat">
+                <span class="stat__lb">Distance</span>
+                <span class="stat__v metric">@if (r.distanceKm) { {{ r.distanceKm.toFixed(2) }} <small>km</small> } @else { — }</span>
+                @if (r.distanceDeltaKm != null) {
+                  <span class="stat__delta" [class.pos]="r.distanceDeltaKm > 0" [class.neg]="r.distanceDeltaKm < 0">{{ r.distanceDeltaKm > 0 ? '+' : '' }}{{ r.distanceDeltaKm.toFixed(2) }} km</span>
+                }
+              </div>
+              <div class="stat">
+                <span class="stat__lb">Allure</span>
+                <span class="stat__v metric">@if (r.paceLabel) { {{ r.paceLabel }} <small>/km</small> } @else { — }</span>
+              </div>
+              <div class="stat">
+                <span class="stat__lb">D+ / FC moy</span>
+                <span class="stat__v metric">
+                  @if (r.elevationM != null) { {{ r.elevationM }} <small>m</small> } @else { — }
+                  @if (r.avgHr != null) { · {{ r.avgHr }} <small>bpm</small> }
+                </span>
+              </div>
+            </div>
+            <p class="realized-hint field-hint">Écarts calculés par rapport aux cibles prévues (vert = au-delà, orange = en deçà).</p>
           </section>
         }
 

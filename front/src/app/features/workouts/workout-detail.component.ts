@@ -18,8 +18,20 @@ import {
   type IntensityZone as ZoneNum,
 } from '../../shared/components/physiology';
 import { StickyActionBarComponent } from '../../shared/components/ui';
-import { WorkoutPrescription } from '../../core/models/course.model';
+import { CalculatedBlockEntry, WorkoutPrescription } from '../../core/models/course.model';
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
+import { TrainingZone } from '../../core/models/training-zone.model';
+import { TrainingZoneService } from '../../core/services/training-zone.service';
+import { Activity } from '../../core/models/activity.model';
+import { ActivityService } from '../../core/services/activity.service';
+
+/** Segment de la barre de répartition du temps par zone (façon Nolio). */
+interface ZoneSegment {
+  name: string;
+  color: string;
+  durationS: number;
+  pct: number;
+}
 
 type State = 'loading' | 'ready' | 'error';
 
@@ -39,9 +51,70 @@ type State = 'loading' | 'ready' | 'error';
 })
 export class WorkoutDetailComponent implements OnInit {
   private readonly workoutService = inject(WorkoutService);
+  private readonly zoneService = inject(TrainingZoneService);
+  private readonly activityService = inject(ActivityService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
   private readonly router = inject(Router);
+
+  /** Activité réalisée rapprochée de la séance (vue « réalisé » façon Nolio). */
+  readonly activity = signal<Activity | null>(null);
+
+  /** Stats du réalisé + écarts prévu/réalisé, dérivés de l'activité rapprochée. */
+  readonly realizedStats = computed(() => {
+    const a = this.activity();
+    if (!a) return null;
+    const paceLabel = a.durationS && a.distanceM ? this.fmtPace(a.durationS / (a.distanceM / 1000)) : null;
+    return {
+      durationLabel: a.durationS ? this.fmtDuration(a.durationS) : null,
+      distanceKm: a.distanceM ? a.distanceM / 1000 : null,
+      paceLabel,
+      elevationM: a.elevationGainM,
+      avgHr: a.avgHr,
+      distanceDeltaKm: a.distanceDeltaM != null ? a.distanceDeltaM / 1000 : null,
+      durationDeltaS: a.durationDeltaS,
+      source: a.source,
+      date: a.activityDate,
+    };
+  });
+
+  /** Zones du club (id → nom/couleur), pour la répartition du temps par zone. */
+  readonly zones = signal<TrainingZone[]>([]);
+  private readonly zoneById = computed(() => {
+    const map = new Map<string, TrainingZone>();
+    for (const z of this.zones()) map.set(z.id, z);
+    return map;
+  });
+
+  /** Répartition du temps planifié par zone (barre + légende façon Nolio). */
+  readonly zoneDistribution = computed<{ segments: ZoneSegment[]; totalS: number }>(() => {
+    const calc = this.courseRx()?.calculated;
+    if (!calc) return { segments: [], totalS: 0 };
+    const byZone = new Map<string, number>();
+    const add = (zoneId: string | null | undefined, s: number | null | undefined) => {
+      if (!zoneId || !s) return;
+      byZone.set(zoneId, (byZone.get(zoneId) ?? 0) + s);
+    };
+    const acc = (entries: CalculatedBlockEntry[]) => {
+      for (const e of entries) {
+        add(e.block.prescription?.zoneId, e.calc?.estimatedDurationS);
+        const reps = e.block.reps && e.block.reps > 1 ? e.block.reps - 1 : 0;
+        if (reps && e.recoveryCalc?.estimatedDurationS) {
+          add(e.block.recovery?.prescription?.zoneId, e.recoveryCalc.estimatedDurationS * reps);
+        }
+      }
+    };
+    acc(calc.warmup); acc(calc.main); acc(calc.cooldown);
+    const totalS = [...byZone.values()].reduce((s, v) => s + v, 0);
+    if (!totalS) return { segments: [], totalS: 0 };
+    const segments = [...byZone.entries()]
+      .map(([zoneId, durationS]) => {
+        const z = this.zoneById().get(zoneId);
+        return { name: z?.name ?? 'Zone', color: z?.color || 'var(--ink-3)', durationS, pct: (durationS / totalS) * 100 };
+      })
+      .sort((a, b) => b.durationS - a.durationS);
+    return { segments, totalS };
+  });
 
   readonly athleteId = input.required<string>();
   readonly workoutId = input.required<string>();
@@ -66,11 +139,41 @@ export class WorkoutDetailComponent implements OnInit {
     return !!w && (w.rpe != null || !!w.athleteComment);
   });
 
+  /** Bandeau de stats façon Nolio : durée · distance · allure moyenne · charge estimée. */
+  readonly sessionStats = computed(() => {
+    const w = this.workout();
+    if (!w) return null;
+    const calc = this.courseRx()?.calculated;
+    const durationS = calc?.totalDurationS ?? w.targetDurationS ?? null;
+    const distanceM = calc?.totalDistanceM ?? w.targetDistanceM ?? null;
+    const paceLabel = durationS && distanceM ? this.fmtPace(durationS / (distanceM / 1000)) : null;
+    const loadUA = w.rpe != null && durationS ? Math.round(w.rpe * (durationS / 60)) : null;
+    return {
+      durationLabel: durationS ? this.fmtDuration(durationS) : null,
+      distanceKm: distanceM ? distanceM / 1000 : null,
+      paceLabel,
+      loadUA,
+    };
+  });
+
+  fmtDuration(totalS: number): string {
+    const min = Math.round(totalS / 60);
+    if (min < 60) return `${min} min`;
+    return `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+  }
+
+  fmtPace(secPerKm: number): string {
+    const m = Math.floor(secPerKm / 60);
+    const s = Math.round(secPerKm % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
   ngOnInit(): void { this.load(); }
 
   load(): void {
     this.state.set('loading');
     this.courseRx.set(null);
+    this.activity.set(null);
     this.workoutService.get(this.athleteId(), this.workoutId()).subscribe({
       next: (w) => { this.workout.set(w); this.state.set('ready'); },
       error: () => this.state.set('error'),
@@ -79,6 +182,20 @@ export class WorkoutDetailComponent implements OnInit {
       next: (p) => this.courseRx.set(p),
       error: () => this.courseRx.set(null),
     });
+    this.zoneService.list().subscribe({ next: (z) => this.zones.set(z), error: () => this.zones.set([]) });
+    this.activityService.forWorkout(this.athleteId(), this.workoutId()).subscribe({
+      next: (a) => this.activity.set(a),
+      error: () => this.activity.set(null),
+    });
+  }
+
+  /** Écart de durée signé (« +2:15 » / « -0:40 ») pour l'affichage prévu/réalisé. */
+  fmtDeltaDuration(deltaS: number): string {
+    const sign = deltaS >= 0 ? '+' : '−';
+    const abs = Math.abs(deltaS);
+    const m = Math.floor(abs / 60);
+    const s = abs % 60;
+    return `${sign}${m}:${s.toString().padStart(2, '0')}`;
   }
 
   setStatus(status: WorkoutStatus): void {

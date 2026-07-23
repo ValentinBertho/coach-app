@@ -16,6 +16,7 @@ public record TrainingZoneResponse(
         UUID id,
         String name,
         String color,
+        String description,
         int sortOrder,
         ZoneScope scope,
         Discipline discipline,
@@ -30,7 +31,7 @@ public record TrainingZoneResponse(
                 .map(com.coachrun.entity.MetricType::getId)
                 .toList();
         return new TrainingZoneResponse(
-                z.getId(), z.getName(), z.getColor(), z.getSortOrder(),
+                z.getId(), z.getName(), z.getColor(), z.getDescription(), z.getSortOrder(),
                 z.getScope(), z.getDiscipline(), z.isBuiltin(), metricIds);
     }
 }

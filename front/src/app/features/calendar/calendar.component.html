@@ -17,6 +17,12 @@
     <button type="button" [class.active]="mode() === 'month'" (click)="setMode('month')">Mois</button>
   </div>
 
+  <div class="mode-switch view-switch">
+    <button type="button" [class.active]="view() === 'planned'" (click)="setView('planned')">Prévu</button>
+    <button type="button" [class.active]="view() === 'realized'" (click)="setView('realized')">Réalisé</button>
+    <button type="button" [class.active]="view() === 'both'" (click)="setView('both')">Les deux</button>
+  </div>
+
   <div class="week-nav">
     <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)">←</button>
     <button type="button" class="btn btn-ghost btn-sm" (click)="goToday()">Aujourd'hui</button>
@@ -140,10 +146,12 @@
     <div class="cal-main">
       <div class="weekday-row">
         @for (d of ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']; track d) { <span>{{ d }}</span> }
+        <span class="wd-total">Total</span>
       </div>
 
       <div class="grid" [class.month]="mode() === 'month'" [class.loading]="loading()">
-        @for (day of cells(); track day.date) {
+        @for (week of weeks(); track $index) {
+        @for (day of week.days; track day.date) {
       <div class="day-col" [class.today]="day.isToday" [class.dim]="!day.inMonth" [class.day-col--unavailable]="day.unavailability">
         <header class="day-head">
           <div class="day-head__date">
@@ -180,6 +188,7 @@
         }
 
         <div class="day-body" cdkDropList [cdkDropListData]="day" (cdkDropListDropped)="onDrop($event, day.date)">
+          @if (showPlanned()) {
           @for (w of day.workouts; track w.id) {
             <button
               type="button"
@@ -214,15 +223,58 @@
           @if (canWriteSelected()) {
             <button type="button" class="add-btn" (click)="addWorkout(day.date)">+</button>
           }
+          }
+
+          <!-- Activités réalisées (importées) façon Nolio -->
+          @if (showRealized()) {
+            @for (a of day.activities; track a.id) {
+              <button type="button" class="activity-card" (click)="openActivity(a)"
+                      [title]="(a.title || 'Activité') + (a.matchedWorkoutId ? ' · rapprochée' : '')">
+                <span class="ac-head">
+                  <app-icon class="ac-icon" name="activity" [size]="13" />
+                  <span class="w-title">{{ a.title || 'Activité' }}</span>
+                  @if (a.matchedWorkoutId) { <app-icon name="check" [size]="12" /> }
+                </span>
+                <span class="ac-meta metric">
+                  @if (activityKm(a); as km) { {{ km }} km }
+                  @if (a.avgHr) { · {{ a.avgHr }} bpm }
+                </span>
+              </button>
+            }
+          }
         </div>
 
-        @if (day.km > 0) {
+        @if (showPlanned() && day.km > 0) {
           <div class="day-density" [title]="day.km.toFixed(1) + ' km prévus'">
             <span class="day-density__bar" [style.width.%]="(day.km / maxDayKm()) * 100"></span>
             <span class="day-density__val metric">{{ day.km.toFixed(0) }}<small>km</small></span>
           </div>
         }
       </div>
+    }
+        <!-- Totaux de la semaine (colonne de droite, façon Nolio) -->
+        <div class="week-total" [class.week-total--empty]="week.sessions === 0 && week.realSessions === 0">
+          @if (week.sessions === 0 && week.realSessions === 0) {
+            <span class="wt-dash">—</span>
+          } @else {
+            @if (showPlanned()) {
+              <div class="wt-group">
+                @if (showRealized()) { <span class="wt-cap">Prévu</span> }
+                <span class="wt-val metric">{{ fmtDuration(week.durationS) }}</span>
+                <span class="wt-val metric">{{ week.km.toFixed(1) }}<small>km</small></span>
+                <span class="wt-lb">{{ week.sessions }} séance{{ week.sessions > 1 ? 's' : '' }}</span>
+              </div>
+            }
+            @if (showRealized()) {
+              <div class="wt-group wt-group--real">
+                @if (showPlanned()) { <span class="wt-cap wt-cap--real">Réalisé</span> }
+                <span class="wt-val metric">{{ fmtDuration(week.realDurationS) }}</span>
+                <span class="wt-val metric">{{ week.realKm.toFixed(1) }}<small>km</small></span>
+                <span class="wt-lb">{{ week.realSessions }} séance{{ week.realSessions > 1 ? 's' : '' }}</span>
+              </div>
+            }
+          }
+        </div>
     }
       </div>
     </div>

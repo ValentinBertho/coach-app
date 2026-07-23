@@ -107,6 +107,11 @@
 
 .content {
   flex: 1;
+  /* .content porte aussi .container-wide (margin-inline:auto). En tant qu'enfant d'un flex column,
+     ces marges auto le feraient rétrécir à la largeur de son contenu au lieu de remplir la colonne.
+     width:100% force le remplissage (le max-width de .container-wide continue de plafonner/centrer
+     sur écrans ultra-larges). Sans ça, les écrans au contenu étroit (dashboard…) restaient capés. */
+  width: 100%;
   padding-block: var(--sp-8);
 }
 

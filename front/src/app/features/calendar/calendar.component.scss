@@ -11,11 +11,43 @@
 .mode-switch button { border: none; background: transparent; padding: var(--sp-1) var(--sp-4); border-radius: var(--radius-full); font-weight: 600; font-size: var(--text-sm); cursor: pointer; color: var(--ink-3); }
 .mode-switch button.active { background: var(--paper); color: var(--primary); box-shadow: var(--shadow-xs); }
 
-.weekday-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--sp-2); margin-bottom: var(--sp-1); }
+/* 7 jours + colonne de totaux hebdo (façon Nolio). */
+.weekday-row { display: grid; grid-template-columns: repeat(7, 1fr) minmax(92px, 0.58fr); gap: var(--sp-2); margin-bottom: var(--sp-1); }
 .weekday-row span { font-size: var(--text-xs); color: var(--ink-3); text-transform: uppercase; padding-left: var(--sp-1); }
+.weekday-row .wd-total { text-align: center; padding-left: 0; }
 
-.grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--sp-2); transition: opacity var(--duration) var(--ease); }
+.grid { display: grid; grid-template-columns: repeat(7, 1fr) minmax(92px, 0.58fr); gap: var(--sp-2); transition: opacity var(--duration) var(--ease); }
 .grid.loading { opacity: 0.5; }
+
+/* Cellule de totaux de la semaine. */
+.week-total {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 1px; padding: var(--sp-2);
+  background: var(--paper-sunk); border: 1px solid var(--hairline); border-radius: var(--radius);
+}
+.week-total .wt-val { font-size: var(--text-md); font-weight: 800; color: var(--ink); line-height: 1.15; }
+.week-total .wt-val small { font-size: 0.62em; font-weight: 700; color: var(--ink-3); margin-left: 1px; }
+.week-total .wt-lb { font-size: 9px; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-4); }
+.week-total .wt-dash { color: var(--ink-4); }
+.week-total--empty { background: transparent; border-style: dashed; }
+.wt-group { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.wt-group + .wt-group { margin-top: var(--sp-2); padding-top: var(--sp-2); border-top: 1px solid var(--hairline); }
+.wt-cap { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-4); }
+.wt-cap--real { color: var(--dari-teal); }
+.wt-group--real .wt-val { color: var(--dari-teal); }
+
+/* --- Pastille d'activité réalisée (façon Nolio) -------------------------- */
+.activity-card {
+  display: flex; flex-direction: column; gap: 2px; width: 100%;
+  padding: var(--sp-2); border: 1px solid var(--dari-teal); border-left: 3px solid var(--dari-teal);
+  border-radius: var(--radius-sm); background: color-mix(in srgb, var(--dari-teal) 8%, var(--paper));
+  cursor: pointer; text-align: left; color: var(--ink);
+}
+.activity-card:hover { background: color-mix(in srgb, var(--dari-teal) 14%, var(--paper)); }
+.activity-card .ac-head { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; }
+.activity-card .ac-icon { color: var(--dari-teal); flex: none; }
+.activity-card .w-title { font-weight: 700; font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-card .ac-meta { font-size: var(--text-xs); color: var(--ink-3); font-weight: 700; }
 
 .day-col { background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius); min-height: 220px; display: flex; flex-direction: column; }
 .grid.month .day-col { min-height: 120px; }
@@ -69,6 +101,15 @@
   .day-col, .grid.month .day-col { min-height: auto; }
   .volume { margin-left: 0; }
   .day-name { display: inline; }
+  /* Totaux hebdo : bandeau horizontal en fin de semaine sur mobile. */
+  .week-total { flex-direction: row; flex-wrap: wrap; justify-content: space-around; gap: var(--sp-2); }
+  .week-total .wt-lb { margin-bottom: 0; }
+  .week-total--empty { display: none; }
+}
+
+/* Tablette : la colonne de totaux reste mais plus compacte. */
+@media (min-width: 769px) and (max-width: 1100px) {
+  .weekday-row, .grid { grid-template-columns: repeat(7, 1fr) minmax(76px, 0.5fr); }
 }
 
 /* --- Chip séance de force (DARI Lab, violet) ------------------------------ */

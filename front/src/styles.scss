@@ -229,9 +229,13 @@ a { color: var(--primary); text-decoration: none; }
 * { scrollbar-width: thin; scrollbar-color: var(--ink-4) transparent; }
 
 /* --- Conteneurs ------------------------------------------------------------ */
+/* Laptop-first : le conteneur large exploite la largeur disponible (jusqu'à 1760px) au lieu de
+   plafonner à 1200px, tout en gardant des marges lisibles qui s'élargissent sur grands écrans. */
 .container-narrow { max-width: 720px; margin-inline: auto; padding-inline: var(--sp-4); }
-.container-standard { max-width: 900px; margin-inline: auto; padding-inline: var(--sp-4); }
-.container-wide { max-width: 1200px; margin-inline: auto; padding-inline: var(--sp-4); }
+.container-standard { max-width: 960px; margin-inline: auto; padding-inline: var(--sp-4); }
+.container-wide { max-width: 1760px; margin-inline: auto; padding-inline: var(--sp-5); }
+@media (min-width: 1600px) { .container-wide { padding-inline: var(--sp-8); } }
+@media (max-width: 640px) { .container-wide, .container-standard, .container-narrow { padding-inline: var(--sp-4); } }
 
 /* --- Effets signature ------------------------------------------------------ */
 .gradient-text {

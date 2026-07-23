@@ -220,6 +220,13 @@ public class ActivityService {
         workout.setStatus(matchingService.resolvedStatus(activity, workout));
     }
 
+    /** Activité réalisée rapprochée d'une séance (ou {@code null}), avec les écarts prévu/réalisé. */
+    public ActivityResponse getForWorkout(UUID clubId, UUID athleteId, UUID workoutId) {
+        return activityRepository.findByClubIdAndAthleteIdAndMatchedWorkoutId(clubId, athleteId, workoutId)
+                .map(this::toResponse)
+                .orElse(null);
+    }
+
     private Activity require(UUID clubId, UUID activityId) {
         return activityRepository.findByIdAndClubId(activityId, clubId)
                 .orElseThrow(() -> new NotFoundException("Activité introuvable."));
