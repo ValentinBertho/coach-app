@@ -8,12 +8,13 @@ import {
 } from '../../core/models/activity.model';
 import { ActivityService } from '../../core/services/activity.service';
 import { ToastService } from '../../core/services/toast.service';
+import { TimeInZoneBarComponent } from '../../shared/components/time-in-zone-bar/time-in-zone-bar.component';
 
 @Component({
   selector: 'app-activity-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink, TimeInZoneBarComponent],
   templateUrl: './activity-list.component.html',
   styleUrl: './activity-list.component.scss',
 })
@@ -30,6 +31,12 @@ export class ActivityListComponent implements OnInit {
   readonly activities = signal<Activity[]>([]);
   readonly loading = signal(true);
   readonly submitting = signal(false);
+  /** Id de l'activité dont la barre temps-en-zone est dépliée (une à la fois). */
+  readonly zonesOpen = signal<string | null>(null);
+
+  toggleZones(id: string): void {
+    this.zonesOpen.update((cur) => (cur === id ? null : id));
+  }
 
   readonly form = this.fb.group({
     activityDate: ['', Validators.required],

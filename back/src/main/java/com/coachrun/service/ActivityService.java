@@ -161,6 +161,13 @@ public class ActivityService {
         } catch (Exception ignored) {
             // tracé optionnel
         }
+        if (parsed.stream() != null && !parsed.stream().isEmpty()) {
+            try {
+                activity.setStreamJson(objectMapper.writeValueAsString(parsed.stream()));
+            } catch (Exception ignored) {
+                // flux optionnel
+            }
+        }
         autoMatch(athleteId, activity);
         activity = activityRepository.save(activity);
         log.info("Activité importée par fichier {} ({} pts)", activity.getId(), parsed.route().size());

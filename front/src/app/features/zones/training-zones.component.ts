@@ -100,6 +100,8 @@ import { ToastService } from '../../core/services/toast.service';
                   <span class="dot" [style.background]="z.color || 'var(--ink-3)'"></span>
                   <strong class="zone-name">{{ z.name }}</strong>
                   @if (z.builtin) { <span class="badge badge-neutral">std</span> }
+                  @if (z.discipline) { <span class="badge badge-neutral">{{ z.discipline === 'TRAIL' ? 'Trail' : 'Route' }}</span> }
+                  @else { <span class="badge badge-neutral sport-all" title="Toutes disciplines">Tous sports</span> }
                 </span>
                 <span class="zcell zcell--metrics">
                   @for (mid of z.metricTypeIds; track mid) { <span class="metric-chip">{{ metricName(mid) }}</span> }
@@ -195,6 +197,7 @@ import { ToastService } from '../../core/services/toast.service';
     .zcell--name.edit { gap: var(--sp-2); }
     .dot { width: 14px; height: 14px; border-radius: var(--radius-full); flex: none; }
     .zone-name { font-size: var(--text-md); }
+    .badge.sport-all { opacity: 0.6; }
     .zcell--metrics { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
     .metric-chip { font-size: var(--text-xs); font-weight: 700; background: var(--paper-sunk); color: var(--ink-2); padding: 0 var(--sp-2); border-radius: var(--radius-full); line-height: 1.6; }
     .zcell--desc { color: var(--ink-2); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

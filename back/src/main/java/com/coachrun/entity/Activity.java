@@ -72,4 +72,8 @@ public class Activity extends BaseEntity {
     /** Tracé GPS sous-échantillonné, JSON [[lat,lon],…] (import GPX/TCX). */
     @Column(name = "route_json")
     private String routeJson;
+
+    /** Flux échantillonné JSON [[elapsedS,hr,paceSecPerKm],…] (-1 = absent) pour le temps-en-zone. */
+    @Column(name = "stream_json")
+    private String streamJson;
 }

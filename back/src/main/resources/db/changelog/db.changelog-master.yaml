@@ -103,3 +103,5 @@ databaseChangeLog:
       file: db/changelog/changes/049-training-zone-description.yaml
   - include:
       file: db/changelog/changes/050-zone-metric-rules.yaml
+  - include:
+      file: db/changelog/changes/051-activity-stream.yaml

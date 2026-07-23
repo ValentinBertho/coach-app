@@ -72,6 +72,18 @@ interface EditState {
         }
       </div>
 
+      <!-- Échelle contiguë (façon Nolio) : bandes accolées de la plus lente à la plus rapide. -->
+      @if (scaleTab() && scaleStripCells().length) {
+        <div class="card scale-strip">
+          @for (c of scaleStripCells(); track c.zone.id) {
+            <div class="ss-seg" [style.background]="c.zone.color || 'var(--ink-3)'" [title]="c.zone.name + ' · ' + c.label">
+              <span class="ss-name">{{ c.zone.name }}</span>
+              <span class="ss-val metric">{{ c.label }}</span>
+            </div>
+          }
+        </div>
+      }
+
       <div class="card legend">
         <span><app-icon name="refresh-cw" [size]="14" /> auto</span>
         <span><app-icon name="pencil" [size]="14" /> manuel</span>
@@ -148,6 +160,11 @@ interface EditState {
     .scale-tab { border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-full); cursor: pointer; font-size: var(--text-sm); font-weight: 700; }
     .scale-tab.active { background: var(--dari-teal); border-color: var(--dari-teal); color: #fff; }
 
+    .scale-strip { display: flex; gap: 2px; padding: var(--sp-2); margin-bottom: var(--sp-3); overflow-x: auto; }
+    .ss-seg { flex: 1 0 auto; min-width: 82px; display: flex; flex-direction: column; gap: 2px; padding: var(--sp-2); border-radius: var(--radius-sm); color: #fff; }
+    .ss-name { font-size: var(--text-xs); font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.35); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ss-val { font-size: var(--text-xs); text-shadow: 0 1px 2px rgba(0,0,0,0.35); white-space: nowrap; }
+
     .legend { display: flex; align-items: center; gap: var(--sp-4); font-size: var(--text-sm); color: var(--ink-3); padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-3); }
     .legend span { display: inline-flex; align-items: center; gap: var(--sp-1); }
     .legend-hint { margin-left: auto; font-style: italic; }
@@ -221,6 +238,18 @@ export class AthleteZonesComponent implements OnInit {
   readonly displayedZones = computed<TrainingZone[]>(() => {
     const tab = this.scaleTab();
     return tab ? this.zones().filter((z) => z.metricTypeIds.includes(tab)) : this.zones();
+  });
+
+  /** Bandes de l'échelle contiguë (onglet métrique actif) : zone + valeur formatée de l'athlète. */
+  readonly scaleStripCells = computed<{ zone: TrainingZone; label: string }[]>(() => {
+    const tab = this.scaleTab();
+    if (!tab) return [];
+    const m = this.metricMap().get(tab);
+    if (!m) return [];
+    return this.displayedZones().map((z) => {
+      const v = this.valueMap().get(`${z.id}:${tab}`);
+      return { zone: z, label: v ? this.formatPair(m, v) : '—' };
+    });
   });
 
   readonly physioProfile = signal<PhysioProfile | null>(null);
