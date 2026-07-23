@@ -95,6 +95,16 @@ public class WorkoutController {
         return workoutService.reschedule(clubId, workoutId, request.scheduledDate());
     }
 
+    /** Duplique la séance vers une date (glisser + Alt, ou menu contextuel). */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PostMapping("/{workoutId}/copy")
+    @ResponseStatus(HttpStatus.CREATED)
+    public WorkoutResponse copy(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                @PathVariable UUID workoutId,
+                                @Valid @RequestBody WorkoutRescheduleRequest request) {
+        return workoutService.copyToDate(clubId, workoutId, request.scheduledDate());
+    }
+
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PatchMapping("/{workoutId}/status")
     public WorkoutResponse updateStatus(@PathVariable UUID clubId, @PathVariable UUID athleteId,

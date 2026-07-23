@@ -53,6 +53,11 @@ export class WorkoutService {
     return this.http.patch<Workout>(`${this.base(athleteId)}/${workoutId}/reschedule`, { scheduledDate });
   }
 
+  /** Duplique une séance vers une date (glisser + Alt, ou menu contextuel). Renvoie la copie. */
+  copy(athleteId: string, workoutId: string, scheduledDate: string): Observable<Workout> {
+    return this.http.post<Workout>(`${this.base(athleteId)}/${workoutId}/copy`, { scheduledDate });
+  }
+
   delete(athleteId: string, workoutId: string): Observable<void> {
     return this.http.delete<void>(`${this.base(athleteId)}/${workoutId}`);
   }

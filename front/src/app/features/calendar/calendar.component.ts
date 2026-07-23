@@ -90,6 +90,7 @@ function mondayOf(d: Date): Date {
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, RouterLink, DragDropModule, IconComponent, HelpHintComponent, SessionLibraryPanelComponent],
+  host: { '(document:keydown)': 'onKeydown($event)' },
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.scss',
 })
@@ -548,6 +549,7 @@ export class CalendarComponent implements OnInit {
         .scheduleSession(this.selectedAthleteId, s.id, { date: targetDate, fieldsPreset: 'AVANCE' })
         .subscribe({
           next: () => { this.toast.success(`${s.name} planifiée le ${targetDate}`); this.reloadStrength(); },
+          error: () => this.toast.error('Planification impossible.'),
         });
       return;
     }
@@ -557,20 +559,103 @@ export class CalendarComponent implements OnInit {
       const t = data as WorkoutTemplate;
       this.courseService.schedule(this.selectedAthleteId, t.id, { date: targetDate }).subscribe({
         next: () => { this.toast.success(`${t.name} planifiée le ${targetDate}`); this.load(); },
+        error: () => this.toast.error('Planification impossible.'),
       });
+      return;
+    }
+
+    const w = data as Workout;
+
+    // Glisser + Alt/Ctrl → duplication de la séance vers le jour cible (au lieu d'un déplacement).
+    const native = event.event as MouseEvent;
+    if (native && (native.altKey || native.ctrlKey || native.metaKey)) {
+      this.copyWorkout(w, targetDate);
       return;
     }
 
     // Déplacement d'une séance course existante.
     if (event.previousContainer === event.container) return;
-    const w = data as Workout;
+    this.moveWorkout(w, targetDate);
+  }
+
+  /** Déplace une séance vers une date (optimiste + rollback en cas d'échec back). */
+  private moveWorkout(w: Workout, targetDate: string): void {
     if (w.scheduledDate === targetDate) return;
     const previous = w.scheduledDate;
     this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x)));
     this.workoutService.reschedule(this.selectedAthleteId, w.id, targetDate).subscribe({
       next: () => this.toast.success(`Séance déplacée au ${targetDate}`),
-      error: () => this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: previous } : x))),
+      error: () => {
+        this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: previous } : x)));
+        this.toast.error('Déplacement impossible.');
+      },
     });
+  }
+
+  /** Duplique une séance vers une date (copie figée côté back). */
+  private copyWorkout(w: Workout, targetDate: string): void {
+    this.workoutService.copy(this.selectedAthleteId, w.id, targetDate).subscribe({
+      next: () => { this.toast.success(`Séance dupliquée au ${targetDate}`); this.load(); },
+      error: () => this.toast.error('Duplication impossible.'),
+    });
+  }
+
+  // --- Menu contextuel (clic droit) : alternative souris/clavier au glisser-déposer ----------
+  readonly ctxMenu = signal<{ workout: Workout; x: number; y: number } | null>(null);
+  ctxDate = '';
+
+  openContextMenu(w: Workout, ev: MouseEvent): void {
+    ev.preventDefault();
+    if (!this.canWriteSelected()) return;
+    this.ctxDate = w.scheduledDate;
+    // Position bornée à la fenêtre pour éviter le débordement.
+    const x = Math.min(ev.clientX, window.innerWidth - 220);
+    const y = Math.min(ev.clientY, window.innerHeight - 260);
+    this.ctxMenu.set({ workout: w, x, y });
+  }
+  closeContextMenu(): void { this.ctxMenu.set(null); }
+
+  ctxOpen(): void {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu(); this.openWorkout(m.workout);
+  }
+  ctxAdapt(): void {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu();
+    this.router.navigate(['/app/athletes', m.workout.athleteId, 'workouts', m.workout.id, 'structure']);
+  }
+  ctxMoveTo(date: string): void {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu();
+    if (date) this.moveWorkout(m.workout, date);
+  }
+  ctxCopyTo(date: string): void {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu();
+    if (date) this.copyWorkout(m.workout, date);
+  }
+  async ctxDelete(): Promise<void> {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu();
+    const ok = await this.confirm.ask({
+      title: 'Supprimer la séance', message: m.workout.title, confirmLabel: 'Supprimer', danger: true,
+    });
+    if (!ok) return;
+    this.workoutService.delete(this.selectedAthleteId, m.workout.id).subscribe({
+      next: () => { this.toast.info('Séance supprimée.'); this.load(); },
+      error: () => this.toast.error('Suppression impossible.'),
+    });
+  }
+
+  /** Raccourcis clavier de navigation (hors champ de saisie) : ←/→ période, T = aujourd'hui. */
+  onKeydown(ev: KeyboardEvent): void {
+    const el = ev.target as HTMLElement | null;
+    if (el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if (this.ctxMenu()) return;
+    if (ev.key === 'ArrowLeft') { this.shift(-1); ev.preventDefault(); }
+    else if (ev.key === 'ArrowRight') { this.shift(1); ev.preventDefault(); }
+    else if (ev.key === 't' || ev.key === 'T') { this.goToday(); ev.preventDefault(); }
   }
 
   zonesOf(w: Workout): string[] {

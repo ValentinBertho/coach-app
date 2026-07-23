@@ -186,7 +186,8 @@
               class="workout-card"
               [class.workout-card--key]="typeMeta(w.type).key"
               [style.--type-color]="typeMeta(w.type).color"
-              cdkDrag [cdkDragData]="w" (click)="openWorkout(w)">
+              cdkDrag [cdkDragData]="w" (click)="openWorkout(w)"
+              (contextmenu)="openContextMenu(w, $event)">
               <span class="wc-head">
                 <app-icon class="wc-type" [name]="typeMeta(w.type).icon" [size]="13" />
                 <span class="w-title">{{ w.title }}</span>
@@ -225,6 +226,25 @@
     }
       </div>
     </div>
+  </div>
+}
+
+<!-- Menu contextuel (clic droit sur une séance) : accélérateur souris + alternative au glisser-déposer -->
+@if (ctxMenu(); as m) {
+  <div class="ctx-backdrop" (click)="closeContextMenu()" (contextmenu)="$event.preventDefault(); closeContextMenu()"></div>
+  <div class="ctx-menu" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
+    <span class="ctx-title">{{ m.workout.title }}</span>
+    <button type="button" class="ctx-item" (click)="ctxOpen()"><app-icon name="footprints" [size]="14" /> Ouvrir la séance</button>
+    <button type="button" class="ctx-item" (click)="ctxAdapt()"><app-icon name="pencil" [size]="14" /> Adapter la structure</button>
+    <div class="ctx-sep"></div>
+    <label class="ctx-field">Déplacer vers
+      <input type="date" class="form-control" [ngModel]="ctxDate" (ngModelChange)="ctxMoveTo($event)" />
+    </label>
+    <label class="ctx-field">Dupliquer vers
+      <input type="date" class="form-control" [ngModel]="ctxDate" (ngModelChange)="ctxCopyTo($event)" />
+    </label>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item danger" (click)="ctxDelete()"><app-icon name="ban" [size]="14" /> Supprimer</button>
   </div>
 }
 

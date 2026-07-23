@@ -201,3 +201,33 @@
 .meso-save .form-control { flex: 1; }
 .meso-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); }
 .picker__note-actions{display:flex;justify-content:flex-end;gap:var(--sp-2);margin-top:var(--sp-2)}
+
+/* --- Menu contextuel (clic droit sur une séance) — Phase 4 ----------------- */
+.ctx-backdrop { position: fixed; inset: 0; z-index: 40; }
+.ctx-menu {
+  position: fixed; z-index: 41; width: 210px;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--sp-2);
+  background: var(--paper); border: 1px solid var(--hairline);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+.ctx-title {
+  font-weight: 700; font-size: var(--text-sm); color: var(--ink-2);
+  padding: var(--sp-1) var(--sp-2) var(--sp-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ctx-item {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2); border: none; background: transparent; cursor: pointer;
+  border-radius: var(--radius-sm); text-align: left;
+  color: var(--ink-2); font-weight: 600; font-size: var(--text-sm);
+}
+.ctx-item:hover { background: var(--paper-sunk); color: var(--ink); }
+.ctx-item.danger { color: var(--danger); }
+.ctx-item.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); }
+.ctx-sep { height: 1px; background: var(--hairline); margin: var(--sp-1) 0; }
+.ctx-field {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--sp-1) var(--sp-2);
+  font-size: var(--text-xs); font-weight: 700; color: var(--ink-3);
+}
