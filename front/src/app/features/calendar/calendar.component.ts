@@ -285,6 +285,16 @@ export class CalendarComponent implements OnInit {
     this.categoryService.list().subscribe({ next: (c) => this.categories.set(c), error: () => this.categories.set([]) });
   }
 
+  /** Épingle / dé-épingle (optimiste) une séance course depuis le panneau. */
+  toggleFavorite(t: WorkoutTemplate): void {
+    const next = !t.favorite;
+    this.courseTemplates.update((l) => l.map((x) => (x.id === t.id ? { ...x, favorite: next } : x)));
+    this.templateService.setFavorite(t.id, next).subscribe({
+      next: (updated) => this.courseTemplates.update((l) => l.map((x) => (x.id === t.id ? updated : x))),
+      error: () => this.courseTemplates.update((l) => l.map((x) => (x.id === t.id ? { ...x, favorite: !next } : x))),
+    });
+  }
+
   /** Objectifs, tests et indisponibilités de l'athlète (listes complètes, filtrées par jour). */
   loadOverlays(): void {
     if (!this.selectedAthleteId) return;

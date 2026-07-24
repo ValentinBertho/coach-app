@@ -305,6 +305,16 @@ export class SessionEditorComponent implements OnInit {
     this.recalc(b);
   }
 
+  /** Bascule un bloc entre mesure par distance et par durée (un seul geste). */
+  toggleMeasure(b: CourseBlock): void {
+    this.setMeasure(b, this.measureOf(b) === 'distance' ? 'duration' : 'distance');
+  }
+
+  /** Bascule la récupération entre durée et distance. */
+  toggleRecMeasure(b: CourseBlock): void {
+    this.setRecMeasure(b, this.recMeasureOf(b) === 'duration' ? 'distance' : 'duration');
+  }
+
   /** Durée exposée en minutes (plus lisible que des secondes) ; stockée en secondes. */
   durMin(b: CourseBlock): number | null {
     return b.durationS != null ? Math.round((b.durationS / 60) * 10) / 10 : null;

@@ -59,42 +59,8 @@
 
   <app-physio-panel [athleteId]="a.id" />
 
-  <div class="rel-grid">
-    <div class="card">
-      <h2>Coachs</h2>
-      <p class="field-hint">Un athlète peut être suivi par plusieurs coachs.</p>
-      @if (a.coaches.length) {
-        <ul class="chip-list">
-          @for (c of a.coaches; track c.id) {
-            <li class="chip">
-              <span>{{ c.name }}</span>
-              <button type="button" class="chip-x" (click)="removeCoach(c.id)" aria-label="Retirer">×</button>
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="empty-hint">Aucun coach rattaché.</p>
-      }
-      @if (availableCoaches().length) {
-        <select class="form-control" (change)="assignCoach($event)">
-          <option value="">+ Rattacher un coach…</option>
-          @for (c of availableCoaches(); track c.id) {
-            <option [value]="c.id">{{ c.name }}</option>
-          }
-        </select>
-      }
-    </div>
-
-    <div class="card">
-      <h2>Clubs</h2>
-      <p class="field-hint">Un athlète peut appartenir à plusieurs clubs.</p>
-      <ul class="chip-list">
-        @for (club of a.clubs; track club.id) {
-          <li class="chip chip-static">{{ club.name }}</li>
-        }
-      </ul>
-    </div>
-
+  <!-- Décision : plans en cours + indisponibilités (blessures / absences) restent visibles. -->
+  <div class="detail-grid">
     <div class="card">
       <h2>Plans attribués</h2>
       @if (plans().length) {
@@ -111,8 +77,7 @@
                 }
               </div>
               @if (planProgress()[p.id]; as pr) {
-                <div class="plan-prog__bar" role="img"
-                     [attr.aria-label]="pr.percent + '% réalisé'">
+                <div class="plan-prog__bar" role="img" [attr.aria-label]="pr.percent + '% réalisé'">
                   <span class="plan-prog__fill" [style.width.%]="pr.percent"></span>
                 </div>
                 <span class="plan-prog__pct metric">{{ pr.percent }}%</span>
@@ -124,6 +89,42 @@
         <p class="empty-hint">Aucun plan attribué. Attribue un plan depuis l'écran « Plans ».</p>
       }
     </div>
+
+    <div class="card">
+      <div class="card-head-row">
+        <h2>Indisponibilités</h2>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="showUnavailForm.set(!showUnavailForm())">+ Ajouter</button>
+      </div>
+      @if (showUnavailForm()) {
+        <div class="unavail-form">
+          <div class="form-row">
+            <div class="form-group"><label>Du</label><input type="date" class="form-control" [(ngModel)]="newUnavail.startDate" /></div>
+            <div class="form-group"><label>Au</label><input type="date" class="form-control" [(ngModel)]="newUnavail.endDate" /></div>
+            <div class="form-group"><label>Motif</label>
+              <select class="form-control" [(ngModel)]="newUnavail.reason">
+                @for (r of reasons; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
+              </select>
+            </div>
+          </div>
+          <div class="form-group"><label>Notes</label><input class="form-control" [(ngModel)]="newUnavail.notes" placeholder="Optionnel" /></div>
+          <button type="button" class="btn btn-accent btn-sm" (click)="addUnavailability()">Enregistrer</button>
+        </div>
+      }
+      @if (unavailabilities().length) {
+        <ul class="unavail-list">
+          @for (u of unavailabilities(); track u.id) {
+            <li class="unavail-item">
+              <span class="badge" [class.badge-warning]="u.reason === 'INJURY'" [class.badge-neutral]="u.reason !== 'INJURY'">{{ reasonLabel(u.reason) }}</span>
+              <span class="metric">{{ u.startDate | date: 'dd/MM/yy' }} → {{ u.endDate | date: 'dd/MM/yy' }}</span>
+              @if (u.notes) { <span class="field-hint">{{ u.notes }}</span> }
+              <button type="button" class="btn btn-ghost btn-sm" (click)="removeUnavailability(u.id)">✕</button>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="empty-hint">Aucune indisponibilité enregistrée.</p>
+      }
+    </div>
   </div>
 
   @if (a.medicalNotes) {
@@ -133,61 +134,52 @@
     </div>
   }
 
-  @if (strava(); as st) {
-    <div class="card">
-      <div class="card-head-row">
-        <h2>Sync Strava</h2>
-        @if (st.connected) { <span class="badge badge-success">Connecté</span> }
-      </div>
-      <!-- Lecture seule : la connexion des montres se fait côté athlète (CDC §12).
-           Le coach voit l'état, il n'initie pas la connexion à la place de l'athlète. -->
-      @if (!st.configured) {
-        <p class="empty-hint">L'intégration Strava n'est pas configurée sur ce serveur (identifiants OAuth manquants).</p>
-      } @else if (st.connected) {
-        <p class="field-hint">Compte Strava #{{ st.providerAthleteId }} lié. Import automatique des activités actif.</p>
-      } @else {
-        <p class="field-hint">L'athlète n'a pas connecté Strava. Il peut le faire depuis son espace (Profil → Synchronisation).</p>
-      }
-    </div>
-  }
-
-  <div class="card">
-    <div class="card-head-row">
-      <h2>Indisponibilités</h2>
-      <button type="button" class="btn btn-ghost btn-sm" (click)="showUnavailForm.set(!showUnavailForm())">+ Ajouter</button>
-    </div>
-
-    @if (showUnavailForm()) {
-      <div class="unavail-form">
-        <div class="form-row">
-          <div class="form-group"><label>Du</label><input type="date" class="form-control" [(ngModel)]="newUnavail.startDate" /></div>
-          <div class="form-group"><label>Au</label><input type="date" class="form-control" [(ngModel)]="newUnavail.endDate" /></div>
-          <div class="form-group"><label>Motif</label>
-            <select class="form-control" [(ngModel)]="newUnavail.reason">
-              @for (r of reasons; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
+  <!-- Rattachements & réglages (repliés pour aérer) : coachs, clubs, Strava. -->
+  <section class="card admin-fold">
+    <button type="button" class="admin-toggle" (click)="showAdmin.set(!showAdmin())">
+      <app-icon [name]="showAdmin() ? 'chevron-down' : 'chevron-right'" [size]="16" />
+      <span>Rattachements &amp; réglages</span>
+      <span class="admin-hint field-hint">Coachs · Clubs · Strava</span>
+    </button>
+    @if (showAdmin()) {
+      <div class="admin-grid">
+        <div class="admin-item">
+          <h3>Coachs</h3>
+          @if (a.coaches.length) {
+            <ul class="chip-list">
+              @for (c of a.coaches; track c.id) {
+                <li class="chip"><span>{{ c.name }}</span><button type="button" class="chip-x" (click)="removeCoach(c.id)" aria-label="Retirer">×</button></li>
+              }
+            </ul>
+          } @else { <p class="empty-hint">Aucun coach rattaché.</p> }
+          @if (availableCoaches().length) {
+            <select class="form-control" (change)="assignCoach($event)">
+              <option value="">+ Rattacher un coach…</option>
+              @for (c of availableCoaches(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
             </select>
-          </div>
+          }
         </div>
-        <div class="form-group"><label>Notes</label><input class="form-control" [(ngModel)]="newUnavail.notes" placeholder="Optionnel" /></div>
-        <button type="button" class="btn btn-accent btn-sm" (click)="addUnavailability()">Enregistrer</button>
+        <div class="admin-item">
+          <h3>Clubs</h3>
+          <ul class="chip-list">
+            @for (club of a.clubs; track club.id) { <li class="chip chip-static">{{ club.name }}</li> }
+          </ul>
+        </div>
+        @if (strava(); as st) {
+          <div class="admin-item">
+            <h3>Sync Strava @if (st.connected) { <span class="badge badge-success">Connecté</span> }</h3>
+            @if (!st.configured) {
+              <p class="empty-hint">Intégration Strava non configurée sur ce serveur.</p>
+            } @else if (st.connected) {
+              <p class="field-hint">Compte Strava #{{ st.providerAthleteId }} lié — import auto actif.</p>
+            } @else {
+              <p class="field-hint">Non connecté. L'athlète le fait depuis son espace (Profil → Synchronisation).</p>
+            }
+          </div>
+        }
       </div>
     }
-
-    @if (unavailabilities().length) {
-      <ul class="unavail-list">
-        @for (u of unavailabilities(); track u.id) {
-          <li class="unavail-item">
-            <span class="badge" [class.badge-warning]="u.reason === 'INJURY'" [class.badge-neutral]="u.reason !== 'INJURY'">{{ reasonLabel(u.reason) }}</span>
-            <span class="metric">{{ u.startDate | date: 'dd/MM/yy' }} → {{ u.endDate | date: 'dd/MM/yy' }}</span>
-            @if (u.notes) { <span class="field-hint">{{ u.notes }}</span> }
-            <button type="button" class="btn btn-ghost btn-sm" (click)="removeUnavailability(u.id)">✕</button>
-          </li>
-        }
-      </ul>
-    } @else {
-      <p class="empty-hint">Aucune indisponibilité enregistrée.</p>
-    }
-  </div>
+  </section>
 
   <div class="card danger-zone">
     <div>

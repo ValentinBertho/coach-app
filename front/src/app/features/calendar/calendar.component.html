@@ -139,7 +139,8 @@
         [courseTemplates]="courseTemplates()"
         [strengthSessions]="librarySessions()"
         [drills]="drills()"
-        [categories]="categories()" />
+        [categories]="categories()"
+        (favoriteToggle)="toggleFavorite($event)" />
     </aside>
     }
 

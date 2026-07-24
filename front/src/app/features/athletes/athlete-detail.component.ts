@@ -35,6 +35,8 @@ export class AthleteDetailComponent implements OnInit {
   readonly athlete = signal<Athlete | null>(null);
   readonly loading = signal(true);
   readonly inviteUrl = signal<string | null>(null);
+  /** Volet « Rattachements & réglages » (coachs, clubs, Strava) — replié pour aérer la fiche. */
+  readonly showAdmin = signal(false);
 
   readonly statusLabels = STATUS_LABELS;
   readonly statusBadges = STATUS_BADGES;

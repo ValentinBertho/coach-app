@@ -36,6 +36,19 @@ export class SessionLibraryPanelComponent {
 
   /** Émis au clic sur une séance course (consultation). Non lié dans le calendrier (glisser-déposer). */
   readonly courseSelect = output<WorkoutTemplate>();
+  /** Émis au clic sur l'étoile (épingler / dé-épingler un favori). */
+  readonly favoriteToggle = output<WorkoutTemplate>();
+
+  /** Favoris (épinglés) qui matchent la recherche — remontés en tête. */
+  readonly favorites = computed(() =>
+    this.courseTemplates().filter((t) => t.favorite && this.matches(t.name)));
+
+  /** Séances les plus utilisées (hors favoris), top 6 — accès rapide « récents/fréquents ». */
+  readonly frequent = computed(() =>
+    this.courseTemplates()
+      .filter((t) => !t.favorite && (t.useCount ?? 0) > 0 && this.matches(t.name))
+      .sort((a, b) => (b.useCount ?? 0) - (a.useCount ?? 0))
+      .slice(0, 6));
 
   /** Identifiants de groupe réservés (course sans catégorie, force, éducatifs). */
   static readonly UNCATEGORIZED = '__none__';
