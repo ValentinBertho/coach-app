@@ -5,7 +5,6 @@ import { Subject, takeUntil } from 'rxjs';
 import { Ping } from '../../core/models/ping.model';
 import { AuthService } from '../../core/services/auth.service';
 import { PingService } from '../../core/services/ping.service';
-import { ToastService } from '../../core/services/toast.service';
 import { InstallButtonComponent } from '../../shared/components/install-button/install-button.component';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 
@@ -25,7 +24,6 @@ type PingState = 'loading' | 'ok' | 'error';
 })
 export class HomeComponent implements OnInit, OnDestroy {
   private readonly pingService = inject(PingService);
-  private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthService);
   private readonly destroy$ = new Subject<void>();
 
@@ -47,7 +45,6 @@ export class HomeComponent implements OnInit, OnDestroy {
         next: (ping) => {
           this.ping.set(ping);
           this.state.set('ok');
-          this.toast.success('API connectée');
         },
         error: () => {
           this.state.set('error');

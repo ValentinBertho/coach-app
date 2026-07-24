@@ -81,9 +81,6 @@
           } @else {
             <input type="number" class="form-control nm rep-plain" [(ngModel)]="b.reps" (ngModelChange)="recalc(b)" placeholder="×N" title="Répétitions" />
           }
-          <select class="form-control type" [(ngModel)]="b.type" (ngModelChange)="recalc(b)" title="Type de bloc">
-            @for (t of blockTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
-          </select>
           <div class="measure-toggle" role="group" aria-label="Mesurer par">
             <button type="button" [class.on]="measureOf(b) === 'distance'" (click)="setMeasure(b, 'distance')">Dist.</button>
             <button type="button" [class.on]="measureOf(b) === 'duration'" (click)="setMeasure(b, 'duration')">Durée</button>
@@ -117,9 +114,6 @@
           @if (hasRecovery(b) && b.recovery; as r) {
             <div class="rec-line">
               <span class="rec-lb">récup</span>
-              <select class="form-control rec-type" [ngModel]="r.type" (ngModelChange)="setRecType(b, $event)" title="Type de récup">
-                @for (rt of recoveryTypes; track rt.value) { <option [value]="rt.value">{{ rt.label }}</option> }
-              </select>
               <div class="measure-toggle" role="group" aria-label="Mesurer la récup par">
                 <button type="button" [class.on]="recMeasureOf(b) === 'duration'" (click)="setRecMeasure(b, 'duration')">Durée</button>
                 <button type="button" [class.on]="recMeasureOf(b) === 'distance'" (click)="setRecMeasure(b, 'distance')">Dist.</button>

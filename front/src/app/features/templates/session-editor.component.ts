@@ -483,6 +483,7 @@ export class SessionEditorComponent implements OnInit {
     const parts: string[] = [];
     if (c.paceMinLabel && c.paceMaxLabel) parts.push(`${c.paceMinLabel}–${c.paceMaxLabel}/km`);
     if (c.hrMin && c.hrMax) parts.push(`${c.hrMin}–${c.hrMax} bpm`);
+    if (c.rpeMin && c.rpeMax) parts.push(c.rpeMin === c.rpeMax ? `RPE ${c.rpeMin}` : `RPE ${c.rpeMin}–${c.rpeMax}`);
     return parts.length ? parts.join(' · ') : null;
   }
 
