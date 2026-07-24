@@ -37,21 +37,21 @@ public class TrainingZoneSeedService {
     private record ZoneDef(String name, String color, List<String> metricCodes) {
     }
 
-    private static final List<String> PACE_AND_HR = List.of("PACE", "HR");
+    private static final List<String> PACE_HR_RPE = List.of("PACE", "HR", "RPE");
     private static final List<String> PACE_ONLY = List.of("PACE");
 
     /**
-     * Jeu de zones standard, dans l'ordre. Les 6 premières (physiologiques) portent allure + FC et
-     * constituent l'échelle FC ; les 7 suivantes (allures de compétition) ne portent que l'allure et
-     * complètent l'échelle Allure à 13 bandes façon Nolio.
+     * Jeu de zones standard, dans l'ordre. Les 6 premières (physiologiques) portent allure + FC + RPE
+     * (effort perçu, cible fixe par zone) et constituent l'échelle FC ; les 7 suivantes (allures de
+     * compétition) ne portent que l'allure et complètent l'échelle Allure à 13 bandes façon Nolio.
      */
     private static final List<ZoneDef> STANDARD_ZONES = List.of(
-            new ZoneDef("Récupération", "#94a3b8", PACE_AND_HR),
-            new ZoneDef("Endurance fondamentale", "#22c55e", PACE_AND_HR),
-            new ZoneDef("Marathon", "#84cc16", PACE_AND_HR),
-            new ZoneDef("Seuil", "#eab308", PACE_AND_HR),
-            new ZoneDef("VO2", "#f97316", PACE_AND_HR),
-            new ZoneDef("Anaérobie / Sprint", "#ef4444", PACE_AND_HR),
+            new ZoneDef("Récupération", "#94a3b8", PACE_HR_RPE),
+            new ZoneDef("Endurance fondamentale", "#22c55e", PACE_HR_RPE),
+            new ZoneDef("Marathon", "#84cc16", PACE_HR_RPE),
+            new ZoneDef("Seuil", "#eab308", PACE_HR_RPE),
+            new ZoneDef("VO2", "#f97316", PACE_HR_RPE),
+            new ZoneDef("Anaérobie / Sprint", "#ef4444", PACE_HR_RPE),
             new ZoneDef("Allure semi", "#16a34a", PACE_ONLY),
             new ZoneDef("Allure 10 km", "#65a30d", PACE_ONLY),
             new ZoneDef("Allure 5 km", "#ca8a04", PACE_ONLY),
@@ -81,6 +81,13 @@ public class TrainingZoneSeedService {
             Map.entry("VO2|HR", new Rule(ZoneAnchor.FCMAX, 90, 95, ZoneModel.PCT_FCMAX)),
             Map.entry("Anaérobie / Sprint|PACE", new Rule(ZoneAnchor.PACE_800M, 98, 110, ZoneModel.DANIELS_VDOT)),
             Map.entry("Anaérobie / Sprint|HR", new Rule(ZoneAnchor.FCMAX, 95, 100, ZoneModel.PCT_FCMAX)),
+            // RPE (effort perçu 1–10) : cible fixe par zone, sans ancre (identique pour tous les athlètes).
+            Map.entry("Récupération|RPE", new Rule(null, 2, 3, ZoneModel.CUSTOM)),
+            Map.entry("Endurance fondamentale|RPE", new Rule(null, 3, 4, ZoneModel.CUSTOM)),
+            Map.entry("Marathon|RPE", new Rule(null, 5, 6, ZoneModel.CUSTOM)),
+            Map.entry("Seuil|RPE", new Rule(null, 7, 8, ZoneModel.CUSTOM)),
+            Map.entry("VO2|RPE", new Rule(null, 8, 9, ZoneModel.CUSTOM)),
+            Map.entry("Anaérobie / Sprint|RPE", new Rule(null, 9, 10, ZoneModel.CUSTOM)),
             // Allures de compétition (échelle Allure fine, dérivées du VDOT) : la bande encadre l'allure de la distance.
             Map.entry("Allure semi|PACE", new Rule(ZoneAnchor.PACE_SEMI, 98, 102, ZoneModel.DANIELS_VDOT)),
             Map.entry("Allure 10 km|PACE", new Rule(ZoneAnchor.PACE_10KM, 98, 102, ZoneModel.DANIELS_VDOT)),

@@ -147,24 +147,31 @@ public class TrainingPlanService {
     public PlanProgressResponse progress(UUID clubId, UUID planId, UUID athleteId) {
         TrainingPlan p = require(clubId, planId);
         requireAthlete(clubId, athleteId);
-        PlanAssignment assignment = assignmentRepository.findByPlanIdAndAthleteId(planId, athleteId)
-                .orElseThrow(() -> new NotFoundException("Plan non attribué à cet athlète."));
-        return computeProgress(p, athleteId, assignment);
+        PlanAssignment assignment = assignmentRepository.findByPlanIdAndAthleteId(planId, athleteId).orElse(null);
+        if (assignment != null) {
+            return computeProgress(p, athleteId, assignment.getStartDate());
+        }
+        // Plan lié à l'athlète (M2M) mais sans attribution datée : on renvoie une progression à date
+        // de début dérivée plutôt qu'un 404 (le calcul des séances réalisées reste exact). Un plan
+        // réellement désattribué (plus aucun lien) reste, lui, un 404.
+        if (!planRepository.existsByIdAndAthletes_Id(planId, athleteId)) {
+            throw new NotFoundException("Plan non attribué à cet athlète.");
+        }
+        return computeProgress(p, athleteId, LocalDate.now());
     }
 
     /** Mon programme (portail athlète) : plans attribués avec leur avancement, scopé par l'athlète. */
     public List<com.coachrun.dto.response.AthletePlanResponse> myPlans(UUID athleteId) {
         return planRepository.findByAthletes_IdOrderByNameAsc(athleteId).stream().map(p -> {
             PlanAssignment a = assignmentRepository.findByPlanIdAndAthleteId(p.getId(), athleteId).orElse(null);
-            PlanProgressResponse pr = a == null ? null : computeProgress(p, athleteId, a);
+            PlanProgressResponse pr = a == null ? null : computeProgress(p, athleteId, a.getStartDate());
             return new com.coachrun.dto.response.AthletePlanResponse(
                     p.getId(), p.getName(), p.getDescription(), p.getDurationWeeks(), pr);
         }).toList();
     }
 
-    /** Calcul commun de l'avancement (semaine courante, séances réalisées). */
-    private PlanProgressResponse computeProgress(TrainingPlan p, UUID athleteId, PlanAssignment assignment) {
-        LocalDate start = assignment.getStartDate();
+    /** Calcul commun de l'avancement (semaine courante, séances réalisées) à partir d'une date de début. */
+    private PlanProgressResponse computeProgress(TrainingPlan p, UUID athleteId, LocalDate start) {
         int weeks = Math.max(1, p.getDurationWeeks());
         long elapsedWeeks = java.time.temporal.ChronoUnit.WEEKS.between(start, LocalDate.now());
         int currentWeek = (int) Math.max(1, Math.min(weeks, elapsedWeeks + 1));

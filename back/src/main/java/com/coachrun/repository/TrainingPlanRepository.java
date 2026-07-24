@@ -15,4 +15,7 @@ public interface TrainingPlanRepository extends JpaRepository<TrainingPlan, UUID
 
     /** Plans attribués à un athlète (relation many-to-many plan ↔ athlètes). */
     List<TrainingPlan> findByAthletes_IdOrderByNameAsc(UUID athleteId);
+
+    /** Vrai si le plan est lié à l'athlète (M2M), même sans attribution datée. */
+    boolean existsByIdAndAthletes_Id(UUID id, UUID athleteId);
 }
