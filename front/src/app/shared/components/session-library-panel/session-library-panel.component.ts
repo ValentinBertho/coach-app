@@ -1,5 +1,5 @@
 import { DragDropModule } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../icon/icon.component';
 import { WorkoutTemplate } from '../../../core/models/workout-template.model';
@@ -33,6 +33,9 @@ export class SessionLibraryPanelComponent {
   readonly strengthSessions = input<StrengthSession[]>([]);
   readonly drills = input<RunDrill[]>([]);
   readonly categories = input<SessionCategory[]>([]);
+
+  /** Émis au clic sur une séance course (consultation). Non lié dans le calendrier (glisser-déposer). */
+  readonly courseSelect = output<WorkoutTemplate>();
 
   /** Identifiants de groupe réservés (course sans catégorie, force, éducatifs). */
   static readonly UNCATEGORIZED = '__none__';

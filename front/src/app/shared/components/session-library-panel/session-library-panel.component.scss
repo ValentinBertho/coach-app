@@ -40,7 +40,9 @@
   font-size: var(--text-sm); font-weight: 600; cursor: grab;
 }
 .lib-item:active { cursor: grabbing; }
-.li-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.li-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.li-eye { color: var(--ink-3); opacity: 0; transition: opacity var(--duration) var(--ease); flex: none; }
+.lib-item.course:hover .li-eye { opacity: 1; }
 .lib-item.course {
   background: color-mix(in srgb, var(--dari-teal) 14%, var(--paper));
   border-color: color-mix(in srgb, var(--dari-teal) 40%, transparent);

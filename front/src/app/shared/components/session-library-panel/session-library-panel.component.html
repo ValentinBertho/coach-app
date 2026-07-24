@@ -22,8 +22,9 @@
       @if (!isCollapsed(g.id)) {
         <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
           @for (t of g.items; track t.id) {
-            <div class="lib-item course" cdkDrag [cdkDragData]="t">
+            <div class="lib-item course" cdkDrag [cdkDragData]="t" (click)="courseSelect.emit(t)" title="Consulter la séance">
               <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ t.name }}</span>
+              <app-icon class="li-eye" name="eye" [size]="15" />
             </div>
           }
         </div>

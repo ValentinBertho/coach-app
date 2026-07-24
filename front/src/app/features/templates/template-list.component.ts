@@ -3,88 +3,69 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { AthleteSummary } from '../../core/models/athlete.model';
 import { WorkoutTemplate, WorkoutTemplateRequest } from '../../core/models/workout-template.model';
-import { WORKOUT_TYPE_LABELS } from '../../core/models/workout.model';
-import { AthleteService } from '../../core/services/athlete.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
-import { TrainingGroupService } from '../../core/services/training-group.service';
-import { TrainingGroup } from '../../core/models/training-group.model';
 import { SessionCategoryService } from '../../core/services/session-category.service';
 import { SessionCategory } from '../../core/models/session-category.model';
+import { SessionDetailModalComponent } from '../../shared/components/session-detail-modal/session-detail-modal.component';
 
 @Component({
   selector: 'app-template-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, ReactiveFormsModule, FormsModule, RouterLink],
+  imports: [IconComponent, ReactiveFormsModule, FormsModule, RouterLink, SessionDetailModalComponent],
   templateUrl: './template-list.component.html',
   styleUrl: './template-list.component.scss',
 })
 export class TemplateListComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly templateService = inject(WorkoutTemplateService);
-  private readonly athleteService = inject(AthleteService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
-  private readonly groupService = inject(TrainingGroupService);
   private readonly categoryService = inject(SessionCategoryService);
 
-  readonly groups = signal<TrainingGroup[]>([]);
-
-  readonly typeLabels = WORKOUT_TYPE_LABELS;
-  readonly types = Object.keys(WORKOUT_TYPE_LABELS) as (keyof typeof WORKOUT_TYPE_LABELS)[];
-
   readonly templates = signal<WorkoutTemplate[]>([]);
-  readonly athletes = signal<AthleteSummary[]>([]);
   readonly loading = signal(true);
   readonly showForm = signal(false);
 
-  // Catégories personnalisées de bibliothèque (scopées club).
+  // Catégories personnalisées de bibliothèque (scopées club) — seul axe de classement (plus de « type »).
   readonly categories = signal<SessionCategory[]>([]);
   readonly showCategories = signal(false);
   newCategoryName = '';
   readonly savingCategory = signal(false);
 
-  // Affichage : cards compactes ↔ liste dense, recherche + filtre par type + catégorie.
+  // Affichage : cards ↔ liste dense, recherche + filtre par catégorie.
   readonly viewMode = signal<'cards' | 'list'>('cards');
   readonly search = signal('');
-  readonly typeFilter = signal<string>('');
   /** '' = toutes · 'none' = sans catégorie · sinon id de catégorie. */
   readonly categoryFilter = signal<string>('');
 
-  /** Modèles filtrés (recherche nom/titre + type + catégorie), pour densifier la navigation. */
+  /** Séance dont on consulte le détail (modale) ; null = fermée. */
+  readonly detail = signal<{ id: string; name: string } | null>(null);
+
+  /** Modèles filtrés (recherche nom/titre + catégorie). */
   readonly filtered = computed(() => {
     const q = this.search().trim().toLowerCase();
-    const type = this.typeFilter();
     const cat = this.categoryFilter();
     return this.templates().filter((t) => {
-      const matchesType = !type || t.type === type;
       const matchesCat = !cat || (cat === 'none' ? !t.categoryId : t.categoryId === cat);
-      const matchesQ = !q
-        || t.name.toLowerCase().includes(q)
-        || (t.title ?? '').toLowerCase().includes(q);
-      return matchesType && matchesCat && matchesQ;
+      const matchesQ = !q || t.name.toLowerCase().includes(q) || (t.title ?? '').toLowerCase().includes(q);
+      return matchesCat && matchesQ;
     });
   });
 
-  /** Nombre de modèles sans catégorie (pour l'option de filtre). */
   readonly uncategorizedCount = computed(() => this.templates().filter((t) => !t.categoryId).length);
 
   setView(mode: 'cards' | 'list'): void { this.viewMode.set(mode); }
   toggleCategories(): void { this.showCategories.update((v) => !v); }
+  openDetail(t: WorkoutTemplate): void { this.detail.set({ id: t.id, name: t.name }); }
 
-  // état d'application par modèle. `target` = "a:<athleteId>" ou "g:<groupId>".
-  applyFor: Record<string, { target: string; date: string }> = {};
-
-  // Création minimale : la prescription en fourchettes se construit ensuite dans l'éditeur
-  // de structure (modèle unique DARI Lab — plus de saisie « par zones » en valeur sèche).
+  // Création minimale : nom, titre, catégorie. La structure se construit ensuite dans l'éditeur.
   readonly form = this.fb.group({
     name: ['', Validators.required],
-    type: ['ENDURANCE', Validators.required],
     title: ['', Validators.required],
     notes: [''],
     categoryId: [''],
@@ -93,8 +74,6 @@ export class TemplateListComponent implements OnInit {
   ngOnInit(): void {
     this.load();
     this.loadCategories();
-    this.athleteService.list({ status: 'ACTIVE' }).subscribe((p) => this.athletes.set(p.content));
-    this.groupService.list().subscribe((g) => this.groups.set(g));
   }
 
   loadCategories(): void {
@@ -107,26 +86,21 @@ export class TemplateListComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.templateService.list().subscribe({
-      next: (p) => {
-        this.templates.set(p.content);
-        p.content.forEach((t) => (this.applyFor[t.id] ??= { target: '', date: '' }));
-        this.loading.set(false);
-      },
+      next: (p) => { this.templates.set(p.content); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
   }
 
-  toggleForm(): void {
-    this.showForm.update((v) => !v);
-  }
+  toggleForm(): void { this.showForm.update((v) => !v); }
 
-  /** Crée le modèle (métadonnées) puis ouvre l'éditeur de structure (blocs en fourchettes). */
+  /** Crée le modèle (métadonnées) puis ouvre l'éditeur de structure. Le « type » technique est
+   * conservé par défaut côté modèle (l'UI ne raisonne plus qu'en catégories). */
   save(): void {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     const raw = this.form.getRawValue();
     const body: WorkoutTemplateRequest = {
       name: raw.name!,
-      type: raw.type as WorkoutTemplateRequest['type'],
+      type: 'ENDURANCE',
       title: raw.title!,
       notes: raw.notes || null,
       categoryId: raw.categoryId || null,
@@ -134,32 +108,12 @@ export class TemplateListComponent implements OnInit {
     };
     this.templateService.create(body).subscribe({
       next: (created) => {
-        this.toast.success('Modèle créé — construis la structure en fourchettes');
-        this.form.reset({ type: 'ENDURANCE', categoryId: '' });
+        this.toast.success('Modèle créé — construis la structure');
+        this.form.reset({ categoryId: '' });
         this.showForm.set(false);
         this.router.navigate(['/app/templates', created.id, 'structure']);
       },
       error: () => this.toast.error('Création impossible.'),
-    });
-  }
-
-  /** (Ré)affecte la catégorie d'un modèle sans quitter la bibliothèque (préserve la structure). */
-  assignCategory(t: WorkoutTemplate, categoryId: string): void {
-    const body: WorkoutTemplateRequest = {
-      name: t.name,
-      type: t.type,
-      title: t.title,
-      notes: t.notes,
-      targetDistanceM: t.targetDistanceM,
-      targetDurationS: t.targetDurationS,
-      categoryId: categoryId || null,
-      steps: t.steps,
-    };
-    this.templateService.update(t.id, body).subscribe({
-      next: (updated) => {
-        this.templates.update((list) => list.map((x) => (x.id === t.id ? updated : x)));
-      },
-      error: () => this.toast.error('Changement de catégorie impossible.'),
     });
   }
 
@@ -206,37 +160,11 @@ export class TemplateListComponent implements OnInit {
     this.categoryService.delete(c.id).subscribe({
       next: () => {
         this.categories.update((list) => list.filter((x) => x.id !== c.id));
-        // Détacher localement les modèles rattachés (le back a fait un SET NULL).
         this.templates.update((list) => list.map((t) => (t.categoryId === c.id ? { ...t, categoryId: null, categoryName: null } : t)));
         if (this.categoryFilter() === c.id) this.categoryFilter.set('');
         this.toast.info('Catégorie supprimée.');
       },
       error: () => this.toast.error('Suppression impossible.'),
-    });
-  }
-
-  apply(t: WorkoutTemplate): void {
-    const sel = this.applyFor[t.id];
-    if (!sel?.target || !sel?.date) { this.toast.warning('Choisis une cible (athlète ou groupe) et une date.'); return; }
-    const [kind, id] = sel.target.split(':');
-    if (kind === 'g') {
-      this.templateService.applyGroup(t.id, id, sel.date).subscribe({
-        next: (r) => {
-          this.toast.success(r.created > 0
-            ? `Séance ajoutée à ${r.created} athlète(s)${r.skipped ? ` (${r.skipped} ignoré·s : lecture seule)` : ''}`
-            : 'Aucun athlète modifiable dans ce groupe');
-          this.applyFor[t.id] = { target: '', date: '' };
-        },
-        error: () => this.toast.error('Application au groupe impossible.'),
-      });
-      return;
-    }
-    this.templateService.apply(t.id, id, sel.date).subscribe({
-      next: () => {
-        this.toast.success('Séance ajoutée au calendrier');
-        this.applyFor[t.id] = { target: '', date: '' };
-      },
-      error: () => this.toast.error('Application impossible.'),
     });
   }
 

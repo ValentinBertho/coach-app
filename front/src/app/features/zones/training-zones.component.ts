@@ -97,11 +97,15 @@ import { ToastService } from '../../core/services/toast.service';
                 </span>
               } @else {
                 <span class="zcell zcell--name">
-                  <span class="dot" [style.background]="z.color || 'var(--ink-3)'"></span>
-                  <strong class="zone-name">{{ z.name }}</strong>
-                  @if (z.builtin) { <span class="badge badge-neutral">std</span> }
-                  @if (z.discipline) { <span class="badge badge-neutral">{{ z.discipline === 'TRAIL' ? 'Trail' : 'Route' }}</span> }
-                  @else { <span class="badge badge-neutral sport-all" title="Toutes disciplines">Tous sports</span> }
+                  <span class="zn-top">
+                    <span class="dot" [style.background]="z.color || 'var(--ink-3)'"></span>
+                    <strong class="zone-name">{{ z.name }}</strong>
+                  </span>
+                  <span class="zn-meta">
+                    @if (z.builtin) { <span class="badge badge-neutral">std</span> }
+                    @if (z.discipline) { <span class="badge badge-neutral">{{ z.discipline === 'TRAIL' ? 'Trail' : 'Route' }}</span> }
+                    @else { <span class="badge badge-neutral sport-all" title="Toutes disciplines">Tous sports</span> }
+                  </span>
                 </span>
                 <span class="zcell zcell--metrics">
                   @for (mid of z.metricTypeIds; track mid) { <span class="metric-chip">{{ metricName(mid) }}</span> }
@@ -122,6 +126,7 @@ import { ToastService } from '../../core/services/toast.service';
               @if (configId() === z.id) {
                 <div class="config">
                   <span class="config-label">Métriques portées par cette zone :</span>
+                  <p class="config-hint field-hint">Ajoutez toutes les métriques pertinentes (allure, FC, vitesse, % FC max, puissance, RPE…). Chacune se règle ensuite par athlète et peut être ancrée à un seuil (LT1/LT2, VMA…) dans la règle ci-dessous.</p>
                   <div class="metric-toggles">
                     @for (m of metrics(); track m.id) {
                       <button type="button" class="toggle" [class.on]="z.metricTypeIds.includes(m.id)" (click)="toggleMetric(z, m)">{{ m.name }}</button>
@@ -175,9 +180,9 @@ import { ToastService } from '../../core/services/toast.service';
     .ztable { padding: 0; overflow: hidden; }
     .zt-head, .zrow {
       display: grid;
-      grid-template-columns: 56px 28px minmax(180px, 1.3fr) minmax(160px, 1.4fr) minmax(160px, 2fr) auto;
-      align-items: center; gap: var(--sp-2);
-      padding: var(--sp-2) var(--sp-4);
+      grid-template-columns: 44px 24px minmax(210px, 1.5fr) minmax(190px, 1.5fr) minmax(120px, 1.4fr) auto;
+      align-items: center; gap: var(--sp-3);
+      padding: var(--sp-3) var(--sp-4);
     }
     .zt-head { border-bottom: 1px solid var(--line); }
     .zt-head span { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; }
@@ -193,12 +198,14 @@ import { ToastService } from '../../core/services/toast.service';
     .drag-handle:active { cursor: grabbing; }
 
     .zcell { min-width: 0; }
-    .zcell--name { display: flex; align-items: center; gap: var(--sp-2); }
-    .zcell--name.edit { gap: var(--sp-2); }
+    .zcell--name { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+    .zcell--name.edit { flex-direction: row; align-items: center; gap: var(--sp-2); }
+    .zn-top { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+    .zn-meta { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
     .dot { width: 14px; height: 14px; border-radius: var(--radius-full); flex: none; }
-    .zone-name { font-size: var(--text-md); }
+    .zone-name { font-size: var(--text-md); overflow: hidden; text-overflow: ellipsis; }
     .badge.sport-all { opacity: 0.6; }
-    .zcell--metrics { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
+    .zcell--metrics { display: flex; gap: var(--sp-1); flex-wrap: wrap; align-content: center; }
     .metric-chip { font-size: var(--text-xs); font-weight: 700; background: var(--paper-sunk); color: var(--ink-2); padding: 0 var(--sp-2); border-radius: var(--radius-full); line-height: 1.6; }
     .zcell--desc { color: var(--ink-2); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .zcell--actions { display: flex; align-items: center; gap: var(--sp-1); justify-content: flex-end; }
@@ -207,6 +214,7 @@ import { ToastService } from '../../core/services/toast.service';
 
     .config { grid-column: 1 / -1; border-top: 1px dashed var(--line); margin-top: var(--sp-2); padding-top: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
     .config-label { font-size: var(--text-sm); color: var(--ink-2); font-weight: 700; }
+    .config-hint { margin: 0 0 var(--sp-1); }
     .metric-toggles { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
     .toggle { border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-full); cursor: pointer; font-size: var(--text-sm); font-weight: 600; }
     .toggle.on { background: var(--dari-teal); border-color: var(--dari-teal); color: #fff; }

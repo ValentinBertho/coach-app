@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { SessionLibraryPanelComponent } from '../../shared/components/session-library-panel/session-library-panel.component';
+import { SessionDetailModalComponent } from '../../shared/components/session-detail-modal/session-detail-modal.component';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { StrengthService } from '../../core/services/strength.service';
 import { RunDrillService } from '../../core/services/run-drill.service';
@@ -17,12 +18,12 @@ import { SessionCategory } from '../../core/models/session-category.model';
   selector: 'app-library',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SessionLibraryPanelComponent],
+  imports: [SessionLibraryPanelComponent, SessionDetailModalComponent],
   template: `
     <section class="page-header">
       <div>
         <h1 class="display-sm">Bibliothèque</h1>
-        <p class="subtitle">Toutes vos séances course, prépa physique et éducatifs, regroupés par catégorie.</p>
+        <p class="subtitle">Toutes vos séances course, prépa physique et éducatifs, regroupés par catégorie. Cliquez une séance course pour la consulter.</p>
       </div>
     </section>
 
@@ -31,8 +32,13 @@ import { SessionCategory } from '../../core/models/session-category.model';
         [courseTemplates]="courseTemplates()"
         [strengthSessions]="strengthSessions()"
         [drills]="drills()"
-        [categories]="categories()" />
+        [categories]="categories()"
+        (courseSelect)="detail.set({ id: $event.id, name: $event.name })" />
     </div>
+
+    @if (detail(); as d) {
+      <app-session-detail-modal [templateId]="d.id" [name]="d.name" (closed)="detail.set(null)" />
+    }
   `,
   styles: [`
     .library-card { padding: var(--sp-3); }
@@ -48,6 +54,8 @@ export class LibraryComponent implements OnInit {
   readonly strengthSessions = signal<StrengthSession[]>([]);
   readonly drills = signal<RunDrill[]>([]);
   readonly categories = signal<SessionCategory[]>([]);
+  /** Séance course dont on consulte le détail (modale). */
+  readonly detail = signal<{ id: string; name: string } | null>(null);
 
   ngOnInit(): void {
     this.templateService.list().subscribe((p) => this.courseTemplates.set(p.content));

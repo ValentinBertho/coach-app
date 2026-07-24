@@ -4,14 +4,15 @@
 .steps { display: flex; flex-direction: column; gap: var(--sp-2); }
 .step-row { display: flex; gap: var(--sp-2); align-items: center; }
 .step-row .nm { max-width: 90px; }
-.icon-btn { width: 38px; height: 38px; border: 1px solid var(--hairline); background: var(--paper); border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; }
+.icon-btn { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--hairline); background: var(--paper); border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; color: var(--ink-2); text-decoration: none; transition: background var(--duration) var(--ease), color var(--duration) var(--ease); }
+.icon-btn:hover { background: var(--paper-sunk); color: var(--ink-1); }
 .icon-btn.danger { color: var(--danger); }
+.icon-btn.danger:hover { background: color-mix(in srgb, var(--danger) 12%, transparent); }
 
 .tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--sp-4); }
-.tpl { display: flex; flex-direction: column; gap: var(--sp-2); }
-.tpl-head { display: flex; align-items: center; justify-content: space-between; }
-.apply { display: flex; gap: var(--sp-2); margin-top: var(--sp-2); flex-wrap: wrap; }
-.apply .form-control { min-height: 40px; flex: 1; min-width: 110px; }
+.tpl { display: flex; flex-direction: column; gap: var(--sp-2); cursor: pointer; transition: box-shadow var(--duration) var(--ease), border-color var(--duration) var(--ease); }
+.tpl:hover { box-shadow: var(--shadow-md); }
+.tpl-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
 
 @media (max-width: 768px) {
   .step-row { flex-wrap: wrap; }
@@ -21,7 +22,7 @@
 /* --- Barre de filtres + densité (cards / liste) --------------------------- */
 .tpl-toolbar { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-3); }
 .tpl-search { flex: 1; min-width: 180px; }
-.tpl-type { max-width: 200px; }
+.tpl-cat-filter { max-width: 220px; }
 .tpl-count { font-size: var(--text-sm); color: var(--ink-3); font-weight: 600; }
 .view-switch { display: inline-flex; border: 1px solid var(--hairline); border-radius: var(--radius-md); overflow: hidden; }
 .view-switch button { display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; background: transparent; border: none; cursor: pointer; color: var(--ink-3); }
@@ -33,21 +34,16 @@
 .tpl-head-actions { display: inline-flex; gap: 4px; }
 .tpl-name { font-size: var(--text-md); }
 .tpl-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tpl-cat-badge.muted { opacity: 0.6; }
 
 /* Liste dense : lignes compactes type tableau. */
 .tpl-table { padding: 0; display: flex; flex-direction: column; }
-.tpl-row { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--hairline); }
+.tpl-row { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3); border-bottom: 1px solid var(--hairline); cursor: pointer; }
+.tpl-row:hover { background: var(--paper-sunk); }
 .tpl-row:last-child { border-bottom: none; }
-.tpl-row-type { flex: 0 0 auto; }
 .tpl-row-id { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .tpl-row-id strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tpl-row-apply { display: flex; gap: 6px; flex: 2; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
-.tpl-row-apply .form-control { min-height: 36px; flex: 1; min-width: 120px; }
-.tpl-row-actions { display: inline-flex; gap: 4px; flex: 0 0 auto; }
-@media (max-width: 768px) {
-  .tpl-row { flex-wrap: wrap; }
-  .tpl-row-apply { justify-content: flex-start; }
-}
+.tpl-row-actions { display: inline-flex; gap: 4px; flex: 0 0 auto; margin-left: auto; }
 
 /* --- Catégories personnalisées (Phase 2) ---------------------------------- */
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
@@ -66,6 +62,5 @@
 .cat-name { flex: 1; font-weight: 600; color: var(--ink); }
 
 .tpl-cat-badge {
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px;
 }
-.tpl-cat-select { margin-top: var(--sp-2); font-size: var(--text-sm); height: 34px; }
