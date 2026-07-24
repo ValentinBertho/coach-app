@@ -100,6 +100,7 @@ public class DemoSeedService {
     private final com.coachrun.repository.AthleteUnavailabilityRepository unavailabilityRepository;
     private final com.coachrun.repository.TrainingGroupRepository groupRepository;
     private final com.coachrun.repository.WorkoutTemplateRepository templateRepository;
+    private final com.coachrun.repository.TrainingZoneRepository trainingZoneRepository;
     private final com.coachrun.repository.RunDrillRepository runDrillRepository;
     private final com.coachrun.repository.MessageRepository messageRepository;
     private final com.coachrun.repository.PushSubscriptionRepository pushSubscriptionRepository;
@@ -244,6 +245,8 @@ public class DemoSeedService {
             }
             // Données DARI Lab : physiologie (VDOT, seuils), test lactate, préparation physique.
             seedPhysio(club, athletes, demoAthlete);
+            // Modèle de fractionné prescrit par zones (après le seed physio → zones du club en place).
+            seedZoneBasedTemplate(club, warmupDrillId);
             seedPreparationPhysique(club, demoAthlete);
             seedClubMembership(club, athletes, demoAthlete);
         }
@@ -256,16 +259,18 @@ public class DemoSeedService {
 
     /** Profil physiologique DARI Lab : discipline, seuils, performances (→ VDOT) et test lactate. */
     private void seedPhysio(Club club, List<Athlete> athletes, Athlete demoAthlete) {
-        int n = Math.min(6, athletes.size());
-        for (int i = 0; i < n; i++) {
+        // Tous les athlètes ont un profil complet (seuils + chronos → VDOT) : chaque fiche athlète a
+        // donc ses zones pré-remplies, y compris les allures de compétition (5k/3k/1500/800/400).
+        for (int i = 0; i < athletes.size(); i++) {
             Athlete a = athletes.get(i);
             Discipline discipline = (i % 3 == 0) ? Discipline.TRAIL : Discipline.ROUTE;
+            int lvl = i % 8;                                            // niveaux variés, bornés
             physioService.updateProfile(club.getId(), a.getId(), new PhysioProfileRequest(
                     discipline,
-                    BigDecimal.valueOf(3.3 + i * 0.05), BigDecimal.valueOf(3.7 + i * 0.05),
-                    BigDecimal.valueOf(4.0 + i * 0.05),
-                    185 - i, 150, 168, null, null, null, null));
-            int fiveK = 1080 + i * 35;                                  // 18:00 et plus
+                    BigDecimal.valueOf(3.3 + lvl * 0.05), BigDecimal.valueOf(3.7 + lvl * 0.05),
+                    BigDecimal.valueOf(4.0 + lvl * 0.05),
+                    188 - lvl, 150, 168, null, null, null, null));
+            int fiveK = 1080 + lvl * 40;                                // 18:00 et plus
             int tenK = (int) Math.round(fiveK * Math.pow(2, 1.06));     // équivalence Riegel
             physioService.addPerformance(club.getId(), a.getId(),
                     new PerformanceRequest(RunDistance.D5KM, fiveK, LocalDate.now().minusDays(40 + i)));
@@ -470,6 +475,42 @@ public class DemoSeedService {
                  "cooldown":[{"id":"cd1","type":"cooldown","durationS":600,
                               "prescription":{"ref":"PCT_LT1","minPct":60,"maxPct":80}}]}"""
                 .formatted(warmup, main));
+    }
+
+    /**
+     * Modèle de fractionné prescrit <b>par zones</b> (et non plus en réf + %), avec récupération
+     * inter-répétitions : dans l'éditeur, chaque bloc arrive avec sa zone pré-sélectionnée et sa
+     * cible lue, ce qui met en valeur le sélecteur de zone (V2-5). À appeler après le seed physio
+     * (les zones du club sont alors provisionnées).
+     */
+    private void seedZoneBasedTemplate(Club club, UUID warmupDrillId) {
+        List<com.coachrun.entity.TrainingZone> zones =
+                trainingZoneRepository.findByClubIdOrderBySortOrderAscNameAsc(club.getId());
+        if (zones.isEmpty()) {
+            return;
+        }
+        java.util.Map<String, UUID> byName = new java.util.HashMap<>();
+        for (com.coachrun.entity.TrainingZone z : zones) {
+            byName.put(z.getName(), z.getId());
+        }
+        UUID fallback = zones.get(0).getId();
+        UUID ef = byName.getOrDefault("Endurance fondamentale", fallback);
+        UUID seuil = byName.getOrDefault("Seuil", fallback);
+        UUID recup = byName.getOrDefault("Récupération", fallback);
+
+        WorkoutTemplate t = seedTemplate(club, "Fractionné 6×1000 au seuil",
+                WorkoutType.INTERVALS, "6×1000m au seuil (prescrit par zones)", 10000);
+        t.setDiscipline(Discipline.ROUTE);
+        t.setStructureJson("""
+                {"warmup":[{"id":"wu1","type":"warmup","durationS":900,
+                            "prescription":{"zoneId":"%s"},"drillIds":["%s"]}],
+                 "main":[{"id":"m1","type":"intervals","reps":6,"distanceM":1000,
+                          "prescription":{"zoneId":"%s"},
+                          "recovery":{"type":"jog","durationS":90,
+                                      "prescription":{"zoneId":"%s"}}}],
+                 "cooldown":[{"id":"cd1","type":"cooldown","durationS":600,
+                              "prescription":{"zoneId":"%s"}}]}"""
+                .formatted(ef, warmupDrillId, seuil, recup, recup));
     }
 
     private PpExercise newExercise(Club club, String name, ExerciseCategory category,
@@ -722,6 +763,8 @@ public class DemoSeedService {
         act.setTitle(w.getTitle());
         int target = w.getTargetDistanceM() == null ? 8000 : w.getTargetDistanceM();
         act.setDistanceM(target + random.nextInt(800) - 400);
+        // Flux FC/allure cohérent avec le type de séance → barres temps-en-zone réalistes (V2-7).
+        act.setStreamJson(demoStreamJson(w.getType(), act.getDurationS(), act.getAvgHr()));
         return act;
     }
 
@@ -737,7 +780,51 @@ public class DemoSeedService {
         act.setAvgHr(135 + random.nextInt(40));
         act.setElevationGainM(random.nextInt(400));
         act.setStatus(ActivityStatus.IMPORTED);
+        act.setStreamJson(demoStreamJson(WorkoutType.ENDURANCE, act.getDurationS(), act.getAvgHr()));
         return act;
+    }
+
+    /**
+     * Flux échantillonné synthétique [elapsedS, hr, paceSecPerKm] (~1 point / 30 s), modulé par le
+     * type de séance (échauffement, corps, retour au calme), pour que le temps-en-zone réalisé soit
+     * réaliste et varié d'une séance à l'autre. Cf. PROPOSITION-ZONES §3.7 / E7 (V2-7).
+     */
+    private String demoStreamJson(WorkoutType type, Integer durationS, Integer avgHr) {
+        int dur = durationS == null ? 2400 : Math.max(600, durationS);
+        int hr0 = avgHr == null ? 150 : avgHr;
+        int n = Math.max(8, Math.min(160, dur / 30));
+        int stepS = dur / n;
+        List<int[]> stream = new ArrayList<>(n);
+        for (int i = 0; i < n; i++) {
+            double f = (double) i / (n - 1);             // 0 → 1 sur la séance
+            boolean warmup = f < 0.12, cooldown = f > 0.9;
+            int hr;
+            int pace;
+            if (warmup) {
+                hr = hr0 - 22; pace = 350;
+            } else if (cooldown) {
+                hr = hr0 - 28; pace = 370;
+            } else {
+                switch (type) {
+                    case INTERVALS -> {
+                        boolean rep = ((i / 2) % 2) == 0;   // alterne bloc rapide / récup
+                        hr = rep ? hr0 + 20 : hr0 - 12;
+                        pace = rep ? 205 : 360;
+                    }
+                    case TEMPO -> { hr = hr0 + 6; pace = 250; }
+                    case LONG_RUN -> { hr = hr0 - 4; pace = 315; }
+                    case RECOVERY -> { hr = hr0 - 16; pace = 355; }
+                    default -> { hr = hr0; pace = 300; }     // ENDURANCE
+                }
+            }
+            hr += random.nextInt(5) - 2;                     // léger bruit
+            stream.add(new int[] {i * stepS, Math.max(90, hr), pace});
+        }
+        try {
+            return objectMapper.writeValueAsString(stream);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private List<WorkoutStep> stepsFor(WorkoutType type) {
