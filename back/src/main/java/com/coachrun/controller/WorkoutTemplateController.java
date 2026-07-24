@@ -17,6 +17,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -67,6 +68,13 @@ public class WorkoutTemplateController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID clubId, @PathVariable UUID id) {
         templateService.delete(clubId, id);
+    }
+
+    /** Épingle / dé-épingle un modèle (favori). */
+    @PatchMapping("/{id}/favorite")
+    public WorkoutTemplateResponse setFavorite(@PathVariable UUID clubId, @PathVariable UUID id,
+                                               @RequestBody java.util.Map<String, Boolean> body) {
+        return templateService.setFavorite(clubId, id, Boolean.TRUE.equals(body.get("favorite")));
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #request.athleteId())")

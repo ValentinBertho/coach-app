@@ -43,6 +43,14 @@
 .li-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .li-eye { color: var(--ink-3); opacity: 0; transition: opacity var(--duration) var(--ease); flex: none; }
 .lib-item.course:hover .li-eye { opacity: 1; }
+.li-star { flex: none; display: inline-flex; align-items: center; justify-content: center; border: none; background: none; cursor: pointer; padding: 0; color: var(--ink-4); opacity: 0; transition: opacity var(--duration) var(--ease), color var(--duration) var(--ease); }
+.lib-item.course:hover .li-star { opacity: 1; }
+.li-star.on { opacity: 1; color: var(--dari-amber, #eab308); }
+.li-star.on app-icon { fill: currentColor; }
+
+/* Sections d'accès rapide (favoris / fréquentes) */
+.slp-quick { margin-bottom: var(--sp-3); }
+.slp-quick-hd { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; padding: var(--sp-1) var(--sp-2); }
 .lib-item.course {
   background: color-mix(in srgb, var(--dari-teal) 14%, var(--paper));
   border-color: color-mix(in srgb, var(--dari-teal) 40%, transparent);

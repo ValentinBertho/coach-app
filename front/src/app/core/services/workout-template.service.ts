@@ -33,6 +33,10 @@ export class WorkoutTemplateService {
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base()}/${id}`);
   }
+  /** Épingle / dé-épingle un modèle (favori). */
+  setFavorite(id: string, favorite: boolean): Observable<WorkoutTemplate> {
+    return this.http.patch<WorkoutTemplate>(`${this.base()}/${id}/favorite`, { favorite });
+  }
   apply(id: string, athleteId: string, date: string): Observable<Workout> {
     return this.http.post<Workout>(`${this.base()}/${id}/apply`, { athleteId, date });
   }

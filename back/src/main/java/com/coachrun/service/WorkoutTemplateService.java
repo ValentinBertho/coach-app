@@ -63,6 +63,14 @@ public class WorkoutTemplateService {
         return toResponse(t);
     }
 
+    /** Épingle / dé-épingle un modèle (favori), pour le remonter dans le panneau de bibliothèque. */
+    @Transactional
+    public WorkoutTemplateResponse setFavorite(UUID clubId, UUID id, boolean favorite) {
+        WorkoutTemplate t = require(clubId, id);
+        t.setFavorite(favorite);
+        return toResponse(t);
+    }
+
     @Transactional
     public void delete(UUID clubId, UUID id) {
         templateRepository.delete(require(clubId, id));

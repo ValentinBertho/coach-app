@@ -33,7 +33,8 @@ import { SessionCategory } from '../../core/models/session-category.model';
         [strengthSessions]="strengthSessions()"
         [drills]="drills()"
         [categories]="categories()"
-        (courseSelect)="detail.set({ id: $event.id, name: $event.name })" />
+        (courseSelect)="detail.set({ id: $event.id, name: $event.name })"
+        (favoriteToggle)="toggleFavorite($event)" />
     </div>
 
     @if (detail(); as d) {
@@ -62,5 +63,15 @@ export class LibraryComponent implements OnInit {
     this.strengthService.listSessions().subscribe((p) => this.strengthSessions.set(p.content));
     this.drillService.list().subscribe((d) => this.drills.set(d));
     this.categoryService.list().subscribe({ next: (c) => this.categories.set(c), error: () => this.categories.set([]) });
+  }
+
+  /** Épingle / dé-épingle (optimiste) une séance course. */
+  toggleFavorite(t: WorkoutTemplate): void {
+    const next = !t.favorite;
+    this.courseTemplates.update((l) => l.map((x) => (x.id === t.id ? { ...x, favorite: next } : x)));
+    this.templateService.setFavorite(t.id, next).subscribe({
+      next: (updated) => this.courseTemplates.update((l) => l.map((x) => (x.id === t.id ? updated : x))),
+      error: () => this.courseTemplates.update((l) => l.map((x) => (x.id === t.id ? { ...x, favorite: !next } : x))),
+    });
   }
 }
