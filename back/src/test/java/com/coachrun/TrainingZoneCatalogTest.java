@@ -88,8 +88,8 @@ class TrainingZoneCatalogTest {
         assertThat(zones).hasSize(13);
         assertThat(zones.get(0).get("name").asText()).isEqualTo("Récupération");
         assertThat(zones.get(0).get("builtin").asBoolean()).isTrue();
-        // Les zones physiologiques portent allure + FC.
-        assertThat(zones.get(0).get("metricTypeIds")).hasSize(2);
+        // Les zones physiologiques portent allure + FC + RPE (effort perçu par défaut).
+        assertThat(zones.get(0).get("metricTypeIds")).hasSize(3);
         // Les zones d'allure de compétition ne portent que l'allure.
         assertThat(zones.get(12).get("name").asText()).isEqualTo("Allure 400 m");
         assertThat(zones.get(12).get("metricTypeIds")).hasSize(1);
@@ -180,17 +180,17 @@ class TrainingZoneCatalogTest {
     }
 
     @Test
-    void addingAThirdMetricKeepsExistingRules() throws Exception {
-        // Ids métriques (RPE) + une zone standard (Seuil) portant déjà allure + FC avec règles.
+    void addingAMetricKeepsExistingRulesAndSeedsRpe() throws Exception {
         JsonNode metrics = objectMapper.readTree(mvc.perform(get("/clubs/{c}/metric-types", clubId)
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        String rpeId = null, paceId = null, hrId = null;
+        String rpeId = null, paceId = null, hrId = null, speedId = null;
         for (JsonNode m : metrics) {
             switch (m.get("code").asText()) {
                 case "RPE" -> rpeId = m.get("id").asText();
                 case "PACE" -> paceId = m.get("id").asText();
                 case "HR" -> hrId = m.get("id").asText();
+                case "SPEED" -> speedId = m.get("id").asText();
                 default -> { }
             }
         }
@@ -201,18 +201,31 @@ class TrainingZoneCatalogTest {
         for (JsonNode z : zones) if ("Seuil".equals(z.get("name").asText())) seuil = z;
         String zoneId = seuil.get("id").asText();
 
-        // Ajout d'une 3ᵉ métrique (RPE) sans retirer allure/FC : ne doit pas violer la contrainte
-        // unique (zone, métrique) ni effacer les règles existantes.
+        // La zone Seuil porte par défaut allure + FC + RPE, et le RPE a une règle fixe 7–8.
+        assertThat(seuil.get("metricTypeIds")).hasSize(3);
+        boolean rpeSeeded = false;
+        for (JsonNode r : seuil.get("rules")) {
+            if (rpeId.equals(r.path("metricTypeId").asText())) {
+                rpeSeeded = true;
+                assertThat(r.get("lowPct").asDouble()).isEqualTo(7.0);
+                assertThat(r.get("highPct").asDouble()).isEqualTo(8.0);
+            }
+        }
+        assertThat(rpeSeeded).isTrue();
+
+        // Ajout d'une métrique supplémentaire (vitesse) sans retirer les autres : pas de 500
+        // (contrainte unique (zone, métrique)) ni d'effacement des règles existantes.
         JsonNode result = objectMapper.readTree(mvc.perform(
                         put("/clubs/{c}/training-zones/{id}/metrics", clubId, zoneId)
                                 .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"metricTypeIds\":[\"" + paceId + "\",\"" + hrId + "\",\"" + rpeId + "\"]}"))
+                                .content("{\"metricTypeIds\":[\"" + paceId + "\",\"" + hrId + "\",\""
+                                        + rpeId + "\",\"" + speedId + "\"]}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         List<String> ids = new ArrayList<>();
         result.get("metricTypeIds").forEach(n -> ids.add(n.asText()));
-        assertThat(ids).containsExactly(paceId, hrId, rpeId);
+        assertThat(ids).containsExactly(paceId, hrId, rpeId, speedId);
 
-        // La règle allure (LT2 96–103 %) de la zone Seuil est préservée.
+        // La règle allure (LT2 96–103 %) est préservée après l'ajout.
         boolean paceRuleKept = false;
         for (JsonNode r : result.get("rules")) {
             if (paceId.equals(r.path("metricTypeId").asText()) && !r.path("anchor").isNull()) {

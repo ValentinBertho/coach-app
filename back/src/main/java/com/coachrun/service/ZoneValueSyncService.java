@@ -71,13 +71,21 @@ public class ZoneValueSyncService {
 
     /** Calcule la fourchette [min, max] d'un couple (zone, métrique) depuis sa règle, ou null. */
     double[] computeRange(ZoneMetric zm, AthletePaceContext ctx) {
-        ZoneAnchor anchor = zm.getAnchor();
+        String code = zm.getMetricType().getCode();
         Double low = zm.getLowPct();
         Double high = zm.getHighPct();
+        // RPE : cible fixe (bornes absolues 1–10), identique pour tous les athlètes, sans ancre
+        // physiologique. La règle stocke les bornes RPE directement dans low/high.
+        if ("RPE".equals(code)) {
+            if (low == null || high == null || low <= 0 || high <= 0) {
+                return null;
+            }
+            return new double[]{Math.round(low), Math.round(high)};
+        }
+        ZoneAnchor anchor = zm.getAnchor();
         if (anchor == null || low == null || high == null || low <= 0 || high <= 0) {
             return null;
         }
-        String code = zm.getMetricType().getCode();
         return switch (code) {
             case "PACE", "SPEED" -> {
                 PrescriptionRef ref = paceRefOf(anchor);
