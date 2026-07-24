@@ -178,4 +178,48 @@ class TrainingZoneCatalogTest {
         result.get("metricTypeIds").forEach(n -> ids.add(n.asText()));
         assertThat(ids).containsExactly(paceId, speedId);
     }
+
+    @Test
+    void addingAThirdMetricKeepsExistingRules() throws Exception {
+        // Ids métriques (RPE) + une zone standard (Seuil) portant déjà allure + FC avec règles.
+        JsonNode metrics = objectMapper.readTree(mvc.perform(get("/clubs/{c}/metric-types", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String rpeId = null, paceId = null, hrId = null;
+        for (JsonNode m : metrics) {
+            switch (m.get("code").asText()) {
+                case "RPE" -> rpeId = m.get("id").asText();
+                case "PACE" -> paceId = m.get("id").asText();
+                case "HR" -> hrId = m.get("id").asText();
+                default -> { }
+            }
+        }
+        JsonNode zones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode seuil = null;
+        for (JsonNode z : zones) if ("Seuil".equals(z.get("name").asText())) seuil = z;
+        String zoneId = seuil.get("id").asText();
+
+        // Ajout d'une 3ᵉ métrique (RPE) sans retirer allure/FC : ne doit pas violer la contrainte
+        // unique (zone, métrique) ni effacer les règles existantes.
+        JsonNode result = objectMapper.readTree(mvc.perform(
+                        put("/clubs/{c}/training-zones/{id}/metrics", clubId, zoneId)
+                                .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"metricTypeIds\":[\"" + paceId + "\",\"" + hrId + "\",\"" + rpeId + "\"]}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        List<String> ids = new ArrayList<>();
+        result.get("metricTypeIds").forEach(n -> ids.add(n.asText()));
+        assertThat(ids).containsExactly(paceId, hrId, rpeId);
+
+        // La règle allure (LT2 96–103 %) de la zone Seuil est préservée.
+        boolean paceRuleKept = false;
+        for (JsonNode r : result.get("rules")) {
+            if (paceId.equals(r.path("metricTypeId").asText()) && !r.path("anchor").isNull()) {
+                paceRuleKept = true;
+                assertThat(r.get("lowPct").asDouble()).isEqualTo(96.0);
+            }
+        }
+        assertThat(paceRuleKept).isTrue();
+    }
 }

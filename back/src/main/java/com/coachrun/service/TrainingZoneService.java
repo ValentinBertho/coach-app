@@ -102,16 +102,29 @@ public class TrainingZoneService {
     @Transactional
     public TrainingZoneResponse setMetrics(UUID clubId, UUID zoneId, ZoneMetricsRequest req) {
         TrainingZone z = require(clubId, zoneId);
-        z.getMetrics().clear();
+        List<UUID> wanted = req.metricTypeIds() == null ? List.of() : req.metricTypeIds();
+
+        // Réconciliation (et non clear + réinsertion) : on retire les métriques non désirées et on
+        // n'ajoute que les nouvelles. Cela préserve les règles (ancre + %) des métriques conservées
+        // et évite la violation de la contrainte unique (zone, métrique) au flush (insert avant delete).
+        z.getMetrics().removeIf(zm -> !wanted.contains(zm.getMetricType().getId()));
+        Map<UUID, ZoneMetric> existing = new java.util.HashMap<>();
+        for (ZoneMetric zm : z.getMetrics()) {
+            existing.put(zm.getMetricType().getId(), zm);
+        }
         int order = 0;
-        for (UUID metricId : req.metricTypeIds()) {
-            MetricType metric = metricTypeRepository.findVisibleForClub(metricId, clubId)
-                    .orElseThrow(() -> new NotFoundException("Métrique introuvable."));
-            ZoneMetric zm = new ZoneMetric();
-            zm.setZone(z);
-            zm.setMetricType(metric);
+        for (UUID metricId : wanted) {
+            ZoneMetric zm = existing.get(metricId);
+            if (zm == null) {
+                MetricType metric = metricTypeRepository.findVisibleForClub(metricId, clubId)
+                        .orElseThrow(() -> new NotFoundException("Métrique introuvable."));
+                zm = new ZoneMetric();
+                zm.setZone(z);
+                zm.setMetricType(metric);
+                z.getMetrics().add(zm);
+                existing.put(metricId, zm);
+            }
             zm.setSortOrder(order++);
-            z.getMetrics().add(zm);
         }
         return TrainingZoneResponse.from(z);
     }
