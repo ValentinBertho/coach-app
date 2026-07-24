@@ -14,52 +14,62 @@
 .bootstrap-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
 .bootstrap-row .nm { max-width: 110px; }
 
-.section-card { margin-bottom: var(--sp-4); }
-.section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-3); flex-wrap: wrap; }
-.preset-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+/* --- Section --------------------------------------------------------------- */
+.section { margin-bottom: var(--sp-6); }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.section-head h2 { margin: 0; font-size: var(--text-lg); }
 
-/* --- Bloc ---------------------------------------------------------------- */
-.block { border: 1px solid var(--hairline); border-radius: var(--radius); padding: var(--sp-3); margin-bottom: var(--sp-3); }
-.block--rep { border-left: 3px solid var(--dari-teal); background: color-mix(in srgb, var(--dari-teal) 4%, var(--paper)); }
+/* --- Bloc (carte aérée) ---------------------------------------------------- */
+.block { background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-lg, 14px); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-3); box-shadow: var(--shadow-xs, 0 1px 2px rgba(0,0,0,0.04)); }
+/* Groupe de répétitions ×N : rail teal + fond léger, la récup y est visuellement imbriquée. */
+.block--group { border-left: 3px solid var(--dari-teal); background: color-mix(in srgb, var(--dari-teal) 4%, var(--paper)); }
 
-.block-line { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
-.block-line .form-control { min-height: 38px; }
-.block-line .type { width: 120px; }
-.block-line .nm { width: 68px; }
-.block-line .zone-select { min-width: 150px; }
+.block-row { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; }
 
-/* Badge ×N des groupes de répétitions */
-.rep-badge { display: inline-flex; align-items: center; font-weight: 800; color: var(--dari-teal); font-family: var(--font-data); }
-.rep-input { width: 42px; border: 1px solid var(--line); border-radius: var(--radius-sm); min-height: 34px; text-align: center; font-weight: 800; color: var(--dari-teal); background: var(--paper); }
-.rep-plain { width: 68px; }
+.drag-handle { border: none; background: none; color: var(--ink-4); cursor: grab; display: inline-flex; padding: 0; }
+.drag-handle:active { cursor: grabbing; }
 
-.zone-dot { width: 12px; height: 12px; border-radius: var(--radius-full); flex: none; }
+/* Répétitions : ×N discret mais lisible */
+.reps { display: inline-flex; align-items: center; gap: 2px; }
+.reps-in { width: 46px; text-align: center; font-weight: 800; font-family: var(--font-data); color: var(--dari-teal); border: 1px solid var(--line); border-radius: var(--radius-md); min-height: 40px; background: var(--paper); }
+.reps-x { font-weight: 800; color: var(--dari-teal); }
 
-.measure-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-md); overflow: hidden; }
-.measure-toggle button { border: none; background: var(--paper); color: var(--ink-2); padding: 0 var(--sp-2); min-height: 38px; cursor: pointer; font-size: var(--text-sm); font-weight: 600; }
-.measure-toggle button.on { background: var(--dari-teal); color: #fff; }
-.measure-toggle button + button { border-left: 1px solid var(--line); }
+/* Volume : valeur + unité + bascule d'un geste */
+.vol { display: inline-flex; align-items: center; gap: var(--sp-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 0 var(--sp-1) 0 var(--sp-2); background: var(--paper); }
+.vol-in { width: 66px; border: none; background: none; min-height: 40px; font-family: var(--font-data); font-weight: 700; color: var(--ink-1); text-align: right; }
+.vol-in:focus { outline: none; }
+.vol-u { font-size: var(--text-sm); color: var(--ink-3); font-weight: 600; }
+.vol-switch { border: none; background: none; color: var(--ink-4); cursor: pointer; display: inline-flex; align-items: center; padding: var(--sp-1); border-radius: var(--radius-sm); }
+.vol-switch:hover { background: var(--paper-sunk); color: var(--ink-2); }
 
-.icon-btn { border: 1px solid transparent; background: none; cursor: pointer; color: var(--ink-3); min-height: 34px; min-width: 30px; border-radius: var(--radius-sm); font-size: var(--text-md); }
-.icon-btn:hover { background: var(--paper-sunk); color: var(--ink); }
-.icon-btn.on { background: var(--paper-sunk); color: var(--ink); }
-.icon-btn.danger:hover { color: var(--danger); }
+.block-zone { min-width: 0; }
 
-/* Cible lue (compacte) sous l'effort */
-.block-target { margin: var(--sp-2) 0 0; font-weight: 700; color: var(--primary); font-size: var(--text-sm); }
-.block-target--na { color: var(--warning-text, var(--ink-2)); font-weight: 600; }
-.block-target--na a { font-weight: 700; }
+.block-tools { display: inline-flex; gap: 2px; margin-left: auto; }
+.icon-btn { border: none; background: none; cursor: pointer; color: var(--ink-3); min-height: 34px; min-width: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); }
+.icon-btn:hover { background: var(--paper-sunk); color: var(--ink-1); }
+.icon-btn.on { background: var(--paper-sunk); color: var(--ink-1); }
+.icon-btn.danger:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
 
-/* --- Récupération inter-répétitions --------------------------------------- */
-.rec-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2); padding: var(--sp-2); border-radius: var(--radius-sm); background: var(--paper-sunk); }
-.rec-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 800; }
-.rec-line .rec-type { width: 110px; min-height: 34px; }
-.rec-line .form-control { min-height: 34px; }
-.rec-line .nm { width: 64px; }
-.rec-line .zone-select { min-width: 140px; }
-.rec-target { font-size: var(--text-xs); color: var(--ink-2); font-weight: 700; margin-left: auto; }
-.add-rec { margin-top: var(--sp-2); background: transparent; border: 1px dashed var(--line); border-radius: var(--radius-sm); color: var(--ink-3); padding: var(--sp-1) var(--sp-3); font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
+/* Cible lue : le « héros » du bloc — grosse, colorée, avec allure · FC · RPE */
+.block-cible { margin: var(--sp-2) 0 0 34px; font-weight: 800; color: var(--dari-teal); font-size: var(--text-md); font-variant-numeric: tabular-nums; }
+.block-cible--na { color: var(--ink-3); font-weight: 600; font-size: var(--text-sm); }
+.block-cible--na a { font-weight: 700; color: var(--dari-teal); }
+
+/* --- Récupération imbriquée dans le groupe --------------------------------- */
+.rec { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin: var(--sp-3) 0 0 34px; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-md); background: var(--paper-sunk); border: 1px solid var(--hairline); }
+.rec-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); font-weight: 800; }
+.rec-cible { font-size: var(--text-sm); color: var(--ink-2); font-weight: 700; }
+.rec-del { margin-left: auto; }
+.add-rec { display: inline-flex; align-items: center; gap: 4px; margin: var(--sp-2) 0 0 34px; background: transparent; border: 1px dashed var(--line); border-radius: var(--radius-md); color: var(--ink-3); padding: var(--sp-1) var(--sp-3); font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
 .add-rec:hover { border-color: var(--dari-teal); color: var(--dari-teal); }
+
+/* --- Ajout guidé (gros chips par type) ------------------------------------- */
+.add-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-1); }
+.add-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: var(--paper); color: var(--ink-1); border-radius: var(--radius-full); padding: var(--sp-2) var(--sp-3); font-size: var(--text-sm); font-weight: 700; cursor: pointer; transition: border-color var(--duration) var(--ease), background var(--duration) var(--ease); }
+.add-chip:hover { border-color: var(--dari-teal); background: color-mix(in srgb, var(--dari-teal) 8%, var(--paper)); }
+.add-chip app-icon { color: var(--dari-teal); }
+.add-chip--plain { color: var(--ink-3); }
+.add-chip--plain app-icon { color: var(--ink-4); }
 
 /* --- Détails repliés ------------------------------------------------------ */
 .block-details { margin-top: var(--sp-2); }

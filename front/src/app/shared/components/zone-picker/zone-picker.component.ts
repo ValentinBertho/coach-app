@@ -28,10 +28,12 @@ interface ZoneHint {
       <button type="button" class="zp-trigger" (click)="toggle()" [title]="selectedHint()?.zone?.name || 'Choisir une zone'">
         <span class="dot" [style.background]="selectedHint()?.zone?.color || 'var(--ink-3)'"></span>
         <span class="zp-name">{{ selectedHint()?.zone?.name || 'Zone…' }}</span>
-        @if (compact(selectedHint()); as t) {
-          <span class="zp-target metric">{{ t }}</span>
-        } @else if (selectedHint()?.rule) {
-          <span class="zp-rule">{{ selectedHint()?.rule }}</span>
+        @if (!dense()) {
+          @if (compact(selectedHint()); as t) {
+            <span class="zp-target metric">{{ t }}</span>
+          } @else if (selectedHint()?.rule) {
+            <span class="zp-rule">{{ selectedHint()?.rule }}</span>
+          }
         }
         <app-icon name="chevron-down" [size]="14" />
       </button>
@@ -83,6 +85,8 @@ export class ZonePickerComponent {
   readonly metrics = input.required<MetricType[]>();
   readonly values = input<AthleteZoneValue[]>([]);
   readonly selectedId = input<string | null | undefined>(null);
+  /** Mode dense : le déclencheur n'affiche que la pastille + le nom (la cible est lue ailleurs). */
+  readonly dense = input(false);
   /** Émis quand le coach choisit une zone (id). */
   readonly zoneChange = output<string>();
 
