@@ -14,6 +14,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.nio.charset.StandardCharsets;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -64,17 +66,17 @@ class ZoneRuleEngineTest {
     void zonesCarryEditableRules() throws Exception {
         JsonNode zones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
                         .header("Authorization", bearer))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        // La zone Seuil porte une règle allure LT2 96–103 % (seedée).
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+        // La zone « Seuil 2 bas » porte une règle allure ancrée LT2 96–100 % (seedée).
         JsonNode seuil = null;
-        for (JsonNode z : zones) if ("Seuil".equals(z.get("name").asText())) seuil = z;
+        for (JsonNode z : zones) if ("Seuil 2 bas".equals(z.get("name").asText())) seuil = z;
         assertThat(seuil).isNotNull();
         boolean hasLt2 = false;
         for (JsonNode r : seuil.get("rules")) {
             if ("LT2".equals(r.path("anchor").asText())) {
                 hasLt2 = true;
                 assertThat(r.get("lowPct").asDouble()).isEqualTo(96.0);
-                assertThat(r.get("highPct").asDouble()).isEqualTo(103.0);
+                assertThat(r.get("highPct").asDouble()).isEqualTo(100.0);
             }
         }
         assertThat(hasLt2).isTrue();
@@ -132,9 +134,9 @@ class ZoneRuleEngineTest {
 
         JsonNode zones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
                         .header("Authorization", bearer))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
         String zoneId = null;
-        for (JsonNode z : zones) if ("Endurance fondamentale".equals(z.get("name").asText())) zoneId = z.get("id").asText();
+        for (JsonNode z : zones) if ("Endurance aérobie".equals(z.get("name").asText())) zoneId = z.get("id").asText();
 
         // Édite la règle HR → 50–60 % FCmax.
         mvc.perform(put("/clubs/{c}/training-zones/{z}/metrics/{m}/rule", clubId, zoneId, hrId)

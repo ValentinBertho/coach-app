@@ -73,7 +73,7 @@ public class PrescriptionZoneMapper {
                 b.id(), b.type(), b.reps(), b.distanceM(), b.durationS(),
                 mapPrescription(b.prescription(), zonesByName, fallback),
                 mapRecovery(b.recovery(), zonesByName, fallback),
-                b.note(), b.drillIds())).toList();
+                b.rpe(), b.note(), b.drillIds())).toList();
     }
 
     private CourseRecovery mapRecovery(CourseRecovery r, Map<String, UUID> zonesByName, UUID fallback) {
@@ -93,15 +93,21 @@ public class PrescriptionZoneMapper {
         return new CoursePrescription(zoneId, p.ref(), p.minPct(), p.maxPct());
     }
 
-    /** Zone standard la plus proche d'un référentiel + bande % (miroir de la table de resync). */
+    /**
+     * Zone standard la plus proche d'un référentiel + bande % (miroir des règles seedées), pour la
+     * migration douce des anciens blocs {@code ref + %} vers l'échelle d'allure nommée.
+     */
     private String zoneNameFor(PrescriptionRef ref, Double minPct, Double maxPct) {
         double mid = (nz(minPct) + nz(maxPct)) / 2.0;
         return switch (ref) {
-            case PCT_LT1 -> mid < 76 ? "Récupération" : (mid < 93 ? "Endurance fondamentale" : "Marathon");
-            case PCT_LT2, PCT_PACE_10KM, PCT_PACE_15KM -> "Seuil";
-            case PCT_VC, PCT_PACE_3000M, PCT_PACE_5KM -> "VO2";
-            case PCT_PACE_800M, PCT_PACE_1500M -> "Anaérobie / Sprint";
-            case PCT_PACE_SEMI, PCT_PACE_MARATHON -> "Marathon";
+            case PCT_LT1 -> mid < 76 ? "Footing facile" : (mid < 93 ? "EF" : (mid < 100 ? "Steady" : "Seuil 1"));
+            case PCT_LT2 -> mid < 96 ? "Tempo" : (mid < 100 ? "Seuil 2 bas" : "Seuil 2 haut");
+            case PCT_PACE_10KM, PCT_PACE_15KM -> "10 km";
+            case PCT_VC, PCT_PACE_5KM -> "5 km";
+            case PCT_PACE_3000M -> "3 km";
+            case PCT_VMA, PCT_PACE_1500M -> "1500 m";
+            case PCT_PACE_800M -> "800 m";
+            case PCT_PACE_SEMI, PCT_PACE_MARATHON -> "EF";
         };
     }
 

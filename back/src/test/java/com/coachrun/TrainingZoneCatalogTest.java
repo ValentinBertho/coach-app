@@ -84,21 +84,21 @@ class TrainingZoneCatalogTest {
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
 
-        // Échelle Allure (13) + échelle FC (6 zones physiologiques dual) façon Nolio — P3.
-        assertThat(zones).hasSize(13);
-        assertThat(zones.get(0).get("name").asText()).isEqualTo("Récupération");
+        // Deux échelles indépendantes : Allure (12 bandes) + Cardio (4 bandes).
+        assertThat(zones).hasSize(16);
+        assertThat(zones.get(0).get("name").asText()).isEqualTo("Footing facile");
         assertThat(zones.get(0).get("builtin").asBoolean()).isTrue();
-        // Les zones physiologiques portent allure + FC + RPE (effort perçu par défaut).
-        assertThat(zones.get(0).get("metricTypeIds")).hasSize(3);
-        // Les zones d'allure de compétition ne portent que l'allure.
-        assertThat(zones.get(12).get("name").asText()).isEqualTo("Allure 400 m");
-        assertThat(zones.get(12).get("metricTypeIds")).hasSize(1);
+        // Les zones d'allure portent l'allure + la vitesse (calibrée sur l'allure).
+        assertThat(zones.get(0).get("metricTypeIds")).hasSize(2);
+        // Les zones cardio portent la FC (bpm) + le % de FC max.
+        assertThat(zones.get(12).get("name").asText()).isEqualTo("Endurance aérobie");
+        assertThat(zones.get(12).get("metricTypeIds")).hasSize(2);
 
         // Idempotent : une 2ᵉ lecture ne re-seed pas.
         JsonNode again = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertThat(again).hasSize(13);
+        assertThat(again).hasSize(16);
     }
 
     @Test
@@ -123,11 +123,11 @@ class TrainingZoneCatalogTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(updated.get("name").asText()).isEqualTo("Fartlek");
 
-        // Liste : 13 standard + 1 custom.
+        // Liste : 16 standard + 1 custom.
         JsonNode zones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertThat(zones).hasSize(14);
+        assertThat(zones).hasSize(17);
 
         // Réordonnancement : on met la zone custom en tête.
         List<String> ids = new ArrayList<>();
@@ -166,7 +166,7 @@ class TrainingZoneCatalogTest {
         JsonNode zones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        String zoneId = zones.get(4).get("id").asText(); // VO2
+        String zoneId = zones.get(4).get("id").asText(); // Tempo
 
         JsonNode result = objectMapper.readTree(mvc.perform(
                         put("/clubs/{c}/training-zones/{id}/metrics", clubId, zoneId)
@@ -180,52 +180,47 @@ class TrainingZoneCatalogTest {
     }
 
     @Test
-    void addingAMetricKeepsExistingRulesAndSeedsRpe() throws Exception {
+    void addingAMetricKeepsExistingRules() throws Exception {
         JsonNode metrics = objectMapper.readTree(mvc.perform(get("/clubs/{c}/metric-types", clubId)
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        String rpeId = null, paceId = null, hrId = null, speedId = null;
+        String rpeId = null, paceId = null, speedId = null;
         for (JsonNode m : metrics) {
             switch (m.get("code").asText()) {
                 case "RPE" -> rpeId = m.get("id").asText();
                 case "PACE" -> paceId = m.get("id").asText();
-                case "HR" -> hrId = m.get("id").asText();
                 case "SPEED" -> speedId = m.get("id").asText();
                 default -> { }
             }
         }
         JsonNode zones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
                         .header("Authorization", bearer))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        JsonNode seuil = null;
-        for (JsonNode z : zones) if ("Seuil".equals(z.get("name").asText())) seuil = z;
-        String zoneId = seuil.get("id").asText();
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+        JsonNode seuil2 = null;
+        for (JsonNode z : zones) if ("Seuil 2 bas".equals(z.get("name").asText())) seuil2 = z;
+        assertThat(seuil2).isNotNull();
+        String zoneId = seuil2.get("id").asText();
 
-        // La zone Seuil porte par défaut allure + FC + RPE, et le RPE a une règle fixe 7–8.
-        assertThat(seuil.get("metricTypeIds")).hasSize(3);
-        boolean rpeSeeded = false;
-        for (JsonNode r : seuil.get("rules")) {
-            if (rpeId.equals(r.path("metricTypeId").asText())) {
-                rpeSeeded = true;
-                assertThat(r.get("lowPct").asDouble()).isEqualTo(7.0);
-                assertThat(r.get("highPct").asDouble()).isEqualTo(8.0);
-            }
+        // Une zone d'allure porte l'allure + la vitesse ; le RPE n'est pas une zone (il se règle
+        // sur le contenu de la séance).
+        assertThat(seuil2.get("metricTypeIds")).hasSize(2);
+        for (JsonNode r : seuil2.get("rules")) {
+            assertThat(r.path("metricTypeId").asText()).isNotEqualTo(rpeId);
         }
-        assertThat(rpeSeeded).isTrue();
 
-        // Ajout d'une métrique supplémentaire (vitesse) sans retirer les autres : pas de 500
-        // (contrainte unique (zone, métrique)) ni d'effacement des règles existantes.
+        // Ajout d'une métrique supplémentaire sans retirer les autres : pas de 500 (contrainte
+        // unique (zone, métrique)) ni d'effacement des règles existantes.
         JsonNode result = objectMapper.readTree(mvc.perform(
                         put("/clubs/{c}/training-zones/{id}/metrics", clubId, zoneId)
                                 .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"metricTypeIds\":[\"" + paceId + "\",\"" + hrId + "\",\""
-                                        + rpeId + "\",\"" + speedId + "\"]}"))
+                                .content("{\"metricTypeIds\":[\"" + paceId + "\",\"" + speedId + "\",\""
+                                        + rpeId + "\"]}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         List<String> ids = new ArrayList<>();
         result.get("metricTypeIds").forEach(n -> ids.add(n.asText()));
-        assertThat(ids).containsExactly(paceId, hrId, rpeId, speedId);
+        assertThat(ids).containsExactly(paceId, speedId, rpeId);
 
-        // La règle allure (LT2 96–103 %) est préservée après l'ajout.
+        // La règle allure (LT2 96 %) est préservée après l'ajout.
         boolean paceRuleKept = false;
         for (JsonNode r : result.get("rules")) {
             if (paceId.equals(r.path("metricTypeId").asText()) && !r.path("anchor").isNull()) {

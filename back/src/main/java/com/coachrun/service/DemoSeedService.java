@@ -494,9 +494,9 @@ public class DemoSeedService {
             byName.put(z.getName(), z.getId());
         }
         UUID fallback = zones.get(0).getId();
-        UUID ef = byName.getOrDefault("Endurance fondamentale", fallback);
-        UUID seuil = byName.getOrDefault("Seuil", fallback);
-        UUID recup = byName.getOrDefault("Récupération", fallback);
+        UUID ef = byName.getOrDefault("EF", fallback);
+        UUID seuil = byName.getOrDefault("Seuil 2 bas", fallback);
+        UUID recup = byName.getOrDefault("Footing facile", fallback);
 
         WorkoutTemplate t = seedTemplate(club, "Fractionné 6×1000 au seuil",
                 WorkoutType.INTERVALS, "6×1000m au seuil (prescrit par zones)", 10000);

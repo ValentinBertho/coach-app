@@ -8,6 +8,8 @@ package com.coachrun.entity.enums;
 public enum ZoneAnchor {
     // --- Allure / vitesse (résolues en allure de base) ---
     LT1, LT2, VC,
+    /** Vitesse maximale aérobie (km/h). */
+    VMA,
     PACE_800M, PACE_1500M, PACE_3000M, PACE_5KM, PACE_10KM, PACE_15KM, PACE_SEMI, PACE_MARATHON,
     // --- Fréquence cardiaque ---
     /** % de la FC maximale. */

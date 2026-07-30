@@ -25,7 +25,7 @@ class SessionCalculatorEngineTest {
                 3.5, 3.9, 4.2,
                 148, 163, 178,
                 80, 90,
-                null, null, null, 247, null, null, null, null, null);
+                null, null, null, 247, null, null, null, null, null, null);
     }
 
     @Test
@@ -88,7 +88,7 @@ class SessionCalculatorEngineTest {
         AthletePaceContext noLactate = new AthletePaceContext(
                 null, null, null,            // LT1/LT2/VC non mesurés
                 null, null, null, 80, 90,
-                null, null, 230, 245, 260, null, 285, 300, null); // 3000=230, 5km=245, 10km=260, semi=285, marathon=300
+                null, null, 230, 245, 260, null, 285, 300, null, null); // 3000=230, 5km=245, 10km=260, semi=285, marathon=300
         PrescriptionInput lt2 = new PrescriptionInput(PrescriptionRef.PCT_LT2, 95, 102, null, null, 1200);
         Result r = engine.calculate(lt2, noLactate);
         assertThat(r.computable()).isTrue();
@@ -105,7 +105,7 @@ class SessionCalculatorEngineTest {
     void heartRateNullWhenNoFcAnchors() {
         AthletePaceContext noFc = new AthletePaceContext(
                 3.5, 3.9, 4.2, null, null, null, 80, 90,
-                null, null, null, 247, null, null, null, null, null);
+                null, null, null, 247, null, null, null, null, null, null);
         PrescriptionInput in = new PrescriptionInput(PrescriptionRef.PCT_PACE_5KM, 98, 103, 6, 1000, null);
         Result r = engine.calculate(in, noFc);
 
