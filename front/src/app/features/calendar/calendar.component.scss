@@ -246,7 +246,8 @@
   padding: var(--sp-3); border-radius: var(--radius-md); background: var(--paper-sunk);
   font-size: var(--text-sm);
 }
-.sd__actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--hairline); padding-top: var(--sp-3); }
+.sd__actions { display: flex; justify-content: flex-end; gap: var(--sp-2); border-top: 1px solid var(--hairline); padding-top: var(--sp-3); }
+.sd__actions--split { justify-content: space-between; }
 
 /* --- Events non-séance : objectifs, tests, indisponibilités --------------- */
 .day-col--unavailable { background: repeating-linear-gradient(135deg, var(--paper) 0 10px, var(--paper-sunk) 10px 20px); }

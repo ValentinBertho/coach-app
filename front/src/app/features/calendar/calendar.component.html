@@ -284,7 +284,7 @@
           </button>
         }
         @for (n of day.notes; track n.id) {
-          <button type="button" class="event-chip event-chip--note" (click)="deleteNote(n, $event)" [title]="n.text + ' — cliquer pour supprimer'">
+          <button type="button" class="event-chip event-chip--note" (click)="openNote(n, $event)" [title]="n.text + ' — cliquer pour ouvrir'">
             <app-icon name="file-text" [size]="13" /><span class="ec-name">{{ n.text }}</span>
           </button>
         }
@@ -425,6 +425,34 @@
   </div>
 }
 
+<!-- Note du calendrier : lecture + édition. La suppression est un bouton explicite, jamais le clic
+     sur la chip (un clic ne doit pas détruire une donnée sans confirmation). -->
+<app-side-panel [(open)]="notePanelOpen" title="Note" [width]="420">
+  @if (activeNote(); as n) {
+    <div class="sd">
+      <span class="field-hint metric">{{ n.noteDate | date: 'EEE d MMM y' }}</span>
+
+      @if (canWriteSelected()) {
+        <label class="form-group">
+          <span>Texte de la note</span>
+          <textarea class="form-control" rows="4" maxlength="500" [(ngModel)]="noteEditText"></textarea>
+        </label>
+        <div class="sd__actions sd__actions--split">
+          <button type="button" class="btn btn-ghost btn-sm" (click)="deleteNote(n)">
+            <app-icon name="trash-2" [size]="15" /> Supprimer
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" [disabled]="!noteEditText.trim()" (click)="saveNote(n)">
+            <app-icon name="save" [size]="15" /> Enregistrer
+          </button>
+        </div>
+      } @else {
+        <p>{{ n.text }}</p>
+        <p class="field-hint"><app-icon name="lock" [size]="14" /> Lecture seule sur cet athlète.</p>
+      }
+    </div>
+  }
+</app-side-panel>
+
 <!-- Détail d'une séance de force planifiée : titre, blocs, exercices, prescription en fourchettes. -->
 <app-side-panel [(open)]="strengthPanelOpen" [title]="strengthDetail()?.title || 'Séance de renforcement'" [width]="480">
   @if (strengthDetail(); as s) {
@@ -469,7 +497,7 @@
   <div class="picker-overlay" (click)="closePicker()">
     <div class="picker" (click)="$event.stopPropagation()">
       <header class="picker__head">
-        <h3>Planifier une séance — {{ date }}</h3>
+        <h3>Planifier une séance — {{ fmtDate(date) }}</h3>
         <button type="button" class="btn btn-ghost btn-sm" (click)="closePicker()">Fermer</button>
       </header>
       <button type="button" class="picker__item picker__adhoc" (click)="createAdHoc()">
@@ -478,7 +506,7 @@
       </button>
       @if (noteOpen()) {
         <div class="picker__note">
-          <textarea class="form-control" rows="2" [(ngModel)]="noteText" placeholder="Note pour le {{ date }}…" (keydown.escape)="toggleNote()"></textarea>
+          <textarea class="form-control" rows="2" [(ngModel)]="noteText" [placeholder]="'Note pour le ' + fmtDate(date) + '…'" (keydown.escape)="toggleNote()"></textarea>
           <div class="picker__note-actions">
             <button type="button" class="btn btn-ghost btn-sm" (click)="toggleNote()">Annuler</button>
             <button type="button" class="btn btn-primary btn-sm" [disabled]="!noteText.trim()" (click)="addNote()">Ajouter la note</button>

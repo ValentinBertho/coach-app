@@ -616,7 +616,7 @@ export class CalendarComponent implements OnInit {
 
     const ok = await this.confirm.ask({
       title: 'Dupliquer la semaine',
-      message: `Copier les séances course de cette semaine vers la semaine du ${target} ? Les séances existantes de la semaine cible sont conservées.`,
+      message: `Copier les séances course de cette semaine vers la semaine du ${this.fmtDate(target)} ? Les séances existantes de la semaine cible sont conservées.`,
       confirmLabel: 'Dupliquer',
     });
     if (!ok) return;
@@ -689,7 +689,7 @@ export class CalendarComponent implements OnInit {
           warmup: [{ id: 'wu-' + Math.random().toString(36).slice(2, 8), type: 'warmup', drillIds: [drill.id] }],
           main: [], cooldown: [],
         }).subscribe({
-          next: () => { this.toast.success(`${drill.name} planifié le ${date}`); this.load(); },
+          next: () => { this.toast.success(`${drill.name} planifié le ${this.fmtDate(date)}`); this.load(); },
           error: () => this.toast.error('Création impossible.'),
         });
       },
@@ -708,14 +708,37 @@ export class CalendarComponent implements OnInit {
     });
   }
 
-  async deleteNote(n: CalendarNote, ev: Event): Promise<void> {
+  // --- Note du calendrier : ouverture, édition, suppression explicite ---------
+  // Le clic sur une chip ouvrait la note… en la supprimant directement. Destructif
+  // sans confirmation, et aucune édition possible.
+
+  readonly notePanelOpen = signal(false);
+  readonly activeNote = signal<CalendarNote | null>(null);
+  noteEditText = '';
+
+  openNote(n: CalendarNote, ev: Event): void {
     ev.stopPropagation();
+    this.activeNote.set(n);
+    this.noteEditText = n.text;
+    this.notePanelOpen.set(true);
+  }
+
+  saveNote(n: CalendarNote): void {
+    const text = this.noteEditText.trim();
+    if (!text || text === n.text) { this.notePanelOpen.set(false); return; }
+    this.noteService.update(this.selectedAthleteId, n.id, { noteDate: n.noteDate, text }).subscribe({
+      next: () => { this.notePanelOpen.set(false); this.toast.success('Note enregistrée'); this.load(); },
+      error: () => this.toast.error('Enregistrement impossible.'),
+    });
+  }
+
+  async deleteNote(n: CalendarNote): Promise<void> {
     const ok = await this.confirm.ask({
       title: 'Supprimer la note ?', message: n.text, confirmLabel: 'Supprimer', danger: true,
     });
     if (!ok) return;
     this.noteService.delete(this.selectedAthleteId, n.id).subscribe({
-      next: () => { this.toast.info('Note supprimée.'); this.load(); },
+      next: () => { this.notePanelOpen.set(false); this.toast.info('Note supprimée.'); this.load(); },
       error: () => this.toast.error('Suppression impossible.'),
     });
   }
@@ -740,7 +763,7 @@ export class CalendarComponent implements OnInit {
     const date = this.pickerDate();
     if (!date) return;
     this.courseService.schedule(this.selectedAthleteId, t.id, { date }).subscribe({
-      next: () => { this.toast.success(`${t.name} planifiée le ${date}`); this.closePicker(); this.load(); },
+      next: () => { this.toast.success(`${t.name} planifiée le ${this.fmtDate(date)}`); this.closePicker(); this.load(); },
       error: () => this.toast.error('Planification impossible.'),
     });
   }
@@ -781,7 +804,7 @@ export class CalendarComponent implements OnInit {
       this.strengthService
         .scheduleSession(this.selectedAthleteId, s.id, { date: targetDate, fieldsPreset: 'AVANCE' })
         .subscribe({
-          next: () => { this.toast.success(`${s.name} planifiée le ${targetDate}`); this.reloadStrength(); },
+          next: () => { this.toast.success(`${s.name} planifiée le ${this.fmtDate(targetDate)}`); this.reloadStrength(); },
           error: () => this.toast.error('Planification impossible.'),
         });
       return;
@@ -791,7 +814,7 @@ export class CalendarComponent implements OnInit {
     if (!('scheduledDate' in rec)) {
       const t = data as WorkoutTemplate;
       this.courseService.schedule(this.selectedAthleteId, t.id, { date: targetDate }).subscribe({
-        next: () => { this.toast.success(`${t.name} planifiée le ${targetDate}`); this.load(); },
+        next: () => { this.toast.success(`${t.name} planifiée le ${this.fmtDate(targetDate)}`); this.load(); },
         error: () => this.toast.error('Planification impossible.'),
       });
       return;
@@ -837,7 +860,7 @@ export class CalendarComponent implements OnInit {
     const previous = w.scheduledDate;
     this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x)));
     this.workoutService.reschedule(this.selectedAthleteId, w.id, targetDate).subscribe({
-      next: () => this.toast.success(`Séance déplacée au ${targetDate}`),
+      next: () => this.toast.success(`Séance déplacée au ${this.fmtDate(targetDate)}`),
       error: () => {
         this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: previous } : x)));
         this.toast.error('Déplacement impossible.');
@@ -848,7 +871,7 @@ export class CalendarComponent implements OnInit {
   /** Duplique une séance vers une date (copie figée côté back). */
   private copyWorkout(w: Workout, targetDate: string): void {
     this.workoutService.copy(this.selectedAthleteId, w.id, targetDate).subscribe({
-      next: () => { this.toast.success(`Séance dupliquée au ${targetDate}`); this.load(); },
+      next: () => { this.toast.success(`Séance dupliquée au ${this.fmtDate(targetDate)}`); this.load(); },
       error: () => this.toast.error('Duplication impossible.'),
     });
   }
