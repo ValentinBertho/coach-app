@@ -5,6 +5,7 @@ import com.coachrun.entity.enums.RaceObjectiveStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -20,4 +21,8 @@ public interface RaceObjectiveRepository extends JpaRepository<RaceObjective, UU
 
     List<RaceObjective> findTop5ByClubIdAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(
             UUID clubId, RaceObjectiveStatus status, LocalDate from);
+
+    /** Prochaines courses restreintes à un périmètre d'athlètes (cockpit coach). */
+    List<RaceObjective> findTop5ByAthleteIdInAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(
+            Collection<UUID> athleteIds, RaceObjectiveStatus status, LocalDate from);
 }

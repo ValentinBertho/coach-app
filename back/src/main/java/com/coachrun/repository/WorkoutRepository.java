@@ -52,6 +52,10 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
 
     long countByClubIdAndStatusAndScheduledDateBetween(UUID clubId, WorkoutStatus status, LocalDate from, LocalDate to);
 
+    /** Même compte, restreint à un périmètre d'athlètes (KPI du cockpit coach). */
+    long countByAthleteIdInAndStatusAndScheduledDateBetween(
+            Collection<UUID> athleteIds, WorkoutStatus status, LocalDate from, LocalDate to);
+
     /** Dernier retour renseigné (fatigue/douleur) d'un athlète — base de l'état de forme. */
     Optional<Workout> findFirstByAthleteIdAndFatigueIsNotNullOrderByScheduledDateDescCreatedAtDesc(UUID athleteId);
 

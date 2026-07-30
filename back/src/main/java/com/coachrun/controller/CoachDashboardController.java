@@ -24,9 +24,12 @@ public class CoachDashboardController {
 
     private final CoachDashboardService dashboardService;
 
+    /** KPI agrégés, restreints au périmètre {@code scope} (comme /form et /alerts). */
     @GetMapping
-    public CoachDashboardResponse dashboard(@PathVariable UUID clubId) {
-        return dashboardService.compute(clubId);
+    public CoachDashboardResponse dashboard(@PathVariable UUID clubId,
+                                            @RequestParam(defaultValue = "all") String scope,
+                                            @AuthenticationPrincipal AuthPrincipal principal) {
+        return dashboardService.compute(clubId, scope, principal.userId());
     }
 
     /**

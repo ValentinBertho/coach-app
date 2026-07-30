@@ -66,8 +66,11 @@ export class CoachDashboardService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
 
-  get(): Observable<CoachDashboard> {
-    return this.http.get<CoachDashboard>(`${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard`);
+  /** KPI agrégés, restreints au même périmètre que la jauge de forme et les alertes. */
+  get(scope: 'all' | 'mine' | 'private' | 'club' = 'all'): Observable<CoachDashboard> {
+    const params = new HttpParams().set('scope', scope);
+    return this.http.get<CoachDashboard>(
+      `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard`, { params });
   }
 
   /** Périmètre : all (club) | mine (mes athlètes) | private (mes privés) | club (mes athlètes club). */

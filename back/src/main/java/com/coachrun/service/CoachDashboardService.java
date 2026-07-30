@@ -47,22 +47,37 @@ public class CoachDashboardService {
     private final AthleteFeedbackService feedbackService;
     private final ScheduledStrengthSessionRepository strengthRepository;
 
-    public CoachDashboardResponse compute(UUID clubId) {
+    /**
+     * KPI du cockpit, restreints au périmètre choisi (all / mine / private / club) — comme la
+     * jauge de forme et les alertes. Sans cela, changer de périmètre ne rechargeait que la
+     * forme, et les KPI continuaient de décrire tout le club.
+     */
+    public CoachDashboardResponse compute(UUID clubId, String scope, UUID coachId) {
         LocalDate today = LocalDate.now();
         LocalDate monday = today.with(DayOfWeek.MONDAY);
         LocalDate nextMonday = monday.plusWeeks(1);
 
-        long activeAthletes = athleteRepository.countByClubIdAndStatus(clubId, AthleteStatus.ACTIVE);
-        long pending = athleteRepository.countByClubIdAndInviteTokenIsNotNull(clubId);
+        List<Athlete> athletes = athletesInScope(clubId, scope, coachId);
+        List<UUID> ids = athletes.stream().map(Athlete::getId).toList();
+
+        long activeAthletes = athletes.stream().filter(a -> a.getStatus() == AthleteStatus.ACTIVE).count();
+        long pending = athletes.stream().filter(a -> a.getInviteToken() != null).count();
         // « Retours à traiter » : retours d'athlètes (RPE / douleur / commentaire) non encore vus.
         // Le KPI compte exactement les lignes de la file — il pointe dessus.
-        long toReview = feedbackQueue(clubId, null, null).size();
-        long completedThisWeek = workoutRepository.countByClubIdAndStatusAndScheduledDateBetween(
-                clubId, WorkoutStatus.COMPLETED, monday, nextMonday);
+        long toReview = feedbackQueue(clubId, scope, coachId).size();
+
+        if (ids.isEmpty()) {
+            return new CoachDashboardResponse(0, 0, 0, 0, List.of());
+        }
+
+        long completedThisWeek = workoutRepository.countByAthleteIdInAndStatusAndScheduledDateBetween(
+                ids, WorkoutStatus.COMPLETED, monday, nextMonday);
+        // Le nom de l'athlète accompagne chaque course : sur une liste multi-athlètes,
+        // « Marathon de Paris » sans savoir de qui il s'agit ne dit rien au coach.
         var races = raceRepository
-                .findTop5ByClubIdAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(
-                        clubId, RaceObjectiveStatus.UPCOMING, today)
-                .stream().map(RaceObjectiveResponse::from).toList();
+                .findTop5ByAthleteIdInAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(
+                        ids, RaceObjectiveStatus.UPCOMING, today)
+                .stream().map(r -> RaceObjectiveResponse.from(r, displayName(r.getAthlete()))).toList();
 
         return new CoachDashboardResponse(activeAthletes, pending, toReview, completedThisWeek, races);
     }

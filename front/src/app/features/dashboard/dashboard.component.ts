@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { RouterLink } from '@angular/router';
@@ -28,7 +29,7 @@ const SEVERITY: Record<FormStatus, number> = { RED: 2, ORANGE: 1, GREEN: 0 };
   selector: 'app-dashboard',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink, ReadinessGaugeComponent, MetricCardComponent, SegmentedControlComponent, RevealDirective],
+  imports: [IconComponent, RouterLink, DatePipe, ReadinessGaugeComponent, MetricCardComponent, SegmentedControlComponent, RevealDirective],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
@@ -75,14 +76,15 @@ export class DashboardComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.dashboardService.get().subscribe({
+    this.load();
+  }
+
+  /** Tout le cockpit suit le périmètre : KPI, jauge de forme et alertes. */
+  load(): void {
+    this.dashboardService.get(this.scope()).subscribe({
       next: (d) => this.data.set(d),
       complete: () => this.loading.set(false),
     });
-    this.loadForm();
-  }
-
-  loadForm(): void {
     this.dashboardService.form(this.scope()).subscribe((f) => this.form.set(f));
     this.dashboardService.alerts(this.scope()).subscribe({
       next: (a) => this.alerts.set(a),
@@ -92,7 +94,7 @@ export class DashboardComponent implements OnInit {
 
   setScope(value: string): void {
     this.scope.set(value as Scope);
-    this.loadForm();
+    this.load();
   }
 
   level(status: FormStatus): FormLevel { return LEVEL_OF[status]; }
