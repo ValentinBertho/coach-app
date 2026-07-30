@@ -56,6 +56,12 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                     <span class="sd-zone">
                       <span class="dot" [style.background]="zoneColor(b)"></span>{{ zoneLabel(b) }}
                     </span>
+                    <!-- Zone cardio du bloc (seconde échelle) : allure + FC côte à côte. -->
+                    @if (hrZoneLabel(b); as hz) {
+                      <span class="sd-zone sd-zone--hr">
+                        <span class="dot" [style.background]="hrZoneColor(b)"></span>FC {{ hz }}
+                      </span>
+                    }
                     @if (b.rpe) { <span class="sd-rpe metric">RPE {{ b.rpe }}</span> }
                     @if (b.recovery; as r) {
                       <span class="sd-rec">récup {{ recoveryVol(r) }} · {{ zoneLabel(r) }}</span>
@@ -98,6 +104,7 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
     .sd-vol { font-weight: 800; min-width: 78px; }
     .sd-type { font-weight: 600; }
     .sd-zone { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--ink-2); }
+    .sd-zone--hr { font-size: var(--text-sm); color: var(--ink-3); }
     .dot { width: 11px; height: 11px; border-radius: var(--radius-full); }
     .sd-rec { font-size: var(--text-sm); color: var(--ink-3); margin-left: auto; }
     .sd-rpe { font-size: var(--text-xs); font-weight: 800; color: var(--ink-2); background: var(--paper-sunk); border-radius: var(--radius-full); padding: 1px var(--sp-2); }
@@ -189,6 +196,17 @@ export class SessionDetailModalComponent {
 
   zoneColor(b: { prescription?: { zoneId?: string | null } | null }): string {
     const id = b.prescription?.zoneId;
+    return (id && this.zoneById().get(id)?.color) || 'var(--ink-3)';
+  }
+
+  /** Nom de la zone cardio du bloc, si le coach en a ajouté une en second. */
+  hrZoneLabel(b: { prescription?: { hrZoneId?: string | null } | null }): string | null {
+    const id = b.prescription?.hrZoneId;
+    return id ? this.zoneById().get(id)?.name ?? 'Zone' : null;
+  }
+
+  hrZoneColor(b: { prescription?: { hrZoneId?: string | null } | null }): string {
+    const id = b.prescription?.hrZoneId;
     return (id && this.zoneById().get(id)?.color) || 'var(--ink-3)';
   }
 }

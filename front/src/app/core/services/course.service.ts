@@ -38,6 +38,7 @@ export class CourseService {
     athleteId: string,
     body: {
       zoneId?: string | null;
+      hrZoneId?: string | null;
       ref?: PrescriptionRef | null;
       minPct?: number | null;
       maxPct?: number | null;

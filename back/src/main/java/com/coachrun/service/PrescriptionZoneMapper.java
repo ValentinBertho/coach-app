@@ -90,7 +90,7 @@ public class PrescriptionZoneMapper {
             return p;
         }
         UUID zoneId = zonesByName.getOrDefault(zoneNameFor(p.ref(), p.minPct(), p.maxPct()), fallback);
-        return new CoursePrescription(zoneId, p.ref(), p.minPct(), p.maxPct());
+        return new CoursePrescription(zoneId, p.hrZoneId(), p.ref(), p.minPct(), p.maxPct());
     }
 
     /**

@@ -62,7 +62,7 @@ public class SessionCalculatorService {
     /** Calcul d'un bloc isolé (aperçu live de l'éditeur). */
     public CalculatedBlockResponse calculate(UUID clubId, UUID athleteId, SessionCalcRequest req) {
         if (req.zoneId() != null) {
-            return calcZone(req.zoneId(), req.reps(), req.distanceM(), req.durationS(),
+            return calcZone(req.zoneId(), req.hrZoneId(), req.reps(), req.distanceM(), req.durationS(),
                     zoneTargetsFor(athleteId));
         }
         AthletePaceContext ctx = contextFor(clubId, athleteId);
@@ -123,7 +123,8 @@ public class SessionCalculatorService {
             return null;
         }
         if (p.hasZone()) {
-            return calcZone(p.zoneId(), block.reps(), block.distanceM(), block.durationS(), zoneTargets);
+            return calcZone(p.zoneId(), p.hrZoneId(), block.reps(), block.distanceM(), block.durationS(),
+                    zoneTargets);
         }
         if (p.ref() == null || p.minPct() == null || p.maxPct() == null) {
             return null;
@@ -140,7 +141,8 @@ public class SessionCalculatorService {
         }
         CoursePrescription p = recovery.prescription();
         if (p.hasZone()) {
-            return calcZone(p.zoneId(), null, recovery.distanceM(), recovery.durationS(), zoneTargets);
+            return calcZone(p.zoneId(), p.hrZoneId(), null, recovery.distanceM(), recovery.durationS(),
+                    zoneTargets);
         }
         if (p.ref() == null || p.minPct() == null || p.maxPct() == null) {
             return null;
@@ -150,12 +152,19 @@ public class SessionCalculatorService {
         return CalculatedBlockResponse.from(engine.calculate(input, ctx));
     }
 
-    /** Chemin Z3 : lecture directe des cibles de zone de l'athlète. */
-    private CalculatedBlockResponse calcZone(UUID zoneId, Integer reps, Integer distanceM, Integer durationS,
+    /**
+     * Chemin Z3 : lecture directe des cibles de zone de l'athlète. Quand le bloc porte une
+     * <b>zone cardio</b> en plus de sa zone d'allure ({@code hrZoneId}), la FC vient de celle-ci —
+     * les deux échelles étant indépendantes, c'est le seul moyen d'afficher allure <i>et</i> FC.
+     */
+    private CalculatedBlockResponse calcZone(UUID zoneId, UUID hrZoneId, Integer reps, Integer distanceM,
+                                             Integer durationS,
                                              Map<UUID, Map<String, AthleteZoneValue>> zoneTargets) {
         Map<String, AthleteZoneValue> byCode = zoneTargets.getOrDefault(zoneId, Map.of());
+        Map<String, AthleteZoneValue> hrCodes = hrZoneId == null
+                ? byCode : zoneTargets.getOrDefault(hrZoneId, Map.of());
         AthleteZoneValue pace = byCode.get("PACE");
-        AthleteZoneValue hr = byCode.get("HR");
+        AthleteZoneValue hr = hrCodes.get("HR");
         AthleteZoneValue rpe = byCode.get("RPE");
         return CalculatedBlockResponse.from(engine.calculateFromZone(
                 toInt(pace == null ? null : pace.getValueMin()),

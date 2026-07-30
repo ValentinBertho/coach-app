@@ -10,6 +10,11 @@ export type PrescriptionRef =
  */
 export interface CoursePrescription {
   zoneId?: string | null;
+  /**
+   * Zone cardio facultative portée en plus de la zone d'allure : les deux échelles étant
+   * indépendantes, c'est elle qui fournit la cible FC affichée à côté de l'allure.
+   */
+  hrZoneId?: string | null;
   ref?: PrescriptionRef | null;
   minPct?: number | null;
   maxPct?: number | null;
