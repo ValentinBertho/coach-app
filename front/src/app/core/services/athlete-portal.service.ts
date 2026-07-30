@@ -13,24 +13,6 @@ import { Workout, WorkoutStatus } from '../models/workout.model';
 import { StravaStatus } from '../models/strava.model';
 import { CalculatedStrength, E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthResultEntry, StrengthStructure } from '../models/strength.model';
 
-export interface AthletePlanProgress {
-  startDate: string;
-  durationWeeks: number;
-  currentWeek: number;
-  totalSessions: number;
-  completedSessions: number;
-  percent: number;
-  finished: boolean;
-}
-
-export interface AthletePlan {
-  planId: string;
-  name: string;
-  description: string | null;
-  durationWeeks: number;
-  progress: AthletePlanProgress | null;
-}
-
 export interface ActivityLog {
   activityDate: string;
   title?: string;
@@ -74,9 +56,6 @@ export class AthletePortalService {
   }
 
   /** Mon programme : plans attribués avec avancement. */
-  plans(): Observable<AthletePlan[]> {
-    return this.http.get<AthletePlan[]>(`${this.base}/plans`);
-  }
 
   /** Je consigne une sortie libre (saisie manuelle). */
   logActivity(body: ActivityLog): Observable<Activity> {

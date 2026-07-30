@@ -2,7 +2,6 @@
   <div><h1 class="display-sm">Charge &amp; progression</h1><p class="subtitle">Volume, intensité et adhérence sur la période.</p></div>
   <div class="head-actions">
     <app-segmented-control [options]="periodOptions" [value]="period()" (valueChange)="setPeriod($event)" [ariaLabel]="'Période'" />
-    <a [routerLink]="['/app/athletes', athleteId()]" class="btn btn-ghost">← Fiche athlète</a>
   </div>
 </section>
 

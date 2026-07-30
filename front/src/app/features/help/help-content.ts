@@ -102,7 +102,7 @@ const ATHLETE: HelpGuide = {
           'Dans la fenêtre qui s\'ouvre, choisis le nouveau jour.',
           'C\'est fait — ton coach voit le changement.',
         ] },
-        { kind: 'callout', tone: 'info', text: 'Tu peux déplacer une séance, mais pas en modifier le contenu ni la supprimer : seul ton coach construit les séances. C\'est voulu, pour garder un plan cohérent.' },
+        { kind: 'callout', tone: 'info', text: 'Tu peux déplacer une séance, mais pas en modifier le contenu ni la supprimer : seul ton coach construit les séances. C\'est voulu, pour garder un programme cohérent.' },
       ],
     },
     {
@@ -292,15 +292,6 @@ const COACH: HelpGuide = {
       ],
     },
     {
-      id: 'plans',
-      icon: 'folder-open',
-      title: 'Plans périodisés',
-      summary: 'Construire un plan sur N semaines et le caler sur une date de course.',
-      blocks: [
-        { kind: 'text', text: 'Composez un plan semaine × jour à partir de vos modèles de séances, puis appliquez-le à un athlète. À l\'application, vous calez le plan sur la date de la course cible : les semaines se positionnent automatiquement.' },
-      ],
-    },
-    {
       id: 'suivi',
       icon: 'activity',
       title: 'Suivi & charge',
@@ -310,7 +301,7 @@ const COACH: HelpGuide = {
           'Tableau de bord : athlètes par discipline, pastilles de forme, prochaines courses, KPI cliquables.',
           'Pastille de forme : verte/orange/rouge, calculée sur fatigue + douleur (jamais le RPE).',
           'Charge : ACWR (ratio aigu/chronique), ATL/CTL, monotonie, répartition par domaine d\'intensité.',
-          'Analytics : volume prévu/réalisé, distribution des zones, adhérence au plan.',
+          'Analytics : volume prévu/réalisé, distribution des zones, adhérence au programme.',
           'Rapprochement prévu ↔ réalisé : l\'activité importée se rattache à la séance, avec les écarts.',
         ] },
         { kind: 'callout', tone: 'tip', text: 'Surveillez les athlètes dont l\'ACWR sort de la bande de sécurité ou dont la pastille passe au rouge : ce sont vos priorités d\'ajustement de la semaine.' },

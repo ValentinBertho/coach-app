@@ -48,6 +48,8 @@ export class CounterComponent implements OnDestroy {
   private from = 0;
 
   constructor() {
+    // L'effet écrit la valeur affichée : `allowSignalWrites` est requis, sans quoi Angular
+    // lève NG0600 et le compteur reste vide dès que la valeur n'est pas un nombre.
     effect(() => {
       const v = this.value();
       if (v === null || v === undefined || v === '' || typeof v === 'string') {
@@ -57,7 +59,7 @@ export class CounterComponent implements OnDestroy {
         return;
       }
       this.animateTo(v);
-    });
+    }, { allowSignalWrites: true });
   }
 
   private animateTo(target: number): void {

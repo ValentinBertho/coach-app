@@ -63,6 +63,21 @@
       </div>
     </header>
 
+    <!-- Barre supérieure desktop : le menu latéral ne sait dire que la rubrique ; ce fil d'Ariane
+         dit où l'on est dans un contexte (un athlète) et porte la sortie. -->
+    @if (trail().length) {
+      <nav class="crumbs desktop-only" aria-label="Fil d'Ariane">
+        @for (c of trail(); track $index; let last = $last) {
+          @if (c.link) {
+            <a [routerLink]="c.link" class="crumbs__link">{{ c.label }}</a>
+          } @else {
+            <span class="crumbs__here" [attr.aria-current]="last ? 'page' : null">{{ c.label }}</span>
+          }
+          @if (!last) { <span class="crumbs__sep" aria-hidden="true">/</span> }
+        }
+      </nav>
+    }
+
     <app-offline-banner />
 
     @if (user()?.emailVerified === false) {

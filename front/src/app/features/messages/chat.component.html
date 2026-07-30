@@ -1,7 +1,11 @@
 <div class="chat" [class.standalone]="!coachMode()">
   <section class="page-header">
     <div><h1 class="display-sm">Messagerie</h1><p class="subtitle">{{ coachMode() ? 'Discussion avec l\'athlète' : 'Discussion avec votre coach' }}</p></div>
-    <a [routerLink]="backLink()" class="btn btn-ghost">← Retour</a>
+    <!-- Côté coach, la sortie est portée par la coquille athlète (fil d'Ariane) : ce retour ne
+         sert plus qu'au portail athlète, où il n'y a pas de coquille. -->
+    @if (!coachMode()) {
+      <a [routerLink]="backLink()" class="btn btn-ghost">← Retour</a>
+    }
   </section>
 
   <div #thread class="thread card">
