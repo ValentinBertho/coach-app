@@ -203,7 +203,7 @@ const COACH: HelpGuide = {
       summary: 'Connexion, vérification e-mail, tour du tableau de bord.',
       blocks: [
         { kind: 'text', text: 'Connectez-vous depuis la page de connexion. Si un bandeau vous invite à confirmer votre e-mail, faites-le : cela sécurise votre compte et active les notifications.' },
-        { kind: 'text', text: 'Votre espace est organisé autour du tableau de bord (vos athlètes, leur état de forme, les prochaines courses) et d\'une navigation latérale : Athlètes, Groupes, Calendrier, Bibliothèque, Éducatifs, Prépa physique, Club, Paramètres.' },
+        { kind: 'text', text: 'Votre espace est organisé autour du tableau de bord (vos athlètes, leur état de forme, les prochaines courses) et d\'une navigation latérale : Athlètes, Groupes, Calendrier, Messages, Bibliothèque (course, prépa physique, éducatifs), Club, Paramètres.' },
         { kind: 'callout', tone: 'info', text: 'Coach indépendant ou club : le fonctionnement est le même. Un coach solo correspond à un « club » à un seul membre — vos données sont toujours cloisonnées.' },
       ],
     },

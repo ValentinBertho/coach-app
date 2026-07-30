@@ -98,29 +98,39 @@ export const routes: Routes = [
           import('./features/dashboard/feedback-queue.component').then((m) => m.FeedbackQueueComponent),
       },
       {
+        // Bibliothèque unique à onglets : les trois écrans existants sont montés tels quels
+        // en routes enfants (course, prépa physique, éducatifs).
         path: 'library',
         loadComponent: () =>
-          import('./features/library/library.component').then((m) => m.LibraryComponent),
+          import('./features/library/library-shell.component').then((m) => m.LibraryShellComponent),
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'course' },
+          {
+            path: 'course',
+            loadComponent: () =>
+              import('./features/templates/template-list.component').then((m) => m.TemplateListComponent),
+          },
+          {
+            path: 'strength',
+            loadComponent: () =>
+              import('./features/strength/strength.component').then((m) => m.StrengthComponent),
+          },
+          {
+            path: 'drills',
+            loadComponent: () =>
+              import('./features/templates/run-drills.component').then((m) => m.RunDrillsComponent),
+          },
+        ],
       },
-      {
-        path: 'templates',
-        loadComponent: () =>
-          import('./features/templates/template-list.component').then((m) => m.TemplateListComponent),
-      },
+      // Anciennes entrées de nav, conservées en redirection : aucun lien (favori, e-mail,
+      // capture d'écran de doc) ne doit casser avec la fusion des bibliothèques.
+      { path: 'templates', pathMatch: 'full', redirectTo: 'library/course' },
+      { path: 'strength', pathMatch: 'full', redirectTo: 'library/strength' },
+      { path: 'run-drills', pathMatch: 'full', redirectTo: 'library/drills' },
       {
         path: 'templates/:templateId/structure',
         loadComponent: () =>
           import('./features/templates/session-editor.component').then((m) => m.SessionEditorComponent),
-      },
-      {
-        path: 'strength',
-        loadComponent: () =>
-          import('./features/strength/strength.component').then((m) => m.StrengthComponent),
-      },
-      {
-        path: 'run-drills',
-        loadComponent: () =>
-          import('./features/templates/run-drills.component').then((m) => m.RunDrillsComponent),
       },
       {
         path: 'strength/sessions/:sessionId/structure',

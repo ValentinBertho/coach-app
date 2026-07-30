@@ -1,6 +1,7 @@
 import { DragDropModule } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { IconComponent } from '../icon/icon.component';
 import { WorkoutTemplate } from '../../../core/models/workout-template.model';
 import { StrengthSession } from '../../../core/models/strength.model';
@@ -15,7 +16,7 @@ interface CourseGroup {
 }
 
 /**
- * Panneau bibliothèque réutilisable (colonne gauche du calendrier + future page `/library`).
+ * Panneau bibliothèque réutilisable (colonne gauche du calendrier).
  * Course rangé en accordéons par catégorie personnalisée ; force et éducatifs en groupes dédiés.
  * Recherche instantanée transverse ; repli d'accordéon mémorisé. Chaque item est draggable
  * (`cdkDrag` + `[cdkDragData]`) et participe au `cdkDropListGroup` du composant hôte.
@@ -24,7 +25,7 @@ interface CourseGroup {
   selector: 'app-session-library-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DragDropModule, IconComponent],
+  imports: [FormsModule, RouterLink, DragDropModule, IconComponent],
   templateUrl: './session-library-panel.component.html',
   styleUrl: './session-library-panel.component.scss',
 })
