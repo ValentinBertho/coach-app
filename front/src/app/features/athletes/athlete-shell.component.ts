@@ -8,6 +8,9 @@ import { Athlete, AthleteLevel, AthleteStatus, AthleteSummary } from '../../core
 import { AthleteService } from '../../core/services/athlete.service';
 import { BreadcrumbService } from '../../core/services/breadcrumb.service';
 import { ToastService } from '../../core/services/toast.service';
+import { PhysioService } from '../../core/services/physio.service';
+import { PhysioProfile } from '../../core/models/physio.model';
+import { DataOriginTagComponent, type DataOrigin } from '../../shared/components/physiology';
 
 const STATUS_LABELS: Record<AthleteStatus, string> = { ACTIVE: 'Actif', PAUSED: 'En pause', ARCHIVED: 'Archivé' };
 const STATUS_BADGES: Record<AthleteStatus, string> = { ACTIVE: 'badge-success', PAUSED: 'badge-warning', ARCHIVED: 'badge-neutral' };
@@ -48,7 +51,7 @@ const SECTION_LABELS: Record<string, string> = {
   selector: 'app-athlete-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, FormsModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, FormsModule, DataOriginTagComponent],
   // Au défilement, le bandeau se réduit à une ligne : il ne mange pas l'écran, mais il ne
   // disparaît jamais — c'est tout l'intérêt d'un contexte persistant.
   host: { '(window:scroll)': 'onScroll()' },
@@ -123,7 +126,16 @@ const SECTION_LABELS: Record<string, string> = {
         <dl class="stat-strip">
           <div class="stat-strip__item"><dt>FC max</dt><dd class="metric">{{ a.hrMax ?? '—' }}<small>{{ a.hrMax ? 'bpm' : '' }}</small></dd></div>
           <div class="stat-strip__item"><dt>FC repos</dt><dd class="metric">{{ a.hrRest ?? '—' }}<small>{{ a.hrRest ? 'bpm' : '' }}</small></dd></div>
-          <div class="stat-strip__item"><dt>VMA</dt><dd class="metric">{{ a.vma ?? '—' }}<small>{{ a.vma ? 'km/h' : '' }}</small></dd></div>
+          <!-- Une seule source de vérité visible : la valeur du moteur physio (LT2, puis VC)
+               quand elle existe, la VMA saisie au formulaire seulement en secours. Sans ça, une
+               VMA obsolète s'affichait à côté d'un VDOT à jour. -->
+          <div class="stat-strip__item">
+            <dt>{{ speedRef().label }}</dt>
+            <dd class="metric">
+              {{ speedRef().value ?? '—' }}<small>{{ speedRef().value != null ? 'km/h' : '' }}</small>
+              @if (speedRef().value != null) { <app-data-origin-tag [origin]="speedRef().origin" /> }
+            </dd>
+          </div>
           <div class="stat-strip__item"><dt>Poids</dt><dd class="metric">{{ a.weightKg ?? '—' }}<small>{{ a.weightKg ? 'kg' : '' }}</small></dd></div>
         </dl>
 
@@ -250,8 +262,27 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
   private readonly breadcrumb = inject(BreadcrumbService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly physio = inject(PhysioService);
 
   readonly athlete = signal<Athlete | null>(null);
+  /** Profil physio : source de vérité des vitesses de référence (LT2, VC, VDOT). */
+  readonly physioProfile = signal<PhysioProfile | null>(null);
+
+  /**
+   * Vitesse de référence affichée dans le bandeau. Le moteur (LT2 mesuré, puis vitesse critique)
+   * prime sur la VMA saisie au formulaire : c'est lui qui pilote zones et cibles de séance.
+   * La VMA ne sert que de secours tant qu'aucun test ni chrono n'a alimenté le moteur.
+   */
+  readonly speedRef = computed<{ label: string; value: number | null; origin: DataOrigin }>(() => {
+    const p = this.physioProfile();
+    if (p?.lt2Kmh != null) {
+      return { label: 'Seuil (LT2)', value: Math.round(p.lt2Kmh * 10) / 10, origin: 'mesure' };
+    }
+    if (p?.vcKmh != null) {
+      return { label: 'Vitesse critique', value: Math.round(p.vcKmh * 10) / 10, origin: 'calcule' };
+    }
+    return { label: 'VMA', value: this.athlete()?.vma ?? null, origin: 'saisi' };
+  });
   readonly loading = signal(true);
   readonly inviteUrl = signal<string | null>(null);
 
@@ -363,7 +394,13 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
       next: (a) => { this.athlete.set(a); this.loading.set(false); },
       error: () => { this.loading.set(false); this.router.navigate(['/app/athletes']); },
     });
-    onCleanup(() => sub.unsubscribe());
+    // Profil physio : détermine la vitesse de référence affichée (moteur avant VMA saisie).
+    this.physioProfile.set(null);
+    const physioSub = this.physio.profile(id).subscribe({
+      next: (p) => this.physioProfile.set(p),
+      error: () => this.physioProfile.set(null),
+    });
+    onCleanup(() => { sub.unsubscribe(); physioSub.unsubscribe(); });
   }, { allowSignalWrites: true });
 
   ngOnDestroy(): void {
