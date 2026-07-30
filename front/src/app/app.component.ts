@@ -10,20 +10,22 @@ import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confi
 import { ToastComponent } from './shared/components/toast/toast.component';
 import { UpdateBannerComponent } from './shared/components/update-banner/update-banner.component';
 import { HelpSearchOverlayComponent } from './features/help/help-search-overlay.component';
+import { CommandPaletteComponent } from './features/search/command-palette.component';
 
 /**
- * Shell applicatif : router-outlet + toasts + confirmation + recherche d'aide + mise à jour PWA.
+ * Shell applicatif : router-outlet + toasts + confirmation + recherche globale + aide + mise à jour PWA.
  * Instancie tôt les services PWA (réseau, installation, file de synchronisation, mise à jour).
  */
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent, UpdateBannerComponent],
+  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent, CommandPaletteComponent, UpdateBannerComponent],
   template: `
     <router-outlet />
     <app-toast />
     <app-confirm-dialog />
     <app-help-search-overlay />
+    <app-command-palette />
     <app-update-banner />
   `,
 })
