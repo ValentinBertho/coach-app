@@ -782,6 +782,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     });
   }
   openWorkout(w: Workout): void {
+    if (this.consumeSuppressedClick()) return;
     // Vue séance (lecture) ; l'édition est une action délibérée depuis la page.
     this.router.navigate(['/app/athletes', w.athleteId, 'workouts', w.id]);
   }
@@ -907,10 +908,80 @@ export class CalendarComponent implements OnInit, OnDestroy {
     ev.preventDefault();
     if (!this.canWriteSelected()) return;
     this.ctxDate = w.scheduledDate;
-    // Position bornée à la fenêtre pour éviter le débordement.
-    const x = Math.min(ev.clientX, window.innerWidth - 220);
-    const y = Math.min(ev.clientY, window.innerHeight - 260);
+    const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
     this.ctxMenu.set({ workout: w, x, y });
+  }
+
+  // --- Appui long : équivalent tactile du clic droit (CdC) --------------------
+  // Le menu contextuel n'était atteignable qu'à la souris : sur mobile et tablette,
+  // déplacer ou supprimer une séance était tout simplement impossible.
+
+  private static readonly LONG_PRESS_MS = 500;
+  /** Au-delà de ce déplacement, le geste est un glisser, pas un appui long. */
+  private static readonly LONG_PRESS_TOLERANCE_PX = 10;
+
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private longPressOrigin: { x: number; y: number } | null = null;
+  /** Un appui long vient d'ouvrir le menu : le clic qui suit ne doit pas ouvrir la séance. */
+  private suppressNextClick = false;
+
+  /** Démarre la détection d'appui long. Ignoré à la souris, qui garde le clic droit. */
+  onChipPointerDown(ev: PointerEvent, target: Workout | ScheduledStrength, kind: 'course' | 'strength'): void {
+    if (ev.pointerType === 'mouse' || !this.canWriteSelected()) return;
+    this.cancelLongPress();
+    this.longPressOrigin = { x: ev.clientX, y: ev.clientY };
+    this.longPressTimer = setTimeout(() => {
+      this.longPressTimer = null;
+      this.suppressNextClick = true;
+      const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
+      if (kind === 'course') {
+        const w = target as Workout;
+        this.ctxDate = w.scheduledDate;
+        this.ctxMenu.set({ workout: w, x, y });
+      } else {
+        const s = target as ScheduledStrength;
+        this.strengthCtxDate = s.scheduledDate;
+        this.strengthMenu.set({ session: s, x, y });
+      }
+      // Retour haptique quand la plateforme le propose : l'appui long est invisible sans lui.
+      navigator.vibrate?.(15);
+    }, CalendarComponent.LONG_PRESS_MS);
+  }
+
+  /** Un déplacement du doigt signifie un glisser : on abandonne l'appui long. */
+  onChipPointerMove(ev: PointerEvent): void {
+    const origin = this.longPressOrigin;
+    if (!this.longPressTimer || !origin) return;
+    const moved = Math.hypot(ev.clientX - origin.x, ev.clientY - origin.y);
+    if (moved > CalendarComponent.LONG_PRESS_TOLERANCE_PX) this.cancelLongPress();
+  }
+
+  onChipPointerUp(): void { this.cancelLongPress(); }
+
+  private cancelLongPress(): void {
+    if (this.longPressTimer) clearTimeout(this.longPressTimer);
+    this.longPressTimer = null;
+    this.longPressOrigin = null;
+  }
+
+  /**
+   * Le clic émis à la fin d'un appui long ne doit pas ouvrir la séance derrière le menu.
+   * Renvoie vrai si le clic a été consommé.
+   */
+  private consumeSuppressedClick(): boolean {
+    if (!this.suppressNextClick) return false;
+    this.suppressNextClick = false;
+    return true;
+  }
+
+  /** Position du menu bornée au viewport : en bord d'écran il sortait du cadre. */
+  private clampToViewport(clientX: number, clientY: number): { x: number; y: number } {
+    const MENU_W = 220;
+    const MENU_H = 260;
+    return {
+      x: Math.max(8, Math.min(clientX, window.innerWidth - MENU_W - 8)),
+      y: Math.max(8, Math.min(clientY, window.innerHeight - MENU_H - 8)),
+    };
   }
   closeContextMenu(): void { this.ctxMenu.set(null); }
 
@@ -1020,6 +1091,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Ouvre le panneau de détail d'une séance de force (prescription figée + charges calculées). */
   openStrength(s: ScheduledStrength): void {
+    if (this.consumeSuppressedClick()) return;
     this.strengthDetail.set(s);
     this.strengthRx.set(null);
     this.strengthRxLoading.set(true);
@@ -1034,8 +1106,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     ev.preventDefault();
     if (!this.canWriteSelected()) return;
     this.strengthCtxDate = s.scheduledDate;
-    const x = Math.min(ev.clientX, window.innerWidth - 220);
-    const y = Math.min(ev.clientY, window.innerHeight - 220);
+    const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
     this.strengthMenu.set({ session: s, x, y });
   }
   closeStrengthMenu(): void { this.strengthMenu.set(null); }

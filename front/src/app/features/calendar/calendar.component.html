@@ -298,7 +298,10 @@
               [class.workout-card--key]="typeMeta(w.type).key"
               [style.--type-color]="typeMeta(w.type).color"
               cdkDrag [cdkDragData]="w" (click)="openWorkout(w)"
-              (contextmenu)="openContextMenu(w, $event)">
+              (contextmenu)="openContextMenu(w, $event)"
+              (pointerdown)="onChipPointerDown($event, w, 'course')"
+              (pointermove)="onChipPointerMove($event)"
+              (pointerup)="onChipPointerUp()" (pointercancel)="onChipPointerUp()">
               <span class="wc-head">
                 <app-icon class="wc-type" [name]="typeMeta(w.type).icon" [size]="13" />
                 <span class="w-title">{{ w.title }}</span>
@@ -320,6 +323,9 @@
               cdkDrag [cdkDragData]="s" [cdkDragDisabled]="!canWriteSelected()"
               (click)="openStrength(s)"
               (contextmenu)="openStrengthMenu(s, $event)"
+              (pointerdown)="onChipPointerDown($event, s, 'strength')"
+              (pointermove)="onChipPointerMove($event)"
+              (pointerup)="onChipPointerUp()" (pointercancel)="onChipPointerUp()"
               [title]="s.title + ' — cliquer pour voir le détail'">
               <app-icon class="sc-icon" name="dumbbell" [size]="13" />
               <span class="sc-title">{{ s.title }}</span>
