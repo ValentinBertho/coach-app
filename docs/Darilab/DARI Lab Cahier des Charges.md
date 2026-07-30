@@ -1,8 +1,19 @@
 # DARI Lab Training — Cahier des charges technique
 
+> ## ⚠️ Partie technique obsolète
+>
+> Ce document décrit une stack **Next.js 14 + Supabase** qui n'a jamais été celle du produit.
+> La stack réelle est **Angular 17 (front) + Spring Boot 3 / PostgreSQL (back)** — voir
+> [`docs/Cahier-des-charges.md`](../Cahier-des-charges.md) pour la référence technique à jour.
+>
+> **Ce qui reste valable ici : tout le fonctionnel** (physiologie, prescription en fourchettes,
+> préparation physique, calendrier, charge sRPE, multi-coach). C'est à ce titre que le document
+> est conservé. Ignorer en revanche les sections de schéma Supabase, de policies RLS, de routes
+> Next.js et de composants React : elles ne correspondent à rien dans le code.
+
 > **Document destiné à un agent de développement (Codex / Claude Code).**
 > Plateforme SaaS de coaching course à pied / trail orientée physiologie, avec module de préparation physique complet et gestion multi-coach.
-> Ce document est la source de vérité fonctionnelle et technique. Construire l'application section par section dans l'ordre de la roadmap (§14).
+> Ce document est la source de vérité **fonctionnelle** (cf. encart ci-dessus pour la partie technique). Construire l'application section par section dans l'ordre de la roadmap (§14).
 
 ---
 

@@ -12,6 +12,7 @@ import { TrainingZoneService } from '../../core/services/training-zone.service';
 import { AthleteZoneValueService } from '../../core/services/athlete-zone-value.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 
 interface EditState {
   key: string;
@@ -199,6 +200,7 @@ export class AthleteZonesComponent implements OnInit {
   private readonly valueService = inject(AthleteZoneValueService);
   private readonly physio = inject(PhysioService);
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
 
   readonly zones = signal<TrainingZone[]>([]);
   readonly metrics = signal<MetricType[]>([]);
@@ -411,13 +413,32 @@ export class AthleteZonesComponent implements OnInit {
     });
   }
 
-  resync(): void {
+  /**
+   * Le resync réécrit les valeurs AUTO non verrouillées. Le coach découvrait le résultat après
+   * coup : on annonce d'abord combien de valeurs vont changer, et lesquelles sont préservées.
+   */
+  async resync(): Promise<void> {
+    const impacted = this.values().filter((v) => v.source === 'AUTO' && !v.locked).length;
+    const preserved = this.values().length - impacted;
+    if (impacted === 0) {
+      this.toast.info('Rien à resynchroniser : toutes les valeurs sont manuelles ou verrouillées.');
+      return;
+    }
+    const ok = await this.confirm.ask({
+      title: 'Resynchroniser les zones',
+      message: `${impacted} valeur${impacted > 1 ? 's' : ''} recalculée${impacted > 1 ? 's' : ''} depuis le profil`
+        + (preserved > 0
+          ? ` — ${preserved} valeur${preserved > 1 ? 's' : ''} manuelle${preserved > 1 ? 's' : ''} ou verrouillée${preserved > 1 ? 's' : ''} préservée${preserved > 1 ? 's' : ''}.`
+          : '.'),
+      confirmLabel: 'Resynchroniser',
+    });
+    if (!ok) return;
     this.busy.set(true);
     this.valueService.resync(this.athleteId()).subscribe({
       next: (values) => {
         this.values.set(values);
         this.busy.set(false);
-        this.toast.success('Valeurs resynchronisées.');
+        this.toast.success(`${impacted} valeur${impacted > 1 ? 's' : ''} resynchronisée${impacted > 1 ? 's' : ''}.`);
       },
       error: () => this.busy.set(false),
     });

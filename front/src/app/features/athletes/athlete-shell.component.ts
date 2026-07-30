@@ -117,9 +117,34 @@ const SECTION_LABELS: Record<string, string> = {
 
           <!-- Actions portant sur l'athlète entier : place fixe, quel que soit l'onglet. -->
           <div class="shell-actions">
-            <button type="button" class="btn btn-ghost btn-sm" (click)="exportProgram()">
-              <app-icon name="file-text" [size]="15" /> PDF
-            </button>
+            <!-- L'export était figé sur 4 semaines : la période se choisit désormais. -->
+            <div class="export-wrap">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="exportOpen.set(!exportOpen())"
+                      aria-haspopup="dialog" [attr.aria-expanded]="exportOpen()">
+                <app-icon name="file-text" [size]="15" /> PDF
+              </button>
+              @if (exportOpen()) {
+                <div class="export-pop" role="dialog" aria-label="Exporter le programme">
+                  <span class="ep-lb">Période à exporter</span>
+                  <div class="ep-presets">
+                    @for (p of exportPresets; track p.weeks) {
+                      <button type="button" class="ep-preset" [class.active]="exportWeeks() === p.weeks"
+                              (click)="setExportWeeks(p.weeks)">{{ p.label }}</button>
+                    }
+                  </div>
+                  <div class="ep-dates">
+                    <label>Du <input type="date" class="form-control" [(ngModel)]="exportFrom" /></label>
+                    <label>Au <input type="date" class="form-control" [(ngModel)]="exportTo" /></label>
+                  </div>
+                  <div class="ep-actions">
+                    <button type="button" class="btn btn-ghost btn-sm" (click)="exportOpen.set(false)">Annuler</button>
+                    <button type="button" class="btn btn-primary btn-sm" (click)="exportProgram()" [disabled]="exporting()">
+                      Exporter
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
             <a [routerLink]="['/app/athletes', athleteId(), 'edit']" class="btn btn-ghost btn-sm">Modifier</a>
             <button type="button" class="btn btn-primary btn-sm" (click)="invite()">Inviter</button>
           </div>
@@ -232,6 +257,25 @@ const SECTION_LABELS: Record<string, string> = {
     .stepper .icon-btn:disabled { opacity: .4; cursor: default; }
     .shell-id .subtitle { margin: 2px 0 0; color: var(--ink-3); font-size: var(--text-sm); }
     .shell-actions { margin-left: auto; display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+    .export-wrap { position: relative; }
+    .export-pop {
+      position: absolute; top: calc(100% + var(--sp-2)); right: 0; z-index: 30;
+      width: 280px; padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2);
+      background: var(--paper); border: 1px solid var(--hairline);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+    }
+    .ep-lb { font-size: var(--text-xs); font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.03em; }
+    .ep-presets { display: flex; gap: var(--sp-2); }
+    .ep-preset {
+      flex: 1; padding: var(--sp-1) var(--sp-2); border: 1px solid var(--hairline);
+      border-radius: var(--radius-full); background: var(--paper); color: var(--ink-2);
+      font-size: var(--text-xs); font-weight: 700; cursor: pointer;
+    }
+    .ep-preset.active { background: var(--primary-wash); color: var(--primary); border-color: var(--primary-light); }
+    .ep-dates { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .ep-dates label { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); color: var(--ink-2); }
+    .ep-dates .form-control { flex: 1; }
+    .ep-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); }
 
     /* Version compacte : on retire les métriques et les actions, on garde identité + onglets. */
     .shell-head--compact { gap: var(--sp-2); padding-top: var(--sp-3); box-shadow: var(--shadow-sm); }
@@ -456,22 +500,56 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Télécharge le programme PDF des 4 prochaines semaines. */
+  // --- Export PDF : la période se choisit -----------------------------------
+  readonly exportOpen = signal(false);
+  readonly exportWeeks = signal(4);
+  readonly exporting = signal(false);
+  exportFrom = this.isoToday();
+  exportTo = this.isoInDays(28);
+
+  readonly exportPresets = [
+    { weeks: 2, label: '2 semaines' },
+    { weeks: 4, label: '4 semaines' },
+    { weeks: 8, label: '8 semaines' },
+  ];
+
+  /** Un préréglage réécrit les deux dates ; celles-ci restent librement ajustables ensuite. */
+  setExportWeeks(weeks: number): void {
+    this.exportWeeks.set(weeks);
+    this.exportFrom = this.isoToday();
+    this.exportTo = this.isoInDays(weeks * 7);
+  }
+
+  private isoToday(): string { return this.isoInDays(0); }
+
+  private isoInDays(days: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /** Télécharge le programme PDF sur la période choisie. */
   exportProgram(): void {
-    const today = new Date();
-    const from = today.toISOString().slice(0, 10);
-    const to = new Date(today.getTime() + 28 * 86400000).toISOString().slice(0, 10);
+    const from = this.exportFrom;
+    const to = this.exportTo;
+    if (!from || !to || to < from) {
+      this.toast.warning('Période invalide : la date de fin doit suivre la date de début.');
+      return;
+    }
+    this.exporting.set(true);
     this.athleteService.exportProgram(this.athleteId(), from, to).subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'programme.pdf';
+        a.download = `programme-${from}-${to}.pdf`;
         a.click();
         URL.revokeObjectURL(url);
+        this.exporting.set(false);
+        this.exportOpen.set(false);
         this.toast.success('Programme exporté (PDF)');
       },
-      error: () => this.toast.error('Export impossible.'),
+      error: () => { this.exporting.set(false); this.toast.error('Export impossible.'); },
     });
   }
 }

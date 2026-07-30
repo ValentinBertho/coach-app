@@ -348,7 +348,10 @@ export class TrainingZonesComponent implements OnInit {
     this.zoneService.create({ name, color: this.draft.color, description: this.draft.description || null }).subscribe((z) => {
       this.zones.update((list) => [...list, z]);
       this.draft = { name: '', color: '#22c55e', description: '' };
-      this.toast.success('Zone ajoutée.');
+      // Une zone neuve n'a ni métrique ni règle : sans enchaîner sur sa configuration, elle
+      // reste vide et le coach ne comprend pas pourquoi elle ne calcule rien.
+      this.configId.set(z.id);
+      this.toast.success('Zone ajoutée — choisis ses métriques et sa règle de calcul.');
     });
   }
 
