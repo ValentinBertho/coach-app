@@ -163,6 +163,17 @@ export interface CalculatedStrength {
   blocks: { block: StrengthBlock; exercises: { item: StrengthExerciseItem; charge: ChargeTarget }[] }[];
 }
 
+/**
+ * Prescription figée d'une séance de force planifiée : structure snapshot au moment de
+ * l'assignation, charges calculées pour l'athlète, et champs demandés au retour.
+ * Servie à l'identique côté coach (calendrier) et côté athlète (portail).
+ */
+export interface StrengthPrescriptionView {
+  snapshot: StrengthStructure;
+  calculated: CalculatedStrength | null;
+  requiredFields: Record<string, boolean> | null;
+}
+
 export interface ScheduledStrength {
   id: string;
   athleteId: string;

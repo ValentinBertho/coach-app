@@ -1,6 +1,7 @@
 package com.coachrun.controller;
 
 import com.coachrun.dto.request.ScheduleStrengthRequest;
+import com.coachrun.dto.request.WorkoutRescheduleRequest;
 import com.coachrun.dto.response.ScheduledStrengthResponse;
 import com.coachrun.dto.response.StrengthPrescriptionResponse;
 import com.coachrun.service.StrengthScheduleService;
@@ -10,7 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -54,5 +57,23 @@ public class StrengthScheduleController {
     public StrengthPrescriptionResponse prescription(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                                      @PathVariable UUID scheduledId) {
         return scheduleService.prescription(clubId, scheduledId);
+    }
+
+    /** Déplacement d'une séance de force par le coach (glisser-déposer du calendrier). */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PatchMapping("/scheduled/{scheduledId}/reschedule")
+    public ScheduledStrengthResponse reschedule(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                                @PathVariable UUID scheduledId,
+                                                @Valid @RequestBody WorkoutRescheduleRequest request) {
+        return scheduleService.moveByCoach(clubId, athleteId, scheduledId, request.scheduledDate());
+    }
+
+    /** Déprogrammation d'une séance de force depuis le calendrier coach. */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @DeleteMapping("/scheduled/{scheduledId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                       @PathVariable UUID scheduledId) {
+        scheduleService.delete(clubId, athleteId, scheduledId);
     }
 }

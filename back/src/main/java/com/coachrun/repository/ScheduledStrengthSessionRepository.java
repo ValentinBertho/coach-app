@@ -15,6 +15,8 @@ public interface ScheduledStrengthSessionRepository extends JpaRepository<Schedu
 
     Optional<ScheduledStrengthSession> findByIdAndClubId(UUID id, UUID clubId);
 
+    Optional<ScheduledStrengthSession> findByIdAndClubIdAndAthleteId(UUID id, UUID clubId, UUID athleteId);
+
     // --- Portail athlète (scoping par athleteId du principal) ---
     List<ScheduledStrengthSession> findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
             UUID athleteId, LocalDate from, LocalDate to);

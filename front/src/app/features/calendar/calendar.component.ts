@@ -1,4 +1,5 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -7,7 +8,7 @@ import { STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, Workout, WorkoutType 
 import { AthleteService } from '../../core/services/athlete.service';
 import { CourseService } from '../../core/services/course.service';
 import { StrengthService } from '../../core/services/strength.service';
-import { ScheduledStrength, StrengthSession } from '../../core/models/strength.model';
+import { ScheduledStrength, StrengthPrescriptionView, StrengthSession } from '../../core/models/strength.model';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -32,6 +33,8 @@ import { CalendarNoteService } from '../../core/services/calendar-note.service';
 import { SessionCategory } from '../../core/models/session-category.model';
 import { SessionCategoryService } from '../../core/services/session-category.service';
 import { SessionLibraryPanelComponent } from '../../shared/components/session-library-panel/session-library-panel.component';
+import { StrengthPrescriptionViewComponent } from '../../shared/components/strength-prescription-view/strength-prescription-view.component';
+import { SidePanelComponent } from '../../shared/components/ui';
 import { Activity } from '../../core/models/activity.model';
 import { ActivityService } from '../../core/services/activity.service';
 
@@ -107,7 +110,10 @@ function mondayOf(d: Date): Date {
   selector: 'app-calendar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DragDropModule, IconComponent, HelpHintComponent, SessionLibraryPanelComponent],
+  imports: [
+    FormsModule, RouterLink, DragDropModule, DatePipe, IconComponent, HelpHintComponent,
+    SessionLibraryPanelComponent, SidePanelComponent, StrengthPrescriptionViewComponent,
+  ],
   host: { '(document:keydown)': 'onKeydown($event)' },
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.scss',
@@ -620,7 +626,7 @@ export class CalendarComponent implements OnInit {
   openTests(): void { this.router.navigate(['/app/athletes', this.selectedAthleteId, 'tests']); }
 
   onDrop(event: CdkDragDrop<DayCell>, targetDate: string): void {
-    const data = event.item.data as Workout | StrengthSession | WorkoutTemplate;
+    const data = event.item.data as Workout | StrengthSession | ScheduledStrength | WorkoutTemplate;
     const rec = data as unknown as Record<string, unknown>;
 
     // Garde-fou UX : pas de planification/déplacement sur un athlète en lecture seule
@@ -633,6 +639,13 @@ export class CalendarComponent implements OnInit {
     // Éducatif (gamme) glissé depuis la bibliothèque → séance technique ad hoc avec l'éducatif.
     if (rec['category'] === 'TECHNIQUE' || rec['category'] === 'AMPLITUDE') {
       this.dropDrill(data as unknown as RunDrill, targetDate);
+      return;
+    }
+
+    // Séance de force DÉJÀ planifiée glissée d'un jour à l'autre → déplacement.
+    // (discriminée par `sourceSessionId`, absent des séances course et des modèles).
+    if ('sourceSessionId' in rec && 'scheduledDate' in rec) {
+      this.moveStrength(data as ScheduledStrength, targetDate);
       return;
     }
 
@@ -759,6 +772,96 @@ export class CalendarComponent implements OnInit {
       next: () => { this.toast.info('Séance supprimée.'); this.load(); },
       error: () => this.toast.error('Suppression impossible.'),
     });
+  }
+
+  // --- Séances de force planifiées : détail, déplacement, suppression ---------
+  // Les chips force sont manipulables exactement comme les séances course
+  // (ouvrir / glisser / menu contextuel), dans la limite de canWriteSelected().
+
+  readonly strengthPanelOpen = signal(false);
+  readonly strengthDetail = signal<ScheduledStrength | null>(null);
+  readonly strengthRx = signal<StrengthPrescriptionView | null>(null);
+  readonly strengthRxLoading = signal(false);
+  readonly strengthMenu = signal<{ session: ScheduledStrength; x: number; y: number } | null>(null);
+  strengthCtxDate = '';
+
+  /** Ouvre le panneau de détail d'une séance de force (prescription figée + charges calculées). */
+  openStrength(s: ScheduledStrength): void {
+    this.strengthDetail.set(s);
+    this.strengthRx.set(null);
+    this.strengthRxLoading.set(true);
+    this.strengthPanelOpen.set(true);
+    this.strengthService.scheduledPrescription(this.selectedAthleteId, s.id).subscribe({
+      next: (rx) => { this.strengthRx.set(rx); this.strengthRxLoading.set(false); },
+      error: () => { this.strengthRxLoading.set(false); this.toast.error('Détail indisponible.'); },
+    });
+  }
+
+  openStrengthMenu(s: ScheduledStrength, ev: MouseEvent): void {
+    ev.preventDefault();
+    if (!this.canWriteSelected()) return;
+    this.strengthCtxDate = s.scheduledDate;
+    const x = Math.min(ev.clientX, window.innerWidth - 220);
+    const y = Math.min(ev.clientY, window.innerHeight - 220);
+    this.strengthMenu.set({ session: s, x, y });
+  }
+  closeStrengthMenu(): void { this.strengthMenu.set(null); }
+
+  ctxStrengthOpen(): void {
+    const m = this.strengthMenu(); if (!m) return;
+    this.closeStrengthMenu(); this.openStrength(m.session);
+  }
+  ctxStrengthMoveTo(date: string): void {
+    const m = this.strengthMenu(); if (!m) return;
+    this.closeStrengthMenu();
+    if (date) this.moveStrength(m.session, date);
+  }
+  ctxStrengthDelete(): void {
+    const m = this.strengthMenu(); if (!m) return;
+    this.closeStrengthMenu();
+    this.deleteStrength(m.session);
+  }
+
+  /** Déplace une séance de force (optimiste + rollback en cas d'échec back). */
+  private moveStrength(s: ScheduledStrength, targetDate: string): void {
+    if (s.scheduledDate === targetDate) return;
+    const previous = s.scheduledDate;
+    this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, scheduledDate: targetDate } : x)));
+    this.strengthService.rescheduleScheduled(this.selectedAthleteId, s.id, targetDate).subscribe({
+      next: () => this.toast.success(`${s.title} déplacée au ${this.fmtDate(targetDate)}`),
+      error: () => {
+        this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, scheduledDate: previous } : x)));
+        this.toast.error('Déplacement impossible.');
+      },
+    });
+  }
+
+  async deleteStrength(s: ScheduledStrength): Promise<void> {
+    if (!this.canWriteSelected()) {
+      this.toast.warning('Lecture seule : tu n’as pas les droits de prescription sur cet athlète.');
+      return;
+    }
+    const ok = await this.confirm.ask({
+      title: 'Supprimer la séance de renforcement',
+      message: `${s.title} — ${this.fmtDate(s.scheduledDate)}`,
+      confirmLabel: 'Supprimer', danger: true,
+    });
+    if (!ok) return;
+    this.strengthService.deleteScheduled(this.selectedAthleteId, s.id).subscribe({
+      next: () => {
+        this.strengthPanelOpen.set(false);
+        this.toast.info('Séance de renforcement supprimée.');
+        this.reloadStrength();
+      },
+      error: () => this.toast.error('Suppression impossible.'),
+    });
+  }
+
+  /** Date ISO → « mer. 30 juil. » (jamais d'ISO brut à l'écran). */
+  fmtDate(iso: string): string {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+      .format(new Date(y, m - 1, d));
   }
 
   /** Raccourcis clavier de navigation (hors champ de saisie) : ←/→ période, T = aujourd'hui. */

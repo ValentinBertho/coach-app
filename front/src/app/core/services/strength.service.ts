@@ -15,6 +15,7 @@ import {
   ScheduledStrength,
   StrengthCycle,
   StrengthLoadPoint,
+  StrengthPrescriptionView,
   StrengthSession,
   StrengthStructure,
   StrengthTest,
@@ -123,6 +124,23 @@ export class StrengthService {
   scheduledCalendar(athleteId: string, from: string, to: string): Observable<ScheduledStrength[]> {
     const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<ScheduledStrength[]>(`${this.club()}/athletes/${athleteId}/pp/scheduled`, { params });
+  }
+
+  /** Prescription figée d'une séance de force planifiée (snapshot + charges calculées). */
+  scheduledPrescription(athleteId: string, scheduledId: string): Observable<StrengthPrescriptionView> {
+    return this.http.get<StrengthPrescriptionView>(
+      `${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}/prescription`);
+  }
+
+  /** Déplace une séance de force planifiée vers une autre date (glisser-déposer coach). */
+  rescheduleScheduled(athleteId: string, scheduledId: string, scheduledDate: string): Observable<ScheduledStrength> {
+    return this.http.patch<ScheduledStrength>(
+      `${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}/reschedule`, { scheduledDate });
+  }
+
+  /** Déprogramme une séance de force du calendrier de l'athlète. */
+  deleteScheduled(athleteId: string, scheduledId: string): Observable<void> {
+    return this.http.delete<void>(`${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}`);
   }
 
   // --- Cycles ---

@@ -78,6 +78,29 @@ public class StrengthScheduleService {
                 .orElseThrow(() -> new NotFoundException("Séance de force introuvable.")));
     }
 
+    /**
+     * Déplacement par le coach (glisser-déposer du calendrier) : contrairement au déplacement
+     * athlète, il ne marque pas {@code movedByAthlete} et ne mémorise pas de date d'origine —
+     * c'est la prescription elle-même qui change de jour.
+     */
+    @Transactional
+    public ScheduledStrengthResponse moveByCoach(UUID clubId, UUID athleteId, UUID scheduledId, LocalDate date) {
+        ScheduledStrengthSession ss = require(clubId, athleteId, scheduledId);
+        ss.setScheduledDate(date);
+        return ScheduledStrengthResponse.from(ss);
+    }
+
+    /** Déprogramme une séance de force du calendrier de l'athlète. */
+    @Transactional
+    public void delete(UUID clubId, UUID athleteId, UUID scheduledId) {
+        scheduledRepository.delete(require(clubId, athleteId, scheduledId));
+    }
+
+    private ScheduledStrengthSession require(UUID clubId, UUID athleteId, UUID scheduledId) {
+        return scheduledRepository.findByIdAndClubIdAndAthleteId(scheduledId, clubId, athleteId)
+                .orElseThrow(() -> new NotFoundException("Séance de force introuvable."));
+    }
+
     // --- Portail athlète ------------------------------------------------------
 
     public List<ScheduledStrengthResponse> athleteCalendar(UUID athleteId, LocalDate from, LocalDate to) {

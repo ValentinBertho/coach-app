@@ -228,11 +228,19 @@
             </button>
           }
           @for (s of day.strength; track s.id) {
-            <div class="strength-chip" [class.done]="s.completed" [style.--type-color]="typeMeta('STRENGTH').color">
+            <button
+              type="button"
+              class="strength-chip"
+              [class.done]="s.completed"
+              [style.--type-color]="typeMeta('STRENGTH').color"
+              cdkDrag [cdkDragData]="s" [cdkDragDisabled]="!canWriteSelected()"
+              (click)="openStrength(s)"
+              (contextmenu)="openStrengthMenu(s, $event)"
+              [title]="s.title + ' — cliquer pour voir le détail'">
               <app-icon class="sc-icon" name="dumbbell" [size]="13" />
               <span class="sc-title">{{ s.title }}</span>
               @if (s.sessionPain) { <app-icon class="sc-pain" name="heart-pulse" [size]="12" /> }
-            </div>
+            </button>
           }
           @if (canWriteSelected()) {
             <button type="button" class="add-btn" (click)="addWorkout(day.date)">+</button>
@@ -313,6 +321,59 @@
     <button type="button" class="ctx-item danger" (click)="ctxDelete()"><app-icon name="ban" [size]="14" /> Supprimer</button>
   </div>
 }
+
+<!-- Menu contextuel d'une séance de force planifiée : mêmes gestes que les séances course. -->
+@if (strengthMenu(); as m) {
+  <div class="ctx-backdrop" (click)="closeStrengthMenu()" (contextmenu)="$event.preventDefault(); closeStrengthMenu()"></div>
+  <div class="ctx-menu" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
+    <span class="ctx-title">{{ m.session.title }}</span>
+    <button type="button" class="ctx-item" (click)="ctxStrengthOpen()"><app-icon name="dumbbell" [size]="14" /> Voir le détail</button>
+    <div class="ctx-sep"></div>
+    <label class="ctx-field">Déplacer vers
+      <input type="date" class="form-control" [ngModel]="strengthCtxDate" (ngModelChange)="ctxStrengthMoveTo($event)" />
+    </label>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item danger" (click)="ctxStrengthDelete()"><app-icon name="ban" [size]="14" /> Supprimer</button>
+  </div>
+}
+
+<!-- Détail d'une séance de force planifiée : titre, blocs, exercices, prescription en fourchettes. -->
+<app-side-panel [(open)]="strengthPanelOpen" [title]="strengthDetail()?.title || 'Séance de renforcement'" [width]="480">
+  @if (strengthDetail(); as s) {
+    <div class="sd">
+      <div class="sd__meta">
+        <span class="badge" [class.badge-success]="s.completed" [class.badge-neutral]="!s.completed">
+          {{ s.completed ? 'Réalisée' : 'Prévue' }}
+        </span>
+        <span class="field-hint metric">{{ s.scheduledDate | date: 'EEE d MMM y' }}</span>
+        @if (s.movedByAthlete) { <span class="badge badge-info">Déplacée par l'athlète</span> }
+      </div>
+
+      @if (s.completed) {
+        <div class="sd__fb">
+          @if (s.sessionFatigue != null) { <span>Fatigue <strong class="metric">{{ s.sessionFatigue }}/10</strong></span> }
+          @if (s.sessionPain != null) { <span>Douleur <strong class="metric">{{ s.sessionPain }}/10</strong></span> }
+        </div>
+      }
+
+      @if (strengthRxLoading()) {
+        <div class="skeleton" style="height: 120px;"></div>
+      } @else {
+        <app-strength-prescription-view [prescription]="strengthRx()" />
+      }
+
+      @if (canWriteSelected()) {
+        <div class="sd__actions">
+          <button type="button" class="btn btn-ghost btn-sm" (click)="deleteStrength(s)">
+            <app-icon name="ban" [size]="15" /> Supprimer du calendrier
+          </button>
+        </div>
+      } @else {
+        <p class="field-hint"><app-icon name="lock" [size]="14" /> Lecture seule sur cet athlète.</p>
+      }
+    </div>
+  }
+</app-side-panel>
 
 <!-- Sélecteur de séance course (clic sur « + » d'un jour) : planification structurée en fourchettes.
      L'ancien éditeur « par zones » (valeurs sèches) a été retiré au profit du modèle unique DARI Lab. -->

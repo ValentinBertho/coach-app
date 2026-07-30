@@ -124,7 +124,13 @@
   border: 1px solid color-mix(in srgb, var(--block-classique) 45%, transparent);
   font-size: var(--text-xs);
   font-weight: 600;
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
 }
+.strength-chip:hover { filter: brightness(1.04); }
 .strength-chip.done {
   opacity: 0.6;
 }
@@ -202,6 +208,16 @@
 
 /* Chip de force : rail coloré cohérent avec les types. */
 .strength-chip { border-left: 3px solid var(--type-color, var(--dari-violet)); }
+
+/* --- Détail d'une séance de force planifiée (panneau latéral) ------------- */
+.sd { display: flex; flex-direction: column; gap: var(--sp-4); }
+.sd__meta { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.sd__fb {
+  display: flex; gap: var(--sp-4); flex-wrap: wrap;
+  padding: var(--sp-3); border-radius: var(--radius-md); background: var(--paper-sunk);
+  font-size: var(--text-sm);
+}
+.sd__actions { display: flex; justify-content: flex-end; border-top: 1px solid var(--hairline); padding-top: var(--sp-3); }
 
 /* --- Events non-séance : objectifs, tests, indisponibilités --------------- */
 .day-col--unavailable { background: repeating-linear-gradient(135deg, var(--paper) 0 10px, var(--paper-sunk) 10px 20px); }
