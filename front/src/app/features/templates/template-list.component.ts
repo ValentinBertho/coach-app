@@ -1,3 +1,4 @@
+import { ZoneBarComponent } from '../../shared/components/zone-bar/zone-bar.component';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -15,7 +16,7 @@ import { SessionDetailModalComponent } from '../../shared/components/session-det
   selector: 'app-template-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, ReactiveFormsModule, FormsModule, RouterLink, SessionDetailModalComponent],
+  imports: [IconComponent, ReactiveFormsModule, FormsModule, RouterLink, SessionDetailModalComponent, ZoneBarComponent],
   templateUrl: './template-list.component.html',
   styleUrl: './template-list.component.scss',
 })

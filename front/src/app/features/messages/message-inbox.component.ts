@@ -26,7 +26,7 @@ import { HelpHintComponent } from '../help/help-hint.component';
           @if (unread() > 0) {
             {{ unread() }} message{{ unread() > 1 ? 's' : '' }} non lu{{ unread() > 1 ? 's' : '' }}, tous athlètes confondus.
           } @else {
-            Vos conversations avec vos athlètes, de la plus récente à la plus ancienne.
+            Tes conversations avec tes athlètes, de la plus récente à la plus ancienne.
           }
         </p>
       </div>
@@ -38,7 +38,7 @@ import { HelpHintComponent } from '../help/help-hint.component';
       <div class="card empty-state">
         <h2>Aucune conversation</h2>
         <p class="field-hint">
-          Ouvrez la fiche d'un athlète puis son onglet Messages pour démarrer un échange.
+          Ouvre la fiche d'un athlète puis son onglet Messages pour démarrer un échange.
         </p>
         <a routerLink="/app/athletes" class="btn btn-primary">Voir mes athlètes</a>
       </div>
@@ -56,7 +56,7 @@ import { HelpHintComponent } from '../help/help-hint.component';
                     <span class="field-hint metric">{{ c.lastMessageAt | date: 'd MMM, HH:mm' }}</span>
                   </span>
                   <span class="inbox__preview">
-                    @if (c.lastSenderRole === 'COACH') { <span class="inbox__me">Vous :</span> }
+                    @if (c.lastSenderRole === 'COACH') { <span class="inbox__me">Toi :</span> }
                     {{ excerpt(c.lastMessage) }}
                   </span>
                 </span>

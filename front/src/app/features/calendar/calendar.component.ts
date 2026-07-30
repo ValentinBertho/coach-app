@@ -1,6 +1,6 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteSummary } from '../../core/models/athlete.model';
@@ -35,6 +35,7 @@ import { SessionCategoryService } from '../../core/services/session-category.ser
 import { SessionLibraryPanelComponent } from '../../shared/components/session-library-panel/session-library-panel.component';
 import { StrengthPrescriptionViewComponent } from '../../shared/components/strength-prescription-view/strength-prescription-view.component';
 import { SidePanelComponent } from '../../shared/components/ui';
+import { ZoneBarComponent } from '../../shared/components/zone-bar/zone-bar.component';
 import { Activity } from '../../core/models/activity.model';
 import { ActivityService } from '../../core/services/activity.service';
 
@@ -114,13 +115,13 @@ function mondayOf(d: Date): Date {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule, RouterLink, DragDropModule, DatePipe, IconComponent, HelpHintComponent,
-    SessionLibraryPanelComponent, SidePanelComponent, StrengthPrescriptionViewComponent,
+    SessionLibraryPanelComponent, SidePanelComponent, StrengthPrescriptionViewComponent, ZoneBarComponent,
   ],
   host: { '(document:keydown)': 'onKeydown($event)' },
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.scss',
 })
-export class CalendarComponent implements OnInit {
+export class CalendarComponent implements OnInit, OnDestroy {
   private readonly athleteService = inject(AthleteService);
   private readonly workoutService = inject(WorkoutService);
   private readonly strengthService = inject(StrengthService);
@@ -543,7 +544,7 @@ export class CalendarComponent implements OnInit {
   /** Enregistre les paramètres courants comme « méso type » réutilisable. */
   saveMesoTemplate(): void {
     if (!this.mesoSaveName.trim() || this.mesoSaving()) {
-      this.toast.warning('Donnez un nom au modèle.');
+      this.toast.warning('Donne un nom au modèle.');
       return;
     }
     this.mesoSaving.set(true);
@@ -585,7 +586,7 @@ export class CalendarComponent implements OnInit {
     }
 
     if (this.mesoTarget === 'group') {
-      if (!this.mesoGroupId) { this.toast.warning('Choisissez un groupe.'); return; }
+      if (!this.mesoGroupId) { this.toast.warning('Choisis un groupe.'); return; }
       this.mesoBusy.set(true);
       this.workoutService.generateMesocycleForGroup(this.mesoGroupId, params).subscribe({
         next: (r) => {
@@ -781,6 +782,7 @@ export class CalendarComponent implements OnInit {
     });
   }
   openWorkout(w: Workout): void {
+    if (this.consumeSuppressedClick()) return;
     // Vue séance (lecture) ; l'édition est une action délibérée depuis la page.
     this.router.navigate(['/app/athletes', w.athleteId, 'workouts', w.id]);
   }
@@ -880,7 +882,9 @@ export class CalendarComponent implements OnInit {
     const previous = w.scheduledDate;
     this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x)));
     this.workoutService.reschedule(this.selectedAthleteId, w.id, targetDate).subscribe({
-      next: () => this.toast.success(`Séance déplacée au ${this.fmtDate(targetDate)}`),
+      next: () => this.toast.withAction(
+        `Séance déplacée au ${this.fmtDate(targetDate)}`, 'Annuler',
+        () => this.undoMove(w.id, previous)),
       error: () => {
         this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: previous } : x)));
         this.toast.error('Déplacement impossible.');
@@ -904,10 +908,80 @@ export class CalendarComponent implements OnInit {
     ev.preventDefault();
     if (!this.canWriteSelected()) return;
     this.ctxDate = w.scheduledDate;
-    // Position bornée à la fenêtre pour éviter le débordement.
-    const x = Math.min(ev.clientX, window.innerWidth - 220);
-    const y = Math.min(ev.clientY, window.innerHeight - 260);
+    const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
     this.ctxMenu.set({ workout: w, x, y });
+  }
+
+  // --- Appui long : équivalent tactile du clic droit (CdC) --------------------
+  // Le menu contextuel n'était atteignable qu'à la souris : sur mobile et tablette,
+  // déplacer ou supprimer une séance était tout simplement impossible.
+
+  private static readonly LONG_PRESS_MS = 500;
+  /** Au-delà de ce déplacement, le geste est un glisser, pas un appui long. */
+  private static readonly LONG_PRESS_TOLERANCE_PX = 10;
+
+  private longPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private longPressOrigin: { x: number; y: number } | null = null;
+  /** Un appui long vient d'ouvrir le menu : le clic qui suit ne doit pas ouvrir la séance. */
+  private suppressNextClick = false;
+
+  /** Démarre la détection d'appui long. Ignoré à la souris, qui garde le clic droit. */
+  onChipPointerDown(ev: PointerEvent, target: Workout | ScheduledStrength, kind: 'course' | 'strength'): void {
+    if (ev.pointerType === 'mouse' || !this.canWriteSelected()) return;
+    this.cancelLongPress();
+    this.longPressOrigin = { x: ev.clientX, y: ev.clientY };
+    this.longPressTimer = setTimeout(() => {
+      this.longPressTimer = null;
+      this.suppressNextClick = true;
+      const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
+      if (kind === 'course') {
+        const w = target as Workout;
+        this.ctxDate = w.scheduledDate;
+        this.ctxMenu.set({ workout: w, x, y });
+      } else {
+        const s = target as ScheduledStrength;
+        this.strengthCtxDate = s.scheduledDate;
+        this.strengthMenu.set({ session: s, x, y });
+      }
+      // Retour haptique quand la plateforme le propose : l'appui long est invisible sans lui.
+      navigator.vibrate?.(15);
+    }, CalendarComponent.LONG_PRESS_MS);
+  }
+
+  /** Un déplacement du doigt signifie un glisser : on abandonne l'appui long. */
+  onChipPointerMove(ev: PointerEvent): void {
+    const origin = this.longPressOrigin;
+    if (!this.longPressTimer || !origin) return;
+    const moved = Math.hypot(ev.clientX - origin.x, ev.clientY - origin.y);
+    if (moved > CalendarComponent.LONG_PRESS_TOLERANCE_PX) this.cancelLongPress();
+  }
+
+  onChipPointerUp(): void { this.cancelLongPress(); }
+
+  private cancelLongPress(): void {
+    if (this.longPressTimer) clearTimeout(this.longPressTimer);
+    this.longPressTimer = null;
+    this.longPressOrigin = null;
+  }
+
+  /**
+   * Le clic émis à la fin d'un appui long ne doit pas ouvrir la séance derrière le menu.
+   * Renvoie vrai si le clic a été consommé.
+   */
+  private consumeSuppressedClick(): boolean {
+    if (!this.suppressNextClick) return false;
+    this.suppressNextClick = false;
+    return true;
+  }
+
+  /** Position du menu bornée au viewport : en bord d'écran il sortait du cadre. */
+  private clampToViewport(clientX: number, clientY: number): { x: number; y: number } {
+    const MENU_W = 220;
+    const MENU_H = 260;
+    return {
+      x: Math.max(8, Math.min(clientX, window.innerWidth - MENU_W - 8)),
+      y: Math.max(8, Math.min(clientY, window.innerHeight - MENU_H - 8)),
+    };
   }
   closeContextMenu(): void { this.ctxMenu.set(null); }
 
@@ -937,10 +1011,71 @@ export class CalendarComponent implements OnInit {
       title: 'Supprimer la séance', message: m.workout.title, confirmLabel: 'Supprimer', danger: true,
     });
     if (!ok) return;
-    this.workoutService.delete(this.selectedAthleteId, m.workout.id).subscribe({
-      next: () => { this.toast.info('Séance supprimée.'); this.load(); },
-      error: () => this.toast.error('Suppression impossible.'),
+    this.deleteWorkoutWithUndo(m.workout);
+  }
+
+  // --- Annulation des actions calendrier -------------------------------------
+  // Un déplacement ou une suppression par erreur ne doit pas coûter une reconstruction
+  // manuelle : le toast porte l'action réparatrice.
+
+  /** Remet une séance à sa date d'origine (annulation d'un déplacement). */
+  private undoMove(workoutId: string, originalDate: string): void {
+    this.workouts.update((l) => l.map((x) => (x.id === workoutId ? { ...x, scheduledDate: originalDate } : x)));
+    this.workoutService.reschedule(this.selectedAthleteId, workoutId, originalDate).subscribe({
+      next: () => this.toast.info('Déplacement annulé.'),
+      error: () => { this.toast.error('Annulation impossible.'); this.load(); },
     });
+  }
+
+  private undoStrengthMove(scheduledId: string, originalDate: string): void {
+    this.strength.update((l) => l.map((x) => (x.id === scheduledId ? { ...x, scheduledDate: originalDate } : x)));
+    this.strengthService.rescheduleScheduled(this.selectedAthleteId, scheduledId, originalDate).subscribe({
+      next: () => this.toast.info('Déplacement annulé.'),
+      error: () => { this.toast.error('Annulation impossible.'); this.reloadStrength(); },
+    });
+  }
+
+  /**
+   * Suppressions différées : la séance disparaît immédiatement de l'écran mais n'est réellement
+   * supprimée qu'à l'expiration du toast. Annuler la fait simplement réapparaître — aucune
+   * reconstruction côté serveur, donc aucun risque de perdre la prescription figée.
+   */
+  private readonly pendingDeletions = new Map<string, ReturnType<typeof setTimeout>>();
+  private static readonly UNDO_WINDOW_MS = 8000;
+
+  private deleteWorkoutWithUndo(w: Workout): void {
+    const removed = this.workouts().find((x) => x.id === w.id);
+    if (!removed) return;
+    this.workouts.update((l) => l.filter((x) => x.id !== w.id));
+
+    const timer = setTimeout(() => {
+      this.pendingDeletions.delete(w.id);
+      this.workoutService.delete(this.selectedAthleteId, w.id).subscribe({
+        error: () => { this.toast.error('Suppression impossible.'); this.load(); },
+      });
+    }, CalendarComponent.UNDO_WINDOW_MS);
+    this.pendingDeletions.set(w.id, timer);
+
+    this.toast.withAction(`« ${w.title} » supprimée`, 'Annuler', () => {
+      const pending = this.pendingDeletions.get(w.id);
+      if (!pending) return; // la fenêtre est passée : la suppression est déjà partie
+      clearTimeout(pending);
+      this.pendingDeletions.delete(w.id);
+      this.workouts.update((l) => [...l, removed]);
+      this.toast.info('Suppression annulée.');
+    }, 'info');
+  }
+
+  /**
+   * Quitter l'écran valide les suppressions en attente : on ne laisse pas une séance
+   * « supprimée à l'écran » ressusciter au prochain chargement.
+   */
+  ngOnDestroy(): void {
+    for (const [workoutId, timer] of this.pendingDeletions) {
+      clearTimeout(timer);
+      this.workoutService.delete(this.selectedAthleteId, workoutId).subscribe({ error: () => { /* best-effort */ } });
+    }
+    this.pendingDeletions.clear();
   }
 
   // --- Séances de force planifiées : détail, déplacement, suppression ---------
@@ -956,6 +1091,7 @@ export class CalendarComponent implements OnInit {
 
   /** Ouvre le panneau de détail d'une séance de force (prescription figée + charges calculées). */
   openStrength(s: ScheduledStrength): void {
+    if (this.consumeSuppressedClick()) return;
     this.strengthDetail.set(s);
     this.strengthRx.set(null);
     this.strengthRxLoading.set(true);
@@ -970,8 +1106,7 @@ export class CalendarComponent implements OnInit {
     ev.preventDefault();
     if (!this.canWriteSelected()) return;
     this.strengthCtxDate = s.scheduledDate;
-    const x = Math.min(ev.clientX, window.innerWidth - 220);
-    const y = Math.min(ev.clientY, window.innerHeight - 220);
+    const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
     this.strengthMenu.set({ session: s, x, y });
   }
   closeStrengthMenu(): void { this.strengthMenu.set(null); }
@@ -997,7 +1132,9 @@ export class CalendarComponent implements OnInit {
     const previous = s.scheduledDate;
     this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, scheduledDate: targetDate } : x)));
     this.strengthService.rescheduleScheduled(this.selectedAthleteId, s.id, targetDate).subscribe({
-      next: () => this.toast.success(`${s.title} déplacée au ${this.fmtDate(targetDate)}`),
+      next: () => this.toast.withAction(
+        `${s.title} déplacée au ${this.fmtDate(targetDate)}`, 'Annuler',
+        () => this.undoStrengthMove(s.id, previous)),
       error: () => {
         this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, scheduledDate: previous } : x)));
         this.toast.error('Déplacement impossible.');
@@ -1055,12 +1192,6 @@ export class CalendarComponent implements OnInit {
     if (ev.key === 'ArrowLeft') { this.shift(-1); ev.preventDefault(); }
     else if (ev.key === 'ArrowRight') { this.shift(1); ev.preventDefault(); }
     else if (ev.key === 't' || ev.key === 'T') { this.goToday(); ev.preventDefault(); }
-  }
-
-  zonesOf(w: Workout): string[] {
-    const order = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
-    const present = new Set(w.steps.map((s) => s.zone).filter((z): z is NonNullable<typeof z> => !!z));
-    return order.filter((z) => present.has(z as never));
   }
 
   private gridStart(): Date {

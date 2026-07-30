@@ -33,8 +33,8 @@ type State = 'loading' | 'ok' | 'invalid';
             <span class="badge badge-info">{{ info()?.clubName }}</span>
             <h1 class="display-sm">Bienvenue {{ info()?.athleteFirstName }}</h1>
             <p class="field-hint">
-              Votre coach vous invite à rejoindre Darilab. Choisissez vos identifiants pour
-              accéder à votre espace et vous reconnecter quand vous le souhaitez.
+              Ton coach t'invite à rejoindre Darilab. Choisis tes identifiants pour
+              accéder à ton espace et te reconnecter quand tu le souhaites.
             </p>
             <div class="field">
               <label class="field-label" for="inv-email">E-mail</label>
@@ -60,7 +60,7 @@ type State = 'loading' | 'ok' | 'invalid';
           @case ('invalid') {
             <span class="badge badge-danger">Lien invalide</span>
             <h1 class="display-sm">Invitation expirée</h1>
-            <p class="field-hint">Ce lien d'invitation n'est plus valide. Demandez-en un nouveau à votre coach.</p>
+            <p class="field-hint">Ce lien d'invitation n'est plus valide. Demandes-en un nouveau à ton coach.</p>
           }
         }
       </div>
@@ -115,7 +115,7 @@ export class InvitationComponent implements OnInit {
       next: () => this.router.navigate(['/athlete/today']),
       error: (err) => {
         this.joining.set(false);
-        this.error.set(err?.error?.message ?? 'Impossible de finaliser. Vérifiez vos identifiants.');
+        this.error.set(err?.error?.message ?? 'Impossible de finaliser. Vérifie tes identifiants.');
       },
     });
   }

@@ -7,6 +7,7 @@ import { AthleteService } from '../../core/services/athlete.service';
 import { CourseService } from '../../core/services/course.service';
 import { WorkoutService } from '../../core/services/workout.service';
 import { ToastService } from '../../core/services/toast.service';
+import { rpeWithLabel } from '../../shared/components/rpe-scale';
 import { RunDrillService } from '../../core/services/run-drill.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
@@ -435,6 +436,12 @@ export class SessionEditorComponent implements OnInit {
     if (!a || !r?.prescription?.zoneId) return;
     this.course.sessionCalc(a, { zoneId: r.prescription.zoneId, distanceM: r.distanceM, durationS: r.durationS })
       .subscribe((c) => this.recCalc.update((map) => ({ ...map, [b.id]: c })));
+  }
+
+  /** Infobulle du RPE de bloc : « Effort perçu visé — 7 — très dur ». */
+  rpeTitle(rpe: number | null | undefined): string {
+    const label = rpeWithLabel(rpe);
+    return label ? `Effort perçu visé — ${label}` : 'Effort perçu visé (RPE 1–10)';
   }
 
   removeBlock(key: keyof SessionStructure, id: string): void {

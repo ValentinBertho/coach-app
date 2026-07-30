@@ -117,3 +117,17 @@
 /* Incitation à saisir une perf quand l'athlète n'a pas d'allures (VDOT). */
 .paces-prompt { display: flex; align-items: center; gap: var(--sp-2); text-decoration: none; color: var(--ink); padding: var(--sp-3); }
 .paces-prompt span { flex: 1; font-size: var(--text-sm); }
+
+/* Repère verbal CR10 sous l'échelle RPE : un chiffre nu n'est pas un repère partagé. */
+.rpe-word {
+  display: block; margin-top: var(--sp-1);
+  font-size: var(--text-sm); font-weight: 700; color: var(--ink-2); text-align: right;
+}
+/* Cible tactile confortable (≥ 44 px) pour la recopie de série. */
+.set-repeat {
+  min-width: 44px; min-height: 44px;
+  border: 1px solid var(--hairline); border-radius: var(--radius-sm);
+  background: var(--paper-sunk); color: var(--ink-2);
+  font-size: var(--text-md); cursor: pointer;
+}
+.set-repeat:active { background: var(--primary-wash); color: var(--primary); }

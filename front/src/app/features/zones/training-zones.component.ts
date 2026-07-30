@@ -32,9 +32,9 @@ import { ToastService } from '../../core/services/toast.service';
   template: `
     <section class="page-header">
       <div>
-        <h1 class="display-sm">Zones du club</h1>
+        <h1 class="display-sm">Mes zones</h1>
         <p class="subtitle">
-          Définissez vos zones de travail et les métriques qu'elles portent. Les valeurs concrètes
+          Définis tes zones de travail et les métriques qu'elles portent. Les valeurs concrètes
           (allure, FC…) se règlent sur chaque fiche athlète.
         </p>
       </div>
@@ -52,7 +52,7 @@ import { ToastService } from '../../core/services/toast.service';
     @if (loading()) {
       <div class="card"><div class="skeleton" style="height: 120px;"></div></div>
     } @else if (zones().length === 0) {
-      <div class="card empty-state"><h2>Aucune zone</h2><p class="field-hint">Ajoutez votre première zone de travail.</p></div>
+      <div class="card empty-state"><h2>Aucune zone</h2><p class="field-hint">Ajoute ta première zone de travail.</p></div>
     } @else {
       <!-- Échelles par métrique (façon Nolio) : chaque onglet montre l'échelle d'une métrique. -->
       <div class="scale-tabs" role="tablist">
@@ -140,7 +140,7 @@ import { ToastService } from '../../core/services/toast.service';
               @if (configId() === z.id) {
                 <div class="config">
                   <span class="config-label">Métriques portées par cette zone :</span>
-                  <p class="config-hint field-hint">Ajoutez les métriques pertinentes (allure, vitesse, FC, % FC max, puissance). Chacune s'ancre à une valeur de référence de l'athlète (LT1, LT2, VC, VMA, allures VDOT…) dans la règle ci-dessous, et se recalcule quand cette référence change. L'effort perçu (RPE) ne se règle pas ici : il se saisit sur le contenu de la séance.</p>
+                  <p class="config-hint field-hint">Ajoute les métriques pertinentes (allure, vitesse, FC, % FC max, puissance). Chacune s'ancre à une valeur de référence de l'athlète (LT1, LT2, VC, VMA, allures VDOT…) dans la règle ci-dessous, et se recalcule quand cette référence change. L'effort perçu (RPE) ne se règle pas ici : il se saisit sur le contenu de la séance.</p>
                   <div class="metric-toggles">
                     @for (m of metrics(); track m.id) {
                       <button type="button" class="toggle" [class.on]="z.metricTypeIds.includes(m.id)" (click)="toggleMetric(z, m)">{{ m.name }}</button>
@@ -348,7 +348,10 @@ export class TrainingZonesComponent implements OnInit {
     this.zoneService.create({ name, color: this.draft.color, description: this.draft.description || null }).subscribe((z) => {
       this.zones.update((list) => [...list, z]);
       this.draft = { name: '', color: '#22c55e', description: '' };
-      this.toast.success('Zone ajoutée.');
+      // Une zone neuve n'a ni métrique ni règle : sans enchaîner sur sa configuration, elle
+      // reste vide et le coach ne comprend pas pourquoi elle ne calcule rien.
+      this.configId.set(z.id);
+      this.toast.success('Zone ajoutée — choisis ses métriques et sa règle de calcul.');
     });
   }
 

@@ -30,7 +30,7 @@ const FORM_DOT: Record<string, string> = { GREEN: 'form-dot--green', ORANGE: 'fo
     } @else {
       @if (data(); as d) {
       @if (d.athleteCount === 0) {
-        <div class="card empty-state"><h2>Groupe vide</h2><p class="field-hint">Ajoutez des athlètes à ce groupe pour voir ses analytics.</p></div>
+        <div class="card empty-state"><h2>Groupe vide</h2><p class="field-hint">Ajoute des athlètes à ce groupe pour voir ses analytics.</p></div>
       } @else {
       <div class="kpi-rail">
         <app-metric-card label="ACWR moyen" [value]="d.totals.avgAcwr ?? '—'" [decimals]="2" origin="calcule"

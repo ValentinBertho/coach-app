@@ -4,6 +4,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { BreadcrumbService } from '../../core/services/breadcrumb.service';
+import { CommandPaletteService } from '../../core/services/command-palette.service';
 import { MessageService } from '../../core/services/message.service';
 import { ToastService } from '../../core/services/toast.service';
 import { HelpService } from '../help/help.service';
@@ -30,6 +31,7 @@ export class CoachLayoutComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   readonly help = inject(HelpService);
+  readonly palette = inject(CommandPaletteService);
   private readonly breadcrumb = inject(BreadcrumbService);
   private readonly messages = inject(MessageService);
   private readonly destroyRef = inject(DestroyRef);
@@ -93,7 +95,7 @@ export class CoachLayoutComponent implements OnInit {
 
   logout(): void {
     this.auth.logout();
-    this.toast.info('Vous êtes déconnecté.');
+    this.toast.info('Tu es déconnecté·e.');
     this.router.navigate(['/login']);
   }
 }

@@ -31,7 +31,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
           }),
           catchError((refreshError) => {
             auth.logout();
-            toast.error('Session expirée, veuillez vous reconnecter.');
+            toast.error('Session expirée, reconnecte-toi.');
             return throwError(() => refreshError);
           }),
         );
@@ -40,11 +40,11 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       if (!silent) {
         switch (error.status) {
           case 0:
-            toast.error('Connexion impossible — vérifiez votre réseau.');
+            toast.error('Connexion impossible — vérifie ton réseau.');
             break;
           case 401:
             auth.logout();
-            toast.error('Session expirée, veuillez vous reconnecter.');
+            toast.error('Session expirée, reconnecte-toi.');
             break;
           case 403:
             toast.error('Accès refusé.');

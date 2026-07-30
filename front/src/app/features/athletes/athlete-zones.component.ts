@@ -12,6 +12,7 @@ import { TrainingZoneService } from '../../core/services/training-zone.service';
 import { AthleteZoneValueService } from '../../core/services/athlete-zone-value.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 
 interface EditState {
   key: string;
@@ -33,8 +34,8 @@ interface EditState {
       <div>
         <h1 class="display-sm">Zones de l'athlète</h1>
         <p class="subtitle">
-          Valeurs pré-remplies depuis le profil (allure/FC). Ajustez et verrouillez les cibles ;
-          le resync respecte vos valeurs manuelles et verrouillées.
+          Valeurs pré-remplies depuis le profil (allure/FC). Ajuste et verrouille les cibles ;
+          le resync respecte tes valeurs manuelles et verrouillées.
         </p>
       </div>
       <button type="button" class="btn btn-accent btn-sm" (click)="resync()" [disabled]="busy()">
@@ -47,7 +48,7 @@ interface EditState {
     } @else if (zones().length === 0) {
       <div class="card empty-state">
         <h2>Aucune zone</h2>
-        <p class="field-hint">Définissez d'abord vos zones dans <a routerLink="/app/training-zones">Zones du club</a>.</p>
+        <p class="field-hint">Définis d'abord tes zones dans <a routerLink="/app/training-zones">Mes zones</a>.</p>
       </div>
     } @else {
       <!-- Références (ancres) : pilotent le calcul des zones. -->
@@ -85,7 +86,7 @@ interface EditState {
         <span><app-icon name="refresh-cw" [size]="14" /> auto</span>
         <span><app-icon name="pencil" [size]="14" /> manuel</span>
         <span><app-icon name="lock" [size]="14" /> verrouillé</span>
-        <span class="legend-hint">La règle sous chaque zone vient de « Zones du club » — <a routerLink="/app/training-zones">la régler</a>.</span>
+        <span class="legend-hint">La règle sous chaque zone vient de « Mes zones » — <a routerLink="/app/training-zones">la régler</a>.</span>
       </div>
 
       <div class="card table-wrap">
@@ -199,6 +200,7 @@ export class AthleteZonesComponent implements OnInit {
   private readonly valueService = inject(AthleteZoneValueService);
   private readonly physio = inject(PhysioService);
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
 
   readonly zones = signal<TrainingZone[]>([]);
   readonly metrics = signal<MetricType[]>([]);
@@ -411,13 +413,32 @@ export class AthleteZonesComponent implements OnInit {
     });
   }
 
-  resync(): void {
+  /**
+   * Le resync réécrit les valeurs AUTO non verrouillées. Le coach découvrait le résultat après
+   * coup : on annonce d'abord combien de valeurs vont changer, et lesquelles sont préservées.
+   */
+  async resync(): Promise<void> {
+    const impacted = this.values().filter((v) => v.source === 'AUTO' && !v.locked).length;
+    const preserved = this.values().length - impacted;
+    if (impacted === 0) {
+      this.toast.info('Rien à resynchroniser : toutes les valeurs sont manuelles ou verrouillées.');
+      return;
+    }
+    const ok = await this.confirm.ask({
+      title: 'Resynchroniser les zones',
+      message: `${impacted} valeur${impacted > 1 ? 's' : ''} recalculée${impacted > 1 ? 's' : ''} depuis le profil`
+        + (preserved > 0
+          ? ` — ${preserved} valeur${preserved > 1 ? 's' : ''} manuelle${preserved > 1 ? 's' : ''} ou verrouillée${preserved > 1 ? 's' : ''} préservée${preserved > 1 ? 's' : ''}.`
+          : '.'),
+      confirmLabel: 'Resynchroniser',
+    });
+    if (!ok) return;
     this.busy.set(true);
     this.valueService.resync(this.athleteId()).subscribe({
       next: (values) => {
         this.values.set(values);
         this.busy.set(false);
-        this.toast.success('Valeurs resynchronisées.');
+        this.toast.success(`${impacted} valeur${impacted > 1 ? 's' : ''} resynchronisée${impacted > 1 ? 's' : ''}.`);
       },
       error: () => this.busy.set(false),
     });

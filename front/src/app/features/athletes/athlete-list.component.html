@@ -1,7 +1,7 @@
 <section class="page-header">
   <div>
     <h1 class="display-sm">Athlètes</h1>
-    <p class="subtitle">Gérez vos athlètes et leur profil.</p>
+    <p class="subtitle">Gère tes athlètes et leur profil.</p>
   </div>
   <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
 </section>
@@ -31,7 +31,7 @@
     @if (athletes().length === 0) {
       <div class="card empty-state">
         <h2>Aucun athlète</h2>
-        <p class="field-hint">Commencez par créer votre premier athlète.</p>
+        <p class="field-hint">Commence par créer ton premier athlète.</p>
         <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
       </div>
     } @else {
@@ -41,7 +41,15 @@
             <div class="athlete-main">
               <span class="avatar">{{ a.firstName[0] }}{{ a.lastName[0] }}</span>
               <div>
-                <div class="athlete-name">{{ a.firstName }} {{ a.lastName }}</div>
+                <div class="athlete-name">
+                  {{ a.firstName }} {{ a.lastName }}
+                  <!-- Forme (fatigue + douleur) : il fallait revenir au dashboard pour savoir
+                       qui allait mal. Couleur + libellé accessible, jamais la couleur seule. -->
+                  @if (formOf(a.id); as f) {
+                    <app-form-pill [level]="f.level" [fatigue]="f.fatigue" [pain]="f.pain"
+                                   [stale]="f.stale" [compact]="true" />
+                  }
+                </div>
                 @if (a.level) { <span class="field-hint">{{ a.level }}</span> }
               </div>
             </div>

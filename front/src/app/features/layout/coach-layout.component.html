@@ -4,7 +4,10 @@
     <div class="brand">
       <app-logo [size]="30" [showText]="!navCollapsed()" />
       @if (!navCollapsed()) {
-        <button type="button" class="btn btn-ghost btn-sm" (click)="help.openSearch()" aria-label="Rechercher dans l'aide"><app-icon name="search" [size]="18" /></button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="palette.show()"
+                aria-label="Recherche globale (Ctrl+K)" title="Rechercher — Ctrl+K">
+          <app-icon name="search" [size]="18" />
+        </button>
         <app-notification-bell />
       }
     </div>
@@ -35,7 +38,7 @@
 
       <span class="snav-group">Club</span>
       <a routerLink="/app/club" routerLinkActive="active" title="Club"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
-      <a routerLink="/app/training-zones" routerLinkActive="active" title="Zones du club"><app-icon name="target" [size]="18" /><span>Zones du club</span></a>
+      <a routerLink="/app/training-zones" routerLinkActive="active" title="Mes zones d'intensité"><app-icon name="target" [size]="18" /><span>Mes zones</span></a>
 
       <span class="snav-group">Réglages</span>
       <a routerLink="/app/settings" routerLinkActive="active" title="Paramètres"><app-icon name="settings" [size]="18" /><span>Paramètres</span></a>
@@ -56,7 +59,8 @@
     <header class="topbar mobile-only">
       <app-logo [size]="26" [showText]="true" />
       <div class="user">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="help.openSearch()" aria-label="Rechercher dans l'aide"><app-icon name="search" [size]="18" /></button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="palette.show()"
+                aria-label="Recherche globale"><app-icon name="search" [size]="18" /></button>
         <app-notification-bell />
         <a routerLink="/app/aide" class="btn btn-ghost btn-sm" aria-label="Aide"><app-icon name="life-buoy" [size]="18" /></a>
         <app-push-button />
@@ -83,7 +87,7 @@
 
     @if (user()?.emailVerified === false) {
       <div class="verify-banner">
-        <span><app-icon name="bell" [size]="16" /> Confirmez votre adresse e-mail pour sécuriser votre compte.</span>
+        <span><app-icon name="bell" [size]="16" /> Confirme ton adresse e-mail pour sécuriser ton compte.</span>
         <button type="button" class="btn btn-ghost btn-sm" (click)="resendVerification()" [disabled]="resending()">
           {{ resending() ? 'Envoi…' : 'Renvoyer l\'e-mail' }}
         </button>
@@ -116,7 +120,7 @@
 
         <span class="snav-group">Club</span>
         <a routerLink="/app/club" routerLinkActive="active" (click)="closeMore()"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
-        <a routerLink="/app/training-zones" routerLinkActive="active" (click)="closeMore()"><app-icon name="target" [size]="18" /><span>Zones du club</span></a>
+        <a routerLink="/app/training-zones" routerLinkActive="active" (click)="closeMore()"><app-icon name="target" [size]="18" /><span>Mes zones</span></a>
 
         <span class="snav-group">Réglages</span>
         <a routerLink="/app/settings" routerLinkActive="active" (click)="closeMore()"><app-icon name="settings" [size]="18" /><span>Paramètres</span></a>

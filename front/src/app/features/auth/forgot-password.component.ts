@@ -19,13 +19,13 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
         <header class="auth-head">
           <app-logo [size]="44" [showText]="false" />
           <h1 class="display-sm">Mot de passe oublié</h1>
-          <p class="field-hint">Indiquez votre e-mail : nous vous enverrons un lien de réinitialisation.</p>
+          <p class="field-hint">Indique ton e-mail : on t'enverra un lien de réinitialisation.</p>
         </header>
 
         @if (sent()) {
           <p class="field-hint">
             Si un compte est associé à cette adresse, un e-mail contenant un lien de
-            réinitialisation vient d'être envoyé. Pensez à vérifier vos indésirables.
+            réinitialisation vient d'être envoyé. Pense à vérifier tes indésirables.
           </p>
           <a class="btn btn-primary btn-lg" routerLink="/login">Retour à la connexion</a>
         } @else {

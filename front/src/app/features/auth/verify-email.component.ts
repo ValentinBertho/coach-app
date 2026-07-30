@@ -25,12 +25,12 @@ type State = 'loading' | 'ok' | 'invalid';
           @case ('loading') { <p class="field-hint">Confirmation en cours…</p> }
           @case ('ok') {
             <span class="badge badge-success">E-mail confirmé</span>
-            <p class="field-hint">Votre adresse est vérifiée. Merci !</p>
+            <p class="field-hint">Ton adresse est vérifiée. Merci !</p>
             <a class="btn btn-primary btn-lg" routerLink="/app">Accéder à mon espace</a>
           }
           @case ('invalid') {
             <span class="badge badge-danger">Lien invalide</span>
-            <p class="field-hint">Ce lien de vérification est invalide ou expiré. Reconnectez-vous puis renvoyez l'e-mail depuis le bandeau.</p>
+            <p class="field-hint">Ce lien de vérification est invalide ou expiré. Reconnecte-toi puis renvoie l'e-mail depuis le bandeau.</p>
             <a class="btn btn-ghost btn-lg" routerLink="/login">Se connecter</a>
           }
         }

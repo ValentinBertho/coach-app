@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -14,7 +15,7 @@ import { TimeInZoneBarComponent } from '../../shared/components/time-in-zone-bar
   selector: 'app-activity-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, TimeInZoneBarComponent],
+  imports: [ReactiveFormsModule, RouterLink, DatePipe, TimeInZoneBarComponent],
   templateUrl: './activity-list.component.html',
   styleUrl: './activity-list.component.scss',
 })

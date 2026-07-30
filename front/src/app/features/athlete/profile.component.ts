@@ -180,14 +180,14 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
 
         <div class="card">
           <h2>Mes données (RGPD)</h2>
-          <p class="field-hint">Téléchargez l'ensemble de vos données personnelles (portabilité).</p>
+          <p class="field-hint">Télécharge l'ensemble de tes données personnelles (portabilité).</p>
           <button type="button" class="btn btn-ghost" (click)="exportData()">Exporter mes données (JSON)</button>
         </div>
 
         <div class="card danger-zone">
           <div>
             <strong>Supprimer mon compte</strong>
-            <p class="field-hint">Efface définitivement votre profil, vos séances et activités.</p>
+            <p class="field-hint">Efface définitivement ton profil, tes séances et activités.</p>
           </div>
           <button type="button" class="btn btn-danger" (click)="deleteAccount()">Supprimer</button>
         </div>
@@ -355,7 +355,7 @@ export class AthleteProfileComponent implements OnInit {
     if (!ok) return;
     this.portal.deleteAccount().subscribe(() => {
       this.auth.logout();
-      this.toast.info('Votre compte a été supprimé.');
+      this.toast.info('Ton compte a été supprimé.');
       this.router.navigate(['/']);
     });
   }

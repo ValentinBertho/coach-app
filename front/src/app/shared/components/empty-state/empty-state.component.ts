@@ -8,7 +8,7 @@ import { IconComponent } from '../icon/icon.component';
  *
  * @example
  * <app-empty-state icon="flask-conical" title="Aucun test"
- *   hint="Enregistrez un test de lactate pour calibrer les zones.">
+ *   hint="Enregistre un test de lactate pour calibrer les zones.">
  *   <button class="btn btn-primary">Nouveau test</button>
  * </app-empty-state>
  */

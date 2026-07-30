@@ -10,7 +10,9 @@ import { BreadcrumbService } from '../../core/services/breadcrumb.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { PhysioProfile } from '../../core/models/physio.model';
-import { DataOriginTagComponent, type DataOrigin } from '../../shared/components/physiology';
+import { DataOriginTagComponent, type DataOrigin, type FormLevel } from '../../shared/components/physiology';
+import { FormPillComponent } from '../../shared/components/form-pill/form-pill.component';
+import { AthleteForm, CoachDashboardService, FormStatus } from '../../core/services/coach-dashboard.service';
 
 const STATUS_LABELS: Record<AthleteStatus, string> = { ACTIVE: 'Actif', PAUSED: 'En pause', ARCHIVED: 'Archivé' };
 const STATUS_BADGES: Record<AthleteStatus, string> = { ACTIVE: 'badge-success', PAUSED: 'badge-warning', ARCHIVED: 'badge-neutral' };
@@ -51,7 +53,7 @@ const SECTION_LABELS: Record<string, string> = {
   selector: 'app-athlete-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, FormsModule, DataOriginTagComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, FormsModule, DataOriginTagComponent, FormPillComponent],
   // Au défilement, le bandeau se réduit à une ligne : il ne mange pas l'écran, mais il ne
   // disparaît jamais — c'est tout l'intérêt d'un contexte persistant.
   host: { '(window:scroll)': 'onScroll()' },
@@ -115,15 +117,53 @@ const SECTION_LABELS: Record<string, string> = {
 
           <!-- Actions portant sur l'athlète entier : place fixe, quel que soit l'onglet. -->
           <div class="shell-actions">
-            <button type="button" class="btn btn-ghost btn-sm" (click)="exportProgram()">
-              <app-icon name="file-text" [size]="15" /> PDF
-            </button>
+            <!-- L'export était figé sur 4 semaines : la période se choisit désormais. -->
+            <div class="export-wrap">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="exportOpen.set(!exportOpen())"
+                      aria-haspopup="dialog" [attr.aria-expanded]="exportOpen()">
+                <app-icon name="file-text" [size]="15" /> PDF
+              </button>
+              @if (exportOpen()) {
+                <div class="export-pop" role="dialog" aria-label="Exporter le programme">
+                  <span class="ep-lb">Période à exporter</span>
+                  <div class="ep-presets">
+                    @for (p of exportPresets; track p.weeks) {
+                      <button type="button" class="ep-preset" [class.active]="exportWeeks() === p.weeks"
+                              (click)="setExportWeeks(p.weeks)">{{ p.label }}</button>
+                    }
+                  </div>
+                  <div class="ep-dates">
+                    <label>Du <input type="date" class="form-control" [(ngModel)]="exportFrom" /></label>
+                    <label>Au <input type="date" class="form-control" [(ngModel)]="exportTo" /></label>
+                  </div>
+                  <div class="ep-actions">
+                    <button type="button" class="btn btn-ghost btn-sm" (click)="exportOpen.set(false)">Annuler</button>
+                    <button type="button" class="btn btn-primary btn-sm" (click)="exportProgram()" [disabled]="exporting()">
+                      Exporter
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
             <a [routerLink]="['/app/athletes', athleteId(), 'edit']" class="btn btn-ghost btn-sm">Modifier</a>
             <button type="button" class="btn btn-primary btn-sm" (click)="invite()">Inviter</button>
           </div>
         </div>
 
         <dl class="stat-strip">
+          <!-- Forme (fatigue + douleur) : l'info clé du cockpit disparaissait dès qu'on
+               entrait sur la fiche. Couleur + libellé, jamais la couleur seule. -->
+          <div class="stat-strip__item">
+            <dt>Forme</dt>
+            <dd>
+              @if (form(); as f) {
+                <app-form-pill [level]="f.level" [fatigue]="f.fatigue" [pain]="f.pain" [stale]="f.stale" />
+                @if (f.stale) { <span class="field-hint">Aucun retour récent</span> }
+              } @else {
+                <span class="field-hint">—</span>
+              }
+            </dd>
+          </div>
           <div class="stat-strip__item"><dt>FC max</dt><dd class="metric">{{ a.hrMax ?? '—' }}<small>{{ a.hrMax ? 'bpm' : '' }}</small></dd></div>
           <div class="stat-strip__item"><dt>FC repos</dt><dd class="metric">{{ a.hrRest ?? '—' }}<small>{{ a.hrRest ? 'bpm' : '' }}</small></dd></div>
           <!-- Une seule source de vérité visible : la valeur du moteur physio (LT2, puis VC)
@@ -217,6 +257,25 @@ const SECTION_LABELS: Record<string, string> = {
     .stepper .icon-btn:disabled { opacity: .4; cursor: default; }
     .shell-id .subtitle { margin: 2px 0 0; color: var(--ink-3); font-size: var(--text-sm); }
     .shell-actions { margin-left: auto; display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+    .export-wrap { position: relative; }
+    .export-pop {
+      position: absolute; top: calc(100% + var(--sp-2)); right: 0; z-index: 30;
+      width: 280px; padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2);
+      background: var(--paper); border: 1px solid var(--hairline);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+    }
+    .ep-lb { font-size: var(--text-xs); font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.03em; }
+    .ep-presets { display: flex; gap: var(--sp-2); }
+    .ep-preset {
+      flex: 1; padding: var(--sp-1) var(--sp-2); border: 1px solid var(--hairline);
+      border-radius: var(--radius-full); background: var(--paper); color: var(--ink-2);
+      font-size: var(--text-xs); font-weight: 700; cursor: pointer;
+    }
+    .ep-preset.active { background: var(--primary-wash); color: var(--primary); border-color: var(--primary-light); }
+    .ep-dates { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .ep-dates label { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); color: var(--ink-2); }
+    .ep-dates .form-control { flex: 1; }
+    .ep-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); }
 
     /* Version compacte : on retire les métriques et les actions, on garde identité + onglets. */
     .shell-head--compact { gap: var(--sp-2); padding-top: var(--sp-3); box-shadow: var(--shadow-sm); }
@@ -263,6 +322,17 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly physio = inject(PhysioService);
+  private readonly dashboardService = inject(CoachDashboardService);
+
+  /** État de forme de l'athlète courant (même source que le cockpit). */
+  private readonly formData = signal<AthleteForm | null>(null);
+
+  readonly form = computed<{ level: FormLevel; fatigue: number | null; pain: number | null; stale: boolean } | null>(() => {
+    const f = this.formData();
+    if (!f) return null;
+    const levels: Record<FormStatus, FormLevel> = { GREEN: 'green', ORANGE: 'orange', RED: 'red' };
+    return { level: levels[f.formStatus], fatigue: f.fatigue, pain: f.pain, stale: !f.lastFeedbackDate };
+  });
 
   readonly athlete = signal<Athlete | null>(null);
   /** Profil physio : source de vérité des vitesses de référence (LT2, VC, VDOT). */
@@ -396,11 +466,17 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
     });
     // Profil physio : détermine la vitesse de référence affichée (moteur avant VMA saisie).
     this.physioProfile.set(null);
+    this.formData.set(null);
+    const formSub = this.dashboardService.form('all').subscribe({
+      next: (f) => this.formData.set(
+        [...f.routeAthletes, ...f.trailAthletes].find((a) => a.id === id) ?? null),
+      error: () => this.formData.set(null),
+    });
     const physioSub = this.physio.profile(id).subscribe({
       next: (p) => this.physioProfile.set(p),
       error: () => this.physioProfile.set(null),
     });
-    onCleanup(() => { sub.unsubscribe(); physioSub.unsubscribe(); });
+    onCleanup(() => { sub.unsubscribe(); physioSub.unsubscribe(); formSub.unsubscribe(); });
   }, { allowSignalWrites: true });
 
   ngOnDestroy(): void {
@@ -424,22 +500,56 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Télécharge le programme PDF des 4 prochaines semaines. */
+  // --- Export PDF : la période se choisit -----------------------------------
+  readonly exportOpen = signal(false);
+  readonly exportWeeks = signal(4);
+  readonly exporting = signal(false);
+  exportFrom = this.isoToday();
+  exportTo = this.isoInDays(28);
+
+  readonly exportPresets = [
+    { weeks: 2, label: '2 semaines' },
+    { weeks: 4, label: '4 semaines' },
+    { weeks: 8, label: '8 semaines' },
+  ];
+
+  /** Un préréglage réécrit les deux dates ; celles-ci restent librement ajustables ensuite. */
+  setExportWeeks(weeks: number): void {
+    this.exportWeeks.set(weeks);
+    this.exportFrom = this.isoToday();
+    this.exportTo = this.isoInDays(weeks * 7);
+  }
+
+  private isoToday(): string { return this.isoInDays(0); }
+
+  private isoInDays(days: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /** Télécharge le programme PDF sur la période choisie. */
   exportProgram(): void {
-    const today = new Date();
-    const from = today.toISOString().slice(0, 10);
-    const to = new Date(today.getTime() + 28 * 86400000).toISOString().slice(0, 10);
+    const from = this.exportFrom;
+    const to = this.exportTo;
+    if (!from || !to || to < from) {
+      this.toast.warning('Période invalide : la date de fin doit suivre la date de début.');
+      return;
+    }
+    this.exporting.set(true);
     this.athleteService.exportProgram(this.athleteId(), from, to).subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'programme.pdf';
+        a.download = `programme-${from}-${to}.pdf`;
         a.click();
         URL.revokeObjectURL(url);
+        this.exporting.set(false);
+        this.exportOpen.set(false);
         this.toast.success('Programme exporté (PDF)');
       },
-      error: () => this.toast.error('Export impossible.'),
+      error: () => { this.exporting.set(false); this.toast.error('Export impossible.'); },
     });
   }
 }

@@ -1,6 +1,6 @@
 <div class="chat" [class.standalone]="!coachMode()">
   <section class="page-header">
-    <div><h1 class="display-sm">Messagerie</h1><p class="subtitle">{{ coachMode() ? 'Discussion avec l\'athlète' : 'Discussion avec votre coach' }}</p></div>
+    <div><h1 class="display-sm">Messagerie</h1><p class="subtitle">{{ coachMode() ? 'Discussion avec l\'athlète' : 'Discussion avec ton coach' }}</p></div>
     <!-- Côté coach, la sortie est portée par la coquille athlète (fil d'Ariane) : ce retour ne
          sert plus qu'au portail athlète, où il n'y a pas de coquille. -->
     @if (!coachMode()) {
@@ -12,7 +12,7 @@
     @if (loading()) {
       <p class="field-hint">Chargement…</p>
     } @else if (messages().length === 0) {
-      <p class="field-hint empty">Aucun message. Démarrez la conversation</p>
+      <p class="field-hint empty">Aucun message. Démarre la conversation</p>
     } @else {
       @for (it of items(); track it.m.id) {
         @if (it.showDay) {
@@ -59,7 +59,7 @@
       <app-icon name="paperclip" [size]="18" />
       <input type="file" accept="image/*,application/pdf" hidden (change)="onFileSelected($event)" />
     </label>
-    <input class="form-control" [(ngModel)]="draft" name="draft" placeholder="Votre message…" autocomplete="off" />
+    <input class="form-control" [(ngModel)]="draft" name="draft" placeholder="Ton message…" autocomplete="off" />
     <button type="submit" class="btn btn-primary" [disabled]="!draft.trim()">Envoyer</button>
   </form>
 </div>

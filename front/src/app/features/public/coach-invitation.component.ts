@@ -33,8 +33,8 @@ type State = 'loading' | 'ok' | 'invalid';
             <span class="badge badge-info">{{ info()?.clubName }}</span>
             <h1 class="display-sm">Bienvenue {{ info()?.fullName }}</h1>
             <p class="field-hint">
-              Vous êtes invité·e à rejoindre <strong>{{ info()?.clubName }}</strong> comme coach.
-              Choisissez un mot de passe pour activer votre compte ({{ info()?.email }}).
+              Tu es invité·e à rejoindre <strong>{{ info()?.clubName }}</strong> comme coach.
+              Choisis un mot de passe pour activer ton compte ({{ info()?.email }}).
             </p>
             <form class="form" (ngSubmit)="accept()">
               <input type="password" class="form-control" name="pwd" placeholder="Mot de passe (8 caractères min.)"

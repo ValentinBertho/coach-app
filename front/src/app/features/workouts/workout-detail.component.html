@@ -18,7 +18,7 @@
           <div class="session-meta">
             <span class="badge" [class]="statusBadge[w.status]">{{ statusLabels[w.status] }}</span>
             <span class="session-type">{{ typeLabels[w.type] }}</span>
-            <span class="session-date metric">{{ w.scheduledDate }}</span>
+            <span class="session-date metric">{{ w.scheduledDate | date: 'EEE d MMM y' }}</span>
           </div>
           <h1 class="display-sm">{{ w.title }}</h1>
         </header>
@@ -98,7 +98,7 @@
           <section class="card block realized">
             <div class="realized-head">
               <h2 class="block-title">Réalisé</h2>
-              <span class="badge badge-success">{{ r.source }} · {{ r.date }}</span>
+              <span class="badge badge-success">{{ r.source }} · {{ r.date | date: 'd MMM' }}</span>
             </div>
             <div class="stat-strip stat-strip--realized">
               <div class="stat">

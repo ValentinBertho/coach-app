@@ -57,7 +57,7 @@
 @if (loading()) {
   <div class="card">Chargement…</div>
 } @else if (templates().length === 0) {
-  <div class="card empty-state"><h2>Aucun modèle</h2><p class="field-hint">Créez votre premier modèle de séance.</p></div>
+  <div class="card empty-state"><h2>Aucun modèle</h2><p class="field-hint">Crée ton premier modèle de séance.</p></div>
 } @else {
   <!-- Filtres : recherche, catégorie, densité (cartes / liste). -->
   <div class="tpl-toolbar">
@@ -96,7 +96,10 @@
             </div>
           </div>
           <strong class="tpl-name">{{ t.name }}</strong>
-          <span class="field-hint tpl-sub">{{ t.title }} · {{ t.steps.length }} étape(s)</span>
+          <span class="field-hint tpl-sub">{{ t.title }}</span>
+          <!-- Aperçu de la forme de la séance : « 5 étapes » ne distingue pas un footing
+               d'une séance VMA. -->
+          <app-zone-bar [steps]="t.steps" />
         </div>
       }
     </div>
@@ -106,7 +109,8 @@
         <div class="tpl-row" (click)="openDetail(t)">
           <div class="tpl-row-id">
             <strong>{{ t.name }}</strong>
-            <span class="field-hint">{{ t.title }} · {{ t.steps.length }} étape(s)@if (t.categoryName) { · {{ t.categoryName }} }</span>
+            <span class="field-hint">{{ t.title }}@if (t.categoryName) { · {{ t.categoryName }} }</span>
+            <app-zone-bar [steps]="t.steps" />
           </div>
           <div class="tpl-row-actions" (click)="$event.stopPropagation()">
             <button type="button" class="icon-btn" (click)="openDetail(t)" title="Consulter"><app-icon name="eye" [size]="15" /></button>
