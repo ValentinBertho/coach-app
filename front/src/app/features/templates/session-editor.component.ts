@@ -82,6 +82,8 @@ export class SessionEditorComponent implements OnInit {
 
   readonly name = signal('');
   readonly loading = signal(true);
+  /** Encart d'écriture libre du coach (intention, consignes) — enregistré avec la structure. */
+  readonly notes = signal('');
   readonly structure = signal<SessionStructure>({ warmup: [], main: [], cooldown: [] });
   readonly calc = signal<Record<string, CalculatedBlock>>({});
   /** Cibles calculées des récupérations inter-répétitions (clé = id du bloc parent). */
@@ -183,12 +185,38 @@ export class SessionEditorComponent implements OnInit {
     this.course.getStructure(this.templateId()).subscribe({
       next: (s) => {
         this.name.set(s.name);
+        this.notes.set(s.notes ?? '');
         this.structure.set(s.structure ?? { warmup: [], main: [], cooldown: [] });
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
     });
     this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
+  }
+
+  /**
+   * Séance « simple » (footing, sortie longue…) : aucun bloc d'échauffement ni de retour au calme.
+   * On n'affiche alors qu'une liste unique, sans imposer les trois sections. Le coach passe en
+   * séance structurée d'un clic dès qu'il veut un échauffement / retour au calme.
+   */
+  readonly structuredMode = signal(false);
+
+  readonly isSimple = computed(() => {
+    if (this.structuredMode()) return false;
+    const s = this.structure();
+    return s.warmup.length === 0 && s.cooldown.length === 0;
+  });
+
+  /** Passe en séance structurée (révèle échauffement + retour au calme). */
+  enableStructured(): void { this.structuredMode.set(true); }
+
+  /** Sections affichées : le corps seul en séance simple, les trois en séance structurée. */
+  readonly visibleSections = computed<Section[]>(() =>
+    this.isSimple() ? this.sections.filter((s) => s.key === 'main') : this.sections);
+
+  /** Effort perçu (RPE 1–10) d'un bloc — propre au contenu de la séance. */
+  setBlockRpe(b: CourseBlock, value: number | null): void {
+    b.rpe = value == null ? null : Math.max(1, Math.min(10, Math.round(value)));
   }
 
   /** Recalcule les cibles de tous les blocs pour l'athlète courant du calculateur. */
@@ -508,8 +536,11 @@ export class SessionEditorComponent implements OnInit {
       });
       return;
     }
-    this.course.putStructure(this.templateId(), { structure: this.structure() }).subscribe(() => {
-      this.toast.success('Structure enregistrée');
+    this.course.putStructure(this.templateId(), {
+      notes: this.notes().trim() || null,
+      structure: this.structure(),
+    }).subscribe(() => {
+      this.toast.success('Séance enregistrée');
     });
   }
 }

@@ -50,4 +50,9 @@ export class PhysioService {
   ): Observable<Performance> {
     return this.http.post<Performance>(`${this.base(athleteId)}/performances`, body);
   }
+
+  /** Retire un record de l'historique (le VDOT est recalculé côté serveur). */
+  deletePerformance(athleteId: string, performanceId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base(athleteId)}/performances/${performanceId}`);
+  }
 }

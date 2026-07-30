@@ -56,6 +56,7 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                     <span class="sd-zone">
                       <span class="dot" [style.background]="zoneColor(b)"></span>{{ zoneLabel(b) }}
                     </span>
+                    @if (b.rpe) { <span class="sd-rpe metric">RPE {{ b.rpe }}</span> }
                     @if (b.recovery; as r) {
                       <span class="sd-rec">récup {{ recoveryVol(r) }} · {{ zoneLabel(r) }}</span>
                     }
@@ -66,6 +67,12 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
             }
           }
           @if (empty()) { <p class="field-hint">Structure vide — à construire dans l'éditeur.</p> }
+          @if (data()?.notes) {
+            <section class="sd-sec">
+              <h3>Notes de séance</h3>
+              <p class="sd-notes">{{ data()!.notes }}</p>
+            </section>
+          }
         }
 
         <footer class="sd-foot">
@@ -93,6 +100,8 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
     .sd-zone { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--ink-2); }
     .dot { width: 11px; height: 11px; border-radius: var(--radius-full); }
     .sd-rec { font-size: var(--text-sm); color: var(--ink-3); margin-left: auto; }
+    .sd-rpe { font-size: var(--text-xs); font-weight: 800; color: var(--ink-2); background: var(--paper-sunk); border-radius: var(--radius-full); padding: 1px var(--sp-2); }
+    .sd-notes { white-space: pre-wrap; color: var(--ink-2); font-size: var(--text-sm); margin: 0; }
     .sd-note { font-size: var(--text-sm); color: var(--ink-3); font-style: italic; margin: calc(var(--sp-2) * -1 + 2px) 0 var(--sp-2) var(--sp-3); }
     .sd-foot { display: flex; justify-content: flex-end; margin-top: var(--sp-2); }
   `],

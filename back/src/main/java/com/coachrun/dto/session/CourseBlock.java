@@ -12,6 +12,8 @@ public record CourseBlock(
         Integer durationS,
         CoursePrescription prescription,
         CourseRecovery recovery,
+        /** Effort perçu visé pour ce bloc (RPE 1–10) — saisi sur le contenu de la séance. */
+        Integer rpe,
         String note,
         /** Éducatifs de course (gammes) attachés au bloc — ex. échauffement (CDC §8/§9). */
         java.util.List<java.util.UUID> drillIds

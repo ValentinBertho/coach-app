@@ -13,6 +13,8 @@ public record CourseStructureRequest(
         Discipline discipline,
         UUID categoryId,
         Boolean favorite,
+        /** Encart d'écriture libre du coach (intention, consignes, ressenti attendu…). */
+        String notes,
         SessionStructure structure
 ) {
 }
