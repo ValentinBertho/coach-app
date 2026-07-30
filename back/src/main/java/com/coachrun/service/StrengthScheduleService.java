@@ -86,7 +86,7 @@ public class StrengthScheduleService {
         ss.setCalculatedCharges(writeJson(calc));
         ss.setRequiredFields((preset != null ? preset : FieldsPreset.DEBUTANT).json());
         ss.setScheduledDate(date);
-        return ScheduledStrengthResponse.from(scheduledRepository.save(ss));
+        return ScheduledStrengthResponse.from(scheduledRepository.save(ss), summarize(calc));
     }
 
     public List<ScheduledStrengthResponse> coachCalendar(UUID clubId, UUID athleteId,
@@ -178,6 +178,42 @@ public class StrengthScheduleService {
     }
 
     // --- Helpers --------------------------------------------------------------
+
+    /**
+     * Résumé lisible des charges obtenues pour cet athlète : nombre d'exercices et fourchette du
+     * premier exercice dont la charge est calculable. Sert le retour immédiat au coach après une
+     * planification (CdC §8) — « séance planifiée » seul ne dit pas ce que l'athlète va soulever.
+     */
+    private String summarize(CalculatedStrengthResponse calc) {
+        if (calc == null || calc.blocks().isEmpty()) {
+            return null;
+        }
+        int count = 0;
+        String first = null;
+        for (var block : calc.blocks()) {
+            for (var ex : block.exercises()) {
+                count++;
+                if (first == null && ex.charge() != null && ex.charge().computable()
+                        && ex.charge().kgMin() != null && ex.charge().kgMax() != null) {
+                    first = ex.item().exerciseName() + " " + trim(ex.charge().kgMin())
+                            + "–" + trim(ex.charge().kgMax()) + " kg";
+                }
+            }
+        }
+        if (count == 0) {
+            return null;
+        }
+        String exercises = count + " exercice" + (count > 1 ? "s" : "");
+        return first == null ? exercises : exercises + " · " + first;
+    }
+
+    /** 72.0 → « 72 » ; 72.5 → « 72,5 » (une charge au centième n'a aucun sens en salle). */
+    private String trim(double kg) {
+        double rounded = Math.round(kg * 10d) / 10d;
+        return rounded == Math.floor(rounded)
+                ? String.valueOf((long) rounded)
+                : String.valueOf(rounded).replace('.', ',');
+    }
 
     /**
      * Applique un facteur multiplicatif aux charges prescrites (kg fixes et % du 1RM), en

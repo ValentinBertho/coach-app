@@ -48,6 +48,7 @@ public class WorkoutService {
     private final WorkoutRepository workoutRepository;
     private final AthleteRepository athleteRepository;
     private final NotificationService notificationService;
+    private final com.coachrun.engine.PlannedLoadEngine plannedLoadEngine;
     private final MesocycleTemplateRepository mesocycleTemplateRepository;
     private final TrainingGroupRepository groupRepository;
     private final AthleteAccessValidator accessValidator;
@@ -343,6 +344,7 @@ public class WorkoutService {
         workout.setSourceTemplateId(data.sourceTemplateId());
         workout.setSessionSnapshot(data.snapshotJson());
         workout.setCalculatedPaces(data.calculatedJson());
+        workout.setPlannedLoadUa(data.plannedLoadUa());
 
         workout = workoutRepository.save(workout);
         log.info("Séance prescrite {} depuis modèle {} (athlète={})",
@@ -466,6 +468,8 @@ public class WorkoutService {
                 sessionCalculatorService.calculateSession(clubId, w.getAthlete().getId(), safe);
         w.setSessionSnapshot(writeJson(safe));
         w.setCalculatedPaces(writeJson(calc));
+        // La charge prévue suit l'adaptation de structure : sinon elle resterait sur l'ancienne.
+        w.setPlannedLoadUa(plannedLoadEngine.compute(calc));
         if (calc.totalDistanceM() != null) {
             w.setTargetDistanceM(calc.totalDistanceM());
         }

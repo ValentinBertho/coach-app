@@ -187,6 +187,8 @@ export interface ScheduledStrength {
   completed: boolean;
   sessionFatigue: number | null;
   sessionPain: number | null;
+  /** Résumé des charges calculées, renseigné à la planification (CdC §8). */
+  chargeSummary?: string | null;
 }
 
 export interface CycleWeek {

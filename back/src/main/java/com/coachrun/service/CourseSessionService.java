@@ -31,6 +31,7 @@ import java.util.UUID;
 public class CourseSessionService {
 
     private final WorkoutTemplateRepository templateRepository;
+    private final com.coachrun.engine.PlannedLoadEngine plannedLoadEngine;
     private final SessionCategoryRepository categoryRepository;
     private final SessionCalculatorService calculatorService;
     private final WorkoutService workoutService;
@@ -97,7 +98,7 @@ public class CourseSessionService {
 
         PrescribedWorkout data = new PrescribedWorkout(
                 date, t.getType(), t.getTitle(), t.getNotes(), distance, duration,
-                t.getId(), snapshotJson, calculatedJson);
+                t.getId(), snapshotJson, calculatedJson, plannedLoadEngine.compute(calc));
         return workoutService.createPrescribed(clubId, athleteId, data);
     }
 

@@ -18,6 +18,8 @@ public record PrescribedWorkout(
         Integer targetDurationS,
         UUID sourceTemplateId,
         String snapshotJson,
-        String calculatedJson
+        String calculatedJson,
+        /** Charge prévue (UA) calculée depuis la prescription, nulle si non exploitable. */
+        Integer plannedLoadUa
 ) {
 }

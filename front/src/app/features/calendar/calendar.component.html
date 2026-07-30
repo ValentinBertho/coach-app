@@ -372,6 +372,9 @@
                 @if (showRealized()) { <span class="wt-cap">Prévu</span> }
                 <span class="wt-val metric">{{ fmtDuration(week.durationS) }}</span>
                 <span class="wt-val metric">{{ week.km.toFixed(1) }}<small>km</small></span>
+                @if (week.loadUa > 0) {
+                  <span class="wt-val metric" title="Charge prévue de la semaine (sRPE)">{{ week.loadUa }}<small>UA</small></span>
+                }
                 <span class="wt-lb">{{ week.sessions }} séance{{ week.sessions > 1 ? 's' : '' }}</span>
               </div>
             }

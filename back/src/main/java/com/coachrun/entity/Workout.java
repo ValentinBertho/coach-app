@@ -119,6 +119,13 @@ public class Workout extends BaseEntity {
     @Column(name = "calculated_paces", length = 20000)
     private String calculatedPaces;
 
+    /**
+     * Charge prévue (UA) : sRPE Foster appliqué à la prescription (RPE de bloc × durée estimée).
+     * Distincte de la charge réalisée, qui se calcule depuis le retour de l'athlète.
+     */
+    @Column(name = "planned_load_ua")
+    private Integer plannedLoadUa;
+
     /** Ordre d'affichage au sein d'un même jour (glisser-déposer intra-jour). */
     @Column(name = "order_index", nullable = false)
     private int orderIndex = 0;

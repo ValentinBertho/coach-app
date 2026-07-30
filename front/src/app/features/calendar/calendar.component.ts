@@ -66,6 +66,8 @@ interface WeekRow {
   days: DayCell[];
   km: number;
   durationS: number;
+  /** Charge prévue de la semaine en UA (sRPE) : le volume seul ne dit rien de la difficulté. */
+  loadUa: number;
   sessions: number;
   realKm: number;
   realDurationS: number;
@@ -360,11 +362,13 @@ export class CalendarComponent implements OnInit {
       const km = days.reduce((s, d) => s + d.km, 0);
       const durationS = days.reduce(
         (s, d) => s + d.workouts.reduce((a, w) => a + (w.targetDurationS ?? 0), 0), 0);
+      const loadUa = days.reduce(
+        (s, d) => s + d.workouts.reduce((a, w) => a + (w.plannedLoadUa ?? 0), 0), 0);
       const sessions = days.reduce((s, d) => s + d.sessions, 0);
       const realKm = days.reduce((s, d) => s + d.activities.reduce((a, x) => a + (x.distanceM ?? 0), 0), 0) / 1000;
       const realDurationS = days.reduce((s, d) => s + d.activities.reduce((a, x) => a + (x.durationS ?? 0), 0), 0);
       const realSessions = days.reduce((s, d) => s + d.activities.length, 0);
-      rows.push({ days, km, durationS, sessions, realKm, realDurationS, realSessions });
+      rows.push({ days, km, durationS, loadUa, sessions, realKm, realDurationS, realSessions });
     }
     return rows;
   });
@@ -769,7 +773,10 @@ export class CalendarComponent implements OnInit {
     const date = this.pickerDate();
     if (!date) return;
     this.courseService.schedule(this.selectedAthleteId, t.id, { date }).subscribe({
-      next: () => { this.toast.success(`${t.name} planifiée le ${this.fmtDate(date)}`); this.closePicker(); this.load(); },
+      next: (w) => {
+        this.toast.success(`${t.name} planifiée le ${this.fmtDate(date)}${this.chargeRecap(w)}`);
+        this.closePicker(); this.load();
+      },
       error: () => this.toast.error('Planification impossible.'),
     });
   }
@@ -810,7 +817,11 @@ export class CalendarComponent implements OnInit {
       this.strengthService
         .scheduleSession(this.selectedAthleteId, s.id, { date: targetDate, fieldsPreset: 'AVANCE' })
         .subscribe({
-          next: () => { this.toast.success(`${s.name} planifiée le ${this.fmtDate(targetDate)}`); this.reloadStrength(); },
+          next: (scheduled) => {
+            const charges = scheduled.chargeSummary ? ` — ${scheduled.chargeSummary}` : '';
+            this.toast.success(`${s.name} planifiée le ${this.fmtDate(targetDate)}${charges}`);
+            this.reloadStrength();
+          },
           error: () => this.toast.error('Planification impossible.'),
         });
       return;
@@ -820,7 +831,10 @@ export class CalendarComponent implements OnInit {
     if (!('scheduledDate' in rec)) {
       const t = data as WorkoutTemplate;
       this.courseService.schedule(this.selectedAthleteId, t.id, { date: targetDate }).subscribe({
-        next: () => { this.toast.success(`${t.name} planifiée le ${this.fmtDate(targetDate)}`); this.load(); },
+        next: (w) => {
+          this.toast.success(`${t.name} planifiée le ${this.fmtDate(targetDate)}${this.chargeRecap(w)}`);
+          this.load();
+        },
         error: () => this.toast.error('Planification impossible.'),
       });
       return;
@@ -1010,6 +1024,19 @@ export class CalendarComponent implements OnInit {
       },
       error: () => this.toast.error('Suppression impossible.'),
     });
+  }
+
+  /**
+   * Récapitulatif des charges calculées pour l'athlète, à afficher au moment de la planification
+   * (CdC §8) : « — ~55 min · 12,4 km · 420 UA ». Le coach voit ce que la séance donne pour CET
+   * athlète, pas seulement qu'elle est planifiée.
+   */
+  private chargeRecap(w: Workout): string {
+    const parts: string[] = [];
+    if (w.targetDurationS) parts.push(`~${Math.round(w.targetDurationS / 60)} min`);
+    if (w.targetDistanceM) parts.push(`${(w.targetDistanceM / 1000).toFixed(1)} km`);
+    if (w.plannedLoadUa) parts.push(`${w.plannedLoadUa} UA`);
+    return parts.length ? ` — ${parts.join(' · ')}` : '';
   }
 
   /** Date ISO → « mer. 30 juil. » (jamais d'ISO brut à l'écran). */

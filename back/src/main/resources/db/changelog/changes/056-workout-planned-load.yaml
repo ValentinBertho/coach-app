@@ -1,0 +1,16 @@
+# ============================================================================
+# 056 — Charge prévue (UA) d'une séance prescrite.
+#   sRPE Foster appliqué à la PRESCRIPTION (RPE de bloc × durée estimée), pour
+#   afficher un total hebdomadaire en charge à côté des km et de la durée.
+#   Distincte de la charge réalisée, qui se calcule depuis le retour de séance.
+#   Colonne additive, nulle tant que la séance n'a pas de structure exploitable.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 056-workout-planned-load-ua
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workouts
+            columns:
+              - column: { name: planned_load_ua, type: INT }
