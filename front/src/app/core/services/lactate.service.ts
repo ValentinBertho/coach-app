@@ -41,6 +41,11 @@ export class LactateService {
     return this.http.post<LactateTest>(`${this.base(athleteId)}/lactate-tests`, body);
   }
 
+  /** Supprime un test lactate (un test raté ne doit pas polluer le profil comparé). */
+  deleteTest(athleteId: string, testId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base(athleteId)}/lactate-tests/${testId}`);
+  }
+
   load(athleteId: string): Observable<Load> {
     return this.http.get<Load>(`${this.base(athleteId)}/load`);
   }

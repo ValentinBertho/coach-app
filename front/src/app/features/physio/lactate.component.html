@@ -24,11 +24,19 @@
     </div>
 
     <table class="data-table steps-table">
-      <thead><tr><th>Vitesse (m/s)</th><th>FC</th><th>Lactate</th><th></th></tr></thead>
+      <thead><tr><th>Vitesse ({{ speedUnit() === 'kmh' ? 'km/h' : 'min/km' }})</th><th>FC</th><th>Lactate</th><th></th></tr></thead>
       <tbody>
         @for (s of steps; track $index) {
           <tr>
-            <td><input type="number" step="0.1" class="form-control" [(ngModel)]="s.speedMs" (ngModelChange)="refresh()" /></td>
+            <td>
+              @if (speedUnit() === 'kmh') {
+                <input type="number" step="0.1" class="form-control" inputmode="decimal"
+                       [ngModel]="stepSpeedValue(s)" (ngModelChange)="setStepSpeed(s, $event)" placeholder="12" />
+              } @else {
+                <input type="text" class="form-control" inputmode="numeric"
+                       [ngModel]="stepSpeedValue(s)" (ngModelChange)="setStepSpeed(s, $event)" placeholder="5:00" />
+              }
+            </td>
             <td><input type="number" class="form-control" [(ngModel)]="s.hr" (ngModelChange)="refresh()" /></td>
             <td><input type="number" step="0.1" class="form-control" [(ngModel)]="s.lactate" (ngModelChange)="refresh()" /></td>
             <td><button type="button" class="chip-x" (click)="removeStep($index)" aria-label="Retirer">×</button></td>
@@ -153,7 +161,13 @@
             <td class="metric">{{ fmtSpeed(t.lt1Ms ? t.lt1Ms * 3.6 : null) }}</td>
             <td class="metric">{{ fmtSpeed(t.lt2Ms ? t.lt2Ms * 3.6 : null) }}</td>
             <td class="metric">{{ t.fcLt2 ? t.fcLt2 + ' bpm' : '—' }}</td>
-            <td><button type="button" class="btn btn-ghost btn-sm" (click)="loadTest(t)">Charger</button></td>
+            <td class="hist-actions">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="loadTest(t)">Charger</button>
+              <button type="button" class="icon-btn danger" (click)="removeTest(t)"
+                      aria-label="Supprimer ce test" title="Supprimer">
+                <app-icon name="trash-2" [size]="15" />
+              </button>
+            </td>
           </tr>
         }
       </tbody>

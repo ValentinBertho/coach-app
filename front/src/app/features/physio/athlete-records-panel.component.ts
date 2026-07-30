@@ -65,13 +65,32 @@ const DISTANCES: { value: string; label: string }[] = [
         <ul class="rec-list">
           @for (p of records(); track p.id) {
             <li class="rec-row">
-              <span class="rr-dist">{{ label(p.distanceCode || p.distance) }}</span>
-              <span class="rr-time metric">{{ hms(p.timeSeconds) }}</span>
-              <span class="rr-date field-hint">{{ p.dateSet ? (p.dateSet | date: 'd MMM y') : '—' }}</span>
-              @if (p.vdot != null) { <span class="badge badge-info">VDOT {{ p.vdot }}</span> }
-              <button type="button" class="icon-btn danger" (click)="remove(p)" [attr.aria-label]="'Supprimer ' + p.distance">
-                <app-icon name="trash-2" [size]="15" />
-              </button>
+              @if (editingId() === p.id) {
+                <!-- Correction en place : une faute de frappe n'oblige plus à supprimer puis
+                     resaisir, ce qui faisait descendre puis remonter le VDOT. -->
+                <span class="rr-dist">{{ label(p.distanceCode || p.distance) }}</span>
+                <input class="form-control rf-time" [(ngModel)]="editDraft.time" name="editTime"
+                       placeholder="mm:ss ou h:mm:ss" aria-label="Temps" />
+                <input class="form-control rf-date" type="date" [(ngModel)]="editDraft.dateSet"
+                       name="editDate" aria-label="Date" />
+                <button type="button" class="icon-btn" (click)="saveEdit(p)" [disabled]="busy()" aria-label="Enregistrer">
+                  <app-icon name="check" [size]="15" />
+                </button>
+                <button type="button" class="icon-btn" (click)="cancelEdit()" aria-label="Annuler">
+                  <app-icon name="x" [size]="15" />
+                </button>
+              } @else {
+                <span class="rr-dist">{{ label(p.distanceCode || p.distance) }}</span>
+                <span class="rr-time metric">{{ hms(p.timeSeconds) }}</span>
+                <span class="rr-date field-hint">{{ p.dateSet ? (p.dateSet | date: 'd MMM y') : '—' }}</span>
+                @if (p.vdot != null) { <span class="badge badge-info">VDOT {{ p.vdot }}</span> }
+                <button type="button" class="icon-btn" (click)="startEdit(p)" [attr.aria-label]="'Modifier ' + p.distance">
+                  <app-icon name="pencil" [size]="15" />
+                </button>
+                <button type="button" class="icon-btn danger" (click)="remove(p)" [attr.aria-label]="'Supprimer ' + p.distance">
+                  <app-icon name="trash-2" [size]="15" />
+                </button>
+              }
             </li>
           }
         </ul>
@@ -227,6 +246,38 @@ export class AthleteRecordsPanelComponent implements OnInit {
         this.load();
       },
       error: () => { this.busy.set(false); this.toast.error('Enregistrement impossible.'); },
+    });
+  }
+
+  // --- Correction d'un record en place ---------------------------------------
+  readonly editingId = signal<string | null>(null);
+  editDraft = { time: '', dateSet: '' };
+
+  startEdit(p: Performance): void {
+    this.editDraft = { time: this.hms(p.timeSeconds), dateSet: p.dateSet ?? '' };
+    this.editingId.set(p.id);
+  }
+  cancelEdit(): void { this.editingId.set(null); }
+
+  saveEdit(p: Performance): void {
+    const seconds = this.parseTime(this.editDraft.time);
+    if (seconds == null || seconds <= 0) {
+      this.toast.warning('Temps invalide (mm:ss ou h:mm:ss).');
+      return;
+    }
+    this.busy.set(true);
+    this.physio.updatePerformance(this.athleteId(), p.id, {
+      distance: p.distanceCode || p.distance,
+      timeSeconds: seconds,
+      dateSet: this.editDraft.dateSet || null,
+    }).subscribe({
+      next: () => {
+        this.toast.success('Record corrigé — VDOT et allures recalculés.');
+        this.busy.set(false);
+        this.editingId.set(null);
+        this.load();
+      },
+      error: () => { this.busy.set(false); this.toast.error('Correction impossible.'); },
     });
   }
 
