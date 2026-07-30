@@ -4,7 +4,7 @@ import { RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { MetricType } from '../../core/models/metric-type.model';
-import { TrainingZone, ZONE_ANCHOR_LABELS } from '../../core/models/training-zone.model';
+import { TrainingZone, ZoneAnchor, ZONE_ANCHOR_LABELS } from '../../core/models/training-zone.model';
 import { AthleteZoneValue } from '../../core/models/athlete-zone-value.model';
 import { PhysioProfile } from '../../core/models/physio.model';
 import { MetricTypeService } from '../../core/services/metric-type.service';
@@ -85,7 +85,7 @@ interface EditState {
         <span><app-icon name="refresh-cw" [size]="14" /> auto</span>
         <span><app-icon name="pencil" [size]="14" /> manuel</span>
         <span><app-icon name="lock" [size]="14" /> verrouillé</span>
-        <span class="legend-hint">Survolez une cible pour voir sa règle.</span>
+        <span class="legend-hint">La règle sous chaque zone vient de « Zones du club » — <a routerLink="/app/training-zones">la régler</a>.</span>
       </div>
 
       <div class="card table-wrap">
@@ -100,7 +100,10 @@ interface EditState {
             @for (z of displayedZones(); track z.id) {
               <tr>
                 <th class="zone-col">
-                  <span class="dot" [style.background]="z.color || 'var(--ink-3)'"></span> {{ z.name }}
+                  <span class="zc-top">
+                    <span class="dot" [style.background]="z.color || 'var(--ink-3)'"></span> {{ z.name }}
+                  </span>
+                  @if (zoneRuleHint(z); as rule) { <span class="zc-rule">{{ rule }}</span> }
                 </th>
                 @for (m of displayedColumns(); track m.id) {
                   <td>
@@ -169,6 +172,9 @@ interface EditState {
     .zv th, .zv td { padding: var(--sp-2) var(--sp-3); text-align: left; border-bottom: 1px solid var(--line); vertical-align: middle; }
     .zv thead th { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); }
     .zone-col { font-weight: 700; white-space: nowrap; }
+    .zc-top { display: inline-flex; align-items: center; gap: var(--sp-1); }
+    /* Règle du club sous le nom : « d'où vient cette cible », lisible sans survol. */
+    .zc-rule { display: block; font-weight: 500; font-size: var(--text-xs); color: var(--ink-3); margin-top: 1px; }
     .dot { display: inline-block; width: 12px; height: 12px; border-radius: var(--radius-full); vertical-align: -1px; }
 
     .cell { display: inline-flex; align-items: center; gap: var(--sp-2); background: none; border: none; cursor: pointer; color: var(--ink-1); font: inherit; padding: 2px 4px; border-radius: var(--radius-sm); }
@@ -287,7 +293,33 @@ export class AthleteZonesComponent implements OnInit {
   ruleLabel(z: TrainingZone, metricId: string): string | null {
     const r = z.rules?.find((x) => x.metricTypeId === metricId);
     if (!r || r.anchor == null || r.lowPct == null || r.highPct == null) return null;
-    return `${r.lowPct}–${r.highPct} % · ${ZONE_ANCHOR_LABELS[r.anchor]}`;
+    const high = r.highAnchor ?? r.anchor;
+    return high === r.anchor
+      ? `${r.lowPct}–${r.highPct} % · ${ZONE_ANCHOR_LABELS[r.anchor]}`
+      : `${r.lowPct} % ${this.shortAnchor(r.anchor)} → ${r.highPct} % ${this.shortAnchor(high)}`;
+  }
+
+  /** Libellé court d'une ancre : « LT1 » plutôt que « Seuil aérobie (LT1) ». */
+  private shortAnchor(a: ZoneAnchor): string {
+    const label = ZONE_ANCHOR_LABELS[a];
+    const paren = /\(([^)]+)\)/.exec(label);
+    return paren ? paren[1] : label;
+  }
+
+  /**
+   * Règle affichée sous le nom de la zone : c'est le modèle du club, en lecture seule ici. Elle
+   * était jusqu'ici cachée dans l'infobulle d'une cible — donc invisible à la lecture, et
+   * introuvable sur mobile.
+   */
+  zoneRuleHint(z: TrainingZone): string | null {
+    const pace = this.columns().find((m) => m.code === 'PACE');
+    const hr = this.columns().find((m) => m.code === 'HR');
+    for (const m of [pace, hr]) {
+      if (!m) continue;
+      const lbl = this.ruleLabel(z, m.id);
+      if (lbl) return lbl;
+    }
+    return null;
   }
 
   /** Infobulle d'une cible : source + règle de calcul (traçabilité « d'où vient la cible »). */

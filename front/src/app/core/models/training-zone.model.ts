@@ -15,10 +15,16 @@ export type ZoneAnchor =
 export type ZoneModel =
   | 'VMA' | 'VC' | 'DANIELS_VDOT' | 'LACTATE_THRESHOLD' | 'PCT_FCMAX' | 'CUSTOM';
 
-/** Règle de calcul d'une métrique d'une zone : ancre + fourchette % + modèle. */
+/**
+ * Règle de calcul d'une métrique d'une zone : ancre + fourchette % + modèle.
+ *
+ * `highAnchor` ne sert qu'à la zone qui enjambe la frontière LT1 → LT2 : sa borne basse s'exprime
+ * en % de LT1 et sa borne haute en % de LT2. Vide, la borne haute reprend `anchor`.
+ */
 export interface ZoneRule {
   metricTypeId: string;
   anchor: ZoneAnchor | null;
+  highAnchor: ZoneAnchor | null;
   lowPct: number | null;
   highPct: number | null;
   model: ZoneModel | null;
@@ -39,6 +45,7 @@ export interface TrainingZone {
 
 export interface ZoneRuleRequest {
   anchor: ZoneAnchor | null;
+  highAnchor: ZoneAnchor | null;
   lowPct: number | null;
   highPct: number | null;
   model: ZoneModel | null;

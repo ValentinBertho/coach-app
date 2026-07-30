@@ -83,17 +83,20 @@ public class ZoneValueSyncService {
             return new double[]{Math.round(low), Math.round(high)};
         }
         ZoneAnchor anchor = zm.getAnchor();
+        ZoneAnchor highAnchor = zm.effectiveHighAnchor();
         if (anchor == null || low == null || high == null || low <= 0 || high <= 0) {
             return null;
         }
         return switch (code) {
             case "PACE", "SPEED" -> {
-                PrescriptionRef ref = paceRefOf(anchor);
-                if (ref == null) yield null;
-                Integer base = engine.basePaceFor(ref, ctx);
-                if (base == null || base <= 0) yield null;
-                int fast = (int) Math.round(base / (high / 100.0)); // % haut ⇒ plus rapide
-                int slow = (int) Math.round(base / (low / 100.0));
+                // Chaque borne se calcule depuis SON ancre : c'est ce qui permet à une zone
+                // d'enjamber la frontière LT1 → LT2 en collant exactement à ses deux voisines.
+                Integer slowBase = basePaceOf(anchor, ctx);
+                Integer fastBase = basePaceOf(highAnchor, ctx);
+                if (slowBase == null || fastBase == null) yield null;
+                int fast = (int) Math.round(fastBase / (high / 100.0)); // % haut ⇒ plus rapide
+                int slow = (int) Math.round(slowBase / (low / 100.0));
+                if (fast >= slow) yield null; // règle incohérente : bornes croisées
                 if ("PACE".equals(code)) yield new double[]{fast, slow};
                 // SPEED : vitesse mini (allure lente) → maxi (allure rapide)
                 yield new double[]{round1(PaceUtil.secPerKmToKmh(slow)), round1(PaceUtil.secPerKmToKmh(fast))};
@@ -109,6 +112,16 @@ public class ZoneValueSyncService {
             }
             default -> null; // POWER, RPE : pas de règle → saisie manuelle.
         };
+    }
+
+    /** Allure de référence d'une ancre (s/km), ou null si l'ancre n'est pas une ancre d'allure. */
+    private Integer basePaceOf(ZoneAnchor anchor, AthletePaceContext ctx) {
+        PrescriptionRef ref = paceRefOf(anchor);
+        if (ref == null) {
+            return null;
+        }
+        Integer base = engine.basePaceFor(ref, ctx);
+        return (base == null || base <= 0) ? null : base;
     }
 
     private double[] hrRange(ZoneAnchor anchor, double low, double high, AthletePaceContext ctx) {

@@ -72,8 +72,15 @@ public class TrainingZoneSeedService {
             new ZoneDef("VO2max", "#f97316", HR_SCALE),
             new ZoneDef("Anaérobie", "#ef4444", HR_SCALE));
 
-    /** Règle par défaut d'un couple (zone, métrique) : ancre + %min + %max + modèle nommé. */
-    private record Rule(ZoneAnchor anchor, double low, double high, ZoneModel model) {
+    /**
+     * Règle par défaut d'un couple (zone, métrique) : ancre + %min + %max + modèle nommé.
+     * {@code highAnchor} ne sert qu'à la zone qui enjambe la frontière LT1 → LT2 ; ailleurs il vaut
+     * {@code null} et la borne haute reprend l'ancre basse.
+     */
+    private record Rule(ZoneAnchor anchor, ZoneAnchor highAnchor, double low, double high, ZoneModel model) {
+        Rule(ZoneAnchor anchor, double low, double high, ZoneModel model) {
+            this(anchor, null, low, high, model);
+        }
     }
 
     /**
@@ -87,27 +94,36 @@ public class TrainingZoneSeedService {
      * <p>Échelle <b>Cardio</b> : bandes en % de la FC max (bpm et % FCmax).</p>
      */
     private static final Map<String, Rule> RULES = Map.ofEntries(
-            // --- Allure : endurance → seuils (ancrées LT1/LT2/VC/VMA) ---
-            Map.entry("Footing facile|PACE", new Rule(ZoneAnchor.LT1, 60, 72, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("EF|PACE", new Rule(ZoneAnchor.LT1, 80, 92, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("Steady|PACE", new Rule(ZoneAnchor.LT1, 93, 99, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("Seuil 1|PACE", new Rule(ZoneAnchor.LT1, 100, 104, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("Tempo|PACE", new Rule(ZoneAnchor.LT2, 92, 96, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("Seuil 2 bas|PACE", new Rule(ZoneAnchor.LT2, 96, 100, ZoneModel.LACTATE_THRESHOLD)),
+            // --- Allure : une CHAÎNE contiguë, deux références seulement ---
+            // La borne haute d'une zone est la borne basse de la suivante, donc aucun trou ni
+            // chevauchement : un athlète n'est jamais dans deux zones à la fois, ni dans aucune.
+            // Bloc LT1 (sous le seuil aérobie) :
+            Map.entry("Footing facile|PACE", new Rule(ZoneAnchor.LT1, 68, 80, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("EF|PACE", new Rule(ZoneAnchor.LT1, 80, 90, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Steady|PACE", new Rule(ZoneAnchor.LT1, 90, 100, ZoneModel.LACTATE_THRESHOLD)),
+            // Zone de transition : borne basse en % de LT1, borne haute en % de LT2. C'est la
+            // frontière « LT1 jusqu'ici, LT2 à partir de là » — et la seule zone à deux références.
+            Map.entry("Seuil 1|PACE", new Rule(ZoneAnchor.LT1, ZoneAnchor.LT2, 100, 93, ZoneModel.LACTATE_THRESHOLD)),
+            // Bloc LT2 (au-delà), LT2 tombant pile entre « Seuil 2 bas » et « Seuil 2 haut » :
+            Map.entry("Tempo|PACE", new Rule(ZoneAnchor.LT2, 93, 97, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Seuil 2 bas|PACE", new Rule(ZoneAnchor.LT2, 97, 100, ZoneModel.LACTATE_THRESHOLD)),
             Map.entry("Seuil 2 haut|PACE", new Rule(ZoneAnchor.LT2, 100, 104, ZoneModel.LACTATE_THRESHOLD)),
-            // --- Allure : compétition (dérivées du VDOT / VMA) ---
+            // Allures de compétition : ancrées sur les allures dérivées du VDOT, donc elles suivent
+            // les RECORDS de l'athlète. Les mettre dans la chaîne LT2 les rendrait contiguës, mais
+            // saisir un chrono ne les déplacerait plus (un record ne change ni LT1 ni LT2) — ce qui
+            // supprimerait l'adaptation aux records. Elles restent donc hors chaîne, à dessein.
             Map.entry("10 km|PACE", new Rule(ZoneAnchor.PACE_10KM, 98, 102, ZoneModel.DANIELS_VDOT)),
             Map.entry("5 km|PACE", new Rule(ZoneAnchor.PACE_5KM, 98, 102, ZoneModel.DANIELS_VDOT)),
             Map.entry("3 km|PACE", new Rule(ZoneAnchor.PACE_3000M, 98, 102, ZoneModel.DANIELS_VDOT)),
             Map.entry("1500 m|PACE", new Rule(ZoneAnchor.VMA, 98, 103, ZoneModel.VMA)),
             Map.entry("800 m|PACE", new Rule(ZoneAnchor.PACE_800M, 98, 103, ZoneModel.DANIELS_VDOT)),
-            // --- Vitesse : même règle que l'allure (conversion) ---
-            Map.entry("Footing facile|SPEED", new Rule(ZoneAnchor.LT1, 60, 72, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("EF|SPEED", new Rule(ZoneAnchor.LT1, 80, 92, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("Steady|SPEED", new Rule(ZoneAnchor.LT1, 93, 99, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("Seuil 1|SPEED", new Rule(ZoneAnchor.LT1, 100, 104, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("Tempo|SPEED", new Rule(ZoneAnchor.LT2, 92, 96, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("Seuil 2 bas|SPEED", new Rule(ZoneAnchor.LT2, 96, 100, ZoneModel.LACTATE_THRESHOLD)),
+            // --- Vitesse : même chaîne que l'allure (elle en est la conversion) ---
+            Map.entry("Footing facile|SPEED", new Rule(ZoneAnchor.LT1, 68, 80, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("EF|SPEED", new Rule(ZoneAnchor.LT1, 80, 90, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Steady|SPEED", new Rule(ZoneAnchor.LT1, 90, 100, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Seuil 1|SPEED", new Rule(ZoneAnchor.LT1, ZoneAnchor.LT2, 100, 93, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Tempo|SPEED", new Rule(ZoneAnchor.LT2, 93, 97, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Seuil 2 bas|SPEED", new Rule(ZoneAnchor.LT2, 97, 100, ZoneModel.LACTATE_THRESHOLD)),
             Map.entry("Seuil 2 haut|SPEED", new Rule(ZoneAnchor.LT2, 100, 104, ZoneModel.LACTATE_THRESHOLD)),
             Map.entry("10 km|SPEED", new Rule(ZoneAnchor.PACE_10KM, 98, 102, ZoneModel.DANIELS_VDOT)),
             Map.entry("5 km|SPEED", new Rule(ZoneAnchor.PACE_5KM, 98, 102, ZoneModel.DANIELS_VDOT)),
@@ -159,6 +175,7 @@ public class TrainingZoneSeedService {
                 Rule rule = RULES.get(def.name() + "|" + code);
                 if (rule != null) {
                     zm.setAnchor(rule.anchor());
+                    zm.setHighAnchor(rule.highAnchor());
                     zm.setLowPct(rule.low());
                     zm.setHighPct(rule.high());
                     zm.setModel(rule.model());

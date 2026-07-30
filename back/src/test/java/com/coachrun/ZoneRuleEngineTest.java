@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -67,7 +68,7 @@ class ZoneRuleEngineTest {
         JsonNode zones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
-        // La zone « Seuil 2 bas » porte une règle allure ancrée LT2 96–100 % (seedée).
+        // « Seuil 2 bas » s'arrête pile à LT2 : c'est la zone juste sous le seuil lactique.
         JsonNode seuil = null;
         for (JsonNode z : zones) if ("Seuil 2 bas".equals(z.get("name").asText())) seuil = z;
         assertThat(seuil).isNotNull();
@@ -75,7 +76,7 @@ class ZoneRuleEngineTest {
         for (JsonNode r : seuil.get("rules")) {
             if ("LT2".equals(r.path("anchor").asText())) {
                 hasLt2 = true;
-                assertThat(r.get("lowPct").asDouble()).isEqualTo(96.0);
+                assertThat(r.get("lowPct").asDouble()).isEqualTo(97.0);
                 assertThat(r.get("highPct").asDouble()).isEqualTo(100.0);
             }
         }
@@ -159,6 +160,74 @@ class ZoneRuleEngineTest {
             }
         }
         assertThat(found).isTrue();
+    }
+
+    /**
+     * L'échelle d'allure est une <b>chaîne contiguë</b> : la borne rapide d'une zone est exactement
+     * la borne lente de la suivante, du footing facile au 800 m. Sans quoi un athlète se retrouve
+     * dans deux zones à la fois, ou dans aucune.
+     */
+    @Test
+    void paceScaleIsContiguous() throws Exception {
+        String paceMetricId = metricId("PACE");
+        JsonNode values = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/{a}/zone-values", clubId, athleteId)
+                                .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        // Bandes d'allure de l'athlète, indexées par zone.
+        java.util.Map<String, int[]> byZone = new java.util.HashMap<>();
+        for (JsonNode v : values) {
+            if (paceMetricId.equals(v.get("metricTypeId").asText())) {
+                byZone.put(v.get("zoneId").asText(),
+                        new int[]{v.get("valueMin").asInt(), v.get("valueMax").asInt()});
+            }
+        }
+
+        // La chaîne va du footing facile au seuil 2 haut : ce sont les zones ancrées LT1/LT2. Les
+        // allures de compétition suivent les records (ancres VDOT) et restent hors chaîne à dessein.
+        List<String> scale = List.of("Footing facile", "EF", "Steady", "Seuil 1", "Tempo",
+                "Seuil 2 bas", "Seuil 2 haut");
+        int[] previous = null;
+        for (String name : scale) {
+            int[] band = byZone.get(zoneIdNamed(name));
+            assertThat(band).as("bande d'allure de « %s »", name).isNotNull();
+            // valueMin = allure rapide (s/km), valueMax = allure lente.
+            assertThat(band[0]).as("« %s » : borne rapide < borne lente", name).isLessThan(band[1]);
+            if (previous != null) {
+                // La borne rapide de la zone précédente est la borne lente de celle-ci : ±1 s
+                // d'arrondi, puisque les deux viennent d'un calcul en secondes entières.
+                assertThat(band[1]).as("« %s » démarre où la précédente s'arrête", name)
+                        .isBetween(previous[0] - 1, previous[0] + 1);
+            }
+            previous = band;
+        }
+    }
+
+    /**
+     * La zone qui enjambe la frontière LT1 → LT2 exprime sa borne basse en % de LT1 et sa borne
+     * haute en % de LT2 : c'est la seule façon de coller à ses deux voisines quel que soit le
+     * rapport LT1/LT2 de l'athlète.
+     */
+    @Test
+    void transitionZoneBridgesLt1AndLt2() throws Exception {
+        JsonNode zones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(StandardCharsets.UTF_8));
+        JsonNode seuil1 = null;
+        for (JsonNode z : zones) if ("Seuil 1".equals(z.get("name").asText())) seuil1 = z;
+        assertThat(seuil1).isNotNull();
+
+        boolean bridged = false;
+        for (JsonNode r : seuil1.get("rules")) {
+            if ("LT1".equals(r.path("anchor").asText()) && "LT2".equals(r.path("highAnchor").asText())) {
+                bridged = true;
+                assertThat(r.get("lowPct").asDouble()).isEqualTo(100.0);  // pile à LT1
+                assertThat(r.get("highPct").asDouble()).isEqualTo(93.0);  // 93 % de LT2
+            }
+        }
+        assertThat(bridged).as("« Seuil 1 » enjambe LT1 → LT2").isTrue();
     }
 
     /**

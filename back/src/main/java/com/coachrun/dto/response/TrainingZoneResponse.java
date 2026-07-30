@@ -29,7 +29,8 @@ public record TrainingZoneResponse(
 ) {
 
     /** Règle de calcul d'une métrique de la zone. */
-    public record Rule(UUID metricTypeId, ZoneAnchor anchor, Double lowPct, Double highPct, ZoneModel model) {
+    public record Rule(UUID metricTypeId, ZoneAnchor anchor, ZoneAnchor highAnchor,
+                       Double lowPct, Double highPct, ZoneModel model) {
     }
 
     public static TrainingZoneResponse from(TrainingZone z) {
@@ -38,7 +39,8 @@ public record TrainingZoneResponse(
                 .toList();
         List<UUID> metricIds = ordered.stream().map(zm -> zm.getMetricType().getId()).toList();
         List<Rule> rules = ordered.stream()
-                .map(zm -> new Rule(zm.getMetricType().getId(), zm.getAnchor(), zm.getLowPct(), zm.getHighPct(), zm.getModel()))
+                .map(zm -> new Rule(zm.getMetricType().getId(), zm.getAnchor(), zm.getHighAnchor(),
+                        zm.getLowPct(), zm.getHighPct(), zm.getModel()))
                 .toList();
         return new TrainingZoneResponse(
                 z.getId(), z.getName(), z.getColor(), z.getDescription(), z.getSortOrder(),

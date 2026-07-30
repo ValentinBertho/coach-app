@@ -72,7 +72,7 @@ import { ToastService } from '../../core/services/toast.service';
           <span></span>
           <span>Zone</span>
           <span>Métriques</span>
-          <span>Description</span>
+          <span>Règle d'allure</span>
           <span></span>
         </div>
         <div cdkDropList (cdkDropListDropped)="drop($event)">
@@ -112,9 +112,22 @@ import { ToastService } from '../../core/services/toast.service';
                   @for (mid of z.metricTypeIds; track mid) { <span class="metric-chip">{{ metricName(mid) }}</span> }
                   @if (z.metricTypeIds.length === 0) { <span class="field-hint">—</span> }
                 </span>
-                <span class="zcell zcell--desc">{{ z.description || '—' }}</span>
+                <!-- La règle se lit en liste : « 90 – 100 % LT1 », « 100 % LT1 → 93 % LT2 ». C'est
+                     l'échelle entière qui devient lisible d'un coup d'œil, du footing au 800 m. -->
+                <span class="zcell zcell--rule">
+                  @if (paceRuleLabel(z); as lbl) {
+                    <span class="rule-read metric">{{ lbl }}</span>
+                    @if (gapWith(z); as gap) {
+                      <span class="rule-warn" [title]="gap.detail">
+                        <app-icon name="alert-triangle" [size]="13" /> {{ gap.label }}
+                      </span>
+                    }
+                  } @else {
+                    <span class="field-hint">—</span>
+                  }
+                </span>
                 <span class="zcell zcell--actions">
-                  <button type="button" class="btn btn-ghost btn-sm" (click)="toggleConfig(z.id)" [class.active]="configId() === z.id" title="Métriques portées">
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="toggleConfig(z.id)" [class.active]="configId() === z.id" title="Métriques &amp; règle de calcul">
                     <app-icon name="settings" [size]="16" />
                   </button>
                   <button type="button" class="btn btn-ghost btn-sm" (click)="startEdit(z)" aria-label="Modifier">
@@ -137,18 +150,35 @@ import { ToastService } from '../../core/services/toast.service';
                   <span class="config-label">Règle de calcul par métrique :</span>
                   @for (mid of z.metricTypeIds; track mid) {
                     @if (ruleFor(z, mid); as r) {
+                      <!-- Une borne = un pourcentage + sa référence. Les deux bornes partagent la
+                           même référence dans le cas courant ; la zone qui enjambe la frontière
+                           LT1 → LT2 est la seule à en avoir deux différentes. -->
                       <div class="rule-row">
                         <span class="rule-metric">{{ metricName(mid) }}</span>
-                        <select class="form-control" [ngModel]="r.anchor" (ngModelChange)="saveRule(z, mid, { anchor: $event })" title="Ancre">
-                          <option [ngValue]="null">— ancre —</option>
-                          @for (a of anchors; track a) { <option [ngValue]="a">{{ anchorLabels[a] }}</option> }
-                        </select>
-                        <span class="rule-pct">
-                          <input type="number" class="form-control mini" [ngModel]="r.lowPct" (ngModelChange)="saveRule(z, mid, { lowPct: $event })" placeholder="min %" />
-                          –
-                          <input type="number" class="form-control mini" [ngModel]="r.highPct" (ngModelChange)="saveRule(z, mid, { highPct: $event })" placeholder="max %" />
+
+                        <span class="rule-edge">
+                          <span class="edge-lb">de</span>
+                          <input type="number" class="form-control mini" [ngModel]="r.lowPct"
+                                 (ngModelChange)="saveRule(z, mid, { lowPct: $event })" placeholder="min" />
                           <span class="rule-unit">%</span>
+                          <select class="form-control" [ngModel]="r.anchor"
+                                  (ngModelChange)="saveRule(z, mid, { anchor: $event })" title="Référence de la borne basse">
+                            <option [ngValue]="null">— référence —</option>
+                            @for (a of anchors; track a) { <option [ngValue]="a">{{ anchorLabels[a] }}</option> }
+                          </select>
                         </span>
+
+                        <span class="rule-edge">
+                          <span class="edge-lb">à</span>
+                          <input type="number" class="form-control mini" [ngModel]="r.highPct"
+                                 (ngModelChange)="saveRule(z, mid, { highPct: $event })" placeholder="max" />
+                          <span class="rule-unit">%</span>
+                          <select class="form-control" [ngModel]="r.highAnchor ?? r.anchor"
+                                  (ngModelChange)="saveRule(z, mid, { highAnchor: $event })" title="Référence de la borne haute">
+                            @for (a of anchors; track a) { <option [ngValue]="a">{{ anchorLabels[a] }}</option> }
+                          </select>
+                        </span>
+
                         <select class="form-control" [ngModel]="r.model" (ngModelChange)="saveRule(z, mid, { model: $event })" title="Modèle">
                           @for (mo of models; track mo) { <option [ngValue]="mo">{{ modelLabels[mo] }}</option> }
                         </select>
@@ -220,7 +250,17 @@ import { ToastService } from '../../core/services/toast.service';
     .toggle { border: 1px solid var(--line); background: var(--paper); color: var(--ink-2); padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-full); cursor: pointer; font-size: var(--text-sm); font-weight: 600; }
     .toggle.on { background: var(--dari-teal); border-color: var(--dari-teal); color: #fff; }
 
-    .rule-row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+    .rule-row { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+    .rule-edge { display: inline-flex; align-items: center; gap: var(--sp-1); }
+    .edge-lb { font-size: var(--text-xs); color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+
+    /* Règle lue en liste + alerte de chaîne rompue. */
+    .zcell--rule { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .rule-read { font-size: var(--text-sm); color: var(--ink-2); white-space: nowrap; }
+    .rule-warn {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: var(--text-xs); color: var(--warning); font-weight: 700; cursor: help;
+    }
     .rule-metric { min-width: 96px; font-weight: 700; font-size: var(--text-sm); color: var(--ink-2); }
     .rule-row .form-control { min-height: 32px; padding: 2px var(--sp-2); }
     .rule-pct { display: inline-flex; align-items: center; gap: var(--sp-1); }
@@ -386,7 +426,82 @@ export class TrainingZonesComponent implements OnInit {
   /** Règle courante d'un couple (zone, métrique), ou une règle vide par défaut. */
   ruleFor(z: TrainingZone, metricId: string): ZoneRule {
     return z.rules?.find((r) => r.metricTypeId === metricId)
-      ?? { metricTypeId: metricId, anchor: null, lowPct: null, highPct: null, model: 'CUSTOM' };
+      ?? { metricTypeId: metricId, anchor: null, highAnchor: null, lowPct: null, highPct: null, model: 'CUSTOM' };
+  }
+
+  // --- Lecture de l'échelle d'allure ---------------------------------------
+
+  /** Id de la métrique Allure : c'est elle qui porte l'échelle contiguë. */
+  private readonly paceMetricId = computed(() => this.metrics().find((m) => m.code === 'PACE')?.id ?? null);
+
+  /** Zones portant l'allure, dans l'ordre — la chaîne du footing facile au 800 m. */
+  private readonly paceChain = computed(() => {
+    const pid = this.paceMetricId();
+    if (!pid) return [];
+    return this.zones()
+      .filter((z) => z.metricTypeIds.includes(pid))
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  });
+
+  private paceRule(z: TrainingZone): ZoneRule | null {
+    const pid = this.paceMetricId();
+    if (!pid) return null;
+    const r = z.rules?.find((x) => x.metricTypeId === pid);
+    return r && r.anchor && r.lowPct != null && r.highPct != null ? r : null;
+  }
+
+  /** Vrai si les deux bornes de la règle s'ancrent sur un seuil lactique (LT1 / LT2). */
+  private isThresholdAnchored(r: ZoneRule): boolean {
+    const refs: (ZoneAnchor | null)[] = [r.anchor, r.highAnchor ?? r.anchor];
+    return refs.every((a) => a === 'LT1' || a === 'LT2');
+  }
+
+  /** Libellé court d'une ancre : « LT1 » plutôt que « Seuil aérobie (LT1) ». */
+  private shortAnchor(a: ZoneAnchor | null): string {
+    if (!a) return '—';
+    const label = ZONE_ANCHOR_LABELS[a];
+    const paren = /\(([^)]+)\)/.exec(label);
+    return paren ? paren[1] : label;
+  }
+
+  /**
+   * Règle d'allure en une ligne. Deux formes : « 90 – 100 % LT1 » quand les deux bornes partagent
+   * leur référence, « 100 % LT1 → 93 % LT2 » pour la zone qui enjambe la frontière.
+   */
+  paceRuleLabel(z: TrainingZone): string | null {
+    const r = this.paceRule(z);
+    if (!r) return null;
+    const lowRef = this.shortAnchor(r.anchor);
+    const highRef = this.shortAnchor(r.highAnchor ?? r.anchor);
+    return lowRef === highRef
+      ? `${r.lowPct} – ${r.highPct} % ${lowRef}`
+      : `${r.lowPct} % ${lowRef} → ${r.highPct} % ${highRef}`;
+  }
+
+  /**
+   * Rupture de chaîne avec la zone précédente. La chaîne est intacte si la borne haute d'une zone
+   * est <b>exactement</b> la borne basse de la suivante (même référence, même pourcentage) — un
+   * critère indépendant de l'athlète, là où comparer deux allures dépendrait de son rapport LT1/LT2.
+   */
+  gapWith(z: TrainingZone): { label: string; detail: string } | null {
+    const chain = this.paceChain();
+    const i = chain.findIndex((x) => x.id === z.id);
+    if (i <= 0) return null;
+    const prev = this.paceRule(chain[i - 1]);
+    const cur = this.paceRule(z);
+    if (!prev || !cur) return null;
+    // La chaîne ne concerne que les zones ancrées sur les seuils. Une zone ancrée sur une allure
+    // de compétition suit les records de l'athlète : elle est hors chaîne à dessein, pas en erreur.
+    if (!this.isThresholdAnchored(prev) || !this.isThresholdAnchored(cur)) return null;
+    const prevRef = prev.highAnchor ?? prev.anchor;
+    if (prevRef === cur.anchor && prev.highPct === cur.lowPct) return null;
+    return {
+      label: 'chaîne rompue',
+      detail: `« ${chain[i - 1].name} » s'arrête à ${prev.highPct} % ${this.shortAnchor(prevRef)}`
+        + ` mais « ${z.name} » démarre à ${cur.lowPct} % ${this.shortAnchor(cur.anchor)} :`
+        + ' selon l\'athlète, il restera un trou ou un chevauchement entre les deux.',
+    };
   }
 
   /** Enregistre une modification partielle de règle (fusionnée avec l'existante). */
@@ -394,6 +509,7 @@ export class TrainingZonesComponent implements OnInit {
     const cur = this.ruleFor(z, metricId);
     const body: ZoneRuleRequest = {
       anchor: patch.anchor !== undefined ? patch.anchor : cur.anchor,
+      highAnchor: patch.highAnchor !== undefined ? patch.highAnchor : cur.highAnchor,
       lowPct: patch.lowPct !== undefined ? patch.lowPct : cur.lowPct,
       highPct: patch.highPct !== undefined ? patch.highPct : cur.highPct,
       model: patch.model !== undefined ? patch.model : (cur.model ?? 'CUSTOM'),
