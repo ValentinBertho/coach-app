@@ -130,6 +130,12 @@ public class AthletePhysioService {
         performanceRepository.delete(perf);
         performanceRepository.flush();
         recomputeVdot(a);
+        // Symétrique de l'ajout : retirer un record redescend le VDOT, donc les allures qui
+        // ancrent les zones de compétition. Sans ce resync les cibles resteraient sur le record
+        // supprimé.
+        zoneValueSyncService.resync(clubId, athleteId);
+        log.info("Performance {} supprimée pour l'athlète {} (recalcul VDOT + zones)",
+                perf.getDistance(), athleteId);
     }
 
     public VdotResponse getVdot(UUID clubId, UUID athleteId) {
