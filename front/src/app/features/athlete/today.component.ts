@@ -35,6 +35,7 @@ import {
 } from '../../shared/components/ui';
 import { HelpService } from '../help/help.service';
 import { HelpHintComponent } from '../help/help-hint.component';
+import { RPE_SCALE, rpeLabel } from '../../shared/components/rpe-scale';
 
 interface SetEntry { chargeKg: number | null; repsDone: number | null; rirDone: number | null; }
 
@@ -104,7 +105,24 @@ export class TodayComponent implements OnInit {
   readonly stepLabels = STEP_TYPE_LABELS;
   readonly statusLabels = STATUS_LABELS;
   readonly statusBadge = STATUS_BADGE;
-  readonly rpeScale = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  readonly rpeScale = RPE_SCALE;
+
+  /** Repère verbal CR10 de la valeur choisie (échelle partagée avec l'éditeur coach). */
+  rpeLabel(value: number | null | undefined): string { return rpeLabel(value); }
+
+  /**
+   * Recopie charge / reps / RIR de la série précédente. Sur mobile, une séance de 4 exercices
+   * × 4 séries demande 48 frappes ; la plupart des séries ne varient pas.
+   */
+  repeatPreviousSet(exercise: ExerciseSets, index: number): void {
+    const previous = exercise.sets[index - 1];
+    const current = exercise.sets[index];
+    if (!previous || !current) return;
+    current.chargeKg = previous.chargeKg;
+    current.repsDone = previous.repsDone;
+    current.rirDone = previous.rirDone;
+    this.strengthCards.set([...this.strengthCards()]);
+  }
 
   readonly state = signal<State>('loading');
   /** Toutes les séances de course du jour (double séance possible). */

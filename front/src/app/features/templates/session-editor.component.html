@@ -92,7 +92,9 @@
           }
 
           <!-- Effort perçu visé (RPE 1–10), propre au contenu de la séance. -->
-          <span class="rpe" title="Effort perçu visé (RPE 1–10)">
+          <!-- Le repère verbal CR10 (même échelle que la saisie athlète) évite que coach et
+               athlète parlent de deux « 7 » différents. -->
+          <span class="rpe" [title]="rpeTitle(b.rpe)">
             <span class="rpe-lb">RPE</span>
             <input type="number" class="rpe-in" min="1" max="10" [ngModel]="b.rpe" (ngModelChange)="setBlockRpe(b, $event)" placeholder="–" />
           </span>
