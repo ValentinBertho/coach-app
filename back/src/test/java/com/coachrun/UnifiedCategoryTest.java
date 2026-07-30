@@ -14,6 +14,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -69,10 +72,15 @@ class UnifiedCategoryTest {
         JsonNode strength = objectMapper.readTree(mvc.perform(get("/clubs/{c}/session-categories?domain=STRENGTH", clubId)
                         .header("Authorization", bearer)).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString());
-        assertThat(course).hasSize(1);
-        assertThat(course.get(0).get("name").asText()).isEqualTo("Vitesse");
-        assertThat(strength).hasSize(1);
-        assertThat(strength.get(0).get("name").asText()).isEqualTo("Gainage");
+        // Le club est seedé avec des catégories de course : on vérifie le cloisonnement par
+        // domaine (la catégorie course est visible côté course et absente côté force, et
+        // réciproquement), pas un total absolu.
+        List<String> courseNames = new ArrayList<>();
+        course.forEach(c -> courseNames.add(c.get("name").asText()));
+        List<String> strengthNames = new ArrayList<>();
+        strength.forEach(c -> strengthNames.add(c.get("name").asText()));
+        assertThat(courseNames).contains("Vitesse").doesNotContain("Gainage");
+        assertThat(strengthNames).containsExactly("Gainage");
     }
 
     @Test

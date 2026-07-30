@@ -33,6 +33,7 @@ import com.coachrun.entity.Athlete1rmProfile;
 import com.coachrun.entity.EstimatedOneRm;
 import com.coachrun.entity.StrengthLoadTracking;
 import com.coachrun.entity.PpExercise;
+import com.coachrun.entity.SessionCategory;
 import com.coachrun.entity.StrengthSession;
 import com.coachrun.entity.WorkoutTemplate;
 import com.coachrun.entity.enums.RmFormula;
@@ -101,6 +102,7 @@ public class DemoSeedService {
     private final com.coachrun.repository.TrainingGroupRepository groupRepository;
     private final com.coachrun.repository.WorkoutTemplateRepository templateRepository;
     private final com.coachrun.repository.TrainingZoneRepository trainingZoneRepository;
+    private final com.coachrun.repository.SessionCategoryRepository sessionCategoryRepository;
     private final com.coachrun.repository.RunDrillRepository runDrillRepository;
     private final com.coachrun.repository.MessageRepository messageRepository;
     private final com.coachrun.repository.PushSubscriptionRepository pushSubscriptionRepository;
@@ -207,15 +209,12 @@ public class DemoSeedService {
         // Éducatifs de course (gammes) — réutilisés dans les structures de séance.
         UUID warmupDrillId = seedRunDrills(club);
 
-        // Modèles de séances (bibliothèque) — structure DARI Lab en fourchettes (modèle unique).
-        WorkoutTemplate endurance = seedTemplate(club, "Endurance fondamentale", WorkoutType.ENDURANCE, "Footing Z2", 12000);
-        WorkoutTemplate vma = seedTemplate(club, "VMA 10x400", WorkoutType.INTERVALS, "VMA 10×400m", 9000);
-        seedCourseStructure(endurance, warmupDrillId);
-        seedCourseStructure(vma, warmupDrillId);
-        if (isPrimary) {
-            WorkoutTemplate longRun = seedTemplate(club, "Sortie longue", WorkoutType.LONG_RUN, "Sortie longue", 20000);
-            seedCourseStructure(longRun, warmupDrillId);
-        }
+        // Une séance héritée (prescription legacy « réf + % ») pour valider la migration douce
+        // vers les zones nommées à la lecture. Le reste de la bibliothèque est prescrit par zones
+        // (seedé après le physio, quand les zones du club existent).
+        WorkoutTemplate legacy = seedTemplate(club, "Séance héritée (réf + %)",
+                WorkoutType.ENDURANCE, "Ancien format, migré à la lecture", 12000);
+        seedCourseStructure(legacy, warmupDrillId);
 
         // Compte athlète connectable (uniquement sur le club principal)
         if (isPrimary) {
@@ -270,12 +269,21 @@ public class DemoSeedService {
                     BigDecimal.valueOf(3.3 + lvl * 0.05), BigDecimal.valueOf(3.7 + lvl * 0.05),
                     BigDecimal.valueOf(4.0 + lvl * 0.05),
                     188 - lvl, 150, 168, null, null, null, null));
+            // Historique de records réaliste (800 m → marathon), étalé sur l'année, dérivé du niveau
+            // par équivalence de Riegel. Saisir/retirer un record recalcule le VDOT et les allures.
             int fiveK = 1080 + lvl * 40;                                // 18:00 et plus
-            int tenK = (int) Math.round(fiveK * Math.pow(2, 1.06));     // équivalence Riegel
-            physioService.addPerformance(club.getId(), a.getId(),
-                    new PerformanceRequest(RunDistance.D5KM, fiveK, LocalDate.now().minusDays(40 + i)));
-            physioService.addPerformance(club.getId(), a.getId(),
-                    new PerformanceRequest(RunDistance.D10KM, tenK, LocalDate.now().minusDays(20 + i)));
+            seedRecord(club, a, RunDistance.D800, riegel(fiveK, 5000, 800), 200 + i);
+            seedRecord(club, a, RunDistance.D1500, riegel(fiveK, 5000, 1500), 160 + i);
+            seedRecord(club, a, RunDistance.D3000, riegel(fiveK, 5000, 3000), 120 + i);
+            seedRecord(club, a, RunDistance.D5KM, fiveK + 25, 90 + i);          // ancien 5 km, moins bon
+            seedRecord(club, a, RunDistance.D10KM, riegel(fiveK, 5000, 10000), 60 + i);
+            seedRecord(club, a, RunDistance.D5KM, fiveK, 30 + i);               // record 5 km récent
+            if (i % 3 == 0) {
+                seedRecord(club, a, RunDistance.SEMI, riegel(fiveK, 5000, 21097), 45 + i);
+            }
+            if (i % 5 == 0) {
+                seedRecord(club, a, RunDistance.MARATHON, riegel(fiveK, 5000, 42195), 150 + i);
+            }
         }
         // Test lactate complet pour l'athlète démo.
         lactateTestService.create(club.getId(), demoAthlete.getId(), new LactateTestRequest(
@@ -283,6 +291,17 @@ public class DemoSeedService {
                 BigDecimal.valueOf(0.8), 60, 188, true, List.of(
                 lactateStep(3.0, 130, 1.0), lactateStep(3.3, 140, 1.2), lactateStep(3.6, 150, 1.8),
                 lactateStep(3.9, 160, 3.0), lactateStep(4.2, 170, 5.5), lactateStep(4.5, 178, 8.0))));
+    }
+
+    /** Enregistre un record (le VDOT et les allures dérivées sont recalculés par le service). */
+    private void seedRecord(Club club, Athlete a, RunDistance distance, int seconds, int daysAgo) {
+        physioService.addPerformance(club.getId(), a.getId(),
+                new PerformanceRequest(distance, seconds, LocalDate.now().minusDays(daysAgo)));
+    }
+
+    /** Équivalence de Riegel : temps prédit sur {@code toM} à partir d'un temps sur {@code fromM}. */
+    private int riegel(int seconds, int fromM, int toM) {
+        return (int) Math.round(seconds * Math.pow((double) toM / fromM, 1.06));
     }
 
     private LactateTestStepRequest lactateStep(double speedMs, int hr, double lactate) {
@@ -494,23 +513,147 @@ public class DemoSeedService {
             byName.put(z.getName(), z.getId());
         }
         UUID fallback = zones.get(0).getId();
+        // Échelle Allure
+        UUID footing = byName.getOrDefault("Footing facile", fallback);
         UUID ef = byName.getOrDefault("EF", fallback);
-        UUID seuil = byName.getOrDefault("Seuil 2 bas", fallback);
-        UUID recup = byName.getOrDefault("Footing facile", fallback);
+        UUID steady = byName.getOrDefault("Steady", fallback);
+        UUID tempo = byName.getOrDefault("Tempo", fallback);
+        UUID seuil2 = byName.getOrDefault("Seuil 2 bas", fallback);
+        UUID p3km = byName.getOrDefault("3 km", fallback);
+        UUID p10km = byName.getOrDefault("10 km", fallback);
+        // Échelle Cardio
+        UUID cardioEndurance = byName.getOrDefault("Endurance aérobie", fallback);
 
-        WorkoutTemplate t = seedTemplate(club, "Fractionné 6×1000 au seuil",
-                WorkoutType.INTERVALS, "6×1000m au seuil (prescrit par zones)", 10000);
-        t.setDiscipline(Discipline.ROUTE);
-        t.setStructureJson("""
+        // Catégories de bibliothèque (rangement façon Nolio) : chaque séance en a une.
+        SessionCategory cFooting = seedCategory(club, "Footing facile", 1);
+        SessionCategory cEndurance = seedCategory(club, "Endurance", 2);
+        SessionCategory cSeuil = seedCategory(club, "Seuil / Tempo", 3);
+        SessionCategory cVma = seedCategory(club, "VMA / Fractionné", 4);
+        SessionCategory cLongue = seedCategory(club, "Sortie longue", 5);
+        SessionCategory cCompet = seedCategory(club, "Compétition / Test", 6);
+
+        // --- Séances simples (un seul bloc : ni échauffement ni retour au calme) ---
+        simpleSession(club, cFooting, "Footing récupération 40 min", "Footing très facile", 2400, footing, 2,
+                "Vraiment facile : on doit pouvoir tenir une conversation. Objectif = récupérer.");
+        simpleSession(club, cEndurance, "Endurance 1 h", "Endurance fondamentale", 3600, ef, 4,
+                "Allure d'endurance, respiration confortable. Rester dans la fourchette basse si fatigue.");
+        simpleSession(club, cEndurance, "Endurance cardio 1 h (FC)", "Endurance pilotée par la FC", 3600,
+                cardioEndurance, 4,
+                "Séance pilotée par le cardio : rester dans la bande FC, l'allure suit le terrain.");
+
+        // --- Séance structurée : sortie longue avec progression ---
+        WorkoutTemplate longue = seedTemplate(club, "Sortie longue 1 h 45", WorkoutType.LONG_RUN,
+                "Sortie longue avec fin en Steady", 21000);
+        longue.setDiscipline(Discipline.ROUTE);
+        longue.setCategory(cLongue);
+        longue.setNotes("Sortie longue : 1 h en EF puis 30 min en Steady, retour au calme facile. "
+                + "Boire toutes les 20 min, tester la nutrition de course.");
+        longue.setStructureJson("""
+                {"warmup":[],
+                 "main":[{"id":"m1","type":"long","durationS":3600,"prescription":{"zoneId":"%s"},"rpe":4},
+                         {"id":"m2","type":"tempo","durationS":1800,"prescription":{"zoneId":"%s"},"rpe":6,
+                          "note":"Fin de sortie en Steady, rester relâché"}],
+                 "cooldown":[{"id":"cd1","type":"cooldown","durationS":900,
+                              "prescription":{"zoneId":"%s"},"rpe":2}]}"""
+                .formatted(ef, steady, footing));
+
+        // --- Séance structurée : tempo continu au seuil ---
+        WorkoutTemplate tempoS = seedTemplate(club, "Tempo 20 min", WorkoutType.TEMPO,
+                "Tempo continu au seuil 1", 12000);
+        tempoS.setDiscipline(Discipline.ROUTE);
+        tempoS.setCategory(cSeuil);
+        tempoS.setNotes("Tempo continu : trouver l'allure « confortablement difficile », "
+                + "sans jamais basculer en seuil 2.");
+        tempoS.setStructureJson("""
                 {"warmup":[{"id":"wu1","type":"warmup","durationS":900,
-                            "prescription":{"zoneId":"%s"},"drillIds":["%s"]}],
-                 "main":[{"id":"m1","type":"intervals","reps":6,"distanceM":1000,
-                          "prescription":{"zoneId":"%s"},
-                          "recovery":{"type":"jog","durationS":90,
-                                      "prescription":{"zoneId":"%s"}}}],
+                            "prescription":{"zoneId":"%s"},"rpe":3,"drillIds":["%s"]}],
+                 "main":[{"id":"m1","type":"tempo","durationS":1200,"prescription":{"zoneId":"%s"},"rpe":6}],
                  "cooldown":[{"id":"cd1","type":"cooldown","durationS":600,
-                              "prescription":{"zoneId":"%s"}}]}"""
-                .formatted(ef, warmupDrillId, seuil, recup, recup));
+                              "prescription":{"zoneId":"%s"},"rpe":2}]}"""
+                .formatted(ef, warmupDrillId, tempo, footing));
+
+        // --- Séance structurée : fractionné long au seuil (favori) ---
+        WorkoutTemplate seuilFrac = seedTemplate(club, "6 × 1000 m au seuil", WorkoutType.INTERVALS,
+                "6×1000 m, récup 90 s", 12000);
+        seuilFrac.setDiscipline(Discipline.ROUTE);
+        seuilFrac.setCategory(cSeuil);
+        seuilFrac.setFavorite(true);
+        seuilFrac.setUseCount(7);
+        seuilFrac.setNotes("Séance clé de la semaine. Rester régulier : les deux derniers 1000 m "
+                + "doivent être les plus rapides. Récup en trot, pas d'arrêt.");
+        seuilFrac.setStructureJson("""
+                {"warmup":[{"id":"wu1","type":"warmup","durationS":1200,
+                            "prescription":{"zoneId":"%s"},"rpe":3,"drillIds":["%s"]}],
+                 "main":[{"id":"m1","type":"intervals","reps":6,"distanceM":1000,
+                          "prescription":{"zoneId":"%s"},"rpe":7,
+                          "note":"Régularité : même temps à ±2 s",
+                          "recovery":{"type":"jog","durationS":90,"prescription":{"zoneId":"%s"}}}],
+                 "cooldown":[{"id":"cd1","type":"cooldown","durationS":600,
+                              "prescription":{"zoneId":"%s"},"rpe":2}]}"""
+                .formatted(ef, warmupDrillId, seuil2, footing, footing));
+
+        // --- Séance structurée : VMA courte (favori) ---
+        WorkoutTemplate vmaCourte = seedTemplate(club, "10 × 400 m VMA", WorkoutType.INTERVALS,
+                "10×400 m, récup 1 min", 9000);
+        vmaCourte.setDiscipline(Discipline.ROUTE);
+        vmaCourte.setCategory(cVma);
+        vmaCourte.setFavorite(true);
+        vmaCourte.setUseCount(12);
+        vmaCourte.setNotes("VMA courte : viser l'allure 3 km, relâché haut du corps. "
+                + "Si les 3 derniers ralentissent, arrêter la séance.");
+        vmaCourte.setStructureJson("""
+                {"warmup":[{"id":"wu1","type":"warmup","durationS":1200,
+                            "prescription":{"zoneId":"%s"},"rpe":3,"drillIds":["%s"]}],
+                 "main":[{"id":"m1","type":"intervals","reps":10,"distanceM":400,
+                          "prescription":{"zoneId":"%s"},"rpe":9,
+                          "recovery":{"type":"jog","durationS":60,"prescription":{"zoneId":"%s"}}}],
+                 "cooldown":[{"id":"cd1","type":"cooldown","durationS":600,
+                              "prescription":{"zoneId":"%s"},"rpe":2}]}"""
+                .formatted(ef, warmupDrillId, p3km, footing, footing));
+
+        // --- Séance structurée : test / allure spécifique 10 km ---
+        WorkoutTemplate specif = seedTemplate(club, "3 × 2 km allure 10 km", WorkoutType.INTERVALS,
+                "Spécifique 10 km, récup 2 min", 12000);
+        specif.setDiscipline(Discipline.ROUTE);
+        specif.setCategory(cCompet);
+        specif.setUseCount(3);
+        specif.setNotes("Spécifique course : caler l'allure 10 km et la sensation de course. "
+                + "Récup complète entre les blocs.");
+        specif.setStructureJson("""
+                {"warmup":[{"id":"wu1","type":"warmup","durationS":1200,
+                            "prescription":{"zoneId":"%s"},"rpe":3,"drillIds":["%s"]}],
+                 "main":[{"id":"m1","type":"intervals","reps":3,"distanceM":2000,
+                          "prescription":{"zoneId":"%s"},"rpe":8,
+                          "recovery":{"type":"jog","durationS":120,"prescription":{"zoneId":"%s"}}}],
+                 "cooldown":[{"id":"cd1","type":"cooldown","durationS":600,
+                              "prescription":{"zoneId":"%s"},"rpe":2}]}"""
+                .formatted(ef, warmupDrillId, p10km, footing, footing));
+    }
+
+    /** Catégorie de bibliothèque (domaine course) — idempotente par nom au sein du club. */
+    private SessionCategory seedCategory(Club club, String name, int order) {
+        SessionCategory c = new SessionCategory();
+        c.setClub(club);
+        c.setName(name);
+        c.setSortOrder(order);
+        return sessionCategoryRepository.save(c);
+    }
+
+    /**
+     * Séance « simple » : un unique bloc, sans échauffement ni retour au calme — l'éditeur
+     * n'impose alors pas les trois sections (cas du footing).
+     */
+    private void simpleSession(Club club, SessionCategory category, String name, String title,
+                               int durationS, UUID zoneId, int rpe, String notes) {
+        WorkoutTemplate t = seedTemplate(club, name, WorkoutType.ENDURANCE, title, durationS / 5 * 1000);
+        t.setDiscipline(Discipline.ROUTE);
+        t.setCategory(category);
+        t.setNotes(notes);
+        t.setStructureJson("""
+                {"warmup":[],
+                 "main":[{"id":"m1","type":"easy","durationS":%d,"prescription":{"zoneId":"%s"},"rpe":%d}],
+                 "cooldown":[]}"""
+                .formatted(durationS, zoneId, rpe));
     }
 
     private PpExercise newExercise(Club club, String name, ExerciseCategory category,
