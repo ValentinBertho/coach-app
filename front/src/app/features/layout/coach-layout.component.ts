@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { BreadcrumbService } from '../../core/services/breadcrumb.service';
 import { ToastService } from '../../core/services/toast.service';
 import { HelpService } from '../help/help.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
@@ -26,6 +27,10 @@ export class CoachLayoutComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   readonly help = inject(HelpService);
+  private readonly breadcrumb = inject(BreadcrumbService);
+
+  /** Fil d'Ariane de la barre supérieure : « où suis-je » quand on est dans un contexte. */
+  readonly trail = this.breadcrumb.trail;
 
   readonly user = this.auth.currentUser;
   readonly resending = signal(false);

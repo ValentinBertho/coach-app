@@ -20,7 +20,7 @@ interface EditState {
 }
 
 /**
- * Écran « Zones & métriques » de la fiche athlète (chantier Z2). La fiche athlète porte les valeurs
+ * Onglet « Zones » de la coquille athlète (chantier Z2). L'athlète porte les valeurs
  * (façon Nolio) : pré-remplies AUTO depuis le moteur physio, ajustables/verrouillables par le coach.
  */
 @Component({
@@ -31,10 +31,7 @@ interface EditState {
   template: `
     <section class="page-header">
       <div>
-        <a [routerLink]="['/app/athletes', athleteId()]" class="back-link">
-          <app-icon name="chevron-right" [size]="14" /> Retour à la fiche
-        </a>
-        <h1 class="display-sm">Zones &amp; métriques</h1>
+        <h1 class="display-sm">Zones de l'athlète</h1>
         <p class="subtitle">
           Valeurs pré-remplies depuis le profil (allure/FC). Ajustez et verrouillez les cibles ;
           le resync respecte vos valeurs manuelles et verrouillées.
@@ -50,7 +47,7 @@ interface EditState {
     } @else if (zones().length === 0) {
       <div class="card empty-state">
         <h2>Aucune zone</h2>
-        <p class="field-hint">Définissez d'abord vos zones dans <a routerLink="/app/training-zones">Zones &amp; métriques</a> (club).</p>
+        <p class="field-hint">Définissez d'abord vos zones dans <a routerLink="/app/training-zones">Zones du club</a>.</p>
       </div>
     } @else {
       <!-- Références (ancres) : pilotent le calcul des zones. -->
@@ -145,8 +142,6 @@ interface EditState {
   `,
   styles: [`
     .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
-    .back-link { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-sm); color: var(--ink-3); text-decoration: none; }
-    .back-link app-icon { transform: rotate(180deg); }
 
     .refs { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-3); margin-bottom: var(--sp-3); }
     .refs-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; }

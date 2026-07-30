@@ -12,7 +12,9 @@
       <div class="session">
         <!-- ===== Header ===== -->
         <header class="session-head">
-          <a [routerLink]="['/app/athletes', athleteId()]" class="back">← Athlète</a>
+          <!-- Écran plein cadre (hors coquille) : le retour ramène à l'onglet d'où l'on vient,
+               le programme, et non à la fiche. -->
+          <a [routerLink]="['/app/athletes', athleteId(), 'programme']" class="back">← Programme</a>
           <div class="session-meta">
             <span class="badge" [class]="statusBadge[w.status]">{{ statusLabels[w.status] }}</span>
             <span class="session-type">{{ typeLabels[w.type] }}</span>

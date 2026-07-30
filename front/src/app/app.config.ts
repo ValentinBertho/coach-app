@@ -5,7 +5,7 @@ import { ApplicationConfig, ErrorHandler, LOCALE_ID, importProvidersFrom, isDevM
 import * as Sentry from '@sentry/angular-ivy';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { environment } from '../environments/environment';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { provideRouter, withComponentInputBinding, withRouterConfig } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
 import {
   LucideAngularModule,
@@ -45,7 +45,14 @@ export const appConfig: ApplicationConfig = {
       : []),
     importProvidersFrom(LucideAngularModule.pick(ICONS)),
     provideAnimationsAsync(),
-    provideRouter(routes, withComponentInputBinding()),
+    // « always » : les routes enfants héritent des paramètres du parent, donc les
+    // sections d'un athlète reçoivent `athleteId` posé par la coquille sans que
+    // chacune ait à le redéclarer dans son propre chemin.
+    provideRouter(
+      routes,
+      withComponentInputBinding(),
+      withRouterConfig({ paramsInheritanceStrategy: 'always' }),
+    ),
     provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),

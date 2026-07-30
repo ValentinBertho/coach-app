@@ -2,53 +2,43 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { Athlete, AthleteLevel, AthleteStatus, Ref } from '../../core/models/athlete.model';
-import { TrainingPlan } from '../../core/models/training-plan.model';
+import { Router } from '@angular/router';
+import { Athlete, Ref } from '../../core/models/athlete.model';
 import { StravaStatus } from '../../core/models/strava.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
 import { AthleteService } from '../../core/services/athlete.service';
-import { PlanProgress, TrainingPlanService } from '../../core/services/training-plan.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PhysioPanelComponent } from './physio-panel.component';
 
-const STATUS_LABELS: Record<AthleteStatus, string> = { ACTIVE: 'Actif', PAUSED: 'En pause', ARCHIVED: 'Archivé' };
-const STATUS_BADGES: Record<AthleteStatus, string> = { ACTIVE: 'badge-success', PAUSED: 'badge-warning', ARCHIVED: 'badge-neutral' };
-const LEVEL_LABELS: Record<AthleteLevel, string> = { BEGINNER: 'Débutant', INTERMEDIATE: 'Intermédiaire', ADVANCED: 'Avancé', ELITE: 'Élite' };
-
+/**
+ * Onglet « Résumé » de la coquille athlète : profil physiologique, indisponibilités, antécédents,
+ * rattachements. L'identité, les métriques de référence, les actions globales et la barre d'onglets
+ * appartiennent à {@link AthleteShellComponent} et restent affichées quel que soit l'onglet.
+ */
 @Component({
   selector: 'app-athlete-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink, RouterLinkActive, FormsModule, DatePipe, PhysioPanelComponent],
+  imports: [IconComponent, FormsModule, DatePipe, PhysioPanelComponent],
   templateUrl: './athlete-detail.component.html',
   styleUrl: './athletes.scss',
 })
 export class AthleteDetailComponent implements OnInit {
-  readonly id = input.required<string>();
+  readonly athleteId = input.required<string>();
 
   private readonly athleteService = inject(AthleteService);
-  private readonly planService = inject(TrainingPlanService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
   readonly athlete = signal<Athlete | null>(null);
   readonly loading = signal(true);
-  readonly inviteUrl = signal<string | null>(null);
   /** Volet « Rattachements & réglages » (coachs, clubs, Strava) — replié pour aérer la fiche. */
   readonly showAdmin = signal(false);
-
-  readonly statusLabels = STATUS_LABELS;
-  readonly statusBadges = STATUS_BADGES;
-  readonly levelLabels = LEVEL_LABELS;
 
   /** Multi-tenant : athlète privé (hors club) vs rattaché à un ou plusieurs clubs. */
   readonly isPrivate = computed(() => (this.athlete()?.clubs ?? []).length === 0);
 
   readonly assignableCoaches = signal<Ref[]>([]);
-  readonly plans = signal<TrainingPlan[]>([]);
-  /** Avancement par plan (clé = planId) ; absent si le plan n'a pas d'attribution datée. */
-  readonly planProgress = signal<Record<string, PlanProgress>>({});
 
   // Indisponibilités
   readonly unavailabilities = signal<Unavailability[]>([]);
@@ -66,8 +56,8 @@ export class AthleteDetailComponent implements OnInit {
   readonly strava = signal<StravaStatus | null>(null);
 
   ngOnInit(): void {
-    this.athleteService.stravaStatus(this.id()).subscribe((s) => this.strava.set(s));
-    this.athleteService.get(this.id()).subscribe({
+    this.athleteService.stravaStatus(this.athleteId()).subscribe((s) => this.strava.set(s));
+    this.athleteService.get(this.athleteId()).subscribe({
       next: (a) => {
         this.athlete.set(a);
         this.loading.set(false);
@@ -80,22 +70,11 @@ export class AthleteDetailComponent implements OnInit {
     this.athleteService.assignableCoaches().subscribe({
       next: (coaches) => this.assignableCoaches.set(coaches),
     });
-    this.athleteService.plans(this.id()).subscribe({
-      next: (plans) => {
-        this.plans.set(plans);
-        for (const p of plans) {
-          this.planService.progress(p.id, this.id()).subscribe({
-            next: (pr) => this.planProgress.update((m) => ({ ...m, [p.id]: pr })),
-            error: () => { /* plan sans attribution datée (legacy) : pas de barre */ },
-          });
-        }
-      },
-    });
     this.loadUnavailabilities();
   }
 
   loadUnavailabilities(): void {
-    this.athleteService.listUnavailabilities(this.id()).subscribe((u) => this.unavailabilities.set(u));
+    this.athleteService.listUnavailabilities(this.athleteId()).subscribe((u) => this.unavailabilities.set(u));
   }
 
   addUnavailability(): void {
@@ -103,7 +82,7 @@ export class AthleteDetailComponent implements OnInit {
       this.toast.warning('Renseigne les dates de début et de fin.');
       return;
     }
-    this.athleteService.createUnavailability(this.id(), {
+    this.athleteService.createUnavailability(this.athleteId(), {
       startDate: this.newUnavail.startDate,
       endDate: this.newUnavail.endDate,
       reason: this.newUnavail.reason,
@@ -117,7 +96,7 @@ export class AthleteDetailComponent implements OnInit {
   }
 
   removeUnavailability(unavailabilityId: string): void {
-    this.athleteService.deleteUnavailability(this.id(), unavailabilityId).subscribe(() => {
+    this.athleteService.deleteUnavailability(this.athleteId(), unavailabilityId).subscribe(() => {
       this.toast.info('Indisponibilité supprimée.');
       this.loadUnavailabilities();
     });
@@ -129,7 +108,7 @@ export class AthleteDetailComponent implements OnInit {
 
   // --- Strava ---
   connectStrava(): void {
-    this.athleteService.stravaAuthorizeUrl(this.id()).subscribe({
+    this.athleteService.stravaAuthorizeUrl(this.athleteId()).subscribe({
       next: ({ url }) => { window.location.href = url; },
       error: () => this.toast.error('Intégration Strava non configurée sur ce serveur.'),
     });
@@ -137,19 +116,19 @@ export class AthleteDetailComponent implements OnInit {
 
   importStrava(): void {
     this.toast.info('Import Strava en cours…');
-    this.athleteService.stravaImport(this.id()).subscribe({
+    this.athleteService.stravaImport(this.athleteId()).subscribe({
       next: ({ imported }) => {
         this.toast.success(`${imported} activité(s) importée(s)`);
-        this.athleteService.stravaStatus(this.id()).subscribe((s) => this.strava.set(s));
+        this.athleteService.stravaStatus(this.athleteId()).subscribe((s) => this.strava.set(s));
       },
       error: () => this.toast.error('Import impossible.'),
     });
   }
 
   disconnectStrava(): void {
-    this.athleteService.stravaDisconnect(this.id()).subscribe(() => {
+    this.athleteService.stravaDisconnect(this.athleteId()).subscribe(() => {
       this.toast.info('Strava déconnecté.');
-      this.athleteService.stravaStatus(this.id()).subscribe((s) => this.strava.set(s));
+      this.athleteService.stravaStatus(this.athleteId()).subscribe((s) => this.strava.set(s));
     });
   }
 
@@ -164,7 +143,7 @@ export class AthleteDetailComponent implements OnInit {
     const coachId = select.value;
     if (!coachId) return;
     select.value = '';
-    this.athleteService.assignCoach(this.id(), coachId).subscribe({
+    this.athleteService.assignCoach(this.athleteId(), coachId).subscribe({
       next: (a) => {
         this.athlete.set(a);
         this.toast.success('Coach rattaché');
@@ -173,7 +152,7 @@ export class AthleteDetailComponent implements OnInit {
   }
 
   removeCoach(coachId: string): void {
-    this.athleteService.removeCoach(this.id(), coachId).subscribe({
+    this.athleteService.removeCoach(this.athleteId(), coachId).subscribe({
       next: (a) => {
         this.athlete.set(a);
         this.toast.info('Coach retiré.');
@@ -181,48 +160,12 @@ export class AthleteDetailComponent implements OnInit {
     });
   }
 
-  invite(): void {
-    this.athleteService.invite(this.id()).subscribe({
-      next: (res) => {
-        this.inviteUrl.set(res.inviteUrl);
-        this.toast.success("Lien d'invitation généré");
-      },
-    });
-  }
-
-  copyInvite(): void {
-    const url = this.inviteUrl();
-    if (url) {
-      navigator.clipboard?.writeText(url);
-      this.toast.info('Lien copié dans le presse-papier.');
-    }
-  }
-
   archive(): void {
-    this.athleteService.archive(this.id()).subscribe({
+    this.athleteService.archive(this.athleteId()).subscribe({
       next: () => {
         this.toast.success('Athlète archivé.');
         this.router.navigate(['/app/athletes']);
       },
-    });
-  }
-
-  /** Télécharge le programme PDF des 4 prochaines semaines. */
-  exportProgram(): void {
-    const today = new Date();
-    const from = today.toISOString().slice(0, 10);
-    const to = new Date(today.getTime() + 28 * 86400000).toISOString().slice(0, 10);
-    this.athleteService.exportProgram(this.id(), from, to).subscribe({
-      next: (blob) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'programme.pdf';
-        a.click();
-        URL.revokeObjectURL(url);
-        this.toast.success('Programme exporté (PDF)');
-      },
-      error: () => this.toast.error('Export impossible.'),
     });
   }
 }

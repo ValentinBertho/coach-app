@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { Analytics } from '../../core/services/analytics.service';
 import { AnalyticsService } from '../../core/services/analytics.service';
 import { IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
@@ -14,12 +13,15 @@ interface Bar {
   compliance: number | null;
 }
 
-/** Graphes de charge d'un athlète : volume hebdo prévu/réalisé, zones, adhérence (SVG pur). */
+/**
+ * Panneau « Volume & progression » de l'onglet Charge : volume hebdo prévu/réalisé, zones,
+ * adhérence (SVG pur). Fusionné dans {@link LoadComponent} — il n'a plus de route propre.
+ */
 @Component({
   selector: 'app-analytics',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IntensityZoneBadgeComponent, MetricCardComponent, SegmentedControlComponent],
+  imports: [IntensityZoneBadgeComponent, MetricCardComponent, SegmentedControlComponent],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',
 })

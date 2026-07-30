@@ -76,12 +76,7 @@ export const routes: Routes = [
           import('./features/athletes/athlete-form.component').then((m) => m.AthleteFormComponent),
       },
       {
-        path: 'athletes/:id',
-        loadComponent: () =>
-          import('./features/athletes/athlete-detail.component').then((m) => m.AthleteDetailComponent),
-      },
-      {
-        path: 'athletes/:id/edit',
+        path: 'athletes/:athleteId/edit',
         loadComponent: () =>
           import('./features/athletes/athlete-form.component').then((m) => m.AthleteFormComponent),
       },
@@ -128,11 +123,6 @@ export const routes: Routes = [
           import('./features/athletes/strava-callback.component').then((m) => m.StravaCallbackComponent),
       },
       {
-        path: 'plans',
-        loadComponent: () =>
-          import('./features/plans/plan-list.component').then((m) => m.PlanListComponent),
-      },
-      {
         path: 'groups',
         loadComponent: () =>
           import('./features/groups/group-list.component').then((m) => m.GroupListComponent),
@@ -168,46 +158,9 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/help/help-center.component').then((m) => m.HelpCenterComponent),
       },
-      {
-        path: 'athletes/:athleteId/messages',
-        loadComponent: () =>
-          import('./features/messages/chat.component').then((m) => m.ChatComponent),
-      },
-      {
-        path: 'athletes/:athleteId/activities',
-        loadComponent: () =>
-          import('./features/activities/activity-list.component').then((m) => m.ActivityListComponent),
-      },
-      {
-        path: 'athletes/:athleteId/analytics',
-        loadComponent: () =>
-          import('./features/analytics/analytics.component').then((m) => m.AnalyticsComponent),
-      },
-      {
-        path: 'athletes/:athleteId/tests',
-        loadComponent: () =>
-          import('./features/physio/lactate.component').then((m) => m.LactateComponent),
-      },
-      {
-        path: 'athletes/:athleteId/load',
-        loadComponent: () =>
-          import('./features/physio/load.component').then((m) => m.LoadComponent),
-      },
-      {
-        path: 'athletes/:athleteId/activities/:activityId/map',
-        loadComponent: () =>
-          import('./features/activities/activity-map.component').then((m) => m.ActivityMapComponent),
-      },
-      {
-        path: 'athletes/:athleteId/races',
-        loadComponent: () =>
-          import('./features/races/race-list.component').then((m) => m.RaceListComponent),
-      },
-      {
-        path: 'athletes/:athleteId/zones',
-        loadComponent: () =>
-          import('./features/athletes/athlete-zones.component').then((m) => m.AthleteZonesComponent),
-      },
+      // --- Écrans plein cadre d'un athlète (hors coquille) -------------------
+      // Déclarés AVANT la coquille : le routeur retient la première route qui
+      // correspond, donc ces chemins littéraux gagnent sur ses enfants.
       {
         path: 'athletes/:athleteId/workouts/:workoutId/structure',
         loadComponent: () =>
@@ -217,6 +170,67 @@ export const routes: Routes = [
         path: 'athletes/:athleteId/workouts/:workoutId',
         loadComponent: () =>
           import('./features/workouts/workout-detail.component').then((m) => m.WorkoutDetailComponent),
+      },
+      {
+        path: 'athletes/:athleteId/activities/:activityId/map',
+        loadComponent: () =>
+          import('./features/activities/activity-map.component').then((m) => m.ActivityMapComponent),
+      },
+
+      // --- Coquille d'un athlète : contexte persistant + onglets -------------
+      // Les sections sont des routes ENFANTS : le bandeau d'identité et la barre
+      // d'onglets, peints par la coquille, ne disparaissent plus quand on change
+      // de section (cf. AthleteShellComponent).
+      {
+        path: 'athletes/:athleteId',
+        loadComponent: () =>
+          import('./features/athletes/athlete-shell.component').then((m) => m.AthleteShellComponent),
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'resume' },
+          {
+            path: 'resume',
+            loadComponent: () =>
+              import('./features/athletes/athlete-detail.component').then((m) => m.AthleteDetailComponent),
+          },
+          {
+            path: 'programme',
+            loadComponent: () =>
+              import('./features/calendar/calendar.component').then((m) => m.CalendarComponent),
+          },
+          {
+            path: 'load',
+            loadComponent: () =>
+              import('./features/physio/load.component').then((m) => m.LoadComponent),
+          },
+          {
+            path: 'zones',
+            loadComponent: () =>
+              import('./features/athletes/athlete-zones.component').then((m) => m.AthleteZonesComponent),
+          },
+          {
+            path: 'tests',
+            loadComponent: () =>
+              import('./features/physio/lactate.component').then((m) => m.LactateComponent),
+          },
+          {
+            path: 'races',
+            loadComponent: () =>
+              import('./features/races/race-list.component').then((m) => m.RaceListComponent),
+          },
+          {
+            path: 'activities',
+            loadComponent: () =>
+              import('./features/activities/activity-list.component').then((m) => m.ActivityListComponent),
+          },
+          {
+            path: 'messages',
+            loadComponent: () =>
+              import('./features/messages/chat.component').then((m) => m.ChatComponent),
+          },
+          // « Charge & progression » est fusionné dans l'onglet Charge : on garde
+          // l'ancienne URL en redirection pour ne casser aucun lien existant.
+          { path: 'analytics', pathMatch: 'full', redirectTo: 'load' },
+        ],
       },
     ],
   },

@@ -11,7 +11,6 @@ import {
   PageResponse,
   Ref,
 } from '../models/athlete.model';
-import { TrainingPlan } from '../models/training-plan.model';
 import { StravaStatus } from '../models/strava.model';
 import { Unavailability, UnavailabilityRequest } from '../models/unavailability.model';
 import { AuthService } from './auth.service';
@@ -108,7 +107,4 @@ export class AthleteService {
   }
 
   /** Plans d'entraînement attribués à un athlète. */
-  plans(athleteId: string): Observable<TrainingPlan[]> {
-    return this.http.get<TrainingPlan[]>(`${this.base()}/${athleteId}/plans`);
-  }
 }
