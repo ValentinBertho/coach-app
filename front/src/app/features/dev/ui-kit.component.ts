@@ -160,7 +160,7 @@ import {
     </div>
 
     <app-bottom-sheet [(open)]="sheetOpen" title="Déplacer la séance">
-      <p class="subtitle">Choisissez un nouveau jour. Le contenu de la séance reste inchangé.</p>
+      <p class="subtitle">Choisis un nouveau jour. Le contenu de la séance reste inchangé.</p>
       <app-segmented-control [options]="dayOptions" [(value)]="targetDay" [ariaLabel]="'Jour cible'" />
     </app-bottom-sheet>
   `,

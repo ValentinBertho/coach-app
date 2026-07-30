@@ -33,8 +33,8 @@ interface EditState {
       <div>
         <h1 class="display-sm">Zones de l'athlète</h1>
         <p class="subtitle">
-          Valeurs pré-remplies depuis le profil (allure/FC). Ajustez et verrouillez les cibles ;
-          le resync respecte vos valeurs manuelles et verrouillées.
+          Valeurs pré-remplies depuis le profil (allure/FC). Ajuste et verrouille les cibles ;
+          le resync respecte tes valeurs manuelles et verrouillées.
         </p>
       </div>
       <button type="button" class="btn btn-accent btn-sm" (click)="resync()" [disabled]="busy()">
@@ -47,7 +47,7 @@ interface EditState {
     } @else if (zones().length === 0) {
       <div class="card empty-state">
         <h2>Aucune zone</h2>
-        <p class="field-hint">Définissez d'abord vos zones dans <a routerLink="/app/training-zones">Zones du club</a>.</p>
+        <p class="field-hint">Définis d'abord tes zones dans <a routerLink="/app/training-zones">Mes zones</a>.</p>
       </div>
     } @else {
       <!-- Références (ancres) : pilotent le calcul des zones. -->
@@ -85,7 +85,7 @@ interface EditState {
         <span><app-icon name="refresh-cw" [size]="14" /> auto</span>
         <span><app-icon name="pencil" [size]="14" /> manuel</span>
         <span><app-icon name="lock" [size]="14" /> verrouillé</span>
-        <span class="legend-hint">La règle sous chaque zone vient de « Zones du club » — <a routerLink="/app/training-zones">la régler</a>.</span>
+        <span class="legend-hint">La règle sous chaque zone vient de « Mes zones » — <a routerLink="/app/training-zones">la régler</a>.</span>
       </div>
 
       <div class="card table-wrap">

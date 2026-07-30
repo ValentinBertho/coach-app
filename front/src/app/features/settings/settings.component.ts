@@ -42,7 +42,7 @@ import { SegmentedControlComponent, type SegmentOption } from '../../shared/comp
             @if (emailChanged()) {
               <p class="field-hint">
                 <app-icon name="alert-triangle" [size]="14" />
-                Changer d'adresse repasse le compte en « non confirmé » : un lien de confirmation
+                Changer d'adresse repasse ton compte en « non confirmé » : un lien de confirmation
                 sera envoyé à la nouvelle adresse.
               </p>
             }
@@ -60,7 +60,7 @@ import { SegmentedControlComponent, type SegmentOption } from '../../shared/comp
       <!-- ===== Mot de passe ===== -->
       <div class="card">
         <h2>Mot de passe</h2>
-        <p class="field-hint">Le mot de passe actuel est demandé pour valider le changement.</p>
+        <p class="field-hint">Ton mot de passe actuel est demandé pour valider le changement.</p>
         <div class="form-group">
           <label for="curPwd">Mot de passe actuel</label>
           <input id="curPwd" type="password" class="form-control" autocomplete="current-password"
@@ -80,7 +80,7 @@ import { SegmentedControlComponent, type SegmentOption } from '../../shared/comp
       <!-- ===== Préférences d'affichage ===== -->
       <div class="card">
         <h2>Affichage</h2>
-        <p class="field-hint">Thème de l'interface. « Système » suit les réglages de votre appareil.</p>
+        <p class="field-hint">Thème de l'interface. « Système » suit les réglages de ton appareil.</p>
         <app-segmented-control [options]="themeOptions" [value]="theme.preference()"
           (valueChange)="setTheme($any($event))" />
 
@@ -241,7 +241,7 @@ export class SettingsComponent implements OnInit {
       next: () => {
         this.savingProfile.set(false);
         this.toast.success(willReverify
-          ? 'Profil enregistré — confirmez votre nouvelle adresse depuis l’e-mail reçu.'
+          ? 'Profil enregistré — confirme ta nouvelle adresse depuis l’e-mail reçu.'
           : 'Profil enregistré');
       },
       error: () => { this.savingProfile.set(false); this.toast.error('Enregistrement impossible.'); },

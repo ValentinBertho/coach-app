@@ -202,9 +202,9 @@ const COACH: HelpGuide = {
       title: 'Premiers pas',
       summary: 'Connexion, vérification e-mail, tour du tableau de bord.',
       blocks: [
-        { kind: 'text', text: 'Connectez-vous depuis la page de connexion. Si un bandeau vous invite à confirmer votre e-mail, faites-le : cela sécurise votre compte et active les notifications.' },
-        { kind: 'text', text: 'Votre espace est organisé autour du tableau de bord (vos athlètes, leur état de forme, les prochaines courses) et d\'une navigation latérale : Athlètes, Groupes, Calendrier, Messages, Bibliothèque (course, prépa physique, éducatifs), Club, Paramètres.' },
-        { kind: 'callout', tone: 'info', text: 'Coach indépendant ou club : le fonctionnement est le même. Un coach solo correspond à un « club » à un seul membre — vos données sont toujours cloisonnées.' },
+        { kind: 'text', text: 'Connecte-toi depuis la page de connexion. Si un bandeau t\'invite à confirmer ton e-mail, fais-le : cela sécurise ton compte et active les notifications.' },
+        { kind: 'text', text: 'Ton espace est organisé autour du tableau de bord (tes athlètes, leur état de forme, les prochaines courses) et d\'une navigation latérale : Athlètes, Groupes, Calendrier, Messages, Bibliothèque (course, prépa physique, éducatifs), Club, Paramètres.' },
+        { kind: 'callout', tone: 'info', text: 'Coach indépendant ou club : le fonctionnement est le même. Un coach solo correspond à un « club » à un seul membre — tes données sont toujours cloisonnées.' },
       ],
     },
     {
@@ -215,15 +215,15 @@ const COACH: HelpGuide = {
       blocks: [
         { kind: 'steps', items: [
           'Athlètes → « Nouvel athlète » : renseignez l\'identité et le profil sportif.',
-          'Ouvrez sa fiche → « Inviter » : un lien d\'invitation personnel est généré.',
-          'Copiez ce lien et envoyez-le à l\'athlète (SMS, WhatsApp, e-mail).',
+          'Ouvre sa fiche → « Inviter » : un lien d\'invitation personnel est généré.',
+          'Copie ce lien et envoie-le à l\'athlète (SMS, WhatsApp, e-mail).',
           'Dès qu\'il l\'ouvre, il crée son accès et voit sa séance du jour.',
         ] },
-        { kind: 'callout', tone: 'tip', text: 'Le lien d\'invitation se copie en un clic : vous n\'avez pas besoin que l\'e-mail automatique soit activé pour faire entrer un athlète. Partagez-le par le canal que vous préférez.' },
+        { kind: 'callout', tone: 'tip', text: 'Le lien d\'invitation se copie en un clic : tu n\'as pas besoin que l\'e-mail automatique soit activé pour faire entrer un athlète. Partage-le par le canal que tu préfères.' },
         { kind: 'list', items: [
           'Profil sportif : discipline (route/trail), niveau, antécédents, données physiologiques.',
           'Groupes d\'entraînement : rattachez des athlètes à un groupe pour les filtrer et les suivre ensemble.',
-          'Archivage : un athlète qui arrête est archivé (jamais perdu), sans encombrer vos listes.',
+          'Archivage : un athlète qui arrête est archivé (jamais perdu), sans encombrer tes listes.',
         ] },
       ],
     },
@@ -240,7 +240,7 @@ const COACH: HelpGuide = {
           'Test lactate : saisissez les paliers → détection automatique de LT1 et LT2 (Dmax modifié).',
           'Domaines d\'intensité (1/2/3) et vitesse critique dérivés du profil.',
         ] },
-        { kind: 'callout', tone: 'info', text: 'L\'app distingue toujours une allure « mesurée » (test lactate) d\'une allure « estimée » (VDOT). Sans test lactate, les prescriptions en seuils retombent proprement sur le VDOT — vous restez opérationnel dès le premier chrono.' },
+        { kind: 'callout', tone: 'info', text: 'L\'app distingue toujours une allure « mesurée » (test lactate) d\'une allure « estimée » (VDOT). Sans test lactate, les prescriptions en seuils retombent proprement sur le VDOT — tu restes opérationnel dès le premier chrono.' },
       ],
     },
     {
@@ -249,14 +249,14 @@ const COACH: HelpGuide = {
       title: 'Bibliothèque & séances de course',
       summary: 'Éditeur de structure en fourchettes, calculateur live, éducatifs, modèles.',
       blocks: [
-        { kind: 'text', text: 'Construisez une séance structurée en trois temps (échauffement / corps / retour au calme). Chaque bloc se prescrit en fourchettes : % de LT1/LT2/VC ou d\'allure.' },
+        { kind: 'text', text: 'Construis une séance structurée en trois temps (échauffement / corps / retour au calme). Chaque bloc se prescrit en fourchettes : % de LT1/LT2/VC ou d\'allure.' },
         { kind: 'list', items: [
           'Calculateur live : visualisez les cibles réelles (allure/FC/RPE) pour un athlète donné, en direct.',
           'Saisie simplifiée : bascule Distance/Durée, durée en minutes, blocs pré-remplis.',
           'Éducatifs de course (gammes, technique, amplitude) attachables aux blocs.',
           'Affichage en cartes compactes ou en liste dense, avec recherche et filtre par type.',
         ] },
-        { kind: 'callout', tone: 'tip', text: 'Enregistrez vos séances récurrentes comme modèles : vous les appliquez ensuite au calendrier en un clic, pour un athlète ou un groupe.' },
+        { kind: 'callout', tone: 'tip', text: 'Enregistre tes séances récurrentes comme modèles : tu les appliques ensuite au calendrier en un clic, pour un athlète ou un groupe.' },
       ],
     },
     {
@@ -272,7 +272,7 @@ const COACH: HelpGuide = {
           'Formats avancés : Classique, EMOM, AMRAP, For Time, Circuit, Isométrie, Pliométrie.',
           'Types de série : drop-set, super-set, myo-reps, cluster, iso — charge et effort indépendants.',
         ] },
-        { kind: 'text', text: 'Les cycles de force (progression multi-semaines) s\'assignent au calendrier. La progression est suggérée automatiquement, avec des alertes (douleur, RPE, RIR, charge) qui remontent vers vous.' },
+        { kind: 'text', text: 'Les cycles de force (progression multi-semaines) s\'assignent au calendrier. La progression est suggérée automatiquement, avec des alertes (douleur, RPE, RIR, charge) qui remontent vers toi.' },
       ],
     },
     {
@@ -281,14 +281,14 @@ const COACH: HelpGuide = {
       title: 'Calendrier & planification',
       summary: 'Planifier, glisser-déposer, dupliquer la semaine, mésocycle.',
       blocks: [
-        { kind: 'text', text: 'Le calendrier multi-types (course / force / test / objectif / indispo) est votre poste de pilotage.' },
+        { kind: 'text', text: 'Le calendrier multi-types (course / force / test / objectif / indispo) est ton poste de pilotage.' },
         { kind: 'list', items: [
-          'Glissez une séance depuis la bibliothèque latérale, ou créez une séance ad hoc.',
+          'Glisse une séance depuis la bibliothèque latérale, ou crée une séance ad hoc.',
           'Replanifiez par glisser-déposer ; la prescription est figée en snapshot au moment de la planification.',
           'Dupliquez une semaine entière ou appliquez un mésocycle d\'un coup.',
           'Vues semaine et mois ; le drag & drop est conservé entre les deux.',
         ] },
-        { kind: 'callout', tone: 'info', text: 'Sur un athlète que vous consultez en lecture seule, les actions d\'écriture (planifier, dupliquer) sont désactivées — cohérent avec vos permissions.' },
+        { kind: 'callout', tone: 'info', text: 'Sur un athlète que tu consultes en lecture seule, les actions d\'écriture (planifier, dupliquer) sont désactivées — cohérent avec tes permissions.' },
       ],
     },
     {
@@ -297,7 +297,7 @@ const COACH: HelpGuide = {
       title: 'Règles de prescription DARI Lab',
       summary: 'Les principes appliqués partout dans l\'app.',
       blocks: [
-        { kind: 'text', text: 'Ces règles ne sont pas des préférences : elles sont appliquées par le moteur sur tous les écrans, et expliquent la forme des données que vous voyez.' },
+        { kind: 'text', text: 'Ces règles ne sont pas des préférences : elles sont appliquées par le moteur sur tous les écrans, et expliquent la forme des données que tu vois.' },
         { kind: 'list', items: [
           'Prescription en fourchettes (min–max), jamais de valeur sèche : une cible unique donne une fausse précision.',
           'État de forme = fatigue + douleur, jamais le RPE : le RPE dit la difficulté d\'une séance, pas l\'état de l\'athlète.',
@@ -321,7 +321,7 @@ const COACH: HelpGuide = {
           'Analytics : volume prévu/réalisé, distribution des zones, adhérence au programme.',
           'Rapprochement prévu ↔ réalisé : l\'activité importée se rattache à la séance, avec les écarts.',
         ] },
-        { kind: 'callout', tone: 'tip', text: 'Surveillez les athlètes dont l\'ACWR sort de la bande de sécurité ou dont la pastille passe au rouge : ce sont vos priorités d\'ajustement de la semaine.' },
+        { kind: 'callout', tone: 'tip', text: 'Surveille les athlètes dont l\'ACWR sort de la bande de sécurité ou dont la pastille passe au rouge : ce sont tes priorités d\'ajustement de la semaine.' },
       ],
     },
     {
@@ -330,7 +330,7 @@ const COACH: HelpGuide = {
       title: 'Communication',
       summary: 'Messagerie temps réel, pièces jointes, notifications.',
       blocks: [
-        { kind: 'text', text: 'Échangez avec chaque athlète via une messagerie en temps réel, avec pièces jointes (images, PDF). Les notifications (e-mail et push) préviennent l\'athlète d\'une nouvelle séance ou d\'un message, et vous d\'un retour renseigné.' },
+        { kind: 'text', text: 'Échange avec chaque athlète via une messagerie en temps réel, avec pièces jointes (images, PDF). Les notifications (e-mail et push) préviennent l\'athlète d\'une nouvelle séance ou d\'un message, et toi d\'un retour renseigné.' },
         { kind: 'callout', tone: 'info', text: 'Les notifications e-mail et push s\'activent côté serveur (clé d\'envoi et clés push). Tant qu\'elles ne sont pas configurées, le partage du lien d\'invitation et la messagerie in-app restent pleinement utilisables.' },
       ],
     },
@@ -340,7 +340,7 @@ const COACH: HelpGuide = {
       title: 'Objectifs & courses',
       summary: 'Créer une course cible A/B/C avec compte à rebours.',
       blocks: [
-        { kind: 'text', text: 'Créez les courses cibles d\'un athlète (date, distance, priorité A/B/C). Le compte à rebours J-XX s\'affiche côté athlète et oriente la planification (affûtage, calage du plan).' },
+        { kind: 'text', text: 'Crée les courses cibles d\'un athlète (date, distance, priorité A/B/C). Le compte à rebours J-XX s\'affiche côté athlète et oriente la planification (affûtage, calage du plan).' },
       ],
     },
     {
@@ -350,7 +350,7 @@ const COACH: HelpGuide = {
       summary: 'Strava (côté athlète), import GPX/TCX, export PDF du programme.',
       blocks: [
         { kind: 'list', items: [
-          'Strava : la connexion est initiée par l\'athlète (depuis son espace) ; vous voyez l\'état en lecture seule.',
+          'Strava : la connexion est initiée par l\'athlète (depuis son espace) ; tu vois l\'état en lecture seule.',
           'Import de fichiers GPX/TCX et saisie manuelle d\'activités côté athlète.',
           'Export PDF du programme d\'un athlète pour un partage hors-ligne.',
         ] },
@@ -363,7 +363,7 @@ const COACH: HelpGuide = {
       title: 'Gérer le club (responsable)',
       summary: 'Coachs, groupes et périmètre — pour les responsables de club.',
       blocks: [
-        { kind: 'text', text: 'En tant que responsable de club, vous gérez les coachs et les groupes d\'entraînement depuis l\'espace Club. Chaque coach ne voit que ses athlètes et ceux du club selon ses permissions ; les données restent cloisonnées par club.' },
+        { kind: 'text', text: 'En tant que responsable de club, tu gères les coachs et les groupes d\'entraînement depuis l\'espace Club. Chaque coach ne voit que ses athlètes et ceux du club selon ses permissions ; les données restent cloisonnées par club.' },
       ],
     },
     {
@@ -372,9 +372,9 @@ const COACH: HelpGuide = {
       title: 'Questions fréquentes',
       summary: 'Invitation, allures sans test, lecture seule.',
       blocks: [
-        { kind: 'text', text: 'Mon athlète n\'a pas reçu l\'invitation par e-mail. — Ouvrez sa fiche, cliquez « Inviter » puis copiez le lien et envoyez-le vous-même (SMS/WhatsApp). L\'e-mail automatique n\'est pas indispensable.' },
-        { kind: 'text', text: 'Je n\'ai pas de test lactate pour cet athlète. — Les prescriptions en seuils utilisent automatiquement le VDOT (à partir d\'un chrono). Saisissez au moins une performance récente.' },
-        { kind: 'text', text: 'Pourquoi certaines actions sont-elles grisées ? — Vous consultez probablement un athlète en lecture seule. L\'écriture (planifier, dupliquer) dépend de vos permissions sur cet athlète.' },
+        { kind: 'text', text: 'Mon athlète n\'a pas reçu l\'invitation par e-mail. — Ouvre sa fiche, clique « Inviter » puis copie le lien et envoie-le toi-même (SMS/WhatsApp). L\'e-mail automatique n\'est pas indispensable.' },
+        { kind: 'text', text: 'Je n\'ai pas de test lactate pour cet athlète. — Les prescriptions en seuils utilisent automatiquement le VDOT (à partir d\'un chrono). Saisis au moins une performance récente.' },
+        { kind: 'text', text: 'Pourquoi certaines actions sont-elles grisées ? — Tu consultes probablement un athlète en lecture seule. L\'écriture (planifier, dupliquer) dépend de tes permissions sur cet athlète.' },
         { kind: 'text', text: 'La pastille de forme s\'appuie-t-elle sur le RPE ? — Non, jamais. Elle combine fatigue et douleur uniquement.' },
       ],
     },
@@ -396,7 +396,7 @@ const ADMIN: HelpGuide = {
       summary: 'Périmètre et responsabilités de l\'admin plateforme.',
       blocks: [
         { kind: 'text', text: 'L\'administrateur plateforme supervise l\'ensemble des clubs et des comptes. Il n\'entraîne pas d\'athlète : il assure le bon fonctionnement, le support et la conformité.' },
-        { kind: 'callout', tone: 'warn', text: 'Vos actions sont transverses à tous les clubs. Manipulez les suppressions de clubs, de comptes et la réinitialisation de démo avec prudence.' },
+        { kind: 'callout', tone: 'warn', text: 'Tes actions sont transverses à tous les clubs. Manipule les suppressions de clubs, de comptes et la réinitialisation de démo avec prudence.' },
       ],
     },
     {
@@ -423,7 +423,7 @@ const ADMIN: HelpGuide = {
       title: 'Gérer les utilisateurs',
       summary: 'Coachs et responsables de club, rôles et accès.',
       blocks: [
-        { kind: 'text', text: 'La section « Utilisateurs » liste les comptes coach et responsable de club. Vous y gérez leur rattachement et leurs accès.' },
+        { kind: 'text', text: 'La section « Utilisateurs » liste les comptes coach et responsable de club. Tu y gères leur rattachement et leurs accès.' },
         { kind: 'callout', tone: 'info', text: 'Les rôles sensibles (responsable de club, admin) ouvrent des actions de gestion supplémentaires. Attribuez-les avec discernement.' },
       ],
     },
@@ -442,7 +442,7 @@ const ADMIN: HelpGuide = {
       title: 'Invitations',
       summary: 'Suivre l\'état des invitations (en attente, acceptées).',
       blocks: [
-        { kind: 'text', text: 'Suivez l\'état des invitations émises (en attente, acceptées, expirées) pour diagnostiquer un onboarding qui bloque.' },
+        { kind: 'text', text: 'Suis l\'état des invitations émises (en attente, acceptées, expirées) pour diagnostiquer un onboarding qui bloque.' },
       ],
     },
     {
@@ -451,7 +451,7 @@ const ADMIN: HelpGuide = {
       title: 'Démo & réinitialisation',
       summary: 'Recharger un jeu de démonstration propre — hors production.',
       blocks: [
-        { kind: 'text', text: 'En environnement de démonstration, vous pouvez réinitialiser les données pour repartir d\'un jeu propre et déterministe (profils, tests, séances, charge, objectifs).' },
+        { kind: 'text', text: 'En environnement de démonstration, tu peux réinitialiser les données pour repartir d\'un jeu propre et déterministe (profils, tests, séances, charge, objectifs).' },
         { kind: 'callout', tone: 'warn', text: 'La réinitialisation purge toutes les données. Elle est strictement interdite en production (refusée par le serveur) et désactivée par défaut ailleurs.' },
       ],
     },
@@ -467,7 +467,7 @@ const ADMIN: HelpGuide = {
           'Secrets de production obligatoires : l\'application refuse de démarrer avec des valeurs par défaut.',
           'Cloisonnement multi-club systématique (anti-IDOR) sur chaque ressource.',
         ] },
-        { kind: 'callout', tone: 'info', text: 'Exploitation (sauvegardes base de données, monitoring d\'erreurs, supervision de santé) : la mise en place pas-à-pas est documentée pour l\'équipe technique. Vérifiez que sauvegardes et remontée d\'erreurs sont actives avant toute montée en charge.' },
+        { kind: 'callout', tone: 'info', text: 'Exploitation (sauvegardes base de données, monitoring d\'erreurs, supervision de santé) : la mise en place pas-à-pas est documentée pour l\'équipe technique. Vérifie que sauvegardes et remontée d\'erreurs sont actives avant toute montée en charge.' },
       ],
     },
     {
@@ -476,7 +476,7 @@ const ADMIN: HelpGuide = {
       title: 'Questions fréquentes',
       summary: 'Onboarding bloqué, e-mails, périmètre des données.',
       blocks: [
-        { kind: 'text', text: 'Un athlète ne reçoit pas son e-mail. — Tant que l\'envoi d\'e-mails n\'est pas configuré, le coach partage le lien d\'invitation manuellement (copie depuis la fiche athlète). Vérifiez la configuration d\'envoi pour automatiser.' },
+        { kind: 'text', text: 'Un athlète ne reçoit pas son e-mail. — Tant que l\'envoi d\'e-mails n\'est pas configuré, le coach partage le lien d\'invitation manuellement (copie depuis la fiche athlète). Vérifie la configuration d\'envoi pour automatiser.' },
         { kind: 'text', text: 'Un coach voit-il les athlètes d\'un autre club ? — Non. Le cloisonnement par club est strict et vérifié sur chaque accès.' },
       ],
     },

@@ -31,7 +31,7 @@ type State = 'loading' | 'ok' | 'invalid';
             <a class="btn btn-primary btn-lg" routerLink="/forgot-password">Demander un nouveau lien</a>
           }
           @case ('ok') {
-            <p class="field-hint">Choisissez un nouveau mot de passe pour votre compte.</p>
+            <p class="field-hint">Choisis un nouveau mot de passe pour ton compte.</p>
             <div class="form-group">
               <label for="password">Mot de passe</label>
               <input id="password" type="password" class="form-control" formControlName="password"

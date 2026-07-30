@@ -69,7 +69,7 @@ import { ToastService } from '../../core/services/toast.service';
     @if (loading()) {
       <div class="card"><div class="skeleton" style="height: 60px;"></div></div>
     } @else if (drills().length === 0) {
-      <div class="card empty-state"><h2>Aucun éducatif</h2><p class="field-hint">Ajoutez vos gammes techniques de course.</p></div>
+      <div class="card empty-state"><h2>Aucun éducatif</h2><p class="field-hint">Ajoute tes gammes techniques de course.</p></div>
     } @else {
       @for (cat of categories; track cat) {
         @if (byCategory()[cat].length) {

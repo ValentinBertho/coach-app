@@ -31,7 +31,7 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
     <section class="page-header">
       <div>
         <h1 class="display-sm">Retours à traiter <app-help-hint section="suivi" label="Aide : suivi & charge" /></h1>
-        <p class="subtitle">Les retours de vos athlètes que vous n'avez pas encore vus, du plus récent au plus ancien.</p>
+        <p class="subtitle">Les retours de tes athlètes que tu n'as pas encore vus, du plus récent au plus ancien.</p>
       </div>
       <app-segmented-control [options]="scopeOptions" [value]="scope()" (valueChange)="setScope($event)" [ariaLabel]="'Périmètre'" />
     </section>
@@ -42,8 +42,8 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
       <div class="card empty-state">
         <h2>Aucun retour en attente</h2>
         <p class="field-hint">
-          Tous les retours de votre périmètre ont été traités. Les nouveaux retours de séance
-          (RPE, douleur, commentaire) apparaîtront ici dès que vos athlètes les enverront.
+          Tous les retours de ton périmètre ont été traités. Les nouveaux retours de séance
+          (RPE, douleur, commentaire) apparaîtront ici dès que tes athlètes les enverront.
         </p>
         <a routerLink="/app/calendar" class="btn btn-primary">Ouvrir le calendrier</a>
       </div>

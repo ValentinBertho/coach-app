@@ -46,7 +46,7 @@
         </div>
       }
       @case ('error') {
-        <div class="card">Impossible de charger votre séance.
+        <div class="card">Impossible de charger ta séance.
           <button type="button" class="btn btn-ghost btn-sm" (click)="load()">Réessayer</button>
         </div>
       }
@@ -173,7 +173,7 @@
         @if (!workouts().length && !strengthCards().length) {
           <div class="card empty">
             <h2>Repos aujourd'hui <app-icon name="moon" [size]="20" /></h2>
-            <p class="field-hint">Aucune séance prévue. Profitez-en pour récupérer.</p>
+            <p class="field-hint">Aucune séance prévue. Profites-en pour récupérer.</p>
           </div>
         }
       }
@@ -182,7 +182,7 @@
 </div>
 
 <!-- ===== Bottom sheet : retour course en 10 s ===== -->
-<app-bottom-sheet [(open)]="feedbackOpen" title="Votre ressenti">
+<app-bottom-sheet [(open)]="feedbackOpen" title="Ton ressenti">
   <div class="fb">
     <div class="rpe-row">
       <span class="rpe-row__label">Effort perçu (RPE)</span>

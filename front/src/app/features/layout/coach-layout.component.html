@@ -35,7 +35,7 @@
 
       <span class="snav-group">Club</span>
       <a routerLink="/app/club" routerLinkActive="active" title="Club"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
-      <a routerLink="/app/training-zones" routerLinkActive="active" title="Zones du club"><app-icon name="target" [size]="18" /><span>Zones du club</span></a>
+      <a routerLink="/app/training-zones" routerLinkActive="active" title="Mes zones d'intensité"><app-icon name="target" [size]="18" /><span>Mes zones</span></a>
 
       <span class="snav-group">Réglages</span>
       <a routerLink="/app/settings" routerLinkActive="active" title="Paramètres"><app-icon name="settings" [size]="18" /><span>Paramètres</span></a>
@@ -83,7 +83,7 @@
 
     @if (user()?.emailVerified === false) {
       <div class="verify-banner">
-        <span><app-icon name="bell" [size]="16" /> Confirmez votre adresse e-mail pour sécuriser votre compte.</span>
+        <span><app-icon name="bell" [size]="16" /> Confirme ton adresse e-mail pour sécuriser ton compte.</span>
         <button type="button" class="btn btn-ghost btn-sm" (click)="resendVerification()" [disabled]="resending()">
           {{ resending() ? 'Envoi…' : 'Renvoyer l\'e-mail' }}
         </button>
@@ -116,7 +116,7 @@
 
         <span class="snav-group">Club</span>
         <a routerLink="/app/club" routerLinkActive="active" (click)="closeMore()"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
-        <a routerLink="/app/training-zones" routerLinkActive="active" (click)="closeMore()"><app-icon name="target" [size]="18" /><span>Zones du club</span></a>
+        <a routerLink="/app/training-zones" routerLinkActive="active" (click)="closeMore()"><app-icon name="target" [size]="18" /><span>Mes zones</span></a>
 
         <span class="snav-group">Réglages</span>
         <a routerLink="/app/settings" routerLinkActive="active" (click)="closeMore()"><app-icon name="settings" [size]="18" /><span>Paramètres</span></a>

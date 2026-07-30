@@ -2,12 +2,12 @@
   <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
     <header class="auth-head">
       <app-logo [size]="44" [showText]="false" />
-      <h1 class="display-sm">Créer votre club</h1>
+      <h1 class="display-sm">Créer ton club</h1>
       <p class="field-hint">Quelques secondes pour démarrer le coaching.</p>
     </header>
 
     <div class="form-group">
-      <label for="fullName">Votre nom</label>
+      <label for="fullName">Ton nom</label>
       <input id="fullName" type="text" class="form-control" formControlName="fullName"
              autocomplete="name" placeholder="Jean Dupont" />
       @if (form.controls.fullName.touched && form.controls.fullName.invalid) {

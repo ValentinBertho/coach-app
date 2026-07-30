@@ -93,7 +93,7 @@ export class CoachLayoutComponent implements OnInit {
 
   logout(): void {
     this.auth.logout();
-    this.toast.info('Vous êtes déconnecté.');
+    this.toast.info('Tu es déconnecté·e.');
     this.router.navigate(['/login']);
   }
 }

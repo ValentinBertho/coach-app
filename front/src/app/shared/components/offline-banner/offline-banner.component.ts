@@ -9,7 +9,7 @@ import { NetworkStatusService } from '../../../core/services/network-status.serv
   template: `
     @if (!network.online()) {
       <div class="offline" role="status">
-        <span class="dot"></span> Mode hors ligne — vos données seront synchronisées au retour du réseau.
+        <span class="dot"></span> Mode hors ligne — tes données seront synchronisées au retour du réseau.
       </div>
     }
   `,

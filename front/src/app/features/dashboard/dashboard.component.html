@@ -44,7 +44,7 @@
   @if (form(); as f) {
     @if (attention().length) {
       <p class="zone-lead">
-        {{ attention().length === 1 ? '1 athlète mérite' : attention().length + ' athlètes méritent' }} votre attention.
+        {{ attention().length === 1 ? '1 athlète mérite' : attention().length + ' athlètes méritent' }} ton attention.
       </p>
       <div class="attention-grid">
         @for (a of attention(); track a.id) {
@@ -74,7 +74,7 @@
         <span class="zone-ok__icon"><app-icon name="check" [size]="20" /></span>
         <div>
           <strong>Tout le monde est en forme</strong>
-          <p class="field-hint">Aucun signal de fatigue ou de douleur à traiter sur votre périmètre.</p>
+          <p class="field-hint">Aucun signal de fatigue ou de douleur à traiter sur ton périmètre.</p>
         </div>
       </div>
     }
@@ -157,7 +157,7 @@
 <div class="card next-step card-interactive" routerLink="/app/athletes">
   <div>
     <h2>Gérer mes athlètes</h2>
-    <p class="field-hint">Créez vos athlètes, renseignez leur profil et invitez-les par lien.</p>
+    <p class="field-hint">Crée tes athlètes, renseigne leur profil et invite-les par lien.</p>
   </div>
   <span class="btn btn-primary">Ouvrir →</span>
 </div>

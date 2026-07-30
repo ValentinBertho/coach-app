@@ -11,7 +11,7 @@
   <section class="page-header">
     <div>
       <h1 class="display-sm">Calendrier <app-help-hint section="calendrier" label="Aide : calendrier & planification" /></h1>
-      <p class="subtitle">Planifiez les séances de vos athlètes.</p>
+      <p class="subtitle">Planifie les séances de tes athlètes.</p>
     </div>
   </section>
 }
@@ -157,8 +157,8 @@
   <!-- ===== Vue groupe : une ligne par athlète × 7 jours (lecture + déplacement) ===== -->
   @if (!selectedGroupId) {
     <div class="card empty-state">
-      <h2>Choisissez un groupe</h2>
-      <p class="field-hint">Sélectionnez un groupe pour voir la semaine de tous ses athlètes d'un coup d'œil.</p>
+      <h2>Choisis un groupe</h2>
+      <p class="field-hint">Sélectionne un groupe pour voir la semaine de tous ses athlètes d'un coup d'œil.</p>
       <a routerLink="/app/groups" class="btn btn-primary">Gérer les groupes</a>
     </div>
   } @else if (groupLoading()) {
@@ -166,7 +166,7 @@
   } @else if (groupRows().length === 0) {
     <div class="card empty-state">
       <h2>Aucun athlète accessible dans ce groupe</h2>
-      <p class="field-hint">Le groupe est vide, ou vous n'avez de droits sur aucun de ses athlètes.</p>
+      <p class="field-hint">Le groupe est vide, ou tu n'as de droits sur aucun de ses athlètes.</p>
       <a routerLink="/app/groups" class="btn btn-primary">Gérer les groupes</a>
     </div>
   } @else {
@@ -223,7 +223,7 @@
 } @else if (athletes().length === 0 && !lockedToAthlete()) {
   <div class="card empty-state">
     <h2>Aucun athlète actif</h2>
-    <p class="field-hint">Créez d'abord un athlète pour planifier des séances.</p>
+    <p class="field-hint">Crée d'abord un athlète pour planifier des séances.</p>
     <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
   </div>
 } @else {

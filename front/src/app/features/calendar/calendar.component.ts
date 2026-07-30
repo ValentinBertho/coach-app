@@ -543,7 +543,7 @@ export class CalendarComponent implements OnInit {
   /** Enregistre les paramètres courants comme « méso type » réutilisable. */
   saveMesoTemplate(): void {
     if (!this.mesoSaveName.trim() || this.mesoSaving()) {
-      this.toast.warning('Donnez un nom au modèle.');
+      this.toast.warning('Donne un nom au modèle.');
       return;
     }
     this.mesoSaving.set(true);
@@ -585,7 +585,7 @@ export class CalendarComponent implements OnInit {
     }
 
     if (this.mesoTarget === 'group') {
-      if (!this.mesoGroupId) { this.toast.warning('Choisissez un groupe.'); return; }
+      if (!this.mesoGroupId) { this.toast.warning('Choisis un groupe.'); return; }
       this.mesoBusy.set(true);
       this.workoutService.generateMesocycleForGroup(this.mesoGroupId, params).subscribe({
         next: (r) => {

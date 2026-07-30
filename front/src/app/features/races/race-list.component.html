@@ -1,5 +1,5 @@
 <section class="page-header">
-  <div><h1 class="display-sm">Objectifs & courses</h1><p class="subtitle">Courses cibles et chronos visés.</p></div>
+  <div><h1 class="display-sm">Objectifs</h1><p class="subtitle">Courses cibles et chronos visés.</p></div>
 </section>
 
 <div class="card" style="margin-bottom: var(--sp-5)">
@@ -22,7 +22,7 @@
 @if (loading()) {
   <div class="card">Chargement…</div>
 } @else if (races().length === 0) {
-  <div class="card empty-state"><h2>Aucun objectif</h2><p class="field-hint">Ajoutez une course cible.</p></div>
+  <div class="card empty-state"><h2>Aucun objectif</h2><p class="field-hint">Ajoute une course cible.</p></div>
 } @else {
   <div class="objectives-grid">
     @for (r of races(); track r.id) {
