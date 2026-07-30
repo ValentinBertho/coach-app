@@ -37,6 +37,13 @@ public class MessageController {
         return messageService.coachThread(clubId, athleteId);
     }
 
+    /** Accusé de lecture : le coach a ouvert le fil, ses non-lus repassent à zéro. */
+    @PostMapping("/read")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void markRead(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
+        messageService.markThreadRead(clubId, athleteId);
+    }
+
     /** Flux temps réel (SSE) des nouveaux messages du fil de l'athlète. */
     @GetMapping("/stream")
     public SseEmitter stream(@PathVariable UUID clubId, @PathVariable UUID athleteId) {

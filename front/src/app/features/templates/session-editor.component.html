@@ -3,7 +3,7 @@
     @if (isWorkout()) {
       <a [routerLink]="['/app/athletes', athleteId(), 'workouts', workoutId()]" class="back-link">← Séance</a>
     } @else {
-      <a routerLink="/app/templates" class="back-link">← Bibliothèque</a>
+      <a routerLink="/app/library/course" class="back-link">← Bibliothèque</a>
     }
     <h1 class="display-sm">{{ name() || 'Éditeur de séance' }}</h1>
     <p class="subtitle">Un bloc = <strong>volume + zone</strong>. La cible (allure · FC · RPE) est lue depuis la fiche athlète.</p>
@@ -99,6 +99,7 @@
 
           <span class="block-tools">
             <button type="button" class="icon-btn" [class.on]="isDetailsOpen(b.id)" (click)="toggleDetails(b.id)" title="Détails (vitesse, éducatifs, commentaire)"><app-icon name="ellipsis" [size]="16" /></button>
+            <button type="button" class="icon-btn" (click)="duplicateBlock(sec.key, b.id)" title="Dupliquer le bloc"><app-icon name="copy" [size]="15" /></button>
             <button type="button" class="icon-btn danger" (click)="removeBlock(sec.key, b.id)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
           </span>
         </div>

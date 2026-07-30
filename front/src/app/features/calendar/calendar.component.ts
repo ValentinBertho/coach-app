@@ -1,4 +1,5 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -7,7 +8,7 @@ import { STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, Workout, WorkoutType 
 import { AthleteService } from '../../core/services/athlete.service';
 import { CourseService } from '../../core/services/course.service';
 import { StrengthService } from '../../core/services/strength.service';
-import { ScheduledStrength, StrengthSession } from '../../core/models/strength.model';
+import { ScheduledStrength, StrengthPrescriptionView, StrengthSession } from '../../core/models/strength.model';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -23,7 +24,7 @@ import { Unavailability, UnavailabilityReason } from '../../core/models/unavaila
 import { MesocycleTemplate } from '../../core/models/mesocycle-template.model';
 import { MesocycleTemplateService } from '../../core/services/mesocycle-template.service';
 import { TrainingGroup } from '../../core/models/training-group.model';
-import { TrainingGroupService } from '../../core/services/training-group.service';
+import { GroupCalendarRow, TrainingGroupService } from '../../core/services/training-group.service';
 import { MesocycleParams } from '../../core/services/workout.service';
 import { RunDrill } from '../../core/models/run-drill.model';
 import { RunDrillService } from '../../core/services/run-drill.service';
@@ -32,6 +33,8 @@ import { CalendarNoteService } from '../../core/services/calendar-note.service';
 import { SessionCategory } from '../../core/models/session-category.model';
 import { SessionCategoryService } from '../../core/services/session-category.service';
 import { SessionLibraryPanelComponent } from '../../shared/components/session-library-panel/session-library-panel.component';
+import { StrengthPrescriptionViewComponent } from '../../shared/components/strength-prescription-view/strength-prescription-view.component';
+import { SidePanelComponent } from '../../shared/components/ui';
 import { Activity } from '../../core/models/activity.model';
 import { ActivityService } from '../../core/services/activity.service';
 
@@ -63,6 +66,8 @@ interface WeekRow {
   days: DayCell[];
   km: number;
   durationS: number;
+  /** Charge prévue de la semaine en UA (sRPE) : le volume seul ne dit rien de la difficulté. */
+  loadUa: number;
   sessions: number;
   realKm: number;
   realDurationS: number;
@@ -107,7 +112,10 @@ function mondayOf(d: Date): Date {
   selector: 'app-calendar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DragDropModule, IconComponent, HelpHintComponent, SessionLibraryPanelComponent],
+  imports: [
+    FormsModule, RouterLink, DragDropModule, DatePipe, IconComponent, HelpHintComponent,
+    SessionLibraryPanelComponent, SidePanelComponent, StrengthPrescriptionViewComponent,
+  ],
   host: { '(document:keydown)': 'onKeydown($event)' },
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.scss',
@@ -214,6 +222,137 @@ export class CalendarComponent implements OnInit {
   /** Volume max d'un jour sur la période (pour normaliser les barres de densité). */
   readonly maxDayKm = computed(() => Math.max(1, ...this.cells().map((c) => c.km)));
 
+    // --- Mode groupe : la semaine de tous les athlètes d'un groupe ---------------
+  // Un coach de club planifie par groupe, pas athlète par athlète. Le mode groupe
+  // affiche une ligne par athlète × 7 jours, en lecture + déplacement (pas de vue
+  // mois : au-delà d'une semaine, la grille devient illisible).
+
+  readonly scopeMode = signal<'athlete' | 'group'>('athlete');
+  selectedGroupId = '';
+  readonly groupRows = signal<GroupCalendarRow[]>([]);
+  readonly groupLoading = signal(false);
+
+  /** Les 7 dates de la semaine affichée (en-têtes du mode groupe). */
+  readonly weekDates = computed<{ date: string; label: string; dayNum: number; isToday: boolean }[]>(() => {
+    const today = toIso(new Date());
+    const start = mondayOf(this.anchor());
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const iso = toIso(d);
+      return { date: iso, label: this.dayNames[i], dayNum: d.getDate(), isToday: iso === today };
+    });
+  });
+
+  /** Séances d'un athlète pour un jour donné (mode groupe). */
+  rowWorkouts(row: GroupCalendarRow, date: string): Workout[] {
+    return row.workouts.filter((w) => w.scheduledDate === date);
+  }
+  rowStrength(row: GroupCalendarRow, date: string): ScheduledStrength[] {
+    return row.strength.filter((s) => s.scheduledDate === date);
+  }
+
+  setScopeMode(m: 'athlete' | 'group'): void {
+    this.scopeMode.set(m);
+    if (m === 'athlete') {
+      // La semaine affichée a pu changer pendant le passage en mode groupe.
+      this.load();
+      this.loadOverlays();
+      return;
+    }
+    if (m === 'group') {
+      this.mode.set('week'); // pas de vue mois en groupe
+      if (this.groups().length === 0) {
+        this.groupService.list().subscribe((g) => {
+          this.groups.set(g);
+          if (!this.selectedGroupId && g.length) {
+            this.selectedGroupId = g[0].id;
+            this.loadGroup();
+          }
+        });
+      } else {
+        this.loadGroup();
+      }
+    }
+  }
+
+  onGroupChange(): void { this.loadGroup(); }
+
+  loadGroup(): void {
+    if (!this.selectedGroupId) { this.groupRows.set([]); return; }
+    const dates = this.weekDates();
+    this.groupLoading.set(true);
+    this.groupService.calendar(this.selectedGroupId, dates[0].date, dates[6].date).subscribe({
+      next: (c) => { this.groupRows.set(c.athletes); this.groupLoading.set(false); },
+      error: () => { this.groupRows.set([]); this.groupLoading.set(false); this.toast.error('Chargement du groupe impossible.'); },
+    });
+  }
+
+  /**
+   * Déplacement dans la grille de groupe. Une séance appartient à un athlète : on refuse
+   * explicitement le dépôt sur la ligne d'un autre athlète plutôt que de réassigner en douce.
+   */
+  onGroupDrop(event: CdkDragDrop<unknown>, row: GroupCalendarRow, targetDate: string): void {
+    const item = event.item.data as { athleteId?: string } | undefined;
+    if (!item) return;
+    if (!row.canWrite) {
+      this.toast.warning(`Lecture seule sur ${row.firstName} ${row.lastName}.`);
+      return;
+    }
+    if (item.athleteId && item.athleteId !== row.athleteId) {
+      this.toast.warning('Une séance ne se déplace pas d’un athlète à un autre.');
+      return;
+    }
+
+    const rec = item as unknown as Record<string, unknown>;
+    if ('sourceSessionId' in rec) {
+      this.moveGroupStrength(row, item as unknown as ScheduledStrength, targetDate);
+    } else {
+      this.moveGroupWorkout(row, item as unknown as Workout, targetDate);
+    }
+  }
+
+  private moveGroupWorkout(row: GroupCalendarRow, w: Workout, targetDate: string): void {
+    if (w.scheduledDate === targetDate) return;
+    this.patchGroupRow(row.athleteId, (r) => ({
+      ...r, workouts: r.workouts.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x)),
+    }));
+    this.workoutService.reschedule(row.athleteId, w.id, targetDate).subscribe({
+      next: () => this.toast.success(`${w.title} déplacée au ${this.fmtDate(targetDate)}`),
+      error: () => {
+        this.patchGroupRow(row.athleteId, (r) => ({
+          ...r, workouts: r.workouts.map((x) => (x.id === w.id ? { ...x, scheduledDate: w.scheduledDate } : x)),
+        }));
+        this.toast.error('Déplacement impossible.');
+      },
+    });
+  }
+
+  private moveGroupStrength(row: GroupCalendarRow, s: ScheduledStrength, targetDate: string): void {
+    if (s.scheduledDate === targetDate) return;
+    this.patchGroupRow(row.athleteId, (r) => ({
+      ...r, strength: r.strength.map((x) => (x.id === s.id ? { ...x, scheduledDate: targetDate } : x)),
+    }));
+    this.strengthService.rescheduleScheduled(row.athleteId, s.id, targetDate).subscribe({
+      next: () => this.toast.success(`${s.title} déplacée au ${this.fmtDate(targetDate)}`),
+      error: () => {
+        this.patchGroupRow(row.athleteId, (r) => ({
+          ...r, strength: r.strength.map((x) => (x.id === s.id ? { ...x, scheduledDate: s.scheduledDate } : x)),
+        }));
+        this.toast.error('Déplacement impossible.');
+      },
+    });
+  }
+
+  private patchGroupRow(athleteId: string, patch: (r: GroupCalendarRow) => GroupCalendarRow): void {
+    this.groupRows.update((l) => l.map((r) => (r.athleteId === athleteId ? patch(r) : r)));
+  }
+
+  /** Ouvre la séance course d'une ligne de groupe (lecture). */
+  openGroupWorkout(row: GroupCalendarRow, w: Workout): void {
+    this.router.navigate(['/app/athletes', row.athleteId, 'workouts', w.id]);
+  }
+
   /** Semaines (lignes de 7 jours) + totaux — colonne de droite façon Nolio. */
   readonly weeks = computed<WeekRow[]>(() => {
     const cells = this.cells();
@@ -223,11 +362,13 @@ export class CalendarComponent implements OnInit {
       const km = days.reduce((s, d) => s + d.km, 0);
       const durationS = days.reduce(
         (s, d) => s + d.workouts.reduce((a, w) => a + (w.targetDurationS ?? 0), 0), 0);
+      const loadUa = days.reduce(
+        (s, d) => s + d.workouts.reduce((a, w) => a + (w.plannedLoadUa ?? 0), 0), 0);
       const sessions = days.reduce((s, d) => s + d.sessions, 0);
       const realKm = days.reduce((s, d) => s + d.activities.reduce((a, x) => a + (x.distanceM ?? 0), 0), 0) / 1000;
       const realDurationS = days.reduce((s, d) => s + d.activities.reduce((a, x) => a + (x.durationS ?? 0), 0), 0);
       const realSessions = days.reduce((s, d) => s + d.activities.length, 0);
-      rows.push({ days, km, durationS, sessions, realKm, realDurationS, realSessions });
+      rows.push({ days, km, durationS, loadUa, sessions, realKm, realDurationS, realSessions });
     }
     return rows;
   });
@@ -334,6 +475,7 @@ export class CalendarComponent implements OnInit {
   goToday(): void { this.anchor.set(new Date()); this.load(); }
 
   load(): void {
+    if (this.scopeMode() === 'group') { this.loadGroup(); return; }
     if (!this.selectedAthleteId) return;
     const cells = this.cells();
     const from = cells[0].date;
@@ -484,7 +626,7 @@ export class CalendarComponent implements OnInit {
 
     const ok = await this.confirm.ask({
       title: 'Dupliquer la semaine',
-      message: `Copier les séances course de cette semaine vers la semaine du ${target} ? Les séances existantes de la semaine cible sont conservées.`,
+      message: `Copier les séances course de cette semaine vers la semaine du ${this.fmtDate(target)} ? Les séances existantes de la semaine cible sont conservées.`,
       confirmLabel: 'Dupliquer',
     });
     if (!ok) return;
@@ -557,7 +699,7 @@ export class CalendarComponent implements OnInit {
           warmup: [{ id: 'wu-' + Math.random().toString(36).slice(2, 8), type: 'warmup', drillIds: [drill.id] }],
           main: [], cooldown: [],
         }).subscribe({
-          next: () => { this.toast.success(`${drill.name} planifié le ${date}`); this.load(); },
+          next: () => { this.toast.success(`${drill.name} planifié le ${this.fmtDate(date)}`); this.load(); },
           error: () => this.toast.error('Création impossible.'),
         });
       },
@@ -576,14 +718,37 @@ export class CalendarComponent implements OnInit {
     });
   }
 
-  async deleteNote(n: CalendarNote, ev: Event): Promise<void> {
+  // --- Note du calendrier : ouverture, édition, suppression explicite ---------
+  // Le clic sur une chip ouvrait la note… en la supprimant directement. Destructif
+  // sans confirmation, et aucune édition possible.
+
+  readonly notePanelOpen = signal(false);
+  readonly activeNote = signal<CalendarNote | null>(null);
+  noteEditText = '';
+
+  openNote(n: CalendarNote, ev: Event): void {
     ev.stopPropagation();
+    this.activeNote.set(n);
+    this.noteEditText = n.text;
+    this.notePanelOpen.set(true);
+  }
+
+  saveNote(n: CalendarNote): void {
+    const text = this.noteEditText.trim();
+    if (!text || text === n.text) { this.notePanelOpen.set(false); return; }
+    this.noteService.update(this.selectedAthleteId, n.id, { noteDate: n.noteDate, text }).subscribe({
+      next: () => { this.notePanelOpen.set(false); this.toast.success('Note enregistrée'); this.load(); },
+      error: () => this.toast.error('Enregistrement impossible.'),
+    });
+  }
+
+  async deleteNote(n: CalendarNote): Promise<void> {
     const ok = await this.confirm.ask({
       title: 'Supprimer la note ?', message: n.text, confirmLabel: 'Supprimer', danger: true,
     });
     if (!ok) return;
     this.noteService.delete(this.selectedAthleteId, n.id).subscribe({
-      next: () => { this.toast.info('Note supprimée.'); this.load(); },
+      next: () => { this.notePanelOpen.set(false); this.toast.info('Note supprimée.'); this.load(); },
       error: () => this.toast.error('Suppression impossible.'),
     });
   }
@@ -608,7 +773,10 @@ export class CalendarComponent implements OnInit {
     const date = this.pickerDate();
     if (!date) return;
     this.courseService.schedule(this.selectedAthleteId, t.id, { date }).subscribe({
-      next: () => { this.toast.success(`${t.name} planifiée le ${date}`); this.closePicker(); this.load(); },
+      next: (w) => {
+        this.toast.success(`${t.name} planifiée le ${this.fmtDate(date)}${this.chargeRecap(w)}`);
+        this.closePicker(); this.load();
+      },
       error: () => this.toast.error('Planification impossible.'),
     });
   }
@@ -620,7 +788,7 @@ export class CalendarComponent implements OnInit {
   openTests(): void { this.router.navigate(['/app/athletes', this.selectedAthleteId, 'tests']); }
 
   onDrop(event: CdkDragDrop<DayCell>, targetDate: string): void {
-    const data = event.item.data as Workout | StrengthSession | WorkoutTemplate;
+    const data = event.item.data as Workout | StrengthSession | ScheduledStrength | WorkoutTemplate;
     const rec = data as unknown as Record<string, unknown>;
 
     // Garde-fou UX : pas de planification/déplacement sur un athlète en lecture seule
@@ -636,13 +804,24 @@ export class CalendarComponent implements OnInit {
       return;
     }
 
+    // Séance de force DÉJÀ planifiée glissée d'un jour à l'autre → déplacement.
+    // (discriminée par `sourceSessionId`, absent des séances course et des modèles).
+    if ('sourceSessionId' in rec && 'scheduledDate' in rec) {
+      this.moveStrength(data as ScheduledStrength, targetDate);
+      return;
+    }
+
     // Séance de force glissée depuis la bibliothèque → planification.
     if ('structure' in rec) {
       const s = data as StrengthSession;
       this.strengthService
         .scheduleSession(this.selectedAthleteId, s.id, { date: targetDate, fieldsPreset: 'AVANCE' })
         .subscribe({
-          next: () => { this.toast.success(`${s.name} planifiée le ${targetDate}`); this.reloadStrength(); },
+          next: (scheduled) => {
+            const charges = scheduled.chargeSummary ? ` — ${scheduled.chargeSummary}` : '';
+            this.toast.success(`${s.name} planifiée le ${this.fmtDate(targetDate)}${charges}`);
+            this.reloadStrength();
+          },
           error: () => this.toast.error('Planification impossible.'),
         });
       return;
@@ -652,7 +831,10 @@ export class CalendarComponent implements OnInit {
     if (!('scheduledDate' in rec)) {
       const t = data as WorkoutTemplate;
       this.courseService.schedule(this.selectedAthleteId, t.id, { date: targetDate }).subscribe({
-        next: () => { this.toast.success(`${t.name} planifiée le ${targetDate}`); this.load(); },
+        next: (w) => {
+          this.toast.success(`${t.name} planifiée le ${this.fmtDate(targetDate)}${this.chargeRecap(w)}`);
+          this.load();
+        },
         error: () => this.toast.error('Planification impossible.'),
       });
       return;
@@ -698,7 +880,7 @@ export class CalendarComponent implements OnInit {
     const previous = w.scheduledDate;
     this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x)));
     this.workoutService.reschedule(this.selectedAthleteId, w.id, targetDate).subscribe({
-      next: () => this.toast.success(`Séance déplacée au ${targetDate}`),
+      next: () => this.toast.success(`Séance déplacée au ${this.fmtDate(targetDate)}`),
       error: () => {
         this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: previous } : x)));
         this.toast.error('Déplacement impossible.');
@@ -709,7 +891,7 @@ export class CalendarComponent implements OnInit {
   /** Duplique une séance vers une date (copie figée côté back). */
   private copyWorkout(w: Workout, targetDate: string): void {
     this.workoutService.copy(this.selectedAthleteId, w.id, targetDate).subscribe({
-      next: () => { this.toast.success(`Séance dupliquée au ${targetDate}`); this.load(); },
+      next: () => { this.toast.success(`Séance dupliquée au ${this.fmtDate(targetDate)}`); this.load(); },
       error: () => this.toast.error('Duplication impossible.'),
     });
   }
@@ -759,6 +941,109 @@ export class CalendarComponent implements OnInit {
       next: () => { this.toast.info('Séance supprimée.'); this.load(); },
       error: () => this.toast.error('Suppression impossible.'),
     });
+  }
+
+  // --- Séances de force planifiées : détail, déplacement, suppression ---------
+  // Les chips force sont manipulables exactement comme les séances course
+  // (ouvrir / glisser / menu contextuel), dans la limite de canWriteSelected().
+
+  readonly strengthPanelOpen = signal(false);
+  readonly strengthDetail = signal<ScheduledStrength | null>(null);
+  readonly strengthRx = signal<StrengthPrescriptionView | null>(null);
+  readonly strengthRxLoading = signal(false);
+  readonly strengthMenu = signal<{ session: ScheduledStrength; x: number; y: number } | null>(null);
+  strengthCtxDate = '';
+
+  /** Ouvre le panneau de détail d'une séance de force (prescription figée + charges calculées). */
+  openStrength(s: ScheduledStrength): void {
+    this.strengthDetail.set(s);
+    this.strengthRx.set(null);
+    this.strengthRxLoading.set(true);
+    this.strengthPanelOpen.set(true);
+    this.strengthService.scheduledPrescription(this.selectedAthleteId, s.id).subscribe({
+      next: (rx) => { this.strengthRx.set(rx); this.strengthRxLoading.set(false); },
+      error: () => { this.strengthRxLoading.set(false); this.toast.error('Détail indisponible.'); },
+    });
+  }
+
+  openStrengthMenu(s: ScheduledStrength, ev: MouseEvent): void {
+    ev.preventDefault();
+    if (!this.canWriteSelected()) return;
+    this.strengthCtxDate = s.scheduledDate;
+    const x = Math.min(ev.clientX, window.innerWidth - 220);
+    const y = Math.min(ev.clientY, window.innerHeight - 220);
+    this.strengthMenu.set({ session: s, x, y });
+  }
+  closeStrengthMenu(): void { this.strengthMenu.set(null); }
+
+  ctxStrengthOpen(): void {
+    const m = this.strengthMenu(); if (!m) return;
+    this.closeStrengthMenu(); this.openStrength(m.session);
+  }
+  ctxStrengthMoveTo(date: string): void {
+    const m = this.strengthMenu(); if (!m) return;
+    this.closeStrengthMenu();
+    if (date) this.moveStrength(m.session, date);
+  }
+  ctxStrengthDelete(): void {
+    const m = this.strengthMenu(); if (!m) return;
+    this.closeStrengthMenu();
+    this.deleteStrength(m.session);
+  }
+
+  /** Déplace une séance de force (optimiste + rollback en cas d'échec back). */
+  private moveStrength(s: ScheduledStrength, targetDate: string): void {
+    if (s.scheduledDate === targetDate) return;
+    const previous = s.scheduledDate;
+    this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, scheduledDate: targetDate } : x)));
+    this.strengthService.rescheduleScheduled(this.selectedAthleteId, s.id, targetDate).subscribe({
+      next: () => this.toast.success(`${s.title} déplacée au ${this.fmtDate(targetDate)}`),
+      error: () => {
+        this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, scheduledDate: previous } : x)));
+        this.toast.error('Déplacement impossible.');
+      },
+    });
+  }
+
+  async deleteStrength(s: ScheduledStrength): Promise<void> {
+    if (!this.canWriteSelected()) {
+      this.toast.warning('Lecture seule : tu n’as pas les droits de prescription sur cet athlète.');
+      return;
+    }
+    const ok = await this.confirm.ask({
+      title: 'Supprimer la séance de renforcement',
+      message: `${s.title} — ${this.fmtDate(s.scheduledDate)}`,
+      confirmLabel: 'Supprimer', danger: true,
+    });
+    if (!ok) return;
+    this.strengthService.deleteScheduled(this.selectedAthleteId, s.id).subscribe({
+      next: () => {
+        this.strengthPanelOpen.set(false);
+        this.toast.info('Séance de renforcement supprimée.');
+        this.reloadStrength();
+      },
+      error: () => this.toast.error('Suppression impossible.'),
+    });
+  }
+
+  /**
+   * Récapitulatif des charges calculées pour l'athlète, à afficher au moment de la planification
+   * (CdC §8) : « — ~55 min · 12,4 km · 420 UA ». Le coach voit ce que la séance donne pour CET
+   * athlète, pas seulement qu'elle est planifiée.
+   */
+  private chargeRecap(w: Workout): string {
+    const parts: string[] = [];
+    if (w.targetDurationS) parts.push(`~${Math.round(w.targetDurationS / 60)} min`);
+    if (w.targetDistanceM) parts.push(`${(w.targetDistanceM / 1000).toFixed(1)} km`);
+    if (w.plannedLoadUa) parts.push(`${w.plannedLoadUa} UA`);
+    return parts.length ? ` — ${parts.join(' · ')}` : '';
+  }
+
+  /** Date ISO → « mer. 30 juil. » (jamais d'ISO brut à l'écran). */
+  fmtDate(iso: string): string {
+    const [y, m, d] = iso.split('-').map(Number);
+    return new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
+      .format(new Date(y, m - 1, d));
   }
 
   /** Raccourcis clavier de navigation (hors champ de saisie) : ←/→ période, T = aujourd'hui. */

@@ -1,6 +1,7 @@
 package com.coachrun.service;
 
 import com.coachrun.dto.response.LoadResponse;
+import com.coachrun.dto.response.LoadSeriesResponse;
 import com.coachrun.engine.LoadEngine;
 import com.coachrun.engine.LoadEngine.SessionLoad;
 import com.coachrun.entity.Workout;
@@ -40,16 +41,55 @@ public class AthleteLoadService {
     }
 
     public LoadResponse load(UUID clubId, UUID athleteId) {
+        requireAthlete(clubId, athleteId);
+        LocalDate today = LocalDate.now();
+        return LoadResponse.from(loadEngine.compute(
+                collectSessions(clubId, athleteId, today.minusDays(27), today), today));
+    }
+
+    /**
+     * Série temporelle de charge : ATL, CTL et ACWR jour par jour sur les {@code weeks} dernières
+     * semaines. Chaque point réutilise exactement le moteur de charge — la courbe et la valeur
+     * instantanée ne peuvent pas diverger.
+     */
+    public LoadSeriesResponse series(UUID clubId, UUID athleteId, int weeks) {
+        requireAthlete(clubId, athleteId);
+        int window = Math.max(4, Math.min(weeks, 26));
+        LocalDate today = LocalDate.now();
+        LocalDate from = today.minusWeeks(window);
+
+        // On remonte 27 jours avant le début de la fenêtre : le premier point a besoin de son
+        // propre historique 28 jours, sinon la courbe démarre artificiellement bas.
+        List<SessionLoad> sessions = collectSessions(clubId, athleteId, from.minusDays(27), today);
+
+        List<LoadSeriesResponse.Point> points = new ArrayList<>();
+        for (LocalDate d = from; !d.isAfter(today); d = d.plusDays(1)) {
+            var m = loadEngine.compute(sessions, d);
+            points.add(new LoadSeriesResponse.Point(
+                    d, m.acuteLoad7d(), m.chronicLoad28dWeekly(), m.ratio()));
+        }
+        return new LoadSeriesResponse(from, today, SAFE_RATIO_MIN, SAFE_RATIO_MAX, points);
+    }
+
+    /** Bande de sécurité ACWR (cf. DARI Lab) : en dessous on se désentraîne, au-dessus on risque. */
+    private static final double SAFE_RATIO_MIN = 0.8;
+    private static final double SAFE_RATIO_MAX = 1.3;
+
+    private void requireAthlete(UUID clubId, UUID athleteId) {
         if (athleteRepository.findByIdAndClubMembership(athleteId, clubId).isEmpty()) {
             throw new NotFoundException("Athlète introuvable.");
         }
-        LocalDate today = LocalDate.now();
-        LocalDate from = today.minusDays(27);
+    }
 
+    /**
+     * Charges de séance sur une plage, <strong>course et force confondues</strong> (invariant
+     * DARI Lab : un seul score sRPE, jamais deux compteurs séparés).
+     */
+    private List<SessionLoad> collectSessions(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         List<SessionLoad> sessions = new ArrayList<>();
         for (Workout w : workoutRepository
                 .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
-                        clubId, athleteId, from, today)) {
+                        clubId, athleteId, from, to)) {
             if (w.getRpe() == null) {
                 continue;
             }
@@ -64,7 +104,7 @@ public class AthleteLoadService {
         // Fusion de la charge de force (charge métabolique, UA) dans le score sRPE global, pour
         // que l'ACWR/monotonie reflètent course ET renforcement (cf. DARI Lab — charge unifiée).
         for (var t : strengthLoadRepository
-                .findByAthleteIdAndSessionDateBetweenOrderBySessionDateAsc(athleteId, from, today)) {
+                .findByAthleteIdAndSessionDateBetweenOrderBySessionDateAsc(athleteId, from, to)) {
             if (t.getMetabolicLoad() == null) {
                 continue;
             }
@@ -73,8 +113,7 @@ public class AthleteLoadService {
                 sessions.add(new SessionLoad(t.getSessionDate(), load, 6)); // force ≈ domaine 2
             }
         }
-
-        return LoadResponse.from(loadEngine.compute(sessions, today));
+        return sessions;
     }
 
     /** Durée de séance : cible globale, sinon somme des étapes. */

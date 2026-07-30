@@ -57,6 +57,21 @@ public class AuthController {
     }
 
     /** Renvoie l'e-mail de vérification au compte courant. */
+    /** Édition du profil courant (nom, e-mail, préférence d'unité d'allure). */
+    @org.springframework.web.bind.annotation.PatchMapping("/me")
+    public UserResponse updateProfile(@AuthenticationPrincipal AuthPrincipal principal,
+                                      @Valid @RequestBody com.coachrun.dto.request.UpdateProfileRequest request) {
+        return authService.updateProfile(principal.userId(), request);
+    }
+
+    /** Changement de mot de passe (l'actuel est exigé). */
+    @PostMapping("/change-password")
+    @ResponseStatus(org.springframework.http.HttpStatus.NO_CONTENT)
+    public void changePassword(@AuthenticationPrincipal AuthPrincipal principal,
+                               @Valid @RequestBody com.coachrun.dto.request.ChangePasswordRequest request) {
+        authService.changePassword(principal.userId(), request);
+    }
+
     @PostMapping("/resend-verification")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void resendVerification(@AuthenticationPrincipal AuthPrincipal principal) {

@@ -1,0 +1,21 @@
+# ============================================================================
+# 054 — Accusé de lecture coach sur la messagerie.
+#   La boîte de réception coach a besoin de savoir ce qui reste non lu : colonne
+#   additive coach_read_at, nulle tant qu'aucun coach n'a ouvert le fil. Seuls
+#   les messages envoyés par l'athlète comptent comme « non lus » côté coach.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 054-message-coach-read-at
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: messages
+            columns:
+              - column: { name: coach_read_at, type: TIMESTAMP }
+        - createIndex:
+            indexName: idx_messages_athlete_coach_read
+            tableName: messages
+            columns:
+              - column: { name: athlete_id }
+              - column: { name: coach_read_at }

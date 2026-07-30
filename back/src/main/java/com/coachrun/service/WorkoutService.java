@@ -48,6 +48,7 @@ public class WorkoutService {
     private final WorkoutRepository workoutRepository;
     private final AthleteRepository athleteRepository;
     private final NotificationService notificationService;
+    private final com.coachrun.engine.PlannedLoadEngine plannedLoadEngine;
     private final MesocycleTemplateRepository mesocycleTemplateRepository;
     private final TrainingGroupRepository groupRepository;
     private final AthleteAccessValidator accessValidator;
@@ -125,6 +126,34 @@ public class WorkoutService {
     public WorkoutResponse reschedule(UUID clubId, UUID workoutId, java.time.LocalDate date) {
         Workout workout = require(clubId, workoutId);
         workout.setScheduledDate(date);
+        return WorkoutResponse.from(workout);
+    }
+
+    /**
+     * Commentaire du coach sur une séance réalisée : le feedback in situ, sans passer par la
+     * messagerie. Visible par l'athlète et notifié. Un texte vide efface le commentaire.
+     */
+    @Transactional
+    public WorkoutResponse setCoachComment(UUID clubId, UUID workoutId, String comment) {
+        Workout workout = require(clubId, workoutId);
+        String text = comment == null || comment.isBlank() ? null : comment.trim();
+        boolean isNew = text != null && !text.equals(workout.getCoachComment());
+        workout.setCoachComment(text);
+        workout.setCoachCommentAt(text == null ? null : java.time.Instant.now());
+        if (isNew) {
+            notificationService.notifyCoachComment(workout);
+        }
+        return WorkoutResponse.from(workout);
+    }
+
+    /**
+     * Marque le retour de l'athlète comme traité (file « retours à traiter »). N'altère ni le
+     * contenu de la séance ni le retour lui-même : c'est un accusé de lecture côté coach.
+     */
+    @Transactional
+    public WorkoutResponse markFeedbackReviewed(UUID clubId, UUID workoutId, boolean reviewed) {
+        Workout workout = require(clubId, workoutId);
+        workout.setCoachReviewedAt(reviewed ? java.time.Instant.now() : null);
         return WorkoutResponse.from(workout);
     }
 
@@ -315,6 +344,7 @@ public class WorkoutService {
         workout.setSourceTemplateId(data.sourceTemplateId());
         workout.setSessionSnapshot(data.snapshotJson());
         workout.setCalculatedPaces(data.calculatedJson());
+        workout.setPlannedLoadUa(data.plannedLoadUa());
 
         workout = workoutRepository.save(workout);
         log.info("Séance prescrite {} depuis modèle {} (athlète={})",
@@ -438,6 +468,8 @@ public class WorkoutService {
                 sessionCalculatorService.calculateSession(clubId, w.getAthlete().getId(), safe);
         w.setSessionSnapshot(writeJson(safe));
         w.setCalculatedPaces(writeJson(calc));
+        // La charge prévue suit l'adaptation de structure : sinon elle resterait sur l'ancienne.
+        w.setPlannedLoadUa(plannedLoadEngine.compute(calc));
         if (calc.totalDistanceM() != null) {
             w.setTargetDistanceM(calc.totalDistanceM());
         }

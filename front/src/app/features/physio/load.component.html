@@ -16,6 +16,13 @@
     }
   </div>
 
+  <!-- Courbe temporelle : l'ACWR instantané ne dit pas s'il monte depuis trois semaines
+       ou s'il vient de décrocher. -->
+  <div class="card">
+    <h2>Évolution de la charge <span class="field-hint">— 12 dernières semaines</span></h2>
+    <app-load-chart [series]="series()" />
+  </div>
+
   <div class="kpi-rail">
     <app-metric-card label="Charge aiguë (7 j)" [value]="l.acuteLoad7d | number: '1.0-0'" unit="UA" origin="calcule" />
     <app-metric-card label="Charge chronique (28 j)" [value]="l.chronicLoad28d | number: '1.0-0'" unit="UA" origin="calcule" />

@@ -4,11 +4,13 @@ import com.coachrun.dto.response.AthleteFormResponse;
 import com.coachrun.dto.response.CoachAlertResponse;
 import com.coachrun.dto.response.CoachDashboardResponse;
 import com.coachrun.dto.response.CoachFormDashboardResponse;
+import com.coachrun.dto.response.FeedbackQueueItemResponse;
 import com.coachrun.dto.response.RaceObjectiveResponse;
 import com.coachrun.engine.FormStatusEngine;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.CoachAthleteRelation;
+import com.coachrun.entity.ScheduledStrengthSession;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.enums.AthleteStatus;
 import com.coachrun.entity.enums.Discipline;
@@ -16,6 +18,7 @@ import com.coachrun.entity.enums.RaceObjectiveStatus;
 import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.RaceObjectiveRepository;
+import com.coachrun.repository.ScheduledStrengthSessionRepository;
 import com.coachrun.repository.WorkoutRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +29,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** Agrégation des indicateurs du tableau de bord coach. */
@@ -40,25 +44,82 @@ public class CoachDashboardService {
     private final FormStatusEngine formStatusEngine;
     private final CoachAthleteRelationRepository relationRepository;
     private final AthleteLoadService loadService;
+    private final AthleteFeedbackService feedbackService;
+    private final ScheduledStrengthSessionRepository strengthRepository;
 
-    public CoachDashboardResponse compute(UUID clubId) {
+    /**
+     * KPI du cockpit, restreints au périmètre choisi (all / mine / private / club) — comme la
+     * jauge de forme et les alertes. Sans cela, changer de périmètre ne rechargeait que la
+     * forme, et les KPI continuaient de décrire tout le club.
+     */
+    public CoachDashboardResponse compute(UUID clubId, String scope, UUID coachId) {
         LocalDate today = LocalDate.now();
         LocalDate monday = today.with(DayOfWeek.MONDAY);
         LocalDate nextMonday = monday.plusWeeks(1);
 
-        long activeAthletes = athleteRepository.countByClubIdAndStatus(clubId, AthleteStatus.ACTIVE);
-        long pending = athleteRepository.countByClubIdAndInviteTokenIsNotNull(clubId);
-        // « À valider » : séances passées encore au statut PLANNED.
-        long toReview = workoutRepository.countByClubIdAndStatusAndScheduledDateLessThan(
-                clubId, WorkoutStatus.PLANNED, today);
-        long completedThisWeek = workoutRepository.countByClubIdAndStatusAndScheduledDateBetween(
-                clubId, WorkoutStatus.COMPLETED, monday, nextMonday);
+        List<Athlete> athletes = athletesInScope(clubId, scope, coachId);
+        List<UUID> ids = athletes.stream().map(Athlete::getId).toList();
+
+        long activeAthletes = athletes.stream().filter(a -> a.getStatus() == AthleteStatus.ACTIVE).count();
+        long pending = athletes.stream().filter(a -> a.getInviteToken() != null).count();
+        // « Retours à traiter » : retours d'athlètes (RPE / douleur / commentaire) non encore vus.
+        // Le KPI compte exactement les lignes de la file — il pointe dessus.
+        long toReview = feedbackQueue(clubId, scope, coachId).size();
+
+        if (ids.isEmpty()) {
+            return new CoachDashboardResponse(0, 0, 0, 0, List.of());
+        }
+
+        long completedThisWeek = workoutRepository.countByAthleteIdInAndStatusAndScheduledDateBetween(
+                ids, WorkoutStatus.COMPLETED, monday, nextMonday);
+        // Le nom de l'athlète accompagne chaque course : sur une liste multi-athlètes,
+        // « Marathon de Paris » sans savoir de qui il s'agit ne dit rien au coach.
         var races = raceRepository
-                .findTop5ByClubIdAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(
-                        clubId, RaceObjectiveStatus.UPCOMING, today)
-                .stream().map(RaceObjectiveResponse::from).toList();
+                .findTop5ByAthleteIdInAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(
+                        ids, RaceObjectiveStatus.UPCOMING, today)
+                .stream().map(r -> RaceObjectiveResponse.from(r, displayName(r.getAthlete()))).toList();
 
         return new CoachDashboardResponse(activeAthletes, pending, toReview, completedThisWeek, races);
+    }
+
+    /**
+     * File « retours à traiter » : tous athlètes du périmètre confondus, les séances réalisées
+     * dont l'athlète a laissé un retour (RPE, douleur, commentaire) et que le coach n'a pas
+     * encore marquées comme traitées. Course et force unifiées, triées du plus récent au plus
+     * ancien.
+     */
+    public List<FeedbackQueueItemResponse> feedbackQueue(UUID clubId, String scope, UUID coachId) {
+        List<Athlete> athletes = athletesInScope(clubId, scope, coachId);
+        if (athletes.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, String> names = athletes.stream()
+                .collect(java.util.stream.Collectors.toMap(Athlete::getId, CoachDashboardService::displayName));
+        List<UUID> ids = List.copyOf(names.keySet());
+
+        List<FeedbackQueueItemResponse> items = new ArrayList<>();
+        for (Workout w : workoutRepository.findPendingFeedback(ids)) {
+            items.add(new FeedbackQueueItemResponse(
+                    "COURSE", w.getId(), w.getAthlete().getId(), names.get(w.getAthlete().getId()),
+                    w.getTitle(), w.getScheduledDate(),
+                    w.getRpe() == null ? null : w.getRpe().doubleValue(),
+                    w.getFatigue(), w.getPain(), w.getAthleteComment()));
+        }
+        for (ScheduledStrengthSession s : strengthRepository.findPendingFeedback(ids)) {
+            items.add(new FeedbackQueueItemResponse(
+                    "STRENGTH", s.getId(), s.getAthlete().getId(), names.get(s.getAthlete().getId()),
+                    s.getTitle(), s.getScheduledDate(),
+                    s.getSessionRpe() == null ? null : s.getSessionRpe().doubleValue(),
+                    s.getSessionFatigue(), s.getSessionPain(), s.getSessionComment()));
+        }
+        items.sort(java.util.Comparator
+                .comparing(FeedbackQueueItemResponse::sessionDate).reversed()
+                .thenComparing(FeedbackQueueItemResponse::athleteName));
+        return items;
+    }
+
+    private static String displayName(Athlete a) {
+        return (a.getFirstName() + " " + a.getLastName()).trim();
     }
 
     /**
@@ -73,14 +134,11 @@ public class CoachDashboardService {
             if (a.getStatus() != AthleteStatus.ACTIVE) {
                 continue;
             }
-            Workout last = workoutRepository
-                    .findFirstByAthleteIdAndFatigueIsNotNullOrderByScheduledDateDescCreatedAtDesc(a.getId())
-                    .orElse(null);
-            Integer fatigue = last == null ? null : last.getFatigue();
-            Integer pain = last == null ? null : last.getPain();
+            // Course + force confondues : un retour de renforcement compte autant qu'une course.
+            AthleteFeedbackService.LastFeedback last = feedbackService.lastFeedback(a.getId());
             AthleteFormResponse row = AthleteFormResponse.of(
-                    a, formStatusEngine.classify(fatigue, pain),
-                    fatigue, pain, last == null ? null : last.getScheduledDate());
+                    a, formStatusEngine.classify(last.fatigue(), last.pain()),
+                    last.fatigue(), last.pain(), last.date());
 
             if (a.getDiscipline() == Discipline.TRAIL) {
                 trail.add(row);
@@ -128,11 +186,9 @@ public class CoachDashboardService {
             String name = (a.getFirstName() + " " + a.getLastName()).trim();
             String discipline = a.getDiscipline() == Discipline.TRAIL ? "TRAIL" : "ROUTE";
 
-            // --- Douleur (dernier retour) ---
-            Workout lastFeedback = workoutRepository
-                    .findFirstByAthleteIdAndFatigueIsNotNullOrderByScheduledDateDescCreatedAtDesc(a.getId())
-                    .orElse(null);
-            Integer pain = lastFeedback == null ? null : lastFeedback.getPain();
+            // --- Douleur (dernier retour, course ou force) ---
+            AthleteFeedbackService.LastFeedback lastFeedback = feedbackService.lastFeedback(a.getId());
+            Integer pain = lastFeedback.pain();
             if (pain != null && pain >= 5) {
                 alerts.add(alert(a, name, discipline, "RED", "PAIN",
                         "Douleur élevée", "Douleur " + pain + "/10 au dernier retour."));
@@ -181,7 +237,7 @@ public class CoachDashboardService {
 
             // --- Silence (aucun retour depuis longtemps alors qu'un programme tourne) ---
             boolean hasRecentProgram = !recent.isEmpty();
-            LocalDate lastFb = lastFeedback == null ? null : lastFeedback.getScheduledDate();
+            LocalDate lastFb = lastFeedback.date();
             long silence = lastFb == null ? Long.MAX_VALUE : ChronoUnit.DAYS.between(lastFb, today);
             if (hasRecentProgram && silence > 10) {
                 String detail = lastFb == null ? "Aucun retour de séance enregistré."

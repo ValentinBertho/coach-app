@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { AuthService } from '../../../core/services/auth.service';
 import { CalculatedBlockEntry, courseBlockTypeLabel, CourseDrill, WorkoutPrescription } from '../../../core/models/course.model';
 import { RangePrescriptionPillComponent } from '../range-prescription-pill/range-prescription-pill.component';
 
@@ -32,7 +33,7 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                     @if (volume(e); as v) { <span class="cpv__vol">{{ v }}</span> }
                   </div>
                   <div class="cpv__pills">
-                    @if (e.calc?.computable && e.calc?.paceMinLabel) {
+                    @if (e.calc?.computable && e.calc?.paceMinLabel && showPace(e)) {
                       <app-range-prescription-pill
                         label="Allure"
                         [min]="e.calc!.paceMinSecPerKm"
@@ -42,7 +43,7 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                         <span class="cpv__est" title="Allure estimée à partir du VDOT (pas de test lactate)">estimée</span>
                       }
                     }
-                    @if (e.calc?.computable && e.calc?.speedMinKmh != null) {
+                    @if (e.calc?.computable && e.calc?.speedMinKmh != null && showSpeed(e)) {
                       <app-range-prescription-pill
                         label="Vitesse"
                         [min]="e.calc!.speedMinKmh"
@@ -112,6 +113,8 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
   `],
 })
 export class CoursePrescriptionViewComponent {
+  private readonly auth = inject(AuthService);
+
   readonly prescription = input.required<WorkoutPrescription | null>();
 
   readonly sections: Section[] = [
@@ -119,6 +122,23 @@ export class CoursePrescriptionViewComponent {
     { key: 'main', label: 'Corps de séance' },
     { key: 'cooldown', label: 'Retour au calme' },
   ];
+
+  /**
+   * Unité d'allure préférée du coach / de l'athlète (Paramètres). On n'affiche qu'un registre à
+   * la fois : deux pastilles pour la même cible (min/km ET km/h) noient l'information.
+   * Repli automatique si l'unité préférée n'est pas calculable pour ce bloc.
+   */
+  private readonly prefersSpeed = computed(() => this.auth.paceUnit() === 'SPEED');
+
+  /** Affiche l'allure si elle est préférée, ou si la vitesse n'est pas calculable pour ce bloc. */
+  showPace(e: CalculatedBlockEntry): boolean {
+    return !this.prefersSpeed() || e.calc?.speedMinKmh == null;
+  }
+
+  /** Symétrique : la vitesse si elle est préférée, ou si l'allure manque. */
+  showSpeed(e: CalculatedBlockEntry): boolean {
+    return this.prefersSpeed() || !e.calc?.paceMinLabel;
+  }
 
   readonly paceFmt = (secPerKm: number): string => {
     const m = Math.floor(secPerKm / 60);

@@ -71,6 +71,10 @@
 /* --- Retour athlète ------------------------------------------------------- */
 .feedback-recap { display: flex; flex-direction: column; gap: var(--sp-3); }
 .fb-stat { display: flex; align-items: baseline; gap: var(--sp-2); }
+/* Écart prescrit ↔ ressenti : neutre tant qu'il reste dans le bruit, mis en avant au-delà de ±2. */
+.fb-gap--notable .fb-stat__v { color: var(--danger-text, var(--energy)); }
+.fb-gap__hint { color: var(--ink-3); font-size: var(--text-xs); }
+.cc-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-2); }
 .fb-stat__k { color: var(--ink-3); font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
 .fb-stat__v { font-size: var(--text-xl); font-weight: 800; color: var(--ink); }
 .fb-stat__v small { font-size: var(--text-sm); color: var(--ink-3); font-weight: 600; }

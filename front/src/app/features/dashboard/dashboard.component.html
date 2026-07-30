@@ -89,8 +89,8 @@
     <header class="zone-head"><h2>Vue d'ensemble</h2></header>
     <div class="kpi-rail">
       <a routerLink="/app/athletes" [appReveal]="0"><app-metric-card label="Athlètes actifs" [value]="d.activeAthletes" /></a>
-      <a routerLink="/app/calendar" [appReveal]="70">
-        <app-metric-card label="Séances à valider" [value]="d.sessionsToReview"
+      <a routerLink="/app/feedback" [appReveal]="70">
+        <app-metric-card label="Retours à traiter" [value]="d.sessionsToReview"
           [tone]="d.sessionsToReview > 0 ? 'alert' : 'neutral'" />
       </a>
       <app-metric-card class="kpi-cell" [appReveal]="140" label="Réalisées cette semaine" [value]="d.completedThisWeek" tone="success" />
@@ -137,10 +137,15 @@
         <ul class="races">
           @for (r of d.upcomingRaces; track r.id) {
             <li>
-              <span class="badge badge-info">{{ countdown(r.daysUntil) }}</span>
-              <strong>{{ r.name }}</strong>
-              <span class="field-hint metric">{{ r.raceDate }}</span>
-              <span class="badge badge-neutral">Priorité {{ r.priority }}</span>
+              <a class="race-row" [routerLink]="['/app/athletes', r.athleteId, 'races']"
+                 [title]="'Voir les objectifs de ' + (r.athleteName || 'l\'athlète')">
+                <span class="badge badge-info">{{ countdown(r.daysUntil) }}</span>
+                <strong>{{ r.name }}</strong>
+                @if (r.athleteName) { <span class="race-athlete">{{ r.athleteName }}</span> }
+                <span class="field-hint metric">{{ r.raceDate | date: 'd MMM y' }}</span>
+                <span class="badge badge-neutral">Priorité {{ r.priority }}</span>
+                <span class="race-go">→</span>
+              </a>
             </li>
           }
         </ul>

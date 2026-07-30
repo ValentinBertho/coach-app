@@ -22,9 +22,14 @@ public record WorkoutResponse(
         Integer fatigue,
         Integer pain,
         String athleteComment,
+        /** Retour du coach sur la séance réalisée (visible par l'athlète). */
+        String coachComment,
+        java.time.Instant coachCommentAt,
         boolean movedByAthlete,
         LocalDate originalDate,
         UUID sourceTemplateId,
+        /** Charge prévue en UA (sRPE appliqué à la prescription) — total hebdo du calendrier. */
+        Integer plannedLoadUa,
         int orderIndex,
         List<WorkoutStepResponse> steps) {
 
@@ -43,9 +48,12 @@ public record WorkoutResponse(
                 w.getFatigue(),
                 w.getPain(),
                 w.getAthleteComment(),
+                w.getCoachComment(),
+                w.getCoachCommentAt(),
                 w.isMovedByAthlete(),
                 w.getOriginalDate(),
                 w.getSourceTemplateId(),
+                w.getPlannedLoadUa(),
                 w.getOrderIndex(),
                 w.getSteps().stream().map(WorkoutStepResponse::from).toList());
     }

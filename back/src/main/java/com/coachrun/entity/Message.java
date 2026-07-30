@@ -50,6 +50,13 @@ public class Message extends BaseEntity {
     @Column(name = "workout_id")
     private UUID workoutId;
 
+    /**
+     * Accusé de lecture côté coach (boîte de réception). Ne concerne que les messages envoyés
+     * par l'athlète : un message du coach n'a jamais à être « lu » par lui-même.
+     */
+    @Column(name = "coach_read_at")
+    private java.time.Instant coachReadAt;
+
     /** Pièce jointe optionnelle : id + métadonnée dénormalisée (octets dans message_attachments). */
     @Column(name = "attachment_id")
     private UUID attachmentId;

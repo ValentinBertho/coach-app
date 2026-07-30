@@ -24,9 +24,12 @@ public class CoachDashboardController {
 
     private final CoachDashboardService dashboardService;
 
+    /** KPI agrégés, restreints au périmètre {@code scope} (comme /form et /alerts). */
     @GetMapping
-    public CoachDashboardResponse dashboard(@PathVariable UUID clubId) {
-        return dashboardService.compute(clubId);
+    public CoachDashboardResponse dashboard(@PathVariable UUID clubId,
+                                            @RequestParam(defaultValue = "all") String scope,
+                                            @AuthenticationPrincipal AuthPrincipal principal) {
+        return dashboardService.compute(clubId, scope, principal.userId());
     }
 
     /**
@@ -39,6 +42,18 @@ public class CoachDashboardController {
                                            @RequestParam(defaultValue = "all") String scope,
                                            @AuthenticationPrincipal AuthPrincipal principal) {
         return dashboardService.formDashboard(clubId, scope, principal.userId());
+    }
+
+    /**
+     * File « retours à traiter » : séances réalisées avec retour athlète (RPE / douleur /
+     * commentaire) non encore marquées comme traitées, tous athlètes du périmètre confondus.
+     */
+    @GetMapping("/feedback")
+    public java.util.List<com.coachrun.dto.response.FeedbackQueueItemResponse> feedbackQueue(
+            @PathVariable UUID clubId,
+            @RequestParam(defaultValue = "all") String scope,
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return dashboardService.feedbackQueue(clubId, scope, principal.userId());
     }
 
     /** File d'alertes actionnables (douleur, charge, séances manquées, silence), triées par gravité. */

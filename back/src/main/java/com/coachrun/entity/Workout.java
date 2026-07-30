@@ -79,6 +79,20 @@ public class Workout extends BaseEntity {
     @Column(name = "athlete_comment", length = 1024)
     private String athleteComment;
 
+    /** Retour traité par le coach (file « retours à traiter »). Null = pas encore vu. */
+    @Column(name = "coach_reviewed_at")
+    private java.time.Instant coachReviewedAt;
+
+    /**
+     * Retour du coach sur la séance réalisée, visible par l'athlète. Distinct de {@code notes}
+     * (consigne posée AVANT la séance) et de {@code athleteComment} (ressenti déclaré).
+     */
+    @Column(name = "coach_comment", length = 1024)
+    private String coachComment;
+
+    @Column(name = "coach_comment_at")
+    private java.time.Instant coachCommentAt;
+
     // --- Calendrier DARI Lab : déplacement athlète + snapshot figé -----------
 
     /** L'athlète a déplacé la séance (il peut déplacer, jamais modifier le contenu). */
@@ -104,6 +118,13 @@ public class Workout extends BaseEntity {
     /** Allures/cibles calculées pour cet athlète au moment de l'assignation (JSON). */
     @Column(name = "calculated_paces", length = 20000)
     private String calculatedPaces;
+
+    /**
+     * Charge prévue (UA) : sRPE Foster appliqué à la prescription (RPE de bloc × durée estimée).
+     * Distincte de la charge réalisée, qui se calcule depuis le retour de l'athlète.
+     */
+    @Column(name = "planned_load_ua")
+    private Integer plannedLoadUa;
 
     /** Ordre d'affichage au sein d'un même jour (glisser-déposer intra-jour). */
     @Column(name = "order_index", nullable = false)

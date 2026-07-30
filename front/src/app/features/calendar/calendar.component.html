@@ -18,23 +18,42 @@
 
 <div class="toolbar">
   @if (!lockedToAthlete()) {
-    <select class="form-control athlete-select" [(ngModel)]="selectedAthleteId" (ngModelChange)="onAthleteChange()">
-      @for (a of athletes(); track a.id) {
-        <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option>
-      }
-    </select>
+    <!-- Athlète ou groupe : un coach de club planifie et surveille une semaine d'équipe. -->
+    <div class="mode-switch scope-switch">
+      <button type="button" [class.active]="scopeMode() === 'athlete'" (click)="setScopeMode('athlete')">Athlète</button>
+      <button type="button" [class.active]="scopeMode() === 'group'" (click)="setScopeMode('group')">Groupe</button>
+    </div>
+
+    @if (scopeMode() === 'athlete') {
+      <select class="form-control athlete-select" [(ngModel)]="selectedAthleteId" (ngModelChange)="onAthleteChange()">
+        @for (a of athletes(); track a.id) {
+          <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option>
+        }
+      </select>
+    } @else {
+      <select class="form-control athlete-select" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
+        <option value="">Choisir un groupe…</option>
+        @for (g of groups(); track g.id) {
+          <option [value]="g.id">{{ g.name }} ({{ g.athleteCount }})</option>
+        }
+      </select>
+    }
   }
 
-  <div class="mode-switch">
-    <button type="button" [class.active]="mode() === 'week'" (click)="setMode('week')">Semaine</button>
-    <button type="button" [class.active]="mode() === 'month'" (click)="setMode('month')">Mois</button>
-  </div>
+  @if (scopeMode() === 'athlete') {
+    <div class="mode-switch">
+      <button type="button" [class.active]="mode() === 'week'" (click)="setMode('week')">Semaine</button>
+      <button type="button" [class.active]="mode() === 'month'" (click)="setMode('month')">Mois</button>
+    </div>
+  }
 
-  <div class="mode-switch view-switch">
-    <button type="button" [class.active]="view() === 'planned'" (click)="setView('planned')">Prévu</button>
-    <button type="button" [class.active]="view() === 'realized'" (click)="setView('realized')">Réalisé</button>
-    <button type="button" [class.active]="view() === 'both'" (click)="setView('both')">Les deux</button>
-  </div>
+  @if (scopeMode() === 'athlete') {
+    <div class="mode-switch view-switch">
+      <button type="button" [class.active]="view() === 'planned'" (click)="setView('planned')">Prévu</button>
+      <button type="button" [class.active]="view() === 'realized'" (click)="setView('realized')">Réalisé</button>
+      <button type="button" [class.active]="view() === 'both'" (click)="setView('both')">Les deux</button>
+    </div>
+  }
 
   <div class="week-nav">
     <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)">←</button>
@@ -43,7 +62,7 @@
     <span class="week-label">{{ periodLabel() }}</span>
   </div>
 
-  @if (mode() === 'week') {
+  @if (mode() === 'week' && scopeMode() === 'athlete') {
     <span class="volume metric">{{ weeklyVolumeKm() }} km prévus</span>
     @if (advancedPlanning) {
       <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="duplicateWeek()"
@@ -59,13 +78,15 @@
     }
   }
 
-  <button type="button" class="btn btn-ghost btn-sm lib-toggle" (click)="toggleSidebar()"
-          [title]="sidebarOpen() ? 'Masquer la bibliothèque' : 'Afficher la bibliothèque'">
-    <app-icon name="panel-left" [size]="15" /> {{ sidebarOpen() ? 'Masquer' : 'Bibliothèque' }}
-  </button>
+  @if (scopeMode() === 'athlete') {
+    <button type="button" class="btn btn-ghost btn-sm lib-toggle" (click)="toggleSidebar()"
+            [title]="sidebarOpen() ? 'Masquer la bibliothèque' : 'Afficher la bibliothèque'">
+      <app-icon name="panel-left" [size]="15" /> {{ sidebarOpen() ? 'Masquer' : 'Bibliothèque' }}
+    </button>
+  }
 </div>
 
-@if (selectedAthleteId && !canWriteSelected()) {
+@if (scopeMode() === 'athlete' && selectedAthleteId && !canWriteSelected()) {
   <div class="readonly-banner">
     <app-icon name="lock" [size]="15" /> Lecture seule — tu n'es pas référent ni en écriture sur cet athlète. Planification et déplacement désactivés.
   </div>
@@ -132,7 +153,74 @@
   </section>
 }
 
-@if (athletes().length === 0 && !lockedToAthlete()) {
+@if (scopeMode() === 'group') {
+  <!-- ===== Vue groupe : une ligne par athlète × 7 jours (lecture + déplacement) ===== -->
+  @if (!selectedGroupId) {
+    <div class="card empty-state">
+      <h2>Choisissez un groupe</h2>
+      <p class="field-hint">Sélectionnez un groupe pour voir la semaine de tous ses athlètes d'un coup d'œil.</p>
+      <a routerLink="/app/groups" class="btn btn-primary">Gérer les groupes</a>
+    </div>
+  } @else if (groupLoading()) {
+    <div class="card"><div class="skeleton" style="height: 180px;"></div></div>
+  } @else if (groupRows().length === 0) {
+    <div class="card empty-state">
+      <h2>Aucun athlète accessible dans ce groupe</h2>
+      <p class="field-hint">Le groupe est vide, ou vous n'avez de droits sur aucun de ses athlètes.</p>
+      <a routerLink="/app/groups" class="btn btn-primary">Gérer les groupes</a>
+    </div>
+  } @else {
+    <div class="group-grid" cdkDropListGroup>
+      <div class="gg-head">
+        <span class="gg-corner">Athlète</span>
+        @for (d of weekDates(); track d.date) {
+          <span class="gg-day" [class.today]="d.isToday">{{ d.label }} {{ d.dayNum }}</span>
+        }
+      </div>
+
+      @for (row of groupRows(); track row.athleteId) {
+        <div class="gg-row">
+          <a class="gg-athlete" [routerLink]="['/app/athletes', row.athleteId, 'programme']"
+             [title]="'Ouvrir le programme de ' + row.firstName + ' ' + row.lastName">
+            <span class="avatar avatar-sm">{{ row.firstName[0] }}{{ row.lastName[0] }}</span>
+            <span class="gg-name">{{ row.firstName }} {{ row.lastName }}</span>
+            @if (!row.canWrite) { <app-icon name="lock" [size]="12" title="Lecture seule" /> }
+          </a>
+
+          @for (d of weekDates(); track d.date) {
+            <div class="gg-cell" [class.today]="d.isToday"
+                 cdkDropList (cdkDropListDropped)="onGroupDrop($event, row, d.date)">
+              @for (w of rowWorkouts(row, d.date); track w.id) {
+                <button type="button" class="workout-card gg-chip"
+                        [class.workout-card--key]="typeMeta(w.type).key"
+                        [style.--type-color]="typeMeta(w.type).color"
+                        cdkDrag [cdkDragData]="w" [cdkDragDisabled]="!row.canWrite"
+                        (click)="openGroupWorkout(row, w)">
+                  <span class="wc-head">
+                    <app-icon class="wc-type" [name]="typeMeta(w.type).icon" [size]="12" />
+                    <span class="w-title">{{ w.title }}</span>
+                    <span class="badge badge-dot" [class]="statusBadge[w.status]" [title]="statusLabels[w.status]"></span>
+                  </span>
+                  @if (w.targetDistanceM) {
+                    <span class="wc-meta"><span class="metric w-metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span></span>
+                  }
+                </button>
+              }
+              @for (s of rowStrength(row, d.date); track s.id) {
+                <div class="strength-chip gg-chip" [class.done]="s.completed"
+                     [style.--type-color]="typeMeta('STRENGTH').color"
+                     cdkDrag [cdkDragData]="s" [cdkDragDisabled]="!row.canWrite" [title]="s.title">
+                  <app-icon class="sc-icon" name="dumbbell" [size]="12" />
+                  <span class="sc-title">{{ s.title }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+} @else if (athletes().length === 0 && !lockedToAthlete()) {
   <div class="card empty-state">
     <h2>Aucun athlète actif</h2>
     <p class="field-hint">Créez d'abord un athlète pour planifier des séances.</p>
@@ -196,7 +284,7 @@
           </button>
         }
         @for (n of day.notes; track n.id) {
-          <button type="button" class="event-chip event-chip--note" (click)="deleteNote(n, $event)" [title]="n.text + ' — cliquer pour supprimer'">
+          <button type="button" class="event-chip event-chip--note" (click)="openNote(n, $event)" [title]="n.text + ' — cliquer pour ouvrir'">
             <app-icon name="file-text" [size]="13" /><span class="ec-name">{{ n.text }}</span>
           </button>
         }
@@ -228,11 +316,19 @@
             </button>
           }
           @for (s of day.strength; track s.id) {
-            <div class="strength-chip" [class.done]="s.completed" [style.--type-color]="typeMeta('STRENGTH').color">
+            <button
+              type="button"
+              class="strength-chip"
+              [class.done]="s.completed"
+              [style.--type-color]="typeMeta('STRENGTH').color"
+              cdkDrag [cdkDragData]="s" [cdkDragDisabled]="!canWriteSelected()"
+              (click)="openStrength(s)"
+              (contextmenu)="openStrengthMenu(s, $event)"
+              [title]="s.title + ' — cliquer pour voir le détail'">
               <app-icon class="sc-icon" name="dumbbell" [size]="13" />
               <span class="sc-title">{{ s.title }}</span>
               @if (s.sessionPain) { <app-icon class="sc-pain" name="heart-pulse" [size]="12" /> }
-            </div>
+            </button>
           }
           @if (canWriteSelected()) {
             <button type="button" class="add-btn" (click)="addWorkout(day.date)">+</button>
@@ -276,6 +372,9 @@
                 @if (showRealized()) { <span class="wt-cap">Prévu</span> }
                 <span class="wt-val metric">{{ fmtDuration(week.durationS) }}</span>
                 <span class="wt-val metric">{{ week.km.toFixed(1) }}<small>km</small></span>
+                @if (week.loadUa > 0) {
+                  <span class="wt-val metric" title="Charge prévue de la semaine (sRPE)">{{ week.loadUa }}<small>UA</small></span>
+                }
                 <span class="wt-lb">{{ week.sessions }} séance{{ week.sessions > 1 ? 's' : '' }}</span>
               </div>
             }
@@ -314,13 +413,94 @@
   </div>
 }
 
+<!-- Menu contextuel d'une séance de force planifiée : mêmes gestes que les séances course. -->
+@if (strengthMenu(); as m) {
+  <div class="ctx-backdrop" (click)="closeStrengthMenu()" (contextmenu)="$event.preventDefault(); closeStrengthMenu()"></div>
+  <div class="ctx-menu" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
+    <span class="ctx-title">{{ m.session.title }}</span>
+    <button type="button" class="ctx-item" (click)="ctxStrengthOpen()"><app-icon name="dumbbell" [size]="14" /> Voir le détail</button>
+    <div class="ctx-sep"></div>
+    <label class="ctx-field">Déplacer vers
+      <input type="date" class="form-control" [ngModel]="strengthCtxDate" (ngModelChange)="ctxStrengthMoveTo($event)" />
+    </label>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item danger" (click)="ctxStrengthDelete()"><app-icon name="ban" [size]="14" /> Supprimer</button>
+  </div>
+}
+
+<!-- Note du calendrier : lecture + édition. La suppression est un bouton explicite, jamais le clic
+     sur la chip (un clic ne doit pas détruire une donnée sans confirmation). -->
+<app-side-panel [(open)]="notePanelOpen" title="Note" [width]="420">
+  @if (activeNote(); as n) {
+    <div class="sd">
+      <span class="field-hint metric">{{ n.noteDate | date: 'EEE d MMM y' }}</span>
+
+      @if (canWriteSelected()) {
+        <label class="form-group">
+          <span>Texte de la note</span>
+          <textarea class="form-control" rows="4" maxlength="500" [(ngModel)]="noteEditText"></textarea>
+        </label>
+        <div class="sd__actions sd__actions--split">
+          <button type="button" class="btn btn-ghost btn-sm" (click)="deleteNote(n)">
+            <app-icon name="trash-2" [size]="15" /> Supprimer
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" [disabled]="!noteEditText.trim()" (click)="saveNote(n)">
+            <app-icon name="save" [size]="15" /> Enregistrer
+          </button>
+        </div>
+      } @else {
+        <p>{{ n.text }}</p>
+        <p class="field-hint"><app-icon name="lock" [size]="14" /> Lecture seule sur cet athlète.</p>
+      }
+    </div>
+  }
+</app-side-panel>
+
+<!-- Détail d'une séance de force planifiée : titre, blocs, exercices, prescription en fourchettes. -->
+<app-side-panel [(open)]="strengthPanelOpen" [title]="strengthDetail()?.title || 'Séance de renforcement'" [width]="480">
+  @if (strengthDetail(); as s) {
+    <div class="sd">
+      <div class="sd__meta">
+        <span class="badge" [class.badge-success]="s.completed" [class.badge-neutral]="!s.completed">
+          {{ s.completed ? 'Réalisée' : 'Prévue' }}
+        </span>
+        <span class="field-hint metric">{{ s.scheduledDate | date: 'EEE d MMM y' }}</span>
+        @if (s.movedByAthlete) { <span class="badge badge-info">Déplacée par l'athlète</span> }
+      </div>
+
+      @if (s.completed) {
+        <div class="sd__fb">
+          @if (s.sessionFatigue != null) { <span>Fatigue <strong class="metric">{{ s.sessionFatigue }}/10</strong></span> }
+          @if (s.sessionPain != null) { <span>Douleur <strong class="metric">{{ s.sessionPain }}/10</strong></span> }
+        </div>
+      }
+
+      @if (strengthRxLoading()) {
+        <div class="skeleton" style="height: 120px;"></div>
+      } @else {
+        <app-strength-prescription-view [prescription]="strengthRx()" />
+      }
+
+      @if (canWriteSelected()) {
+        <div class="sd__actions">
+          <button type="button" class="btn btn-ghost btn-sm" (click)="deleteStrength(s)">
+            <app-icon name="ban" [size]="15" /> Supprimer du calendrier
+          </button>
+        </div>
+      } @else {
+        <p class="field-hint"><app-icon name="lock" [size]="14" /> Lecture seule sur cet athlète.</p>
+      }
+    </div>
+  }
+</app-side-panel>
+
 <!-- Sélecteur de séance course (clic sur « + » d'un jour) : planification structurée en fourchettes.
      L'ancien éditeur « par zones » (valeurs sèches) a été retiré au profit du modèle unique DARI Lab. -->
 @if (pickerDate(); as date) {
   <div class="picker-overlay" (click)="closePicker()">
     <div class="picker" (click)="$event.stopPropagation()">
       <header class="picker__head">
-        <h3>Planifier une séance — {{ date }}</h3>
+        <h3>Planifier une séance — {{ fmtDate(date) }}</h3>
         <button type="button" class="btn btn-ghost btn-sm" (click)="closePicker()">Fermer</button>
       </header>
       <button type="button" class="picker__item picker__adhoc" (click)="createAdHoc()">
@@ -329,7 +509,7 @@
       </button>
       @if (noteOpen()) {
         <div class="picker__note">
-          <textarea class="form-control" rows="2" [(ngModel)]="noteText" placeholder="Note pour le {{ date }}…" (keydown.escape)="toggleNote()"></textarea>
+          <textarea class="form-control" rows="2" [(ngModel)]="noteText" [placeholder]="'Note pour le ' + fmtDate(date) + '…'" (keydown.escape)="toggleNote()"></textarea>
           <div class="picker__note-actions">
             <button type="button" class="btn btn-ghost btn-sm" (click)="toggleNote()">Annuler</button>
             <button type="button" class="btn btn-primary btn-sm" [disabled]="!noteText.trim()" (click)="addNote()">Ajouter la note</button>
@@ -354,7 +534,8 @@
           }
         </ul>
       } @else {
-        <p class="field-hint">Aucun modèle de séance course. Crée-en dans la bibliothèque (prescription en fourchettes).</p>
+        <p class="field-hint">Aucun modèle de séance course.</p>
+        <a routerLink="/app/library/course" class="btn btn-ghost btn-sm">Créer un modèle dans la bibliothèque →</a>
       }
     </div>
   </div>

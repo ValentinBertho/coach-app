@@ -122,6 +122,28 @@ public class AthletePhysioService {
         return addPerformance(a.getClub().getId(), athleteId, req);
     }
 
+    /**
+     * Corrige un record existant (temps, date, distance). Une faute de frappe imposait jusqu'ici
+     * de supprimer puis resaisir — ce qui faisait descendre puis remonter le VDOT et les zones.
+     * Même resync que l'ajout : le VDOT et les allures d'ancrage suivent la correction.
+     */
+    @Transactional
+    public PerformanceResponse updatePerformance(UUID clubId, UUID athleteId, UUID performanceId,
+                                                 PerformanceRequest req) {
+        Athlete a = requireAthlete(clubId, athleteId);
+        AthletePerformance perf = performanceRepository.findByIdAndAthleteId(performanceId, athleteId)
+                .orElseThrow(() -> new NotFoundException("Performance introuvable."));
+        perf.setDistance(req.distance());
+        perf.setTimeSeconds(req.timeSeconds());
+        perf.setDateSet(req.dateSet());
+        performanceRepository.flush();
+        recomputeVdot(a);
+        zoneValueSyncService.resync(clubId, athleteId);
+        log.info("Performance {} corrigée pour l'athlète {} (recalcul VDOT + zones)",
+                req.distance(), athleteId);
+        return PerformanceResponse.from(perf, vdotOf(perf));
+    }
+
     @Transactional
     public void deletePerformance(UUID clubId, UUID athleteId, UUID performanceId) {
         Athlete a = requireAthlete(clubId, athleteId);

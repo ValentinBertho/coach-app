@@ -52,6 +52,15 @@ export class PhysioService {
   }
 
   /** Retire un record de l'historique (le VDOT est recalculé côté serveur). */
+  /** Corrige un record (temps, date) — le VDOT et les zones se resynchronisent côté serveur. */
+  updatePerformance(
+    athleteId: string,
+    performanceId: string,
+    body: { distance: string; timeSeconds: number; dateSet?: string | null },
+  ): Observable<Performance> {
+    return this.http.put<Performance>(`${this.base(athleteId)}/performances/${performanceId}`, body);
+  }
+
   deletePerformance(athleteId: string, performanceId: string): Observable<void> {
     return this.http.delete<void>(`${this.base(athleteId)}/performances/${performanceId}`);
   }

@@ -9,6 +9,7 @@ import {
   SessionStructure,
 } from '../models/course.model';
 import { AuthService } from './auth.service';
+import { Workout } from '../models/workout.model';
 
 /** Structure Darilab des séances course (prescription en fourchettes) + calculateur. */
 @Injectable({ providedIn: 'root' })
@@ -51,7 +52,9 @@ export class CourseService {
   }
 
   /** Assigne un modèle de séance course au calendrier d'un athlète (snapshot + allures figées). */
-  schedule(athleteId: string, templateId: string, body: { date: string }): Observable<unknown> {
-    return this.http.post(`${this.club()}/athletes/${athleteId}/workout-templates/${templateId}/schedule`, body);
+  /** Planifie un modèle : la séance renvoyée porte les cibles calculées pour CET athlète. */
+  schedule(athleteId: string, templateId: string, body: { date: string }): Observable<Workout> {
+    return this.http.post<Workout>(
+      `${this.club()}/athletes/${athleteId}/workout-templates/${templateId}/schedule`, body);
   }
 }

@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DatePipe } from '@angular/common';
+import { TrendChartComponent, type TrendPoint } from '../../shared/components/trend-chart/trend-chart.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { Performance, Vdot } from '../../core/models/physio.model';
 import { PhysioService } from '../../core/services/physio.service';
@@ -26,7 +28,7 @@ const DISTANCES: { value: string; label: string }[] = [
   selector: 'app-athlete-records-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, IconComponent],
+  imports: [FormsModule, DatePipe, IconComponent, TrendChartComponent],
   template: `
     <section class="card records">
       <header class="rec-head">
@@ -63,16 +65,44 @@ const DISTANCES: { value: string; label: string }[] = [
         <ul class="rec-list">
           @for (p of records(); track p.id) {
             <li class="rec-row">
-              <span class="rr-dist">{{ label(p.distanceCode || p.distance) }}</span>
-              <span class="rr-time metric">{{ hms(p.timeSeconds) }}</span>
-              <span class="rr-date field-hint">{{ p.dateSet || '—' }}</span>
-              @if (p.vdot != null) { <span class="badge badge-info">VDOT {{ p.vdot }}</span> }
-              <button type="button" class="icon-btn danger" (click)="remove(p)" [attr.aria-label]="'Supprimer ' + p.distance">
-                <app-icon name="trash-2" [size]="15" />
-              </button>
+              @if (editingId() === p.id) {
+                <!-- Correction en place : une faute de frappe n'oblige plus à supprimer puis
+                     resaisir, ce qui faisait descendre puis remonter le VDOT. -->
+                <span class="rr-dist">{{ label(p.distanceCode || p.distance) }}</span>
+                <input class="form-control rf-time" [(ngModel)]="editDraft.time" name="editTime"
+                       placeholder="mm:ss ou h:mm:ss" aria-label="Temps" />
+                <input class="form-control rf-date" type="date" [(ngModel)]="editDraft.dateSet"
+                       name="editDate" aria-label="Date" />
+                <button type="button" class="icon-btn" (click)="saveEdit(p)" [disabled]="busy()" aria-label="Enregistrer">
+                  <app-icon name="check" [size]="15" />
+                </button>
+                <button type="button" class="icon-btn" (click)="cancelEdit()" aria-label="Annuler">
+                  <app-icon name="x" [size]="15" />
+                </button>
+              } @else {
+                <span class="rr-dist">{{ label(p.distanceCode || p.distance) }}</span>
+                <span class="rr-time metric">{{ hms(p.timeSeconds) }}</span>
+                <span class="rr-date field-hint">{{ p.dateSet ? (p.dateSet | date: 'd MMM y') : '—' }}</span>
+                @if (p.vdot != null) { <span class="badge badge-info">VDOT {{ p.vdot }}</span> }
+                <button type="button" class="icon-btn" (click)="startEdit(p)" [attr.aria-label]="'Modifier ' + p.distance">
+                  <app-icon name="pencil" [size]="15" />
+                </button>
+                <button type="button" class="icon-btn danger" (click)="remove(p)" [attr.aria-label]="'Supprimer ' + p.distance">
+                  <app-icon name="trash-2" [size]="15" />
+                </button>
+              }
             </li>
           }
         </ul>
+      }
+
+      <!-- Évolution du VDOT : la donnée existe record par record, la progression n'était
+           jamais montrée. -->
+      @if (vdotPoints().length >= 2) {
+        <div class="vdot-trend">
+          <h3>Évolution du VDOT</h3>
+          <app-trend-chart [points]="vdotPoints()" label="VDOT" color="var(--dari-teal)" />
+        </div>
       }
 
       <!-- Allures dérivées du VDOT : ce que les ancres Pace800/1500/… utilisent -->
@@ -93,6 +123,8 @@ const DISTANCES: { value: string; label: string }[] = [
   `,
   styles: [`
     .records { margin-bottom: var(--sp-5); }
+    .vdot-trend { margin-top: var(--sp-4); }
+    .vdot-trend h3 { margin: 0 0 var(--sp-2); font-size: var(--text-md); }
     .rec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
     .rec-head h2 { margin: 0 0 var(--sp-1); font-size: var(--text-lg); }
     .rec-head .field-hint { margin: 0; max-width: 60ch; }
@@ -134,6 +166,22 @@ export class AthleteRecordsPanelComponent implements OnInit {
   readonly vdot = signal<Vdot | null>(null);
 
   draft = { distance: 'D10KM', time: '', dateSet: '' };
+
+  /**
+   * Évolution du VDOT dans le temps : chaque record daté porte le VDOT qu'il implique. Un seul
+   * point par date (le meilleur), pour ne pas faire osciller la courbe entre deux distances
+   * courues le même jour.
+   */
+  readonly vdotPoints = computed<TrendPoint[]>(() => {
+    const best = new Map<string, number>();
+    for (const p of this.performances()) {
+      if (!p.dateSet || p.vdot == null) continue;
+      best.set(p.dateSet, Math.max(best.get(p.dateSet) ?? 0, p.vdot));
+    }
+    return [...best.entries()]
+      .map(([date, value]) => ({ date, value }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  });
 
   /** Records triés du plus court au plus long, puis par date décroissante. */
   readonly records = computed(() => {
@@ -198,6 +246,38 @@ export class AthleteRecordsPanelComponent implements OnInit {
         this.load();
       },
       error: () => { this.busy.set(false); this.toast.error('Enregistrement impossible.'); },
+    });
+  }
+
+  // --- Correction d'un record en place ---------------------------------------
+  readonly editingId = signal<string | null>(null);
+  editDraft = { time: '', dateSet: '' };
+
+  startEdit(p: Performance): void {
+    this.editDraft = { time: this.hms(p.timeSeconds), dateSet: p.dateSet ?? '' };
+    this.editingId.set(p.id);
+  }
+  cancelEdit(): void { this.editingId.set(null); }
+
+  saveEdit(p: Performance): void {
+    const seconds = this.parseTime(this.editDraft.time);
+    if (seconds == null || seconds <= 0) {
+      this.toast.warning('Temps invalide (mm:ss ou h:mm:ss).');
+      return;
+    }
+    this.busy.set(true);
+    this.physio.updatePerformance(this.athleteId(), p.id, {
+      distance: p.distanceCode || p.distance,
+      timeSeconds: seconds,
+      dateSet: this.editDraft.dateSet || null,
+    }).subscribe({
+      next: () => {
+        this.toast.success('Record corrigé — VDOT et allures recalculés.');
+        this.busy.set(false);
+        this.editingId.set(null);
+        this.load();
+      },
+      error: () => { this.busy.set(false); this.toast.error('Correction impossible.'); },
     });
   }
 

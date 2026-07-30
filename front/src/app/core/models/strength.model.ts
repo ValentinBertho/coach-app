@@ -129,6 +129,8 @@ export interface StrengthSession {
 
 export interface Athlete1rm {
   exerciseId: string;
+  /** Nom porté par le DTO : la bibliothèque d'exercices est paginée côté écran. */
+  exerciseName: string;
   rmKg: number;
   source: string;
 }
@@ -163,6 +165,17 @@ export interface CalculatedStrength {
   blocks: { block: StrengthBlock; exercises: { item: StrengthExerciseItem; charge: ChargeTarget }[] }[];
 }
 
+/**
+ * Prescription figée d'une séance de force planifiée : structure snapshot au moment de
+ * l'assignation, charges calculées pour l'athlète, et champs demandés au retour.
+ * Servie à l'identique côté coach (calendrier) et côté athlète (portail).
+ */
+export interface StrengthPrescriptionView {
+  snapshot: StrengthStructure;
+  calculated: CalculatedStrength | null;
+  requiredFields: Record<string, boolean> | null;
+}
+
 export interface ScheduledStrength {
   id: string;
   athleteId: string;
@@ -174,6 +187,8 @@ export interface ScheduledStrength {
   completed: boolean;
   sessionFatigue: number | null;
   sessionPain: number | null;
+  /** Résumé des charges calculées, renseigné à la planification (CdC §8). */
+  chargeSummary?: string | null;
 }
 
 export interface CycleWeek {

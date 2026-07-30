@@ -47,6 +47,8 @@
   justify-content: space-between;
   gap: var(--sp-2);
 }
+/* Actions de carte (dupliquer…) : la carte entière est un lien, l'action reste cliquable seule. */
+.ex-head-actions { display: flex; align-items: center; gap: var(--sp-1); margin-left: auto; }
 .ex-tags {
   display: flex;
   flex-wrap: wrap;
@@ -236,3 +238,31 @@
   font-size: 0.78rem;
   color: var(--primary);
 }
+
+/* --- Aperçu de la progression d'un cycle --------------------------------- */
+.cycle-preview { margin: var(--sp-3) 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.cp-weeks { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.cp-week {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  min-width: 56px; padding: var(--sp-2); border-radius: var(--radius-sm);
+  background: var(--paper-sunk); border: 1px solid var(--hairline);
+}
+.cp-week--deload { background: var(--primary-wash); border-color: var(--primary-light); }
+.cp-n { font-size: var(--text-xs); color: var(--ink-3); font-weight: 700; }
+.cp-p { font-weight: 800; font-size: var(--text-sm); }
+.assign-panel { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+/* --- Fiche exercice enrichie (matériel, contre-indications, progression) --- */
+.chip-picker { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.chip-opt {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-3); border: 1px solid var(--hairline);
+  border-radius: var(--radius-full); font-size: var(--text-sm); cursor: pointer;
+}
+.chip-opt.selected { border-color: var(--primary); background: var(--primary-wash); color: var(--primary); }
+.chip-opt input { accent-color: var(--primary); }
+.ex-contra {
+  display: flex; gap: var(--sp-1); align-items: flex-start; margin: 0;
+  font-size: var(--text-xs); color: var(--danger-text, var(--dari-red));
+}
+.ex-prog { margin: 0; }

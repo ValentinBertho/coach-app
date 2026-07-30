@@ -1,8 +1,8 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { LactateStep, LactateTest, Load, LtDetection } from '../models/lactate.model';
+import { LactateStep, LactateTest, Load, LoadSeries, LtDetection } from '../models/lactate.model';
 import { AuthService } from './auth.service';
 
 /** Tests lactate, détection LT1/LT2 et charge d'entraînement (cf. Darilab). */
@@ -41,7 +41,18 @@ export class LactateService {
     return this.http.post<LactateTest>(`${this.base(athleteId)}/lactate-tests`, body);
   }
 
+  /** Supprime un test lactate (un test raté ne doit pas polluer le profil comparé). */
+  deleteTest(athleteId: string, testId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base(athleteId)}/lactate-tests/${testId}`);
+  }
+
   load(athleteId: string): Observable<Load> {
     return this.http.get<Load>(`${this.base(athleteId)}/load`);
+  }
+
+  /** Série temporelle ATL / CTL / ACWR (courbe de charge) sur N semaines. */
+  loadSeries(athleteId: string, weeks = 12): Observable<LoadSeries> {
+    const params = new HttpParams().set('weeks', weeks);
+    return this.http.get<LoadSeries>(`${this.base(athleteId)}/load/series`, { params });
   }
 }

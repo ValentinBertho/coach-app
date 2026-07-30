@@ -1,8 +1,10 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { ScheduledStrength } from '../models/strength.model';
 import { TrainingGroup } from '../models/training-group.model';
+import { Workout } from '../models/workout.model';
 import { AuthService } from './auth.service';
 
 @Injectable({ providedIn: 'root' })
@@ -30,6 +32,31 @@ export class TrainingGroupService {
   analytics(id: string, weeks = 8): Observable<GroupAnalytics> {
     return this.http.get<GroupAnalytics>(`${this.base()}/${id}/analytics?weeks=${weeks}`);
   }
+
+  /**
+   * Semaine du groupe (calendrier multi-athlètes) : un seul appel agrégé, une ligne par
+   * athlète accessible, séances course et force incluses.
+   */
+  calendar(id: string, from: string, to: string): Observable<GroupCalendar> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<GroupCalendar>(`${this.base()}/${id}/calendar`, { params });
+  }
+}
+
+/** Une ligne du calendrier de groupe : l'athlète et ses séances sur la plage demandée. */
+export interface GroupCalendarRow {
+  athleteId: string;
+  firstName: string;
+  lastName: string;
+  canWrite: boolean;
+  workouts: Workout[];
+  strength: ScheduledStrength[];
+}
+
+export interface GroupCalendar {
+  groupId: string;
+  groupName: string;
+  athletes: GroupCalendarRow[];
 }
 
 export type FormStatus = 'GREEN' | 'ORANGE' | 'RED';

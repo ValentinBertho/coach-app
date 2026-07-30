@@ -1,17 +1,29 @@
 package com.coachrun.service;
 
 import com.coachrun.dto.request.TrainingGroupRequest;
+import com.coachrun.dto.response.GroupCalendarResponse;
+import com.coachrun.dto.response.ScheduledStrengthResponse;
 import com.coachrun.dto.response.TrainingGroupResponse;
+import com.coachrun.dto.response.WorkoutResponse;
+import com.coachrun.entity.Athlete;
 import com.coachrun.entity.TrainingGroup;
+import com.coachrun.entity.enums.AthleteStatus;
+import com.coachrun.entity.enums.PermissionLevel;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.ClubRepository;
+import com.coachrun.repository.ScheduledStrengthSessionRepository;
 import com.coachrun.repository.TrainingGroupRepository;
+import com.coachrun.repository.WorkoutRepository;
+import com.coachrun.security.AthleteAccessValidator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /** Groupes d'entraînement (CRUD scopé club). */
@@ -23,11 +35,46 @@ public class TrainingGroupService {
     private final TrainingGroupRepository groupRepository;
     private final ClubRepository clubRepository;
     private final AthleteRepository athleteRepository;
+    private final WorkoutRepository workoutRepository;
+    private final ScheduledStrengthSessionRepository strengthRepository;
+    private final AthleteAccessValidator accessValidator;
 
     public List<TrainingGroupResponse> list(UUID clubId) {
         return groupRepository.findByClubIdOrderByNameAsc(clubId).stream()
                 .map(g -> TrainingGroupResponse.of(g, athleteRepository.countByGroupId(g.getId())))
                 .toList();
+    }
+
+    /**
+     * Semaine du groupe : une ligne par athlète accessible, séances course et force sur la
+     * plage demandée. Un seul appel côté client là où le calendrier mono-athlète en aurait
+     * fait deux par athlète.
+     */
+    public GroupCalendarResponse calendar(UUID clubId, UUID groupId, UUID coachId,
+                                          LocalDate from, LocalDate to) {
+        TrainingGroup group = require(clubId, groupId);
+        List<GroupCalendarResponse.AthleteRow> rows = new ArrayList<>();
+
+        for (Athlete a : athleteRepository.findActiveByGroup(groupId, clubId, AthleteStatus.ACTIVE)) {
+            // Un coach ne voit jamais hors de son périmètre : l'athlète non lisible est absent
+            // de la réponse, il n'est pas simplement grisé côté client.
+            Optional<PermissionLevel> level = accessValidator.effectiveLevel(coachId, a.getId());
+            if (level.isEmpty()) {
+                continue;
+            }
+            rows.add(new GroupCalendarResponse.AthleteRow(
+                    a.getId(), a.getFirstName(), a.getLastName(),
+                    level.get().atLeast(PermissionLevel.WRITE),
+                    workoutRepository
+                            .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAscOrderIndexAsc(
+                                    clubId, a.getId(), from, to)
+                            .stream().map(WorkoutResponse::from).toList(),
+                    strengthRepository
+                            .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
+                                    clubId, a.getId(), from, to)
+                            .stream().map(ScheduledStrengthResponse::from).toList()));
+        }
+        return new GroupCalendarResponse(group.getId(), group.getName(), rows);
     }
 
     @Transactional

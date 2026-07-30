@@ -134,12 +134,32 @@ public class AthleteService {
         Athlete athlete = new Athlete();
         athlete.setClub(club);
         athlete.setStatus(AthleteStatus.ACTIVE);
+        applyClubDefaults(athlete, club);
         apply(athlete, request);
         athlete = athleteRepository.save(athlete);
         boolean privat = Boolean.TRUE.equals(request.privateAthlete());
         createReferentRelation(athlete, club, creatorCoachId, privat);
         log.info("Athlète créé {} (club={}, référent={}, privé={})", athlete.getId(), clubId, creatorCoachId, privat);
         return AthleteResponse.from(athlete);
+    }
+
+    /**
+     * Applique les bornes de domaines d'intensité par défaut du club au nouvel athlète. Posées
+     * AVANT la requête : un coach qui renseigne des valeurs à la création garde les siennes.
+     */
+    private void applyClubDefaults(Athlete athlete, Club club) {
+        if (club.getDefaultVcDomain1Pct() != null) {
+            athlete.setVcDomain1Pct(club.getDefaultVcDomain1Pct());
+        }
+        if (club.getDefaultVcDomain2Pct() != null) {
+            athlete.setVcDomain2Pct(club.getDefaultVcDomain2Pct());
+        }
+        if (club.getDefaultFcDomain1Pct() != null) {
+            athlete.setFcDomain1Pct(club.getDefaultFcDomain1Pct());
+        }
+        if (club.getDefaultFcDomain2Pct() != null) {
+            athlete.setFcDomain2Pct(club.getDefaultFcDomain2Pct());
+        }
     }
 
     /**

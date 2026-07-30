@@ -11,6 +11,8 @@ import java.util.UUID;
 public record RaceObjectiveResponse(
         UUID id,
         UUID athleteId,
+        /** Nom de l'athlète : renseigné sur les listes multi-athlètes (cockpit coach). */
+        String athleteName,
         String name,
         LocalDate raceDate,
         Integer distanceM,
@@ -20,8 +22,12 @@ public record RaceObjectiveResponse(
         long daysUntil) {
 
     public static RaceObjectiveResponse from(RaceObjective r) {
+        return from(r, null);
+    }
+
+    public static RaceObjectiveResponse from(RaceObjective r, String athleteName) {
         return new RaceObjectiveResponse(
-                r.getId(), r.getAthlete().getId(), r.getName(), r.getRaceDate(),
+                r.getId(), r.getAthlete().getId(), athleteName, r.getName(), r.getRaceDate(),
                 r.getDistanceM(), r.getTargetTimeS(), r.getPriority(), r.getStatus(),
                 ChronoUnit.DAYS.between(LocalDate.now(), r.getRaceDate()));
     }

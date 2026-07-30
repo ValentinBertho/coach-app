@@ -66,6 +66,13 @@ public class StrengthSessionController {
         return sessionService.putStructure(clubId, id, request);
     }
 
+    /** Duplique une séance de force (variante d'une séance existante) : « {nom} (copie) ». */
+    @PostMapping("/{id}/duplicate")
+    @ResponseStatus(HttpStatus.CREATED)
+    public StrengthSessionResponse duplicate(@PathVariable UUID clubId, @PathVariable UUID id) {
+        return sessionService.duplicate(clubId, id);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void archive(@PathVariable UUID clubId, @PathVariable UUID id) {

@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import {
   AuthResponse,
   LoginRequest,
+  PaceUnit,
   RegisterRequest,
   User,
 } from '../models/user.model';
@@ -116,6 +117,23 @@ export class AuthService {
   }
 
   /** Renvoie l'e-mail de vérification au compte courant. */
+  /** Édite le profil courant (nom, e-mail, préférence d'unité d'allure). */
+  updateProfile(body: { fullName: string; email: string; paceUnit?: PaceUnit }): Observable<User> {
+    return this.http.patch<User>(`${environment.apiUrl}/auth/me`, body).pipe(
+      tap((user) => this.currentUser.set(user)),
+    );
+  }
+
+  /** Changement de mot de passe (l'actuel est exigé côté serveur). */
+  changePassword(currentPassword: string, newPassword: string): Observable<void> {
+    return this.http.post<void>(`${environment.apiUrl}/auth/change-password`, { currentPassword, newPassword });
+  }
+
+  /** Unité d'allure préférée, avec repli sur min/km si le profil n'est pas encore chargé. */
+  paceUnit(): PaceUnit {
+    return this.currentUser()?.paceUnit ?? 'PACE';
+  }
+
   resendVerification(): Observable<void> {
     return this.http.post<void>(`${this.base}/resend-verification`, {});
   }

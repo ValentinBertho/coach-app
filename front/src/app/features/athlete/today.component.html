@@ -138,7 +138,10 @@
             }
 
             <section class="strength-fb">
+              <!-- Forme = fatigue + douleur (jamais le RPE) : les deux doivent être saisissables,
+                   sinon les alertes douleur / réathlétisation ne peuvent jamais se déclencher. -->
               <app-pain-fatigue-selector kind="fatigue" [(value)]="card.sFatigue" />
+              <app-pain-fatigue-selector kind="pain" [(value)]="card.sPain" />
               <div class="rpe-row">
                 <span class="rpe-row__label">RPE séance</span>
                 <div class="rpe-scale">

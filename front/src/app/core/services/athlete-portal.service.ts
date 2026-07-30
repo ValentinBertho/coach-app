@@ -11,7 +11,11 @@ import { Analytics } from './analytics.service';
 import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
 import { Workout, WorkoutStatus } from '../models/workout.model';
 import { StravaStatus } from '../models/strava.model';
-import { CalculatedStrength, E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthResultEntry, StrengthStructure } from '../models/strength.model';
+import { E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthPrescriptionView, StrengthResultEntry } from '../models/strength.model';
+
+// Le type vit désormais dans le modèle force (partagé coach/athlète) ; ré-export pour les
+// consommateurs historiques qui l'importent depuis ce service.
+export type { StrengthPrescriptionView };
 
 export interface ActivityLog {
   activityDate: string;
@@ -28,12 +32,6 @@ export interface WorkoutFeedback {
   fatigue?: number | null;
   pain?: number | null;
   comment?: string | null;
-}
-
-export interface StrengthPrescriptionView {
-  snapshot: StrengthStructure;
-  calculated: CalculatedStrength | null;
-  requiredFields: Record<string, boolean> | null;
 }
 
 export interface StrengthFeedback {

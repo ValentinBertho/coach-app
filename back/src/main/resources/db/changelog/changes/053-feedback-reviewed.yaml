@@ -1,0 +1,26 @@
+# ============================================================================
+# 053 — Traçabilité « retour traité par le coach ».
+#   Un retour d'athlète (RPE / douleur / commentaire) doit pouvoir sortir de la
+#   file de traitement du coach sans modifier la séance elle-même : colonne
+#   additive coach_reviewed_at, nulle tant que le retour n'a pas été vu.
+#   Course et force, pour rester unifiées comme partout ailleurs.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 053-workout-coach-reviewed-at
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workouts
+            columns:
+              - column: { name: coach_reviewed_at, type: TIMESTAMP }
+        - addColumn:
+            tableName: scheduled_strength_sessions
+            columns:
+              - column: { name: coach_reviewed_at, type: TIMESTAMP }
+        - createIndex:
+            indexName: idx_workouts_club_reviewed
+            tableName: workouts
+            columns:
+              - column: { name: club_id }
+              - column: { name: coach_reviewed_at }

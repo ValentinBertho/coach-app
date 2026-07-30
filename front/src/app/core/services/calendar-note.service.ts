@@ -22,6 +22,10 @@ export class CalendarNoteService {
   create(athleteId: string, body: CalendarNoteRequest): Observable<CalendarNote> {
     return this.http.post<CalendarNote>(this.base(athleteId), body);
   }
+  /** Édition du texte (ou de la date) d'une note existante. */
+  update(athleteId: string, noteId: string, body: CalendarNoteRequest): Observable<CalendarNote> {
+    return this.http.put<CalendarNote>(`${this.base(athleteId)}/${noteId}`, body);
+  }
   delete(athleteId: string, noteId: string): Observable<void> {
     return this.http.delete<void>(`${this.base(athleteId)}/${noteId}`);
   }

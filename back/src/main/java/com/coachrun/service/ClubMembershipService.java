@@ -209,4 +209,27 @@ public class ClubMembershipService {
         permissionRepository.flush();
         return access(athleteId);
     }
+
+    // --- Défauts physiologiques du club ---------------------------------------
+
+    /** Bornes des domaines d'intensité par défaut, appliquées aux nouveaux athlètes. */
+    public com.coachrun.dto.response.ClubDefaultsResponse defaults(java.util.UUID clubId) {
+        return com.coachrun.dto.response.ClubDefaultsResponse.from(requireClub(clubId));
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public com.coachrun.dto.response.ClubDefaultsResponse updateDefaults(
+            java.util.UUID clubId, com.coachrun.dto.request.ClubDefaultsRequest req) {
+        com.coachrun.entity.Club club = requireClub(clubId);
+        club.setDefaultVcDomain1Pct(req.vcDomain1Pct());
+        club.setDefaultVcDomain2Pct(req.vcDomain2Pct());
+        club.setDefaultFcDomain1Pct(req.fcDomain1Pct());
+        club.setDefaultFcDomain2Pct(req.fcDomain2Pct());
+        return com.coachrun.dto.response.ClubDefaultsResponse.from(club);
+    }
+
+    private com.coachrun.entity.Club requireClub(java.util.UUID clubId) {
+        return clubRepository.findById(clubId)
+                .orElseThrow(() -> new com.coachrun.exception.NotFoundException("Club introuvable."));
+    }
 }

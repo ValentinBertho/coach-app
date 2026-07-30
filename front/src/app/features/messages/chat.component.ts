@@ -73,6 +73,13 @@ export class ChatComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.load();
     this.stream = this.messageService.stream(this.athleteId(), (m) => this.append(m));
+    // Ouvrir le fil vaut accusé de lecture : le badge de la boîte de réception se met à jour.
+    if (this.athleteId()) {
+      this.messageService.markThreadRead(this.athleteId()!).subscribe({
+        next: () => this.messageService.refreshUnread().subscribe({ error: () => { /* badge best-effort */ } }),
+        error: () => { /* le fil reste lisible même si l'accusé échoue */ },
+      });
+    }
   }
 
   ngOnDestroy(): void {

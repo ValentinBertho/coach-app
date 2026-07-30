@@ -62,6 +62,13 @@ interface MonthGroup {
                   @if (w.athleteComment) {
                     <p class="row-cmt"><app-icon name="message-square" [size]="13" /> {{ w.athleteComment }}</p>
                   }
+                  <!-- Retour du coach sur cette séance : distinct du ressenti déclaré. -->
+                  @if (w.coachComment) {
+                    <p class="row-coach">
+                      <app-icon name="message-square" [size]="13" />
+                      <span><strong>Ton coach :</strong> {{ w.coachComment }}</span>
+                    </p>
+                  }
                 </div>
               </article>
             }
@@ -77,6 +84,11 @@ interface MonthGroup {
     .subtitle { color: var(--ink-3); margin: 0; }
     .empty { text-align: center; }
 
+    .row-coach {
+      display: flex; gap: var(--sp-2); align-items: flex-start; margin: var(--sp-2) 0 0;
+      padding: var(--sp-2); border-radius: var(--radius-sm);
+      background: var(--primary-wash); color: var(--ink); font-size: var(--text-sm);
+    }
     .month { display: flex; flex-direction: column; gap: var(--sp-2); }
     .month-h { font-size: var(--text-md); color: var(--ink-3); text-transform: capitalize; margin: var(--sp-2) 0 0; }
 

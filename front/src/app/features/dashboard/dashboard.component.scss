@@ -64,8 +64,16 @@
 .stat-value { font-size: var(--text-3xl); color: var(--ink); }
 
 .races { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-.races li { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) 0; border-bottom: 1px solid var(--hairline); flex-wrap: wrap; }
+.races li { border-bottom: 1px solid var(--hairline); }
 .races li:last-child { border-bottom: none; }
+.race-row {
+  display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  padding: var(--sp-2); margin: 0 calc(var(--sp-2) * -1);
+  text-decoration: none; color: inherit; border-radius: var(--radius);
+}
+.race-row:hover { background: var(--paper-sunk); }
+.race-athlete { font-size: var(--text-sm); color: var(--ink-2); font-weight: 600; }
+.race-go { margin-left: auto; color: var(--ink-4); }
 
 .next-step { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); margin-top: var(--sp-4); }
 .next-step h2 { margin: 0 0 var(--sp-1); }

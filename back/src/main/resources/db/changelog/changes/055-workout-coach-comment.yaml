@@ -1,0 +1,16 @@
+# ============================================================================
+# 055 — Commentaire du coach sur une séance réalisée.
+#   Le coach ne pouvait commenter une séance qu'en passant par la messagerie,
+#   hors contexte. Colonne additive, distincte de `notes` (consigne posée AVANT
+#   la séance) et de `athlete_comment` (ressenti déclaré par l'athlète).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 055-workout-coach-comment
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workouts
+            columns:
+              - column: { name: coach_comment, type: VARCHAR(1024) }
+              - column: { name: coach_comment_at, type: TIMESTAMP }

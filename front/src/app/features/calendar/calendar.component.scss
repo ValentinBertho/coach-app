@@ -124,7 +124,13 @@
   border: 1px solid color-mix(in srgb, var(--block-classique) 45%, transparent);
   font-size: var(--text-xs);
   font-weight: 600;
+  width: 100%;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
 }
+.strength-chip:hover { filter: brightness(1.04); }
 .strength-chip.done {
   opacity: 0.6;
 }
@@ -202,6 +208,46 @@
 
 /* Chip de force : rail coloré cohérent avec les types. */
 .strength-chip { border-left: 3px solid var(--type-color, var(--dari-violet)); }
+
+/* --- Vue groupe : une ligne par athlète × 7 jours ------------------------- */
+/* Pas de vue mois ici : au-delà de la semaine la grille devient illisible. */
+.group-grid {
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--paper); border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg); padding: var(--sp-2); overflow-x: auto;
+}
+.gg-head, .gg-row { display: grid; grid-template-columns: 180px repeat(7, minmax(120px, 1fr)); gap: 2px; }
+.gg-head { position: sticky; top: 0; z-index: 1; background: var(--paper); }
+.gg-corner, .gg-day {
+  padding: var(--sp-2); font-size: var(--text-xs); font-weight: 700;
+  color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.gg-day.today { color: var(--primary); }
+.gg-athlete {
+  display: flex; align-items: center; gap: var(--sp-2); min-width: 0;
+  padding: var(--sp-2); text-decoration: none; color: var(--ink);
+  border-radius: var(--radius-sm);
+}
+.gg-athlete:hover { background: var(--paper-sunk); }
+.gg-name { font-weight: 600; font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gg-cell {
+  min-height: 64px; padding: var(--sp-1);
+  background: var(--paper-sunk); border-radius: var(--radius-sm);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.gg-cell.today { outline: 1px solid color-mix(in srgb, var(--primary) 40%, transparent); }
+.gg-chip { font-size: var(--text-xs); }
+
+/* --- Détail d'une séance de force planifiée (panneau latéral) ------------- */
+.sd { display: flex; flex-direction: column; gap: var(--sp-4); }
+.sd__meta { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.sd__fb {
+  display: flex; gap: var(--sp-4); flex-wrap: wrap;
+  padding: var(--sp-3); border-radius: var(--radius-md); background: var(--paper-sunk);
+  font-size: var(--text-sm);
+}
+.sd__actions { display: flex; justify-content: flex-end; gap: var(--sp-2); border-top: 1px solid var(--hairline); padding-top: var(--sp-3); }
+.sd__actions--split { justify-content: space-between; }
 
 /* --- Events non-séance : objectifs, tests, indisponibilités --------------- */
 .day-col--unavailable { background: repeating-linear-gradient(135deg, var(--paper) 0 10px, var(--paper-sunk) 10px 20px); }

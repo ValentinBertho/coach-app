@@ -106,6 +106,30 @@ public class WorkoutController {
         return workoutService.reschedule(clubId, workoutId, request.scheduledDate());
     }
 
+    /**
+     * Commentaire du coach sur une séance réalisée (feedback in situ, sans passer par la
+     * messagerie). Visible par l'athlète dans son historique et notifié.
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canComment(authentication, #athleteId)")
+    @PatchMapping("/{workoutId}/coach-comment")
+    public WorkoutResponse setCoachComment(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                           @PathVariable UUID workoutId,
+                                           @RequestBody java.util.Map<String, String> body) {
+        return workoutService.setCoachComment(clubId, workoutId, body.get("comment"));
+    }
+
+    /**
+     * Marque le retour de l'athlète comme traité (file « retours à traiter » du tableau de bord).
+     * Accusé de lecture côté coach : ne modifie ni la séance ni le retour.
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canComment(authentication, #athleteId)")
+    @PatchMapping("/{workoutId}/reviewed")
+    public WorkoutResponse markReviewed(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                        @PathVariable UUID workoutId,
+                                        @RequestParam(defaultValue = "true") boolean reviewed) {
+        return workoutService.markFeedbackReviewed(clubId, workoutId, reviewed);
+    }
+
     /** Réordonne les séances d'un même jour (glisser-déposer intra-jour). */
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PatchMapping("/reorder")

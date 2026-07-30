@@ -147,10 +147,28 @@
           </div>
           @if (hasFeedback()) {
             <div class="feedback-recap">
+              <!-- Prescrit vs ressenti : la boucle existait des deux côtés sans jamais être confrontée. -->
+              @if (prescribedRpe(); as planned) {
+                <div class="fb-stat">
+                  <span class="fb-stat__k">RPE prescrit</span>
+                  <span class="fb-stat__v metric">{{ planned }}<small>/10</small></span>
+                </div>
+              }
               @if (w.rpe != null) {
                 <div class="fb-stat">
                   <span class="fb-stat__k">RPE ressenti</span>
                   <span class="fb-stat__v metric">{{ w.rpe }}<small>/10</small></span>
+                </div>
+              }
+              @if (rpeGap(); as gap) {
+                <div class="fb-stat fb-gap" [class.fb-gap--notable]="rpeGapNotable()">
+                  <span class="fb-stat__k">Écart</span>
+                  <span class="fb-stat__v metric">{{ gap > 0 ? '+' : '' }}{{ gap }}</span>
+                  @if (rpeGapNotable()) {
+                    <span class="fb-gap__hint">
+                      {{ gap > 0 ? 'ressentie plus dure que prévu' : 'ressentie plus facile que prévu' }}
+                    </span>
+                  }
                 </div>
               }
               @if (w.athleteComment) {
@@ -159,6 +177,37 @@
             </div>
           } @else {
             <p class="field-hint">Aucun retour pour l'instant.</p>
+          }
+        </section>
+
+        <!-- ===== Retour du coach (feedback in situ, sans passer par la messagerie) ===== -->
+        <section class="card block">
+          <div class="block-title-row">
+            <h2 class="block-title">Commentaire du coach</h2>
+            @if (w.coachCommentAt) {
+              <span class="field-hint metric">{{ w.coachCommentAt | date: 'd MMM y, HH:mm' }}</span>
+            }
+          </div>
+
+          @if (editingComment()) {
+            <textarea class="form-control" rows="3" maxlength="1024" [(ngModel)]="coachCommentDraft"
+                      placeholder="Ton retour sur cette séance — l'athlète le verra dans son historique."></textarea>
+            <div class="cc-actions">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="cancelEditComment()">Annuler</button>
+              <button type="button" class="btn btn-primary btn-sm" (click)="saveCoachComment()" [disabled]="savingComment()">
+                <app-icon name="check" [size]="15" /> Envoyer
+              </button>
+            </div>
+          } @else if (w.coachComment) {
+            <blockquote class="fb-comment">{{ w.coachComment }}</blockquote>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="startEditComment()">
+              <app-icon name="pencil" [size]="15" /> Modifier
+            </button>
+          } @else {
+            <p class="field-hint">Aucun commentaire. L'athlète le verra dans son historique et sera notifié.</p>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="startEditComment()">
+              <app-icon name="pencil" [size]="15" /> Commenter cette séance
+            </button>
           }
         </section>
       </div>

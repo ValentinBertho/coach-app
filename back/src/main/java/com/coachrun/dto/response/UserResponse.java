@@ -14,7 +14,9 @@ public record UserResponse(
         UUID clubId,
         String clubName,
         UUID athleteId,
-        boolean emailVerified) {
+        boolean emailVerified,
+        /** Unité d'affichage des allures préférée (PACE = min/km, SPEED = km/h). */
+        com.coachrun.entity.enums.PaceUnit paceUnit) {
 
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -25,6 +27,7 @@ public record UserResponse(
                 user.getClub() != null ? user.getClub().getId() : null,
                 user.getClub() != null ? user.getClub().getName() : null,
                 user.getAthlete() != null ? user.getAthlete().getId() : null,
-                user.isEmailVerified());
+                user.isEmailVerified(),
+                user.getPaceUnit());
     }
 }

@@ -107,6 +107,7 @@
   }
 
   @if (!courseTemplates().length && !strengthSessions().length && !drills().length) {
-    <p class="field-hint">Aucune séance en bibliothèque. Crée des modèles dans la bibliothèque.</p>
+    <p class="field-hint">Aucune séance en bibliothèque.</p>
+    <a routerLink="/app/library/course" class="btn btn-ghost btn-sm">Créer un modèle →</a>
   }
 </div>

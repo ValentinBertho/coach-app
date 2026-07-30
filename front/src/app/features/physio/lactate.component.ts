@@ -6,6 +6,9 @@ import { forkJoin } from 'rxjs';
 import { LactateService } from '../../core/services/lactate.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { ToastService } from '../../core/services/toast.service';
+import { AuthService } from '../../core/services/auth.service';
+import { ConfirmService } from '../../core/services/confirm.service';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { LactateStep, LactateTest, LtDetection } from '../../core/models/lactate.model';
 import { DataOriginTagComponent } from '../../shared/components/physiology';
 import { SegmentedControlComponent, type SegmentOption } from '../../shared/components/ui';
@@ -21,8 +24,8 @@ interface MultiChart { series: Series[]; }
   selector: 'app-lactate',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DatePipe, DecimalPipe, DataOriginTagComponent, SegmentedControlComponent,
-    AthleteRecordsPanelComponent],
+  imports: [FormsModule, RouterLink, DatePipe, DecimalPipe, IconComponent, DataOriginTagComponent,
+    SegmentedControlComponent, AthleteRecordsPanelComponent],
   templateUrl: './lactate.component.html',
   styleUrl: './lactate.component.scss',
 })
@@ -32,6 +35,7 @@ export class LactateComponent implements OnInit {
   private readonly lactate = inject(LactateService);
   private readonly physio = inject(PhysioService);
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
 
   // --- Test Vitesse Critique ---
   vcTrials: { distanceM: number | null; timeS: number | null }[] = [
@@ -66,7 +70,9 @@ export class LactateComponent implements OnInit {
   readonly multiChart = computed<MultiChart | null>(() => this.buildMulti(this.profileTests()));
 
   /** Unité d'affichage des vitesses (toggle km/h ↔ allure min/km). */
-  readonly speedUnit = signal<'kmh' | 'pace'>('kmh');
+  // Initialisé sur la préférence d'unité du compte (Paramètres) ; reste basculable ici.
+  readonly speedUnit = signal<'kmh' | 'pace'>(
+    inject(AuthService).paceUnit() === 'SPEED' ? 'kmh' : 'pace');
   readonly speedOptions: SegmentOption[] = [
     { value: 'kmh', label: 'km/h' },
     { value: 'pace', label: 'min/km' },
@@ -80,6 +86,56 @@ export class LactateComponent implements OnInit {
     const m = Math.floor(secPerKm / 60);
     const s = Math.round(secPerKm % 60);
     return `${m}:${s.toString().padStart(2, '0')} /km`;
+  }
+
+  /**
+   * Valeur affichée dans la colonne « Vitesse » de la saisie, dans l'unité choisie.
+   * Le stockage reste en m/s (contrat backend) ; personne ne pense en m/s sur un tapis,
+   * la saisie doit donc suivre le même toggle que l'affichage.
+   */
+  stepSpeedValue(s: { speedMs: number | null }): string | number | null {
+    if (s.speedMs == null) return null;
+    const kmh = s.speedMs * 3.6;
+    if (this.speedUnit() === 'kmh') return Math.round(kmh * 10) / 10;
+    const secPerKm = 3600 / kmh;
+    const m = Math.floor(secPerKm / 60);
+    const sec = Math.round(secPerKm % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  }
+
+  /** Saisie d'une vitesse dans l'unité courante → conversion en m/s. */
+  setStepSpeed(step: { speedMs: number | null }, value: string | number | null): void {
+    step.speedMs = this.toMs(value);
+    this.refresh();
+  }
+
+  /** « 12 » (km/h) ou « 5:00 » (min/km) → m/s. Toute saisie inexploitable vide le palier. */
+  private toMs(value: string | number | null): number | null {
+    if (value == null || value === '') return null;
+    const raw = String(value).trim().replace(',', '.');
+    if (this.speedUnit() === 'kmh') {
+      const kmh = Number(raw);
+      return Number.isFinite(kmh) && kmh > 0 ? kmh / 3.6 : null;
+    }
+    const [mm, ss] = raw.split(':');
+    const secPerKm = ss === undefined ? Number(mm) * 60 : Number(mm) * 60 + Number(ss);
+    if (!Number.isFinite(secPerKm) || secPerKm <= 0) return null;
+    return 1000 / secPerKm;
+  }
+
+  /** Supprime un test de l'historique (un test raté ne doit pas polluer le profil comparé). */
+  async removeTest(t: LactateTest): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Supprimer ce test ?',
+      message: `Test du ${new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' }).format(new Date(t.testDate))} — `
+        + 'les seuils déjà appliqués au profil de l’athlète sont conservés.',
+      confirmLabel: 'Supprimer', danger: true,
+    });
+    if (!ok) return;
+    this.lactate.deleteTest(this.athleteId(), t.id).subscribe({
+      next: () => { this.toast.info('Test supprimé.'); this.reload(); },
+      error: () => this.toast.error('Suppression impossible.'),
+    });
   }
 
   /** Export CSV de l'historique des tests (date, LT1, LT2, FC LT2). */

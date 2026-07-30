@@ -107,3 +107,13 @@ databaseChangeLog:
       file: db/changelog/changes/051-activity-stream.yaml
   - include:
       file: db/changelog/changes/052-zone-metric-high-anchor.yaml
+  - include:
+      file: db/changelog/changes/053-feedback-reviewed.yaml
+  - include:
+      file: db/changelog/changes/054-message-coach-read.yaml
+  - include:
+      file: db/changelog/changes/055-workout-coach-comment.yaml
+  - include:
+      file: db/changelog/changes/056-workout-planned-load.yaml
+  - include:
+      file: db/changelog/changes/057-settings-preferences.yaml

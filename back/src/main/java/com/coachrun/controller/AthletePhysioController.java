@@ -65,6 +65,15 @@ public class AthletePhysioController {
         return physioService.addPerformance(clubId, athleteId, request);
     }
 
+    /** Corrige un record (temps, date) sans passer par supprimer + resaisir. */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @org.springframework.web.bind.annotation.PutMapping("/performances/{performanceId}")
+    public PerformanceResponse updatePerformance(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                                 @PathVariable UUID performanceId,
+                                                 @Valid @RequestBody PerformanceRequest request) {
+        return physioService.updatePerformance(clubId, athleteId, performanceId, request);
+    }
+
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/performances/{performanceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

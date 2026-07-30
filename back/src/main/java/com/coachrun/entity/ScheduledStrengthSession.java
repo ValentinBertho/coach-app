@@ -84,4 +84,8 @@ public class ScheduledStrengthSession extends BaseEntity {
 
     @Column(name = "session_comment", length = 1024)
     private String sessionComment;
+
+    /** Retour traité par le coach (file « retours à traiter »). Null = pas encore vu. */
+    @Column(name = "coach_reviewed_at")
+    private Instant coachReviewedAt;
 }

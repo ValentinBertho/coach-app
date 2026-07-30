@@ -74,6 +74,23 @@ public class StrengthSessionService {
         return StrengthSessionResponse.of(s, readStructure(s.getStructureJson()));
     }
 
+    /**
+     * Duplique une séance de force : même geste que sur la bibliothèque course. La copie reprend
+     * la structure (blocs, exercices, prescriptions) et les notes, et repart à zéro sur ce qui est
+     * propre à l'original (épinglage, compteur d'utilisation).
+     */
+    @Transactional
+    public StrengthSessionResponse duplicate(UUID clubId, UUID id) {
+        StrengthSession source = require(clubId, id);
+        StrengthSession copy = new StrengthSession();
+        copy.setClub(source.getClub());
+        copy.setName(source.getName() + " (copie)");
+        copy.setNotes(source.getNotes());
+        copy.setStructureJson(source.getStructureJson());
+        StrengthSession saved = sessionRepository.save(copy);
+        return StrengthSessionResponse.of(saved, readStructure(saved.getStructureJson()));
+    }
+
     @Transactional
     public void archive(UUID clubId, UUID id) {
         require(clubId, id).setArchived(true);

@@ -2,7 +2,9 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { TrendChartComponent, type TrendPoint } from '../../shared/components/trend-chart/trend-chart.component';
+import { SidePanelComponent } from '../../shared/components/ui';
 import { AthleteService } from '../../core/services/athlete.service';
 import { StrengthService } from '../../core/services/strength.service';
 import { SessionCategoryService } from '../../core/services/session-category.service';
@@ -14,7 +16,9 @@ import {
   CycleWeek,
   E1rmHistory,
   E1rmResult,
+  EquipmentType,
   ExerciseCategory,
+  ExerciseLevel,
   MuscleGroup,
   PpExercise,
   RmFormula,
@@ -31,7 +35,7 @@ type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
   selector: 'app-strength',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, FormsModule, DatePipe, RouterLink],
+  imports: [IconComponent, FormsModule, DatePipe, RouterLink, TrendChartComponent, SidePanelComponent],
   templateUrl: './strength.component.html',
   styleUrl: './strength.component.scss',
 })
@@ -40,6 +44,7 @@ export class StrengthComponent implements OnInit {
   private readonly athletes = inject(AthleteService);
   private readonly categoryService = inject(SessionCategoryService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
 
   readonly tab = signal<Tab>('exercises');
 
@@ -51,7 +56,24 @@ export class StrengthComponent implements OnInit {
   readonly filterMuscle = signal('');
   readonly searchQ = signal('');
   readonly showExerciseForm = signal(false);
-  newExercise = { name: '', category: 'FORCE_MAX' as ExerciseCategory, categoryId: '' as string, muscle: '' as MuscleGroup | '', videoUrl: '', instructions: '' };
+  newExercise = {
+    name: '', category: 'FORCE_MAX' as ExerciseCategory, categoryId: '' as string,
+    muscle: '' as MuscleGroup | '', videoUrl: '', imageUrl: '', instructions: '',
+    // Fiche exercice complète (CdC §7.5) : le modèle de données portait déjà ces champs,
+    // seule l'UI les ignorait.
+    level: 'INTERMEDIAIRE' as ExerciseLevel, equipment: [] as EquipmentType[],
+    contraindications: '', progressionId: '', regressionId: '',
+  };
+
+  readonly levels: ExerciseLevel[] = ['DEBUTANT', 'INTERMEDIAIRE', 'AVANCE'];
+  readonly equipments: EquipmentType[] = [
+    'POIDS_DU_CORPS', 'HALTERES', 'KETTLEBELL', 'BARRE', 'MACHINE', 'ELASTIQUE',
+    'MEDECINE_BALL', 'BOX', 'TRX', 'POULIE', 'LEG_EXTENSION', 'LEG_CURL', 'PRESSE', 'AUTRE'];
+
+  toggleEquipment(eq: EquipmentType): void {
+    const list = this.newExercise.equipment;
+    this.newExercise.equipment = list.includes(eq) ? list.filter((x) => x !== eq) : [...list, eq];
+  }
 
   /** Catégories unifiées du domaine prépa physique (QA1). */
   readonly strengthCats = signal<SessionCategory[]>([]);
@@ -83,7 +105,13 @@ export class StrengthComponent implements OnInit {
   // Cycles
   readonly cycles = signal<StrengthCycle[]>([]);
   readonly loadingCycles = signal(true);
-  newCycle = { name: '', weeks: 4, objective: '', sessionIds: [] as string[] };
+  // Un cycle sans progression de charge n'est qu'une semaine répétée à l'identique : on reprend
+  // le vocabulaire du générateur de mésocycle course (progression, décharge) pour ne pas
+  // inventer un second modèle mental.
+  newCycle = {
+    name: '', weeks: 4, objective: '', sessionIds: [] as string[],
+    increasePct: 2.5, deloadEvery: 4, deloadPct: 60,
+  };
   readonly assignDate = signal(new Date().toISOString().slice(0, 10));
 
   // Tests 1RM
@@ -169,27 +197,73 @@ export class StrengthComponent implements OnInit {
     this.newCycle.sessionIds = arr.includes(id) ? arr.filter((s) => s !== id) : [...arr, id];
   }
 
+  /**
+   * Progression de charge semaine par semaine : montée régulière, coupée par une semaine de
+   * décharge tous les N. L'ajustement est relatif à la prescription de base du cycle (0 % en
+   * semaine 1) et s'applique aux charges au moment de l'assignation.
+   */
+  weeklyAdjustment(week: number): number {
+    const c = this.newCycle;
+    if (c.deloadEvery > 0 && week % c.deloadEvery === 0) {
+      return Math.round((c.deloadPct - 100) * 10) / 10;
+    }
+    return Math.round((week - 1) * c.increasePct * 10) / 10;
+  }
+
+  /** Aperçu de la progression, pour que le coach voie ce qu'il programme avant de créer. */
+  readonly cyclePreview = computed<{ week: number; pct: number; deload: boolean }[]>(() => {
+    const c = this.newCycle;
+    return Array.from({ length: Math.max(1, Math.min(c.weeks, 16)) }, (_, i) => {
+      const week = i + 1;
+      return {
+        week,
+        pct: this.weeklyAdjustment(week),
+        deload: c.deloadEvery > 0 && week % c.deloadEvery === 0,
+      };
+    });
+  });
+
   createCycle(): void {
     if (!this.newCycle.name.trim() || this.newCycle.sessionIds.length === 0) return;
     const weeks: CycleWeek[] = Array.from({ length: this.newCycle.weeks }, (_, i) => ({
       week: i + 1,
       sessionIds: [...this.newCycle.sessionIds],
-      chargePctAdjustment: i * 2.5,
+      chargePctAdjustment: this.weeklyAdjustment(i + 1),
     }));
     this.strength
       .createCycle({ name: this.newCycle.name, weeks: this.newCycle.weeks, objective: this.newCycle.objective || null, structure: { weeks } })
       .subscribe(() => {
         this.toast.success('Cycle créé');
-        this.newCycle = { name: '', weeks: 4, objective: '', sessionIds: [] };
+        this.newCycle = { name: '', weeks: 4, objective: '', sessionIds: [], increasePct: 2.5, deloadEvery: 4, deloadPct: 60 };
         this.loadCycles();
       });
   }
 
-  assignCycle(cycleId: string): void {
+  // --- Assignation d'un cycle : athlète + date + confirmation dans le même geste --------
+  // Les sélecteurs vivaient dans une carte séparée des cartes cycles : le lien entre les deux
+  // n'était pas évident, et rien ne disait à quel cycle s'appliquait la date choisie.
+  readonly assignPanelOpen = signal(false);
+  readonly assignTarget = signal<StrengthCycle | null>(null);
+  readonly assigning = signal(false);
+
+  openAssign(c: StrengthCycle): void {
+    this.assignTarget.set(c);
+    this.assignPanelOpen.set(true);
+  }
+
+  confirmAssign(): void {
+    const c = this.assignTarget();
     const a = this.selectedAthlete();
-    if (!a) { this.toast.warning('Sélectionne un athlète (onglet Suivi) d\'abord.'); return; }
-    this.strength.assignCycle(cycleId, a, this.assignDate()).subscribe((res) => {
-      this.toast.success(`${res.scheduled} séance(s) planifiée(s)`);
+    if (!c) return;
+    if (!a) { this.toast.warning('Choisis un athlète.'); return; }
+    this.assigning.set(true);
+    this.strength.assignCycle(c.id, a, this.assignDate()).subscribe({
+      next: (res) => {
+        this.assigning.set(false);
+        this.assignPanelOpen.set(false);
+        this.toast.success(`${res.scheduled} séance(s) planifiée(s) — charges ajustées semaine par semaine`);
+      },
+      error: () => { this.assigning.set(false); this.toast.error('Assignation impossible.'); },
     });
   }
 
@@ -219,13 +293,23 @@ export class StrengthComponent implements OnInit {
         name: this.newExercise.name,
         category: this.newExercise.category,
         categoryId: this.newExercise.categoryId || null,
+        level: this.newExercise.level,
         muscleGroups: this.newExercise.muscle ? [this.newExercise.muscle] : [],
+        equipment: this.newExercise.equipment,
         videoUrl: this.newExercise.videoUrl || null,
+        imageUrl: this.newExercise.imageUrl || null,
         instructions: this.newExercise.instructions || null,
+        contraindications: this.newExercise.contraindications || null,
+        progressionId: this.newExercise.progressionId || null,
+        regressionId: this.newExercise.regressionId || null,
       })
       .subscribe(() => {
         this.toast.success('Exercice créé');
-        this.newExercise = { name: '', category: 'FORCE_MAX', categoryId: this.newExercise.categoryId, muscle: '', videoUrl: '', instructions: '' };
+        this.newExercise = {
+          name: '', category: 'FORCE_MAX', categoryId: this.newExercise.categoryId, muscle: '',
+          videoUrl: '', imageUrl: '', instructions: '', level: 'INTERMEDIAIRE', equipment: [],
+          contraindications: '', progressionId: '', regressionId: '',
+        };
         this.showExerciseForm.set(false);
         this.loadExercises();
       });
@@ -246,6 +330,26 @@ export class StrengthComponent implements OnInit {
       this.toast.success('Séance créée');
       this.newSessionName = '';
       this.loadSessions();
+    });
+  }
+
+  /** Duplication en cours (évite le double clic, qui créerait deux copies). */
+  readonly duplicating = signal(false);
+
+  /**
+   * Duplique une séance de force et ouvre son éditeur de structure : on duplique pour créer une
+   * variante, l'étape suivante est toujours l'ajustement.
+   */
+  duplicateSession(s: StrengthSession): void {
+    if (this.duplicating()) return;
+    this.duplicating.set(true);
+    this.strength.duplicateSession(s.id).subscribe({
+      next: (copy) => {
+        this.duplicating.set(false);
+        this.toast.success(`« ${copy.name} » créée — ajuste la structure`);
+        this.router.navigate(['/app/strength/sessions', copy.id, 'structure']);
+      },
+      error: () => { this.duplicating.set(false); this.toast.error('Duplication impossible.'); },
     });
   }
 
@@ -289,6 +393,7 @@ export class StrengthComponent implements OnInit {
     return this.exercises().find((e) => e.id === id)?.name ?? id.slice(0, 8) + '…';
   }
 
+
   protocolLabel(p: StrengthTestProtocol): string {
     return this.protocols.find((x) => x.value === p)?.label ?? p;
   }
@@ -315,8 +420,22 @@ export class StrengthComponent implements OnInit {
   loadHistory(exerciseId: string): void {
     const a = this.selectedAthlete();
     if (!a) return;
+    this.historyExerciseId.set(exerciseId);
     this.strength.e1rmHistory(a, exerciseId).subscribe((h) => this.history.set(h));
   }
+
+  /** Exercice dont l'historique est affiché (titre du graphe d'évolution). */
+  readonly historyExerciseId = signal<string>('');
+  readonly historyExerciseName = computed(() => {
+    const id = this.historyExerciseId();
+    if (!id) return '';
+    return this.profile1rm().find((p) => p.exerciseId === id)?.exerciseName || this.exerciseName(id);
+  });
+
+  /** Historique e1RM en série temporelle : une liste de valeurs ne dit pas si l'athlète progresse. */
+  readonly e1rmPoints = computed<TrendPoint[]>(() =>
+    this.history().map((h) => ({ date: h.calculatedAt, value: h.e1rmKg })),
+  );
 
   label(value: string): string {
     return value.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
