@@ -30,6 +30,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -51,6 +52,7 @@ public class AthleteService {
     private final com.coachrun.repository.TrainingGroupRepository groupRepository;
     private final com.coachrun.repository.CoachAthleteRelationRepository relationRepository;
     private final com.coachrun.security.AthleteAccessValidator accessValidator;
+    private final ZoneValueSyncService zoneValueSyncService;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -168,7 +170,16 @@ public class AthleteService {
     @Transactional
     public AthleteResponse update(UUID clubId, UUID athleteId, AthleteRequest request) {
         Athlete athlete = requireAthlete(clubId, athleteId);
+        boolean anchorsChanged = !Objects.equals(athlete.getVma(), request.vma())
+                || !Objects.equals(athlete.getHrMax(), request.hrMax())
+                || !Objects.equals(athlete.getHrRest(), request.hrRest());
         apply(athlete, request);
+        if (anchorsChanged) {
+            // La VMA et la FC max ancrent des zones (1500 m, échelle cardio) : les cibles doivent
+            // suivre la modification de la métrique, comme pour les seuils et les records.
+            athleteRepository.flush();
+            zoneValueSyncService.resync(clubId, athleteId);
+        }
         return AthleteResponse.from(athlete);
     }
 

@@ -234,6 +234,12 @@ public class DemoSeedService {
             if (athletes.size() > 6) {
                 seedPlannedWeek(club, athletes.get(6));            // silencieux → alerte de suivi
             }
+            // Les autres athlètes ont aussi une semaine chargée : le calendrier et la fiche ne
+            // s'ouvrent jamais sur du vide, quel que soit l'athlète sélectionné par défaut.
+            for (int i = 7; i < athletes.size(); i++) {
+                seedTraining(club, athletes.get(i), 3 + (i % 4), (i % 5 == 0) ? 2 : 0);
+            }
+            seedTraining(club, athletes.get(0), 4, 0);
             seedRace(club, demoAthlete, "Marathon de Paris", 42195, 42);
             seedRace(club, athletes.get(2), "Semi de Lyon", 21097, 70);
             seedUnavailability(club, athletes.get(3), com.coachrun.entity.enums.UnavailabilityReason.INJURY,
@@ -264,14 +270,27 @@ public class DemoSeedService {
             Athlete a = athletes.get(i);
             Discipline discipline = (i % 3 == 0) ? Discipline.TRAIL : Discipline.ROUTE;
             int lvl = i % 8;                                            // niveaux variés, bornés
+            // Tout le profil découle d'un même niveau, exprimé par le chrono 5 km : les seuils, la
+            // VC et la VMA sont déduits des équivalences de Riegel sur ce chrono. Sans cela les
+            // deux échelles se contredisent (seuil plus rapide que l'allure 5 km, zone 1500 m plus
+            // rapide que la zone 800 m) et la démo n'est pas lisible.
+            int fiveK = 1080 + lvl * 40;                                // 18:00 et plus
+            double paceSemi = riegel(fiveK, 5000, 21097) / 21.097;      // ≈ allure LT2
+            double pace10k = riegel(fiveK, 5000, 10000) / 10.0;         // ≈ vitesse critique
+            double pace1500 = riegel(fiveK, 5000, 1500) / 1.5;          // ≈ allure VMA
+            double lt2Ms = 1000.0 / paceSemi;
+            double lt1Ms = lt2Ms * 0.90;                                // LT1 ≈ 90 % de LT2
+            double vcMs = 1000.0 / pace10k;
+            int fcMax = 188 - lvl;
+            a.setVma(BigDecimal.valueOf(Math.round(3600.0 / pace1500 * 10) / 10.0));
+            athleteRepository.save(a);
             physioService.updateProfile(club.getId(), a.getId(), new PhysioProfileRequest(
                     discipline,
-                    BigDecimal.valueOf(3.3 + lvl * 0.05), BigDecimal.valueOf(3.7 + lvl * 0.05),
-                    BigDecimal.valueOf(4.0 + lvl * 0.05),
-                    188 - lvl, 150, 168, null, null, null, null));
+                    round2(lt1Ms), round2(lt2Ms), round2(vcMs),
+                    fcMax, (int) Math.round(fcMax * 0.82), (int) Math.round(fcMax * 0.90),
+                    null, null, null, null));
             // Historique de records réaliste (800 m → marathon), étalé sur l'année, dérivé du niveau
             // par équivalence de Riegel. Saisir/retirer un record recalcule le VDOT et les allures.
-            int fiveK = 1080 + lvl * 40;                                // 18:00 et plus
             seedRecord(club, a, RunDistance.D800, riegel(fiveK, 5000, 800), 200 + i);
             seedRecord(club, a, RunDistance.D1500, riegel(fiveK, 5000, 1500), 160 + i);
             seedRecord(club, a, RunDistance.D3000, riegel(fiveK, 5000, 3000), 120 + i);
@@ -297,6 +316,10 @@ public class DemoSeedService {
     private void seedRecord(Club club, Athlete a, RunDistance distance, int seconds, int daysAgo) {
         physioService.addPerformance(club.getId(), a.getId(),
                 new PerformanceRequest(distance, seconds, LocalDate.now().minusDays(daysAgo)));
+    }
+
+    private BigDecimal round2(double value) {
+        return BigDecimal.valueOf(Math.round(value * 100) / 100.0);
     }
 
     /** Équivalence de Riegel : temps prédit sur {@code toM} à partir d'un temps sur {@code fromM}. */
@@ -654,6 +677,11 @@ public class DemoSeedService {
                  "main":[{"id":"m1","type":"easy","durationS":%d,"prescription":{"zoneId":"%s"},"rpe":%d}],
                  "cooldown":[]}"""
                 .formatted(durationS, zoneId, rpe));
+        // Séance simple : un seul effort continu, donc une seule étape héritée aussi — la carte ne
+        // doit pas annoncer « 3 étapes » là où il n'y a ni échauffement ni retour au calme.
+        t.setStepsJson("""
+                [{"stepType":"STEADY","repetitions":1,"zone":null,"distanceM":null,"durationS":%d}]"""
+                .formatted(durationS));
     }
 
     private PpExercise newExercise(Club club, String name, ExerciseCategory category,
@@ -894,7 +922,8 @@ public class DemoSeedService {
         }
         a.setHrMax(180 + random.nextInt(25));
         a.setHrRest(45 + random.nextInt(15));
-        a.setVma(BigDecimal.valueOf(13 + random.nextInt(7) + random.nextInt(10) / 10.0));
+        // La VMA n'est pas tirée au hasard : elle est déduite du niveau dans seedPhysio, en même
+        // temps que les seuils, pour rester cohérente avec les records (cf. zone « 1500 m »).
         a.setWeightKg(BigDecimal.valueOf(52 + random.nextInt(35)));
         return a;
     }

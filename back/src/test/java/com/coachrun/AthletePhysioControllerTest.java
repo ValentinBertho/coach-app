@@ -16,6 +16,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -80,6 +81,9 @@ class AthletePhysioControllerTest {
 
     @Test
     void addingPerformanceRecomputesVdotAndPaces() throws Exception {
+        // Le seed pose déjà un historique de records dont le niveau varie d'un athlète à l'autre :
+        // on repart d'une ardoise vierge pour que le VDOT attendu ne dépende que du chrono ajouté.
+        clearPerformances();
         // 5 km en 19:57 (1197 s) ≈ VDOT 50.
         mvc.perform(post("/clubs/{c}/athletes/{a}/performances", clubId, athleteId)
                         .header("Authorization", bearer)
@@ -152,5 +156,75 @@ class AthletePhysioControllerTest {
         }
         assertThat(tenK).isNotNull();
         assertThat(tenK.get("vdot").asDouble()).isGreaterThan(0);
+    }
+
+    /**
+     * Retirer un record doit redescendre les cibles de zone, comme l'ajout les fait monter :
+     * sinon les allures resteraient calées sur un chrono qui n'existe plus.
+     */
+    @Test
+    void deletingPerformanceResyncsZoneTargets() throws Exception {
+        String zone5kId = zoneIdNamed("5 km");
+        int before = paceMinOf(zone5kId);
+
+        // 5 km en 15:00 : nettement plus rapide que l'historique seedé → les cibles accélèrent.
+        JsonNode created = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/performances", clubId, athleteId)
+                                .header("Authorization", bearer)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"distance\":\"D5KM\",\"timeSeconds\":900}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        int after = paceMinOf(zone5kId);
+        assertThat(after).isLessThan(before);
+
+        mvc.perform(delete("/clubs/{c}/athletes/{a}/performances/{p}",
+                        clubId, athleteId, created.get("id").asText())
+                        .header("Authorization", bearer))
+                .andExpect(status().isNoContent());
+
+        assertThat(paceMinOf(zone5kId)).isEqualTo(before);
+    }
+
+    /** Retire tous les records seedés de l'athlète de test. */
+    private void clearPerformances() throws Exception {
+        JsonNode list = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/{a}/performances", clubId, athleteId)
+                                .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        for (JsonNode p : list) {
+            mvc.perform(delete("/clubs/{c}/athletes/{a}/performances/{p}",
+                            clubId, athleteId, p.get("id").asText())
+                            .header("Authorization", bearer))
+                    .andExpect(status().isNoContent());
+        }
+    }
+
+    /** Identifiant de la zone club portant ce nom. */
+    private String zoneIdNamed(String name) throws Exception {
+        JsonNode zones = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/training-zones", clubId).header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
+        for (JsonNode z : zones) {
+            if (name.equals(z.get("name").asText())) {
+                return z.get("id").asText();
+            }
+        }
+        throw new AssertionError("Zone « " + name + " » absente du seed.");
+    }
+
+    /** Borne basse de l'allure (métrique PACE) de cette zone pour l'athlète. */
+    private int paceMinOf(String zoneId) throws Exception {
+        JsonNode values = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/{a}/zone-values", clubId, athleteId)
+                                .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        for (JsonNode v : values) {
+            if (zoneId.equals(v.get("zoneId").asText())
+                    && v.get("metricTypeId").asText().endsWith("0001")) {
+                return v.get("valueMin").asInt();
+            }
+        }
+        throw new AssertionError("Aucune cible d'allure pour la zone " + zoneId);
     }
 }
