@@ -154,10 +154,15 @@
   }
 }
 
-<div class="card next-step card-interactive" routerLink="/app/athletes">
-  <div>
-    <h2>Gérer mes athlètes</h2>
-    <p class="field-hint">Crée tes athlètes, renseigne leur profil et invite-les par lien.</p>
-  </div>
-  <span class="btn btn-primary">Ouvrir →</span>
-</div>
+<!-- Onboarding : utile tant qu'aucun athlète n'existe, pur bruit ensuite. -->
+@if (data(); as d) {
+  @if (d.activeAthletes === 0) {
+    <div class="card next-step card-interactive" routerLink="/app/athletes">
+      <div>
+        <h2>Gérer mes athlètes</h2>
+        <p class="field-hint">Crée tes athlètes, renseigne leur profil et invite-les par lien.</p>
+      </div>
+      <span class="btn btn-primary">Ouvrir →</span>
+    </div>
+  }
+}
