@@ -1,0 +1,21 @@
+# ============================================================================
+# 052 — Ancre propre à la borne haute d'une règle de zone.
+#   Une zone peut ainsi enjamber la frontière LT1 → LT2 sans laisser de trou :
+#   le rapport LT1/LT2 variant d'un athlète à l'autre, le bord commun de deux
+#   zones voisines doit être exprimé dans une seule référence.
+#   Colonne nullable ⇒ additif et réversible : vide, la borne haute reprend
+#   l'ancre de la borne basse, donc aucune règle existante ne change.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 052-zone-metric-high-anchor
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: zone_metrics
+            columns:
+              - column: { name: high_anchor, type: VARCHAR(24) }
+      rollback:
+        - dropColumn:
+            tableName: zone_metrics
+            columnName: high_anchor

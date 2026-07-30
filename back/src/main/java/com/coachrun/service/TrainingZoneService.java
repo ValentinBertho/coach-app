@@ -92,6 +92,8 @@ public class TrainingZoneService {
                 .findFirst()
                 .orElseThrow(() -> new NotFoundException("Métrique de zone introuvable."));
         zm.setAnchor(req.anchor());
+        // Vide ou identique à l'ancre basse ⇒ on ne stocke rien : une seule référence pour la zone.
+        zm.setHighAnchor(req.highAnchor() == req.anchor() ? null : req.highAnchor());
         zm.setLowPct(req.lowPct());
         zm.setHighPct(req.highPct());
         zm.setModel(req.model() != null ? req.model() : com.coachrun.entity.enums.ZoneModel.CUSTOM);
