@@ -76,4 +76,21 @@ export class ClubService {
   revoke(athleteId: string, coachId: string): Observable<AthleteAccess> {
     return this.http.delete<AthleteAccess>(`${this.club()}/athletes/${athleteId}/permissions/${coachId}`);
   }
+
+  /** Bornes des domaines d'intensité par défaut du club (appliquées aux nouveaux athlètes). */
+  defaults(): Observable<ClubDefaults> {
+    return this.http.get<ClubDefaults>(`${this.club()}/defaults`);
+  }
+
+  updateDefaults(body: ClubDefaults): Observable<ClubDefaults> {
+    return this.http.put<ClubDefaults>(`${this.club()}/defaults`, body);
+  }
+}
+
+/** Bornes des domaines d'intensité par défaut, en % de la vitesse critique et de la FC max. */
+export interface ClubDefaults {
+  vcDomain1Pct: number;
+  vcDomain2Pct: number;
+  fcDomain1Pct: number;
+  fcDomain2Pct: number;
 }

@@ -292,6 +292,23 @@ const COACH: HelpGuide = {
       ],
     },
     {
+      id: 'prescription',
+      icon: 'shield-check',
+      title: 'Règles de prescription DARI Lab',
+      summary: 'Les principes appliqués partout dans l\'app.',
+      blocks: [
+        { kind: 'text', text: 'Ces règles ne sont pas des préférences : elles sont appliquées par le moteur sur tous les écrans, et expliquent la forme des données que vous voyez.' },
+        { kind: 'list', items: [
+          'Prescription en fourchettes (min–max), jamais de valeur sèche : une cible unique donne une fausse précision.',
+          'État de forme = fatigue + douleur, jamais le RPE : le RPE dit la difficulté d\'une séance, pas l\'état de l\'athlète.',
+          'Charge unifiée course + force (sRPE de Foster : RPE × durée) : un seul score, pas deux compteurs séparés.',
+          'L\'athlète peut déplacer une séance, jamais en modifier le contenu : la prescription reste celle du coach.',
+          '1RM estimé par défaut avec la formule Nuzzo (Pr. Lacourpaille).',
+        ] },
+        { kind: 'callout', tone: 'info', text: 'Les bornes des domaines d\'intensité par défaut se règlent dans Paramètres ; elles s\'appliquent aux nouveaux athlètes, et restent ajustables athlète par athlète sur sa fiche physio.' },
+      ],
+    },
+    {
       id: 'suivi',
       icon: 'activity',
       title: 'Suivi & charge',

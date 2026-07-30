@@ -6,6 +6,7 @@ import { forkJoin } from 'rxjs';
 import { LactateService } from '../../core/services/lactate.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { ToastService } from '../../core/services/toast.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { LactateStep, LactateTest, LtDetection } from '../../core/models/lactate.model';
@@ -69,7 +70,9 @@ export class LactateComponent implements OnInit {
   readonly multiChart = computed<MultiChart | null>(() => this.buildMulti(this.profileTests()));
 
   /** Unité d'affichage des vitesses (toggle km/h ↔ allure min/km). */
-  readonly speedUnit = signal<'kmh' | 'pace'>('kmh');
+  // Initialisé sur la préférence d'unité du compte (Paramètres) ; reste basculable ici.
+  readonly speedUnit = signal<'kmh' | 'pace'>(
+    inject(AuthService).paceUnit() === 'SPEED' ? 'kmh' : 'pace');
   readonly speedOptions: SegmentOption[] = [
     { value: 'kmh', label: 'km/h' },
     { value: 'pace', label: 'min/km' },

@@ -74,6 +74,11 @@ public class User extends BaseEntity {
     private java.time.Instant inviteExpiresAt;
 
     /** Préférences de notification (l'in-app reste toujours actif). */
+    /** Unité d'affichage des allures (préférence personnelle, pas un réglage club). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pace_unit", nullable = false, length = 8)
+    private com.coachrun.entity.enums.PaceUnit paceUnit = com.coachrun.entity.enums.PaceUnit.PACE;
+
     @Column(name = "notify_email_enabled", nullable = false)
     private boolean notifyEmailEnabled = true;
 

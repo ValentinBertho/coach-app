@@ -86,4 +86,17 @@ public class ClubController {
                                         @PathVariable UUID coachId) {
         return clubService.revoke(athleteId, coachId);
     }
+
+    /** Bornes des domaines d'intensité par défaut du club (appliquées aux nouveaux athlètes). */
+    @GetMapping("/defaults")
+    public com.coachrun.dto.response.ClubDefaultsResponse defaults(@PathVariable UUID clubId) {
+        return clubService.defaults(clubId);
+    }
+
+    @PutMapping("/defaults")
+    public com.coachrun.dto.response.ClubDefaultsResponse updateDefaults(
+            @PathVariable UUID clubId,
+            @jakarta.validation.Valid @RequestBody com.coachrun.dto.request.ClubDefaultsRequest request) {
+        return clubService.updateDefaults(clubId, request);
+    }
 }

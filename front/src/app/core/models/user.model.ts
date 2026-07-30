@@ -1,3 +1,5 @@
+export type PaceUnit = 'PACE' | 'SPEED';
+
 export type UserRole = 'PLATFORM_ADMIN' | 'HEAD_COACH' | 'COACH' | 'ATHLETE';
 
 export interface User {
@@ -8,6 +10,8 @@ export interface User {
   clubId: string | null;
   clubName: string | null;
   emailVerified?: boolean;
+  /** Unité d'affichage des allures préférée : PACE = min/km, SPEED = km/h. */
+  paceUnit?: PaceUnit;
 }
 
 export interface AuthResponse {

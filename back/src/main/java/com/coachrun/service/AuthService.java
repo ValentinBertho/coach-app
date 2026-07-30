@@ -1,7 +1,9 @@
 package com.coachrun.service;
 
 import com.coachrun.dto.request.LoginRequest;
+import com.coachrun.dto.request.ChangePasswordRequest;
 import com.coachrun.dto.request.RefreshRequest;
+import com.coachrun.dto.request.UpdateProfileRequest;
 import com.coachrun.dto.request.RegisterRequest;
 import com.coachrun.dto.response.AuthResponse;
 import com.coachrun.dto.response.UserResponse;
@@ -103,6 +105,48 @@ public class AuthService {
         user.setVerifyToken(null);
         user.setVerifyExpiresAt(null);
         log.info("E-mail vérifié (user={})", user.getId());
+    }
+
+    /**
+     * Édite le profil de l'utilisateur courant. Un changement d'e-mail repasse le compte en
+     * « non vérifié » et renvoie un lien de confirmation : sans ça, on pourrait s'attribuer une
+     * adresse qu'on ne contrôle pas.
+     */
+    @Transactional
+    public UserResponse updateProfile(UUID userId, UpdateProfileRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("Session invalide."));
+        String email = request.email().trim().toLowerCase();
+        boolean emailChanged = !email.equalsIgnoreCase(user.getEmail());
+        if (emailChanged && userRepository.existsByEmailIgnoreCase(email)) {
+            throw new ConflictException("Cette adresse e-mail est déjà utilisée.");
+        }
+        user.setFullName(request.fullName().trim());
+        if (request.paceUnit() != null) {
+            user.setPaceUnit(request.paceUnit());
+        }
+        if (emailChanged) {
+            user.setEmail(email);
+            user.setEmailVerified(false);
+            user.setVerifyToken(randomToken());
+            user.setVerifyExpiresAt(java.time.Instant.now().plus(7, java.time.temporal.ChronoUnit.DAYS));
+            notificationService.notifyEmailVerification(email, user.getFullName(),
+                    frontendUrl + "/verify-email/" + user.getVerifyToken());
+        }
+        log.info("Profil mis à jour (user={}, emailChanged={})", userId, emailChanged);
+        return UserResponse.from(user);
+    }
+
+    /** Changement de mot de passe : l'actuel est exigé (protection contre le vol de session). */
+    @Transactional
+    public void changePassword(UUID userId, ChangePasswordRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UnauthorizedException("Session invalide."));
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new UnauthorizedException("Mot de passe actuel incorrect.");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        log.info("Mot de passe changé (user={})", userId);
     }
 
     /** Renvoie un e-mail de vérification au compte courant (s'il n'est pas déjà vérifié). */

@@ -1,0 +1,28 @@
+# ============================================================================
+# 057 — Écran Paramètres réel.
+#   - users.pace_unit : préférence d'affichage des allures (min/km ou km/h),
+#     respectée par les écrans qui affichent des allures.
+#   - clubs.default_vc_domain1_pct … : bornes des domaines d'intensité par
+#     défaut, appliquées aux NOUVEAUX athlètes (les existants gardent les leurs).
+#     Valeurs initiales = celles codées en dur jusqu'ici sur Athlete.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 057-user-pace-unit
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column: { name: pace_unit, type: VARCHAR(8), defaultValue: 'PACE', constraints: { nullable: false } }
+  - changeSet:
+      id: 057-club-domain-defaults
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: clubs
+            columns:
+              - column: { name: default_vc_domain1_pct, type: "DECIMAL(5,2)", defaultValueNumeric: 90.00 }
+              - column: { name: default_vc_domain2_pct, type: "DECIMAL(5,2)", defaultValueNumeric: 100.00 }
+              - column: { name: default_fc_domain1_pct, type: "DECIMAL(5,2)", defaultValueNumeric: 80.00 }
+              - column: { name: default_fc_domain2_pct, type: "DECIMAL(5,2)", defaultValueNumeric: 90.00 }
