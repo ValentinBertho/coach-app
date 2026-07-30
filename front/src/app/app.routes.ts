@@ -86,6 +86,12 @@ export const routes: Routes = [
           import('./features/calendar/calendar.component').then((m) => m.CalendarComponent),
       },
       {
+        // Boîte de réception coach : conversations agrégées, tous athlètes confondus.
+        path: 'messages',
+        loadComponent: () =>
+          import('./features/messages/message-inbox.component').then((m) => m.MessageInboxComponent),
+      },
+      {
         // File « retours à traiter » : destination du KPI du cockpit.
         path: 'feedback',
         loadComponent: () =>

@@ -1,19 +1,23 @@
 package com.coachrun.service;
 
 import com.coachrun.dto.request.MessageRequest;
+import com.coachrun.dto.response.ConversationResponse;
 import com.coachrun.dto.response.MessageResponse;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Message;
 import com.coachrun.entity.User;
+import com.coachrun.entity.enums.UserRole;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.MessageRepository;
 import com.coachrun.repository.UserRepository;
+import com.coachrun.security.AthleteAccessValidator;
 import com.coachrun.security.AuthPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -28,6 +32,7 @@ public class MessageService {
     private final UserRepository userRepository;
     private final MessageStreamService streamService;
     private final com.coachrun.repository.MessageAttachmentRepository attachmentRepository;
+    private final AthleteAccessValidator accessValidator;
 
     // --- Côté coach (scopé club) ---
     public List<MessageResponse> coachThread(UUID clubId, UUID athleteId) {
@@ -40,6 +45,49 @@ public class MessageService {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         return MessageResponse.from(persist(athlete, principal, request));
+    }
+
+    // --- Boîte de réception coach (agrégat tous athlètes) ---
+
+    /**
+     * Conversations du coach : un fil par athlète de son périmètre ayant au moins un message,
+     * trié du plus récent au plus ancien, avec le compteur de non-lus.
+     *
+     * <p>Le périmètre est réévalué athlète par athlète : un coach ne voit jamais une
+     * conversation d'un athlète auquel il n'a pas accès.</p>
+     */
+    public List<ConversationResponse> conversations(UUID clubId, UUID coachId) {
+        List<ConversationResponse> out = new ArrayList<>();
+        for (Athlete a : athleteRepository.findByClubIdOrderByLastNameAsc(clubId)) {
+            if (accessValidator.effectiveLevel(coachId, a.getId()).isEmpty()) {
+                continue;
+            }
+            Message last = messageRepository
+                    .findFirstByClubIdAndAthleteIdOrderByCreatedAtDesc(clubId, a.getId())
+                    .orElse(null);
+            if (last == null) {
+                continue;
+            }
+            long unread = messageRepository
+                    .countByClubIdAndAthleteIdAndSenderRoleAndCoachReadAtIsNull(clubId, a.getId(), UserRole.ATHLETE);
+            out.add(new ConversationResponse(
+                    a.getId(), a.getFirstName(), a.getLastName(),
+                    last.getBody(), last.getSenderRole().name(), last.getCreatedAt(), unread));
+        }
+        out.sort(java.util.Comparator.comparing(ConversationResponse::lastMessageAt).reversed());
+        return out;
+    }
+
+    /** Total de messages non lus du coach, tous athlètes confondus (badge de la navigation). */
+    public long unreadCount(UUID clubId, UUID coachId) {
+        return conversations(clubId, coachId).stream()
+                .mapToLong(ConversationResponse::unreadCount).sum();
+    }
+
+    /** Accusé de lecture : le coach a ouvert le fil de cet athlète. */
+    @Transactional
+    public void markThreadRead(UUID clubId, UUID athleteId) {
+        messageRepository.markThreadRead(clubId, athleteId, UserRole.ATHLETE, java.time.Instant.now());
     }
 
     // --- Côté athlète (scopé athleteId du principal) ---

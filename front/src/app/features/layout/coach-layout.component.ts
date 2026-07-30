@@ -1,7 +1,10 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { BreadcrumbService } from '../../core/services/breadcrumb.service';
+import { MessageService } from '../../core/services/message.service';
 import { ToastService } from '../../core/services/toast.service';
 import { HelpService } from '../help/help.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
@@ -28,6 +31,11 @@ export class CoachLayoutComponent implements OnInit {
   private readonly toast = inject(ToastService);
   readonly help = inject(HelpService);
   private readonly breadcrumb = inject(BreadcrumbService);
+  private readonly messages = inject(MessageService);
+  private readonly destroyRef = inject(DestroyRef);
+
+  /** Non-lus de la messagerie, tous athlètes confondus (badge de l'entrée « Messages »). */
+  readonly unreadMessages = this.messages.unread;
 
   /** Fil d'Ariane de la barre supérieure : « où suis-je » quand on est dans un contexte. */
   readonly trail = this.breadcrumb.trail;
@@ -59,6 +67,18 @@ export class CoachLayoutComponent implements OnInit {
     if (!this.auth.currentUser()) {
       this.auth.loadCurrentUser().subscribe({ error: () => this.logout() });
     }
+    // Badge de non-lus : au chargement, puis à chaque navigation (un fil ouvert vient
+    // d'être marqué lu, un nouveau message a pu arriver entre-temps).
+    this.refreshUnread();
+    this.router.events
+      .pipe(filter((e) => e instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.refreshUnread());
+  }
+
+  private refreshUnread(): void {
+    // Le club n'est connu qu'une fois l'utilisateur chargé ; la navigation suivante réessaiera.
+    if (!this.auth.clubId()) return;
+    this.messages.refreshUnread().subscribe({ error: () => { /* badge absent plutôt que bloquant */ } });
   }
 
   /** Renvoie l'e-mail de vérification (bandeau « e-mail non confirmé »). */

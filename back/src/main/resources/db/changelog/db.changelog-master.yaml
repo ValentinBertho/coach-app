@@ -109,3 +109,5 @@ databaseChangeLog:
       file: db/changelog/changes/052-zone-metric-high-anchor.yaml
   - include:
       file: db/changelog/changes/053-feedback-reviewed.yaml
+  - include:
+      file: db/changelog/changes/054-message-coach-read.yaml

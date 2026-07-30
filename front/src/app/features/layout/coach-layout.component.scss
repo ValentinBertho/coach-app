@@ -55,6 +55,22 @@
 .snav a.active { background: var(--primary-wash); color: var(--primary); }
 .snav app-icon { flex-shrink: 0; }
 
+/* Badge de non-lus (messagerie) : compteur discret aligné à droite de l'entrée. */
+.nav-badge {
+  margin-left: auto;
+  min-width: 20px; height: 20px; padding: 0 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--primary); color: var(--on-primary, #fff);
+  font-family: var(--font-data); font-size: var(--text-xs); font-weight: 800;
+}
+/* Nav repliée en rail : le libellé disparaît, le badge devient une pastille sur l'icône. */
+.sidebar.collapsed .nav-badge {
+  position: absolute; top: 4px; right: 4px;
+  min-width: 16px; height: 16px; padding: 0 4px; font-size: 10px;
+}
+.sidebar.collapsed .snav a { position: relative; }
+
 .side-user {
   margin-top: auto;
   display: flex;
