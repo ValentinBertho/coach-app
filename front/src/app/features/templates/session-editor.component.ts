@@ -299,13 +299,15 @@ export class SessionEditorComponent implements OnInit {
 
   addBlock(key: keyof SessionStructure, preset?: Partial<CourseBlock>): void {
     const isMain = key === 'main';
-    const type = isMain ? 'intervals' : (key === 'warmup' ? 'warmup' : 'cooldown');
+    // Un « bloc libre » est un effort continu (footing, tempo…) : 1 × 30 min. Les fractionnés
+    // arrivent par les presets (10×400 m r1'…), qui portent leurs reps et leur récupération.
+    const type = isMain ? 'easy' : (key === 'warmup' ? 'warmup' : 'cooldown');
     const base: CourseBlock = {
       id: 'b-' + Math.random().toString(36).slice(2, 9),
       type,
-      reps: isMain ? 6 : null,
-      distanceM: isMain ? 1000 : null,
-      durationS: isMain ? null : 600,
+      reps: null,
+      distanceM: null,
+      durationS: isMain ? 1800 : 600,
       prescription: { zoneId: this.defaultZoneIdForType(type) },
     };
     const block: CourseBlock = { ...base, ...preset, id: base.id };
