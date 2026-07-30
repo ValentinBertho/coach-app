@@ -118,6 +118,11 @@
           <div class="ex-head">
             <strong>{{ s.name }}</strong>
             @if (s.favorite) { <span class="badge badge-warning"><app-icon name="star" [size]="12" /></span> }
+            <span class="ex-head-actions" (click)="$event.preventDefault(); $event.stopPropagation()">
+              <button type="button" class="icon-btn" (click)="duplicateSession(s)" [disabled]="duplicating()" title="Dupliquer">
+                <app-icon name="copy" [size]="15" />
+              </button>
+            </span>
           </div>
           <p class="field-hint">{{ s.structure.blocks.length }} bloc(s) · {{ s.useCount }} utilisation(s)</p>
           <span class="edit-hint">Modifier la structure →</span>

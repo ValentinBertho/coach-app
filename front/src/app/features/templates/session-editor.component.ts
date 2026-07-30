@@ -442,6 +442,26 @@ export class SessionEditorComponent implements OnInit {
     this.structure.set({ ...s, [key]: s[key].filter((b) => b.id !== id) });
   }
 
+  /**
+   * Duplique un bloc juste sous sa source, récupération et zone comprises. Sans ce geste, une
+   * pyramide (5×400, 5×600, 5×800…) impose de tout ressaisir bloc par bloc.
+   */
+  duplicateBlock(key: keyof SessionStructure, id: string): void {
+    const s = this.structure();
+    const index = s[key].findIndex((b) => b.id === id);
+    if (index < 0) return;
+    const source = s[key][index];
+    const copy: CourseBlock = {
+      ...structuredClone(source),
+      id: 'b-' + Math.random().toString(36).slice(2, 9),
+    };
+    const arr = [...s[key]];
+    arr.splice(index + 1, 0, copy);
+    this.structure.set({ ...s, [key]: arr });
+    this.recalc(copy);
+    this.toast.success('Bloc dupliqué');
+  }
+
   /** Réordonne les blocs d'une section par glisser-déposer (cohérent avec l'éditeur de force). */
   dropBlock(key: keyof SessionStructure, event: CdkDragDrop<CourseBlock[]>): void {
     if (event.previousIndex === event.currentIndex) return;

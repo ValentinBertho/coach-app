@@ -64,6 +64,13 @@ public class WorkoutTemplateController {
         return templateService.update(clubId, id, request);
     }
 
+    /** Duplique un modèle (variante d'une séance existante) : « {nom} (copie) ». */
+    @PostMapping("/{id}/duplicate")
+    @ResponseStatus(HttpStatus.CREATED)
+    public WorkoutTemplateResponse duplicate(@PathVariable UUID clubId, @PathVariable UUID id) {
+        return templateService.duplicate(clubId, id);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID clubId, @PathVariable UUID id) {

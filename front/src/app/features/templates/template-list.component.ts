@@ -200,6 +200,26 @@ export class TemplateListComponent implements OnInit {
     });
   }
 
+  /** Duplication en cours (évite le double clic, qui créerait deux copies). */
+  readonly duplicating = signal(false);
+
+  /**
+   * Duplique un modèle et ouvre directement l'éditeur de structure : on duplique pour créer une
+   * variante, donc l'étape suivante est toujours l'édition.
+   */
+  duplicate(t: WorkoutTemplate): void {
+    if (this.duplicating()) return;
+    this.duplicating.set(true);
+    this.templateService.duplicate(t.id).subscribe({
+      next: (copy) => {
+        this.duplicating.set(false);
+        this.toast.success(`« ${copy.name} » créée — ajuste la structure`);
+        this.router.navigate(['/app/templates', copy.id, 'structure']);
+      },
+      error: () => { this.duplicating.set(false); this.toast.error('Duplication impossible.'); },
+    });
+  }
+
   async remove(t: WorkoutTemplate): Promise<void> {
     const ok = await this.confirm.ask({ title: 'Supprimer le modèle', message: `Supprimer « ${t.name} » ?`, confirmLabel: 'Supprimer', danger: true });
     if (!ok) return;

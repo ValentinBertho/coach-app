@@ -2,7 +2,7 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AthleteService } from '../../core/services/athlete.service';
 import { StrengthService } from '../../core/services/strength.service';
 import { SessionCategoryService } from '../../core/services/session-category.service';
@@ -40,6 +40,7 @@ export class StrengthComponent implements OnInit {
   private readonly athletes = inject(AthleteService);
   private readonly categoryService = inject(SessionCategoryService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
 
   readonly tab = signal<Tab>('exercises');
 
@@ -246,6 +247,26 @@ export class StrengthComponent implements OnInit {
       this.toast.success('Séance créée');
       this.newSessionName = '';
       this.loadSessions();
+    });
+  }
+
+  /** Duplication en cours (évite le double clic, qui créerait deux copies). */
+  readonly duplicating = signal(false);
+
+  /**
+   * Duplique une séance de force et ouvre son éditeur de structure : on duplique pour créer une
+   * variante, l'étape suivante est toujours l'ajustement.
+   */
+  duplicateSession(s: StrengthSession): void {
+    if (this.duplicating()) return;
+    this.duplicating.set(true);
+    this.strength.duplicateSession(s.id).subscribe({
+      next: (copy) => {
+        this.duplicating.set(false);
+        this.toast.success(`« ${copy.name} » créée — ajuste la structure`);
+        this.router.navigate(['/app/strength/sessions', copy.id, 'structure']);
+      },
+      error: () => { this.duplicating.set(false); this.toast.error('Duplication impossible.'); },
     });
   }
 

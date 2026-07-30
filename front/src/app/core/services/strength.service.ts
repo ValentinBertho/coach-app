@@ -69,6 +69,11 @@ export class StrengthService {
     return this.http.get<StrengthSession>(`${this.club()}/pp/sessions/${id}`);
   }
 
+  /** Duplique une séance de force (structure + notes). Renvoie la copie « {nom} (copie) ». */
+  duplicateSession(id: string): Observable<StrengthSession> {
+    return this.http.post<StrengthSession>(`${this.club()}/pp/sessions/${id}/duplicate`, {});
+  }
+
   putStructure(id: string, structure: StrengthStructure): Observable<StrengthSession> {
     return this.http.put<StrengthSession>(`${this.club()}/pp/sessions/${id}/structure`, { structure });
   }

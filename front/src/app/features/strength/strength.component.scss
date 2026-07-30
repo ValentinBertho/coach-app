@@ -47,6 +47,8 @@
   justify-content: space-between;
   gap: var(--sp-2);
 }
+/* Actions de carte (dupliquer…) : la carte entière est un lien, l'action reste cliquable seule. */
+.ex-head-actions { display: flex; align-items: center; gap: var(--sp-1); margin-left: auto; }
 .ex-tags {
   display: flex;
   flex-wrap: wrap;

@@ -99,6 +99,7 @@
 
           <span class="block-tools">
             <button type="button" class="icon-btn" [class.on]="isDetailsOpen(b.id)" (click)="toggleDetails(b.id)" title="Détails (vitesse, éducatifs, commentaire)"><app-icon name="ellipsis" [size]="16" /></button>
+            <button type="button" class="icon-btn" (click)="duplicateBlock(sec.key, b.id)" title="Dupliquer le bloc"><app-icon name="copy" [size]="15" /></button>
             <button type="button" class="icon-btn danger" (click)="removeBlock(sec.key, b.id)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
           </span>
         </div>

@@ -30,6 +30,10 @@ export class WorkoutTemplateService {
   update(id: string, body: WorkoutTemplateRequest): Observable<WorkoutTemplate> {
     return this.http.put<WorkoutTemplate>(`${this.base()}/${id}`, body);
   }
+  /** Duplique un modèle (variante d'une séance existante). Renvoie la copie « {nom} (copie) ». */
+  duplicate(id: string): Observable<WorkoutTemplate> {
+    return this.http.post<WorkoutTemplate>(`${this.base()}/${id}/duplicate`, {});
+  }
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base()}/${id}`);
   }

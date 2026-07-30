@@ -71,6 +71,29 @@ public class WorkoutTemplateService {
         return toResponse(t);
     }
 
+    /**
+     * Duplique un modèle — le geste n° 1 d'un coach, qui part presque toujours d'une séance
+     * existante pour en faire une variante. La copie reprend la structure DARI Lab, les étapes
+     * legacy, la catégorie et les notes ; elle repart à zéro sur ce qui est propre à l'original
+     * (compteur d'utilisation, épinglage).
+     */
+    @Transactional
+    public WorkoutTemplateResponse duplicate(UUID clubId, UUID id) {
+        WorkoutTemplate source = require(clubId, id);
+        WorkoutTemplate copy = new WorkoutTemplate();
+        copy.setClub(source.getClub());
+        copy.setName(source.getName() + " (copie)");
+        copy.setType(source.getType());
+        copy.setTitle(source.getTitle());
+        copy.setNotes(source.getNotes());
+        copy.setTargetDistanceM(source.getTargetDistanceM());
+        copy.setTargetDurationS(source.getTargetDurationS());
+        copy.setStepsJson(source.getStepsJson());
+        copy.setStructureJson(source.getStructureJson());
+        copy.setCategory(source.getCategory());
+        return toResponse(templateRepository.save(copy));
+    }
+
     @Transactional
     public void delete(UUID clubId, UUID id) {
         templateRepository.delete(require(clubId, id));

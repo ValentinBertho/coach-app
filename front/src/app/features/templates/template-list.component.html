@@ -91,6 +91,7 @@
             <div class="tpl-head-actions" (click)="$event.stopPropagation()">
               <button type="button" class="icon-btn" (click)="openDetail(t)" title="Consulter"><app-icon name="eye" [size]="15" /></button>
               <a [routerLink]="['/app/templates', t.id, 'structure']" class="icon-btn" title="Modifier"><app-icon name="pencil" [size]="15" /></a>
+              <button type="button" class="icon-btn" (click)="duplicate(t)" [disabled]="duplicating()" title="Dupliquer"><app-icon name="copy" [size]="15" /></button>
               <button type="button" class="icon-btn danger" (click)="remove(t)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
             </div>
           </div>
@@ -110,6 +111,7 @@
           <div class="tpl-row-actions" (click)="$event.stopPropagation()">
             <button type="button" class="icon-btn" (click)="openDetail(t)" title="Consulter"><app-icon name="eye" [size]="15" /></button>
             <a [routerLink]="['/app/templates', t.id, 'structure']" class="icon-btn" title="Modifier"><app-icon name="pencil" [size]="15" /></a>
+            <button type="button" class="icon-btn" (click)="duplicate(t)" [disabled]="duplicating()" title="Dupliquer"><app-icon name="copy" [size]="15" /></button>
             <button type="button" class="icon-btn danger" (click)="remove(t)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
           </div>
         </div>
