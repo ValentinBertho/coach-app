@@ -53,6 +53,11 @@ export class WorkoutService {
     return this.http.patch<Workout>(`${this.base(athleteId)}/${workoutId}/reschedule`, { scheduledDate });
   }
 
+  /** Commentaire du coach sur une séance réalisée (feedback in situ, notifié à l'athlète). */
+  setCoachComment(athleteId: string, workoutId: string, comment: string | null): Observable<Workout> {
+    return this.http.patch<Workout>(`${this.base(athleteId)}/${workoutId}/coach-comment`, { comment });
+  }
+
   /** Accusé de lecture du retour athlète (file « retours à traiter »). */
   markReviewed(athleteId: string, workoutId: string, reviewed = true): Observable<Workout> {
     const params = new HttpParams().set('reviewed', reviewed);

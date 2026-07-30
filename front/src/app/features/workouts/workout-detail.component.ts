@@ -10,6 +10,8 @@ import {
   WorkoutStatus,
 } from '../../core/models/workout.model';
 import { WorkoutService } from '../../core/services/workout.service';
+import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import {
@@ -45,7 +47,7 @@ type State = 'loading' | 'ready' | 'error';
   selector: 'app-workout-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink, IntensityZoneBadgeComponent, DataOriginTagComponent, StickyActionBarComponent, CoursePrescriptionViewComponent],
+  imports: [IconComponent, RouterLink, FormsModule, DatePipe, IntensityZoneBadgeComponent, DataOriginTagComponent, StickyActionBarComponent, CoursePrescriptionViewComponent],
   templateUrl: './workout-detail.component.html',
   styleUrl: './workout-detail.component.scss',
 })
@@ -138,6 +140,65 @@ export class WorkoutDetailComponent implements OnInit {
     const w = this.workout();
     return !!w && (w.rpe != null || !!w.athleteComment);
   });
+
+  /**
+   * RPE prescrit de la séance : moyenne des RPE de bloc pondérée par leur durée estimée. La
+   * boucle prescription → ressenti existait des deux côtés mais n'était confrontée nulle part ;
+   * pondérer par la durée évite qu'un bloc de 2 min pèse autant qu'un bloc de 40 min.
+   */
+  readonly prescribedRpe = computed<number | null>(() => {
+    const calc = this.courseRx()?.calculated;
+    if (!calc) return null;
+    let weighted = 0;
+    let totalS = 0;
+    for (const e of [...calc.warmup, ...calc.main, ...calc.cooldown]) {
+      const rpe = e.block.rpe;
+      if (rpe == null) continue;
+      // Un bloc sans durée estimée compte quand même, avec un poids neutre d'une minute.
+      const s = e.calc?.estimatedDurationS ?? 60;
+      weighted += rpe * s;
+      totalS += s;
+    }
+    if (!totalS) return null;
+    return Math.round((weighted / totalS) * 10) / 10;
+  });
+
+  /** Écart entre RPE ressenti et RPE prescrit (positif = plus dur que prévu). */
+  readonly rpeGap = computed<number | null>(() => {
+    const felt = this.workout()?.rpe;
+    const planned = this.prescribedRpe();
+    if (felt == null || planned == null) return null;
+    return Math.round((felt - planned) * 10) / 10;
+  });
+
+  /** Au-delà de ±2, l'écart mérite l'attention du coach (séance mal calibrée ou athlète en difficulté). */
+  readonly rpeGapNotable = computed(() => Math.abs(this.rpeGap() ?? 0) >= 2);
+
+  // --- Commentaire du coach sur la séance réalisée --------------------------
+  coachCommentDraft = '';
+  readonly savingComment = signal(false);
+  readonly editingComment = signal(false);
+
+  startEditComment(): void {
+    this.coachCommentDraft = this.workout()?.coachComment ?? '';
+    this.editingComment.set(true);
+  }
+  cancelEditComment(): void { this.editingComment.set(false); }
+
+  saveCoachComment(): void {
+    if (this.savingComment()) return;
+    this.savingComment.set(true);
+    const text = this.coachCommentDraft.trim();
+    this.workoutService.setCoachComment(this.athleteId(), this.workoutId(), text || null).subscribe({
+      next: (updated) => {
+        this.workout.set(updated);
+        this.savingComment.set(false);
+        this.editingComment.set(false);
+        this.toast.success(text ? 'Commentaire envoyé à l’athlète' : 'Commentaire retiré.');
+      },
+      error: () => { this.savingComment.set(false); this.toast.error('Enregistrement impossible.'); },
+    });
+  }
 
   /** Bandeau de stats façon Nolio : durée · distance · allure moyenne · charge estimée. */
   readonly sessionStats = computed(() => {

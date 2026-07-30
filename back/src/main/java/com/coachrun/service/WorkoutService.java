@@ -129,6 +129,23 @@ public class WorkoutService {
     }
 
     /**
+     * Commentaire du coach sur une séance réalisée : le feedback in situ, sans passer par la
+     * messagerie. Visible par l'athlète et notifié. Un texte vide efface le commentaire.
+     */
+    @Transactional
+    public WorkoutResponse setCoachComment(UUID clubId, UUID workoutId, String comment) {
+        Workout workout = require(clubId, workoutId);
+        String text = comment == null || comment.isBlank() ? null : comment.trim();
+        boolean isNew = text != null && !text.equals(workout.getCoachComment());
+        workout.setCoachComment(text);
+        workout.setCoachCommentAt(text == null ? null : java.time.Instant.now());
+        if (isNew) {
+            notificationService.notifyCoachComment(workout);
+        }
+        return WorkoutResponse.from(workout);
+    }
+
+    /**
      * Marque le retour de l'athlète comme traité (file « retours à traiter »). N'altère ni le
      * contenu de la séance ni le retour lui-même : c'est un accusé de lecture côté coach.
      */

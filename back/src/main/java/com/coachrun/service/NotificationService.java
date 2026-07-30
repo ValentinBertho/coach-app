@@ -69,6 +69,32 @@ public class NotificationService {
         send(email, subject, html);
     }
 
+    /**
+     * Commentaire du coach sur une séance réalisée → notifie l'athlète (in-app + push + email).
+     * Le corps ne reprend pas le commentaire : il peut contenir des éléments de santé, et le
+     * centre de notifications n'est pas le bon canal pour ça — on renvoie vers la séance.
+     */
+    public void notifyCoachComment(Workout workout) {
+        User athleteUser = userRepository.findByAthleteId(workout.getAthlete().getId()).orElse(null);
+        if (athleteUser != null) {
+            record(athleteUser.getId(), "COACH_COMMENT", "Retour de votre coach",
+                    workout.getTitle(), "/athlete/history");
+            if (athleteUser.isNotifyPushEnabled()) {
+                pushService.sendToUser(athleteUser.getId(), "Retour de votre coach",
+                        workout.getTitle(), frontendUrl + "/athlete/history");
+            }
+        }
+        String email = workout.getAthlete().getEmail();
+        if (email == null || (athleteUser != null && !athleteUser.isNotifyEmailEnabled())) {
+            return;
+        }
+        String html = "<p>Bonjour " + esc(workout.getAthlete().getFirstName()) + ",</p>"
+                + "<p>Votre coach a commenté la séance <strong>" + esc(workout.getTitle())
+                + "</strong>.</p>"
+                + cta("Lire le retour", frontendUrl + "/athlete/history");
+        send(email, "Votre coach a commenté une séance", html);
+    }
+
     /** Feedback athlète → notifie le coach <strong>référent</strong> de l'athlète (repli : head coach). */
     public void notifyAthleteFeedback(Workout workout) {
         coachToNotify(workout).ifPresent(c -> {

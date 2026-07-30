@@ -107,6 +107,18 @@ public class WorkoutController {
     }
 
     /**
+     * Commentaire du coach sur une séance réalisée (feedback in situ, sans passer par la
+     * messagerie). Visible par l'athlète dans son historique et notifié.
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canComment(authentication, #athleteId)")
+    @PatchMapping("/{workoutId}/coach-comment")
+    public WorkoutResponse setCoachComment(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                           @PathVariable UUID workoutId,
+                                           @RequestBody java.util.Map<String, String> body) {
+        return workoutService.setCoachComment(clubId, workoutId, body.get("comment"));
+    }
+
+    /**
      * Marque le retour de l'athlète comme traité (file « retours à traiter » du tableau de bord).
      * Accusé de lecture côté coach : ne modifie ni la séance ni le retour.
      */

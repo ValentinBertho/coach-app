@@ -111,3 +111,5 @@ databaseChangeLog:
       file: db/changelog/changes/053-feedback-reviewed.yaml
   - include:
       file: db/changelog/changes/054-message-coach-read.yaml
+  - include:
+      file: db/changelog/changes/055-workout-coach-comment.yaml

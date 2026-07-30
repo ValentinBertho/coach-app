@@ -22,6 +22,9 @@ public record WorkoutResponse(
         Integer fatigue,
         Integer pain,
         String athleteComment,
+        /** Retour du coach sur la séance réalisée (visible par l'athlète). */
+        String coachComment,
+        java.time.Instant coachCommentAt,
         boolean movedByAthlete,
         LocalDate originalDate,
         UUID sourceTemplateId,
@@ -43,6 +46,8 @@ public record WorkoutResponse(
                 w.getFatigue(),
                 w.getPain(),
                 w.getAthleteComment(),
+                w.getCoachComment(),
+                w.getCoachCommentAt(),
                 w.isMovedByAthlete(),
                 w.getOriginalDate(),
                 w.getSourceTemplateId(),

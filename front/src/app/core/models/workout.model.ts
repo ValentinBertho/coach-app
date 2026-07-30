@@ -29,6 +29,9 @@ export interface Workout {
   targetDurationS: number | null;
   rpe: number | null;
   athleteComment: string | null;
+  /** Retour du coach sur la séance réalisée (feedback in situ), visible par l'athlète. */
+  coachComment: string | null;
+  coachCommentAt: string | null;
   /** Ordre d'affichage au sein d'un même jour (glisser-déposer intra-jour). */
   orderIndex: number;
   steps: WorkoutStep[];
