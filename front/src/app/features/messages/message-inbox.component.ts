@@ -21,7 +21,7 @@ import { HelpHintComponent } from '../help/help-hint.component';
   template: `
     <section class="page-header">
       <div>
-        <h1 class="display-sm">Messages <app-help-hint section="messagerie" label="Aide : messagerie" /></h1>
+        <h1 class="display-sm">Messages <app-help-hint section="communication" label="Aide : messagerie" /></h1>
         <p class="subtitle">
           @if (unread() > 0) {
             {{ unread() }} message{{ unread() > 1 ? 's' : '' }} non lu{{ unread() > 1 ? 's' : '' }}, tous athlètes confondus.

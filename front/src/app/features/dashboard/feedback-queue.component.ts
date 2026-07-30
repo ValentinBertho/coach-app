@@ -30,7 +30,7 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
   template: `
     <section class="page-header">
       <div>
-        <h1 class="display-sm">Retours à traiter <app-help-hint section="dashboard" label="Aide : cockpit coach" /></h1>
+        <h1 class="display-sm">Retours à traiter <app-help-hint section="suivi" label="Aide : suivi & charge" /></h1>
         <p class="subtitle">Les retours de vos athlètes que vous n'avez pas encore vus, du plus récent au plus ancien.</p>
       </div>
       <app-segmented-control [options]="scopeOptions" [value]="scope()" (valueChange)="setScope($event)" [ariaLabel]="'Périmètre'" />

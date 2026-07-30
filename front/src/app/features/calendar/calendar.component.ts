@@ -252,6 +252,12 @@ export class CalendarComponent implements OnInit {
 
   setScopeMode(m: 'athlete' | 'group'): void {
     this.scopeMode.set(m);
+    if (m === 'athlete') {
+      // La semaine affichée a pu changer pendant le passage en mode groupe.
+      this.load();
+      this.loadOverlays();
+      return;
+    }
     if (m === 'group') {
       this.mode.set('week'); // pas de vue mois en groupe
       if (this.groups().length === 0) {
