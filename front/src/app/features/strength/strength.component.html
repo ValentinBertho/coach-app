@@ -333,7 +333,10 @@
       }
 
       @if (history().length) {
-        <h3>Évolution du e1RM</h3>
+        <h3>Évolution du e1RM <span class="field-hint">— {{ historyExerciseName() }}</span></h3>
+        <app-trend-chart [points]="e1rmPoints()" label="e1RM estimé" unit="kg"
+                         color="var(--dari-violet)"
+                         emptyHint="Un seul relevé pour cet exercice — la courbe apparaîtra au deuxième test." />
         <ul class="hist-list">
           @for (h of history(); track h.calculatedAt) {
             <li><span class="metric hist-e1rm">{{ h.e1rmKg }} kg</span>

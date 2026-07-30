@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DatePipe } from '@angular/common';
+import { TrendChartComponent, type TrendPoint } from '../../shared/components/trend-chart/trend-chart.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { Performance, Vdot } from '../../core/models/physio.model';
 import { PhysioService } from '../../core/services/physio.service';
@@ -26,7 +28,7 @@ const DISTANCES: { value: string; label: string }[] = [
   selector: 'app-athlete-records-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, IconComponent],
+  imports: [FormsModule, DatePipe, IconComponent, TrendChartComponent],
   template: `
     <section class="card records">
       <header class="rec-head">
@@ -65,7 +67,7 @@ const DISTANCES: { value: string; label: string }[] = [
             <li class="rec-row">
               <span class="rr-dist">{{ label(p.distanceCode || p.distance) }}</span>
               <span class="rr-time metric">{{ hms(p.timeSeconds) }}</span>
-              <span class="rr-date field-hint">{{ p.dateSet || '—' }}</span>
+              <span class="rr-date field-hint">{{ p.dateSet ? (p.dateSet | date: 'd MMM y') : '—' }}</span>
               @if (p.vdot != null) { <span class="badge badge-info">VDOT {{ p.vdot }}</span> }
               <button type="button" class="icon-btn danger" (click)="remove(p)" [attr.aria-label]="'Supprimer ' + p.distance">
                 <app-icon name="trash-2" [size]="15" />
@@ -73,6 +75,15 @@ const DISTANCES: { value: string; label: string }[] = [
             </li>
           }
         </ul>
+      }
+
+      <!-- Évolution du VDOT : la donnée existe record par record, la progression n'était
+           jamais montrée. -->
+      @if (vdotPoints().length >= 2) {
+        <div class="vdot-trend">
+          <h3>Évolution du VDOT</h3>
+          <app-trend-chart [points]="vdotPoints()" label="VDOT" color="var(--dari-teal)" />
+        </div>
       }
 
       <!-- Allures dérivées du VDOT : ce que les ancres Pace800/1500/… utilisent -->
@@ -93,6 +104,8 @@ const DISTANCES: { value: string; label: string }[] = [
   `,
   styles: [`
     .records { margin-bottom: var(--sp-5); }
+    .vdot-trend { margin-top: var(--sp-4); }
+    .vdot-trend h3 { margin: 0 0 var(--sp-2); font-size: var(--text-md); }
     .rec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
     .rec-head h2 { margin: 0 0 var(--sp-1); font-size: var(--text-lg); }
     .rec-head .field-hint { margin: 0; max-width: 60ch; }
@@ -134,6 +147,22 @@ export class AthleteRecordsPanelComponent implements OnInit {
   readonly vdot = signal<Vdot | null>(null);
 
   draft = { distance: 'D10KM', time: '', dateSet: '' };
+
+  /**
+   * Évolution du VDOT dans le temps : chaque record daté porte le VDOT qu'il implique. Un seul
+   * point par date (le meilleur), pour ne pas faire osciller la courbe entre deux distances
+   * courues le même jour.
+   */
+  readonly vdotPoints = computed<TrendPoint[]>(() => {
+    const best = new Map<string, number>();
+    for (const p of this.performances()) {
+      if (!p.dateSet || p.vdot == null) continue;
+      best.set(p.dateSet, Math.max(best.get(p.dateSet) ?? 0, p.vdot));
+    }
+    return [...best.entries()]
+      .map(([date, value]) => ({ date, value }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  });
 
   /** Records triés du plus court au plus long, puis par date décroissante. */
   readonly records = computed(() => {

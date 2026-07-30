@@ -51,6 +51,23 @@ export interface Load {
   sessions28d: number;
 }
 
+/** Un point de la courbe de charge : ATL (7 j), CTL (28 j ramené à la semaine) et ACWR. */
+export interface LoadSeriesPoint {
+  date: string;
+  acute: number;
+  chronic: number;
+  ratio: number | null;
+}
+
+/** Série temporelle de charge (courbe ATL/CTL + bande de sécurité ACWR). */
+export interface LoadSeries {
+  from: string;
+  to: string;
+  safeRatioMin: number;
+  safeRatioMax: number;
+  points: LoadSeriesPoint[];
+}
+
 /** Charge interne d'une séance de force réalisée (UA), méca vs métab. */
 export interface StrengthLoadPoint {
   scheduledSessionId: string | null;

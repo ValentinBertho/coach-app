@@ -26,4 +26,12 @@ public class AthleteLoadController {
     public LoadResponse load(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
         return loadService.load(clubId, athleteId);
     }
+
+    /** Série temporelle ATL / CTL / ACWR (courbe de charge), sur {@code weeks} semaines. */
+    @GetMapping("/series")
+    public com.coachrun.dto.response.LoadSeriesResponse series(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "12") int weeks) {
+        return loadService.series(clubId, athleteId, weeks);
+    }
 }

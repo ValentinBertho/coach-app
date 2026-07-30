@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { TrendChartComponent, type TrendPoint } from '../../shared/components/trend-chart/trend-chart.component';
 import { AthleteService } from '../../core/services/athlete.service';
 import { StrengthService } from '../../core/services/strength.service';
 import { SessionCategoryService } from '../../core/services/session-category.service';
@@ -31,7 +32,7 @@ type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
   selector: 'app-strength',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, FormsModule, DatePipe, RouterLink],
+  imports: [IconComponent, FormsModule, DatePipe, RouterLink, TrendChartComponent],
   templateUrl: './strength.component.html',
   styleUrl: './strength.component.scss',
 })
@@ -336,8 +337,22 @@ export class StrengthComponent implements OnInit {
   loadHistory(exerciseId: string): void {
     const a = this.selectedAthlete();
     if (!a) return;
+    this.historyExerciseId.set(exerciseId);
     this.strength.e1rmHistory(a, exerciseId).subscribe((h) => this.history.set(h));
   }
+
+  /** Exercice dont l'historique est affiché (titre du graphe d'évolution). */
+  readonly historyExerciseId = signal<string>('');
+  readonly historyExerciseName = computed(() => {
+    const id = this.historyExerciseId();
+    if (!id) return '';
+    return this.profile1rm().find((p) => p.exerciseId === id)?.exerciseName || this.exerciseName(id);
+  });
+
+  /** Historique e1RM en série temporelle : une liste de valeurs ne dit pas si l'athlète progresse. */
+  readonly e1rmPoints = computed<TrendPoint[]>(() =>
+    this.history().map((h) => ({ date: h.calculatedAt, value: h.e1rmKg })),
+  );
 
   label(value: string): string {
     return value.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
