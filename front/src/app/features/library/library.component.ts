@@ -38,7 +38,10 @@ import { SessionCategory } from '../../core/models/session-category.model';
     </div>
 
     @if (detail(); as d) {
-      <app-session-detail-modal [templateId]="d.id" [name]="d.name" (closed)="detail.set(null)" />
+      <app-session-detail-modal [templateId]="d.id" [name]="d.name"
+                               [categories]="categories()" [categoryId]="detailCategoryId()"
+                               (categoryChange)="assignCategory(d.id, $event)"
+                               (closed)="detail.set(null)" />
     }
   `,
   styles: [`
@@ -63,6 +66,25 @@ export class LibraryComponent implements OnInit {
     this.strengthService.listSessions().subscribe((p) => this.strengthSessions.set(p.content));
     this.drillService.list().subscribe((d) => this.drills.set(d));
     this.categoryService.list().subscribe({ next: (c) => this.categories.set(c), error: () => this.categories.set([]) });
+  }
+
+  /** Catégorie courante de la séance consultée (menu déroulant de la modale). */
+  detailCategoryId(): string {
+    const d = this.detail();
+    return (d && this.courseTemplates().find((x) => x.id === d.id)?.categoryId) || '';
+  }
+
+  /** (Ré)affecte la catégorie d'une séance depuis la modale de consultation. */
+  assignCategory(templateId: string, categoryId: string): void {
+    const t = this.courseTemplates().find((x) => x.id === templateId);
+    if (!t) return;
+    this.templateService.update(t.id, {
+      name: t.name, type: t.type, title: t.title, notes: t.notes,
+      targetDistanceM: t.targetDistanceM, targetDurationS: t.targetDurationS,
+      categoryId: categoryId || null, steps: t.steps,
+    }).subscribe({
+      next: (updated) => this.courseTemplates.update((l) => l.map((x) => (x.id === t.id ? updated : x))),
+    });
   }
 
   /** Épingle / dé-épingle (optimiste) une séance course. */

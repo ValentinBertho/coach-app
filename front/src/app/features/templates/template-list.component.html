@@ -119,5 +119,8 @@
 }
 
 @if (detail(); as d) {
-  <app-session-detail-modal [templateId]="d.id" [name]="d.name" (closed)="detail.set(null)" />
+  <app-session-detail-modal [templateId]="d.id" [name]="d.name"
+                           [categories]="categories()" [categoryId]="detailCategoryId()"
+                           (categoryChange)="assignCategory(d.id, $event)"
+                           (closed)="detail.set(null)" />
 }

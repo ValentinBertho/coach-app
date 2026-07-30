@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../icon/icon.component';
+import { SessionCategory } from '../../../core/models/session-category.model';
 import { CourseBlock, CourseStructureResponse, courseBlockTypeLabel } from '../../../core/models/course.model';
 import { TrainingZone } from '../../../core/models/training-zone.model';
 import { CourseService } from '../../../core/services/course.service';
@@ -17,14 +19,25 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
   selector: 'app-session-detail-modal',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink],
+  imports: [IconComponent, RouterLink, FormsModule],
   template: `
     <div class="overlay" (click)="closed.emit()">
       <div class="dialog card" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
         <header class="sd-head">
           <div>
             <h2>{{ name() || 'Séance' }}</h2>
-            @if (data()?.categoryName) { <span class="badge badge-neutral">{{ data()!.categoryName }}</span> }
+            <!-- Catégorie modifiable ici (menu déroulant) : ranger une séance sans quitter la consultation. -->
+            @if (categories().length) {
+              <label class="sd-cat">
+                <span class="sd-cat-lb">Catégorie</span>
+                <select class="form-control" [ngModel]="categoryId()" (ngModelChange)="categoryChange.emit($event)">
+                  <option value="">Sans catégorie</option>
+                  @for (c of categories(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+                </select>
+              </label>
+            } @else if (data()?.categoryName) {
+              <span class="badge badge-neutral">{{ data()!.categoryName }}</span>
+            }
           </div>
           <button type="button" class="icon-btn" (click)="closed.emit()" aria-label="Fermer"><app-icon name="x" [size]="18" /></button>
         </header>
@@ -68,7 +81,10 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
     .dialog { max-width: 620px; width: 100%; max-height: 86vh; overflow-y: auto; animation: slideInUp var(--duration) var(--ease); }
     .sd-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-4); }
     .sd-head h2 { margin: 0 0 var(--sp-1); }
-    .sd-head > div { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-1); }
+    .sd-head > div { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+    .sd-cat { display: inline-flex; align-items: center; gap: var(--sp-2); }
+    .sd-cat-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; }
+    .sd-cat .form-control { min-height: 34px; padding: 2px var(--sp-2); font-size: var(--text-sm); }
     .sd-sec { margin-bottom: var(--sp-4); }
     .sd-sec h3 { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); margin: 0 0 var(--sp-2); }
     .sd-block { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius-md); margin-bottom: var(--sp-2); }
@@ -84,7 +100,13 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
 export class SessionDetailModalComponent {
   readonly templateId = input.required<string>();
   readonly name = input<string>('');
+  /** Catégories du club (menu déroulant de rangement) ; vide = pas de sélecteur. */
+  readonly categories = input<SessionCategory[]>([]);
+  /** Catégorie courante de la séance (id) ; '' = sans catégorie. */
+  readonly categoryId = input<string>('');
   readonly closed = output<void>();
+  /** Émis quand le coach change la catégorie (id ou '' pour aucune). */
+  readonly categoryChange = output<string>();
 
   private readonly course = inject(CourseService);
   private readonly zoneService = inject(TrainingZoneService);

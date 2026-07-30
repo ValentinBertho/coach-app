@@ -122,6 +122,38 @@ export class TemplateListComponent implements OnInit {
     return this.categories().find((c) => c.id === id)?.name ?? '';
   }
 
+  /**
+   * (Ré)affecte la catégorie d'une séance sans quitter l'écran (menu déroulant de la modale).
+   * Préserve la structure et les métadonnées : seul le rangement change.
+   */
+  assignCategory(templateId: string, categoryId: string): void {
+    const t = this.templates().find((x) => x.id === templateId);
+    if (!t) return;
+    const body: WorkoutTemplateRequest = {
+      name: t.name,
+      type: t.type,
+      title: t.title,
+      notes: t.notes,
+      targetDistanceM: t.targetDistanceM,
+      targetDurationS: t.targetDurationS,
+      categoryId: categoryId || null,
+      steps: t.steps,
+    };
+    this.templateService.update(t.id, body).subscribe({
+      next: (updated) => {
+        this.templates.update((list) => list.map((x) => (x.id === t.id ? updated : x)));
+        this.toast.success(categoryId ? `Rangée dans « ${this.categoryName(categoryId)} »` : 'Catégorie retirée.');
+      },
+      error: () => this.toast.error('Changement de catégorie impossible.'),
+    });
+  }
+
+  /** Catégorie courante de la séance consultée (pour le menu déroulant de la modale). */
+  detailCategoryId(): string {
+    const d = this.detail();
+    return (d && this.templates().find((x) => x.id === d.id)?.categoryId) || '';
+  }
+
   // --- Gestion des catégories (créer / renommer / supprimer) -----------------
   createCategory(): void {
     const name = this.newCategoryName.trim();
