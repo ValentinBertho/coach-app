@@ -315,7 +315,7 @@
           <tbody>
             @for (p of profile1rm(); track p.exerciseId) {
               <tr>
-                <td class="metric">{{ p.exerciseId.slice(0, 8) }}…</td>
+                <td>{{ p.exerciseName || exerciseName(p.exerciseId) }}</td>
                 <td class="metric">{{ p.rmKg }} kg</td>
                 <td><span class="badge" [class.badge-success]="p.source === 'tested'" [class.badge-neutral]="p.source !== 'tested'">{{ p.source }}</span></td>
                 <td><button type="button" class="btn btn-ghost btn-sm" (click)="loadHistory(p.exerciseId)">Historique</button></td>

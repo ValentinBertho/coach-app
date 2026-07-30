@@ -29,18 +29,21 @@ public class Athlete1rmService {
     public List<Athlete1rmResponse> list(UUID clubId, UUID athleteId) {
         requireAthlete(clubId, athleteId);
         return profileRepository.findByAthleteId(athleteId).stream()
-                .map(Athlete1rmResponse::from)
+                .map(p -> Athlete1rmResponse.from(p, exerciseName(p.getExerciseId())))
                 .toList();
+    }
+
+    private String exerciseName(UUID exerciseId) {
+        return exerciseRepository.findById(exerciseId)
+                .map(com.coachrun.entity.PpExercise::getName)
+                .orElse("Exercice supprimé");
     }
 
     /** Profil 1RM par exercice (enrichi du nom) — variante athlète-scoped (portail /me). */
     public List<com.coachrun.dto.response.MyOneRmResponse> listForAthlete(UUID athleteId) {
         return profileRepository.findByAthleteId(athleteId).stream()
                 .map(p -> new com.coachrun.dto.response.MyOneRmResponse(
-                        p.getExerciseId(),
-                        exerciseRepository.findById(p.getExerciseId())
-                                .map(com.coachrun.entity.PpExercise::getName).orElse("Exercice"),
-                        p.getRmKg(), p.getSource()))
+                        p.getExerciseId(), exerciseName(p.getExerciseId()), p.getRmKg(), p.getSource()))
                 .toList();
     }
 
@@ -60,7 +63,7 @@ public class Athlete1rmService {
                 });
         profile.setRmKg(BigDecimal.valueOf(req.rmKg()));
         profile.setSource("manual");
-        return Athlete1rmResponse.from(profileRepository.save(profile));
+        return Athlete1rmResponse.from(profileRepository.save(profile), exerciseName(req.exerciseId()));
     }
 
     private Athlete requireAthlete(UUID clubId, UUID athleteId) {

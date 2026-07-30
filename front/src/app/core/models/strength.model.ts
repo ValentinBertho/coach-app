@@ -129,6 +129,8 @@ export interface StrengthSession {
 
 export interface Athlete1rm {
   exerciseId: string;
+  /** Nom porté par le DTO : la bibliothèque d'exercices est paginée côté écran. */
+  exerciseName: string;
   rmKg: number;
   source: string;
 }
