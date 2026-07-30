@@ -35,7 +35,7 @@
         <div class="obj-main">
           <div class="obj-id">
             <strong class="obj-name">{{ r.name }}</strong>
-            <span class="field-hint metric">{{ r.raceDate }}</span>
+            <span class="field-hint metric">{{ r.raceDate | date: 'd MMM y' }}</span>
           </div>
           <span class="obj-countdown metric" [class.obj-countdown--soon]="r.daysUntil >= 0 && r.daysUntil <= 14">
             {{ countdown(r) }}
