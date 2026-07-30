@@ -40,6 +40,7 @@ public class CoachDashboardService {
     private final FormStatusEngine formStatusEngine;
     private final CoachAthleteRelationRepository relationRepository;
     private final AthleteLoadService loadService;
+    private final AthleteFeedbackService feedbackService;
 
     public CoachDashboardResponse compute(UUID clubId) {
         LocalDate today = LocalDate.now();
@@ -73,14 +74,11 @@ public class CoachDashboardService {
             if (a.getStatus() != AthleteStatus.ACTIVE) {
                 continue;
             }
-            Workout last = workoutRepository
-                    .findFirstByAthleteIdAndFatigueIsNotNullOrderByScheduledDateDescCreatedAtDesc(a.getId())
-                    .orElse(null);
-            Integer fatigue = last == null ? null : last.getFatigue();
-            Integer pain = last == null ? null : last.getPain();
+            // Course + force confondues : un retour de renforcement compte autant qu'une course.
+            AthleteFeedbackService.LastFeedback last = feedbackService.lastFeedback(a.getId());
             AthleteFormResponse row = AthleteFormResponse.of(
-                    a, formStatusEngine.classify(fatigue, pain),
-                    fatigue, pain, last == null ? null : last.getScheduledDate());
+                    a, formStatusEngine.classify(last.fatigue(), last.pain()),
+                    last.fatigue(), last.pain(), last.date());
 
             if (a.getDiscipline() == Discipline.TRAIL) {
                 trail.add(row);
@@ -128,11 +126,9 @@ public class CoachDashboardService {
             String name = (a.getFirstName() + " " + a.getLastName()).trim();
             String discipline = a.getDiscipline() == Discipline.TRAIL ? "TRAIL" : "ROUTE";
 
-            // --- Douleur (dernier retour) ---
-            Workout lastFeedback = workoutRepository
-                    .findFirstByAthleteIdAndFatigueIsNotNullOrderByScheduledDateDescCreatedAtDesc(a.getId())
-                    .orElse(null);
-            Integer pain = lastFeedback == null ? null : lastFeedback.getPain();
+            // --- Douleur (dernier retour, course ou force) ---
+            AthleteFeedbackService.LastFeedback lastFeedback = feedbackService.lastFeedback(a.getId());
+            Integer pain = lastFeedback.pain();
             if (pain != null && pain >= 5) {
                 alerts.add(alert(a, name, discipline, "RED", "PAIN",
                         "Douleur élevée", "Douleur " + pain + "/10 au dernier retour."));
@@ -181,7 +177,7 @@ public class CoachDashboardService {
 
             // --- Silence (aucun retour depuis longtemps alors qu'un programme tourne) ---
             boolean hasRecentProgram = !recent.isEmpty();
-            LocalDate lastFb = lastFeedback == null ? null : lastFeedback.getScheduledDate();
+            LocalDate lastFb = lastFeedback.date();
             long silence = lastFb == null ? Long.MAX_VALUE : ChronoUnit.DAYS.between(lastFb, today);
             if (hasRecentProgram && silence > 10) {
                 String detail = lastFb == null ? "Aucun retour de séance enregistré."
