@@ -16,6 +16,8 @@ public record CourseStructureResponse(
         boolean favorite,
         boolean archived,
         int useCount,
+        /** Encart d'écriture libre du coach. */
+        String notes,
         SessionStructure structure
 ) {
 
@@ -24,6 +26,6 @@ public record CourseStructureResponse(
                 t.getId(), t.getName(), t.getDiscipline(),
                 t.getCategory() == null ? null : t.getCategory().getId(),
                 t.getCategory() == null ? null : t.getCategory().getName(),
-                t.isFavorite(), t.isArchived(), t.getUseCount(), structure);
+                t.isFavorite(), t.isArchived(), t.getUseCount(), t.getNotes(), structure);
     }
 }

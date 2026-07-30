@@ -126,7 +126,7 @@ import { ToastService } from '../../core/services/toast.service';
               @if (configId() === z.id) {
                 <div class="config">
                   <span class="config-label">Métriques portées par cette zone :</span>
-                  <p class="config-hint field-hint">Ajoutez toutes les métriques pertinentes (allure, FC, vitesse, % FC max, puissance, RPE…). Chacune se règle ensuite par athlète et peut être ancrée à un seuil (LT1/LT2, VMA…) dans la règle ci-dessous.</p>
+                  <p class="config-hint field-hint">Ajoutez les métriques pertinentes (allure, vitesse, FC, % FC max, puissance). Chacune s'ancre à une valeur de référence de l'athlète (LT1, LT2, VC, VMA, allures VDOT…) dans la règle ci-dessous, et se recalcule quand cette référence change. L'effort perçu (RPE) ne se règle pas ici : il se saisit sur le contenu de la séance.</p>
                   <div class="metric-toggles">
                     @for (m of metrics(); track m.id) {
                       <button type="button" class="toggle" [class.on]="z.metricTypeIds.includes(m.id)" (click)="toggleMetric(z, m)">{{ m.name }}</button>
@@ -375,7 +375,7 @@ export class TrainingZonesComponent implements OnInit {
   // --- Règles de calcul (chantier zones v2) --------------------------------
 
   readonly anchors: ZoneAnchor[] = [
-    'LT1', 'LT2', 'VC', 'PACE_800M', 'PACE_1500M', 'PACE_3000M', 'PACE_5KM',
+    'LT1', 'LT2', 'VC', 'VMA', 'PACE_800M', 'PACE_1500M', 'PACE_3000M', 'PACE_5KM',
     'PACE_10KM', 'PACE_15KM', 'PACE_SEMI', 'PACE_MARATHON', 'FCMAX', 'LTHR', 'HRR',
   ];
   readonly models: ZoneModel[] = ['VMA', 'VC', 'DANIELS_VDOT', 'LACTATE_THRESHOLD', 'PCT_FCMAX', 'CUSTOM'];

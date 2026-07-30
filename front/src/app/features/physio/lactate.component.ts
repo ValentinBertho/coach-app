@@ -9,6 +9,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { LactateStep, LactateTest, LtDetection } from '../../core/models/lactate.model';
 import { DataOriginTagComponent } from '../../shared/components/physiology';
 import { SegmentedControlComponent, type SegmentOption } from '../../shared/components/ui';
+import { AthleteRecordsPanelComponent } from './athlete-records-panel.component';
 
 interface ChartPoint { cx: number; cy: number; speed: string; lactate: number; }
 interface Chart { points: ChartPoint[]; polyline: string; lt1x: number | null; lt2x: number | null; }
@@ -20,7 +21,8 @@ interface MultiChart { series: Series[]; }
   selector: 'app-lactate',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DatePipe, DecimalPipe, DataOriginTagComponent, SegmentedControlComponent],
+  imports: [FormsModule, RouterLink, DatePipe, DecimalPipe, DataOriginTagComponent, SegmentedControlComponent,
+    AthleteRecordsPanelComponent],
   templateUrl: './lactate.component.html',
   styleUrl: './lactate.component.scss',
 })

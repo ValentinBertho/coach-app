@@ -6,7 +6,7 @@ export type ZoneScope = 'CLUB' | 'COACH';
 
 /** Ancre de calcul d'une bande de zone (chantier zones v2). */
 export type ZoneAnchor =
-  | 'LT1' | 'LT2' | 'VC'
+  | 'LT1' | 'LT2' | 'VC' | 'VMA'
   | 'PACE_800M' | 'PACE_1500M' | 'PACE_3000M' | 'PACE_5KM'
   | 'PACE_10KM' | 'PACE_15KM' | 'PACE_SEMI' | 'PACE_MARATHON'
   | 'FCMAX' | 'LTHR' | 'HRR';
@@ -49,6 +49,7 @@ export const ZONE_ANCHOR_LABELS: Record<ZoneAnchor, string> = {
   LT1: 'Seuil aérobie (LT1)',
   LT2: 'Seuil lactique (LT2)',
   VC: 'Vitesse critique (VC)',
+  VMA: 'VMA',
   PACE_800M: 'Allure 800 m',
   PACE_1500M: 'Allure 1500 m',
   PACE_3000M: 'Allure 3000 m',

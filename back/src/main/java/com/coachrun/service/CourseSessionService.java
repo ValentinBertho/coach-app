@@ -57,6 +57,9 @@ public class CourseSessionService {
         if (req.favorite() != null) {
             t.setFavorite(req.favorite());
         }
+        if (req.notes() != null) {
+            t.setNotes(req.notes().isBlank() ? null : req.notes());
+        }
         if (req.categoryId() != null) {
             t.setCategory(categoryRepository.findByIdAndClubId(req.categoryId(), clubId)
                     .orElseThrow(() -> new NotFoundException("Catégorie introuvable.")));

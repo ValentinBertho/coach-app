@@ -131,6 +131,7 @@ public class ZoneValueSyncService {
             case LT1 -> PrescriptionRef.PCT_LT1;
             case LT2 -> PrescriptionRef.PCT_LT2;
             case VC -> PrescriptionRef.PCT_VC;
+            case VMA -> PrescriptionRef.PCT_VMA;
             case PACE_800M -> PrescriptionRef.PCT_PACE_800M;
             case PACE_1500M -> PrescriptionRef.PCT_PACE_1500M;
             case PACE_3000M -> PrescriptionRef.PCT_PACE_3000M;

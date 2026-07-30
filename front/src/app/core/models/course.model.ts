@@ -55,6 +55,8 @@ export interface CourseBlock {
   durationS?: number | null;
   prescription?: CoursePrescription | null;
   recovery?: CourseRecovery | null;
+  /** Effort perçu visé (RPE 1–10) — propre au contenu de la séance, pas aux zones. */
+  rpe?: number | null;
   note?: string | null;
   /** Éducatifs (gammes) attachés au bloc (ids) — ex. échauffement. */
   drillIds?: string[] | null;
@@ -75,6 +77,8 @@ export interface CourseStructureResponse {
   favorite: boolean;
   archived: boolean;
   useCount: number;
+  /** Encart d'écriture libre du coach. */
+  notes: string | null;
   structure: SessionStructure;
 }
 

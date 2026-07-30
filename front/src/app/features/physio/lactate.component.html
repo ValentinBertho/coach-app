@@ -1,10 +1,13 @@
 <section class="page-header">
   <div>
     <a [routerLink]="['/app/athletes', athleteId()]" class="back-link">← Fiche athlète</a>
-    <h1 class="display-sm">Tests lactate</h1>
-    <p class="subtitle">Saisie des paliers, détection LT1/LT2 (Dmax modifié) et profil lactate.</p>
+    <h1 class="display-sm">Tests &amp; records</h1>
+    <p class="subtitle">Records par distance (→ VDOT), paliers lactate et détection LT1/LT2 (Dmax modifié).</p>
   </div>
 </section>
+
+<!-- Historique des records : saisir un chrono recalcule le VDOT et les allures dérivées. -->
+<app-athlete-records-panel [athleteId]="athleteId()" />
 
 <div class="lactate-toolbar">
   <app-segmented-control [options]="speedOptions" [value]="speedUnit()" (valueChange)="speedUnit.set($any($event))" [ariaLabel]="'Unité de vitesse'" />

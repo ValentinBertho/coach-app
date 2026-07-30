@@ -9,6 +9,8 @@ public enum PrescriptionRef {
     PCT_LT1,
     PCT_LT2,
     PCT_VC,
+    /** % de la VMA (vitesse maximale aérobie, km/h). */
+    PCT_VMA,
     PCT_PACE_800M,
     PCT_PACE_1500M,
     PCT_PACE_3000M,

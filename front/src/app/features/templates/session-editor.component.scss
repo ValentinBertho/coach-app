@@ -44,6 +44,12 @@
 
 .block-zone { min-width: 0; }
 
+/* Effort perçu (RPE) : saisi sur le contenu de la séance, pas dans les zones */
+.rpe { display: inline-flex; align-items: center; gap: var(--sp-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 0 var(--sp-2); background: var(--paper); }
+.rpe-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 800; }
+.rpe-in { width: 42px; border: none; background: none; min-height: 40px; text-align: center; font-family: var(--font-data); font-weight: 700; color: var(--ink-1); }
+.rpe-in:focus { outline: none; }
+
 .block-tools { display: inline-flex; gap: 2px; margin-left: auto; }
 .icon-btn { border: none; background: none; cursor: pointer; color: var(--ink-3); min-height: 34px; min-width: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); }
 .icon-btn:hover { background: var(--paper-sunk); color: var(--ink-1); }
@@ -57,7 +63,8 @@
 
 /* --- Récupération imbriquée dans le groupe --------------------------------- */
 .rec { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin: var(--sp-3) 0 0 34px; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-md); background: var(--paper-sunk); border: 1px solid var(--hairline); }
-.rec-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); font-weight: 800; }
+.rec-lb { display: inline-flex; align-items: baseline; gap: var(--sp-1); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); font-weight: 800; }
+.rec-count { font-family: var(--font-data); color: var(--ink-4); text-transform: none; letter-spacing: 0; }
 .rec-cible { font-size: var(--text-sm); color: var(--ink-2); font-weight: 700; }
 .rec-del { margin-left: auto; }
 .add-rec { display: inline-flex; align-items: center; gap: 4px; margin: var(--sp-2) 0 0 34px; background: transparent; border: 1px dashed var(--line); border-radius: var(--radius-md); color: var(--ink-3); padding: var(--sp-1) var(--sp-3); font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
@@ -83,6 +90,14 @@
 .bd-chip.on { background: var(--primary-wash); color: var(--primary); border-color: var(--primary); }
 
 .empty-hint { color: var(--ink-3); font-size: var(--text-sm); }
+
+/* Commentaire par bloc (dans les détails) */
+.block-note { margin-top: var(--sp-3); }
+
+/* Encart d'écriture libre de la séance */
+.free-note { margin-top: var(--sp-5); }
+.fn-label { display: block; font-weight: 700; margin-bottom: var(--sp-2); }
+.free-note textarea { resize: vertical; }
 
 /* Total estimé (en-tête) */
 .header-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; justify-content: flex-end; }

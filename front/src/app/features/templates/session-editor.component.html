@@ -56,10 +56,10 @@
 @if (loading()) {
   <div class="card">Chargement de la séance…</div>
 } @else {
-@for (sec of sections; track sec.key) {
+@for (sec of visibleSections(); track sec.key) {
   <section class="section">
     <header class="section-head">
-      <h2>{{ sec.label }}</h2>
+      @if (!isSimple()) { <h2>{{ sec.label }}</h2> }
     </header>
 
     <div class="block-list" cdkDropList (cdkDropListDropped)="dropBlock(sec.key, $event)">
@@ -91,8 +91,14 @@
               [selectedId]="b.prescription.zoneId" (zoneChange)="onBlockZone(b, $event)" />
           }
 
+          <!-- Effort perçu visé (RPE 1–10), propre au contenu de la séance. -->
+          <span class="rpe" title="Effort perçu visé (RPE 1–10)">
+            <span class="rpe-lb">RPE</span>
+            <input type="number" class="rpe-in" min="1" max="10" [ngModel]="b.rpe" (ngModelChange)="setBlockRpe(b, $event)" placeholder="–" />
+          </span>
+
           <span class="block-tools">
-            <button type="button" class="icon-btn" [class.on]="isDetailsOpen(b.id)" (click)="toggleDetails(b.id)" title="Détails (vitesse, éducatifs)"><app-icon name="ellipsis" [size]="16" /></button>
+            <button type="button" class="icon-btn" [class.on]="isDetailsOpen(b.id)" (click)="toggleDetails(b.id)" title="Détails (vitesse, éducatifs, commentaire)"><app-icon name="ellipsis" [size]="16" /></button>
             <button type="button" class="icon-btn danger" (click)="removeBlock(sec.key, b.id)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
           </span>
         </div>
@@ -111,7 +117,7 @@
         @if ((b.reps ?? 0) > 1) {
           @if (hasRecovery(b) && b.recovery; as r) {
             <div class="rec">
-              <span class="rec-lb">récup</span>
+              <span class="rec-lb">Récup. entre répétitions<span class="rec-count">× {{ (b.reps ?? 1) - 1 }}</span></span>
               <span class="vol">
                 @if (recMeasureOf(b) === 'duration') {
                   <input type="number" class="vol-in" [ngModel]="recDurS(b)" (ngModelChange)="setRecDurS(b, $event)" placeholder="0" title="Durée (s)" />
@@ -131,7 +137,7 @@
               <button type="button" class="icon-btn danger rec-del" (click)="removeRecovery(b)" title="Retirer la récup"><app-icon name="x" [size]="15" /></button>
             </div>
           } @else {
-            <button type="button" class="add-rec" (click)="addRecovery(b)"><app-icon name="plus" [size]="14" /> Récupération entre répétitions</button>
+            <button type="button" class="add-rec" (click)="addRecovery(b)"><app-icon name="plus" [size]="14" /> Ajouter la récupération entre les répétitions</button>
           }
         }
 
@@ -155,6 +161,9 @@
                 }
               </div>
             }
+            <!-- Commentaire libre du coach sur ce bloc (ex. « 1'13-1'14, plus vite si ok »). -->
+            <input class="form-control block-note" [(ngModel)]="b.note"
+                   placeholder="Commentaire sur ce bloc (optionnel)" />
           </div>
         }
       </article>
@@ -169,7 +178,22 @@
         <button type="button" class="add-chip" (click)="addBlock(sec.key, p.block)"><app-icon name="plus" [size]="14" /> {{ p.label }}</button>
       }
       <button type="button" class="add-chip add-chip--plain" (click)="addBlock(sec.key)"><app-icon name="plus" [size]="14" /> Bloc libre</button>
+      <!-- Séance simple (footing) : pas d'échauffement / retour au calme imposés. -->
+      @if (isSimple()) {
+        <button type="button" class="add-chip add-chip--plain" (click)="enableStructured()"
+                title="Ajouter un échauffement et un retour au calme">
+          <app-icon name="layout-grid" [size]="14" /> Séance structurée
+        </button>
+      }
     </div>
   </section>
 }
+
+<!-- Encart d'écriture libre : intention de séance, consignes, ressenti attendu. -->
+<section class="card free-note">
+  <label for="sess-notes" class="fn-label">Notes de séance <span class="field-hint">(écriture libre)</span></label>
+  <textarea id="sess-notes" class="form-control" rows="4"
+            [ngModel]="notes()" (ngModelChange)="notes.set($event)"
+            placeholder="Intention de la séance, consignes, ressenti attendu, variantes…"></textarea>
+</section>
 }

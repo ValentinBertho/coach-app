@@ -142,7 +142,15 @@ class AthletePhysioControllerTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
 
         assertThat(list).isNotEmpty();
-        assertThat(list.get(0).get("vdot").asDouble()).isGreaterThan(0);
-        assertThat(list.get(0).get("distanceCode").asText()).isEqualTo("10km");
+        // L'athlète a déjà un historique de records seedé : on retrouve le 10 km ajouté ici et on
+        // vérifie que son VDOT est calculé.
+        JsonNode tenK = null;
+        for (JsonNode p : list) {
+            if ("10km".equals(p.get("distanceCode").asText()) && p.get("timeSeconds").asInt() == 2480) {
+                tenK = p;
+            }
+        }
+        assertThat(tenK).isNotNull();
+        assertThat(tenK.get("vdot").asDouble()).isGreaterThan(0);
     }
 }

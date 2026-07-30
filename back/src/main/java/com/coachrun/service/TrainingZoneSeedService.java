@@ -37,65 +37,92 @@ public class TrainingZoneSeedService {
     private record ZoneDef(String name, String color, List<String> metricCodes) {
     }
 
-    private static final List<String> PACE_HR_RPE = List.of("PACE", "HR", "RPE");
-    private static final List<String> PACE_ONLY = List.of("PACE");
+    /** Zone d'allure : porte l'allure + la vitesse (dérivée de l'allure, même règle). */
+    private static final List<String> PACE_SCALE = List.of("PACE", "SPEED");
+    /** Zone cardiaque : FC en bpm + % de la FC max. */
+    private static final List<String> HR_SCALE = List.of("HR", "PCT_HRMAX");
 
     /**
-     * Jeu de zones standard, dans l'ordre. Les 6 premières (physiologiques) portent allure + FC + RPE
-     * (effort perçu, cible fixe par zone) et constituent l'échelle FC ; les 7 suivantes (allures de
-     * compétition) ne portent que l'allure et complètent l'échelle Allure à 13 bandes façon Nolio.
+     * Jeu de zones standard, dans l'ordre. Deux échelles indépendantes (façon Nolio) :
+     * <ul>
+     *   <li><b>Allure</b> (12 bandes) : du footing facile aux allures de compétition. Chaque bande
+     *       porte l'allure <i>et</i> la vitesse (la vitesse se calibre sur l'allure).</li>
+     *   <li><b>Cardio</b> (4 bandes) : endurance aérobie, seuil, VO2max, anaérobie — en bpm et en
+     *       % de la FC max.</li>
+     * </ul>
+     * Le RPE n'est <b>pas</b> une zone : il se règle sur le contenu de la séance (par bloc).
      */
     private static final List<ZoneDef> STANDARD_ZONES = List.of(
-            new ZoneDef("Récupération", "#94a3b8", PACE_HR_RPE),
-            new ZoneDef("Endurance fondamentale", "#22c55e", PACE_HR_RPE),
-            new ZoneDef("Marathon", "#84cc16", PACE_HR_RPE),
-            new ZoneDef("Seuil", "#eab308", PACE_HR_RPE),
-            new ZoneDef("VO2", "#f97316", PACE_HR_RPE),
-            new ZoneDef("Anaérobie / Sprint", "#ef4444", PACE_HR_RPE),
-            new ZoneDef("Allure semi", "#16a34a", PACE_ONLY),
-            new ZoneDef("Allure 10 km", "#65a30d", PACE_ONLY),
-            new ZoneDef("Allure 5 km", "#ca8a04", PACE_ONLY),
-            new ZoneDef("Allure 3 km", "#ea580c", PACE_ONLY),
-            new ZoneDef("Allure 1500 m", "#dc2626", PACE_ONLY),
-            new ZoneDef("Allure 800 m", "#b91c1c", PACE_ONLY),
-            new ZoneDef("Allure 400 m", "#7f1d1d", PACE_ONLY));
+            // --- Échelle Allure ---
+            new ZoneDef("Footing facile", "#94a3b8", PACE_SCALE),
+            new ZoneDef("EF", "#22c55e", PACE_SCALE),
+            new ZoneDef("Steady", "#84cc16", PACE_SCALE),
+            new ZoneDef("Seuil 1", "#facc15", PACE_SCALE),
+            new ZoneDef("Tempo", "#eab308", PACE_SCALE),
+            new ZoneDef("Seuil 2 bas", "#f59e0b", PACE_SCALE),
+            new ZoneDef("Seuil 2 haut", "#f97316", PACE_SCALE),
+            new ZoneDef("10 km", "#65a30d", PACE_SCALE),
+            new ZoneDef("5 km", "#ca8a04", PACE_SCALE),
+            new ZoneDef("3 km", "#ea580c", PACE_SCALE),
+            new ZoneDef("1500 m", "#dc2626", PACE_SCALE),
+            new ZoneDef("800 m", "#b91c1c", PACE_SCALE),
+            // --- Échelle Cardio ---
+            new ZoneDef("Endurance aérobie", "#22c55e", HR_SCALE),
+            new ZoneDef("Seuil", "#eab308", HR_SCALE),
+            new ZoneDef("VO2max", "#f97316", HR_SCALE),
+            new ZoneDef("Anaérobie", "#ef4444", HR_SCALE));
 
     /** Règle par défaut d'un couple (zone, métrique) : ancre + %min + %max + modèle nommé. */
     private record Rule(ZoneAnchor anchor, double low, double high, ZoneModel model) {
     }
 
     /**
-     * Règles standard seedées : allure dérivée des seuils/VDOT, FC en % de la FC max.
-     * Clé = "nom de zone|code métrique".
+     * Règles standard seedées. Clé = "nom de zone|code métrique".
+     *
+     * <p>Échelle <b>Allure</b> : chaque bande est ancrée sur une valeur de référence de l'athlète —
+     * seuils lactiques (LT1/LT2), vitesse critique (VC), VMA, ou allure de compétition dérivée du
+     * VDOT. Les allures se recalculent donc dès qu'une de ces métriques change. La <b>vitesse</b>
+     * porte la même règle que l'allure (elle en est la conversion).</p>
+     *
+     * <p>Échelle <b>Cardio</b> : bandes en % de la FC max (bpm et % FCmax).</p>
      */
     private static final Map<String, Rule> RULES = Map.ofEntries(
-            Map.entry("Récupération|PACE", new Rule(ZoneAnchor.LT1, 60, 72, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("Récupération|HR", new Rule(ZoneAnchor.FCMAX, 60, 70, ZoneModel.PCT_FCMAX)),
-            Map.entry("Endurance fondamentale|PACE", new Rule(ZoneAnchor.LT1, 80, 92, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("Endurance fondamentale|HR", new Rule(ZoneAnchor.FCMAX, 70, 80, ZoneModel.PCT_FCMAX)),
-            Map.entry("Marathon|PACE", new Rule(ZoneAnchor.LT1, 95, 102, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("Marathon|HR", new Rule(ZoneAnchor.FCMAX, 80, 85, ZoneModel.PCT_FCMAX)),
-            Map.entry("Seuil|PACE", new Rule(ZoneAnchor.LT2, 96, 103, ZoneModel.LACTATE_THRESHOLD)),
-            Map.entry("Seuil|HR", new Rule(ZoneAnchor.FCMAX, 85, 90, ZoneModel.PCT_FCMAX)),
-            Map.entry("VO2|PACE", new Rule(ZoneAnchor.VC, 100, 107, ZoneModel.VC)),
-            Map.entry("VO2|HR", new Rule(ZoneAnchor.FCMAX, 90, 95, ZoneModel.PCT_FCMAX)),
-            Map.entry("Anaérobie / Sprint|PACE", new Rule(ZoneAnchor.PACE_800M, 98, 110, ZoneModel.DANIELS_VDOT)),
-            Map.entry("Anaérobie / Sprint|HR", new Rule(ZoneAnchor.FCMAX, 95, 100, ZoneModel.PCT_FCMAX)),
-            // RPE (effort perçu 1–10) : cible fixe par zone, sans ancre (identique pour tous les athlètes).
-            Map.entry("Récupération|RPE", new Rule(null, 2, 3, ZoneModel.CUSTOM)),
-            Map.entry("Endurance fondamentale|RPE", new Rule(null, 3, 4, ZoneModel.CUSTOM)),
-            Map.entry("Marathon|RPE", new Rule(null, 5, 6, ZoneModel.CUSTOM)),
-            Map.entry("Seuil|RPE", new Rule(null, 7, 8, ZoneModel.CUSTOM)),
-            Map.entry("VO2|RPE", new Rule(null, 8, 9, ZoneModel.CUSTOM)),
-            Map.entry("Anaérobie / Sprint|RPE", new Rule(null, 9, 10, ZoneModel.CUSTOM)),
-            // Allures de compétition (échelle Allure fine, dérivées du VDOT) : la bande encadre l'allure de la distance.
-            Map.entry("Allure semi|PACE", new Rule(ZoneAnchor.PACE_SEMI, 98, 102, ZoneModel.DANIELS_VDOT)),
-            Map.entry("Allure 10 km|PACE", new Rule(ZoneAnchor.PACE_10KM, 98, 102, ZoneModel.DANIELS_VDOT)),
-            Map.entry("Allure 5 km|PACE", new Rule(ZoneAnchor.PACE_5KM, 98, 102, ZoneModel.DANIELS_VDOT)),
-            Map.entry("Allure 3 km|PACE", new Rule(ZoneAnchor.PACE_3000M, 98, 102, ZoneModel.DANIELS_VDOT)),
-            Map.entry("Allure 1500 m|PACE", new Rule(ZoneAnchor.PACE_1500M, 98, 103, ZoneModel.DANIELS_VDOT)),
-            Map.entry("Allure 800 m|PACE", new Rule(ZoneAnchor.PACE_800M, 98, 103, ZoneModel.DANIELS_VDOT)),
-            Map.entry("Allure 400 m|PACE", new Rule(ZoneAnchor.PACE_800M, 104, 112, ZoneModel.DANIELS_VDOT)));
+            // --- Allure : endurance → seuils (ancrées LT1/LT2/VC/VMA) ---
+            Map.entry("Footing facile|PACE", new Rule(ZoneAnchor.LT1, 60, 72, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("EF|PACE", new Rule(ZoneAnchor.LT1, 80, 92, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Steady|PACE", new Rule(ZoneAnchor.LT1, 93, 99, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Seuil 1|PACE", new Rule(ZoneAnchor.LT1, 100, 104, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Tempo|PACE", new Rule(ZoneAnchor.LT2, 92, 96, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Seuil 2 bas|PACE", new Rule(ZoneAnchor.LT2, 96, 100, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Seuil 2 haut|PACE", new Rule(ZoneAnchor.LT2, 100, 104, ZoneModel.LACTATE_THRESHOLD)),
+            // --- Allure : compétition (dérivées du VDOT / VMA) ---
+            Map.entry("10 km|PACE", new Rule(ZoneAnchor.PACE_10KM, 98, 102, ZoneModel.DANIELS_VDOT)),
+            Map.entry("5 km|PACE", new Rule(ZoneAnchor.PACE_5KM, 98, 102, ZoneModel.DANIELS_VDOT)),
+            Map.entry("3 km|PACE", new Rule(ZoneAnchor.PACE_3000M, 98, 102, ZoneModel.DANIELS_VDOT)),
+            Map.entry("1500 m|PACE", new Rule(ZoneAnchor.VMA, 98, 103, ZoneModel.VMA)),
+            Map.entry("800 m|PACE", new Rule(ZoneAnchor.PACE_800M, 98, 103, ZoneModel.DANIELS_VDOT)),
+            // --- Vitesse : même règle que l'allure (conversion) ---
+            Map.entry("Footing facile|SPEED", new Rule(ZoneAnchor.LT1, 60, 72, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("EF|SPEED", new Rule(ZoneAnchor.LT1, 80, 92, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Steady|SPEED", new Rule(ZoneAnchor.LT1, 93, 99, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Seuil 1|SPEED", new Rule(ZoneAnchor.LT1, 100, 104, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Tempo|SPEED", new Rule(ZoneAnchor.LT2, 92, 96, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Seuil 2 bas|SPEED", new Rule(ZoneAnchor.LT2, 96, 100, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("Seuil 2 haut|SPEED", new Rule(ZoneAnchor.LT2, 100, 104, ZoneModel.LACTATE_THRESHOLD)),
+            Map.entry("10 km|SPEED", new Rule(ZoneAnchor.PACE_10KM, 98, 102, ZoneModel.DANIELS_VDOT)),
+            Map.entry("5 km|SPEED", new Rule(ZoneAnchor.PACE_5KM, 98, 102, ZoneModel.DANIELS_VDOT)),
+            Map.entry("3 km|SPEED", new Rule(ZoneAnchor.PACE_3000M, 98, 102, ZoneModel.DANIELS_VDOT)),
+            Map.entry("1500 m|SPEED", new Rule(ZoneAnchor.VMA, 98, 103, ZoneModel.VMA)),
+            Map.entry("800 m|SPEED", new Rule(ZoneAnchor.PACE_800M, 98, 103, ZoneModel.DANIELS_VDOT)),
+            // --- Cardio : bpm + % FC max ---
+            Map.entry("Endurance aérobie|HR", new Rule(ZoneAnchor.FCMAX, 65, 80, ZoneModel.PCT_FCMAX)),
+            Map.entry("Endurance aérobie|PCT_HRMAX", new Rule(ZoneAnchor.FCMAX, 65, 80, ZoneModel.PCT_FCMAX)),
+            Map.entry("Seuil|HR", new Rule(ZoneAnchor.FCMAX, 80, 90, ZoneModel.PCT_FCMAX)),
+            Map.entry("Seuil|PCT_HRMAX", new Rule(ZoneAnchor.FCMAX, 80, 90, ZoneModel.PCT_FCMAX)),
+            Map.entry("VO2max|HR", new Rule(ZoneAnchor.FCMAX, 90, 96, ZoneModel.PCT_FCMAX)),
+            Map.entry("VO2max|PCT_HRMAX", new Rule(ZoneAnchor.FCMAX, 90, 96, ZoneModel.PCT_FCMAX)),
+            Map.entry("Anaérobie|HR", new Rule(ZoneAnchor.FCMAX, 96, 100, ZoneModel.PCT_FCMAX)),
+            Map.entry("Anaérobie|PCT_HRMAX", new Rule(ZoneAnchor.FCMAX, 96, 100, ZoneModel.PCT_FCMAX)));
 
     private final TrainingZoneRepository zoneRepository;
     private final MetricTypeRepository metricTypeRepository;

@@ -26,7 +26,10 @@ export class CourseService {
 
   putStructure(
     templateId: string,
-    body: { discipline?: string | null; categoryId?: string | null; favorite?: boolean; structure: SessionStructure },
+    body: {
+      discipline?: string | null; categoryId?: string | null; favorite?: boolean;
+      notes?: string | null; structure: SessionStructure;
+    },
   ): Observable<CourseStructureResponse> {
     return this.http.put<CourseStructureResponse>(`${this.club()}/workout-templates/${templateId}/structure`, body);
   }

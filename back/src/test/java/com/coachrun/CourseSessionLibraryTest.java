@@ -14,6 +14,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -79,7 +82,11 @@ class CourseSessionLibraryTest {
         JsonNode list = objectMapper.readTree(mvc.perform(get("/clubs/{c}/session-categories", clubId)
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertThat(list).hasSize(2);
+        // Le club est seedé avec ses catégories de bibliothèque : on vérifie la présence des deux
+        // catégories créées ici (racine + enfant), pas un total absolu.
+        List<String> catIds = new ArrayList<>();
+        list.forEach(c -> catIds.add(c.get("id").asText()));
+        assertThat(catIds).contains(rootId, child.get("id").asText());
 
         // Une catégorie ne peut pas être son propre parent.
         mvc.perform(put("/clubs/{c}/session-categories/{id}", clubId, rootId)

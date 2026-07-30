@@ -29,7 +29,9 @@ public class SessionCalculatorEngine {
             double fcDomain1Pct, double fcDomain2Pct,
             Integer pace800S, Integer pace1500S, Integer pace3000S, Integer pace5kmS,
             Integer pace10kmS, Integer pace15kmS, Integer paceSemiS, Integer paceMarathonS,
-            Integer hrRest
+            Integer hrRest,
+            /** VMA en km/h (ancre de zone {@code VMA}). */
+            Double vmaKmh
     ) {
     }
 
@@ -159,11 +161,17 @@ public class SessionCalculatorEngine {
             case PCT_LT1 -> c.lt1Ms() == null;
             case PCT_LT2 -> c.lt2Ms() == null;
             case PCT_VC -> c.vcMs() == null;
+            case PCT_VMA -> c.vmaKmh() == null;
             default -> false;
         };
     }
 
     // --- Helpers --------------------------------------------------------------
+
+    /** Allure (s/km) à 100 % d'une VMA exprimée en km/h ; null si absente. */
+    private Integer vmaPace(Double vmaKmh) {
+        return (vmaKmh == null || vmaKmh <= 0) ? null : (int) Math.round(3600.0 / vmaKmh);
+    }
 
     private Integer resolveBasePace(PrescriptionRef ref, AthletePaceContext c) {
         return switch (ref) {
@@ -179,6 +187,8 @@ public class SessionCalculatorEngine {
                     c.pace10kmS(), c.pace15kmS(), c.paceSemiS(), c.pace5kmS());
             case PCT_VC -> firstNonNull(toPace(c.vcMs()),
                     c.pace3000S(), c.pace5kmS(), c.pace10kmS());
+            // VMA : allure à 100 % de la VMA (km/h → s/km) ; à défaut ≈ allure 3000 m (Daniels).
+            case PCT_VMA -> firstNonNull(vmaPace(c.vmaKmh()), c.pace3000S(), c.pace5kmS());
             case PCT_PACE_800M -> c.pace800S();
             case PCT_PACE_1500M -> c.pace1500S();
             case PCT_PACE_3000M -> c.pace3000S();

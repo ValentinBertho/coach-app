@@ -188,7 +188,8 @@ public class SessionCalculatorService {
                 paces == null ? null : paces.getPace15kmS(),
                 paces == null ? null : paces.getPaceSemiS(),
                 paces == null ? null : paces.getPaceMarathonS(),
-                a.getHrRest());
+                a.getHrRest(),
+                toDouble(a.getVma()));
     }
 
     private Double toDouble(BigDecimal v) {
