@@ -1,6 +1,6 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteSummary } from '../../core/models/athlete.model';
@@ -120,7 +120,7 @@ function mondayOf(d: Date): Date {
   templateUrl: './calendar.component.html',
   styleUrl: './calendar.component.scss',
 })
-export class CalendarComponent implements OnInit {
+export class CalendarComponent implements OnInit, OnDestroy {
   private readonly athleteService = inject(AthleteService);
   private readonly workoutService = inject(WorkoutService);
   private readonly strengthService = inject(StrengthService);
@@ -880,7 +880,9 @@ export class CalendarComponent implements OnInit {
     const previous = w.scheduledDate;
     this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x)));
     this.workoutService.reschedule(this.selectedAthleteId, w.id, targetDate).subscribe({
-      next: () => this.toast.success(`Séance déplacée au ${this.fmtDate(targetDate)}`),
+      next: () => this.toast.withAction(
+        `Séance déplacée au ${this.fmtDate(targetDate)}`, 'Annuler',
+        () => this.undoMove(w.id, previous)),
       error: () => {
         this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: previous } : x)));
         this.toast.error('Déplacement impossible.');
@@ -937,10 +939,71 @@ export class CalendarComponent implements OnInit {
       title: 'Supprimer la séance', message: m.workout.title, confirmLabel: 'Supprimer', danger: true,
     });
     if (!ok) return;
-    this.workoutService.delete(this.selectedAthleteId, m.workout.id).subscribe({
-      next: () => { this.toast.info('Séance supprimée.'); this.load(); },
-      error: () => this.toast.error('Suppression impossible.'),
+    this.deleteWorkoutWithUndo(m.workout);
+  }
+
+  // --- Annulation des actions calendrier -------------------------------------
+  // Un déplacement ou une suppression par erreur ne doit pas coûter une reconstruction
+  // manuelle : le toast porte l'action réparatrice.
+
+  /** Remet une séance à sa date d'origine (annulation d'un déplacement). */
+  private undoMove(workoutId: string, originalDate: string): void {
+    this.workouts.update((l) => l.map((x) => (x.id === workoutId ? { ...x, scheduledDate: originalDate } : x)));
+    this.workoutService.reschedule(this.selectedAthleteId, workoutId, originalDate).subscribe({
+      next: () => this.toast.info('Déplacement annulé.'),
+      error: () => { this.toast.error('Annulation impossible.'); this.load(); },
     });
+  }
+
+  private undoStrengthMove(scheduledId: string, originalDate: string): void {
+    this.strength.update((l) => l.map((x) => (x.id === scheduledId ? { ...x, scheduledDate: originalDate } : x)));
+    this.strengthService.rescheduleScheduled(this.selectedAthleteId, scheduledId, originalDate).subscribe({
+      next: () => this.toast.info('Déplacement annulé.'),
+      error: () => { this.toast.error('Annulation impossible.'); this.reloadStrength(); },
+    });
+  }
+
+  /**
+   * Suppressions différées : la séance disparaît immédiatement de l'écran mais n'est réellement
+   * supprimée qu'à l'expiration du toast. Annuler la fait simplement réapparaître — aucune
+   * reconstruction côté serveur, donc aucun risque de perdre la prescription figée.
+   */
+  private readonly pendingDeletions = new Map<string, ReturnType<typeof setTimeout>>();
+  private static readonly UNDO_WINDOW_MS = 8000;
+
+  private deleteWorkoutWithUndo(w: Workout): void {
+    const removed = this.workouts().find((x) => x.id === w.id);
+    if (!removed) return;
+    this.workouts.update((l) => l.filter((x) => x.id !== w.id));
+
+    const timer = setTimeout(() => {
+      this.pendingDeletions.delete(w.id);
+      this.workoutService.delete(this.selectedAthleteId, w.id).subscribe({
+        error: () => { this.toast.error('Suppression impossible.'); this.load(); },
+      });
+    }, CalendarComponent.UNDO_WINDOW_MS);
+    this.pendingDeletions.set(w.id, timer);
+
+    this.toast.withAction(`« ${w.title} » supprimée`, 'Annuler', () => {
+      const pending = this.pendingDeletions.get(w.id);
+      if (!pending) return; // la fenêtre est passée : la suppression est déjà partie
+      clearTimeout(pending);
+      this.pendingDeletions.delete(w.id);
+      this.workouts.update((l) => [...l, removed]);
+      this.toast.info('Suppression annulée.');
+    }, 'info');
+  }
+
+  /**
+   * Quitter l'écran valide les suppressions en attente : on ne laisse pas une séance
+   * « supprimée à l'écran » ressusciter au prochain chargement.
+   */
+  ngOnDestroy(): void {
+    for (const [workoutId, timer] of this.pendingDeletions) {
+      clearTimeout(timer);
+      this.workoutService.delete(this.selectedAthleteId, workoutId).subscribe({ error: () => { /* best-effort */ } });
+    }
+    this.pendingDeletions.clear();
   }
 
   // --- Séances de force planifiées : détail, déplacement, suppression ---------
@@ -997,7 +1060,9 @@ export class CalendarComponent implements OnInit {
     const previous = s.scheduledDate;
     this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, scheduledDate: targetDate } : x)));
     this.strengthService.rescheduleScheduled(this.selectedAthleteId, s.id, targetDate).subscribe({
-      next: () => this.toast.success(`${s.title} déplacée au ${this.fmtDate(targetDate)}`),
+      next: () => this.toast.withAction(
+        `${s.title} déplacée au ${this.fmtDate(targetDate)}`, 'Annuler',
+        () => this.undoStrengthMove(s.id, previous)),
       error: () => {
         this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, scheduledDate: previous } : x)));
         this.toast.error('Déplacement impossible.');

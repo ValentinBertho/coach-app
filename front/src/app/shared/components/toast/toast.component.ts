@@ -18,4 +18,9 @@ export class ToastComponent {
   dismiss(id: number): void {
     this.toastService.dismiss(id);
   }
+
+  /** Action réparatrice du toast (« Annuler ») : la jouer referme le toast. */
+  runAction(id: number): void {
+    this.toastService.runAction(id);
+  }
 }

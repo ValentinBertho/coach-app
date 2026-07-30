@@ -21,13 +21,27 @@
   padding: var(--sp-3) var(--sp-4);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  cursor: pointer;
   pointer-events: auto;
   animation: toastIn var(--duration) var(--ease);
   font-size: var(--text-md);
 }
 
-.toast-message { flex: 1; }
+.toast-message { flex: 1; cursor: pointer; }
+
+/* Action réparatrice (« Annuler ») : cible tactile confortable, lisible sur tous les niveaux. */
+.toast-action {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 0 var(--sp-3);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
+  background: none;
+  color: inherit;
+  font-weight: 700;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.toast-action:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
 
 .toast-close {
   background: none;
