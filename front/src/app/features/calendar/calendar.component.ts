@@ -35,6 +35,7 @@ import { SessionCategoryService } from '../../core/services/session-category.ser
 import { SessionLibraryPanelComponent } from '../../shared/components/session-library-panel/session-library-panel.component';
 import { StrengthPrescriptionViewComponent } from '../../shared/components/strength-prescription-view/strength-prescription-view.component';
 import { SidePanelComponent } from '../../shared/components/ui';
+import { ZoneBarComponent } from '../../shared/components/zone-bar/zone-bar.component';
 import { Activity } from '../../core/models/activity.model';
 import { ActivityService } from '../../core/services/activity.service';
 
@@ -114,7 +115,7 @@ function mondayOf(d: Date): Date {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule, RouterLink, DragDropModule, DatePipe, IconComponent, HelpHintComponent,
-    SessionLibraryPanelComponent, SidePanelComponent, StrengthPrescriptionViewComponent,
+    SessionLibraryPanelComponent, SidePanelComponent, StrengthPrescriptionViewComponent, ZoneBarComponent,
   ],
   host: { '(document:keydown)': 'onKeydown($event)' },
   templateUrl: './calendar.component.html',
@@ -1120,12 +1121,6 @@ export class CalendarComponent implements OnInit, OnDestroy {
     if (ev.key === 'ArrowLeft') { this.shift(-1); ev.preventDefault(); }
     else if (ev.key === 'ArrowRight') { this.shift(1); ev.preventDefault(); }
     else if (ev.key === 't' || ev.key === 'T') { this.goToday(); ev.preventDefault(); }
-  }
-
-  zonesOf(w: Workout): string[] {
-    const order = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'];
-    const present = new Set(w.steps.map((s) => s.zone).filter((z): z is NonNullable<typeof z> => !!z));
-    return order.filter((z) => present.has(z as never));
   }
 
   private gridStart(): Date {

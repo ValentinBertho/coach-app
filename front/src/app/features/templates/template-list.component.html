@@ -96,7 +96,10 @@
             </div>
           </div>
           <strong class="tpl-name">{{ t.name }}</strong>
-          <span class="field-hint tpl-sub">{{ t.title }} · {{ t.steps.length }} étape(s)</span>
+          <span class="field-hint tpl-sub">{{ t.title }}</span>
+          <!-- Aperçu de la forme de la séance : « 5 étapes » ne distingue pas un footing
+               d'une séance VMA. -->
+          <app-zone-bar [steps]="t.steps" />
         </div>
       }
     </div>
@@ -106,7 +109,8 @@
         <div class="tpl-row" (click)="openDetail(t)">
           <div class="tpl-row-id">
             <strong>{{ t.name }}</strong>
-            <span class="field-hint">{{ t.title }} · {{ t.steps.length }} étape(s)@if (t.categoryName) { · {{ t.categoryName }} }</span>
+            <span class="field-hint">{{ t.title }}@if (t.categoryName) { · {{ t.categoryName }} }</span>
+            <app-zone-bar [steps]="t.steps" />
           </div>
           <div class="tpl-row-actions" (click)="$event.stopPropagation()">
             <button type="button" class="icon-btn" (click)="openDetail(t)" title="Consulter"><app-icon name="eye" [size]="15" /></button>
