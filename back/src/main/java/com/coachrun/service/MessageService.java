@@ -78,10 +78,20 @@ public class MessageService {
         return out;
     }
 
-    /** Total de messages non lus du coach, tous athlètes confondus (badge de la navigation). */
+    /**
+     * Total de messages non lus du coach, tous athlètes confondus (badge de la navigation).
+     * Une seule requête agrégée : le badge se rafraîchit à chaque changement d'écran, il ne
+     * peut pas parcourir tout le club fil par fil.
+     */
     public long unreadCount(UUID clubId, UUID coachId) {
-        return conversations(clubId, coachId).stream()
-                .mapToLong(ConversationResponse::unreadCount).sum();
+        long total = 0;
+        for (Object[] row : messageRepository.countUnreadByAthlete(clubId, UserRole.ATHLETE)) {
+            UUID athleteId = (UUID) row[0];
+            if (accessValidator.effectiveLevel(coachId, athleteId).isPresent()) {
+                total += (Long) row[1];
+            }
+        }
+        return total;
     }
 
     /** Accusé de lecture : le coach a ouvert le fil de cet athlète. */

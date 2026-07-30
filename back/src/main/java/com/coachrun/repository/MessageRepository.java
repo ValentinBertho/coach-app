@@ -26,6 +26,18 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     /** Non-lus d'un fil : messages de l'athlète que le coach n'a pas encore ouverts. */
     long countByClubIdAndAthleteIdAndSenderRoleAndCoachReadAtIsNull(UUID clubId, UUID athleteId, UserRole senderRole);
 
+    /**
+     * Non-lus par athlète, en une requête — le badge de navigation se rafraîchit à chaque
+     * changement d'écran, il ne doit pas coûter deux requêtes par athlète du club.
+     * Chaque ligne : [athleteId, count].
+     */
+    @Query("""
+            select m.athlete.id, count(m) from Message m
+            where m.club.id = :clubId and m.senderRole = :senderRole and m.coachReadAt is null
+            group by m.athlete.id
+            """)
+    List<Object[]> countUnreadByAthlete(@Param("clubId") UUID clubId, @Param("senderRole") UserRole senderRole);
+
     /** Marque le fil comme lu (accusé de lecture à l'ouverture de la conversation). */
     @Modifying
     @Query("""
