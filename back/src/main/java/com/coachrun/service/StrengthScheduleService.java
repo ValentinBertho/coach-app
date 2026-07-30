@@ -48,10 +48,33 @@ public class StrengthScheduleService {
     @Transactional
     public ScheduledStrengthResponse schedule(UUID clubId, UUID athleteId, UUID sessionId,
                                               LocalDate date, FieldsPreset preset, UUID planId) {
+        return schedule(clubId, athleteId, sessionId, date, preset, planId, 0d);
+    }
+
+    /**
+     * Planifie une séance de force en appliquant un ajustement de charge en pourcentage
+     * (progression hebdomadaire d'un cycle : +2,5 % en semaine 2, −40 % en semaine de décharge…).
+     *
+     * <p>L'ajustement s'applique aux <strong>deux bornes</strong> de chaque fourchette : une
+     * prescription reste une fourchette min–max, jamais une valeur sèche.</p>
+     */
+    @Transactional
+    public ScheduledStrengthResponse schedule(UUID clubId, UUID athleteId, UUID sessionId,
+                                              LocalDate date, FieldsPreset preset, UUID planId,
+                                              Double chargePctAdjustment) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         StrengthSessionResponse session = strengthSessionService.get(clubId, sessionId);
-        CalculatedStrengthResponse calc = strengthSessionService.calculateForAthlete(clubId, athleteId, sessionId);
+
+        double adjustment = chargePctAdjustment == null ? 0d : chargePctAdjustment;
+        StrengthStructure structure = session.structure();
+        CalculatedStrengthResponse calc;
+        if (adjustment != 0d) {
+            structure = scaleCharges(structure, 1 + adjustment / 100d);
+            calc = strengthSessionService.previewForAthlete(clubId, athleteId, structure);
+        } else {
+            calc = strengthSessionService.calculateForAthlete(clubId, athleteId, sessionId);
+        }
 
         ScheduledStrengthSession ss = new ScheduledStrengthSession();
         ss.setClub(athlete.getClub());
@@ -59,7 +82,7 @@ public class StrengthScheduleService {
         ss.setSourceSessionId(sessionId);
         ss.setPlanId(planId);
         ss.setTitle(session.name());
-        ss.setSessionSnapshot(writeJson(session.structure()));
+        ss.setSessionSnapshot(writeJson(structure));
         ss.setCalculatedCharges(writeJson(calc));
         ss.setRequiredFields((preset != null ? preset : FieldsPreset.DEBUTANT).json());
         ss.setScheduledDate(date);
@@ -155,6 +178,45 @@ public class StrengthScheduleService {
     }
 
     // --- Helpers --------------------------------------------------------------
+
+    /**
+     * Applique un facteur multiplicatif aux charges prescrites (kg fixes et % du 1RM), en
+     * conservant l'intégralité du reste de la prescription (reps, effort, tempo, repos).
+     * Les deux bornes sont mises à l'échelle : la fourchette reste une fourchette.
+     */
+    private StrengthStructure scaleCharges(StrengthStructure structure, double factor) {
+        if (structure == null || structure.blocks().isEmpty()) {
+            return structure == null ? StrengthStructure.empty() : structure;
+        }
+        return new StrengthStructure(structure.blocks().stream()
+                .map(b -> new com.coachrun.dto.strength.StrengthBlock(
+                        b.id(), b.blockType(), b.format(), b.durationSec(), b.rounds(),
+                        b.workSec(), b.restSec(),
+                        b.exercises().stream().map(ex -> scaleItem(ex, factor)).toList()))
+                .toList());
+    }
+
+    private com.coachrun.dto.strength.StrengthExerciseItem scaleItem(
+            com.coachrun.dto.strength.StrengthExerciseItem ex, double factor) {
+        var p = ex.prescription();
+        if (p == null) {
+            return ex;
+        }
+        var scaled = new com.coachrun.dto.strength.StrengthPrescription(
+                p.chargeRefType(),
+                scale(p.chargeKgMin(), factor), scale(p.chargeKgMax(), factor),
+                scale(p.chargePctRmMin(), factor), scale(p.chargePctRmMax(), factor),
+                p.effortRefType(), p.rpeMin(), p.rpeMax(), p.rirMin(), p.rirMax(),
+                p.sets(), p.repsFixed(), p.repsMin(), p.repsMax(), p.durationSec(),
+                p.plyoContacts(), p.tempo(), p.restSecMin(), p.restSecMax(), p.maxPainAllowed());
+        return new com.coachrun.dto.strength.StrengthExerciseItem(
+                ex.exerciseId(), ex.exerciseName(), ex.setType(), scaled, ex.setConfig(), ex.coachNotes());
+    }
+
+    /** Arrondi au dixième : un %RM ou une charge au centième n'a aucun sens en salle. */
+    private Double scale(Double value, double factor) {
+        return value == null ? null : Math.round(value * factor * 10d) / 10d;
+    }
 
     private StrengthPrescriptionResponse toPrescription(ScheduledStrengthSession ss) {
         StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class);

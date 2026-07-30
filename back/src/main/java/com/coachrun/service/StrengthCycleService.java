@@ -75,7 +75,10 @@ public class StrengthCycleService {
             int dayOffset = 0;
             for (UUID sessionId : week.sessionIds()) {
                 LocalDate date = startDate.plusDays((long) (week.week() - 1) * 7 + dayOffset);
-                scheduleService.schedule(clubId, athleteId, sessionId, date, FieldsPreset.DEBUTANT);
+                // La progression hebdomadaire du cycle s'applique aux charges prescrites :
+                // c'est tout l'intérêt d'un cycle par rapport à une semaine répétée à l'identique.
+                scheduleService.schedule(clubId, athleteId, sessionId, date, FieldsPreset.DEBUTANT,
+                        null, week.chargePctAdjustment());
                 scheduled++;
                 dayOffset += 2;
             }
