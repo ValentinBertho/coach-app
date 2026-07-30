@@ -41,7 +41,15 @@
             <div class="athlete-main">
               <span class="avatar">{{ a.firstName[0] }}{{ a.lastName[0] }}</span>
               <div>
-                <div class="athlete-name">{{ a.firstName }} {{ a.lastName }}</div>
+                <div class="athlete-name">
+                  {{ a.firstName }} {{ a.lastName }}
+                  <!-- Forme (fatigue + douleur) : il fallait revenir au dashboard pour savoir
+                       qui allait mal. Couleur + libellé accessible, jamais la couleur seule. -->
+                  @if (formOf(a.id); as f) {
+                    <app-form-pill [level]="f.level" [fatigue]="f.fatigue" [pain]="f.pain"
+                                   [stale]="f.stale" [compact]="true" />
+                  }
+                </div>
                 @if (a.level) { <span class="field-hint">{{ a.level }}</span> }
               </div>
             </div>

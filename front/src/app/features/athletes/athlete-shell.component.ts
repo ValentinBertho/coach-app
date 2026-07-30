@@ -10,7 +10,9 @@ import { BreadcrumbService } from '../../core/services/breadcrumb.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { PhysioProfile } from '../../core/models/physio.model';
-import { DataOriginTagComponent, type DataOrigin } from '../../shared/components/physiology';
+import { DataOriginTagComponent, type DataOrigin, type FormLevel } from '../../shared/components/physiology';
+import { FormPillComponent } from '../../shared/components/form-pill/form-pill.component';
+import { AthleteForm, CoachDashboardService, FormStatus } from '../../core/services/coach-dashboard.service';
 
 const STATUS_LABELS: Record<AthleteStatus, string> = { ACTIVE: 'Actif', PAUSED: 'En pause', ARCHIVED: 'Archivé' };
 const STATUS_BADGES: Record<AthleteStatus, string> = { ACTIVE: 'badge-success', PAUSED: 'badge-warning', ARCHIVED: 'badge-neutral' };
@@ -51,7 +53,7 @@ const SECTION_LABELS: Record<string, string> = {
   selector: 'app-athlete-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, FormsModule, DataOriginTagComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, FormsModule, DataOriginTagComponent, FormPillComponent],
   // Au défilement, le bandeau se réduit à une ligne : il ne mange pas l'écran, mais il ne
   // disparaît jamais — c'est tout l'intérêt d'un contexte persistant.
   host: { '(window:scroll)': 'onScroll()' },
@@ -124,6 +126,19 @@ const SECTION_LABELS: Record<string, string> = {
         </div>
 
         <dl class="stat-strip">
+          <!-- Forme (fatigue + douleur) : l'info clé du cockpit disparaissait dès qu'on
+               entrait sur la fiche. Couleur + libellé, jamais la couleur seule. -->
+          <div class="stat-strip__item">
+            <dt>Forme</dt>
+            <dd>
+              @if (form(); as f) {
+                <app-form-pill [level]="f.level" [fatigue]="f.fatigue" [pain]="f.pain" [stale]="f.stale" />
+                @if (f.stale) { <span class="field-hint">Aucun retour récent</span> }
+              } @else {
+                <span class="field-hint">—</span>
+              }
+            </dd>
+          </div>
           <div class="stat-strip__item"><dt>FC max</dt><dd class="metric">{{ a.hrMax ?? '—' }}<small>{{ a.hrMax ? 'bpm' : '' }}</small></dd></div>
           <div class="stat-strip__item"><dt>FC repos</dt><dd class="metric">{{ a.hrRest ?? '—' }}<small>{{ a.hrRest ? 'bpm' : '' }}</small></dd></div>
           <!-- Une seule source de vérité visible : la valeur du moteur physio (LT2, puis VC)
@@ -263,6 +278,17 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly physio = inject(PhysioService);
+  private readonly dashboardService = inject(CoachDashboardService);
+
+  /** État de forme de l'athlète courant (même source que le cockpit). */
+  private readonly formData = signal<AthleteForm | null>(null);
+
+  readonly form = computed<{ level: FormLevel; fatigue: number | null; pain: number | null; stale: boolean } | null>(() => {
+    const f = this.formData();
+    if (!f) return null;
+    const levels: Record<FormStatus, FormLevel> = { GREEN: 'green', ORANGE: 'orange', RED: 'red' };
+    return { level: levels[f.formStatus], fatigue: f.fatigue, pain: f.pain, stale: !f.lastFeedbackDate };
+  });
 
   readonly athlete = signal<Athlete | null>(null);
   /** Profil physio : source de vérité des vitesses de référence (LT2, VC, VDOT). */
@@ -396,11 +422,17 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
     });
     // Profil physio : détermine la vitesse de référence affichée (moteur avant VMA saisie).
     this.physioProfile.set(null);
+    this.formData.set(null);
+    const formSub = this.dashboardService.form('all').subscribe({
+      next: (f) => this.formData.set(
+        [...f.routeAthletes, ...f.trailAthletes].find((a) => a.id === id) ?? null),
+      error: () => this.formData.set(null),
+    });
     const physioSub = this.physio.profile(id).subscribe({
       next: (p) => this.physioProfile.set(p),
       error: () => this.physioProfile.set(null),
     });
-    onCleanup(() => { sub.unsubscribe(); physioSub.unsubscribe(); });
+    onCleanup(() => { sub.unsubscribe(); physioSub.unsubscribe(); formSub.unsubscribe(); });
   }, { allowSignalWrites: true });
 
   ngOnDestroy(): void {

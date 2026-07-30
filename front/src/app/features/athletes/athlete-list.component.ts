@@ -6,21 +6,27 @@ import { AthleteSummary } from '../../core/models/athlete.model';
 import { TrainingGroup } from '../../core/models/training-group.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { TrainingGroupService } from '../../core/services/training-group.service';
+import { AthleteForm, CoachDashboardService, FormStatus } from '../../core/services/coach-dashboard.service';
 import { PaginatorComponent } from '../../shared/components/paginator/paginator.component';
+import { FormPillComponent } from '../../shared/components/form-pill/form-pill.component';
+import type { FormLevel } from '../../shared/components/physiology';
 
 type ListState = 'loading' | 'ready' | 'error';
+
+const LEVEL_OF: Record<FormStatus, FormLevel> = { GREEN: 'green', ORANGE: 'orange', RED: 'red' };
 
 @Component({
   selector: 'app-athlete-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, FormsModule, PaginatorComponent],
+  imports: [RouterLink, FormsModule, PaginatorComponent, FormPillComponent],
   templateUrl: './athlete-list.component.html',
   styleUrl: './athletes.scss',
 })
 export class AthleteListComponent implements OnInit {
   private readonly athleteService = inject(AthleteService);
   private readonly groupService = inject(TrainingGroupService);
+  private readonly dashboardService = inject(CoachDashboardService);
   private readonly searchInput$ = new Subject<void>();
 
   readonly state = signal<ListState>('loading');
@@ -31,12 +37,35 @@ export class AthleteListComponent implements OnInit {
   search = '';
   filterGroup = '';
 
+  /**
+   * État de forme par athlète, chargé une fois depuis le tableau de bord (même source que la
+   * jauge du cockpit : fatigue + douleur calculés côté serveur). Une carte sans retour connu
+   * n'affiche simplement pas de pastille.
+   */
+  private readonly formByAthlete = signal<Map<string, AthleteForm>>(new Map());
+
+  formOf(athleteId: string): { level: FormLevel; fatigue: number | null; pain: number | null; stale: boolean } | null {
+    const f = this.formByAthlete().get(athleteId);
+    if (!f) return null;
+    return {
+      level: LEVEL_OF[f.formStatus],
+      fatigue: f.fatigue,
+      pain: f.pain,
+      stale: !f.lastFeedbackDate,
+    };
+  }
+
   ngOnInit(): void {
     this.searchInput$.pipe(debounceTime(300)).subscribe(() => {
       this.page.set(0);
       this.load();
     });
     this.groupService.list().subscribe((g) => this.groups.set(g));
+    this.dashboardService.form('all').subscribe({
+      next: (f) => this.formByAthlete.set(
+        new Map([...f.routeAthletes, ...f.trailAthletes].map((a) => [a.id, a]))),
+      error: () => { /* pastille absente plutôt que liste bloquée */ },
+    });
     this.load();
   }
 
