@@ -546,6 +546,7 @@ public class DemoSeedService {
         UUID p10km = byName.getOrDefault("10 km", fallback);
         // Échelle Cardio
         UUID cardioEndurance = byName.getOrDefault("Endurance aérobie", fallback);
+        UUID cardioSeuil = byName.getOrDefault("Seuil", fallback);
 
         // Catégories de bibliothèque (rangement façon Nolio) : chaque séance en a une.
         SessionCategory cFooting = seedCategory(club, "Footing facile", 1);
@@ -604,16 +605,18 @@ public class DemoSeedService {
         seuilFrac.setUseCount(7);
         seuilFrac.setNotes("Séance clé de la semaine. Rester régulier : les deux derniers 1000 m "
                 + "doivent être les plus rapides. Récup en trot, pas d'arrêt.");
+        // Le bloc d'effort porte les deux échelles : zone d'allure + zone cardio (« hrZoneId »),
+        // donc la cible affichée est « allure · FC » — la démo du double pilotage.
         seuilFrac.setStructureJson("""
                 {"warmup":[{"id":"wu1","type":"warmup","durationS":1200,
                             "prescription":{"zoneId":"%s"},"rpe":3,"drillIds":["%s"]}],
                  "main":[{"id":"m1","type":"intervals","reps":6,"distanceM":1000,
-                          "prescription":{"zoneId":"%s"},"rpe":7,
+                          "prescription":{"zoneId":"%s","hrZoneId":"%s"},"rpe":7,
                           "note":"Régularité : même temps à ±2 s",
                           "recovery":{"type":"jog","durationS":90,"prescription":{"zoneId":"%s"}}}],
                  "cooldown":[{"id":"cd1","type":"cooldown","durationS":600,
                               "prescription":{"zoneId":"%s"},"rpe":2}]}"""
-                .formatted(ef, warmupDrillId, seuil2, footing, footing));
+                .formatted(ef, warmupDrillId, seuil2, cardioSeuil, footing, footing));
 
         // --- Séance structurée : VMA courte (favori) ---
         WorkoutTemplate vmaCourte = seedTemplate(club, "10 × 400 m VMA", WorkoutType.INTERVALS,

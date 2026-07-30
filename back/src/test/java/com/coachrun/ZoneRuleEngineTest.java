@@ -160,4 +160,46 @@ class ZoneRuleEngineTest {
         }
         assertThat(found).isTrue();
     }
+
+    /**
+     * Double échelle : les zones d'allure ne portent pas de FC. Un bloc peut donc désigner une
+     * <b>zone cardio</b> en second ({@code hrZoneId}) pour obtenir allure <i>et</i> FC.
+     */
+    @Test
+    void blockCombinesPaceZoneWithCardioZone() throws Exception {
+        String paceZoneId = zoneIdNamed("Seuil 2 bas");
+        String cardioZoneId = zoneIdNamed("Seuil");
+
+        // Zone d'allure seule : une cible d'allure, pas de FC.
+        JsonNode paceOnly = calcBlock("{\"zoneId\":\"" + paceZoneId + "\",\"distanceM\":1000}");
+        assertThat(paceOnly.get("computable").asBoolean()).isTrue();
+        assertThat(paceOnly.get("paceMinSecPerKm").isNull()).isFalse();
+        assertThat(paceOnly.get("hrMin").isNull()).isTrue();
+
+        // Même zone d'allure + zone cardio : l'allure est inchangée, la FC vient de la zone cardio.
+        JsonNode both = calcBlock("{\"zoneId\":\"" + paceZoneId + "\",\"hrZoneId\":\"" + cardioZoneId
+                + "\",\"distanceM\":1000}");
+        assertThat(both.get("paceMinSecPerKm").asInt()).isEqualTo(paceOnly.get("paceMinSecPerKm").asInt());
+        // Bande « Seuil » = 80–90 % de FCmax 185.
+        assertThat(both.get("hrMin").asInt()).isEqualTo((int) Math.round(185 * 0.80));
+        assertThat(both.get("hrMax").asInt()).isEqualTo((int) Math.round(185 * 0.90));
+    }
+
+    private JsonNode calcBlock(String body) throws Exception {
+        return objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes/{a}/session-calc", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+    }
+
+    private String zoneIdNamed(String name) throws Exception {
+        JsonNode zones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8));
+        for (JsonNode z : zones) {
+            if (name.equals(z.get("name").asText())) {
+                return z.get("id").asText();
+            }
+        }
+        throw new AssertionError("Zone « " + name + " » absente du seed.");
+    }
 }

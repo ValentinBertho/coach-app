@@ -132,15 +132,15 @@ export class SessionEditorComponent implements OnInit {
 
   /** Zone pré-sélectionnée selon le type de bloc (QA4). */
   private readonly DEFAULT_ZONE_BY_TYPE: Record<string, string> = {
-    intervals: 'VO2',
-    tempo: 'Marathon',
-    threshold: 'Seuil',
-    easy: 'Endurance fondamentale',
-    warmup: 'Endurance fondamentale',
-    cooldown: 'Récupération',
-    recovery: 'Récupération',
-    long: 'Endurance fondamentale',
-    run: 'Endurance fondamentale',
+    intervals: '3 km',
+    tempo: 'Tempo',
+    threshold: 'Seuil 2 bas',
+    easy: 'EF',
+    warmup: 'EF',
+    cooldown: 'Footing facile',
+    recovery: 'Footing facile',
+    long: 'EF',
+    run: 'EF',
   };
 
   private zoneIdByName(name: string): string | null {
@@ -149,13 +149,42 @@ export class SessionEditorComponent implements OnInit {
   }
 
   private defaultZoneIdForType(type: string): string | null {
-    return this.zoneIdByName(this.DEFAULT_ZONE_BY_TYPE[type] ?? 'Endurance fondamentale');
+    return this.zoneIdByName(this.DEFAULT_ZONE_BY_TYPE[type] ?? 'EF');
   }
 
   /** Choix de zone d'un bloc (via le sélecteur riche) → met à jour la prescription + recalcule. */
   onBlockZone(b: CourseBlock, zoneId: string): void {
     if (!b.prescription) b.prescription = { zoneId };
     else b.prescription.zoneId = zoneId;
+    // Une zone cardio ne se double pas d'une seconde cible FC : elle en porte déjà une.
+    if (b.prescription.hrZoneId && this.isCardioZone(zoneId)) b.prescription.hrZoneId = null;
+    this.recalc(b);
+  }
+
+  /** Zones portant la métrique FC (échelle cardio) — celles qu'on peut ajouter en second. */
+  readonly cardioZones = computed(() => {
+    const hrIds = this.metricIds('HR', 'PCT_HRMAX');
+    return this.zones().filter((z) => z.rules?.some((r) => hrIds.has(r.metricTypeId)));
+  });
+
+  private metricIds(...codes: string[]): Set<string> {
+    return new Set(this.metrics().filter((m) => codes.includes(m.code)).map((m) => m.id));
+  }
+
+  /** Vrai si cette zone appartient à l'échelle cardio (elle porte déjà sa cible FC). */
+  isCardioZone(zoneId: string | null | undefined): boolean {
+    return !!zoneId && this.cardioZones().some((z) => z.id === zoneId);
+  }
+
+  /** Zone cardio proposée par défaut quand le coach ajoute une cible FC à un bloc. */
+  defaultCardioZoneId(): string | null {
+    return this.cardioZones()[0]?.id ?? null;
+  }
+
+  /** Ajoute, change ou retire ({@code null}) la zone cardio d'un bloc. */
+  setBlockHrZone(b: CourseBlock, hrZoneId: string | null): void {
+    if (!b.prescription) return;
+    b.prescription.hrZoneId = hrZoneId;
     this.recalc(b);
   }
 
@@ -502,7 +531,10 @@ export class SessionEditorComponent implements OnInit {
     // d'anciens snapshots non encore migrés vers une zone.
     let body: Parameters<CourseService['sessionCalc']>[1] | null = null;
     if (p.zoneId) {
-      body = { zoneId: p.zoneId, reps: b.reps, distanceM: b.distanceM, durationS: b.durationS };
+      body = {
+        zoneId: p.zoneId, hrZoneId: p.hrZoneId ?? null,
+        reps: b.reps, distanceM: b.distanceM, durationS: b.durationS,
+      };
     } else if (p.ref && p.minPct != null && p.maxPct != null) {
       body = { ref: p.ref, minPct: p.minPct, maxPct: p.maxPct, reps: b.reps, distanceM: b.distanceM, durationS: b.durationS };
     }

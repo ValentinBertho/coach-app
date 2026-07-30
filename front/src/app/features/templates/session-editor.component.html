@@ -153,6 +153,24 @@
                 </div>
               }
             }
+            <!-- Zone cardio en second : les deux échelles étant séparées, c'est elle qui ajoute
+                 la cible FC à côté de l'allure dans la ligne de cible du bloc. -->
+            @if (b.prescription && cardioZones().length && !isCardioZone(b.prescription.zoneId)) {
+              <div class="block-hr">
+                <span class="bd-lb">Cible FC</span>
+                @if (b.prescription.hrZoneId) {
+                  <app-zone-picker [dense]="true"
+                    [zones]="cardioZones()" [metrics]="metrics()" [values]="zoneValues()"
+                    [selectedId]="b.prescription.hrZoneId" (zoneChange)="setBlockHrZone(b, $event)" />
+                  <button type="button" class="icon-btn danger" (click)="setBlockHrZone(b, null)"
+                          title="Retirer la cible FC"><app-icon name="x" [size]="15" /></button>
+                } @else {
+                  <button type="button" class="bd-chip" (click)="setBlockHrZone(b, defaultCardioZoneId())">
+                    <app-icon name="plus" [size]="13" /> Ajouter une zone cardio
+                  </button>
+                }
+              </div>
+            }
             @if (drills().length) {
               <div class="block-drills">
                 <span class="bd-lb">Éducatifs</span>

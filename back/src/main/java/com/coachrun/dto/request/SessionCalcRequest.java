@@ -16,6 +16,8 @@ import java.util.UUID;
  */
 public record SessionCalcRequest(
         UUID zoneId,
+        /** Zone cardio facultative accompagnant {@code zoneId} : d'où vient la cible FC. */
+        UUID hrZoneId,
         PrescriptionRef ref,
         @DecimalMin("30.0") @DecimalMax("150.0") Double minPct,
         @DecimalMin("30.0") @DecimalMax("150.0") Double maxPct,
