@@ -24,7 +24,7 @@ import { Unavailability, UnavailabilityReason } from '../../core/models/unavaila
 import { MesocycleTemplate } from '../../core/models/mesocycle-template.model';
 import { MesocycleTemplateService } from '../../core/services/mesocycle-template.service';
 import { TrainingGroup } from '../../core/models/training-group.model';
-import { TrainingGroupService } from '../../core/services/training-group.service';
+import { GroupCalendarRow, TrainingGroupService } from '../../core/services/training-group.service';
 import { MesocycleParams } from '../../core/services/workout.service';
 import { RunDrill } from '../../core/models/run-drill.model';
 import { RunDrillService } from '../../core/services/run-drill.service';
@@ -220,6 +220,131 @@ export class CalendarComponent implements OnInit {
   /** Volume max d'un jour sur la période (pour normaliser les barres de densité). */
   readonly maxDayKm = computed(() => Math.max(1, ...this.cells().map((c) => c.km)));
 
+    // --- Mode groupe : la semaine de tous les athlètes d'un groupe ---------------
+  // Un coach de club planifie par groupe, pas athlète par athlète. Le mode groupe
+  // affiche une ligne par athlète × 7 jours, en lecture + déplacement (pas de vue
+  // mois : au-delà d'une semaine, la grille devient illisible).
+
+  readonly scopeMode = signal<'athlete' | 'group'>('athlete');
+  selectedGroupId = '';
+  readonly groupRows = signal<GroupCalendarRow[]>([]);
+  readonly groupLoading = signal(false);
+
+  /** Les 7 dates de la semaine affichée (en-têtes du mode groupe). */
+  readonly weekDates = computed<{ date: string; label: string; dayNum: number; isToday: boolean }[]>(() => {
+    const today = toIso(new Date());
+    const start = mondayOf(this.anchor());
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const iso = toIso(d);
+      return { date: iso, label: this.dayNames[i], dayNum: d.getDate(), isToday: iso === today };
+    });
+  });
+
+  /** Séances d'un athlète pour un jour donné (mode groupe). */
+  rowWorkouts(row: GroupCalendarRow, date: string): Workout[] {
+    return row.workouts.filter((w) => w.scheduledDate === date);
+  }
+  rowStrength(row: GroupCalendarRow, date: string): ScheduledStrength[] {
+    return row.strength.filter((s) => s.scheduledDate === date);
+  }
+
+  setScopeMode(m: 'athlete' | 'group'): void {
+    this.scopeMode.set(m);
+    if (m === 'group') {
+      this.mode.set('week'); // pas de vue mois en groupe
+      if (this.groups().length === 0) {
+        this.groupService.list().subscribe((g) => {
+          this.groups.set(g);
+          if (!this.selectedGroupId && g.length) {
+            this.selectedGroupId = g[0].id;
+            this.loadGroup();
+          }
+        });
+      } else {
+        this.loadGroup();
+      }
+    }
+  }
+
+  onGroupChange(): void { this.loadGroup(); }
+
+  loadGroup(): void {
+    if (!this.selectedGroupId) { this.groupRows.set([]); return; }
+    const dates = this.weekDates();
+    this.groupLoading.set(true);
+    this.groupService.calendar(this.selectedGroupId, dates[0].date, dates[6].date).subscribe({
+      next: (c) => { this.groupRows.set(c.athletes); this.groupLoading.set(false); },
+      error: () => { this.groupRows.set([]); this.groupLoading.set(false); this.toast.error('Chargement du groupe impossible.'); },
+    });
+  }
+
+  /**
+   * Déplacement dans la grille de groupe. Une séance appartient à un athlète : on refuse
+   * explicitement le dépôt sur la ligne d'un autre athlète plutôt que de réassigner en douce.
+   */
+  onGroupDrop(event: CdkDragDrop<unknown>, row: GroupCalendarRow, targetDate: string): void {
+    const item = event.item.data as { athleteId?: string } | undefined;
+    if (!item) return;
+    if (!row.canWrite) {
+      this.toast.warning(`Lecture seule sur ${row.firstName} ${row.lastName}.`);
+      return;
+    }
+    if (item.athleteId && item.athleteId !== row.athleteId) {
+      this.toast.warning('Une séance ne se déplace pas d’un athlète à un autre.');
+      return;
+    }
+
+    const rec = item as unknown as Record<string, unknown>;
+    if ('sourceSessionId' in rec) {
+      this.moveGroupStrength(row, item as unknown as ScheduledStrength, targetDate);
+    } else {
+      this.moveGroupWorkout(row, item as unknown as Workout, targetDate);
+    }
+  }
+
+  private moveGroupWorkout(row: GroupCalendarRow, w: Workout, targetDate: string): void {
+    if (w.scheduledDate === targetDate) return;
+    this.patchGroupRow(row.athleteId, (r) => ({
+      ...r, workouts: r.workouts.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x)),
+    }));
+    this.workoutService.reschedule(row.athleteId, w.id, targetDate).subscribe({
+      next: () => this.toast.success(`${w.title} déplacée au ${this.fmtDate(targetDate)}`),
+      error: () => {
+        this.patchGroupRow(row.athleteId, (r) => ({
+          ...r, workouts: r.workouts.map((x) => (x.id === w.id ? { ...x, scheduledDate: w.scheduledDate } : x)),
+        }));
+        this.toast.error('Déplacement impossible.');
+      },
+    });
+  }
+
+  private moveGroupStrength(row: GroupCalendarRow, s: ScheduledStrength, targetDate: string): void {
+    if (s.scheduledDate === targetDate) return;
+    this.patchGroupRow(row.athleteId, (r) => ({
+      ...r, strength: r.strength.map((x) => (x.id === s.id ? { ...x, scheduledDate: targetDate } : x)),
+    }));
+    this.strengthService.rescheduleScheduled(row.athleteId, s.id, targetDate).subscribe({
+      next: () => this.toast.success(`${s.title} déplacée au ${this.fmtDate(targetDate)}`),
+      error: () => {
+        this.patchGroupRow(row.athleteId, (r) => ({
+          ...r, strength: r.strength.map((x) => (x.id === s.id ? { ...x, scheduledDate: s.scheduledDate } : x)),
+        }));
+        this.toast.error('Déplacement impossible.');
+      },
+    });
+  }
+
+  private patchGroupRow(athleteId: string, patch: (r: GroupCalendarRow) => GroupCalendarRow): void {
+    this.groupRows.update((l) => l.map((r) => (r.athleteId === athleteId ? patch(r) : r)));
+  }
+
+  /** Ouvre la séance course d'une ligne de groupe (lecture). */
+  openGroupWorkout(row: GroupCalendarRow, w: Workout): void {
+    this.router.navigate(['/app/athletes', row.athleteId, 'workouts', w.id]);
+  }
+
   /** Semaines (lignes de 7 jours) + totaux — colonne de droite façon Nolio. */
   readonly weeks = computed<WeekRow[]>(() => {
     const cells = this.cells();
@@ -340,6 +465,7 @@ export class CalendarComponent implements OnInit {
   goToday(): void { this.anchor.set(new Date()); this.load(); }
 
   load(): void {
+    if (this.scopeMode() === 'group') { this.loadGroup(); return; }
     if (!this.selectedAthleteId) return;
     const cells = this.cells();
     const from = cells[0].date;

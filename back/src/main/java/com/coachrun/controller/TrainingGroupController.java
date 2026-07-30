@@ -42,6 +42,23 @@ public class TrainingGroupController {
         return groupService.list(clubId);
     }
 
+    /**
+     * Semaine du groupe (vue calendrier multi-athlètes) : une ligne par athlète accessible,
+     * séances course et force. Endpoint agrégé, pour éviter N appels côté calendrier.
+     */
+    @GetMapping("/{id}/calendar")
+    public com.coachrun.dto.response.GroupCalendarResponse calendar(
+            @PathVariable UUID clubId, @PathVariable UUID id,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate to,
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return groupService.calendar(clubId, id, principal.userId(), from, to);
+    }
+
     /** Analytics agrégées d'un groupe (état de forme, ACWR moyen, volume, adhérence). */
     @GetMapping("/{id}/analytics")
     public com.coachrun.dto.response.GroupAnalyticsResponse analytics(

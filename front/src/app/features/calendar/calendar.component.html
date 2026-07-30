@@ -18,23 +18,42 @@
 
 <div class="toolbar">
   @if (!lockedToAthlete()) {
-    <select class="form-control athlete-select" [(ngModel)]="selectedAthleteId" (ngModelChange)="onAthleteChange()">
-      @for (a of athletes(); track a.id) {
-        <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option>
-      }
-    </select>
+    <!-- Athlète ou groupe : un coach de club planifie et surveille une semaine d'équipe. -->
+    <div class="mode-switch scope-switch">
+      <button type="button" [class.active]="scopeMode() === 'athlete'" (click)="setScopeMode('athlete')">Athlète</button>
+      <button type="button" [class.active]="scopeMode() === 'group'" (click)="setScopeMode('group')">Groupe</button>
+    </div>
+
+    @if (scopeMode() === 'athlete') {
+      <select class="form-control athlete-select" [(ngModel)]="selectedAthleteId" (ngModelChange)="onAthleteChange()">
+        @for (a of athletes(); track a.id) {
+          <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option>
+        }
+      </select>
+    } @else {
+      <select class="form-control athlete-select" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
+        <option value="">Choisir un groupe…</option>
+        @for (g of groups(); track g.id) {
+          <option [value]="g.id">{{ g.name }} ({{ g.athleteCount }})</option>
+        }
+      </select>
+    }
   }
 
-  <div class="mode-switch">
-    <button type="button" [class.active]="mode() === 'week'" (click)="setMode('week')">Semaine</button>
-    <button type="button" [class.active]="mode() === 'month'" (click)="setMode('month')">Mois</button>
-  </div>
+  @if (scopeMode() === 'athlete') {
+    <div class="mode-switch">
+      <button type="button" [class.active]="mode() === 'week'" (click)="setMode('week')">Semaine</button>
+      <button type="button" [class.active]="mode() === 'month'" (click)="setMode('month')">Mois</button>
+    </div>
+  }
 
-  <div class="mode-switch view-switch">
-    <button type="button" [class.active]="view() === 'planned'" (click)="setView('planned')">Prévu</button>
-    <button type="button" [class.active]="view() === 'realized'" (click)="setView('realized')">Réalisé</button>
-    <button type="button" [class.active]="view() === 'both'" (click)="setView('both')">Les deux</button>
-  </div>
+  @if (scopeMode() === 'athlete') {
+    <div class="mode-switch view-switch">
+      <button type="button" [class.active]="view() === 'planned'" (click)="setView('planned')">Prévu</button>
+      <button type="button" [class.active]="view() === 'realized'" (click)="setView('realized')">Réalisé</button>
+      <button type="button" [class.active]="view() === 'both'" (click)="setView('both')">Les deux</button>
+    </div>
+  }
 
   <div class="week-nav">
     <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)">←</button>
@@ -43,7 +62,7 @@
     <span class="week-label">{{ periodLabel() }}</span>
   </div>
 
-  @if (mode() === 'week') {
+  @if (mode() === 'week' && scopeMode() === 'athlete') {
     <span class="volume metric">{{ weeklyVolumeKm() }} km prévus</span>
     @if (advancedPlanning) {
       <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="duplicateWeek()"
@@ -59,13 +78,15 @@
     }
   }
 
-  <button type="button" class="btn btn-ghost btn-sm lib-toggle" (click)="toggleSidebar()"
-          [title]="sidebarOpen() ? 'Masquer la bibliothèque' : 'Afficher la bibliothèque'">
-    <app-icon name="panel-left" [size]="15" /> {{ sidebarOpen() ? 'Masquer' : 'Bibliothèque' }}
-  </button>
+  @if (scopeMode() === 'athlete') {
+    <button type="button" class="btn btn-ghost btn-sm lib-toggle" (click)="toggleSidebar()"
+            [title]="sidebarOpen() ? 'Masquer la bibliothèque' : 'Afficher la bibliothèque'">
+      <app-icon name="panel-left" [size]="15" /> {{ sidebarOpen() ? 'Masquer' : 'Bibliothèque' }}
+    </button>
+  }
 </div>
 
-@if (selectedAthleteId && !canWriteSelected()) {
+@if (scopeMode() === 'athlete' && selectedAthleteId && !canWriteSelected()) {
   <div class="readonly-banner">
     <app-icon name="lock" [size]="15" /> Lecture seule — tu n'es pas référent ni en écriture sur cet athlète. Planification et déplacement désactivés.
   </div>
@@ -132,7 +153,74 @@
   </section>
 }
 
-@if (athletes().length === 0 && !lockedToAthlete()) {
+@if (scopeMode() === 'group') {
+  <!-- ===== Vue groupe : une ligne par athlète × 7 jours (lecture + déplacement) ===== -->
+  @if (!selectedGroupId) {
+    <div class="card empty-state">
+      <h2>Choisissez un groupe</h2>
+      <p class="field-hint">Sélectionnez un groupe pour voir la semaine de tous ses athlètes d'un coup d'œil.</p>
+      <a routerLink="/app/groups" class="btn btn-primary">Gérer les groupes</a>
+    </div>
+  } @else if (groupLoading()) {
+    <div class="card"><div class="skeleton" style="height: 180px;"></div></div>
+  } @else if (groupRows().length === 0) {
+    <div class="card empty-state">
+      <h2>Aucun athlète accessible dans ce groupe</h2>
+      <p class="field-hint">Le groupe est vide, ou vous n'avez de droits sur aucun de ses athlètes.</p>
+      <a routerLink="/app/groups" class="btn btn-primary">Gérer les groupes</a>
+    </div>
+  } @else {
+    <div class="group-grid" cdkDropListGroup>
+      <div class="gg-head">
+        <span class="gg-corner">Athlète</span>
+        @for (d of weekDates(); track d.date) {
+          <span class="gg-day" [class.today]="d.isToday">{{ d.label }} {{ d.dayNum }}</span>
+        }
+      </div>
+
+      @for (row of groupRows(); track row.athleteId) {
+        <div class="gg-row">
+          <a class="gg-athlete" [routerLink]="['/app/athletes', row.athleteId, 'programme']"
+             [title]="'Ouvrir le programme de ' + row.firstName + ' ' + row.lastName">
+            <span class="avatar avatar-sm">{{ row.firstName[0] }}{{ row.lastName[0] }}</span>
+            <span class="gg-name">{{ row.firstName }} {{ row.lastName }}</span>
+            @if (!row.canWrite) { <app-icon name="lock" [size]="12" title="Lecture seule" /> }
+          </a>
+
+          @for (d of weekDates(); track d.date) {
+            <div class="gg-cell" [class.today]="d.isToday"
+                 cdkDropList (cdkDropListDropped)="onGroupDrop($event, row, d.date)">
+              @for (w of rowWorkouts(row, d.date); track w.id) {
+                <button type="button" class="workout-card gg-chip"
+                        [class.workout-card--key]="typeMeta(w.type).key"
+                        [style.--type-color]="typeMeta(w.type).color"
+                        cdkDrag [cdkDragData]="w" [cdkDragDisabled]="!row.canWrite"
+                        (click)="openGroupWorkout(row, w)">
+                  <span class="wc-head">
+                    <app-icon class="wc-type" [name]="typeMeta(w.type).icon" [size]="12" />
+                    <span class="w-title">{{ w.title }}</span>
+                    <span class="badge badge-dot" [class]="statusBadge[w.status]" [title]="statusLabels[w.status]"></span>
+                  </span>
+                  @if (w.targetDistanceM) {
+                    <span class="wc-meta"><span class="metric w-metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span></span>
+                  }
+                </button>
+              }
+              @for (s of rowStrength(row, d.date); track s.id) {
+                <div class="strength-chip gg-chip" [class.done]="s.completed"
+                     [style.--type-color]="typeMeta('STRENGTH').color"
+                     cdkDrag [cdkDragData]="s" [cdkDragDisabled]="!row.canWrite" [title]="s.title">
+                  <app-icon class="sc-icon" name="dumbbell" [size]="12" />
+                  <span class="sc-title">{{ s.title }}</span>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+} @else if (athletes().length === 0 && !lockedToAthlete()) {
   <div class="card empty-state">
     <h2>Aucun athlète actif</h2>
     <p class="field-hint">Créez d'abord un athlète pour planifier des séances.</p>
