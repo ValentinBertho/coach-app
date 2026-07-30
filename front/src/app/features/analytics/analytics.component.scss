@@ -32,6 +32,17 @@
 
 /* --- Refonte : KPI rail + actions de période ------------------------------ */
 .head-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+
+/* En-tête de panneau (le titre de page appartient à l'onglet Charge qui l'héberge). */
+.panel-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--sp-3); flex-wrap: wrap;
+  margin: var(--sp-6) 0 var(--sp-4);
+  padding-top: var(--sp-5);
+  border-top: 1px solid var(--hairline);
+}
+.panel-header h2 { margin: 0; font-size: var(--text-lg); }
+.panel-header .subtitle { margin: 2px 0 0; color: var(--ink-3); font-size: var(--text-sm); }
 .kpi-rail {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: var(--sp-4); margin-bottom: var(--sp-5);

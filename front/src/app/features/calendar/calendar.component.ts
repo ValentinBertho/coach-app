@@ -1,5 +1,5 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteSummary } from '../../core/models/athlete.model';
@@ -141,6 +141,14 @@ export class CalendarComponent implements OnInit {
   readonly statusBadge = STATUS_BADGE;
   private readonly dayNames = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
+  /**
+   * Athlète imposé par le contexte (onglet « Programme » de la coquille athlète). Absent sur
+   * l'écran Calendrier global, où le coach choisit lui-même dans le sélecteur.
+   */
+  readonly athleteId = input<string>();
+  /** Vrai quand le calendrier est cadré sur un athlète : le sélecteur est alors masqué. */
+  readonly lockedToAthlete = computed(() => !!this.athleteId());
+
   readonly athletes = signal<AthleteSummary[]>([]);
   selectedAthleteId = '';
   readonly mode = signal<'week' | 'month'>('week');
@@ -268,6 +276,13 @@ export class CalendarComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    // Onglet « Programme » d'un athlète : le calendrier est cadré sur lui, le sélecteur
+    // d'athlète disparaît (c'est le contexte de la coquille qui dit de qui il s'agit).
+    if (this.athleteId()) {
+      this.selectedAthleteId = this.athleteId()!;
+      this.load();
+      this.loadOverlays();
+    }
     this.athleteService.list({ status: 'ACTIVE' }).subscribe((page) => {
       this.athletes.set(page.content);
       if (page.content.length && !this.selectedAthleteId) {

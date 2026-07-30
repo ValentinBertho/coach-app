@@ -1,16 +1,29 @@
-<section class="page-header">
-  <div>
-    <h1 class="display-sm">Calendrier <app-help-hint section="calendrier" label="Aide : calendrier & planification" /></h1>
-    <p class="subtitle">Planifiez les séances de vos athlètes.</p>
-  </div>
-</section>
+<!-- Cadré sur un athlète (onglet « Programme »), l'identité est déjà portée par la coquille :
+     ni titre d'écran ni sélecteur d'athlète, on garde juste la barre d'outils. -->
+@if (lockedToAthlete()) {
+  <section class="page-header">
+    <div>
+      <h1 class="display-sm">Programme <app-help-hint section="calendrier" label="Aide : calendrier & planification" /></h1>
+      <p class="subtitle">Semaine et mois de l'athlète, prévu et réalisé.</p>
+    </div>
+  </section>
+} @else {
+  <section class="page-header">
+    <div>
+      <h1 class="display-sm">Calendrier <app-help-hint section="calendrier" label="Aide : calendrier & planification" /></h1>
+      <p class="subtitle">Planifiez les séances de vos athlètes.</p>
+    </div>
+  </section>
+}
 
 <div class="toolbar">
-  <select class="form-control athlete-select" [(ngModel)]="selectedAthleteId" (ngModelChange)="onAthleteChange()">
-    @for (a of athletes(); track a.id) {
-      <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option>
-    }
-  </select>
+  @if (!lockedToAthlete()) {
+    <select class="form-control athlete-select" [(ngModel)]="selectedAthleteId" (ngModelChange)="onAthleteChange()">
+      @for (a of athletes(); track a.id) {
+        <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option>
+      }
+    </select>
+  }
 
   <div class="mode-switch">
     <button type="button" [class.active]="mode() === 'week'" (click)="setMode('week')">Semaine</button>
@@ -119,7 +132,7 @@
   </section>
 }
 
-@if (athletes().length === 0) {
+@if (athletes().length === 0 && !lockedToAthlete()) {
   <div class="card empty-state">
     <h2>Aucun athlète actif</h2>
     <p class="field-hint">Créez d'abord un athlète pour planifier des séances.</p>

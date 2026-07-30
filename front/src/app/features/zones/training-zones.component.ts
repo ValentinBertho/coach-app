@@ -19,7 +19,8 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 
 /**
- * Écran « Zones & métriques » (niveau club) — chantier Z1.
+ * Écran « Zones du club » (niveau club) — chantier Z1. Le modèle de zones ; les valeurs par
+ * athlète vivent dans l'onglet « Zones » de la coquille athlète.
  * Le coach définit ses zones de travail (nom, couleur, ordre) et les métriques que chaque zone
  * porte. Les valeurs concrètes par athlète viendront sur la fiche athlète (chantier Z2).
  */
@@ -31,7 +32,7 @@ import { ToastService } from '../../core/services/toast.service';
   template: `
     <section class="page-header">
       <div>
-        <h1 class="display-sm">Zones &amp; métriques</h1>
+        <h1 class="display-sm">Zones du club</h1>
         <p class="subtitle">
           Définissez vos zones de travail et les métriques qu'elles portent. Les valeurs concrètes
           (allure, FC…) se règlent sur chaque fiche athlète.

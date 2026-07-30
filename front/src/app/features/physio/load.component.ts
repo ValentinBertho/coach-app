@@ -1,17 +1,21 @@
 import { DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { AnalyticsComponent } from '../analytics/analytics.component';
 import { LactateService } from '../../core/services/lactate.service';
 import { Load } from '../../core/models/lactate.model';
 import { AcwrIndicatorComponent } from '../../shared/components/physiology';
 import { MetricCardComponent } from '../../shared/components/ui';
 
-/** Charge d'entraînement (ACWR, monotonie, répartition par domaines) — cf. Darilab s-data. */
+/**
+ * Onglet « Charge » de l'athlète : ACWR, monotonie et répartition d'intensité, puis le panneau
+ * volume/progression. Les deux écrans « Charge d'entraînement » et « Charge & progression » n'en
+ * font plus qu'un — ce dernier était routé mais sans aucun lien entrant.
+ */
 @Component({
   selector: 'app-load',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DecimalPipe, AcwrIndicatorComponent, MetricCardComponent],
+  imports: [DecimalPipe, AnalyticsComponent, AcwrIndicatorComponent, MetricCardComponent],
   templateUrl: './load.component.html',
   styleUrl: './load.component.scss',
 })

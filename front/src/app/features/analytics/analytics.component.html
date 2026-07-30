@@ -1,5 +1,6 @@
-<section class="page-header">
-  <div><h1 class="display-sm">Charge &amp; progression</h1><p class="subtitle">Volume, intensité et adhérence sur la période.</p></div>
+<!-- Panneau « progression » de l'onglet Charge : volume prévu/réalisé, zones, adhérence. -->
+<section class="panel-header">
+  <div><h2>Volume &amp; progression</h2><p class="subtitle">Volume, intensité et adhérence sur la période.</p></div>
   <div class="head-actions">
     <app-segmented-control [options]="periodOptions" [value]="period()" (valueChange)="setPeriod($event)" [ariaLabel]="'Période'" />
   </div>

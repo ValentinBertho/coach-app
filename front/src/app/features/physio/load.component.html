@@ -1,7 +1,8 @@
 <section class="page-header">
   <div>
-    <h1 class="display-sm">Charge d'entraînement</h1>
-    <p class="subtitle">ACWR, monotonie et répartition d'intensité (course + force unifiées).</p>
+    <h1 class="display-sm">Charge &amp; progression</h1>
+    <p class="subtitle">ACWR, monotonie et répartition d'intensité (course + force unifiées),
+      puis volume et adhérence sur la période.</p>
   </div>
 </section>
 
@@ -53,3 +54,7 @@
 } @else {
   <div class="card">Chargement…</div>
 }
+
+<!-- Volume, zones et adhérence : ancien écran « Charge & progression », désormais dans le même
+     onglet. Il était routé sans aucun lien entrant, donc inatteignable. -->
+<app-analytics [athleteId]="athleteId()" />

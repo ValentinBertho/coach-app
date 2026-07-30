@@ -20,7 +20,7 @@ interface EditState {
 }
 
 /**
- * Écran « Zones & métriques » de la fiche athlète (chantier Z2). La fiche athlète porte les valeurs
+ * Onglet « Zones » de la coquille athlète (chantier Z2). L'athlète porte les valeurs
  * (façon Nolio) : pré-remplies AUTO depuis le moteur physio, ajustables/verrouillables par le coach.
  */
 @Component({
@@ -47,7 +47,7 @@ interface EditState {
     } @else if (zones().length === 0) {
       <div class="card empty-state">
         <h2>Aucune zone</h2>
-        <p class="field-hint">Définissez d'abord vos zones dans <a routerLink="/app/training-zones">Zones &amp; métriques</a> (club).</p>
+        <p class="field-hint">Définissez d'abord vos zones dans <a routerLink="/app/training-zones">Zones du club</a>.</p>
       </div>
     } @else {
       <!-- Références (ancres) : pilotent le calcul des zones. -->

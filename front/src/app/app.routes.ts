@@ -193,6 +193,11 @@ export const routes: Routes = [
               import('./features/athletes/athlete-detail.component').then((m) => m.AthleteDetailComponent),
           },
           {
+            path: 'programme',
+            loadComponent: () =>
+              import('./features/calendar/calendar.component').then((m) => m.CalendarComponent),
+          },
+          {
             path: 'load',
             loadComponent: () =>
               import('./features/physio/load.component').then((m) => m.LoadComponent),
@@ -222,13 +227,9 @@ export const routes: Routes = [
             loadComponent: () =>
               import('./features/messages/chat.component').then((m) => m.ChatComponent),
           },
-          // Hors barre d'onglets : « Charge & progression » fusionnera avec
-          // « Charge » (lot 2). Reste joignable en attendant, dans la coquille.
-          {
-            path: 'analytics',
-            loadComponent: () =>
-              import('./features/analytics/analytics.component').then((m) => m.AnalyticsComponent),
-          },
+          // « Charge & progression » est fusionné dans l'onglet Charge : on garde
+          // l'ancienne URL en redirection pour ne casser aucun lien existant.
+          { path: 'analytics', pathMatch: 'full', redirectTo: 'load' },
         ],
       },
     ],
