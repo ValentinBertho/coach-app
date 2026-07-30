@@ -90,6 +90,18 @@ public class StrengthScheduleService {
         return ScheduledStrengthResponse.from(ss);
     }
 
+    /**
+     * Marque le retour de l'athlète comme traité (file « retours à traiter »). N'altère ni la
+     * séance ni le retour : c'est un accusé de lecture côté coach.
+     */
+    @Transactional
+    public ScheduledStrengthResponse markFeedbackReviewed(UUID clubId, UUID athleteId,
+                                                          UUID scheduledId, boolean reviewed) {
+        ScheduledStrengthSession ss = require(clubId, athleteId, scheduledId);
+        ss.setCoachReviewedAt(reviewed ? Instant.now() : null);
+        return ScheduledStrengthResponse.from(ss);
+    }
+
     /** Déprogramme une séance de force du calendrier de l'athlète. */
     @Transactional
     public void delete(UUID clubId, UUID athleteId, UUID scheduledId) {

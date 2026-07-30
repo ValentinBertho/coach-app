@@ -138,6 +138,13 @@ export class StrengthService {
       `${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}/reschedule`, { scheduledDate });
   }
 
+  /** Accusé de lecture du retour athlète sur une séance de force (file « retours à traiter »). */
+  markScheduledReviewed(athleteId: string, scheduledId: string, reviewed = true): Observable<ScheduledStrength> {
+    const params = new HttpParams().set('reviewed', reviewed);
+    return this.http.patch<ScheduledStrength>(
+      `${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}/reviewed`, null, { params });
+  }
+
   /** Déprogramme une séance de force du calendrier de l'athlète. */
   deleteScheduled(athleteId: string, scheduledId: string): Observable<void> {
     return this.http.delete<void>(`${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}`);

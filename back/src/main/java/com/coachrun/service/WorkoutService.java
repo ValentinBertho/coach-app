@@ -129,6 +129,17 @@ public class WorkoutService {
     }
 
     /**
+     * Marque le retour de l'athlète comme traité (file « retours à traiter »). N'altère ni le
+     * contenu de la séance ni le retour lui-même : c'est un accusé de lecture côté coach.
+     */
+    @Transactional
+    public WorkoutResponse markFeedbackReviewed(UUID clubId, UUID workoutId, boolean reviewed) {
+        Workout workout = require(clubId, workoutId);
+        workout.setCoachReviewedAt(reviewed ? java.time.Instant.now() : null);
+        return WorkoutResponse.from(workout);
+    }
+
+    /**
      * Duplique une semaine de séances course vers une autre semaine (planification en cycles) :
      * recopie chaque séance en conservant son décalage de jour, le contenu et la prescription figée,
      * en statut {@code PLANNED} et sans retour. Ne notifie pas (édition en cours côté coach).

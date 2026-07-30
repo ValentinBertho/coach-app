@@ -107,3 +107,5 @@ databaseChangeLog:
       file: db/changelog/changes/051-activity-stream.yaml
   - include:
       file: db/changelog/changes/052-zone-metric-high-anchor.yaml
+  - include:
+      file: db/changelog/changes/053-feedback-reviewed.yaml

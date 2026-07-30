@@ -4,8 +4,11 @@ import com.coachrun.entity.Workout;
 import com.coachrun.entity.enums.WorkoutStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -51,6 +54,19 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
 
     /** Dernier retour renseigné (fatigue/douleur) d'un athlète — base de l'état de forme. */
     Optional<Workout> findFirstByAthleteIdAndFatigueIsNotNullOrderByScheduledDateDescCreatedAtDesc(UUID athleteId);
+
+    /**
+     * File « retours à traiter » : séances porteuses d'un retour athlète (RPE, douleur ou
+     * commentaire) que le coach n'a pas encore marquées comme traitées.
+     */
+    @Query("""
+            select w from Workout w
+            where w.athlete.id in :athleteIds
+              and w.coachReviewedAt is null
+              and (w.rpe is not null or w.pain is not null or w.athleteComment is not null)
+            order by w.scheduledDate desc, w.createdAt desc
+            """)
+    List<Workout> findPendingFeedback(@Param("athleteIds") Collection<UUID> athleteIds);
 
     // --- Suivi de plan (séances liées via plan_id) ---
     long countByPlanIdAndAthleteId(UUID planId, UUID athleteId);

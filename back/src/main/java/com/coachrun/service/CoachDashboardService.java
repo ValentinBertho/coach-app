@@ -4,11 +4,13 @@ import com.coachrun.dto.response.AthleteFormResponse;
 import com.coachrun.dto.response.CoachAlertResponse;
 import com.coachrun.dto.response.CoachDashboardResponse;
 import com.coachrun.dto.response.CoachFormDashboardResponse;
+import com.coachrun.dto.response.FeedbackQueueItemResponse;
 import com.coachrun.dto.response.RaceObjectiveResponse;
 import com.coachrun.engine.FormStatusEngine;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.CoachAthleteRelation;
+import com.coachrun.entity.ScheduledStrengthSession;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.enums.AthleteStatus;
 import com.coachrun.entity.enums.Discipline;
@@ -16,6 +18,7 @@ import com.coachrun.entity.enums.RaceObjectiveStatus;
 import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.RaceObjectiveRepository;
+import com.coachrun.repository.ScheduledStrengthSessionRepository;
 import com.coachrun.repository.WorkoutRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +29,7 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** Agrégation des indicateurs du tableau de bord coach. */
@@ -41,6 +45,7 @@ public class CoachDashboardService {
     private final CoachAthleteRelationRepository relationRepository;
     private final AthleteLoadService loadService;
     private final AthleteFeedbackService feedbackService;
+    private final ScheduledStrengthSessionRepository strengthRepository;
 
     public CoachDashboardResponse compute(UUID clubId) {
         LocalDate today = LocalDate.now();
@@ -49,9 +54,9 @@ public class CoachDashboardService {
 
         long activeAthletes = athleteRepository.countByClubIdAndStatus(clubId, AthleteStatus.ACTIVE);
         long pending = athleteRepository.countByClubIdAndInviteTokenIsNotNull(clubId);
-        // « À valider » : séances passées encore au statut PLANNED.
-        long toReview = workoutRepository.countByClubIdAndStatusAndScheduledDateLessThan(
-                clubId, WorkoutStatus.PLANNED, today);
+        // « Retours à traiter » : retours d'athlètes (RPE / douleur / commentaire) non encore vus.
+        // Le KPI compte exactement les lignes de la file — il pointe dessus.
+        long toReview = feedbackQueue(clubId, null, null).size();
         long completedThisWeek = workoutRepository.countByClubIdAndStatusAndScheduledDateBetween(
                 clubId, WorkoutStatus.COMPLETED, monday, nextMonday);
         var races = raceRepository
@@ -60,6 +65,46 @@ public class CoachDashboardService {
                 .stream().map(RaceObjectiveResponse::from).toList();
 
         return new CoachDashboardResponse(activeAthletes, pending, toReview, completedThisWeek, races);
+    }
+
+    /**
+     * File « retours à traiter » : tous athlètes du périmètre confondus, les séances réalisées
+     * dont l'athlète a laissé un retour (RPE, douleur, commentaire) et que le coach n'a pas
+     * encore marquées comme traitées. Course et force unifiées, triées du plus récent au plus
+     * ancien.
+     */
+    public List<FeedbackQueueItemResponse> feedbackQueue(UUID clubId, String scope, UUID coachId) {
+        List<Athlete> athletes = athletesInScope(clubId, scope, coachId);
+        if (athletes.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, String> names = athletes.stream()
+                .collect(java.util.stream.Collectors.toMap(Athlete::getId, CoachDashboardService::displayName));
+        List<UUID> ids = List.copyOf(names.keySet());
+
+        List<FeedbackQueueItemResponse> items = new ArrayList<>();
+        for (Workout w : workoutRepository.findPendingFeedback(ids)) {
+            items.add(new FeedbackQueueItemResponse(
+                    "COURSE", w.getId(), w.getAthlete().getId(), names.get(w.getAthlete().getId()),
+                    w.getTitle(), w.getScheduledDate(),
+                    w.getRpe() == null ? null : w.getRpe().doubleValue(),
+                    w.getFatigue(), w.getPain(), w.getAthleteComment()));
+        }
+        for (ScheduledStrengthSession s : strengthRepository.findPendingFeedback(ids)) {
+            items.add(new FeedbackQueueItemResponse(
+                    "STRENGTH", s.getId(), s.getAthlete().getId(), names.get(s.getAthlete().getId()),
+                    s.getTitle(), s.getScheduledDate(),
+                    s.getSessionRpe() == null ? null : s.getSessionRpe().doubleValue(),
+                    s.getSessionFatigue(), s.getSessionPain(), s.getSessionComment()));
+        }
+        items.sort(java.util.Comparator
+                .comparing(FeedbackQueueItemResponse::sessionDate).reversed()
+                .thenComparing(FeedbackQueueItemResponse::athleteName));
+        return items;
+    }
+
+    private static String displayName(Athlete a) {
+        return (a.getFirstName() + " " + a.getLastName()).trim();
     }
 
     /**

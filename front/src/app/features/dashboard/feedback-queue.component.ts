@@ -1,0 +1,185 @@
+import { DatePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { Observable } from 'rxjs';
+import { CoachDashboardService, FeedbackQueueItem } from '../../core/services/coach-dashboard.service';
+import { StrengthService } from '../../core/services/strength.service';
+import { ToastService } from '../../core/services/toast.service';
+import { WorkoutService } from '../../core/services/workout.service';
+import { IconComponent } from '../../shared/components/icon/icon.component';
+import { SegmentedControlComponent, type SegmentOption } from '../../shared/components/ui';
+import { HelpHintComponent } from '../help/help-hint.component';
+
+type Scope = 'all' | 'mine' | 'private' | 'club';
+
+/**
+ * File « retours à traiter » — destination du KPI du cockpit.
+ *
+ * Répond au trou de parcours identifié à l'audit : le coach voyait un compteur de retours mais
+ * n'avait nulle part où les traiter. Une ligne par retour d'athlète non encore vu (RPE, douleur,
+ * commentaire), tous athlètes du périmètre confondus, du plus récent au plus ancien, avec le
+ * lien vers le détail de la séance et l'action « marquer comme traité ».
+ *
+ * Course et force sont unifiées ici comme partout ailleurs dans le produit.
+ */
+@Component({
+  selector: 'app-feedback-queue',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterLink, DatePipe, IconComponent, SegmentedControlComponent, HelpHintComponent],
+  template: `
+    <section class="page-header">
+      <div>
+        <h1 class="display-sm">Retours à traiter <app-help-hint section="dashboard" label="Aide : cockpit coach" /></h1>
+        <p class="subtitle">Les retours de vos athlètes que vous n'avez pas encore vus, du plus récent au plus ancien.</p>
+      </div>
+      <app-segmented-control [options]="scopeOptions" [value]="scope()" (valueChange)="setScope($event)" [ariaLabel]="'Périmètre'" />
+    </section>
+
+    @if (loading()) {
+      <div class="card"><div class="skeleton" style="height: 120px;"></div></div>
+    } @else if (items().length === 0) {
+      <div class="card empty-state">
+        <h2>Aucun retour en attente</h2>
+        <p class="field-hint">
+          Tous les retours de votre périmètre ont été traités. Les nouveaux retours de séance
+          (RPE, douleur, commentaire) apparaîtront ici dès que vos athlètes les enverront.
+        </p>
+        <a routerLink="/app/calendar" class="btn btn-primary">Ouvrir le calendrier</a>
+      </div>
+    } @else {
+      <div class="card">
+        <p class="field-hint fq__count">{{ items().length }} retour{{ items().length > 1 ? 's' : '' }} en attente</p>
+        <ul class="fq">
+          @for (it of items(); track it.kind + it.sessionId) {
+            <li class="fq__row" [class.fq__row--alert]="(it.pain ?? 0) >= 3">
+              <span class="fq__kind" [title]="it.kind === 'STRENGTH' ? 'Renforcement' : 'Course'">
+                <app-icon [name]="it.kind === 'STRENGTH' ? 'dumbbell' : 'footprints'" [size]="15" />
+              </span>
+
+              <div class="fq__id">
+                <a class="fq__athlete" [routerLink]="['/app/athletes', it.athleteId]">{{ it.athleteName }}</a>
+                <span class="fq__title">{{ it.title }}</span>
+                <span class="field-hint metric">{{ it.sessionDate | date: 'EEE d MMM y' }}</span>
+              </div>
+
+              <div class="fq__metrics">
+                @if (it.rpe != null) { <span class="badge badge-neutral">RPE {{ it.rpe }}/10</span> }
+                @if (it.fatigue != null) { <span class="badge badge-neutral">Fatigue {{ it.fatigue }}/10</span> }
+                @if (it.pain != null) {
+                  <span class="badge" [class.badge-danger]="it.pain >= 5" [class.badge-warning]="it.pain >= 3 && it.pain < 5"
+                        [class.badge-neutral]="it.pain < 3">Douleur {{ it.pain }}/10</span>
+                }
+              </div>
+
+              @if (it.comment) { <p class="fq__comment">« {{ excerpt(it.comment) }} »</p> }
+
+              <div class="fq__actions">
+                @if (it.kind === 'COURSE') {
+                  <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', it.athleteId, 'workouts', it.sessionId]">
+                    Voir la séance
+                  </a>
+                } @else {
+                  <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', it.athleteId, 'programme']">
+                    Voir le programme
+                  </a>
+                }
+                <button type="button" class="btn btn-primary btn-sm" (click)="markReviewed(it)" [disabled]="busy().has(key(it))">
+                  <app-icon name="check" [size]="15" /> Marquer comme traité
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      </div>
+    }
+  `,
+  styles: [`
+    .fq__count { margin: 0 0 var(--sp-3); }
+    .fq { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+    .fq__row {
+      display: grid; gap: var(--sp-2) var(--sp-3);
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas: 'kind id metrics' '. comment comment' '. actions actions';
+      align-items: start;
+      padding: var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius-md);
+      background: var(--paper);
+    }
+    .fq__row--alert { border-left: 3px solid var(--danger, var(--energy)); }
+    .fq__kind { grid-area: kind; color: var(--ink-3); padding-top: 2px; }
+    .fq__id { grid-area: id; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .fq__athlete { font-weight: 700; color: var(--ink); text-decoration: none; }
+    .fq__athlete:hover { text-decoration: underline; }
+    .fq__title { font-size: var(--text-sm); color: var(--ink-2); }
+    .fq__metrics { grid-area: metrics; display: flex; gap: var(--sp-2); flex-wrap: wrap; justify-content: flex-end; }
+    .fq__comment { grid-area: comment; margin: 0; font-size: var(--text-sm); color: var(--ink-2); font-style: italic; }
+    .fq__actions { grid-area: actions; display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+    @media (max-width: 640px) {
+      .fq__row { grid-template-columns: auto 1fr; grid-template-areas: 'kind id' '. metrics' '. comment' '. actions'; }
+      .fq__metrics { justify-content: flex-start; }
+    }
+  `],
+})
+export class FeedbackQueueComponent implements OnInit {
+  private readonly dashboardService = inject(CoachDashboardService);
+  private readonly workoutService = inject(WorkoutService);
+  private readonly strengthService = inject(StrengthService);
+  private readonly toast = inject(ToastService);
+
+  readonly items = signal<FeedbackQueueItem[]>([]);
+  readonly loading = signal(true);
+  /** Lignes en cours de traitement (évite le double clic). */
+  readonly busy = signal<Set<string>>(new Set());
+
+  readonly scope = signal<Scope>('all');
+  readonly scopeOptions: SegmentOption[] = [
+    { value: 'all', label: 'Tout le club' },
+    { value: 'mine', label: 'Mes athlètes' },
+    { value: 'private', label: 'Privés' },
+    { value: 'club', label: 'Club' },
+  ];
+
+  ngOnInit(): void { this.load(); }
+
+  setScope(value: string): void {
+    this.scope.set(value as Scope);
+    this.load();
+  }
+
+  load(): void {
+    this.loading.set(true);
+    this.dashboardService.feedbackQueue(this.scope()).subscribe({
+      next: (list) => { this.items.set(list); this.loading.set(false); },
+      error: () => { this.items.set([]); this.loading.set(false); this.toast.error('Chargement impossible.'); },
+    });
+  }
+
+  key(it: FeedbackQueueItem): string { return `${it.kind}:${it.sessionId}`; }
+
+  /** Extrait du commentaire : la ligne reste lisible, le détail est derrière le lien. */
+  excerpt(comment: string): string {
+    return comment.length > 160 ? comment.slice(0, 160).trimEnd() + '…' : comment;
+  }
+
+  markReviewed(it: FeedbackQueueItem): void {
+    const k = this.key(it);
+    if (this.busy().has(k)) return;
+    this.busy.update((s) => new Set(s).add(k));
+
+    const call: Observable<unknown> = it.kind === 'STRENGTH'
+      ? this.strengthService.markScheduledReviewed(it.athleteId, it.sessionId)
+      : this.workoutService.markReviewed(it.athleteId, it.sessionId);
+
+    call.subscribe({
+      next: () => {
+        this.items.update((l) => l.filter((x) => this.key(x) !== k));
+        this.busy.update((s) => { const n = new Set(s); n.delete(k); return n; });
+        this.toast.success('Retour marqué comme traité');
+      },
+      error: () => {
+        this.busy.update((s) => { const n = new Set(s); n.delete(k); return n; });
+        this.toast.error('Action impossible.');
+      },
+    });
+  }
+}

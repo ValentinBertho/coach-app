@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,6 +39,19 @@ public interface ScheduledStrengthSessionRepository extends JpaRepository<Schedu
             order by s.scheduledDate desc, s.createdAt desc
             """)
     List<ScheduledStrengthSession> findLatestFeedback(@Param("athleteId") UUID athleteId, Pageable pageable);
+
+    /**
+     * File « retours à traiter » : séances de force porteuses d'un retour athlète (RPE, douleur
+     * ou commentaire) que le coach n'a pas encore marquées comme traitées.
+     */
+    @Query("""
+            select s from ScheduledStrengthSession s
+            where s.athlete.id in :athleteIds
+              and s.coachReviewedAt is null
+              and (s.sessionRpe is not null or s.sessionPain is not null or s.sessionComment is not null)
+            order by s.scheduledDate desc, s.createdAt desc
+            """)
+    List<ScheduledStrengthSession> findPendingFeedback(@Param("athleteIds") Collection<UUID> athleteIds);
 
     // --- Suivi de plan (séances de force liées via plan_id) ---
     long countByPlanIdAndAthleteId(UUID planId, UUID athleteId);

@@ -8,9 +8,24 @@ import { AuthService } from './auth.service';
 export interface CoachDashboard {
   activeAthletes: number;
   pendingInvitations: number;
+  /** Retours d'athlètes (RPE / douleur / commentaire) non encore traités : taille de la file. */
   sessionsToReview: number;
   completedThisWeek: number;
   upcomingRaces: RaceObjective[];
+}
+
+/** Une ligne de la file « retours à traiter » (course et force unifiées). */
+export interface FeedbackQueueItem {
+  kind: 'COURSE' | 'STRENGTH';
+  sessionId: string;
+  athleteId: string;
+  athleteName: string;
+  title: string;
+  sessionDate: string;
+  rpe: number | null;
+  fatigue: number | null;
+  pain: number | null;
+  comment: string | null;
 }
 
 export type FormStatus = 'GREEN' | 'ORANGE' | 'RED';
@@ -60,6 +75,15 @@ export class CoachDashboardService {
     const params = new HttpParams().set('scope', scope);
     return this.http.get<CoachFormDashboard>(
       `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard/form`,
+      { params },
+    );
+  }
+
+  /** File « retours à traiter » : retours d'athlètes non encore vus, tout le périmètre confondu. */
+  feedbackQueue(scope: 'all' | 'mine' | 'private' | 'club' = 'all'): Observable<FeedbackQueueItem[]> {
+    const params = new HttpParams().set('scope', scope);
+    return this.http.get<FeedbackQueueItem[]>(
+      `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard/feedback`,
       { params },
     );
   }

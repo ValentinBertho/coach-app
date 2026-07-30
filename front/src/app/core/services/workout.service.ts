@@ -53,6 +53,12 @@ export class WorkoutService {
     return this.http.patch<Workout>(`${this.base(athleteId)}/${workoutId}/reschedule`, { scheduledDate });
   }
 
+  /** Accusé de lecture du retour athlète (file « retours à traiter »). */
+  markReviewed(athleteId: string, workoutId: string, reviewed = true): Observable<Workout> {
+    const params = new HttpParams().set('reviewed', reviewed);
+    return this.http.patch<Workout>(`${this.base(athleteId)}/${workoutId}/reviewed`, null, { params });
+  }
+
   /** Duplique une séance vers une date (glisser + Alt, ou menu contextuel). Renvoie la copie. */
   copy(athleteId: string, workoutId: string, scheduledDate: string): Observable<Workout> {
     return this.http.post<Workout>(`${this.base(athleteId)}/${workoutId}/copy`, { scheduledDate });

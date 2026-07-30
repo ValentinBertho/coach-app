@@ -79,6 +79,10 @@ public class Workout extends BaseEntity {
     @Column(name = "athlete_comment", length = 1024)
     private String athleteComment;
 
+    /** Retour traité par le coach (file « retours à traiter »). Null = pas encore vu. */
+    @Column(name = "coach_reviewed_at")
+    private java.time.Instant coachReviewedAt;
+
     // --- Calendrier DARI Lab : déplacement athlète + snapshot figé -----------
 
     /** L'athlète a déplacé la séance (il peut déplacer, jamais modifier le contenu). */

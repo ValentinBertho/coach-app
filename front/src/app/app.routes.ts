@@ -86,6 +86,12 @@ export const routes: Routes = [
           import('./features/calendar/calendar.component').then((m) => m.CalendarComponent),
       },
       {
+        // File « retours à traiter » : destination du KPI du cockpit.
+        path: 'feedback',
+        loadComponent: () =>
+          import('./features/dashboard/feedback-queue.component').then((m) => m.FeedbackQueueComponent),
+      },
+      {
         path: 'library',
         loadComponent: () =>
           import('./features/library/library.component').then((m) => m.LibraryComponent),

@@ -68,6 +68,15 @@ public class StrengthScheduleController {
         return scheduleService.moveByCoach(clubId, athleteId, scheduledId, request.scheduledDate());
     }
 
+    /** Marque le retour de la séance de force comme traité (file « retours à traiter »). */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canComment(authentication, #athleteId)")
+    @PatchMapping("/scheduled/{scheduledId}/reviewed")
+    public ScheduledStrengthResponse markReviewed(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                                  @PathVariable UUID scheduledId,
+                                                  @RequestParam(defaultValue = "true") boolean reviewed) {
+        return scheduleService.markFeedbackReviewed(clubId, athleteId, scheduledId, reviewed);
+    }
+
     /** Déprogrammation d'une séance de force depuis le calendrier coach. */
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/scheduled/{scheduledId}")

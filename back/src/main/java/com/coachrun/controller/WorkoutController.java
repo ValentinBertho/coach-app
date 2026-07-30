@@ -106,6 +106,18 @@ public class WorkoutController {
         return workoutService.reschedule(clubId, workoutId, request.scheduledDate());
     }
 
+    /**
+     * Marque le retour de l'athlète comme traité (file « retours à traiter » du tableau de bord).
+     * Accusé de lecture côté coach : ne modifie ni la séance ni le retour.
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canComment(authentication, #athleteId)")
+    @PatchMapping("/{workoutId}/reviewed")
+    public WorkoutResponse markReviewed(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                        @PathVariable UUID workoutId,
+                                        @RequestParam(defaultValue = "true") boolean reviewed) {
+        return workoutService.markFeedbackReviewed(clubId, workoutId, reviewed);
+    }
+
     /** Réordonne les séances d'un même jour (glisser-déposer intra-jour). */
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PatchMapping("/reorder")
