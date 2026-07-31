@@ -10,7 +10,7 @@
 
   <div #thread class="thread card">
     @if (loading()) {
-      <p class="field-hint">Chargement…</p>
+      <app-skeleton shape="text" [rows]="4" />
     } @else if (messages().length === 0) {
       <p class="field-hint empty">Aucun message. Démarre la conversation</p>
     } @else {

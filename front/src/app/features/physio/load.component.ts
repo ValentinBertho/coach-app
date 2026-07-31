@@ -6,6 +6,7 @@ import { Load, LoadSeries } from '../../core/models/lactate.model';
 import { AcwrIndicatorComponent } from '../../shared/components/physiology';
 import { MetricCardComponent } from '../../shared/components/ui';
 import { LoadChartComponent } from '../../shared/components/load-chart/load-chart.component';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 /**
  * Onglet « Charge » de l'athlète : ACWR, monotonie et répartition d'intensité, puis le panneau
@@ -16,7 +17,7 @@ import { LoadChartComponent } from '../../shared/components/load-chart/load-char
   selector: 'app-load',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, AnalyticsComponent, AcwrIndicatorComponent, MetricCardComponent, LoadChartComponent],
+  imports: [SkeletonComponent, DecimalPipe, AnalyticsComponent, AcwrIndicatorComponent, MetricCardComponent, LoadChartComponent],
   templateUrl: './load.component.html',
   styleUrl: './load.component.scss',
 })

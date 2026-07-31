@@ -11,6 +11,7 @@ import { SessionCategoryService } from '../../core/services/session-category.ser
 import { SessionCategory } from '../../core/models/session-category.model';
 import { ToastService } from '../../core/services/toast.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 import {
   Athlete1rm,
   CycleWeek,
@@ -35,7 +36,7 @@ type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
   selector: 'app-strength',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, FormsModule, DatePipe, RouterLink, TrendChartComponent, SidePanelComponent],
+  imports: [SkeletonComponent, IconComponent, FormsModule, DatePipe, RouterLink, TrendChartComponent, SidePanelComponent],
   templateUrl: './strength.component.html',
   styleUrl: './strength.component.scss',
 })

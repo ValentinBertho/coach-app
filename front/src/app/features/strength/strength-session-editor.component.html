@@ -21,7 +21,7 @@
 </section>
 
 @if (loading()) {
-  <div class="card">Chargement…</div>
+  <div class="card"><app-skeleton shape="card" [rows]="2" /></div>
 } @else if (viewMode() === 'edit') {
   @if (empty()) {
     <div class="card empty-state">

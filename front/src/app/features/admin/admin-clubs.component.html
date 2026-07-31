@@ -19,7 +19,7 @@
 </div>
 
 @if (loading()) {
-  <div class="card">Chargement…</div>
+  <div class="card table-wrap"><app-skeleton shape="table" [rows]="6" [columns]="4" /></div>
 } @else {
   <div class="card table-wrap">
     <table class="data-table">

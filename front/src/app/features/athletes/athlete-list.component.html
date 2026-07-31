@@ -19,7 +19,7 @@
 
 @switch (state()) {
   @case ('loading') {
-    <div class="card skeleton-row">Chargement…</div>
+    <div class="card"><app-skeleton shape="list" [rows]="6" /></div>
   }
   @case ('error') {
     <div class="card alert-danger">

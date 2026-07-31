@@ -114,7 +114,7 @@
   }
 
   @if (loadingEx()) {
-    <div class="card">Chargement…</div>
+    <div class="card"><app-skeleton shape="list" [rows]="4" /></div>
   } @else {
     <div class="ex-grid">
       @for (e of filteredExercises(); track e.id) {
@@ -168,7 +168,7 @@
     <button type="button" class="btn btn-primary" (click)="createSession()">+ Séance</button>
   </div>
   @if (loadingSes()) {
-    <div class="card">Chargement…</div>
+    <div class="card"><app-skeleton shape="list" [rows]="4" /></div>
   } @else {
     <div class="ex-grid">
       @for (s of sessions(); track s.id) {
@@ -249,7 +249,7 @@
 
     <div class="cycle-list-col">
       @if (loadingCycles()) {
-        <div class="card">Chargement…</div>
+        <div class="card"><app-skeleton shape="list" [rows]="4" /></div>
       } @else {
         <div class="ex-grid">
           @for (c of cycles(); track c.id) {

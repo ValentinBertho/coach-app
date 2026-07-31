@@ -28,6 +28,7 @@ import { SegmentedControlComponent, type SegmentOption, SidePanelComponent } fro
 import { AutosaveBadgeComponent } from '../../shared/components/autosave-badge/autosave-badge.component';
 import { Autosave } from '../../core/services/autosave';
 import { HasAutosave } from '../../core/guards/unsaved-changes.guard';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 /**
  * Éditeur de structure d'une séance de force (cf. Darilab) : blocs typés, formats avancés
@@ -38,7 +39,7 @@ import { HasAutosave } from '../../core/guards/unsaved-changes.guard';
   selector: 'app-strength-session-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, 
+  imports: [SkeletonComponent, IconComponent, 
     FormsModule, RouterLink, DragDropModule,
     SegmentedControlComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
     SidePanelComponent, AutosaveBadgeComponent,

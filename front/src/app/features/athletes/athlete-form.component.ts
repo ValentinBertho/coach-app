@@ -7,12 +7,13 @@ import { TrainingGroup } from '../../core/models/training-group.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { ToastService } from '../../core/services/toast.service';
 import { TrainingGroupService } from '../../core/services/training-group.service';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 @Component({
   selector: 'app-athlete-form',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, ReactiveFormsModule, RouterLink],
+  imports: [SkeletonComponent, IconComponent, ReactiveFormsModule, RouterLink],
   templateUrl: './athlete-form.component.html',
   styleUrl: './athletes.scss',
 })

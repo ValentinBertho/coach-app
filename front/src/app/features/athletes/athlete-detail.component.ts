@@ -9,6 +9,7 @@ import { Unavailability, UnavailabilityReason } from '../../core/models/unavaila
 import { AthleteService } from '../../core/services/athlete.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PhysioPanelComponent } from './physio-panel.component';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 /**
  * Onglet « Résumé » de la coquille athlète : profil physiologique, indisponibilités, antécédents,
@@ -19,7 +20,7 @@ import { PhysioPanelComponent } from './physio-panel.component';
   selector: 'app-athlete-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, FormsModule, DatePipe, PhysioPanelComponent],
+  imports: [SkeletonComponent, IconComponent, FormsModule, DatePipe, PhysioPanelComponent],
   templateUrl: './athlete-detail.component.html',
   styleUrl: './athletes.scss',
 })

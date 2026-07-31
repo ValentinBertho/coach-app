@@ -104,5 +104,5 @@
     <button type="button" class="btn btn-danger btn-sm" (click)="archive()">Archiver</button>
   </div>
 } @else if (loading()) {
-  <div class="card">Chargement…</div>
+  <div class="card"><app-skeleton shape="card" [rows]="2" /></div>
 }

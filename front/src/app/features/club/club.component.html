@@ -11,7 +11,7 @@
     <thead><tr><th>Coach</th><th>Rôle</th><th></th></tr></thead>
     <tbody>
       @if (loadingMembers()) {
-        <tr><td colspan="3" class="field-hint">Chargement…</td></tr>
+        <tr><td colspan="3"><app-skeleton shape="table" [rows]="3" [columns]="3" /></td></tr>
       } @else {
         @for (m of members(); track m.coachId) {
           <tr>
