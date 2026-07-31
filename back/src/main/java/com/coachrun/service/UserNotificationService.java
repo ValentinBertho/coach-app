@@ -15,6 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.UUID;
 
 /** Lecture du centre de notifications + préférences (scopé par l'utilisateur du token). */
@@ -56,7 +59,7 @@ public class UserNotificationService {
     public NotificationPreferencesResponse preferences(UUID userId) {
         User u = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Utilisateur introuvable."));
-        return new NotificationPreferencesResponse(u.isNotifyEmailEnabled(), u.isNotifyPushEnabled());
+        return toResponse(u);
     }
 
     @Transactional
@@ -69,6 +72,29 @@ public class UserNotificationService {
         if (req.pushEnabled() != null) {
             u.setNotifyPushEnabled(req.pushEnabled());
         }
-        return new NotificationPreferencesResponse(u.isNotifyEmailEnabled(), u.isNotifyPushEnabled());
+        if (req.usualSessionTime() != null) {
+            u.setUsualSessionTime(parseTime(req.usualSessionTime()));
+        }
+        return toResponse(u);
+    }
+
+    private NotificationPreferencesResponse toResponse(User u) {
+        LocalTime time = u.getUsualSessionTime();
+        return new NotificationPreferencesResponse(u.isNotifyEmailEnabled(), u.isNotifyPushEnabled(),
+                time == null ? null : time.format(DateTimeFormatter.ofPattern("HH:mm")));
+    }
+
+    /** « HH:mm » → heure ; chaîne vide (ou horaire illisible) = rappel de débriefing désactivé. */
+    private LocalTime parseTime(String raw) {
+        String value = raw.trim();
+        if (value.isEmpty()) {
+            return null;
+        }
+        try {
+            return LocalTime.parse(value);
+        } catch (DateTimeParseException ex) {
+            throw new com.coachrun.exception.ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Heure habituelle de séance invalide (format attendu HH:mm).");
+        }
     }
 }

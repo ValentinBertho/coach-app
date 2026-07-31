@@ -6,6 +6,15 @@ import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 
 /**
+ * Charge utile `data` posée par le serveur. `onActionClick` est la convention du service
+ * worker Angular : une destination par bouton d'action, plus une entrée « default ».
+ */
+interface NotificationData {
+  url?: string;
+  onActionClick?: Record<string, { operation?: string; url?: string }>;
+}
+
+/**
  * Notifications push côté client (SwPush). Disponible uniquement quand le service worker
  * est actif (build de production) et le navigateur compatible.
  */
@@ -23,15 +32,22 @@ export class PushService {
   /**
    * Branche la navigation au clic sur une notification : ouvre l'écran ciblé
    * (`data.url`, ex. /athlete/today). Appelé une fois au démarrage de l'app.
+   *
+   * Quand le clic vient d'une **action rapide** (« Facile / Moyen / Dur » du rappel de
+   * débriefing), c'est l'URL de cette action qui fait foi — elle porte le RPE choisi
+   * (`?feedback=<id>&rpe=7`). Sans ça, un tap sur « Dur » ouvrirait la même feuille vide que
+   * le corps de la notification, et les deux taps promis en redeviendraient quatre.
    */
   init(): void {
     if (!this.swPush.isEnabled) return;
-    this.swPush.notificationClicks.subscribe(({ notification }) => {
-      const url = (notification.data as { url?: string } | undefined)?.url;
+    this.swPush.notificationClicks.subscribe(({ action, notification }) => {
+      const data = notification.data as NotificationData | undefined;
+      const url = (action ? data?.onActionClick?.[action]?.url : undefined) ?? data?.url;
       if (!url) return;
       try {
-        const path = new URL(url, document.baseURI).pathname;
-        this.zone.run(() => this.router.navigateByUrl(path));
+        // Query comprise : le paramètre EST l'information transportée par l'action.
+        const target = new URL(url, document.baseURI);
+        this.zone.run(() => this.router.navigateByUrl(target.pathname + target.search));
       } catch { /* URL invalide : on ignore */ }
     });
   }

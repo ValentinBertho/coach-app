@@ -74,6 +74,11 @@ app:
     from: ${MAIL_FROM:Darilab <no-reply@darilab.app>}
   alerts:
     digest-cron: ${ALERTS_DIGEST_CRON:0 0 7 * * *}
+  debrief:
+    # Rappel « Ta séance est finie ? », 2 h après l'heure habituelle de séance de l'athlète.
+    # Passe toutes les heures et ne retient que les athlètes dont le créneau tombe maintenant.
+    enabled: ${DEBRIEF_REMINDERS_ENABLED:true}
+    cron: ${DEBRIEF_CRON:0 5 * * * *}
   vapid:
     public-key: ${VAPID_PUBLIC_KEY:}
     private-key: ${VAPID_PRIVATE_KEY:}

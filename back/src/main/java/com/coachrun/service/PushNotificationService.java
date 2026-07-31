@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -59,15 +60,34 @@ public class PushNotificationService {
         repository.findByEndpoint(endpoint).ifPresent(repository::delete);
     }
 
+    /**
+     * Action rapide d'une notification : un bouton affiché par le système, qui ouvre l'app sur
+     * {@code url} sans passer par l'écran d'accueil.
+     *
+     * @param id    identifiant technique de l'action (unique dans la notification)
+     * @param title libellé du bouton, tel qu'affiché par le système
+     * @param url   destination relative (ex. {@code /athlete/today?feedback=…&rpe=7})
+     */
+    public record QuickAction(String id, String title, String url) {
+    }
+
     /** Envoie une notification à tous les appareils d'un utilisateur (best-effort). */
     @Transactional
     public void sendToUser(UUID userId, String title, String body, String url) {
+        sendToUser(userId, title, body, url, List.of());
+    }
+
+    /**
+     * Notification avec actions rapides. Le corps du message reste utile même si le système
+     * n'affiche aucune action : selon la plateforme, seules les deux premières apparaissent
+     * ({@code Notification.maxActions}), et un clic sur le corps ouvre {@code url}.
+     */
+    @Transactional
+    public void sendToUser(UUID userId, String title, String body, String url, List<QuickAction> actions) {
         if (!isEnabled() || userId == null) {
             return;
         }
-        String payload = "{\"notification\":{\"title\":" + json(title)
-                + ",\"body\":" + json(body)
-                + ",\"data\":{\"url\":" + json(url) + "}}}";
+        String payload = payload(title, body, url, actions);
         for (PushSubscription sub : repository.findByUserId(userId)) {
             try {
                 Notification notification = Notification.builder()
@@ -81,6 +101,44 @@ public class PushNotificationService {
                 log.debug("Échec push vers {} : {}", sub.getEndpoint(), ex.getMessage());
             }
         }
+    }
+
+    /**
+     * Charge utile attendue par le service worker Angular (ngsw) : le bloc {@code notification}
+     * est passé tel quel à {@code showNotification}, et {@code data.onActionClick} dit à ngsw
+     * où naviguer selon le bouton pressé — c'est ce qui rend l'action rapide « en deux taps »
+     * possible sans que l'athlète ait à retrouver sa séance dans l'app.
+     */
+    private String payload(String title, String body, String url, List<QuickAction> actions) {
+        StringBuilder sb = new StringBuilder("{\"notification\":{\"title\":").append(json(title))
+                .append(",\"body\":").append(json(body));
+
+        if (!actions.isEmpty()) {
+            sb.append(",\"actions\":[");
+            for (int i = 0; i < actions.size(); i++) {
+                QuickAction a = actions.get(i);
+                sb.append(i > 0 ? "," : "")
+                        .append("{\"action\":").append(json(a.id()))
+                        .append(",\"title\":").append(json(a.title())).append("}");
+            }
+            sb.append("]");
+        }
+
+        sb.append(",\"data\":{\"url\":").append(json(url));
+        if (!actions.isEmpty()) {
+            sb.append(",\"onActionClick\":{\"default\":")
+                    .append(navigate(url));
+            for (QuickAction a : actions) {
+                sb.append(",").append(json(a.id())).append(":").append(navigate(a.url()));
+            }
+            sb.append("}");
+        }
+        return sb.append("}}}").toString();
+    }
+
+    /** Opération ngsw : réutiliser l'onglet déjà ouvert plutôt qu'en empiler un nouveau. */
+    private String navigate(String url) {
+        return "{\"operation\":\"navigateLastFocusedOrOpen\",\"url\":" + json(url) + "}";
     }
 
     private PushService service() throws Exception {

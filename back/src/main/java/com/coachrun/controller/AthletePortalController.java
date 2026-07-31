@@ -57,6 +57,8 @@ public class AthletePortalController {
     private final com.coachrun.service.LactateTestService lactateTestService;
     private final com.coachrun.service.TrainingPlanService trainingPlanService;
     private final com.coachrun.service.StravaService stravaService;
+    private final com.coachrun.service.DailyCheckInService checkInService;
+    private final com.coachrun.service.FeedbackStreakService streakService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -91,6 +93,61 @@ public class AthletePortalController {
                                     @Valid @RequestBody WorkoutFeedbackRequest request) {
         return workoutService.submitFeedback(principal.athleteId(), workoutId, request.status(),
                 request.rpe(), request.fatigue(), request.pain(), request.comment());
+    }
+
+    /**
+     * Série de retours consécutifs — alimente la célébration affichée à la validation.
+     * Volontairement à part de la réponse de feedback : c'est de l'encouragement, pas de la
+     * donnée d'entraînement, et un échec de calcul ne doit jamais faire échouer un ressenti.
+     */
+    @GetMapping("/feedback-streak")
+    public java.util.Map<String, Integer> feedbackStreak(@AuthenticationPrincipal AuthPrincipal principal) {
+        return java.util.Map.of("streak", streakService.currentStreak(principal.athleteId()));
+    }
+
+    /**
+     * Séance rapprochée d'une activité importée dont le ressenti manque encore : le portail
+     * ouvre la feuille pré-remplie à la prochaine ouverture. 204 quand il n'y a rien.
+     */
+    @GetMapping("/feedback-prompt")
+    public org.springframework.http.ResponseEntity<com.coachrun.dto.response.FeedbackPromptResponse>
+            feedbackPrompt(@AuthenticationPrincipal AuthPrincipal principal) {
+        var prompt = activityService.pendingFeedbackPrompt(principal.athleteId());
+        return prompt == null
+                ? org.springframework.http.ResponseEntity.noContent().build()
+                : org.springframework.http.ResponseEntity.ok(prompt);
+    }
+
+    /** L'invitation a été vue (remplie ou écartée) : ne plus la reproposer. */
+    @PostMapping("/feedback-prompt/{activityId}/ack")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void ackFeedbackPrompt(@AuthenticationPrincipal AuthPrincipal principal,
+                                  @PathVariable UUID activityId) {
+        activityService.ackFeedbackPrompt(principal.athleteId(), activityId);
+    }
+
+    // --- Check-in matinal (3 curseurs) ---------------------------------------
+
+    /**
+     * Mon check-in du jour (204 s'il n'est pas rempli). Fatigue et douleur alimentent la forme
+     * <strong>avant</strong> la séance ; le sommeil reste du contexte.
+     */
+    @GetMapping("/checkin")
+    public org.springframework.http.ResponseEntity<com.coachrun.dto.response.DailyCheckInResponse> checkIn(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        var checkIn = checkInService.forDay(principal.athleteId(), date != null ? date : LocalDate.now());
+        return checkIn == null
+                ? org.springframework.http.ResponseEntity.noContent().build()
+                : org.springframework.http.ResponseEntity.ok(checkIn);
+    }
+
+    /** Je déclare (ou corrige) mon check-in du jour. */
+    @PostMapping("/checkin")
+    public com.coachrun.dto.response.DailyCheckInResponse saveCheckIn(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody com.coachrun.dto.request.DailyCheckInRequest request) {
+        return checkInService.save(principal.athleteId(), LocalDate.now(), request);
     }
 
     /** L'athlète déplace une séance (jamais la modifier) : change la date uniquement. */

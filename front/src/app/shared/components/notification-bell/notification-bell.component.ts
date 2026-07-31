@@ -121,7 +121,7 @@ export class NotificationBellComponent implements OnInit {
   readonly loading = signal(false);
   readonly items = signal<AppNotification[]>([]);
   readonly showPrefs = signal(false);
-  readonly prefs = signal<NotificationPreferences>({ emailEnabled: true, pushEnabled: true });
+  readonly prefs = signal<NotificationPreferences>({ emailEnabled: true, pushEnabled: true, usualSessionTime: null });
 
   ngOnInit(): void {
     this.notif.refreshUnread().subscribe({ error: () => {} });

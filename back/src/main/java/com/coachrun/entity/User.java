@@ -85,6 +85,13 @@ public class User extends BaseEntity {
     @Column(name = "notify_push_enabled", nullable = false)
     private boolean notifyPushEnabled = true;
 
+    /**
+     * Heure habituelle de séance de l'athlète : point d'ancrage du rappel « Ta séance est
+     * finie ? », envoyé 2 h après. Nulle = pas de rappel de débriefing (opt-out par l'heure).
+     */
+    @Column(name = "usual_session_time")
+    private java.time.LocalTime usualSessionTime = java.time.LocalTime.of(18, 0);
+
     /** Réinitialisation de mot de passe : jeton et expiration ; nuls une fois utilisé. */
     @Column(name = "reset_token", length = 64, unique = true)
     private String resetToken;

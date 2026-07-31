@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ConfirmService } from '../../core/services/confirm.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -56,6 +57,18 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
           <div class="app-settings__row">
             <app-install-button />
             <app-push-button />
+          </div>
+
+          <!-- Heure habituelle : elle ancre le rappel « Ta séance est finie ? », envoyé 2 h
+               après. Un rappel de club à heure fixe tombe forcément à côté pour la moitié des
+               athlètes ; celui-ci suit le rythme de chacun. -->
+          <div class="debrief-time">
+            <label for="usual-time">
+              <strong>Mon heure d'entraînement habituelle</strong>
+              <span class="field-hint">On te demandera ton ressenti 2 h après. Vide = pas de rappel.</span>
+            </label>
+            <input id="usual-time" type="time" class="form-control debrief-time__in"
+                   [value]="usualSessionTime()" (change)="onUsualTimeChange($event)" />
           </div>
         </section>
 
@@ -220,6 +233,9 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
     .subtitle { color: var(--ink-3); margin: 0; }
     .help-link { display: flex; align-items: center; gap: var(--sp-3); text-decoration: none; color: var(--ink); padding: var(--sp-3); }
     .app-settings__row { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
+    .debrief-time { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-top: var(--sp-4); }
+    .debrief-time label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .debrief-time__in { width: auto; min-height: 44px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
     .logout-btn { align-self: center; }
     .help-link__ic { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-lg); background: var(--gradient-brand, var(--primary)); color: #fff; }
     .help-link__txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
@@ -274,7 +290,11 @@ export class AthleteProfileComponent implements OnInit {
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly notifications = inject(NotificationService);
   readonly user = this.auth.currentUser;
+
+  /** Heure habituelle de séance, format « HH:mm » ; vide = rappel de ressenti désactivé. */
+  readonly usualSessionTime = signal('');
 
   readonly physio = signal<PhysioProfile | null>(null);
   readonly vdot = signal<Vdot | null>(null);
@@ -345,6 +365,29 @@ export class AthleteProfileComponent implements OnInit {
     this.portal.races().subscribe({ next: (r) => this.races.set(r), error: () => this.races.set(null) });
     this.portal.performances().subscribe({ next: (p) => this.performances.set(p), error: () => this.performances.set([]) });
     this.portal.lactateTests().subscribe({ next: (t) => this.lactateTests.set(t), error: () => this.lactateTests.set([]) });
+    this.notifications.preferences().subscribe({
+      next: (p) => this.usualSessionTime.set(p.usualSessionTime ?? ''),
+      error: () => this.usualSessionTime.set(''),
+    });
+  }
+
+  /**
+   * Enregistre l'heure habituelle de séance (ancre du rappel de débriefing). Vide = pas de
+   * rappel : refuser une relance doit être aussi simple que la régler.
+   */
+  onUsualTimeChange(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.usualSessionTime.set(value);
+    this.notifications.savePreferences({ usualSessionTime: value }).subscribe({
+      next: () => this.toast.success(value ? `Rappel de ressenti à ${this.debriefLabel(value)}` : 'Rappel de ressenti désactivé'),
+      error: () => this.toast.error('Préférence non enregistrée.'),
+    });
+  }
+
+  /** « 18:00 » → « 20:00 » : on annonce l'heure du rappel, pas celle de la séance. */
+  private debriefLabel(time: string): string {
+    const [h, m] = time.split(':').map(Number);
+    return `${String((h + 2) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   }
 
   /** Au moins une donnée physio renseignée (sinon on affiche un message d'attente). */

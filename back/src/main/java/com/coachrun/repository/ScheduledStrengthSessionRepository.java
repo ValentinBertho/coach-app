@@ -27,6 +27,9 @@ public interface ScheduledStrengthSessionRepository extends JpaRepository<Schedu
 
     Optional<ScheduledStrengthSession> findByIdAndAthleteId(UUID id, UUID athleteId);
 
+    /** Séances de force d'un jour donné restées non clôturées (rappel de débriefing). */
+    List<ScheduledStrengthSession> findByScheduledDateAndCompletedFalse(LocalDate date);
+
     /**
      * Dernier retour de séance de force portant un signal de forme (fatigue ou douleur).
      * Sert à alimenter l'état de forme et les alertes douleur au même titre que les séances

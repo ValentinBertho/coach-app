@@ -1,0 +1,44 @@
+# ============================================================================
+# 059 — Check-in matinal de l'athlète (3 curseurs : sommeil, fatigue, douleur).
+#   L'état de forme ne dépendait que du retour post-séance : un athlète qui ne
+#   notait pas restait « aucun retour récent » et le coach pilotait à l'aveugle
+#   le matin. Le check-in alimente la forme AVANT la séance.
+#   Invariant conservé : la forme = fatigue + douleur. Le sommeil est un
+#   contexte affiché, jamais un terme du calcul (comme le RPE).
+#   Une ligne par athlète et par jour (contrainte d'unicité) : le check-in du
+#   jour se corrige, il ne s'empile pas.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 059-daily-check-ins
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: daily_check_ins
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: check_date, type: DATE, constraints: { nullable: false } }
+              - column: { name: sleep, type: INT }
+              - column: { name: fatigue, type: INT }
+              - column: { name: pain, type: INT }
+        - addForeignKeyConstraint:
+            baseTableName: daily_check_ins
+            baseColumnNames: athlete_id
+            constraintName: fk_daily_check_in_athlete
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            tableName: daily_check_ins
+            columnNames: athlete_id, check_date
+            constraintName: uk_daily_check_in_athlete_date
+        - createIndex:
+            tableName: daily_check_ins
+            indexName: idx_daily_check_in_athlete_date
+            columns:
+              - column: { name: athlete_id }
+              - column: { name: check_date }

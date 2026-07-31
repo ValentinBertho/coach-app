@@ -230,6 +230,40 @@ public class NotificationService {
                         + cta("Voir ma séance", frontendUrl + "/athlete/today"));
     }
 
+    /**
+     * Débriefing de séance : « Ta séance est finie ? », 2 h après l'heure habituelle, avec le
+     * RPE en actions rapides.
+     *
+     * <p>Un retour non rempli est un bug produit, pas une négligence de l'athlète : le rappel
+     * J-1 annonce une séance à venir, celui-ci récupère le ressenti pendant qu'il est encore
+     * frais. Les trois crans proposés (3 / 6 / 8) couvrent l'essentiel des réponses réelles et
+     * mènent à une feuille pré-remplie — l'athlète confirme fatigue et douleur, il ne saisit
+     * pas tout depuis zéro.</p>
+     *
+     * <p>Push uniquement : pas d'e-mail (le canal est trop lent pour un ressenti à chaud) et
+     * pas de trace au centre de notifications (le lendemain, elle serait périmée).</p>
+     *
+     * @param feedbackPath chemin front portant déjà un paramètre de requête (les actions y
+     *                     ajoutent {@code &rpe=…}), ex. {@code /athlete/today?feedback=<id>}
+     */
+    public void notifySessionDebrief(User athleteUser, String sessionTitle, String feedbackPath) {
+        if (athleteUser == null || !athleteUser.isNotifyPushEnabled()) {
+            return;
+        }
+        List<PushNotificationService.QuickAction> actions = List.of(
+                quickAction(3, "Facile", feedbackPath),
+                quickAction(6, "Moyen", feedbackPath),
+                quickAction(8, "Dur", feedbackPath));
+        pushService.sendToUser(athleteUser.getId(), "Ta séance est finie ?",
+                sessionTitle + " — note ton ressenti en un tap.",
+                frontendUrl + feedbackPath, actions);
+    }
+
+    private PushNotificationService.QuickAction quickAction(int rpe, String label, String feedbackPath) {
+        return new PushNotificationService.QuickAction("rpe-" + rpe, label + " (" + rpe + ")",
+                frontendUrl + feedbackPath + "&rpe=" + rpe);
+    }
+
     /** Vérification d'e-mail à l'inscription : e-mail avec le lien de confirmation. */
     public void notifyEmailVerification(String email, String fullName, String url) {
         if (email == null) {

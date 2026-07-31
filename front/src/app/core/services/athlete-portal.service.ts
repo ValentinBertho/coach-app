@@ -42,6 +42,34 @@ export interface StrengthFeedback {
   comment?: string | null;
 }
 
+/**
+ * Check-in matinal : trois curseurs, moins de dix secondes. Fatigue et douleur alimentent la
+ * forme **avant** la séance ; le sommeil est du contexte pour le coach, jamais un terme du
+ * calcul de forme (au même titre que le RPE).
+ */
+export interface DailyCheckIn {
+  checkDate: string;
+  sleep: number | null;
+  fatigue: number | null;
+  pain: number | null;
+}
+
+export type DailyCheckInRequest = Pick<DailyCheckIn, 'sleep' | 'fatigue' | 'pain'>;
+
+/**
+ * Invitation à confirmer le ressenti d'une séance rapprochée d'une activité importée.
+ * Le rapprochement connaît les faits (distance, durée, FC) ; il ne connaît pas le ressenti.
+ */
+export interface FeedbackPrompt {
+  activityId: string;
+  source: string;
+  distanceM: number | null;
+  durationS: number | null;
+  avgHr: number | null;
+  elevationGainM: number | null;
+  workout: Workout;
+}
+
 /** Date locale au format ISO (jamais `toISOString()`, qui bascule d'un jour selon le fuseau). */
 function isoDay(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -99,6 +127,40 @@ export class AthletePortalService {
     const from = new Date();
     from.setDate(from.getDate() - days);
     return this.workouts(isoDay(from), isoDay(to)).pipe(map((list) => list.filter(awaitsFeedback)));
+  }
+
+  /**
+   * Série de retours consécutifs (célébration à la validation). Purement motivationnel :
+   * l'appelant ignore l'échec plutôt que de gâcher une validation réussie.
+   */
+  feedbackStreak(): Observable<number> {
+    return this.http.get<{ streak: number }>(`${this.base}/feedback-streak`).pipe(map((r) => r.streak));
+  }
+
+  /**
+   * Séance rapprochée d'une activité importée dont le ressenti manque (204 → null).
+   *
+   * Le rapprochement passe la séance en « réalisée » : elle sort donc du bandeau des retours en
+   * attente sans qu'aucun signal de forme n'ait été donné. C'est cette fuite que la feuille
+   * pré-remplie vient boucher.
+   */
+  feedbackPrompt(): Observable<FeedbackPrompt | null> {
+    return this.http.get<FeedbackPrompt | null>(`${this.base}/feedback-prompt`);
+  }
+
+  /** L'invitation a été vue (remplie ou écartée) : ne plus la reproposer. */
+  ackFeedbackPrompt(activityId: string): Observable<void> {
+    return this.http.post<void>(`${this.base}/feedback-prompt/${activityId}/ack`, {});
+  }
+
+  /** Mon check-in du jour (204 → null). */
+  checkIn(): Observable<DailyCheckIn | null> {
+    return this.http.get<DailyCheckIn | null>(`${this.base}/checkin`);
+  }
+
+  /** Je déclare (ou corrige) mon check-in du jour. */
+  saveCheckIn(body: DailyCheckInRequest): Observable<DailyCheckIn> {
+    return this.http.post<DailyCheckIn>(`${this.base}/checkin`, body);
   }
 
   /** Prescription calculée d'une séance course (cibles allure/FC/RPE personnalisées). */

@@ -84,43 +84,16 @@
 
 .empty { text-align: center; }
 
-/* --- Renforcement du jour ------------------------------------------------ */
+/* --- Renforcement du jour : carte de lancement ---------------------------
+   Plus aucun champ de saisie ici. La séance de force s'annonce et s'ouvre ; la
+   saisie série par série vit dans le mode plein écran (/athlete/session/:id). */
 .strength-badge { background: var(--dari-violet); color: #fff; }
 .strength-day { display: flex; flex-direction: column; gap: var(--sp-2); }
-
-.sx { margin: var(--sp-3) 0; }
-.sx__head { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-2); }
-.sx__head strong { color: var(--night-text); }
-.sx__rx { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
-
-.set-table { width: 100%; border-collapse: collapse; }
-.set-table th { color: var(--night-text-2); font-size: var(--text-xs); text-align: left; font-weight: 600; padding: 2px 4px; }
-.set-table td { padding: 2px 4px; }
-.set-n { color: var(--night-text-2); width: 40px; font-family: var(--font-data); }
-.set-in { min-height: 36px; padding: 0 var(--sp-2); background: rgba(255,255,255,0.06); color: var(--night-text); border-color: var(--night-2); font-family: var(--font-data); }
-
-.strength-fb { margin-top: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-4); }
-
-.strength-progression {
-  margin-top: var(--sp-3);
-  padding-top: var(--sp-3);
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-}
-.progression-line { font-size: 0.9rem; color: var(--primary-light); margin: var(--sp-1) 0; }
-.alert-line { font-size: 0.85rem; color: var(--dari-orange); margin: var(--sp-1) 0; }
-.alert-line.alert-high { color: var(--dari-red); font-weight: 600; }
+.strength-day__summary { color: var(--primary-light); font-size: var(--text-sm); font-weight: 700; margin: 0; }
+.strength-day__hint { color: var(--night-text-2); font-size: var(--text-xs); text-align: center; margin: 0; }
 
 .hero-skeleton { display: flex; flex-direction: column; }
 
 /* Incitation à saisir une perf quand l'athlète n'a pas d'allures (VDOT). */
 .paces-prompt { display: flex; align-items: center; gap: var(--sp-2); text-decoration: none; color: var(--ink); padding: var(--sp-3); }
 .paces-prompt span { flex: 1; font-size: var(--text-sm); }
-
-/* Cible tactile confortable (≥ 44 px) pour la recopie de série. */
-.set-repeat {
-  min-width: 44px; min-height: 44px;
-  border: 1px solid var(--hairline); border-radius: var(--radius-sm);
-  background: var(--paper-sunk); color: var(--ink-2);
-  font-size: var(--text-md); cursor: pointer;
-}
-.set-repeat:active { background: var(--primary-wash); color: var(--primary); }

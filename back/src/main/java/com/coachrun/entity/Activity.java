@@ -69,6 +69,14 @@ public class Activity extends BaseEntity {
     @Column(name = "matched_workout_id")
     private UUID matchedWorkoutId;
 
+    /**
+     * Date à laquelle l'athlète a été invité à confirmer le ressenti de la séance rapprochée.
+     * Non nulle = déjà proposé : la feuille pré-remplie ne s'ouvre qu'une fois, sinon un refus
+     * se transforme en pop-up à chaque lancement.
+     */
+    @Column(name = "feedback_prompted_at")
+    private java.time.Instant feedbackPromptedAt;
+
     /** Tracé GPS sous-échantillonné, JSON [[lat,lon],…] (import GPX/TCX). */
     @Column(name = "route_json")
     private String routeJson;
