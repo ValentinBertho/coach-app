@@ -304,6 +304,23 @@ export class CalendarComponent implements OnInit, OnDestroy {
     }
 
     const rec = item as unknown as Record<string, unknown>;
+
+    // Éléments venus de la bibliothèque (pas de date planifiée) : planification sur la ligne
+    // de l'athlète. C'est ce qui manquait pour que le mode groupe soit une vue de travail.
+    const refreshGroup = () => this.loadGroup();
+    if (rec['category'] === 'TECHNIQUE' || rec['category'] === 'AMPLITUDE') {
+      this.dropDrill(item as unknown as RunDrill, targetDate, row.athleteId, refreshGroup);
+      return;
+    }
+    if ('structure' in rec) {
+      this.scheduleStrength(item as unknown as StrengthSession, row.athleteId, targetDate, refreshGroup);
+      return;
+    }
+    if (!('scheduledDate' in rec)) {
+      this.scheduleTemplate(item as unknown as WorkoutTemplate, row.athleteId, targetDate, refreshGroup);
+      return;
+    }
+
     if ('sourceSessionId' in rec) {
       this.moveGroupStrength(row, item as unknown as ScheduledStrength, targetDate);
     } else {
@@ -689,16 +706,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
   toggleNote(): void { this.noteOpen.update((v) => !v); if (!this.noteOpen()) this.noteText = ''; }
 
   /** Drop d'un éducatif : crée une courte séance technique avec la gamme attachée à l'échauffement. */
-  private dropDrill(drill: RunDrill, date: string): void {
-    this.workoutService.create(this.selectedAthleteId, {
+  private dropDrill(drill: RunDrill, date: string, athleteId = this.selectedAthleteId, refresh = () => this.load()): void {
+    this.workoutService.create(athleteId, {
       scheduledDate: date, type: 'ENDURANCE', title: 'Technique — ' + drill.name, notes: null, steps: [],
     }).subscribe({
       next: (w) => {
-        this.workoutService.updateStructure(this.selectedAthleteId, w.id, {
+        this.workoutService.updateStructure(athleteId, w.id, {
           warmup: [{ id: 'wu-' + Math.random().toString(36).slice(2, 8), type: 'warmup', drillIds: [drill.id] }],
           main: [], cooldown: [],
         }).subscribe({
-          next: () => { this.toast.success(`${drill.name} planifié le ${this.fmtDate(date)}`); this.load(); },
+          next: () => { this.toast.success(`${drill.name} planifié le ${this.fmtDate(date)}`); refresh(); },
           error: () => this.toast.error('Création impossible.'),
         });
       },
@@ -768,16 +785,56 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /** Planifie un modèle de séance course sur la date choisie (snapshot figé + cibles en fourchettes). */
-  scheduleTemplateOn(t: WorkoutTemplate): void {
-    const date = this.pickerDate();
-    if (!date) return;
-    this.courseService.schedule(this.selectedAthleteId, t.id, { date }).subscribe({
+  // --- Planification (partagée entre le glisser-déposer, le picker « + » et le mode groupe) ---
+  // Un seul chemin par famille de séance : le picker et le panneau latéral ne doivent pas
+  // diverger, c'était toute la confusion de l'ancienne modale.
+
+  /**
+   * Planifie un modèle de séance course chez un athlète à une date.
+   * `refresh` dit quelle vue recharger : la grille d'un athlète ou celle du groupe.
+   */
+  private scheduleTemplate(t: WorkoutTemplate, athleteId: string, date: string, refresh = () => this.load()): void {
+    this.courseService.schedule(athleteId, t.id, { date }).subscribe({
       next: (w) => {
         this.toast.success(`${t.name} planifiée le ${this.fmtDate(date)}${this.chargeRecap(w)}`);
-        this.closePicker(); this.load();
+        refresh();
       },
       error: () => this.toast.error('Planification impossible.'),
     });
+  }
+
+  /** Planifie une séance de force chez un athlète à une date. */
+  private scheduleStrength(s: StrengthSession, athleteId: string, date: string, refresh = () => this.reloadStrength()): void {
+    this.strengthService.scheduleSession(athleteId, s.id, { date, fieldsPreset: 'AVANCE' }).subscribe({
+      next: (scheduled) => {
+        const charges = scheduled.chargeSummary ? ` — ${scheduled.chargeSummary}` : '';
+        this.toast.success(`${s.name} planifiée le ${this.fmtDate(date)}${charges}`);
+        refresh();
+      },
+      error: () => this.toast.error('Planification impossible.'),
+    });
+  }
+
+  // --- Sélection depuis le picker « + » d'un jour (panneau bibliothèque) ---
+  scheduleTemplateOn(t: WorkoutTemplate): void {
+    const date = this.pickerDate();
+    if (!date) return;
+    this.closePicker();
+    this.scheduleTemplate(t, this.selectedAthleteId, date);
+  }
+
+  scheduleStrengthOn(s: StrengthSession): void {
+    const date = this.pickerDate();
+    if (!date) return;
+    this.closePicker();
+    this.scheduleStrength(s, this.selectedAthleteId, date);
+  }
+
+  scheduleDrillOn(d: RunDrill): void {
+    const date = this.pickerDate();
+    if (!date) return;
+    this.closePicker();
+    this.dropDrill(d, date);
   }
   openWorkout(w: Workout): void {
     if (this.consumeSuppressedClick()) return;
@@ -845,30 +902,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     // Séance de force glissée depuis la bibliothèque → planification.
     if ('structure' in rec) {
-      const s = data as StrengthSession;
-      this.strengthService
-        .scheduleSession(this.selectedAthleteId, s.id, { date: targetDate, fieldsPreset: 'AVANCE' })
-        .subscribe({
-          next: (scheduled) => {
-            const charges = scheduled.chargeSummary ? ` — ${scheduled.chargeSummary}` : '';
-            this.toast.success(`${s.name} planifiée le ${this.fmtDate(targetDate)}${charges}`);
-            this.reloadStrength();
-          },
-          error: () => this.toast.error('Planification impossible.'),
-        });
+      this.scheduleStrength(data as StrengthSession, this.selectedAthleteId, targetDate);
       return;
     }
 
     // Modèle de séance course glissé depuis la bibliothèque → planification.
     if (!('scheduledDate' in rec)) {
-      const t = data as WorkoutTemplate;
-      this.courseService.schedule(this.selectedAthleteId, t.id, { date: targetDate }).subscribe({
-        next: (w) => {
-          this.toast.success(`${t.name} planifiée le ${this.fmtDate(targetDate)}${this.chargeRecap(w)}`);
-          this.load();
-        },
-        error: () => this.toast.error('Planification impossible.'),
-      });
+      this.scheduleTemplate(data as WorkoutTemplate, this.selectedAthleteId, targetDate);
       return;
     }
 

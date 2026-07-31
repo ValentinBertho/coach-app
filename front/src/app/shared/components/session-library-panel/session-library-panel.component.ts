@@ -35,10 +35,25 @@ export class SessionLibraryPanelComponent {
   readonly drills = input<RunDrill[]>([]);
   readonly categories = input<SessionCategory[]>([]);
 
-  /** Émis au clic sur une séance course (consultation). Non lié dans le calendrier (glisser-déposer). */
+  /**
+   * Mode « choisir pour planifier » : le panneau sert de sélecteur (picker « + » d'un jour)
+   * plutôt que de réserve à glisser. Le clic devient l'action principale sur les trois familles,
+   * au lieu d'ouvrir la consultation.
+   */
+  readonly pickMode = input(false);
+
+  /** Émis au clic sur une séance course (consultation, ou planification en `pickMode`). */
   readonly courseSelect = output<WorkoutTemplate>();
+  /** Émis au clic sur une séance de force — utile seulement en `pickMode`. */
+  readonly strengthSelect = output<StrengthSession>();
+  /** Émis au clic sur un éducatif — utile seulement en `pickMode`. */
+  readonly drillSelect = output<RunDrill>();
   /** Émis au clic sur l'étoile (épingler / dé-épingler un favori). */
   readonly favoriteToggle = output<WorkoutTemplate>();
+
+  /** Infobulle des items : le clic ne fait pas la même chose selon le mode. */
+  readonly itemHint = computed(() =>
+    this.pickMode() ? 'Planifier cette séance' : 'Consulter la séance');
 
   /** Favoris (épinglés) qui matchent la recherche — remontés en tête. */
   readonly favorites = computed(() =>

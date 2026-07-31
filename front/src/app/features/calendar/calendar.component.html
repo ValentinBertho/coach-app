@@ -78,12 +78,12 @@
     </button>
   }
 
-  @if (scopeMode() === 'athlete') {
-    <button type="button" class="btn btn-ghost btn-sm lib-toggle" (click)="toggleSidebar()"
-            [title]="sidebarOpen() ? 'Masquer la bibliothèque' : 'Afficher la bibliothèque'">
-      <app-icon name="panel-left" [size]="15" /> {{ sidebarOpen() ? 'Masquer' : 'Bibliothèque' }}
-    </button>
-  }
+  <!-- La bibliothèque est disponible en mode groupe aussi : sans elle on ne peut que déplacer,
+       jamais planifier — la promesse « coach de club » n'était pas tenue. -->
+  <button type="button" class="btn btn-ghost btn-sm lib-toggle" (click)="toggleSidebar()"
+          [title]="sidebarOpen() ? 'Masquer la bibliothèque' : 'Afficher la bibliothèque'">
+    <app-icon name="panel-left" [size]="15" /> {{ sidebarOpen() ? 'Masquer' : 'Bibliothèque' }}
+  </button>
 </div>
 
 @if (scopeMode() === 'athlete' && selectedAthleteId && !canWriteSelected()) {
@@ -170,7 +170,25 @@
       <a routerLink="/app/groups" class="btn btn-primary">Gérer les groupes</a>
     </div>
   } @else {
-    <div class="group-grid" cdkDropListGroup>
+    <div class="cal-layout" [class.with-lib]="sidebarOpen()" cdkDropListGroup>
+    @if (sidebarOpen()) {
+      <aside class="cal-sidebar" aria-label="Bibliothèque de séances">
+        <div class="cal-sidebar__hd">
+          <h3>Bibliothèque</h3>
+          <button type="button" class="icon-btn" (click)="toggleSidebar()" title="Masquer la bibliothèque"><app-icon name="x" [size]="15" /></button>
+        </div>
+        <p class="field-hint">Glisse une séance sur la ligne d'un athlète pour la lui planifier.</p>
+
+        <app-session-library-panel
+          [courseTemplates]="courseTemplates()"
+          [strengthSessions]="librarySessions()"
+          [drills]="drills()"
+          [categories]="categories()"
+          (favoriteToggle)="toggleFavorite($event)" />
+      </aside>
+    }
+
+    <div class="group-grid">
       <div class="gg-head">
         <span class="gg-corner">Athlète</span>
         @for (d of weekDates(); track d.date) {
@@ -218,6 +236,7 @@
           }
         </div>
       }
+    </div>
     </div>
   }
 } @else if (athletes().length === 0 && !lockedToAthlete()) {
@@ -525,22 +544,20 @@
           <span class="picker__type">aide-mémoire sur le jour</span>
         </button>
       }
-      @if (courseTemplates().length) {
-        <p class="field-hint picker__or">ou depuis un modèle :</p>
-        <ul class="picker__list">
-          @for (t of courseTemplates(); track t.id) {
-            <li>
-              <button type="button" class="picker__item" (click)="scheduleTemplateOn(t)">
-                <span class="picker__name">{{ t.name }}</span>
-                <span class="picker__type">{{ typeLabels[t.type] }}</span>
-              </button>
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="field-hint">Aucun modèle de séance course.</p>
-        <a routerLink="/app/library/course" class="btn btn-ghost btn-sm">Créer un modèle dans la bibliothèque →</a>
-      }
+      <!-- Même panneau que la colonne latérale (recherche, favoris, fréquentes, catégories,
+           course + force + éducatifs). L'ancienne liste à plat de TOUS les modèles était une
+           seconde UX de sélection, inutilisable dès quelques dizaines de séances. -->
+      <p class="field-hint picker__or">ou depuis la bibliothèque :</p>
+      <app-session-library-panel class="picker__lib"
+        [pickMode]="true"
+        [courseTemplates]="courseTemplates()"
+        [strengthSessions]="librarySessions()"
+        [drills]="drills()"
+        [categories]="categories()"
+        (courseSelect)="scheduleTemplateOn($event)"
+        (strengthSelect)="scheduleStrengthOn($event)"
+        (drillSelect)="scheduleDrillOn($event)"
+        (favoriteToggle)="toggleFavorite($event)" />
     </div>
   </div>
 }
