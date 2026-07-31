@@ -14,6 +14,15 @@ logging:
     root: INFO
     com.coachrun: INFO
 
+# Swagger/OpenAPI fermé en production : la spec expose toute la surface de l'API
+# (routes, paramètres, schémas) à un visiteur anonyme. Réactivable ponctuellement
+# via SWAGGER_ENABLED=true (puis remettre à false).
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
+
 app:
   seed:
     enabled: false

@@ -140,6 +140,7 @@ fichier pour tous ». Une promesse claire vaut mieux qu'une intégration à moit
 | Upload de fichiers | ✅ | Allowlist stricte de content-types (png/jpeg/gif/webp/pdf), limite 10 MB. |
 | Rate limiting | ✅ | Login, register, refresh, password-reset, verify-email, invitations — clé IP:bucket normalisée ; en mémoire (OK mono-instance, Redis à prévoir en multi-pod). |
 | Erreurs sensibles | ✅ | Handler global, pas de détails internes exposés, `show-details: when_authorized` sur Actuator, `send-default-pii: false` côté Sentry. |
+| Exposition de l'API | ✅ | Swagger UI et `/v3/api-docs` **désactivés en production** (`SWAGGER_ENABLED=false` par défaut) : la spec complète n'est plus publique. Réactivables ponctuellement par variable d'environnement. |
 | Jeton en query param | ⚠️ | `access_token` accepté en query string pour les flux SSE (limitation `EventSource`) → le JWT peut fuiter dans les logs des proxys. Connu et documenté ; à remplacer par des jetons courts signés à usage unique. TTL 15 min limite l'exposition. |
 | Chiffrement au repos | ✅ | AES-256-GCM (IV aléatoire par valeur) sur données santé + jetons OAuth. Au-dessus du standard pour une bêta. |
 

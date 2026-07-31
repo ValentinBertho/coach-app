@@ -11,6 +11,8 @@
 #   BACKUP_ENCRYPTION_KEY  passphrase de chiffrement — openssl rand -hex 32
 #                          ⚠️ à conserver AUSSI hors de GitHub (gestionnaire de
 #                          mots de passe) : sans elle, les dumps sont illisibles.
+#   BACKUP_HEARTBEAT_URL   (optionnel) URL de heartbeat Better Stack, pingée
+#                          uniquement en cas de succès → alerte si le job s'arrête.
 #
 # Restauration : cf. docs/OPERATIONS.md §2 (déchiffrement puis pg_restore).
 # NB : GitHub désactive les crons d'un dépôt inactif > 60 jours ; le job
@@ -87,3 +89,18 @@ jobs:
           path: ${{ env.OUT }}.enc
           retention-days: 14
           if-no-files-found: error
+
+      # Dead man's switch : ce ping n'a lieu QUE si toutes les étapes précédentes ont
+      # réussi (comportement par défaut des steps). Si la sauvegarde cesse de tourner —
+      # secret expiré, base injoignable, cron GitHub désactivé après 60 jours
+      # d'inactivité — Better Stack n'est plus pingué et alerte après la grace period.
+      - name: Signaler le succès (heartbeat Better Stack)
+        env:
+          HEARTBEAT_URL: ${{ secrets.BACKUP_HEARTBEAT_URL }}
+        run: |
+          if [ -z "$HEARTBEAT_URL" ]; then
+            echo "::warning::BACKUP_HEARTBEAT_URL absent — aucune supervision du job."
+            exit 0
+          fi
+          curl -fsS --retry 3 --max-time 20 "$HEARTBEAT_URL" > /dev/null
+          echo "✅ Heartbeat envoyé."
