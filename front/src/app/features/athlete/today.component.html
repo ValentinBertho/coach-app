@@ -27,6 +27,28 @@
       </a>
     }
 
+    <!-- Rattrapage : une séance non notée reste accessible 7 jours, sinon son ressenti est
+         perdu pour toujours et le coach pilote à l'aveugle. -->
+    @if (pending().length) {
+      <section class="pending card">
+        <div class="pending__hd">
+          <app-icon name="alert-triangle" [size]="18" />
+          <strong>{{ pending().length }} retour{{ pending().length > 1 ? 's' : '' }} en attente</strong>
+        </div>
+        <ul class="pending__list">
+          @for (w of pending(); track w.id) {
+            <li>
+              <button type="button" class="pending__row" (click)="openFeedback(w)">
+                <span class="pending__day">{{ dayLabel(w.scheduledDate) }}</span>
+                <span class="pending__title">{{ w.title }}</span>
+                <span class="pending__cta">Noter <app-icon name="chevron-right" [size]="16" /></span>
+              </button>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
     @if (nextRace(); as r) {
       <div class="race-countdown card">
         <div>
@@ -193,30 +215,5 @@
   </main>
 </div>
 
-<!-- ===== Bottom sheet : retour course en 10 s ===== -->
-<app-bottom-sheet [(open)]="feedbackOpen" title="Ton ressenti">
-  <div class="fb">
-    <div class="rpe-row">
-      <span class="rpe-row__label">Effort perçu (RPE)</span>
-      <div class="rpe-scale">
-        @for (n of rpeScale; track n) {
-          <button type="button" class="rpe-dot" [class.active]="rpe() === n"
-                  [title]="rpeLabel(n)" [attr.aria-label]="'RPE ' + n + ' — ' + rpeLabel(n)"
-                  (click)="rpe.set(n)">{{ n }}</button>
-        }
-      </div>
-      @if (rpeLabel(rpe()); as label) { <span class="rpe-word">{{ label }}</span> }
-    </div>
-
-    <app-pain-fatigue-selector kind="fatigue" [(value)]="fatigue" />
-    <app-pain-fatigue-selector kind="pain" [(value)]="pain" />
-
-    <textarea class="form-control" rows="2" placeholder="Un commentaire ? (optionnel)"
-              [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
-
-    <div class="fb__actions">
-      <button type="button" class="btn btn-accent btn-lg" (click)="submit(true)">Séance réalisée <app-icon name="check" [size]="16" /></button>
-      <button type="button" class="btn btn-ghost" (click)="submit(false)">Partiellement</button>
-    </div>
-  </div>
-</app-bottom-sheet>
+<!-- ===== Bottom sheet : retour course en 10 s (partagé avec l'agenda et l'historique) ===== -->
+<app-workout-feedback-sheet (saved)="onFeedbackSaved($event)" />

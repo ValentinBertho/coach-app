@@ -62,11 +62,25 @@
 .timeline__label { flex: 1; font-size: var(--text-sm); }
 .timeline__target { color: var(--night-text-2); font-size: var(--text-sm); }
 
-/* --- Retour course (bottom sheet) ---------------------------------------- */
-.fb { display: flex; flex-direction: column; gap: var(--sp-5); }
-.fb__actions { display: flex; flex-direction: column; gap: var(--sp-2); }
-.fb__actions .btn { width: 100%; }
+/* --- Bandeau de rattrapage : séances non notées des 7 derniers jours ------ */
+.pending {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  border-color: var(--warning); background: var(--warning-bg);
+}
+.pending__hd { display: flex; align-items: center; gap: var(--sp-2); color: var(--warning-text); }
+.pending__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.pending__row {
+  display: flex; align-items: center; gap: var(--sp-2); width: 100%;
+  min-height: 44px; padding: var(--sp-2) var(--sp-3); text-align: left;
+  background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius-sm);
+  color: var(--ink); cursor: pointer;
+}
+.pending__row:active { transform: scale(0.99); }
+.pending__day { font-size: var(--text-xs); color: var(--ink-3); text-transform: capitalize; white-space: nowrap; }
+.pending__title { flex: 1; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pending__cta { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-sm); font-weight: 700; color: var(--primary); }
 
+/* --- Échelle RPE (carte de renforcement) --------------------------------- */
 .rpe-row { display: flex; flex-direction: column; gap: var(--sp-2); }
 .rpe-row__label { font-size: var(--text-sm); color: var(--ink-2); font-weight: 700; }
 .rpe-scale { display: grid; grid-template-columns: repeat(10, 1fr); gap: var(--sp-1); }

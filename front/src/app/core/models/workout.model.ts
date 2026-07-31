@@ -86,6 +86,26 @@ export const STATUS_LABELS: Record<WorkoutStatus, string> = {
   MISSED: 'Manqué',
 };
 
+/**
+ * La séance est-elle encore ouverte au ressenti de l'athlète ?
+ * Prédicat unique partagé par « Aujourd'hui », l'agenda et l'historique : le ressenti est la
+ * donnée qui alimente la forme et les alertes du coach, il ne doit pas dépendre de l'écran
+ * depuis lequel on regarde la séance.
+ */
+export function needsFeedback(w: Pick<Workout, 'status'>): boolean {
+  return w.status === 'PLANNED' || w.status === 'PARTIAL';
+}
+
+/**
+ * La séance n'a **encore rien reçu** de l'athlète : c'est ce qui la fait entrer dans le
+ * bandeau « retours en attente ». Distinct de `needsFeedback` : une séance déclarée
+ * partielle avec un RPE ou un commentaire a déjà livré son signal — la relancer serait du
+ * harcèlement, alors qu'on garde le bouton pour lui permettre de corriger.
+ */
+export function awaitsFeedback(w: Pick<Workout, 'status' | 'rpe' | 'athleteComment'>): boolean {
+  return needsFeedback(w) && w.rpe == null && !w.athleteComment;
+}
+
 export const STATUS_BADGE: Record<WorkoutStatus, string> = {
   PLANNED: 'badge-info',
   COMPLETED: 'badge-success',

@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { RaceObjective, RaceObjectiveRequest } from '../models/race.model';
 import { WorkoutPrescription } from '../models/course.model';
@@ -9,7 +9,7 @@ import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
 import { Activity } from '../models/activity.model';
 import { Analytics } from './analytics.service';
 import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
-import { Workout, WorkoutStatus } from '../models/workout.model';
+import { Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
 import { StravaStatus } from '../models/strava.model';
 import { E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthPrescriptionView, StrengthResultEntry } from '../models/strength.model';
 
@@ -40,6 +40,11 @@ export interface StrengthFeedback {
   fatigue?: number | null;
   pain?: number | null;
   comment?: string | null;
+}
+
+/** Date locale au format ISO (jamais `toISOString()`, qui bascule d'un jour selon le fuseau). */
+function isoDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /** API du portail athlète (PWA) : scoping serveur par l'athleteId du token. */
@@ -80,6 +85,20 @@ export class AthletePortalService {
   workouts(from: string, to: string): Observable<Workout[]> {
     const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<Workout[]>(`${this.base}/workouts`, { params });
+  }
+
+  /**
+   * Séances non clôturées des `days` derniers jours, **hors aujourd'hui** (déjà porté par la
+   * carte du jour). Un ressenti oublié le soir même était jusqu'ici définitivement perdu :
+   * l'agenda et l'historique sont en lecture seule. C'est la donnée qui alimente la forme et
+   * les alertes du coach, on lui laisse donc une fenêtre de rattrapage d'une semaine.
+   */
+  pendingFeedback(days = 7): Observable<Workout[]> {
+    const to = new Date();
+    to.setDate(to.getDate() - 1);
+    const from = new Date();
+    from.setDate(from.getDate() - days);
+    return this.workouts(isoDay(from), isoDay(to)).pipe(map((list) => list.filter(awaitsFeedback)));
   }
 
   /** Prescription calculée d'une séance course (cibles allure/FC/RPE personnalisées). */
