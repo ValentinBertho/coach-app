@@ -142,6 +142,8 @@ Repo → **Settings** → **Secrets and variables** → **Actions** :
 - `BACKUP_ENCRYPTION_KEY` = `openssl rand -hex 32`
   ⚠️ **conserver aussi hors de GitHub** (gestionnaire de mots de passe) : sans cette clé,
   les dumps sont définitivement illisibles.
+- `BACKUP_HEARTBEAT_URL` = l'URL du heartbeat Better Stack (phase 4)
+  → pingée uniquement si le job réussit ; sans elle, un backup qui s'arrête passe inaperçu.
 
 ### 5.2 Lancer et vérifier
 - [ ] Actions → **Sauvegarde BDD** → **Run workflow** → job vert
