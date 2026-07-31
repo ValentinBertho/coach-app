@@ -1,0 +1,201 @@
+/* Mode séance de force plein écran. Écran de travail, pas de consultation :
+   une seule chose à faire à la fois, et tout doit être lisible à bout de bras. */
+
+.ss {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  background: var(--night);
+  color: var(--night-text);
+  overflow: hidden;
+}
+
+/* --- En-tête ------------------------------------------------------------- */
+.ss__top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  padding-top: max(var(--sp-3), env(safe-area-inset-top));
+  border-bottom: 1px solid var(--night-2);
+  flex-shrink: 0;
+}
+.ss__quit {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 44px; min-height: 44px;
+  border: none; border-radius: var(--radius-sm);
+  background: transparent; color: var(--night-text-2); cursor: pointer;
+}
+.ss__quit:active { background: var(--night-2); }
+.ss__id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ss__kind {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--text-2xs); font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--dari-violet);
+}
+.ss__title {
+  font-size: var(--text-sm); color: var(--night-text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ss__count { font-size: var(--text-md); font-weight: 800; color: var(--night-text-2); }
+
+.ss__progress { height: 3px; background: var(--night-2); flex-shrink: 0; }
+.ss__progress span {
+  display: block; height: 100%; background: var(--primary);
+  transition: width var(--duration) var(--ease);
+}
+
+/* --- Corps --------------------------------------------------------------- */
+.ss__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-5) var(--sp-4) var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  max-width: 560px;
+  width: 100%;
+  margin-inline: auto;
+}
+.ss__error { align-items: center; justify-content: center; text-align: center; gap: var(--sp-4); }
+
+/* Fil des exercices : des segments, pas une liste — ça se lit d'un coup d'œil. */
+.ss__steps { display: flex; gap: 4px; }
+/* Le segment reste fin, mais la cible tactile fait 24 px : le padding porte le clic,
+   `content-box` empêche la couleur de déborder dessus. */
+.ss__step {
+  flex: 1; height: 4px; padding: 10px 0; box-sizing: content-box;
+  border: none; border-radius: var(--radius-full);
+  background: var(--night-2) content-box; cursor: pointer;
+}
+.ss__step.is-done { background: var(--accent) content-box; }
+.ss__step.is-current { background: var(--primary) content-box; }
+
+.ss__step-label {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--night-text-2);
+}
+.ss__ex-name {
+  margin: 0; font-family: var(--font-display);
+  font-size: var(--text-2xl); line-height: 1.15; color: var(--night-text);
+}
+.ss__rx { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+/* --- Série en cours ------------------------------------------------------ */
+.ss__set-of {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--text-xl); font-weight: 800; color: var(--primary-light);
+}
+
+.ss__field { display: flex; flex-direction: column; gap: var(--sp-1); }
+.ss__field-label {
+  font-size: var(--text-xs); font-weight: 700; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--night-text-2);
+}
+.ss__field-label small { text-transform: none; letter-spacing: 0; font-weight: 600; opacity: 0.8; }
+
+.ss__stepper {
+  display: grid; grid-template-columns: 72px 1fr 72px; align-items: center; gap: var(--sp-2);
+}
+/* ± au pouce : aucun clavier numérique ne vient recouvrir l'écran en pleine séance. */
+.ss__pm {
+  min-height: 64px;
+  display: flex; align-items: center; justify-content: center; gap: 2px;
+  border: 1px solid var(--night-2); border-radius: var(--radius);
+  background: var(--night-2); color: var(--night-text);
+  font-size: var(--text-2xl); font-weight: 700; line-height: 1;
+  cursor: pointer;
+  transition: transform var(--duration-fast) var(--ease), background var(--duration-fast) var(--ease);
+}
+.ss__pm small { font-size: var(--text-xs); font-weight: 700; opacity: 0.75; }
+.ss__pm:active { transform: scale(0.94); background: var(--primary); border-color: var(--primary); }
+.ss__pm--sm { min-height: 48px; font-size: var(--text-xl); }
+
+/* Gros chiffres : la valeur se lit posée par terre, barre sur les épaules. */
+.ss__value {
+  text-align: center;
+  font-size: 44px; font-weight: 800; line-height: 1;
+  color: var(--night-text); font-variant-numeric: tabular-nums;
+}
+.ss__value small { font-size: var(--text-md); font-weight: 600; color: var(--night-text-2); margin-left: 4px; }
+.ss__value--sm { font-size: var(--text-2xl); }
+
+.ss__repeat {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  min-height: 44px; width: 100%;
+  border: 1px dashed var(--night-2); border-radius: var(--radius);
+  background: transparent; color: var(--primary-light);
+  font-size: var(--text-sm); font-weight: 700; cursor: pointer;
+}
+.ss__repeat:active { background: var(--night-2); }
+
+/* --- Séries de l'exercice courant ---------------------------------------- */
+.ss__done-list {
+  list-style: none; margin: var(--sp-2) 0 0; padding: 0;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.ss__done {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--night-2);
+  color: var(--night-text-2);
+  font-size: var(--text-sm);
+}
+.ss__done.is-done { color: var(--accent); }
+.ss__done.is-current { outline: 1px solid var(--primary); color: var(--night-text); }
+.ss__done-n { min-width: 20px; font-weight: 800; }
+.ss__done-todo { opacity: 0.7; }
+
+/* --- Récapitulatif de fin ------------------------------------------------ */
+.ss__debrief { gap: var(--sp-5); }
+.ss__lead { margin: 0; color: var(--night-text-2); font-size: var(--text-sm); }
+.ss__recap { display: flex; flex-direction: column; gap: var(--sp-2); }
+.ss__recap-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); }
+.ss__recap-name { font-weight: 700; color: var(--night-text); font-size: var(--text-sm); }
+.ss__recap-sets { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.ss__chip {
+  padding: 2px 8px; border-radius: var(--radius-full);
+  background: var(--night-2); color: var(--night-text-2);
+  font-size: var(--text-xs); font-weight: 700;
+}
+.ss__chip--skip { opacity: 0.7; font-style: italic; }
+
+/* --- Écran de clôture : la suggestion et les alertes du coach ------------- */
+.ss__streak {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  margin: 0; padding: 4px 12px; border-radius: var(--radius-full);
+  background: var(--night-2); color: var(--dari-orange);
+  font-weight: 800; font-variant-numeric: tabular-nums;
+  align-self: flex-start;
+}
+.ss__progress-line {
+  display: flex; align-items: center; gap: var(--sp-2); margin: 0;
+  font-size: var(--text-sm); color: var(--primary-light);
+}
+.ss__alert {
+  display: flex; align-items: center; gap: var(--sp-2); margin: 0;
+  font-size: var(--text-sm); color: var(--dari-orange);
+}
+.ss__alert--high { color: var(--dari-red); font-weight: 700; }
+
+/* --- Pied d'écran : l'action primaire toujours au pouce ------------------ */
+.ss__foot {
+  flex-shrink: 0;
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  padding-bottom: max(var(--sp-3), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--night-2);
+  background: var(--night);
+  max-width: 560px; width: 100%; margin-inline: auto;
+}
+.ss__foot-minor { display: flex; justify-content: space-between; gap: var(--sp-2); }
+.ss__validate { width: 100%; }
+
+/* Les sélecteurs fatigue / douleur / RPE sont bâtis sur les tokens de surface : sous
+   `data-theme="dark"` ils sont déjà corrects, il ne leur manque que de l'air. */
+.ss__debrief app-pain-fatigue-selector,
+.ss__debrief app-rpe-scale-selector { display: block; }

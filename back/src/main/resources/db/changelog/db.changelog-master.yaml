@@ -119,3 +119,9 @@ databaseChangeLog:
       file: db/changelog/changes/057-settings-preferences.yaml
   - include:
       file: db/changelog/changes/058-user-terms-accepted.yaml
+  - include:
+      file: db/changelog/changes/059-daily-check-in.yaml
+  - include:
+      file: db/changelog/changes/060-usual-session-time.yaml
+  - include:
+      file: db/changelog/changes/061-activity-feedback-prompt.yaml

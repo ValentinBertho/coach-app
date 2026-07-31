@@ -1,0 +1,227 @@
+<div class="ss" data-theme="dark">
+
+  <!-- En-tête minimal : sortir, savoir où on en est. Rien d'autre : on est en séance. -->
+  <header class="ss__top">
+    <button type="button" class="ss__quit" (click)="quit()" aria-label="Quitter la séance">
+      <app-icon name="x" [size]="20" />
+    </button>
+    <div class="ss__id">
+      <span class="ss__kind"><app-icon name="dumbbell" [size]="13" /> Renforcement</span>
+      <strong class="ss__title">{{ session()?.title }}</strong>
+    </div>
+    @if (state() === 'ready') {
+      <span class="ss__count metric">
+        {{ isDebrief() ? totalSteps() : stepIndex() + 1 }}/{{ totalSteps() }}
+      </span>
+    }
+  </header>
+
+  @if (state() === 'ready') {
+    <div class="ss__progress" role="progressbar" [attr.aria-valuenow]="progressPct()"
+         aria-valuemin="0" aria-valuemax="100" aria-label="Avancement de la séance">
+      <span [style.width.%]="progressPct()"></span>
+    </div>
+  }
+
+  @switch (state()) {
+    @case ('loading') {
+      <div class="ss__body">
+        <div class="skeleton" style="height: 24px; width: 55%;"></div>
+        <div class="skeleton" style="height: 96px; width: 100%; margin-top: 20px;"></div>
+        <div class="skeleton" style="height: 96px; width: 100%; margin-top: 12px;"></div>
+      </div>
+    }
+
+    @case ('error') {
+      <div class="ss__body ss__error">
+        <p>Impossible d'ouvrir cette séance.</p>
+        <button type="button" class="btn btn-ghost" (click)="quit()">Revenir à Aujourd'hui</button>
+      </div>
+    }
+
+    @case ('ready') {
+      <!-- ===== Séance enregistrée : ce que le coach en dit ===== -->
+      @if (finished()) {
+        <main class="ss__body ss__debrief">
+          <h1 class="display-sm">Séance enregistrée 💪</h1>
+          @if (streak() > 1) {
+            <p class="ss__streak"><app-icon name="flame" [size]="18" /> {{ streak() }}e retour d'affilée</p>
+          }
+
+          @if (progression(); as prog) {
+            @for (e of prog.exercises; track e.exerciseId) {
+              @if (e.recommended) {
+                <p class="ss__progress-line">
+                  <app-icon name="trending-up" [size]="14" />
+                  <strong>{{ e.exerciseName }}</strong> — prochaine fois : {{ e.suggestionLabel }}
+                </p>
+              }
+            }
+            <!-- Les alertes (douleur, réathlétisation) ne peuvent pas disparaître dans une
+                 navigation automatique : elles sont la raison d'être de cet écran. -->
+            @for (a of prog.alerts; track a.code + a.exerciseId) {
+              <p class="ss__alert" [class.ss__alert--high]="a.level === 'HIGH'">
+                <app-icon name="alert-triangle" [size]="14" /> {{ a.exerciseName }} — {{ a.message }}
+              </p>
+            }
+          }
+        </main>
+
+        <footer class="ss__foot">
+          <button type="button" class="btn btn-primary btn-lg ss__validate" (click)="leave()">
+            Revenir à Aujourd'hui
+          </button>
+        </footer>
+      }
+      @else if (isDebrief()) {
+        <!-- ===== Étape « ressenti » : fin de séance ===== -->
+        <main class="ss__body ss__debrief">
+          <h1 class="display-sm">Ta séance est finie</h1>
+          <p class="ss__lead">Deux curseurs pour ta forme, un pour la difficulté.</p>
+          @if (!totalSteps()) {
+            <!-- Séance sans exercice exploitable : on ne bloque pas l'athlète dans un écran
+                 vide, le ressenti de séance reste donnable. -->
+            <p class="ss__lead">Cette séance n'a aucun exercice à saisir — note simplement ton ressenti.</p>
+          }
+
+          <!-- Invariant : la forme, c'est fatigue + douleur. Le RPE dit la difficulté de la
+               séance, il n'entre jamais dans l'état de forme. -->
+          <app-pain-fatigue-selector kind="fatigue" [(value)]="fatigue" />
+          <app-pain-fatigue-selector kind="pain" [(value)]="pain" />
+          <app-rpe-scale-selector label="RPE séance" [(value)]="rpe" />
+
+          <div class="ss__recap">
+            @for (ex of exercises(); track ex.exerciseId) {
+              <div class="ss__recap-row">
+                <span class="ss__recap-name">{{ ex.name }}</span>
+                <span class="ss__recap-sets metric">
+                  @for (set of ex.sets; track $index) {
+                    @if (set.done) {
+                      <span class="ss__chip">{{ formatKg(set.chargeKg) }}×{{ set.repsDone }}</span>
+                    }
+                  }
+                  @if (!ex.sets[0].done) { <span class="ss__chip ss__chip--skip">passé</span> }
+                </span>
+              </div>
+            }
+          </div>
+        </main>
+
+        <footer class="ss__foot">
+          <button type="button" class="btn btn-ghost" (click)="goBack()">Revenir aux séries</button>
+          <button type="button" class="btn btn-accent btn-lg" [disabled]="saving()" (click)="finish()">
+            {{ saving() ? 'Enregistrement…' : 'Valider ma séance' }}
+          </button>
+        </footer>
+      }
+      @else {
+        <!-- ===== Étape « exercice » : une série à la fois =====
+             `ex` est aliasé par un @if imbriqué : dans un @else if, l'alias ne descend pas
+             dans les blocs enfants (@if / @for), et la moitié du gabarit en dépend.
+             Hors de l'étape de ressenti, `currentExercise()` est toujours renseigné —
+             `stepIndex() < exercises().length` par construction. -->
+        @if (currentExercise(); as ex) {
+        <main class="ss__body">
+          <!-- Fil des exercices : où j'en suis, et retour possible sans perdre le fil. -->
+          <nav class="ss__steps" aria-label="Exercices de la séance">
+            @for (e of exercises(); track e.exerciseId; let i = $index) {
+              <button type="button" class="ss__step" [class.is-current]="i === stepIndex()"
+                      [class.is-done]="i < stepIndex()"
+                      [attr.aria-current]="i === stepIndex() ? 'step' : null"
+                      [attr.aria-label]="'Exercice ' + (i + 1) + ' : ' + e.name"
+                      (click)="goToStep(i)"></button>
+            }
+          </nav>
+
+          <p class="ss__step-label">Exercice {{ stepIndex() + 1 }} sur {{ totalSteps() }}</p>
+          <h1 class="ss__ex-name">{{ ex.name }}</h1>
+
+          <div class="ss__rx">
+            @if (ex.rx.chargeKgMin != null) {
+              <app-range-prescription-pill label="Charge" [min]="ex.rx.chargeKgMin"
+                                           [max]="ex.rx.chargeKgMax ?? ex.rx.chargeKgMin" unit="kg" />
+            }
+            @if (ex.rx.repsFixed != null) {
+              <app-range-prescription-pill label="Reps" [min]="ex.rx.repsFixed" [max]="ex.rx.repsFixed" />
+            } @else if (ex.rx.repsMin != null) {
+              <app-range-prescription-pill label="Reps" [min]="ex.rx.repsMin" [max]="ex.rx.repsMax ?? ex.rx.repsMin" />
+            }
+            @if (ex.rx.effortKind && ex.rx.effortMin != null && ex.rx.effortMax != null) {
+              <app-effort-badge [kind]="ex.rx.effortKind" [min]="ex.rx.effortMin" [max]="ex.rx.effortMax" />
+            }
+          </div>
+
+          <!-- « Série 2/4 » : la question qu'on se pose entre deux séries, en gros. -->
+          <p class="ss__set-of metric">Série {{ setIndex() + 1 }}/{{ ex.sets.length }}</p>
+
+          @if (currentSet(); as set) {
+            <!-- Charge : ± 2,5 kg, le plus petit disque. Aucun clavier ne s'ouvre. -->
+            <section class="ss__field">
+              <span class="ss__field-label">Charge</span>
+              <div class="ss__stepper">
+                <button type="button" class="ss__pm" (click)="adjustCharge(-1)"
+                        aria-label="Retirer 2,5 kg">−<small>2,5</small></button>
+                <span class="ss__value metric">{{ formatKg(set.chargeKg) }}<small>kg</small></span>
+                <button type="button" class="ss__pm" (click)="adjustCharge(1)"
+                        aria-label="Ajouter 2,5 kg">+<small>2,5</small></button>
+              </div>
+            </section>
+
+            <section class="ss__field">
+              <span class="ss__field-label">Répétitions</span>
+              <div class="ss__stepper">
+                <button type="button" class="ss__pm" (click)="adjustReps(-1)" aria-label="Une répétition de moins">−</button>
+                <span class="ss__value metric">{{ set.repsDone ?? '—' }}</span>
+                <button type="button" class="ss__pm" (click)="adjustReps(1)" aria-label="Une répétition de plus">+</button>
+              </div>
+            </section>
+
+            <section class="ss__field ss__field--minor">
+              <span class="ss__field-label">RIR <small>répétitions en réserve</small></span>
+              <div class="ss__stepper">
+                <button type="button" class="ss__pm ss__pm--sm" (click)="adjustRir(-1)" aria-label="Un RIR de moins">−</button>
+                <span class="ss__value ss__value--sm metric">{{ set.rirDone ?? '—' }}</span>
+                <button type="button" class="ss__pm ss__pm--sm" (click)="adjustRir(1)" aria-label="Un RIR de plus">+</button>
+              </div>
+            </section>
+
+            @if (canRepeatPrevious()) {
+              <button type="button" class="ss__repeat" (click)="repeatPrevious()">
+                <app-icon name="rotate-ccw" [size]="16" /> Comme la série précédente
+              </button>
+            }
+
+            <!-- Séries déjà validées : la mémoire de l'exercice en cours. -->
+            @if (ex.sets.length > 1) {
+              <ul class="ss__done-list">
+                @for (s of ex.sets; track $index) {
+                  <li class="ss__done" [class.is-done]="s.done" [class.is-current]="$index === setIndex()">
+                    <span class="ss__done-n metric">{{ $index + 1 }}</span>
+                    @if (s.done) {
+                      <span class="metric">{{ formatKg(s.chargeKg) }} kg × {{ s.repsDone }}</span>
+                      <app-icon name="check" [size]="14" />
+                    } @else {
+                      <span class="ss__done-todo">à faire</span>
+                    }
+                  </li>
+                }
+              </ul>
+            }
+          }
+        </main>
+
+        <footer class="ss__foot">
+          <div class="ss__foot-minor">
+            <button type="button" class="btn btn-ghost btn-sm"
+                    [disabled]="stepIndex() === 0 && setIndex() === 0" (click)="goBack()">Précédent</button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="skipExercise()">Passer l'exercice</button>
+          </div>
+          <button type="button" class="btn btn-primary btn-lg ss__validate" (click)="validateSet()">
+            Valider la série {{ setIndex() + 1 }}/{{ ex.sets.length }}
+          </button>
+        </footer>
+        }
+      }
+    }
+  }
+</div>

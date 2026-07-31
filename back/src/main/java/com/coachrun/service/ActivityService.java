@@ -2,6 +2,7 @@ package com.coachrun.service;
 
 import com.coachrun.dto.request.ActivityImportRequest;
 import com.coachrun.dto.response.ActivityResponse;
+import com.coachrun.dto.response.FeedbackPromptResponse;
 import com.coachrun.entity.Activity;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Workout;
@@ -186,6 +187,41 @@ public class ActivityService {
         } catch (Exception e) {
             return java.util.List.of();
         }
+    }
+
+    /**
+     * Séance rapprochée dont le ressenti manque encore, à proposer à l'ouverture du portail —
+     * ou {@code null} s'il n'y a rien à confirmer.
+     *
+     * <p>Le rapprochement passe la séance en COMPLETED/PARTIAL : elle disparaît donc du bandeau
+     * « retours en attente », qui ne regarde que les séances non clôturées. Sans ce prompt, une
+     * séance importée depuis la montre ne produirait jamais de signal de forme — c'est la fuite
+     * exacte que l'auto-détection vient boucher.</p>
+     */
+    public FeedbackPromptResponse pendingFeedbackPrompt(UUID athleteId) {
+        var candidates = activityRepository
+                .findByAthleteIdAndStatusAndMatchedWorkoutIdIsNotNullAndFeedbackPromptedAtIsNullOrderByActivityDateDesc(
+                        athleteId, ActivityStatus.MATCHED);
+        for (Activity a : candidates) {
+            Workout w = workoutRepository.findByIdAndAthleteId(a.getMatchedWorkoutId(), athleteId).orElse(null);
+            // Un RPE ou un commentaire déjà posé = l'athlète s'est exprimé, on ne le relance pas.
+            if (w != null && w.getRpe() == null && w.getAthleteComment() == null) {
+                return FeedbackPromptResponse.of(a, w);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Marque l'invitation comme vue : la feuille pré-remplie ne s'ouvre qu'une fois, qu'elle
+     * ait été remplie ou écartée. Rouvrir une feuille refusée à chaque lancement transformerait
+     * une bonne idée en pop-up subie.
+     */
+    @Transactional
+    public void ackFeedbackPrompt(UUID athleteId, UUID activityId) {
+        activityRepository.findById(activityId)
+                .filter(a -> a.getAthlete().getId().equals(athleteId))
+                .ifPresent(a -> a.setFeedbackPromptedAt(java.time.Instant.now()));
     }
 
     @Transactional

@@ -10,6 +10,11 @@ interface Page<T> { content: T[]; }
 export interface NotificationPreferences {
   emailEnabled: boolean;
   pushEnabled: boolean;
+  /**
+   * Heure habituelle de séance de l'athlète, « HH:mm ». Ancre le rappel « Ta séance est
+   * finie ? », envoyé 2 h après. Vide ou `null` = ce rappel est désactivé.
+   */
+  usualSessionTime: string | null;
 }
 
 /** Centre de notifications de l'utilisateur connecté (coach ou athlète). */

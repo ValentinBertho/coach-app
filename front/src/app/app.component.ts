@@ -6,6 +6,7 @@ import { PushService } from './core/services/push.service';
 import { PwaInstallService } from './core/services/pwa-install.service';
 import { ThemeService } from './core/services/theme.service';
 import { UpdateService } from './core/services/update.service';
+import { CelebrationOverlayComponent } from './shared/components/celebration/celebration-overlay.component';
 import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confirm-dialog.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
 import { UpdateBannerComponent } from './shared/components/update-banner/update-banner.component';
@@ -13,16 +14,18 @@ import { HelpSearchOverlayComponent } from './features/help/help-search-overlay.
 import { CommandPaletteComponent } from './features/search/command-palette.component';
 
 /**
- * Shell applicatif : router-outlet + toasts + confirmation + recherche globale + aide + mise à jour PWA.
+ * Shell applicatif : router-outlet + toasts + célébration + confirmation + recherche globale
+ * + aide + mise à jour PWA.
  * Instancie tôt les services PWA (réseau, installation, file de synchronisation, mise à jour).
  */
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent, CommandPaletteComponent, UpdateBannerComponent],
+  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent, CommandPaletteComponent, UpdateBannerComponent, CelebrationOverlayComponent],
   template: `
     <router-outlet />
     <app-toast />
+    <app-celebration-overlay />
     <app-confirm-dialog />
     <app-help-search-overlay />
     <app-command-palette />

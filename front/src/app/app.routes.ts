@@ -274,6 +274,15 @@ export const routes: Routes = [
     ],
   },
   {
+    // Mode séance de force plein écran — volontairement HORS de la coquille athlète : pas de
+    // bottom-nav, pas de barre supérieure. On est en séance, un exercice à la fois ; le reste
+    // de l'app n'a rien à faire là (cf. audit UI/UX §3.1).
+    path: 'athlete/session/:scheduledId',
+    canActivate: [athleteGuard],
+    loadComponent: () =>
+      import('./features/athlete/strength-session.component').then((m) => m.StrengthSessionComponent),
+  },
+  {
     path: 'athlete',
     canActivate: [athleteGuard],
     loadComponent: () =>

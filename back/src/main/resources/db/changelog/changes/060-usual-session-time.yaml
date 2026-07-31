@@ -1,0 +1,18 @@
+# ============================================================================
+# 060 — users.usual_session_time : heure habituelle de séance de l'athlète.
+#   Sert de point d'ancrage au rappel « Ta séance est finie ? », envoyé 2 h
+#   après. Le rappel J-1 existant prévient d'une séance à venir ; celui-ci
+#   récupère le ressenti pendant qu'il est encore frais, quand le taux de
+#   réponse est le plus haut.
+#   18:00 par défaut : l'heure d'entraînement la plus fréquente en club.
+#   Un athlète qui met NULL ne reçoit pas ce rappel (opt-out par l'heure).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 060-user-usual-session-time
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column: { name: usual_session_time, type: TIME, defaultValue: '18:00:00' }

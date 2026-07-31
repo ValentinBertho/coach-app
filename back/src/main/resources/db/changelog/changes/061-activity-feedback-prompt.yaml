@@ -1,0 +1,19 @@
+# ============================================================================
+# 061 — activities.feedback_prompted_at : l'athlète a-t-il déjà été invité à
+#   confirmer le ressenti de la séance rapprochée par cette activité ?
+#   Le rapprochement Strava clôture la séance côté données (COMPLETED/PARTIAL)
+#   mais laisse le ressenti vide : elle sort donc du bandeau « en attente »
+#   sans que le coach ait de signal de forme. La feuille s'ouvre pré-remplie à
+#   la prochaine ouverture — et cette colonne garantit qu'elle ne s'ouvre
+#   qu'UNE fois : ré-ouvrir une feuille refusée à chaque lancement serait du
+#   harcèlement, pas un rappel.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 061-activity-feedback-prompted-at
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: activities
+            columns:
+              - column: { name: feedback_prompted_at, type: TIMESTAMP }
