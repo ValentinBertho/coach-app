@@ -91,4 +91,41 @@ class MessageAttachmentTest {
                         .file(file).header("Authorization", coachBearer))
                 .andExpect(status().isBadRequest());
     }
+
+    /**
+     * Quota de stockage par club : les pièces jointes vivent en {@code bytea}, sans plafond c'est
+     * la sauvegarde quotidienne qui casse en premier — bien avant que quiconque voie le volume.
+     */
+    @Test
+    void refusesUploadsBeyondTheClubQuota() throws Exception {
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3, 4};
+
+        JsonNode before = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/storage", clubId).header("Authorization", coachBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        long quota = before.get("quotaBytes").asLong();
+        assertThat(quota).isPositive();
+
+        mvc.perform(multipart("/clubs/{c}/athletes/{a}/messages/attachment", clubId, athleteId)
+                        .file(new MockMultipartFile("file", "photo.png", "image/png", png))
+                        .header("Authorization", coachBearer))
+                .andExpect(status().isCreated());
+
+        // Le compteur suit les octets réellement stockés.
+        JsonNode after = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/storage", clubId).header("Authorization", coachBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(after.get("usedBytes").asLong())
+                .isEqualTo(before.get("usedBytes").asLong() + png.length);
+
+        // Un fichier plus gros que le quota entier est refusé, avec un message explicite.
+        byte[] huge = new byte[(int) Math.min(quota + 1, 12L * 1024 * 1024)];
+        huge[0] = (byte) 0x89;
+        String body = mvc.perform(multipart("/clubs/{c}/athletes/{a}/messages/attachment", clubId, athleteId)
+                        .file(new MockMultipartFile("file", "enorme.png", "image/png", huge))
+                        .header("Authorization", coachBearer))
+                .andExpect(status().isPayloadTooLarge())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(body).contains("stockage");
+    }
 }

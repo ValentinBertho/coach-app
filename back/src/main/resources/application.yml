@@ -78,6 +78,10 @@ app:
     # Pied de page et en-têtes du gabarit transactionnel.
     publisher: ${MAIL_PUBLISHER:Darilab}
     reply-to: ${MAIL_REPLY_TO:}
+  storage:
+    # Quota de pièces jointes par club (stockées en base) : au-delà, l'envoi est refusé avec un
+    # message explicite. C'est la sauvegarde quotidienne qui casse en premier, pas l'application.
+    club-quota-mb: ${STORAGE_CLUB_QUOTA_MB:200}
   alerts:
     digest-cron: ${ALERTS_DIGEST_CRON:0 0 7 * * *}
   debrief:

@@ -36,14 +36,30 @@ import java.util.UUID;
 public class ClubController {
 
     private final ClubMembershipService clubService;
+    private final com.coachrun.service.MessageService messageService;
+
+    /**
+     * Espace de stockage consommé par les pièces jointes du club. Le quota existe pour que ce
+     * soit l'application qui le dise, pas la sauvegarde qui le découvre.
+     */
+    @GetMapping("/storage")
+    public com.coachrun.dto.response.StorageUsageResponse storage(@PathVariable UUID clubId) {
+        return messageService.storageUsage(clubId);
+    }
 
     @GetMapping("/members")
     public List<ClubMemberResponse> members(@PathVariable UUID clubId) {
         return clubService.members(clubId);
     }
 
-    /** Ajoute un coach au club (par e-mail) : rattachement immédiat s'il a un compte, sinon invitation. */
+    /**
+     * Ajoute un coach au club (par e-mail) : rattachement immédiat s'il a un compte, sinon
+     * invitation. Comme l'invitation athlète, elle envoie un e-mail à un tiers : l'adresse de
+     * l'invitant doit être vérifiée.
+     */
     @PostMapping("/members")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)"
+            + " and @emailVerificationValidator.isVerified(authentication)")
     @ResponseStatus(HttpStatus.CREATED)
     public com.coachrun.dto.response.CoachInviteResponse addCoach(
             @PathVariable UUID clubId,
