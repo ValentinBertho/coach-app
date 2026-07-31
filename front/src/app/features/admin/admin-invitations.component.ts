@@ -4,12 +4,13 @@ import { InvitationAdmin } from '../../core/models/admin.model';
 import { AdminService } from '../../core/services/admin.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 @Component({
   selector: 'app-admin-invitations',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe],
+  imports: [SkeletonComponent, DatePipe],
   templateUrl: './admin-invitations.component.html',
 })
 export class AdminInvitationsComponent implements OnInit {

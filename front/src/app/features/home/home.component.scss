@@ -86,18 +86,12 @@
   margin-top: auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding-block: var(--sp-5);
   border-top: 1px solid var(--paper-sunk);
   font-size: var(--text-sm);
   color: var(--ink-3);
 }
-.api-status { display: inline-flex; align-items: center; gap: var(--sp-2); }
-.dot { width: 8px; height: 8px; border-radius: var(--radius-full); display: inline-block; }
-.dot-ok { background: var(--accent); }
-.dot-err { background: var(--danger); }
-.dot-load { background: var(--ink-4); animation: pulseDot 1s infinite; }
-.link-btn { background: none; border: none; color: var(--primary); cursor: pointer; padding: 0; }
 .muted { color: var(--ink-4); }
 
 @media (max-width: 768px) {

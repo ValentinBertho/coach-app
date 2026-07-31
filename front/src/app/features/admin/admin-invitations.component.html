@@ -3,7 +3,7 @@
 </section>
 
 @if (loading()) {
-  <div class="card">Chargement…</div>
+  <div class="card table-wrap"><app-skeleton shape="table" [rows]="4" [columns]="4" /></div>
 } @else if (invitations().length === 0) {
   <div class="card empty-state"><h2>Aucune invitation en attente</h2></div>
 } @else {

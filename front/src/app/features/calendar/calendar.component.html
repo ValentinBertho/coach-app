@@ -56,34 +56,34 @@
   }
 
   <div class="week-nav">
-    <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)">←</button>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)" aria-label="Période précédente"><app-icon name="arrow-left" [size]="16" /></button>
     <button type="button" class="btn btn-ghost btn-sm" (click)="goToday()">Aujourd'hui</button>
-    <button type="button" class="btn btn-ghost btn-sm" (click)="shift(1)">→</button>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="shift(1)" aria-label="Période suivante"><app-icon name="arrow-right" [size]="16" /></button>
     <span class="week-label">{{ periodLabel() }}</span>
   </div>
 
   @if (mode() === 'week' && scopeMode() === 'athlete') {
     <span class="volume metric">{{ weeklyVolumeKm() }} km prévus</span>
-    @if (advancedPlanning) {
-      <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="duplicateWeek()"
-              [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
-              title="Copier cette semaine vers la suivante">
-        <app-icon name="copy" [size]="15" /> Dupliquer la semaine
-      </button>
-      <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="toggleMeso()"
-              [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
-              title="Générer un mésocycle progressif">
-        <app-icon name="trending-up" [size]="15" /> Mésocycle
-      </button>
-    }
-  }
-
-  @if (scopeMode() === 'athlete') {
-    <button type="button" class="btn btn-ghost btn-sm lib-toggle" (click)="toggleSidebar()"
-            [title]="sidebarOpen() ? 'Masquer la bibliothèque' : 'Afficher la bibliothèque'">
-      <app-icon name="panel-left" [size]="15" /> {{ sidebarOpen() ? 'Masquer' : 'Bibliothèque' }}
+    <!-- Les deux accélérateurs qui font gagner des heures : programmer 40 athlètes séance par
+         séance n'est pas tenable. Le geste reste réversible (les séances copiées se suppriment). -->
+    <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="duplicateWeek()"
+            [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
+            title="Copier cette semaine vers la suivante">
+      <app-icon name="copy" [size]="15" /> Dupliquer la semaine
+    </button>
+    <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="toggleMeso()"
+            [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
+            title="Générer un mésocycle progressif">
+      <app-icon name="trending-up" [size]="15" /> Mésocycle
     </button>
   }
+
+  <!-- La bibliothèque est disponible en mode groupe aussi : sans elle on ne peut que déplacer,
+       jamais planifier — la promesse « coach de club » n'était pas tenue. -->
+  <button type="button" class="btn btn-ghost btn-sm lib-toggle" (click)="toggleSidebar()"
+          [title]="sidebarOpen() ? 'Masquer la bibliothèque' : 'Afficher la bibliothèque'">
+    <app-icon name="panel-left" [size]="15" /> {{ sidebarOpen() ? 'Masquer' : 'Bibliothèque' }}
+  </button>
 </div>
 
 @if (scopeMode() === 'athlete' && selectedAthleteId && !canWriteSelected()) {
@@ -92,7 +92,7 @@
   </div>
 }
 
-@if (advancedPlanning && showMeso() && mode() === 'week') {
+@if (showMeso() && mode() === 'week') {
   <section class="card meso-panel">
     <h2>Générer un mésocycle</h2>
     <p class="field-hint">À partir de la semaine affichée (semaine type), génère les semaines suivantes avec une montée de charge progressive et des décharges.</p>
@@ -170,7 +170,25 @@
       <a routerLink="/app/groups" class="btn btn-primary">Gérer les groupes</a>
     </div>
   } @else {
-    <div class="group-grid" cdkDropListGroup>
+    <div class="cal-layout" [class.with-lib]="sidebarOpen()" cdkDropListGroup>
+    @if (sidebarOpen()) {
+      <aside class="cal-sidebar" aria-label="Bibliothèque de séances">
+        <div class="cal-sidebar__hd">
+          <h3>Bibliothèque</h3>
+          <button type="button" class="icon-btn" (click)="toggleSidebar()" title="Masquer la bibliothèque"><app-icon name="x" [size]="15" /></button>
+        </div>
+        <p class="field-hint">Glisse une séance sur la ligne d'un athlète pour la lui planifier.</p>
+
+        <app-session-library-panel
+          [courseTemplates]="courseTemplates()"
+          [strengthSessions]="librarySessions()"
+          [drills]="drills()"
+          [categories]="categories()"
+          (favoriteToggle)="toggleFavorite($event)" />
+      </aside>
+    }
+
+    <div class="group-grid">
       <div class="gg-head">
         <span class="gg-corner">Athlète</span>
         @for (d of weekDates(); track d.date) {
@@ -219,6 +237,7 @@
         </div>
       }
     </div>
+    </div>
   }
 } @else if (athletes().length === 0 && !lockedToAthlete()) {
   <div class="card empty-state">
@@ -232,7 +251,7 @@
     <aside class="cal-sidebar" aria-label="Bibliothèque de séances">
       <div class="cal-sidebar__hd">
         <h3>Bibliothèque</h3>
-        <button type="button" class="icon-btn" (click)="toggleSidebar()" title="Masquer la bibliothèque">✕</button>
+        <button type="button" class="icon-btn" (click)="toggleSidebar()" title="Masquer la bibliothèque" aria-label="Masquer la bibliothèque"><app-icon name="x" [size]="15" /></button>
       </div>
       <p class="field-hint">Glisse une séance sur un jour pour la planifier.</p>
 
@@ -298,6 +317,8 @@
               [class.workout-card--key]="typeMeta(w.type).key"
               [style.--type-color]="typeMeta(w.type).color"
               cdkDrag [cdkDragData]="w" (click)="openWorkout(w)"
+              (cdkDragStarted)="onDragStarted($event)" (cdkDragEnded)="onDragEnded()"
+              [title]="w.title + ' — glisser pour déplacer, Alt+glisser pour dupliquer'"
               (contextmenu)="openContextMenu(w, $event)"
               (pointerdown)="onChipPointerDown($event, w, 'course')"
               (pointermove)="onChipPointerMove($event)"
@@ -506,7 +527,7 @@
         <button type="button" class="btn btn-ghost btn-sm" (click)="closePicker()">Fermer</button>
       </header>
       <button type="button" class="picker__item picker__adhoc" (click)="createAdHoc()">
-        <span class="picker__name">＋ Séance vierge (ad hoc)</span>
+        <span class="picker__name"><app-icon name="plus" [size]="15" /> Séance vierge (ad hoc)</span>
         <span class="picker__type">construire la structure</span>
       </button>
       @if (noteOpen()) {
@@ -519,26 +540,24 @@
         </div>
       } @else {
         <button type="button" class="picker__item" (click)="toggleNote()">
-          <span class="picker__name">＋ Note</span>
+          <span class="picker__name"><app-icon name="plus" [size]="15" /> Note</span>
           <span class="picker__type">aide-mémoire sur le jour</span>
         </button>
       }
-      @if (courseTemplates().length) {
-        <p class="field-hint picker__or">ou depuis un modèle :</p>
-        <ul class="picker__list">
-          @for (t of courseTemplates(); track t.id) {
-            <li>
-              <button type="button" class="picker__item" (click)="scheduleTemplateOn(t)">
-                <span class="picker__name">{{ t.name }}</span>
-                <span class="picker__type">{{ typeLabels[t.type] }}</span>
-              </button>
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="field-hint">Aucun modèle de séance course.</p>
-        <a routerLink="/app/library/course" class="btn btn-ghost btn-sm">Créer un modèle dans la bibliothèque →</a>
-      }
+      <!-- Même panneau que la colonne latérale (recherche, favoris, fréquentes, catégories,
+           course + force + éducatifs). L'ancienne liste à plat de TOUS les modèles était une
+           seconde UX de sélection, inutilisable dès quelques dizaines de séances. -->
+      <p class="field-hint picker__or">ou depuis la bibliothèque :</p>
+      <app-session-library-panel class="picker__lib"
+        [pickMode]="true"
+        [courseTemplates]="courseTemplates()"
+        [strengthSessions]="librarySessions()"
+        [drills]="drills()"
+        [categories]="categories()"
+        (courseSelect)="scheduleTemplateOn($event)"
+        (strengthSelect)="scheduleStrengthOn($event)"
+        (drillSelect)="scheduleDrillOn($event)"
+        (favoriteToggle)="toggleFavorite($event)" />
     </div>
   </div>
 }

@@ -10,6 +10,7 @@ import { CommandPaletteService } from '../../core/services/command-palette.servi
 import { StrengthService } from '../../core/services/strength.service';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 type ResultKind = 'athlete' | 'course' | 'strength' | 'screen';
 
@@ -55,7 +56,7 @@ const SCREENS: { label: string; link: unknown[]; icon: string }[] = [
   selector: 'app-command-palette',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, IconComponent],
+  imports: [SkeletonComponent, FormsModule, IconComponent],
   template: `
     @if (palette.open()) {
       <div class="ovl" (click)="palette.close()">
@@ -90,7 +91,7 @@ const SCREENS: { label: string; link: unknown[]; icon: string }[] = [
               </button>
             } @empty {
               <p class="ovl-empty">
-                @if (loading()) { Chargement… } @else { Aucun résultat pour « {{ query() }} ». }
+                @if (loading()) { <app-skeleton shape="text" [rows]="3" /> } @else { Aucun résultat pour « {{ query() }} ». }
               </p>
             }
           </div>

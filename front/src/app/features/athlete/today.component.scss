@@ -17,6 +17,8 @@
   z-index: 10;
 }
 .top-actions { display: flex; align-items: center; gap: var(--sp-2); }
+/* L'avatar est la porte du compte : cible confortable, jamais un simple lien texte. */
+.avatar-link { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; text-decoration: none; }
 
 .athlete-main {
   max-width: 560px;
@@ -62,27 +64,23 @@
 .timeline__label { flex: 1; font-size: var(--text-sm); }
 .timeline__target { color: var(--night-text-2); font-size: var(--text-sm); }
 
-/* --- Retour course (bottom sheet) ---------------------------------------- */
-.fb { display: flex; flex-direction: column; gap: var(--sp-5); }
-.fb__actions { display: flex; flex-direction: column; gap: var(--sp-2); }
-.fb__actions .btn { width: 100%; }
-
-.rpe-row { display: flex; flex-direction: column; gap: var(--sp-2); }
-.rpe-row__label { font-size: var(--text-sm); color: var(--ink-2); font-weight: 700; }
-.rpe-scale { display: grid; grid-template-columns: repeat(10, 1fr); gap: var(--sp-1); }
-.rpe-dot {
-  aspect-ratio: 1;
-  border: 1px solid var(--paper-sunk);
-  background: var(--paper);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-weight: 700;
-  font-size: var(--text-sm);
-  min-height: 40px;
-  font-family: var(--font-data);
-  font-variant-numeric: tabular-nums;
+/* --- Bandeau de rattrapage : séances non notées des 7 derniers jours ------ */
+.pending {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  border-color: var(--warning); background: var(--warning-bg);
 }
-.rpe-dot.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.pending__hd { display: flex; align-items: center; gap: var(--sp-2); color: var(--warning-text); }
+.pending__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+.pending__row {
+  display: flex; align-items: center; gap: var(--sp-2); width: 100%;
+  min-height: 44px; padding: var(--sp-2) var(--sp-3); text-align: left;
+  background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius-sm);
+  color: var(--ink); cursor: pointer;
+}
+.pending__row:active { transform: scale(0.99); }
+.pending__day { font-size: var(--text-xs); color: var(--ink-3); text-transform: capitalize; white-space: nowrap; }
+.pending__title { flex: 1; min-width: 0; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pending__cta { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-sm); font-weight: 700; color: var(--primary); }
 
 .empty { text-align: center; }
 
@@ -118,11 +116,6 @@
 .paces-prompt { display: flex; align-items: center; gap: var(--sp-2); text-decoration: none; color: var(--ink); padding: var(--sp-3); }
 .paces-prompt span { flex: 1; font-size: var(--text-sm); }
 
-/* Repère verbal CR10 sous l'échelle RPE : un chiffre nu n'est pas un repère partagé. */
-.rpe-word {
-  display: block; margin-top: var(--sp-1);
-  font-size: var(--text-sm); font-weight: 700; color: var(--ink-2); text-align: right;
-}
 /* Cible tactile confortable (≥ 44 px) pour la recopie de série. */
 .set-repeat {
   min-width: 44px; min-height: 44px;

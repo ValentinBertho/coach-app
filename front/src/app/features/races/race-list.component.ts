@@ -6,12 +6,13 @@ import { RaceObjective } from '../../core/models/race.model';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { RaceService } from '../../core/services/race.service';
 import { ToastService } from '../../core/services/toast.service';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 @Component({
   selector: 'app-race-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DatePipe],
+  imports: [SkeletonComponent, FormsModule, RouterLink, DatePipe],
   templateUrl: './race-list.component.html',
   styleUrl: './race-list.component.scss',
 })

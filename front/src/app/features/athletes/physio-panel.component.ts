@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } fro
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { PhysioService } from '../../core/services/physio.service';
 import { PhysioProfile, Vdot } from '../../core/models/physio.model';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 /**
  * Panneau « Profil physiologique » Darilab : VDOT, allures d'équivalence et seuils LT1/LT2/VC.
@@ -11,7 +12,7 @@ import { PhysioProfile, Vdot } from '../../core/models/physio.model';
   selector: 'app-physio-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent],
+  imports: [SkeletonComponent, IconComponent],
   template: `
     <div class="card physio-card">
       <div class="physio-head">
@@ -25,7 +26,7 @@ import { PhysioProfile, Vdot } from '../../core/models/physio.model';
       </div>
 
       @if (loading()) {
-        <p class="field-hint">Chargement…</p>
+        <app-skeleton shape="text" [rows]="4" />
       } @else {
         <div class="physio-grid">
           <div class="vdot-tile">

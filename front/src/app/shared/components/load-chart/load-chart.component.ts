@@ -85,7 +85,7 @@ const PAD_T = 10;
     .lc { margin: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
     .lc__svg { width: 100%; height: auto; overflow: visible; }
     .lc__grid { stroke: var(--hairline); stroke-width: 1; }
-    .lc__axis { fill: var(--ink-3); font-size: 10px; font-family: var(--font-data); }
+    .lc__axis { fill: var(--ink-3); font-size: var(--text-2xs); font-family: var(--font-data); }
     .lc__band { fill: var(--zone-2); opacity: 0.16; }
     .lc__ctl { fill: var(--primary); opacity: 0.18; }
     .lc__atl { fill: none; stroke: var(--energy); stroke-width: 2; stroke-linejoin: round; }

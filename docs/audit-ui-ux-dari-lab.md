@@ -12,9 +12,9 @@
 
 **Le produit est déjà au-dessus du marché sur la substance** (moteur physio, prévu/réalisé, course+force unifiées, coquille athlète). Il n'a **pas encore l'apparence ni la vitesse d'un outil premium**. Trois causes, toutes réparables :
 
-1. **Le calendrier ne se pilote pas au clavier ni au geste.** Pas de multi-sélection, pas de copier/coller, pas de sélection de plage, et surtout : les deux plus gros accélérateurs (duplication de semaine + générateur de mésocycle) sont **codés mais désactivés** (`advancedPlanning = false`, `calendar.component.ts:167`).
-2. **La boucle athlète fuit.** Seule la séance **du jour** est notable (`portal.today()`). Un athlète qui ouvre l'app le lendemain ne peut plus jamais donner son ressenti — ni depuis l'agenda, ni depuis l'historique. C'est la donnée qui alimente tout le cockpit coach.
-3. **Le système visuel est bon mais pas tenu.** Deux palettes sémantiques concurrentes, quatre teals, des glyphes texte (`✕ × → ＋ ↻ ▮`) mélangés à un jeu Lucide propre, 26 écrans en « Chargement… » face à 24 en skeleton.
+1. **Le calendrier ne se pilote pas au clavier ni au geste.** Pas de multi-sélection, pas de copier/coller, pas de sélection de plage. ✅ *Corrigé depuis : duplication de semaine et générateur de mésocycle réactivés, `Alt`+glisser = copier.*
+2. **La boucle athlète fuit.** Seule la séance **du jour** est notable (`portal.today()`). ✅ *Corrigé depuis : toute séance non clôturée des 7 derniers jours est notable depuis Aujourd'hui (bandeau), l'agenda et l'historique.*
+3. **Le système visuel est bon mais pas tenu.** Deux palettes sémantiques concurrentes, quatre teals. ✅ *Corrigé depuis : glyphes texte remplacés par Lucide, skeletons partout, `--ink-4` conforme, polices auto-hébergées, plancher typo 11px. Reste ouvert : la fusion des deux palettes sémantiques et les quatre teals.*
 
 Rien ici n'est structurel. Le socle est sain ; c'est un travail de **finition et d'accélération**, pas de refonte.
 
@@ -336,30 +336,30 @@ Rien ici n'est structurel. Le socle est sain ; c'est un travail de **finition et
 
 ## 🔴 Les principaux problèmes UX (par ordre d'importance)
 
-1. **Impossible de noter un ressenti passé** (athlète). La donnée qui fait vivre tout le produit se perd chaque fois qu'un athlète oublie un soir.
-2. **Duplication de semaine et mésocycle désactivés** (`advancedPlanning = false`). Les deux gestes qui font gagner des heures sont écrits et éteints.
+1. ~~**Impossible de noter un ressenti passé** (athlète).~~ ✅ **Corrigé** : fenêtre de rattrapage de 7 jours, notable depuis les trois écrans.
+2. ~~**Duplication de semaine et mésocycle désactivés**~~ ✅ **Corrigé** : les deux parcours sont actifs, le drapeau a été supprimé.
 3. **Pas de multi-sélection ni de copier/coller au calendrier.** Programmer reste un travail à l'unité.
-4. **Le mode Groupe ne permet pas de planifier** (pas de bibliothèque) — donc la promesse « coach de club » n'est pas tenue.
-5. **La saisie de force côté athlète est un formulaire de 30 champs sur l'écran d'accueil.**
-6. **Échelle RPE à 29 px de large sur mobile** — sous la cible tactile exigée par le propre design system du produit.
-7. **Barre d'outils du calendrier surchargée** (jusqu'à 12 contrôles) : première impression = complexité.
-8. **Aucune auto-sauvegarde dans les éditeurs** — perte de travail silencieuse possible.
-9. **« Retours à traiter » absent de la navigation** alors que c'est l'écran quotidien.
-10. **Incohérences de finition** : landing qui vouvoie, état de l'API en public, 26 « Chargement… » vs 24 skeletons, glyphes texte mélangés aux icônes, `--ink-4` sous le seuil de contraste, 6 onglets dans la bottom-nav athlète.
+4. ~~**Le mode Groupe ne permet pas de planifier**~~ ✅ **Corrigé** : la bibliothèque y est disponible et le dépôt sur une ligne d'athlète planifie.
+5. **La saisie de force côté athlète est un formulaire de 30 champs sur l'écran d'accueil.** — *reste ouvert (gros chantier n°13).*
+6. ~~**Échelle RPE à 29 px de large sur mobile**~~ ✅ **Corrigé** : 2 × 5 boutons, ≥44 px, dégradé Z1→Z5.
+7. **Barre d'outils du calendrier surchargée** — *reste ouvert (confort n°17).* Note : le lot livré y a ajouté deux boutons (duplication, mésocycle), la condensation devient plus urgente.
+8. ~~**Aucune auto-sauvegarde dans les éditeurs**~~ ✅ **Corrigé** : auto-save + pastille d'état + `canDeactivate`.
+9. ~~**« Retours à traiter » absent de la navigation**~~ ✅ **Corrigé** : entrée « Retours » avec badge.
+10. ~~**Incohérences de finition**~~ ✅ **Corrigé** : tutoiement de la landing, état de l'API sous `/dev`, skeletons partout, glyphes → Lucide, `--ink-4` conforme, plancher 11px, bottom-nav athlète à 4 onglets, polices auto-hébergées.
 
 ## 🚀 Améliorations à plus fort impact
 
-### Impact énorme / faible effort
-1. Réactiver `advancedPlanning` (duplication de semaine + mésocycle) — le code existe.
-2. Rendre notable toute séance non clôturée des 7 derniers jours + bandeau « X retours en attente ».
-3. RPE en 2 × 5 boutons (≥44 px), coloré Z1→Z5.
-4. Entrée de nav « Retours » avec badge.
-5. Auto-save + `canDeactivate` dans les éditeurs.
-6. `Alt`+glisser = copier une séance.
-7. Skeletons partout ; glyphes texte → Lucide ; `--ink-4` remonté ; police auto-hébergée.
-8. Landing : tutoiement + retirer l'état de l'API.
-9. Bottom-nav athlète ramenée à 4 entrées.
-10. Réutiliser le panneau bibliothèque dans le picker « + » du calendrier.
+### Impact énorme / faible effort — ✅ **lot livré (juillet 2026)**
+1. [x] Réactiver `advancedPlanning` (duplication de semaine + mésocycle) — drapeau et code mort supprimés.
+2. [x] Rendre notable toute séance non clôturée des 7 derniers jours + bandeau « X retours en attente » (Aujourd'hui, agenda, historique — feuille de ressenti partagée).
+3. [x] RPE en 2 × 5 boutons (≥44 px), coloré Z1→Z5, repère CR10 conservé.
+4. [x] Entrée de nav « Retours » avec badge (sidebar + panneau « Plus »).
+5. [x] Auto-save (debounce 1,5 s) + pastille d'état + `canDeactivate` dans les deux éditeurs.
+6. [x] `Alt`+glisser = copier une séance, avec curseur `copy`, vignette distincte et annulation.
+7. [x] Skeletons partout ; glyphes texte → Lucide ; `--ink-4` remonté (≥3:1 sur les deux surfaces) ; polices auto-hébergées ; plancher typo 11px.
+8. [x] Landing : tutoiement + état de l'API déplacé sous `/dev/api`.
+9. [x] Bottom-nav athlète ramenée à 4 entrées + barre supérieure allégée.
+10. [x] Le picker « + » **est** le panneau bibliothèque, disponible aussi en mode Groupe.
 
 ### Impact énorme / gros chantier
 11. **Multi-sélection + copier/coller/undo global au calendrier** (`Shift`-clic, `Cmd+C/V/D/Z`, `Suppr`).
@@ -444,3 +444,20 @@ La coquille athlète, le cockpit par exception, l'éditeur en blocs, la barre de
 ---
 
 *Audit UI/UX — DARI Lab, juillet 2026.*
+
+---
+
+# 8. Suivi d'exécution
+
+| Lot | État |
+|---|---|
+| **Impact énorme / faible effort** (§6, 10 points) | ✅ **Livré** — un commit atomique par point |
+| Impact énorme / gros chantier (11 → 16) | ⬜ Ouvert |
+| Amélioration de confort (17 → 23) | ⬜ Ouvert |
+| Idées premium (24 → 30) | ⬜ Ouvert |
+
+**Reste explicitement ouvert dans le périmètre visuel**, hors du lot « faible effort » :
+la fusion des deux palettes sémantiques (`--zone-*` vs `--dari-*`, les quatre teals), la
+densité coach (`--control-h-*`, `.btn` par défaut à 40px) et le `.stat-card::after`
+décoratif. Ce sont des refactorings de tokens à impact visuel transverse, pas des
+correctifs isolés : ils demandent une passe dédiée avec revue écran par écran.

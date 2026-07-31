@@ -16,13 +16,14 @@ import { WorkoutTemplateService } from '../../core/services/workout-template.ser
 import { StrengthService } from '../../core/services/strength.service';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { StrengthSession } from '../../core/models/strength.model';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 /** Écran Club (s-club) interactif : coachs, rôles, statut privé/club et permissions graduées. */
 @Component({
   selector: 'app-club',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, FormsModule],
+  imports: [SkeletonComponent, IconComponent, FormsModule],
   templateUrl: './club.component.html',
   styleUrl: './club.component.scss',
 })

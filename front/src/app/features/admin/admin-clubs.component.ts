@@ -6,12 +6,13 @@ import { AdminService } from '../../core/services/admin.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PaginatorComponent } from '../../shared/components/paginator/paginator.component';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 @Component({
   selector: 'app-admin-clubs',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, PaginatorComponent],
+  imports: [SkeletonComponent, FormsModule, PaginatorComponent],
   templateUrl: './admin-clubs.component.html',
 })
 export class AdminClubsComponent implements OnInit {

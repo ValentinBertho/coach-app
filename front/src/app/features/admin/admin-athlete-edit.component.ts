@@ -4,13 +4,14 @@ import { Router, RouterLink } from '@angular/router';
 import { AthleteRequest } from '../../core/models/athlete.model';
 import { AdminService } from '../../core/services/admin.service';
 import { ToastService } from '../../core/services/toast.service';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 /** Édition complète d'un athlète côté admin (charge tout le profil pour ne rien écraser). */
 @Component({
   selector: 'app-admin-athlete-edit',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink],
+  imports: [SkeletonComponent, ReactiveFormsModule, RouterLink],
   templateUrl: './admin-athlete-edit.component.html',
 })
 export class AdminAthleteEditComponent implements OnInit {

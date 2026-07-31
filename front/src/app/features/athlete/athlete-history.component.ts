@@ -1,12 +1,13 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { SegmentedControlComponent } from '../../shared/components/ui';
 import {
-  STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, Workout,
+  STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, Workout, needsFeedback,
 } from '../../core/models/workout.model';
+import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 
 interface MonthGroup {
   label: string;
@@ -21,7 +22,7 @@ interface MonthGroup {
   selector: 'app-athlete-history',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, DecimalPipe, RouterLink, IconComponent, SegmentedControlComponent],
+  imports: [DatePipe, DecimalPipe, RouterLink, IconComponent, SegmentedControlComponent, WorkoutFeedbackSheetComponent],
   template: `
     <div class="hist">
       <header class="hist-top">
@@ -69,12 +70,22 @@ interface MonthGroup {
                       <span><strong>Ton coach :</strong> {{ w.coachComment }}</span>
                     </p>
                   }
+                  <!-- L'historique n'était que consultable : une séance oubliée y restait
+                       définitivement muette. Elle redevient notable ici aussi. -->
+                  @if (canRate(w)) {
+                    <button type="button" class="btn btn-accent btn-sm row-rate" (click)="rate(w)">
+                      <app-icon name="pencil" [size]="14" /> Noter mon retour
+                    </button>
+                  }
                 </div>
               </article>
             }
           </section>
         }
       }
+
+      <!-- Feuille de ressenti partagée avec « Aujourd'hui » et l'agenda. -->
+      <app-workout-feedback-sheet (saved)="onFeedbackSaved($event)" />
     </div>
   `,
   styles: [`
@@ -101,6 +112,7 @@ interface MonthGroup {
     .row-hd strong { color: var(--ink); min-width: 0; }
     .row-meta { display: flex; flex-wrap: wrap; gap: 4px; }
     .row-cmt { margin: 2px 0 0; font-size: var(--text-sm); color: var(--ink-2); display: flex; align-items: center; gap: 4px; }
+    .row-rate { align-self: flex-start; margin-top: var(--sp-2); }
   `],
 })
 export class AthleteHistoryComponent implements OnInit {
@@ -132,7 +144,19 @@ export class AthleteHistoryComponent implements OnInit {
     return out;
   });
 
+  /** Feuille de ressenti partagée (même parcours que « Aujourd'hui »). */
+  private readonly feedbackSheet = viewChild(WorkoutFeedbackSheetComponent);
+
   ngOnInit(): void { this.fetch(); }
+
+  /** Séance passée encore ouverte au ressenti : le rattrapage n'a pas de date limite ici. */
+  canRate(w: Workout): boolean { return needsFeedback(w); }
+
+  rate(w: Workout): void { this.feedbackSheet()?.openFor(w); }
+
+  onFeedbackSaved(updated: Workout): void {
+    this.workouts.set(this.workouts().map((w) => (w.id === updated.id ? updated : w)));
+  }
 
   setWeeks(w: string): void { this.weeks.set(w); this.fetch(); }
 

@@ -11,12 +11,13 @@ import { WorkoutTemplateService } from '../../core/services/workout-template.ser
 import { SessionCategoryService } from '../../core/services/session-category.service';
 import { SessionCategory } from '../../core/models/session-category.model';
 import { SessionDetailModalComponent } from '../../shared/components/session-detail-modal/session-detail-modal.component';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 @Component({
   selector: 'app-template-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, ReactiveFormsModule, FormsModule, RouterLink, SessionDetailModalComponent, ZoneBarComponent],
+  imports: [SkeletonComponent, IconComponent, ReactiveFormsModule, FormsModule, RouterLink, SessionDetailModalComponent, ZoneBarComponent],
   templateUrl: './template-list.component.html',
   styleUrl: './template-list.component.scss',
 })

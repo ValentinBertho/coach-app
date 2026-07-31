@@ -25,6 +25,13 @@
       <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" title="Tableau de bord">
         <app-icon name="layout-dashboard" [size]="18" /><span>Tableau de bord</span>
       </a>
+      <!-- L'écran du matin : il était seulement atteignable par un KPI du cockpit. -->
+      <a routerLink="/app/feedback" routerLinkActive="active" title="Retours à traiter">
+        <app-icon name="inbox" [size]="18" /><span>Retours</span>
+        @if (pendingReviews() > 0) {
+          <span class="nav-badge">{{ pendingReviews() > 9 ? '9+' : pendingReviews() }}</span>
+        }
+      </a>
       <a routerLink="/app/athletes" routerLinkActive="active" title="Athlètes"><app-icon name="users" [size]="18" /><span>Athlètes</span></a>
       <a routerLink="/app/groups" routerLinkActive="active" title="Groupes"><app-icon name="users-round" [size]="18" /><span>Groupes</span></a>
       <a routerLink="/app/calendar" routerLinkActive="active" title="Calendrier"><app-icon name="calendar" [size]="18" /><span>Calendrier</span></a>
@@ -109,6 +116,12 @@
         </div>
 
         <span class="snav-group">Coaching</span>
+        <a routerLink="/app/feedback" routerLinkActive="active" (click)="closeMore()">
+          <app-icon name="inbox" [size]="18" /><span>Retours</span>
+          @if (pendingReviews() > 0) {
+            <span class="nav-badge">{{ pendingReviews() > 9 ? '9+' : pendingReviews() }}</span>
+          }
+        </a>
         <a routerLink="/app/groups" routerLinkActive="active" (click)="closeMore()"><app-icon name="users-round" [size]="18" /><span>Groupes</span></a>
         <a routerLink="/app/messages" routerLinkActive="active" (click)="closeMore()">
           <app-icon name="message-square" [size]="18" /><span>Messages</span>

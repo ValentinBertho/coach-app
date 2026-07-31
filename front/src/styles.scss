@@ -6,7 +6,96 @@
  * surfaces sobres, contrôles nets. Tout passe par var(--…) → rebrandable.
  * ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+/* Polices auto-hébergées (woff2, sous-ensembles latin + latin-ext).
+ * L'@import Google Fonts était BLOQUANT au rendu : le premier écran attendait une
+ * requête vers un tiers avant de s'afficher, avec le FOUT en prime. En local + préchargé
+ * dans index.html, le texte apparaît tout de suite ; `swap` garantit qu'il reste lisible
+ * même si le fichier tarde. Archivo et IBM Plex Sans sont variables : un seul fichier
+ * couvre toute la plage de graisses. */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('assets/fonts/archivo-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('assets/fonts/ibm-plex-sans-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('assets/fonts/ibm-plex-mono-400-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('assets/fonts/ibm-plex-mono-500-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('assets/fonts/ibm-plex-mono-600-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('assets/fonts/archivo-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('assets/fonts/ibm-plex-sans-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('assets/fonts/ibm-plex-mono-400-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('assets/fonts/ibm-plex-mono-500-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('assets/fonts/ibm-plex-mono-600-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 
 :root {
   /* Surfaces — papier chaud (« feuille de relevé »), pas de blanc-bleu froid */
@@ -25,7 +114,9 @@
   --ink: #18191c;
   --ink-2: #44464d;
   --ink-3: #74767f;
-  --ink-4: #aaaab2;
+  /* Remonté de #aaaab2 (2,3:1 — échec AA) : --ink-4 porte du texte réel (séparateurs, unités,
+     densité du calendrier), il doit rester lisible sur --paper ET sur --canvas, plus sombre. */
+  --ink-4: #86888f;   /* 3,5:1 sur --paper, 3,2:1 sur --canvas */
   --night-text: #eef3f2;
   --night-text-2: #9bb0ad;
 
@@ -65,6 +156,10 @@
   --font-display: 'Archivo', 'Space Grotesk', system-ui, sans-serif;
   --font-ui: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  /* Plancher de lisibilité : 11px. En dessous, le texte n'est plus lu, il est deviné —
+     et le produit en avait à 9px, en majuscules, sur --ink-4. Aucun libellé ne descend
+     sous --text-2xs, y compris les axes de graphiques et les compteurs de badges. */
+  --text-2xs: 0.6875rem;
   --text-xs: 0.75rem; --text-sm: 0.8125rem; --text-md: 0.875rem; --text-lg: 1rem;
   --text-xl: 1.25rem; --text-2xl: 1.5rem; --text-3xl: 2rem;
 
@@ -152,7 +247,7 @@
   --ink: #eaf2f0;
   --ink-2: #b7c6c3;
   --ink-3: #7f9591;
-  --ink-4: #576b68;
+  --ink-4: #647a77;  /* pendant sombre : 3,8:1 sur --paper, 4,1:1 sur --canvas */
 
   --primary: #2fb3c0;
   --primary-hover: #54c5d0;
@@ -353,6 +448,7 @@ textarea.form-control { min-height: 80px; padding: var(--sp-3) var(--sp-4); line
 
 /* --- Avatars --------------------------------------------------------------- */
 .avatar { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--radius-full); background: var(--gradient-brand); color: #fff; font-weight: 700; text-transform: uppercase; flex-shrink: 0; font-size: var(--text-sm); }
+.avatar-sm { width: 32px; height: 32px; font-size: var(--text-xs); }
 .avatar-lg { width: 56px; height: 56px; font-size: var(--text-lg); }
 
 /* --- États ----------------------------------------------------------------- */
@@ -361,7 +457,8 @@ textarea.form-control { min-height: 80px; padding: var(--sp-3) var(--sp-4); line
 .alert-danger { background: var(--danger-bg); color: var(--danger-text); }
 .alert-info { background: var(--info-bg); color: var(--info-text); }
 .danger-zone { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; border: 1px solid var(--danger-bg); }
-.skeleton { background: linear-gradient(90deg, var(--paper-sunk) 25%, #f1ede3 37%, var(--paper-sunk) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; border-radius: var(--radius-sm); }
+/* Le reflet du shimmer se dérive de la surface : en dur, il restait beige en thème sombre. */
+.skeleton { background: linear-gradient(90deg, var(--paper-sunk) 25%, color-mix(in srgb, var(--paper) 60%, var(--paper-sunk)) 37%, var(--paper-sunk) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; border-radius: var(--radius-sm); }
 
 /* --- Tables admin ---------------------------------------------------------- */
 .data-table { width: 100%; border-collapse: collapse; }
@@ -399,6 +496,17 @@ textarea.form-control { min-height: 80px; padding: var(--sp-3) var(--sp-4); line
 .cdk-drag-animating { transition: transform 200ms var(--ease); }
 .cdk-drop-list-dragging .cdk-drag { transition: transform 200ms var(--ease); }
 
+/* Alt (ou ⌘) pendant un glisser du calendrier = copier au lieu de déplacer. Le geste doit
+   s'annoncer AVANT le lâcher, sinon on découvre après coup qu'on a dupliqué. La classe est
+   posée sur <body> car la vignette du CDK y est montée, hors de l'arbre du calendrier. */
+body.is-copy-drag, body.is-copy-drag * { cursor: copy !important; }
+body.is-copy-drag .cdk-drag-preview {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+  opacity: 0.8;
+}
+body.is-copy-drag .cdk-drag-placeholder { opacity: 0.7; } /* l'original reste : rien ne part */
+
 /* Sélecteur de séance course du calendrier (modal global, hors budget composant). */
 .picker-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: var(--sp-4); }
 .picker { width: min(440px,100%); max-height: 80vh; overflow: auto; background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
@@ -409,6 +517,10 @@ textarea.form-control { min-height: 80px; padding: var(--sp-3) var(--sp-4); line
 .picker__item:hover { background: var(--paper-sunk); }
 .picker__name { font-weight: 600; color: var(--ink); }
 .picker__type { font-size: var(--text-xs); color: var(--ink-3); }
+.picker__or { margin: var(--sp-2) var(--sp-4) 0; }
+/* Le panneau bibliothèque scrolle dans la modale, pas la modale entière : la recherche
+   et les entrées « séance vierge / note » doivent rester atteignables. */
+.picker__lib { display: block; padding: 0 var(--sp-2) var(--sp-2); overflow: auto; }
 
 /* Calendrier coach : bannière lecture seule + bouton bibliothèque. */
 .readonly-banner { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-md); background: var(--warning-bg); color: var(--warning-text, var(--ink)); font-size: var(--text-sm); font-weight: 600; }

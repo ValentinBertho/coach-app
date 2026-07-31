@@ -26,7 +26,7 @@
               </div>
               <span class="field-hint">{{ al.detail }}</span>
             </div>
-            <span class="alert-go">→</span>
+            <span class="alert-go"><app-icon name="arrow-right" [size]="16" /></span>
           </a>
         </li>
       }
@@ -59,7 +59,7 @@
                   <app-icon [name]="a.discipline === 'ROUTE' ? 'footprints' : 'mountain'" [size]="13" /> {{ a.discipline === 'ROUTE' ? 'Route' : 'Trail' }}
                 </span>
               </div>
-              <span class="attention-go">→</span>
+              <span class="attention-go"><app-icon name="arrow-right" [size]="16" /></span>
             </div>
             <app-readiness-gauge
               [level]="level(a.formStatus)"
@@ -144,7 +144,7 @@
                 @if (r.athleteName) { <span class="race-athlete">{{ r.athleteName }}</span> }
                 <span class="field-hint metric">{{ r.raceDate | date: 'd MMM y' }}</span>
                 <span class="badge badge-neutral">Priorité {{ r.priority }}</span>
-                <span class="race-go">→</span>
+                <span class="race-go"><app-icon name="arrow-right" [size]="16" /></span>
               </a>
             </li>
           }

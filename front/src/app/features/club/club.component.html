@@ -11,7 +11,7 @@
     <thead><tr><th>Coach</th><th>Rôle</th><th></th></tr></thead>
     <tbody>
       @if (loadingMembers()) {
-        <tr><td colspan="3" class="field-hint">Chargement…</td></tr>
+        <tr><td colspan="3"><app-skeleton shape="table" [rows]="3" [columns]="3" /></td></tr>
       } @else {
         @for (m of members(); track m.coachId) {
           <tr>
@@ -89,7 +89,7 @@
               } @else {
                 @if (permFor(m.coachId); as p) {
                   <span class="badge badge-info">{{ levelLabels[p] }}</span>
-                  <button type="button" class="chip-x" (click)="revoke(m.coachId)" title="Retirer">×</button>
+                  <button type="button" class="chip-x" (click)="revoke(m.coachId)" title="Retirer" aria-label="Retirer"><app-icon name="x" [size]="13" /></button>
                 }
                 @if (!permFor(m.coachId)) {
                   <span class="field-hint">—</span>

@@ -45,7 +45,7 @@
 </div>
 
 @if (loading()) {
-  <div class="card">Chargement…</div>
+  <div class="card"><app-skeleton shape="list" [rows]="5" /></div>
 } @else if (activities().length === 0) {
   <div class="card empty">Aucune activité importée pour l'instant.</div>
 } @else {

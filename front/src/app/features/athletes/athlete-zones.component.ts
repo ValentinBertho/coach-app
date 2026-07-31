@@ -116,7 +116,7 @@ interface EditState {
                         <span>–</span>
                         <input class="form-control mini" [(ngModel)]="editing()!.max" [placeholder]="ph(m)" />
                         <button type="button" class="btn btn-primary btn-sm" (click)="saveEdit(z, m)">OK</button>
-                        <button type="button" class="btn btn-ghost btn-sm" (click)="editing.set(null)">✕</button>
+                        <button type="button" class="btn btn-ghost btn-sm" (click)="editing.set(null)" aria-label="Annuler"><app-icon name="x" [size]="15" /></button>
                       </div>
                     } @else {
                       @if (value(z.id, m.id); as v) {

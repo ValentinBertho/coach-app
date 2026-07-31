@@ -9,6 +9,7 @@ import { Message } from '../../core/models/message.model';
 import { AuthService } from '../../core/services/auth.service';
 import { MessageService } from '../../core/services/message.service';
 import { ToastService } from '../../core/services/toast.service';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 /** Élément de fil avec séparateur de jour calculé. */
 interface ThreadItem { m: Message; showDay: boolean; dayLabel: string; }
@@ -21,7 +22,7 @@ interface ThreadItem { m: Message; showDay: boolean; dayLabel: string; }
   selector: 'app-chat',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, FormsModule, RouterLink],
+  imports: [SkeletonComponent, IconComponent, FormsModule, RouterLink],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.scss',
 })

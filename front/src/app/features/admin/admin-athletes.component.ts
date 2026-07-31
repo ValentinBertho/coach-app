@@ -7,12 +7,13 @@ import { AdminService } from '../../core/services/admin.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PaginatorComponent } from '../../shared/components/paginator/paginator.component';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 @Component({
   selector: 'app-admin-athletes',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, PaginatorComponent],
+  imports: [SkeletonComponent, FormsModule, RouterLink, PaginatorComponent],
   templateUrl: './admin-athletes.component.html',
 })
 export class AdminAthletesComponent implements OnInit {

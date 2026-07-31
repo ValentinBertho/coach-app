@@ -55,7 +55,7 @@
 }
 
 @if (loading()) {
-  <div class="card">Chargement…</div>
+  <div class="card"><app-skeleton shape="list" [rows]="5" /></div>
 } @else if (templates().length === 0) {
   <div class="card empty-state"><h2>Aucun modèle</h2><p class="field-hint">Crée ton premier modèle de séance.</p></div>
 } @else {

@@ -1,26 +1,24 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, viewChild } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import {
   STATUS_BADGE,
   STATUS_LABELS,
   STEP_TYPE_LABELS,
   WORKOUT_TYPE_LABELS,
   Workout,
+  awaitsFeedback,
+  needsFeedback,
 } from '../../core/models/workout.model';
 import { AthletePortalService, StrengthPrescriptionView } from '../../core/services/athlete-portal.service';
 import { Progression, ScheduledStrength, StrengthResultEntry } from '../../core/models/strength.model';
 import { WorkoutPrescription } from '../../core/models/course.model';
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
 import { AuthService } from '../../core/services/auth.service';
-import { FeedbackQueueService } from '../../core/services/feedback-queue.service';
-import { NetworkStatusService } from '../../core/services/network-status.service';
 import { ToastService } from '../../core/services/toast.service';
-import { InstallButtonComponent } from '../../shared/components/install-button/install-button.component';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
-import { PushButtonComponent } from '../../shared/components/push-button/push-button.component';
 import { NotificationBellComponent } from '../../shared/components/notification-bell/notification-bell.component';
 import {
   EffortBadgeComponent,
@@ -30,12 +28,9 @@ import {
   PainFatigueSelectorComponent,
   RangePrescriptionPillComponent,
 } from '../../shared/components/physiology';
-import {
-  BottomSheetComponent,
-} from '../../shared/components/ui';
-import { HelpService } from '../help/help.service';
+import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
+import { RpeScaleSelectorComponent } from '../../shared/components/rpe-scale-selector/rpe-scale-selector.component';
 import { HelpHintComponent } from '../help/help-hint.component';
-import { RPE_SCALE, rpeLabel } from '../../shared/components/rpe-scale';
 
 interface SetEntry { chargeKg: number | null; repsDone: number | null; rirDone: number | null; }
 
@@ -84,9 +79,9 @@ type State = 'loading' | 'ready' | 'error';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent,
     FormsModule, RouterLink,
-    LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent, NotificationBellComponent,
+    LogoComponent, OfflineBannerComponent, NotificationBellComponent,
     IntensityZoneBadgeComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
-    PainFatigueSelectorComponent, BottomSheetComponent,
+    PainFatigueSelectorComponent, WorkoutFeedbackSheetComponent, RpeScaleSelectorComponent,
     CoursePrescriptionViewComponent, HelpHintComponent,
   ],
   templateUrl: './today.component.html',
@@ -95,20 +90,15 @@ type State = 'loading' | 'ready' | 'error';
 export class TodayComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
-  private readonly network = inject(NetworkStatusService);
-  private readonly queue = inject(FeedbackQueueService);
-  readonly help = inject(HelpService);
+
+  /** Feuille de ressenti partagée : « Aujourd'hui », l'agenda et l'historique ouvrent la même. */
+  private readonly feedbackSheet = viewChild(WorkoutFeedbackSheetComponent);
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
   readonly stepLabels = STEP_TYPE_LABELS;
   readonly statusLabels = STATUS_LABELS;
   readonly statusBadge = STATUS_BADGE;
-  readonly rpeScale = RPE_SCALE;
-
-  /** Repère verbal CR10 de la valeur choisie (échelle partagée avec l'éditeur coach). */
-  rpeLabel(value: number | null | undefined): string { return rpeLabel(value); }
 
   /**
    * Recopie charge / reps / RIR de la série précédente. Sur mobile, une séance de 4 exercices
@@ -132,14 +122,11 @@ export class TodayComponent implements OnInit {
   readonly nextRace = signal<import('../../core/models/race.model').RaceObjective | null>(null);
   readonly user = this.auth.currentUser;
 
-  // Retour course (signals pour two-way binding des sélecteurs du bottom sheet).
-  readonly rpe = signal<number | null>(null);
-  readonly fatigue = signal<number | null>(null);
-  readonly pain = signal<number | null>(null);
-  readonly comment = signal('');
-  readonly feedbackOpen = signal(false);
-  /** Séance de course visée par le bottom sheet de retour. */
-  readonly activeWorkout = signal<Workout | null>(null);
+  /**
+   * Séances des 7 derniers jours encore non clôturées. Sans ce rattrapage, un ressenti oublié
+   * la veille est perdu pour toujours — c'est la première fuite de données du produit.
+   */
+  readonly pending = signal<Workout[]>([]);
 
   /** Toutes les séances de force du jour (double séance possible). */
   readonly strengthCards = signal<StrengthCard[]>([]);
@@ -147,8 +134,15 @@ export class TodayComponent implements OnInit {
   /** L'athlète a-t-il des allures de travail (VDOT) ? Sinon on l'invite à saisir une perf. */
   readonly hasPaces = signal(true);
 
+  /** Initiales pour l'avatar de la barre supérieure (porte d'entrée du Profil). */
+  initials(): string {
+    const parts = (this.user()?.fullName ?? '').trim().split(/\s+/).filter(Boolean);
+    return (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '');
+  }
+
   ngOnInit(): void {
     this.load();
+    this.loadPending();
     this.loadStrength();
     this.portal.nextRace().subscribe({ next: (r) => this.nextRace.set(r) });
     this.portal.vdot().subscribe({
@@ -166,8 +160,19 @@ export class TodayComponent implements OnInit {
     return this.courseRx()[workoutId] ?? null;
   }
   /** Une séance attend-elle encore un retour ? (PLANNED ou PARTIAL) */
-  needsFeedback(w: Workout): boolean {
-    return w.status === 'PLANNED' || w.status === 'PARTIAL';
+  needsFeedback(w: Workout): boolean { return needsFeedback(w); }
+
+  /** Date lisible d'une séance en retard : « mardi 28 juillet ». */
+  dayLabel(iso: string): string {
+    return new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+      .format(new Date(iso + 'T00:00:00'));
+  }
+
+  loadPending(): void {
+    this.portal.pendingFeedback(7).subscribe({
+      next: (list) => this.pending.set(list),
+      error: () => this.pending.set([]),
+    });
   }
 
   loadStrength(): void {
@@ -227,7 +232,7 @@ export class TodayComponent implements OnInit {
   }
 
   /** Sélection d'un RPE de séance de force (mutation + notification OnPush). */
-  setStrengthRpe(card: StrengthCard, n: number): void {
+  setStrengthRpe(card: StrengthCard, n: number | null): void {
     card.sRpe = n;
     this.strengthCards.set([...this.strengthCards()]);
   }
@@ -309,60 +314,18 @@ export class TodayComponent implements OnInit {
     return '';
   }
 
-  /** Ouvre le bottom sheet de retour pour une séance de course donnée. */
+  /** Ouvre la feuille de ressenti — séance du jour comme séance en retard, même parcours. */
   openFeedback(w: Workout): void {
-    this.activeWorkout.set(w);
-    this.rpe.set(w.rpe ?? null);
-    this.fatigue.set(null);
-    this.pain.set(null);
-    this.comment.set(w.athleteComment ?? '');
-    this.feedbackOpen.set(true);
+    this.feedbackSheet()?.openFor(w);
   }
 
-  submit(completed: boolean): void {
-    const w = this.activeWorkout();
-    if (!w) return;
-    const body = {
-      status: (completed ? 'COMPLETED' : 'PARTIAL') as 'COMPLETED' | 'PARTIAL',
-      rpe: this.rpe(),
-      fatigue: this.fatigue(),
-      pain: this.pain(),
-      comment: this.comment() || null,
-    };
-
-    const applyLocal = (status: 'COMPLETED' | 'PARTIAL') =>
-      this.workouts.set(
-        this.workouts().map((x) =>
-          x.id === w.id ? { ...x, status, rpe: this.rpe(), athleteComment: this.comment() || null } : x,
-        ),
-      );
-
-    // Hors ligne : mise à jour optimiste + mise en file (sync au retour réseau).
-    if (!this.network.online()) {
-      this.queue.enqueue(w.id, body);
-      applyLocal(body.status);
-      this.feedbackOpen.set(false);
-      this.toast.info('Enregistré hors ligne — synchronisé au retour du réseau.');
-      return;
-    }
-
-    this.portal.feedback(w.id, body).subscribe({
-      next: (updated) => {
-        this.workouts.set(this.workouts().map((x) => (x.id === updated.id ? updated : x)));
-        this.feedbackOpen.set(false);
-        this.toast.success('Ressenti enregistré');
-      },
-      error: () => {
-        this.queue.enqueue(w.id, body);
-        applyLocal(body.status);
-        this.feedbackOpen.set(false);
-        this.toast.warning('Hors ligne — ressenti mis en file pour synchronisation.');
-      },
-    });
+  /**
+   * Une séance notée quitte le bandeau de rattrapage : le compteur doit refléter ce qu'il
+   * reste à faire, y compris quand la sauvegarde est partie en file hors ligne.
+   */
+  onFeedbackSaved(updated: Workout): void {
+    this.workouts.set(this.workouts().map((x) => (x.id === updated.id ? updated : x)));
+    this.pending.set(this.pending().map((x) => (x.id === updated.id ? updated : x)).filter(awaitsFeedback));
   }
 
-  logout(): void {
-    this.auth.logout();
-    this.router.navigate(['/']);
-  }
 }

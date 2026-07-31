@@ -52,14 +52,14 @@
       </div>
     </div>
     <p class="dist-legend">
-      <span class="lg lg1">▮ Domaine 1</span>
-      <span class="lg lg2">▮ Domaine 2</span>
-      <span class="lg lg3">▮ Domaine 3</span>
+      <span class="lg lg1"><span class="lg-swatch"></span> Domaine 1</span>
+      <span class="lg lg2"><span class="lg-swatch"></span> Domaine 2</span>
+      <span class="lg lg3"><span class="lg-swatch"></span> Domaine 3</span>
       · {{ l.sessions7d }} séance(s) sur 7 j · {{ l.sessions28d }} sur 28 j
     </p>
   </div>
 } @else {
-  <div class="card">Chargement…</div>
+  <div class="card"><app-skeleton shape="card" [rows]="2" /></div>
 }
 
 <!-- Volume, zones et adhérence : ancien écran « Charge & progression », désormais dans le même

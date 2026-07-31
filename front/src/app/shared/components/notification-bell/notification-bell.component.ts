@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { IconComponent } from '../icon/icon.component';
 import { NotificationService, NotificationPreferences } from '../../../core/services/notification.service';
 import { AppNotification } from '../../../core/models/notification.model';
+import { SkeletonComponent } from '../skeleton/skeleton.component';
 
 /**
  * Cloche du centre de notifications : badge de non-lues + panneau déroulant.
@@ -14,7 +15,7 @@ import { AppNotification } from '../../../core/models/notification.model';
   selector: 'app-notification-bell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, FormsModule, IconComponent],
+  imports: [SkeletonComponent, DatePipe, FormsModule, IconComponent],
   template: `
     <div class="bell">
       <button type="button" class="bell-btn" (click)="toggle()" [attr.aria-label]="'Notifications'"
@@ -49,7 +50,7 @@ import { AppNotification } from '../../../core/models/notification.model';
           }
 
           @if (loading()) {
-            <div class="bell-empty field-hint">Chargement…</div>
+            <div class="bell-loading"><app-skeleton shape="text" [rows]="3" /></div>
           } @else if (items().length === 0) {
             <div class="bell-empty field-hint">Aucune notification.</div>
           } @else {
@@ -79,7 +80,7 @@ import { AppNotification } from '../../../core/models/notification.model';
       color: var(--ink-2); cursor: pointer; }
     .bell-btn:hover { background: var(--paper-sunk); color: var(--ink); }
     .bell-badge { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px;
-      border-radius: var(--radius-full); background: var(--form-red); color: #fff; font-size: 10px;
+      border-radius: var(--radius-full); background: var(--form-red); color: #fff; font-size: var(--text-2xs);
       font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
 
     .bell-backdrop { position: fixed; inset: 0; z-index: 300; }
@@ -96,6 +97,7 @@ import { AppNotification } from '../../../core/models/notification.model';
     .bell-prefs .pref { display: flex; align-items: center; gap: var(--sp-2); font-weight: 600; color: var(--ink-2); }
     .bell-prefs input { width: 16px; height: 16px; }
     .bell-empty { padding: var(--sp-5); text-align: center; }
+    .bell-loading { padding: var(--sp-4) var(--sp-5); }
 
     .bell-list { list-style: none; margin: 0; padding: 0; }
     .bell-row { display: flex; align-items: flex-start; gap: var(--sp-2); width: 100%; text-align: left;

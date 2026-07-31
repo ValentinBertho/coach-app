@@ -4,6 +4,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { BreadcrumbService } from '../../core/services/breadcrumb.service';
+import { CoachDashboardService } from '../../core/services/coach-dashboard.service';
 import { CommandPaletteService } from '../../core/services/command-palette.service';
 import { MessageService } from '../../core/services/message.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -34,10 +35,14 @@ export class CoachLayoutComponent implements OnInit {
   readonly palette = inject(CommandPaletteService);
   private readonly breadcrumb = inject(BreadcrumbService);
   private readonly messages = inject(MessageService);
+  private readonly dashboard = inject(CoachDashboardService);
   private readonly destroyRef = inject(DestroyRef);
 
   /** Non-lus de la messagerie, tous athlètes confondus (badge de l'entrée « Messages »). */
   readonly unreadMessages = this.messages.unread;
+
+  /** Retours d'athlètes non traités (badge de l'entrée « Retours »). */
+  readonly pendingReviews = this.dashboard.pendingReviews;
 
   /** Fil d'Ariane de la barre supérieure : « où suis-je » quand on est dans un contexte. */
   readonly trail = this.breadcrumb.trail;
@@ -69,18 +74,20 @@ export class CoachLayoutComponent implements OnInit {
     if (!this.auth.currentUser()) {
       this.auth.loadCurrentUser().subscribe({ error: () => this.logout() });
     }
-    // Badge de non-lus : au chargement, puis à chaque navigation (un fil ouvert vient
-    // d'être marqué lu, un nouveau message a pu arriver entre-temps).
-    this.refreshUnread();
+    // Badges : au chargement, puis à chaque navigation (un fil ouvert vient d'être marqué lu,
+    // un retour vient d'être traité, un nouveau message a pu arriver entre-temps).
+    this.refreshBadges();
     this.router.events
       .pipe(filter((e) => e instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.refreshUnread());
+      .subscribe(() => this.refreshBadges());
   }
 
-  private refreshUnread(): void {
+  private refreshBadges(): void {
     // Le club n'est connu qu'une fois l'utilisateur chargé ; la navigation suivante réessaiera.
     if (!this.auth.clubId()) return;
-    this.messages.refreshUnread().subscribe({ error: () => { /* badge absent plutôt que bloquant */ } });
+    const silent = { error: () => { /* badge absent plutôt que bloquant */ } };
+    this.messages.refreshUnread().subscribe(silent);
+    this.dashboard.refreshPendingReviews().subscribe(silent);
   }
 
   /** Renvoie l'e-mail de vérification (bandeau « e-mail non confirmé »). */

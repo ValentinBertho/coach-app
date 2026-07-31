@@ -1,5 +1,6 @@
 import { animate, style, transition, trigger } from '@angular/animations';
 import { A11yModule } from '@angular/cdk/a11y';
+import { IconComponent } from '../icon/icon.component';
 import { ChangeDetectionStrategy, Component, HostListener, input, model } from '@angular/core';
 
 /**
@@ -15,7 +16,7 @@ import { ChangeDetectionStrategy, Component, HostListener, input, model } from '
   selector: 'app-side-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [A11yModule],
+  imports: [A11yModule, IconComponent],
   animations: [
     trigger('backdrop', [
       transition(':enter', [style({ opacity: 0 }), animate('200ms cubic-bezier(0.32,0.72,0,1)', style({ opacity: 1 }))]),
@@ -44,7 +45,7 @@ import { ChangeDetectionStrategy, Component, HostListener, input, model } from '
       >
         <header class="sp__head">
           <h3 class="sp__title">{{ title() }}</h3>
-          <button type="button" class="sp__close" aria-label="Fermer" (click)="dismiss()">✕</button>
+          <button type="button" class="sp__close" aria-label="Fermer" (click)="dismiss()"><app-icon name="x" [size]="16" /></button>
         </header>
         <div class="sp__body"><ng-content /></div>
       </aside>

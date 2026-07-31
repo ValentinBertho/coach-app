@@ -16,7 +16,7 @@
       <div class="slp-quick-hd"><app-icon name="star" [size]="13" /> Favoris</div>
       <div class="lib-list">
         @for (t of favorites(); track t.id) {
-          <div class="lib-item course" cdkDrag [cdkDragData]="t" (click)="courseSelect.emit(t)" title="Consulter la séance">
+          <div class="lib-item course" cdkDrag [cdkDragData]="t" (click)="courseSelect.emit(t)" [title]="itemHint()">
             <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ t.name }}</span>
             <button type="button" class="li-star on" (click)="$event.stopPropagation(); favoriteToggle.emit(t)" aria-label="Retirer des favoris"><app-icon name="star" [size]="15" /></button>
           </div>
@@ -31,7 +31,7 @@
       <div class="slp-quick-hd"><app-icon name="trending-up" [size]="13" /> Fréquentes</div>
       <div class="lib-list">
         @for (t of frequent(); track t.id) {
-          <div class="lib-item course" cdkDrag [cdkDragData]="t" (click)="courseSelect.emit(t)" title="Consulter la séance">
+          <div class="lib-item course" cdkDrag [cdkDragData]="t" (click)="courseSelect.emit(t)" [title]="itemHint()">
             <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ t.name }}</span>
             <button type="button" class="li-star" (click)="$event.stopPropagation(); favoriteToggle.emit(t)" aria-label="Ajouter aux favoris"><app-icon name="star" [size]="15" /></button>
           </div>
@@ -52,11 +52,11 @@
       @if (!isCollapsed(g.id)) {
         <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
           @for (t of g.items; track t.id) {
-            <div class="lib-item course" cdkDrag [cdkDragData]="t" (click)="courseSelect.emit(t)" title="Consulter la séance">
+            <div class="lib-item course" cdkDrag [cdkDragData]="t" (click)="courseSelect.emit(t)" [title]="itemHint()">
               <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ t.name }}</span>
               <button type="button" class="li-star" [class.on]="t.favorite" (click)="$event.stopPropagation(); favoriteToggle.emit(t)"
                       [attr.aria-label]="t.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'"><app-icon name="star" [size]="15" /></button>
-              <app-icon class="li-eye" name="eye" [size]="15" />
+              @if (!pickMode()) { <app-icon class="li-eye" name="eye" [size]="15" /> }
             </div>
           }
         </div>
@@ -76,7 +76,7 @@
       @if (!isCollapsed(STRENGTH_ID)) {
         <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
           @for (s of filteredStrength(); track s.id) {
-            <div class="lib-item" cdkDrag [cdkDragData]="s">
+            <div class="lib-item" cdkDrag [cdkDragData]="s" (click)="strengthSelect.emit(s)" [title]="itemHint()">
               <app-icon class="li-icon" name="dumbbell" [size]="16" /><span class="li-name">{{ s.name }}</span>
             </div>
           }
@@ -97,7 +97,7 @@
       @if (!isCollapsed(DRILLS_ID)) {
         <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
           @for (d of filteredDrills(); track d.id) {
-            <div class="lib-item drill" cdkDrag [cdkDragData]="d">
+            <div class="lib-item drill" cdkDrag [cdkDragData]="d" (click)="drillSelect.emit(d)" [title]="itemHint()">
               <app-icon class="li-icon" name="graduation-cap" [size]="16" /><span class="li-name">{{ d.name }}</span>
             </div>
           }

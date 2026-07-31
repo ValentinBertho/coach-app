@@ -1,12 +1,13 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
-import { STEP_TYPE_LABELS, WORKOUT_TYPE_LABELS, Workout } from '../../core/models/workout.model';
+import { STEP_TYPE_LABELS, WORKOUT_TYPE_LABELS, Workout, awaitsFeedback, needsFeedback } from '../../core/models/workout.model';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { ToastService } from '../../core/services/toast.service';
 import { DataOriginTagComponent, IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
 import { BottomSheetComponent } from '../../shared/components/ui';
+import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { HelpHintComponent } from '../help/help-hint.component';
 import { CalculatedBlockEntry, courseBlockTypeLabel, CourseBlock, WorkoutPrescription } from '../../core/models/course.model';
 
@@ -46,14 +47,17 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
   selector: 'app-athlete-calendar',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, IntensityZoneBadgeComponent, DataOriginTagComponent, BottomSheetComponent, HelpHintComponent],
+  imports: [
+    IconComponent, IntensityZoneBadgeComponent, DataOriginTagComponent, BottomSheetComponent,
+    WorkoutFeedbackSheetComponent, HelpHintComponent,
+  ],
   template: `
     <header class="cal-top">
       <div class="cal-title"><h1 class="display-sm">Mon calendrier</h1><app-help-hint section="agenda" label="Aide : mon agenda" /></div>
       <div class="week-nav">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)" aria-label="Semaine précédente">←</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)" aria-label="Semaine précédente"><app-icon name="arrow-left" [size]="16" /></button>
         <button type="button" class="btn btn-ghost btn-sm" (click)="goThisWeek()">Cette semaine</button>
-        <button type="button" class="btn btn-ghost btn-sm" (click)="shift(1)" aria-label="Semaine suivante">→</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="shift(1)" aria-label="Semaine suivante"><app-icon name="arrow-right" [size]="16" /></button>
       </div>
       <p class="subtitle">{{ periodLabel() }}</p>
     </header>
@@ -76,6 +80,8 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                   <span class="ses-main">
                     <span class="ses-title">{{ typeLabels[w.type] }} · {{ w.title }}</span>
                     @if (w.targetDistanceM) { <span class="ses-km metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span> }
+                    <!-- Sans ce repère, rien n'indique qu'une séance passée attend encore un ressenti. -->
+                    @if (isLate(w)) { <span class="ses-todo">à noter</span> }
                   </span>
                   <span class="ses-zones">
                     @for (z of zonesOf(w); track z) { <app-intensity-zone-badge [zone]="z" /> }
@@ -185,10 +191,17 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
           } @else {
             <p class="field-hint">Séance libre — pas de blocs détaillés.</p>
           }
+          <!-- Une séance passée non clôturée reste notable : sinon son ressenti est perdu. -->
+          @if (canRate(w)) {
+            <button type="button" class="btn btn-accent btn-lg det-cta" (click)="rate(w)">Noter mon retour</button>
+          }
           <p class="det-foot field-hint">Lecture seule. Pour décaler la séance, utilise « déplacer ».</p>
         </div>
       }
     </app-bottom-sheet>
+
+    <!-- Feuille de ressenti partagée avec « Aujourd'hui » et l'historique. -->
+    <app-workout-feedback-sheet (saved)="onFeedbackSaved($event)" />
   `,
   styles: [`
     :host { display: block; }
@@ -224,6 +237,12 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     .ses-km { color: var(--ink-2); font-weight: 700; font-size: var(--text-sm); }
     .ses-zones { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
     .ses-move { font-size: var(--text-xs); color: var(--ink-3); font-weight: 600; }
+    .ses-todo {
+      padding: 2px 8px; border-radius: var(--radius-full);
+      background: var(--warning-bg); color: var(--warning-text);
+      font-size: var(--text-xs); font-weight: 700;
+    }
+    .det-cta { width: 100%; }
     .ses-move-btn {
       align-self: flex-start; margin-top: var(--sp-1); display: inline-flex; align-items: center; gap: 4px;
       font-size: var(--text-xs); color: var(--ink-3); font-weight: 700; background: transparent;
@@ -276,6 +295,9 @@ export class AthleteCalendarComponent implements OnInit {
   readonly workouts = signal<Workout[]>([]);
   readonly strength = signal<ScheduledStrength[]>([]);
   readonly unavailabilities = signal<Unavailability[]>([]);
+
+  /** Feuille de ressenti partagée (même parcours que « Aujourd'hui »). */
+  private readonly feedbackSheet = viewChild(WorkoutFeedbackSheetComponent);
 
   readonly moveOpen = signal(false);
   readonly moveTarget = signal<MoveTarget | null>(null);
@@ -373,6 +395,29 @@ export class AthleteCalendarComponent implements OnInit {
       next: (p) => { this.detailPrescription.set(p); this.detailLoading.set(false); },
       error: () => this.detailLoading.set(false),
     });
+  }
+
+  /**
+   * Séance passée (ou du jour) encore ouverte au ressenti. On ne propose jamais de noter une
+   * séance à venir : le ressenti se déclare après l'effort, pas avant.
+   */
+  canRate(w: Workout): boolean {
+    return needsFeedback(w) && w.scheduledDate <= toIso(new Date());
+  }
+
+  /** Séance strictement passée qui n'a encore rien reçu : c'est elle qu'on signale « à noter ». */
+  isLate(w: Workout): boolean {
+    return awaitsFeedback(w) && w.scheduledDate < toIso(new Date());
+  }
+
+  /** Le détail se referme d'abord : deux bottom sheets superposés seraient illisibles. */
+  rate(w: Workout): void {
+    this.detailOpen.set(false);
+    this.feedbackSheet()?.openFor(w);
+  }
+
+  onFeedbackSaved(updated: Workout): void {
+    this.workouts.set(this.workouts().map((w) => (w.id === updated.id ? updated : w)));
   }
 
   /** Libellé d'un bloc : « 6 × 1000 m » / « 20 min ». */

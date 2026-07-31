@@ -9,6 +9,7 @@ import { AthletePortalService } from '../../core/services/athlete-portal.service
 import { Analytics } from '../../core/services/analytics.service';
 import { AcwrIndicatorComponent, DataOriginTagComponent, type DataOrigin } from '../../shared/components/physiology';
 import { MetricCardComponent } from '../../shared/components/ui';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 const SOURCE_ORIGIN: Record<string, DataOrigin> = {
   tested: 'mesure', estimated: 'calcule', manual: 'saisi',
@@ -25,7 +26,7 @@ const SOURCE_LABEL: Record<string, string> = {
   selector: 'app-athlete-progress',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink, DatePipe, DecimalPipe, DataOriginTagComponent, AcwrIndicatorComponent, MetricCardComponent],
+  imports: [SkeletonComponent, IconComponent, RouterLink, DatePipe, DecimalPipe, DataOriginTagComponent, AcwrIndicatorComponent, MetricCardComponent],
   template: `
     <div class="prog">
       <header class="prog-top">
@@ -224,7 +225,7 @@ const SOURCE_LABEL: Record<string, string> = {
                   }
                 </ul>
               } @else {
-                <p class="field-hint">Chargement…</p>
+                <app-skeleton shape="text" [rows]="3" />
               }
             }
           </article>
@@ -294,7 +295,7 @@ const SOURCE_LABEL: Record<string, string> = {
     .bar { width: 40%; min-height: 2px; border-radius: 3px 3px 0 0; }
     .bar.planned { background: var(--ink-4); }
     .bar.realized { background: var(--dari-violet); }
-    .blab { font-size: 9px; color: var(--ink-4); white-space: nowrap; }
+    .blab { font-size: var(--text-2xs); color: var(--ink-4); white-space: nowrap; }
 
     .zline { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) 0; }
     .ztag { width: 28px; font-size: var(--text-sm); font-weight: 700; color: var(--ink-3); }

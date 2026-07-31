@@ -94,7 +94,7 @@ import { ToastService } from '../../core/services/toast.service';
                 </span>
                 <span class="zcell zcell--actions">
                   <button type="button" class="btn btn-primary btn-sm" (click)="saveEdit(z)">OK</button>
-                  <button type="button" class="btn btn-ghost btn-sm" (click)="cancelEdit()">✕</button>
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="cancelEdit()" aria-label="Annuler"><app-icon name="x" [size]="15" /></button>
                 </span>
               } @else {
                 <span class="zcell zcell--name">
@@ -133,7 +133,7 @@ import { ToastService } from '../../core/services/toast.service';
                   <button type="button" class="btn btn-ghost btn-sm" (click)="startEdit(z)" aria-label="Modifier">
                     <app-icon name="pencil" [size]="16" />
                   </button>
-                  <button type="button" class="btn btn-ghost btn-sm danger" (click)="remove(z)" aria-label="Supprimer">✕</button>
+                  <button type="button" class="btn btn-ghost btn-sm danger" (click)="remove(z)" aria-label="Supprimer"><app-icon name="x" [size]="15" /></button>
                 </span>
               }
 

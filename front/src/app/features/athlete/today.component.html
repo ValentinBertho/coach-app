@@ -1,12 +1,13 @@
 <div class="athlete-shell">
   <header class="athlete-top">
     <app-logo [size]="28" [showText]="true" />
+    <!-- Deux contrôles, pas cinq : cet écran doit porter la séance, pas la gestion du compte.
+         Installer / notifications / aide / déconnexion vivent désormais dans Profil. -->
     <div class="top-actions">
-      <button type="button" class="btn btn-ghost btn-sm" (click)="help.openSearch()" aria-label="Rechercher dans l'aide"><app-icon name="search" [size]="18" /></button>
       <app-notification-bell />
-      <app-install-button [ghost]="true" />
-      <app-push-button />
-      <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Quitter</button>
+      <a routerLink="/athlete/profile" class="avatar-link" aria-label="Mon profil">
+        <span class="avatar avatar-sm">{{ initials() }}</span>
+      </a>
     </div>
   </header>
 
@@ -25,6 +26,28 @@
         <span>Ajoute un chrono récent pour débloquer tes <strong>allures de travail</strong>.</span>
         <app-icon name="chevron-right" [size]="18" />
       </a>
+    }
+
+    <!-- Rattrapage : une séance non notée reste accessible 7 jours, sinon son ressenti est
+         perdu pour toujours et le coach pilote à l'aveugle. -->
+    @if (pending().length) {
+      <section class="pending card">
+        <div class="pending__hd">
+          <app-icon name="alert-triangle" [size]="18" />
+          <strong>{{ pending().length }} retour{{ pending().length > 1 ? 's' : '' }} en attente</strong>
+        </div>
+        <ul class="pending__list">
+          @for (w of pending(); track w.id) {
+            <li>
+              <button type="button" class="pending__row" (click)="openFeedback(w)">
+                <span class="pending__day">{{ dayLabel(w.scheduledDate) }}</span>
+                <span class="pending__title">{{ w.title }}</span>
+                <span class="pending__cta">Noter <app-icon name="chevron-right" [size]="16" /></span>
+              </button>
+            </li>
+          }
+        </ul>
+      </section>
     }
 
     @if (nextRace(); as r) {
@@ -135,7 +158,7 @@
                           @if ($index > 0) {
                             <button type="button" class="set-repeat" (click)="repeatPreviousSet(ex, $index)"
                                     aria-label="Reprendre les valeurs de la série précédente"
-                                    title="Comme la série précédente">↻</button>
+                                    title="Comme la série précédente"><app-icon name="rotate-ccw" [size]="16" /></button>
                           }
                         </td>
                       </tr>
@@ -150,18 +173,8 @@
                    sinon les alertes douleur / réathlétisation ne peuvent jamais se déclencher. -->
               <app-pain-fatigue-selector kind="fatigue" [(value)]="card.sFatigue" />
               <app-pain-fatigue-selector kind="pain" [(value)]="card.sPain" />
-              <div class="rpe-row">
-                <span class="rpe-row__label">RPE séance</span>
-                <div class="rpe-scale">
-                  @for (n of rpeScale; track n) {
-                    <button type="button" class="rpe-dot" [class.active]="card.sRpe === n"
-                            [title]="rpeLabel(n)" [attr.aria-label]="'RPE ' + n + ' — ' + rpeLabel(n)"
-                            (click)="setStrengthRpe(card, n)">{{ n }}</button>
-                  }
-                </div>
-                <!-- Un chiffre nu ne veut rien dire : le repère verbal CR10 accompagne le choix. -->
-                @if (rpeLabel(card.sRpe); as label) { <span class="rpe-word">{{ label }}</span> }
-              </div>
+              <app-rpe-scale-selector label="RPE séance" [value]="card.sRpe"
+                                      (valueChange)="setStrengthRpe(card, $event)" />
               <button type="button" class="btn btn-accent btn-lg" (click)="submitStrength(card, true)">Valider mes séries</button>
             </section>
 
@@ -193,30 +206,5 @@
   </main>
 </div>
 
-<!-- ===== Bottom sheet : retour course en 10 s ===== -->
-<app-bottom-sheet [(open)]="feedbackOpen" title="Ton ressenti">
-  <div class="fb">
-    <div class="rpe-row">
-      <span class="rpe-row__label">Effort perçu (RPE)</span>
-      <div class="rpe-scale">
-        @for (n of rpeScale; track n) {
-          <button type="button" class="rpe-dot" [class.active]="rpe() === n"
-                  [title]="rpeLabel(n)" [attr.aria-label]="'RPE ' + n + ' — ' + rpeLabel(n)"
-                  (click)="rpe.set(n)">{{ n }}</button>
-        }
-      </div>
-      @if (rpeLabel(rpe()); as label) { <span class="rpe-word">{{ label }}</span> }
-    </div>
-
-    <app-pain-fatigue-selector kind="fatigue" [(value)]="fatigue" />
-    <app-pain-fatigue-selector kind="pain" [(value)]="pain" />
-
-    <textarea class="form-control" rows="2" placeholder="Un commentaire ? (optionnel)"
-              [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
-
-    <div class="fb__actions">
-      <button type="button" class="btn btn-accent btn-lg" (click)="submit(true)">Séance réalisée <app-icon name="check" [size]="16" /></button>
-      <button type="button" class="btn btn-ghost" (click)="submit(false)">Partiellement</button>
-    </div>
-  </div>
-</app-bottom-sheet>
+<!-- ===== Bottom sheet : retour course en 10 s (partagé avec l'agenda et l'historique) ===== -->
+<app-workout-feedback-sheet (saved)="onFeedbackSaved($event)" />

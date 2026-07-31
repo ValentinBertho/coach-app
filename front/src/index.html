@@ -7,6 +7,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="description" content="Darilab : plateforme de coaching course à pied. Plans, séances structurées, suivi de la charge et espace athlète mobile.">
 
+  <!-- Polices auto-hébergées : préchargées pour que le premier écran n'attende plus une
+       requête vers un tiers. Seuls les sous-ensembles latin des deux familles vues au premier
+       rendu (UI + display) sont préchargés ; le reste se charge à la demande via unicode-range. -->
+  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+
   <!-- Favicons -->
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">

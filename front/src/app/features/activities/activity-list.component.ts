@@ -10,12 +10,13 @@ import {
 import { ActivityService } from '../../core/services/activity.service';
 import { ToastService } from '../../core/services/toast.service';
 import { TimeInZoneBarComponent } from '../../shared/components/time-in-zone-bar/time-in-zone-bar.component';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 @Component({
   selector: 'app-activity-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, DatePipe, TimeInZoneBarComponent],
+  imports: [SkeletonComponent, ReactiveFormsModule, RouterLink, DatePipe, TimeInZoneBarComponent],
   templateUrl: './activity-list.component.html',
   styleUrl: './activity-list.component.scss',
 })

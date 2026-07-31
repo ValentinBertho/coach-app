@@ -20,7 +20,7 @@
 </div>
 
 @if (loading()) {
-  <div class="card">Chargement…</div>
+  <div class="card"><app-skeleton shape="list" [rows]="4" /></div>
 } @else if (races().length === 0) {
   <div class="card empty-state"><h2>Aucun objectif</h2><p class="field-hint">Ajoute une course cible.</p></div>
 } @else {

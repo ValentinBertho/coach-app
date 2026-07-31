@@ -1,6 +1,6 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteSummary } from '../../core/models/athlete.model';
@@ -165,8 +165,6 @@ export class CalendarComponent implements OnInit, OnDestroy {
   readonly view = signal<CalView>('both');
   readonly showPlanned = computed(() => this.view() !== 'realized');
   readonly showRealized = computed(() => this.view() !== 'planned');
-  /** Actions de planification avancées (duplication de semaine, mésocycle) — masquées pour l'instant. */
-  readonly advancedPlanning = false;
   readonly anchor = signal<Date>(new Date());
   readonly workouts = signal<Workout[]>([]);
   readonly activities = signal<Activity[]>([]);
@@ -306,6 +304,23 @@ export class CalendarComponent implements OnInit, OnDestroy {
     }
 
     const rec = item as unknown as Record<string, unknown>;
+
+    // Éléments venus de la bibliothèque (pas de date planifiée) : planification sur la ligne
+    // de l'athlète. C'est ce qui manquait pour que le mode groupe soit une vue de travail.
+    const refreshGroup = () => this.loadGroup();
+    if (rec['category'] === 'TECHNIQUE' || rec['category'] === 'AMPLITUDE') {
+      this.dropDrill(item as unknown as RunDrill, targetDate, row.athleteId, refreshGroup);
+      return;
+    }
+    if ('structure' in rec) {
+      this.scheduleStrength(item as unknown as StrengthSession, row.athleteId, targetDate, refreshGroup);
+      return;
+    }
+    if (!('scheduledDate' in rec)) {
+      this.scheduleTemplate(item as unknown as WorkoutTemplate, row.athleteId, targetDate, refreshGroup);
+      return;
+    }
+
     if ('sourceSessionId' in rec) {
       this.moveGroupStrength(row, item as unknown as ScheduledStrength, targetDate);
     } else {
@@ -691,16 +706,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
   toggleNote(): void { this.noteOpen.update((v) => !v); if (!this.noteOpen()) this.noteText = ''; }
 
   /** Drop d'un éducatif : crée une courte séance technique avec la gamme attachée à l'échauffement. */
-  private dropDrill(drill: RunDrill, date: string): void {
-    this.workoutService.create(this.selectedAthleteId, {
+  private dropDrill(drill: RunDrill, date: string, athleteId = this.selectedAthleteId, refresh = () => this.load()): void {
+    this.workoutService.create(athleteId, {
       scheduledDate: date, type: 'ENDURANCE', title: 'Technique — ' + drill.name, notes: null, steps: [],
     }).subscribe({
       next: (w) => {
-        this.workoutService.updateStructure(this.selectedAthleteId, w.id, {
+        this.workoutService.updateStructure(athleteId, w.id, {
           warmup: [{ id: 'wu-' + Math.random().toString(36).slice(2, 8), type: 'warmup', drillIds: [drill.id] }],
           main: [], cooldown: [],
         }).subscribe({
-          next: () => { this.toast.success(`${drill.name} planifié le ${this.fmtDate(date)}`); this.load(); },
+          next: () => { this.toast.success(`${drill.name} planifié le ${this.fmtDate(date)}`); refresh(); },
           error: () => this.toast.error('Création impossible.'),
         });
       },
@@ -770,16 +785,56 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /** Planifie un modèle de séance course sur la date choisie (snapshot figé + cibles en fourchettes). */
-  scheduleTemplateOn(t: WorkoutTemplate): void {
-    const date = this.pickerDate();
-    if (!date) return;
-    this.courseService.schedule(this.selectedAthleteId, t.id, { date }).subscribe({
+  // --- Planification (partagée entre le glisser-déposer, le picker « + » et le mode groupe) ---
+  // Un seul chemin par famille de séance : le picker et le panneau latéral ne doivent pas
+  // diverger, c'était toute la confusion de l'ancienne modale.
+
+  /**
+   * Planifie un modèle de séance course chez un athlète à une date.
+   * `refresh` dit quelle vue recharger : la grille d'un athlète ou celle du groupe.
+   */
+  private scheduleTemplate(t: WorkoutTemplate, athleteId: string, date: string, refresh = () => this.load()): void {
+    this.courseService.schedule(athleteId, t.id, { date }).subscribe({
       next: (w) => {
         this.toast.success(`${t.name} planifiée le ${this.fmtDate(date)}${this.chargeRecap(w)}`);
-        this.closePicker(); this.load();
+        refresh();
       },
       error: () => this.toast.error('Planification impossible.'),
     });
+  }
+
+  /** Planifie une séance de force chez un athlète à une date. */
+  private scheduleStrength(s: StrengthSession, athleteId: string, date: string, refresh = () => this.reloadStrength()): void {
+    this.strengthService.scheduleSession(athleteId, s.id, { date, fieldsPreset: 'AVANCE' }).subscribe({
+      next: (scheduled) => {
+        const charges = scheduled.chargeSummary ? ` — ${scheduled.chargeSummary}` : '';
+        this.toast.success(`${s.name} planifiée le ${this.fmtDate(date)}${charges}`);
+        refresh();
+      },
+      error: () => this.toast.error('Planification impossible.'),
+    });
+  }
+
+  // --- Sélection depuis le picker « + » d'un jour (panneau bibliothèque) ---
+  scheduleTemplateOn(t: WorkoutTemplate): void {
+    const date = this.pickerDate();
+    if (!date) return;
+    this.closePicker();
+    this.scheduleTemplate(t, this.selectedAthleteId, date);
+  }
+
+  scheduleStrengthOn(s: StrengthSession): void {
+    const date = this.pickerDate();
+    if (!date) return;
+    this.closePicker();
+    this.scheduleStrength(s, this.selectedAthleteId, date);
+  }
+
+  scheduleDrillOn(d: RunDrill): void {
+    const date = this.pickerDate();
+    if (!date) return;
+    this.closePicker();
+    this.dropDrill(d, date);
   }
   openWorkout(w: Workout): void {
     if (this.consumeSuppressedClick()) return;
@@ -788,6 +843,38 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
   openObjectives(): void { this.router.navigate(['/app/athletes', this.selectedAthleteId, 'races']); }
   openTests(): void { this.router.navigate(['/app/athletes', this.selectedAthleteId, 'tests']); }
+
+  // --- Alt + glisser = copier --------------------------------------------------------------
+  // Le geste est un standard universel, mais invisible : sans retour pendant le drag, le coach
+  // ne sait pas s'il s'apprête à déplacer ou à dupliquer. La classe est posée sur <body> parce
+  // que la vignette de drag du CDK y est montée, hors de l'arbre du calendrier.
+  private static readonly COPY_DRAG_CLASS = 'is-copy-drag';
+  private dragging = false;
+
+  onDragStarted(ev: { event: MouseEvent | TouchEvent }): void {
+    this.dragging = true;
+    this.setCopyCursor(this.isCopyModifier(ev.event));
+  }
+
+  onDragEnded(): void {
+    this.dragging = false;
+    this.setCopyCursor(false);
+  }
+
+  /** Alt (ou ⌘ sur mac) enfoncé/relâché **pendant** le glisser : le coach change d'avis en route. */
+  @HostListener('document:keydown', ['$event'])
+  @HostListener('document:keyup', ['$event'])
+  protected onModifierChange(ev: KeyboardEvent): void {
+    if (this.dragging) this.setCopyCursor(ev.altKey || ev.metaKey);
+  }
+
+  private isCopyModifier(ev: MouseEvent | TouchEvent): boolean {
+    return !!ev && 'altKey' in ev && (ev.altKey || (ev as MouseEvent).metaKey);
+  }
+
+  private setCopyCursor(on: boolean): void {
+    document.body.classList.toggle(CalendarComponent.COPY_DRAG_CLASS, on);
+  }
 
   onDrop(event: CdkDragDrop<DayCell>, targetDate: string): void {
     const data = event.item.data as Workout | StrengthSession | ScheduledStrength | WorkoutTemplate;
@@ -815,30 +902,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     // Séance de force glissée depuis la bibliothèque → planification.
     if ('structure' in rec) {
-      const s = data as StrengthSession;
-      this.strengthService
-        .scheduleSession(this.selectedAthleteId, s.id, { date: targetDate, fieldsPreset: 'AVANCE' })
-        .subscribe({
-          next: (scheduled) => {
-            const charges = scheduled.chargeSummary ? ` — ${scheduled.chargeSummary}` : '';
-            this.toast.success(`${s.name} planifiée le ${this.fmtDate(targetDate)}${charges}`);
-            this.reloadStrength();
-          },
-          error: () => this.toast.error('Planification impossible.'),
-        });
+      this.scheduleStrength(data as StrengthSession, this.selectedAthleteId, targetDate);
       return;
     }
 
     // Modèle de séance course glissé depuis la bibliothèque → planification.
     if (!('scheduledDate' in rec)) {
-      const t = data as WorkoutTemplate;
-      this.courseService.schedule(this.selectedAthleteId, t.id, { date: targetDate }).subscribe({
-        next: (w) => {
-          this.toast.success(`${t.name} planifiée le ${this.fmtDate(targetDate)}${this.chargeRecap(w)}`);
-          this.load();
-        },
-        error: () => this.toast.error('Planification impossible.'),
-      });
+      this.scheduleTemplate(data as WorkoutTemplate, this.selectedAthleteId, targetDate);
       return;
     }
 
@@ -892,11 +962,30 @@ export class CalendarComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Duplique une séance vers une date (copie figée côté back). */
+  /**
+   * Duplique une séance vers une date (copie figée côté back), avec annulation.
+   * Alt+glisser est un geste rapide, donc facile à déclencher par erreur : il doit se défaire
+   * aussi vite qu'un déplacement, sinon il laisse une séance parasite dans la semaine.
+   */
   private copyWorkout(w: Workout, targetDate: string): void {
     this.workoutService.copy(this.selectedAthleteId, w.id, targetDate).subscribe({
-      next: () => { this.toast.success(`Séance dupliquée au ${this.fmtDate(targetDate)}`); this.load(); },
+      next: (copy) => {
+        this.load();
+        this.toast.withAction(
+          `« ${w.title} » dupliquée le ${this.fmtDate(targetDate)}`, 'Annuler',
+          () => this.undoCopy(copy),
+        );
+      },
       error: () => this.toast.error('Duplication impossible.'),
+    });
+  }
+
+  /** Annule une duplication : la copie n'existait pas avant le geste, on la supprime. */
+  private undoCopy(copy: Workout): void {
+    this.workouts.update((l) => l.filter((x) => x.id !== copy.id));
+    this.workoutService.delete(this.selectedAthleteId, copy.id).subscribe({
+      next: () => this.toast.info('Duplication annulée.'),
+      error: () => { this.toast.error('Annulation impossible.'); this.load(); },
     });
   }
 
@@ -1071,6 +1160,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * « supprimée à l'écran » ressusciter au prochain chargement.
    */
   ngOnDestroy(): void {
+    this.setCopyCursor(false); // la classe vit sur <body> : elle ne doit pas survivre à l'écran
     for (const [workoutId, timer] of this.pendingDeletions) {
       clearTimeout(timer);
       this.workoutService.delete(this.selectedAthleteId, workoutId).subscribe({ error: () => { /* best-effort */ } });

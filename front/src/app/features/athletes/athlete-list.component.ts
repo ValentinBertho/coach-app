@@ -10,6 +10,7 @@ import { AthleteForm, CoachDashboardService, FormStatus } from '../../core/servi
 import { PaginatorComponent } from '../../shared/components/paginator/paginator.component';
 import { FormPillComponent } from '../../shared/components/form-pill/form-pill.component';
 import type { FormLevel } from '../../shared/components/physiology';
+import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 type ListState = 'loading' | 'ready' | 'error';
 
@@ -19,7 +20,7 @@ const LEVEL_OF: Record<FormStatus, FormLevel> = { GREEN: 'green', ORANGE: 'orang
   selector: 'app-athlete-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, FormsModule, PaginatorComponent, FormPillComponent],
+  imports: [SkeletonComponent, RouterLink, FormsModule, PaginatorComponent, FormPillComponent],
   templateUrl: './athlete-list.component.html',
   styleUrl: './athletes.scss',
 })

@@ -80,7 +80,7 @@ import { ToastService } from '../../core/services/toast.service';
                 <article class="card drill" [class.drill--amplitude]="d.category === 'AMPLITUDE'">
                   <div class="drill-hd">
                     <strong>{{ d.name }}</strong>
-                    <button type="button" class="btn btn-ghost btn-sm danger" (click)="remove(d)" aria-label="Supprimer">✕</button>
+                    <button type="button" class="btn btn-ghost btn-sm danger" (click)="remove(d)" aria-label="Supprimer"><app-icon name="x" [size]="15" /></button>
                   </div>
                   @if (d.categoryId) { <span class="cat-badge">{{ catName(d.categoryId) }}</span> }
                   @if (d.description) { <p class="drill-desc">{{ d.description }}</p> }

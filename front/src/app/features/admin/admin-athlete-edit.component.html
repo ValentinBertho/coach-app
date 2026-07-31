@@ -4,7 +4,7 @@
 </section>
 
 @if (loading()) {
-  <div class="card">Chargement…</div>
+  <div class="card"><app-skeleton shape="text" [rows]="6" /></div>
 } @else {
   <form class="card" [formGroup]="form" (ngSubmit)="submit()">
     <div class="form-row">

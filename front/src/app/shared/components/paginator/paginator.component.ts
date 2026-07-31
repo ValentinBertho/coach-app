@@ -1,18 +1,20 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { IconComponent } from '../icon/icon.component';
 
 /** Pagination serveur réutilisable (page 0-based). */
 @Component({
   selector: 'app-paginator',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [IconComponent],
   template: `
     @if (totalPages() > 1) {
       <nav class="paginator">
         <button type="button" class="btn btn-ghost btn-sm" [disabled]="page() === 0"
-                (click)="go(page() - 1)">← Précédent</button>
+                (click)="go(page() - 1)"><app-icon name="arrow-left" [size]="15" /> Précédent</button>
         <span class="pg-label metric">{{ page() + 1 }} / {{ totalPages() }}</span>
         <button type="button" class="btn btn-ghost btn-sm" [disabled]="isLast()"
-                (click)="go(page() + 1)">Suivant →</button>
+                (click)="go(page() + 1)">Suivant <app-icon name="arrow-right" [size]="15" /></button>
       </nav>
     }
   `,

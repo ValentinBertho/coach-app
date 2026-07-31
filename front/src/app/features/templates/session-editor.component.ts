@@ -1,5 +1,5 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { Router, RouterLink } from '@angular/router';
@@ -21,6 +21,9 @@ import { MetricTypeService } from '../../core/services/metric-type.service';
 import { AthleteZoneValue } from '../../core/models/athlete-zone-value.model';
 import { AthleteZoneValueService } from '../../core/services/athlete-zone-value.service';
 import { ZonePickerComponent } from '../../shared/components/zone-picker/zone-picker.component';
+import { AutosaveBadgeComponent } from '../../shared/components/autosave-badge/autosave-badge.component';
+import { Autosave } from '../../core/services/autosave';
+import { HasAutosave } from '../../core/guards/unsaved-changes.guard';
 
 /** Statut de complétude du profil pour la prescription course. */
 export type ProfileStatus = 'measured' | 'estimated' | 'incomplete';
@@ -38,11 +41,11 @@ interface Section { key: keyof SessionStructure; label: string; }
   selector: 'app-session-editor',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, DragDropModule, IconComponent, ZonePickerComponent],
+  imports: [FormsModule, RouterLink, DragDropModule, IconComponent, ZonePickerComponent, AutosaveBadgeComponent],
   templateUrl: './session-editor.component.html',
   styleUrl: './session-editor.component.scss',
 })
-export class SessionEditorComponent implements OnInit {
+export class SessionEditorComponent implements OnInit, HasAutosave {
   // Paramètres de route (component input binding). Un seul jeu est renseigné selon le mode.
   readonly templateId = input<string>('');
   readonly workoutId = input<string>('');
@@ -58,6 +61,12 @@ export class SessionEditorComponent implements OnInit {
   private readonly physio = inject(PhysioService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+
+  /**
+   * Auto-sauvegarde : dix minutes de construction disparaissaient au premier clic sur
+   * « Calendrier ». Toute modification du contenu passe par `touch()`.
+   */
+  readonly autosave = new Autosave(() => this.persist(), inject(DestroyRef));
 
   readonly drills = signal<RunDrill[]>([]);
 
@@ -159,7 +168,7 @@ export class SessionEditorComponent implements OnInit {
     else b.prescription.zoneId = zoneId;
     // Une zone cardio ne se double pas d'une seconde cible FC : elle en porte déjà une.
     if (b.prescription.hrZoneId && this.isCardioZone(zoneId)) b.prescription.hrZoneId = null;
-    this.recalc(b);
+    this.onBlockEdited(b);
   }
 
   /** Zones portant la métrique FC (échelle cardio) — celles qu'on peut ajouter en second. */
@@ -186,7 +195,7 @@ export class SessionEditorComponent implements OnInit {
   setBlockHrZone(b: CourseBlock, hrZoneId: string | null): void {
     if (!b.prescription) return;
     b.prescription.hrZoneId = hrZoneId;
-    this.recalc(b);
+    this.onBlockEdited(b);
   }
 
   ngOnInit(): void {
@@ -247,6 +256,7 @@ export class SessionEditorComponent implements OnInit {
   /** Effort perçu (RPE 1–10) d'un bloc — propre au contenu de la séance. */
   setBlockRpe(b: CourseBlock, value: number | null): void {
     b.rpe = value == null ? null : Math.max(1, Math.min(10, Math.round(value)));
+    this.touch();
   }
 
   /** Recalcule les cibles de tous les blocs pour l'athlète courant du calculateur. */
@@ -266,6 +276,7 @@ export class SessionEditorComponent implements OnInit {
   toggleDrill(b: CourseBlock, id: string): void {
     const cur = b.drillIds ?? [];
     b.drillIds = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+    this.touch();
   }
 
   blocks(key: keyof SessionStructure): CourseBlock[] {
@@ -346,7 +357,7 @@ export class SessionEditorComponent implements OnInit {
     else if (preset?.distanceM != null) { block.durationS = null; }
     const s = this.structure();
     this.structure.set({ ...s, [key]: [...s[key], block] });
-    this.recalc(block);
+    this.onBlockEdited(block);
   }
 
   /** Mode de mesure d'un bloc : par distance ou par durée (jamais les deux). */
@@ -362,7 +373,7 @@ export class SessionEditorComponent implements OnInit {
       b.durationS = null;
       b.distanceM = b.distanceM ?? 1000;
     }
-    this.recalc(b);
+    this.onBlockEdited(b);
   }
 
   /** Bascule un bloc entre mesure par distance et par durée (un seul geste). */
@@ -382,7 +393,7 @@ export class SessionEditorComponent implements OnInit {
 
   setDurMin(b: CourseBlock, min: number | null): void {
     b.durationS = min != null ? Math.round(min * 60) : null;
-    this.recalc(b);
+    this.onBlockEdited(b);
   }
 
   // --- Récupération inter-répétitions (fractionnés) --------------------------
@@ -393,11 +404,13 @@ export class SessionEditorComponent implements OnInit {
   addRecovery(b: CourseBlock): void {
     b.recovery = { type: 'jog', durationS: 60, distanceM: null, prescription: { zoneId: this.zoneIdByName('Récupération') } };
     this.recalcRecovery(b);
+    this.touch();
   }
 
   removeRecovery(b: CourseBlock): void {
     b.recovery = null;
     this.recCalc.update((m) => { const c = { ...m }; delete c[b.id]; return c; });
+    this.touch();
   }
 
   recMeasureOf(b: CourseBlock): 'distance' | 'duration' {
@@ -411,22 +424,23 @@ export class SessionEditorComponent implements OnInit {
     if (mode === 'duration') { r.distanceM = null; r.durationS = r.durationS ?? 60; }
     else { r.durationS = null; r.distanceM = r.distanceM ?? 200; }
     this.recalcRecovery(b);
+    this.touch();
   }
 
   /** Durée de récup en secondes (les récups sont courtes → secondes plus lisibles que minutes). */
   recDurS(b: CourseBlock): number | null { return b.recovery?.durationS ?? null; }
   setRecDurS(b: CourseBlock, s: number | null): void {
-    if (b.recovery) { b.recovery.durationS = s != null ? Math.round(s) : null; this.recalcRecovery(b); }
+    if (b.recovery) { b.recovery.durationS = s != null ? Math.round(s) : null; this.recalcRecovery(b); this.touch(); }
   }
   recDistM(b: CourseBlock): number | null { return b.recovery?.distanceM ?? null; }
   setRecDistM(b: CourseBlock, m: number | null): void {
-    if (b.recovery) { b.recovery.distanceM = m != null ? Math.round(m) : null; this.recalcRecovery(b); }
+    if (b.recovery) { b.recovery.distanceM = m != null ? Math.round(m) : null; this.recalcRecovery(b); this.touch(); }
   }
   setRecZone(b: CourseBlock, zoneId: string): void {
-    if (b.recovery?.prescription) { b.recovery.prescription.zoneId = zoneId; this.recalcRecovery(b); }
+    if (b.recovery?.prescription) { b.recovery.prescription.zoneId = zoneId; this.recalcRecovery(b); this.touch(); }
   }
   setRecType(b: CourseBlock, type: string): void {
-    if (b.recovery) { b.recovery.type = type; }
+    if (b.recovery) { b.recovery.type = type; this.touch(); }
   }
 
   /** Recalcule la cible de la récupération d'un bloc (lecture depuis la zone de l'athlète). */
@@ -447,6 +461,7 @@ export class SessionEditorComponent implements OnInit {
   removeBlock(key: keyof SessionStructure, id: string): void {
     const s = this.structure();
     this.structure.set({ ...s, [key]: s[key].filter((b) => b.id !== id) });
+    this.touch();
   }
 
   /**
@@ -465,7 +480,7 @@ export class SessionEditorComponent implements OnInit {
     const arr = [...s[key]];
     arr.splice(index + 1, 0, copy);
     this.structure.set({ ...s, [key]: arr });
-    this.recalc(copy);
+    this.onBlockEdited(copy);
     this.toast.success('Bloc dupliqué');
   }
 
@@ -476,6 +491,7 @@ export class SessionEditorComponent implements OnInit {
     const arr = [...s[key]];
     moveItemInArray(arr, event.previousIndex, event.currentIndex);
     this.structure.set({ ...s, [key]: arr });
+    this.touch();
   }
 
   onAthleteChange(id: string): void {
@@ -586,22 +602,48 @@ export class SessionEditorComponent implements OnInit {
     return parts.length ? parts.join(' · ') : null;
   }
 
-  save(): void {
-    if (this.isWorkout()) {
-      this.workoutService.updateStructure(this.athleteId(), this.workoutId(), this.structure()).subscribe({
-        next: () => {
-          this.toast.success('Séance adaptée pour l’athlète');
-          this.router.navigate(['/app/athletes', this.athleteId(), 'workouts', this.workoutId()]);
-        },
-        error: () => this.toast.error('Enregistrement impossible.'),
+  /**
+   * Toute modification du contenu : recalcule la cible du bloc et arme l'auto-sauvegarde.
+   * Séparé de `recalc()` seul, qui sert aussi au changement d'athlète d'aperçu — lequel ne
+   * modifie rien de la séance.
+   */
+  onBlockEdited(b: CourseBlock): void {
+    this.recalc(b);
+    this.touch();
+  }
+
+  /** Point de passage unique des modifications : arme le debounce d'auto-sauvegarde. */
+  touch(): void { this.autosave.markDirty(); }
+
+  /** Notes de séance (écriture libre du coach) — enregistrées avec la structure. */
+  setNotes(value: string): void {
+    this.notes.set(value);
+    this.touch();
+  }
+
+  /** Écriture effective, selon le mode (modèle de bibliothèque ou séance planifiée). */
+  private persist() {
+    return this.isWorkout()
+      ? this.workoutService.updateStructure(this.athleteId(), this.workoutId(), this.structure())
+      : this.course.putStructure(this.templateId(), {
+        notes: this.notes().trim() || null,
+        structure: this.structure(),
       });
-      return;
-    }
-    this.course.putStructure(this.templateId(), {
-      notes: this.notes().trim() || null,
-      structure: this.structure(),
-    }).subscribe(() => {
-      this.toast.success('Séance enregistrée');
+  }
+
+  /**
+   * Enregistrement explicite : ne fait qu'anticiper le debounce. En mode « adapter une séance »,
+   * il vaut aussi « j'ai fini » et renvoie donc à la séance de l'athlète.
+   */
+  save(): void {
+    this.autosave.flush().subscribe((ok) => {
+      if (!ok) { this.toast.error('Enregistrement impossible.'); return; }
+      if (this.isWorkout()) {
+        this.toast.success('Séance adaptée pour l’athlète');
+        this.router.navigate(['/app/athletes', this.athleteId(), 'workouts', this.workoutId()]);
+      } else {
+        this.toast.success('Séance enregistrée');
+      }
     });
   }
 }

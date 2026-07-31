@@ -70,7 +70,7 @@ const PAD_T = 10;
     .tc { margin: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
     .tc__svg { width: 100%; height: auto; overflow: visible; }
     .tc__grid { stroke: var(--hairline); stroke-width: 1; }
-    .tc__axis { fill: var(--ink-3); font-size: 10px; font-family: var(--font-data); }
+    .tc__axis { fill: var(--ink-3); font-size: var(--text-2xs); font-family: var(--font-data); }
     .tc__line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
     .tc__legend {
       display: flex; gap: var(--sp-3); flex-wrap: wrap; align-items: baseline;
