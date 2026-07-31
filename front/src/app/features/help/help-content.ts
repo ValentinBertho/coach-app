@@ -62,7 +62,7 @@ const ATHLETE: HelpGuide = {
           ],
         },
         { kind: 'callout', tone: 'tip', text: 'Installe l\'app sur ton écran d\'accueil : touche « Installer » dans l\'en-tête (ou « Partager → Ajouter à l\'écran d\'accueil » sur iPhone). Elle s\'ouvre alors en plein écran, comme une vraie application, et reste consultable même hors connexion.' },
-        { kind: 'callout', tone: 'info', text: 'Active les notifications (icône cloche) pour être prévenu de ta séance du jour et des messages de ton coach. Sur iPhone, installe d\'abord l\'app sur l\'écran d\'accueil : les notifications n\'y fonctionnent qu\'une fois installée.' },
+        { kind: 'callout', tone: 'info', text: 'Active les notifications depuis ton profil : c\'est par elles que tu es prévenu d\'une nouvelle séance, d\'un retour de ton coach et du rappel de la veille. Sur iPhone, installe d\'abord l\'app sur l\'écran d\'accueil (Partager → Ajouter à l\'écran d\'accueil) : les notifications n\'y fonctionnent qu\'une fois installée. Sans elles, tu retrouves tout dans l\'app, et le rappel de séance t\'est envoyé par e-mail.' },
       ],
     },
     {
@@ -330,8 +330,9 @@ const COACH: HelpGuide = {
       title: 'Communication',
       summary: 'Messagerie temps réel, pièces jointes, notifications.',
       blocks: [
-        { kind: 'text', text: 'Échange avec chaque athlète via une messagerie en temps réel, avec pièces jointes (images, PDF). Les notifications (e-mail et push) préviennent l\'athlète d\'une nouvelle séance ou d\'un message, et toi d\'un retour renseigné.' },
-        { kind: 'callout', tone: 'info', text: 'Les notifications e-mail et push s\'activent côté serveur (clé d\'envoi et clés push). Tant qu\'elles ne sont pas configurées, le partage du lien d\'invitation et la messagerie in-app restent pleinement utilisables.' },
+        { kind: 'text', text: 'Échange avec chaque athlète via une messagerie en temps réel, avec pièces jointes (images, PDF).' },
+        { kind: 'text', text: 'Le quotidien passe par les notifications push et le centre de notifications (icône cloche) : nouvelle séance, retour d\'un athlète, rappel de séance. Tu règles les canaux dans Réglages → Notifications.' },
+        { kind: 'callout', tone: 'info', text: 'Les e-mails sont réservés à ce qui ne peut pas passer autrement : création de compte, mot de passe oublié, invitations, et le récapitulatif quotidien d\'alertes. Ce choix garde ta boîte mail lisible — et celle de tes athlètes.' },
       ],
     },
     {

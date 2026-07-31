@@ -13,7 +13,12 @@ export interface Toast {
   level: ToastLevel;
   message: string;
   action?: ToastAction;
+  /** Nombre d'occurrences fusionnées (1 = toast simple). Affiché « ×3 » au-delà. */
+  count: number;
 }
+
+/** Au-delà, les toasts les plus anciens sont évincés : sur 390 px, quatre remplissent l'écran. */
+const MAX_VISIBLE = 3;
 
 /**
  * Feedback utilisateur centralisé (cf. Claude.md : toast sur chaque action).
@@ -25,9 +30,27 @@ export class ToastService {
   private seq = 0;
   readonly toasts = signal<Toast[]>([]);
 
+  /**
+   * Empile un toast, en **fusionnant** un message identique déjà affiché.
+   *
+   * <p>Une salve d'erreurs identiques — cinq « Accès refusé » quand un écran lance cinq appels
+   * refusés — produisait cinq toasts empilés qui recouvraient l'écran mobile, et cinq clics pour
+   * s'en débarrasser. On incrémente désormais un compteur, et on plafonne la pile.</p>
+   */
   private push(level: ToastLevel, message: string, ttlMs = 4000, action?: ToastAction): void {
+    // Un toast porteur d'action est unique par construction (« Annuler » ne se fusionne pas :
+    // deux annulations ne visent pas la même chose).
+    if (!action) {
+      const existing = this.toasts().find((t) => t.message === message && t.level === level && !t.action);
+      if (existing) {
+        this.toasts.update((list) =>
+          list.map((t) => (t.id === existing.id ? { ...t, count: t.count + 1 } : t)),
+        );
+        return;
+      }
+    }
     const id = ++this.seq;
-    this.toasts.update((list) => [...list, { id, level, message, action }]);
+    this.toasts.update((list) => [...list, { id, level, message, action, count: 1 }].slice(-MAX_VISIBLE));
     setTimeout(() => this.dismiss(id), ttlMs);
   }
 

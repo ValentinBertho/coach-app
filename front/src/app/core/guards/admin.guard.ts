@@ -10,5 +10,9 @@ export const adminGuard: CanActivateFn = () => {
   if (!auth.isAuthenticated()) {
     return router.createUrlTree(['/login']);
   }
-  return auth.currentUser()?.role === 'PLATFORM_ADMIN' ? true : router.createUrlTree(['/app']);
+  // Renvoi vers l'accueil du rôle réel, et non vers /app en dur : un athlète y atterrissait
+  // dans le cockpit coach.
+  return auth.currentUser()?.role === 'PLATFORM_ADMIN'
+    ? true
+    : router.createUrlTree([auth.homeRoute()]);
 };

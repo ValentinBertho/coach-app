@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
-import { AthleteSummary } from '../../core/models/athlete.model';
+import { ATHLETE_LEVEL_LABELS, AthleteLevel, AthleteStatus, AthleteSummary } from '../../core/models/athlete.model';
 import { TrainingGroup } from '../../core/models/training-group.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { TrainingGroupService } from '../../core/services/training-group.service';
@@ -37,6 +37,8 @@ export class AthleteListComponent implements OnInit {
   readonly totalPages = signal(1);
   search = '';
   filterGroup = '';
+  /** Par défaut on ne montre que les actifs : un athlète archivé n'a rien à faire dans la file. */
+  filterStatus: '' | AthleteStatus = 'ACTIVE';
 
   /**
    * État de forme par athlète, chargé une fois depuis le tableau de bord (même source que la
@@ -81,7 +83,12 @@ export class AthleteListComponent implements OnInit {
 
   load(): void {
     this.state.set('loading');
-    this.athleteService.list({ q: this.search || undefined, groupId: this.filterGroup || undefined, page: this.page() }).subscribe({
+    this.athleteService.list({
+      q: this.search || undefined,
+      groupId: this.filterGroup || undefined,
+      status: this.filterStatus || undefined,
+      page: this.page(),
+    }).subscribe({
       next: (page) => {
         this.athletes.set(page.content);
         this.totalPages.set(page.totalPages);
@@ -89,6 +96,22 @@ export class AthleteListComponent implements OnInit {
       },
       error: () => this.state.set('error'),
     });
+  }
+
+  /** Un filtre est actif dès qu'il restreint : « Actifs » est le défaut, pas une restriction subie. */
+  isFiltered(): boolean {
+    return !!this.search || !!this.filterGroup || this.filterStatus !== '';
+  }
+
+  resetFilters(): void {
+    this.search = '';
+    this.filterGroup = '';
+    this.filterStatus = '';
+    this.goToPage(0);
+  }
+
+  levelLabel(level: string): string {
+    return ATHLETE_LEVEL_LABELS[level as AthleteLevel] ?? level;
   }
 
   statusLabel(status: string): string {

@@ -101,10 +101,26 @@ export class CoachDashboardService {
   }
 
   /** File « retours à traiter » : retours d'athlètes non encore vus, tout le périmètre confondu. */
-  feedbackQueue(scope: 'all' | 'mine' | 'private' | 'club' = 'all'): Observable<FeedbackQueueItem[]> {
-    const params = new HttpParams().set('scope', scope);
+  feedbackQueue(
+    scope: 'all' | 'mine' | 'private' | 'club' = 'all',
+    days = 14,
+  ): Observable<FeedbackQueueItem[]> {
+    const params = new HttpParams().set('scope', scope).set('days', days);
     return this.http.get<FeedbackQueueItem[]>(
       `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard/feedback`,
+      { params },
+    );
+  }
+
+  /** Vide la file : marque comme traités tous les retours du périmètre et de la fenêtre. */
+  markAllFeedbackReviewed(
+    scope: 'all' | 'mine' | 'private' | 'club' = 'all',
+    days = 14,
+  ): Observable<{ marked: number }> {
+    const params = new HttpParams().set('scope', scope).set('days', days);
+    return this.http.post<{ marked: number }>(
+      `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard/feedback/review-all`,
+      {},
       { params },
     );
   }

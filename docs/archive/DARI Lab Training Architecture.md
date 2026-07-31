@@ -1,4 +1,9 @@
 # DARI Lab Training — Architecture Complète
+
+> ⚠️ **Document historique — non maintenu.** Le schéma SQL, les moteurs de calcul et les parcours
+> décrits ici ont été **portés** sur Liquibase/JPA, pas repris tels quels ; les sections React,
+> Supabase et RLS ne s'appliquent pas. Référence actuelle : [`../Techno.md`](../Techno.md) et les
+> migrations `back/src/main/resources/db/changelog/`.
 **Version 1.0 — Document CTO/Product**
 
 ---

@@ -113,7 +113,11 @@
   /* Encre — neutre quasi-noire, lisible comme une impression de labo */
   --ink: #18191c;
   --ink-2: #44464d;
-  --ink-3: #74767f;
+  /* #74767f donnait 4,04:1 sur --canvas et 4,49:1 sur --paper : sous le 4,5:1 exigé par
+     WCAG AA. Ce jeton porte tous les .subtitle d'en-tête de page, tous les .field-hint et
+     les intitulés de groupe de la barre latérale — l'échec était donc systématique.
+     #6b6d76 : 4,60:1 sur --canvas, 5,11:1 sur --paper. La nuance ne se voit pas. */
+  --ink-3: #6b6d76;
   /* Remonté de #aaaab2 (2,3:1 — échec AA) : --ink-4 porte du texte réel (séparateurs, unités,
      densité du calendrier), il doit rester lisible sur --paper ET sur --canvas, plus sombre. */
   --ink-4: #86888f;   /* 3,5:1 sur --paper, 3,2:1 sur --canvas */

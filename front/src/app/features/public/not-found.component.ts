@@ -68,8 +68,7 @@ export class NotFoundComponent {
     if (!this.auth.isAuthenticated()) {
       return '/';
     }
-    const role = this.auth.currentUser()?.role;
-    return role === 'PLATFORM_ADMIN' ? '/admin' : role === 'ATHLETE' ? '/athlete/today' : '/app';
+    return this.auth.homeRoute();
   });
 
   readonly homeLabel = computed(() =>

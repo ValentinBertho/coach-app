@@ -39,16 +39,12 @@ export class LoginComponent {
     this.auth.login(this.form.getRawValue()).subscribe({
       next: (res) => {
         this.toast.success('Connexion réussie');
-        this.router.navigateByUrl(this.homeFor(res.user.role));
+        this.router.navigateByUrl(this.auth.homeRoute());
       },
       error: (err) => {
         this.submitting.set(false);
         this.errorMessage.set(authErrorMessage(err));
       },
     });
-  }
-
-  private homeFor(role: string): string {
-    return role === 'PLATFORM_ADMIN' ? '/admin' : role === 'ATHLETE' ? '/athlete/today' : '/app';
   }
 }

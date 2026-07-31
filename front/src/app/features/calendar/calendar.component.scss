@@ -2,11 +2,15 @@
 .subtitle { color: var(--ink-3); margin: var(--sp-1) 0 0; }
 
 /* 7 jours + colonne de totaux hebdo (façon Nolio). */
-.weekday-row { display: grid; grid-template-columns: repeat(7, 1fr) minmax(92px, 0.58fr); gap: var(--sp-2); margin-bottom: var(--sp-1); }
+/* minmax(0, 1fr) et non 1fr : `1fr` vaut `minmax(auto, 1fr)`, donc une colonne dont le
+   contenu a un min-content large (pastille de séance à titre long) déborde de sa part et
+   écrase les colonnes vides — précisément les cibles du glisser-déposer. L'en-tête, lui,
+   n'ayant pas de contenu, restait régulier : les deux lignes se désalignaient. */
+.weekday-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(92px, 0.58fr); gap: var(--sp-2); margin-bottom: var(--sp-1); }
 .weekday-row span { font-size: var(--text-xs); color: var(--ink-3); text-transform: uppercase; padding-left: var(--sp-1); }
 .weekday-row .wd-total { text-align: center; padding-left: 0; }
 
-.grid { display: grid; grid-template-columns: repeat(7, 1fr) minmax(92px, 0.58fr); gap: var(--sp-2); transition: opacity var(--duration) var(--ease); }
+.grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(92px, 0.58fr); gap: var(--sp-2); transition: opacity var(--duration) var(--ease); }
 .grid.loading { opacity: 0.5; }
 
 /* Cellule de totaux de la semaine. */
@@ -78,15 +82,35 @@
 }
 
 /* Jour survolé : cible implicite de Cmd+V et de N, il faut la voir. */
+.day-col { container: day-col / inline-size; }
 .day-col--hover { border-color: color-mix(in srgb, var(--primary) 45%, var(--hairline)); }
 .day-col--ranged { background: color-mix(in srgb, var(--accent-2) 8%, var(--paper)); border-color: var(--accent-2); }
 .workout-card--key { border-left-width: 4px; }
 .wc-head { display: flex; align-items: center; gap: var(--sp-1); }
 .wc-type { font-size: var(--text-xs); line-height: 1; }
-.wc-meta { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-1); }
-.wc-type-label { font-size: var(--text-2xs); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.02em; }
-.w-title { font-weight: 700; font-size: var(--text-sm); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.w-metric { font-size: var(--text-xs); color: var(--ink-2); font-weight: 700; }
+/* Sous ~130 px de colonne — le cas dès que le panneau bibliothèque est ouvert — le libellé de
+   type et la distance ne tiennent plus côte à côte : « RÉCUPÉRATION » se réduisait à « R… ».
+   On les empile. Le type reste par ailleurs porté par l'icône et la couleur de bordure. */
+.wc-meta { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-1); }
+@container day-col (max-width: 130px) {
+  .wc-meta { flex-direction: column; align-items: flex-start; gap: 0; }
+}
+/* Le libellé de type cède la place en premier : « RÉCUPÉRATION » tronqué reste lisible, une
+   distance tronquée ne veut plus rien dire. */
+.wc-type-label {
+  font-size: var(--text-2xs); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.02em;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Deux lignes plutôt qu'une troncature sèche : à sept colonnes égales (et davantage encore
+   quand le panneau bibliothèque est ouvert), « Endurance fondamentale » sur une seule ligne
+   devenait « En… ». La pastille est une cible de clic et de dépôt, elle peut grandir. */
+.w-title {
+  font-weight: 700; font-size: var(--text-sm); flex: 1; min-width: 0;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere;
+}
+.wc-head { align-items: flex-start; }
+.w-metric { font-size: var(--text-xs); color: var(--ink-2); font-weight: 700; flex-shrink: 0; white-space: nowrap; }
 .badge-dot { width: 8px; height: 8px; padding: 0; border-radius: 50%; flex-shrink: 0; }
 
 .add-btn { margin-top: auto; display: flex; align-items: center; justify-content: center; min-height: 28px; background: transparent; border: 1px dashed var(--hairline); border-radius: var(--radius-sm); color: var(--ink-3); padding: var(--sp-1); cursor: pointer; }
@@ -108,7 +132,7 @@
 
 /* Tablette : la colonne de totaux reste mais plus compacte. */
 @media (min-width: 769px) and (max-width: 1100px) {
-  .weekday-row, .grid { grid-template-columns: repeat(7, 1fr) minmax(76px, 0.5fr); }
+  .weekday-row, .grid { grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(76px, 0.5fr); }
 }
 
 /* --- Chip séance de force (DARI Lab, violet) ------------------------------ */

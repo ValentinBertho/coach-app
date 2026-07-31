@@ -1,5 +1,9 @@
 # DARI Lab Training — Blueprint de refonte UI/UX
 
+> ⚠️ **Document historique — cible UX d'origine, non maintenue.** Largement livrée ; quelques
+> composants la citent encore en commentaire. Le système de design qui fait foi aujourd'hui est
+> [`../Design.md`](../Design.md) + `front/src/styles.scss`.
+
 > Document exécutable pour la refonte Angular 17 (standalone + signals + PWA).
 > Stack confirmée dans le repo : Angular 17.3, `@angular/cdk` (drag-drop, overlay), `@angular/service-worker` (PWA), Leaflet (cartes GPX), signals.
 > Feature folders existants réutilisés : `athlete`, `dashboard`, `calendar`, `strength`, `messages`, `physio`, `analytics`, `club`, `activities`, `races`, `workouts`, `templates`, `groups`, `settings`, `admin`.

@@ -7,6 +7,15 @@
 </section>
 
 <div class="search-bar">
+  <!-- Le filtre par statut existait côté API depuis toujours mais n'était jamais envoyé : les
+       athlètes archivés restaient mêlés aux actifs, sans moyen de les masquer. -->
+  <select class="form-control" style="max-width:170px" [(ngModel)]="filterStatus"
+          (ngModelChange)="goToPage(0)" aria-label="Filtrer par statut">
+    <option value="ACTIVE">Actifs</option>
+    <option value="PAUSED">En pause</option>
+    <option value="ARCHIVED">Archivés</option>
+    <option value="">Tous les statuts</option>
+  </select>
   @if (groups().length) {
     <select class="form-control" style="max-width:200px" [(ngModel)]="filterGroup" (ngModelChange)="goToPage(0)">
       <option value="">Tous les groupes</option>
@@ -30,9 +39,15 @@
   @case ('ready') {
     @if (athletes().length === 0) {
       <div class="card empty-state">
-        <h2>Aucun athlète</h2>
-        <p class="field-hint">Commence par créer ton premier athlète.</p>
-        <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
+        @if (isFiltered()) {
+          <h2>Aucun athlète pour ce filtre</h2>
+          <p class="field-hint">Élargis la recherche, le groupe ou le statut.</p>
+          <button type="button" class="btn btn-ghost" (click)="resetFilters()">Réinitialiser les filtres</button>
+        } @else {
+          <h2>Aucun athlète</h2>
+          <p class="field-hint">Commence par créer ton premier athlète.</p>
+          <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
+        }
       </div>
     } @else {
       <div class="athlete-grid">
@@ -50,7 +65,9 @@
                                    [stale]="f.stale" [compact]="true" />
                   }
                 </div>
-                @if (a.level) { <span class="field-hint">{{ a.level }}</span> }
+                <!-- Le niveau s'affichait en anglais brut (BEGINNER, ADVANCED…) sur le seul
+                     écran où le coach le relit — le formulaire et l'admin le traduisaient déjà. -->
+                @if (a.level) { <span class="field-hint">{{ levelLabel(a.level) }}</span> }
               </div>
             </div>
             <div class="athlete-tags">

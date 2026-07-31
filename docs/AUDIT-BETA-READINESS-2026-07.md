@@ -170,7 +170,7 @@ après 2 semaines de bêta réelle.
 
 | Sujet | État | Détail |
 |---|---|---|
-| États vides / loaders / erreurs | ✅ | Deux audits UX complets ont déjà été menés (`audit-produit-dari-lab.md`, `audit-ui-ux-dari-lab.md`) et une grande partie des correctifs est en place : skeletons, toasts, palette Cmd+K, undo calendrier, boîte de réception. |
+| États vides / loaders / erreurs | ✅ | Deux audits UX complets ont déjà été menés (`archive/audit-produit-dari-lab.md`, `archive/audit-ui-ux-dari-lab.md`) et une grande partie des correctifs est en place : skeletons, toasts, palette Cmd+K, undo calendrier, boîte de réception. |
 | Aide intégrée | ✅ | Centre d'aide par rôle (athlète/coach/admin), recherche globale, hints contextuels, export PDF des guides. Rare à ce stade d'un produit. |
 | Onboarding | ⚠️ | Pas de parcours guidé « premier jour du coach » (créer athlète → profil physio → première séance → planifier → inviter). La carte « Gérer mes athlètes » du dashboard en tient lieu. |
 | Tutoriels | ⚠️ | Le centre d'aide couvre le besoin, mais rien ne pousse le coach vers les 3 premières actions clés. |

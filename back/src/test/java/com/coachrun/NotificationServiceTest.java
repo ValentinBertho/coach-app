@@ -119,8 +119,11 @@ class NotificationServiceTest {
 
         notificationService.notifyAthleteFeedback(w);
 
-        verify(mailClient).send(eq("referent@test.fr"), contains("renseigné une séance"),
-                any(), any(), any(), any());
+        // Le retour d'un athlète est une notification de routine : push + centre de
+        // notifications, jamais d'e-mail (c'était le flux le plus volumineux côté coach).
+        verify(pushService).sendToUser(eq(rel.getCoach().getId()), eq("Séance mise à jour"),
+                any(), contains("/app/feedback"));
+        verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
         // Le head coach n'est pas sollicité quand un référent existe.
         verify(userRepository, never()).findFirstByClubIdAndRole(any(), any());
     }
@@ -157,20 +160,24 @@ class NotificationServiceTest {
         org.assertj.core.api.Assertions.assertThat(html.indexOf("Marie Durand", firstMarie + 1)).isEqualTo(-1);
     }
 
+    /**
+     * Couper le push suffit à ne plus être notifié d'un retour : la trace reste au centre de
+     * notifications, qui n'est jamais coupé (sinon le coach perdrait l'information, pas
+     * seulement l'interruption).
+     */
     @Test
-    void mutedEmailSuppressesFeedbackEmailButKeepsInApp() {
+    void mutedPushSuppressesFeedbackPushButKeepsInApp() {
         ReflectionTestUtils.setField(notificationService, "enabled", true);
         ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
-        ReflectionTestUtils.setField(mailTemplate, "frontendUrl", "http://localhost:4200");
-        ReflectionTestUtils.setField(mailTemplate, "publisher", "Darilab");
         Workout w = feedbackWorkout();
         User coach = coach("muted@test.fr");
-        coach.setNotifyEmailEnabled(false);
+        coach.setNotifyPushEnabled(false);
         when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
                 .thenReturn(Optional.of(relWith(coach)));
 
         notificationService.notifyAthleteFeedback(w);
 
+        verify(pushService, never()).sendToUser(any(), any(), any(), any());
         verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
     }
 
@@ -189,12 +196,66 @@ class NotificationServiceTest {
         Workout w = feedbackWorkout();
         when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
                 .thenReturn(Optional.empty());
+        User head = coach("head@test.fr");
         when(userRepository.findFirstByClubIdAndRole(w.getClub().getId(), UserRole.HEAD_COACH))
-                .thenReturn(Optional.of(coach("head@test.fr")));
+                .thenReturn(Optional.of(head));
 
         notificationService.notifyAthleteFeedback(w);
 
-        verify(mailClient).send(eq("head@test.fr"), contains("renseigné une séance"),
+        verify(pushService).sendToUser(eq(head.getId()), eq("Séance mise à jour"),
+                any(), contains("/app/feedback"));
+        verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
+    }
+
+    /**
+     * Le rappel de séance passe en push quand l'athlète a un appareil abonné, et ne retombe sur
+     * l'e-mail que sinon : c'était le flux qui, à lui seul, consommait un envoi par séance et
+     * par jour alors qu'il est le plus typiquement « notification » du produit.
+     */
+    @Test
+    void workoutReminderPrefersPushAndFallsBackToEmail() {
+        ReflectionTestUtils.setField(notificationService, "enabled", true);
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "publisher", "Darilab");
+        Workout w = feedbackWorkout();
+        w.getAthlete().setEmail("athlete@test.fr");
+        User athleteUser = coach("athlete@test.fr");
+        when(userRepository.findByAthleteId(w.getAthlete().getId()))
+                .thenReturn(Optional.of(athleteUser));
+        when(pushService.canReach(athleteUser.getId())).thenReturn(true);
+
+        notificationService.notifyWorkoutReminder(w);
+
+        verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Séance demain"),
+                any(), contains("/athlete/today"));
+        verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
+
+        // Aucun appareil abonné : l'e-mail reprend son rôle de repli.
+        when(pushService.canReach(athleteUser.getId())).thenReturn(false);
+        notificationService.notifyWorkoutReminder(w);
+        verify(mailClient).send(eq("athlete@test.fr"), contains("séance demain"),
                 any(), any(), any(), any());
+    }
+
+    /**
+     * Une séance planifiée n'envoie plus d'e-mail : déposer cinq séances depuis la bibliothèque
+     * en envoyait cinq à la suite, pour une information déjà visible dans l'agenda de l'athlète.
+     */
+    @Test
+    void plannedWorkoutNeverSendsEmail() {
+        ReflectionTestUtils.setField(notificationService, "enabled", true);
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Workout w = feedbackWorkout();
+        w.getAthlete().setEmail("athlete@test.fr");
+        User athleteUser = coach("athlete@test.fr");
+        when(userRepository.findByAthleteId(w.getAthlete().getId()))
+                .thenReturn(Optional.of(athleteUser));
+
+        notificationService.notifyWorkoutPlanned(w);
+
+        verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Nouvelle séance"),
+                any(), contains("/athlete/today"));
+        verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
     }
 }

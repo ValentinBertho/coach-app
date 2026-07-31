@@ -16,6 +16,12 @@
 > débordements à 320 px et styles calculés ont été **mesurés dans le navigateur**, pas déduits du
 > code. Chaque constat cite un fichier et une ligne.
 
+> **État au 31 juillet 2026 — lot « avant ouverture » livré.** Les sept points du plan
+> d'exécution « Avant d'ouvrir » sont corrigés, plus quatre correctifs du premier mois.
+> Détail en fin de document, § « Suivi d'exécution ». Les constats ci-dessous sont conservés
+> **dans leur rédaction d'origine** — un audit se lit avec l'état qu'il décrivait ; ce qui a été
+> traité porte une mention ✅.
+
 ---
 
 ## Verdict en trois lignes
@@ -27,10 +33,11 @@ et les lots 1 à 8 de `AUDIT-RC-2026-07.md` sont bien livrés (vérifiés par so
 Ce qui bloque n'est pas le cœur, ce sont **quatre trous sur les bords** : l'athlète qui ouvre la PWA
 tombe sur le cockpit coach en erreur ; la politique d'e-mails va saturer le quota Resend dès le
 premier jour et emporter avec elle les liens de réinitialisation ; le seul écran de gestion des
-notifications est une maquette figée qui ment ; et la file « Retours à traiter » n'a ni fenêtre ni
-pagination, donc elle devient illisible en trois semaines.
+notifications est une maquette figée qui ment — et c'est là que pointe le lien de désabonnement de
+chaque e-mail ; et la file « Retours à traiter » n'a ni fenêtre ni pagination, donc elle devient
+illisible en trois semaines.
 
-**Comptez 3 à 4 jours de correctifs ciblés avant d'ouvrir.** Aucun n'est structurel.
+**Comptez 3 jours de correctifs ciblés avant d'ouvrir.** Aucun n'est structurel.
 
 ---
 
@@ -100,6 +107,8 @@ Ne **pas** laisser l'état actuel : du code serveur maintenu, migré et testé q
 
 ### 1.2 🔴 « Retours à traiter » n'a ni fenêtre temporelle, ni pagination, ni action groupée
 
+> ✅ **Corrigé** — fenêtre de 14 jours par défaut (sélecteur 7/14/30/90), bornée côté requête, et bouton « Tout marquer comme traité ». 148 → 112 lignes sur le jeu de démo, et la file se vide en un geste.
+
 **Nature : présent mais cassé à l'échelle.**
 
 `back/.../repository/WorkoutRepository.java:65-73` :
@@ -131,6 +140,8 @@ bouton.
 > 🔴 · **0,5 j**
 
 ### 1.3 🟠 La liste des athlètes ne filtre pas par statut, et affiche le niveau en anglais brut
+
+> ✅ **Corrigé** — filtre de statut (Actifs par défaut) et libellés français via `ATHLETE_LEVEL_LABELS`, remonté dans le modèle pour qu'il n'y ait plus qu'une source.
 
 **Nature : deux régressions locales sur l'écran le plus ouvert.**
 
@@ -324,6 +335,8 @@ soit trois taps). Le coach, lui, a un « + » sur chaque case vide.
 
 ### 3.1 🔴 L'athlète qui ouvre la PWA atterrit dans le cockpit coach, couvert d'erreurs
 
+> ✅ **Corrigé** — `coachGuard` branché sur `/app`, redirections vers `AuthService.homeRoute()` dans les trois gardes, landing qui renvoie un utilisateur connecté chez lui. Vérifié : un athlète qui ouvre `/`, `/app` ou `/admin` arrive sur `/athlete/today`, sans aucun toast d'erreur.
+
 **Nature : présent mais cassé. C'est le constat le plus grave de cet audit.**
 
 Chaîne complète, reproduite au navigateur :
@@ -364,6 +377,8 @@ l'amène sur un écran cassé qui n'est pas le sien. Il ne reviendra pas le lend
 
 ### 3.2 🟠 Les toasts identiques s'empilent au lieu de se fondre
 
+> ✅ **Corrigé** — fusion des messages identiques avec compteur « ×n » et pile plafonnée à trois. Couvert par quatre tests.
+
 Corollaire du constat précédent, mais indépendant : cinq toasts « Accès refusé. » strictement
 identiques s'affichent simultanément et recouvrent le viewport mobile ; il faut cinq taps pour les
 fermer. `Design.md` §8 pose le toast comme le canal d'erreur global — il ne prévoit pas la
@@ -375,6 +390,8 @@ et plafonner la pile à trois.
 > 🟠 · **2 h**
 
 ### 3.3 🔴 `/app/notifications` est une maquette figée, inatteignable, et c'est la cible des e-mails
+
+> ✅ **Corrigé** — écran réel (historique branché sur l'API + interrupteurs de canal), entrée « Notifications » ajoutée dans la barre latérale et le panneau « Plus ».
 
 **Nature : présent, cassé, ET inatteignable. Les trois à la fois.**
 
@@ -405,8 +422,8 @@ affirme qu'il n'a aucune notification alors qu'il en a, et ne lui offre **aucun 
 désabonner**. Un `List-Unsubscribe` qui ne désabonne pas, sur un volume d'envoi élevé (§6), c'est la
 recette pour des signalements en spam et une réputation de domaine détruite pendant la bêta.
 
-**Correction.** Cet écran doit devenir le centre de préférences réel — voir §6.2, où le correctif est
-détaillé, parce que le problème est le même.
+**Correction.** Cet écran doit devenir le centre de notifications réel — voir §6.2, où le correctif
+est détaillé, parce que le problème est le même.
 
 > 🔴 · **traité en §6.2**
 
@@ -442,7 +459,7 @@ De la valeur déjà payée, aujourd'hui inatteignable :
 | « Mon programme » athlète | `AthletePortalController.java:71` | ❌ méthode front supprimée, commentaire resté (`athlete-portal.service.ts:89`) |
 | Compteur de stockage club | `ClubController.java:45` | ❌ aucun appel front |
 | Filtre par statut de la liste d'athlètes | `AthleteController.java:51` | ❌ jamais envoyé par le front |
-| Préférences e-mail / push | `User.java:82-86`, migration `035` | ❌ lues à chaque envoi, **aucune API ni UI pour les écrire** |
+| Réglage e-mail / push | `NotificationController.java:66/72` | ⚠️ API et cases à cocher présentes, mais **cachées derrière l'engrenage de la cloche** — pas là où les e-mails renvoient (§6.2) |
 | Écran `/app/notifications` | `app.routes.ts:192` | ⚠️ URL directe et lien d'e-mail uniquement |
 
 ---
@@ -455,6 +472,8 @@ les zones. Les écarts trouvés sont peu nombreux, ce qui est en soi une bonne n
 d'être signalés.
 
 ### 4.1 🟠 Le calendrier écrase ses colonnes vides et désaligne son en-tête
+
+> ✅ **Corrigé** — `minmax(0, 1fr)` sur les quatre déclarations. Colonnes mesurées à 103,4 px chacune, en-tête aligné. La pastille a suivi : titre sur deux lignes et méta empilée sous 130 px de colonne, pour ne pas troquer un problème de lisibilité contre un autre.
 
 `front/src/app/features/calendar/calendar.component.scss:5` et `:9` :
 
@@ -500,7 +519,7 @@ Sur ~42 occurrences de couleurs hexadécimales hors `styles.scss`, la grande maj
 ### 4.3 Densité et écrans plus anciens
 
 Aucun écran ne se détache visuellement comme « plus ancien » : la passe de finition décrite dans
-`audit-ui-ux-dari-lab.md` §6 a bien été passée partout (skeletons, Lucide, tokens). La seule
+`archive/audit-ui-ux-dari-lab.md` §6 a bien été passée partout (skeletons, Lucide, tokens). La seule
 disparité de densité réellement gênante est celle déjà relevée dans cet audit — `.btn` à 48 px par
 défaut, rattrapé par `btn-sm` presque partout côté coach. Elle reste ouverte ; je ne la re-signale
 pas.
@@ -510,6 +529,8 @@ pas.
 ## 5. Accessibilité et robustesse d'affichage
 
 ### 5.1 🔴 Les curseurs du check-in matinal ne sont pas stylés du tout sous Chrome
+
+> ✅ **Corrigé** — `appearance: none` sur `.ci__range`. Mesuré à `none` dans le navigateur ; pouce de 28 px et codage couleur du sommeil rétablis.
 
 **Nature : présent mais cassé — et c'est la fonctionnalité vedette du lot « boucle athlète ».**
 
@@ -544,6 +565,8 @@ perte du repère couleur. C'est le geste censé prendre dix secondes tous les ma
 > 🔴 · **15 min**
 
 ### 5.2 🟠 `--ink-3` échoue au contraste AA en thème clair, sur tout le texte secondaire
+
+> ✅ **Corrigé** — `--ink-3: #6b6d76` (4,60:1 sur `--canvas`, 5,11:1 sur `--paper`).
 
 **Mesuré** (`styles.scss:116`, `--ink-3: #74767f`) :
 
@@ -609,6 +632,8 @@ haut, et les libellés de zone doublent systématiquement la couleur.
 
 ### 6.1 🔴 Le volume d'e-mails va saturer le quota Resend le premier jour — et emporter les liens critiques
 
+> ✅ **Corrigé** — séance planifiée, commentaire du coach et retour d'athlète passent en in-app + push sans e-mail ; le rappel J-1 passe en push avec repli e-mail si l'athlète n'a aucun appareil abonné (`PushNotificationService.canReach`). Les échecs d'envoi remontent désormais dans Sentry au lieu d'être avalés en `log.warn`.
+
 **Nature : dimensionnement faux, coché à tort dans l'audit d'exploitation.**
 
 Inventaire réel des envois (`NotificationService.java`) :
@@ -671,37 +696,45 @@ Deux compléments nécessaires :
 
 > 🔴 · **1,5 j**
 
-### 6.2 🔴 Les préférences de notification existent en base, sont lues à chaque envoi, et **rien ne peut les écrire**
+### 6.2 🟠 Le désabonnement existe, mais pas là où les e-mails l'envoient
 
-**Nature : présent mais inatteignable — et juridiquement gênant.**
+> ✅ **Corrigé** — les deux interrupteurs sont désormais sur `/app/notifications` (coach) et dans le profil athlète, c'est-à-dire aux deux destinations du `List-Unsubscribe`.
 
-- `User.java:82-86` — `notify_email_enabled` et `notify_push_enabled`, migration
-  `035-notification-preferences.yaml`, valeur par défaut `true`.
-- Elles sont **lues systématiquement**, douze fois : `NotificationService.java:57`, `:64`, `:85`,
-  `:91`, `:107`, `:112`, `:188`, `:194`, `:227`, `:255`, `:343`, `:347`.
-- Elles ne sont **jamais écrites** : aucun `setNotifyEmailEnabled` dans tout le backend, aucun
-  endpoint, aucune occurrence de `notifyEmail` dans tout `front/src`.
-- L'écran censé les porter, `/app/notifications`, est la maquette figée décrite en §3.3.
-- Et chaque e-mail expose pourtant un lien « Gérer mes notifications » **et** un en-tête
-  `List-Unsubscribe` pointant vers cet écran (`MailTemplate.java:33-34`, `:65`, `:124`).
+> **Correction d'une première version de cet audit.** J'avais écrit que les préférences de
+> notification n'étaient jamais écriteables. C'est faux : `GET`/`PUT /notifications/preferences`
+> existent (`NotificationController.java:66/72`, `UserNotificationService.java:59/66`), le service
+> front les consomme (`notification.service.ts:76/80`), et **deux cases à cocher « E-mail » et
+> « Push » sont bien exposées** — dans le panneau de la cloche, derrière l'engrenage
+> (`notification-bell.component.ts:38-50`). Le constat ci-dessous est donc plus étroit que ce que
+> j'annonçais, et le correctif est plus court.
 
-**Impact concret.** Combiné au §6.1, on obtient : beaucoup d'e-mails, un lien de désabonnement dans
-chacun, et un désabonnement impossible. C'est le scénario qui fait classer un domaine en spam par
-Gmail — et il n'y a pas de retour en arrière rapide sur une réputation de domaine perdue pendant une
-bêta. C'est aussi ce qu'exigent les règles d'expéditeur en volume (RFC 8058) et le RGPD.
+Ce qui reste vrai, et qui suffit à casser le parcours :
 
-**Correction.** Refaire `/app/notifications` en écran réel (et son pendant athlète dans
-`/athlete/profile`) :
-- `PATCH /auth/me/notifications` écrivant les deux drapeaux — plus, idéalement, un drapeau par
-  famille (séances / retours / alertes), qui est ce que les gens veulent vraiment régler.
-- Deux interrupteurs minimum : « Recevoir les e-mails », « Recevoir les notifications push ».
-- Brancher la liste des notifications réelles (le `NotificationService` front alimente déjà la
-  cloche) au lieu de l'état vide en dur, et corriger les libellés (retirer Garmin, aligner sur les
-  codes réels).
-- Ajouter l'entrée « Notifications » dans la barre latérale sous Réglages
-  (`coach-layout.component.html:50`) et dans le panneau « Plus » (`:138`).
+- Chaque e-mail porte un lien « Gérer mes notifications » **et** un en-tête `List-Unsubscribe`
+  pointant vers `/app/notifications` (`MailTemplate.java:33-34`, `:65`, `:124`) — c'est-à-dire vers
+  la maquette figée du §3.3, **où il n'y a aucun réglage**. Le destinataire arrive sur une page qui
+  lui affirme qu'il n'a aucune notification et ne lui propose rien.
+- Les vraies cases sont ailleurs : dans une popover, derrière une icône d'engrenage sans libellé.
+  Personne ne les trouve en cherchant « comment couper ces e-mails ».
+- Le réglage est **tout ou rien** : un seul interrupteur pour tous les e-mails. Un coach qui veut
+  garder les invitations mais couper les notifications de séance n'a que le choix binaire — donc il
+  coupera tout, ou il signalera en spam.
 
-> 🔴 · **1 j**
+**Impact concret.** Combiné au §6.1 (beaucoup d'e-mails), un `List-Unsubscribe` qui atterrit sur une
+page sans bouton produit exactement ce que les règles d'expéditeur en volume (RFC 8058, Gmail/Yahoo)
+sanctionnent : des signalements en spam au lieu de désabonnements. Une réputation de domaine perdue
+pendant la bêta ne se récupère pas vite.
+
+**Correction.** Beaucoup plus léger que ce que j'avais estimé :
+- Refaire `/app/notifications` en écran réel : brancher la liste des notifications (le service front
+  existe déjà) au lieu de l'état vide en dur, **y remonter les deux interrupteurs** de la cloche, et
+  corriger les libellés (retirer Garmin, aligner sur les codes réels `PAIN` / `ACWR_*` / `MONOTONY` /
+  `MISSED` / `SILENCE`).
+- Ajouter l'entrée « Notifications » sous Réglages (`coach-layout.component.html:50` et `:138`).
+- Le §6.1 rendant l'e-mail purement transactionnel, la granularité par famille devient accessoire :
+  la garder pour plus tard.
+
+> 🟠 · **4 h**
 
 ### 6.3 Inventaire des réglages — ce qui existe, ce qui manquera
 
@@ -740,14 +773,14 @@ export RGPD, suppression de compte.
 L'ordre suit une logique simple : **d'abord ce qui casse au premier contact, ensuite ce qui casse en
 trois semaines, enfin ce qui manque.**
 
-### Avant d'ouvrir — 3 à 4 jours
+### Avant d'ouvrir — ~3 jours
 
 | # | Quoi | § | Effort | Pourquoi à cette place |
 |---|---|---|---|---|
 | 1 | `coachGuard` sur `/app`, `start_url` et CTA de la landing selon le rôle | 3.1 | 3 h | La moitié de vos utilisateurs ouvre l'app **là**. Rien d'autre ne compte si le premier écran de l'athlète est un cockpit coach en erreur. |
 | 2 | `appearance: none` sur `.ci__range` | 5.1 | 15 min | Une ligne, et le geste quotidien de l'athlète redevient présentable. Meilleur rapport effort/effet du document. |
 | 3 | Politique de notification : e-mail → transactionnel, push/in-app → quotidien | 6.1 | 1,5 j | À faire **avant** l'ouverture, pas après : le quota tombe le premier jour, et il emporte les liens de réinitialisation. Corriger après, c'est corriger une réputation de domaine déjà entamée. |
-| 4 | `/app/notifications` réel + `PATCH` des préférences + entrée de nav | 6.2/3.3 | 1 j | Va avec le 3 : un `List-Unsubscribe` mort sur un volume élevé, c'est du spam signalé. Faire les deux ou aucun. |
+| 4 | `/app/notifications` réel (liste + interrupteurs remontés de la cloche) + entrée de nav | 6.2/3.3 | 4 h | Va avec le 3 : un `List-Unsubscribe` qui atterrit sur une page sans bouton, c'est du spam signalé. Faire les deux ou aucun. |
 | 5 | Fenêtre + pagination + action groupée sur « Retours à traiter » | 1.2 | 0,5 j | Le seul écran qui devient illisible **pendant** la bêta, pas après. Le corriger plus tard, c'est le corriger sur des données déjà accumulées. |
 | 6 | Déduplication des toasts | 3.2 | 2 h | Petit, mais c'est le filet de sécurité du 1 : toute erreur en rafale recouvre le mobile. |
 | 7 | Décider pour les plans périodisés : ouvrir ou documenter | 1.1 | 1 h (option b) | Décision, pas développement. À prendre avant l'ouverture pour que l'aide dise la vérité. |
@@ -782,6 +815,35 @@ Le cockpit par exception, la coquille athlète du coach, l'éditeur de séance e
 physiologique (records → VDOT → zones → cibles) avec ses tags d'origine, la feuille de ressenti en
 dix secondes, le panneau bibliothèque du calendrier et la direction artistique. C'est là que se
 trouve votre avantage sur Nolio, et rien de ce qui précède ne le remet en cause.
+
+---
+
+# Suivi d'exécution
+
+**Lot « avant ouverture » — livré le 31 juillet 2026.**
+
+| # | Constat | § | État |
+|---|---|---|---|
+| 1 | Garde de rôle sur `/app`, redirections par rôle, landing et PWA | 3.1 | ✅ livré |
+| 2 | `appearance: none` sur les curseurs du check-in | 5.1 | ✅ livré |
+| 3 | Politique de notification : e-mail transactionnel, routine en push/in-app | 6.1 | ✅ livré |
+| 4 | Écran `/app/notifications` réel + entrée de navigation | 6.2 · 3.3 | ✅ livré |
+| 5 | Fenêtre, sélecteur de profondeur et action groupée sur « Retours à traiter » | 1.2 | ✅ livré |
+| 6 | Déduplication et plafonnement des toasts | 3.2 | ✅ livré |
+| 7 | Plans périodisés : décision | 1.1 | ⏳ **en attente d'arbitrage** (a : ouvrir l'écran · b : documenter l'absence) |
+
+**Anticipés sur le premier mois**
+
+| # | Constat | § | État |
+|---|---|---|---|
+| 8 | `minmax(0, 1fr)` sur la grille du calendrier + lisibilité des pastilles | 4.1 | ✅ livré |
+| 9 | `--ink-3` conforme AA en thème clair | 5.2 | ✅ livré |
+| 10 | Liste d'athlètes : filtre de statut + libellés français | 1.3 | ✅ livré |
+
+**Reste ouvert** — par ordre du plan d'exécution : renommage du club (1.4), révocation
+d'invitation côté coach (1.5), stockage visible et libérable (1.6), `PATCH /me/physio` (2.1),
+compte athlète (2.2), recadrage de la charge côté athlète (2.3), séance du jour au-dessus du
+check-in (3.4), puis les 🟢 (5.3, 4.2, 5.4, 2.4, 6.3).
 
 ---
 

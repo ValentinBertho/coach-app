@@ -17,7 +17,7 @@ import {
 } from '../../shared/components/ui';
 
 /**
- * Living styleguide des primitives (cf. docs/ux-redesign-blueprint.md).
+ * Living styleguide des primitives (cf. docs/archive/ux-redesign-blueprint.md).
  * Sert de banc de validation visuelle ET de référence d'usage pour l'équipe.
  * Route dev : /dev/ui-kit.
  */

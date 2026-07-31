@@ -10,5 +10,6 @@ export const athleteGuard: CanActivateFn = () => {
   if (!auth.isAuthenticated()) {
     return router.createUrlTree(['/login']);
   }
-  return auth.currentUser()?.role === 'ATHLETE' ? true : router.createUrlTree(['/app']);
+  // Même règle que les autres gardes : on renvoie chacun chez lui, jamais vers /app en dur.
+  return auth.currentUser()?.role === 'ATHLETE' ? true : router.createUrlTree([auth.homeRoute()]);
 };

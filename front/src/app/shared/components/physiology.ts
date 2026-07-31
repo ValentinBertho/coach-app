@@ -1,6 +1,6 @@
 /**
  * Primitives physiologie Darilab — composants standalone présentationnels qui
- * encodent les invariants métier de l'UI (cf. docs/ux-redesign-blueprint.md §4).
+ * encodent les invariants métier de l'UI (cf. docs/archive/ux-redesign-blueprint.md §4).
  * Aucun calcul métier ici : les valeurs proviennent des moteurs backend.
  */
 export { DataOriginTagComponent, type DataOrigin } from './data-origin-tag/data-origin-tag.component';

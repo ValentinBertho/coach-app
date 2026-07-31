@@ -66,6 +66,30 @@ export class AuthService {
     return this.currentUser()?.clubId ?? null;
   }
 
+  /**
+   * Écran d'accueil du rôle courant — **source unique** de cette correspondance.
+   *
+   * <p>Elle était recopiée dans la page de connexion et la 404, et absente partout ailleurs :
+   * la landing, les gardes et la PWA renvoyaient tout le monde vers `/app`. Un athlète y
+   * atterrissait donc dans le cockpit coach, qui se peuplait de « Accès refusé » puisque le
+   * serveur refuse — à raison — toute la surface club à son jeton.</p>
+   */
+  homeRoute(): string {
+    switch (this.currentUser()?.role) {
+      case 'PLATFORM_ADMIN': return '/admin';
+      case 'ATHLETE': return '/athlete/today';
+      case 'COACH':
+      case 'HEAD_COACH': return '/app';
+      default: return '/login';
+    }
+  }
+
+  /** Le rôle courant a-t-il accès au cockpit coach (`/app`) ? */
+  isCoach(): boolean {
+    const role = this.currentUser()?.role;
+    return role === 'COACH' || role === 'HEAD_COACH' || role === 'PLATFORM_ADMIN';
+  }
+
   register(request: RegisterRequest): Observable<AuthResponse> {
     return this.http
       .post<AuthResponse>(`${this.base}/register`, request)
