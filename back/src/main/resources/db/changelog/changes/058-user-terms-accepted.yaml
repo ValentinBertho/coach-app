@@ -1,0 +1,15 @@
+# ============================================================================
+# 058 — RGPD : preuve d'acceptation des CGU / politique de confidentialité.
+#   users.terms_accepted_at : horodatage du consentement à l'inscription
+#   (coach) ou à l'acceptation d'une invitation coach. Nullable : les comptes
+#   antérieurs à la mise en place des pages légales n'ont pas d'horodatage.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 058-user-terms-accepted
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column: { name: terms_accepted_at, type: TIMESTAMP }

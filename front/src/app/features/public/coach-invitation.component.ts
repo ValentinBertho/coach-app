@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/services/auth.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
@@ -22,7 +22,7 @@ type State = 'loading' | 'ok' | 'invalid';
   selector: 'app-coach-invitation',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LogoComponent],
+  imports: [FormsModule, LogoComponent, RouterLink],
   template: `
     <main class="invite-page">
       <div class="card invite-card">
@@ -39,7 +39,13 @@ type State = 'loading' | 'ok' | 'invalid';
             <form class="form" (ngSubmit)="accept()">
               <input type="password" class="form-control" name="pwd" placeholder="Mot de passe (8 caractères min.)"
                      [(ngModel)]="password" minlength="8" required autocomplete="new-password" />
-              <button type="submit" class="btn btn-primary btn-lg" [disabled]="joining() || password.length < 8">
+              <label class="consent">
+                <input type="checkbox" name="terms" [(ngModel)]="termsAccepted" />
+                <span>J'accepte les <a routerLink="/legal/cgu" target="_blank">conditions d'utilisation</a>
+                  et la <a routerLink="/legal/confidentialite" target="_blank">politique de confidentialité</a>.</span>
+              </label>
+              <button type="submit" class="btn btn-primary btn-lg"
+                      [disabled]="joining() || password.length < 8 || !termsAccepted">
                 {{ joining() ? 'Activation…' : 'Activer mon compte' }}
               </button>
             </form>
@@ -60,6 +66,9 @@ type State = 'loading' | 'ok' | 'invalid';
     .form { display: flex; flex-direction: column; gap: var(--sp-2); width: 100%; }
     .btn-lg { width: 100%; }
     .err { color: var(--danger-text); }
+    .consent { display: flex; gap: var(--sp-2); text-align: left; font-size: var(--text-sm); color: var(--ink-2); align-items: flex-start; cursor: pointer; }
+    .consent input { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; }
+    .consent a { color: var(--ink-1); }
   `],
 })
 export class CoachInvitationComponent implements OnInit {
@@ -73,6 +82,7 @@ export class CoachInvitationComponent implements OnInit {
   readonly joining = signal(false);
   readonly error = signal('');
   password = '';
+  termsAccepted = false;
 
   ngOnInit(): void {
     this.http
@@ -84,10 +94,10 @@ export class CoachInvitationComponent implements OnInit {
   }
 
   accept(): void {
-    if (this.password.length < 8) return;
+    if (this.password.length < 8 || !this.termsAccepted) return;
     this.joining.set(true);
     this.error.set('');
-    this.auth.acceptCoachInvitation(this.token(), this.password).subscribe({
+    this.auth.acceptCoachInvitation(this.token(), this.password, undefined, this.termsAccepted).subscribe({
       next: () => this.router.navigate(['/app']),
       error: () => { this.joining.set(false); this.error.set('Activation impossible. Le lien a peut-être expiré.'); },
     });

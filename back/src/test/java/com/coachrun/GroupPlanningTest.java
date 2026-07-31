@@ -39,7 +39,7 @@ class GroupPlanningTest {
         JsonNode a = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"gp-%s@test.fr","password":"password123","fullName":"Coach GP","clubName":"GP %s"}
+                                {"email":"gp-%s@test.fr","password":"password123","fullName":"Coach GP","termsAccepted": true, "clubName":"GP %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andReturn().getResponse().getContentAsString());
         token = a.get("accessToken").asText();

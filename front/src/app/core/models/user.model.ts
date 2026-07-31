@@ -26,6 +26,8 @@ export interface RegisterRequest {
   password: string;
   fullName: string;
   clubName: string;
+  /** Acceptation des CGU / politique de confidentialité (requise, horodatée côté serveur). */
+  termsAccepted: boolean;
 }
 
 export interface LoginRequest {

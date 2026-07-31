@@ -42,7 +42,7 @@ class AthletePortalTest {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"p-%s@test.fr","password":"password123","fullName":"C","clubName":"PC %s"}
+                                {"email":"p-%s@test.fr","password":"password123","fullName":"C","termsAccepted": true, "clubName":"PC %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andReturn().getResponse().getContentAsString());
         String coachToken = auth.get("accessToken").asText();

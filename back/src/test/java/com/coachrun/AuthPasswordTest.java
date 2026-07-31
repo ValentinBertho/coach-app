@@ -83,7 +83,7 @@ class AuthPasswordTest {
     void coachResetsForgottenPassword() throws Exception {
         mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"reset.coach@darilab.app\",\"password\":\"oldpassword1\","
-                                + "\"fullName\":\"Reset Coach\",\"clubName\":\"Reset Club\"}"))
+                                + "\"fullName\":\"Reset Coach\",\"termsAccepted\":true,\"clubName\":\"Reset Club\"}"))
                 .andExpect(status().isCreated());
 
         mvc.perform(post("/public/password-reset").contentType(MediaType.APPLICATION_JSON)

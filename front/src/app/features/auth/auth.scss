@@ -36,3 +36,21 @@
   color: var(--ink-3);
   font-size: var(--text-sm);
 }
+
+.consent-check {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+
+  input {
+    margin-top: 3px;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  a { color: var(--ink-1); }
+}

@@ -32,6 +32,7 @@ public class CoachInvitationController {
     @PostMapping("/{token}/accept")
     public AuthResponse accept(@PathVariable String token,
                                @Valid @RequestBody CoachInvitationAcceptRequest request) {
-        return authService.acceptCoachInvitation(token, request.password(), request.fullName());
+        return authService.acceptCoachInvitation(token, request.password(), request.fullName(),
+                request.termsAccepted());
     }
 }

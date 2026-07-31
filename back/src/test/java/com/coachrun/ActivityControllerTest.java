@@ -37,7 +37,7 @@ class ActivityControllerTest {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"act-%s@test.fr","password":"password123","fullName":"C","clubName":"AC %s"}
+                                {"email":"act-%s@test.fr","password":"password123","fullName":"C","termsAccepted": true, "clubName":"AC %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andReturn().getResponse().getContentAsString());
         String token = auth.get("accessToken").asText();
@@ -80,7 +80,7 @@ class ActivityControllerTest {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"act3-%s@test.fr","password":"password123","fullName":"C","clubName":"AC3 %s"}
+                                {"email":"act3-%s@test.fr","password":"password123","fullName":"C","termsAccepted": true, "clubName":"AC3 %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andReturn().getResponse().getContentAsString());
         String token = auth.get("accessToken").asText();
@@ -121,7 +121,7 @@ class ActivityControllerTest {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"act4-%s@test.fr","password":"password123","fullName":"C","clubName":"AC4 %s"}
+                                {"email":"act4-%s@test.fr","password":"password123","fullName":"C","termsAccepted": true, "clubName":"AC4 %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andReturn().getResponse().getContentAsString());
         String token = auth.get("accessToken").asText();
@@ -149,7 +149,7 @@ class ActivityControllerTest {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"act2-%s@test.fr","password":"password123","fullName":"C","clubName":"AC2 %s"}
+                                {"email":"act2-%s@test.fr","password":"password123","fullName":"C","termsAccepted": true, "clubName":"AC2 %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andReturn().getResponse().getContentAsString());
         String token = auth.get("accessToken").asText();

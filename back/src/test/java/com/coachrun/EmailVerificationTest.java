@@ -40,7 +40,7 @@ class EmailVerificationTest {
         JsonNode reg = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"" + email + "\",\"password\":\"password123\","
-                                + "\"fullName\":\"Coach V\",\"clubName\":\"V " + UUID.randomUUID() + "\"}"))
+                                + "\"fullName\":\"Coach V\",\"termsAccepted\":true,\"clubName\":\"V " + UUID.randomUUID() + "\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.user.emailVerified").value(false))
                 .andReturn().getResponse().getContentAsString());

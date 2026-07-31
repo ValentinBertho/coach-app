@@ -26,6 +26,7 @@ export class RegisterComponent {
     clubName: ['', [Validators.required, Validators.maxLength(120)]],
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
+    termsAccepted: [false, [Validators.requiredTrue]],
   });
 
   submit(): void {

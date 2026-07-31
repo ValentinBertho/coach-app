@@ -204,9 +204,10 @@ sinon chaque ticket devient un échange d'écrans par email. Peut se faire en �
 | Export des données personnelles | ✅ | Portabilité self-service côté athlète (`GET /me/export`). |
 | Suppression de compte (athlète) | ✅ | Droit à l'oubli self-service, purge en cascade, loggé. |
 | Suppression de compte (coach) | ⚠️ | Un admin peut supprimer un utilisateur, mais pas de self-service coach. Acceptable en bêta (suppression sur demande) si documenté dans la politique de confidentialité. |
-| **Politique de confidentialité** | ❌ | **Aucune page trouvée dans le front. Obligatoire avant tout utilisateur réel** — d'autant plus avec des données de santé. |
-| **Mentions légales** | ❌ | Absentes. Obligatoires (LCEN) dès que le service est accessible au public, même en bêta. |
-| CGU | ❌ | Fortement recommandées en bêta : cadrer « service en test, sans garantie », limiter la responsabilité. |
+| **Politique de confidentialité** | ⚠️ | Page publiée (`/legal/confidentialite`) : données de santé art. 9, sous-traitants, droits, conservation. **Reste à compléter `LEGAL_OWNER`** (nom, statut, adresse de l'éditeur) dans `front/src/app/features/public/legal.component.ts` et faire relire le texte. |
+| **Mentions légales** | ⚠️ | Page publiée (`/legal/mentions-legales`), hébergeurs renseignés (Railway/Vercel). Mêmes coordonnées `LEGAL_OWNER` à compléter. |
+| CGU | ⚠️ | Page publiée (`/legal/cgu`) : clause bêta (« en l'état », disponibilité et conservation non garanties), avertissement santé, responsabilité du coach. À faire relire. |
+| Consentement CGU | ✅ | Case obligatoire à l'inscription coach et à l'acceptation d'invitation coach, horodatée en base (`users.terms_accepted_at`, migration 058). |
 | Cookies / consentement | ✅ | Pas de cookie tiers ni de tracking marketing (JWT en storage, Sentry = intérêt légitime à mentionner dans la politique). **Pas de bannière cookies nécessaire en l'état** — le rester le plus longtemps possible. |
 | Registre des traitements / DPO | ⚠️ | Un registre simple (tableur) suffit à cette échelle ; pas de DPO requis. À faire sans bloquer la bêta. |
 
@@ -252,7 +253,7 @@ contenant une migration**. Ajouter un tag git par déploiement notable et incré
 1. **Backups actifs** : backups Railway activés + `pg_dump` quotidien externalisé (script existant + cron/Action planifiée) + **un test de restauration réussi**.
 2. **Emails activés** : domaine acheté et vérifié dans Resend (SPF/DKIM), `MAIL_ENABLED=true`, test des 4 emails clés (reset mot de passe, invitation athlète, invitation coach, rappel J-1). Sans cela, « mot de passe oublié » est une impasse.
 3. **Sentry actif** (DSN back + front) + **uptime monitor** sur `/api/actuator/health` avec alerte.
-4. **Pages légales** : politique de confidentialité (données de santé + sous-traitants), mentions légales, CGU bêta, consentement à l'inscription.
+4. **Pages légales** : ⚠️ **quasi fait** — pages `/legal/*` publiées + consentement horodaté à l'inscription. Reste : compléter les coordonnées de l'éditeur (`LEGAL_OWNER`) et relire les textes.
 5. **Domaine custom** branché sur Vercel (prérequis de l'item 2, et crédibilité).
 6. ~~**Correctifs sécurité rapides** : rate limiting sur `/public/password-reset` et `/auth/refresh` ; paramètre `state` signé sur l'OAuth Strava.~~ ✅ **Fait** (state HMAC TTL 10 min + rate limiting par bucket sur login/register/refresh/password-reset/verify-email/invitations).
 
