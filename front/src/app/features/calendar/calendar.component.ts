@@ -1,4 +1,5 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { Observable, defer, forkJoin, of, switchMap, tap } from 'rxjs';
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -38,6 +39,13 @@ import { SidePanelComponent } from '../../shared/components/ui';
 import { ZoneBarComponent } from '../../shared/components/zone-bar/zone-bar.component';
 import { Activity } from '../../core/models/activity.model';
 import { ActivityService } from '../../core/services/activity.service';
+import { UndoCommand, UndoStackService } from '../../core/services/undo-stack.service';
+import { AthleteSwitcherComponent } from '../../shared/components/athlete-switcher/athlete-switcher.component';
+import { ShortcutsOverlayComponent } from '../../shared/components/shortcuts/shortcuts-overlay.component';
+import { shortcutText } from '../../shared/components/shortcuts/shortcuts';
+import { CALENDAR_SHORTCUTS } from './calendar-shortcuts';
+import { CalendarSelection, ChipPosition, ChipRef } from './calendar-selection';
+import { SessionStructure } from '../../core/models/course.model';
 
 /** Vue du calendrier : séances prévues, activités réalisées, ou les deux (façon Nolio). */
 type CalView = 'planned' | 'realized' | 'both';
@@ -116,10 +124,11 @@ function mondayOf(d: Date): Date {
   imports: [
     FormsModule, RouterLink, DragDropModule, DatePipe, IconComponent, HelpHintComponent,
     SessionLibraryPanelComponent, SidePanelComponent, StrengthPrescriptionViewComponent, ZoneBarComponent,
+    AthleteSwitcherComponent, ShortcutsOverlayComponent,
   ],
   host: { '(document:keydown)': 'onKeydown($event)' },
   templateUrl: './calendar.component.html',
-  styleUrl: './calendar.component.scss',
+  styleUrls: ['./calendar.component.scss', './calendar-tools.scss'],
 })
 export class CalendarComponent implements OnInit, OnDestroy {
   private readonly athleteService = inject(AthleteService);
@@ -142,8 +151,33 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
+  private readonly undoStack = inject(UndoStackService);
 
   readonly reasonMeta = REASON_META;
+  readonly shortcutGroups = CALENDAR_SHORTCUTS;
+
+  // --- Sélection multiple, presse-papier, annulation ----------------------------------------
+  // Le calendrier passait de « lecture » à « production » une séance à la fois. Ces trois états
+  // en font un plan de travail : on désigne un lot, on agit dessus, on revient en arrière.
+
+  readonly selection = new CalendarSelection();
+  /** Séances copiées (Cmd+C) : on garde la référence, pas une copie de l'objet. */
+  readonly clipboard = signal<{ refs: ChipRef[]; label: string }>({ refs: [], label: '' });
+  /** Jour survolé : cible implicite de Cmd+V et de N, comme un curseur de tableur. */
+  readonly hoveredDate = signal<string | null>(null);
+  /** Plage de jours retenue par un rectangle tracé sur des jours vides. */
+  readonly dayRange = signal<string[]>([]);
+  readonly shortcutsOpen = signal(false);
+  readonly viewMenuOpen = signal(false);
+  readonly actionsMenuOpen = signal(false);
+
+  readonly canUndo = this.undoStack.canUndo;
+  readonly canRedo = this.undoStack.canRedo;
+  readonly undoLabel = this.undoStack.undoLabel;
+  readonly redoLabel = this.undoStack.redoLabel;
+
+  /** Libellé d'un raccourci pour les infobulles et les menus (⌘ ou Ctrl selon la plateforme). */
+  keys(...k: string[]): string { return shortcutText(k); }
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
   readonly statusLabels = STATUS_LABELS;
@@ -220,6 +254,68 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Volume max d'un jour sur la période (pour normaliser les barres de densité). */
   readonly maxDayKm = computed(() => Math.max(1, ...this.cells().map((c) => c.km)));
+
+  /**
+   * Ordre de parcours des chips dans la grille (jour par jour, course puis force). C'est lui
+   * qui donne un sens à « de celle-ci à celle-là » du Maj+clic : sans ordre explicite, une
+   * extension de sélection dépendrait de l'ordre du DOM, donc du hasard du rendu.
+   */
+  readonly chipOrder = computed<ChipPosition[]>(() => {
+    const out: ChipPosition[] = [];
+    for (const cell of this.cells()) {
+      let index = 0;
+      for (const w of cell.workouts) out.push({ kind: 'course', id: w.id, date: cell.date, index: index++ });
+      for (const st of cell.strength) out.push({ kind: 'strength', id: st.id, date: cell.date, index: index++ });
+    }
+    return out;
+  });
+
+  /** Sélection résolue dans l'ordre de la grille (ce sur quoi agissent les actions groupées). */
+  readonly selected = computed<ChipPosition[]>(() => this.selection.resolve(this.chipOrder()));
+
+  isSelected(kind: 'course' | 'strength', id: string): boolean {
+    return this.selection.has({ kind, id });
+  }
+
+  /**
+   * Clic sur une chip. Le modificateur décide : rien = ouvrir la séance (le geste de lecture
+   * reste premier), Cmd/Ctrl = ajouter au lot, Maj = étendre depuis l'ancre. On n'ouvre jamais
+   * une séance pendant qu'on constitue une sélection, ce serait perdre le lot en cours.
+   */
+  onChipClick(ev: MouseEvent, kind: 'course' | 'strength', target: Workout | ScheduledStrength): void {
+    const ref: ChipRef = { kind, id: target.id };
+    if (ev.shiftKey) {
+      ev.preventDefault();
+      this.selection.extendTo(ref, this.chipOrder());
+      return;
+    }
+    if (ev.metaKey || ev.ctrlKey) {
+      ev.preventDefault();
+      this.selection.toggle(ref);
+      return;
+    }
+    // Une sélection en cours : le clic simple la réduit à cette chip plutôt que d'ouvrir.
+    if (this.selection.count() > 1) {
+      this.selection.select(ref);
+      return;
+    }
+    this.selection.clear();
+    if (kind === 'course') this.openWorkout(target as Workout);
+    else this.openStrength(target as ScheduledStrength);
+  }
+
+  /** Jour survolé : cible de Cmd+V et de N. */
+  onDayEnter(date: string): void { this.hoveredDate.set(date); }
+  onDayLeave(date: string): void { if (this.hoveredDate() === date) this.hoveredDate.set(null); }
+
+  selectAll(): void {
+    this.selection.setAll(this.chipOrder());
+  }
+
+  clearSelection(): void {
+    this.selection.clear();
+    this.dayRange.set([]);
+  }
 
     // --- Mode groupe : la semaine de tous les athlètes d'un groupe ---------------
   // Un coach de club planifie par groupe, pas athlète par athlète. Le mode groupe
@@ -480,7 +576,17 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.mode.set(mode);
     this.load();
   }
-  onAthleteChange(): void { this.load(); this.loadOverlays(); }
+  /**
+   * Changement d'athlète : la sélection et la pile d'annulation portent sur ce qui est affiché.
+   * Annuler chez quelqu'un qu'on ne regarde plus produirait un effet invisible.
+   */
+  onAthleteChange(id?: string): void {
+    if (id) this.selectedAthleteId = id;
+    this.clearSelection();
+    this.undoStack.reset();
+    this.load();
+    this.loadOverlays();
+  }
   shift(step: number): void {
     const d = new Date(this.anchor());
     if (this.mode() === 'week') d.setDate(d.getDate() + step * 7);
@@ -498,7 +604,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const to = cells[cells.length - 1].date;
     this.loading.set(true);
     this.workoutService.calendar(this.selectedAthleteId, from, to).subscribe({
-      next: (list) => { this.workouts.set(list); this.loading.set(false); },
+      next: (list) => {
+        this.workouts.set(list);
+        this.loading.set(false);
+        // Une sélection qui survit à la disparition de sa cible ferait agir Suppr sur un fantôme.
+        this.selection.prune(this.chipOrder());
+      },
       error: () => this.loading.set(false),
     });
     this.noteService.list(this.selectedAthleteId, from, to).subscribe({
@@ -631,36 +742,30 @@ export class CalendarComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Duplique la semaine course affichée vers la semaine suivante (planification en cycles). */
+  /**
+   * Duplique la semaine affichée vers la suivante. Passe par le même chemin que le menu
+   * contextuel de la colonne de totaux : un seul geste, une seule implémentation, et donc une
+   * seule façon de l'annuler.
+   */
   async duplicateWeek(): Promise<void> {
-    if (!this.selectedAthleteId || this.mode() !== 'week') return;
-    const sourceStart = mondayOf(this.anchor());
-    const source = toIso(sourceStart);
-    const targetStart = new Date(sourceStart);
-    targetStart.setDate(targetStart.getDate() + 7);
-    const target = toIso(targetStart);
-
-    const ok = await this.confirm.ask({
-      title: 'Dupliquer la semaine',
-      message: `Copier les séances course de cette semaine vers la semaine du ${this.fmtDate(target)} ? Les séances existantes de la semaine cible sont conservées.`,
-      confirmLabel: 'Dupliquer',
-    });
-    if (!ok) return;
-
-    this.workoutService.duplicateWeek(this.selectedAthleteId, source, target).subscribe({
-      next: (r) => {
-        this.toast.success(r.created > 0
-          ? `${r.created} séance(s) copiée(s) sur la semaine suivante`
-          : 'Aucune séance à copier cette semaine');
-        this.anchor.set(targetStart); // basculer sur la semaine cible pour voir le résultat
-        this.load();
-      },
-      error: () => this.toast.error('Duplication impossible.'),
-    });
+    if (!this.selectedAthleteId || this.mode() !== 'week' || !this.requireWrite()) return;
+    this.actionsMenuOpen.set(false);
+    const source = toIso(mondayOf(this.anchor()));
+    await this.duplicateWeekTo(source, this.shiftDate(source, 7));
   }
 
-  /** Date pour laquelle le sélecteur de séance course est ouvert (null = fermé). */
-  readonly pickerDate = signal<string | null>(null);
+  /**
+   * Jours pour lesquels le sélecteur de séance est ouvert (vide = fermé). Une liste et non une
+   * date unique : le même sélecteur sert au « + » d'un jour et à une plage tracée à la souris,
+   * et ces deux parcours ne doivent pas diverger.
+   */
+  readonly pickerDates = signal<string[]>([]);
+  readonly pickerDate = computed(() => this.pickerDates()[0] ?? null);
+  /** Titre du sélecteur : une date lisible, ou le nombre de jours visés. */
+  readonly pickerLabel = computed(() => {
+    const d = this.pickerDates();
+    return d.length > 1 ? `${d.length} jours` : (d[0] ? this.fmtDate(d[0]) : '');
+  });
 
   /**
    * Panneau bibliothèque (colonne de gauche) — le geste central de la planification desktop.
@@ -695,10 +800,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
   addWorkout(date: string): void {
     if (!this.selectedAthleteId) { this.toast.error('Sélectionne un athlète.'); return; }
     if (!this.canWriteSelected()) { this.toast.warning('Lecture seule : tu n’as pas les droits de prescription sur cet athlète.'); return; }
-    this.pickerDate.set(date);
+    this.pickerDates.set([date]);
   }
 
-  closePicker(): void { this.pickerDate.set(null); this.noteOpen.set(false); this.noteText = ''; }
+  closePicker(): void { this.pickerDates.set([]); this.noteOpen.set(false); this.noteText = ''; }
 
   /** Saisie de note inline dans le picker (remplace l'ancien window.prompt). */
   readonly noteOpen = signal(false);
@@ -815,26 +920,53 @@ export class CalendarComponent implements OnInit, OnDestroy {
     });
   }
 
-  // --- Sélection depuis le picker « + » d'un jour (panneau bibliothèque) ---
+  // --- Sélection depuis le picker (« + » d'un jour, ou plage tracée à la souris) ---
+  // Le picker peut viser plusieurs jours : on planifie sur chacun, et le lot entier n'occupe
+  // qu'une entrée dans la pile d'annulation — un geste, une annulation.
+
   scheduleTemplateOn(t: WorkoutTemplate): void {
-    const date = this.pickerDate();
-    if (!date) return;
-    this.closePicker();
-    this.scheduleTemplate(t, this.selectedAthleteId, date);
+    this.scheduleOnPickerDates(
+      (date) => this.courseService.schedule(this.selectedAthleteId, t.id, { date }),
+      'course', t.name);
   }
 
   scheduleStrengthOn(s: StrengthSession): void {
-    const date = this.pickerDate();
-    if (!date) return;
-    this.closePicker();
-    this.scheduleStrength(s, this.selectedAthleteId, date);
+    this.scheduleOnPickerDates(
+      (date) => this.strengthService.scheduleSession(this.selectedAthleteId, s.id, { date, fieldsPreset: 'AVANCE' }),
+      'strength', s.name);
   }
 
   scheduleDrillOn(d: RunDrill): void {
-    const date = this.pickerDate();
-    if (!date) return;
+    const dates = this.pickerDates();
     this.closePicker();
-    this.dropDrill(d, date);
+    for (const date of dates) this.dropDrill(d, date);
+  }
+
+  private scheduleOnPickerDates(
+    schedule: (date: string) => Observable<{ id: string }>,
+    kind: 'course' | 'strength',
+    name: string,
+  ): void {
+    const dates = this.pickerDates();
+    if (!dates.length) return;
+    this.closePicker();
+    this.dayRange.set([]);
+
+    const created: { kind: 'course' | 'strength'; id: string }[] = [];
+    const run = () => this.all(dates.map((d) => schedule(d).pipe(tap((c) => created.push({ kind, id: c.id })))));
+    run().subscribe({
+      next: () => {
+        this.refreshAll();
+        this.commit({
+          label: 'la planification',
+          undo: () => this.all(created.map((c) => this.removeCreated(c))),
+          redo: () => defer(() => { created.length = 0; return run(); }),
+        }, dates.length > 1
+          ? `${name} planifiée sur ${dates.length} jours`
+          : `${name} planifiée le ${this.fmtDate(dates[0])}`);
+      },
+      error: () => { this.refreshAll(); this.toast.error('Planification impossible.'); },
+    });
   }
   openWorkout(w: Workout): void {
     if (this.consumeSuppressedClick()) return;
@@ -946,15 +1078,58 @@ export class CalendarComponent implements OnInit, OnDestroy {
     });
   }
 
+  // --- Actions réversibles ------------------------------------------------------------------
+  // Toute mutation du calendrier passe par `commit()` : elle entre dans la pile d'annulation ET
+  // propose « Annuler » dans son toast. Les deux chemins exécutent le même code, sinon le toast
+  // et Cmd+Z finiraient par se contredire.
+
+  /** Enregistre une action déjà effectuée et propose son annulation immédiate. */
+  private commit(command: UndoCommand, message: string): void {
+    this.undoStack.push(command);
+    this.toast.withAction(message, 'Annuler', () => this.undoLast());
+  }
+
+  undoLast(): void {
+    this.undoStack.undo().subscribe({
+      next: (label) => { if (label) { this.refreshAll(); this.toast.info(`Annulé : ${label}.`); } },
+      error: () => { this.refreshAll(); this.toast.error('Annulation impossible.'); },
+    });
+  }
+
+  redoLast(): void {
+    this.undoStack.redo().subscribe({
+      next: (label) => { if (label) { this.refreshAll(); this.toast.info(`Rétabli : ${label}.`); } },
+      error: () => { this.refreshAll(); this.toast.error('Rétablissement impossible.'); },
+    });
+  }
+
+  /** Recharge tout ce qui peut avoir bougé (séances course + force). */
+  private refreshAll(): void {
+    this.load();
+    this.reloadStrength();
+  }
+
+  /** Exécute des opérations en parallèle ; échoue si l'une échoue (l'annulation reste en pile). */
+  private all(ops: Observable<unknown>[]): Observable<unknown> {
+    return ops.length ? forkJoin(ops) : of(null);
+  }
+
+  /** Replanifie sans toast ni pile : brique de base des commandes d'annulation. */
+  private rescheduleTo(workoutId: string, date: string): Observable<unknown> {
+    return this.workoutService.reschedule(this.selectedAthleteId, workoutId, date);
+  }
+
   /** Déplace une séance vers une date (optimiste + rollback en cas d'échec back). */
   private moveWorkout(w: Workout, targetDate: string): void {
     if (w.scheduledDate === targetDate) return;
     const previous = w.scheduledDate;
     this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x)));
     this.workoutService.reschedule(this.selectedAthleteId, w.id, targetDate).subscribe({
-      next: () => this.toast.withAction(
-        `Séance déplacée au ${this.fmtDate(targetDate)}`, 'Annuler',
-        () => this.undoMove(w.id, previous)),
+      next: () => this.commit({
+        label: 'le déplacement',
+        undo: () => this.rescheduleTo(w.id, previous),
+        redo: () => this.rescheduleTo(w.id, targetDate),
+      }, `Séance déplacée au ${this.fmtDate(targetDate)}`),
       error: () => {
         this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: previous } : x)));
         this.toast.error('Déplacement impossible.');
@@ -964,29 +1139,429 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /**
    * Duplique une séance vers une date (copie figée côté back), avec annulation.
-   * Alt+glisser est un geste rapide, donc facile à déclencher par erreur : il doit se défaire
-   * aussi vite qu'un déplacement, sinon il laisse une séance parasite dans la semaine.
+   * La copie reçoit un nouvel identifiant à chaque rejeu : la commande referme sur une boîte
+   * mutable, sinon le second undo viserait une séance qui n'existe plus.
    */
   private copyWorkout(w: Workout, targetDate: string): void {
     this.workoutService.copy(this.selectedAthleteId, w.id, targetDate).subscribe({
       next: (copy) => {
         this.load();
-        this.toast.withAction(
-          `« ${w.title} » dupliquée le ${this.fmtDate(targetDate)}`, 'Annuler',
-          () => this.undoCopy(copy),
-        );
+        const ref = { id: copy.id };
+        this.commit({
+          label: 'la duplication',
+          undo: () => this.workoutService.delete(this.selectedAthleteId, ref.id),
+          redo: () => this.workoutService.copy(this.selectedAthleteId, w.id, targetDate)
+            .pipe(tap((c) => { ref.id = c.id; })),
+        }, `« ${w.title} » dupliquée le ${this.fmtDate(targetDate)}`);
       },
       error: () => this.toast.error('Duplication impossible.'),
     });
   }
 
-  /** Annule une duplication : la copie n'existait pas avant le geste, on la supprime. */
-  private undoCopy(copy: Workout): void {
-    this.workouts.update((l) => l.filter((x) => x.id !== copy.id));
-    this.workoutService.delete(this.selectedAthleteId, copy.id).subscribe({
-      next: () => this.toast.info('Duplication annulée.'),
-      error: () => { this.toast.error('Annulation impossible.'); this.load(); },
+  // --- Opérations de semaine (menu contextuel de la colonne de totaux) -----------------------
+  // La colonne de totaux est le seul endroit qui parle « semaine » : c'est donc là que vivent
+  // les gestes qui portent sur une semaine entière, plutôt que dans une barre d'outils déjà pleine.
+
+  readonly weekMenu = signal<{ start: string; sessions: number; x: number; y: number } | null>(null);
+  weekMenuTarget = '';
+
+  openWeekMenu(week: WeekRow, ev: MouseEvent): void {
+    ev.preventDefault();
+    if (!this.canWriteSelected() || this.scopeMode() !== 'athlete') return;
+    const start = week.days[0].date;
+    const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
+    this.weekMenuTarget = this.shiftDate(start, 7);
+    this.weekMenu.set({ start, sessions: week.sessions, x, y });
+  }
+  closeWeekMenu(): void { this.weekMenu.set(null); }
+
+  /** Toutes les chips d'une semaine (7 jours à partir du lundi donné), course et force. */
+  private weekChips(start: string): ChipRef[] {
+    const end = this.shiftDate(start, 6);
+    const inWeek = (d: string) => d >= start && d <= end;
+    return [
+      ...this.workouts().filter((w) => inWeek(w.scheduledDate)).map((w) => ({ kind: 'course' as const, id: w.id })),
+      ...this.strength().filter((x) => inWeek(x.scheduledDate)).map((x) => ({ kind: 'strength' as const, id: x.id })),
+    ];
+  }
+
+  /**
+   * Duplique une semaine vers une autre. Implémenté séance par séance plutôt que par l'appel
+   * groupé du serveur : c'est le seul moyen de connaître les identifiants créés, donc de rendre
+   * le geste annulable — sur une semaine, c'est une poignée de requêtes.
+   */
+  async ctxDuplicateWeek(targetStart: string): Promise<void> {
+    const m = this.weekMenu(); if (!m || !targetStart) return;
+    this.closeWeekMenu();
+    await this.duplicateWeekTo(m.start, targetStart);
+  }
+
+  private async duplicateWeekTo(sourceStart: string, targetStart: string): Promise<void> {
+    const refs = this.weekChips(sourceStart);
+    if (!refs.length) { this.toast.info('Aucune séance à copier cette semaine.'); return; }
+
+    const target = mondayOf(new Date(targetStart + 'T00:00:00'));
+    const targetIso = toIso(target);
+    const ok = await this.confirm.ask({
+      title: 'Dupliquer la semaine',
+      message: `Copier ${refs.length} séance(s) vers la semaine du ${this.fmtDate(targetIso)} ? Les séances déjà présentes sont conservées.`,
+      confirmLabel: 'Dupliquer',
     });
+    if (!ok) return;
+
+    // Origine calée sur le lundi source : une semaine qui commence le mardi doit arriver le
+    // mardi de la semaine cible, pas se recoller sur son lundi.
+    this.pasteRefs(refs, targetIso, sourceStart, 'la duplication de semaine',
+      (n) => `${n} séance(s) copiée(s) sur la semaine du ${this.fmtDate(targetIso)}`);
+    this.anchor.set(target); // on montre le résultat, sinon la copie est invisible
+  }
+
+  /** Vide la semaine de ses séances course (les indispos et objectifs ne sont pas des séances). */
+  async ctxClearWeek(): Promise<void> {
+    const m = this.weekMenu(); if (!m) return;
+    this.closeWeekMenu();
+    const refs = this.weekChips(m.start);
+    if (!refs.length) { this.toast.info('Cette semaine est déjà vide.'); return; }
+    // On passe par la sélection : le lot, la confirmation et l'annulation sont déjà écrits.
+    this.selection.setAll(refs);
+    await this.deleteSelection();
+  }
+
+  /** Décale toute la semaine de ±1 jour (une compétition avancée, un déplacement, une météo). */
+  ctxShiftWeek(days: number): void {
+    const m = this.weekMenu(); if (!m) return;
+    this.closeWeekMenu();
+    if (!this.requireWrite()) return;
+    const courseIds = new Set(this.weekChips(m.start).filter((r) => r.kind === 'course').map((r) => r.id));
+    const strengthIds = new Set(this.weekChips(m.start).filter((r) => r.kind === 'strength').map((r) => r.id));
+    if (!courseIds.size && !strengthIds.size) { this.toast.info('Aucune séance à décaler.'); return; }
+
+    // Les dates de départ sont figées ici : rejouer le décalage doit repartir du même état,
+    // pas de celui qu'on vient de produire.
+    const starts = new Map<string, string>();
+    for (const w of this.workouts()) if (courseIds.has(w.id)) starts.set(w.id, w.scheduledDate);
+    for (const x of this.strength()) if (strengthIds.has(x.id)) starts.set(x.id, x.scheduledDate);
+
+    const move = (delta: number) => this.all([
+      ...[...courseIds].map((id) => this.rescheduleTo(id, this.shiftDate(starts.get(id)!, delta))),
+      ...[...strengthIds].map((id) => this.strengthService
+        .rescheduleScheduled(this.selectedAthleteId, id, this.shiftDate(starts.get(id)!, delta))),
+    ]);
+
+    move(days).subscribe({
+      next: () => {
+        this.refreshAll();
+        this.commit({
+          label: 'le décalage de semaine',
+          undo: () => move(0),
+          redo: () => move(days),
+        }, `Semaine décalée de ${days > 0 ? '+' : ''}${days} jour${Math.abs(days) > 1 ? 's' : ''}`);
+      },
+      error: () => { this.refreshAll(); this.toast.error('Décalage impossible.'); },
+    });
+  }
+
+  // --- Rectangle de sélection ----------------------------------------------------------------
+  // Tracé sur le fond de la grille : il attrape les chips qu'il croise. S'il n'en attrape aucune,
+  // il désigne une PLAGE DE JOURS — le geste naturel pour « pose-moi trois footings ici ».
+
+  readonly marquee = signal<{ x: number; y: number; w: number; h: number } | null>(null);
+  private marqueeOrigin: { x: number; y: number } | null = null;
+  /** Rectangles relevés au début du tracé : ils ne bougent pas pendant le geste. */
+  private marqueeTargets: { ref: ChipRef | null; date: string | null; box: DOMRect }[] = [];
+  private marqueeCleanup: (() => void) | null = null;
+
+  /**
+   * Démarre un rectangle. Ignoré si le geste part d'une chip : là, c'est un glisser-déposer.
+   * Les écouteurs sont posés à la demande plutôt qu'en permanence — le calendrier est l'écran
+   * le plus lourd de l'app, il ne peut pas se permettre un cycle de détection par mouvement
+   * de souris quand personne ne trace rien.
+   */
+  onGridPointerDown(ev: PointerEvent): void {
+    if (ev.button !== 0 || ev.pointerType !== 'mouse') return;
+    const el = ev.target as HTMLElement;
+    if (el.closest('.workout-card, .strength-chip, .event-chip, .activity-card, button, a, input, select, textarea')) return;
+
+    this.marqueeOrigin = { x: ev.clientX, y: ev.clientY };
+    this.marquee.set({ x: ev.clientX, y: ev.clientY, w: 0, h: 0 });
+    this.marqueeTargets = this.snapshotTargets();
+    if (!ev.shiftKey && !ev.metaKey && !ev.ctrlKey) this.clearSelection();
+
+    const move = (e: PointerEvent) => this.onMarqueeMove(e);
+    const up = () => this.endMarquee();
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
+    this.marqueeCleanup = () => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      this.marqueeCleanup = null;
+    };
+  }
+
+  /** Position à l'écran des chips et des jours, relevée une fois par tracé. */
+  private snapshotTargets(): { ref: ChipRef | null; date: string | null; box: DOMRect }[] {
+    const out: { ref: ChipRef | null; date: string | null; box: DOMRect }[] = [];
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-chip]'))) {
+      const [kind, id] = (el.dataset['chip'] ?? '').split(':');
+      if (kind && id) out.push({ ref: { kind: kind as 'course' | 'strength', id }, date: null, box: el.getBoundingClientRect() });
+    }
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-day]'))) {
+      const date = el.dataset['day'];
+      if (date) out.push({ ref: null, date, box: el.getBoundingClientRect() });
+    }
+    return out;
+  }
+
+  private onMarqueeMove(ev: PointerEvent): void {
+    const origin = this.marqueeOrigin;
+    if (!origin) return;
+    const rect = {
+      x: Math.min(origin.x, ev.clientX), y: Math.min(origin.y, ev.clientY),
+      w: Math.abs(ev.clientX - origin.x), h: Math.abs(ev.clientY - origin.y),
+    };
+    this.marquee.set(rect);
+    // En dessous de quelques pixels, c'est un clic, pas un tracé : on n'écrase pas la sélection.
+    if (rect.w + rect.h > 12) this.applyMarquee(rect);
+  }
+
+  private endMarquee(): void {
+    this.marqueeCleanup?.();
+    this.marqueeOrigin = null;
+    this.marqueeTargets = [];
+    this.marquee.set(null);
+  }
+
+  /** Traduit le rectangle écran en sélection de chips, ou à défaut en plage de jours. */
+  private applyMarquee(rect: { x: number; y: number; w: number; h: number }): void {
+    const hits: ChipRef[] = [];
+    const days: string[] = [];
+    for (const t of this.marqueeTargets) {
+      const b = t.box;
+      const overlaps = b.right >= rect.x && b.left <= rect.x + rect.w
+        && b.bottom >= rect.y && b.top <= rect.y + rect.h;
+      if (!overlaps) continue;
+      if (t.ref) hits.push(t.ref);
+      else if (t.date) days.push(t.date);
+    }
+    this.selection.setAll(hits);
+    // La plage de jours n'a de sens que si le tracé n'a rien attrapé : sinon c'est le lot de
+    // chips qui est la cible, et proposer « planifier sur 3 jours » serait un contresens.
+    this.dayRange.set(hits.length === 0 && days.length > 1 ? days.sort() : []);
+  }
+
+  /** Planifie sur toute la plage retenue : le picker s'ouvre sur N jours au lieu d'un. */
+  planRange(): void {
+    const days = this.dayRange();
+    if (!days.length || !this.requireWrite()) return;
+    this.pickerDates.set(days);
+  }
+
+  /** Vide les jours de la plage (séances course). */
+  async clearRange(): Promise<void> {
+    const days = new Set(this.dayRange());
+    if (!days.size) return;
+    const victims: ChipRef[] = [
+      ...this.workouts().filter((w) => days.has(w.scheduledDate)).map((w) => ({ kind: 'course' as const, id: w.id })),
+      ...this.strength().filter((x) => days.has(x.scheduledDate)).map((x) => ({ kind: 'strength' as const, id: x.id })),
+    ];
+    if (!victims.length) { this.toast.info('Ces jours sont déjà vides.'); return; }
+    this.selection.setAll(victims);
+    this.dayRange.set([]);
+    await this.deleteSelection();
+  }
+
+  // --- Actions groupées : presse-papier, duplication, suppression ----------------------------
+  // Le presse-papier garde des RÉFÉRENCES, pas des copies d'objets : coller demande au serveur
+  // de dupliquer la séance d'origine, seule façon de reprendre sa prescription figée à l'identique.
+
+  /** Séances visées par une action : la sélection si elle existe, sinon rien. */
+  private selectedWorkouts(): Workout[] {
+    const ids = new Set(this.selection.ids('course'));
+    return this.workouts().filter((w) => ids.has(w.id));
+  }
+  private selectedStrength(): ScheduledStrength[] {
+    const ids = new Set(this.selection.ids('strength'));
+    return this.strength().filter((x) => ids.has(x.id));
+  }
+
+  copySelection(): void {
+    const refs = this.selected().map((p) => ({ kind: p.kind, id: p.id }));
+    if (!refs.length) { this.toast.info('Rien à copier — sélectionne d’abord une séance.'); return; }
+    const label = refs.length === 1
+      ? (this.selectedWorkouts()[0]?.title ?? this.selectedStrength()[0]?.title ?? '1 séance')
+      : `${refs.length} séances`;
+    this.clipboard.set({ refs, label });
+    this.toast.info(`${label} copiée${refs.length > 1 ? 's' : ''} — ${this.keys('mod', 'V')} pour coller sur un jour.`);
+  }
+
+  /**
+   * Colle le presse-papier sur une date, ou sur le jour survolé.
+   */
+  pasteOn(date: string | null): void {
+    const clip = this.clipboard();
+    const target = date ?? this.hoveredDate();
+    if (!clip.refs.length) { this.toast.info(`Presse-papier vide — ${this.keys('mod', 'C')} pour copier.`); return; }
+    if (!target) { this.toast.info('Survole un jour pour coller.'); return; }
+    this.pasteRefs(clip.refs, target, undefined, 'le collage',
+      (n) => `${n} séance(s) collée(s) le ${this.fmtDate(target)}`);
+  }
+
+  /**
+   * Recopie un lot de séances à partir d'une date cible. Les écarts de jour sont conservés :
+   * coller un bloc de trois jours doit reproduire le bloc, pas empiler trois séances le même jour.
+   *
+   * `base` fixe l'origine des écarts. Sans elle, c'est la première séance du lot — ce qu'on veut
+   * pour un collage. Pour une semaine entière, il faut au contraire caler sur le lundi, sinon
+   * une semaine qui commence le mardi arriverait décalée d'un jour.
+   */
+  private pasteRefs(
+    refs: ChipRef[], target: string, base: string | undefined,
+    label: string, message: (n: number) => string,
+  ): void {
+    if (!this.requireWrite()) return;
+    const sources = this.pasteSources(refs, target, base);
+    if (!sources.length) { this.toast.warning('Les séances à copier ne sont plus affichées.'); return; }
+
+    const created: { kind: 'course' | 'strength'; id: string }[] = [];
+    const run = () => defer(() => {
+      created.length = 0;
+      return this.all(sources.map((src) => this.pasteOne(src, created)));
+    });
+    run().subscribe({
+      next: () => {
+        this.refreshAll();
+        this.commit({
+          label,
+          undo: () => this.all(created.map((c) => this.removeCreated(c))),
+          redo: () => run(),
+        }, message(sources.length));
+      },
+      error: () => { this.refreshAll(); this.toast.error('Copie impossible.'); },
+    });
+  }
+
+  /** Résout des références en (séance, date cible), décalage relatif conservé. */
+  private pasteSources(refs: ChipRef[], target: string, base?: string):
+    { kind: 'course' | 'strength'; source: Workout | ScheduledStrength; date: string }[] {
+    const byId = new Map<string, Workout | ScheduledStrength>();
+    for (const w of this.workouts()) byId.set(`course:${w.id}`, w);
+    for (const st of this.strength()) byId.set(`strength:${st.id}`, st);
+
+    const found = refs
+      .map((r) => ({ kind: r.kind, source: byId.get(`${r.kind}:${r.id}`) }))
+      .filter((x): x is { kind: 'course' | 'strength'; source: Workout | ScheduledStrength } => !!x.source);
+    if (!found.length) return [];
+
+    const origin = base ?? found.reduce(
+      (min, x) => (x.source.scheduledDate < min ? x.source.scheduledDate : min),
+      found[0].source.scheduledDate);
+    return found.map((x) => ({
+      ...x,
+      date: this.shiftDate(target, this.daysBetween(origin, x.source.scheduledDate)),
+    }));
+  }
+
+  private pasteOne(
+    src: { kind: 'course' | 'strength'; source: Workout | ScheduledStrength; date: string },
+    created: { kind: 'course' | 'strength'; id: string }[],
+  ): Observable<unknown> {
+    if (src.kind === 'course') {
+      return this.workoutService.copy(this.selectedAthleteId, src.source.id, src.date)
+        .pipe(tap((c) => created.push({ kind: 'course', id: c.id })));
+    }
+    const st = src.source as ScheduledStrength;
+    if (!st.sourceSessionId) return of(null);
+    return this.strengthService
+      .scheduleSession(this.selectedAthleteId, st.sourceSessionId, { date: src.date, fieldsPreset: 'AVANCE' })
+      .pipe(tap((c) => created.push({ kind: 'strength', id: c.id })));
+  }
+
+  private removeCreated(c: { kind: 'course' | 'strength'; id: string }): Observable<unknown> {
+    return c.kind === 'course'
+      ? this.workoutService.delete(this.selectedAthleteId, c.id)
+      : this.strengthService.deleteScheduled(this.selectedAthleteId, c.id);
+  }
+
+  /** Duplique la sélection sur place (chaque séance sur son propre jour). */
+  duplicateSelection(): void {
+    const picked = this.selected();
+    if (!picked.length) { this.toast.info('Sélectionne d’abord une séance.'); return; }
+    const refs = picked.map((p) => ({ kind: p.kind, id: p.id }));
+    // Cible = la date de la première : avec les écarts conservés, chacune retombe chez elle.
+    this.pasteRefs(refs, picked[0].date, undefined, 'la duplication',
+      (n) => `${n} séance(s) dupliquée(s)`);
+  }
+
+  /** Supprime tout le lot sélectionné, en une seule entrée d'annulation. */
+  async deleteSelection(): Promise<void> {
+    if (!this.requireWrite()) return;
+    const workouts = this.selectedWorkouts();
+    const strength = this.selectedStrength();
+    const total = workouts.length + strength.length;
+    if (!total) return;
+
+    const ok = await this.confirm.ask({
+      title: total > 1 ? `Supprimer ${total} séances` : 'Supprimer la séance',
+      message: total > 1
+        ? [...workouts.map((w) => w.title), ...strength.map((x) => x.title)].join(' · ')
+        : (workouts[0]?.title ?? strength[0]?.title ?? ''),
+      confirmLabel: 'Supprimer', danger: true,
+    });
+    if (!ok) return;
+
+    // Instantanés d'abord : une fois supprimées côté serveur, les séances ne se relisent plus.
+    this.all(workouts.map((w) => this.snapshot(w))).subscribe({
+      next: (snaps) => {
+        const snapshots = (snaps as { workout: Workout; structure: SessionStructure | null }[]) ?? [];
+        const courseRefs = workouts.map((w) => ({ id: w.id }));
+        const strengthRefs = strength.map((x) => ({ id: x.id, source: x.sourceSessionId, date: x.scheduledDate }));
+
+        const removeAll = () => this.all([
+          ...courseRefs.map((r) => this.workoutService.delete(this.selectedAthleteId, r.id)),
+          ...strengthRefs.map((r) => this.strengthService.deleteScheduled(this.selectedAthleteId, r.id)),
+        ]);
+
+        removeAll().subscribe({
+          next: () => {
+            this.selection.clear();
+            this.refreshAll();
+            this.commit({
+              label: total > 1 ? 'la suppression du lot' : 'la suppression',
+              undo: () => this.all([
+                ...snapshots.map((snap, i) => this.restore(snap).pipe(tap((c) => { courseRefs[i].id = c.id; }))),
+                ...strengthRefs.filter((r) => r.source).map((r) => this.strengthService
+                  .scheduleSession(this.selectedAthleteId, r.source!, { date: r.date, fieldsPreset: 'AVANCE' })
+                  .pipe(tap((c) => { r.id = c.id; }))),
+              ]),
+              redo: () => removeAll(),
+            }, total > 1 ? `${total} séances supprimées` : `« ${workouts[0]?.title ?? strength[0]?.title }» supprimée`);
+          },
+          error: () => { this.refreshAll(); this.toast.error('Suppression impossible.'); },
+        });
+      },
+      error: () => this.toast.error('Suppression impossible.'),
+    });
+  }
+
+  /** Garde-fou commun : aucune action d'écriture sur un athlète en lecture seule. */
+  private requireWrite(): boolean {
+    if (this.canWriteSelected()) return true;
+    this.toast.warning('Lecture seule : tu n’as pas les droits de prescription sur cet athlète.');
+    return false;
+  }
+
+  /** Décale une date ISO de n jours (arithmétique locale, jamais de fuseau). */
+  private shiftDate(iso: string, days: number): string {
+    const [y, m, d] = iso.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    date.setDate(date.getDate() + days);
+    return toIso(date);
+  }
+
+  private daysBetween(from: string, to: string): number {
+    const [y1, m1, d1] = from.split('-').map(Number);
+    const [y2, m2, d2] = to.split('-').map(Number);
+    return Math.round((new Date(y2, m2 - 1, d2).getTime() - new Date(y1, m1 - 1, d1).getTime()) / 86400000);
   }
 
   // --- Menu contextuel (clic droit) : alternative souris/clavier au glisser-déposer ----------
@@ -1088,6 +1663,21 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.closeContextMenu();
     if (date) this.moveWorkout(m.workout, date);
   }
+  /** Copie la séance visée dans le presse-papier (le menu enseigne le raccourci). */
+  ctxCopy(): void {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu();
+    this.selection.select({ kind: 'course', id: m.workout.id });
+    this.copySelection();
+  }
+
+  /** Duplique la séance visée sur son propre jour. */
+  ctxDuplicate(): void {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu();
+    this.copyWorkout(m.workout, m.workout.scheduledDate);
+  }
+
   ctxCopyTo(date: string): void {
     const m = this.ctxMenu(); if (!m) return;
     this.closeContextMenu();
@@ -1103,69 +1693,68 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.deleteWorkoutWithUndo(m.workout);
   }
 
-  // --- Annulation des actions calendrier -------------------------------------
-  // Un déplacement ou une suppression par erreur ne doit pas coûter une reconstruction
-  // manuelle : le toast porte l'action réparatrice.
+  // --- Suppression réversible ---------------------------------------------------------------
+  // La suppression était différée de 8 s : passé le délai, le geste devenait irrattrapable, et
+  // la séance restait « supprimée à l'écran » tant que le délai courait — donc ressuscitée par
+  // n'importe quel rechargement. On supprime maintenant tout de suite, mais on capture d'abord
+  // de quoi reconstruire la séance à l'identique (attributs + structure figée). L'annulation
+  // n'a plus de date de péremption : elle vaut tant que l'écran est ouvert.
 
-  /** Remet une séance à sa date d'origine (annulation d'un déplacement). */
-  private undoMove(workoutId: string, originalDate: string): void {
-    this.workouts.update((l) => l.map((x) => (x.id === workoutId ? { ...x, scheduledDate: originalDate } : x)));
-    this.workoutService.reschedule(this.selectedAthleteId, workoutId, originalDate).subscribe({
-      next: () => this.toast.info('Déplacement annulé.'),
-      error: () => { this.toast.error('Annulation impossible.'); this.load(); },
-    });
+  /** Tout ce qu'il faut pour recréer une séance supprimée, prescription figée comprise. */
+  private snapshot(w: Workout): Observable<{ workout: Workout; structure: SessionStructure | null }> {
+    return this.workoutService.prescription(this.selectedAthleteId, w.id).pipe(
+      // Une prescription illisible ne doit pas empêcher la suppression : on restaurera alors
+      // la séance sans sa structure, en le disant.
+      switchMap((rx) => of({ workout: w, structure: rx?.snapshot ?? null })),
+    );
   }
 
-  private undoStrengthMove(scheduledId: string, originalDate: string): void {
-    this.strength.update((l) => l.map((x) => (x.id === scheduledId ? { ...x, scheduledDate: originalDate } : x)));
-    this.strengthService.rescheduleScheduled(this.selectedAthleteId, scheduledId, originalDate).subscribe({
-      next: () => this.toast.info('Déplacement annulé.'),
-      error: () => { this.toast.error('Annulation impossible.'); this.reloadStrength(); },
-    });
+  /** Recrée une séance depuis son instantané et renvoie le nouvel identifiant. */
+  private restore(snap: { workout: Workout; structure: SessionStructure | null }): Observable<Workout> {
+    const w = snap.workout;
+    return this.workoutService.create(this.selectedAthleteId, {
+      scheduledDate: w.scheduledDate,
+      type: w.type,
+      title: w.title,
+      notes: w.notes,
+      targetDistanceM: w.targetDistanceM,
+      targetDurationS: w.targetDurationS,
+      steps: w.steps.map((st) => ({
+        stepType: st.stepType, repetitions: st.repetitions, zone: st.zone,
+        distanceM: st.distanceM, durationS: st.durationS, notes: st.notes,
+      })),
+    }).pipe(
+      switchMap((created) => snap.structure
+        ? this.workoutService.updateStructure(this.selectedAthleteId, created.id, snap.structure)
+          .pipe(switchMap(() => of(created)))
+        : of(created)),
+    );
   }
-
-  /**
-   * Suppressions différées : la séance disparaît immédiatement de l'écran mais n'est réellement
-   * supprimée qu'à l'expiration du toast. Annuler la fait simplement réapparaître — aucune
-   * reconstruction côté serveur, donc aucun risque de perdre la prescription figée.
-   */
-  private readonly pendingDeletions = new Map<string, ReturnType<typeof setTimeout>>();
-  private static readonly UNDO_WINDOW_MS = 8000;
 
   private deleteWorkoutWithUndo(w: Workout): void {
-    const removed = this.workouts().find((x) => x.id === w.id);
-    if (!removed) return;
-    this.workouts.update((l) => l.filter((x) => x.id !== w.id));
-
-    const timer = setTimeout(() => {
-      this.pendingDeletions.delete(w.id);
-      this.workoutService.delete(this.selectedAthleteId, w.id).subscribe({
-        error: () => { this.toast.error('Suppression impossible.'); this.load(); },
-      });
-    }, CalendarComponent.UNDO_WINDOW_MS);
-    this.pendingDeletions.set(w.id, timer);
-
-    this.toast.withAction(`« ${w.title} » supprimée`, 'Annuler', () => {
-      const pending = this.pendingDeletions.get(w.id);
-      if (!pending) return; // la fenêtre est passée : la suppression est déjà partie
-      clearTimeout(pending);
-      this.pendingDeletions.delete(w.id);
-      this.workouts.update((l) => [...l, removed]);
-      this.toast.info('Suppression annulée.');
-    }, 'info');
+    this.snapshot(w).subscribe({
+      next: (snap) => {
+        this.workouts.update((l) => l.filter((x) => x.id !== w.id));
+        const ref = { id: w.id };
+        this.workoutService.delete(this.selectedAthleteId, ref.id).subscribe({
+          next: () => this.commit({
+            label: 'la suppression',
+            undo: () => this.restore(snap).pipe(tap((created) => { ref.id = created.id; })),
+            redo: () => this.workoutService.delete(this.selectedAthleteId, ref.id),
+          }, `« ${w.title} » supprimée`),
+          error: () => { this.toast.error('Suppression impossible.'); this.load(); },
+        });
+      },
+      error: () => { this.toast.error('Suppression impossible.'); this.load(); },
+    });
   }
 
-  /**
-   * Quitter l'écran valide les suppressions en attente : on ne laisse pas une séance
-   * « supprimée à l'écran » ressusciter au prochain chargement.
-   */
   ngOnDestroy(): void {
     this.setCopyCursor(false); // la classe vit sur <body> : elle ne doit pas survivre à l'écran
-    for (const [workoutId, timer] of this.pendingDeletions) {
-      clearTimeout(timer);
-      this.workoutService.delete(this.selectedAthleteId, workoutId).subscribe({ error: () => { /* best-effort */ } });
-    }
-    this.pendingDeletions.clear();
+    this.marqueeCleanup?.();
+    // La pile est locale à l'écran : annuler un geste sur un calendrier qu'on ne regarde plus
+    // produirait un effet invisible.
+    this.undoStack.reset();
   }
 
   // --- Séances de force planifiées : détail, déplacement, suppression ---------
@@ -1222,13 +1811,42 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const previous = s.scheduledDate;
     this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, scheduledDate: targetDate } : x)));
     this.strengthService.rescheduleScheduled(this.selectedAthleteId, s.id, targetDate).subscribe({
-      next: () => this.toast.withAction(
-        `${s.title} déplacée au ${this.fmtDate(targetDate)}`, 'Annuler',
-        () => this.undoStrengthMove(s.id, previous)),
+      next: () => this.commit({
+        label: 'le déplacement',
+        undo: () => this.strengthService.rescheduleScheduled(this.selectedAthleteId, s.id, previous),
+        redo: () => this.strengthService.rescheduleScheduled(this.selectedAthleteId, s.id, targetDate),
+      }, `${s.title} déplacée au ${this.fmtDate(targetDate)}`),
       error: () => {
         this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, scheduledDate: previous } : x)));
         this.toast.error('Déplacement impossible.');
       },
+    });
+  }
+
+  /**
+   * Supprime une séance de force. Contrairement au course, il n'y a pas de reconstruction
+   * fidèle possible (la prescription figée n'est pas ré-injectable) : on replanifie depuis la
+   * séance de bibliothèque d'origine, ce qui restaure le contenu mais pas un éventuel ajustement
+   * manuel. C'est dit dans le toast plutôt que promis en silence.
+   */
+  private deleteStrengthWithUndo(s: ScheduledStrength): void {
+    this.strength.update((l) => l.filter((x) => x.id !== s.id));
+    const source = s.sourceSessionId;
+    const ref = { id: s.id };
+    this.strengthService.deleteScheduled(this.selectedAthleteId, ref.id).subscribe({
+      next: () => {
+        // Sans séance de bibliothèque d'origine, il n'y a rien à replanifier : mieux vaut ne
+        // pas promettre une annulation qui échouerait.
+        if (!source) { this.toast.info(`« ${s.title} » supprimée`); return; }
+        this.commit({
+          label: 'la suppression',
+          undo: () => this.strengthService
+            .scheduleSession(this.selectedAthleteId, source, { date: s.scheduledDate, fieldsPreset: 'AVANCE' })
+            .pipe(tap((created) => { ref.id = created.id; })),
+          redo: () => this.strengthService.deleteScheduled(this.selectedAthleteId, ref.id),
+        }, `« ${s.title} » supprimée`);
+      },
+      error: () => { this.toast.error('Suppression impossible.'); this.reloadStrength(); },
     });
   }
 
@@ -1243,14 +1861,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
       confirmLabel: 'Supprimer', danger: true,
     });
     if (!ok) return;
-    this.strengthService.deleteScheduled(this.selectedAthleteId, s.id).subscribe({
-      next: () => {
-        this.strengthPanelOpen.set(false);
-        this.toast.info('Séance de renforcement supprimée.');
-        this.reloadStrength();
-      },
-      error: () => this.toast.error('Suppression impossible.'),
-    });
+    this.strengthPanelOpen.set(false);
+    this.deleteStrengthWithUndo(s);
   }
 
   /**
@@ -1273,15 +1885,69 @@ export class CalendarComponent implements OnInit, OnDestroy {
       .format(new Date(y, m - 1, d));
   }
 
-  /** Raccourcis clavier de navigation (hors champ de saisie) : ←/→ période, T = aujourd'hui. */
+  /**
+   * Raccourcis clavier. Le calendrier devient un plan de travail : navigation, sélection,
+   * presse-papier et annulation, sur le vocabulaire que tout le monde connaît déjà (celui d'un
+   * tableur). La liste complète est documentée dans `calendar-shortcuts.ts` et affichée par « ? ».
+   */
   onKeydown(ev: KeyboardEvent): void {
     const el = ev.target as HTMLElement | null;
-    if (el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return;
-    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
-    if (this.ctxMenu()) return;
+    // Jamais dans un champ de saisie : Cmd+C doit y copier du texte, pas des séances.
+    if (el && (/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) || el.isContentEditable)) return;
+
+    const mod = ev.metaKey || ev.ctrlKey;
+    const key = ev.key.toLowerCase();
+
+    if (mod) {
+      if (key === 'z') {
+        ev.preventDefault();
+        ev.shiftKey ? this.redoLast() : this.undoLast();
+      } else if (key === 'y') { ev.preventDefault(); this.redoLast(); }
+      else if (key === 'c') { ev.preventDefault(); this.copySelection(); }
+      else if (key === 'v') { ev.preventDefault(); this.pasteOn(null); }
+      else if (key === 'd') { ev.preventDefault(); this.duplicateSelection(); }
+      else if (key === 'a') { ev.preventDefault(); this.selectAll(); }
+      return;
+    }
+    if (ev.altKey) return;
+
+    // « ? » n'a pas la même touche selon la disposition : on se fie au caractère produit.
+    if (ev.key === '?') { ev.preventDefault(); this.shortcutsOpen.set(true); return; }
+
+    if (ev.key === 'Escape') {
+      if (this.closeAllMenus()) { ev.preventDefault(); return; }
+      if (this.selection.count() || this.dayRange().length) { this.clearSelection(); ev.preventDefault(); }
+      return;
+    }
+    if (this.ctxMenu() || this.strengthMenu() || this.weekMenu()) return;
+
+    if (ev.key === 'Delete' || ev.key === 'Backspace') {
+      if (this.selection.count()) { ev.preventDefault(); void this.deleteSelection(); }
+      return;
+    }
     if (ev.key === 'ArrowLeft') { this.shift(-1); ev.preventDefault(); }
     else if (ev.key === 'ArrowRight') { this.shift(1); ev.preventDefault(); }
-    else if (ev.key === 't' || ev.key === 'T') { this.goToday(); ev.preventDefault(); }
+    else if (key === 't') { this.goToday(); ev.preventDefault(); }
+    else if (key === 'w') { this.setMode('week'); ev.preventDefault(); }
+    else if (key === 'm') { if (this.scopeMode() === 'athlete') { this.setMode('month'); ev.preventDefault(); } }
+    else if (key === 'b') { this.toggleSidebar(); ev.preventDefault(); }
+    else if (key === 'n') {
+      const date = this.hoveredDate();
+      if (date) { this.addWorkout(date); ev.preventDefault(); }
+    }
+  }
+
+  /** Ferme ce qui est ouvert par-dessus la grille ; vrai si quelque chose s'est fermé. */
+  private closeAllMenus(): boolean {
+    const wasOpen = !!(this.ctxMenu() || this.strengthMenu() || this.weekMenu())
+      || this.viewMenuOpen() || this.actionsMenuOpen() || this.pickerDates().length > 0;
+    this.closeContextMenu();
+    this.closeStrengthMenu();
+    this.closeWeekMenu();
+    this.viewMenuOpen.set(false);
+    this.actionsMenuOpen.set(false);
+    if (this.pickerDates().length) this.closePicker();
+    return wasOpen;
   }
 
   private gridStart(): Date {

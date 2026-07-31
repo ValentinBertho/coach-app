@@ -78,14 +78,6 @@ export class WorkoutService {
     return this.http.delete<void>(`${this.base(athleteId)}/${workoutId}`);
   }
 
-  /** Duplique une semaine de séances (lundis) vers une autre semaine. Renvoie le nb créé. */
-  duplicateWeek(athleteId: string, sourceWeekStart: string, targetWeekStart: string): Observable<{ created: number }> {
-    return this.http.post<{ created: number }>(
-      `${this.base(athleteId)}/duplicate-week`,
-      { sourceWeekStart, targetWeekStart },
-    );
-  }
-
   /**
    * Génère un mésocycle progressif à partir d'une semaine type. Les paramètres de périodisation
    * peuvent venir d'un modèle ({@code mesocycleTemplateId}) ou être fournis directement.
