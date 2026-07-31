@@ -108,6 +108,40 @@ pg_restore --no-owner -h HOST -U USER -d darilab \
   --table=athlete_1rm_profile mon.dump
 ```
 
+### Restauration via Docker (Windows/macOS/Linux — aucun client PostgreSQL à installer)
+
+Procédure recommandée pour le **test de restauration** : tout se passe dans un conteneur
+jetable, sur le port 5433 pour ne pas gêner la base de dev.
+
+```bash
+# 1. Dézipper l'artefact GitHub (il est livré en .zip) puis déchiffrer
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+  -in darilab-YYYYmmdd-HHMMSS.dump.enc -out darilab.dump \
+  -pass file:cle.txt          # fichier contenant BACKUP_ENCRYPTION_KEY (à supprimer ensuite)
+
+# 2. Base jetable (même major que la prod)
+docker run --name darilab-restore -e POSTGRES_PASSWORD=postgres \
+  -p 5433:5432 -d postgres:18-alpine
+
+# 3. Injecter et restaurer
+docker cp darilab.dump darilab-restore:/tmp/darilab.dump
+docker exec darilab-restore createdb -U postgres darilab_restore
+docker exec darilab-restore pg_restore --no-owner --no-privileges \
+  -U postgres -d darilab_restore /tmp/darilab.dump
+
+# 4. Vérifier que les données sont bien là
+docker exec darilab-restore psql -U postgres -d darilab_restore -c "\dt"
+docker exec darilab-restore psql -U postgres -d darilab_restore \
+  -c "select (select count(*) from users) users, (select count(*) from athletes) athletes, (select count(*) from workouts) workouts;"
+
+# 5. Nettoyer
+docker rm -f darilab-restore && rm -f darilab.dump cle.txt
+```
+
+> **Chronométrer l'opération** : c'est le temps que coûterait un incident réel.
+> Noter le résultat (date, durée, nombre de lignes) — c'est la preuve que la sauvegarde vaut
+> quelque chose.
+
 ### Test de restauration (à planifier — trimestriel)
 Un backup **non testé n'existe pas**. Restaurer le dernier dump sur une base
 jetable, lancer l'app dessus (`SPRING_PROFILES_ACTIVE=prod`, pointée sur la base
