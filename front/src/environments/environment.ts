@@ -6,6 +6,8 @@
 export const environment = {
   production: true,
   apiUrl: '/api',
-  sentryDsn: '',   // renseigner en prod (variable d'env au build)
+  // DSN public par conception (il transite dans le bundle navigateur) : il n'autorise
+  // que l'envoi d'événements, jamais leur lecture. Projet `darilab-frontend`, région EU.
+  sentryDsn: 'https://fd7d2aa386d365ec975fa3e269196e1d@o4511829269807104.ingest.de.sentry.io/4511829289861200',
   appVersion: '0.1.0',
 };
