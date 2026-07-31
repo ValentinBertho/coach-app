@@ -17,6 +17,7 @@
         @if (t.distanceKm) { <strong>{{ t.distanceKm.toFixed(1) }} km</strong> }
       </span>
     }
+    <app-autosave-badge [autosave]="autosave" />
     <button type="button" class="btn btn-primary" (click)="save()">Enregistrer</button>
   </div>
 </section>
@@ -70,13 +71,13 @@
           <button type="button" class="drag-handle" cdkDragHandle title="Glisser pour réordonner"><app-icon name="grip-vertical" [size]="16" /></button>
 
           <span class="reps">
-            <input type="number" class="reps-in" [(ngModel)]="b.reps" (ngModelChange)="recalc(b)" min="1" placeholder="1" title="Répétitions" />
+            <input type="number" class="reps-in" [(ngModel)]="b.reps" (ngModelChange)="onBlockEdited(b)" min="1" placeholder="1" title="Répétitions" />
             @if ((b.reps ?? 0) > 1) { <span class="reps-x">×</span> }
           </span>
 
           <span class="vol">
             @if (measureOf(b) === 'distance') {
-              <input type="number" class="vol-in" [(ngModel)]="b.distanceM" (ngModelChange)="recalc(b)" placeholder="0" />
+              <input type="number" class="vol-in" [(ngModel)]="b.distanceM" (ngModelChange)="onBlockEdited(b)" placeholder="0" />
               <span class="vol-u">m</span>
             } @else {
               <input type="number" class="vol-in" [ngModel]="durMin(b)" (ngModelChange)="setDurMin(b, $event)" placeholder="0" />
@@ -183,7 +184,7 @@
               </div>
             }
             <!-- Commentaire libre du coach sur ce bloc (ex. « 1'13-1'14, plus vite si ok »). -->
-            <input class="form-control block-note" [(ngModel)]="b.note"
+            <input class="form-control block-note" [(ngModel)]="b.note" (ngModelChange)="touch()"
                    placeholder="Commentaire sur ce bloc (optionnel)" />
           </div>
         }
@@ -214,7 +215,7 @@
 <section class="card free-note">
   <label for="sess-notes" class="fn-label">Notes de séance <span class="field-hint">(écriture libre)</span></label>
   <textarea id="sess-notes" class="form-control" rows="4"
-            [ngModel]="notes()" (ngModelChange)="notes.set($event)"
+            [ngModel]="notes()" (ngModelChange)="setNotes($event)"
             placeholder="Intention de la séance, consignes, ressenti attendu, variantes…"></textarea>
 </section>
 }

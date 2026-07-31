@@ -13,6 +13,7 @@
         @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
       </select>
     </div>
+    <app-autosave-badge [autosave]="autosave" />
     <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">
       {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
     </button>

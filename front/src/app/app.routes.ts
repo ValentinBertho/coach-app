@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { adminGuard } from './core/guards/admin.guard';
 import { athleteGuard } from './core/guards/athlete.guard';
 import { authGuard } from './core/guards/auth.guard';
+import { unsavedChangesGuard } from './core/guards/unsaved-changes.guard';
 
 /**
  * Routing lazy (loadComponent / loadChildren). Espace coach sous /app (authGuard).
@@ -129,11 +130,13 @@ export const routes: Routes = [
       { path: 'run-drills', pathMatch: 'full', redirectTo: 'library/drills' },
       {
         path: 'templates/:templateId/structure',
+        canDeactivate: [unsavedChangesGuard],
         loadComponent: () =>
           import('./features/templates/session-editor.component').then((m) => m.SessionEditorComponent),
       },
       {
         path: 'strength/sessions/:sessionId/structure',
+        canDeactivate: [unsavedChangesGuard],
         loadComponent: () =>
           import('./features/strength/strength-session-editor.component').then(
             (m) => m.StrengthSessionEditorComponent
@@ -185,6 +188,7 @@ export const routes: Routes = [
       // correspond, donc ces chemins littéraux gagnent sur ses enfants.
       {
         path: 'athletes/:athleteId/workouts/:workoutId/structure',
+        canDeactivate: [unsavedChangesGuard],
         loadComponent: () =>
           import('./features/templates/session-editor.component').then((m) => m.SessionEditorComponent),
       },

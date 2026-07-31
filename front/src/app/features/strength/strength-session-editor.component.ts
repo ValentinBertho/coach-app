@@ -1,5 +1,5 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -25,6 +25,9 @@ import {
   RangePrescriptionPillComponent,
 } from '../../shared/components/physiology';
 import { SegmentedControlComponent, type SegmentOption, SidePanelComponent } from '../../shared/components/ui';
+import { AutosaveBadgeComponent } from '../../shared/components/autosave-badge/autosave-badge.component';
+import { Autosave } from '../../core/services/autosave';
+import { HasAutosave } from '../../core/guards/unsaved-changes.guard';
 
 /**
  * Éditeur de structure d'une séance de force (cf. Darilab) : blocs typés, formats avancés
@@ -38,17 +41,26 @@ import { SegmentedControlComponent, type SegmentOption, SidePanelComponent } fro
   imports: [IconComponent, 
     FormsModule, RouterLink, DragDropModule,
     SegmentedControlComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
-    SidePanelComponent,
+    SidePanelComponent, AutosaveBadgeComponent,
   ],
   templateUrl: './strength-session-editor.component.html',
   styleUrl: './strength-session-editor.component.scss',
 })
-export class StrengthSessionEditorComponent implements OnInit {
+export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   readonly sessionId = input.required<string>();
 
   private readonly strength = inject(StrengthService);
   private readonly athletes = inject(AthleteService);
   private readonly toast = inject(ToastService);
+
+  /**
+   * Auto-sauvegarde : construire une séance de force prend de longues minutes, et rien
+   * n'avertissait avant de quitter l'écran. Chaque mutation passe par `touch()`.
+   */
+  readonly autosave = new Autosave(
+    () => this.strength.putStructure(this.sessionId(), { blocks: this.blocks() }),
+    inject(DestroyRef),
+  );
 
   readonly name = signal('');
   readonly loading = signal(true);
@@ -204,7 +216,7 @@ export class StrengthSessionEditorComponent implements OnInit {
     const list = [...this.blocks()];
     moveItemInArray(list, event.previousIndex, event.currentIndex);
     this.blocks.set(list);
-    this.recompute();
+    this.touch();
   }
 
   addBlock(): void {
@@ -219,10 +231,12 @@ export class StrengthSessionEditorComponent implements OnInit {
       exercises: [],
     };
     this.blocks.update((list) => [...list, block]);
+    this.touch();
   }
 
   removeBlock(id: string): void {
     this.blocks.update((list) => list.filter((b) => b.id !== id));
+    this.touch();
   }
 
   onFormatChange(block: StrengthBlock): void {
@@ -266,20 +280,23 @@ export class StrengthSessionEditorComponent implements OnInit {
     this.touch();
   }
 
-  /** Force la propagation du signal après mutation interne d'un bloc + rafraîchit l'aperçu. */
+  /**
+   * Force la propagation du signal après mutation interne d'un bloc, rafraîchit l'aperçu et
+   * arme l'auto-sauvegarde. Point de passage unique de toute modification de la structure.
+   */
   touch(): void {
     this.blocks.set([...this.blocks()]);
     this.recompute();
+    this.autosave.markDirty();
   }
 
+  /** Enregistrement explicite : ne fait qu'anticiper le debounce, avec un accusé de réception. */
   save(): void {
     this.saving.set(true);
-    this.strength.putStructure(this.sessionId(), { blocks: this.blocks() }).subscribe({
-      next: () => {
-        this.toast.success('Structure enregistrée');
-        this.saving.set(false);
-      },
-      error: () => this.saving.set(false),
+    this.autosave.flush().subscribe((ok) => {
+      this.saving.set(false);
+      if (ok) this.toast.success('Structure enregistrée');
+      else this.toast.error('Enregistrement impossible.');
     });
   }
 
