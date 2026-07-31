@@ -1,0 +1,43 @@
+# ============================================================================
+# 058 — Check-in matinal de l'athlète (sommeil / fatigue / douleur).
+#   L'état de forme DARI Lab est fatigue + douleur, et il ne se nourrissait que
+#   du retour POST-séance : un athlète qui ne s'entraîne pas pendant trois jours
+#   avait une pastille de forme périmée, et le coach pilotait à l'aveugle.
+#   Un check-in par athlète et par jour (contrainte d'unicité) : le geste est
+#   idempotent, on corrige sa saisie du matin sans créer de doublon.
+#   Le sommeil est un contexte pour le coach, pas une entrée du calcul de forme.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 058-create-wellness-check-ins
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: wellness_check_ins
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: check_date, type: DATE, constraints: { nullable: false } }
+              - column: { name: sleep, type: INT }
+              - column: { name: fatigue, type: INT }
+              - column: { name: pain, type: INT }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_wci_athlete
+            baseTableName: wellness_check_ins
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            constraintName: uk_wci_athlete_date
+            tableName: wellness_check_ins
+            columnNames: athlete_id, check_date
+        - createIndex:
+            indexName: idx_wci_athlete_date
+            tableName: wellness_check_ins
+            columns:
+              - column: { name: athlete_id }
+              - column: { name: check_date }

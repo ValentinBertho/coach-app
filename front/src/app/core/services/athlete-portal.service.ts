@@ -11,6 +11,7 @@ import { Analytics } from './analytics.service';
 import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
 import { Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
 import { StravaStatus } from '../models/strava.model';
+import { WellnessCheckIn, WellnessCheckInRequest } from '../models/wellness.model';
 import { E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthPrescriptionView, StrengthResultEntry } from '../models/strength.model';
 
 // Le type vit désormais dans le modèle force (partagé coach/athlète) ; ré-export pour les
@@ -124,6 +125,21 @@ export class AthletePortalService {
         return n;
       }),
     );
+  }
+
+  // --- Check-in matinal : la forme AVANT la séance ---------------------------------------
+  // Sans lui, l'état de forme ne se rafraîchissait qu'après un entraînement : une semaine de
+  // coupure ou une blessure laissaient le coach avec une pastille périmée.
+
+  /** Mon check-in d'un jour (204 → null si rien n'a été déclaré). */
+  checkIn(date?: string): Observable<WellnessCheckIn | null> {
+    const params = date ? new HttpParams().set('date', date) : undefined;
+    return this.http.get<WellnessCheckIn | null>(`${this.base}/check-in`, { params });
+  }
+
+  /** J'enregistre (ou je corrige) mon check-in du jour. */
+  saveCheckIn(body: WellnessCheckInRequest): Observable<WellnessCheckIn> {
+    return this.http.put<WellnessCheckIn>(`${this.base}/check-in`, body);
   }
 
   /** Prescription calculée d'une séance course (cibles allure/FC/RPE personnalisées). */

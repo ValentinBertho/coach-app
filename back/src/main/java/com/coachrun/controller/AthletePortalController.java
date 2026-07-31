@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,6 +58,7 @@ public class AthletePortalController {
     private final com.coachrun.service.LactateTestService lactateTestService;
     private final com.coachrun.service.TrainingPlanService trainingPlanService;
     private final com.coachrun.service.StravaService stravaService;
+    private final com.coachrun.service.WellnessCheckInService checkInService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -76,6 +78,25 @@ public class AthletePortalController {
                                        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         LocalDate day = date != null ? date : LocalDate.now();
         return workoutService.todayForAthlete(principal.athleteId(), day);
+    }
+
+    /**
+     * Check-in matinal — le signal de forme AVANT la séance. Sans lui, la pastille de forme du
+     * coach ne se rafraîchissait qu'après un entraînement.
+     */
+    @GetMapping("/check-in")
+    public com.coachrun.dto.response.WellnessCheckInResponse checkIn(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return checkInService.forDate(principal.athleteId(), date != null ? date : LocalDate.now());
+    }
+
+    /** Enregistre (ou corrige) le check-in du jour : un seul par athlète et par jour. */
+    @PutMapping("/check-in")
+    public com.coachrun.dto.response.WellnessCheckInResponse saveCheckIn(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody com.coachrun.dto.request.WellnessCheckInRequest request) {
+        return checkInService.save(principal.athleteId(), request);
     }
 
     @GetMapping("/workouts")

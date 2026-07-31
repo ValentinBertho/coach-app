@@ -26,6 +26,7 @@ import {
 } from '../../shared/components/physiology';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { HelpHintComponent } from '../help/help-hint.component';
+import { CheckInCardComponent } from './check-in-card.component';
 
 type State = 'loading' | 'ready' | 'error';
 
@@ -46,7 +47,7 @@ type State = 'loading' | 'ready' | 'error';
     RouterLink,
     LogoComponent, OfflineBannerComponent, NotificationBellComponent,
     IntensityZoneBadgeComponent, WorkoutFeedbackSheetComponent,
-    CoursePrescriptionViewComponent, HelpHintComponent,
+    CoursePrescriptionViewComponent, HelpHintComponent, CheckInCardComponent,
   ],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',

@@ -28,6 +28,11 @@
       </a>
     }
 
+    <!-- Check-in matinal (facultatif) : la forme AVANT la séance. Sans lui, la pastille de
+         forme du coach ne se rafraîchit qu'après un entraînement — donc jamais pendant une
+         coupure ou une blessure, précisément quand il a le plus besoin de savoir. -->
+    <app-check-in-card />
+
     <!-- Rattrapage : une séance non notée reste accessible 7 jours, sinon son ressenti est
          perdu pour toujours et le coach pilote à l'aveugle. -->
     @if (pending().length) {
