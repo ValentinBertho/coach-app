@@ -36,6 +36,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final TokenBlacklist tokenBlacklist;
+    private final TokenFreshnessValidator tokenFreshness;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -48,7 +49,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             try {
                 Claims claims = jwtService.parse(token);
                 if (JwtService.TYPE_ACCESS.equals(claims.get("typ", String.class))
-                        && !tokenBlacklist.isRevoked(claims.getId())) {
+                        && !tokenBlacklist.isRevoked(claims.getId())
+                        && !tokenFreshness.isStale(claims)) {
                     AuthPrincipal principal = toPrincipal(claims);
                     var authority = new SimpleGrantedAuthority("ROLE_" + principal.role().name());
                     var authentication = new UsernamePasswordAuthenticationToken(
@@ -66,15 +68,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /**
      * Token depuis l'en-tête {@code Authorization: Bearer …}, ou à défaut depuis le paramètre
-     * {@code access_token} (flux SSE : {@code EventSource} ne peut pas porter d'en-tête).
+     * {@code access_token} — mais uniquement sur les routes qui ne peuvent pas porter d'en-tête :
+     * les flux SSE ({@code EventSource}) et les pièces jointes ouvertes dans un onglet.
+     *
+     * <p>Accepté partout, ce paramètre fait fuiter un jeton de session dans les journaux d'accès,
+     * l'historique du navigateur et l'en-tête {@code Referer} de la moindre page.</p>
      */
     private String resolveToken(HttpServletRequest request) {
         String header = request.getHeader("Authorization");
         if (StringUtils.hasText(header) && header.startsWith(BEARER_PREFIX)) {
             return header.substring(BEARER_PREFIX.length());
         }
+        if (!allowsQueryToken(request)) {
+            return null;
+        }
         String param = request.getParameter("access_token");
         return StringUtils.hasText(param) ? param : null;
+    }
+
+    private boolean allowsQueryToken(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        return uri != null && (uri.endsWith("/stream") || uri.endsWith("/attachment"));
     }
 
     private AuthPrincipal toPrincipal(Claims claims) {

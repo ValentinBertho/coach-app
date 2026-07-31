@@ -29,11 +29,19 @@ import java.time.Duration;
 @ConditionalOnProperty(name = "app.rate-limit.enabled", havingValue = "true", matchIfMissing = true)
 public class RateLimitFilter extends OncePerRequestFilter {
 
+    /** Bucket de la connexion : le seul où chaque requête est un essai de mot de passe. */
+    public static final String LOGIN_BUCKET = "auth-login";
+
     private final FixedWindowRateLimiter limiter;
+    private final FixedWindowRateLimiter loginLimiter;
 
     public RateLimitFilter(@Value("${app.rate-limit.max-requests:20}") int maxRequests,
-                           @Value("${app.rate-limit.window-seconds:60}") int windowSeconds) {
+                           @Value("${app.rate-limit.window-seconds:60}") int windowSeconds,
+                           @Value("${app.rate-limit.login-max-requests:5}") int loginMaxRequests) {
         this.limiter = new FixedWindowRateLimiter(maxRequests, Duration.ofSeconds(windowSeconds));
+        // La connexion a son propre seuil, bien plus strict : 20 essais par minute et par IP
+        // laissent 28 800 mots de passe par jour à un attaquant, ce qui n'est pas une limite.
+        this.loginLimiter = new FixedWindowRateLimiter(loginMaxRequests, Duration.ofSeconds(windowSeconds));
     }
 
     @Override
@@ -44,7 +52,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     /** Bucket de comptage de la route, ou {@code null} si elle n'est pas rate-limitée. */
     public static String bucket(String uri) {
         if (uri.endsWith("/auth/login")) {
-            return "auth-login";
+            return LOGIN_BUCKET;
         }
         if (uri.endsWith("/auth/register")) {
             return "auth-register";
@@ -69,8 +77,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain)
             throws ServletException, IOException {
-        String key = clientIp(request) + ":" + bucket(request.getRequestURI());
-        if (!limiter.tryAcquire(key)) {
+        String bucket = bucket(request.getRequestURI());
+        String key = clientIp(request) + ":" + bucket;
+        FixedWindowRateLimiter applicable = LOGIN_BUCKET.equals(bucket) ? loginLimiter : limiter;
+        if (!applicable.tryAcquire(key)) {
             response.setStatus(429);
             response.setContentType("application/json");
             response.getWriter().write(

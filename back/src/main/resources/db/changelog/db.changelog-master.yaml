@@ -127,3 +127,5 @@ databaseChangeLog:
       file: db/changelog/changes/061-activity-feedback-prompt.yaml
   - include:
       file: db/changelog/changes/062-activity-strava-metrics.yaml
+  - include:
+      file: db/changelog/changes/063-user-password-changed-at.yaml

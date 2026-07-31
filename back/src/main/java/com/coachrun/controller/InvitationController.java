@@ -32,7 +32,8 @@ public class InvitationController {
 
     @PostMapping("/{token}/accept")
     public AuthResponse accept(@PathVariable String token,
-                              @RequestBody(required = false) InvitationAcceptRequest request) {
+                              @jakarta.validation.Valid @RequestBody(required = false)
+                              InvitationAcceptRequest request) {
         return authService.acceptInvitation(token,
                 request != null && request.healthDataConsent(),
                 request == null ? null : request.email(),

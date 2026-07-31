@@ -48,6 +48,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final com.coachrun.security.TokenBlacklist tokenBlacklist;
+    private final com.coachrun.security.TokenFreshnessValidator tokenFreshness;
+    private final com.coachrun.security.LoginAttemptTracker loginAttempts;
     private final NotificationService notificationService;
 
     private static final java.security.SecureRandom RESET_RANDOM = new java.security.SecureRandom();
@@ -148,7 +150,9 @@ public class AuthService {
             throw new UnauthorizedException("Mot de passe actuel incorrect.");
         }
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
-        log.info("Mot de passe changé (user={})", userId);
+        // Toutes les sessions ouvertes tombent : c'est le but d'un changement de mot de passe.
+        user.setPasswordChangedAt(java.time.Instant.now());
+        log.info("Mot de passe changé (user={}) — sessions antérieures révoquées", userId);
     }
 
     /** Renvoie un e-mail de vérification au compte courant (s'il n'est pas déjà vérifié). */
@@ -174,16 +178,27 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmailIgnoreCase(request.email())
-                .orElseThrow(() -> new UnauthorizedException("Email ou mot de passe incorrect."));
+        // Verrou par compte : le rate limiting par IP n'arrête pas un attaquant qui répartit ses
+        // essais sur plusieurs adresses pour forcer un compte précis.
+        java.time.Duration lock = loginAttempts.lockRemaining(request.email());
+        if (lock != null) {
+            throw new com.coachrun.exception.ApiException(
+                    org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
+                    "Trop de tentatives — réessayez dans " + Math.max(1, lock.toSeconds()) + " s.");
+        }
 
-        if (user.getPasswordHash() == null
+        User user = userRepository.findByEmailIgnoreCase(request.email()).orElse(null);
+        if (user == null || user.getPasswordHash() == null
                 || !passwordEncoder.matches(request.password(), user.getPasswordHash())) {
+            // Le compteur est alimenté même pour un compte inexistant : sinon la présence d'un
+            // verrou révélerait quels e-mails existent.
+            loginAttempts.recordFailure(request.email());
             throw new UnauthorizedException("Email ou mot de passe incorrect.");
         }
         if (user.getStatus() == UserStatus.SUSPENDED) {
             throw new UnauthorizedException("Ce compte est suspendu.");
         }
+        loginAttempts.recordSuccess(request.email());
         return toAuthResponse(user);
     }
 
@@ -202,6 +217,9 @@ public class AuthService {
         }
         User user = userRepository.findById(UUID.fromString(claims.getSubject()))
                 .orElseThrow(() -> new UnauthorizedException("Compte introuvable."));
+        if (tokenFreshness.isStale(claims)) {
+            throw new UnauthorizedException("Le mot de passe a changé, reconnectez-vous.");
+        }
         // Rotation : on révoque l'ancien refresh avant d'en émettre un nouveau.
         tokenBlacklist.revoke(claims.getId(), claims.getExpiration().toInstant());
         return toAuthResponse(user);
@@ -330,7 +348,10 @@ public class AuthService {
         user.setStatus(UserStatus.ACTIVE);
         user.setResetToken(null);
         user.setResetExpiresAt(null);
-        log.info("Mot de passe réinitialisé (user={})", user.getId());
+        // Un reset sert souvent à reprendre la main sur un compte compromis : les jetons déjà
+        // émis (refresh : 30 jours) doivent cesser de valoir, sinon l'intrus reste connecté.
+        user.setPasswordChangedAt(java.time.Instant.now());
+        log.info("Mot de passe réinitialisé (user={}) — sessions antérieures révoquées", user.getId());
         return toAuthResponse(user);
     }
 

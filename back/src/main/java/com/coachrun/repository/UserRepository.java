@@ -16,6 +16,15 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByEmailIgnoreCase(String email);
 
+    /**
+     * Date du dernier changement de mot de passe, seule colonne dont le filtre JWT a besoin —
+     * inutile de charger l'utilisateur entier à chaque requête.
+     */
+    @org.springframework.data.jpa.repository.Query(
+            "select u.passwordChangedAt from User u where u.id = :userId")
+    Optional<java.time.Instant> findPasswordChangedAt(
+            @org.springframework.data.repository.query.Param("userId") UUID userId);
+
     boolean existsByEmailIgnoreCase(String email);
 
     Optional<User> findByAthleteId(UUID athleteId);
