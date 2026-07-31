@@ -75,8 +75,25 @@
 .race-athlete { font-size: var(--text-sm); color: var(--ink-2); font-weight: 600; }
 .race-go { margin-left: auto; color: var(--ink-4); }
 
-.next-step { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); margin-top: var(--sp-4); }
-.next-step h2 { margin: 0 0 var(--sp-1); }
+/* --- Première ouverture (aucun athlète) ----------------------------------- */
+.first-run { display: flex; flex-direction: column; gap: var(--sp-4); }
+.first-run__intro h2 { margin: 0 0 var(--sp-2); }
+.first-run__steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.first-run__step { display: flex; align-items: center; gap: var(--sp-4); }
+.first-run__num {
+  flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #fff;
+  font-family: var(--font-data); font-weight: 800; font-size: var(--text-lg);
+}
+.first-run__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.first-run__body p { margin: 0; }
+.first-run__step .btn { flex-shrink: 0; }
+
+@media (max-width: 640px) {
+  .first-run__step { flex-wrap: wrap; }
+  .first-run__step .btn { width: 100%; }
+}
 
 /* --- Alertes actionnables ------------------------------------------------- */
 .alert-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }

@@ -2,6 +2,7 @@ package com.coachrun.scheduler;
 
 import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.repository.WorkoutRepository;
+import com.coachrun.service.ClockService;
 import com.coachrun.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,11 +23,12 @@ public class ReminderScheduler {
 
     private final WorkoutRepository workoutRepository;
     private final NotificationService notificationService;
+    private final ClockService clock;
 
     @Scheduled(cron = "${app.reminders.cron:0 0 18 * * *}")
     @Transactional(readOnly = true)
     public void sendTomorrowReminders() {
-        LocalDate tomorrow = LocalDate.now().plusDays(1);
+        LocalDate tomorrow = clock.today().plusDays(1);
         var workouts = workoutRepository.findByScheduledDateAndStatus(tomorrow, WorkoutStatus.PLANNED);
         log.info("Rappels J-1 : {} séance(s) prévue(s) le {}", workouts.size(), tomorrow);
         workouts.forEach(notificationService::notifyWorkoutReminder);

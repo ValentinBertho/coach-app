@@ -32,6 +32,7 @@ public class AthleteLoadService {
     private final WorkoutRepository workoutRepository;
     private final com.coachrun.repository.StrengthLoadTrackingRepository strengthLoadRepository;
     private final LoadEngine loadEngine;
+    private final ClockService clock;
 
     /** Charge — variante athlète-scopée (portail /me) : résout le club de l'athlète. */
     public LoadResponse loadForAthlete(UUID athleteId) {
@@ -42,9 +43,29 @@ public class AthleteLoadService {
 
     public LoadResponse load(UUID clubId, UUID athleteId) {
         requireAthlete(clubId, athleteId);
-        LocalDate today = LocalDate.now();
+        LocalDate today = clock.today();
         return LoadResponse.from(loadEngine.compute(
-                collectSessions(clubId, athleteId, today.minusDays(27), today), today));
+                collectSessions(clubId, athleteId, today.minusDays(27), today),
+                today, firstLoadedSessionDate(athleteId)));
+    }
+
+    /**
+     * Date de la première séance chargée de l'athlète (course ou force), toutes périodes
+     * confondues. Le moteur en a besoin pour ne pas prendre un athlète neuf pour un athlète
+     * installé — la fenêtre de calcul, elle, ne voit que 28 jours.
+     */
+    private LocalDate firstLoadedSessionDate(UUID athleteId) {
+        LocalDate fromWorkouts = workoutRepository.findFirstLoadedSessionDate(athleteId).orElse(null);
+        LocalDate fromStrength = strengthLoadRepository
+                .findFirstByAthleteIdOrderBySessionDateAsc(athleteId)
+                .map(t -> t.getSessionDate()).orElse(null);
+        if (fromWorkouts == null) {
+            return fromStrength;
+        }
+        if (fromStrength == null) {
+            return fromWorkouts;
+        }
+        return fromWorkouts.isBefore(fromStrength) ? fromWorkouts : fromStrength;
     }
 
     /**
@@ -55,16 +76,17 @@ public class AthleteLoadService {
     public LoadSeriesResponse series(UUID clubId, UUID athleteId, int weeks) {
         requireAthlete(clubId, athleteId);
         int window = Math.max(4, Math.min(weeks, 26));
-        LocalDate today = LocalDate.now();
+        LocalDate today = clock.today();
         LocalDate from = today.minusWeeks(window);
 
         // On remonte 27 jours avant le début de la fenêtre : le premier point a besoin de son
         // propre historique 28 jours, sinon la courbe démarre artificiellement bas.
         List<SessionLoad> sessions = collectSessions(clubId, athleteId, from.minusDays(27), today);
+        LocalDate firstSession = firstLoadedSessionDate(athleteId);
 
         List<LoadSeriesResponse.Point> points = new ArrayList<>();
         for (LocalDate d = from; !d.isAfter(today); d = d.plusDays(1)) {
-            var m = loadEngine.compute(sessions, d);
+            var m = loadEngine.compute(sessions, d, firstSession);
             points.add(new LoadSeriesResponse.Point(
                     d, m.acuteLoad7d(), m.chronicLoad28dWeekly(), m.ratio()));
         }

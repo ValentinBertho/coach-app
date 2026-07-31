@@ -43,6 +43,13 @@ export class DashboardComponent implements OnInit {
   readonly alerts = signal<CoachAlert[]>([]);
   readonly loading = signal(true);
 
+  /**
+   * Première ouverture : aucun athlète actif. Le cockpit est alors remplacé par les étapes de
+   * démarrage — piloter zéro athlète n'a pas de sens, et « Tout le monde est en forme » sur une
+   * liste vide est trompeur.
+   */
+  readonly firstRun = computed(() => this.data()?.activeAthletes === 0);
+
   private readonly allAthletes = computed<AthleteForm[]>(() => {
     const f = this.form();
     return f ? [...f.routeAthletes, ...f.trailAthletes] : [];

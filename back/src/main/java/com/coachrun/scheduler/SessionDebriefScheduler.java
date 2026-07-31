@@ -7,6 +7,7 @@ import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.repository.ScheduledStrengthSessionRepository;
 import com.coachrun.repository.UserRepository;
 import com.coachrun.repository.WorkoutRepository;
+import com.coachrun.service.ClockService;
 import com.coachrun.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +17,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
@@ -49,6 +49,7 @@ public class SessionDebriefScheduler {
     private final ScheduledStrengthSessionRepository strengthRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final ClockService clock;
 
     @Value("${app.debrief.enabled:true}")
     private boolean enabled;
@@ -59,8 +60,8 @@ public class SessionDebriefScheduler {
         if (!enabled) {
             return;
         }
-        LocalDate today = LocalDate.now();
-        int currentHour = LocalTime.now().getHour();
+        LocalDate today = clock.today();
+        int currentHour = clock.now().getHour();
         Set<UUID> notifiedUsers = new HashSet<>();
         int sent = 0;
 

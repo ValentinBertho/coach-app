@@ -15,10 +15,35 @@ import java.util.List;
 @Component
 public class LoadEngine {
 
+    /**
+     * Fenêtre chronique de référence (jours). Sert aussi d'échelle de progression affichée à
+     * l'athlète et au coach tant que le ratio n'est pas calculable.
+     */
+    public static final int CHRONIC_WINDOW_DAYS = 28;
+
+    /**
+     * Historique minimal avant de publier un ACWR. Sous ce seuil, la charge chronique
+     * ({@code total28 / 4}) est divisée par quatre semaines dont l'athlète n'en a vécu qu'une ou
+     * deux : le ratio sort mécaniquement autour de 4,0 et déclenche une alerte rouge « risque de
+     * blessure » sur un athlète qui vient simplement de commencer.
+     */
+    public static final int RATIO_MIN_HISTORY_DAYS = 21;
+
+    /** Nombre minimal de séances sur 28 jours avant de publier un ACWR. */
+    public static final int RATIO_MIN_SESSIONS_28D = 8;
+
     /** Charge d'une séance : date, charge sRPE, et RPE (pour la répartition par domaine). */
     public record SessionLoad(LocalDate date, double load, int rpe) {
     }
 
+    /**
+     * @param ratio        ACWR, ou {@code null} tant que l'historique est insuffisant
+     *                     (cf. {@link #RATIO_MIN_HISTORY_DAYS} / {@link #RATIO_MIN_SESSIONS_28D})
+     * @param historyDays  jours écoulés depuis la première séance chargée, plafonné à
+     *                     {@link #CHRONIC_WINDOW_DAYS} — progression à afficher quand
+     *                     {@code ratioReady} est faux (« ACWR en construction — 12/28 jours »)
+     * @param ratioReady   vrai si l'historique suffit à publier le ratio
+     */
     public record LoadMetrics(
             double acuteLoad7d,
             double chronicLoad28dWeekly,
@@ -27,10 +52,26 @@ public class LoadEngine {
             double[] domainPct7d,
             double[] domainPct28d,
             int sessions7d,
-            int sessions28d) {
+            int sessions28d,
+            int historyDays,
+            boolean ratioReady) {
     }
 
+    /**
+     * Variante sans date de première séance connue : l'historique est déduit de la plus ancienne
+     * séance présente dans la liste. Suffisant pour un calcul isolé, mais un athlète qui reprend
+     * après une longue coupure paraîtra « neuf » — préférer
+     * {@link #compute(List, LocalDate, LocalDate)} quand la date réelle est disponible.
+     */
     public LoadMetrics compute(List<SessionLoad> sessions, LocalDate ref) {
+        return compute(sessions, ref, null);
+    }
+
+    /**
+     * @param firstSessionDate date de la première séance chargée de l'athlète (toute son
+     *                         histoire, pas seulement la fenêtre), ou {@code null} si inconnue
+     */
+    public LoadMetrics compute(List<SessionLoad> sessions, LocalDate ref, LocalDate firstSessionDate) {
         double acute = 0;
         double total28 = 0;
         int sessions7 = 0;
@@ -39,10 +80,15 @@ public class LoadEngine {
         double[] band28 = new double[3];
         double[] daily7 = new double[7];
 
+        LocalDate oldestInWindow = null;
+
         for (SessionLoad s : sessions) {
             long diff = ChronoUnit.DAYS.between(s.date(), ref);
             if (diff < 0 || diff > 27) {
                 continue;
+            }
+            if (oldestInWindow == null || s.date().isBefore(oldestInWindow)) {
+                oldestInWindow = s.date();
             }
             int band = band(s.rpe());
             total28 += s.load();
@@ -57,11 +103,24 @@ public class LoadEngine {
         }
 
         double chronicWeekly = total28 / 4.0;
-        Double ratio = chronicWeekly > 0 ? round2(acute / chronicWeekly) : null;
         Double monotony = monotony(daily7);
 
+        // Progression de l'historique : la date réelle de première séance si on la connaît, sinon
+        // la plus ancienne séance de la fenêtre.
+        LocalDate firstKnown = firstSessionDate != null ? firstSessionDate : oldestInWindow;
+        int historyDays = firstKnown == null ? 0
+                : (int) Math.max(0, Math.min(CHRONIC_WINDOW_DAYS,
+                        ChronoUnit.DAYS.between(firstKnown, ref)));
+
+        // Sans historique suffisant, le ratio n'a pas de sens : on ne le publie pas du tout plutôt
+        // que d'exposer une valeur que le tableau de bord traduirait en alerte rouge.
+        boolean ratioReady = chronicWeekly > 0
+                && historyDays >= RATIO_MIN_HISTORY_DAYS
+                && sessions28 >= RATIO_MIN_SESSIONS_28D;
+        Double ratio = ratioReady ? round2(acute / chronicWeekly) : null;
+
         return new LoadMetrics(round2(acute), round2(chronicWeekly), ratio, monotony,
-                toPct(band7), toPct(band28), sessions7, sessions28);
+                toPct(band7), toPct(band28), sessions7, sessions28, historyDays, ratioReady);
     }
 
     // --- Helpers --------------------------------------------------------------

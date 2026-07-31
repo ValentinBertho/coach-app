@@ -58,6 +58,7 @@ public class AthletePortalController {
     private final com.coachrun.service.TrainingPlanService trainingPlanService;
     private final com.coachrun.service.StravaService stravaService;
     private final com.coachrun.service.DailyCheckInService checkInService;
+    private final com.coachrun.service.ClockService clock;
     private final com.coachrun.service.FeedbackStreakService streakService;
 
     @GetMapping
@@ -76,7 +77,7 @@ public class AthletePortalController {
     public List<WorkoutResponse> today(@AuthenticationPrincipal AuthPrincipal principal,
                                        @RequestParam(required = false)
                                        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        LocalDate day = date != null ? date : LocalDate.now();
+        LocalDate day = date != null ? date : clock.today();
         return workoutService.todayForAthlete(principal.athleteId(), day);
     }
 
@@ -136,7 +137,7 @@ public class AthletePortalController {
     public org.springframework.http.ResponseEntity<com.coachrun.dto.response.DailyCheckInResponse> checkIn(
             @AuthenticationPrincipal AuthPrincipal principal,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        var checkIn = checkInService.forDay(principal.athleteId(), date != null ? date : LocalDate.now());
+        var checkIn = checkInService.forDay(principal.athleteId(), date != null ? date : clock.today());
         return checkIn == null
                 ? org.springframework.http.ResponseEntity.noContent().build()
                 : org.springframework.http.ResponseEntity.ok(checkIn);
@@ -147,7 +148,7 @@ public class AthletePortalController {
     public com.coachrun.dto.response.DailyCheckInResponse saveCheckIn(
             @AuthenticationPrincipal AuthPrincipal principal,
             @Valid @RequestBody com.coachrun.dto.request.DailyCheckInRequest request) {
-        return checkInService.save(principal.athleteId(), LocalDate.now(), request);
+        return checkInService.save(principal.athleteId(), clock.today(), request);
     }
 
     /** L'athlète déplace une séance (jamais la modifier) : change la date uniquement. */

@@ -49,6 +49,11 @@ export interface Load {
   distribution28d: LoadDistribution;
   sessions7d: number;
   sessions28d: number;
+  /** Faux tant que l'historique est trop court : `ratio` vaut alors `null`. */
+  ratioReady: boolean;
+  /** Jours d'historique accumulés, sur `chronicWindowDays`. */
+  historyDays: number;
+  chronicWindowDays: number;
 }
 
 /** Un point de la courbe de charge : ATL (7 j), CTL (28 j ramené à la semaine) et ACWR. */

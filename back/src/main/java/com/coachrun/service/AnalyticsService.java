@@ -31,6 +31,7 @@ public class AnalyticsService {
     private final WorkoutRepository workoutRepository;
     private final ActivityRepository activityRepository;
     private final AthleteRepository athleteRepository;
+    private final ClockService clock;
 
     /** Analytics — variante athlète-scopée (portail /me) : résout le club de l'athlète. */
     public AnalyticsResponse computeForAthlete(UUID athleteId, int weeks) {
@@ -41,7 +42,7 @@ public class AnalyticsService {
 
     public AnalyticsResponse compute(UUID clubId, UUID athleteId, int weeks) {
         int n = Math.max(1, Math.min(weeks, 26));
-        LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY).minusWeeks(n - 1L);
+        LocalDate monday = clock.today().with(DayOfWeek.MONDAY).minusWeeks(n - 1L);
         LocalDate end = monday.plusWeeks(n);
 
         List<Workout> workouts = workoutRepository

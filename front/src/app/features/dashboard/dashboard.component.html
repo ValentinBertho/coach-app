@@ -1,10 +1,57 @@
 <section class="page-header">
   <div>
     <h1 class="display-sm">Bonjour {{ user()?.fullName || 'Coach' }}</h1>
-    <p class="subtitle">Cockpit coach</p>
+    <p class="subtitle">{{ firstRun() ? 'Bienvenue sur Darilab' : 'Cockpit coach' }}</p>
   </div>
-  <app-segmented-control [options]="scopeOptions" [value]="scope()" (valueChange)="setScope($event)" [ariaLabel]="'Périmètre'" />
+  @if (!firstRun()) {
+    <app-segmented-control [options]="scopeOptions" [value]="scope()" (valueChange)="setScope($event)" [ariaLabel]="'Périmètre'" />
+  }
 </section>
+
+<!--
+  Première ouverture : sans athlète, le cockpit n'a rien à piloter. Quatre zones vides et un
+  « Tout le monde est en forme » sur zéro athlète ne disent pas quoi faire ; ces trois étapes, si.
+-->
+@if (firstRun()) {
+  <section class="first-run">
+    <div class="card first-run__intro">
+      <h2>Trois étapes pour démarrer</h2>
+      <p class="field-hint">
+        Ton cockpit s'allumera dès que tu suivras ton premier athlète — forme, charge et alertes
+        se remplissent tout seuls ensuite.
+      </p>
+    </div>
+
+    <ol class="first-run__steps">
+      <li class="card first-run__step">
+        <span class="first-run__num" aria-hidden="true">1</span>
+        <div class="first-run__body">
+          <strong>Crée ton premier athlète</strong>
+          <p class="field-hint">Nom, discipline, et c'est parti. Tu pourras l'inviter par e-mail juste après.</p>
+        </div>
+        <a class="btn btn-primary" routerLink="/app/athletes/new">Créer un athlète</a>
+      </li>
+
+      <li class="card first-run__step">
+        <span class="first-run__num" aria-hidden="true">2</span>
+        <div class="first-run__body">
+          <strong>Renseigne son profil physiologique</strong>
+          <p class="field-hint">VMA, FC max, allures de référence : c'est ce qui rend les zones et les cibles justes.</p>
+        </div>
+        <a class="btn btn-ghost" routerLink="/app/athletes">Ouvrir mes athlètes</a>
+      </li>
+
+      <li class="card first-run__step">
+        <span class="first-run__num" aria-hidden="true">3</span>
+        <div class="first-run__body">
+          <strong>Planifie sa première séance</strong>
+          <p class="field-hint">Depuis le calendrier, ou en partant d'une séance de la bibliothèque.</p>
+        </div>
+        <a class="btn btn-ghost" routerLink="/app/calendar">Ouvrir le calendrier</a>
+      </li>
+    </ol>
+  </section>
+} @else {
 
 <!-- ===== Zone 0 : alertes actionnables (pilotage par exception) ===== -->
 @if (alerts().length) {
@@ -153,16 +200,4 @@
     </section>
   }
 }
-
-<!-- Onboarding : utile tant qu'aucun athlète n'existe, pur bruit ensuite. -->
-@if (data(); as d) {
-  @if (d.activeAthletes === 0) {
-    <div class="card next-step card-interactive" routerLink="/app/athletes">
-      <div>
-        <h2>Gérer mes athlètes</h2>
-        <p class="field-hint">Crée tes athlètes, renseigne leur profil et invite-les par lien.</p>
-      </div>
-      <span class="btn btn-primary">Ouvrir →</span>
-    </div>
-  }
 }

@@ -25,6 +25,7 @@ public class UnavailabilityService {
 
     private final AthleteUnavailabilityRepository repository;
     private final AthleteRepository athleteRepository;
+    private final ClockService clock;
 
     public List<UnavailabilityResponse> list(UUID clubId, UUID athleteId) {
         return repository.findByClubIdAndAthleteIdOrderByStartDateDesc(clubId, athleteId)
@@ -33,7 +34,7 @@ public class UnavailabilityService {
 
     /** Indisponibilités en cours ou à venir (portail athlète). */
     public List<UnavailabilityResponse> current(UUID athleteId) {
-        return repository.findByAthleteIdAndEndDateGreaterThanEqualOrderByStartDateAsc(athleteId, LocalDate.now())
+        return repository.findByAthleteIdAndEndDateGreaterThanEqualOrderByStartDateAsc(athleteId, clock.today())
                 .stream().map(UnavailabilityResponse::from).toList();
     }
 

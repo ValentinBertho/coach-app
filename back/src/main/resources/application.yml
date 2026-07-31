@@ -61,6 +61,9 @@ springdoc:
 app:
   version: @project.version@
   frontend-url: ${FRONTEND_URL:http://localhost:4200}
+  # Fuseau métier (dates civiles : séance du jour, check-in, rappels, compte à rebours).
+  # Ne concerne pas le stockage des instants, qui reste en UTC (hibernate.jdbc.time_zone).
+  timezone: ${APP_TIMEZONE:Europe/Paris}
   cors:
     origins: ${CORS_ORIGINS:http://localhost:4200}
   security:

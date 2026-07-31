@@ -46,6 +46,7 @@ public class CoachDashboardService {
     private final AthleteLoadService loadService;
     private final AthleteFeedbackService feedbackService;
     private final ScheduledStrengthSessionRepository strengthRepository;
+    private final ClockService clock;
 
     /**
      * KPI du cockpit, restreints au périmètre choisi (all / mine / private / club) — comme la
@@ -53,7 +54,7 @@ public class CoachDashboardService {
      * forme, et les KPI continuaient de décrire tout le club.
      */
     public CoachDashboardResponse compute(UUID clubId, String scope, UUID coachId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = clock.today();
         LocalDate monday = today.with(DayOfWeek.MONDAY);
         LocalDate nextMonday = monday.plusWeeks(1);
 
@@ -77,7 +78,7 @@ public class CoachDashboardService {
         var races = raceRepository
                 .findTop5ByAthleteIdInAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(
                         ids, RaceObjectiveStatus.UPCOMING, today)
-                .stream().map(r -> RaceObjectiveResponse.from(r, displayName(r.getAthlete()))).toList();
+                .stream().map(r -> RaceObjectiveResponse.from(r, displayName(r.getAthlete()), today)).toList();
 
         return new CoachDashboardResponse(activeAthletes, pending, toReview, completedThisWeek, races);
     }
@@ -176,7 +177,7 @@ public class CoachDashboardService {
      * d'abord). Transforme le tableau de bord « descriptif » en outil de pilotage par exception.
      */
     public List<CoachAlertResponse> alerts(UUID clubId, String scope, UUID coachId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = clock.today();
         List<CoachAlertResponse> alerts = new ArrayList<>();
 
         for (Athlete a : athletesInScope(clubId, scope, coachId)) {
