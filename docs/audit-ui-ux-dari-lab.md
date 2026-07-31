@@ -12,7 +12,7 @@
 
 **Le produit est déjà au-dessus du marché sur la substance** (moteur physio, prévu/réalisé, course+force unifiées, coquille athlète). Il n'a **pas encore l'apparence ni la vitesse d'un outil premium**. Trois causes, toutes réparables :
 
-1. **Le calendrier ne se pilote pas au clavier ni au geste.** Pas de multi-sélection, pas de copier/coller, pas de sélection de plage. ✅ *Corrigé depuis : duplication de semaine et générateur de mésocycle réactivés, `Alt`+glisser = copier.*
+1. ~~**Le calendrier ne se pilote pas au clavier ni au geste.**~~ ✅ **Corrigé** : multi-sélection (clic, Cmd+clic, Maj+clic, rectangle), presse-papier `Cmd+C/V/D`, `Suppr`, pile d'annulation `Cmd+Z` / `Cmd+Maj+Z`, sélection de plage sur les jours vides, `Alt`+glisser = copier, duplication de semaine et mésocycle réactivés.
 2. **La boucle athlète fuit.** Seule la séance **du jour** est notable (`portal.today()`). ✅ *Corrigé depuis : toute séance non clôturée des 7 derniers jours est notable depuis Aujourd'hui (bandeau), l'agenda et l'historique.*
 3. **Le système visuel est bon mais pas tenu.** Deux palettes sémantiques concurrentes, quatre teals. ✅ *Corrigé depuis : glyphes texte remplacés par Lucide, skeletons partout, `--ink-4` conforme, polices auto-hébergées, plancher typo 11px. Reste ouvert : la fusion des deux palettes sémantiques et les quatre teals.*
 
@@ -73,20 +73,20 @@ Rien ici n'est structurel. Le socle est sain ; c'est un travail de **finition et
 - ✅ Menu contextuel clic droit (ouvrir / adapter / déplacer / dupliquer / supprimer) + équivalent tactile par appui long (`onChipPointerDown`). Les chips force ont désormais le même traitement.
 - ✅ Vue **groupe** (ligne athlète × 7 jours) et panneau bibliothèque latéral avec favoris / fréquentes / accordéons par catégorie.
 - 🔴 **Duplication de semaine et générateur de mésocycle sont désactivés** (`advancedPlanning = false`). Ce sont les deux gestes qui font gagner des heures. Un coach qui programme 40 athlètes sans « dupliquer la semaine » ne restera pas.
-- ⚠️ **Barre d'outils surchargée** : 2 groupes de segments + 1 select + 3 boutons de navigation + libellé de période + volume + 2 boutons d'action + toggle bibliothèque = jusqu'à 12 contrôles sur une ligne qui *wrap*. C'est le premier écran, il donne une impression d'usine à gaz.
+- ✅ **Barre d'outils condensée** *(livré)* : `[Athlète ▾] [◀ période ▶] [Aujourd'hui]` à gauche ; menu « Vue » (périmètre, prévu/réalisé, semaine/mois, bibliothèque), menu « Actions », annuler/rétablir et `?` à droite. Six éléments visibles au lieu de douze.
 - ⚠️ **Le mode Groupe est une impasse** : pas de bibliothèque (donc **impossible de planifier**, seulement de déplacer), pas de vue mois, pas de totaux, pas de bannière lecture seule. On peut regarder, pas travailler.
-- ⚠️ Le sélecteur d'athlète est un `<select>` natif. Avec 100 athlètes, c'est inutilisable — alors qu'un excellent switcher filtrable existe déjà dans la coquille athlète.
+- ✅ **Switcher d'athlète filtrable** *(livré)* : `<app-athlete-switcher>`, extrait de la coquille athlète et partagé.
 - ⚠️ Le picker « + » d'un jour liste **tous** les modèles, sans recherche ni catégorie ni favoris — pendant que le panneau latéral, lui, fait tout ça. Deux UX pour le même besoin.
 - ⚠️ Le « + » pointillé est affiché en permanence sur les 7 jours : 7 éléments de bruit visuel dans une grille qui doit se lire d'un coup d'œil.
-- ⚠️ Clavier limité à `←` `→` `T`. Aucun `Cmd+Z`, aucun `N`, aucun `W`/`M`.
+- ✅ **Clavier complet** *(livré)* : navigation (`←` `→` `T` `W` `M` `B`), sélection (`Cmd+A`, `Échap`), édition (`Cmd+C/V/D`, `Suppr`, `N`), annulation (`Cmd+Z`, `Cmd+Maj+Z`), et `?` pour l'aide-mémoire.
 - 💡 **Condenser la barre** : `[Athlète ▾] [◀ Sem. 31 ▶] [Aujourd'hui]` à gauche ; tout le reste (Prévu/Réalisé, Semaine/Mois, Bibliothèque, Dupliquer, Mésocycle) dans un menu « Vue » + une barre d'actions à droite.
 - 💡 Réutiliser `<app-session-library-panel>` dans le picker « + » **et** en mode groupe.
 - 💡 « + » révélé au survol de la colonne (conservé en permanence sur tactile).
 - 💡 Réactiver `advancedPlanning` (le code est écrit et testé) et ajouter au menu contextuel de la **colonne de totaux** : « Dupliquer cette semaine vers → », « Vider la semaine », « Décaler la semaine de ±1 j ».
-- ✨ **Multi-sélection + copier/coller.** `Shift`-clic pour sélectionner plusieurs chips, `Cmd+C` / `Cmd+V` sur un jour, `Cmd+D` pour dupliquer sur place, `Suppr` pour supprimer, `Cmd+Z` pour tout annuler. C'est *exactement* ce qui manque à Nolio et TrainingPeaks, et c'est ce qui transforme la programmation en travail de tableur.
+- ✅ **Multi-sélection + copier/coller** *(livré)*. Un lot copié depuis plusieurs jours se recolle en bloc, écarts de jour conservés.
 - ✨ **Alt+glisser = copier** (au lieu de déplacer), avec curseur `copy` et chip fantôme — un standard universel, coût faible.
 - ✨ **Peinture de semaine** : glisser un modèle sur l'en-tête « Lun » pour le planifier chez **tous** les athlètes du groupe affiché, avec un récapitulatif avant validation.
-- ✨ **Sélection de plage** (cliquer-glisser sur des jours vides) → « planifier 3 footings », « poser une indispo », « dupliquer ce bloc de 4 semaines ».
+- ✅ **Sélection de plage** *(livré)* : un rectangle qui n'attrape aucune chip désigne des jours → « planifier une séance sur ces jours », « vider ces jours ». Le sélecteur « + » accepte N jours. *Reste ouvert : poser une indispo sur la plage.*
 
 ## 2.3 Bibliothèque (Course / Prépa physique / Éducatifs)
 
@@ -279,9 +279,9 @@ Rien ici n'est structurel. Le socle est sain ; c'est un travail de **finition et
 | Lisibilité de la grille | **Très bonne** (zone-bar, densité, totaux UA) | bonne | dense/vieillissante | brute |
 | Aperçu de séance sans clic | **Oui** (barre de zones) | partiel | non | non |
 | Drag & drop + undo | **Oui** | oui, sans undo | oui | limité |
-| Duplication semaine/bloc | **désactivée** | oui | oui | oui |
-| Multi-athlètes | vue groupe **en lecture** | oui, éditable | oui | non |
-| Copier/coller clavier | non | non | partiel | non |
+| Duplication semaine/bloc | **Oui** (annulable) | oui | oui | oui |
+| Multi-athlètes | vue groupe **éditable** | oui, éditable | oui | non |
+| Copier/coller clavier | **Oui** (`Cmd+C/V/D`, `Cmd+Z`) | non | partiel | non |
 | Menu contextuel | **Oui** | non | non | non |
 
 → DARI Lab gagne déjà sur la **lecture**. Il perd sur la **production**. Les trois gestes qui inversent le rapport : duplication de semaine, copier/coller, planification de groupe.
@@ -302,13 +302,13 @@ Rien ici n'est structurel. Le socle est sain ; c'est un travail de **finition et
 |---|---|---|
 | Palette de commandes Cmd+K | ✅ présente | y ajouter des **actions** (planifier, créer, aller à la semaine du…), pas seulement de la navigation |
 | Recherche globale | ✅ athlètes, séances, écrans | ajouter courses, exercices, messages |
-| Undo | ⚠️ toast seulement | `Cmd+Z` global, pile d'annulation |
+| Undo | ✅ pile réelle `Cmd+Z` / `Cmd+Maj+Z` | l'étendre aux écrans hors calendrier |
 | Auto-sauvegarde | ❌ absente | éditeurs de séance (course + force) |
 | Duplication en un clic | ✅ modèle, bloc — ❌ semaine | réactiver `advancedPlanning` |
 | Drag & drop | ✅ excellent | ajouter `Alt` = copier, drag multi-chips |
-| Multi-sélection / actions groupées | ❌ | calendrier, bibliothèque, file de retours |
+| Multi-sélection / actions groupées | ⚠️ calendrier fait | reste bibliothèque et file de retours |
 | Menus contextuels | ✅ séances course + force | étendre aux jours, semaines, athlètes, modèles |
-| Raccourcis clavier | ⚠️ `←` `→` `T`, `Cmd+K` | `N`, `Cmd+Z/C/V/D`, `G`+lettre, `?` = aide |
+| Raccourcis clavier | ✅ calendrier complet + `?` = aide | reste `G`+lettre global |
 | Skeleton loaders | ⚠️ 24 oui / 26 non | généraliser |
 | États vides | ✅ soignés, avec CTA | ajouter aux écrans admin |
 | Tooltips utiles | ✅ nombreux | ne pas y cacher d'information nécessaire (CR10 du RPE) |
@@ -317,7 +317,7 @@ Rien ici n'est structurel. Le socle est sain ; c'est un travail de **finition et
 | Vues personnalisées | ❌ | filtres calendrier sauvegardables |
 | Notifications | ✅ cloche, push, badges | actions rapides dans la notification push |
 | Confirmations intelligentes | ✅ `ConfirmService`, jamais `confirm()` | remplacer certaines par un undo (plus rapide) |
-| Copier/coller intelligent | ❌ | séance, semaine, bloc |
+| Copier/coller intelligent | ✅ séance, lot, semaine | reste le bloc d'éditeur |
 | Favoris | ⚠️ calendrier seulement | remonter dans la bibliothèque |
 
 ---
@@ -362,17 +362,17 @@ Rien ici n'est structurel. Le socle est sain ; c'est un travail de **finition et
 10. [x] Le picker « + » **est** le panneau bibliothèque, disponible aussi en mode Groupe.
 
 ### Impact énorme / gros chantier
-11. **Multi-sélection + copier/coller/undo global au calendrier** (`Shift`-clic, `Cmd+C/V/D/Z`, `Suppr`).
-12. **Mode Groupe pleinement éditable** : bibliothèque, planification en ligne, « peindre » une séance sur toute une ligne de jour.
+11. [x] **Multi-sélection + copier/coller/undo global au calendrier** (`Shift`-clic, `Cmd+C/V/D/Z`, `Suppr`).
+12. ⚠️ **Mode Groupe pleinement éditable** : bibliothèque et planification par dépôt livrées ; reste « peindre » une séance sur toute une ligne de jour.
 13. **Mode séance plein écran côté athlète** pour la force (un exercice à la fois, gros chiffres, `±2,5 kg`).
 14. **Assistant d'onboarding coach** (athlète → chrono → plan type → invitation) + bibliothèque de 30 séances pré-remplies.
 15. **Vue club « heatmap de charge »** (athlètes × semaines, coloré par ACWR).
 16. **Palette de commandes actionnable** (Raycast-like) : planifier, dupliquer, créer, naviguer.
 
 ### Amélioration de confort
-17. Condenser la barre d'outils du calendrier (menu « Vue »).
+17. [x] Condenser la barre d'outils du calendrier (menu « Vue »).
 18. Aperçu au survol dans la bibliothèque ; favoris + tri + actions groupées.
-19. Switcher d'athlète filtrable partout (remplacer les `<select>` natifs).
+19. ⚠️ Switcher d'athlète filtrable : composant partagé livré et posé au calendrier ; reste à remplacer les `<select>` natifs des autres écrans.
 20. Sous-navigation dans Paramètres ; unification des trois taxonomies.
 21. « Activités » dans les onglets de la fiche athlète.
 22. Diff avant resync des zones ; création de zone + règles en un seul geste.
@@ -452,9 +452,14 @@ La coquille athlète, le cockpit par exception, l'éditeur en blocs, la barre de
 | Lot | État |
 |---|---|
 | **Impact énorme / faible effort** (§6, 10 points) | ✅ **Livré** — un commit atomique par point |
-| Impact énorme / gros chantier (11 → 16) | ⬜ Ouvert |
+| **Gros chantier — calendrier** (§6 n°11, §7 mois 1) | ✅ **Livré** : multi-sélection, presse-papier, pile d'annulation, sélection de plage, menu de semaine, barre d'outils condensée, switcher filtrable |
+| Gros chantier — reste (12 → 16) | ⬜ Ouvert |
 | Amélioration de confort (17 → 23) | ⬜ Ouvert |
 | Idées premium (24 → 30) | ⬜ Ouvert |
+
+**Reste explicitement ouvert au calendrier**, hors du chantier livré : la « peinture de
+semaine » (glisser un modèle sur un en-tête de jour pour l'appliquer à tout un groupe), la
+pose d'indisponibilité depuis une plage de jours, et la vue mois en mode Groupe.
 
 **Reste explicitement ouvert dans le périmètre visuel**, hors du lot « faible effort » :
 la fusion des deux palettes sémantiques (`--zone-*` vs `--dari-*`, les quatre teals), la
