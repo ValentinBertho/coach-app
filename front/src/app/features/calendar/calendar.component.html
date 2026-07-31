@@ -64,18 +64,18 @@
 
   @if (mode() === 'week' && scopeMode() === 'athlete') {
     <span class="volume metric">{{ weeklyVolumeKm() }} km prévus</span>
-    @if (advancedPlanning) {
-      <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="duplicateWeek()"
-              [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
-              title="Copier cette semaine vers la suivante">
-        <app-icon name="copy" [size]="15" /> Dupliquer la semaine
-      </button>
-      <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="toggleMeso()"
-              [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
-              title="Générer un mésocycle progressif">
-        <app-icon name="trending-up" [size]="15" /> Mésocycle
-      </button>
-    }
+    <!-- Les deux accélérateurs qui font gagner des heures : programmer 40 athlètes séance par
+         séance n'est pas tenable. Le geste reste réversible (les séances copiées se suppriment). -->
+    <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="duplicateWeek()"
+            [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
+            title="Copier cette semaine vers la suivante">
+      <app-icon name="copy" [size]="15" /> Dupliquer la semaine
+    </button>
+    <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="toggleMeso()"
+            [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
+            title="Générer un mésocycle progressif">
+      <app-icon name="trending-up" [size]="15" /> Mésocycle
+    </button>
   }
 
   @if (scopeMode() === 'athlete') {
@@ -92,7 +92,7 @@
   </div>
 }
 
-@if (advancedPlanning && showMeso() && mode() === 'week') {
+@if (showMeso() && mode() === 'week') {
   <section class="card meso-panel">
     <h2>Générer un mésocycle</h2>
     <p class="field-hint">À partir de la semaine affichée (semaine type), génère les semaines suivantes avec une montée de charge progressive et des décharges.</p>

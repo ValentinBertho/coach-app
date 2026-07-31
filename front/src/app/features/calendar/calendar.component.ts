@@ -165,8 +165,6 @@ export class CalendarComponent implements OnInit, OnDestroy {
   readonly view = signal<CalView>('both');
   readonly showPlanned = computed(() => this.view() !== 'realized');
   readonly showRealized = computed(() => this.view() !== 'planned');
-  /** Actions de planification avancées (duplication de semaine, mésocycle) — masquées pour l'instant. */
-  readonly advancedPlanning = false;
   readonly anchor = signal<Date>(new Date());
   readonly workouts = signal<Workout[]>([]);
   readonly activities = signal<Activity[]>([]);
