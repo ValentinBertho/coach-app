@@ -12,6 +12,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 import {
   ACTIVITY_STATUS_BADGE, ACTIVITY_STATUS_LABELS, Activity,
 } from '../../core/models/activity.model';
+import { formatPace, paceFrom } from '../../core/utils/pace';
 
 /**
  * Mes activités réalisées (athlète, lecture seule) — liste + tracé GPS (Leaflet).
@@ -62,7 +63,13 @@ import {
       } @else if (activities().length === 0) {
         <div class="card empty">
           <h2>Aucune activité</h2>
-          <p class="field-hint">Ajoute une sortie, importe un GPX, ou connecte Strava/Garmin (via ton coach) — tes sorties apparaîtront ici.</p>
+          <p class="field-hint">
+            Ajoute une sortie à la main, importe un fichier GPX, ou connecte ta montre :
+            tes sorties remonteront ensuite toutes seules.
+          </p>
+          <a routerLink="/athlete/sync" class="btn btn-primary btn-sm">
+            <app-icon name="zap" [size]="15" /> Connecter Strava
+          </a>
         </div>
       } @else {
         @for (a of activities(); track a.id) {
@@ -80,6 +87,9 @@ import {
               }
               @if (a.durationS != null) {
                 <span><app-icon name="timer" [size]="14" /> {{ fmtDuration(a.durationS) }}</span>
+              }
+              @if (pace(a); as p) {
+                <span><app-icon name="gauge" [size]="14" /> {{ p }} /km</span>
               }
               @if (a.elevationGainM != null) {
                 <span><app-icon name="mountain" [size]="14" /> {{ a.elevationGainM }} m D+</span>
@@ -105,7 +115,7 @@ import {
     .acts-top { display: flex; flex-direction: column; gap: var(--sp-1); align-items: flex-start; }
     .acts-top h1 { margin: 0; }
     .subtitle { color: var(--ink-3); margin: 0; }
-    .empty { text-align: center; }
+    .empty { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
     .acts-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
     .log-form { display: flex; flex-direction: column; gap: var(--sp-3); }
     .lf-row { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
@@ -227,6 +237,11 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
     return h > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${m} min`;
+  }
+
+  /** Allure moyenne « m'ss » de la sortie, ou `null` si distance ou durée manquent. */
+  pace(a: Activity): string | null {
+    return formatPace(a.paceSPerKm) ?? paceFrom(a.distanceM, a.durationS);
   }
 
   statusLabel(s: Activity['status']): string { return ACTIVITY_STATUS_LABELS[s]; }

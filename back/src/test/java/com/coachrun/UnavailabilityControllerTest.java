@@ -78,6 +78,71 @@ class UnavailabilityControllerTest {
                 .andExpect(status().isNoContent());
     }
 
+    /**
+     * L'athlète déclare lui-même son indisponibilité : jusqu'ici seul le coach pouvait la saisir,
+     * et l'athlète devait le prévenir par un autre canal.
+     */
+    @Test
+    void athleteDeclaresAndRemovesOwnUnavailability() throws Exception {
+        String from = java.time.LocalDate.now().toString();
+        String to = java.time.LocalDate.now().plusDays(10).toString();
+
+        String id = objectMapper.readTree(mvc.perform(post("/me/unavailabilities")
+                        .header("Authorization", athleteBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"startDate\":\"" + from + "\",\"endDate\":\"" + to
+                                + "\",\"reason\":\"INJURY\",\"notes\":\"Mollet\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        // Elle apparaît côté athlète…
+        JsonNode mine = objectMapper.readTree(mvc.perform(get("/me/unavailabilities")
+                        .header("Authorization", athleteBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(mine).anyMatch(u -> u.get("reason").asText().equals("INJURY"));
+
+        // …et côté coach, qui doit pouvoir replanifier la semaine.
+        JsonNode coachView = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/{a}/unavailabilities", clubId, athleteId)
+                                .header("Authorization", coachBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(coachView).anyMatch(u -> u.get("id").asText().equals(id));
+
+        mvc.perform(delete("/me/unavailabilities/{id}", id).header("Authorization", athleteBearer))
+                .andExpect(status().isNoContent());
+    }
+
+    /** Anti-IDOR : on ne supprime que ses propres indisponibilités. */
+    @Test
+    void athleteCannotRemoveSomeoneElsesUnavailability() throws Exception {
+        String otherAthleteId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes", clubId)
+                        .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"Autre\",\"lastName\":\"Athlète\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+        String from = java.time.LocalDate.now().toString();
+        String id = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/unavailabilities", clubId, otherAthleteId)
+                                .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"startDate\":\"" + from + "\",\"endDate\":\"" + from
+                                        + "\",\"reason\":\"VACATION\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        mvc.perform(delete("/me/unavailabilities/{id}", id).header("Authorization", athleteBearer))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void athleteDeclarationRejectsEndBeforeStart() throws Exception {
+        String from = java.time.LocalDate.now().toString();
+        String to = java.time.LocalDate.now().minusDays(1).toString();
+        mvc.perform(post("/me/unavailabilities")
+                        .header("Authorization", athleteBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"startDate\":\"" + from + "\",\"endDate\":\"" + to
+                                + "\",\"reason\":\"OTHER\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     void rejectsEndBeforeStart() throws Exception {
         String from = java.time.LocalDate.now().toString();

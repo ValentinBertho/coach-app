@@ -26,6 +26,7 @@ public class UnavailabilityService {
     private final AthleteUnavailabilityRepository repository;
     private final AthleteRepository athleteRepository;
     private final ClockService clock;
+    private final NotificationService notificationService;
 
     public List<UnavailabilityResponse> list(UUID clubId, UUID athleteId) {
         return repository.findByClubIdAndAthleteIdOrderByStartDateDesc(clubId, athleteId)
@@ -47,6 +48,33 @@ public class UnavailabilityService {
         u.setAthlete(athlete);
         apply(u, req);
         return UnavailabilityResponse.from(repository.save(u));
+    }
+
+    /**
+     * L'athlète déclare lui-même une indisponibilité depuis son portail. Le coach référent est
+     * prévenu : une blessure déclarée que personne ne lit ne sert à rien, et c'est l'information
+     * qui doit faire replanifier la semaine.
+     */
+    @Transactional
+    public UnavailabilityResponse createForAthlete(UUID athleteId, UnavailabilityRequest req) {
+        Athlete athlete = athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        AthleteUnavailability u = new AthleteUnavailability();
+        u.setClub(athlete.getClub());
+        u.setAthlete(athlete);
+        apply(u, req);
+        UnavailabilityResponse saved = UnavailabilityResponse.from(repository.save(u));
+        notificationService.notifyAthleteUnavailability(athlete, u);
+        return saved;
+    }
+
+    /** Suppression par l'athlète : garde-fou anti-IDOR sur la propriété de l'indisponibilité. */
+    @Transactional
+    public void deleteForAthlete(UUID athleteId, UUID id) {
+        AthleteUnavailability u = repository.findById(id)
+                .filter(x -> x.getAthlete().getId().equals(athleteId))
+                .orElseThrow(() -> new NotFoundException("Indisponibilité introuvable."));
+        repository.delete(u);
     }
 
     @Transactional

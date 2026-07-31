@@ -4,7 +4,7 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { RaceObjective, RaceObjectiveRequest } from '../models/race.model';
 import { WorkoutPrescription } from '../models/course.model';
-import { Unavailability } from '../models/unavailability.model';
+import { Unavailability, UnavailabilityRequest } from '../models/unavailability.model';
 import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
 import { Activity } from '../models/activity.model';
 import { Analytics } from './analytics.service';
@@ -181,6 +181,16 @@ export class AthletePortalService {
   /** Mes indisponibilités (en cours/à venir). */
   unavailabilities(): Observable<Unavailability[]> {
     return this.http.get<Unavailability[]>(`${this.base}/unavailabilities`);
+  }
+
+  /** Je déclare une indisponibilité — mon coach référent est notifié. */
+  declareUnavailability(request: UnavailabilityRequest): Observable<Unavailability> {
+    return this.http.post<Unavailability>(`${this.base}/unavailabilities`, request);
+  }
+
+  /** Je retire une indisponibilité que j'ai déclarée. */
+  removeUnavailability(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/unavailabilities/${id}`);
   }
 
   // --- Phase 1 « Me connaître » (lecture seule) ---

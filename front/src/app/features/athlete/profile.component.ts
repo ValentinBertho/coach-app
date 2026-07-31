@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -14,6 +15,9 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
 import { PhysioProfile, Performance, Vdot } from '../../core/models/physio.model';
 import { LactateTest } from '../../core/models/lactate.model';
 import { RaceObjective } from '../../core/models/race.model';
+import {
+  Unavailability, UnavailabilityReason, UnavailabilityRequest,
+} from '../../core/models/unavailability.model';
 
 interface TrendPoint { date: string; value: number; }
 interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
@@ -27,7 +31,7 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
   selector: 'app-athlete-profile',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, LogoComponent, IconComponent, DataOriginTagComponent, DatePipe, DecimalPipe,
+  imports: [RouterLink, FormsModule, LogoComponent, IconComponent, DataOriginTagComponent, DatePipe, DecimalPipe,
     InstallButtonComponent, PushButtonComponent],
   template: `
     <div class="shell">
@@ -200,6 +204,66 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
           }
         }
 
+        <!--
+          Déclarer une indisponibilité : jusqu'ici l'athlète pouvait la voir dans son calendrier
+          mais pas la créer — il devait prévenir son coach par un autre canal, qui la saisissait
+          à sa place. Le coach référent est notifié à la déclaration.
+        -->
+        <section class="card unavail">
+          <h2>Mes indisponibilités</h2>
+          <p class="field-hint">Blessure, maladie, vacances : préviens ton coach, il adaptera ta semaine.</p>
+
+          @if (unavailabilities().length > 0) {
+            <ul class="unavail-list">
+              @for (u of unavailabilities(); track u.id) {
+                <li>
+                  <span class="badge badge-warning">{{ reasonLabel(u.reason) }}</span>
+                  <div class="unavail-id">
+                    <strong>{{ u.startDate | date: 'd MMM' }} → {{ u.endDate | date: 'd MMM yyyy' }}</strong>
+                    @if (u.notes) { <span class="field-hint">{{ u.notes }}</span> }
+                  </div>
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="removeUnavailability(u)"
+                          aria-label="Retirer cette indisponibilité">
+                    <app-icon name="trash-2" [size]="15" />
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+
+          @if (showUnavailForm()) {
+            <form class="unavail-form" (ngSubmit)="submitUnavailability()">
+              <label>
+                Motif
+                <select class="form-control" [(ngModel)]="unavailDraft.reason" name="reason" required>
+                  @for (r of reasonOptions; track r.value) {
+                    <option [value]="r.value">{{ r.label }}</option>
+                  }
+                </select>
+              </label>
+              <div class="unavail-dates">
+                <label>Du<input type="date" class="form-control" [(ngModel)]="unavailDraft.startDate" name="start" required /></label>
+                <label>Au<input type="date" class="form-control" [(ngModel)]="unavailDraft.endDate" name="end" required /></label>
+              </div>
+              <label>
+                Commentaire <span class="field-hint">(facultatif)</span>
+                <input class="form-control" [(ngModel)]="unavailDraft.notes" name="notes"
+                       placeholder="Ex. reprise progressive prévue" />
+              </label>
+              <div class="unavail-actions">
+                <button type="submit" class="btn btn-primary btn-sm" [disabled]="unavailBusy()">
+                  {{ unavailBusy() ? 'Envoi…' : 'Déclarer' }}
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" (click)="showUnavailForm.set(false)">Annuler</button>
+              </div>
+            </form>
+          } @else {
+            <button type="button" class="btn btn-ghost btn-sm" (click)="openUnavailForm()">
+              <app-icon name="plus" [size]="15" /> Déclarer une indisponibilité
+            </button>
+          }
+        </section>
+
         <div class="card">
           <h2>Synchronisation</h2>
           <p class="field-hint">Connecte ta montre (Strava) pour importer tes activités automatiquement.</p>
@@ -237,6 +301,14 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
     .debrief-time label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .debrief-time__in { width: auto; min-height: 44px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
     .logout-btn { align-self: center; }
+    .unavail-list { list-style: none; margin: var(--sp-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+    .unavail-list li { display: flex; align-items: center; gap: var(--sp-2); }
+    .unavail-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .unavail-form { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-3); }
+    .unavail-form label { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); font-weight: 600; color: var(--ink-2); }
+    .unavail-dates { display: flex; gap: var(--sp-2); }
+    .unavail-dates label { flex: 1; min-width: 0; }
+    .unavail-actions { display: flex; gap: var(--sp-2); }
     .help-link__ic { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-lg); background: var(--gradient-brand, var(--primary)); color: #fff; }
     .help-link__txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
     .help-link__txt strong { color: var(--ink); }
@@ -300,6 +372,19 @@ export class AthleteProfileComponent implements OnInit {
   readonly vdot = signal<Vdot | null>(null);
   readonly races = signal<RaceObjective[] | null>(null);
   readonly performances = signal<Performance[]>([]);
+  readonly unavailabilities = signal<Unavailability[]>([]);
+  readonly showUnavailForm = signal(false);
+  readonly unavailBusy = signal(false);
+
+  /** Motifs proposés — la même liste fermée que côté coach (UnavailabilityReason). */
+  readonly reasonOptions: { value: UnavailabilityReason; label: string }[] = [
+    { value: 'INJURY', label: 'Blessure' },
+    { value: 'ILLNESS', label: 'Maladie' },
+    { value: 'VACATION', label: 'Vacances' },
+    { value: 'PERSONAL', label: 'Personnel' },
+  ];
+
+  unavailDraft: UnavailabilityRequest = this.emptyUnavailDraft();
   readonly lactateTests = signal<LactateTest[]>([]);
 
   /** Points VDOT datés (depuis les performances), ordonnés dans le temps. */
@@ -368,6 +453,70 @@ export class AthleteProfileComponent implements OnInit {
     this.notifications.preferences().subscribe({
       next: (p) => this.usualSessionTime.set(p.usualSessionTime ?? ''),
       error: () => this.usualSessionTime.set(''),
+    });
+    this.loadUnavailabilities();
+  }
+
+  // --- Indisponibilités déclarées par l'athlète ---------------------------------
+
+  private loadUnavailabilities(): void {
+    this.portal.unavailabilities().subscribe({
+      next: (u) => this.unavailabilities.set(u),
+      error: () => this.unavailabilities.set([]),
+    });
+  }
+
+  private emptyUnavailDraft(): UnavailabilityRequest {
+    const today = new Date().toISOString().slice(0, 10);
+    return { startDate: today, endDate: today, reason: 'INJURY', notes: '' };
+  }
+
+  openUnavailForm(): void {
+    this.unavailDraft = this.emptyUnavailDraft();
+    this.showUnavailForm.set(true);
+  }
+
+  reasonLabel(reason: UnavailabilityReason): string {
+    return this.reasonOptions.find((o) => o.value === reason)?.label ?? 'Autre';
+  }
+
+  submitUnavailability(): void {
+    const draft = this.unavailDraft;
+    if (!draft.startDate || !draft.endDate) {
+      this.toast.error('Renseigne les deux dates.');
+      return;
+    }
+    if (draft.endDate < draft.startDate) {
+      this.toast.error('La date de fin précède la date de début.');
+      return;
+    }
+    this.unavailBusy.set(true);
+    this.portal.declareUnavailability({ ...draft, notes: draft.notes?.trim() || null }).subscribe({
+      next: () => {
+        this.toast.success('Indisponibilité déclarée, ton coach est prévenu.');
+        this.showUnavailForm.set(false);
+        this.unavailBusy.set(false);
+        this.loadUnavailabilities();
+      },
+      error: () => this.unavailBusy.set(false),
+    });
+  }
+
+  async removeUnavailability(u: Unavailability): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Retirer cette indisponibilité ?',
+      message: 'Ton coach pourra de nouveau planifier des séances sur cette période.',
+      confirmLabel: 'Retirer',
+      danger: true,
+    });
+    if (!ok) {
+      return;
+    }
+    this.portal.removeUnavailability(u.id).subscribe({
+      next: () => {
+        this.toast.success('Indisponibilité retirée.');
+        this.loadUnavailabilities();
+      },
     });
   }
 

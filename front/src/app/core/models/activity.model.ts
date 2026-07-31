@@ -11,6 +11,8 @@ export interface Activity {
   durationS: number | null;
   avgHr: number | null;
   elevationGainM: number | null;
+  /** Allure moyenne en secondes par kilomètre (calculée backend). */
+  paceSPerKm: number | null;
   status: ActivityStatus;
   matchedWorkoutId: string | null;
   distanceDeltaM: number | null;

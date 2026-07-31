@@ -457,6 +457,23 @@ public class AthletePortalController {
         return unavailabilityService.current(principal.athleteId());
     }
 
+    /** Je déclare une indisponibilité (blessure, maladie, vacances…) — mon coach est prévenu. */
+    @PostMapping("/unavailabilities")
+    @ResponseStatus(HttpStatus.CREATED)
+    public com.coachrun.dto.response.UnavailabilityResponse declareUnavailability(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody com.coachrun.dto.request.UnavailabilityRequest request) {
+        return unavailabilityService.createForAthlete(principal.athleteId(), request);
+    }
+
+    /** Je retire une indisponibilité que j'ai déclarée. */
+    @DeleteMapping("/unavailabilities/{unavailabilityId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeUnavailability(@AuthenticationPrincipal AuthPrincipal principal,
+                                     @PathVariable UUID unavailabilityId) {
+        unavailabilityService.deleteForAthlete(principal.athleteId(), unavailabilityId);
+    }
+
     /** RGPD — portabilité : export des données personnelles de l'athlète. */
     @GetMapping("/export")
     public AthleteExportResponse export(@AuthenticationPrincipal AuthPrincipal principal) {
