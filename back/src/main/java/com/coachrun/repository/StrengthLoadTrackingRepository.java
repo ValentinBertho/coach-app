@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface StrengthLoadTrackingRepository extends JpaRepository<StrengthLoadTracking, UUID> {
@@ -13,4 +14,7 @@ public interface StrengthLoadTrackingRepository extends JpaRepository<StrengthLo
             UUID athleteId, LocalDate from, LocalDate to);
 
     List<StrengthLoadTracking> findByAthleteIdOrderBySessionDateAsc(UUID athleteId);
+
+    /** Première séance de force chargée : borne l'historique disponible pour l'ACWR. */
+    Optional<StrengthLoadTracking> findFirstByAthleteIdOrderBySessionDateAsc(UUID athleteId);
 }

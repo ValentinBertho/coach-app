@@ -7,7 +7,9 @@ import {
   ACTIVITY_STATUS_LABELS,
   Activity,
 } from '../../core/models/activity.model';
+import { Workout } from '../../core/models/workout.model';
 import { ActivityService } from '../../core/services/activity.service';
+import { WorkoutService } from '../../core/services/workout.service';
 import { ToastService } from '../../core/services/toast.service';
 import { TimeInZoneBarComponent } from '../../shared/components/time-in-zone-bar/time-in-zone-bar.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
@@ -25,6 +27,7 @@ export class ActivityListComponent implements OnInit {
 
   private readonly fb = inject(FormBuilder);
   private readonly activityService = inject(ActivityService);
+  private readonly workoutService = inject(WorkoutService);
   private readonly toast = inject(ToastService);
 
   readonly statusLabels = ACTIVITY_STATUS_LABELS;
@@ -35,6 +38,17 @@ export class ActivityListComponent implements OnInit {
   readonly submitting = signal(false);
   /** Id de l'activité dont la barre temps-en-zone est dépliée (une à la fois). */
   readonly zonesOpen = signal<string | null>(null);
+  /** Id de l'activité dont le sélecteur de rapprochement manuel est ouvert. */
+  readonly matchOpen = signal<string | null>(null);
+  readonly matchCandidates = signal<Workout[]>([]);
+
+  /**
+   * L'activité porte-t-elle un tracé et un flux exploitables ? Depuis l'import Strava complet,
+   * ce n'est plus le seul privilège des fichiers déposés à la main.
+   */
+  hasDetail(a: Activity): boolean {
+    return a.source === 'FILE' || a.source === 'STRAVA';
+  }
 
   toggleZones(id: string): void {
     this.zonesOpen.update((cur) => (cur === id ? null : id));
@@ -96,6 +110,36 @@ export class ActivityListComponent implements OnInit {
     });
   }
 
+  /** Ouvre le sélecteur de rapprochement : séances planifiées à ±3 jours de la sortie. */
+  openMatch(a: Activity): void {
+    if (this.matchOpen() === a.id) {
+      this.matchOpen.set(null);
+      return;
+    }
+    this.matchOpen.set(a.id);
+    this.matchCandidates.set([]);
+    this.workoutService
+      .calendar(this.athleteId(), shiftDate(a.activityDate, -3), shiftDate(a.activityDate, 3))
+      .subscribe({
+        next: (ws) => this.matchCandidates.set(ws.filter((w) => w.status === 'PLANNED')),
+        error: () => this.matchCandidates.set([]),
+      });
+  }
+
+  /** Rattache l'activité à la séance choisie. L'algorithme se trompe : le coach tranche. */
+  confirmMatch(a: Activity, workoutId: string): void {
+    if (!workoutId) {
+      return;
+    }
+    this.activityService.match(this.athleteId(), a.id, workoutId).subscribe({
+      next: () => {
+        this.toast.success('Sortie rattachée à la séance.');
+        this.matchOpen.set(null);
+        this.load();
+      },
+    });
+  }
+
   unmatch(a: Activity): void {
     this.activityService.unmatch(this.athleteId(), a.id).subscribe({
       next: () => {
@@ -114,4 +158,11 @@ export class ActivityListComponent implements OnInit {
     const sign = m > 0 ? '+' : '';
     return `${sign}${(m / 1000).toFixed(1)} km`;
   }
+}
+
+/** Date ISO décalée de `days` jours (bornes du sélecteur de rapprochement). */
+function shiftDate(iso: string, days: number): string {
+  const d = new Date(iso);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
 }

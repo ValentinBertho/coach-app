@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, viewChild } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
@@ -10,6 +11,7 @@ import {
   awaitsFeedback,
   needsFeedback,
 } from '../../core/models/workout.model';
+import { WeekSummary } from '../../core/models/activity.model';
 import { AthletePortalService, FeedbackPrompt } from '../../core/services/athlete-portal.service';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { WorkoutPrescription } from '../../core/models/course.model';
@@ -41,7 +43,7 @@ type State = 'loading' | 'ready' | 'error';
   selector: 'app-today',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink,
+  imports: [DecimalPipe, IconComponent, RouterLink,
     LogoComponent, OfflineBannerComponent, NotificationBellComponent,
     IntensityZoneBadgeComponent, WorkoutFeedbackSheetComponent,
     CoursePrescriptionViewComponent, MorningCheckInComponent, HelpHintComponent,
@@ -90,10 +92,26 @@ export class TodayComponent implements OnInit {
     return (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '');
   }
 
+  /** Récapitulatif de la semaine en cours : « 32/45 km, 3 séances sur 5 ». */
+  readonly week = signal<WeekSummary | null>(null);
+
+  /** Part du volume hebdomadaire déjà couverte, plafonnée à 100 %. */
+  readonly weekPct = computed(() => {
+    const w = this.week();
+    if (!w || w.plannedKm <= 0) {
+      return w && w.realizedKm > 0 ? 100 : 0;
+    }
+    return Math.max(0, Math.min(100, Math.round((w.realizedKm / w.plannedKm) * 100)));
+  });
+
   ngOnInit(): void {
     this.load();
     this.loadPending();
     this.loadStrength();
+    this.portal.weekSummary().subscribe({
+      next: (w) => this.week.set(w),
+      error: () => this.week.set(null),
+    });
     this.portal.nextRace().subscribe({ next: (r) => this.nextRace.set(r) });
     this.portal.vdot().subscribe({
       next: (v) => this.hasPaces.set((v.paces?.length ?? 0) > 0),

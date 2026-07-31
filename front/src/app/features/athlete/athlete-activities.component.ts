@@ -12,6 +12,8 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 import {
   ACTIVITY_STATUS_BADGE, ACTIVITY_STATUS_LABELS, Activity,
 } from '../../core/models/activity.model';
+import { formatPace, paceFrom } from '../../core/utils/pace';
+import { TimeInZoneBarComponent } from '../../shared/components/time-in-zone-bar/time-in-zone-bar.component';
 
 /**
  * Mes activités réalisées (athlète, lecture seule) — liste + tracé GPS (Leaflet).
@@ -21,7 +23,7 @@ import {
   selector: 'app-athlete-activities',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, IconComponent],
+  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, IconComponent, TimeInZoneBarComponent],
   template: `
     <div class="acts">
       <header class="acts-top">
@@ -62,7 +64,13 @@ import {
       } @else if (activities().length === 0) {
         <div class="card empty">
           <h2>Aucune activité</h2>
-          <p class="field-hint">Ajoute une sortie, importe un GPX, ou connecte Strava/Garmin (via ton coach) — tes sorties apparaîtront ici.</p>
+          <p class="field-hint">
+            Ajoute une sortie à la main, importe un fichier GPX, ou connecte ta montre :
+            tes sorties remonteront ensuite toutes seules.
+          </p>
+          <a routerLink="/athlete/sync" class="btn btn-primary btn-sm">
+            <app-icon name="zap" [size]="15" /> Connecter Strava
+          </a>
         </div>
       } @else {
         @for (a of activities(); track a.id) {
@@ -81,11 +89,23 @@ import {
               @if (a.durationS != null) {
                 <span><app-icon name="timer" [size]="14" /> {{ fmtDuration(a.durationS) }}</span>
               }
+              @if (pace(a); as p) {
+                <span><app-icon name="gauge" [size]="14" /> {{ p }} /km</span>
+              }
               @if (a.elevationGainM != null) {
                 <span><app-icon name="mountain" [size]="14" /> {{ a.elevationGainM }} m D+</span>
               }
               @if (a.avgHr != null) {
                 <span><app-icon name="heart-pulse" [size]="14" /> {{ a.avgHr }} bpm</span>
+              }
+              @if (a.maxHr != null) {
+                <span><app-icon name="flame" [size]="14" /> {{ a.maxHr }} bpm max</span>
+              }
+              @if (a.avgCadence != null) {
+                <span><app-icon name="activity" [size]="14" /> {{ a.avgCadence }} ppm</span>
+              }
+              @if (a.avgPowerW != null) {
+                <span><app-icon name="zap" [size]="14" /> {{ a.avgPowerW }} W</span>
               }
             </div>
             @if (selected() === a.id) {
@@ -94,6 +114,11 @@ import {
               } @else {
                 <div class="map" #map></div>
               }
+              <!-- Temps en zone : le coach l'avait déjà, l'athlète le voit enfin sur ses propres
+                   sorties (l'endpoint /me/ manquait, le composant existait). -->
+              <div class="row-zones">
+                <app-time-in-zone-bar [activityId]="a.id" />
+              </div>
             }
           </article>
         }
@@ -105,7 +130,7 @@ import {
     .acts-top { display: flex; flex-direction: column; gap: var(--sp-1); align-items: flex-start; }
     .acts-top h1 { margin: 0; }
     .subtitle { color: var(--ink-3); margin: 0; }
-    .empty { text-align: center; }
+    .empty { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
     .acts-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
     .log-form { display: flex; flex-direction: column; gap: var(--sp-3); }
     .lf-row { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
@@ -119,6 +144,7 @@ import {
     .row-kpis span { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
     .map { height: 260px; width: 100%; }
     .map-empty { padding: 0 var(--sp-4) var(--sp-4); }
+    .row-zones { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--hairline); }
   `],
 })
 export class AthleteActivitiesComponent implements OnInit, OnDestroy {
@@ -227,6 +253,11 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
     return h > 0 ? `${h}h${m.toString().padStart(2, '0')}` : `${m} min`;
+  }
+
+  /** Allure moyenne « m'ss » de la sortie, ou `null` si distance ou durée manquent. */
+  pace(a: Activity): string | null {
+    return formatPace(a.paceSPerKm) ?? paceFrom(a.distanceM, a.durationS);
   }
 
   statusLabel(s: Activity['status']): string { return ACTIVITY_STATUS_LABELS[s]; }

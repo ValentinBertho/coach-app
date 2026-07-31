@@ -27,12 +27,24 @@ class AthleteControllerTest {
     private WebApplicationContext context;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private com.coachrun.repository.UserRepository userRepository;
 
     private MockMvc mockMvc() {
         return MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     }
 
     private record Coach(String token, String clubId) {
+    }
+
+    /** Confirme l'adresse du coach (le jeton de vérification n'est pas exposé par l'API). */
+    private void verifyEmailOf(Coach coach) {
+        com.coachrun.entity.User user = userRepository.findAll().stream()
+                .filter(u -> coach.clubId().equals(
+                        u.getClub() != null ? u.getClub().getId().toString() : null))
+                .findFirst().orElseThrow();
+        user.setEmailVerified(true);
+        userRepository.saveAndFlush(user);
     }
 
     private Coach registerCoach(MockMvc mvc, String email) throws Exception {
@@ -73,7 +85,14 @@ class AthleteControllerTest {
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].lastName").value("Durand"));
 
-        // invitation
+        // Inviter, c'est envoyer un e-mail à un tiers : tant que l'adresse du coach n'est pas
+        // vérifiée, c'est refusé (le reste de l'application lui reste ouvert).
+        mvc.perform(post("/clubs/{c}/athletes/{a}/invitation", coach.clubId(), athleteId)
+                        .header("Authorization", "Bearer " + coach.token()))
+                .andExpect(status().isForbidden());
+
+        verifyEmailOf(coach);
+
         mvc.perform(post("/clubs/{c}/athletes/{a}/invitation", coach.clubId(), athleteId)
                         .header("Authorization", "Bearer " + coach.token()))
                 .andExpect(status().isOk())

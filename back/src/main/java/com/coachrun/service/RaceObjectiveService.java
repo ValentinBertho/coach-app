@@ -25,6 +25,7 @@ public class RaceObjectiveService {
 
     private final RaceObjectiveRepository raceRepository;
     private final AthleteRepository athleteRepository;
+    private final ClockService clock;
 
     /** Liste complète de mes objectifs — variante athlète-scopée (portail /me). */
     public List<RaceObjectiveResponse> listForAthlete(UUID athleteId) {
@@ -35,7 +36,7 @@ public class RaceObjectiveService {
 
     public List<RaceObjectiveResponse> list(UUID clubId, UUID athleteId) {
         return raceRepository.findByClubIdAndAthleteIdOrderByRaceDateAsc(clubId, athleteId)
-                .stream().map(RaceObjectiveResponse::from).toList();
+                .stream().map(r -> RaceObjectiveResponse.from(r, clock.today())).toList();
     }
 
     @Transactional
@@ -46,14 +47,14 @@ public class RaceObjectiveService {
         race.setClub(athlete.getClub());
         race.setAthlete(athlete);
         apply(race, request);
-        return RaceObjectiveResponse.from(raceRepository.save(race));
+        return RaceObjectiveResponse.from(raceRepository.save(race), clock.today());
     }
 
     @Transactional
     public RaceObjectiveResponse update(UUID clubId, UUID raceId, RaceObjectiveRequest request) {
         RaceObjective race = require(clubId, raceId);
         apply(race, request);
-        return RaceObjectiveResponse.from(race);
+        return RaceObjectiveResponse.from(race, clock.today());
     }
 
     @Transactional
@@ -74,7 +75,7 @@ public class RaceObjectiveService {
     public RaceObjectiveResponse updateForAthlete(UUID athleteId, UUID raceId, RaceObjectiveRequest request) {
         RaceObjective race = requireForAthlete(athleteId, raceId);
         apply(race, request);
-        return RaceObjectiveResponse.from(race);
+        return RaceObjectiveResponse.from(race, clock.today());
     }
 
     @Transactional
@@ -92,8 +93,8 @@ public class RaceObjectiveService {
     public Optional<RaceObjectiveResponse> nextRace(UUID athleteId) {
         return raceRepository
                 .findFirstByAthleteIdAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(
-                        athleteId, RaceObjectiveStatus.UPCOMING, LocalDate.now())
-                .map(RaceObjectiveResponse::from);
+                        athleteId, RaceObjectiveStatus.UPCOMING, clock.today())
+                .map(r -> RaceObjectiveResponse.from(r, clock.today()));
     }
 
     private RaceObjective require(UUID clubId, UUID raceId) {

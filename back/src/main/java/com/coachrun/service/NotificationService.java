@@ -6,6 +6,8 @@ import com.coachrun.entity.Notification;
 import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.enums.UserRole;
+import com.coachrun.integration.MailTemplate;
+import com.coachrun.integration.MailTemplate.Audience;
 import com.coachrun.integration.ResendMailClient;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.NotificationRepository;
@@ -33,6 +35,7 @@ import java.util.UUID;
 public class NotificationService {
 
     private final ResendMailClient mailClient;
+    private final MailTemplate mailTemplate;
     private final UserRepository userRepository;
     private final PushNotificationService pushService;
     private final CoachAthleteRelationRepository relationRepository;
@@ -66,7 +69,7 @@ public class NotificationService {
                 + "<p>Votre coach a planifié une nouvelle séance : <strong>" + esc(workout.getTitle())
                 + "</strong> le " + workout.getScheduledDate() + ".</p>"
                 + cta("Voir ma séance", frontendUrl + "/athlete/today");
-        send(email, subject, html);
+        send(email, subject, html, Audience.ATHLETE);
     }
 
     /**
@@ -92,7 +95,7 @@ public class NotificationService {
                 + "<p>Votre coach a commenté la séance <strong>" + esc(workout.getTitle())
                 + "</strong>.</p>"
                 + cta("Lire le retour", frontendUrl + "/athlete/history");
-        send(email, "Votre coach a commenté une séance", html);
+        send(email, "Votre coach a commenté une séance", html, Audience.ATHLETE);
     }
 
     /** Feedback athlète → notifie le coach <strong>référent</strong> de l'athlète (repli : head coach). */
@@ -107,13 +110,14 @@ public class NotificationService {
                         frontendUrl + "/app");
             }
             if (c.getEmail() != null && c.isNotifyEmailEnabled()) {
-                String athlete = esc(workout.getAthlete().getFirstName() + " "
-                        + workout.getAthlete().getLastName());
+                String athlete = workout.getAthlete().getFirstName() + " "
+                        + workout.getAthlete().getLastName();
+                // Le sujet est du texte brut : l'échappement HTML n'a lieu que dans le corps.
                 String subject = athlete + " a renseigné une séance";
-                String html = "<p>" + athlete + " a mis à jour la séance <strong>"
+                String html = "<p><strong>" + esc(athlete) + "</strong> a mis à jour la séance <strong>"
                         + esc(workout.getTitle()) + "</strong> (" + workout.getStatus() + ").</p>"
                         + cta("Ouvrir Darilab", frontendUrl + "/app");
-                send(c.getEmail(), subject, html);
+                send(c.getEmail(), subject, html, Audience.COACH);
             }
         });
     }
@@ -199,7 +203,7 @@ public class NotificationService {
                 + "<p>" + count + (count > 1 ? " athlètes nécessitent" : " athlète nécessite")
                 + " votre attention :</p><ul>" + items + "</ul>"
                 + cta("Ouvrir le tableau de bord", frontendUrl + "/app");
-        send(coach.getEmail(), subject, html);
+        send(coach.getEmail(), subject, html, Audience.COACH);
     }
 
     /** Catégorie générique (sans détail de santé) d'une alerte, pour l'email. */
@@ -227,7 +231,8 @@ public class NotificationService {
         send(email, "Rappel : séance demain",
                 "<p>Bonjour " + esc(workout.getAthlete().getFirstName()) + ",</p>"
                         + "<p>Rappel : <strong>" + esc(workout.getTitle()) + "</strong> est prévue demain.</p>"
-                        + cta("Voir ma séance", frontendUrl + "/athlete/today"));
+                        + cta("Voir ma séance", frontendUrl + "/athlete/today"),
+                Audience.ATHLETE);
     }
 
     /**
@@ -273,7 +278,7 @@ public class NotificationService {
                 + "<p>Bienvenue sur Darilab. Confirmez votre adresse e-mail pour sécuriser votre compte.</p>"
                 + cta("Confirmer mon e-mail", url)
                 + "<p>Ce lien expire dans 7 jours.</p>";
-        send(email, "Confirmez votre adresse e-mail Darilab", html);
+        send(email, "Confirmez votre adresse e-mail Darilab", html, Audience.COACH);
     }
 
     /** Réinitialisation de mot de passe : e-mail avec le lien de redéfinition. */
@@ -285,7 +290,7 @@ public class NotificationService {
                 + "<p>Vous avez demandé à réinitialiser votre mot de passe Darilab.</p>"
                 + cta("Choisir un nouveau mot de passe", url)
                 + "<p>Ce lien expire dans 2 heures. Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.</p>";
-        send(email, "Réinitialisation de votre mot de passe Darilab", html);
+        send(email, "Réinitialisation de votre mot de passe Darilab", html, Audience.COACH);
     }
 
     /** Invitation d'un coach au club : e-mail avec le lien d'acceptation (création de compte). */
@@ -299,27 +304,98 @@ public class NotificationService {
                 + "</strong> en tant que coach sur Darilab.</p>"
                 + cta("Accepter l'invitation et créer mon mot de passe", url)
                 + "<p>Ce lien expire dans 14 jours.</p>";
-        send(email, subject, html);
+        send(email, subject, html, Audience.COACH);
     }
 
-    private void send(String to, String subject, String html) {
+    /**
+     * Invitation d'un athlète par son coach : e-mail avec le lien magique d'onboarding. Sans e-mail
+     * (athlète sans adresse connue), rien n'est envoyé — le coach transmet l'URL renvoyée par l'API.
+     */
+    public void notifyAthleteInvitation(String email, String firstName, String clubName, String url) {
+        if (email == null) {
+            return;
+        }
+        String subject = "Votre coach vous invite sur Darilab";
+        String html = "<p>Bonjour " + esc(firstName) + ",</p>"
+                + "<p>Votre coach vous invite à rejoindre <strong>" + esc(clubName)
+                + "</strong> sur Darilab pour suivre vos séances et partager vos ressentis.</p>"
+                + cta("Activer mon espace athlète", url)
+                + "<p>Ce lien expire dans 14 jours.</p>";
+        send(email, subject, html, Audience.ATHLETE);
+    }
+
+    /**
+     * L'athlète déclare une indisponibilité → notifie son coach référent (in-app + push + email).
+     * Le motif est une catégorie fermée (blessure, maladie, vacances, personnel) : ce n'est pas
+     * une donnée de santé détaillée, et c'est précisément ce dont le coach a besoin pour
+     * replanifier. Le commentaire libre, lui, reste dans l'application.
+     */
+    public void notifyAthleteUnavailability(com.coachrun.entity.Athlete athlete,
+                                            com.coachrun.entity.AthleteUnavailability unavailability) {
+        UUID clubId = athlete.getClub() != null ? athlete.getClub().getId() : null;
+        referentCoach(athlete.getId(), clubId).ifPresent(coach -> {
+            String athleteName = (athlete.getFirstName() + " " + athlete.getLastName()).trim();
+            String period = unavailability.getStartDate() + " → " + unavailability.getEndDate();
+            String reason = reasonLabel(unavailability.getReason());
+
+            record(coach.getId(), "ATHLETE_UNAVAILABILITY", "Indisponibilité déclarée",
+                    athleteName + " — " + reason + " (" + period + ")", "/app/calendar");
+            if (coach.isNotifyPushEnabled()) {
+                pushService.sendToUser(coach.getId(), "Indisponibilité déclarée",
+                        athleteName + " — " + reason, frontendUrl + "/app/calendar");
+            }
+            if (coach.getEmail() == null || !coach.isNotifyEmailEnabled()) {
+                return;
+            }
+            String html = "<p>Bonjour " + esc(coach.getFullName()) + ",</p>"
+                    + "<p><strong>" + esc(athleteName) + "</strong> a déclaré une indisponibilité : "
+                    + esc(reason) + ", du " + unavailability.getStartDate()
+                    + " au " + unavailability.getEndDate() + ".</p>"
+                    + cta("Ouvrir le calendrier", frontendUrl + "/app/calendar");
+            send(coach.getEmail(), athleteName + " est indisponible", html, Audience.COACH);
+        });
+    }
+
+    /** Libellé français d'un motif d'indisponibilité. */
+    private String reasonLabel(com.coachrun.entity.enums.UnavailabilityReason reason) {
+        if (reason == null) {
+            return "indisponible";
+        }
+        return switch (reason) {
+            case INJURY -> "blessure";
+            case ILLNESS -> "maladie";
+            case VACATION -> "vacances";
+            case PERSONAL -> "raison personnelle";
+            case OTHER -> "autre motif";
+        };
+    }
+
+    /**
+     * Enveloppe le fragment dans le gabarit transactionnel puis envoie HTML + texte, avec
+     * {@code reply_to} et {@code List-Unsubscribe}. Un échec d'envoi ne casse jamais le métier.
+     */
+    private void send(String to, String subject, String bodyHtml, Audience audience) {
         if (!enabled) {
             log.info("[mail désactivé] -> {} : {}", to, subject);
             return;
         }
         try {
-            mailClient.send(to, subject, html);
+            MailTemplate.Rendered mail = mailTemplate.render(subject, bodyHtml, audience);
+            mailClient.send(to, subject, mail.html(), mail.text(),
+                    mailTemplate.replyTo(), mailTemplate.listUnsubscribe(audience));
         } catch (RuntimeException ex) {
             // Idempotence/robustesse : un échec d'email ne casse pas l'action métier.
             log.warn("Échec d'envoi d'email à {} : {}", to, ex.getMessage());
         }
     }
 
+    /** Bouton d'action du gabarit (table stylée inline, cible ≥ 44 px). */
     private String cta(String label, String url) {
-        return "<p><a href=\"" + url + "\">" + esc(label) + "</a></p>";
+        return mailTemplate.button(label, url);
     }
 
+    /** Échappe le HTML en gardant les accents littéraux (le gabarit est déclaré en UTF-8). */
     private String esc(String value) {
-        return HtmlUtils.htmlEscape(value == null ? "" : value);
+        return HtmlUtils.htmlEscape(value == null ? "" : value, "UTF-8");
     }
 }

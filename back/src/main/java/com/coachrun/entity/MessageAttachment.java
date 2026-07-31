@@ -2,6 +2,9 @@ package com.coachrun.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,6 +20,11 @@ import lombok.Setter;
 @NoArgsConstructor
 @Table(name = "message_attachments")
 public class MessageAttachment extends BaseEntity {
+
+    /** Club propriétaire : porte le quota de stockage (les octets vivent en base). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "club_id")
+    private Club club;
 
     @Column(name = "filename", nullable = false)
     private String filename;

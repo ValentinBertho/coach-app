@@ -29,23 +29,19 @@
           "/media/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"
         ]
       }
-    },
-    {
-      "name": "fonts",
-      "installMode": "lazy",
-      "updateMode": "prefetch",
-      "resources": {
-        "urls": ["https://fonts.googleapis.com/**", "https://fonts.gstatic.com/**"]
-      }
     }
   ],
   "dataGroups": [
     {
-      "name": "api-reads",
-      "urls": ["/api/me/**", "/api/clubs/**", "/api/admin/**", "/api/public/**"],
+      "name": "athlete-today",
+      "urls": [
+        "/api/me/today",
+        "/api/me/workouts/*/prescription",
+        "/api/me/pp/scheduled/*/prescription"
+      ],
       "cacheConfig": {
         "strategy": "freshness",
-        "maxSize": 150,
+        "maxSize": 20,
         "maxAge": "1h",
         "timeout": "5s"
       }

@@ -57,7 +57,9 @@ export const routes: Routes = [
   },
   {
     // Living styleguide des primitives UI (dev). Cf. docs/ux-redesign-blueprint.md.
+    // Réservé à l'équipe : en bêta ouverte, un coach qui tombe dessus voit un écran de debug.
     path: 'dev/ui-kit',
+    canActivate: [adminGuard],
     loadComponent: () =>
       import('./features/dev/ui-kit.component').then((m) => m.UiKitComponent),
   },
@@ -65,6 +67,7 @@ export const routes: Routes = [
     // Sonde d'état de l'API : retirée du pied de page public (un prospect n'a pas à voir
     // « API injoignable »), conservée ici pour l'équipe.
     path: 'dev/api',
+    canActivate: [adminGuard],
     loadComponent: () =>
       import('./features/dev/api-status.component').then((m) => m.ApiStatusComponent),
   },
@@ -396,5 +399,11 @@ export const routes: Routes = [
       },
     ],
   },
-  { path: '**', redirectTo: '' },
+  {
+    // Vraie 404 : une redirection silencieuse vers l'accueil laissait croire que le lien
+    // avait fonctionné.
+    path: '**',
+    loadComponent: () =>
+      import('./features/public/not-found.component').then((m) => m.NotFoundComponent),
+  },
 ];

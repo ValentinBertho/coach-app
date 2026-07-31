@@ -97,3 +97,19 @@
 /* Incitation à saisir une perf quand l'athlète n'a pas d'allures (VDOT). */
 .paces-prompt { display: flex; align-items: center; gap: var(--sp-2); text-decoration: none; color: var(--ink); padding: var(--sp-3); }
 .paces-prompt span { flex: 1; font-size: var(--text-sm); }
+
+/* --- Ma semaine (récapitulatif chiffré) ---------------------------------- */
+.week { display: flex; flex-direction: column; gap: var(--sp-3); }
+.week__hd { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
+.week__hd h2 { margin: 0; font-size: var(--text-lg); }
+.week__hd a { text-decoration: none; }
+.week__stats { display: flex; gap: var(--sp-6); }
+.week__stat { display: flex; flex-direction: column; gap: 2px; }
+.week__v {
+  font-family: var(--font-data); font-variant-numeric: tabular-nums;
+  font-size: var(--text-2xl); font-weight: 800; color: var(--ink); line-height: 1;
+}
+.week__of { color: var(--ink-3); font-size: var(--text-lg); font-weight: 700; }
+.week__l { font-size: var(--text-sm); color: var(--ink-3); }
+.week__bar { height: 8px; border-radius: var(--radius-full); background: var(--paper-sunk); overflow: hidden; }
+.week__fill { display: block; height: 100%; border-radius: var(--radius-full); background: var(--accent); }

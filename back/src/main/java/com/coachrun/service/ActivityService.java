@@ -69,6 +69,25 @@ public class ActivityService {
 
     @Transactional
     public ActivityResponse importActivity(UUID clubId, UUID athleteId, ActivityImportRequest request) {
+        return importActivity(clubId, athleteId, request, null);
+    }
+
+    /**
+     * Données que la source d'import peut fournir en plus du DTO public : capteurs, tracé et flux.
+     * Elles ne passent pas par {@link ActivityImportRequest}, qui est un corps de requête HTTP —
+     * un tracé de 400 points n'a rien à y faire.
+     *
+     * @param route  tracé {@code [[lat,lon],…]}, format commun au GPX et à la polyline Strava
+     * @param stream flux {@code [[elapsedS,hr,paceSecPerKm],…]} (-1 = absent), pour le temps-en-zone
+     */
+    public record ImportExtras(
+            Integer maxHr, Integer avgCadence, Integer avgPowerW, Integer calories,
+            java.util.List<double[]> route, java.util.List<int[]> stream) {
+    }
+
+    @Transactional
+    public ActivityResponse importActivity(UUID clubId, UUID athleteId, ActivityImportRequest request,
+                                           ImportExtras extras) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
 
@@ -90,11 +109,49 @@ public class ActivityService {
         activity.setAvgHr(request.avgHr());
         activity.setElevationGainM(request.elevationGainM());
         activity.setStatus(ActivityStatus.IMPORTED);
+        applyExtras(activity, extras);
 
         autoMatch(athleteId, activity);
         activity = activityRepository.save(activity);
         log.info("Activité importée {} (athlète={}, statut={})", activity.getId(), athleteId, activity.getStatus());
         return toResponse(activity);
+    }
+
+    /**
+     * L'activité externe est-elle déjà en base ? Permet à une synchro de l'écarter <em>avant</em>
+     * d'aller chercher ses détails, quand la source facture chaque appel (quota Strava).
+     */
+    public boolean alreadyImported(UUID athleteId, ActivitySource source, String externalId) {
+        return externalId != null
+                && activityRepository.existsByAthleteIdAndSourceAndExternalId(athleteId, source, externalId);
+    }
+
+    /**
+     * Reporte capteurs, tracé et flux sur l'activité. Le tracé et le flux sont optionnels : une
+     * activité sur tapis n'en a pas, et leur absence ne doit jamais faire échouer un import.
+     */
+    private void applyExtras(Activity activity, ImportExtras extras) {
+        if (extras == null) {
+            return;
+        }
+        activity.setMaxHr(extras.maxHr());
+        activity.setAvgCadence(extras.avgCadence());
+        activity.setAvgPowerW(extras.avgPowerW());
+        activity.setCalories(extras.calories());
+        if (extras.route() != null && !extras.route().isEmpty()) {
+            try {
+                activity.setRouteJson(objectMapper.writeValueAsString(extras.route()));
+            } catch (Exception ignored) {
+                // tracé optionnel
+            }
+        }
+        if (extras.stream() != null && !extras.stream().isEmpty()) {
+            try {
+                activity.setStreamJson(objectMapper.writeValueAsString(extras.stream()));
+            } catch (Exception ignored) {
+                // flux optionnel
+            }
+        }
     }
 
     /** Import d'un fichier GPX/TCX → activité + tracé, puis rapprochement automatique. */
@@ -227,21 +284,54 @@ public class ActivityService {
     @Transactional
     public ActivityResponse matchManually(UUID clubId, UUID activityId, UUID workoutId) {
         Activity activity = require(clubId, activityId);
-        Workout workout = workoutRepository.findByIdAndClubId(workoutId, clubId)
-                .orElseThrow(() -> new NotFoundException("Séance introuvable."));
-        link(activity, workout);
-        return toResponse(activity);
+        return relink(activity, clubId, workoutId);
+    }
+
+    /**
+     * Rapprochement manuel — variante athlète-scopée. L'algorithme se trompe (deux sorties le même
+     * jour, une séance déplacée) et son erreur était définitive : l'athlète est souvent le premier
+     * à la voir, et le seul disponible le dimanche soir.
+     */
+    @Transactional
+    public ActivityResponse matchForAthlete(UUID athleteId, UUID activityId, UUID workoutId) {
+        Activity activity = activityRepository.findById(activityId)
+                .filter(a -> a.getAthlete().getId().equals(athleteId))
+                .orElseThrow(() -> new NotFoundException("Activité introuvable."));
+        UUID clubId = activity.getClub().getId();
+        if (workoutId != null) {
+            // La séance visée doit être la sienne : un athlète ne rattache pas sa sortie à la
+            // séance d'un camarade de club.
+            workoutRepository.findById(workoutId)
+                    .filter(w -> w.getAthlete().getId().equals(athleteId))
+                    .orElseThrow(() -> new NotFoundException("Séance introuvable."));
+        }
+        return relink(activity, clubId, workoutId);
     }
 
     @Transactional
     public ActivityResponse unmatch(UUID clubId, UUID activityId) {
-        Activity activity = require(clubId, activityId);
-        if (activity.getMatchedWorkoutId() != null) {
-            workoutRepository.findByIdAndClubId(activity.getMatchedWorkoutId(), clubId)
+        return relink(require(clubId, activityId), clubId, null);
+    }
+
+    /**
+     * Détache l'activité de sa séance actuelle puis la rattache à {@code workoutId}
+     * ({@code null} = simple détachement). Les deux statuts sont recalculés : sans le
+     * détachement, l'ancienne séance restait COMPLETED alors que plus rien ne l'atteste.
+     */
+    private ActivityResponse relink(Activity activity, UUID clubId, UUID workoutId) {
+        UUID previous = activity.getMatchedWorkoutId();
+        if (previous != null && !previous.equals(workoutId)) {
+            workoutRepository.findByIdAndClubId(previous, clubId)
                     .ifPresent(w -> w.setStatus(WorkoutStatus.PLANNED));
         }
-        activity.setMatchedWorkoutId(null);
-        activity.setStatus(ActivityStatus.UNMATCHED);
+        if (workoutId == null) {
+            activity.setMatchedWorkoutId(null);
+            activity.setStatus(ActivityStatus.UNMATCHED);
+            return toResponse(activity);
+        }
+        Workout workout = workoutRepository.findByIdAndClubId(workoutId, clubId)
+                .orElseThrow(() -> new NotFoundException("Séance introuvable."));
+        link(activity, workout);
         return toResponse(activity);
     }
 

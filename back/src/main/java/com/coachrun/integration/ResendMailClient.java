@@ -3,8 +3,10 @@ package com.coachrun.integration;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -29,12 +31,36 @@ public class ResendMailClient {
                 .build();
     }
 
+    /** Envoi HTML seul (sans version texte) — à éviter, cf. {@link #send(String, String, String, String, String, String)}. */
     public void send(String to, String subject, String html) {
-        Map<String, Object> body = Map.of(
-                "from", from,
-                "to", List.of(to),
-                "subject", subject,
-                "html", html);
+        send(to, subject, html, null, null, null);
+    }
+
+    /**
+     * Envoi complet d'un e-mail transactionnel.
+     *
+     * @param text            version texte (améliore la délivrabilité et sert les clients sans HTML)
+     * @param replyTo         adresse de réponse, ou {@code null}
+     * @param listUnsubscribe valeur de l'en-tête {@code List-Unsubscribe}, ou {@code null}
+     */
+    public void send(String to, String subject, String html, String text,
+                     String replyTo, String listUnsubscribe) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("from", from);
+        body.put("to", List.of(to));
+        body.put("subject", subject);
+        body.put("html", html);
+        if (StringUtils.hasText(text)) {
+            body.put("text", text);
+        }
+        if (StringUtils.hasText(replyTo)) {
+            body.put("reply_to", replyTo);
+        }
+        if (StringUtils.hasText(listUnsubscribe)) {
+            body.put("headers", Map.of(
+                    "List-Unsubscribe", listUnsubscribe,
+                    "List-Unsubscribe-Post", "List-Unsubscribe=One-Click"));
+        }
         restClient.post().uri("/emails").body(body).retrieve().toBodilessEntity();
         log.debug("Email envoyé à {} (sujet: {})", to, subject);
     }

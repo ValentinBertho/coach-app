@@ -84,8 +84,14 @@ public class AthleteController {
         athleteService.archive(clubId, athleteId);
     }
 
+    /**
+     * Invitation d'un athlète : envoie un e-mail à un tiers, donc réservée aux comptes dont
+     * l'adresse est vérifiée. Le reste de l'application reste ouvert sans vérification.
+     */
     @PostMapping("/{athleteId}/invitation")
-    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)"
+            + " and @athleteAccessValidator.canWrite(authentication, #athleteId)"
+            + " and @emailVerificationValidator.isVerified(authentication)")
     public AthleteInvitationResponse invite(@PathVariable UUID clubId,
                                             @PathVariable UUID athleteId) {
         return athleteService.invite(clubId, athleteId);

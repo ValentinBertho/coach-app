@@ -65,12 +65,32 @@
             <span class="metric delta" [class.neg]="a.distanceDeltaM < 0">{{ delta(a.distanceDeltaM) }} vs prévu</span>
           }
         </div>
-        @if (a.source === 'FILE') {
+        <!-- Un import Strava porte désormais tracé et flux, comme un GPX : la carte et le temps
+             en zone ne sont plus réservés aux fichiers importés à la main. -->
+        @if (hasDetail(a)) {
           <button type="button" class="btn btn-ghost btn-sm" [class.active]="zonesOpen() === a.id" (click)="toggleZones(a.id)">Zones</button>
           <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', athleteId(), 'activities', a.id, 'map']">Carte</a>
         }
         @if (a.status === 'MATCHED') {
           <button type="button" class="btn btn-ghost btn-sm" (click)="unmatch(a)">Détacher</button>
+        } @else {
+          <button type="button" class="btn btn-ghost btn-sm" (click)="openMatch(a)">Rattacher</button>
+        }
+        @if (matchOpen() === a.id) {
+          <div class="a-match">
+            @if (matchCandidates().length === 0) {
+              <p class="field-hint">Aucune séance planifiée à ±3 jours de cette sortie.</p>
+            } @else {
+              <label class="field-hint" [attr.for]="'match-' + a.id">Rattacher à la séance</label>
+              <select class="form-control" [id]="'match-' + a.id"
+                      (change)="confirmMatch(a, $any($event.target).value)">
+                <option value="">Choisir une séance…</option>
+                @for (w of matchCandidates(); track w.id) {
+                  <option [value]="w.id">{{ w.scheduledDate }} — {{ w.title }}</option>
+                }
+              </select>
+            }
+          </div>
         }
         @if (zonesOpen() === a.id) {
           <div class="a-zones">

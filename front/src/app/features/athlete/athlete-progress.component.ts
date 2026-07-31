@@ -139,9 +139,10 @@ const SOURCE_LABEL: Record<string, string> = {
       @if (load(); as l) {
         <section class="charge">
           <h2 class="sect-h">Ma charge</h2>
-          @if (l.ratio != null) {
-            <div class="card"><app-acwr-indicator [value]="l.ratio" /></div>
-          }
+          <div class="card">
+            <app-acwr-indicator [value]="l.ratio" [historyDays]="l.historyDays"
+                                [windowDays]="l.chronicWindowDays" />
+          </div>
           <div class="charge-kpis">
             <app-metric-card label="Charge aiguë (7 j)" [value]="round(l.acuteLoad7d)" unit="UA" origin="calcule" />
             <app-metric-card label="Charge chronique (28 j)" [value]="round(l.chronicLoad28d)" unit="UA" origin="calcule" />

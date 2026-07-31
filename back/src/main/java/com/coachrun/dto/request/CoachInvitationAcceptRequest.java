@@ -9,6 +9,11 @@ import jakarta.validation.constraints.Size;
 public record CoachInvitationAcceptRequest(
         @NotBlank @Size(min = 8, max = 100) String password,
         String fullName,
-        /* Acceptation des CGU / confidentialité (horodatée si true). */
+        /* Acceptation des CGU / confidentialité (horodatée). Exigée comme à l'inscription : la
+           preuve de consentement RGPD ne peut pas dépendre du client qui envoie le champ. */
+        @jakarta.validation.constraints.NotNull(
+                message = "L'acceptation des conditions d'utilisation est requise.")
+        @jakarta.validation.constraints.AssertTrue(
+                message = "L'acceptation des conditions d'utilisation est requise.")
         Boolean termsAccepted) {
 }

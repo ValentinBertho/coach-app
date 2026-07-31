@@ -4,9 +4,9 @@ import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { RaceObjective, RaceObjectiveRequest } from '../models/race.model';
 import { WorkoutPrescription } from '../models/course.model';
-import { Unavailability } from '../models/unavailability.model';
+import { Unavailability, UnavailabilityRequest } from '../models/unavailability.model';
 import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
-import { Activity } from '../models/activity.model';
+import { Activity, TimeInZone, WeekSummary } from '../models/activity.model';
 import { Analytics } from './analytics.service';
 import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
 import { Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
@@ -181,6 +181,31 @@ export class AthletePortalService {
   /** Mes indisponibilités (en cours/à venir). */
   unavailabilities(): Observable<Unavailability[]> {
     return this.http.get<Unavailability[]>(`${this.base}/unavailabilities`);
+  }
+
+  /** Je déclare une indisponibilité — mon coach référent est notifié. */
+  declareUnavailability(request: UnavailabilityRequest): Observable<Unavailability> {
+    return this.http.post<Unavailability>(`${this.base}/unavailabilities`, request);
+  }
+
+  /** Temps passé par zone sur une de mes activités (l'écran coach l'avait déjà). */
+  activityTimeInZone(activityId: string): Observable<TimeInZone> {
+    return this.http.get<TimeInZone>(`${this.base}/activities/${activityId}/time-in-zone`);
+  }
+
+  /** Ma semaine en un chiffre : « 32/45 km, 3 séances sur 5 ». */
+  weekSummary(): Observable<WeekSummary> {
+    return this.http.get<WeekSummary>(`${this.base}/week-summary`);
+  }
+
+  /** Je rattache (ou détache, avec `null`) une de mes sorties à une séance prescrite. */
+  matchActivity(activityId: string, workoutId: string | null): Observable<Activity> {
+    return this.http.patch<Activity>(`${this.base}/activities/${activityId}/match`, { workoutId });
+  }
+
+  /** Je retire une indisponibilité que j'ai déclarée. */
+  removeUnavailability(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/unavailabilities/${id}`);
   }
 
   // --- Phase 1 « Me connaître » (lecture seule) ---

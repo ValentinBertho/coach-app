@@ -115,4 +115,12 @@ public class User extends BaseEntity {
     /** Preuve de consentement RGPD : acceptation des CGU / politique de confidentialité. */
     @Column(name = "terms_accepted_at")
     private java.time.Instant termsAcceptedAt;
+
+    /**
+     * Date du dernier changement de mot de passe. Tout jeton (accès ou rafraîchissement) émis
+     * avant est rejeté : sans ça, un reset ne chassait pas la session qu'il était censé chasser —
+     * le refresh token vole pendant 30 jours.
+     */
+    @Column(name = "password_changed_at")
+    private java.time.Instant passwordChangedAt;
 }

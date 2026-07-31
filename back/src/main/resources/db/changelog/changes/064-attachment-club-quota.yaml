@@ -1,0 +1,47 @@
+# ============================================================================
+# 064 — Rattachement des pièces jointes à leur club.
+#   Les pièces jointes sont plafonnées à 10 Mo par fichier mais sans aucune
+#   limite par utilisateur, par club ni globale, et stockées en bytea : c'est
+#   le pg_dump quotidien et les artefacts CI qui cassent en premier. Le club
+#   permet de compter l'espace consommé et d'appliquer un quota.
+#   Les lignes existantes sont rattachées depuis le message porteur.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 064-attachment-club-id
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: message_attachments
+            columns:
+              - column: { name: club_id, type: UUID }
+        - addForeignKeyConstraint:
+            baseTableName: message_attachments
+            baseColumnNames: club_id
+            constraintName: fk_message_attachments_club
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            tableName: message_attachments
+            indexName: idx_message_attachments_club
+            columns:
+              - column: { name: club_id }
+
+  - changeSet:
+      id: 064-attachment-club-backfill
+      author: coachrun
+      changes:
+        - sql:
+            sql: >
+              UPDATE message_attachments a
+              SET club_id = m.club_id
+              FROM messages m
+              WHERE m.attachment_id = a.id AND a.club_id IS NULL
+            dbms: postgresql
+        - sql:
+            sql: >
+              UPDATE message_attachments
+              SET club_id = (SELECT m.club_id FROM messages m WHERE m.attachment_id = message_attachments.id)
+              WHERE club_id IS NULL
+            dbms: h2

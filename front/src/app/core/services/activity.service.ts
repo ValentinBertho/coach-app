@@ -31,6 +31,14 @@ export class ActivityService {
     return this.http.post<Activity>(this.base(athleteId), request);
   }
 
+  /**
+   * Rapproche l'activité d'une séance, ou la détache (`workoutId` à `null`). Un seul appel pour
+   * les deux sens : l'erreur de l'algorithme n'est plus définitive.
+   */
+  match(athleteId: string, activityId: string, workoutId: string | null): Observable<Activity> {
+    return this.http.patch<Activity>(`${this.base(athleteId)}/${activityId}/match`, { workoutId });
+  }
+
   unmatch(athleteId: string, activityId: string): Observable<Activity> {
     return this.http.delete<Activity>(`${this.base(athleteId)}/${activityId}/match`);
   }

@@ -21,14 +21,18 @@ public record RaceObjectiveResponse(
         RaceObjectiveStatus status,
         long daysUntil) {
 
-    public static RaceObjectiveResponse from(RaceObjective r) {
-        return from(r, null);
+    /**
+     * @param today date du jour dans le fuseau métier ({@code ClockService.today()}) — le compte à
+     *              rebours est faux d'un jour si on le calcule en UTC après 22 h.
+     */
+    public static RaceObjectiveResponse from(RaceObjective r, LocalDate today) {
+        return from(r, null, today);
     }
 
-    public static RaceObjectiveResponse from(RaceObjective r, String athleteName) {
+    public static RaceObjectiveResponse from(RaceObjective r, String athleteName, LocalDate today) {
         return new RaceObjectiveResponse(
                 r.getId(), r.getAthlete().getId(), athleteName, r.getName(), r.getRaceDate(),
                 r.getDistanceM(), r.getTargetTimeS(), r.getPriority(), r.getStatus(),
-                ChronoUnit.DAYS.between(LocalDate.now(), r.getRaceDate()));
+                ChronoUnit.DAYS.between(today, r.getRaceDate()));
     }
 }

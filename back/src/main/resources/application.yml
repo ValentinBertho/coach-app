@@ -61,6 +61,9 @@ springdoc:
 app:
   version: @project.version@
   frontend-url: ${FRONTEND_URL:http://localhost:4200}
+  # Fuseau métier (dates civiles : séance du jour, check-in, rappels, compte à rebours).
+  # Ne concerne pas le stockage des instants, qui reste en UTC (hibernate.jdbc.time_zone).
+  timezone: ${APP_TIMEZONE:Europe/Paris}
   cors:
     origins: ${CORS_ORIGINS:http://localhost:4200}
   security:
@@ -68,10 +71,21 @@ app:
       secret: ${JWT_SECRET:dev-local-secret-change-in-production-min-256-bits-long!!}
       access-token-ttl-seconds: ${JWT_ACCESS_TTL:3600}
     field-encryption-key: ${FIELD_ENCRYPTION_KEY:0000000000000000000000000000000000000000000000000000000000000000}
+    # Inviter un athlète ou un coach envoie un e-mail à un tiers : l'adresse de l'invitant doit
+    # être vérifiée. Suit l'activation du mail — sans envoi, le lien de vérification n'arrive
+    # jamais et la règle ne ferait que bloquer tout le monde.
+    require-verified-email: ${REQUIRE_VERIFIED_EMAIL:${MAIL_ENABLED:false}}
   mail:
     enabled: ${MAIL_ENABLED:false}
     resend-api-key: ${RESEND_API_KEY:}
     from: ${MAIL_FROM:Darilab <no-reply@darilab.app>}
+    # Pied de page et en-têtes du gabarit transactionnel.
+    publisher: ${MAIL_PUBLISHER:Darilab}
+    reply-to: ${MAIL_REPLY_TO:}
+  storage:
+    # Quota de pièces jointes par club (stockées en base) : au-delà, l'envoi est refusé avec un
+    # message explicite. C'est la sauvegarde quotidienne qui casse en premier, pas l'application.
+    club-quota-mb: ${STORAGE_CLUB_QUOTA_MB:200}
   alerts:
     digest-cron: ${ALERTS_DIGEST_CRON:0 0 7 * * *}
   debrief:

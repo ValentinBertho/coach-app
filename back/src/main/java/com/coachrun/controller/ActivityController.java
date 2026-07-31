@@ -1,6 +1,7 @@
 package com.coachrun.controller;
 
 import com.coachrun.dto.request.ActivityImportRequest;
+import com.coachrun.dto.request.ActivityMatchRequest;
 import com.coachrun.dto.response.ActivityResponse;
 import com.coachrun.dto.response.TimeInZoneResponse;
 import com.coachrun.service.ActivityService;
@@ -12,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -74,6 +76,21 @@ public class ActivityController {
     public ActivityResponse match(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                   @PathVariable UUID activityId, @PathVariable UUID workoutId) {
         return activityService.matchManually(clubId, activityId, workoutId);
+    }
+
+    /**
+     * Rapprochement manuel : {@code {"workoutId": …}} pour rattacher, {@code null} pour détacher.
+     * Un seul point d'entrée pour les deux sens — et le même côté athlète (/me).
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PatchMapping("/{activityId}/match")
+    public ActivityResponse patchMatch(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                       @PathVariable UUID activityId,
+                                       @RequestBody(required = false) ActivityMatchRequest request) {
+        UUID workoutId = request != null ? request.workoutId() : null;
+        return workoutId == null
+                ? activityService.unmatch(clubId, activityId)
+                : activityService.matchManually(clubId, activityId, workoutId);
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")

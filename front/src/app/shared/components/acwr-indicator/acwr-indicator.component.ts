@@ -19,9 +19,13 @@ const STATUS_META: Record<AcwrStatus, { label: string; cssVar: string; origin: '
  * annotée directement sur la piste, et le marqueur est coloré + libellé.
  * Aucun calcul ici : la valeur et les bornes viennent du backend.
  *
+ * Une valeur nulle n'est pas une absence de données mais un ratio volontairement suspendu : le
+ * backend ne le publie qu'à partir de 21 jours d'historique et 8 séances sur 28 jours. On affiche
+ * alors la progression, pour que le coach sache que le chiffre arrive et pourquoi il n'est pas là.
+ *
  * @example
  * <app-acwr-indicator [value]="1.35" />
- * <app-acwr-indicator [value]="0.7" [lowSafe]="0.8" [highSafe]="1.3" [max]="2" />
+ * <app-acwr-indicator [value]="null" [historyDays]="12" [windowDays]="28" />
  */
 @Component({
   selector: 'app-acwr-indicator',
@@ -29,6 +33,21 @@ const STATUS_META: Record<AcwrStatus, { label: string; cssVar: string; origin: '
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DataOriginTagComponent, CounterComponent],
   template: `
+    @if (value() === null) {
+      <div class="acwr acwr--building" role="group" [attr.aria-label]="ariaLabel()">
+        <div class="acwr__head">
+          <span class="acwr__title">ACWR</span>
+          <span class="acwr__building">En construction — {{ historyDays() }}/{{ windowDays() }} jours</span>
+        </div>
+        <div class="acwr__track" aria-hidden="true">
+          <span class="acwr__progress" [style.width.%]="progressPct()"></span>
+        </div>
+        <p class="acwr__hint">
+          Le rapport charge aiguë / chronique demande assez d'historique pour vouloir dire quelque
+          chose. Il s'affichera automatiquement.
+        </p>
+      </div>
+    } @else {
     <div class="acwr" [style.--ac]="meta().cssVar" role="group" [attr.aria-label]="ariaLabel()">
       <div class="acwr__head">
         <span class="acwr__title">ACWR</span>
@@ -51,6 +70,7 @@ const STATUS_META: Record<AcwrStatus, { label: string; cssVar: string; origin: '
         <span>{{ max() }}</span>
       </div>
     </div>
+    }
   `,
   styles: [`
     .acwr { display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -81,11 +101,23 @@ const STATUS_META: Record<AcwrStatus, { label: string; cssVar: string; origin: '
     .acwr__scale > span:first-child { position: absolute; left: 0; }
     .acwr__scale > span:last-child { position: absolute; right: 0; }
     .acwr__tick { position: absolute; transform: translateX(-50%); }
+
+    .acwr__building { font-size: var(--text-sm); font-weight: 700; color: var(--ink-2); }
+    .acwr__progress {
+      display: block; height: 100%; border-radius: var(--radius-full);
+      background: color-mix(in srgb, var(--ink-3) 55%, transparent);
+      transition: width var(--duration) var(--ease);
+    }
+    .acwr__hint { margin: 0; font-size: var(--text-xs); color: var(--ink-3); }
   `],
 })
 export class AcwrIndicatorComponent {
-  /** Valeur ACWR calculée (backend). */
-  readonly value = input.required<number>();
+  /** Valeur ACWR calculée (backend), ou `null` tant que l'historique est insuffisant. */
+  readonly value = input.required<number | null>();
+  /** Jours d'historique accumulés — affichés pendant la construction du ratio. */
+  readonly historyDays = input(0);
+  /** Échelle de la progression (fenêtre chronique du backend, 28 jours). */
+  readonly windowDays = input(28);
   /** Borne basse de la zone optimale. */
   readonly lowSafe = input(0.8);
   /** Borne haute de la zone optimale. */
@@ -96,7 +128,7 @@ export class AcwrIndicatorComponent {
   readonly max = input(2);
 
   protected readonly status = computed<AcwrStatus>(() => {
-    const v = this.value();
+    const v = this.value() ?? 0;
     if (v < this.lowSafe()) return 'detraining';
     if (v <= this.highSafe()) return 'optimal';
     if (v < this.riskAt()) return 'caution';
@@ -109,9 +141,16 @@ export class AcwrIndicatorComponent {
   }
   protected readonly safeLeft = computed(() => this.pct(this.lowSafe()));
   protected readonly safeWidth = computed(() => this.pct(this.highSafe()) - this.pct(this.lowSafe()));
-  protected readonly markerLeft = computed(() => this.pct(this.value()));
+  protected readonly markerLeft = computed(() => this.pct(this.value() ?? 0));
 
-  protected readonly ariaLabel = computed(
-    () => `ACWR ${this.value().toFixed(2)}, ${this.meta().label}, zone optimale ${this.lowSafe()} à ${this.highSafe()}`,
+  protected readonly progressPct = computed(() =>
+    Math.max(0, Math.min(100, (this.historyDays() / Math.max(1, this.windowDays())) * 100)),
   );
+
+  protected readonly ariaLabel = computed(() => {
+    const v = this.value();
+    return v === null
+      ? `ACWR en construction, ${this.historyDays()} jours d'historique sur ${this.windowDays()}`
+      : `ACWR ${v.toFixed(2)}, ${this.meta().label}, zone optimale ${this.lowSafe()} à ${this.highSafe()}`;
+  });
 }

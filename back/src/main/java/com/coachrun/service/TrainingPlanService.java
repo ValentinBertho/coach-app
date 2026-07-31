@@ -57,6 +57,7 @@ public class TrainingPlanService {
     private final StrengthSessionRepository strengthSessionRepository;
     private final MesocycleTemplateRepository mesocycleTemplateRepository;
     private final ObjectMapper objectMapper;
+    private final ClockService clock;
 
     public List<TrainingPlanResponse> list(UUID clubId) {
         return planRepository.findByClubIdOrderByNameAsc(clubId).stream()
@@ -157,7 +158,7 @@ public class TrainingPlanService {
         if (!planRepository.existsByIdAndAthletes_Id(planId, athleteId)) {
             throw new NotFoundException("Plan non attribué à cet athlète.");
         }
-        return computeProgress(p, athleteId, LocalDate.now());
+        return computeProgress(p, athleteId, clock.today());
     }
 
     /** Mon programme (portail athlète) : plans attribués avec leur avancement, scopé par l'athlète. */
@@ -173,9 +174,9 @@ public class TrainingPlanService {
     /** Calcul commun de l'avancement (semaine courante, séances réalisées) à partir d'une date de début. */
     private PlanProgressResponse computeProgress(TrainingPlan p, UUID athleteId, LocalDate start) {
         int weeks = Math.max(1, p.getDurationWeeks());
-        long elapsedWeeks = java.time.temporal.ChronoUnit.WEEKS.between(start, LocalDate.now());
+        long elapsedWeeks = java.time.temporal.ChronoUnit.WEEKS.between(start, clock.today());
         int currentWeek = (int) Math.max(1, Math.min(weeks, elapsedWeeks + 1));
-        boolean finished = LocalDate.now().isAfter(start.plusWeeks(weeks));
+        boolean finished = clock.today().isAfter(start.plusWeeks(weeks));
 
         // Avancement multi-disciplines : course (séances liées) + force (séances de renfo liées).
         long total = workoutRepository.countByPlanIdAndAthleteId(p.getId(), athleteId)

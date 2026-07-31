@@ -11,7 +11,7 @@ import {
   LucideAngularModule,
   LayoutDashboard, Users, User, UsersRound, Calendar, CalendarDays, Library, GraduationCap,
   Dumbbell, Building2, RefreshCw, Settings, MessageSquare, House, TrendingUp, Footprints,
-  Mountain, MountainSnow, Bike, Moon, Timer, Flame, Zap, Wind, Target, FlaskConical, Flag,
+  Mountain, MountainSnow, Bike, Moon, Timer, Gauge, Flame, Zap, Wind, Target, FlaskConical, Flag,
   HeartPulse, Thermometer, Palmtree, Pin, Ban, Bell, FileText, Paperclip, Lock, Blocks, BookOpen,
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Save,
@@ -28,7 +28,7 @@ registerLocaleData(localeFr);
 const ICONS = {
   LayoutDashboard, Users, User, UsersRound, Calendar, CalendarDays, Library, GraduationCap,
   Dumbbell, Building2, RefreshCw, Settings, MessageSquare, House, TrendingUp, Footprints,
-  Mountain, MountainSnow, Bike, Moon, Timer, Flame, Zap, Wind, Target, FlaskConical, Flag,
+  Mountain, MountainSnow, Bike, Moon, Timer, Gauge, Flame, Zap, Wind, Target, FlaskConical, Flag,
   HeartPulse, Thermometer, Palmtree, Pin, Ban, Bell, FileText, Paperclip, Lock, Blocks, BookOpen,
   FolderOpen, Watch, Smartphone, Download, Play, Check, X, AlertTriangle, Cog, Pencil, Star,
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Save,

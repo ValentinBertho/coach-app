@@ -42,6 +42,14 @@ public class MatchingService {
         return ratio <= COMPLETED_DISTANCE_TOLERANCE ? WorkoutStatus.COMPLETED : WorkoutStatus.PARTIAL;
     }
 
+    /**
+     * Score de rapprochement ∈ [0,1] : proximité de date, de distance <strong>et</strong> de durée.
+     *
+     * <p>Sans la durée, une sortie de 10 km en 40 min et une séance prévue de 10 km en 60 min
+     * obtenaient un score parfait — alors que ce sont deux séances différentes. Le poids se
+     * répartit sur les critères effectivement comparables : une séance sans durée cible reste
+     * rapprochable sur la date et la distance, comme avant.</p>
+     */
     private double score(Activity activity, Workout workout) {
         long dayGap = Math.abs(java.time.temporal.ChronoUnit.DAYS.between(
                 workout.getScheduledDate(), activity.getActivityDate()));
@@ -52,10 +60,16 @@ public class MatchingService {
         };
 
         Double distScore = closeness(workout.getTargetDistanceM(), activity.getDistanceM());
-        if (distScore == null) {
-            return dateScore; // pas de distance comparable : on se fie à la date
+        Double durationScore = closeness(workout.getTargetDurationS(), activity.getDurationS());
+        if (distScore == null && durationScore == null) {
+            return dateScore; // rien de comparable : on se fie à la date
         }
-        return 0.5 * dateScore + 0.5 * distScore;
+
+        // La date pèse la moitié ; le reste se partage entre les mesures disponibles.
+        double effortScore = distScore == null ? durationScore
+                : durationScore == null ? distScore
+                : (distScore + durationScore) / 2.0;
+        return 0.5 * dateScore + 0.5 * effortScore;
     }
 
     /** Ratio de proximité min/max ∈ [0,1], ou null si non comparable. */

@@ -81,11 +81,27 @@ class CoachInvitationTest {
         assertThat(info.get("email").asText()).isEqualTo("new.coach@darilab.app");
         assertThat(info.get("clubName").asText()).isNotEmpty();
 
+        // Les CGU ne sont pas optionnelles : la preuve de consentement RGPD ne peut pas dépendre
+        // du client qui pense à envoyer le champ.
+        mvc.perform(post("/public/coach-invitations/{t}/accept", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"password\":\"password123\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/public/coach-invitations/{t}/accept", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"password\":\"password123\",\"termsAccepted\":false}"))
+                .andExpect(status().isBadRequest());
+        // Et un mot de passe trop court est refusé, comme à l'inscription.
+        mvc.perform(post("/public/coach-invitations/{t}/accept", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"password\":\"court\",\"termsAccepted\":true}"))
+                .andExpect(status().isBadRequest());
+
         // Acceptation (définition du mot de passe) → session.
         JsonNode accepted = objectMapper.readTree(mvc.perform(
                         post("/public/coach-invitations/{t}/accept", token)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"password\":\"password123\"}"))
+                                .content("{\"password\":\"password123\",\"termsAccepted\":true}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(accepted.get("accessToken").asText()).isNotEmpty();
 

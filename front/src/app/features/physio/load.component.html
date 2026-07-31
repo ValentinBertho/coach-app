@@ -9,11 +9,8 @@
 @if (load(); as l) {
   <!-- ACWR : indicateur dominant avec bande de sécurité -->
   <div class="card acwr-card">
-    @if (l.ratio != null) {
-      <app-acwr-indicator [value]="l.ratio" />
-    } @else {
-      <p class="field-hint">ACWR indisponible (données de charge insuffisantes).</p>
-    }
+    <app-acwr-indicator [value]="l.ratio" [historyDays]="l.historyDays"
+                        [windowDays]="l.chronicWindowDays" />
   </div>
 
   <!-- Courbe temporelle : l'ACWR instantané ne dit pas s'il monte depuis trois semaines

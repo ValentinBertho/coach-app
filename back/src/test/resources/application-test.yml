@@ -15,11 +15,14 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.yaml
 
 app:
+  storage:
+    club-quota-mb: 1     # quota volontairement minuscule : le dépassement doit être testable
   rate-limit:
     enabled: false   # désactivé en tests (évite les 429 sur les inscriptions répétées)
   debrief:
     enabled: false   # le rappel « Ta séance est finie ? » n'a rien à faire dans une suite de tests
   security:
+    require-verified-email: true   # la règle doit rester testable même sans envoi d'e-mail
     jwt:
       secret: test-secret-for-h2-context-only-min-512-bits-aaaaaaaaaaaaaaaaaaaa
     field-encryption-key: "0000000000000000000000000000000000000000000000000000000000000000"

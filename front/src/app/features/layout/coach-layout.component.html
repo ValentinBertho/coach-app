@@ -94,7 +94,7 @@
 
     @if (user()?.emailVerified === false) {
       <div class="verify-banner">
-        <span><app-icon name="bell" [size]="16" /> Confirme ton adresse e-mail pour sécuriser ton compte.</span>
+        <span><app-icon name="bell" [size]="16" /> Confirme ton adresse e-mail pour pouvoir inviter tes athlètes.</span>
         <button type="button" class="btn btn-ghost btn-sm" (click)="resendVerification()" [disabled]="resending()">
           {{ resending() ? 'Envoi…' : 'Renvoyer l\'e-mail' }}
         </button>

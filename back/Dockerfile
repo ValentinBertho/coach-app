@@ -17,6 +17,10 @@ RUN mvn -B -ntp clean package -DskipTests
 FROM eclipse-temurin:21-jre-jammy AS runtime
 WORKDIR /app
 
+# Fuseau du conteneur : sans lui la JVM tourne en UTC et toutes les dates civiles
+# (séance du jour, check-in, rappels) sont décalées d'une à deux heures.
+ENV TZ=Europe/Paris
+
 # curl pour le healthcheck docker-compose / Railway ; utilisateur non-root
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \

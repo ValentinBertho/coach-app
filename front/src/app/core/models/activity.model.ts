@@ -11,6 +11,13 @@ export interface Activity {
   durationS: number | null;
   avgHr: number | null;
   elevationGainM: number | null;
+  /** Capteurs remontés par la montre (Strava) — nuls sur une saisie manuelle ou un GPX sans capteur. */
+  maxHr: number | null;
+  avgCadence: number | null;
+  avgPowerW: number | null;
+  calories: number | null;
+  /** Allure moyenne en secondes par kilomètre (calculée backend). */
+  paceSPerKm: number | null;
   status: ActivityStatus;
   matchedWorkoutId: string | null;
   distanceDeltaM: number | null;
@@ -58,4 +65,13 @@ export interface TimeInZoneScale {
 
 export interface TimeInZone {
   scales: TimeInZoneScale[];
+}
+
+/** Récapitulatif chiffré de la semaine en cours pour l'athlète. */
+export interface WeekSummary {
+  weekStart: string;
+  plannedKm: number;
+  realizedKm: number;
+  plannedSessions: number;
+  completedSessions: number;
 }

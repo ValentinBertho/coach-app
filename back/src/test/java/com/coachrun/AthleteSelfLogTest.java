@@ -29,6 +29,7 @@ class AthleteSelfLogTest {
 
     @Autowired private WebApplicationContext context;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private com.coachrun.repository.UserRepository userRepository;
 
     private MockMvc mvc;
 
@@ -44,6 +45,7 @@ class AthleteSelfLogTest {
                 .andReturn().getResponse().getContentAsString());
         String coach = "Bearer " + auth.get("accessToken").asText();
         String clubId = auth.get("user").get("clubId").asText();
+        verifyCoachEmail(clubId);
 
         String email = "self-" + UUID.randomUUID() + "@darilab.app";
         String athleteId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes", clubId)
@@ -82,5 +84,18 @@ class AthleteSelfLogTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].title").value("Sortie libre dimanche"));
+    }
+
+    /**
+     * Confirme l'adresse du coach : depuis le lot 7, inviter un athlète (donc envoyer un e-mail à
+     * un tiers) exige une adresse vérifiée. Le jeton de vérification n'est pas exposé par l'API.
+     */
+    private void verifyCoachEmail(String clubId) {
+        com.coachrun.entity.User user = userRepository.findAll().stream()
+                .filter(u -> u.getClub() != null && clubId.equals(u.getClub().getId().toString()))
+                .filter(u -> u.getRole() == com.coachrun.entity.enums.UserRole.HEAD_COACH)
+                .findFirst().orElseThrow();
+        user.setEmailVerified(true);
+        userRepository.saveAndFlush(user);
     }
 }

@@ -7,6 +7,7 @@ import { SegmentedControlComponent } from '../../shared/components/ui';
 import {
   STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, Workout, needsFeedback,
 } from '../../core/models/workout.model';
+import { paceFrom } from '../../core/utils/pace';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 
 interface MonthGroup {
@@ -58,6 +59,7 @@ interface MonthGroup {
                   <div class="row-meta field-hint">
                     <span>{{ typeLabel(w.type) }}</span>
                     @if (w.targetDistanceM) { <span>· {{ (w.targetDistanceM / 1000) | number: '1.0-1' }} km</span> }
+                    @if (pace(w); as p) { <span>· {{ p }} /km</span> }
                     @if (w.rpe != null) { <span>· RPE {{ w.rpe }}</span> }
                   </div>
                   @if (w.athleteComment) {
@@ -170,6 +172,14 @@ export class AthleteHistoryComponent implements OnInit {
       next: (ws) => { this.workouts.set(ws); this.loading.set(false); },
       error: () => { this.workouts.set([]); this.loading.set(false); },
     });
+  }
+
+  /**
+   * Allure de la séance, dérivée de la cible distance/durée. Le réalisé n'est pas porté par la
+   * séance (il vit dans l'activité rapprochée) : ce qui s'affiche ici est donc l'allure visée.
+   */
+  pace(w: Workout): string | null {
+    return paceFrom(w.targetDistanceM, w.targetDurationS);
   }
 
   statusLabel(s: Workout['status']): string { return STATUS_LABELS[s]; }

@@ -32,6 +32,15 @@ public class MessageService {
     private final UserRepository userRepository;
     private final MessageStreamService streamService;
     private final com.coachrun.repository.MessageAttachmentRepository attachmentRepository;
+
+    /** Quota de stockage par club (pièces jointes de messagerie). */
+    @org.springframework.beans.factory.annotation.Value("${app.storage.club-quota-mb:200}")
+    private int storageQuotaMb;
+
+    private long storageQuotaBytes() {
+        return storageQuotaMb * 1024L * 1024L;
+    }
+
     private final AthleteAccessValidator accessValidator;
 
     // --- Côté coach (scopé club) ---
@@ -164,7 +173,10 @@ public class MessageService {
         User sender = userRepository.findById(principal.userId())
                 .orElseThrow(() -> new NotFoundException("Expéditeur introuvable."));
 
+        requireStorageQuota(athlete.getClub(), file.getSize());
+
         com.coachrun.entity.MessageAttachment att = new com.coachrun.entity.MessageAttachment();
+        att.setClub(athlete.getClub());
         att.setFilename(sanitize(file.getOriginalFilename()));
         att.setContentType(contentType);
         att.setSizeBytes(file.getSize());
@@ -189,6 +201,35 @@ public class MessageService {
         Message saved = messageRepository.save(m);
         streamService.broadcast(athlete.getId(), MessageResponse.from(saved));
         return saved;
+    }
+
+    /**
+     * Quota de stockage du club. Les pièces jointes vivent en {@code bytea} : sans plafond, ce
+     * sont le {@code pg_dump} quotidien et les artefacts de CI qui cassent en premier — bien avant
+     * que quiconque remarque le volume.
+     */
+    private void requireStorageQuota(com.coachrun.entity.Club club, long incomingBytes) {
+        if (club == null) {
+            return; // coaching privé sans club : rien à plafonner pour l'instant
+        }
+        long used = attachmentRepository.totalSizeBytesByClub(club.getId());
+        if (used + incomingBytes > storageQuotaBytes()) {
+            throw new com.coachrun.exception.ApiException(
+                    org.springframework.http.HttpStatus.PAYLOAD_TOO_LARGE,
+                    "Espace de stockage du club saturé (" + mb(used) + " Mo utilisés sur "
+                            + mb(storageQuotaBytes()) + " Mo). Supprimez d'anciennes pièces jointes "
+                            + "ou contactez le support.");
+        }
+    }
+
+    /** Espace de stockage consommé et disponible pour un club. */
+    public com.coachrun.dto.response.StorageUsageResponse storageUsage(UUID clubId) {
+        return new com.coachrun.dto.response.StorageUsageResponse(
+                attachmentRepository.totalSizeBytesByClub(clubId), storageQuotaBytes());
+    }
+
+    private long mb(long bytes) {
+        return Math.round(bytes / (1024.0 * 1024.0));
     }
 
     /** Pièce jointe (octets) après contrôle d'accès via le message porteur. */

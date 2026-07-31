@@ -58,7 +58,9 @@ public class AthletePortalController {
     private final com.coachrun.service.TrainingPlanService trainingPlanService;
     private final com.coachrun.service.StravaService stravaService;
     private final com.coachrun.service.DailyCheckInService checkInService;
+    private final com.coachrun.service.ClockService clock;
     private final com.coachrun.service.FeedbackStreakService streakService;
+    private final com.coachrun.service.TimeInZoneService timeInZoneService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -76,7 +78,7 @@ public class AthletePortalController {
     public List<WorkoutResponse> today(@AuthenticationPrincipal AuthPrincipal principal,
                                        @RequestParam(required = false)
                                        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        LocalDate day = date != null ? date : LocalDate.now();
+        LocalDate day = date != null ? date : clock.today();
         return workoutService.todayForAthlete(principal.athleteId(), day);
     }
 
@@ -136,7 +138,7 @@ public class AthletePortalController {
     public org.springframework.http.ResponseEntity<com.coachrun.dto.response.DailyCheckInResponse> checkIn(
             @AuthenticationPrincipal AuthPrincipal principal,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
-        var checkIn = checkInService.forDay(principal.athleteId(), date != null ? date : LocalDate.now());
+        var checkIn = checkInService.forDay(principal.athleteId(), date != null ? date : clock.today());
         return checkIn == null
                 ? org.springframework.http.ResponseEntity.noContent().build()
                 : org.springframework.http.ResponseEntity.ok(checkIn);
@@ -147,7 +149,7 @@ public class AthletePortalController {
     public com.coachrun.dto.response.DailyCheckInResponse saveCheckIn(
             @AuthenticationPrincipal AuthPrincipal principal,
             @Valid @RequestBody com.coachrun.dto.request.DailyCheckInRequest request) {
-        return checkInService.save(principal.athleteId(), LocalDate.now(), request);
+        return checkInService.save(principal.athleteId(), clock.today(), request);
     }
 
     /** L'athlète déplace une séance (jamais la modifier) : change la date uniquement. */
@@ -286,11 +288,37 @@ public class AthletePortalController {
         return analyticsService.computeForAthlete(principal.athleteId(), weeks);
     }
 
+    /** Ma semaine en un chiffre : « 32/45 km, 3 séances sur 5 ». */
+    @GetMapping("/week-summary")
+    public com.coachrun.dto.response.WeekSummaryResponse myWeekSummary(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return analyticsService.weekSummary(principal.athleteId());
+    }
+
+    /** Temps passé par zone pour une de mes activités (l'endpoint coach existait déjà). */
+    @GetMapping("/activities/{activityId}/time-in-zone")
+    public com.coachrun.dto.response.TimeInZoneResponse myActivityTimeInZone(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID activityId) {
+        return timeInZoneService.forActivityOfAthlete(principal.athleteId(), activityId);
+    }
+
     /** Mes activités réalisées (Strava/GPX/manuel), du plus récent au plus ancien. */
     @GetMapping("/activities")
     public java.util.List<com.coachrun.dto.response.ActivityResponse> myActivities(
             @AuthenticationPrincipal AuthPrincipal principal) {
         return activityService.listForAthlete(principal.athleteId());
+    }
+
+    /**
+     * Je rattache (ou détache) une de mes sorties à une séance prescrite. L'algorithme se trompe
+     * — deux sorties le même jour, une séance déplacée — et son erreur était sans recours.
+     */
+    @PatchMapping("/activities/{activityId}/match")
+    public com.coachrun.dto.response.ActivityResponse matchMyActivity(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID activityId,
+            @RequestBody(required = false) com.coachrun.dto.request.ActivityMatchRequest request) {
+        return activityService.matchForAthlete(principal.athleteId(), activityId,
+                request != null ? request.workoutId() : null);
     }
 
     /** Tracé GPS d'une de mes activités (carte). */
@@ -454,6 +482,23 @@ public class AthletePortalController {
     public java.util.List<com.coachrun.dto.response.UnavailabilityResponse> unavailabilities(
             @AuthenticationPrincipal AuthPrincipal principal) {
         return unavailabilityService.current(principal.athleteId());
+    }
+
+    /** Je déclare une indisponibilité (blessure, maladie, vacances…) — mon coach est prévenu. */
+    @PostMapping("/unavailabilities")
+    @ResponseStatus(HttpStatus.CREATED)
+    public com.coachrun.dto.response.UnavailabilityResponse declareUnavailability(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody com.coachrun.dto.request.UnavailabilityRequest request) {
+        return unavailabilityService.createForAthlete(principal.athleteId(), request);
+    }
+
+    /** Je retire une indisponibilité que j'ai déclarée. */
+    @DeleteMapping("/unavailabilities/{unavailabilityId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeUnavailability(@AuthenticationPrincipal AuthPrincipal principal,
+                                     @PathVariable UUID unavailabilityId) {
+        unavailabilityService.deleteForAthlete(principal.athleteId(), unavailabilityId);
     }
 
     /** RGPD — portabilité : export des données personnelles de l'athlète. */

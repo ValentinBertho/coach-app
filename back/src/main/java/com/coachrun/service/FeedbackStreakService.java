@@ -32,6 +32,7 @@ public class FeedbackStreakService {
 
     private final WorkoutRepository workoutRepository;
     private final ScheduledStrengthSessionRepository strengthRepository;
+    private final ClockService clock;
 
     /** Une séance passée, avec ou sans ressenti. */
     private record Session(LocalDate date, boolean rated) {
@@ -42,7 +43,7 @@ public class FeedbackStreakService {
      * séance échue n'a pas reçu de retour.
      */
     public int currentStreak(UUID athleteId) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = clock.today();
         LocalDate from = today.minusDays(WINDOW_DAYS);
         List<Session> sessions = new ArrayList<>();
 

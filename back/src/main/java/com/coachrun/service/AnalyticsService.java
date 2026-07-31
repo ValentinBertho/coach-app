@@ -31,6 +31,7 @@ public class AnalyticsService {
     private final WorkoutRepository workoutRepository;
     private final ActivityRepository activityRepository;
     private final AthleteRepository athleteRepository;
+    private final ClockService clock;
 
     /** Analytics — variante athlète-scopée (portail /me) : résout le club de l'athlète. */
     public AnalyticsResponse computeForAthlete(UUID athleteId, int weeks) {
@@ -39,9 +40,57 @@ public class AnalyticsService {
         return compute(a.getClub().getId(), athleteId, weeks);
     }
 
+    /**
+     * Récapitulatif de la semaine en cours (lundi → dimanche) : volume prévu/réalisé et séances
+     * faites sur séances prévues. C'est le seul chiffre qu'un athlète regarde vraiment en semaine.
+     */
+    public com.coachrun.dto.response.WeekSummaryResponse weekSummary(UUID athleteId) {
+        com.coachrun.entity.Athlete athlete = athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        UUID clubId = athlete.getClub().getId();
+        LocalDate monday = clock.today().with(DayOfWeek.MONDAY);
+        LocalDate sunday = monday.plusDays(6);
+
+        double plannedKm = 0;
+        int plannedSessions = 0;
+        int completedSessions = 0;
+        for (Workout w : workoutRepository
+                .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
+                        clubId, athleteId, monday, sunday)) {
+            // Une séance de repos n'est pas une séance à faire : la compter fausserait le « 3/5 ».
+            if (w.getType() == com.coachrun.entity.enums.WorkoutType.REST) {
+                continue;
+            }
+            plannedSessions++;
+            if (w.getTargetDistanceM() != null) {
+                plannedKm += w.getTargetDistanceM() / 1000.0;
+            }
+            if (w.getStatus() == com.coachrun.entity.enums.WorkoutStatus.COMPLETED
+                    || w.getStatus() == com.coachrun.entity.enums.WorkoutStatus.PARTIAL) {
+                completedSessions++;
+            }
+        }
+
+        double realizedKm = 0;
+        for (Activity a : activityRepository
+                .findByClubIdAndAthleteIdOrderByActivityDateDesc(clubId, athleteId)) {
+            if (a.getDistanceM() != null
+                    && !a.getActivityDate().isBefore(monday) && !a.getActivityDate().isAfter(sunday)) {
+                realizedKm += a.getDistanceM() / 1000.0;
+            }
+        }
+
+        return new com.coachrun.dto.response.WeekSummaryResponse(
+                monday,
+                Math.round(plannedKm * 10) / 10.0,
+                Math.round(realizedKm * 10) / 10.0,
+                plannedSessions,
+                completedSessions);
+    }
+
     public AnalyticsResponse compute(UUID clubId, UUID athleteId, int weeks) {
         int n = Math.max(1, Math.min(weeks, 26));
-        LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY).minusWeeks(n - 1L);
+        LocalDate monday = clock.today().with(DayOfWeek.MONDAY).minusWeeks(n - 1L);
         LocalDate end = monday.plusWeeks(n);
 
         List<Workout> workouts = workoutRepository

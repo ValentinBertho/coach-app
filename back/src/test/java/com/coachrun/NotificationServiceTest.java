@@ -7,6 +7,7 @@ import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.entity.enums.WorkoutStatus;
+import com.coachrun.integration.MailTemplate;
 import com.coachrun.integration.ResendMailClient;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.UserRepository;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -36,6 +38,9 @@ class NotificationServiceTest {
 
     @Mock
     private ResendMailClient mailClient;
+    /** Gabarit réel : les assertions portent sur l'e-mail effectivement rendu. */
+    @Spy
+    private MailTemplate mailTemplate = new MailTemplate();
     @Mock
     private UserRepository userRepository;
     @Mock
@@ -78,6 +83,8 @@ class NotificationServiceTest {
     void doesNotSendWhenDisabled() {
         ReflectionTestUtils.setField(notificationService, "enabled", false);
         ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "publisher", "Darilab");
 
         notificationService.notifyWorkoutPlanned(sampleWorkout());
 
@@ -88,19 +95,22 @@ class NotificationServiceTest {
     void skipsAthleteWithoutEmail() {
         ReflectionTestUtils.setField(notificationService, "enabled", true);
         ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "publisher", "Darilab");
         Workout w = sampleWorkout();
         w.getAthlete().setEmail(null);
 
         notificationService.notifyWorkoutPlanned(w);
 
-        verify(mailClient, never()).send(org.mockito.ArgumentMatchers.any(),
-                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
     }
 
     @Test
     void feedbackNotifiesReferentCoach() {
         ReflectionTestUtils.setField(notificationService, "enabled", true);
         ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "publisher", "Darilab");
         Workout w = feedbackWorkout();
         CoachAthleteRelation rel = new CoachAthleteRelation();
         rel.setCoach(coach("referent@test.fr"));
@@ -109,7 +119,8 @@ class NotificationServiceTest {
 
         notificationService.notifyAthleteFeedback(w);
 
-        verify(mailClient).send(eq("referent@test.fr"), contains("renseigné une séance"), any());
+        verify(mailClient).send(eq("referent@test.fr"), contains("renseigné une séance"),
+                any(), any(), any(), any());
         // Le head coach n'est pas sollicité quand un référent existe.
         verify(userRepository, never()).findFirstByClubIdAndRole(any(), any());
     }
@@ -118,6 +129,8 @@ class NotificationServiceTest {
     void alertDigestDedupesPerAthleteAndOmitsHealthDetail() {
         ReflectionTestUtils.setField(notificationService, "enabled", true);
         ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "publisher", "Darilab");
         UUID a1 = UUID.randomUUID();
         UUID a2 = UUID.randomUUID();
         java.util.List<com.coachrun.dto.response.CoachAlertResponse> alerts = java.util.List.of(
@@ -131,7 +144,8 @@ class NotificationServiceTest {
         notificationService.notifyCoachAlertDigest(coach("coach@test.fr"), alerts);
 
         org.mockito.ArgumentCaptor<String> html = org.mockito.ArgumentCaptor.forClass(String.class);
-        verify(mailClient).send(eq("coach@test.fr"), contains("2 alerte"), html.capture());
+        verify(mailClient).send(eq("coach@test.fr"), contains("2 alerte"), html.capture(),
+                any(), any(), any());
         // Dédoublonnage par athlète (Marie une seule fois) et aucune donnée de santé (pas de "8/10").
         assertThatHtml(html.getValue());
     }
@@ -147,6 +161,8 @@ class NotificationServiceTest {
     void mutedEmailSuppressesFeedbackEmailButKeepsInApp() {
         ReflectionTestUtils.setField(notificationService, "enabled", true);
         ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "publisher", "Darilab");
         Workout w = feedbackWorkout();
         User coach = coach("muted@test.fr");
         coach.setNotifyEmailEnabled(false);
@@ -155,7 +171,7 @@ class NotificationServiceTest {
 
         notificationService.notifyAthleteFeedback(w);
 
-        verify(mailClient, never()).send(any(), any(), any());
+        verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
     }
 
     private CoachAthleteRelation relWith(User coach) {
@@ -168,6 +184,8 @@ class NotificationServiceTest {
     void feedbackFallsBackToHeadCoachWhenNoReferent() {
         ReflectionTestUtils.setField(notificationService, "enabled", true);
         ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "publisher", "Darilab");
         Workout w = feedbackWorkout();
         when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
                 .thenReturn(Optional.empty());
@@ -176,6 +194,7 @@ class NotificationServiceTest {
 
         notificationService.notifyAthleteFeedback(w);
 
-        verify(mailClient).send(eq("head@test.fr"), contains("renseigné une séance"), any());
+        verify(mailClient).send(eq("head@test.fr"), contains("renseigné une séance"),
+                any(), any(), any(), any());
     }
 }
