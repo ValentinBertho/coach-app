@@ -12,6 +12,7 @@ import { PhysioService } from '../../core/services/physio.service';
 import { PhysioProfile } from '../../core/models/physio.model';
 import { DataOriginTagComponent, type DataOrigin, type FormLevel } from '../../shared/components/physiology';
 import { FormPillComponent } from '../../shared/components/form-pill/form-pill.component';
+import { AthleteSwitcherComponent } from '../../shared/components/athlete-switcher/athlete-switcher.component';
 import { AthleteForm, CoachDashboardService, FormStatus } from '../../core/services/coach-dashboard.service';
 
 const STATUS_LABELS: Record<AthleteStatus, string> = { ACTIVE: 'Actif', PAUSED: 'En pause', ARCHIVED: 'Archivé' };
@@ -53,7 +54,8 @@ const SECTION_LABELS: Record<string, string> = {
   selector: 'app-athlete-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, FormsModule, DataOriginTagComponent, FormPillComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, FormsModule, DataOriginTagComponent, FormPillComponent,
+    AthleteSwitcherComponent],
   // Au défilement, le bandeau se réduit à une ligne : il ne mange pas l'écran, mais il ne
   // disparaît jamais — c'est tout l'intérêt d'un contexte persistant.
   host: { '(window:scroll)': 'onScroll()' },
@@ -66,31 +68,9 @@ const SECTION_LABELS: Record<string, string> = {
             <div class="shell-id__title">
               <!-- Le nom est un sélecteur : passer à un autre athlète SANS quitter l'onglet
                    courant, pour comparer plusieurs athlètes sur la même section. -->
-              <div class="switcher" [class.switcher--open]="switcherOpen()">
-                <button type="button" class="switcher__trigger" (click)="toggleSwitcher()"
-                        [attr.aria-expanded]="switcherOpen()" aria-haspopup="listbox">
-                  <h1 class="display-sm">{{ a.firstName }} {{ a.lastName }}</h1>
-                  <app-icon name="chevron-down" [size]="16" />
-                </button>
-                @if (switcherOpen()) {
-                  <div class="switcher__backdrop" (click)="closeSwitcher()"></div>
-                  <div class="switcher__menu" role="listbox">
-                    <input class="form-control switcher__search" [ngModel]="query()"
-                           (ngModelChange)="query.set($event)" placeholder="Rechercher un athlète…"
-                           aria-label="Rechercher un athlète" />
-                    @for (o of matches(); track o.id) {
-                      <button type="button" class="switcher__opt" role="option"
-                              [class.sel]="o.id === athleteId()" (click)="goTo(o.id)">
-                        <span class="avatar">{{ o.firstName[0] }}{{ o.lastName[0] }}</span>
-                        <span class="switcher__name">{{ o.firstName }} {{ o.lastName }}</span>
-                        @if (o.groupName) { <span class="switcher__grp">{{ o.groupName }}</span> }
-                      </button>
-                    } @empty {
-                      <p class="switcher__empty field-hint">Aucun athlète pour cette recherche.</p>
-                    }
-                  </div>
-                }
-              </div>
+              <app-athlete-switcher variant="title"
+                [athletes]="siblings()" [selectedId]="athleteId()"
+                (selectedIdChange)="goTo($event)" />
               <!-- Athlète précédent / suivant : même ordre que la liste, onglet conservé. -->
               @if (siblings().length > 1) {
                 <span class="stepper">
@@ -215,39 +195,6 @@ const SECTION_LABELS: Record<string, string> = {
     .shell-id__title { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
     .shell-id__title h1 { margin: 0; }
 
-    /* Sélecteur d'athlète porté par le nom. */
-    .switcher { position: relative; }
-    .switcher__trigger {
-      display: inline-flex; align-items: center; gap: var(--sp-2);
-      background: none; border: none; padding: 2px 4px; margin-left: -4px; cursor: pointer;
-      color: var(--ink); border-radius: var(--radius-sm); font: inherit;
-    }
-    .switcher__trigger:hover { background: var(--paper-sunk); }
-    .switcher__trigger:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-    .switcher__trigger app-icon { color: var(--ink-3); }
-    .switcher--open .switcher__trigger app-icon { color: var(--primary); }
-
-    .switcher__backdrop { position: fixed; inset: 0; z-index: 40; }
-    .switcher__menu {
-      position: absolute; z-index: 41; top: calc(100% + 4px); left: 0;
-      width: min(320px, 80vw); max-height: 380px; overflow-y: auto;
-      background: var(--paper); border: 1px solid var(--line, var(--hairline));
-      border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: var(--sp-2);
-      display: flex; flex-direction: column; gap: 2px;
-    }
-    .switcher__search { margin-bottom: var(--sp-1); }
-    .switcher__opt {
-      display: flex; align-items: center; gap: var(--sp-2); width: 100%;
-      background: none; border: none; cursor: pointer; text-align: left;
-      padding: var(--sp-2); border-radius: var(--radius-sm); color: var(--ink); font: inherit;
-    }
-    .switcher__opt:hover { background: var(--paper-sunk); }
-    .switcher__opt.sel { background: var(--primary-wash); color: var(--primary); }
-    .switcher__opt .avatar { width: 26px; height: 26px; font-size: var(--text-xs); flex: none; }
-    .switcher__name { font-weight: 600; font-size: var(--text-sm); }
-    .switcher__grp { margin-left: auto; font-size: var(--text-xs); color: var(--ink-3); }
-    .switcher__empty { padding: var(--sp-2); margin: 0; }
-
     .stepper { display: inline-flex; gap: 2px; }
     .stepper .icon-btn {
       border: 1px solid var(--hairline); background: var(--paper); color: var(--ink-2);
@@ -364,16 +311,8 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
   readonly isPrivate = computed(() => (this.athlete()?.clubs ?? []).length === 0);
 
   // --- Sélecteur d'athlète (rester sur le même onglet en changeant de personne) ---
+  // Le déclencheur + la recherche vivent dans <app-athlete-switcher>, partagé avec le calendrier.
   readonly siblings = signal<AthleteSummary[]>([]);
-  readonly switcherOpen = signal(false);
-  readonly query = signal('');
-
-  readonly matches = computed(() => {
-    const q = this.query().trim().toLowerCase();
-    const all = this.siblings();
-    if (!q) return all;
-    return all.filter((a) => `${a.firstName} ${a.lastName}`.toLowerCase().includes(q));
-  });
 
   private readonly index = computed(() => this.siblings().findIndex((a) => a.id === this.athleteId()));
   readonly prevId = computed(() => {
@@ -393,18 +332,8 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
     if (past !== this.scrolled()) this.scrolled.set(past);
   }
 
-  toggleSwitcher(): void {
-    this.switcherOpen.update((v) => !v);
-    if (this.switcherOpen()) this.query.set('');
-  }
-
-  closeSwitcher(): void {
-    this.switcherOpen.set(false);
-  }
-
   /** Ouvre un autre athlète sur la <b>même section</b> — le geste central du coach. */
   goTo(id: string): void {
-    this.closeSwitcher();
     if (id === this.athleteId()) return;
     const section = SECTION_LABELS[this.segment()] ? this.segment() : 'resume';
     this.router.navigate(['/app/athletes', id, section]);

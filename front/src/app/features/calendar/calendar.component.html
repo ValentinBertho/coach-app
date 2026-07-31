@@ -16,75 +16,177 @@
   </section>
 }
 
+<!-- Barre d'outils : trois éléments visibles (qui · quand · aujourd'hui) et deux menus.
+     Elle en portait jusqu'à douze sur une ligne qui passait à la ligne — le premier écran du
+     produit donnait une impression d'usine à gaz avant d'avoir montré quoi que ce soit. -->
 <div class="toolbar">
-  @if (!lockedToAthlete()) {
-    <!-- Athlète ou groupe : un coach de club planifie et surveille une semaine d'équipe. -->
-    <div class="mode-switch scope-switch">
-      <button type="button" [class.active]="scopeMode() === 'athlete'" (click)="setScopeMode('athlete')">Athlète</button>
-      <button type="button" [class.active]="scopeMode() === 'group'" (click)="setScopeMode('group')">Groupe</button>
+  <div class="tb-left">
+    @if (!lockedToAthlete()) {
+      @if (scopeMode() === 'athlete') {
+        <app-athlete-switcher [athletes]="athletes()" [selectedId]="selectedAthleteId"
+                              (selectedIdChange)="onAthleteChange($event)" />
+      } @else {
+        <select class="form-control athlete-select" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()"
+                aria-label="Groupe">
+          <option value="">Choisir un groupe…</option>
+          @for (g of groups(); track g.id) {
+            <option [value]="g.id">{{ g.name }} ({{ g.athleteCount }})</option>
+          }
+        </select>
+      }
+    }
+
+    <div class="week-nav">
+      <button type="button" class="icon-btn" (click)="shift(-1)" aria-label="Période précédente" [title]="'Période précédente (←)'">
+        <app-icon name="chevron-left" [size]="16" />
+      </button>
+      <span class="week-label">{{ periodLabel() }}</span>
+      <button type="button" class="icon-btn" (click)="shift(1)" aria-label="Période suivante" [title]="'Période suivante (→)'">
+        <app-icon name="chevron-right" [size]="16" />
+      </button>
+    </div>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="goToday()" title="Revenir à aujourd'hui (T)">Aujourd'hui</button>
+
+    @if (mode() === 'week' && scopeMode() === 'athlete') {
+      <span class="volume metric">{{ weeklyVolumeKm() }} km</span>
+    }
+  </div>
+
+  <div class="tb-right">
+    <!-- Annuler / rétablir visibles : une pile qu'on ne voit pas est une pile dont on ignore
+         l'existence, et le libellé dit ce qui sera défait avant de cliquer. -->
+    <button type="button" class="icon-btn" (click)="undoLast()" [disabled]="!canUndo()"
+            [title]="(undoLabel() ? 'Annuler ' + undoLabel() : 'Rien à annuler') + ' (' + keys('mod','Z') + ')'"
+            aria-label="Annuler">
+      <app-icon name="rotate-ccw" [size]="16" />
+    </button>
+    <button type="button" class="icon-btn" (click)="redoLast()" [disabled]="!canRedo()"
+            [title]="(redoLabel() ? 'Rétablir ' + redoLabel() : 'Rien à rétablir') + ' (' + keys('mod','Maj','Z') + ')'"
+            aria-label="Rétablir">
+      <app-icon name="refresh-cw" [size]="16" />
+    </button>
+
+    <div class="tb-menu">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="viewMenuOpen.set(!viewMenuOpen())"
+              [attr.aria-expanded]="viewMenuOpen()" aria-haspopup="menu">
+        <app-icon name="eye" [size]="15" /> Vue <app-icon name="chevron-down" [size]="14" />
+      </button>
+      @if (viewMenuOpen()) {
+        <div class="ctx-backdrop" (click)="viewMenuOpen.set(false)"></div>
+        <div class="tb-dropdown" role="menu">
+          @if (!lockedToAthlete()) {
+            <span class="tb-dropdown__t">Périmètre</span>
+            <button type="button" class="ctx-item" [class.on]="scopeMode() === 'athlete'"
+                    (click)="setScopeMode('athlete'); viewMenuOpen.set(false)">
+              <app-icon name="user" [size]="14" /> Athlète
+            </button>
+            <button type="button" class="ctx-item" [class.on]="scopeMode() === 'group'"
+                    (click)="setScopeMode('group'); viewMenuOpen.set(false)">
+              <app-icon name="users-round" [size]="14" /> Groupe
+            </button>
+            <div class="ctx-sep"></div>
+          }
+
+          @if (scopeMode() === 'athlete') {
+            <span class="tb-dropdown__t">Affichage</span>
+            <button type="button" class="ctx-item" [class.on]="view() === 'planned'" (click)="setView('planned')">Prévu</button>
+            <button type="button" class="ctx-item" [class.on]="view() === 'realized'" (click)="setView('realized')">Réalisé</button>
+            <button type="button" class="ctx-item" [class.on]="view() === 'both'" (click)="setView('both')">Les deux</button>
+            <div class="ctx-sep"></div>
+
+            <span class="tb-dropdown__t">Période</span>
+            <button type="button" class="ctx-item" [class.on]="mode() === 'week'" (click)="setMode('week')">
+              Semaine <kbd class="ctx-kbd">W</kbd>
+            </button>
+            <button type="button" class="ctx-item" [class.on]="mode() === 'month'" (click)="setMode('month')">
+              Mois <kbd class="ctx-kbd">M</kbd>
+            </button>
+            <div class="ctx-sep"></div>
+          }
+
+          <button type="button" class="ctx-item" [class.on]="sidebarOpen()" (click)="toggleSidebar()">
+            <app-icon name="panel-left" [size]="14" /> Bibliothèque <kbd class="ctx-kbd">B</kbd>
+          </button>
+        </div>
+      }
     </div>
 
     @if (scopeMode() === 'athlete') {
-      <select class="form-control athlete-select" [(ngModel)]="selectedAthleteId" (ngModelChange)="onAthleteChange()">
-        @for (a of athletes(); track a.id) {
-          <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option>
+      <div class="tb-menu">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="actionsMenuOpen.set(!actionsMenuOpen())"
+                [attr.aria-expanded]="actionsMenuOpen()" aria-haspopup="menu"
+                [disabled]="!canWriteSelected()">
+          <app-icon name="blocks" [size]="15" /> Actions <app-icon name="chevron-down" [size]="14" />
+        </button>
+        @if (actionsMenuOpen()) {
+          <div class="ctx-backdrop" (click)="actionsMenuOpen.set(false)"></div>
+          <div class="tb-dropdown" role="menu">
+            <button type="button" class="ctx-item" (click)="duplicateWeek()"
+                    [disabled]="mode() !== 'week' || workouts().length === 0">
+              <app-icon name="copy" [size]="14" /> Dupliquer la semaine
+            </button>
+            <button type="button" class="ctx-item" (click)="toggleMeso(); actionsMenuOpen.set(false)"
+                    [disabled]="mode() !== 'week' || workouts().length === 0">
+              <app-icon name="trending-up" [size]="14" /> Générer un mésocycle
+            </button>
+            <div class="ctx-sep"></div>
+            <button type="button" class="ctx-item" (click)="selectAll(); actionsMenuOpen.set(false)">
+              Tout sélectionner <kbd class="ctx-kbd">{{ keys('mod','A') }}</kbd>
+            </button>
+            <button type="button" class="ctx-item" (click)="pasteOn(hoveredDate()); actionsMenuOpen.set(false)"
+                    [disabled]="clipboard().refs.length === 0">
+              Coller <kbd class="ctx-kbd">{{ keys('mod','V') }}</kbd>
+            </button>
+          </div>
         }
-      </select>
-    } @else {
-      <select class="form-control athlete-select" [(ngModel)]="selectedGroupId" (ngModelChange)="onGroupChange()">
-        <option value="">Choisir un groupe…</option>
-        @for (g of groups(); track g.id) {
-          <option [value]="g.id">{{ g.name }} ({{ g.athleteCount }})</option>
-        }
-      </select>
+      </div>
     }
-  }
 
-  @if (scopeMode() === 'athlete') {
-    <div class="mode-switch">
-      <button type="button" [class.active]="mode() === 'week'" (click)="setMode('week')">Semaine</button>
-      <button type="button" [class.active]="mode() === 'month'" (click)="setMode('month')">Mois</button>
-    </div>
-  }
-
-  @if (scopeMode() === 'athlete') {
-    <div class="mode-switch view-switch">
-      <button type="button" [class.active]="view() === 'planned'" (click)="setView('planned')">Prévu</button>
-      <button type="button" [class.active]="view() === 'realized'" (click)="setView('realized')">Réalisé</button>
-      <button type="button" [class.active]="view() === 'both'" (click)="setView('both')">Les deux</button>
-    </div>
-  }
-
-  <div class="week-nav">
-    <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)" aria-label="Période précédente"><app-icon name="arrow-left" [size]="16" /></button>
-    <button type="button" class="btn btn-ghost btn-sm" (click)="goToday()">Aujourd'hui</button>
-    <button type="button" class="btn btn-ghost btn-sm" (click)="shift(1)" aria-label="Période suivante"><app-icon name="arrow-right" [size]="16" /></button>
-    <span class="week-label">{{ periodLabel() }}</span>
+    <button type="button" class="icon-btn" (click)="shortcutsOpen.set(true)"
+            title="Raccourcis clavier (?)" aria-label="Raccourcis clavier">
+      <app-icon name="circle-help" [size]="16" />
+    </button>
   </div>
-
-  @if (mode() === 'week' && scopeMode() === 'athlete') {
-    <span class="volume metric">{{ weeklyVolumeKm() }} km prévus</span>
-    <!-- Les deux accélérateurs qui font gagner des heures : programmer 40 athlètes séance par
-         séance n'est pas tenable. Le geste reste réversible (les séances copiées se suppriment). -->
-    <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="duplicateWeek()"
-            [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
-            title="Copier cette semaine vers la suivante">
-      <app-icon name="copy" [size]="15" /> Dupliquer la semaine
-    </button>
-    <button type="button" class="btn btn-ghost btn-sm dup-week" (click)="toggleMeso()"
-            [disabled]="!selectedAthleteId || workouts().length === 0 || !canWriteSelected()"
-            title="Générer un mésocycle progressif">
-      <app-icon name="trending-up" [size]="15" /> Mésocycle
-    </button>
-  }
-
-  <!-- La bibliothèque est disponible en mode groupe aussi : sans elle on ne peut que déplacer,
-       jamais planifier — la promesse « coach de club » n'était pas tenue. -->
-  <button type="button" class="btn btn-ghost btn-sm lib-toggle" (click)="toggleSidebar()"
-          [title]="sidebarOpen() ? 'Masquer la bibliothèque' : 'Afficher la bibliothèque'">
-    <app-icon name="panel-left" [size]="15" /> {{ sidebarOpen() ? 'Masquer' : 'Bibliothèque' }}
-  </button>
 </div>
+
+<!-- Barre d'actions du lot sélectionné : elle n'apparaît que quand il y a un lot, et rappelle
+     le raccourci de chaque action pour que la souris enseigne le clavier. -->
+@if (selection.count() > 0) {
+  <div class="sel-bar" role="toolbar" aria-label="Actions sur la sélection">
+    <span class="sel-bar__n metric">{{ selection.count() }} séance{{ selection.count() > 1 ? 's' : '' }}</span>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="copySelection()">
+      <app-icon name="copy" [size]="15" /> Copier <kbd class="ctx-kbd">{{ keys('mod','C') }}</kbd>
+    </button>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="duplicateSelection()">
+      <app-icon name="plus" [size]="15" /> Dupliquer <kbd class="ctx-kbd">{{ keys('mod','D') }}</kbd>
+    </button>
+    <button type="button" class="btn btn-ghost btn-sm danger" (click)="deleteSelection()">
+      <app-icon name="trash-2" [size]="15" /> Supprimer <kbd class="ctx-kbd">Suppr</kbd>
+    </button>
+    <button type="button" class="btn btn-ghost btn-sm sel-bar__close" (click)="clearSelection()"
+            title="Vider la sélection (Échap)" aria-label="Vider la sélection">
+      <app-icon name="x" [size]="15" />
+    </button>
+  </div>
+}
+
+<!-- Plage de jours tracée à la souris : on ne sélectionne pas des jours pour rien, on propose
+     tout de suite ce qu'on peut en faire. -->
+@if (dayRange().length > 1) {
+  <div class="sel-bar sel-bar--days" role="toolbar" aria-label="Actions sur la plage de jours">
+    <span class="sel-bar__n metric">{{ dayRange().length }} jours</span>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="planRange()">
+      <app-icon name="plus" [size]="15" /> Planifier une séance sur ces jours
+    </button>
+    <button type="button" class="btn btn-ghost btn-sm danger" (click)="clearRange()">
+      <app-icon name="trash-2" [size]="15" /> Vider ces jours
+    </button>
+    <button type="button" class="btn btn-ghost btn-sm sel-bar__close" (click)="clearSelection()"
+            title="Annuler la plage (Échap)" aria-label="Annuler la plage">
+      <app-icon name="x" [size]="15" />
+    </button>
+  </div>
+}
 
 @if (scopeMode() === 'athlete' && selectedAthleteId && !canWriteSelected()) {
   <div class="readonly-banner">
@@ -270,10 +372,14 @@
         <span class="wd-total">Total</span>
       </div>
 
-      <div class="grid" [class.month]="mode() === 'month'" [class.loading]="loading()">
+      <div class="grid" [class.month]="mode() === 'month'" [class.loading]="loading()"
+           (pointerdown)="onGridPointerDown($event)">
         @for (week of weeks(); track $index) {
         @for (day of week.days; track day.date) {
-      <div class="day-col" [class.today]="day.isToday" [class.dim]="!day.inMonth" [class.day-col--unavailable]="day.unavailability">
+      <div class="day-col" [class.today]="day.isToday" [class.dim]="!day.inMonth" [class.day-col--unavailable]="day.unavailability"
+           [class.day-col--hover]="hoveredDate() === day.date" [class.day-col--ranged]="dayRange().includes(day.date)"
+           [attr.data-day]="day.date"
+           (mouseenter)="onDayEnter(day.date)" (mouseleave)="onDayLeave(day.date)">
         <header class="day-head">
           <div class="day-head__date">
             @if (mode() === 'week') { <span class="day-name">{{ day.label }}</span> }
@@ -316,9 +422,11 @@
               class="workout-card"
               [class.workout-card--key]="typeMeta(w.type).key"
               [style.--type-color]="typeMeta(w.type).color"
-              cdkDrag [cdkDragData]="w" (click)="openWorkout(w)"
+              [class.is-selected]="isSelected('course', w.id)"
+              [attr.data-chip]="'course:' + w.id"
+              cdkDrag [cdkDragData]="w" (click)="onChipClick($event, 'course', w)"
               (cdkDragStarted)="onDragStarted($event)" (cdkDragEnded)="onDragEnded()"
-              [title]="w.title + ' — glisser pour déplacer, Alt+glisser pour dupliquer'"
+              [title]="w.title + ' — clic pour ouvrir, ' + keys('mod','clic') + ' pour ajouter au lot, Alt+glisser pour dupliquer'"
               (contextmenu)="openContextMenu(w, $event)"
               (pointerdown)="onChipPointerDown($event, w, 'course')"
               (pointermove)="onChipPointerMove($event)"
@@ -341,8 +449,10 @@
               class="strength-chip"
               [class.done]="s.completed"
               [style.--type-color]="typeMeta('STRENGTH').color"
+              [class.is-selected]="isSelected('strength', s.id)"
+              [attr.data-chip]="'strength:' + s.id"
               cdkDrag [cdkDragData]="s" [cdkDragDisabled]="!canWriteSelected()"
-              (click)="openStrength(s)"
+              (click)="onChipClick($event, 'strength', s)"
               (contextmenu)="openStrengthMenu(s, $event)"
               (pointerdown)="onChipPointerDown($event, s, 'strength')"
               (pointermove)="onChipPointerMove($event)"
@@ -354,7 +464,10 @@
             </button>
           }
           @if (canWriteSelected()) {
-            <button type="button" class="add-btn" (click)="addWorkout(day.date)">+</button>
+            <button type="button" class="add-btn" (click)="addWorkout(day.date)"
+                    [title]="'Planifier une séance (N)'" aria-label="Planifier une séance">
+              <app-icon name="plus" [size]="15" />
+            </button>
           }
           }
 
@@ -386,7 +499,9 @@
       </div>
     }
         <!-- Totaux de la semaine (colonne de droite, façon Nolio) -->
-        <div class="week-total" [class.week-total--empty]="week.sessions === 0 && week.realSessions === 0">
+        <div class="week-total" [class.week-total--empty]="week.sessions === 0 && week.realSessions === 0"
+             (contextmenu)="openWeekMenu(week, $event)"
+             [title]="'Clic droit : dupliquer, vider ou décaler cette semaine'">
           @if (week.sessions === 0 && week.realSessions === 0) {
             <span class="wt-dash">—</span>
           } @else {
@@ -425,6 +540,15 @@
     <button type="button" class="ctx-item" (click)="ctxOpen()"><app-icon name="footprints" [size]="14" /> Ouvrir la séance</button>
     <button type="button" class="ctx-item" (click)="ctxAdapt()"><app-icon name="pencil" [size]="14" /> Adapter la structure</button>
     <div class="ctx-sep"></div>
+    <!-- Chaque entrée affiche son raccourci : le menu est le seul endroit où l'on découvre
+         le clavier sans avoir à chercher. -->
+    <button type="button" class="ctx-item" (click)="ctxCopy()">
+      <app-icon name="copy" [size]="14" /> Copier <kbd class="ctx-kbd">{{ keys('mod','C') }}</kbd>
+    </button>
+    <button type="button" class="ctx-item" (click)="ctxDuplicate()">
+      <app-icon name="plus" [size]="14" /> Dupliquer sur place <kbd class="ctx-kbd">{{ keys('mod','D') }}</kbd>
+    </button>
+    <div class="ctx-sep"></div>
     <label class="ctx-field">Déplacer vers
       <input type="date" class="form-control" [ngModel]="ctxDate" (ngModelChange)="ctxMoveTo($event)" />
     </label>
@@ -432,7 +556,9 @@
       <input type="date" class="form-control" [ngModel]="ctxDate" (ngModelChange)="ctxCopyTo($event)" />
     </label>
     <div class="ctx-sep"></div>
-    <button type="button" class="ctx-item danger" (click)="ctxDelete()"><app-icon name="ban" [size]="14" /> Supprimer</button>
+    <button type="button" class="ctx-item danger" (click)="ctxDelete()">
+      <app-icon name="ban" [size]="14" /> Supprimer <kbd class="ctx-kbd">Suppr</kbd>
+    </button>
   </div>
 }
 
@@ -517,13 +643,45 @@
   }
 </app-side-panel>
 
+<!-- Menu contextuel de la colonne de totaux : la semaine est la seule unité que cette colonne
+     manipule, c'est donc là que vivent les gestes qui portent sur une semaine entière. -->
+@if (weekMenu(); as m) {
+  <div class="ctx-backdrop" (click)="closeWeekMenu()" (contextmenu)="$event.preventDefault(); closeWeekMenu()"></div>
+  <div class="ctx-menu" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
+    <span class="ctx-title">Semaine du {{ fmtDate(m.start) }} · {{ m.sessions }} séance{{ m.sessions > 1 ? 's' : '' }}</span>
+    <label class="ctx-field">Dupliquer cette semaine vers
+      <input type="date" class="form-control" [ngModel]="weekMenuTarget" (ngModelChange)="ctxDuplicateWeek($event)" />
+    </label>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item" (click)="ctxShiftWeek(-1)">
+      <app-icon name="arrow-left" [size]="14" /> Décaler d'un jour plus tôt
+    </button>
+    <button type="button" class="ctx-item" (click)="ctxShiftWeek(1)">
+      <app-icon name="arrow-right" [size]="14" /> Décaler d'un jour plus tard
+    </button>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item danger" (click)="ctxClearWeek()">
+      <app-icon name="ban" [size]="14" /> Vider la semaine
+    </button>
+  </div>
+}
+
+<!-- Rectangle de sélection en cours de tracé. -->
+@if (marquee(); as r) {
+  <div class="marquee" aria-hidden="true"
+       [style.left.px]="r.x" [style.top.px]="r.y" [style.width.px]="r.w" [style.height.px]="r.h"></div>
+}
+
+<!-- Aide-mémoire des raccourcis (?) : un accélérateur que personne ne découvre n'existe pas. -->
+<app-shortcuts-overlay [(open)]="shortcutsOpen" [groups]="shortcutGroups" />
+
 <!-- Sélecteur de séance course (clic sur « + » d'un jour) : planification structurée en fourchettes.
      L'ancien éditeur « par zones » (valeurs sèches) a été retiré au profit du modèle unique DARI Lab. -->
 @if (pickerDate(); as date) {
   <div class="picker-overlay" (click)="closePicker()">
     <div class="picker" (click)="$event.stopPropagation()">
       <header class="picker__head">
-        <h3>Planifier une séance — {{ fmtDate(date) }}</h3>
+        <h3>Planifier une séance — {{ pickerLabel() }}</h3>
         <button type="button" class="btn btn-ghost btn-sm" (click)="closePicker()">Fermer</button>
       </header>
       <button type="button" class="picker__item picker__adhoc" (click)="createAdHoc()">
