@@ -75,6 +75,9 @@ app:
     enabled: ${MAIL_ENABLED:false}
     resend-api-key: ${RESEND_API_KEY:}
     from: ${MAIL_FROM:Darilab <no-reply@darilab.app>}
+    # Pied de page et en-têtes du gabarit transactionnel.
+    publisher: ${MAIL_PUBLISHER:Darilab}
+    reply-to: ${MAIL_REPLY_TO:}
   alerts:
     digest-cron: ${ALERTS_DIGEST_CRON:0 0 7 * * *}
   debrief:
