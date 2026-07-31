@@ -1,6 +1,6 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteSummary } from '../../core/models/athlete.model';
@@ -787,6 +787,38 @@ export class CalendarComponent implements OnInit, OnDestroy {
   openObjectives(): void { this.router.navigate(['/app/athletes', this.selectedAthleteId, 'races']); }
   openTests(): void { this.router.navigate(['/app/athletes', this.selectedAthleteId, 'tests']); }
 
+  // --- Alt + glisser = copier --------------------------------------------------------------
+  // Le geste est un standard universel, mais invisible : sans retour pendant le drag, le coach
+  // ne sait pas s'il s'apprête à déplacer ou à dupliquer. La classe est posée sur <body> parce
+  // que la vignette de drag du CDK y est montée, hors de l'arbre du calendrier.
+  private static readonly COPY_DRAG_CLASS = 'is-copy-drag';
+  private dragging = false;
+
+  onDragStarted(ev: { event: MouseEvent | TouchEvent }): void {
+    this.dragging = true;
+    this.setCopyCursor(this.isCopyModifier(ev.event));
+  }
+
+  onDragEnded(): void {
+    this.dragging = false;
+    this.setCopyCursor(false);
+  }
+
+  /** Alt (ou ⌘ sur mac) enfoncé/relâché **pendant** le glisser : le coach change d'avis en route. */
+  @HostListener('document:keydown', ['$event'])
+  @HostListener('document:keyup', ['$event'])
+  protected onModifierChange(ev: KeyboardEvent): void {
+    if (this.dragging) this.setCopyCursor(ev.altKey || ev.metaKey);
+  }
+
+  private isCopyModifier(ev: MouseEvent | TouchEvent): boolean {
+    return !!ev && 'altKey' in ev && (ev.altKey || (ev as MouseEvent).metaKey);
+  }
+
+  private setCopyCursor(on: boolean): void {
+    document.body.classList.toggle(CalendarComponent.COPY_DRAG_CLASS, on);
+  }
+
   onDrop(event: CdkDragDrop<DayCell>, targetDate: string): void {
     const data = event.item.data as Workout | StrengthSession | ScheduledStrength | WorkoutTemplate;
     const rec = data as unknown as Record<string, unknown>;
@@ -890,11 +922,30 @@ export class CalendarComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Duplique une séance vers une date (copie figée côté back). */
+  /**
+   * Duplique une séance vers une date (copie figée côté back), avec annulation.
+   * Alt+glisser est un geste rapide, donc facile à déclencher par erreur : il doit se défaire
+   * aussi vite qu'un déplacement, sinon il laisse une séance parasite dans la semaine.
+   */
   private copyWorkout(w: Workout, targetDate: string): void {
     this.workoutService.copy(this.selectedAthleteId, w.id, targetDate).subscribe({
-      next: () => { this.toast.success(`Séance dupliquée au ${this.fmtDate(targetDate)}`); this.load(); },
+      next: (copy) => {
+        this.load();
+        this.toast.withAction(
+          `« ${w.title} » dupliquée le ${this.fmtDate(targetDate)}`, 'Annuler',
+          () => this.undoCopy(copy),
+        );
+      },
       error: () => this.toast.error('Duplication impossible.'),
+    });
+  }
+
+  /** Annule une duplication : la copie n'existait pas avant le geste, on la supprime. */
+  private undoCopy(copy: Workout): void {
+    this.workouts.update((l) => l.filter((x) => x.id !== copy.id));
+    this.workoutService.delete(this.selectedAthleteId, copy.id).subscribe({
+      next: () => this.toast.info('Duplication annulée.'),
+      error: () => { this.toast.error('Annulation impossible.'); this.load(); },
     });
   }
 
@@ -1069,6 +1120,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * « supprimée à l'écran » ressusciter au prochain chargement.
    */
   ngOnDestroy(): void {
+    this.setCopyCursor(false); // la classe vit sur <body> : elle ne doit pas survivre à l'écran
     for (const [workoutId, timer] of this.pendingDeletions) {
       clearTimeout(timer);
       this.workoutService.delete(this.selectedAthleteId, workoutId).subscribe({ error: () => { /* best-effort */ } });

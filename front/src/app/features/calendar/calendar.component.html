@@ -298,6 +298,8 @@
               [class.workout-card--key]="typeMeta(w.type).key"
               [style.--type-color]="typeMeta(w.type).color"
               cdkDrag [cdkDragData]="w" (click)="openWorkout(w)"
+              (cdkDragStarted)="onDragStarted($event)" (cdkDragEnded)="onDragEnded()"
+              [title]="w.title + ' — glisser pour déplacer, Alt+glisser pour dupliquer'"
               (contextmenu)="openContextMenu(w, $event)"
               (pointerdown)="onChipPointerDown($event, w, 'course')"
               (pointermove)="onChipPointerMove($event)"
