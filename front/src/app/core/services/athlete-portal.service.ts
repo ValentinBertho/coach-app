@@ -142,6 +142,18 @@ export class AthletePortalService {
     return this.http.put<WellnessCheckIn>(`${this.base}/check-in`, body);
   }
 
+  /**
+   * Heure habituelle de séance (0–23, ou null). Elle ne sert qu'à caler la relance
+   * « Ta séance est finie ? » : c'est un réglage de notification, pas une donnée d'entraînement.
+   */
+  sessionHour(): Observable<{ hour: number | null }> {
+    return this.http.get<{ hour: number | null }>(`${this.base}/session-hour`);
+  }
+
+  setSessionHour(hour: number | null): Observable<{ hour: number | null }> {
+    return this.http.put<{ hour: number | null }>(`${this.base}/session-hour`, { hour });
+  }
+
   /** Prescription calculée d'une séance course (cibles allure/FC/RPE personnalisées). */
   workoutPrescription(workoutId: string): Observable<WorkoutPrescription> {
     return this.http.get<WorkoutPrescription>(`${this.base}/workouts/${workoutId}/prescription`);

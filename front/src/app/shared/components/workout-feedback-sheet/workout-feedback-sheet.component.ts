@@ -135,10 +135,11 @@ export class WorkoutFeedbackSheetComponent {
    * Ouvre la feuille sur une séance, champs pré-remplis avec ce qui a déjà été déclaré et,
    * si la montre a remonté une sortie rapprochée, le réalisé affiché en regard.
    */
-  openFor(w: Workout, activity: Activity | null = null): void {
+  openFor(w: Workout, activity: Activity | null = null, rpe: number | null = null): void {
     this.activity.set(activity);
     this.workout.set(w);
-    this.rpe.set(w.rpe ?? null);
+    // `rpe` vient d'une action rapide de notification : il prime sur ce qui était déclaré.
+    this.rpe.set(rpe ?? w.rpe ?? null);
     this.fatigue.set(null);
     this.pain.set(null);
     this.comment.set(w.athleteComment ?? '');

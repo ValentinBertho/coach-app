@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -59,15 +60,34 @@ public class PushNotificationService {
         repository.findByEndpoint(endpoint).ifPresent(repository::delete);
     }
 
+    /** Une action rapide proposée dans la notification (bouton). */
+    public record Action(String action, String title) {
+    }
+
     /** Envoie une notification à tous les appareils d'un utilisateur (best-effort). */
     @Transactional
     public void sendToUser(UUID userId, String title, String body, String url) {
+        sendToUser(userId, title, body, url, List.of());
+    }
+
+    /**
+     * Notification avec actions rapides. Les boutons évitent d'ouvrir l'app pour choisir :
+     * l'action porte déjà la réponse, l'app n'a plus qu'à la confirmer.
+     */
+    @Transactional
+    public void sendToUser(UUID userId, String title, String body, String url, List<Action> actions) {
         if (!isEnabled() || userId == null) {
             return;
         }
         String payload = "{\"notification\":{\"title\":" + json(title)
                 + ",\"body\":" + json(body)
-                + ",\"data\":{\"url\":" + json(url) + "}}}";
+                + (actions.isEmpty() ? "" : ",\"actions\":" + actionsJson(actions))
+                + ",\"data\":{\"url\":" + json(url)
+                // `onActionClick` est lu par le service worker Angular : il ouvre (ou refocalise)
+                // l'app sur l'URL, quel que soit le bouton pressé. L'action elle-même est
+                // transmise au client par `SwPush.notificationClicks`.
+                + ",\"onActionClick\":{\"default\":{\"operation\":\"focusLastFocusedOrOpen\",\"url\":" + json(url) + "}}"
+                + "}}}";
         for (PushSubscription sub : repository.findByUserId(userId)) {
             try {
                 Notification notification = Notification.builder()
@@ -95,6 +115,18 @@ public class PushNotificationService {
             }
         }
         return pushService;
+    }
+
+    private String actionsJson(List<Action> actions) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < actions.size(); i++) {
+            if (i > 0) {
+                sb.append(",");
+            }
+            sb.append("{\"action\":").append(json(actions.get(i).action()))
+              .append(",\"title\":").append(json(actions.get(i).title())).append("}");
+        }
+        return sb.append("]").toString();
     }
 
     private String json(String s) {

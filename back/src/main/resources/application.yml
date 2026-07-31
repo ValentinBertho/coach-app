@@ -74,6 +74,14 @@ app:
     from: ${MAIL_FROM:Darilab <no-reply@darilab.app>}
   alerts:
     digest-cron: ${ALERTS_DIGEST_CRON:0 0 7 * * *}
+  # Relance « Ta séance est finie ? » : tourne toutes les heures et ne retient que les athlètes
+  # dont l'heure habituelle + le décalage tombe sur l'heure courante. `default-hour` sert à ceux
+  # qui n'ont rien déclaré ; sans push configuré (VAPID), l'envoi est un no-op.
+  feedback-nudge:
+    enabled: ${FEEDBACK_NUDGE_ENABLED:true}
+    cron: ${FEEDBACK_NUDGE_CRON:0 5 * * * *}
+    delay-hours: ${FEEDBACK_NUDGE_DELAY_HOURS:2}
+    default-hour: ${FEEDBACK_NUDGE_DEFAULT_HOUR:18}
   vapid:
     public-key: ${VAPID_PUBLIC_KEY:}
     private-key: ${VAPID_PRIVATE_KEY:}

@@ -155,6 +155,15 @@ public class Athlete extends BaseEntity {
     @Column(name = "vdot", precision = 5, scale = 2)
     private BigDecimal vdot;
 
+    /**
+     * Heure habituelle de séance (0–23), déclarée par l'athlète. Sert à envoyer la relance
+     * « Ta séance est finie ? » deux heures après, plutôt qu'à une heure fixe pour tout le
+     * monde — donc en pleine séance pour les uns et au milieu de la nuit pour les autres.
+     * Nulle : on retombe sur le défaut de configuration du serveur.
+     */
+    @Column(name = "usual_session_hour")
+    private Integer usualSessionHour;
+
     // --- Invitation par lien magique ---
     @Column(name = "invite_token", length = 64)
     private String inviteToken;

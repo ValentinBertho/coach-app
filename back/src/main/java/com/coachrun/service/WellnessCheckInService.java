@@ -35,6 +35,26 @@ public class WellnessCheckInService {
                 .orElse(null);
     }
 
+    /**
+     * Heure habituelle de séance déclarée par l'athlète (ou {@code null}). Elle ne sert qu'à
+     * caler la relance de ressenti : c'est un réglage de notification, pas une donnée
+     * d'entraînement — aucune séance n'est planifiée à une heure.
+     */
+    public Integer usualSessionHour(UUID athleteId) {
+        return athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."))
+                .getUsualSessionHour();
+    }
+
+    /** Règle l'heure habituelle de séance ({@code null} = revenir au défaut du serveur). */
+    @Transactional
+    public Integer setUsualSessionHour(UUID athleteId, Integer hour) {
+        var athlete = athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        athlete.setUsualSessionHour(hour != null && hour >= 0 && hour <= 23 ? hour : null);
+        return athlete.getUsualSessionHour();
+    }
+
     /** Crée ou met à jour le check-in du jour (upsert sur la contrainte athlète + date). */
     @Transactional
     public WellnessCheckInResponse save(UUID athleteId, WellnessCheckInRequest req) {

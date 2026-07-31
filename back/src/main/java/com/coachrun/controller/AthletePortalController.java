@@ -99,6 +99,23 @@ public class AthletePortalController {
         return checkInService.save(principal.athleteId(), request);
     }
 
+    /**
+     * Heure habituelle de séance : cale la relance « Ta séance est finie ? ». Réglage de
+     * notification, pas donnée d'entraînement — aucune séance n'est planifiée à une heure.
+     */
+    @GetMapping("/session-hour")
+    public java.util.Map<String, Integer> sessionHour(@AuthenticationPrincipal AuthPrincipal principal) {
+        return java.util.Collections.singletonMap("hour", checkInService.usualSessionHour(principal.athleteId()));
+    }
+
+    @PutMapping("/session-hour")
+    public java.util.Map<String, Integer> setSessionHour(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestBody java.util.Map<String, Integer> body) {
+        return java.util.Collections.singletonMap("hour",
+                checkInService.setUsualSessionHour(principal.athleteId(), body.get("hour")));
+    }
+
     @GetMapping("/workouts")
     public List<WorkoutResponse> workouts(@AuthenticationPrincipal AuthPrincipal principal,
                                           @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

@@ -26,12 +26,19 @@ export class PushService {
    */
   init(): void {
     if (!this.swPush.isEnabled) return;
-    this.swPush.notificationClicks.subscribe(({ notification }) => {
+    this.swPush.notificationClicks.subscribe(({ action, notification }) => {
       const url = (notification.data as { url?: string } | undefined)?.url;
       if (!url) return;
       try {
-        const path = new URL(url, document.baseURI).pathname;
-        this.zone.run(() => this.router.navigateByUrl(path));
+        const target = new URL(url, document.baseURI);
+        // Action rapide « rpe-N » de la relance de ressenti : le bouton porte déjà la réponse,
+        // l'écran d'arrivée n'a plus qu'à ouvrir la feuille avec ce RPE pré-sélectionné.
+        // Le service worker Angular ne peut pas appeler l'API lui-même : il réveille l'app,
+        // c'est elle qui enregistre — l'athlète voit donc ce qu'il envoie, et complète fatigue
+        // et douleur, sans lesquelles la forme ne se met pas à jour.
+        const rpe = /^rpe-(\d{1,2})$/.exec(action ?? '')?.[1];
+        if (rpe) target.searchParams.set('rpe', rpe);
+        this.zone.run(() => this.router.navigateByUrl(target.pathname + target.search));
       } catch { /* URL invalide : on ignore */ }
     });
   }

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, viewChild } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
   STATUS_BADGE,
   STATUS_LABELS,
@@ -56,6 +56,8 @@ export class TodayComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   /** Feuille de ressenti partagée : « Aujourd'hui », l'agenda et l'historique ouvrent la même. */
   private readonly feedbackSheet = viewChild(WorkoutFeedbackSheetComponent);
@@ -104,6 +106,7 @@ export class TodayComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.readNudgeParams();
     this.load();
     this.loadPending();
     this.loadStrength();
@@ -113,6 +116,34 @@ export class TodayComponent implements OnInit {
       next: (v) => this.hasPaces.set((v.paces?.length ?? 0) > 0),
       error: () => this.hasPaces.set(true),
     });
+  }
+
+  // --- Arrivée depuis une relance push -----------------------------------------------------
+  // `?feedback=<id>&rpe=<n>` : l'athlète a répondu depuis la notification. On ouvre sa feuille
+  // avec ce RPE pré-sélectionné, pour qu'il complète fatigue et douleur — sans lesquelles la
+  // forme ne se met pas à jour — et confirme. Le service worker ne peut pas enregistrer seul.
+
+  /** Séance et RPE demandés par l'URL, consommés une fois la séance chargée. */
+  private nudge: { workoutId: string; rpe: number | null } | null = null;
+
+  private readNudgeParams(): void {
+    const params = this.route.snapshot.queryParamMap;
+    const workoutId = params.get('feedback');
+    if (!workoutId) return;
+    const rpe = Number(params.get('rpe'));
+    this.nudge = { workoutId, rpe: rpe >= 1 && rpe <= 10 ? rpe : null };
+    // L'URL a joué son rôle : on la nettoie pour qu'un rechargement ne rouvre pas la feuille.
+    void this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+  }
+
+  /** Ouvre la feuille demandée par la notification, dès que la séance est connue. */
+  private consumeNudge(): void {
+    const nudge = this.nudge;
+    if (!nudge) return;
+    const target = [...this.workouts(), ...this.pending()].find((w) => w.id === nudge.workoutId);
+    if (!target) return;
+    this.nudge = null;
+    this.feedbackSheet()?.openFor(target, this.matched().get(target.id) ?? null, nudge.rpe);
   }
 
   /** La prescription course d'une séance a-t-elle du contenu calculé à afficher ? */
@@ -144,7 +175,7 @@ export class TodayComponent implements OnInit {
 
   loadPending(): void {
     this.portal.pendingFeedback(7).subscribe({
-      next: (list) => { this.pending.set(list); this.proposeMatched(); },
+      next: (list) => { this.pending.set(list); this.consumeNudge(); this.proposeMatched(); },
       error: () => this.pending.set([]),
     });
   }
@@ -169,7 +200,9 @@ export class TodayComponent implements OnInit {
    */
   private proposeMatched(): void {
     const map = this.matched();
-    if (!map.size) return;
+    // Une relance en attente ouvre déjà une feuille : deux propositions d'affilée seraient
+    // vécues comme un harcèlement.
+    if (!map.size || this.nudge) return;
     const candidates = [...this.workouts(), ...this.pending()].filter(awaitsFeedback);
     const proposed = this.readProposed();
     const target = candidates.find((w) => map.has(w.id) && !proposed.has(w.id));
@@ -206,6 +239,7 @@ export class TodayComponent implements OnInit {
           });
         }
         this.state.set('ready');
+        this.consumeNudge();
         this.proposeMatched();
       },
       error: () => this.state.set('error'),

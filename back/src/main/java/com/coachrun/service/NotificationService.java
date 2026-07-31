@@ -45,6 +45,35 @@ public class NotificationService {
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
+    /**
+     * Relance « Ta séance est finie ? » — poussée quelques heures après l'heure habituelle de
+     * séance, avec le RPE en actions rapides.
+     *
+     * <p>Un retour non rempli est un bug produit, pas une négligence de l'athlète : la relance
+     * arrive au moment où il y pense encore, et le bouton porte déjà la réponse. Les trois
+     * paliers reprennent l'échelle CR10 (facile / dur / très dur) plutôt que dix boutons
+     * illisibles dans une bannière système.</p>
+     *
+     * <p>Push uniquement, et jamais d'e-mail : une relance de ce type doit être ignorable d'un
+     * balayage. Rien n'est enregistré ici — l'athlète confirme dans l'app, où fatigue et douleur
+     * sont demandées ; le RPE seul ne dirait rien de sa forme.</p>
+     */
+    public void notifyFeedbackNudge(Workout workout) {
+        User athleteUser = userRepository.findByAthleteId(workout.getAthlete().getId()).orElse(null);
+        if (athleteUser == null || !athleteUser.isNotifyPushEnabled()) {
+            return;
+        }
+        String url = frontendUrl + "/athlete/today?feedback=" + workout.getId();
+        pushService.sendToUser(athleteUser.getId(),
+                "Ta séance est finie ?",
+                workout.getTitle() + " — note ton ressenti en deux gestes.",
+                url,
+                java.util.List.of(
+                        new PushNotificationService.Action("rpe-3", "Facile"),
+                        new PushNotificationService.Action("rpe-6", "Dur"),
+                        new PushNotificationService.Action("rpe-8", "Très dur")));
+    }
+
     /** Séance planifiée → notifie l'athlète (in-app + email + push). */
     public void notifyWorkoutPlanned(Workout workout) {
         User athleteUser = userRepository.findByAthleteId(workout.getAthlete().getId()).orElse(null);

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ConfirmService } from '../../core/services/confirm.service';
@@ -26,7 +27,7 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
   selector: 'app-athlete-profile',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, LogoComponent, IconComponent, DataOriginTagComponent, DatePipe, DecimalPipe,
+  imports: [RouterLink, FormsModule, LogoComponent, IconComponent, DataOriginTagComponent, DatePipe, DecimalPipe,
     InstallButtonComponent, PushButtonComponent],
   template: `
     <div class="shell">
@@ -57,6 +58,17 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
             <app-install-button />
             <app-push-button />
           </div>
+
+          <!-- Sans cette heure, la relance de ressenti partirait à heure fixe pour tout le
+               monde : en pleine séance pour les uns, au milieu de la nuit pour les autres. -->
+          <label class="form-group app-settings__hour">
+            <span>Je m'entraîne plutôt vers</span>
+            <select class="form-control" [ngModel]="sessionHour()" (ngModelChange)="setSessionHour($event)">
+              <option [ngValue]="null">Pas de préférence</option>
+              @for (h of hours; track h) { <option [ngValue]="h">{{ h }}h</option> }
+            </select>
+            <span class="field-hint">On te demandera ton ressenti deux heures après.</span>
+          </label>
         </section>
 
         <!-- Mon profil physio (lecture seule) -->
@@ -220,6 +232,7 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
     .subtitle { color: var(--ink-3); margin: 0; }
     .help-link { display: flex; align-items: center; gap: var(--sp-3); text-decoration: none; color: var(--ink); padding: var(--sp-3); }
     .app-settings__row { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
+    .app-settings__hour { margin-top: var(--sp-4); margin-bottom: 0; max-width: 260px; }
     .logout-btn { align-self: center; }
     .help-link__ic { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-lg); background: var(--gradient-brand, var(--primary)); color: #fff; }
     .help-link__txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
@@ -345,6 +358,7 @@ export class AthleteProfileComponent implements OnInit {
     this.portal.races().subscribe({ next: (r) => this.races.set(r), error: () => this.races.set(null) });
     this.portal.performances().subscribe({ next: (p) => this.performances.set(p), error: () => this.performances.set([]) });
     this.portal.lactateTests().subscribe({ next: (t) => this.lactateTests.set(t), error: () => this.lactateTests.set([]) });
+    this.portal.sessionHour().subscribe({ next: (r) => this.sessionHour.set(r.hour), error: () => this.sessionHour.set(null) });
   }
 
   /** Au moins une donnée physio renseignée (sinon on affiche un message d'attente). */
@@ -363,6 +377,20 @@ export class AthleteProfileComponent implements OnInit {
       a.click();
       URL.revokeObjectURL(url);
       this.toast.success('Export téléchargé.');
+    });
+  }
+
+  /** Heures proposées : on ne s'entraîne pas à 3 h du matin, la liste n'a pas à le proposer. */
+  readonly hours = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+  readonly sessionHour = signal<number | null>(null);
+
+  /** Règle l'heure habituelle : le changement part tout de suite, sans bouton « Enregistrer ». */
+  setSessionHour(hour: number | null): void {
+    const previous = this.sessionHour();
+    this.sessionHour.set(hour);
+    this.portal.setSessionHour(hour).subscribe({
+      next: (r) => this.sessionHour.set(r.hour),
+      error: () => { this.sessionHour.set(previous); this.toast.error('Enregistrement impossible.'); },
     });
   }
 

@@ -1,0 +1,17 @@
+# ============================================================================
+# 059 — Heure habituelle de séance de l'athlète.
+#   Support de la relance « Ta séance est finie ? », envoyée 2 h après. Le produit
+#   ne stocke aucune heure de séance (les Workout n'ont qu'une date) : sans cette
+#   colonne, la relance ne pourrait partir qu'à une heure fixe pour tout le monde,
+#   soit en pleine séance pour les uns, au milieu de la nuit pour les autres.
+#   Nulle = on retombe sur le défaut de configuration du serveur.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 059-athlete-usual-session-hour
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: athletes
+            columns:
+              - column: { name: usual_session_hour, type: INT }

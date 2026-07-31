@@ -119,3 +119,5 @@ databaseChangeLog:
       file: db/changelog/changes/057-settings-preferences.yaml
   - include:
       file: db/changelog/changes/058-wellness-check-in.yaml
+  - include:
+      file: db/changelog/changes/059-feedback-nudge.yaml
