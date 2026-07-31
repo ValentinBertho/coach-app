@@ -101,6 +101,31 @@ export class AthletePortalService {
     return this.workouts(isoDay(from), isoDay(to)).pipe(map((list) => list.filter(awaitsFeedback)));
   }
 
+  /**
+   * Nombre de séances notées **d'affilée**, en remontant depuis la plus récente séance passée.
+   * La série s'arrête à la première séance passée restée muette : c'est bien une série de
+   * retours, pas un total. Sert à rendre visible ce que le produit demande sans rien donner en
+   * retour — remplir un ressenti est un effort, il mérite un accusé de réception.
+   */
+  feedbackStreak(days = 90): Observable<number> {
+    const today = new Date();
+    const from = new Date();
+    from.setDate(from.getDate() - days);
+    return this.workouts(isoDay(from), isoDay(today)).pipe(
+      map((list) => {
+        const past = list
+          .filter((w) => w.scheduledDate <= isoDay(today))
+          .sort((a, b) => b.scheduledDate.localeCompare(a.scheduledDate));
+        let n = 0;
+        for (const w of past) {
+          if (awaitsFeedback(w)) break;
+          n++;
+        }
+        return n;
+      }),
+    );
+  }
+
   /** Prescription calculée d'une séance course (cibles allure/FC/RPE personnalisées). */
   workoutPrescription(workoutId: string): Observable<WorkoutPrescription> {
     return this.http.get<WorkoutPrescription>(`${this.base}/workouts/${workoutId}/prescription`);
@@ -219,6 +244,11 @@ export class AthletePortalService {
   ppScheduled(from: string, to: string): Observable<ScheduledStrength[]> {
     const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<ScheduledStrength[]>(`${this.base}/pp/scheduled`, { params });
+  }
+
+  /** Une séance de force par son id : le mode séance plein écran est une URL rechargeable. */
+  ppSession(scheduledId: string): Observable<ScheduledStrength> {
+    return this.http.get<ScheduledStrength>(`${this.base}/pp/scheduled/${scheduledId}`);
   }
 
   ppPrescription(scheduledId: string): Observable<StrengthPrescriptionView> {

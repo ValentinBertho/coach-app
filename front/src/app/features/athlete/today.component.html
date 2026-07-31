@@ -117,85 +117,33 @@
           </article>
         }
 
-        <!-- ===== Renforcement du jour (une carte par séance de force) ===== -->
-        @for (card of strengthCards(); track card.session.id) {
+        <!-- ===== Renforcement du jour : une carte d'appel, pas un formulaire =====
+             La saisie (charge/reps/RIR par série et par exercice) vivait ici : une trentaine
+             de champs au milieu de l'écran d'accueil. Elle a son écran, ouvert d'un tap. -->
+        @for (s of strengthSessions(); track s.id) {
           <article class="card card-night strength-day">
             <div class="hero__head">
               <span class="badge strength-badge"><app-icon name="dumbbell" [size]="13" /> Renforcement</span>
-              @if (card.session.completed) { <span class="badge badge-success">Réalisé</span> }
+              @if (s.completed) { <span class="badge badge-success">Réalisé</span> }
             </div>
-            <h2 class="hero__title">{{ card.session.title }}</h2>
+            <h2 class="hero__title">{{ s.title }}</h2>
+            @if (s.chargeSummary) { <p class="hero__notes">{{ s.chargeSummary }}</p> }
 
-            @for (ex of card.exercises; track ex.exerciseId) {
-              <div class="sx">
-                <div class="sx__head">
-                  <strong>{{ ex.name }}</strong>
-                  <div class="sx__rx">
-                    @if (ex.rx.chargeKgMin != null) {
-                      <app-range-prescription-pill label="Charge" [min]="ex.rx.chargeKgMin" [max]="ex.rx.chargeKgMax ?? ex.rx.chargeKgMin" unit="kg" />
-                    }
-                    @if (ex.rx.repsFixed != null) {
-                      <app-range-prescription-pill label="Reps" [min]="ex.rx.repsFixed" [max]="ex.rx.repsFixed" />
-                    } @else if (ex.rx.repsMin != null) {
-                      <app-range-prescription-pill label="Reps" [min]="ex.rx.repsMin" [max]="ex.rx.repsMax ?? ex.rx.repsMin" />
-                    }
-                    @if (ex.rx.effortKind && ex.rx.effortMin != null && ex.rx.effortMax != null) {
-                      <app-effort-badge [kind]="ex.rx.effortKind" [min]="ex.rx.effortMin" [max]="ex.rx.effortMax" />
-                    }
-                  </div>
-                </div>
-                <table class="set-table">
-                  <thead><tr><th>Série</th><th>Charge</th><th>Reps</th><th>RIR</th><th></th></tr></thead>
-                  <tbody>
-                    @for (set of ex.sets; track $index) {
-                      <tr>
-                        <td class="set-n">{{ $index + 1 }}</td>
-                        <td><input type="number" inputmode="decimal" class="form-control set-in" [(ngModel)]="set.chargeKg" /></td>
-                        <td><input type="number" inputmode="numeric" class="form-control set-in" [(ngModel)]="set.repsDone" /></td>
-                        <td><input type="number" inputmode="numeric" class="form-control set-in" [(ngModel)]="set.rirDone" /></td>
-                        <td>
-                          <!-- Sur mobile, recopier la série précédente économise l'essentiel des frappes. -->
-                          @if ($index > 0) {
-                            <button type="button" class="set-repeat" (click)="repeatPreviousSet(ex, $index)"
-                                    aria-label="Reprendre les valeurs de la série précédente"
-                                    title="Comme la série précédente"><app-icon name="rotate-ccw" [size]="16" /></button>
-                          }
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </div>
-            }
-
-            <section class="strength-fb">
-              <!-- Forme = fatigue + douleur (jamais le RPE) : les deux doivent être saisissables,
-                   sinon les alertes douleur / réathlétisation ne peuvent jamais se déclencher. -->
-              <app-pain-fatigue-selector kind="fatigue" [(value)]="card.sFatigue" />
-              <app-pain-fatigue-selector kind="pain" [(value)]="card.sPain" />
-              <app-rpe-scale-selector label="RPE séance" [value]="card.sRpe"
-                                      (valueChange)="setStrengthRpe(card, $event)" />
-              <button type="button" class="btn btn-accent btn-lg" (click)="submitStrength(card, true)">Valider mes séries</button>
-            </section>
-
-            @if (card.progression; as prog) {
-              <section class="strength-progression">
-                @for (e of prog.exercises; track e.exerciseId) {
-                  @if (e.recommended) {
-                    <p class="progression-line"><app-icon name="trending-up" [size]="14" /> <strong>{{ e.exerciseName }}</strong> — prochaine fois : {{ e.suggestionLabel }}</p>
-                  }
-                }
-                @for (a of prog.alerts; track a.code + a.exerciseId) {
-                  <p class="alert-line" [class.alert-high]="a.level === 'HIGH'">
-                    <app-icon name="alert-triangle" [size]="13" /> {{ a.exerciseName }} — {{ a.message }}
-                  </p>
-                }
-              </section>
+            @if (s.completed) {
+              <p class="hero__recap">
+                Séance validée@if (s.sessionFatigue != null) { · fatigue {{ s.sessionFatigue }}/10 }
+                <app-icon name="check" [size]="14" />
+              </p>
+              <a class="btn btn-ghost hero__cta" [routerLink]="['/athlete/session', s.id]">Revoir mes séries</a>
+            } @else {
+              <a class="btn btn-primary btn-lg hero__cta" [routerLink]="['/athlete/session', s.id]">
+                <app-icon name="play" [size]="18" /> Démarrer la séance
+              </a>
             }
           </article>
         }
 
-        @if (!workouts().length && !strengthCards().length) {
+        @if (!workouts().length && !strengthSessions().length) {
           <div class="card empty">
             <h2>Repos aujourd'hui <app-icon name="moon" [size]="20" /></h2>
             <p class="field-hint">Aucune séance prévue. Profites-en pour récupérer.</p>

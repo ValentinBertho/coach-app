@@ -268,6 +268,15 @@ export const routes: Routes = [
     ],
   },
   {
+    // Mode séance de force plein écran. Hors de la coquille athlète (pas de bottom-nav) : c'est
+    // une parenthèse pendant l'effort, pas une destination de navigation. Déclaré AVANT
+    // /athlete pour que ce chemin littéral gagne sur les enfants de la coquille.
+    path: 'athlete/session/:id',
+    canActivate: [athleteGuard],
+    loadComponent: () =>
+      import('./features/athlete/strength-session.component').then((m) => m.StrengthSessionComponent),
+  },
+  {
     path: 'athlete',
     canActivate: [athleteGuard],
     loadComponent: () =>

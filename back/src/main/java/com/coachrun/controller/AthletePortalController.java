@@ -118,6 +118,13 @@ public class AthletePortalController {
         return strengthScheduleService.athleteCalendar(principal.athleteId(), from, to);
     }
 
+    /** Une séance de force par son id : le mode séance plein écran est une URL rechargeable. */
+    @GetMapping("/pp/scheduled/{scheduledId}")
+    public com.coachrun.dto.response.ScheduledStrengthResponse ppScheduledOne(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID scheduledId) {
+        return strengthScheduleService.athleteSession(principal.athleteId(), scheduledId);
+    }
+
     @GetMapping("/pp/scheduled/{scheduledId}/prescription")
     public com.coachrun.dto.response.StrengthPrescriptionResponse ppPrescription(
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID scheduledId) {

@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, viewChild } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
-import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
   STATUS_BADGE,
@@ -11,8 +10,8 @@ import {
   awaitsFeedback,
   needsFeedback,
 } from '../../core/models/workout.model';
-import { AthletePortalService, StrengthPrescriptionView } from '../../core/services/athlete-portal.service';
-import { Progression, ScheduledStrength, StrengthResultEntry } from '../../core/models/strength.model';
+import { AthletePortalService } from '../../core/services/athlete-portal.service';
+import { ScheduledStrength } from '../../core/models/strength.model';
 import { WorkoutPrescription } from '../../core/models/course.model';
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
 import { AuthService } from '../../core/services/auth.service';
@@ -21,46 +20,11 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
 import { NotificationBellComponent } from '../../shared/components/notification-bell/notification-bell.component';
 import {
-  EffortBadgeComponent,
-  type EffortKind,
   IntensityZoneBadgeComponent,
   type IntensityZone as ZoneNum,
-  PainFatigueSelectorComponent,
-  RangePrescriptionPillComponent,
 } from '../../shared/components/physiology';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
-import { RpeScaleSelectorComponent } from '../../shared/components/rpe-scale-selector/rpe-scale-selector.component';
 import { HelpHintComponent } from '../help/help-hint.component';
-
-interface SetEntry { chargeKg: number | null; repsDone: number | null; rirDone: number | null; }
-
-/** Résumé de la prescription d'un exercice (fourchettes), pour l'affichage lecture seule. */
-interface ExerciseRx {
-  chargeKgMin: number | null;
-  chargeKgMax: number | null;
-  repsMin: number | null;
-  repsMax: number | null;
-  repsFixed: number | null;
-  effortKind: EffortKind | null;
-  effortMin: number | null;
-  effortMax: number | null;
-}
-interface ExerciseSets { exerciseId: string; name: string; sets: SetEntry[]; rx: ExerciseRx; }
-
-/**
- * Carte de renforcement du jour. Chaque séance de force planifiée a sa propre
- * saisie de séries, son retour (RPE/fatigue/douleur) et sa progression — pour
- * supporter plusieurs séances de force le même jour (double séance).
- */
-interface StrengthCard {
-  session: ScheduledStrength;
-  rx: StrengthPrescriptionView | null;
-  exercises: ExerciseSets[];
-  progression: Progression | null;
-  sRpe: number | null;
-  sFatigue: number | null;
-  sPain: number | null;
-}
 
 type State = 'loading' | 'ready' | 'error';
 
@@ -78,10 +42,9 @@ type State = 'loading' | 'ready' | 'error';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent,
-    FormsModule, RouterLink,
+    RouterLink,
     LogoComponent, OfflineBannerComponent, NotificationBellComponent,
-    IntensityZoneBadgeComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
-    PainFatigueSelectorComponent, WorkoutFeedbackSheetComponent, RpeScaleSelectorComponent,
+    IntensityZoneBadgeComponent, WorkoutFeedbackSheetComponent,
     CoursePrescriptionViewComponent, HelpHintComponent,
   ],
   templateUrl: './today.component.html',
@@ -100,20 +63,6 @@ export class TodayComponent implements OnInit {
   readonly statusLabels = STATUS_LABELS;
   readonly statusBadge = STATUS_BADGE;
 
-  /**
-   * Recopie charge / reps / RIR de la série précédente. Sur mobile, une séance de 4 exercices
-   * × 4 séries demande 48 frappes ; la plupart des séries ne varient pas.
-   */
-  repeatPreviousSet(exercise: ExerciseSets, index: number): void {
-    const previous = exercise.sets[index - 1];
-    const current = exercise.sets[index];
-    if (!previous || !current) return;
-    current.chargeKg = previous.chargeKg;
-    current.repsDone = previous.repsDone;
-    current.rirDone = previous.rirDone;
-    this.strengthCards.set([...this.strengthCards()]);
-  }
-
   readonly state = signal<State>('loading');
   /** Toutes les séances de course du jour (double séance possible). */
   readonly workouts = signal<Workout[]>([]);
@@ -128,8 +77,11 @@ export class TodayComponent implements OnInit {
    */
   readonly pending = signal<Workout[]>([]);
 
-  /** Toutes les séances de force du jour (double séance possible). */
-  readonly strengthCards = signal<StrengthCard[]>([]);
+  /**
+   * Séances de force du jour. « Aujourd'hui » n'en montre plus qu'un résumé : la saisie a son
+   * écran plein écran (`/athlete/session/:id`), un exercice à la fois.
+   */
+  readonly strengthSessions = signal<ScheduledStrength[]>([]);
 
   /** L'athlète a-t-il des allures de travail (VDOT) ? Sinon on l'invite à saisir une perf. */
   readonly hasPaces = signal(true);
@@ -168,114 +120,21 @@ export class TodayComponent implements OnInit {
       .format(new Date(iso + 'T00:00:00'));
   }
 
+  /** Séances de force du jour (résumé ; la saisie vit dans l'écran plein écran). */
+  loadStrength(): void {
+    const day = new Date();
+    const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+    this.portal.ppScheduled(iso, iso).subscribe({
+      next: (list) => this.strengthSessions.set(list),
+      error: () => this.strengthSessions.set([]),
+    });
+  }
+
   loadPending(): void {
     this.portal.pendingFeedback(7).subscribe({
       next: (list) => this.pending.set(list),
       error: () => this.pending.set([]),
     });
-  }
-
-  loadStrength(): void {
-    const day = new Date().toISOString().slice(0, 10);
-    this.portal.ppScheduled(day, day).subscribe({
-      next: (list) => {
-        const cards: StrengthCard[] = list.map((session) => ({
-          session, rx: null, exercises: [], progression: null,
-          sRpe: null, sFatigue: null, sPain: null,
-        }));
-        this.strengthCards.set(cards);
-        for (const card of cards) {
-          this.portal.ppPrescription(card.session.id).subscribe({
-            next: (p) => {
-              card.rx = p;
-              card.exercises = this.buildSets(p);
-              // Re-set pour notifier le signal (OnPush) après l'arrivée asynchrone.
-              this.strengthCards.set([...this.strengthCards()]);
-            },
-          });
-        }
-      },
-    });
-  }
-
-  /** Pré-remplit les séries à saisir + capture les fourchettes prescrites (lecture seule). */
-  private buildSets(rx: StrengthPrescriptionView): ExerciseSets[] {
-    const list: ExerciseSets[] = [];
-    for (const b of rx.calculated?.blocks ?? []) {
-      for (const ex of b.exercises) {
-        const presc = ex.item.prescription;
-        const count = presc.sets ?? 3;
-        const sets: SetEntry[] = Array.from({ length: count }, () => ({
-          chargeKg: ex.charge.kgMin ?? presc.chargeKgMin ?? null,
-          repsDone: presc.repsFixed ?? presc.repsMin ?? null,
-          rirDone: presc.rirMin ?? null,
-        }));
-        const isRir = presc.effortRefType === 'RIR' || presc.effortRefType === 'RIR_RANGE';
-        list.push({
-          exerciseId: ex.item.exerciseId,
-          name: ex.item.exerciseName,
-          sets,
-          rx: {
-            chargeKgMin: ex.charge.kgMin ?? presc.chargeKgMin ?? null,
-            chargeKgMax: ex.charge.kgMax ?? presc.chargeKgMax ?? null,
-            repsMin: presc.repsMin ?? null,
-            repsMax: presc.repsMax ?? null,
-            repsFixed: presc.repsFixed ?? null,
-            effortKind: presc.effortRefType ? (isRir ? 'RIR' : 'RPE') : null,
-            effortMin: isRir ? presc.rirMin ?? null : presc.rpeMin ?? null,
-            effortMax: isRir ? presc.rirMax ?? null : presc.rpeMax ?? null,
-          },
-        });
-      }
-    }
-    return list;
-  }
-
-  /** Sélection d'un RPE de séance de force (mutation + notification OnPush). */
-  setStrengthRpe(card: StrengthCard, n: number | null): void {
-    card.sRpe = n;
-    this.strengthCards.set([...this.strengthCards()]);
-  }
-
-  submitStrength(card: StrengthCard, completed: boolean): void {
-    const s = card.session;
-
-    // 1. Séries réalisées → recalcul automatique du e1RM.
-    const results: StrengthResultEntry[] = [];
-    for (const ex of card.exercises) {
-      ex.sets.forEach((set, i) => {
-        if (set.chargeKg != null && set.repsDone != null) {
-          results.push({
-            exerciseId: ex.exerciseId, setNumber: i + 1,
-            chargeKg: set.chargeKg, repsDone: set.repsDone, rirDone: set.rirDone,
-          });
-        }
-      });
-    }
-    if (results.length) {
-      this.portal.ppResults(s.id, results).subscribe({
-        next: (updates) => {
-          if (updates.length) {
-            this.toast.success(`e1RM mis à jour : ${updates[0].e1rmKg} kg`);
-          }
-          this.portal.ppProgression(s.id).subscribe((p) => {
-            card.progression = p;
-            this.strengthCards.set([...this.strengthCards()]);
-          });
-        },
-      });
-    }
-
-    // 2. Retour de séance global.
-    this.portal
-      .ppFeedback(s.id, { completed, sessionRpe: card.sRpe, fatigue: card.sFatigue, pain: card.sPain, comment: null })
-      .subscribe({
-        next: (updated) => {
-          card.session = updated;
-          this.strengthCards.set([...this.strengthCards()]);
-          this.toast.success('Renforcement enregistré');
-        },
-      });
   }
 
   load(): void {

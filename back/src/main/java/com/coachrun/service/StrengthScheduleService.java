@@ -144,6 +144,17 @@ public class StrengthScheduleService {
                 .stream().map(ScheduledStrengthResponse::from).toList();
     }
 
+    /**
+     * Une séance de force par son identifiant, scopée sur l'athlète du token.
+     *
+     * <p>Le mode séance plein écran est une URL à part entière : il doit se recharger et se
+     * partager sans dépendre de l'écran d'où l'on vient, donc sans passer par la liste du jour.</p>
+     */
+    public ScheduledStrengthResponse athleteSession(UUID athleteId, UUID scheduledId) {
+        return ScheduledStrengthResponse.from(scheduledRepository.findByIdAndAthleteId(scheduledId, athleteId)
+                .orElseThrow(() -> new NotFoundException("Séance de force introuvable.")));
+    }
+
     public StrengthPrescriptionResponse prescriptionForAthlete(UUID athleteId, UUID scheduledId) {
         return toPrescription(scheduledRepository.findByIdAndAthleteId(scheduledId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Séance de force introuvable.")));

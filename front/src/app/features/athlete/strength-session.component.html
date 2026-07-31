@@ -1,0 +1,200 @@
+<!-- Peau sombre scopée, comme la coquille athlète : ce mode vit hors d'elle (plein écran,
+     sans bottom-nav) mais doit rester le même produit. -->
+<div class="fs" data-theme="dark">
+
+  <header class="fs__top">
+    <button type="button" class="icon-btn" (click)="exit()" aria-label="Quitter la séance">
+      <app-icon name="x" [size]="20" />
+    </button>
+    <div class="fs__id">
+      <span class="fs__kind"><app-icon name="dumbbell" [size]="13" /> Renforcement</span>
+      <strong class="fs__title">{{ session()?.title }}</strong>
+    </div>
+    @if (totalSets()) {
+      <span class="fs__count metric">{{ doneSets() }}/{{ totalSets() }}</span>
+    }
+  </header>
+
+  <!-- Avancement de la séance entière : on doit voir qu'on progresse, série après série. -->
+  <div class="fs__progress" role="progressbar" [attr.aria-valuenow]="progressPct()"
+       aria-valuemin="0" aria-valuemax="100" aria-label="Avancement de la séance">
+    <span class="fs__progress-bar" [style.width.%]="progressPct()"></span>
+  </div>
+
+  @switch (state()) {
+    @case ('loading') {
+      <main class="fs__main">
+        <div class="skeleton" style="height: 28px; width: 55%;"></div>
+        <div class="skeleton" style="height: 132px; margin-top: var(--sp-4);"></div>
+      </main>
+    }
+    @case ('error') {
+      <main class="fs__main fs__empty">
+        <p>Cette séance est introuvable.</p>
+        <button type="button" class="btn btn-ghost" (click)="exit()">Retour à ma séance du jour</button>
+      </main>
+    }
+    @case ('ready') {
+
+      @if (reviewing()) {
+        <!-- ===== Clôture : le ressenti, une fois les séries passées ===== -->
+        <main class="fs__main">
+          <h1 class="fs__h1">Ta séance est finie</h1>
+          <p class="fs__lead">{{ doneSets() }} série{{ doneSets() > 1 ? 's' : '' }} sur {{ totalSets() }} validée{{ doneSets() > 1 ? 's' : '' }}.</p>
+
+          <section class="fs__review">
+            <!-- Forme = fatigue + douleur (jamais le RPE) : sans ces deux-là, ni la pastille de
+                 forme ni les alertes douleur ne peuvent se déclencher. -->
+            <app-pain-fatigue-selector kind="fatigue" [(value)]="fatigue" />
+            <app-pain-fatigue-selector kind="pain" [(value)]="pain" />
+            <app-rpe-scale-selector label="Difficulté de la séance (RPE)" [(value)]="rpe" />
+          </section>
+
+          @if (progression(); as prog) {
+            <section class="fs__prog">
+              @for (e of prog.exercises; track e.exerciseId) {
+                @if (e.recommended) {
+                  <p class="fs__prog-line">
+                    <app-icon name="trending-up" [size]="14" />
+                    <strong>{{ e.exerciseName }}</strong> — prochaine fois : {{ e.suggestionLabel }}
+                  </p>
+                }
+              }
+              @for (a of prog.alerts; track a.code + a.exerciseId) {
+                <p class="fs__alert" [class.fs__alert--high]="a.level === 'HIGH'">
+                  <app-icon name="alert-triangle" [size]="13" /> {{ a.exerciseName }} — {{ a.message }}
+                </p>
+              }
+            </section>
+          }
+        </main>
+
+        <footer class="fs__foot">
+          @if (session()?.completed) {
+            <button type="button" class="btn btn-primary btn-lg" (click)="exit()">Terminer</button>
+          } @else {
+            <button type="button" class="btn btn-ghost" (click)="goTo(total() - 1)">
+              <app-icon name="arrow-left" [size]="16" /> Revoir mes séries
+            </button>
+            <button type="button" class="btn btn-accent btn-lg" [disabled]="saving()" (click)="submit()">
+              {{ saving() ? 'Enregistrement…' : 'Valider ma séance' }}
+              @if (!saving()) { <app-icon name="check" [size]="18" /> }
+            </button>
+          }
+        </footer>
+
+      } @else {
+        <!-- ===== Un exercice à la fois ===== -->
+        @if (current(); as ex) {
+        <main class="fs__main">
+          <p class="fs__step metric">Exercice {{ index() + 1 }}/{{ total() }}</p>
+          <h1 class="fs__h1">{{ ex.name }}</h1>
+
+          <div class="fs__rx">
+            @if (ex.rx.chargeKgMin != null) {
+              <app-range-prescription-pill label="Charge" [min]="ex.rx.chargeKgMin"
+                                           [max]="ex.rx.chargeKgMax ?? ex.rx.chargeKgMin" unit="kg" />
+            }
+            @if (ex.rx.repsFixed != null) {
+              <app-range-prescription-pill label="Reps" [min]="ex.rx.repsFixed" [max]="ex.rx.repsFixed" />
+            } @else if (ex.rx.repsMin != null) {
+              <app-range-prescription-pill label="Reps" [min]="ex.rx.repsMin" [max]="ex.rx.repsMax ?? ex.rx.repsMin" />
+            }
+            @if (ex.rx.effortKind && ex.rx.effortMin != null && ex.rx.effortMax != null) {
+              <app-effort-badge [kind]="ex.rx.effortKind" [min]="ex.rx.effortMin" [max]="ex.rx.effortMax" />
+            }
+            @if (restLabel(ex.rx); as rest) {
+              <span class="fs__rest"><app-icon name="timer" [size]="13" /> repos {{ rest }}</span>
+            }
+          </div>
+
+          <!-- Série courante en gros : c'est la seule chose à regarder entre deux séries. -->
+          @for (set of ex.sets; track $index) {
+            @if ($index === activeSetIndex(ex)) {
+              <section class="fs__set">
+                <p class="fs__set-n">Série {{ $index + 1 }}/{{ ex.sets.length }}</p>
+
+                <div class="fs__field">
+                  <span class="fs__field-lb">Charge</span>
+                  <div class="fs__stepper">
+                    <button type="button" class="fs__step-btn" (click)="bumpCharge(set, -1)"
+                            aria-label="Retirer 2,5 kg">−</button>
+                    <span class="fs__value metric">{{ set.chargeKg ?? 0 }}<small>kg</small></span>
+                    <button type="button" class="fs__step-btn" (click)="bumpCharge(set, 1)"
+                            aria-label="Ajouter 2,5 kg">+</button>
+                  </div>
+                </div>
+
+                <div class="fs__field">
+                  <span class="fs__field-lb">Répétitions</span>
+                  <div class="fs__stepper">
+                    <button type="button" class="fs__step-btn" (click)="bumpReps(set, -1)"
+                            aria-label="Une répétition de moins">−</button>
+                    <span class="fs__value metric">{{ set.repsDone ?? 0 }}</span>
+                    <button type="button" class="fs__step-btn" (click)="bumpReps(set, 1)"
+                            aria-label="Une répétition de plus">+</button>
+                  </div>
+                </div>
+
+                <label class="fs__rir">
+                  <span class="fs__field-lb">RIR <span class="fs__hint">répétitions en réserve</span></span>
+                  <input type="number" inputmode="numeric" class="form-control fs__rir-in"
+                         [(ngModel)]="set.rirDone" min="0" max="10" />
+                </label>
+
+                <div class="fs__set-actions">
+                  @if ($index > 0) {
+                    <button type="button" class="btn btn-ghost" (click)="copyPrevious(ex, $index)">
+                      <app-icon name="rotate-ccw" [size]="16" /> Comme la précédente
+                    </button>
+                  }
+                  <button type="button" class="btn btn-primary btn-lg fs__validate" (click)="validateSet(ex, $index)">
+                    Série faite <app-icon name="check" [size]="18" />
+                  </button>
+                </div>
+              </section>
+            }
+          }
+
+          <!-- Séries déjà passées : compactes, mais rouvrables (on se trompe de bouton). -->
+          @if (activeSetIndex(ex) > 0 || ex.sets[ex.sets.length - 1].done) {
+            <ul class="fs__done">
+              @for (set of ex.sets; track $index) {
+                @if (set.done) {
+                  <li class="fs__done-row">
+                    <span class="fs__done-n metric">{{ $index + 1 }}</span>
+                    <span class="metric">{{ set.chargeKg ?? 0 }} kg × {{ set.repsDone ?? 0 }}</span>
+                    @if (set.rirDone != null) { <span class="fs__done-rir">RIR {{ set.rirDone }}</span> }
+                    <button type="button" class="fs__reopen" (click)="reopenSet(set)"
+                            aria-label="Corriger cette série">
+                      <app-icon name="pencil" [size]="14" />
+                    </button>
+                  </li>
+                }
+              }
+            </ul>
+          }
+        </main>
+
+        <footer class="fs__foot">
+          <button type="button" class="btn btn-ghost" (click)="goPrev()" [disabled]="index() === 0">
+            <app-icon name="arrow-left" [size]="16" /> Précédent
+          </button>
+          <button type="button" class="btn btn-accent btn-lg" (click)="goNext()">
+            {{ isLast() ? 'Terminer la séance' : 'Exercice suivant' }}
+            <app-icon name="arrow-right" [size]="16" />
+          </button>
+        </footer>
+        } @else {
+          <main class="fs__main fs__empty">
+            <p>Cette séance n'a pas d'exercice.</p>
+            <button type="button" class="btn btn-ghost" (click)="reviewing.set(true)">Passer au ressenti</button>
+          </main>
+        }
+      }
+    }
+  }
+</div>
+
+<!-- Cet écran vit hors de la coquille athlète : il monte sa propre célébration. -->
+<app-celebration-overlay />
