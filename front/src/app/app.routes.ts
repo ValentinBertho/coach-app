@@ -56,6 +56,13 @@ export const routes: Routes = [
       import('./features/dev/ui-kit.component').then((m) => m.UiKitComponent),
   },
   {
+    // Sonde d'état de l'API : retirée du pied de page public (un prospect n'a pas à voir
+    // « API injoignable »), conservée ici pour l'équipe.
+    path: 'dev/api',
+    loadComponent: () =>
+      import('./features/dev/api-status.component').then((m) => m.ApiStatusComponent),
+  },
+  {
     path: 'app',
     canActivate: [authGuard],
     loadComponent: () =>

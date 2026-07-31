@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, viewChild } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import {
   STATUS_BADGE,
   STATUS_LABELS,
@@ -17,10 +17,8 @@ import { WorkoutPrescription } from '../../core/models/course.model';
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
-import { InstallButtonComponent } from '../../shared/components/install-button/install-button.component';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
-import { PushButtonComponent } from '../../shared/components/push-button/push-button.component';
 import { NotificationBellComponent } from '../../shared/components/notification-bell/notification-bell.component';
 import {
   EffortBadgeComponent,
@@ -32,7 +30,6 @@ import {
 } from '../../shared/components/physiology';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { RpeScaleSelectorComponent } from '../../shared/components/rpe-scale-selector/rpe-scale-selector.component';
-import { HelpService } from '../help/help.service';
 import { HelpHintComponent } from '../help/help-hint.component';
 
 interface SetEntry { chargeKg: number | null; repsDone: number | null; rirDone: number | null; }
@@ -82,7 +79,7 @@ type State = 'loading' | 'ready' | 'error';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent,
     FormsModule, RouterLink,
-    LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent, NotificationBellComponent,
+    LogoComponent, OfflineBannerComponent, NotificationBellComponent,
     IntensityZoneBadgeComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
     PainFatigueSelectorComponent, WorkoutFeedbackSheetComponent, RpeScaleSelectorComponent,
     CoursePrescriptionViewComponent, HelpHintComponent,
@@ -93,9 +90,7 @@ type State = 'loading' | 'ready' | 'error';
 export class TodayComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
   private readonly auth = inject(AuthService);
-  private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
-  readonly help = inject(HelpService);
 
   /** Feuille de ressenti partagée : « Aujourd'hui », l'agenda et l'historique ouvrent la même. */
   private readonly feedbackSheet = viewChild(WorkoutFeedbackSheetComponent);
@@ -138,6 +133,12 @@ export class TodayComponent implements OnInit {
 
   /** L'athlète a-t-il des allures de travail (VDOT) ? Sinon on l'invite à saisir une perf. */
   readonly hasPaces = signal(true);
+
+  /** Initiales pour l'avatar de la barre supérieure (porte d'entrée du Profil). */
+  initials(): string {
+    const parts = (this.user()?.fullName ?? '').trim().split(/\s+/).filter(Boolean);
+    return (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '');
+  }
 
   ngOnInit(): void {
     this.load();
@@ -327,8 +328,4 @@ export class TodayComponent implements OnInit {
     this.pending.set(this.pending().map((x) => (x.id === updated.id ? updated : x)).filter(awaitsFeedback));
   }
 
-  logout(): void {
-    this.auth.logout();
-    this.router.navigate(['/']);
-  }
 }

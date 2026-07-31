@@ -17,6 +17,8 @@
   z-index: 10;
 }
 .top-actions { display: flex; align-items: center; gap: var(--sp-2); }
+/* L'avatar est la porte du compte : cible confortable, jamais un simple lien texte. */
+.avatar-link { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; text-decoration: none; }
 
 .athlete-main {
   max-width: 560px;

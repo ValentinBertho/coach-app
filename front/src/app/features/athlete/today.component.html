@@ -1,12 +1,13 @@
 <div class="athlete-shell">
   <header class="athlete-top">
     <app-logo [size]="28" [showText]="true" />
+    <!-- Deux contrôles, pas cinq : cet écran doit porter la séance, pas la gestion du compte.
+         Installer / notifications / aide / déconnexion vivent désormais dans Profil. -->
     <div class="top-actions">
-      <button type="button" class="btn btn-ghost btn-sm" (click)="help.openSearch()" aria-label="Rechercher dans l'aide"><app-icon name="search" [size]="18" /></button>
       <app-notification-bell />
-      <app-install-button [ghost]="true" />
-      <app-push-button />
-      <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Quitter</button>
+      <a routerLink="/athlete/profile" class="avatar-link" aria-label="Mon profil">
+        <span class="avatar avatar-sm">{{ initials() }}</span>
+      </a>
     </div>
   </header>
 

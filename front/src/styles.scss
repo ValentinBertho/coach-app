@@ -448,6 +448,7 @@ textarea.form-control { min-height: 80px; padding: var(--sp-3) var(--sp-4); line
 
 /* --- Avatars --------------------------------------------------------------- */
 .avatar { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--radius-full); background: var(--gradient-brand); color: #fff; font-weight: 700; text-transform: uppercase; flex-shrink: 0; font-size: var(--text-sm); }
+.avatar-sm { width: 32px; height: 32px; font-size: var(--text-xs); }
 .avatar-lg { width: 56px; height: 56px; font-size: var(--text-lg); }
 
 /* --- États ----------------------------------------------------------------- */

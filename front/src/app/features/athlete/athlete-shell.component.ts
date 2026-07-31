@@ -17,6 +17,10 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
     <div class="ashell" data-theme="dark">
       <div class="ashell__content"><router-outlet /></div>
 
+      <!-- Quatre entrées, pas six : sur 375 px, six cibles tombaient à ~52 px avec des
+           libellés à 10 px, et « Agenda / Sorties / Progrès » se recouvrent pour qui n'est pas
+           expert. « Sorties » entre dans Progrès (accès rapide), « Profil » devient l'avatar
+           de la barre supérieure. -->
       <nav class="ashell__nav" aria-label="Navigation athlète">
         <a routerLink="/athlete/today" routerLinkActive="active">
           <app-icon name="house" [size]="22" /><span class="lb">Séance</span>
@@ -24,17 +28,11 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
         <a routerLink="/athlete/calendar" routerLinkActive="active">
           <app-icon name="calendar" [size]="22" /><span class="lb">Agenda</span>
         </a>
-        <a routerLink="/athlete/activities" routerLinkActive="active">
-          <app-icon name="footprints" [size]="22" /><span class="lb">Sorties</span>
-        </a>
         <a routerLink="/athlete/progress" routerLinkActive="active">
           <app-icon name="trending-up" [size]="22" /><span class="lb">Progrès</span>
         </a>
         <a routerLink="/athlete/messages" routerLinkActive="active">
           <app-icon name="message-square" [size]="22" /><span class="lb">Messages</span>
-        </a>
-        <a routerLink="/athlete/profile" routerLinkActive="active">
-          <app-icon name="user" [size]="22" /><span class="lb">Profil</span>
         </a>
       </nav>
     </div>
@@ -45,7 +43,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 
     .ashell__nav {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 200;
-      display: grid; grid-template-columns: repeat(6, 1fr);
+      display: grid; grid-template-columns: repeat(4, 1fr);
       background: var(--glass); backdrop-filter: saturate(180%) blur(16px);
       -webkit-backdrop-filter: saturate(180%) blur(16px);
       border-top: 1px solid var(--hairline);

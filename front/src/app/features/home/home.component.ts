@@ -1,18 +1,14 @@
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { RouterLink } from '@angular/router';
-import { Subject, takeUntil } from 'rxjs';
-import { Ping } from '../../core/models/ping.model';
 import { AuthService } from '../../core/services/auth.service';
-import { PingService } from '../../core/services/ping.service';
 import { InstallButtonComponent } from '../../shared/components/install-button/install-button.component';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 
-type PingState = 'loading' | 'ok' | 'error';
-
 /**
- * Page d'accueil minimale : appelle GET /api/public/ping et affiche le statut de l'API
- * (preuve de bout-en-bout que le front communique avec le back).
+ * Page d'accueil publique : promesse produit et entrées connexion / création de club.
+ * Elle tutoie comme le reste de l'app — le premier contact ne doit pas être la première
+ * incohérence. L'état de l'API a été déplacé sous /dev/api : c'est un outil d'équipe.
  */
 @Component({
   selector: 'app-home',
@@ -22,39 +18,8 @@ type PingState = 'loading' | 'ok' | 'error';
   templateUrl: './home.component.html',
   styleUrl: './home.component.scss',
 })
-export class HomeComponent implements OnInit, OnDestroy {
-  private readonly pingService = inject(PingService);
+export class HomeComponent {
   private readonly auth = inject(AuthService);
-  private readonly destroy$ = new Subject<void>();
 
   readonly isAuthenticated = this.auth.isAuthenticated;
-
-  readonly state = signal<PingState>('loading');
-  readonly ping = signal<Ping | null>(null);
-
-  ngOnInit(): void {
-    this.checkApi();
-  }
-
-  checkApi(): void {
-    this.state.set('loading');
-    this.pingService
-      .ping()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (ping) => {
-          this.ping.set(ping);
-          this.state.set('ok');
-        },
-        error: () => {
-          this.state.set('error');
-          // le toast d'erreur est déjà émis par l'intercepteur global
-        },
-      });
-  }
-
-  ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
 }

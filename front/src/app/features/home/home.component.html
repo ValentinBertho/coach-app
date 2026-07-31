@@ -15,7 +15,7 @@
   <section class="hero">
     <div class="hero-inner container-narrow">
       <span class="badge badge-info">Coaching course à pied</span>
-      <h1 class="display-lg">Entraînez. Suivez.<br /><span class="grad">Progressez.</span></h1>
+      <h1 class="display-lg">Entraîne. Suis.<br /><span class="grad">Progresse.</span></h1>
       <p class="lead">
         La plateforme moderne et mobile-first pour prescrire l'entraînement, suivre le réalisé
         et piloter la charge de tes athlètes — alternative simple et abordable à Nolio.
@@ -48,7 +48,7 @@
     <article class="card card-interactive feature">
       <span class="feature-ic"><app-icon name="watch" [size]="22" /></span>
       <h3>Prévu vs réalisé</h3>
-      <p class="field-hint">Importez les activités et rapprochez-les automatiquement des séances prévues.</p>
+      <p class="field-hint">Importe les activités et rapproche-les automatiquement des séances prévues.</p>
     </article>
     <article class="card card-interactive feature">
       <span class="feature-ic"><app-icon name="smartphone" [size]="22" /></span>
@@ -57,16 +57,9 @@
     </article>
   </section>
 
+  <!-- Pas d'état de l'API ici : un prospect n'a pas à savoir qu'une API existe, et
+       « API injoignable » sur la page d'accueil tue la crédibilité. La sonde vit sous /dev/api. -->
   <footer class="landing-foot container-wide">
-    <span class="api-status">
-      @switch (state()) {
-        @case ('loading') { <span class="dot dot-load"></span> Connexion à l'API… }
-        @case ('ok') { <span class="dot dot-ok"></span> API en ligne · v{{ ping()?.version }} }
-        @case ('error') { <span class="dot dot-err"></span> API injoignable
-          <button type="button" class="link-btn" (click)="checkApi()">réessayer</button>
-        }
-      }
-    </span>
     <span class="muted">© Darilab</span>
   </footer>
 </div>

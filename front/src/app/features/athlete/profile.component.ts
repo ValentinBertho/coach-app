@@ -7,6 +7,8 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { InstallButtonComponent } from '../../shared/components/install-button/install-button.component';
+import { PushButtonComponent } from '../../shared/components/push-button/push-button.component';
 import { DataOriginTagComponent } from '../../shared/components/physiology';
 import { PhysioProfile, Performance, Vdot } from '../../core/models/physio.model';
 import { LactateTest } from '../../core/models/lactate.model';
@@ -24,7 +26,8 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
   selector: 'app-athlete-profile',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, LogoComponent, IconComponent, DataOriginTagComponent, DatePipe, DecimalPipe],
+  imports: [RouterLink, LogoComponent, IconComponent, DataOriginTagComponent, DatePipe, DecimalPipe,
+    InstallButtonComponent, PushButtonComponent],
   template: `
     <div class="shell">
       <header class="top">
@@ -43,6 +46,18 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
           </span>
           <app-icon name="chevron-right" [size]="18" />
         </a>
+
+        <!-- Installation, notifications et déconnexion encombraient la barre supérieure de
+             « Aujourd'hui », un écran qui devrait ne porter que la séance. Ce sont des
+             réglages de compte : leur place est ici. -->
+        <section class="card app-settings">
+          <h2>L'application</h2>
+          <p class="field-hint">Installe Darilab sur ton téléphone et reçois un rappel quand une séance t'attend.</p>
+          <div class="app-settings__row">
+            <app-install-button />
+            <app-push-button />
+          </div>
+        </section>
 
         <!-- Mon profil physio (lecture seule) -->
         @if (physio(); as p) {
@@ -191,6 +206,10 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
           </div>
           <button type="button" class="btn btn-danger" (click)="deleteAccount()">Supprimer</button>
         </div>
+
+        <button type="button" class="btn btn-ghost logout-btn" (click)="logout()">
+          <app-icon name="lock" [size]="16" /> Me déconnecter
+        </button>
       </main>
     </div>
   `,
@@ -200,6 +219,8 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
     .wrap { max-width: 560px; margin-inline: auto; padding: var(--sp-5) var(--sp-4) var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-4); }
     .subtitle { color: var(--ink-3); margin: 0; }
     .help-link { display: flex; align-items: center; gap: var(--sp-3); text-decoration: none; color: var(--ink); padding: var(--sp-3); }
+    .app-settings__row { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
+    .logout-btn { align-self: center; }
     .help-link__ic { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-lg); background: var(--gradient-brand, var(--primary)); color: #fff; }
     .help-link__txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
     .help-link__txt strong { color: var(--ink); }
@@ -343,6 +364,12 @@ export class AthleteProfileComponent implements OnInit {
       URL.revokeObjectURL(url);
       this.toast.success('Export téléchargé.');
     });
+  }
+
+  /** Déconnexion — déplacée depuis la barre supérieure de « Aujourd'hui ». */
+  logout(): void {
+    this.auth.logout();
+    this.router.navigate(['/']);
   }
 
   async deleteAccount(): Promise<void> {
