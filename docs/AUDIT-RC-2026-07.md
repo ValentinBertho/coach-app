@@ -5,14 +5,15 @@
 >
 > **Réponse courte** : le **produit** est prêt — le fond métier est au-dessus de ce que
 > proposent la plupart des outils du marché sur la physiologie. Ce qui ne l'est pas, ce sont
-> **six détails de bordure** qui se voient tous dans les dix premières minutes : le formulaire
+> **sept détails de bordure** qui se voient tous dans les premières minutes : le formulaire
 > de connexion ne dit rien quand il échoue, l'e-mail d'invitation athlète n'est pas envoyé
 > (le code ne l'implémente pas), les alertes de charge crient au rouge sur tout athlète neuf,
-> les e-mails transactionnels sont des fragments HTML nus, l'inscription est ouverte à tous,
-> et le premier écran d'un coach affiche « Tout le monde est en forme » alors qu'il n'a aucun
-> athlète.
+> les e-mails transactionnels sont des fragments HTML nus, le serveur raisonne en UTC (« la
+> séance du jour » est fausse une partie de la nuit), le premier écran d'un coach affiche
+> « Tout le monde est en forme » alors qu'il n'a aucun athlète, et le cache du service worker
+> n'est pas purgé à la déconnexion.
 >
-> **Aucun de ces six points n'est un chantier.** Compter **2 à 3 jours** de travail ciblé.
+> **Aucun de ces sept points n'est un chantier.** Compter **2 à 3 jours** de travail ciblé.
 >
 > Base de l'audit : lecture du code (`back/` 583 fichiers, `front/` 200 composants et services),
 > de la configuration (`application*.yml`, `vercel.json`, `angular.json`, workflows CI),
@@ -170,21 +171,42 @@ rapport gain de perception / effort de tout cet audit.
 
 ---
 
-### B5 — L'inscription est ouverte à tout Internet
+### B5 — Le serveur raisonne en UTC : « aujourd'hui » est faux une partie de la nuit
 
-**Problème.** `/auth/register` est dans `PUBLIC_PATHS` (`SecurityConfig:38`) sans aucun gate :
-pas de code d'invitation, pas d'allowlist d'e-mails, pas de file d'attente. La politique de mot
-de passe est `@Size(min = 8, max = 100)` sans contrainte de complexité, et le rate limiting est
-de 20 requêtes/60 s par IP sur `/auth/login` **sans verrouillage de compte** (soit ~28 800
-tentatives/jour depuis une seule IP).
+**Problème.** Le conteneur (`eclipse-temurin:21-jre-jammy`, aucun `TZ` dans le `Dockerfile`)
+tourne en **UTC**, et toute la logique métier appelle `LocalDate.now()` / `LocalTime.now()` sans
+fuseau explicite :
 
-**Impact.** Une « bêta fermée sur invitation de 5 à 8 coachs » n'est pas fermée : n'importe qui
-tombant sur `darilab.app` crée un club. On perd le contrôle de la cohorte (le point central de
-la stratégie du runbook), on récolte des inscriptions parasites, et on ne sait plus si le signal
-Sentry vient d'un vrai testeur.
+```java
+// AthletePortalController:79 — la séance du jour de l'athlète
+LocalDate day = date != null ? date : LocalDate.now();
+```
 
-**Difficulté.** Très faible — 1 h. Une variable `BETA_INVITE_CODE` vérifiée dans
-`AuthService.register()`, plus un champ dans le formulaire. À retirer à l'ouverture publique.
+**Impact.**
+
+- **Séance du jour** : un athlète français qui ouvre l'app entre minuit et 02 h (heure d'été,
+  UTC+2) voit **la séance de la veille** — et pas celle du jour. C'est précisément le créneau où
+  un coureur consulte son programme du lendemain avant de se coucher.
+- **Check-in matinal** (`AthletePortalController:150`, `checkInService.save(…, LocalDate.now(), …)`)
+  : un check-in fait à 01 h est enregistré sur la veille.
+- **Rappel de débriefing** (`SessionDebriefScheduler:63`) : `LocalTime.now().getHour()` est comparé
+  à l'heure de séance habituelle de l'athlète, stockée en heure locale → la notification « Ta
+  séance est finie ? » part avec 1 à 2 heures de décalage selon la saison.
+- **Compte à rebours des objectifs** (`RaceObjectiveResponse:32`) : « J-3 » peut s'afficher un jour
+  trop tôt en soirée.
+
+Rien de spectaculaire pris isolément, mais ce sont des incohérences que l'utilisateur constate
+sans pouvoir les expliquer — le genre qui use la confiance dans les dates et les rappels.
+
+**Difficulté.** Faible — 2 h. Poser `TZ=Europe/Paris` (ou `-Duser.timezone`) sur le service
+Railway et dans le `Dockerfile`, puis centraliser un `ClockService.today()` / `now()` utilisé
+partout à la place des appels statiques, pour pouvoir passer plus tard à un fuseau par athlète.
+`hibernate.jdbc.time_zone: UTC` reste correct et ne doit pas changer : c'est le stockage des
+instants, pas la date métier.
+
+**Note pour plus tard** (🟢) : le vrai modèle est un fuseau par athlète, indispensable dès le
+premier utilisateur hors métropole (DOM-TOM, expatriés). Un fuseau serveur unique suffit pour
+une bêta francophone.
 
 ---
 
@@ -217,7 +239,70 @@ guidé » réclamé par l'audit précédent — les deux besoins se règlent d'u
 
 ---
 
+### B7 — Le cache du service worker survit à la déconnexion
+
+**Problème.** Le service worker met en cache les réponses de l'API :
+
+```jsonc
+// front/ngsw-config.json
+"dataGroups": [{
+  "name": "api-reads",
+  "urls": ["/api/me/**", "/api/clubs/**", "/api/admin/**", "/api/public/**"],
+  "cacheConfig": { "strategy": "freshness", "maxSize": 150, "maxAge": "1h", "timeout": "5s" }
+}]
+```
+
+`/api/clubs/**` est **toute** la surface coach (athlètes, séances, calendrier, messages, tests
+lactate) et `/api/me/**` **toute** la surface athlète — les migrations montrent que ce sont les
+deux seuls préfixes métier. Or `AuthService.logout()` ne purge que trois clés de `localStorage` :
+
+```ts
+localStorage.removeItem(ACCESS_KEY); localStorage.removeItem(REFRESH_KEY); localStorage.removeItem(USER_KEY);
+```
+
+Aucun `caches.delete()`. Le cache du service worker, lui, reste intact.
+
+**Impact.** Sur un appareil partagé — un coach qui montre l'app à son athlète sur sa tablette,
+deux coachs d'un même club sur l'ordinateur du club, un athlète qui teste sur le téléphone d'un
+autre — le compte suivant peut se voir servir depuis le cache les réponses API du compte
+précédent : la stratégie `freshness` bascule sur le cache dès que le réseau dépasse 5 s
+(vestiaire, salle de sport, 3G). Ce sont des **données de santé** (douleur, fatigue, lactate) au
+sens de l'article 9 du RGPD.
+
+La probabilité est faible ; la gravité, en revanche, est maximale — c'est le seul point de cet
+audit qui constitue une fuite de données entre comptes, et il tombe exactement sur la catégorie
+de données la plus sensible du produit.
+
+**Difficulté.** Très faible — 30 min. Purger les caches dans `logout()` :
+
+```ts
+if ('caches' in window) { void caches.keys().then((k) => Promise.all(k.map((c) => caches.delete(c)))); }
+```
+
+Et réduire le périmètre du `dataGroup` aux seules routes réellement utiles hors ligne (la séance
+du jour de l'athlète), plutôt qu'à l'ensemble de l'API.
+
+> À nettoyer au passage : l'`assetGroup` `fonts` de `ngsw-config.json` référence encore
+> `https://fonts.googleapis.com/**` et `https://fonts.gstatic.com/**`, alors que les polices sont
+> auto-hébergées depuis. Configuration morte, mais elle contredit l'affirmation « aucun tiers »
+> de la politique de confidentialité si quelqu'un la lit.
+
+---
+
 ## 2. 🟠 Important — dans les deux premières semaines
+
+### Spécifique à une bêta *ouverte*
+
+Ces trois points étaient secondaires pour une bêta sur invitation ; ils remontent dès lors que
+l'inscription reste ouverte à tout Internet.
+
+| # | Problème | Impact | Effort |
+|---|---|---|---|
+| **O1** | **Aucun quota de stockage.** Les pièces jointes sont plafonnées à 10 Mo par fichier avec une allowlist de types (bon), mais il n'existe **aucune** limite par utilisateur, par club, ni globale — et elles sont stockées en `bytea` dans PostgreSQL. Pas non plus de plafond du nombre d'athlètes par club ni de clubs par personne. | Un compte gratuit peut faire grossir la base de plusieurs Go. Coût Railway, mais surtout : la durée du `pg_dump` quotidien et la taille des artefacts GitHub (rétention 14 j) suivent — c'est la sauvegarde qui casse en premier. | ½ j — quota par club (ex. 200 Mo) + compteur, ou passage des pièces jointes sur S3/R2 (les variables `S3_*` sont déjà prévues). |
+| **O2** | **La vérification d'e-mail n'est pas bloquante.** `register()` pose `emailVerified=false` et le compte fonctionne intégralement. | En bêta fermée c'était un choix raisonnable. En bêta ouverte, on récolte des comptes à adresses jetables ou erronées : ces coachs ne recevront jamais rien (reset, invitations, digest) et pollueront les métriques d'activation. | ½ j — laisser l'accès en lecture, mais exiger l'e-mail vérifié pour **inviter un athlète** et **envoyer un e-mail**. Le bandeau de renvoi existe déjà. |
+| **O3** | **Rate limiting large sur `/auth/login`** : 20 requêtes/60 s par IP (`RATE_LIMIT_MAX`), soit ~28 800 tentatives/jour depuis une seule IP, **sans verrouillage de compte** ni délai progressif. Combiné à `@Size(min = 8)` sans contrainte de complexité. | Surface d'attaque réelle dès que le produit est indexé et que les adresses des coachs sont devinables. | 2 h — bucket dédié plus strict sur `auth-login` (5/min) + compteur par compte avec délai exponentiel. |
+
+### Sécurité — cycle de vie des sessions
 
 ### Sécurité — cycle de vie des sessions
 
@@ -288,7 +373,7 @@ Trois raisons de ne pas en mettre :
 
 1. **Ça ne répond pas au risque réel.** Le risque numéro un de ce produit n'est pas l'usurpation
    de compte, c'est la perte d'accès (B1, B2) et la perte de données. Un OTP ajoute une friction
-   à chaque connexion sans traiter aucun des six bloquants.
+   à chaque connexion sans traiter aucun des sept bloquants.
 2. **La cible s'y prête mal.** Un athlète qui ouvre sa séance à 6 h 30 avant de sortir courir, en
    PWA, sur un téléphone avec 3G : un code à saisir à chaque session est le meilleur moyen de
    tuer l'usage quotidien.
@@ -314,7 +399,7 @@ et découvre qu'il doit copier-coller un lien lui-même (B1) ; une semaine plus 
 est rouge sur tous ses athlètes sans raison (B3) ; et le seul e-mail qu'il aura reçu ressemble à
 un message de test (B4).
 
-Rien de tout cela ne remet en cause l'architecture. Ce sont six correctifs indépendants, tous
+Rien de tout cela ne remet en cause l'architecture. Ce sont sept correctifs indépendants, tous
 inférieurs à une demi-journée.
 
 ### Les 10 derniers points à corriger
@@ -326,13 +411,13 @@ inférieurs à une demi-journée.
 | 3 | Fenêtre minimale sur l'ACWR + affichage « en construction » (B3) | 🔴 | 1 h |
 | 4 | Gabarit e-mail complet + version texte + `reply_to` (B4) | 🔴 | ½ j |
 | 5 | Écran de première ouverture du cockpit (B6) | 🔴 | 2 h |
-| 6 | Code d'invitation sur `/register` (B5) | 🔴 | 1 h |
+| 6 | Fuseau horaire serveur + purge du cache SW à la déconnexion (B5/B7) | 🔴 | 2 h 30 |
 | 7 | Révoquer les sessions au changement de mot de passe (I1/I2) | 🟠 | ½ j |
 | 8 | Validation serveur du mot de passe athlète + CGU coach (I5/I6) | 🟠 | 20 min |
 | 9 | En-têtes de sécurité `vercel.json` + `access_token` restreint au SSE (I10/I4) | 🟠 | 45 min |
 | 10 | Open Graph + page 404 + fermeture de `/dev/*` (I12/I14/I13) | 🟠 | 2 h |
 
-Les points 1 à 6 sont le chemin critique — **environ 1,5 jour**. Les points 7 à 10 peuvent se
+Les points 1 à 6 sont le chemin critique — **environ 2 jours**. Les points 7 à 10 peuvent se
 faire pendant la première semaine de bêta sans risque.
 
 ### Qu'est-ce qui risque le plus de faire perdre confiance à un premier utilisateur ?
@@ -381,7 +466,7 @@ calme.
 | **Design** | **8,5/10** | Le point le plus fort. Design system réel et argumenté (tokens, dégradés tonaux assumés contre l'arc-en-ciel, mono tabulaire pour la donnée), polices auto-hébergées avec préchargement, contrastes corrigés avec le ratio en commentaire. Aucune trace de template ni de placeholder. Seule ombre : les e-mails, qui ne bénéficient de rien de tout ça. |
 | **Sécurité** | **7/10** | Modèle de permissions multi-tenant rare à ce stade (référent / permission explicite / privé, testé), chiffrement AES-256-GCM au repos, garde-fou de démarrage sur les secrets, Swagger fermé en prod. Pénalisé par cinq défauts de cycle de vie des sessions (I1–I5) et l'absence d'en-têtes côté front. |
 | **Fiabilité** | **6/10** | Nette progression : workflow de sauvegarde chiffrée écrit avec heartbeat, Sentry frontend branché, CI alignée sur PostgreSQL 18. Reste à **activer et tester** (un backup non restauré n'existe pas), et l'invisibilité des erreurs d'auth (B2) crée un angle mort exactement là où il ne faut pas. |
-| **Professionnalisme perçu** | **6,5/10** | La note la plus injuste au regard du contenu réel. L'intérieur vaut 8,5 ; ce sont les bordures qui plombent — le seul e-mail que reçoit un coach, le premier écran qu'il voit, le premier formulaire qu'il remplit. Les six correctifs bloquants amèneraient cette note à **8,5** en 2 jours. C'est l'investissement au meilleur rendement du projet. |
+| **Professionnalisme perçu** | **6,5/10** | La note la plus injuste au regard du contenu réel. L'intérieur vaut 8,5 ; ce sont les bordures qui plombent — le seul e-mail que reçoit un coach, le premier écran qu'il voit, le premier formulaire qu'il remplit. Les sept correctifs bloquants amèneraient cette note à **8,5** en 2 jours. C'est l'investissement au meilleur rendement du projet. |
 
 ---
 
@@ -389,9 +474,9 @@ calme.
 
 | Jour | Tâches | Résultat |
 |---|---|---|
-| **J1 matin** | B2 (erreurs de login) · B1 (e-mail d'invitation athlète) · B5 (code d'invitation) | Les trois impasses du parcours d'entrée sont levées. |
+| **J1 matin** | B2 (erreurs de login) · B1 (e-mail d'invitation athlète) · B7 (purge du cache à la déconnexion) | L'impasse du parcours d'entrée est levée, la fuite entre comptes est fermée. |
 | **J1 après-midi** | B4 (gabarit e-mail + version texte) | Le seul artefact hors application devient présentable. |
-| **J2 matin** | B3 (fenêtre ACWR) · B6 (cockpit premier jour) | Le produit ne se contredit plus lui-même. |
+| **J2 matin** | B3 (fenêtre ACWR) · B5 (fuseau horaire) · B6 (cockpit premier jour) | Le produit ne se contredit plus lui-même. |
 | **J2 après-midi** | Phases 2 à 5 du runbook (Resend, Sentry, uptime, backups + **test de restauration**) | Fin de la cécité opérationnelle. |
 | **J3** | Phase 6 du runbook (tests de bout en bout sur `www.darilab.app`) + I5, I6, I10, I4 | Feu vert. |
 
