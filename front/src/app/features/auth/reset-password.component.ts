@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { authErrorMessage } from '../../core/utils/auth-error';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 
 type State = 'loading' | 'ok' | 'invalid';
@@ -40,6 +41,9 @@ type State = 'loading' | 'ok' | 'invalid';
                 <span class="error-message">8 caractères minimum.</span>
               }
             </div>
+            @if (errorMessage(); as message) {
+              <p class="auth-error" role="alert">{{ message }}</p>
+            }
             <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
               {{ submitting() ? 'Enregistrement…' : 'Réinitialiser et se connecter' }}
             </button>
@@ -59,6 +63,8 @@ export class ResetPasswordComponent implements OnInit {
 
   readonly state = signal<State>('loading');
   readonly submitting = signal(false);
+  /** Erreur du serveur autre qu'un lien périmé (rate limit, mot de passe refusé…). */
+  readonly errorMessage = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     password: ['', [Validators.required, Validators.minLength(8)]],
@@ -77,14 +83,21 @@ export class ResetPasswordComponent implements OnInit {
       return;
     }
     this.submitting.set(true);
+    this.errorMessage.set(null);
     this.auth.resetPassword(this.token(), this.form.getRawValue().password).subscribe({
       next: (res) => {
         this.toast.success('Mot de passe mis à jour');
         this.router.navigateByUrl(this.homeFor(res.user.role));
       },
-      error: () => {
+      error: (err) => {
         this.submitting.set(false);
-        this.state.set('invalid');
+        // Un 404 signifie bien « lien périmé » ; un 429 ou un 400 racontent autre chose, et
+        // renvoyer l'utilisateur vers « demander un nouveau lien » l'enverrait dans le mur.
+        if (err?.status === 404) {
+          this.state.set('invalid');
+          return;
+        }
+        this.errorMessage.set(authErrorMessage(err));
       },
     });
   }
