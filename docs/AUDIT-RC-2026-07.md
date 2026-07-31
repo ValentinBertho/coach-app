@@ -15,6 +15,11 @@
 >
 > **Aucun de ces sept points n'est un chantier.** Compter **2 à 3 jours** de travail ciblé.
 >
+> S'y ajoutent deux manques structurels, non bloquants mais décisifs pour la suite : **l'espace
+> athlète ne rend rien** (pas même son allure) en échange du ressenti qu'il demande chaque jour,
+> et **l'import Strava ne récupère que huit champs** — au point qu'un athlète connecté reçoit
+> moins qu'un athlète qui envoie son GPX à la main.
+>
 > Base de l'audit : lecture du code (`back/` 583 fichiers, `front/` 200 composants et services),
 > de la configuration (`application*.yml`, `vercel.json`, `angular.json`, workflows CI),
 > et de la documentation (`docs/`). Audit de **validation** : il ne reprend pas ce qui a déjà
@@ -362,7 +367,143 @@ l'inscription reste ouverte à tout Internet.
 
 ---
 
-## 4. Réponses aux questions posées
+## 4. Espace athlète
+
+> Question de référence : **« Est-ce que cet espace donne envie d'y revenir chaque jour ? »**
+>
+> **Réponse : oui pour la séance du jour, non pour le reste.** La boucle quotidienne — voir sa
+> séance, la faire, noter son ressenti — est tenue de bout en bout, avec notification push,
+> rattrapage des ressentis oubliés sur 7 jours et série de semaines actives. Ce qui manque, c'est
+> la **contrepartie** : après avoir couru, l'athlète ouvre l'app et trouve quatre chiffres bruts
+> — sans son allure, sans son temps en zone, sans comparaison à ce qui était prescrit, sans
+> record. Il ira chercher ça sur Strava. Et une fois sur Strava, il n'a plus de raison de revenir.
+
+### ✅ Ce qui est en place — et c'est beaucoup
+
+Écran « Aujourd'hui » (carte héro, zones d'intensité explicites, feuille de ressenti en bottom
+sheet, double séance course + force, rattrapage des séances non clôturées sur 7 j), calendrier,
+historique avec **commentaire du coach** et possibilité de noter *a posteriori*, « Mes progrès »
+(série de semaines actives, volume prévu/réalisé, adhérence, ACWR, courbes e1RM), check-in matinal,
+objectifs A/B/C, performances de référence, tests lactate, **connexion Strava en autonomie**,
+messagerie temps réel, notifications push avec actions rapides RPE, mode séance de force plein
+écran, export RGPD et suppression de compte en self-service, PWA installable et offline-friendly.
+
+C'est objectivement au-dessus de l'espace athlète de la plupart des plateformes de coaching.
+
+### Manques réels
+
+| # | Constat | Impact utilisateur | Complexité | Priorité |
+|---|---|---|---|---|
+| **A1** | ❌ **L'athlète ne voit pas son allure.** Le DTO `/me/activities` porte distance, durée, D+ et FC moyenne — **pas l'allure**. C'est la première métrique que regarde un coureur, et le coach, lui, l'a. | Fort — c'est le chiffre attendu au retour de sortie | Triviale (durée/distance côté front) | 🔴 |
+| **A2** | ❌ **L'athlète ne peut pas déclarer une indisponibilité.** `AthletePortalController` n'expose que `GET /me/unavailabilities`. Blessé, malade ou en vacances, il ne peut que l'écrire en message. | Fort — c'est le geste le plus attendu d'un produit qui suit douleur et fatigue ; et son absence gonfle les fausses alertes « séances manquées » côté coach | Faible (POST + formulaire, l'entité existe) | 🔴 |
+| **A3** | ⚠️ **Le temps en zone est réservé au coach.** `GET /clubs/{clubId}/athletes/{athleteId}/activities/{id}/time-in-zone` existe ; aucun équivalent sous `/me/`. Le composant `time-in-zone-bar` est déjà écrit. | Fort — c'est le retour pédagogique qui fait comprendre une séance polarisée | Faible (exposer l'endpoint existant) | 🟠 |
+| **A4** | ⚠️ **Texte trompeur sur « Mes activités ».** L'état vide dit « connecte Strava/Garmin (**via ton coach**) » alors que l'athlète connecte Strava lui-même depuis `/athlete/sync`, et que Garmin n'existe pas. Deux erreurs dans une phrase, sur l'écran censé déclencher la connexion. | Moyen — envoie l'athlète vers une action impossible | Triviale | 🟠 |
+| **A5** | ❌ **Pas de vue « ma semaine » chiffrée.** Le calendrier montre les séances, « Mes progrès » agrège 8 semaines. Rien ne dit « cette semaine : 32/45 km, 3 séances sur 5 ». | Moyen — c'est le chiffre que le coureur regarde le dimanche soir | Faible | 🟠 |
+| **A6** | ❌ **Aucun record personnel détecté.** `/me/performances` est une saisie manuelle de chronos. Rien ne détecte automatiquement le meilleur 5 km ou 10 km des 12 derniers mois depuis les activités — alors que Strava renvoie même `pr_count`, qui est ignoré. | Fort sur l'engagement — c'est le mécanisme de fidélisation le plus efficace du sport d'endurance | Moyenne | 🟠 |
+| **A7** | ⚠️ **Objectifs non modifiables** : `POST` et `DELETE` seulement, pas de `PUT`. Corriger une date de course impose de supprimer puis recréer. | Faible mais irritant | Triviale | 🟢 |
+| **A8** | ❌ Pas de **notes personnelles** libres (sensations, météo, chaussures) hors du commentaire attaché à une séance. | Faible | Faible | 🟢 |
+
+---
+
+## 5. Activités et analyse des entraînements
+
+C'est la section où l'écart entre l'ambition affichée et l'implémentation est le plus grand — et
+c'est aussi celle qui décidera si un coach paie.
+
+### Ce que l'import Strava récupère : huit champs
+
+```java
+// StravaClient.StravaActivity — la totalité de ce qui est désérialisé
+Long id, String name, String type, Double distance, Integer movingTime,
+Double totalElevationGain, Double averageHeartrate, String startDateLocal
+```
+
+**Ce que la même réponse API contient déjà et qui est jeté**, sans un seul appel supplémentaire :
+`max_heartrate`, `average_speed`, `max_speed`, `average_cadence`, `average_watts`,
+`weighted_average_watts`, `calories`, `suffer_score`, `elev_high`/`elev_low`, `gear_id`
+(chaussures), `workout_type`, `average_temp`, `achievement_count`, **`pr_count`**, `photo_count`
+— et **`map.summary_polyline`, le tracé**.
+
+### La conséquence est contre-intuitive
+
+L'entité `Activity` porte bien `routeJson` (tracé) et `streamJson` (flux FC/allure, base du temps
+en zone). Mais ces deux colonnes ne sont remplies que par l'import de fichier
+(`ActivityService:161` et `:167`, via `GpxParser`). **L'import Strava ne remplit ni l'un ni l'autre.**
+
+> **Un athlète connecté à Strava reçoit donc *moins* qu'un athlète qui envoie son fichier GPX à la
+> main : ni carte, ni temps en zone.** Les deux fonctionnalités existent, sont écrites, testées
+> (`TimeInZoneTest`, `GpxParserTest`) et branchées — elles sont simplement privées de données sur
+> le chemin que 90 % des athlètes emprunteront.
+
+C'est le meilleur rapport valeur/effort de tout cet audit : deux appels d'API supplémentaires
+(`/activities/{id}` pour le polyline et les laps, `/activities/{id}/streams` pour le flux)
+activent d'un coup la carte, le temps en zone et la comparaison par intervalle.
+
+### Le rapprochement prévu/réalisé
+
+`MatchingService` (71 lignes, testé) : score = 0,5 × proximité de date + 0,5 × ratio de distance,
+seuil 0,6 ; statut `COMPLETED` si l'écart de distance est ≤ 15 %, sinon `PARTIAL`. Propre, mais :
+
+| Constat | Détail |
+|---|---|
+| ⚠️ **La durée n'entre pas dans le score** | Une sortie de 10 km en 40 min et une séance prévue de 10 km en 60 min se rapprochent avec un score parfait. |
+| ❌ **Aucun rapprochement manuel possible** | `Activity.matchedWorkoutId` n'est exposé en écriture par aucun endpoint. Si l'algorithme se trompe — deux séances le même jour, une sortie club non planifiée, un échauffement enregistré séparément — **ni le coach ni l'athlète ne peuvent corriger**. C'est le manque le plus handicapant au quotidien. |
+| ⚠️ **Pas de score d'exécution** | `COMPLETED`/`PARTIAL` se décide sur la seule distance. Un fractionné couru 30 s/km trop lent est classé « réalisée ». Or le produit prescrit des **fourchettes d'allure** : il a tout ce qu'il faut pour juger le respect de l'intensité, et ne s'en sert pas. |
+| ✅ **Côté coach, la comparaison existe** | `workout-detail.component.html` affiche un bloc « Réalisé » avec les écarts colorés par rapport aux cibles. La brique d'affichage est là — il lui manque la finesse des données. |
+
+### 💡 « Qu'est-ce qui différencierait vraiment de Strava ? »
+
+Strava répond à **« qu'ai-je fait ? »**. DARI Lab est le seul à pouvoir répondre à
+**« ai-je fait ce qui était prescrit ? »** — parce qu'il est le seul à détenir la prescription,
+les zones personnalisées (`AthleteZoneValue`) et les seuils mesurés (LT1/LT2/VC). Strava ne
+répondra jamais à cette question : il n'a pas la prescription.
+
+Tout est déjà là sauf les données réalisées fines. Trois briques, par ordre de valeur :
+
+1. 🔴 **Comparaison répétition par répétition** (laps Strava vs blocs prescrits).
+   « 6×800 m prescrits à 3'20–3'25 → réalisés 3'18 / 3'19 / 3'22 / 3'26 / 3'31 / 3'38 :
+   dérive de 6 % sur les trois dernières. » Aucun outil grand public ne fait cela **contre une
+   prescription physiologique individualisée**. C'est le produit, littéralement.
+2. 🟠 **Temps en zone réalisé vs prescrit.** Déjà implémenté de bout en bout ; il manque le flux
+   Strava (A3 le rend aussi visible à l'athlète).
+3. 🟠 **Score d'exécution** fondé sur le respect des fourchettes d'allure, pas seulement du volume
+   — il alimente l'adhérence déjà affichée dans « Mes progrès ».
+
+Le reste (météo, équipement, photos, détection d'anomalies) est cosmétique tant que ces trois
+briques manquent : ce sont des champs Strava recopiés, pas de la valeur ajoutée.
+
+---
+
+## 6. Les 20 améliorations au meilleur ratio impact / effort
+
+| # | Amélioration | Priorité | Effort |
+|---|---|---|---|
+| 1 | Afficher les erreurs de connexion et d'inscription (B2) | 🔴 | 20 min |
+| 2 | Envoyer réellement l'e-mail d'invitation athlète (B1) | 🔴 | 30 min |
+| 3 | Purger le cache du service worker à la déconnexion (B7) | 🔴 | 30 min |
+| 4 | Afficher l'allure dans « Mes activités » (A1) | 🔴 | 30 min |
+| 5 | Fenêtre minimale sur l'ACWR + « en construction » (B3) | 🔴 | 1 h |
+| 6 | Permettre à l'athlète de déclarer une indisponibilité (A2) | 🔴 | 2 h |
+| 7 | Fuseau horaire serveur `Europe/Paris` + `ClockService` (B5) | 🔴 | 2 h |
+| 8 | Écran de première ouverture du cockpit coach (B6) | 🔴 | 2 h |
+| 9 | Gabarit e-mail complet + version texte (B4) | 🔴 | ½ j |
+| 10 | **Importer le polyline et les streams Strava** (carte + temps en zone activés) | 🔴 | ½ j |
+| 11 | Rapprochement manuel activité ↔ séance (coach et athlète) | 🟠 | ½ j |
+| 12 | Révoquer les sessions au changement de mot de passe (I1/I2) | 🟠 | ½ j |
+| 13 | Exposer le temps en zone à l'athlète (A3) + corriger le texte « via ton coach » (A4) | 🟠 | 2 h |
+| 14 | Validations serveur manquantes + en-têtes `vercel.json` + `access_token` limité au SSE | 🟠 | 1 h 30 |
+| 15 | **Importer les laps Strava et comparer répétition par répétition** | 🟠 | 1,5 j |
+| 16 | Quota de stockage par club + e-mail vérifié pour inviter (O1/O2) | 🟠 | 1 j |
+| 17 | Récapitulatif « ma semaine » chiffré côté athlète (A5) | 🟠 | ½ j |
+| 18 | Détection automatique des records personnels (A6) | 🟠 | 1 j |
+| 19 | Open Graph + page 404 + fermeture de `/dev/*` + `fieldErrors` dans les toasts | 🟠 | 3 h |
+| 20 | Score d'exécution fondé sur le respect des fourchettes d'allure | 🟢 | 1 j |
+
+Les points 1 à 10 forment le chemin critique : **environ 2 jours**.
+
+---
+
+## 7. Réponses aux questions posées
 
 ### L'OTP est-il pertinent pour DARI Lab ?
 
@@ -402,23 +543,23 @@ un message de test (B4).
 Rien de tout cela ne remet en cause l'architecture. Ce sont sept correctifs indépendants, tous
 inférieurs à une demi-journée.
 
-### Les 10 derniers points à corriger
+### Les 10 derniers points bloquants
 
-| # | Point | Priorité | Effort |
-|---|---|---|---|
-| 1 | Afficher les erreurs de connexion et d'inscription (B2) | 🔴 | 20 min |
-| 2 | Envoyer réellement l'e-mail d'invitation athlète (B1) | 🔴 | 30 min |
-| 3 | Fenêtre minimale sur l'ACWR + affichage « en construction » (B3) | 🔴 | 1 h |
-| 4 | Gabarit e-mail complet + version texte + `reply_to` (B4) | 🔴 | ½ j |
-| 5 | Écran de première ouverture du cockpit (B6) | 🔴 | 2 h |
-| 6 | Fuseau horaire serveur + purge du cache SW à la déconnexion (B5/B7) | 🔴 | 2 h 30 |
-| 7 | Révoquer les sessions au changement de mot de passe (I1/I2) | 🟠 | ½ j |
-| 8 | Validation serveur du mot de passe athlète + CGU coach (I5/I6) | 🟠 | 20 min |
-| 9 | En-têtes de sécurité `vercel.json` + `access_token` restreint au SSE (I10/I4) | 🟠 | 45 min |
-| 10 | Open Graph + page 404 + fermeture de `/dev/*` (I12/I14/I13) | 🟠 | 2 h |
+Ce sont les dix premières lignes du tableau des 20 améliorations (§6) — reprises ici pour mémoire :
 
-Les points 1 à 6 sont le chemin critique — **environ 2 jours**. Les points 7 à 10 peuvent se
-faire pendant la première semaine de bêta sans risque.
+1. Erreurs de connexion et d'inscription affichées (B2) — 20 min
+2. E-mail d'invitation athlète réellement envoyé (B1) — 30 min
+3. Cache du service worker purgé à la déconnexion (B7) — 30 min
+4. Allure affichée dans « Mes activités » (A1) — 30 min
+5. Fenêtre minimale sur l'ACWR (B3) — 1 h
+6. Déclaration d'indisponibilité par l'athlète (A2) — 2 h
+7. Fuseau horaire serveur + `ClockService` (B5) — 2 h
+8. Écran de première ouverture du cockpit coach (B6) — 2 h
+9. Gabarit e-mail complet avec version texte (B4) — ½ j
+10. Import du polyline et des streams Strava (carte + temps en zone) — ½ j
+
+**Environ 2 jours de travail effectif.** Les points 🟠 peuvent se faire pendant la première
+semaine de bêta sans risque.
 
 ### Qu'est-ce qui risque le plus de faire perdre confiance à un premier utilisateur ?
 
@@ -435,6 +576,64 @@ Le second, plus insidieux et plus grave à moyen terme, est **l'ACWR rouge sur t
 Le public visé est précisément celui qui sait ce qu'est un ratio charge aiguë/chronique et qui
 verra immédiatement qu'un athlète démarrant à 4,0 est une erreur de méthode. Pour un produit dont
 l'argument est la rigueur physiologique, c'est le pire endroit possible où se tromper.
+
+### Quels éléments donnent encore une impression de MVP ?
+
+Par ordre de visibilité :
+
+1. **Les e-mails** (B4) — le seul artefact qui sort de l'application, et c'est un fragment HTML nu.
+2. **Le premier écran d'un coach** (B6) — quatre zones vides et une affirmation absurde.
+3. **« Mes activités » côté athlète** — quatre chiffres bruts sans allure, sans zone, sans
+   comparaison au prescrit (A1, A3).
+4. **L'absence de rapprochement manuel** activité ↔ séance : quand l'automatisme se trompe,
+   il n'y a aucune sortie de secours.
+5. **`/dev/ui-kit` et `/dev/api` accessibles en production** (I13) : un styleguide interne et une
+   sonde « API injoignable » à portée d'URL.
+6. **`appVersion: '0.1.0'`** figé à la main, aucun tag de version.
+
+### Quels éléments donnent une impression d'application générée par IA ?
+
+Honnêtement : **très peu, et c'est notable.** Zéro `console.log`, zéro `TODO`, zéro lorem ipsum,
+zéro `confirm()` natif sur ~200 fichiers front ; un design system argumenté avec les ratios de
+contraste en commentaire ; des choix assumés et documentés (dégradés tonaux plutôt qu'arc-en-ciel,
+mono tabulaire pour la donnée). Ce n'est pas une signature d'IA, c'est une signature d'auteur.
+
+Les trois seuls endroits qui trahissent une génération non relue :
+
+1. **« Tout le monde est en forme » avec zéro athlète** (B6) — le composant existe, le cas limite
+   n'a pas été pensé. C'est *la* signature.
+2. **« connecte Strava/Garmin (via ton coach) »** (A4) — deux erreurs factuelles dans une phrase
+   d'état vide : l'athlète le fait lui-même, et Garmin n'existe pas.
+3. **Le commentaire `// délégué au NotificationTriggerService (à venir)`** (B1) qui référence une
+   classe inexistante : une intention notée, jamais exécutée, et personne n'a relu.
+
+### Quelle fonctionnalité manque le plus pour convaincre un coach de payer ?
+
+**La comparaison prévu/réalisé au niveau de l'intervalle** (§5, brique 1).
+
+Le raisonnement est simple : le coach prescrit finement — des fourchettes d'allure calculées sur
+les seuils mesurés de chaque athlète — et vérifie grossièrement : « distance à ±15 % → réalisée ».
+Il devra donc ouvrir Strava ou TrainingPeaks pour savoir si la séance a été *exécutée*, et non
+seulement *faite*. À partir de ce moment, DARI Lab devient un outil de saisie dans lequel il
+recopie du travail fait ailleurs — et un outil de saisie ne se facture pas.
+
+À l'inverse, « 6×800 m prescrits à 3'20–3'25 → réalisés 3'18 / 3'19 / 3'22 / 3'26 / 3'31 / 3'38,
+dérive de 6 % sur les trois dernières » est une phrase qu'**aucun autre produit ne peut écrire**,
+faute de détenir la prescription. C'est l'argument de vente, et il est à une demi-journée d'import
+Strava plus un jour et demi de comparaison.
+
+### Quelle fonctionnalité manque le plus pour fidéliser un athlète ?
+
+**Le retour immédiat après la séance.**
+
+Aujourd'hui la relation est à sens unique : l'athlète **donne** (son RPE, sa fatigue, sa douleur,
+son commentaire) et ne **reçoit** que le commentaire éventuel de son coach. Quatre chiffres bruts
+sans allure ne sont pas une récompense.
+
+Ce qu'il faut lui rendre, dans l'ordre de coût croissant : son allure (A1, 30 min), son temps en
+zone (A3, 2 h une fois les streams Strava importés), sa comparaison au prescrit, et ses records
+détectés automatiquement (A6). Les trois premiers points coûtent moins d'une journée cumulée et
+transforment la boucle quotidienne d'une corvée déclarative en une raison d'ouvrir l'app.
 
 ### Combien de coachs et d'athlètes l'application peut-elle supporter ?
 
@@ -457,28 +656,38 @@ calme.
 
 ---
 
-## 5. Notes de maturité
+## 8. Notes de maturité
 
 | Domaine | Note | Justification |
 |---|---|---|
 | **Produit** | **8,5/10** | Le fond métier est au-dessus du marché : prescription en fourchettes calculées par athlète, course et force unifiées dans une même charge interne, zones à ancres multiples avec détection de trous, snapshot figé de la prescription au calendrier. Nolio et TrainingPeaks ne font pas la moitié de la physiologie qui est ici. Manquent l'onboarding et le canal de feedback. |
-| **UX** | **7/10** | Excellent en profondeur — calendrier avec undo/redo, raccourcis clavier, palette Cmd+K, bibliothèque latérale, mode séance de force plein écran, rattrapage des ressentis oubliés sur 7 jours. Mais trois trous béants sur les bords : login muet, cockpit du premier jour, alertes bruyantes. Le soin apporté au cœur rend ces oublis d'autant plus visibles. |
+| **UX Coach** | **7,5/10** | Excellent en profondeur : calendrier avec undo/redo, raccourcis clavier, palette Cmd+K, bibliothèque latérale repliable, totaux hebdomadaires prévu/réalisé façon Nolio, mésocycles, planification de groupe, mode séance de force plein écran. Un coach expérimenté programme vite. Pénalisé par le cockpit du premier jour et le bruit des alertes. |
+| **UX Athlète** | **6,5/10** | La boucle quotidienne est bien tenue (séance du jour, ressenti, push avec actions rapides, rattrapage sur 7 j, série de semaines). Mais la relation est à sens unique : l'athlète donne son ressenti et ne reçoit que quatre chiffres bruts — **sans son allure**, sans temps en zone, sans comparaison au prescrit, sans record. Et il ne peut pas déclarer une blessure. |
 | **Design** | **8,5/10** | Le point le plus fort. Design system réel et argumenté (tokens, dégradés tonaux assumés contre l'arc-en-ciel, mono tabulaire pour la donnée), polices auto-hébergées avec préchargement, contrastes corrigés avec le ratio en commentaire. Aucune trace de template ni de placeholder. Seule ombre : les e-mails, qui ne bénéficient de rien de tout ça. |
 | **Sécurité** | **7/10** | Modèle de permissions multi-tenant rare à ce stade (référent / permission explicite / privé, testé), chiffrement AES-256-GCM au repos, garde-fou de démarrage sur les secrets, Swagger fermé en prod. Pénalisé par cinq défauts de cycle de vie des sessions (I1–I5) et l'absence d'en-têtes côté front. |
+| **Performance** | **7/10** | Angular 17 standalone + signals + OnPush, routes lazy-loadées, budgets de build tenus (500 ko / 1 Mo), polices auto-hébergées préchargées, skeletons partout, PWA. Côté serveur, `open-in-view: false` et 36 migrations sur 57 créant des index. Points ouverts : N+1 du cockpit coach (~4 requêtes par athlète), ~12 requêtes parallèles à l'ouverture du calendrier, pagination absente sur certaines listes. Rien de bloquant à l'échelle bêta. |
 | **Fiabilité** | **6/10** | Nette progression : workflow de sauvegarde chiffrée écrit avec heartbeat, Sentry frontend branché, CI alignée sur PostgreSQL 18. Reste à **activer et tester** (un backup non restauré n'existe pas), et l'invisibilité des erreurs d'auth (B2) crée un angle mort exactement là où il ne faut pas. |
 | **Professionnalisme perçu** | **6,5/10** | La note la plus injuste au regard du contenu réel. L'intérieur vaut 8,5 ; ce sont les bordures qui plombent — le seul e-mail que reçoit un coach, le premier écran qu'il voit, le premier formulaire qu'il remplit. Les sept correctifs bloquants amèneraient cette note à **8,5** en 2 jours. C'est l'investissement au meilleur rendement du projet. |
 
 ---
 
-## 6. Ordre d'exécution recommandé
+## 9. Ordre d'exécution recommandé
 
 | Jour | Tâches | Résultat |
 |---|---|---|
 | **J1 matin** | B2 (erreurs de login) · B1 (e-mail d'invitation athlète) · B7 (purge du cache à la déconnexion) | L'impasse du parcours d'entrée est levée, la fuite entre comptes est fermée. |
 | **J1 après-midi** | B4 (gabarit e-mail + version texte) | Le seul artefact hors application devient présentable. |
 | **J2 matin** | B3 (fenêtre ACWR) · B5 (fuseau horaire) · B6 (cockpit premier jour) | Le produit ne se contredit plus lui-même. |
-| **J2 après-midi** | Phases 2 à 5 du runbook (Resend, Sentry, uptime, backups + **test de restauration**) | Fin de la cécité opérationnelle. |
-| **J3** | Phase 6 du runbook (tests de bout en bout sur `www.darilab.app`) + I5, I6, I10, I4 | Feu vert. |
+| **J2 après-midi** | A1 (allure) · A2 (indisponibilité athlète) · import polyline + streams Strava | L'athlète reçoit enfin quelque chose en retour ; carte et temps en zone s'allument. |
+| **J3 matin** | Phases 2 à 5 du runbook (Resend, Sentry, uptime, backups + **test de restauration**) | Fin de la cécité opérationnelle. |
+| **J3 après-midi** | Phase 6 du runbook (tests de bout en bout sur `www.darilab.app`) + I5, I6, I10, I4 | Feu vert. |
+
+### Après l'ouverture
+
+| Fenêtre | Chantiers |
+|---|---|
+| 🟠 **Premier mois** | Rapprochement manuel activité ↔ séance · **comparaison répétition par répétition** (l'argument de vente) · révocation des sessions au changement de mot de passe · temps en zone côté athlète · quota de stockage + e-mail vérifié pour inviter · récapitulatif « ma semaine » · impersonation admin et canal de feedback. |
+| 🟢 **Après les premiers retours** | Score d'exécution sur le respect des allures · détection automatique des records · préproduction · webhook Strava · jetons SSE courts · pièces jointes sur S3/R2 · pagination généralisée · fuseau horaire par athlète · Redis (rate-limit, blacklist, SSE multi-pod) · e2e Playwright. |
 
 Le runbook `BETA-LAUNCH-RUNBOOK.md` reste valable tel quel — avec une correction : la case
 « Invitation athlète : l'email arrive » de la phase 2.4 **échouera** tant que B1 n'est pas
