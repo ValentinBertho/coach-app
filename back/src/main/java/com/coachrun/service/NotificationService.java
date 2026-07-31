@@ -302,6 +302,23 @@ public class NotificationService {
         send(email, subject, html);
     }
 
+    /**
+     * Invitation d'un athlète par son coach : e-mail avec le lien magique d'onboarding. Sans e-mail
+     * (athlète sans adresse connue), rien n'est envoyé — le coach transmet l'URL renvoyée par l'API.
+     */
+    public void notifyAthleteInvitation(String email, String firstName, String clubName, String url) {
+        if (email == null) {
+            return;
+        }
+        String subject = "Votre coach vous invite sur Darilab";
+        String html = "<p>Bonjour " + esc(firstName) + ",</p>"
+                + "<p>Votre coach vous invite à rejoindre <strong>" + esc(clubName)
+                + "</strong> sur Darilab pour suivre vos séances et partager vos ressentis.</p>"
+                + cta("Activer mon espace athlète", url)
+                + "<p>Ce lien expire dans 14 jours.</p>";
+        send(email, subject, html);
+    }
+
     private void send(String to, String subject, String html) {
         if (!enabled) {
             log.info("[mail désactivé] -> {} : {}", to, subject);

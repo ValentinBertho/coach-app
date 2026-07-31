@@ -177,6 +177,24 @@ export class AuthService {
     localStorage.removeItem(USER_KEY);
     this.token.set(null);
     this.currentUser.set(null);
+    void this.purgeCaches();
+  }
+
+  /**
+   * Vide les caches du service worker à la déconnexion. Sans ça, sur un appareil partagé, le
+   * compte suivant peut être servi depuis les réponses API du précédent (données de santé,
+   * art. 9 RGPD). Best-effort : l'API Cache Storage n'existe pas partout (Safari privé, tests).
+   */
+  private async purgeCaches(): Promise<void> {
+    if (typeof caches === 'undefined') {
+      return;
+    }
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((key) => caches.delete(key)));
+    } catch {
+      // Purge best-effort : un échec ne doit pas bloquer la déconnexion.
+    }
   }
 
   private applySession(res: AuthResponse): void {

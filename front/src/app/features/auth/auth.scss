@@ -37,6 +37,17 @@
   font-size: var(--text-sm);
 }
 
+/* Erreur renvoyée par le serveur (identifiants, e-mail déjà pris, rate limit). */
+.auth-error {
+  margin: 0;
+  padding: var(--sp-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  font-size: var(--text-sm);
+}
+
 .consent-check {
   display: flex;
   gap: var(--sp-2);

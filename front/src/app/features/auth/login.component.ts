@@ -3,6 +3,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
+import { authErrorMessage } from '../../core/utils/auth-error';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 
 @Component({
@@ -20,6 +21,8 @@ export class LoginComponent {
   private readonly toast = inject(ToastService);
 
   readonly submitting = signal(false);
+  /** Message d'erreur du serveur, rendu à côté du formulaire (identifiants, compte suspendu, 429). */
+  readonly errorMessage = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -32,12 +35,16 @@ export class LoginComponent {
       return;
     }
     this.submitting.set(true);
+    this.errorMessage.set(null);
     this.auth.login(this.form.getRawValue()).subscribe({
       next: (res) => {
         this.toast.success('Connexion réussie');
         this.router.navigateByUrl(this.homeFor(res.user.role));
       },
-      error: () => this.submitting.set(false),
+      error: (err) => {
+        this.submitting.set(false);
+        this.errorMessage.set(authErrorMessage(err));
+      },
     });
   }
 

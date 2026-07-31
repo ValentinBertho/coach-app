@@ -4,8 +4,27 @@ import { catchError, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 import { ToastService } from '../services/toast.service';
 
-/** Routes pour lesquelles on n'affiche pas de toast d'erreur global. */
-const SILENT_PATTERNS = [/\/auth\//, /\/oauth-callback/, /\/public\/invitations\//];
+/**
+ * Routes où un 401 fait partie du fonctionnement normal (jeton expiré au démarrage, refresh en
+ * échec) : aucun toast, aucune déconnexion. `/auth/**` en entier — l'ancienne valeur — rendait
+ * muettes les erreurs de connexion et d'inscription, que l'utilisateur ne voyait donc jamais.
+ */
+const SILENT_PATTERNS = [/\/auth\/refresh$/, /\/auth\/me$/];
+
+/**
+ * Routes dont l'écran appelant affiche lui-même le message d'erreur du serveur (formulaires
+ * d'authentification). Pas de toast global — le message est rendu à côté du formulaire, là où
+ * l'utilisateur regarde — mais l'erreur reste propagée à l'appelant.
+ */
+const FORM_HANDLED_PATTERNS = [
+  /\/auth\/login$/,
+  /\/auth\/register$/,
+  /\/auth\/change-password$/,
+  /\/oauth-callback/,
+  /\/public\/invitations\//,
+  /\/public\/coach-invitations\//,
+  /\/public\/password-reset/,
+];
 
 /**
  * Intercepteur d'erreurs global → toasts par code. Sur 401 d'une route protégée, tente d'abord
@@ -15,7 +34,9 @@ const SILENT_PATTERNS = [/\/auth\//, /\/oauth-callback/, /\/public\/invitations\
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const toast = inject(ToastService);
   const auth = inject(AuthService);
-  const silent = SILENT_PATTERNS.some((re) => re.test(req.url));
+  const silent =
+    SILENT_PATTERNS.some((re) => re.test(req.url))
+    || FORM_HANDLED_PATTERNS.some((re) => re.test(req.url));
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {

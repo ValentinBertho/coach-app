@@ -53,6 +53,7 @@ public class AthleteService {
     private final com.coachrun.repository.CoachAthleteRelationRepository relationRepository;
     private final com.coachrun.security.AthleteAccessValidator accessValidator;
     private final ZoneValueSyncService zoneValueSyncService;
+    private final NotificationService notificationService;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -219,9 +220,14 @@ public class AthleteService {
 
         athlete.setInviteToken(token);
         athlete.setInviteExpiresAt(expiresAt);
-        // Email d'invitation : délégué au NotificationTriggerService quand MAIL_ENABLED (à venir).
         String url = frontendUrl + "/invitation/" + token;
-        log.info("Invitation générée pour l'athlète {} (expire {})", athleteId, expiresAt);
+        // L'URL reste dans la réponse : secours si l'e-mail n'arrive pas, et seul canal possible
+        // pour un athlète sans adresse connue (le coach la transmet lui-même).
+        String clubName = athlete.getClub() != null ? athlete.getClub().getName() : "votre club";
+        notificationService.notifyAthleteInvitation(
+                athlete.getEmail(), athlete.getFirstName(), clubName, url);
+        log.info("Invitation générée pour l'athlète {} (expire {}, e-mail={})",
+                athleteId, expiresAt, athlete.getEmail() != null);
         return new AthleteInvitationResponse(url, expiresAt);
     }
 
