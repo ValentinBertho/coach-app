@@ -37,10 +37,18 @@ jobs:
           [ -n "$DB_URL" ] || { echo "::error::Secret BACKUP_DATABASE_URL manquant."; exit 1; }
           [ -n "$ENC_KEY" ] || { echo "::error::Secret BACKUP_ENCRYPTION_KEY manquant."; exit 1; }
 
-      - name: Installer le client PostgreSQL 16
+      # Le client doit être >= au serveur (Railway est en PG 18) : les dépôts Ubuntu
+      # s'arrêtent à la 16, on passe donc par le dépôt officiel PGDG.
+      - name: Installer le client PostgreSQL 18 (PGDG)
         run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+          https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
           sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client
+          sudo apt-get install -y -qq postgresql-client-18
           pg_dump --version
 
       - name: Dump (format custom) + vérification d'intégrité

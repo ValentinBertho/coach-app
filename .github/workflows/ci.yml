@@ -25,7 +25,9 @@ jobs:
         working-directory: back
     services:
       postgres:
-        image: postgres:16-alpine
+        # Aligné sur la version de production (Railway) : le smoke test ne vaut que
+        # s'il rejoue les migrations sur le même major que la prod.
+        image: postgres:18-alpine
         env:
           POSTGRES_DB: coachrun
           POSTGRES_USER: postgres
