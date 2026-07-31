@@ -82,9 +82,18 @@ si Resend demande quelque chose sur `@`, vérifier avant d'ajouter.
    ```
 
 ### 2.4 Tester les 4 emails critiques
+> **Prérequis** : l'adresse du coach doit être **vérifiée** pour envoyer une invitation
+> (athlète ou coach) — c'est volontaire, ça évite que la plateforme serve de relais de spam.
+> Confirmer d'abord l'e-mail d'inscription, sinon ces deux envois répondent 403.
+
 - [ ] **Mot de passe oublié** : `/forgot-password` → email reçu → le lien fonctionne
-- [ ] **Invitation athlète** : fiche athlète → générer une invitation
+- [ ] **Invitation athlète** : fiche athlète → générer une invitation → **l'e-mail arrive
+      effectivement dans la boîte de l'athlète** (jusqu'au correctif du lot 1, l'URL était
+      générée mais aucun e-mail n'était envoyé : cette case était fausse)
 - [ ] **Invitation coach** : page Club → ajouter un coach par email
+- [ ] **Rendu** : sur chacun, vérifier l'en-tête avec le logo, le bouton d'action, le pied de
+      page et le lien de désinscription ; ouvrir aussi la **version texte** (les e-mails ne
+      sont plus des fragments HTML nus depuis le lot 3)
 - [ ] **Vérifier le dossier spam** — si l'email y atterrit, voir 2.5
 
 ### 2.5 (Recommandé) DMARC
@@ -176,14 +185,40 @@ pg_restore --no-owner --no-privileges -h localhost -U postgres \
 
 ### Parcours coach
 - [ ] Inscription d'un nouveau club (avec la case CGU) → email de vérification reçu
+- [ ] **Avant vérification** : le cockpit s'ouvre normalement, mais « Inviter » répond que
+      l'adresse doit être confirmée. Confirmer, puis réessayer.
+- [ ] Sur un club vide : le cockpit affiche les **trois étapes de démarrage**, pas
+      « Tout le monde est en forme » sur zéro athlète
 - [ ] Créer un athlète → l'inviter → l'email arrive
 - [ ] Créer une séance, la planifier au calendrier
 - [ ] Mot de passe oublié → réinitialisation complète
+- [ ] **Sur un athlète neuf** : aucune alerte rouge « risque de blessure ». La charge affiche
+      « ACWR en construction — n/28 jours » tant que l'historique est insuffisant.
 
 ### Parcours athlète
 - [ ] Accepter l'invitation (avec consentement santé) → accès au portail
 - [ ] Voir la séance du jour, saisir un retour (RPE / fatigue / douleur)
+- [ ] « Ma semaine » affiche des chiffres cohérents avec le calendrier
+- [ ] Déclarer une indisponibilité → **le coach référent reçoit la notification**
 - [ ] Connecter Strava → import d'activités (valide le `state` signé)
+
+### Contrôles ajoutés par les correctifs RC (lots 1 à 5)
+- [ ] **Deux comptes sur le même navigateur** (fuite de cache, lot 1) : se connecter avec le
+      compte A, naviguer (séances, athlètes), se déconnecter, se connecter avec le compte B.
+      **Aucune donnée de A ne doit apparaître**, même brièvement, même hors ligne. Vérifier
+      dans les DevTools (Application → Cache Storage) que les caches sont vides après logout.
+- [ ] **Erreurs de connexion visibles** : mot de passe faux, puis e-mail déjà utilisé à
+      l'inscription. Un message explicite doit s'afficher **sous le formulaire** (et non rien).
+- [ ] **Séance du jour après minuit** (fuseau, lot 4) : entre 00 h 00 et 02 h 00 heure de Paris,
+      ouvrir `/athlete/today`. C'est la séance **du jour**, pas celle de la veille. Vérifier
+      aussi le compte à rebours d'un objectif (`J-n`) à la même heure.
+- [ ] **Import Strava complet** (lots 11–12) : lancer une synchro, ouvrir une activité importée.
+      La **carte** doit s'afficher (tracé décodé depuis la polyline) et le **temps en zone**
+      doit être renseigné — les deux étaient jusqu'ici réservés aux imports GPX. Vérifier
+      côté coach *et* côté athlète.
+- [ ] **Rapprochement manuel** : détacher une sortie de sa séance puis la rattacher à une
+      autre. La séance abandonnée doit redevenir « planifiée ».
+- [ ] **Quota de stockage** : le compteur `/clubs/{id}/storage` progresse à chaque pièce jointe.
 
 ### Points de fragilité connus
 - [ ] **Messagerie temps réel (SSE)** : ouvrir une conversation dans 2 navigateurs,
