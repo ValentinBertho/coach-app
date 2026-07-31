@@ -36,7 +36,7 @@
 .snav { display: flex; flex-direction: column; gap: 2px; margin-top: var(--sp-2); }
 /* En-tête de section (regroupement logique de la nav). */
 .snav-group {
-  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+  font-size: var(--text-2xs); font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
   color: var(--ink-4); padding: var(--sp-3) var(--sp-3) var(--sp-1);
 }
 .snav-group:first-child { padding-top: var(--sp-1); }
@@ -67,7 +67,7 @@
 /* Nav repliée en rail : le libellé disparaît, le badge devient une pastille sur l'icône. */
 .sidebar.collapsed .nav-badge {
   position: absolute; top: 4px; right: 4px;
-  min-width: 16px; height: 16px; padding: 0 4px; font-size: 10px;
+  min-width: 16px; height: 16px; padding: 0 4px; font-size: var(--text-2xs);
 }
 .sidebar.collapsed .snav a { position: relative; }
 
@@ -153,7 +153,7 @@
   gap: 3px;
   min-height: 56px;
   color: var(--ink-3);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 600;
 }
 .bottom-nav .bn-more { border: none; background: transparent; cursor: pointer; }

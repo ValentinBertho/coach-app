@@ -1,5 +1,6 @@
 import { animate, style, transition, trigger } from '@angular/animations';
 import { A11yModule } from '@angular/cdk/a11y';
+import { IconComponent } from '../icon/icon.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -23,7 +24,7 @@ import {
   selector: 'app-bottom-sheet',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [A11yModule],
+  imports: [A11yModule, IconComponent],
   animations: [
     trigger('backdrop', [
       transition(':enter', [style({ opacity: 0 }), animate('200ms cubic-bezier(0.32,0.72,0,1)', style({ opacity: 1 }))]),
@@ -62,7 +63,7 @@ import {
           <header class="bs__head">
             <h3 class="bs__title">{{ title() }}</h3>
             @if (dismissable()) {
-              <button type="button" class="bs__close" aria-label="Fermer" (click)="dismiss()">✕</button>
+              <button type="button" class="bs__close" aria-label="Fermer" (click)="dismiss()"><app-icon name="x" [size]="16" /></button>
             }
           </header>
         }

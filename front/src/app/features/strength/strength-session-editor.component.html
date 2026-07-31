@@ -35,7 +35,7 @@
   @for (block of blocks(); track block.id; let bi = $index) {
     <div class="card block-card" cdkDrag>
       <div class="block-head">
-        <span class="drag-handle" cdkDragHandle title="Glisser pour réordonner">⠿</span>
+        <span class="drag-handle" cdkDragHandle title="Glisser pour réordonner"><app-icon name="grip-vertical" [size]="16" /></span>
         <div class="block-meta">
           <select class="form-control" [(ngModel)]="block.blockType" (ngModelChange)="touch()">
             @for (t of blockTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
@@ -71,7 +71,7 @@
             <strong>{{ item.exerciseName || label(item.exerciseId) }}</strong>
             <span class="ex-spacer"></span>
             <button type="button" class="btn btn-ghost btn-sm" (click)="openEditor(block, item)">Éditer</button>
-            <button type="button" class="btn btn-ghost btn-sm danger" (click)="removeExercise(block, i)" aria-label="Retirer">✕</button>
+            <button type="button" class="btn btn-ghost btn-sm danger" (click)="removeExercise(block, i)" aria-label="Retirer"><app-icon name="x" [size]="15" /></button>
           </div>
           <div class="ex-summary">
             @if (item.prescription.sets) { <span class="ex-sum-sets metric">{{ item.prescription.sets }} séries</span> }

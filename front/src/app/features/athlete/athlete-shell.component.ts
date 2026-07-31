@@ -54,7 +54,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
     .ashell__nav a {
       display: flex; flex-direction: column; align-items: center; gap: 2px;
       padding: var(--sp-2) 0 var(--sp-1); text-decoration: none;
-      color: var(--ink-3); font-size: 10px; font-weight: 600;
+      color: var(--ink-3); font-size: var(--text-2xs); font-weight: 600;
       min-height: 56px; justify-content: center;
       transition: color var(--duration-fast) var(--ease);
     }

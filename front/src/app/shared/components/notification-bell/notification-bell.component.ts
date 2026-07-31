@@ -80,7 +80,7 @@ import { SkeletonComponent } from '../skeleton/skeleton.component';
       color: var(--ink-2); cursor: pointer; }
     .bell-btn:hover { background: var(--paper-sunk); color: var(--ink); }
     .bell-badge { position: absolute; top: 4px; right: 4px; min-width: 16px; height: 16px; padding: 0 4px;
-      border-radius: var(--radius-full); background: var(--form-red); color: #fff; font-size: 10px;
+      border-radius: var(--radius-full); background: var(--form-red); color: #fff; font-size: var(--text-2xs);
       font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
 
     .bell-backdrop { position: fixed; inset: 0; z-index: 300; }

@@ -89,7 +89,7 @@
               } @else {
                 @if (permFor(m.coachId); as p) {
                   <span class="badge badge-info">{{ levelLabels[p] }}</span>
-                  <button type="button" class="chip-x" (click)="revoke(m.coachId)" title="Retirer">×</button>
+                  <button type="button" class="chip-x" (click)="revoke(m.coachId)" title="Retirer" aria-label="Retirer"><app-icon name="x" [size]="13" /></button>
                 }
                 @if (!permFor(m.coachId)) {
                   <span class="field-hint">—</span>

@@ -77,7 +77,7 @@ const STATUS_META: Record<AcwrStatus, { label: string; cssVar: string; origin: '
       background: var(--ac); border: 2px solid var(--paper);
       box-shadow: var(--shadow-xs);
     }
-    .acwr__scale { position: relative; height: 14px; font-size: 10px; color: var(--ink-3); font-family: var(--font-data); }
+    .acwr__scale { position: relative; height: 14px; font-size: var(--text-2xs); color: var(--ink-3); font-family: var(--font-data); }
     .acwr__scale > span:first-child { position: absolute; left: 0; }
     .acwr__scale > span:last-child { position: absolute; right: 0; }
     .acwr__tick { position: absolute; transform: translateX(-50%); }

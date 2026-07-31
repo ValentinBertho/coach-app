@@ -17,7 +17,7 @@
 .bubble p { margin: 0; white-space: pre-wrap; word-break: break-word; }
 
 /* Horodatage discret en bas de bulle */
-.msg-time { display: block; font-size: 10px; opacity: 0.6; margin-top: 3px; text-align: right; font-variant-numeric: tabular-nums; }
+.msg-time { display: block; font-size: var(--text-2xs); opacity: 0.6; margin-top: 3px; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* Séparateur de jour */
 .day-sep { display: flex; align-items: center; justify-content: center; margin: var(--sp-2) 0; }

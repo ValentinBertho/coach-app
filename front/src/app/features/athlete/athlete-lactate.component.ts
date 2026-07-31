@@ -144,7 +144,7 @@ const W = 320, H = 180, PL = 34, PR = 10, PT = 12, PB = 26;
     .thrline { stroke-width: 1.5; stroke-dasharray: 4 3; }
     .thrline-1 { stroke: var(--form-green, #11c08b); }
     .thrline-2 { stroke: var(--form-orange, #ff8a3c); }
-    .lbl { fill: var(--ink-3); font-size: 9px; font-family: var(--font-data, monospace); }
+    .lbl { fill: var(--ink-3); font-size: var(--text-2xs); font-family: var(--font-data, monospace); }
     .legend { display: flex; gap: var(--sp-4); font-size: var(--text-xs); color: var(--ink-3); }
     .legend .sw { display: inline-block; width: 14px; height: 0; border-top: 2px dashed; vertical-align: middle; }
     .sw-1 { border-color: var(--form-green, #11c08b); }

@@ -32,7 +32,7 @@
               <span class="badge" [class.badge-warning]="u.reason === 'INJURY'" [class.badge-neutral]="u.reason !== 'INJURY'">{{ reasonLabel(u.reason) }}</span>
               <span class="metric">{{ u.startDate | date: 'dd/MM/yy' }} → {{ u.endDate | date: 'dd/MM/yy' }}</span>
               @if (u.notes) { <span class="field-hint">{{ u.notes }}</span> }
-              <button type="button" class="btn btn-ghost btn-sm" (click)="removeUnavailability(u.id)">✕</button>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="removeUnavailability(u.id)" aria-label="Supprimer l’indisponibilité"><app-icon name="x" [size]="15" /></button>
             </li>
           }
         </ul>
@@ -63,7 +63,7 @@
           @if (a.coaches.length) {
             <ul class="chip-list">
               @for (c of a.coaches; track c.id) {
-                <li class="chip"><span>{{ c.name }}</span><button type="button" class="chip-x" (click)="removeCoach(c.id)" aria-label="Retirer">×</button></li>
+                <li class="chip"><span>{{ c.name }}</span><button type="button" class="chip-x" (click)="removeCoach(c.id)" aria-label="Retirer"><app-icon name="x" [size]="13" /></button></li>
               }
             </ul>
           } @else { <p class="empty-hint">Aucun coach rattaché.</p> }

@@ -295,7 +295,7 @@ const SOURCE_LABEL: Record<string, string> = {
     .bar { width: 40%; min-height: 2px; border-radius: 3px 3px 0 0; }
     .bar.planned { background: var(--ink-4); }
     .bar.realized { background: var(--dari-violet); }
-    .blab { font-size: 9px; color: var(--ink-4); white-space: nowrap; }
+    .blab { font-size: var(--text-2xs); color: var(--ink-4); white-space: nowrap; }
 
     .zline { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) 0; }
     .ztag { width: 28px; font-size: var(--text-sm); font-weight: 700; color: var(--ink-3); }

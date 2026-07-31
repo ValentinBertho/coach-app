@@ -269,7 +269,7 @@ export class HelpCenterComponent {
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1a1d29; line-height: 1.55; margin: 0; }
         h1 { font-size: 24px; margin: 0 0 4px; }
         .subtitle { color: #6b7280; margin: 0 0 6px; }
-        .meta { color: #9aa1ad; font-size: 12px; margin: 0 0 20px; }
+        .meta { color: #9aa1ad; font-size: var(--text-xs); margin: 0 0 20px; }
         section { break-inside: avoid; padding: 14px 0; border-top: 1px solid #e6e8ee; }
         h2 { font-size: 16px; margin: 0 0 2px; color: #2d45d6; }
         .sum { color: #6b7280; font-size: 13px; margin: 0 0 8px; }
@@ -280,7 +280,7 @@ export class HelpCenterComponent {
         .callout.tip { background: #eafaf3; border-color: #b6e8d4; }
         .callout.info { background: #eef1ff; border-color: #cdd6ff; }
         .callout.warn { background: #fff2e8; border-color: #ffd5b3; }
-        footer { margin-top: 22px; color: #9aa1ad; font-size: 11px; text-align: center; }
+        footer { margin-top: 22px; color: #9aa1ad; font-size: var(--text-2xs); text-align: center; }
       </style></head>
       <body>
         <h1>${esc(guide.title)}</h1>

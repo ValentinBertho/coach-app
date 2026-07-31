@@ -64,6 +64,15 @@
 .lg-lt1 { color: var(--dari-yellow); }
 .lg-lt2 { color: var(--dari-red); }
 
+/* Pastille de légende : remplace le glyphe texte « ▮ », qui n'était pas de la typographie
+   mais un carré de couleur dessiné avec une police. */
+.lg { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.lg-swatch {
+  width: 10px; height: 10px; border-radius: 2px;
+  background: currentColor; flex: none;
+}
+
+
 @media (max-width: 768px) {
   .lactate-grid {
     grid-template-columns: 1fr;

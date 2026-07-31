@@ -55,9 +55,9 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     <header class="cal-top">
       <div class="cal-title"><h1 class="display-sm">Mon calendrier</h1><app-help-hint section="agenda" label="Aide : mon agenda" /></div>
       <div class="week-nav">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)" aria-label="Semaine précédente">←</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)" aria-label="Semaine précédente"><app-icon name="arrow-left" [size]="16" /></button>
         <button type="button" class="btn btn-ghost btn-sm" (click)="goThisWeek()">Cette semaine</button>
-        <button type="button" class="btn btn-ghost btn-sm" (click)="shift(1)" aria-label="Semaine suivante">→</button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="shift(1)" aria-label="Semaine suivante"><app-icon name="arrow-right" [size]="16" /></button>
       </div>
       <p class="subtitle">{{ periodLabel() }}</p>
     </header>

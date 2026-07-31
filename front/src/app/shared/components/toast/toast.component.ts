@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { ToastService } from '../../../core/services/toast.service';
+import { IconComponent } from '../icon/icon.component';
 
 /**
  * Conteneur global de toasts (coin haut-droit). À monter une fois dans le shell applicatif.
@@ -8,6 +9,7 @@ import { ToastService } from '../../../core/services/toast.service';
   selector: 'app-toast',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [IconComponent],
   templateUrl: './toast.component.html',
   styleUrl: './toast.component.scss',
 })
