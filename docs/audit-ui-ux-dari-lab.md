@@ -199,16 +199,16 @@ Rien ici n'est structurel. Le socle est sain ; c'est un travail de **finition et
 - ✅ Repère verbal CR10 sous l'échelle RPE, bouton « comme la série précédente » (44px) côté force.
 - 🔴 **On ne peut noter QUE la séance du jour.** `portal.today()` ne charge qu'aujourd'hui ; l'agenda ouvre une fiche en lecture seule, l'historique aussi. Un athlète qui oublie le soir même **ne peut plus jamais** donner son ressenti — et le coach perd le signal qui alimente tout son cockpit.
 - ⚠️ **L'échelle RPE tient en 10 colonnes sur 375 px** : ~29 px de large par bouton (`grid-template-columns: repeat(10, 1fr)`), contre les 44 px exigés par le design system. On tape à côté, après l'effort, avec les mains moites.
-- ⚠️ **La séance de force transforme l'écran en formulaire** : un tableau charge/reps/RIR par série × par exercice, directement dans le flux « Aujourd'hui ». Ce n'est plus une carte, c'est une saisie de 30 champs.
-- ⚠️ Aucun check-in *avant* séance (sommeil, fraîcheur) : la forme du coach ne se met à jour qu'après coup, d'où les « aucun retour récent » fréquents.
+- ✅ **Mode séance de force plein écran** *(livré)* : `/athlete/session/:id`, un exercice à la fois, gros chiffres, ±2,5 kg, « série 2/4 », recopie de série. « Aujourd'hui » ne garde qu'une carte d'appel.
+- ✅ **Check-in matinal** *(livré)* : 3 curseurs, facultatif, replié par défaut. `AthleteFeedbackService` prend le plus récent des trois sources (course, force, check-in) — la forme ne dépend plus du seul post-séance.
 - ⚠️ La barre supérieure porte 5 contrôles (aide, cloche, installer, push, quitter) sur un écran qui devrait en porter zéro.
 - 💡 **Rendre notable toute séance non clôturée des 7 derniers jours**, avec un bandeau persistant « 2 retours en attente » sur Aujourd'hui et le même bouton dans l'agenda et l'historique.
 - 💡 Passer l'échelle RPE en **2 lignes de 5** (ou en slider à gros pouce) et la colorer Z1→Z5 comme le reste du produit.
-- 💡 Déplacer la saisie force dans un **mode séance plein écran** (un exercice à la fois, gros chiffres, `+`/`−` de 2,5 kg, progression « série 2/4 ») ouvert depuis la carte.
+- ✅ Saisie force déplacée dans un mode séance plein écran *(livré)*.
 - 💡 Réduire la barre supérieure à l'avatar (menu) + cloche ; installer/push/aide vont dans Profil.
-- ✨ **Ressenti en 2 taps depuis la notification push** : « Ta séance est finie ? » → RPE en actions rapides. Le taux de retour double.
-- ✨ **Auto-détection** : quand une activité Strava est rapprochée d'une séance, ouvrir automatiquement la feuille de ressenti à la prochaine ouverture — l'athlète n'a plus qu'à confirmer.
-- ✨ **Célébration** : le token `.celebration` est spécifié dans `Design.md` mais **jamais utilisé**. Une micro-animation + haptique (`navigator.vibrate`) à la validation, un « 12e retour d'affilée 🔥 » : c'est ce qui donne envie de remplir.
+- ✅ **Ressenti depuis la notification push** *(livré)* : relance 2 h après l'heure habituelle de séance, RPE en actions rapides (Facile / Dur / Très dur). L'action ouvre la feuille pré-remplie — le service worker Angular ne peut pas enregistrer seul, et c'est tant mieux : fatigue et douleur sont demandées avant l'envoi.
+- ✅ **Auto-détection** *(livré)* : une sortie rapprochée ouvre la feuille d'elle-même, distance / durée / FC affichées. La proposition ne se répète pas.
+- ✅ **Célébration** *(livré)* : micro-animation ≤ 280 ms + `navigator.vibrate` + série de retours (« 12e retour d'affilée »), respectant `prefers-reduced-motion`.
 
 ## 3.2 Agenda athlète
 
@@ -312,10 +312,10 @@ Rien ici n'est structurel. Le socle est sain ; c'est un travail de **finition et
 | Skeleton loaders | ⚠️ 24 oui / 26 non | généraliser |
 | États vides | ✅ soignés, avec CTA | ajouter aux écrans admin |
 | Tooltips utiles | ✅ nombreux | ne pas y cacher d'information nécessaire (CR10 du RPE) |
-| Micro-interactions | ⚠️ `:active scale` seulement | `.celebration` spécifiée mais jamais utilisée |
+| Micro-interactions | ✅ `.celebration` + haptique à la validation | étendre aux records battus |
 | Onboarding | ⚠️ une carte au cockpit | assistant 4 étapes + bibliothèque pré-remplie |
 | Vues personnalisées | ❌ | filtres calendrier sauvegardables |
-| Notifications | ✅ cloche, push, badges | actions rapides dans la notification push |
+| Notifications | ✅ cloche, push, badges, **actions rapides** | étendre aux relances de check-in |
 | Confirmations intelligentes | ✅ `ConfirmService`, jamais `confirm()` | remplacer certaines par un undo (plus rapide) |
 | Copier/coller intelligent | ✅ séance, lot, semaine | reste le bloc d'éditeur |
 | Favoris | ⚠️ calendrier seulement | remonter dans la bibliothèque |
@@ -340,7 +340,7 @@ Rien ici n'est structurel. Le socle est sain ; c'est un travail de **finition et
 2. ~~**Duplication de semaine et mésocycle désactivés**~~ ✅ **Corrigé** : les deux parcours sont actifs, le drapeau a été supprimé.
 3. **Pas de multi-sélection ni de copier/coller au calendrier.** Programmer reste un travail à l'unité.
 4. ~~**Le mode Groupe ne permet pas de planifier**~~ ✅ **Corrigé** : la bibliothèque y est disponible et le dépôt sur une ligne d'athlète planifie.
-5. **La saisie de force côté athlète est un formulaire de 30 champs sur l'écran d'accueil.** — *reste ouvert (gros chantier n°13).*
+5. ~~**La saisie de force côté athlète est un formulaire de 30 champs sur l'écran d'accueil.**~~ ✅ **Corrigé** : mode séance plein écran.
 6. ~~**Échelle RPE à 29 px de large sur mobile**~~ ✅ **Corrigé** : 2 × 5 boutons, ≥44 px, dégradé Z1→Z5.
 7. **Barre d'outils du calendrier surchargée** — *reste ouvert (confort n°17).* Note : le lot livré y a ajouté deux boutons (duplication, mésocycle), la condensation devient plus urgente.
 8. ~~**Aucune auto-sauvegarde dans les éditeurs**~~ ✅ **Corrigé** : auto-save + pastille d'état + `canDeactivate`.
@@ -364,7 +364,7 @@ Rien ici n'est structurel. Le socle est sain ; c'est un travail de **finition et
 ### Impact énorme / gros chantier
 11. [x] **Multi-sélection + copier/coller/undo global au calendrier** (`Shift`-clic, `Cmd+C/V/D/Z`, `Suppr`).
 12. ⚠️ **Mode Groupe pleinement éditable** : bibliothèque et planification par dépôt livrées ; reste « peindre » une séance sur toute une ligne de jour.
-13. **Mode séance plein écran côté athlète** pour la force (un exercice à la fois, gros chiffres, `±2,5 kg`).
+13. [x] **Mode séance plein écran côté athlète** pour la force (un exercice à la fois, gros chiffres, `±2,5 kg`).
 14. **Assistant d'onboarding coach** (athlète → chrono → plan type → invitation) + bibliothèque de 30 séances pré-remplies.
 15. **Vue club « heatmap de charge »** (athlètes × semaines, coloré par ACWR).
 16. **Palette de commandes actionnable** (Raycast-like) : planifier, dupliquer, créer, naviguer.
@@ -453,9 +453,15 @@ La coquille athlète, le cockpit par exception, l'éditeur en blocs, la barre de
 |---|---|
 | **Impact énorme / faible effort** (§6, 10 points) | ✅ **Livré** — un commit atomique par point |
 | **Gros chantier — calendrier** (§6 n°11, §7 mois 1) | ✅ **Livré** : multi-sélection, presse-papier, pile d'annulation, sélection de plage, menu de semaine, barre d'outils condensée, switcher filtrable |
-| Gros chantier — reste (12 → 16) | ⬜ Ouvert |
+| **Mois 2 — la boucle athlète** (§3.1, §7) | ✅ **Livré** : mode force plein écran, relance push actionnable, feuille pré-remplie sur activité rapprochée, check-in matinal, célébration + série |
+| Gros chantier — reste (12, 14 → 16) | ⬜ Ouvert |
 | Amélioration de confort (17 → 23) | ⬜ Ouvert |
 | Idées premium (24 → 30) | ⬜ Ouvert |
+
+**Reste explicitement ouvert côté athlète**, hors du chantier livré : la relance push n'enregistre
+pas depuis le service worker (elle réveille l'app, qui demande fatigue et douleur avant d'envoyer),
+l'heure habituelle de séance est un réglage déclaré et non déduit de l'historique, et le check-in
+n'est pas relancé par notification.
 
 **Reste explicitement ouvert au calendrier**, hors du chantier livré : la « peinture de
 semaine » (glisser un modèle sur un en-tête de jour pour l'appliquer à tout un groupe), la
