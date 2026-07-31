@@ -1,8 +1,26 @@
-# Déploiement — CoachRun
+# Déploiement — DARI Lab
 
 > Front sur **Vercel**, back + PostgreSQL sur **Railway**.
 > **Ordre recommandé : Railway d'abord** (pour obtenir l'URL de l'API) → configurer le front avec
-> cette URL → déployer Vercel → reporter l'URL Vercel dans le CORS Railway.
+> cette URL → déployer Vercel → reporter l'URL du front dans le CORS Railway.
+
+## Domaine (en place)
+
+| Élément | Valeur |
+|---|---|
+| Registrar / DNS | **OVH** (zone `darilab.app`) |
+| URL canonique | **`https://www.darilab.app`** |
+| Apex | `darilab.app` → redirection 308 vers `www` |
+
+Zone DNS (hors NS/MX/SPF gérés par OVH) :
+
+| Sous-domaine | Type | Cible |
+|---|---|---|
+| `@` | A | `216.198.79.1` (IP Vercel ; `76.76.21.21` reste valide) |
+| `www` | CNAME | cible CNAME propre au projet Vercel (`*.vercel-dns-0NN.com.`) |
+
+> ⚠️ L'onglet **« Redirection »** d'OVH doit rester **vide** : ses entrées recréent des
+> enregistrements `A` vers l'IP de parking OVH (`213.186.33.5`) et cassent la configuration Vercel.
 
 ---
 
@@ -22,9 +40,11 @@
    PGPASSWORD=${{Postgres.PGPASSWORD}}
    JWT_SECRET=<openssl rand -base64 48>
    FIELD_ENCRYPTION_KEY=<openssl rand -hex 32>
-   FRONTEND_URL=https://<ton-app>.vercel.app
-   CORS_ORIGINS=https://<ton-app>.vercel.app
+   FRONTEND_URL=https://www.darilab.app
+   CORS_ORIGINS=https://www.darilab.app,https://darilab.app
    ```
+   > **URL canonique : `https://www.darilab.app`** (l'apex `darilab.app` y redirige en 308).
+   > C'est elle qui doit figurer dans `FRONTEND_URL` (liens des e-mails) et dans le redirect Strava.
    > En profil `prod`, l'application **refuse de démarrer** si `JWT_SECRET` / `FIELD_ENCRYPTION_KEY`
    > sont absents ou laissés aux valeurs de développement.
 5. **Exposer le domaine** : *Settings → Networking → Generate Domain* →
@@ -80,11 +100,11 @@
 | `JWT_SECRET` | back | Secret JWT ≥512 bits **[PROD-REQUIS]** | `openssl rand -base64 48` |
 | `JWT_ACCESS_TTL` | back | Durée de l'access token (s) **[DÉFAUT 900]** | `900` |
 | `FIELD_ENCRYPTION_KEY` | back | Clé AES-256, 64 hex **[PROD-REQUIS]** | `openssl rand -hex 32` |
-| `FRONTEND_URL` | back | URL du front (liens emails) **[PROD-REQUIS]** | `https://coachrun.vercel.app` |
-| `CORS_ORIGINS` | back | Origines autorisées (CSV) **[PROD-REQUIS]** | `https://coachrun.vercel.app` |
+| `FRONTEND_URL` | back | URL du front (liens emails) **[PROD-REQUIS]** | `https://www.darilab.app` |
+| `CORS_ORIGINS` | back | Origines autorisées (CSV) **[PROD-REQUIS]** | `https://www.darilab.app,https://darilab.app` |
 | `MAIL_ENABLED` | back | Active l'envoi d'emails **[DÉFAUT false]** | `true` |
 | `RESEND_API_KEY` | back | Clé API Resend **[OPT]** | `re_...` |
-| `MAIL_FROM` | back | Adresse expéditrice vérifiée **[OPT]** | `no-reply@coachrun.fr` |
+| `MAIL_FROM` | back | Adresse expéditrice vérifiée **[OPT]** | `Darilab <no-reply@darilab.app>` |
 | `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` / `STRAVA_WEBHOOK_VERIFY_TOKEN` | back | App Strava **[OPT — Intégrations]** | console Strava |
 | `GARMIN_*` / `COROS_*` | back | OAuth Garmin / Coros **[OPT]** | — |
 | `STORAGE_TYPE` | back | `local` ou `s3` **[DÉFAUT local]** | `s3` |

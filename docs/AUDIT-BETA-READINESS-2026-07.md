@@ -23,7 +23,7 @@
 |---|---|---|
 | Hébergement | ✅ | Railway (back + PostgreSQL, Docker multi-stage) + Vercel (front). Déployé et fonctionnel (`vercel.json` pointe vers `coach-app-production-5674.up.railway.app`). |
 | HTTPS / certificats | ✅ | Gérés automatiquement par Vercel et Railway. `forward-headers-strategy: framework` en place pour les proxys. |
-| Domaine / DNS | ❌ | Aucun domaine custom. L'app vit sur `*.vercel.app` / `*.up.railway.app`. `darilab.app` apparaît dans `MAIL_FROM` mais n'est ni acheté/configuré ni vérifié. |
+| Domaine / DNS | ✅ | `darilab.app` acheté (OVH), zone DNS branchée sur Vercel, HTTPS actif. URL canonique **`https://www.darilab.app`** (apex en 308 vers `www`). Reste à vérifier le domaine dans Resend (SPF/DKIM). |
 | Variables d'environnement | ✅ | `.env.example` exhaustif et commenté, tableau dans `docs/DEPLOIEMENT.md`, aucune valeur sensible commitée. |
 | Gestion des secrets | ✅ | `StartupSecretsValidator` : **refus de démarrer en prod** si `JWT_SECRET` / `FIELD_ENCRYPTION_KEY` sont absents ou aux valeurs de dev. C'est un excellent garde-fou. |
 | Config production | ✅ | Profil `prod` dédié (`application-prod.yml`) : seed désactivé, logs INFO, RAZ démo interdite par défaut. |
@@ -254,7 +254,7 @@ contenant une migration**. Ajouter un tag git par déploiement notable et incré
 2. **Emails activés** : domaine acheté et vérifié dans Resend (SPF/DKIM), `MAIL_ENABLED=true`, test des 4 emails clés (reset mot de passe, invitation athlète, invitation coach, rappel J-1). Sans cela, « mot de passe oublié » est une impasse.
 3. **Sentry actif** (DSN back + front) + **uptime monitor** sur `/api/actuator/health` avec alerte.
 4. **Pages légales** : ⚠️ **quasi fait** — pages `/legal/*` publiées + consentement horodaté à l'inscription. Reste : compléter les coordonnées de l'éditeur (`LEGAL_OWNER`) et relire les textes.
-5. **Domaine custom** branché sur Vercel (prérequis de l'item 2, et crédibilité).
+5. ~~**Domaine custom** branché sur Vercel (prérequis de l'item 2, et crédibilité).~~ ✅ **Fait** — `www.darilab.app` en ligne, DNS OVH → Vercel, HTTPS automatique.
 6. ~~**Correctifs sécurité rapides** : rate limiting sur `/public/password-reset` et `/auth/refresh` ; paramètre `state` signé sur l'OAuth Strava.~~ ✅ **Fait** (state HMAC TTL 10 min + rate limiting par bucket sur login/register/refresh/password-reset/verify-email/invitations).
 
 ### 🟠 Important — à faire dans les 2 premières semaines
