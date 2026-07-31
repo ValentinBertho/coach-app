@@ -5,7 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ConfirmService } from '../../core/services/confirm.service';
-import { NotificationService } from '../../core/services/notification.service';
+import { NotificationPreferences, NotificationService } from '../../core/services/notification.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -74,6 +74,39 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
             <input id="usual-time" type="time" class="form-control debrief-time__in"
                    [value]="usualSessionTime()" (change)="onUsualTimeChange($event)" />
           </div>
+
+          <!-- Les e-mails renvoient ici pour se désabonner (lien de pied de page et en-tête
+               List-Unsubscribe) : les deux canaux doivent donc s'y régler, pas seulement dans
+               la cloche. -->
+          @if (prefs(); as pr) {
+            <div class="chan">
+              <label class="chan__row">
+                <span class="chan__txt">
+                  <strong>Notifications push</strong>
+                  <span class="field-hint">Séance planifiée, retour de ton coach, rappel de séance.</span>
+                </span>
+                <span class="switch">
+                  <input type="checkbox" [checked]="pr.pushEnabled" (change)="setChannel('push', $event)"
+                         aria-label="Recevoir les notifications push" />
+                  <span class="switch__track" aria-hidden="true"></span>
+                </span>
+              </label>
+              <label class="chan__row">
+                <span class="chan__txt">
+                  <strong>E-mails</strong>
+                  <span class="field-hint">
+                    Repli quand le push n'est pas actif. Les e-mails de compte (mot de passe,
+                    invitation) partent toujours.
+                  </span>
+                </span>
+                <span class="switch">
+                  <input type="checkbox" [checked]="pr.emailEnabled" (change)="setChannel('email', $event)"
+                         aria-label="Recevoir les e-mails de notification" />
+                  <span class="switch__track" aria-hidden="true"></span>
+                </span>
+              </label>
+            </div>
+          }
         </section>
 
         <!-- Mon profil physio (lecture seule) -->
@@ -312,6 +345,25 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
     .help-link__ic { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-lg); background: var(--gradient-brand, var(--primary)); color: #fff; }
     .help-link__txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
     .help-link__txt strong { color: var(--ink); }
+    .chan { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-3); }
+    .chan__row { display: flex; align-items: flex-start; gap: var(--sp-3); cursor: pointer; }
+    .chan__txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+    .switch { position: relative; flex-shrink: 0; width: 52px; height: 44px; }
+    .switch input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+    .switch__track {
+      position: absolute; top: 11px; left: 0; width: 52px; height: 30px;
+      border-radius: var(--radius-full); background: var(--paper-sunk);
+      border: 1px solid var(--hairline); transition: background var(--duration) var(--ease);
+    }
+    .switch__track::after {
+      content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+      border-radius: var(--radius-full); background: var(--paper);
+      box-shadow: var(--shadow-sm); transition: transform var(--duration) var(--ease);
+    }
+    .switch input:checked + .switch__track { background: var(--primary); border-color: var(--primary); }
+    .switch input:checked + .switch__track::after { transform: translateX(22px); }
+    .switch input:focus-visible + .switch__track { outline: 2px solid var(--primary); outline-offset: 2px; }
+
     .card h2 { margin: 0 0 var(--sp-2); font-size: var(--text-lg); }
     .card-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-3); }
     .card-hd h2 { margin: 0; }
@@ -367,6 +419,9 @@ export class AthleteProfileComponent implements OnInit {
 
   /** Heure habituelle de séance, format « HH:mm » ; vide = rappel de ressenti désactivé. */
   readonly usualSessionTime = signal('');
+
+  /** Canaux de notification (push / e-mail) — c'est ici que les e-mails renvoient. */
+  readonly prefs = signal<NotificationPreferences | null>(null);
 
   readonly physio = signal<PhysioProfile | null>(null);
   readonly vdot = signal<Vdot | null>(null);
@@ -451,7 +506,7 @@ export class AthleteProfileComponent implements OnInit {
     this.portal.performances().subscribe({ next: (p) => this.performances.set(p), error: () => this.performances.set([]) });
     this.portal.lactateTests().subscribe({ next: (t) => this.lactateTests.set(t), error: () => this.lactateTests.set([]) });
     this.notifications.preferences().subscribe({
-      next: (p) => this.usualSessionTime.set(p.usualSessionTime ?? ''),
+      next: (p) => { this.prefs.set(p); this.usualSessionTime.set(p.usualSessionTime ?? ''); },
       error: () => this.usualSessionTime.set(''),
     });
     this.loadUnavailabilities();
@@ -529,6 +584,16 @@ export class AthleteProfileComponent implements OnInit {
     this.usualSessionTime.set(value);
     this.notifications.savePreferences({ usualSessionTime: value }).subscribe({
       next: () => this.toast.success(value ? `Rappel de ressenti à ${this.debriefLabel(value)}` : 'Rappel de ressenti désactivé'),
+      error: () => this.toast.error('Préférence non enregistrée.'),
+    });
+  }
+
+  /** Active ou coupe un canal de notification (push / e-mail). */
+  setChannel(channel: 'email' | 'push', event: Event): void {
+    const enabled = (event.target as HTMLInputElement).checked;
+    const patch = channel === 'email' ? { emailEnabled: enabled } : { pushEnabled: enabled };
+    this.notifications.savePreferences(patch).subscribe({
+      next: (p) => { this.prefs.set(p); this.toast.success(enabled ? 'Canal activé' : 'Canal désactivé'); },
       error: () => this.toast.error('Préférence non enregistrée.'),
     });
   }

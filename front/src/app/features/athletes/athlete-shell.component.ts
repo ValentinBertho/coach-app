@@ -4,7 +4,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
-import { Athlete, AthleteLevel, AthleteStatus, AthleteSummary } from '../../core/models/athlete.model';
+import { ATHLETE_LEVEL_LABELS, Athlete, AthleteLevel, AthleteStatus, AthleteSummary } from '../../core/models/athlete.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { BreadcrumbService } from '../../core/services/breadcrumb.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -17,7 +17,6 @@ import { AthleteForm, CoachDashboardService, FormStatus } from '../../core/servi
 
 const STATUS_LABELS: Record<AthleteStatus, string> = { ACTIVE: 'Actif', PAUSED: 'En pause', ARCHIVED: 'Archivé' };
 const STATUS_BADGES: Record<AthleteStatus, string> = { ACTIVE: 'badge-success', PAUSED: 'badge-warning', ARCHIVED: 'badge-neutral' };
-const LEVEL_LABELS: Record<AthleteLevel, string> = { BEGINNER: 'Débutant', INTERMEDIATE: 'Intermédiaire', ADVANCED: 'Avancé', ELITE: 'Élite' };
 
 /** Onglets de l'athlète : segment d'URL + libellé. L'ordre suit le geste du coach. */
 const TABS: { path: string; label: string }[] = [
@@ -306,7 +305,7 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
   readonly tabs = TABS;
   readonly statusLabels = STATUS_LABELS;
   readonly statusBadges = STATUS_BADGES;
-  readonly levelLabels = LEVEL_LABELS;
+  readonly levelLabels = ATHLETE_LEVEL_LABELS;
 
   readonly isPrivate = computed(() => (this.athlete()?.clubs ?? []).length === 0);
 

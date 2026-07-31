@@ -62,15 +62,23 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
     /**
      * File « retours à traiter » : séances porteuses d'un retour athlète (RPE, douleur ou
      * commentaire) que le coach n'a pas encore marquées comme traitées.
+     *
+     * <p>La requête était sans borne : tout retour jamais marqué restait dans la file
+     * indéfiniment (148 lignes sur les six athlètes du jeu de démo), et la pastille de
+     * navigation ne redescendait jamais sous « 9+ ». {@code since} borne la fenêtre à ce que le
+     * coach peut encore traiter utilement ; au-delà, le retour reste consultable sur la séance
+     * elle-même.</p>
      */
     @Query("""
             select w from Workout w
             where w.athlete.id in :athleteIds
               and w.coachReviewedAt is null
+              and w.scheduledDate >= :since
               and (w.rpe is not null or w.pain is not null or w.athleteComment is not null)
             order by w.scheduledDate desc, w.createdAt desc
             """)
-    List<Workout> findPendingFeedback(@Param("athleteIds") Collection<UUID> athleteIds);
+    List<Workout> findPendingFeedback(@Param("athleteIds") Collection<UUID> athleteIds,
+                                      @Param("since") LocalDate since);
 
     /**
      * Date de la toute première séance <strong>chargée</strong> (RPE renseigné) d'un athlète.

@@ -1,5 +1,16 @@
 export type Sex = 'MALE' | 'FEMALE' | 'OTHER';
 export type AthleteLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED' | 'ELITE';
+
+/**
+ * Libellés français des niveaux. Vivaient dans `athlete-shell.component.ts`, d'où la liste
+ * d'athlètes — le seul écran où le coach relit la valeur — affichait l'énuméré brut.
+ */
+export const ATHLETE_LEVEL_LABELS: Record<AthleteLevel, string> = {
+  BEGINNER: 'Débutant',
+  INTERMEDIATE: 'Intermédiaire',
+  ADVANCED: 'Avancé',
+  ELITE: 'Élite',
+};
 export type AthleteStatus = 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
 
 /** Référence légère (id + libellé) d'une entité liée (coach, club…). */

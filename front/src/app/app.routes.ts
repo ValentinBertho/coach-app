@@ -1,12 +1,13 @@
 import { Routes } from '@angular/router';
 import { adminGuard } from './core/guards/admin.guard';
 import { athleteGuard } from './core/guards/athlete.guard';
-import { authGuard } from './core/guards/auth.guard';
+import { coachGuard } from './core/guards/coach.guard';
 import { unsavedChangesGuard } from './core/guards/unsaved-changes.guard';
 
 /**
- * Routing lazy (loadComponent / loadChildren). Espace coach sous /app (authGuard).
- * L'espace athlète (PWA) viendra sous /athlete avec son propre guard.
+ * Routing lazy (loadComponent / loadChildren). Un garde par espace, et chacun vérifie le
+ * **rôle**, pas seulement l'authentification : /app → coachGuard, /athlete → athleteGuard,
+ * /admin → adminGuard. Chaque refus renvoie vers l'accueil du rôle réel (AuthService.homeRoute).
  */
 export const routes: Routes = [
   {
@@ -56,7 +57,7 @@ export const routes: Routes = [
       import('./features/public/legal.component').then((m) => m.LegalComponent),
   },
   {
-    // Living styleguide des primitives UI (dev). Cf. docs/ux-redesign-blueprint.md.
+    // Living styleguide des primitives UI (dev). Cf. docs/archive/ux-redesign-blueprint.md.
     // Réservé à l'équipe : en bêta ouverte, un coach qui tombe dessus voit un écran de debug.
     path: 'dev/ui-kit',
     canActivate: [adminGuard],
@@ -73,7 +74,8 @@ export const routes: Routes = [
   },
   {
     path: 'app',
-    canActivate: [authGuard],
+    // coachGuard, pas authGuard : ce dernier laissait entrer un athlète connecté.
+    canActivate: [coachGuard],
     loadComponent: () =>
       import('./features/layout/coach-layout.component').then((m) => m.CoachLayoutComponent),
     children: [

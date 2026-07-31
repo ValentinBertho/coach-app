@@ -51,10 +51,12 @@ public interface ScheduledStrengthSessionRepository extends JpaRepository<Schedu
             select s from ScheduledStrengthSession s
             where s.athlete.id in :athleteIds
               and s.coachReviewedAt is null
+              and s.scheduledDate >= :since
               and (s.sessionRpe is not null or s.sessionPain is not null or s.sessionComment is not null)
             order by s.scheduledDate desc, s.createdAt desc
             """)
-    List<ScheduledStrengthSession> findPendingFeedback(@Param("athleteIds") Collection<UUID> athleteIds);
+    List<ScheduledStrengthSession> findPendingFeedback(@Param("athleteIds") Collection<UUID> athleteIds,
+                                                       @Param("since") LocalDate since);
 
     // --- Suivi de plan (séances de force liées via plan_id) ---
     long countByPlanIdAndAthleteId(UUID planId, UUID athleteId);

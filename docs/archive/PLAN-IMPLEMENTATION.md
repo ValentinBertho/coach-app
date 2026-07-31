@@ -1,5 +1,10 @@
 # DARI Lab Training — Plan d'implémentation sur socle Angular / Java / Spring
 
+> ⚠️ **Document historique — plan exécuté, non maintenu.** Il a servi à porter le cahier des
+> charges DARI Lab sur le socle Angular/Spring existant. Ses décisions structurantes (§0) restent
+> la trace de *pourquoi* la stack Supabase/Next n'a pas été retenue. L'état actuel se lit dans
+> [`../Techno.md`](../Techno.md).
+
 > **Objet** : adapter le cahier des charges fonctionnel DARI Lab (dossier `docs/Darilab/`)
 > à l'application existante **CoachRun** (Spring Boot 3.2.5 / Java 21 / PostgreSQL / Liquibase
 > / Angular 17 PWA), **sans reprendre l'architecture technique du doc** (Next.js / Supabase).

@@ -1,5 +1,11 @@
 # DARI Lab Training — Cahier des charges technique
 
+> ⚠️ **Document historique — non maintenu.** Sa partie **fonctionnelle** reste une bonne source
+> d'intention métier. Sa partie **technique est caduque** : elle décrit Next.js 14 + Supabase,
+> alors que l'application est Angular 17 + Spring Boot 3 + PostgreSQL/Liquibase. Le périmètre qui
+> fait foi est [`../Cahier-des-charges.md`](../Cahier-des-charges.md) ; la technique,
+> [`../Techno.md`](../Techno.md).
+
 > ## ⚠️ Partie technique obsolète
 >
 > Ce document décrit une stack **Next.js 14 + Supabase** qui n'a jamais été celle du produit.

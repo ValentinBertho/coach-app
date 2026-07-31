@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /** Agrégation des indicateurs du tableau de bord coach. */
+@lombok.extern.slf4j.Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -65,7 +66,7 @@ public class CoachDashboardService {
         long pending = athletes.stream().filter(a -> a.getInviteToken() != null).count();
         // « Retours à traiter » : retours d'athlètes (RPE / douleur / commentaire) non encore vus.
         // Le KPI compte exactement les lignes de la file — il pointe dessus.
-        long toReview = feedbackQueue(clubId, scope, coachId).size();
+        long toReview = feedbackQueue(clubId, scope, coachId, DEFAULT_FEEDBACK_WINDOW_DAYS).size();
 
         if (ids.isEmpty()) {
             return new CoachDashboardResponse(0, 0, 0, 0, List.of());
@@ -88,25 +89,31 @@ public class CoachDashboardService {
      * dont l'athlète a laissé un retour (RPE, douleur, commentaire) et que le coach n'a pas
      * encore marquées comme traitées. Course et force unifiées, triées du plus récent au plus
      * ancien.
+     *
+     * @param days profondeur de la fenêtre en jours (bornée entre 1 et 90, 14 par défaut).
+     *             Sans borne, la file cumulait tout l'historique jamais marqué comme traité et
+     *             cessait d'être lisible au bout de quelques semaines.
      */
-    public List<FeedbackQueueItemResponse> feedbackQueue(UUID clubId, String scope, UUID coachId) {
+    public List<FeedbackQueueItemResponse> feedbackQueue(UUID clubId, String scope, UUID coachId,
+                                                        int days) {
         List<Athlete> athletes = athletesInScope(clubId, scope, coachId);
         if (athletes.isEmpty()) {
             return List.of();
         }
+        java.time.LocalDate since = clock.today().minusDays(windowDays(days));
         Map<UUID, String> names = athletes.stream()
                 .collect(java.util.stream.Collectors.toMap(Athlete::getId, CoachDashboardService::displayName));
         List<UUID> ids = List.copyOf(names.keySet());
 
         List<FeedbackQueueItemResponse> items = new ArrayList<>();
-        for (Workout w : workoutRepository.findPendingFeedback(ids)) {
+        for (Workout w : workoutRepository.findPendingFeedback(ids, since)) {
             items.add(new FeedbackQueueItemResponse(
                     "COURSE", w.getId(), w.getAthlete().getId(), names.get(w.getAthlete().getId()),
                     w.getTitle(), w.getScheduledDate(),
                     w.getRpe() == null ? null : w.getRpe().doubleValue(),
                     w.getFatigue(), w.getPain(), w.getAthleteComment()));
         }
-        for (ScheduledStrengthSession s : strengthRepository.findPendingFeedback(ids)) {
+        for (ScheduledStrengthSession s : strengthRepository.findPendingFeedback(ids, since)) {
             items.add(new FeedbackQueueItemResponse(
                     "STRENGTH", s.getId(), s.getAthlete().getId(), names.get(s.getAthlete().getId()),
                     s.getTitle(), s.getScheduledDate(),
@@ -117,6 +124,43 @@ public class CoachDashboardService {
                 .comparing(FeedbackQueueItemResponse::sessionDate).reversed()
                 .thenComparing(FeedbackQueueItemResponse::athleteName));
         return items;
+    }
+
+    /** Fenêtre par défaut de la file de retours, bornée pour rester une file de travail. */
+    public static final int DEFAULT_FEEDBACK_WINDOW_DAYS = 14;
+
+    private static int windowDays(int days) {
+        return Math.max(1, Math.min(days <= 0 ? DEFAULT_FEEDBACK_WINDOW_DAYS : days, 90));
+    }
+
+    /**
+     * Marque d'un coup tous les retours en attente du périmètre et de la fenêtre courants.
+     * Sans ça, vider la file demandait un clic par ligne — et personne ne le faisait.
+     *
+     * @return nombre de retours marqués (course + force)
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public int markAllFeedbackReviewed(UUID clubId, String scope, UUID coachId, int days) {
+        List<Athlete> athletes = athletesInScope(clubId, scope, coachId);
+        if (athletes.isEmpty()) {
+            return 0;
+        }
+        List<UUID> ids = athletes.stream().map(Athlete::getId).toList();
+        java.time.LocalDate since = clock.today().minusDays(windowDays(days));
+        java.time.Instant now = java.time.Instant.now();
+
+        int marked = 0;
+        for (Workout w : workoutRepository.findPendingFeedback(ids, since)) {
+            w.setCoachReviewedAt(now);
+            marked++;
+        }
+        for (ScheduledStrengthSession s : strengthRepository.findPendingFeedback(ids, since)) {
+            s.setCoachReviewedAt(now);
+            marked++;
+        }
+        log.info("Retours marqués comme traités en masse : {} (club={}, scope={}, {} j)",
+                marked, clubId, scope, windowDays(days));
+        return marked;
     }
 
     private static String displayName(Athlete a) {

@@ -33,7 +33,10 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
         <h1 class="display-sm">Retours à traiter <app-help-hint section="suivi" label="Aide : suivi & charge" /></h1>
         <p class="subtitle">Les retours de tes athlètes que tu n'as pas encore vus, du plus récent au plus ancien.</p>
       </div>
-      <app-segmented-control [options]="scopeOptions" [value]="scope()" (valueChange)="setScope($event)" [ariaLabel]="'Périmètre'" />
+      <div class="fq__filters">
+        <app-segmented-control [options]="scopeOptions" [value]="scope()" (valueChange)="setScope($event)" [ariaLabel]="'Périmètre'" />
+        <app-segmented-control [options]="windowOptions" [value]="days()" (valueChange)="setDays($event)" [ariaLabel]="'Profondeur'" />
+      </div>
     </section>
 
     @if (loading()) {
@@ -42,14 +45,20 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
       <div class="card empty-state">
         <h2>Aucun retour en attente</h2>
         <p class="field-hint">
-          Tous les retours de ton périmètre ont été traités. Les nouveaux retours de séance
-          (RPE, douleur, commentaire) apparaîtront ici dès que tes athlètes les enverront.
+          Aucun retour en attente sur les {{ days() }} derniers jours. Les nouveaux retours de
+          séance (RPE, douleur, commentaire) apparaîtront ici dès que tes athlètes les enverront.
         </p>
         <a routerLink="/app/calendar" class="btn btn-primary">Ouvrir le calendrier</a>
       </div>
     } @else {
       <div class="card">
-        <p class="field-hint fq__count">{{ items().length }} retour{{ items().length > 1 ? 's' : '' }} en attente</p>
+        <div class="fq__bar">
+          <p class="field-hint fq__count">{{ items().length }} retour{{ items().length > 1 ? 's' : '' }} en attente</p>
+          <button type="button" class="btn btn-ghost btn-sm" (click)="markAll()" [disabled]="markingAll()">
+            <app-icon name="check" [size]="15" />
+            {{ markingAll() ? 'Traitement…' : 'Tout marquer comme traité' }}
+          </button>
+        </div>
         <ul class="fq">
           @for (it of items(); track it.kind + it.sessionId) {
             <li class="fq__row" [class.fq__row--alert]="(it.pain ?? 0) >= 3">
@@ -110,6 +119,8 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
     .fq__id { grid-area: id; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .fq__athlete { font-weight: 700; color: var(--ink); text-decoration: none; }
     .fq__athlete:hover { text-decoration: underline; }
+    .fq__filters { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+    .fq__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
     .fq__title { font-size: var(--text-sm); color: var(--ink-2); }
     .fq__metrics { grid-area: metrics; display: flex; gap: var(--sp-2); flex-wrap: wrap; justify-content: flex-end; }
     .fq__comment { grid-area: comment; margin: 0; font-size: var(--text-sm); color: var(--ink-2); font-style: italic; }
@@ -131,6 +142,22 @@ export class FeedbackQueueComponent implements OnInit {
   /** Lignes en cours de traitement (évite le double clic). */
   readonly busy = signal<Set<string>>(new Set());
 
+  readonly markingAll = signal(false);
+
+  /**
+   * Profondeur de la file. Elle n'en avait aucune : tout retour jamais marqué comme traité y
+   * restait pour toujours, et la pastille de navigation ne redescendait jamais. Quatorze jours
+   * correspondent à ce qu'un coach peut encore exploiter — au-delà, le retour reste lisible sur
+   * la séance.
+   */
+  readonly days = signal('14');
+  readonly windowOptions: SegmentOption[] = [
+    { value: '7', label: '7 j' },
+    { value: '14', label: '14 j' },
+    { value: '30', label: '30 j' },
+    { value: '90', label: '90 j' },
+  ];
+
   readonly scope = signal<Scope>('all');
   readonly scopeOptions: SegmentOption[] = [
     { value: 'all', label: 'Tout le club' },
@@ -146,9 +173,28 @@ export class FeedbackQueueComponent implements OnInit {
     this.load();
   }
 
+  setDays(value: string): void {
+    this.days.set(value);
+    this.load();
+  }
+
+  /** Vide la file en un geste : sinon il fallait un clic par ligne, et personne ne le faisait. */
+  markAll(): void {
+    if (this.markingAll() || this.items().length === 0) return;
+    this.markingAll.set(true);
+    this.dashboardService.markAllFeedbackReviewed(this.scope(), Number(this.days())).subscribe({
+      next: (res) => {
+        this.markingAll.set(false);
+        this.items.set([]);
+        this.toast.success(`${res.marked} retour${res.marked > 1 ? 's' : ''} marqué${res.marked > 1 ? 's' : ''} comme traité${res.marked > 1 ? 's' : ''}`);
+      },
+      error: () => { this.markingAll.set(false); this.toast.error('Action impossible.'); },
+    });
+  }
+
   load(): void {
     this.loading.set(true);
-    this.dashboardService.feedbackQueue(this.scope()).subscribe({
+    this.dashboardService.feedbackQueue(this.scope(), Number(this.days())).subscribe({
       next: (list) => { this.items.set(list); this.loading.set(false); },
       error: () => { this.items.set([]); this.loading.set(false); this.toast.error('Chargement impossible.'); },
     });

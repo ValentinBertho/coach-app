@@ -116,8 +116,16 @@ const SLIDERS: Slider[] = [
     .ci__slider-hd label { font-weight: 700; color: var(--ink); font-size: var(--text-sm); }
     .ci__val { font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; }
 
-    /* Pouce large : le curseur doit s'attraper à moitié réveillé, sans viser. */
-    .ci__range { width: 100%; height: 44px; background: transparent; cursor: pointer; }
+    /* Pouce large : le curseur doit s'attraper à moitié réveillé, sans viser.
+       appearance:none sur l'input lui-même est OBLIGATOIRE : sans lui, WebKit/Blink ignorent
+       ::-webkit-slider-runnable-track et ::-webkit-slider-thumb et rendent le curseur natif
+       (pouce d'environ 16 px, bleu système). C'est ce qui se passait sous Chrome, Edge et tout
+       iOS ; Firefox, lui, applique ::-moz-range-* sans cette condition — d'où deux rendus
+       différents pour le même composant. */
+    .ci__range {
+      appearance: none; -webkit-appearance: none;
+      width: 100%; height: 44px; background: transparent; cursor: pointer;
+    }
     .ci__range::-webkit-slider-runnable-track {
       height: 6px; border-radius: var(--radius-full); background: var(--paper-sunk);
     }

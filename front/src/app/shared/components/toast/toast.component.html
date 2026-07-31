@@ -1,7 +1,12 @@
 <div class="toast-stack" role="status" aria-live="polite">
   @for (toast of toasts(); track toast.id) {
     <div class="toast" [class]="'toast-' + toast.level">
-      <span class="toast-message" (click)="dismiss(toast.id)">{{ toast.message }}</span>
+      <span class="toast-message" (click)="dismiss(toast.id)">
+        {{ toast.message }}
+        @if (toast.count > 1) {
+          <span class="toast-count" [attr.aria-label]="toast.count + ' fois'">×{{ toast.count }}</span>
+        }
+      </span>
       @if (toast.action; as action) {
         <button type="button" class="toast-action" (click)="runAction(toast.id)">{{ action.label }}</button>
       }

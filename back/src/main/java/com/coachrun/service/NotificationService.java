@@ -25,9 +25,40 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Déclencheur centralisé de notifications email (cf. Techno.md §3). Désactivé par défaut
- * (MAIL_ENABLED=false) → simple log. Les échecs d'envoi n'interrompent jamais le métier.
- * Jamais de donnée de santé dans les emails.
+ * Déclencheur centralisé de notifications (cf. Techno.md §3). Les échecs d'envoi n'interrompent
+ * jamais le métier, et aucune donnée de santé ne sort par e-mail.
+ *
+ * <h2>Répartition des canaux</h2>
+ * Trois canaux, et un seul critère pour choisir : <strong>l'e-mail est réservé à ce qui ne peut
+ * pas passer ailleurs</strong> — parce que le destinataire n'est pas encore connecté, ou parce
+ * que le message porte un lien à usage unique.
+ *
+ * <table>
+ *   <tr><th>Nature</th><th>Canal</th><th>Exemples</th></tr>
+ *   <tr><td><b>Transactionnel</b> (le compte n'existe pas encore, ou le lien est la seule voie)</td>
+ *       <td>e-mail</td>
+ *       <td>vérification d'adresse, réinitialisation de mot de passe, invitation athlète,
+ *           invitation coach</td></tr>
+ *   <tr><td><b>Routine</b> (l'utilisateur a déjà un compte et l'app installée)</td>
+ *       <td>in-app + push</td>
+ *       <td>séance planifiée, commentaire du coach, retour d'un athlète, rappel de séance</td></tr>
+ *   <tr><td><b>Récapitulatif</b> (une fois par jour, jamais par événement)</td>
+ *       <td>push + e-mail</td>
+ *       <td>digest d'alertes du coach (7 h), indisponibilité déclarée</td></tr>
+ * </table>
+ *
+ * <p><strong>Pourquoi.</strong> Chaque séance planifiée, chaque rappel J-1 et chaque retour
+ * d'athlète partaient auparavant en e-mail, un par événement. Pour 30 coachs et 240 athlètes,
+ * cela représente de l'ordre de 11 000 e-mails par mois, contre 3 000/mois et 100/jour sur le
+ * plan Resend utilisé : le plafond journalier tombe dès le premier jour — et il emporte avec lui
+ * les réinitialisations de mot de passe et les invitations, c'est-à-dire précisément les envois
+ * qu'on ne peut pas perdre. Basculer la routine en push ramène le volume à quelques centaines
+ * par mois, et gagne en réactivité au passage.</p>
+ *
+ * <p><strong>Repli.</strong> Tout le monde n'accepte pas les notifications système. Le rappel de
+ * séance — le seul dont l'absence se remarque vraiment — retombe sur l'e-mail quand l'athlète
+ * n'a aucun appareil abonné ({@link PushNotificationService#canReach}). Les autres notifications
+ * de routine restent consultables dans le centre de notifications, qui est toujours actif.</p>
  */
 @Slf4j
 @Service
@@ -48,76 +79,67 @@ public class NotificationService {
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
-    /** Séance planifiée → notifie l'athlète (in-app + email + push). */
+    /**
+     * Séance planifiée → notifie l'athlète, <strong>in-app + push, sans e-mail</strong>.
+     *
+     * <p>C'est le geste quotidien du coach : déposer cinq séances depuis la bibliothèque
+     * envoyait cinq e-mails à l'athlète dans la minute. La séance apparaît de toute façon dans
+     * son agenda et dans « Aujourd'hui » ; l'e-mail n'apportait qu'un doublon, au prix du plus
+     * gros poste de consommation du quota d'envoi.</p>
+     */
     public void notifyWorkoutPlanned(Workout workout) {
         User athleteUser = userRepository.findByAthleteId(workout.getAthlete().getId()).orElse(null);
-        if (athleteUser != null) {
-            record(athleteUser.getId(), "WORKOUT_PLANNED", "Nouvelle séance",
-                    workout.getTitle() + " — " + workout.getScheduledDate(), "/athlete/today");
-            if (athleteUser.isNotifyPushEnabled()) {
-                pushService.sendToUser(athleteUser.getId(), "Nouvelle séance",
-                        workout.getTitle() + " — " + workout.getScheduledDate(),
-                        frontendUrl + "/athlete/today");
-            }
-        }
-        String email = workout.getAthlete().getEmail();
-        if (email == null || (athleteUser != null && !athleteUser.isNotifyEmailEnabled())) {
+        if (athleteUser == null) {
             return;
         }
-        String subject = "Nouvelle séance planifiée";
-        String html = "<p>Bonjour " + esc(workout.getAthlete().getFirstName()) + ",</p>"
-                + "<p>Votre coach a planifié une nouvelle séance : <strong>" + esc(workout.getTitle())
-                + "</strong> le " + workout.getScheduledDate() + ".</p>"
-                + cta("Voir ma séance", frontendUrl + "/athlete/today");
-        send(email, subject, html, Audience.ATHLETE);
+        record(athleteUser.getId(), "WORKOUT_PLANNED", "Nouvelle séance",
+                workout.getTitle() + " — " + workout.getScheduledDate(), "/athlete/today");
+        if (athleteUser.isNotifyPushEnabled()) {
+            pushService.sendToUser(athleteUser.getId(), "Nouvelle séance",
+                    workout.getTitle() + " — " + workout.getScheduledDate(),
+                    frontendUrl + "/athlete/today");
+        }
     }
 
     /**
-     * Commentaire du coach sur une séance réalisée → notifie l'athlète (in-app + push + email).
-     * Le corps ne reprend pas le commentaire : il peut contenir des éléments de santé, et le
-     * centre de notifications n'est pas le bon canal pour ça — on renvoie vers la séance.
+     * Commentaire du coach sur une séance réalisée → notifie l'athlète,
+     * <strong>in-app + push, sans e-mail</strong>.
+     *
+     * <p>Le corps ne reprend jamais le commentaire : il peut contenir des éléments de santé, et
+     * ni le centre de notifications ni une notification système ne sont le bon canal pour ça —
+     * on renvoie vers la séance.</p>
      */
     public void notifyCoachComment(Workout workout) {
         User athleteUser = userRepository.findByAthleteId(workout.getAthlete().getId()).orElse(null);
-        if (athleteUser != null) {
-            record(athleteUser.getId(), "COACH_COMMENT", "Retour de votre coach",
-                    workout.getTitle(), "/athlete/history");
-            if (athleteUser.isNotifyPushEnabled()) {
-                pushService.sendToUser(athleteUser.getId(), "Retour de votre coach",
-                        workout.getTitle(), frontendUrl + "/athlete/history");
-            }
-        }
-        String email = workout.getAthlete().getEmail();
-        if (email == null || (athleteUser != null && !athleteUser.isNotifyEmailEnabled())) {
+        if (athleteUser == null) {
             return;
         }
-        String html = "<p>Bonjour " + esc(workout.getAthlete().getFirstName()) + ",</p>"
-                + "<p>Votre coach a commenté la séance <strong>" + esc(workout.getTitle())
-                + "</strong>.</p>"
-                + cta("Lire le retour", frontendUrl + "/athlete/history");
-        send(email, "Votre coach a commenté une séance", html, Audience.ATHLETE);
+        record(athleteUser.getId(), "COACH_COMMENT", "Retour de votre coach",
+                workout.getTitle(), "/athlete/history");
+        if (athleteUser.isNotifyPushEnabled()) {
+            pushService.sendToUser(athleteUser.getId(), "Retour de votre coach",
+                    workout.getTitle(), frontendUrl + "/athlete/history");
+        }
     }
 
-    /** Feedback athlète → notifie le coach <strong>référent</strong> de l'athlète (repli : head coach). */
+    /**
+     * Retour d'un athlète → notifie son coach <strong>référent</strong> (repli : head coach),
+     * <strong>in-app + push, sans e-mail</strong>.
+     *
+     * <p>C'était le flux le plus volumineux côté coach : un e-mail par séance renseignée, soit
+     * plusieurs dizaines par semaine pour un coach de club. Le besoin réel — « qu'est-ce qui
+     * m'attend ce matin ? » — est déjà servi par la file « Retours à traiter », sa pastille de
+     * navigation, et le digest quotidien de 7 h.</p>
+     */
     public void notifyAthleteFeedback(Workout workout) {
         coachToNotify(workout).ifPresent(c -> {
             record(c.getId(), "ATHLETE_FEEDBACK", "Séance mise à jour",
                     workout.getAthlete().getFirstName() + " " + workout.getAthlete().getLastName()
-                            + " — " + workout.getStatus(), "/app");
+                            + " — " + workout.getStatus(), "/app/feedback");
             if (c.isNotifyPushEnabled()) {
                 pushService.sendToUser(c.getId(), "Séance mise à jour",
                         workout.getAthlete().getFirstName() + " — " + workout.getStatus(),
-                        frontendUrl + "/app");
-            }
-            if (c.getEmail() != null && c.isNotifyEmailEnabled()) {
-                String athlete = workout.getAthlete().getFirstName() + " "
-                        + workout.getAthlete().getLastName();
-                // Le sujet est du texte brut : l'échappement HTML n'a lieu que dans le corps.
-                String subject = athlete + " a renseigné une séance";
-                String html = "<p><strong>" + esc(athlete) + "</strong> a mis à jour la séance <strong>"
-                        + esc(workout.getTitle()) + "</strong> (" + workout.getStatus() + ").</p>"
-                        + cta("Ouvrir Darilab", frontendUrl + "/app");
-                send(c.getEmail(), subject, html, Audience.COACH);
+                        frontendUrl + "/app/feedback");
             }
         });
     }
@@ -217,15 +239,32 @@ public class NotificationService {
         };
     }
 
-    /** Rappel J-1 → notifie l'athlète d'une séance prévue le lendemain. */
+    /**
+     * Rappel J-1 → notifie l'athlète d'une séance prévue le lendemain.
+     *
+     * <p><strong>Push d'abord, e-mail en repli.</strong> Ce rappel partait uniquement par e-mail,
+     * un par séance et par jour, alors que c'est le message le plus typiquement « notification »
+     * du produit : court, daté, sans pièce jointe, à lire sur un téléphone. C'était aussi le seul
+     * flux à ne pas utiliser le push, pourtant câblé partout ailleurs. On ne retombe sur l'e-mail
+     * que si l'athlète n'a aucun appareil abonné — sinon un athlète qui refuse les notifications
+     * système ne serait plus prévenu du tout.</p>
+     */
     public void notifyWorkoutReminder(Workout workout) {
-        String email = workout.getAthlete().getEmail();
-        if (email == null) {
-            return;
+        User athleteUser = userRepository.findByAthleteId(workout.getAthlete().getId()).orElse(null);
+        String title = "Séance demain";
+        String body = workout.getTitle();
+
+        if (athleteUser != null) {
+            record(athleteUser.getId(), "WORKOUT_REMINDER", title, body, "/athlete/today");
+            if (athleteUser.isNotifyPushEnabled() && pushService.canReach(athleteUser.getId())) {
+                pushService.sendToUser(athleteUser.getId(), title, body,
+                        frontendUrl + "/athlete/today");
+                return;
+            }
         }
-        boolean emailMuted = userRepository.findByAthleteId(workout.getAthlete().getId())
-                .map(u -> !u.isNotifyEmailEnabled()).orElse(false);
-        if (emailMuted) {
+
+        String email = workout.getAthlete().getEmail();
+        if (email == null || (athleteUser != null && !athleteUser.isNotifyEmailEnabled())) {
             return;
         }
         send(email, "Rappel : séance demain",
@@ -384,8 +423,12 @@ public class NotificationService {
             mailClient.send(to, subject, mail.html(), mail.text(),
                     mailTemplate.replyTo(), mailTemplate.listUnsubscribe(audience));
         } catch (RuntimeException ex) {
-            // Idempotence/robustesse : un échec d'email ne casse pas l'action métier.
-            log.warn("Échec d'envoi d'email à {} : {}", to, ex.getMessage());
+            // Idempotence/robustesse : un échec d'envoi ne casse pas l'action métier. Mais il ne
+            // doit plus être silencieux : un quota Resend épuisé fait échouer *tous* les envois,
+            // y compris les réinitialisations de mot de passe et les invitations. Sans remontée,
+            // le coach voit « e-mail envoyé », rien n'arrive, et personne n'est prévenu.
+            log.error("Échec d'envoi d'e-mail à {} (sujet « {} ») : {}", to, subject, ex.getMessage());
+            io.sentry.Sentry.captureException(ex);
         }
     }
 

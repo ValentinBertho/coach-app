@@ -47,13 +47,33 @@ public class CoachDashboardController {
     /**
      * File « retours à traiter » : séances réalisées avec retour athlète (RPE / douleur /
      * commentaire) non encore marquées comme traitées, tous athlètes du périmètre confondus.
+     *
+     * @param days profondeur de la fenêtre (14 jours par défaut, 90 au maximum). La file était
+     *             sans borne : elle cumulait tout l'historique et devenait illisible.
      */
     @GetMapping("/feedback")
     public java.util.List<com.coachrun.dto.response.FeedbackQueueItemResponse> feedbackQueue(
             @PathVariable UUID clubId,
             @RequestParam(defaultValue = "all") String scope,
+            @RequestParam(defaultValue = "14") int days,
             @AuthenticationPrincipal AuthPrincipal principal) {
-        return dashboardService.feedbackQueue(clubId, scope, principal.userId());
+        return dashboardService.feedbackQueue(clubId, scope, principal.userId(), days);
+    }
+
+    /**
+     * Marque comme traités tous les retours du périmètre et de la fenêtre courants. Vider la
+     * file demandait sinon un clic par ligne.
+     *
+     * @return {@code {"marked": n}}
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/feedback/review-all")
+    public java.util.Map<String, Integer> markAllFeedbackReviewed(
+            @PathVariable UUID clubId,
+            @RequestParam(defaultValue = "all") String scope,
+            @RequestParam(defaultValue = "14") int days,
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return java.util.Map.of("marked",
+                dashboardService.markAllFeedbackReviewed(clubId, scope, principal.userId(), days));
     }
 
     /** File d'alertes actionnables (douleur, charge, séances manquées, silence), triées par gravité. */

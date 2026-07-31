@@ -45,6 +45,19 @@ public class PushNotificationService {
         return publicKey;
     }
 
+    /**
+     * Cet utilisateur peut-il réellement recevoir un push ? Vrai seulement si VAPID est
+     * configuré <strong>et</strong> qu'au moins un appareil est abonné.
+     *
+     * <p>Sert de condition de repli : les notifications de routine (rappel de séance) passent en
+     * push et ne retombent sur l'e-mail que pour les comptes qui n'ont pas d'appareil abonné.
+     * Sans ce test, « passer en push » reviendrait à ne plus rien envoyer à ceux qui ont refusé
+     * les notifications système.</p>
+     */
+    public boolean canReach(UUID userId) {
+        return isEnabled() && userId != null && !repository.findByUserId(userId).isEmpty();
+    }
+
     @Transactional
     public void subscribe(UUID userId, String endpoint, String p256dh, String auth) {
         PushSubscription sub = repository.findByEndpoint(endpoint).orElseGet(PushSubscription::new);

@@ -149,8 +149,8 @@ Mot de passe commun : **`password123`**
 | Athlète | `athlete@coachrun.fr` | `/athlete/today` |
 
 > Le jeu de démo est **déterministe** (graine fixe) : profils physio, tests lactate, séances course
-> et force structurées, cycles, tests 1RM, charge, objectifs et indisponibilités. Détails et procédure
-> de réinitialisation dans [`docs/DEMO.md`](./docs/DEMO.md).
+> et force structurées, cycles, tests 1RM, charge, objectifs et indisponibilités. Il est produit par
+> `DemoSeedService` (profil `dev`, `app.seed.enabled`) et réinitialisable via `DemoResetService`.
 
 ---
 
@@ -193,8 +193,9 @@ npm start                       # proxy vers http://localhost:8080/api
 │   └── src/app/
 │       ├── core/               # services, models, guards, intercepteurs
 │       └── features/           # 21 modules (athletes, strength, physio, messages, calendar…)
-├── docs/                       # Cahier des charges, design, techno, audit, déploiement
-│   └── Darilab/                # CDC DARI Lab, architecture, plan d'implémentation, wireframes
+├── docs/                       # Cahier des charges, design, techno, audits, exploitation
+│   ├── README.md               # index : quel document fait foi, et sur quoi
+│   └── archive/                # historique non maintenu (CDC d'origine, blueprint, wireframes)
 ├── docker-compose.yml
 ├── .env.example
 └── .github/workflows/ci.yml
@@ -233,8 +234,8 @@ cd front && npm run build
 - **CORS** restreint à une allowlist · **rate-limiting** par fenêtre fixe.
 - **Anti-IDOR** : toute route club passe par `@clubAccessValidator` (privé / club / permissions).
 
-> Voir l'audit de préparation à la bêta (sécurité, scalabilité, plan d'action) dans
-> [`docs/AUDIT-BETA-2026-06.md`](./docs/AUDIT-BETA-2026-06.md).
+> Voir l'audit de préparation à la bêta (infra, sécurité, RGPD, exploitation) dans
+> [`docs/AUDIT-BETA-READINESS-2026-07.md`](./docs/AUDIT-BETA-READINESS-2026-07.md).
 
 ---
 
@@ -279,7 +280,9 @@ Procédure pas-à-pas (ordre de déploiement, variables, CORS, redirect URIs) :
 ## Limites connues & pistes d'amélioration
 
 Transparence sur ce qui reste à durcir (détail et priorisation dans
-[`docs/AUDIT-BETA-2026-06.md`](./docs/AUDIT-BETA-2026-06.md)) :
+[`docs/AUDIT-BETA-READINESS-2026-07.md`](./docs/AUDIT-BETA-READINESS-2026-07.md) pour
+l'exploitation, [`docs/AUDIT-BETA-OUVERTE-2026-07.md`](./docs/AUDIT-BETA-OUVERTE-2026-07.md) pour
+le produit et les parcours) :
 
 - **Tests sur PG réel** : les assertions tournent sur H2 (mode PostgreSQL) ; **Testcontainers**
   fermerait le risque H2↔PG (le CI ne fait qu'un smoke de démarrage sur PG).
@@ -295,19 +298,22 @@ Transparence sur ce qui reste à durcir (détail et priorisation dans
 
 ## Documentation
 
+> 📑 **[`docs/README.md`](./docs/README.md) est l'index de référence** : il dit quel document fait
+> foi, lesquels sont des audits datés, et ce qui n'est conservé que pour l'historique.
+
 | Document | Contenu |
 |---|---|
-| [`docs/Cahier-des-charges.md`](./docs/Cahier-des-charges.md) | périmètre fonctionnel |
-| [`docs/Darilab/PLAN-IMPLEMENTATION.md`](./docs/Darilab/PLAN-IMPLEMENTATION.md) | plan d'implémentation (décisions, sprints, migrations) |
+| [`docs/Cahier-des-charges.md`](./docs/Cahier-des-charges.md) | périmètre fonctionnel (référentiel de complétude) |
 | [`docs/Techno.md`](./docs/Techno.md) | référence technique |
-| [`docs/Design.md`](./docs/Design.md) | design system (tokens, charte) |
-| [`docs/DEMO.md`](./docs/DEMO.md) | comptes & procédure de démonstration |
+| [`docs/Design.md`](./docs/Design.md) | design system (tokens, composants, états) |
+| [`docs/Claude.md`](./docs/Claude.md) | conventions de code (IA & humains) |
 | [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md) | déploiement Railway/Vercel + variables |
 | [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | **exploitation : Sentry, sauvegardes BDD, Actuator, CI (pas-à-pas)** |
-| [`docs/ATHLETE-ROADMAP.md`](./docs/ATHLETE-ROADMAP.md) | audit des données visibles par l'athlète + plan d'évolution |
-| [`docs/AUDIT-BETA-READINESS-2026-07.md`](./docs/AUDIT-BETA-READINESS-2026-07.md) | audit de préparation à la bêta (infra, sécurité, RGPD, exploitation) |
 | [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md) | **runbook de mise en service : Resend, Sentry, uptime, backups (pas-à-pas)** |
-| [`docs/Claude.md`](./docs/Claude.md) | conventions de code (IA & humains) |
+| [`docs/AUDIT-BETA-OUVERTE-2026-07.md`](./docs/AUDIT-BETA-OUVERTE-2026-07.md) | audit de bêta ouverte : parcours coach/athlète, ergonomie, accessibilité, notifications |
+| [`docs/AUDIT-BETA-READINESS-2026-07.md`](./docs/AUDIT-BETA-READINESS-2026-07.md) | audit de préparation à la bêta (infra, sécurité, RGPD, exploitation) |
+| [`docs/AUDIT-RC-2026-07.md`](./docs/AUDIT-RC-2026-07.md) | audit code de la release candidate (lots 1 à 8, livrés) |
+| [`docs/archive/`](./docs/archive/) | historique non maintenu : CDC DARI Lab d'origine, architecture, blueprint UX, wireframes, audits antérieurs |
 
 > **Aide utilisateur intégrée** : chaque espace dispose d'un **centre d'aide** adapté à son profil
 > (athlète `/athlete/help`, coach `/app/aide`, admin `/admin/aide`), avec **recherche globale**

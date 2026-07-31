@@ -1,5 +1,10 @@
 # Audit produit DARI Lab — juillet 2026
 
+> ⚠️ **Document historique — juillet 2026, non maintenu.** Photographie de l'état du produit à
+> cette date. La majorité de ses constats a été traitée depuis (palette Cmd+K, boîte de réception,
+> fusion des bibliothèques, duplication de modèle, file de retours, Paramètres réels…).
+> **Pour l'état actuel, lire [`../AUDIT-BETA-OUVERTE-2026-07.md`](../AUDIT-BETA-OUVERTE-2026-07.md).**
+
 > Audit réalisé du point de vue coach utilisateur / Product Manager / UX Designer.
 > Périmètre : fonctionnalités, logique métier, ergonomie, cohérence — pas le code.
 > Base : lecture exhaustive des écrans (front Angular) + documentation (`docs/`).
