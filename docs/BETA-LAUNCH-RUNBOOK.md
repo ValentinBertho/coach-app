@@ -82,9 +82,11 @@ si Resend demande quelque chose sur `@`, vérifier avant d'ajouter.
    ```
 
 ### 2.4 Tester les 4 emails critiques
-> **Prérequis** : l'adresse du coach doit être **vérifiée** pour envoyer une invitation
-> (athlète ou coach) — c'est volontaire, ça évite que la plateforme serve de relais de spam.
-> Confirmer d'abord l'e-mail d'inscription, sinon ces deux envois répondent 403.
+> **Prérequis** : une fois `MAIL_ENABLED=true`, l'adresse du coach doit être **vérifiée** pour
+> envoyer une invitation (athlète ou coach) — c'est volontaire, ça évite que la plateforme serve
+> de relais de spam. Confirmer d'abord l'e-mail d'inscription, sinon ces deux envois répondent 403.
+> (Tant que le mail est désactivé, la règle est inactive : sans envoi, le lien de vérification
+> n'arriverait jamais.)
 
 - [ ] **Mot de passe oublié** : `/forgot-password` → email reçu → le lien fonctionne
 - [ ] **Invitation athlète** : fiche athlète → générer une invitation → **l'e-mail arrive

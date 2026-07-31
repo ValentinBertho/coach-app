@@ -23,11 +23,25 @@ public class EmailVerificationValidator {
 
     private final UserRepository userRepository;
 
-    public EmailVerificationValidator(UserRepository userRepository) {
+    /**
+     * Suit {@code app.mail.enabled} par défaut : sans envoi d'e-mail, aucun compte ne peut être
+     * vérifié, et exiger la vérification n'apporterait rien — elle bloquerait définitivement
+     * l'invitation d'athlètes derrière un lien qui n'arrive jamais.
+     */
+    private final boolean required;
+
+    public EmailVerificationValidator(
+            UserRepository userRepository,
+            @org.springframework.beans.factory.annotation.Value(
+                    "${app.security.require-verified-email:${app.mail.enabled:false}}") boolean required) {
         this.userRepository = userRepository;
+        this.required = required;
     }
 
     public boolean isVerified(Authentication authentication) {
+        if (!required) {
+            return true;
+        }
         if (authentication == null
                 || !(authentication.getPrincipal() instanceof AuthPrincipal principal)) {
             return false;

@@ -28,26 +28,29 @@
     <!-- Ma semaine : deux chiffres, pas un graphe. C'est ce qu'un athlète regarde en semaine —
          « où j'en suis » — et ça tenait jusqu'ici uniquement dans l'écran du coach. -->
     @if (week(); as w) {
-      <section class="week card">
-        <div class="week__hd">
-          <h2>Ma semaine</h2>
-          <a routerLink="/athlete/progress" class="field-hint">Mes progrès →</a>
-        </div>
-        <div class="week__stats">
-          <div class="week__stat">
-            <span class="week__v">{{ w.realizedKm | number: '1.0-1' }}<span class="week__of">/{{ w.plannedKm | number: '1.0-1' }}</span></span>
-            <span class="week__l">km</span>
+      <!-- Rien de prévu et rien de fait : le bloc n'aurait que des zéros à montrer. -->
+      @if (w.plannedSessions > 0 || w.realizedKm > 0) {
+        <section class="week card">
+          <div class="week__hd">
+            <h2>Ma semaine</h2>
+            <a routerLink="/athlete/progress" class="field-hint">Mes progrès →</a>
           </div>
-          <div class="week__stat">
-            <span class="week__v">{{ w.completedSessions }}<span class="week__of">/{{ w.plannedSessions }}</span></span>
-            <span class="week__l">séances</span>
+          <div class="week__stats">
+            <div class="week__stat">
+              <span class="week__v">{{ w.realizedKm | number: '1.0-1' }}<span class="week__of">/{{ w.plannedKm | number: '1.0-1' }}</span></span>
+              <span class="week__l">km</span>
+            </div>
+            <div class="week__stat">
+              <span class="week__v">{{ w.completedSessions }}<span class="week__of">/{{ w.plannedSessions }}</span></span>
+              <span class="week__l">séances</span>
+            </div>
           </div>
-        </div>
-        <div class="week__bar" role="img"
-             [attr.aria-label]="w.realizedKm + ' km réalisés sur ' + w.plannedKm + ' prévus'">
-          <span class="week__fill" [style.width.%]="weekPct()"></span>
-        </div>
-      </section>
+          <div class="week__bar" role="img"
+               [attr.aria-label]="w.realizedKm + ' km réalisés sur ' + w.plannedKm + ' prévus'">
+            <span class="week__fill" [style.width.%]="weekPct()"></span>
+          </div>
+        </section>
+      }
     }
 
     @if (!hasPaces()) {

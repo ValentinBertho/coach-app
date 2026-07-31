@@ -22,6 +22,7 @@ app:
   debrief:
     enabled: false   # le rappel « Ta séance est finie ? » n'a rien à faire dans une suite de tests
   security:
+    require-verified-email: true   # la règle doit rester testable même sans envoi d'e-mail
     jwt:
       secret: test-secret-for-h2-context-only-min-512-bits-aaaaaaaaaaaaaaaaaaaa
     field-encryption-key: "0000000000000000000000000000000000000000000000000000000000000000"

@@ -118,7 +118,9 @@
       `GET /clubs/{clubId}/storage` expose le compteur. Tests : `MessageAttachmentTest`.
 - [x] **21. Vérification d'e-mail.** Non bloquante en lecture, exigée pour **inviter un athlète**
       et **inviter un coach** — les deux actions qui font sortir un e-mail vers un tiers choisi par
-      l'utilisateur (`@emailVerificationValidator.isVerified`).
+      l'utilisateur (`@emailVerificationValidator.isVerified`). La règle **suit `MAIL_ENABLED`** :
+      sans envoi d'e-mail, le lien de vérification n'arrive jamais et l'exiger bloquerait
+      définitivement tout le monde. Forçable via `REQUIRE_VERIFIED_EMAIL`.
 
 ## Lot 8 — Finitions 🟠 ✅
 
@@ -162,3 +164,5 @@
 - [ ] Renseigner `MAIL_REPLY_TO` : sans elle, l'en-tête `List-Unsubscribe` se limite au lien de
       préférences (pas de `mailto:` de repli).
 - [ ] Ajuster `STORAGE_CLUB_QUOTA_MB` si 200 Mo par club se révèle trop serré en bêta.
+- [ ] Confirmer que `MAIL_ENABLED=true` en production : c'est lui qui active la règle
+      « adresse vérifiée pour inviter » (point 21).

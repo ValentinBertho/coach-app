@@ -110,10 +110,11 @@ public class NotificationService {
                         frontendUrl + "/app");
             }
             if (c.getEmail() != null && c.isNotifyEmailEnabled()) {
-                String athlete = esc(workout.getAthlete().getFirstName() + " "
-                        + workout.getAthlete().getLastName());
+                String athlete = workout.getAthlete().getFirstName() + " "
+                        + workout.getAthlete().getLastName();
+                // Le sujet est du texte brut : l'échappement HTML n'a lieu que dans le corps.
                 String subject = athlete + " a renseigné une séance";
-                String html = "<p>" + athlete + " a mis à jour la séance <strong>"
+                String html = "<p><strong>" + esc(athlete) + "</strong> a mis à jour la séance <strong>"
                         + esc(workout.getTitle()) + "</strong> (" + workout.getStatus() + ").</p>"
                         + cta("Ouvrir Darilab", frontendUrl + "/app");
                 send(c.getEmail(), subject, html, Audience.COACH);
@@ -351,7 +352,7 @@ public class NotificationService {
                     + esc(reason) + ", du " + unavailability.getStartDate()
                     + " au " + unavailability.getEndDate() + ".</p>"
                     + cta("Ouvrir le calendrier", frontendUrl + "/app/calendar");
-            send(coach.getEmail(), esc(athleteName) + " est indisponible", html, Audience.COACH);
+            send(coach.getEmail(), athleteName + " est indisponible", html, Audience.COACH);
         });
     }
 
