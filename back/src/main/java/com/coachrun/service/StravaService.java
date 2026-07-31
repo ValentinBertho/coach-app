@@ -36,7 +36,13 @@ import java.util.UUID;
 public class StravaService {
 
     private static final DeviceProvider PROVIDER = DeviceProvider.STRAVA;
-    private static final String SCOPE = "activity:read";
+    /**
+     * {@code activity:read_all} et non {@code activity:read} : ce dernier ne remonte que les
+     * activités <em>publiques</em>. Or les athlètes suivis par un coach gardent très souvent
+     * leurs sorties en « privé » ou « abonnés uniquement » — avec le scope restreint, elles ne
+     * se synchronisent jamais et l'intégration paraît cassée.
+     */
+    private static final String SCOPE = "activity:read_all";
     /** Fenêtre d'import par défaut au premier import : 30 jours. */
     private static final long DEFAULT_LOOKBACK_SEC = 30L * 24 * 3600;
 
