@@ -10,13 +10,9 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
  * Les coordonnées de l'éditeur sont centralisées dans LEGAL_OWNER (à compléter avant la bêta).
  */
 export const LEGAL_OWNER = {
-  /** Nom de l'éditeur (personne physique ou société). À COMPLÉTER. */
-  name: '[Nom de l’éditeur — à compléter]',
-  /** Statut (ex. « auto-entrepreneur », « SAS au capital de… »). À COMPLÉTER. */
-  status: '[Statut juridique — à compléter]',
-  /** Adresse postale. À COMPLÉTER. */
-  address: '[Adresse — à compléter]',
-  /** Email de contact (RGPD + support). À COMPLÉTER. */
+  /** Nom sous lequel le Service est édité (éditeur non professionnel, LCEN art. 6, III-2). */
+  name: 'DARI Lab',
+  /** Email de contact (RGPD + support). */
   email: 'contact@darilab.app',
   /** Date de dernière mise à jour des présentes pages. */
   updated: 'juillet 2026',
@@ -48,10 +44,11 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
 
             <h2>Éditeur</h2>
             <p>
-              Le site et l'application DARI Lab (ci-après « le Service ») sont édités par
-              <strong>{{ owner.name }}</strong>, {{ owner.status }}, {{ owner.address }}.<br />
-              Contact : <a href="mailto:{{ owner.email }}">{{ owner.email }}</a>.<br />
-              Directeur de la publication : {{ owner.name }}.
+              Le site et l'application DARI Lab (ci-après « le Service ») sont édités à titre
+              non professionnel sous le nom <strong>{{ owner.name }}</strong>
+              (article 6, III-2 de la loi n° 2004-575 du 21 juin 2004 — LCEN : l'identité de
+              l'éditeur non professionnel est tenue à la disposition des hébergeurs ci-dessous).<br />
+              Contact : <a href="mailto:{{ owner.email }}">{{ owner.email }}</a>.
             </p>
 
             <h2>Hébergement</h2>
@@ -136,7 +133,7 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
 
             <h2>1. Responsable de traitement</h2>
             <p>
-              {{ owner.name }}, {{ owner.address }} —
+              {{ owner.name }} —
               contact : <a href="mailto:{{ owner.email }}">{{ owner.email }}</a>.
             </p>
 

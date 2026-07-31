@@ -250,7 +250,7 @@ contenant une migration**. Ajouter un tag git par déploiement notable et incré
 ## 14. Checklist « Beta Ready »
 
 ### 🔴 Indispensable avant la bêta (bloquant)
-1. **Backups actifs** : backups Railway activés + `pg_dump` quotidien externalisé (script existant + cron/Action planifiée) + **un test de restauration réussi**.
+1. **Backups actifs** : ⚠️ **workflow en place** (`.github/workflows/db-backup.yml` : dump quotidien chiffré AES-256 → artefact GitHub 14 j). Reste : créer les 2 secrets GitHub (`BACKUP_DATABASE_URL`, `BACKUP_ENCRYPTION_KEY`), activer les backups Railway, lancer un run manuel puis **un test de restauration réussi** (procédure : `OPERATIONS.md` §1–2).
 2. **Emails activés** : domaine acheté et vérifié dans Resend (SPF/DKIM), `MAIL_ENABLED=true`, test des 4 emails clés (reset mot de passe, invitation athlète, invitation coach, rappel J-1). Sans cela, « mot de passe oublié » est une impasse.
 3. **Sentry actif** (DSN back + front) + **uptime monitor** sur `/api/actuator/health` avec alerte.
 4. **Pages légales** : ⚠️ **quasi fait** — pages `/legal/*` publiées + consentement horodaté à l'inscription. Reste : compléter les coordonnées de l'éditeur (`LEGAL_OWNER`) et relire les textes.

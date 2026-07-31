@@ -1,0 +1,72 @@
+# ============================================================================
+# Sauvegarde quotidienne PostgreSQL (production Railway) — externalisée.
+#
+#   pg_dump -Fc → vérification d'intégrité → chiffrement AES-256 → artefact
+#   GitHub (rétention 14 jours). Les dumps sont ainsi stockés HORS de
+#   l'infrastructure Railway (un incident côté hébergeur ne les emporte pas).
+#
+# Secrets à configurer (Settings → Secrets and variables → Actions) :
+#   BACKUP_DATABASE_URL    URL publique de connexion PostgreSQL
+#                          (Railway → PostgreSQL → Connect → « Public Network »)
+#   BACKUP_ENCRYPTION_KEY  passphrase de chiffrement — openssl rand -hex 32
+#                          ⚠️ à conserver AUSSI hors de GitHub (gestionnaire de
+#                          mots de passe) : sans elle, les dumps sont illisibles.
+#
+# Restauration : cf. docs/OPERATIONS.md §2 (déchiffrement puis pg_restore).
+# NB : GitHub désactive les crons d'un dépôt inactif > 60 jours ; le job
+# échoue bruyamment (email GitHub) si un secret manque ou si le dump échoue.
+# ============================================================================
+name: Sauvegarde BDD
+
+on:
+  schedule:
+    - cron: "30 2 * * *" # quotidien, 02:30 UTC
+  workflow_dispatch: # lancement manuel (premier test, avant un déploiement…)
+
+jobs:
+  backup:
+    name: pg_dump chiffré → artefact
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Vérifier la présence des secrets
+        env:
+          DB_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          ENC_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          [ -n "$DB_URL" ] || { echo "::error::Secret BACKUP_DATABASE_URL manquant."; exit 1; }
+          [ -n "$ENC_KEY" ] || { echo "::error::Secret BACKUP_ENCRYPTION_KEY manquant."; exit 1; }
+
+      - name: Installer le client PostgreSQL 16
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          pg_dump --version
+
+      - name: Dump (format custom) + vérification d'intégrité
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: |
+          TS="$(date -u +%Y%m%d-%H%M%S)"
+          echo "OUT=darilab-${TS}.dump" >> "$GITHUB_ENV"
+          pg_dump --format=custom --no-owner --no-privileges \
+            --file="darilab-${TS}.dump" "$DATABASE_URL"
+          # Un dump illisible ne doit jamais devenir « la » sauvegarde du jour.
+          pg_restore --list "darilab-${TS}.dump" > /dev/null
+          du -h "darilab-${TS}.dump"
+
+      - name: Chiffrer (AES-256, PBKDF2)
+        env:
+          ENC_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+            -in "$OUT" -out "$OUT.enc" -pass env:ENC_KEY
+          rm -f "$OUT"
+
+      - name: Publier l'artefact (rétention 14 jours)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.OUT }}.enc
+          path: ${{ env.OUT }}.enc
+          retention-days: 14
+          if-no-files-found: error
