@@ -86,11 +86,24 @@
   margin-top: auto;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
   padding-block: var(--sp-5);
   border-top: 1px solid var(--paper-sunk);
   font-size: var(--text-sm);
   color: var(--ink-3);
+}
+.landing-foot-links {
+  display: flex;
+  gap: var(--sp-4);
+
+  a {
+    color: var(--ink-3);
+    text-decoration: none;
+
+    &:hover { color: var(--ink-1); text-decoration: underline; }
+  }
 }
 .muted { color: var(--ink-4); }
 

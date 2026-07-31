@@ -62,7 +62,7 @@ class ClubCoachManagementTest {
         JsonNode reg = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"owner.test@darilab.app\",\"password\":\"password123\","
-                                + "\"fullName\":\"Owner Test\",\"clubName\":\"Club Test\"}"))
+                                + "\"fullName\":\"Owner Test\",\"termsAccepted\":true,\"clubName\":\"Club Test\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         String newBearer = "Bearer " + reg.get("accessToken").asText();
         String newClubId = reg.get("user").get("clubId").asText();
@@ -79,7 +79,7 @@ class ClubCoachManagementTest {
         // Un coach avec son propre compte (autre club).
         mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"assistant2@darilab.app\",\"password\":\"password123\","
-                                + "\"fullName\":\"Assistant Deux\",\"clubName\":\"Autre Club\"}"))
+                                + "\"fullName\":\"Assistant Deux\",\"termsAccepted\":true,\"clubName\":\"Autre Club\"}"))
                 .andExpect(status().isCreated());
 
         int before = members().size();

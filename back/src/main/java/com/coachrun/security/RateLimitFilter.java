@@ -16,8 +16,13 @@ import java.io.IOException;
 import java.time.Duration;
 
 /**
- * Rate limiting des routes sensibles (auth, acceptation d'invitation). Désactivable via
- * {@code app.rate-limit.enabled} (false en tests). Réponse 429 si la limite est dépassée.
+ * Rate limiting des routes sensibles (auth, réinitialisation de mot de passe, vérification
+ * d'email, acceptation d'invitation). Désactivable via {@code app.rate-limit.enabled} (false en
+ * tests). Réponse 429 si la limite est dépassée.
+ *
+ * <p>La clé est {@code IP:bucket} où le bucket est un préfixe stable : les routes porteuses de
+ * token ({@code /password-reset/{token}}…) partagent le même compteur, sinon chaque token essayé
+ * ouvrirait une nouvelle fenêtre et le brute-force passerait sous le radar.
  */
 @Component
 @Order(1)
@@ -33,11 +38,30 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        boolean sensitive = uri.endsWith("/auth/login")
-                || uri.endsWith("/auth/register")
-                || uri.contains("/invitations/") && uri.endsWith("/accept");
-        return !sensitive;
+        return bucket(request.getRequestURI()) == null;
+    }
+
+    /** Bucket de comptage de la route, ou {@code null} si elle n'est pas rate-limitée. */
+    public static String bucket(String uri) {
+        if (uri.endsWith("/auth/login")) {
+            return "auth-login";
+        }
+        if (uri.endsWith("/auth/register")) {
+            return "auth-register";
+        }
+        if (uri.endsWith("/auth/refresh")) {
+            return "auth-refresh";
+        }
+        if (uri.contains("/public/password-reset")) {
+            return "password-reset";
+        }
+        if (uri.contains("/public/verify-email")) {
+            return "verify-email";
+        }
+        if (uri.contains("/invitations/") && uri.endsWith("/accept")) {
+            return "invitation-accept";
+        }
+        return null;
     }
 
     @Override
@@ -45,7 +69,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain)
             throws ServletException, IOException {
-        String key = clientIp(request) + ":" + request.getRequestURI();
+        String key = clientIp(request) + ":" + bucket(request.getRequestURI());
         if (!limiter.tryAcquire(key)) {
             response.setStatus(429);
             response.setContentType("application/json");

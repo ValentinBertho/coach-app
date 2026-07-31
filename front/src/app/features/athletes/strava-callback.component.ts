@@ -33,18 +33,20 @@ export class StravaCallbackComponent implements OnInit {
 
   ngOnInit(): void {
     const code = this.route.snapshot.queryParamMap.get('code');
-    const athleteId = this.route.snapshot.queryParamMap.get('state');
+    const state = this.route.snapshot.queryParamMap.get('state');
+    // Le state signé est `<athleteId>.<expiration>.<signature>` ; le backend vérifie la signature.
+    const athleteId = state?.split('.')[0] ?? null;
     const error = this.route.snapshot.queryParamMap.get('error');
 
-    if (error || !code) {
+    if (error || !code || !state) {
       this.message.set('Connexion annulée ou invalide.');
       this.toast.error('Connexion Strava annulée.');
       return;
     }
 
-    // Flux athlète : je connecte ma propre montre (pas besoin du state).
+    // Flux athlète : je connecte ma propre montre.
     if (this.auth.currentUser()?.role === 'ATHLETE') {
-      this.portal.stravaConnect(code).subscribe({
+      this.portal.stravaConnect(code, state).subscribe({
         next: () => { this.toast.success('Compte Strava connecté'); this.router.navigate(['/athlete/sync']); },
         error: () => { this.message.set('Échec de la connexion Strava.'); this.toast.error('Échec de la connexion Strava.'); },
       });
@@ -57,7 +59,7 @@ export class StravaCallbackComponent implements OnInit {
       this.toast.error('Connexion Strava invalide.');
       return;
     }
-    this.athletes.stravaConnect(athleteId, code).subscribe({
+    this.athletes.stravaConnect(athleteId, code, state).subscribe({
       next: () => {
         this.toast.success('Compte Strava connecté');
         this.router.navigate(['/app/athletes', athleteId]);

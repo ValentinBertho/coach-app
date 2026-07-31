@@ -83,7 +83,7 @@
 | Sessions / expiration | ✅ | Access token TTL 900 s (prod), **refresh avec rotation** (l'ancien refresh est révoqué à chaque usage). Bon niveau. |
 | Mot de passe oublié | ✅ | Flux complet par lien magique, réponse toujours 200 (pas d'énumération de comptes), UI front dédiée (`/forgot-password`, `/reset-password/:token`). |
 | Vérification email | ⚠️ | Flux présent (token, `/verify-email/:token`, renvoi) mais **non bloquant** : un compte non vérifié fonctionne normalement. Acceptable pour une bêta sur invitation, à durcir ensuite. |
-| Sécurité | ⚠️ | Rate limiting **uniquement** sur `/auth/login`, `/auth/register` et l'acceptation d'invitation. `/public/password-reset` (envoi d'email !) et `/auth/refresh` ne sont **pas** couverts → spam d'emails et brute-force de tokens possibles. |
+| Sécurité | ✅ | Rate limiting par bucket IP sur login, register, refresh, password-reset, verify-email et acceptation d'invitation (clé normalisée : les routes à token partagent un compteur). |
 
 💡 **Recommandations**
 - Étendre `RateLimitFilter.shouldNotFilter()` à `/public/password-reset` et `/auth/refresh` — c'est un changement de 3 lignes.
@@ -116,7 +116,7 @@ mais ne justifie pas de réécrire l'intégration. Brevo n'apporte rien ici (ori
 
 | Intégration | État actuel | Indispensable avant bêta ? |
 |---|---|---|
-| **Strava** | ⚠️ Fonctionnelle : OAuth initié par l'athlète, sync par polling (cron horaire), déduplication, état visible côté coach, désactivation propre si non configurée. **Manques** : pas de paramètre `state` signé dans le flux OAuth (CSRF), webhook non implémenté (variable prévue). | **Oui** — c'est l'intégration attendue par les athlètes. Ajouter le `state` signé avant la bêta (petit correctif de sécurité) ; le webhook peut attendre, le polling horaire suffit. |
+| **Strava** | ✅ Fonctionnelle : OAuth initié par l'athlète avec `state` signé (HMAC, TTL 10 min, vérifié à la connexion), sync par polling (cron horaire), déduplication, état visible côté coach, désactivation propre si non configurée. Webhook non implémenté (variable prévue). | **Oui** — c'est l'intégration attendue par les athlètes. Le webhook peut attendre, le polling horaire suffit. |
 | **Garmin** | ❌ Enum + placeholders d'env seulement. | Non — peut attendre. L'import **GPX/TCX manuel** couvre les utilisateurs Garmin en attendant. |
 | **Coros** | ❌ Idem Garmin. | Non — peut attendre. |
 | **Polar** | ❌ Rien. | Non — peut attendre. |
@@ -136,15 +136,15 @@ fichier pour tous ». Une promesse claire vaut mieux qu'une intégration à moit
 | Validation des données | ✅ | `@Valid` + DTOs Request/Response séparés partout. |
 | Injection SQL | ✅ | JPA/paramétré, pas de SQL concaténé détecté. |
 | XSS | ✅ | Échappement Angular par défaut + CSP, `frame-options: deny`, `object-src 'none'`. |
-| CSRF | ✅/⚠️ | API stateless en header Bearer → risque CSRF classique faible. **Mais** : flux OAuth Strava sans `state` signé (CSRF d'association de compte). |
+| CSRF | ✅ | API stateless en header Bearer → risque CSRF classique faible. Flux OAuth Strava protégé par un `state` signé (HMAC, TTL 10 min, lié à l'athlète). |
 | Upload de fichiers | ✅ | Allowlist stricte de content-types (png/jpeg/gif/webp/pdf), limite 10 MB. |
-| Rate limiting | ⚠️ | Présent mais périmètre trop étroit (cf. §4) ; en mémoire (OK mono-instance). |
+| Rate limiting | ✅ | Login, register, refresh, password-reset, verify-email, invitations — clé IP:bucket normalisée ; en mémoire (OK mono-instance, Redis à prévoir en multi-pod). |
 | Erreurs sensibles | ✅ | Handler global, pas de détails internes exposés, `show-details: when_authorized` sur Actuator, `send-default-pii: false` côté Sentry. |
 | Jeton en query param | ⚠️ | `access_token` accepté en query string pour les flux SSE (limitation `EventSource`) → le JWT peut fuiter dans les logs des proxys. Connu et documenté ; à remplacer par des jetons courts signés à usage unique. TTL 15 min limite l'exposition. |
 | Chiffrement au repos | ✅ | AES-256-GCM (IV aléatoire par valeur) sur données santé + jetons OAuth. Au-dessus du standard pour une bêta. |
 
-💡 Avant la bêta : `state` OAuth signé + extension du rate limiting. Le reste (jetons SSE courts,
-Dependabot) peut se faire pendant la bêta.
+💡 Les deux correctifs pré-bêta (`state` OAuth signé, extension du rate limiting) sont faits.
+Le reste (jetons SSE courts, Dependabot) peut se faire pendant la bêta.
 
 ---
 
@@ -204,9 +204,10 @@ sinon chaque ticket devient un échange d'écrans par email. Peut se faire en �
 | Export des données personnelles | ✅ | Portabilité self-service côté athlète (`GET /me/export`). |
 | Suppression de compte (athlète) | ✅ | Droit à l'oubli self-service, purge en cascade, loggé. |
 | Suppression de compte (coach) | ⚠️ | Un admin peut supprimer un utilisateur, mais pas de self-service coach. Acceptable en bêta (suppression sur demande) si documenté dans la politique de confidentialité. |
-| **Politique de confidentialité** | ❌ | **Aucune page trouvée dans le front. Obligatoire avant tout utilisateur réel** — d'autant plus avec des données de santé. |
-| **Mentions légales** | ❌ | Absentes. Obligatoires (LCEN) dès que le service est accessible au public, même en bêta. |
-| CGU | ❌ | Fortement recommandées en bêta : cadrer « service en test, sans garantie », limiter la responsabilité. |
+| **Politique de confidentialité** | ⚠️ | Page publiée (`/legal/confidentialite`) : données de santé art. 9, sous-traitants, droits, conservation. **Reste à compléter `LEGAL_OWNER`** (nom, statut, adresse de l'éditeur) dans `front/src/app/features/public/legal.component.ts` et faire relire le texte. |
+| **Mentions légales** | ⚠️ | Page publiée (`/legal/mentions-legales`), hébergeurs renseignés (Railway/Vercel). Mêmes coordonnées `LEGAL_OWNER` à compléter. |
+| CGU | ⚠️ | Page publiée (`/legal/cgu`) : clause bêta (« en l'état », disponibilité et conservation non garanties), avertissement santé, responsabilité du coach. À faire relire. |
+| Consentement CGU | ✅ | Case obligatoire à l'inscription coach et à l'acceptation d'invitation coach, horodatée en base (`users.terms_accepted_at`, migration 058). |
 | Cookies / consentement | ✅ | Pas de cookie tiers ni de tracking marketing (JWT en storage, Sentry = intérêt légitime à mentionner dans la politique). **Pas de bannière cookies nécessaire en l'état** — le rester le plus longtemps possible. |
 | Registre des traitements / DPO | ⚠️ | Un registre simple (tableur) suffit à cette échelle ; pas de DPO requis. À faire sans bloquer la bêta. |
 
@@ -249,12 +250,12 @@ contenant une migration**. Ajouter un tag git par déploiement notable et incré
 ## 14. Checklist « Beta Ready »
 
 ### 🔴 Indispensable avant la bêta (bloquant)
-1. **Backups actifs** : backups Railway activés + `pg_dump` quotidien externalisé (script existant + cron/Action planifiée) + **un test de restauration réussi**.
+1. **Backups actifs** : ⚠️ **workflow en place** (`.github/workflows/db-backup.yml` : dump quotidien chiffré AES-256 → artefact GitHub 14 j). Reste : créer les 2 secrets GitHub (`BACKUP_DATABASE_URL`, `BACKUP_ENCRYPTION_KEY`), activer les backups Railway, lancer un run manuel puis **un test de restauration réussi** (procédure : `OPERATIONS.md` §1–2).
 2. **Emails activés** : domaine acheté et vérifié dans Resend (SPF/DKIM), `MAIL_ENABLED=true`, test des 4 emails clés (reset mot de passe, invitation athlète, invitation coach, rappel J-1). Sans cela, « mot de passe oublié » est une impasse.
 3. **Sentry actif** (DSN back + front) + **uptime monitor** sur `/api/actuator/health` avec alerte.
-4. **Pages légales** : politique de confidentialité (données de santé + sous-traitants), mentions légales, CGU bêta, consentement à l'inscription.
+4. **Pages légales** : ⚠️ **quasi fait** — pages `/legal/*` publiées + consentement horodaté à l'inscription. Reste : compléter les coordonnées de l'éditeur (`LEGAL_OWNER`) et relire les textes.
 5. **Domaine custom** branché sur Vercel (prérequis de l'item 2, et crédibilité).
-6. **Correctifs sécurité rapides** : rate limiting sur `/public/password-reset` et `/auth/refresh` ; paramètre `state` signé sur l'OAuth Strava.
+6. ~~**Correctifs sécurité rapides** : rate limiting sur `/public/password-reset` et `/auth/refresh` ; paramètre `state` signé sur l'OAuth Strava.~~ ✅ **Fait** (state HMAC TTL 10 min + rate limiting par bucket sur login/register/refresh/password-reset/verify-email/invitations).
 
 ### 🟠 Important — à faire dans les 2 premières semaines
 7. Impersonation admin lecture seule (support bêta).

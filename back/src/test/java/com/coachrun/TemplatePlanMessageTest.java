@@ -38,7 +38,7 @@ class TemplatePlanMessageTest {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"p1-%s@test.fr","password":"password123","fullName":"Coach P1","clubName":"P1 %s"}
+                                {"email":"p1-%s@test.fr","password":"password123","fullName":"Coach P1","termsAccepted": true, "clubName":"P1 %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andReturn().getResponse().getContentAsString());
         String token = auth.get("accessToken").asText();

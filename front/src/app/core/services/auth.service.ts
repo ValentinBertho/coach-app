@@ -149,9 +149,11 @@ export class AuthService {
   }
 
   /** Onboarding coach par lien magique : définit le mot de passe et ouvre la session. */
-  acceptCoachInvitation(token: string, password: string, fullName?: string): Observable<AuthResponse> {
+  acceptCoachInvitation(token: string, password: string, fullName?: string,
+                        termsAccepted?: boolean): Observable<AuthResponse> {
     return this.http
-      .post<AuthResponse>(`${environment.apiUrl}/public/coach-invitations/${token}/accept`, { password, fullName })
+      .post<AuthResponse>(`${environment.apiUrl}/public/coach-invitations/${token}/accept`,
+        { password, fullName, termsAccepted })
       .pipe(tap((res) => this.applySession(res)));
   }
 

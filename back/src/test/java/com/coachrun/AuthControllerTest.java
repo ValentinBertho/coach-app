@@ -31,10 +31,22 @@ class AuthControllerTest {
     }
 
     @Test
+    void register_requires_terms_acceptance() throws Exception {
+        MockMvc mvc = mockMvc();
+        // Sans acceptation des CGU (absente ou false) → 400 (RGPD : consentement requis).
+        String withoutTerms = """
+                {"email":"noterms@test.fr","password":"password123","fullName":"No Terms","clubName":"NT Club"}
+                """;
+        mvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON).content(withoutTerms))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void register_login_me_flow() throws Exception {
         MockMvc mvc = mockMvc();
         String registerBody = """
-                {"email":"coach@test.fr","password":"password123","fullName":"Test Coach","clubName":"Team Test"}
+                {"email":"coach@test.fr","password":"password123","fullName":"Test Coach","termsAccepted": true, "clubName":"Team Test"}
                 """;
 
         String response = mvc.perform(post("/auth/register")
@@ -67,7 +79,7 @@ class AuthControllerTest {
     void logoutRevokesToken() throws Exception {
         MockMvc mvc = mockMvc();
         String registerBody = """
-                {"email":"logout-%s@test.fr","password":"password123","fullName":"X","clubName":"L %s"}
+                {"email":"logout-%s@test.fr","password":"password123","fullName":"X","termsAccepted": true, "clubName":"L %s"}
                 """.formatted(java.util.UUID.randomUUID(), java.util.UUID.randomUUID());
         JsonNode json = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON).content(registerBody))
@@ -87,7 +99,7 @@ class AuthControllerTest {
     void register_duplicateEmail_returns409() throws Exception {
         MockMvc mvc = mockMvc();
         String body = """
-                {"email":"dup@test.fr","password":"password123","fullName":"Dup","clubName":"Dup Club"}
+                {"email":"dup@test.fr","password":"password123","fullName":"Dup","termsAccepted": true, "clubName":"Dup Club"}
                 """;
         mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated());

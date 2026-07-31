@@ -35,7 +35,7 @@ class WorkoutControllerTest {
 
     private String[] coachWithAthlete(MockMvc mvc) throws Exception {
         String reg = """
-                {"email":"w-%s@test.fr","password":"password123","fullName":"C","clubName":"WC %s"}
+                {"email":"w-%s@test.fr","password":"password123","fullName":"C","termsAccepted": true, "clubName":"WC %s"}
                 """.formatted(UUID.randomUUID(), UUID.randomUUID());
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON).content(reg))

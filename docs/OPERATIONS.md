@@ -22,7 +22,31 @@ BACKUP_DIR=/var/backups/darilab RETENTION_DAYS=14 \
 ./ops/backup-db.sh
 ```
 
-### Pas-à-pas (serveur Linux)
+### Pas-à-pas (GitHub Actions — recommandé sans serveur dédié) ✅ en place
+
+Le workflow [`.github/workflows/db-backup.yml`](../.github/workflows/db-backup.yml) fait un
+`pg_dump` **quotidien à 02:30 UTC** de la base Railway, vérifie l'intégrité, **chiffre le dump
+(AES-256)** et le stocke en **artefact GitHub (rétention 14 jours)** — donc hors de
+l'infrastructure Railway.
+
+Mise en service (une fois) :
+1. Railway → service PostgreSQL → *Connect* → copier l'URL **Public Network**
+   (`postgresql://…@…railway.app:PORT/railway`).
+2. GitHub → *Settings → Secrets and variables → Actions* → créer :
+   - `BACKUP_DATABASE_URL` = l'URL copiée ;
+   - `BACKUP_ENCRYPTION_KEY` = `openssl rand -hex 32`.
+     ⚠️ **Conserver cette clé aussi dans un gestionnaire de mots de passe** : sans elle,
+     les dumps sont définitivement illisibles.
+3. Onglet *Actions* → « Sauvegarde BDD » → **Run workflow** (test manuel) → vérifier que
+   l'artefact `darilab-….dump.enc` apparaît.
+4. **Tester une restauration** (cf. §2) au moins une fois avant la bêta.
+5. En cas d'échec (secret manquant, base injoignable), le job échoue et GitHub **notifie par
+   email**. NB : GitHub suspend les crons d'un dépôt inactif plus de 60 jours.
+
+> Activer **en plus** les backups managés de Railway (console → PostgreSQL → Backups) :
+> ceinture et bretelles.
+
+### Pas-à-pas (serveur Linux — alternative avec cron)
 1. **Installer le client PostgreSQL** (fournit `pg_dump` / `pg_restore`) — la version doit être
    ≥ à celle du serveur :
    ```bash
@@ -61,6 +85,11 @@ BACKUP_DIR=/var/backups/darilab RETENTION_DAYS=14 \
 
 ### Restauration complète sur une base neuve
 ```bash
+# 0. Si le dump vient du workflow GitHub Actions : télécharger l'artefact puis déchiffrer
+openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+  -in darilab-YYYYmmdd-HHMMSS.dump.enc -out darilab.dump \
+  -pass pass:'<BACKUP_ENCRYPTION_KEY>'
+
 # 1. Créer une base vide
 createdb -h HOST -U USER darilab_restore
 

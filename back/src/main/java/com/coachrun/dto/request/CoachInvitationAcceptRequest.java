@@ -8,5 +8,7 @@ import jakarta.validation.constraints.Size;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record CoachInvitationAcceptRequest(
         @NotBlank @Size(min = 8, max = 100) String password,
-        String fullName) {
+        String fullName,
+        /* Acceptation des CGU / confidentialité (horodatée si true). */
+        Boolean termsAccepted) {
 }

@@ -52,8 +52,8 @@ export class AthleteService {
   stravaAuthorizeUrl(id: string): Observable<{ url: string }> {
     return this.http.get<{ url: string }>(`${this.base()}/${id}/strava/authorize`);
   }
-  stravaConnect(id: string, code: string): Observable<StravaStatus> {
-    return this.http.post<StravaStatus>(`${this.base()}/${id}/strava/connect`, { code });
+  stravaConnect(id: string, code: string, state: string): Observable<StravaStatus> {
+    return this.http.post<StravaStatus>(`${this.base()}/${id}/strava/connect`, { code, state });
   }
   stravaImport(id: string): Observable<{ imported: number }> {
     return this.http.post<{ imported: number }>(`${this.base()}/${id}/strava/import`, {});

@@ -287,7 +287,7 @@ Transparence sur ce qui reste à durcir (détail et priorisation dans
 - **SSE mono-instance** : les émetteurs sont en mémoire → nécessite Redis pub/sub pour le multi-pod.
 - **Jeton en query param** pour le flux SSE et le téléchargement des pièces jointes → à remplacer par
   des jetons courts signés.
-- **`state` OAuth Strava** à signer (nonce anti-CSRF) ; **import Strava** par polling (webhook à venir).
+- **Import Strava** par polling (webhook à venir) — le `state` OAuth est désormais signé (HMAC, TTL 10 min).
 - **Pagination** à généraliser sur les listes non bornées (fil de messages, résultats…).
 - **Pièces jointes en base** (`bytea`) → stockage objet (S3) à plus grande échelle.
 

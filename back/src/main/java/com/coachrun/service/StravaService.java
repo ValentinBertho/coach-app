@@ -44,6 +44,7 @@ public class StravaService {
     private final DeviceConnectionRepository connectionRepository;
     private final AthleteRepository athleteRepository;
     private final ActivityService activityService;
+    private final com.coachrun.security.OAuthStateCodec stateCodec;
 
     public StravaStatusResponse status(UUID clubId, UUID athleteId) {
         requireAthlete(clubId, athleteId);
@@ -55,7 +56,7 @@ public class StravaService {
                 conn != null ? conn.getLastImportEpoch() : null);
     }
 
-    /** URL d'autorisation Strava (l'athleteId transite par le paramètre state). */
+    /** URL d'autorisation Strava (l'athleteId transite par le paramètre state, signé anti-CSRF). */
     public String authorizeUrl(UUID clubId, UUID athleteId) {
         requireAthlete(clubId, athleteId);
         requireConfigured();
@@ -65,14 +66,15 @@ public class StravaService {
                 .queryParam("redirect_uri", client.redirectUri())
                 .queryParam("approval_prompt", "auto")
                 .queryParam("scope", SCOPE)
-                .queryParam("state", athleteId)
+                .queryParam("state", stateCodec.issue(athleteId))
                 .build().toUriString();
     }
 
     @Transactional
-    public StravaStatusResponse connect(UUID clubId, UUID athleteId, String code) {
+    public StravaStatusResponse connect(UUID clubId, UUID athleteId, String code, String state) {
         Athlete athlete = requireAthlete(clubId, athleteId);
         requireConfigured();
+        stateCodec.verify(state, athleteId);
         if (code == null || code.isBlank()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Code d'autorisation manquant.");
         }
@@ -148,8 +150,8 @@ public class StravaService {
     }
 
     @Transactional
-    public StravaStatusResponse connectForAthlete(UUID athleteId, String code) {
-        return connect(clubIdOf(athleteId), athleteId, code);
+    public StravaStatusResponse connectForAthlete(UUID athleteId, String code, String state) {
+        return connect(clubIdOf(athleteId), athleteId, code, state);
     }
 
     @Transactional

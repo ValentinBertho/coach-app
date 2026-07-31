@@ -104,4 +104,8 @@ public class User extends BaseEntity {
 
     @Column(name = "verify_expires_at")
     private java.time.Instant verifyExpiresAt;
+
+    /** Preuve de consentement RGPD : acceptation des CGU / politique de confidentialité. */
+    @Column(name = "terms_accepted_at")
+    private java.time.Instant termsAcceptedAt;
 }

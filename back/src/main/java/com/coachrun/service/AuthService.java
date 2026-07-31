@@ -78,6 +78,8 @@ public class AuthService {
         user.setEmailVerified(false);
         user.setVerifyToken(randomToken());
         user.setVerifyExpiresAt(java.time.Instant.now().plus(7, java.time.temporal.ChronoUnit.DAYS));
+        // Preuve de consentement RGPD (termsAccepted est garanti true par la validation).
+        user.setTermsAcceptedAt(java.time.Instant.now());
         user = userRepository.save(user);
 
         // Le créateur du club en est le propriétaire (membership multi-coach).
@@ -268,11 +270,15 @@ public class AuthService {
 
     /** Acceptation d'une invitation coach : définit le mot de passe et active le compte. */
     @Transactional
-    public AuthResponse acceptCoachInvitation(String token, String password, String fullName) {
+    public AuthResponse acceptCoachInvitation(String token, String password, String fullName,
+                                              Boolean termsAccepted) {
         User user = requireCoachInvite(token);
         user.setPasswordHash(passwordEncoder.encode(password));
         if (org.springframework.util.StringUtils.hasText(fullName)) {
             user.setFullName(fullName.trim());
+        }
+        if (Boolean.TRUE.equals(termsAccepted)) {
+            user.setTermsAcceptedAt(java.time.Instant.now());
         }
         user.setStatus(UserStatus.ACTIVE);
         user.setInviteToken(null);

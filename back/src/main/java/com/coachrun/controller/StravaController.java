@@ -38,12 +38,12 @@ public class StravaController {
         return Map.of("url", stravaService.authorizeUrl(clubId, athleteId));
     }
 
-    /** Finalise la connexion avec le code d'autorisation renvoyé par Strava. */
+    /** Finalise la connexion avec le code d'autorisation et le state signé renvoyés par Strava. */
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/connect")
     public StravaStatusResponse connect(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                         @RequestBody Map<String, String> body) {
-        return stravaService.connect(clubId, athleteId, body.get("code"));
+        return stravaService.connect(clubId, athleteId, body.get("code"), body.get("state"));
     }
 
     /** Importe les nouvelles activités Strava. */

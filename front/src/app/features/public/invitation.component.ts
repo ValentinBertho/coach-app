@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
 import { AuthService } from '../../core/services/auth.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
@@ -22,7 +22,7 @@ type State = 'loading' | 'ok' | 'invalid';
   selector: 'app-invitation',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LogoComponent],
+  imports: [FormsModule, LogoComponent, RouterLink],
   template: `
     <main class="invite-page">
       <div class="card invite-card">
@@ -50,7 +50,8 @@ type State = 'loading' | 'ok' | 'invalid';
             <label class="consent">
               <input type="checkbox" [(ngModel)]="consent" />
               <span>J'accepte la collecte de mes <strong>données physiologiques</strong> (FC, allure, ressenti)
-                pour le suivi de mon entraînement (RGPD, art. 9).</span>
+                pour le suivi de mon entraînement (RGPD, art. 9) — voir la
+                <a routerLink="/legal/confidentialite" target="_blank">politique de confidentialité</a>.</span>
             </label>
             @if (error()) { <p class="field-error">{{ error() }}</p> }
             <button type="button" class="btn btn-primary btn-lg" [disabled]="joining() || !canSubmit()" (click)="accept()">

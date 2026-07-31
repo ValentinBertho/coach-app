@@ -43,7 +43,7 @@ class AdminAccessTest {
 
     private String registerCoachToken(MockMvc mvc) throws Exception {
         String body = """
-                {"email":"adm-%s@test.fr","password":"password123","fullName":"C","clubName":"AdmC %s"}
+                {"email":"adm-%s@test.fr","password":"password123","fullName":"C","termsAccepted": true, "clubName":"AdmC %s"}
                 """.formatted(UUID.randomUUID(), UUID.randomUUID());
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON).content(body))
