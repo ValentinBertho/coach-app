@@ -305,7 +305,8 @@ Transparence sur ce qui reste à durcir (détail et priorisation dans
 | [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md) | déploiement Railway/Vercel + variables |
 | [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | **exploitation : Sentry, sauvegardes BDD, Actuator, CI (pas-à-pas)** |
 | [`docs/ATHLETE-ROADMAP.md`](./docs/ATHLETE-ROADMAP.md) | audit des données visibles par l'athlète + plan d'évolution |
-| [`docs/AUDIT-BETA-2026-06.md`](./docs/AUDIT-BETA-2026-06.md) | audit de préparation à la bêta, dette & plan d'action priorisé |
+| [`docs/AUDIT-BETA-READINESS-2026-07.md`](./docs/AUDIT-BETA-READINESS-2026-07.md) | audit de préparation à la bêta (infra, sécurité, RGPD, exploitation) |
+| [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md) | **runbook de mise en service : Resend, Sentry, uptime, backups (pas-à-pas)** |
 | [`docs/Claude.md`](./docs/Claude.md) | conventions de code (IA & humains) |
 
 > **Aide utilisateur intégrée** : chaque espace dispose d'un **centre d'aide** adapté à son profil
