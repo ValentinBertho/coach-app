@@ -306,6 +306,7 @@ Transparence sur ce qui reste à durcir (détail et priorisation dans
 | [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | **exploitation : Sentry, sauvegardes BDD, Actuator, CI (pas-à-pas)** |
 | [`docs/ATHLETE-ROADMAP.md`](./docs/ATHLETE-ROADMAP.md) | audit des données visibles par l'athlète + plan d'évolution |
 | [`docs/AUDIT-BETA-READINESS-2026-07.md`](./docs/AUDIT-BETA-READINESS-2026-07.md) | audit de préparation à la bêta (infra, sécurité, RGPD, exploitation) |
+| [`docs/AUDIT-RC-2026-07.md`](./docs/AUDIT-RC-2026-07.md) | **audit Release Candidate : parcours, image produit, e-mails, sécurité des sessions, cohérence métier** |
 | [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md) | **runbook de mise en service : Resend, Sentry, uptime, backups (pas-à-pas)** |
 | [`docs/Claude.md`](./docs/Claude.md) | conventions de code (IA & humains) |
 
