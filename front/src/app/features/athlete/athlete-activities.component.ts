@@ -97,6 +97,15 @@ import { formatPace, paceFrom } from '../../core/utils/pace';
               @if (a.avgHr != null) {
                 <span><app-icon name="heart-pulse" [size]="14" /> {{ a.avgHr }} bpm</span>
               }
+              @if (a.maxHr != null) {
+                <span><app-icon name="flame" [size]="14" /> {{ a.maxHr }} bpm max</span>
+              }
+              @if (a.avgCadence != null) {
+                <span><app-icon name="activity" [size]="14" /> {{ a.avgCadence }} ppm</span>
+              }
+              @if (a.avgPowerW != null) {
+                <span><app-icon name="zap" [size]="14" /> {{ a.avgPowerW }} W</span>
+              }
             </div>
             @if (selected() === a.id) {
               @if (routeEmpty()) {

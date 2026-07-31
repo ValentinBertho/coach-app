@@ -294,6 +294,18 @@ public class AthletePortalController {
         return activityService.listForAthlete(principal.athleteId());
     }
 
+    /**
+     * Je rattache (ou détache) une de mes sorties à une séance prescrite. L'algorithme se trompe
+     * — deux sorties le même jour, une séance déplacée — et son erreur était sans recours.
+     */
+    @PatchMapping("/activities/{activityId}/match")
+    public com.coachrun.dto.response.ActivityResponse matchMyActivity(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID activityId,
+            @RequestBody(required = false) com.coachrun.dto.request.ActivityMatchRequest request) {
+        return activityService.matchForAthlete(principal.athleteId(), activityId,
+                request != null ? request.workoutId() : null);
+    }
+
     /** Tracé GPS d'une de mes activités (carte). */
     @GetMapping("/activities/{activityId}/route")
     public java.util.List<double[]> myActivityRoute(

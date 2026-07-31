@@ -125,3 +125,5 @@ databaseChangeLog:
       file: db/changelog/changes/060-usual-session-time.yaml
   - include:
       file: db/changelog/changes/061-activity-feedback-prompt.yaml
+  - include:
+      file: db/changelog/changes/062-activity-strava-metrics.yaml

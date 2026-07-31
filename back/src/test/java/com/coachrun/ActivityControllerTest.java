@@ -115,6 +115,84 @@ class ActivityControllerTest {
                 .andExpect(jsonPath("$.durationDeltaS").value(100));
     }
 
+    /**
+     * Rapprochement manuel : l'algorithme se trompe, et son erreur était définitive —
+     * `matchedWorkoutId` n'était modifiable que dans un sens, sans jamais rendre son statut à la
+     * séance abandonnée.
+     */
+    @Test
+    void patchMatchReassignsTheActivityAndRestoresThePreviousWorkout() throws Exception {
+        MockMvc mvc = mockMvc();
+        JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"act5-%s@test.fr","password":"password123","fullName":"C","termsAccepted": true, "clubName":"AC5 %s"}
+                                """.formatted(UUID.randomUUID(), UUID.randomUUID())))
+                .andReturn().getResponse().getContentAsString());
+        String token = auth.get("accessToken").asText();
+        String clubId = auth.get("user").get("clubId").asText();
+        String athleteId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes", clubId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"A\",\"lastName\":\"B\"}"))
+                .andReturn().getResponse().getContentAsString()).get("id").asText();
+
+        // Deux séances le même jour : l'algorithme en choisit une, le coach corrige.
+        String first = createWorkout(mvc, token, clubId, athleteId, "10k matin", 10000);
+        String second = createWorkout(mvc, token, clubId, athleteId, "10k soir", 10000);
+
+        String activityId = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"source\":\"STRAVA\",\"externalId\":\"789\",\"activityDate\":\"2026-07-05\""
+                                        + ",\"distanceM\":10100,\"durationS\":2700}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        // Réaffectation explicite à la seconde séance.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .patch("/clubs/{c}/athletes/{a}/activities/{id}/match", clubId, athleteId, activityId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"workoutId\":\"" + second + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("MATCHED"))
+                .andExpect(jsonPath("$.matchedWorkoutId").value(second));
+
+        // La séance abandonnée redevient PLANIFIÉE : sans ça, elle resterait « réalisée » à tort.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/clubs/{c}/athletes/{a}/workouts/{w}", clubId, athleteId, first)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(jsonPath("$.status").value("PLANNED"));
+
+        // workoutId null = détachement.
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .patch("/clubs/{c}/athletes/{a}/activities/{id}/match", clubId, athleteId, activityId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"workoutId\":null}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UNMATCHED"))
+                .andExpect(jsonPath("$.matchedWorkoutId").doesNotExist());
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/clubs/{c}/athletes/{a}/workouts/{w}", clubId, athleteId, second)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(jsonPath("$.status").value("PLANNED"));
+    }
+
+    private String createWorkout(MockMvc mvc, String token, String clubId, String athleteId,
+                                 String title, int distanceM) throws Exception {
+        return objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scheduledDate\":\"2026-07-05\",\"type\":\"ENDURANCE\",\"title\":\"" + title
+                                + "\",\"targetDistanceM\":" + distanceM + ",\"targetDurationS\":2700}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+    }
+
     @Test
     void workoutWithoutActivityReturnsNoContent() throws Exception {
         MockMvc mvc = mockMvc();

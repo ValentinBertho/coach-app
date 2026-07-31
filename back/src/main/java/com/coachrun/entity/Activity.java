@@ -62,6 +62,22 @@ public class Activity extends BaseEntity {
     @Column(name = "elevation_gain_m")
     private Integer elevationGainM;
 
+    /** FC maximale relevée (bpm) — présente dans la réponse Strava, absente d'un GPX sans capteur. */
+    @Column(name = "max_hr")
+    private Integer maxHr;
+
+    /** Cadence moyenne en pas par minute (Strava la renvoie par jambe : doublée à l'import). */
+    @Column(name = "avg_cadence")
+    private Integer avgCadence;
+
+    /** Puissance moyenne (W), pour les athlètes équipés d'un capteur. */
+    @Column(name = "avg_power_w")
+    private Integer avgPowerW;
+
+    /** Dépense énergétique estimée (kcal). */
+    @Column(name = "calories")
+    private Integer calories;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 16)
     private ActivityStatus status = ActivityStatus.IMPORTED;
@@ -77,7 +93,7 @@ public class Activity extends BaseEntity {
     @Column(name = "feedback_prompted_at")
     private java.time.Instant feedbackPromptedAt;
 
-    /** Tracé GPS sous-échantillonné, JSON [[lat,lon],…] (import GPX/TCX). */
+    /** Tracé GPS sous-échantillonné, JSON [[lat,lon],…] (GPX/TCX ou polyline Strava décodée). */
     @Column(name = "route_json")
     private String routeJson;
 

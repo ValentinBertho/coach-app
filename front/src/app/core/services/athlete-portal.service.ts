@@ -188,6 +188,11 @@ export class AthletePortalService {
     return this.http.post<Unavailability>(`${this.base}/unavailabilities`, request);
   }
 
+  /** Je rattache (ou détache, avec `null`) une de mes sorties à une séance prescrite. */
+  matchActivity(activityId: string, workoutId: string | null): Observable<Activity> {
+    return this.http.patch<Activity>(`${this.base}/activities/${activityId}/match`, { workoutId });
+  }
+
   /** Je retire une indisponibilité que j'ai déclarée. */
   removeUnavailability(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/unavailabilities/${id}`);

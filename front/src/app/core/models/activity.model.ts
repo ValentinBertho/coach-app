@@ -11,6 +11,11 @@ export interface Activity {
   durationS: number | null;
   avgHr: number | null;
   elevationGainM: number | null;
+  /** Capteurs remontés par la montre (Strava) — nuls sur une saisie manuelle ou un GPX sans capteur. */
+  maxHr: number | null;
+  avgCadence: number | null;
+  avgPowerW: number | null;
+  calories: number | null;
   /** Allure moyenne en secondes par kilomètre (calculée backend). */
   paceSPerKm: number | null;
   status: ActivityStatus;

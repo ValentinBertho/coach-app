@@ -25,6 +25,10 @@ public record ActivityResponse(
         Integer durationS,
         Integer avgHr,
         Integer elevationGainM,
+        Integer maxHr,
+        Integer avgCadence,
+        Integer avgPowerW,
+        Integer calories,
         Integer paceSPerKm,
         ActivityStatus status,
         UUID matchedWorkoutId,
@@ -35,6 +39,7 @@ public record ActivityResponse(
         return new ActivityResponse(
                 a.getId(), a.getAthlete().getId(), a.getSource(), a.getActivityDate(), a.getTitle(),
                 a.getDistanceM(), a.getDurationS(), a.getAvgHr(), a.getElevationGainM(),
+                a.getMaxHr(), a.getAvgCadence(), a.getAvgPowerW(), a.getCalories(),
                 pace(a.getDistanceM(), a.getDurationS()),
                 a.getStatus(), a.getMatchedWorkoutId(), distanceDeltaM, durationDeltaS);
     }

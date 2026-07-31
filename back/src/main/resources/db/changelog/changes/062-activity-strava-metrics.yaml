@@ -1,0 +1,19 @@
+# ============================================================================
+# 062 — Métriques d'activité déjà présentes dans la réponse Strava.
+#   Le client ne désérialisait que 8 champs et jetait le reste : la FC max, la
+#   cadence et la puissance moyenne arrivaient à chaque synchro et étaient
+#   perdues. Colonnes additives et nullables (un GPX sans capteur les laisse
+#   vides, une saisie manuelle aussi).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 062-activity-strava-metrics
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: activities
+            columns:
+              - column: { name: max_hr, type: INT }
+              - column: { name: avg_cadence, type: INT }
+              - column: { name: avg_power_w, type: INT }
+              - column: { name: calories, type: INT }

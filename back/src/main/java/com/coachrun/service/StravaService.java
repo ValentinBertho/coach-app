@@ -43,6 +43,8 @@ public class StravaService {
      * se synchronisent jamais et l'intégration paraît cassée.
      */
     private static final String SCOPE = "activity:read_all";
+    /** Échantillonnage des flux, aligné sur {@code GpxParser} : au-delà, la courbe n'y gagne rien. */
+    private static final int STREAM_MAX_POINTS = 400;
     /** Fenêtre d'import par défaut au premier import : 30 jours. */
     private static final long DEFAULT_LOOKBACK_SEC = 30L * 24 * 3600;
 
@@ -124,11 +126,18 @@ public class StravaService {
             if (a.id() == null || a.startDateLocal() == null) {
                 continue;
             }
+            // Les flux détaillés coûtent un appel par activité (quota Strava : 100 req / 15 min).
+            // On écarte donc les activités déjà connues AVANT d'aller les chercher : sur une
+            // synchro horaire, la quasi-totalité de la page renvoyée est déjà en base.
+            if (activityService.alreadyImported(athleteId, ActivitySource.STRAVA, String.valueOf(a.id()))) {
+                continue;
+            }
             try {
-                activityService.importActivity(clubId, athleteId, toImportRequest(a));
+                activityService.importActivity(clubId, athleteId, toImportRequest(a),
+                        extras(a, accessToken));
                 imported++;
             } catch (ConflictException dup) {
-                // Activité déjà importée : on ignore.
+                // Course entre deux synchros : l'activité vient d'être importée ailleurs.
             }
         }
         conn.setLastImportEpoch(Instant.now().getEpochSecond());
@@ -202,6 +211,55 @@ public class StravaService {
                 a.movingTime(),
                 a.averageHeartrate() != null ? (int) Math.round(a.averageHeartrate()) : null,
                 a.totalElevationGain() != null ? (int) Math.round(a.totalElevationGain()) : null);
+    }
+
+    /**
+     * Capteurs, tracé et flux d'une activité Strava. Un athlète Strava n'avait ni carte ni temps
+     * en zone alors qu'un import GPX lui donnait les deux : le tracé arrivait déjà (polyline
+     * encodée) et les flux ne demandaient qu'un appel de plus.
+     */
+    private ActivityService.ImportExtras extras(StravaActivity a, String accessToken) {
+        String polyline = a.map() != null ? a.map().summaryPolyline() : null;
+        return new ActivityService.ImportExtras(
+                round(a.maxHeartrate()),
+                // Strava compte la cadence par jambe : on la double pour rester en pas/min.
+                a.averageCadence() != null ? (int) Math.round(a.averageCadence() * 2) : null,
+                round(a.averageWatts()),
+                round(a.calories()),
+                com.coachrun.util.PolylineDecoder.decode(polyline),
+                toStream(client.activityStreams(accessToken, a.id())));
+    }
+
+    private Integer round(Double value) {
+        return value != null ? (int) Math.round(value) : null;
+    }
+
+    /**
+     * Convertit les flux Strava au format de {@code GpxParser.buildStream()} :
+     * {@code [elapsedS, hr, paceSecPerKm]}, -1 pour une valeur absente. Le temps-en-zone et la
+     * courbe d'allure n'ont alors rien à savoir de la source.
+     */
+    private java.util.List<int[]> toStream(StravaClient.ActivityStreams streams) {
+        if (streams == null || streams.time().isEmpty()) {
+            return java.util.List.of();
+        }
+        java.util.List<Double> time = streams.time();
+        java.util.List<Double> hr = streams.heartrate();
+        java.util.List<Double> velocity = streams.velocity();
+
+        int step = Math.max(1, time.size() / STREAM_MAX_POINTS);
+        java.util.List<int[]> stream = new java.util.ArrayList<>();
+        for (int i = 0; i < time.size(); i += step) {
+            int elapsed = (int) Math.round(time.get(i));
+            int bpm = i < hr.size() && hr.get(i) != null ? (int) Math.round(hr.get(i)) : -1;
+            int pace = -1;
+            if (i < velocity.size() && velocity.get(i) != null && velocity.get(i) > 0.3) {
+                // En dessous de 0,3 m/s l'athlète est à l'arrêt : l'allure n'a pas de sens.
+                pace = (int) Math.round(1000.0 / velocity.get(i));
+            }
+            stream.add(new int[] {elapsed, bpm, pace});
+        }
+        return stream;
     }
 
     private void requireConfigured() {

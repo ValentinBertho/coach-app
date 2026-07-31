@@ -6,7 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.util.List;
 
@@ -96,6 +98,62 @@ public class StravaClient {
     public record StravaAthlete(Long id) {
     }
 
+    /**
+     * Flux détaillés d'une activité (séries alignées sur le même index) : temps écoulé, fréquence
+     * cardiaque et vitesse instantanée. Alimente le temps-en-zone, que seul l'import GPX
+     * remplissait jusqu'ici.
+     *
+     * <p>Un appel par activité : à réserver aux activités <strong>nouvellement</strong> importées,
+     * le quota Strava étant de 100 requêtes / 15 min.</p>
+     *
+     * @return les flux, ou {@code null} si l'activité n'en a pas (tapis, saisie manuelle) ou si le
+     *         quota est atteint — dans tous les cas la synchro continue sans eux
+     */
+    public ActivityStreams activityStreams(String accessToken, long activityId) {
+        try {
+            StreamSet body = api.get()
+                    .uri(uri -> uri.path("/activities/{id}/streams")
+                            .queryParam("keys", "time,heartrate,velocity_smooth")
+                            .queryParam("key_by_type", true).build(activityId))
+                    .header("Authorization", "Bearer " + accessToken)
+                    .retrieve().body(StreamSet.class);
+            return body == null ? null : new ActivityStreams(
+                    values(body.time()), values(body.heartrate()), values(body.velocitySmooth()));
+        } catch (HttpClientErrorException.TooManyRequests ex) {
+            // Quota Strava (100 req / 15 min) : on journalise et on continue sans les flux.
+            log.warn("Quota Strava atteint sur les flux de l'activité {} — import poursuivi sans "
+                    + "temps-en-zone", activityId);
+            return null;
+        } catch (RestClientException ex) {
+            log.warn("Flux Strava indisponibles pour l'activité {} : {}", activityId, ex.getMessage());
+            return null;
+        }
+    }
+
+    private static List<Double> values(Stream stream) {
+        return stream == null || stream.data() == null ? List.of() : stream.data();
+    }
+
+    /** Flux d'une activité : secondes écoulées, FC (bpm) et vitesse (m/s), même longueur. */
+    public record ActivityStreams(List<Double> time, List<Double> heartrate, List<Double> velocity) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record StreamSet(
+            Stream time,
+            Stream heartrate,
+            @JsonProperty("velocity_smooth") Stream velocitySmooth) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Stream(List<Double> data) {
+    }
+
+    /**
+     * Activité Strava. Le client ne désérialisait que 8 champs et jetait le reste de la même
+     * réponse : la FC max, la cadence, la puissance et surtout le tracé (« summary_polyline »)
+     * étaient perdus alors qu'ils arrivaient déjà.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record StravaActivity(
             Long id,
@@ -105,6 +163,21 @@ public class StravaClient {
             @JsonProperty("moving_time") Integer movingTime,
             @JsonProperty("total_elevation_gain") Double totalElevationGain,
             @JsonProperty("average_heartrate") Double averageHeartrate,
+            @JsonProperty("max_heartrate") Double maxHeartrate,
+            @JsonProperty("average_speed") Double averageSpeed,
+            @JsonProperty("average_cadence") Double averageCadence,
+            @JsonProperty("average_watts") Double averageWatts,
+            Double calories,
+            @JsonProperty("suffer_score") Double sufferScore,
+            @JsonProperty("gear_id") String gearId,
+            @JsonProperty("workout_type") Integer workoutType,
+            @JsonProperty("pr_count") Integer prCount,
+            ActivityMap map,
             @JsonProperty("start_date_local") String startDateLocal) {
+    }
+
+    /** Carte de l'activité : le tracé encodé (Google Encoded Polyline). */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ActivityMap(String id, @JsonProperty("summary_polyline") String summaryPolyline) {
     }
 }
