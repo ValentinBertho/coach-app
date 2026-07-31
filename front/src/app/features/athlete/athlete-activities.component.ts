@@ -13,6 +13,7 @@ import {
   ACTIVITY_STATUS_BADGE, ACTIVITY_STATUS_LABELS, Activity,
 } from '../../core/models/activity.model';
 import { formatPace, paceFrom } from '../../core/utils/pace';
+import { TimeInZoneBarComponent } from '../../shared/components/time-in-zone-bar/time-in-zone-bar.component';
 
 /**
  * Mes activités réalisées (athlète, lecture seule) — liste + tracé GPS (Leaflet).
@@ -22,7 +23,7 @@ import { formatPace, paceFrom } from '../../core/utils/pace';
   selector: 'app-athlete-activities',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, IconComponent],
+  imports: [DatePipe, DecimalPipe, FormsModule, RouterLink, IconComponent, TimeInZoneBarComponent],
   template: `
     <div class="acts">
       <header class="acts-top">
@@ -113,6 +114,11 @@ import { formatPace, paceFrom } from '../../core/utils/pace';
               } @else {
                 <div class="map" #map></div>
               }
+              <!-- Temps en zone : le coach l'avait déjà, l'athlète le voit enfin sur ses propres
+                   sorties (l'endpoint /me/ manquait, le composant existait). -->
+              <div class="row-zones">
+                <app-time-in-zone-bar [activityId]="a.id" />
+              </div>
             }
           </article>
         }
@@ -138,6 +144,7 @@ import { formatPace, paceFrom } from '../../core/utils/pace';
     .row-kpis span { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
     .map { height: 260px; width: 100%; }
     .map-empty { padding: 0 var(--sp-4) var(--sp-4); }
+    .row-zones { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--hairline); }
   `],
 })
 export class AthleteActivitiesComponent implements OnInit, OnDestroy {

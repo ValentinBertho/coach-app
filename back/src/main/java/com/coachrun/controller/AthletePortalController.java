@@ -60,6 +60,7 @@ public class AthletePortalController {
     private final com.coachrun.service.DailyCheckInService checkInService;
     private final com.coachrun.service.ClockService clock;
     private final com.coachrun.service.FeedbackStreakService streakService;
+    private final com.coachrun.service.TimeInZoneService timeInZoneService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -285,6 +286,20 @@ public class AthletePortalController {
             @AuthenticationPrincipal AuthPrincipal principal,
             @RequestParam(defaultValue = "8") int weeks) {
         return analyticsService.computeForAthlete(principal.athleteId(), weeks);
+    }
+
+    /** Ma semaine en un chiffre : « 32/45 km, 3 séances sur 5 ». */
+    @GetMapping("/week-summary")
+    public com.coachrun.dto.response.WeekSummaryResponse myWeekSummary(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return analyticsService.weekSummary(principal.athleteId());
+    }
+
+    /** Temps passé par zone pour une de mes activités (l'endpoint coach existait déjà). */
+    @GetMapping("/activities/{activityId}/time-in-zone")
+    public com.coachrun.dto.response.TimeInZoneResponse myActivityTimeInZone(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID activityId) {
+        return timeInZoneService.forActivityOfAthlete(principal.athleteId(), activityId);
     }
 
     /** Mes activités réalisées (Strava/GPX/manuel), du plus récent au plus ancien. */

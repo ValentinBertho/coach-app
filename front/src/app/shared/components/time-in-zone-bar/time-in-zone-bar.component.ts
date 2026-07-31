@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
 import { TimeInZone } from '../../../core/models/activity.model';
 import { ActivityService } from '../../../core/services/activity.service';
+import { AthletePortalService } from '../../../core/services/athlete-portal.service';
 
 /**
  * Barre « Zones d'entraînement » (temps-en-zone) d'une activité réalisée, façon Nolio : une barre
@@ -40,7 +41,7 @@ import { ActivityService } from '../../../core/services/activity.service';
         }
       </div>
     } @else {
-      <p class="tiz-empty field-hint">Pas de flux FC/allure sur cette activité (importez un GPX/TCX avec FC).</p>
+      <p class="tiz-empty field-hint">Pas de flux FC/allure sur cette activité (saisie manuelle, ou montre sans capteur).</p>
     }
   `,
   styles: [`
@@ -60,10 +61,15 @@ import { ActivityService } from '../../../core/services/activity.service';
   `],
 })
 export class TimeInZoneBarComponent {
-  readonly athleteId = input.required<string>();
+  /**
+   * Athlète ciblé (écrans coach). Laissé vide sur le portail athlète : la route `/me/` est alors
+   * utilisée, le composant restant identique des deux côtés.
+   */
+  readonly athleteId = input<string | null>(null);
   readonly activityId = input.required<string>();
 
   private readonly activityService = inject(ActivityService);
+  private readonly portal = inject(AthletePortalService);
 
   readonly loading = signal(true);
   readonly data = signal<TimeInZone | null>(null);
@@ -73,13 +79,16 @@ export class TimeInZoneBarComponent {
     effect(() => {
       const a = this.athleteId();
       const id = this.activityId();
-      if (a && id) this.fetch(a, id);
+      if (id) this.fetch(a, id);
     }, { allowSignalWrites: true });
   }
 
-  private fetch(athleteId: string, activityId: string): void {
+  private fetch(athleteId: string | null, activityId: string): void {
     this.loading.set(true);
-    this.activityService.timeInZone(athleteId, activityId).subscribe({
+    const request = athleteId
+      ? this.activityService.timeInZone(athleteId, activityId)
+      : this.portal.activityTimeInZone(activityId);
+    request.subscribe({
       next: (d) => { this.data.set(d); this.loading.set(false); },
       error: () => { this.data.set(null); this.loading.set(false); },
     });

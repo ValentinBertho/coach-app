@@ -30,6 +30,8 @@ class AthletePortalTest {
     private WebApplicationContext context;
     @Autowired
     private ObjectMapper objectMapper;
+    @Autowired
+    private com.coachrun.repository.UserRepository userRepository;
 
     private MockMvc mockMvc() {
         return MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
@@ -47,6 +49,7 @@ class AthletePortalTest {
                 .andReturn().getResponse().getContentAsString());
         String coachToken = auth.get("accessToken").asText();
         String clubId = auth.get("user").get("clubId").asText();
+        verifyCoachEmail(clubId);
 
         String athleteId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes", clubId)
                         .header("Authorization", "Bearer " + coachToken)
@@ -90,6 +93,13 @@ class AthletePortalTest {
                 .andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.rpe").value(7));
 
+        // « Ma semaine » : le chiffre que l'athlète regarde vraiment (« 0/0 km, 1 séance sur 1 »).
+        mvc.perform(get("/me/week-summary").header("Authorization", "Bearer " + athToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.plannedSessions").value(1))
+                .andExpect(jsonPath("$.completedSessions").value(1))
+                .andExpect(jsonPath("$.weekStart").exists());
+
         // un athlète ne peut PAS accéder aux routes coach du club
         mvc.perform(get("/clubs/{c}/athletes", clubId)
                         .header("Authorization", "Bearer " + athToken))
@@ -104,5 +114,18 @@ class AthletePortalTest {
         // RGPD — droit à l'oubli
         mvc.perform(delete("/me").header("Authorization", "Bearer " + athToken))
                 .andExpect(status().isNoContent());
+    }
+
+    /**
+     * Confirme l'adresse du coach : depuis le lot 7, inviter un athlète (donc envoyer un e-mail à
+     * un tiers) exige une adresse vérifiée. Le jeton de vérification n'est pas exposé par l'API.
+     */
+    private void verifyCoachEmail(String clubId) {
+        com.coachrun.entity.User user = userRepository.findAll().stream()
+                .filter(u -> u.getClub() != null && clubId.equals(u.getClub().getId().toString()))
+                .filter(u -> u.getRole() == com.coachrun.entity.enums.UserRole.HEAD_COACH)
+                .findFirst().orElseThrow();
+        user.setEmailVerified(true);
+        userRepository.saveAndFlush(user);
     }
 }

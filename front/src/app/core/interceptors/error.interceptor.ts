@@ -27,6 +27,28 @@ const FORM_HANDLED_PATTERNS = [
 ];
 
 /**
+ * Message d'un 400 de validation. Le `GlobalExceptionHandler` renvoie déjà un `fieldErrors`
+ * {champ: message} : afficher « Requête invalide » sans dire quel champ oblige l'utilisateur à
+ * deviner. On nomme les champs fautifs (au plus trois, le toast n'est pas un formulaire).
+ */
+function validationMessage(error: HttpErrorResponse): string {
+  const fieldErrors: Record<string, string> | undefined = error.error?.fieldErrors;
+  const entries = fieldErrors ? Object.entries(fieldErrors) : [];
+  if (entries.length === 0) {
+    return error.error?.message ?? 'Requête invalide.';
+  }
+  const shown = entries.slice(0, 3).map(([field, message]) => `${label(field)} : ${message}`);
+  const rest = entries.length - shown.length;
+  return shown.join(' · ') + (rest > 0 ? ` (+${rest})` : '');
+}
+
+/** Nom de champ lisible : `targetDistanceM` → « Target distance m ». */
+function label(field: string): string {
+  const words = field.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
  * Intercepteur d'erreurs global → toasts par code. Sur 401 d'une route protégée, tente d'abord
  * un rafraîchissement silencieux de l'access token (via le refresh token) puis rejoue la requête ;
  * ne déconnecte qu'en cas d'échec du refresh. Évite la déconnexion à chaque expiration (15 min).
@@ -72,6 +94,15 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
             break;
           case 404:
             toast.error('Ressource introuvable.');
+            break;
+          case 400:
+            toast.error(validationMessage(error));
+            break;
+          case 413:
+            toast.error(error.error?.message ?? 'Fichier trop volumineux.');
+            break;
+          case 429:
+            toast.error(error.error?.message ?? 'Trop de requêtes — réessaie dans un instant.');
             break;
           default:
             toast.error(error.error?.message ?? 'Une erreur est survenue.');

@@ -66,3 +66,12 @@ export interface TimeInZoneScale {
 export interface TimeInZone {
   scales: TimeInZoneScale[];
 }
+
+/** Récapitulatif chiffré de la semaine en cours pour l'athlète. */
+export interface WeekSummary {
+  weekStart: string;
+  plannedKm: number;
+  realizedKm: number;
+  plannedSessions: number;
+  completedSessions: number;
+}
