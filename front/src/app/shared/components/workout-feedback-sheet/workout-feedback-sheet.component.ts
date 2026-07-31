@@ -8,7 +8,7 @@ import { ToastService } from '../../../core/services/toast.service';
 import { IconComponent } from '../icon/icon.component';
 import { PainFatigueSelectorComponent } from '../physiology';
 import { BottomSheetComponent } from '../ui';
-import { RPE_SCALE, rpeLabel } from '../rpe-scale';
+import { RpeScaleSelectorComponent } from '../rpe-scale-selector/rpe-scale-selector.component';
 
 /**
  * Retour de séance course (RPE + fatigue + douleur + commentaire), en bottom sheet ~10 s.
@@ -24,7 +24,7 @@ import { RPE_SCALE, rpeLabel } from '../rpe-scale';
   selector: 'app-workout-feedback-sheet',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, IconComponent, BottomSheetComponent, PainFatigueSelectorComponent],
+  imports: [FormsModule, IconComponent, BottomSheetComponent, PainFatigueSelectorComponent, RpeScaleSelectorComponent],
   template: `
     <app-bottom-sheet [(open)]="open" [title]="sheetTitle()">
       @if (workout(); as w) {
@@ -32,18 +32,7 @@ import { RPE_SCALE, rpeLabel } from '../rpe-scale';
           <!-- Une séance rattrapée n'est plus « celle du jour » : on rappelle laquelle on note. -->
           @if (subtitle(); as s) { <p class="fb__lead">{{ w.title }}<br /><span class="field-hint">{{ s }}</span></p> }
 
-          <div class="rpe-row">
-            <span class="rpe-row__label">Effort perçu (RPE)</span>
-            <div class="rpe-scale">
-              @for (n of rpeScale; track n) {
-                <button type="button" class="rpe-dot" [class.active]="rpe() === n"
-                        [title]="label(n)" [attr.aria-label]="'RPE ' + n + ' — ' + label(n)"
-                        (click)="rpe.set(n)">{{ n }}</button>
-              }
-            </div>
-            <!-- Un chiffre nu ne veut rien dire : le repère verbal CR10 accompagne le choix. -->
-            @if (label(rpe()); as l) { <span class="rpe-word">{{ l }}</span> }
-          </div>
+          <app-rpe-scale-selector [(value)]="rpe" />
 
           <app-pain-fatigue-selector kind="fatigue" [(value)]="fatigue" />
           <app-pain-fatigue-selector kind="pain" [(value)]="pain" />
@@ -64,27 +53,6 @@ import { RPE_SCALE, rpeLabel } from '../rpe-scale';
     .fb__lead { margin: 0; font-weight: 700; color: var(--ink); }
     .fb__actions { display: flex; flex-direction: column; gap: var(--sp-2); }
     .fb__actions .btn { width: 100%; }
-
-    .rpe-row { display: flex; flex-direction: column; gap: var(--sp-2); }
-    .rpe-row__label { font-size: var(--text-sm); color: var(--ink-2); font-weight: 700; }
-    .rpe-scale { display: grid; grid-template-columns: repeat(10, 1fr); gap: var(--sp-1); }
-    .rpe-dot {
-      aspect-ratio: 1;
-      border: 1px solid var(--paper-sunk);
-      background: var(--paper);
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      font-weight: 700;
-      font-size: var(--text-sm);
-      min-height: 40px;
-      font-family: var(--font-data);
-      font-variant-numeric: tabular-nums;
-    }
-    .rpe-dot.active { background: var(--primary); color: #fff; border-color: var(--primary); }
-    .rpe-word {
-      display: block; margin-top: var(--sp-1);
-      font-size: var(--text-sm); font-weight: 700; color: var(--ink-2); text-align: right;
-    }
   `],
 })
 export class WorkoutFeedbackSheetComponent {
@@ -100,13 +68,10 @@ export class WorkoutFeedbackSheetComponent {
   /** Séance mise à jour (optimiste hors ligne) : l'appelant rafraîchit sa liste. */
   readonly saved = output<Workout>();
 
-  readonly rpeScale = RPE_SCALE;
   readonly rpe = signal<number | null>(null);
   readonly fatigue = signal<number | null>(null);
   readonly pain = signal<number | null>(null);
   readonly comment = signal('');
-
-  label(value: number | null | undefined): string { return rpeLabel(value); }
 
   protected sheetTitle(): string {
     return this.isLate() ? 'Ton ressenti (en retard)' : 'Ton ressenti';

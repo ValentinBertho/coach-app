@@ -31,9 +31,9 @@ import {
   RangePrescriptionPillComponent,
 } from '../../shared/components/physiology';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
+import { RpeScaleSelectorComponent } from '../../shared/components/rpe-scale-selector/rpe-scale-selector.component';
 import { HelpService } from '../help/help.service';
 import { HelpHintComponent } from '../help/help-hint.component';
-import { RPE_SCALE, rpeLabel } from '../../shared/components/rpe-scale';
 
 interface SetEntry { chargeKg: number | null; repsDone: number | null; rirDone: number | null; }
 
@@ -84,7 +84,7 @@ type State = 'loading' | 'ready' | 'error';
     FormsModule, RouterLink,
     LogoComponent, InstallButtonComponent, OfflineBannerComponent, PushButtonComponent, NotificationBellComponent,
     IntensityZoneBadgeComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
-    PainFatigueSelectorComponent, WorkoutFeedbackSheetComponent,
+    PainFatigueSelectorComponent, WorkoutFeedbackSheetComponent, RpeScaleSelectorComponent,
     CoursePrescriptionViewComponent, HelpHintComponent,
   ],
   templateUrl: './today.component.html',
@@ -104,10 +104,6 @@ export class TodayComponent implements OnInit {
   readonly stepLabels = STEP_TYPE_LABELS;
   readonly statusLabels = STATUS_LABELS;
   readonly statusBadge = STATUS_BADGE;
-  readonly rpeScale = RPE_SCALE;
-
-  /** Repère verbal CR10 de la valeur choisie (échelle partagée avec l'éditeur coach). */
-  rpeLabel(value: number | null | undefined): string { return rpeLabel(value); }
 
   /**
    * Recopie charge / reps / RIR de la série précédente. Sur mobile, une séance de 4 exercices
@@ -235,7 +231,7 @@ export class TodayComponent implements OnInit {
   }
 
   /** Sélection d'un RPE de séance de force (mutation + notification OnPush). */
-  setStrengthRpe(card: StrengthCard, n: number): void {
+  setStrengthRpe(card: StrengthCard, n: number | null): void {
     card.sRpe = n;
     this.strengthCards.set([...this.strengthCards()]);
   }

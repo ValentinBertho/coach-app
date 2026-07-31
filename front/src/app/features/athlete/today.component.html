@@ -172,18 +172,8 @@
                    sinon les alertes douleur / réathlétisation ne peuvent jamais se déclencher. -->
               <app-pain-fatigue-selector kind="fatigue" [(value)]="card.sFatigue" />
               <app-pain-fatigue-selector kind="pain" [(value)]="card.sPain" />
-              <div class="rpe-row">
-                <span class="rpe-row__label">RPE séance</span>
-                <div class="rpe-scale">
-                  @for (n of rpeScale; track n) {
-                    <button type="button" class="rpe-dot" [class.active]="card.sRpe === n"
-                            [title]="rpeLabel(n)" [attr.aria-label]="'RPE ' + n + ' — ' + rpeLabel(n)"
-                            (click)="setStrengthRpe(card, n)">{{ n }}</button>
-                  }
-                </div>
-                <!-- Un chiffre nu ne veut rien dire : le repère verbal CR10 accompagne le choix. -->
-                @if (rpeLabel(card.sRpe); as label) { <span class="rpe-word">{{ label }}</span> }
-              </div>
+              <app-rpe-scale-selector label="RPE séance" [value]="card.sRpe"
+                                      (valueChange)="setStrengthRpe(card, $event)" />
               <button type="button" class="btn btn-accent btn-lg" (click)="submitStrength(card, true)">Valider mes séries</button>
             </section>
 
