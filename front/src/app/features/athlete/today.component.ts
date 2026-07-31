@@ -12,6 +12,7 @@ import {
 } from '../../core/models/workout.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { ScheduledStrength } from '../../core/models/strength.model';
+import { Activity } from '../../core/models/activity.model';
 import { WorkoutPrescription } from '../../core/models/course.model';
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
 import { AuthService } from '../../core/services/auth.service';
@@ -86,6 +87,15 @@ export class TodayComponent implements OnInit {
   /** L'athlète a-t-il des allures de travail (VDOT) ? Sinon on l'invite à saisir une perf. */
   readonly hasPaces = signal(true);
 
+  /** Activités rapprochées d'une séance, indexées par séance : le réalisé remonté par la montre. */
+  private readonly matched = signal<Map<string, Activity>>(new Map());
+
+  /**
+   * Séances pour lesquelles la feuille s'est déjà ouverte toute seule. Une proposition qu'on
+   * décline doit rester déclinée : la même feuille rouverte à chaque visite serait une nuisance.
+   */
+  private static readonly PROPOSED_KEY = 'darilab.autoFeedbackProposed';
+
   /** Initiales pour l'avatar de la barre supérieure (porte d'entrée du Profil). */
   initials(): string {
     const parts = (this.user()?.fullName ?? '').trim().split(/\s+/).filter(Boolean);
@@ -96,6 +106,7 @@ export class TodayComponent implements OnInit {
     this.load();
     this.loadPending();
     this.loadStrength();
+    this.loadMatched();
     this.portal.nextRace().subscribe({ next: (r) => this.nextRace.set(r) });
     this.portal.vdot().subscribe({
       next: (v) => this.hasPaces.set((v.paces?.length ?? 0) > 0),
@@ -132,9 +143,53 @@ export class TodayComponent implements OnInit {
 
   loadPending(): void {
     this.portal.pendingFeedback(7).subscribe({
-      next: (list) => this.pending.set(list),
+      next: (list) => { this.pending.set(list); this.proposeMatched(); },
       error: () => this.pending.set([]),
     });
+  }
+
+  /** Le réalisé de la montre, indexé par séance rapprochée. */
+  private loadMatched(): void {
+    this.portal.activities().subscribe({
+      next: (list) => {
+        const map = new Map<string, Activity>();
+        for (const a of list) if (a.matchedWorkoutId) map.set(a.matchedWorkoutId, a);
+        this.matched.set(map);
+        this.proposeMatched();
+      },
+      error: () => this.matched.set(new Map()),
+    });
+  }
+
+  /**
+   * Quand la montre a déjà rapproché une sortie d'une séance non notée, on ouvre la feuille
+   * tout seul, réalisé affiché : il ne reste qu'à confirmer le ressenti. C'est le moment où
+   * l'athlète a le moins d'effort à faire, et celui où il oublie le plus.
+   */
+  private proposeMatched(): void {
+    const map = this.matched();
+    if (!map.size) return;
+    const candidates = [...this.workouts(), ...this.pending()].filter(awaitsFeedback);
+    const proposed = this.readProposed();
+    const target = candidates.find((w) => map.has(w.id) && !proposed.has(w.id));
+    if (!target) return;
+    this.rememberProposed(target.id);
+    this.openFeedback(target);
+  }
+
+  private readProposed(): Set<string> {
+    try {
+      const raw = localStorage.getItem(TodayComponent.PROPOSED_KEY);
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+  }
+
+  private rememberProposed(id: string): void {
+    const next = this.readProposed();
+    next.add(id);
+    // On borne : la liste ne sert qu'à ne pas reproposer, elle n'a pas à grandir sans fin.
+    try { localStorage.setItem(TodayComponent.PROPOSED_KEY, JSON.stringify([...next].slice(-50))); }
+    catch { /* stockage indisponible : au pire la feuille se rouvre une fois */ }
   }
 
   load(): void {
@@ -150,6 +205,7 @@ export class TodayComponent implements OnInit {
           });
         }
         this.state.set('ready');
+        this.proposeMatched();
       },
       error: () => this.state.set('error'),
     });
@@ -175,7 +231,7 @@ export class TodayComponent implements OnInit {
 
   /** Ouvre la feuille de ressenti — séance du jour comme séance en retard, même parcours. */
   openFeedback(w: Workout): void {
-    this.feedbackSheet()?.openFor(w);
+    this.feedbackSheet()?.openFor(w, this.matched().get(w.id) ?? null);
   }
 
   /**

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Workout } from '../../../core/models/workout.model';
+import { Activity } from '../../../core/models/activity.model';
 import { AthletePortalService } from '../../../core/services/athlete-portal.service';
 import { FeedbackQueueService } from '../../../core/services/feedback-queue.service';
 import { NetworkStatusService } from '../../../core/services/network-status.service';
@@ -33,6 +34,20 @@ import { RpeScaleSelectorComponent } from '../rpe-scale-selector/rpe-scale-selec
           <!-- Une séance rattrapée n'est plus « celle du jour » : on rappelle laquelle on note. -->
           @if (subtitle(); as s) { <p class="fb__lead">{{ w.title }}<br /><span class="field-hint">{{ s }}</span></p> }
 
+          <!-- Le réalisé remonté par la montre : l'athlète confirme, il ne ressaisit pas ce que
+               le capteur sait déjà. Le ressenti, lui, ne se mesure pas — c'est tout l'objet
+               de cette feuille. -->
+          @if (activity(); as a) {
+            <section class="fb__actual">
+              <span class="fb__actual-t"><app-icon name="watch" [size]="14" /> Ta sortie enregistrée</span>
+              <div class="fb__actual-v">
+                @if (a.distanceM) { <span class="metric">{{ (a.distanceM / 1000).toFixed(1) }} km</span> }
+                @if (a.durationS) { <span class="metric">{{ duration(a.durationS) }}</span> }
+                @if (a.avgHr) { <span class="metric">{{ a.avgHr }} bpm</span> }
+              </div>
+            </section>
+          }
+
           <app-rpe-scale-selector [(value)]="rpe" />
 
           <app-pain-fatigue-selector kind="fatigue" [(value)]="fatigue" />
@@ -54,6 +69,18 @@ import { RpeScaleSelectorComponent } from '../rpe-scale-selector/rpe-scale-selec
     .fb__lead { margin: 0; font-weight: 700; color: var(--ink); }
     .fb__actions { display: flex; flex-direction: column; gap: var(--sp-2); }
     .fb__actions .btn { width: 100%; }
+
+    .fb__actual {
+      display: flex; flex-direction: column; gap: var(--sp-2);
+      padding: var(--sp-3); border-radius: var(--radius);
+      background: var(--primary-wash); border: 1px solid var(--hairline);
+    }
+    .fb__actual-t {
+      display: inline-flex; align-items: center; gap: var(--sp-2);
+      font-size: var(--text-sm); font-weight: 700; color: var(--ink-2);
+    }
+    .fb__actual-v { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+    .fb__actual-v .metric { font-size: var(--text-lg); font-weight: 800; color: var(--ink); }
   `],
 })
 export class WorkoutFeedbackSheetComponent {
@@ -69,6 +96,9 @@ export class WorkoutFeedbackSheetComponent {
   readonly workout = model<Workout | null>(null);
   /** Séance mise à jour (optimiste hors ligne) : l'appelant rafraîchit sa liste. */
   readonly saved = output<Workout>();
+
+  /** Activité rapprochée de la séance, si la montre en a remonté une. */
+  readonly activity = signal<Activity | null>(null);
 
   readonly rpe = signal<number | null>(null);
   readonly fatigue = signal<number | null>(null);
@@ -95,8 +125,18 @@ export class WorkoutFeedbackSheetComponent {
     return w.scheduledDate < today;
   }
 
-  /** Ouvre la feuille sur une séance, champs pré-remplis avec ce qui a déjà été déclaré. */
-  openFor(w: Workout): void {
+  /** « 1h04 » / « 42 min » — le réalisé se lit, il ne se calcule pas. */
+  protected duration(totalS: number): string {
+    const min = Math.round(totalS / 60);
+    return min < 60 ? `${min} min` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
+  }
+
+  /**
+   * Ouvre la feuille sur une séance, champs pré-remplis avec ce qui a déjà été déclaré et,
+   * si la montre a remonté une sortie rapprochée, le réalisé affiché en regard.
+   */
+  openFor(w: Workout, activity: Activity | null = null): void {
+    this.activity.set(activity);
     this.workout.set(w);
     this.rpe.set(w.rpe ?? null);
     this.fatigue.set(null);
