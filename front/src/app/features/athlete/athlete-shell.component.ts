@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { CelebrationOverlayComponent } from '../../shared/components/celebration/celebration-overlay.component';
 
 /**
  * Shell mobile-first du portail athlète (PWA) : contenu + bottom-nav persistante.
@@ -10,12 +11,15 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
   selector: 'app-athlete-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, CelebrationOverlayComponent],
   template: `
     <!-- Peau « night-track » : le portail athlète est toujours sombre (immersion mobile),
          indépendamment du thème du coach. Les tokens sombres sont scopés à ce sous-arbre. -->
     <div class="ashell" data-theme="dark">
       <div class="ashell__content"><router-outlet /></div>
+
+      <!-- Célébrations de validation : montées une fois pour tout le portail. -->
+      <app-celebration-overlay />
 
       <!-- Quatre entrées, pas six : sur 375 px, six cibles tombaient à ~52 px avec des
            libellés à 10 px, et « Agenda / Sorties / Progrès » se recouvrent pour qui n'est pas

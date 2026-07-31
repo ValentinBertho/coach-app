@@ -5,6 +5,7 @@ import { AthletePortalService } from '../../../core/services/athlete-portal.serv
 import { FeedbackQueueService } from '../../../core/services/feedback-queue.service';
 import { NetworkStatusService } from '../../../core/services/network-status.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { CelebrationService } from '../../../core/services/celebration.service';
 import { IconComponent } from '../icon/icon.component';
 import { PainFatigueSelectorComponent } from '../physiology';
 import { BottomSheetComponent } from '../ui';
@@ -60,6 +61,7 @@ export class WorkoutFeedbackSheetComponent {
   private readonly toast = inject(ToastService);
   private readonly network = inject(NetworkStatusService);
   private readonly queue = inject(FeedbackQueueService);
+  private readonly celebration = inject(CelebrationService);
 
   /** Ouverture two-way : l'appelant pilote, la feuille se referme après envoi. */
   readonly open = model(false);
@@ -103,6 +105,20 @@ export class WorkoutFeedbackSheetComponent {
     this.open.set(true);
   }
 
+  /**
+   * Fête le retour et affiche la série en cours. Le compteur est demandé après coup : il ne
+   * doit jamais retarder la fermeture de la feuille, et son absence n'est pas un échec.
+   */
+  private celebrate(): void {
+    this.celebration.fire('Ressenti enregistré');
+    this.portal.feedbackStreak().subscribe({
+      next: (n) => {
+        if (n >= 2) this.celebration.fire('Ressenti enregistré', `${n}e retour d’affilée`);
+      },
+      error: () => { /* la célébration vaut sans le compteur */ },
+    });
+  }
+
   protected submit(completed: boolean): void {
     const w = this.workout();
     if (!w) return;
@@ -131,6 +147,7 @@ export class WorkoutFeedbackSheetComponent {
         this.open.set(false);
         this.saved.emit(updated);
         this.toast.success('Ressenti enregistré');
+        this.celebrate();
       },
       error: () => {
         this.queue.enqueue(w.id, body);
