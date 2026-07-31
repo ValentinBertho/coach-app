@@ -372,11 +372,11 @@ public class AthletePortalController {
         return java.util.Map.of("url", stravaService.authorizeUrlForAthlete(principal.athleteId()));
     }
 
-    /** Finalise ma connexion Strava avec le code d'autorisation. */
+    /** Finalise ma connexion Strava avec le code d'autorisation et le state signé. */
     @PostMapping("/strava/connect")
     public com.coachrun.dto.response.StravaStatusResponse stravaConnect(
             @AuthenticationPrincipal AuthPrincipal principal, @RequestBody java.util.Map<String, String> body) {
-        return stravaService.connectForAthlete(principal.athleteId(), body.get("code"));
+        return stravaService.connectForAthlete(principal.athleteId(), body.get("code"), body.get("state"));
     }
 
     /** J'importe maintenant mes nouvelles activités Strava. */

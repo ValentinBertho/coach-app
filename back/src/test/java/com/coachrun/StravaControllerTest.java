@@ -44,6 +44,7 @@ class StravaControllerTest {
     @Autowired private WebApplicationContext context;
     @Autowired private DemoSeedService demoSeedService;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private com.coachrun.security.OAuthStateCodec stateCodec;
     @MockBean private StravaClient stravaClient;
 
     private MockMvc mvc;
@@ -78,10 +79,11 @@ class StravaControllerTest {
                 new StravaActivity(1001L, "Sortie longue", "Run", 12000.0, 3600, 120.0, 145.0, "2026-06-20T08:00:00Z"),
                 new StravaActivity(1002L, "Fractionné", "Run", 8000.0, 2400, 60.0, 160.0, "2026-06-21T18:00:00Z")));
 
-        // Connexion
+        // Connexion (state signé requis, comme renvoyé par Strava après l'autorisation)
+        String state = stateCodec.issue(java.util.UUID.fromString(athleteId));
         JsonNode connected = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes/{a}/strava/connect", clubId, athleteId)
                         .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"code\":\"auth-code\"}"))
+                        .content("{\"code\":\"auth-code\",\"state\":\"" + state + "\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(connected.get("connected").asBoolean()).isTrue();
         assertThat(connected.get("providerAthleteId").asText()).isEqualTo("99");
@@ -97,6 +99,31 @@ class StravaControllerTest {
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(imp2.get("imported").asInt()).isZero();
+    }
+
+    @Test
+    void connectRejectsMissingOrTamperedState() throws Exception {
+        when(stravaClient.isConfigured()).thenReturn(true);
+
+        // Sans state → 400 (anti-CSRF)
+        mvc.perform(post("/clubs/{c}/athletes/{a}/strava/connect", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"auth-code\"}"))
+                .andExpect(status().isBadRequest());
+
+        // State d'un autre athlète (signature valide mais cible différente) → 400
+        String foreignState = stateCodec.issue(java.util.UUID.randomUUID());
+        mvc.perform(post("/clubs/{c}/athletes/{a}/strava/connect", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"auth-code\",\"state\":\"" + foreignState + "\"}"))
+                .andExpect(status().isBadRequest());
+
+        // Signature altérée → 400
+        String tampered = stateCodec.issue(java.util.UUID.fromString(athleteId)) + "x";
+        mvc.perform(post("/clubs/{c}/athletes/{a}/strava/connect", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"code\":\"auth-code\",\"state\":\"" + tampered + "\"}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
