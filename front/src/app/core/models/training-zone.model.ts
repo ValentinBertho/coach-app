@@ -86,6 +86,8 @@ export interface TrainingZoneRequest {
   scope?: ZoneScope | null;
   discipline?: string | null;
   sortOrder?: number | null;
+  /** Modèle de zones d'accueil (création seulement) ; absent = jeu par défaut du club. */
+  zoneSetId?: string | null;
 }
 
 export interface TrainingZoneReorderRequest {

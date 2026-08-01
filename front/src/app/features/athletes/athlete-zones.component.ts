@@ -10,6 +10,8 @@ import { PhysioProfile } from '../../core/models/physio.model';
 import { MetricTypeService } from '../../core/services/metric-type.service';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
 import { AthleteZoneValueService } from '../../core/services/athlete-zone-value.service';
+import { ZoneSet } from '../../core/models/zone-set.model';
+import { ZoneSetService } from '../../core/services/zone-set.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
@@ -42,6 +44,20 @@ interface EditState {
         <app-icon name="refresh-cw" [size]="16" /> Resynchroniser depuis le profil
       </button>
     </section>
+
+    <!-- Modèle de zones appliqué : le club peut en entretenir plusieurs (route / trail,
+         débutant / confirmé) ; changer de modèle réécrit les cibles depuis ses règles. -->
+    @if (sets().length > 1 || appliedSetId()) {
+      <div class="card zone-set">
+        <label class="zs-lb" for="zone-set">Modèle de zones</label>
+        <select id="zone-set" class="form-control" [ngModel]="appliedSetId()" (ngModelChange)="applySet($event)" [disabled]="busy()">
+          @for (s of sets(); track s.id) {
+            <option [value]="s.isDefault ? '' : s.id">{{ s.name }}@if (s.isDefault) { — par défaut }</option>
+          }
+        </select>
+        <a class="zs-edit" routerLink="/app/training-zones">Gérer les modèles →</a>
+      </div>
+    }
 
     @if (loading()) {
       <div class="card"><div class="skeleton" style="height: 200px;"></div></div>
@@ -147,6 +163,12 @@ interface EditState {
   styles: [`
     .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
 
+    .zone-set { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-3); margin-bottom: var(--sp-3); }
+    .zs-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; }
+    .zone-set .form-control { flex: 0 1 280px; }
+    .zs-edit { margin-left: auto; font-size: var(--text-sm); color: var(--dari-teal); text-decoration: none; }
+    .zs-edit:hover { text-decoration: underline; }
+
     .refs { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-3); margin-bottom: var(--sp-3); }
     .refs-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; }
     .ref-chip { display: inline-flex; align-items: baseline; gap: var(--sp-1); padding: 2px var(--sp-2); background: var(--paper-sunk); border-radius: var(--radius-full); }
@@ -198,6 +220,7 @@ export class AthleteZonesComponent implements OnInit {
   private readonly zoneService = inject(TrainingZoneService);
   private readonly metricService = inject(MetricTypeService);
   private readonly valueService = inject(AthleteZoneValueService);
+  private readonly setService = inject(ZoneSetService);
   private readonly physio = inject(PhysioService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
@@ -271,9 +294,28 @@ export class AthleteZonesComponent implements OnInit {
     return out;
   });
 
+  /** Modèles de zones du club et celui appliqué à cet athlète ('' = jeu par défaut). */
+  readonly sets = signal<ZoneSet[]>([]);
+  readonly appliedSetId = signal<string>('');
+
   ngOnInit(): void {
+    this.reload();
+    this.physio.profile(this.athleteId()).subscribe({
+      next: (p) => this.physioProfile.set(p),
+      error: () => this.physioProfile.set(null),
+    });
+    this.setService.list().subscribe({ next: (s) => this.sets.set(s), error: () => this.sets.set([]) });
+    this.setService.ofAthlete(this.athleteId()).subscribe({
+      next: (id) => this.appliedSetId.set(id),
+      error: () => this.appliedSetId.set(''),
+    });
+  }
+
+  /** Zones de l'athlète (celles de son modèle), leurs métriques et ses valeurs. */
+  private reload(): void {
+    this.loading.set(true);
     forkJoin({
-      zones: this.zoneService.list(),
+      zones: this.zoneService.list({ athleteId: this.athleteId() }),
       metrics: this.metricService.list(),
       values: this.valueService.list(this.athleteId()),
     }).subscribe({
@@ -285,9 +327,30 @@ export class AthleteZonesComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
-    this.physio.profile(this.athleteId()).subscribe({
-      next: (p) => this.physioProfile.set(p),
-      error: () => this.physioProfile.set(null),
+  }
+
+  /**
+   * Applique un modèle de zones à l'athlète. Les cibles de l'ancienne échelle sont écartées côté
+   * serveur et les nouvelles recalculées depuis ses règles.
+   */
+  applySet(setId: string): void {
+    if (setId === this.appliedSetId()) return;
+    const previous = this.appliedSetId();
+    this.appliedSetId.set(setId);
+    this.busy.set(true);
+    this.setService.applyToAthlete(this.athleteId(), setId).subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.scaleTab.set(null);
+        this.editing.set(null);
+        this.reload();
+        this.toast.success('Modèle de zones appliqué — cibles recalculées.');
+      },
+      error: () => {
+        this.appliedSetId.set(previous);
+        this.busy.set(false);
+        this.toast.error('Application impossible.');
+      },
     });
   }
 

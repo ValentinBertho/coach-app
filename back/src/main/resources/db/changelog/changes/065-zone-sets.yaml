@@ -1,0 +1,75 @@
+# ============================================================================
+# 065 — Modèles de zones (« jeux de zones ») applicables à un athlète.
+#   Un club peut désormais entretenir plusieurs échelles de zones (route / trail, débutant /
+#   confirmé…) et choisir laquelle s'applique à chaque athlète. Additif et non destructif :
+#   les zones existantes gardent zone_set_id = NULL jusqu'à leur rattachement paresseux au jeu
+#   par défaut du club (ZoneSetService.ensureDefault), au premier accès — même idiome que le
+#   seed des zones standard (changement 045).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 065-create-zone-sets
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: zone_sets
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: sort_order, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: is_default, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_zone_set_club
+            baseTableName: zone_sets
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_zone_set_club
+            tableName: zone_sets
+            columns:
+              - column: { name: club_id }
+
+  - changeSet:
+      id: 065-training-zones-set
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: training_zones
+            columns:
+              - column: { name: zone_set_id, type: UUID }
+        - addForeignKeyConstraint:
+            constraintName: fk_training_zone_set
+            baseTableName: training_zones
+            baseColumnNames: zone_set_id
+            referencedTableName: zone_sets
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_training_zone_set
+            tableName: training_zones
+            columns:
+              - column: { name: zone_set_id }
+
+  - changeSet:
+      id: 065-athlete-zone-set
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: athletes
+            columns:
+              # NULL = jeu par défaut du club : un athlète sans modèle explicite garde les zones
+              # du club, exactement comme avant ce changement.
+              - column: { name: zone_set_id, type: UUID }
+        - addForeignKeyConstraint:
+            constraintName: fk_athlete_zone_set
+            baseTableName: athletes
+            baseColumnNames: zone_set_id
+            referencedTableName: zone_sets
+            referencedColumnNames: id
+            onDelete: SET NULL

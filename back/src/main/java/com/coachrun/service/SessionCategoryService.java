@@ -49,6 +49,11 @@ public class SessionCategoryService {
         if (req.parentId() != null && req.parentId().equals(id)) {
             throw new ConflictException("Une catégorie ne peut pas être son propre parent.");
         }
+        // Ranger une catégorie sous l'une de ses propres descendantes détacherait la branche de
+        // l'arbre : elle deviendrait invisible partout, sans moyen d'y revenir.
+        if (req.parentId() != null && isDescendant(clubId, req.parentId(), id)) {
+            throw new ConflictException("Une catégorie ne peut pas être rangée sous l'une de ses sous-catégories.");
+        }
         apply(clubId, c, req);
         return SessionCategoryResponse.from(c);
     }
@@ -75,6 +80,19 @@ public class SessionCategoryService {
         } else {
             c.setParent(null);
         }
+    }
+
+    /** {@code candidate} descend-il de {@code ancestor} ? (remontée des parents, bornée). */
+    private boolean isDescendant(UUID clubId, UUID candidate, UUID ancestor) {
+        SessionCategory cur = require(clubId, candidate);
+        java.util.Set<UUID> seen = new java.util.HashSet<>();
+        while (cur != null && seen.add(cur.getId())) {
+            if (cur.getId().equals(ancestor)) {
+                return true;
+            }
+            cur = cur.getParent();
+        }
+        return false;
     }
 
     private SessionCategory require(UUID clubId, UUID id) {

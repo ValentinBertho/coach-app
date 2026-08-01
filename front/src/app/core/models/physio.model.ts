@@ -27,7 +27,10 @@ export interface VdotPaceItem {
 
 export interface Vdot {
   vdot: number | null;
+  /** Allures d'équivalence de course, par distance. */
   paces: VdotPaceItem[];
+  /** Allures d'entraînement dérivées du VDOT : `EASY` (endurance fondamentale) et `THRESHOLD`. */
+  trainingPaces: VdotPaceItem[];
 }
 
 export interface Performance {

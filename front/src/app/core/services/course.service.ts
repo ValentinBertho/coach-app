@@ -25,14 +25,29 @@ export class CourseService {
     return this.http.get<CourseStructureResponse>(`${this.club()}/workout-templates/${templateId}/structure`);
   }
 
+  /**
+   * Enregistre la structure et, si le payload les porte, l'identité du modèle. Les métadonnées
+   * absentes sont laissées en place côté serveur ; `clearCategory` est le seul moyen de ranger
+   * une séance « sans catégorie ».
+   */
   putStructure(
     templateId: string,
     body: {
-      discipline?: string | null; categoryId?: string | null; favorite?: boolean;
-      notes?: string | null; structure: SessionStructure;
+      name?: string | null; title?: string | null;
+      discipline?: string | null; categoryId?: string | null; clearCategory?: boolean;
+      favorite?: boolean; notes?: string | null; structure?: SessionStructure;
     },
   ): Observable<CourseStructureResponse> {
     return this.http.put<CourseStructureResponse>(`${this.club()}/workout-templates/${templateId}/structure`, body);
+  }
+
+  /** Verse une séance construite au calendrier dans la bibliothèque (nouveau modèle). */
+  saveWorkoutAsTemplate(
+    athleteId: string, workoutId: string,
+    body: { title: string; name?: string | null; categoryId?: string | null },
+  ): Observable<CourseStructureResponse> {
+    return this.http.post<CourseStructureResponse>(
+      `${this.club()}/athletes/${athleteId}/workouts/${workoutId}/save-as-template`, body);
   }
 
   sessionCalc(

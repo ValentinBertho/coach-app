@@ -6,7 +6,7 @@ import { IconComponent } from '../icon/icon.component';
 import { WorkoutTemplate } from '../../../core/models/workout-template.model';
 import { StrengthSession } from '../../../core/models/strength.model';
 import { RunDrill } from '../../../core/models/run-drill.model';
-import { SessionCategory } from '../../../core/models/session-category.model';
+import { SessionCategory, categoryOptions, categoryPath } from '../../../core/models/session-category.model';
 
 /** Groupe de séances course sous une catégorie (accordéon). */
 interface CourseGroup {
@@ -80,7 +80,11 @@ export class SessionLibraryPanelComponent {
     return !q || name.toLowerCase().includes(q);
   }
 
-  /** Course groupé par catégorie (dans l'ordre des catégories), « Sans catégorie » en dernier. */
+  /**
+   * Course groupé par catégorie, dans l'ordre de l'arbre : une sous-catégorie apparaît juste
+   * sous son parent, avec son chemin en titre (« Seuil › Seuil long »). « Sans catégorie » ferme
+   * la marche.
+   */
   readonly courseGroups = computed<CourseGroup[]>(() => {
     const templates = this.courseTemplates().filter((t) => this.matches(t.name));
     const byCat = new Map<string, WorkoutTemplate[]>();
@@ -90,9 +94,15 @@ export class SessionLibraryPanelComponent {
       arr.push(t);
     }
     const groups: CourseGroup[] = [];
-    for (const c of this.categories()) {
-      const items = byCat.get(c.id);
-      if (items?.length) groups.push({ id: c.id, name: c.name, items });
+    for (const opt of categoryOptions(this.categories())) {
+      const items = byCat.get(opt.category.id);
+      if (items?.length) {
+        groups.push({
+          id: opt.category.id,
+          name: opt.depth ? categoryPath(this.categories(), opt.category.id) : opt.category.name,
+          items,
+        });
+      }
     }
     const none = byCat.get(SessionLibraryPanelComponent.UNCATEGORIZED);
     if (none?.length) groups.push({ id: SessionLibraryPanelComponent.UNCATEGORIZED, name: 'Sans catégorie', items: none });

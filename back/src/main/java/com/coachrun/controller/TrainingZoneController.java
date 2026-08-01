@@ -34,9 +34,18 @@ public class TrainingZoneController {
 
     private final TrainingZoneService zoneService;
 
+    /**
+     * Zones d'un modèle ({@code setId}) ou de l'échelle appliquée à un athlète ({@code athleteId}) ;
+     * sans paramètre, le jeu par défaut du club.
+     */
     @GetMapping
-    public List<TrainingZoneResponse> list(@PathVariable UUID clubId) {
-        return zoneService.list(clubId);
+    public List<TrainingZoneResponse> list(
+            @PathVariable UUID clubId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) UUID setId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) UUID athleteId) {
+        return athleteId != null
+                ? zoneService.listForAthlete(clubId, athleteId)
+                : zoneService.list(clubId, setId);
     }
 
     @PostMapping

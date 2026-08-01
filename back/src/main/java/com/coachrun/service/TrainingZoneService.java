@@ -35,14 +35,26 @@ public class TrainingZoneService {
     private final MetricTypeRepository metricTypeRepository;
     private final ClubRepository clubRepository;
     private final TrainingZoneSeedService seedService;
+    private final ZoneSetService zoneSetService;
 
-    /** Liste ordonnée ; seed du jeu standard si le club n'a aucune zone (transaction en écriture). */
+    /**
+     * Liste ordonnée des zones d'un modèle ({@code setId} null = jeu par défaut du club) ; seed du
+     * jeu standard si le club n'a aucune zone (transaction en écriture).
+     */
     @Transactional
-    public List<TrainingZoneResponse> list(UUID clubId) {
+    public List<TrainingZoneResponse> list(UUID clubId, UUID setId) {
         if (!zoneRepository.existsByClubId(clubId)) {
             seedService.seedDefaultsIfEmpty(clubRepository.getReferenceById(clubId));
         }
-        return zoneRepository.findByClubIdOrderBySortOrderAscNameAsc(clubId).stream()
+        return zoneSetService.zones(clubId, setId).stream()
+                .map(TrainingZoneResponse::from)
+                .toList();
+    }
+
+    /** Zones effectivement appliquées à un athlète (son modèle de zones, sinon celui par défaut). */
+    @Transactional
+    public List<TrainingZoneResponse> listForAthlete(UUID clubId, UUID athleteId) {
+        return zoneSetService.zonesForAthlete(clubId, athleteId).stream()
                 .map(TrainingZoneResponse::from)
                 .toList();
     }
@@ -51,6 +63,11 @@ public class TrainingZoneService {
     public TrainingZoneResponse create(UUID clubId, TrainingZoneRequest req) {
         TrainingZone z = new TrainingZone();
         z.setClub(clubRepository.getReferenceById(clubId));
+        // Une zone appartient toujours à un modèle : sans quoi elle n'apparaîtrait dans aucune
+        // échelle et resterait invisible.
+        z.setZoneSet(req.zoneSetId() != null
+                ? zoneSetService.require(clubId, req.zoneSetId())
+                : zoneSetService.ensureDefault(clubId));
         apply(z, req);
         z.setBuiltin(false);
         return TrainingZoneResponse.from(zoneRepository.save(z));

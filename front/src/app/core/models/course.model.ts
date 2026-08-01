@@ -76,6 +76,8 @@ export interface SessionStructure {
 export interface CourseStructureResponse {
   templateId: string;
   name: string;
+  /** Titre affiché à l'athlète (le nom, lui, range la séance dans la bibliothèque). */
+  title: string;
   discipline: string | null;
   categoryId: string | null;
   categoryName: string | null;

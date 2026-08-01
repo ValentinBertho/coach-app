@@ -243,7 +243,9 @@ export class WorkoutDetailComponent implements OnInit {
       next: (p) => this.courseRx.set(p),
       error: () => this.courseRx.set(null),
     });
-    this.zoneService.list().subscribe({ next: (z) => this.zones.set(z), error: () => this.zones.set([]) });
+    // Les zones lues sont celles de l'échelle appliquée à CET athlète (modèle de zones).
+    this.zoneService.list({ athleteId: this.athleteId() })
+      .subscribe({ next: (z) => this.zones.set(z), error: () => this.zones.set([]) });
     this.activityService.forWorkout(this.athleteId(), this.workoutId()).subscribe({
       next: (a) => this.activity.set(a),
       error: () => this.activity.set(null),

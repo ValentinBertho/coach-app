@@ -39,8 +39,21 @@
 .vol-in { width: 66px; border: none; background: none; min-height: 40px; font-family: var(--font-data); font-weight: 700; color: var(--ink-1); text-align: right; }
 .vol-in:focus { outline: none; }
 .vol-u { font-size: var(--text-sm); color: var(--ink-3); font-weight: 600; }
+/* Unité de saisie (sec/min/h · m/km) : un sélecteur discret, intégré au champ de volume. */
+.vol-unit { border: none; background: none; color: var(--ink-2); font-size: var(--text-sm); font-weight: 600; cursor: pointer; min-height: 38px; padding: 0 var(--sp-1); }
+.vol-unit:focus { outline: none; }
 .vol-switch { border: none; background: none; color: var(--ink-4); cursor: pointer; display: inline-flex; align-items: center; padding: var(--sp-1); border-radius: var(--radius-sm); }
 .vol-switch:hover { background: var(--paper-sunk); color: var(--ink-2); }
+
+/* Identité du modèle (nom · titre · catégorie) en tête de l'éditeur. */
+.identity { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.identity label { display: block; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; margin-bottom: 4px; }
+
+/* Versement d'une séance du calendrier dans la bibliothèque. */
+.save-as { margin-bottom: var(--sp-4); }
+.save-as h2 { margin: 0 0 var(--sp-1); font-size: var(--text-lg); }
+.save-as-row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-3); }
+.save-as-row .form-control { flex: 1 1 200px; }
 
 .block-zone { min-width: 0; }
 

@@ -18,9 +18,57 @@
       </span>
     }
     <app-autosave-badge [autosave]="autosave" />
+    @if (isWorkout()) {
+      <button type="button" class="btn btn-ghost" (click)="openSaveAs()" title="Verser cette séance dans la bibliothèque">
+        <app-icon name="library" [size]="16" /> Enregistrer comme modèle
+      </button>
+    }
     <button type="button" class="btn btn-primary" (click)="save()">Enregistrer</button>
   </div>
 </section>
+
+<!-- Identité du modèle : sans elle, une séance dupliquée restait « … (copie) » sans recours,
+     et la catégorie choisie à la création n'était plus modifiable nulle part. -->
+@if (!isWorkout() && !loading()) {
+  <div class="card identity">
+    <div class="form-group">
+      <label for="tpl-name">Nom du modèle</label>
+      <input id="tpl-name" class="form-control" [ngModel]="name()" (ngModelChange)="setName($event)"
+             placeholder="VMA courte" maxlength="255" />
+    </div>
+    <div class="form-group">
+      <label for="tpl-title">Titre vu par l'athlète</label>
+      <input id="tpl-title" class="form-control" [ngModel]="title()" (ngModelChange)="setTitle($event)"
+             placeholder="VMA 10×400 m" maxlength="255" />
+    </div>
+    <div class="form-group">
+      <label for="tpl-cat">Catégorie</label>
+      <select id="tpl-cat" class="form-control" [ngModel]="categoryId()" (ngModelChange)="setCategory($event)">
+        <option value="">Sans catégorie</option>
+        @for (c of categoryChoices(); track c.category.id) { <option [value]="c.category.id">{{ c.label }}</option> }
+      </select>
+    </div>
+  </div>
+}
+
+<!-- Versement dans la bibliothèque d'une séance construite au calendrier. -->
+@if (saveAsOpen()) {
+  <div class="card save-as">
+    <h2>Enregistrer comme modèle</h2>
+    <p class="field-hint">La structure ci-dessous est recopiée dans la bibliothèque ; la séance de l'athlète n'est pas modifiée.</p>
+    <div class="save-as-row">
+      <input class="form-control" [(ngModel)]="saveAsTitle" placeholder="Nom du modèle" maxlength="255" />
+      <select class="form-control" [(ngModel)]="saveAsCategoryId">
+        <option value="">Sans catégorie</option>
+        @for (c of categoryChoices(); track c.category.id) { <option [value]="c.category.id">{{ c.label }}</option> }
+      </select>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="closeSaveAs()">Annuler</button>
+      <button type="button" class="btn btn-primary btn-sm" (click)="saveAsTemplate()" [disabled]="saveAsBusy()">
+        {{ saveAsBusy() ? 'Enregistrement…' : 'Ajouter à la bibliothèque' }}
+      </button>
+    </div>
+  </div>
+}
 
 <!-- Aperçu athlète (replié par défaut) : ne pollue pas la construction de la séance. -->
 @if (!isWorkout()) {
@@ -75,15 +123,14 @@
             @if ((b.reps ?? 0) > 1) { <span class="reps-x">×</span> }
           </span>
 
+          <!-- Volume : la valeur et son unité (sec/min/h · m/km) se choisissent librement ;
+               le stockage reste en secondes et en mètres. -->
           <span class="vol">
-            @if (measureOf(b) === 'distance') {
-              <input type="number" class="vol-in" [(ngModel)]="b.distanceM" (ngModelChange)="onBlockEdited(b)" placeholder="0" />
-              <span class="vol-u">m</span>
-            } @else {
-              <input type="number" class="vol-in" [ngModel]="durMin(b)" (ngModelChange)="setDurMin(b, $event)" placeholder="0" />
-              <span class="vol-u">min</span>
-            }
-            <button type="button" class="vol-switch" (click)="toggleMeasure(b)" title="Basculer distance / durée"><app-icon name="refresh-cw" [size]="13" /></button>
+            <input type="number" class="vol-in" step="any" [ngModel]="volumeValue(b)"
+                   (ngModelChange)="setVolumeValue(b, $event)" placeholder="0" />
+            <select class="vol-unit" [ngModel]="unitOf(b)" (ngModelChange)="setUnit(b, $event)" title="Unité">
+              @for (u of volumeUnits; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
+            </select>
           </span>
 
           @if (b.prescription) {
@@ -123,14 +170,11 @@
             <div class="rec">
               <span class="rec-lb">Récup. entre répétitions<span class="rec-count">× {{ (b.reps ?? 1) - 1 }}</span></span>
               <span class="vol">
-                @if (recMeasureOf(b) === 'duration') {
-                  <input type="number" class="vol-in" [ngModel]="recDurS(b)" (ngModelChange)="setRecDurS(b, $event)" placeholder="0" title="Durée (s)" />
-                  <span class="vol-u">s</span>
-                } @else {
-                  <input type="number" class="vol-in" [ngModel]="recDistM(b)" (ngModelChange)="setRecDistM(b, $event)" placeholder="0" title="Distance (m)" />
-                  <span class="vol-u">m</span>
-                }
-                <button type="button" class="vol-switch" (click)="toggleRecMeasure(b)" title="Basculer durée / distance"><app-icon name="refresh-cw" [size]="13" /></button>
+                <input type="number" class="vol-in" step="any" [ngModel]="recVolumeValue(b)"
+                       (ngModelChange)="setRecVolumeValue(b, $event)" placeholder="0" />
+                <select class="vol-unit" [ngModel]="recUnitOf(b)" (ngModelChange)="setRecUnit(b, $event)" title="Unité">
+                  @for (u of volumeUnits; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
+                </select>
               </span>
               @if (r.prescription) {
                 <app-zone-picker class="block-zone" [dense]="true"

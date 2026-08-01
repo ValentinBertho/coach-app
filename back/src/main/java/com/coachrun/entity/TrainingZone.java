@@ -38,6 +38,14 @@ public class TrainingZone extends BaseEntity {
     @JoinColumn(name = "club_id", nullable = false)
     private Club club;
 
+    /**
+     * Modèle de zones auquel appartient cette zone. {@code null} le temps du rattachement
+     * paresseux au jeu par défaut du club (cf. {@code ZoneSetService.ensureDefault}).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "zone_set_id")
+    private ZoneSet zoneSet;
+
     @Column(name = "name", nullable = false)
     private String name;
 

@@ -9,7 +9,6 @@ import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.ActivityRepository;
 import com.coachrun.repository.AthleteZoneValueRepository;
 import com.coachrun.repository.MetricTypeRepository;
-import com.coachrun.repository.TrainingZoneRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +36,7 @@ public class TimeInZoneService {
 
     private final ActivityRepository activityRepository;
     private final AthleteZoneValueRepository valueRepository;
-    private final TrainingZoneRepository zoneRepository;
+    private final ZoneSetService zoneSetService;
     private final MetricTypeRepository metricTypeRepository;
     private final ObjectMapper objectMapper;
 
@@ -70,7 +69,9 @@ public class TimeInZoneService {
                 metricByCode.putIfAbsent(m.getCode(), m);
             }
         }
-        List<TrainingZone> zones = zoneRepository.findByClubIdOrderBySortOrderAscNameAsc(clubId);
+        // L'échelle de référence est celle du modèle de zones de l'athlète, pas l'ensemble des
+        // zones du club : deux athlètes peuvent travailler sur des échelles différentes.
+        List<TrainingZone> zones = zoneSetService.zonesForAthlete(clubId, athleteId);
         List<AthleteZoneValue> values = valueRepository.findByAthleteId(athleteId);
 
         List<TimeInZoneResponse.Scale> scales = new ArrayList<>();

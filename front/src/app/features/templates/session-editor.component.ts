@@ -18,6 +18,8 @@ import { TrainingZone } from '../../core/models/training-zone.model';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
 import { MetricType } from '../../core/models/metric-type.model';
 import { MetricTypeService } from '../../core/services/metric-type.service';
+import { CategoryOption, SessionCategory, categoryOptions } from '../../core/models/session-category.model';
+import { SessionCategoryService } from '../../core/services/session-category.service';
 import { AthleteZoneValue } from '../../core/models/athlete-zone-value.model';
 import { AthleteZoneValueService } from '../../core/services/athlete-zone-value.service';
 import { ZonePickerComponent } from '../../shared/components/zone-picker/zone-picker.component';
@@ -29,6 +31,58 @@ import { HasAutosave } from '../../core/guards/unsaved-changes.guard';
 export type ProfileStatus = 'measured' | 'estimated' | 'incomplete';
 
 interface Section { key: keyof SessionStructure; label: string; }
+
+/** Unité de saisie d'un volume : temps (s/min/h) ou distance (m/km). Stockage : secondes, mètres. */
+export type VolumeUnit = 's' | 'min' | 'h' | 'm' | 'km';
+
+/** Volume mesurable en temps ou en distance (bloc de séance, récupération). */
+interface Measurable { durationS?: number | null; distanceM?: number | null; }
+
+function isTime(unit: VolumeUnit): boolean {
+  return unit === 's' || unit === 'min' || unit === 'h';
+}
+
+/** Nombre de secondes (ou de mètres) que vaut une unité. */
+function factor(unit: VolumeUnit): number {
+  switch (unit) {
+    case 's': return 1;
+    case 'min': return 60;
+    case 'h': return 3600;
+    case 'm': return 1;
+    case 'km': return 1000;
+  }
+}
+
+/** Unité la plus lisible pour une valeur donnée (1 h 30 plutôt que 5400 s, 12 km plutôt que 12 000 m). */
+function naturalUnit(durationS: number | null | undefined, distanceM: number | null | undefined,
+                     fallback: VolumeUnit): VolumeUnit {
+  if (durationS != null && distanceM == null) {
+    if (durationS >= 3600 && durationS % 900 === 0) return 'h';
+    return durationS < 120 ? 's' : 'min';
+  }
+  if (distanceM != null) return distanceM >= 1000 && distanceM % 100 === 0 ? 'km' : 'm';
+  return fallback;
+}
+
+/** Valeur stockée (secondes / mètres) exprimée dans l'unité demandée. */
+function toUnit(durationS: number | null | undefined, distanceM: number | null | undefined,
+                unit: VolumeUnit): number | null {
+  const raw = isTime(unit) ? durationS : distanceM;
+  if (raw == null) return null;
+  return Math.round((raw / factor(unit)) * 100) / 100;
+}
+
+/** Écrit une valeur saisie dans l'unité donnée, en secondes ou en mètres selon la famille. */
+function applyUnit(target: Measurable, unit: VolumeUnit, value: number | null): void {
+  const stored = value == null ? null : Math.round(value * factor(unit));
+  if (isTime(unit)) {
+    target.durationS = stored;
+    target.distanceM = null;
+  } else {
+    target.distanceM = stored;
+    target.durationS = null;
+  }
+}
 
 /**
  * Éditeur de structure de séance course (blocs prescrits en fourchettes + calculateur live).
@@ -54,6 +108,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   private readonly course = inject(CourseService);
   private readonly zoneService = inject(TrainingZoneService);
   private readonly metricService = inject(MetricTypeService);
+  private readonly categoryService = inject(SessionCategoryService);
   private readonly zoneValueService = inject(AthleteZoneValueService);
   private readonly athletes = inject(AthleteService);
   private readonly workoutService = inject(WorkoutService);
@@ -91,6 +146,11 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   readonly isWorkout = computed(() => !!this.workoutId());
 
   readonly name = signal('');
+  /** Titre affiché à l'athlète ; le nom, lui, range la séance dans la bibliothèque. */
+  readonly title = signal('');
+  /** Catégorie de rangement de la séance ('' = sans catégorie). */
+  readonly categoryId = signal('');
+  readonly categories = signal<SessionCategory[]>([]);
   readonly loading = signal(true);
   /** Encart d'écriture libre du coach (intention, consignes) — enregistré avec la structure. */
   readonly notes = signal('');
@@ -200,11 +260,15 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
 
   ngOnInit(): void {
     this.drillService.list().subscribe((d) => this.drills.set(d));
-    this.zoneService.list().subscribe((z) => this.zones.set(z));
     this.metricService.list().subscribe((m) => this.metrics.set(m));
+    this.categoryService.list().subscribe({
+      next: (c) => this.categories.set(c),
+      error: () => this.categories.set([]),
+    });
 
     if (this.isWorkout()) {
-      // Mode séance planifiée : athlète fixe, on charge le snapshot puis on recalcule.
+      // Mode séance planifiée : athlète fixe, zones de SON modèle, snapshot puis recalcul.
+      this.zoneService.list({ athleteId: this.athleteId() }).subscribe((z) => this.zones.set(z));
       this.name.set('Adapter la séance');
       this.calcAthleteId.set(this.athleteId());
       this.loadProfile(this.athleteId());
@@ -220,10 +284,13 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
       return;
     }
 
-    // Mode modèle de bibliothèque.
+    // Mode modèle de bibliothèque : on écrit sur l'échelle de référence du club.
+    this.zoneService.list().subscribe((z) => this.zones.set(z));
     this.course.getStructure(this.templateId()).subscribe({
       next: (s) => {
         this.name.set(s.name);
+        this.title.set(s.title ?? '');
+        this.categoryId.set(s.categoryId ?? '');
         this.notes.set(s.notes ?? '');
         this.structure.set(s.structure ?? { warmup: [], main: [], cooldown: [] });
         this.loading.set(false);
@@ -376,24 +443,77 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     this.onBlockEdited(b);
   }
 
-  /** Bascule un bloc entre mesure par distance et par durée (un seul geste). */
-  toggleMeasure(b: CourseBlock): void {
-    this.setMeasure(b, this.measureOf(b) === 'distance' ? 'duration' : 'distance');
+  // --- Unités de volume : secondes / minutes / heures · mètres / kilomètres -----------------
+  // Un bloc se prescrit indifféremment en « 45 min », « 1 h 30 » ou « 12 km » selon la séance.
+  // Le stockage reste en secondes et en mètres ; seule la saisie change d'unité.
+
+  readonly volumeUnits: { value: VolumeUnit; label: string }[] = [
+    { value: 's', label: 'sec' },
+    { value: 'min', label: 'min' },
+    { value: 'h', label: 'h' },
+    { value: 'm', label: 'm' },
+    { value: 'km', label: 'km' },
+  ];
+
+  /** Unité choisie par bloc ; sans choix explicite, celle qui rend la valeur la plus lisible. */
+  private readonly blockUnit = signal<Record<string, VolumeUnit>>({});
+  private readonly recUnit = signal<Record<string, VolumeUnit>>({});
+
+  unitOf(b: CourseBlock): VolumeUnit {
+    return this.blockUnit()[b.id] ?? naturalUnit(b.durationS, b.distanceM, 'min');
   }
 
-  /** Bascule la récupération entre durée et distance. */
-  toggleRecMeasure(b: CourseBlock): void {
-    this.setRecMeasure(b, this.recMeasureOf(b) === 'duration' ? 'distance' : 'duration');
+  recUnitOf(b: CourseBlock): VolumeUnit {
+    const r = b.recovery;
+    return this.recUnit()[b.id] ?? naturalUnit(r?.durationS ?? null, r?.distanceM ?? null, 's');
   }
 
-  /** Durée exposée en minutes (plus lisible que des secondes) ; stockée en secondes. */
-  durMin(b: CourseBlock): number | null {
-    return b.durationS != null ? Math.round((b.durationS / 60) * 10) / 10 : null;
+  /** Valeur du bloc dans son unité d'affichage. */
+  volumeValue(b: CourseBlock): number | null {
+    return toUnit(b.durationS, b.distanceM, this.unitOf(b));
   }
 
-  setDurMin(b: CourseBlock, min: number | null): void {
-    b.durationS = min != null ? Math.round(min * 60) : null;
+  setVolumeValue(b: CourseBlock, value: number | null): void {
+    // L'unité se fige dès la première frappe : sans cela, taper « 60 » en minutes ferait basculer
+    // le champ en heures sous les doigts (1 h), et la valeur affichée changerait toute seule.
+    const unit = this.unitOf(b);
+    this.blockUnit.update((m) => ({ ...m, [b.id]: unit }));
+    applyUnit(b, unit, value);
     this.onBlockEdited(b);
+  }
+
+  /**
+   * Change l'unité d'un bloc. Au sein d'une même famille (temps ou distance) la quantité est
+   * conservée — 600 s devient 10 min ; d'une famille à l'autre, la mesure bascule et repart
+   * d'une valeur usuelle.
+   */
+  setUnit(b: CourseBlock, unit: VolumeUnit): void {
+    this.blockUnit.update((m) => ({ ...m, [b.id]: unit }));
+    if (isTime(unit) === (b.durationS != null && b.distanceM == null)) {
+      return; // même famille : la valeur stockée ne bouge pas, seul l'affichage change
+    }
+    this.setMeasure(b, isTime(unit) ? 'duration' : 'distance');
+  }
+
+  recVolumeValue(b: CourseBlock): number | null {
+    const r = b.recovery;
+    return r ? toUnit(r.durationS ?? null, r.distanceM ?? null, this.recUnitOf(b)) : null;
+  }
+
+  setRecVolumeValue(b: CourseBlock, value: number | null): void {
+    if (!b.recovery) return;
+    const unit = this.recUnitOf(b);
+    this.recUnit.update((m) => ({ ...m, [b.id]: unit }));
+    applyUnit(b.recovery, unit, value);
+    this.recalcRecovery(b);
+    this.touch();
+  }
+
+  setRecUnit(b: CourseBlock, unit: VolumeUnit): void {
+    this.recUnit.update((m) => ({ ...m, [b.id]: unit }));
+    const r = b.recovery;
+    if (!r || isTime(unit) === (r.durationS != null && r.distanceM == null)) return;
+    this.setRecMeasure(b, isTime(unit) ? 'duration' : 'distance');
   }
 
   // --- Récupération inter-répétitions (fractionnés) --------------------------
@@ -427,15 +547,6 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     this.touch();
   }
 
-  /** Durée de récup en secondes (les récups sont courtes → secondes plus lisibles que minutes). */
-  recDurS(b: CourseBlock): number | null { return b.recovery?.durationS ?? null; }
-  setRecDurS(b: CourseBlock, s: number | null): void {
-    if (b.recovery) { b.recovery.durationS = s != null ? Math.round(s) : null; this.recalcRecovery(b); this.touch(); }
-  }
-  recDistM(b: CourseBlock): number | null { return b.recovery?.distanceM ?? null; }
-  setRecDistM(b: CourseBlock, m: number | null): void {
-    if (b.recovery) { b.recovery.distanceM = m != null ? Math.round(m) : null; this.recalcRecovery(b); this.touch(); }
-  }
   setRecZone(b: CourseBlock, zoneId: string): void {
     if (b.recovery?.prescription) { b.recovery.prescription.zoneId = zoneId; this.recalcRecovery(b); this.touch(); }
   }
@@ -621,14 +732,71 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     this.touch();
   }
 
+  // --- Identité de la séance (nom, titre, catégorie) ------------------------
+  // Sans ces champs ici, une séance dupliquée restait « … (copie) » à vie : l'éditeur était le
+  // seul écran de la vie d'un modèle, et il n'en montrait pas le nom.
+
+  /** Catégories à plat, sous-catégories indentées sous leur parent. */
+  readonly categoryChoices = computed<CategoryOption[]>(() => categoryOptions(this.categories()));
+
+  setName(value: string): void { this.name.set(value); this.touch(); }
+  setTitle(value: string): void { this.title.set(value); this.touch(); }
+  setCategory(value: string): void { this.categoryId.set(value); this.touch(); }
+
   /** Écriture effective, selon le mode (modèle de bibliothèque ou séance planifiée). */
   private persist() {
-    return this.isWorkout()
-      ? this.workoutService.updateStructure(this.athleteId(), this.workoutId(), this.structure())
-      : this.course.putStructure(this.templateId(), {
-        notes: this.notes().trim() || null,
-        structure: this.structure(),
+    if (this.isWorkout()) {
+      return this.workoutService.updateStructure(this.athleteId(), this.workoutId(), this.structure());
+    }
+    const categoryId = this.categoryId();
+    return this.course.putStructure(this.templateId(), {
+      name: this.name().trim() || null,
+      title: this.title().trim() || null,
+      // `clearCategory` distingue « sans catégorie » de « champ non transmis » : sans lui, chaque
+      // auto-sauvegarde effaçait le rangement choisi à la création.
+      categoryId: categoryId || null,
+      clearCategory: !categoryId,
+      notes: this.notes(),
+      structure: this.structure(),
+    });
+  }
+
+  // --- Verser une séance du calendrier dans la bibliothèque (mode séance planifiée) ---------
+  // Une séance improvisée directement dans le calendrier n'avait aucune issue : pour en garder
+  // un modèle, il fallait la reconstruire de zéro dans la bibliothèque.
+
+  readonly saveAsOpen = signal(false);
+  readonly saveAsBusy = signal(false);
+  saveAsTitle = '';
+  saveAsCategoryId = '';
+
+  openSaveAs(): void {
+    this.saveAsTitle = this.saveAsTitle || 'Séance du ' + new Date().toLocaleDateString('fr-FR');
+    this.saveAsOpen.set(true);
+  }
+
+  closeSaveAs(): void { this.saveAsOpen.set(false); }
+
+  /** Enregistre la structure courante, puis la verse dans la bibliothèque comme nouveau modèle. */
+  saveAsTemplate(): void {
+    const title = this.saveAsTitle.trim();
+    if (!title) { this.toast.warning('Donne un titre à la séance.'); return; }
+    if (this.saveAsBusy()) return;
+    this.saveAsBusy.set(true);
+    // On vide d'abord le debounce : sinon le modèle figerait la structure d'il y a dix secondes.
+    this.autosave.flush().subscribe((ok) => {
+      if (!ok) { this.saveAsBusy.set(false); this.toast.error('Enregistrement impossible.'); return; }
+      this.course.saveWorkoutAsTemplate(this.athleteId(), this.workoutId(), {
+        title, name: title, categoryId: this.saveAsCategoryId || null,
+      }).subscribe({
+        next: (created) => {
+          this.saveAsBusy.set(false);
+          this.saveAsOpen.set(false);
+          this.toast.success(`« ${created.name} » ajoutée à la bibliothèque`);
+        },
+        error: () => { this.saveAsBusy.set(false); this.toast.error('Enregistrement dans la bibliothèque impossible.'); },
       });
+    });
   }
 
   /**

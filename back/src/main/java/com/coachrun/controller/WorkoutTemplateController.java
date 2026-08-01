@@ -39,10 +39,14 @@ public class WorkoutTemplateController {
 
     private final WorkoutTemplateService templateService;
 
+    /**
+     * Bibliothèque paginée. La page par défaut monte à 200 : à 20, une bibliothèque un peu
+     * fournie paraissait plafonnée — l'écran ne demandait jamais la page suivante.
+     */
     @GetMapping
     public PageResponse<WorkoutTemplateResponse> list(@PathVariable UUID clubId,
                                                       @RequestParam(required = false) String q,
-                                                      @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+                                                      @PageableDefault(size = 200, sort = "name") Pageable pageable) {
         return templateService.list(clubId, q, pageable);
     }
 

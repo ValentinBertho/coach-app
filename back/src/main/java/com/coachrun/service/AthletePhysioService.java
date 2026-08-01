@@ -186,7 +186,7 @@ public class AthletePhysioService {
     private VdotResponse buildVdot(UUID athleteId) {
         AthleteVdotPace paces = vdotPaceRepository.findByAthleteId(athleteId).orElse(null);
         if (paces == null || paces.getVdot() == null) {
-            return new VdotResponse(null, List.of());
+            return VdotResponse.empty();
         }
         List<VdotResponse.VdotPaceItem> items = new ArrayList<>();
         items.add(item(RunDistance.D800, paces.getPace800mS()));
@@ -197,7 +197,23 @@ public class AthletePhysioService {
         items.add(item(RunDistance.D15KM, paces.getPace15kmS()));
         items.add(item(RunDistance.SEMI, paces.getPaceSemiS()));
         items.add(item(RunDistance.MARATHON, paces.getPaceMarathonS()));
-        return new VdotResponse(paces.getVdot(), items);
+        return new VdotResponse(paces.getVdot(), items, trainingPaces(paces.getVdot().doubleValue()));
+    }
+
+    /**
+     * Allures d'entraînement dérivées du VDOT : endurance fondamentale et seuil. Les équivalences
+     * de course ne disent pas à quelle allure faire un footing ou un seuil — c'est pourtant ce que
+     * le coach lit en premier pour prescrire.
+     */
+    private List<VdotResponse.VdotPaceItem> trainingPaces(double vdot) {
+        return List.of(
+                pace("EASY", vdotEngine.easyPaceSecPerKm(vdot)),
+                pace("THRESHOLD", vdotEngine.thresholdPaceSecPerKm(vdot)));
+    }
+
+    private VdotResponse.VdotPaceItem pace(String code, int paceSecPerKm) {
+        double kmh = Math.round(PaceUtil.secPerKmToKmh(paceSecPerKm) * 10.0) / 10.0;
+        return new VdotResponse.VdotPaceItem(code, paceSecPerKm, PaceUtil.formatPace(paceSecPerKm), kmh);
     }
 
     // ---------------------------------------------------------------------
@@ -270,6 +286,11 @@ public class AthletePhysioService {
     }
 
 
+    /**
+     * Test de Vitesse Critique. Les FC moyennes relevées sur chaque effort, si elles sont
+     * fournies, donnent la FC tenue autour de la VC (moyenne pondérée par la durée des efforts) :
+     * appliquée au profil, elle sert de FC de seuil et resynchronise les zones cardio.
+     */
     @org.springframework.transaction.annotation.Transactional
     public VcTestResponse computeVc(UUID clubId, UUID athleteId, VcTestRequest req) {
         Athlete a = requireAthlete(clubId, athleteId);
@@ -277,10 +298,30 @@ public class AthletePhysioService {
                 .map(t -> new CriticalSpeedEngine.Trial(t.distanceM(), t.timeS()))
                 .toList();
         CriticalSpeedEngine.Result r = criticalSpeedEngine.compute(trials);
+        Integer avgHr = weightedAvgHr(req);
         if (req.applyToProfile()) {
             a.setVcMs(java.math.BigDecimal.valueOf(r.vcMs()).setScale(3, java.math.RoundingMode.HALF_UP));
+            if (avgHr != null) {
+                a.setFcLt2(avgHr);
+            }
+            // Les zones s'ancrent sur la VC et la FC de seuil : sans resync, les cibles resteraient
+            // sur les valeurs d'avant le test.
+            zoneValueSyncService.resync(clubId, athleteId);
         }
-        return new VcTestResponse(r.vcMs(), r.vcMs() * 3.6, r.dPrimeM());
+        return new VcTestResponse(r.vcMs(), r.vcMs() * 3.6, r.dPrimeM(), avgHr);
+    }
+
+    /** FC moyenne des efforts, pondérée par leur durée ; null si aucune FC n'est renseignée. */
+    private Integer weightedAvgHr(VcTestRequest req) {
+        double weighted = 0;
+        double seconds = 0;
+        for (var t : req.trials()) {
+            if (t.avgHr() != null) {
+                weighted += t.avgHr() * t.timeS();
+                seconds += t.timeS();
+            }
+        }
+        return seconds == 0 ? null : (int) Math.round(weighted / seconds);
     }
 
     private Athlete requireAthlete(UUID clubId, UUID athleteId) {

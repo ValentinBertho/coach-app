@@ -254,7 +254,7 @@ export const routes: Routes = [
           {
             path: 'tests',
             loadComponent: () =>
-              import('./features/physio/lactate.component').then((m) => m.LactateComponent),
+              import('./features/physio/thresholds.component').then((m) => m.ThresholdsComponent),
           },
           {
             path: 'races',

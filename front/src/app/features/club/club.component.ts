@@ -66,7 +66,7 @@ export class ClubComponent implements OnInit {
       error: () => this.loadingMembers.set(false),
     });
     this.athletes.list({ status: 'ACTIVE' }).subscribe((p) => this.athleteList.set(p.content));
-    this.templateService.list().subscribe((p) => this.courseTemplates.set(p.content));
+    this.templateService.listAll().subscribe((t) => this.courseTemplates.set(t));
     this.strengthService.listSessions().subscribe((p) => this.strengthSessions.set(p.content));
   }
 

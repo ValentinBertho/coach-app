@@ -10,6 +10,8 @@ import java.util.UUID;
 public record CourseStructureResponse(
         UUID templateId,
         String name,
+        /** Titre affiché à l'athlète (le nom, lui, range la séance dans la bibliothèque). */
+        String title,
         Discipline discipline,
         UUID categoryId,
         String categoryName,
@@ -23,7 +25,7 @@ public record CourseStructureResponse(
 
     public static CourseStructureResponse of(WorkoutTemplate t, SessionStructure structure) {
         return new CourseStructureResponse(
-                t.getId(), t.getName(), t.getDiscipline(),
+                t.getId(), t.getName(), t.getTitle(), t.getDiscipline(),
                 t.getCategory() == null ? null : t.getCategory().getId(),
                 t.getCategory() == null ? null : t.getCategory().getName(),
                 t.isFavorite(), t.isArchived(), t.getUseCount(), t.getNotes(), structure);

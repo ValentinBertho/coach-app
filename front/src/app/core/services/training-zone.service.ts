@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
@@ -20,8 +20,15 @@ export class TrainingZoneService {
     return `${environment.apiUrl}/clubs/${this.auth.clubId()}/training-zones`;
   }
 
-  list(): Observable<TrainingZone[]> {
-    return this.http.get<TrainingZone[]>(this.base());
+  /**
+   * Zones d'un modèle (`setId`), ou celles de l'échelle appliquée à un athlète (`athleteId`).
+   * Sans paramètre : le jeu par défaut du club.
+   */
+  list(opts?: { setId?: string; athleteId?: string }): Observable<TrainingZone[]> {
+    let params = new HttpParams();
+    if (opts?.athleteId) params = params.set('athleteId', opts.athleteId);
+    else if (opts?.setId) params = params.set('setId', opts.setId);
+    return this.http.get<TrainingZone[]>(this.base(), { params });
   }
   create(body: TrainingZoneRequest): Observable<TrainingZone> {
     return this.http.post<TrainingZone>(this.base(), body);
