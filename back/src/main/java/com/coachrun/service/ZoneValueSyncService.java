@@ -40,6 +40,7 @@ public class ZoneValueSyncService {
     private final AthleteZoneValueRepository valueRepository;
     private final TrainingZoneRepository zoneRepository;
     private final TrainingZoneSeedService seedService;
+    private final ZoneSetService zoneSetService;
     private final AthleteRepository athleteRepository;
     private final ClubRepository clubRepository;
 
@@ -51,7 +52,9 @@ public class ZoneValueSyncService {
         if (!zoneRepository.existsByClubId(clubId)) {
             seedService.seedDefaultsIfEmpty(clubRepository.getReferenceById(clubId));
         }
-        List<TrainingZone> zones = zoneRepository.findByClubIdOrderBySortOrderAscNameAsc(clubId);
+        // L'échelle est celle du modèle de zones de l'athlète (à défaut, le jeu par défaut du club) :
+        // deux athlètes du même club peuvent travailler sur des zones différentes.
+        List<TrainingZone> zones = zoneSetService.zonesForAthlete(clubId, athleteId);
         var athlete = athleteRepository.getReferenceById(athleteId);
 
         int written = 0;

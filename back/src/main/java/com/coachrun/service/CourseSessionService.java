@@ -31,6 +31,7 @@ import java.util.UUID;
 public class CourseSessionService {
 
     private final WorkoutTemplateRepository templateRepository;
+    private final com.coachrun.repository.WorkoutRepository workoutRepository;
     private final com.coachrun.engine.PlannedLoadEngine plannedLoadEngine;
     private final SessionCategoryRepository categoryRepository;
     private final SessionCalculatorService calculatorService;
@@ -49,9 +50,20 @@ public class CourseSessionService {
         return CourseStructureResponse.of(t, zoneMapper.withZones(clubId, readStructure(t.getStructureJson())));
     }
 
+    /**
+     * Enregistre la structure et, si le payload les porte, les métadonnées d'identité. Chaque
+     * champ absent est laissé tel quel : l'éditeur auto-sauvegarde la structure toutes les
+     * quelques secondes, et un champ manquant ne doit jamais valoir « efface ».
+     */
     @Transactional
     public CourseStructureResponse putStructure(UUID clubId, UUID templateId, CourseStructureRequest req) {
         WorkoutTemplate t = require(clubId, templateId);
+        if (StringUtils.hasText(req.name())) {
+            t.setName(req.name().trim());
+        }
+        if (StringUtils.hasText(req.title())) {
+            t.setTitle(req.title().trim());
+        }
         if (req.discipline() != null) {
             t.setDiscipline(req.discipline());
         }
@@ -61,13 +73,16 @@ public class CourseSessionService {
         if (req.notes() != null) {
             t.setNotes(req.notes().isBlank() ? null : req.notes());
         }
-        if (req.categoryId() != null) {
+        if (Boolean.TRUE.equals(req.clearCategory())) {
+            t.setCategory(null);
+        } else if (req.categoryId() != null) {
             t.setCategory(categoryRepository.findByIdAndClubId(req.categoryId(), clubId)
                     .orElseThrow(() -> new NotFoundException("Catégorie introuvable.")));
-        } else {
-            t.setCategory(null);
         }
-        SessionStructure structure = req.structure() == null ? SessionStructure.empty() : req.structure();
+        // Payload de renommage seul : la structure absente laisse les blocs en place.
+        SessionStructure structure = req.structure() == null
+                ? readStructure(t.getStructureJson())
+                : req.structure();
         t.setStructureJson(writeStructure(structure));
         return CourseStructureResponse.of(t, structure);
     }
@@ -100,6 +115,34 @@ public class CourseSessionService {
                 date, t.getType(), t.getTitle(), t.getNotes(), distance, duration,
                 t.getId(), snapshotJson, calculatedJson, plannedLoadEngine.compute(calc));
         return workoutService.createPrescribed(clubId, athleteId, data);
+    }
+
+    /**
+     * Verse dans la bibliothèque une séance construite directement au calendrier. Une séance
+     * improvisée pour un athlète se retrouvait sans issue : la refaire de zéro pour en garder un
+     * modèle. On recopie ici son snapshot tel quel dans un nouveau modèle du club.
+     */
+    @Transactional
+    public CourseStructureResponse saveWorkoutAsTemplate(UUID clubId, UUID workoutId,
+                                                         com.coachrun.dto.request.SaveAsTemplateRequest req) {
+        com.coachrun.entity.Workout w = workoutRepository.findByIdAndClubId(workoutId, clubId)
+                .orElseThrow(() -> new NotFoundException("Séance introuvable."));
+        SessionStructure structure = readStructure(w.getSessionSnapshot());
+
+        WorkoutTemplate t = new WorkoutTemplate();
+        t.setClub(w.getClub());
+        t.setName(req.name());
+        t.setTitle(req.title());
+        t.setType(w.getType());
+        t.setNotes(w.getNotes());
+        t.setTargetDistanceM(w.getTargetDistanceM());
+        t.setTargetDurationS(w.getTargetDurationS());
+        t.setStructureJson(writeStructure(structure));
+        if (req.categoryId() != null) {
+            t.setCategory(categoryRepository.findByIdAndClubId(req.categoryId(), clubId)
+                    .orElseThrow(() -> new NotFoundException("Catégorie introuvable.")));
+        }
+        return CourseStructureResponse.of(templateRepository.save(t), structure);
     }
 
     private String writeJson(Object value) {

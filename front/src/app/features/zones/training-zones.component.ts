@@ -15,6 +15,8 @@ import {
 } from '../../core/models/training-zone.model';
 import { MetricTypeService } from '../../core/services/metric-type.service';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
+import { ZoneSet } from '../../core/models/zone-set.model';
+import { ZoneSetService } from '../../core/services/zone-set.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 
@@ -39,6 +41,33 @@ import { ToastService } from '../../core/services/toast.service';
         </p>
       </div>
     </section>
+
+    <!-- Modèles de zones : plusieurs échelles (route / trail, débutant / confirmé…), chacune
+         applicable aux athlètes de son choix depuis leur onglet « Zones ». -->
+    <div class="card sets">
+      <div class="sets-row">
+        <span class="sets-lb">Modèle de zones</span>
+        <select class="form-control set-select" [ngModel]="activeSetId()" (ngModelChange)="onSetChange($event)">
+          @for (s of sets(); track s.id) {
+            <option [value]="s.id">{{ s.name }} ({{ s.zoneCount }} zones)</option>
+          }
+        </select>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="duplicateSet()" [disabled]="setBusy()">
+          <app-icon name="copy" [size]="15" /> Dupliquer
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="renameSet()" [disabled]="setBusy() || !activeSet()">
+          <app-icon name="pencil" [size]="15" /> Renommer
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm danger" (click)="deleteSet()"
+                [disabled]="setBusy() || !activeSet() || activeSet()!.isDefault" title="Le modèle par défaut n'est pas supprimable">
+          <app-icon name="x" [size]="15" /> Supprimer
+        </button>
+      </div>
+      <p class="field-hint">
+        Les zones ci-dessous sont celles de ce modèle. Un athlète reçoit le modèle par défaut tant
+        qu'un autre ne lui est pas appliqué depuis son onglet « Zones ».
+      </p>
+    </div>
 
     <div class="card create">
       <div class="create-row">
@@ -195,6 +224,12 @@ import { ToastService } from '../../core/services/toast.service';
     }
   `,
   styles: [`
+    .sets { margin-bottom: var(--sp-4); }
+    .sets-row { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+    .sets-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; }
+    .set-select { flex: 0 1 280px; }
+    .sets .field-hint { margin: var(--sp-2) 0 0; }
+
     .create { margin-bottom: var(--sp-5); }
     .create-row { display: flex; align-items: center; gap: var(--sp-3); }
     .create-row .form-control { flex: 1; }
@@ -282,6 +317,7 @@ import { ToastService } from '../../core/services/toast.service';
 })
 export class TrainingZonesComponent implements OnInit {
   private readonly zoneService = inject(TrainingZoneService);
+  private readonly setService = inject(ZoneSetService);
   private readonly metricService = inject(MetricTypeService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
@@ -317,14 +353,95 @@ export class TrainingZonesComponent implements OnInit {
     return map;
   });
 
+  // --- Modèles de zones (plusieurs échelles par club) -----------------------
+
+  readonly sets = signal<ZoneSet[]>([]);
+  readonly activeSetId = signal<string>('');
+  readonly setBusy = signal(false);
+  readonly activeSet = computed(() => this.sets().find((s) => s.id === this.activeSetId()) ?? null);
+
   ngOnInit(): void {
-    forkJoin({ zones: this.zoneService.list(), metrics: this.metricService.list() }).subscribe({
-      next: ({ zones, metrics }) => {
+    forkJoin({
+      sets: this.setService.list(),
+      metrics: this.metricService.list(),
+    }).subscribe({
+      next: ({ sets, metrics }) => {
         this.metrics.set(metrics);
-        this.zones.set(zones);
-        this.loading.set(false);
+        this.sets.set(sets);
+        this.activeSetId.set((sets.find((s) => s.isDefault) ?? sets[0])?.id ?? '');
+        this.loadZones();
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  private loadZones(): void {
+    this.loading.set(true);
+    this.zoneService.list({ setId: this.activeSetId() }).subscribe({
+      next: (zones) => { this.zones.set(zones); this.loading.set(false); },
+      error: () => this.loading.set(false),
+    });
+  }
+
+  onSetChange(id: string): void {
+    this.activeSetId.set(id);
+    this.editingId.set(null);
+    this.configId.set(null);
+    this.scaleTab.set(null);
+    this.loadZones();
+  }
+
+  /**
+   * Duplique le modèle courant : on part presque toujours d'une échelle existante pour en faire
+   * une variante (trail, débutants…), pas d'une page blanche.
+   */
+  duplicateSet(): void {
+    const source = this.activeSet();
+    const name = window.prompt('Nom du nouveau modèle de zones', `${source?.name ?? 'Zones'} (copie)`)?.trim();
+    if (!name || this.setBusy()) return;
+    this.setBusy.set(true);
+    this.setService.create({ name, copyFromSetId: source?.id ?? null }).subscribe({
+      next: (created) => {
+        this.sets.update((list) => [...list, created]);
+        this.setBusy.set(false);
+        this.onSetChange(created.id);
+        this.toast.success(`Modèle « ${created.name} » créé — ajuste ses zones.`);
+      },
+      error: () => { this.setBusy.set(false); this.toast.error('Création impossible.'); },
+    });
+  }
+
+  renameSet(): void {
+    const set = this.activeSet();
+    if (!set) return;
+    const name = window.prompt('Renommer le modèle de zones', set.name)?.trim();
+    if (!name || name === set.name) return;
+    this.setService.rename(set.id, name).subscribe({
+      next: (updated) => {
+        this.sets.update((list) => list.map((s) => (s.id === updated.id ? updated : s)));
+        this.toast.success('Modèle renommé.');
+      },
+      error: () => this.toast.error('Renommage impossible.'),
+    });
+  }
+
+  async deleteSet(): Promise<void> {
+    const set = this.activeSet();
+    if (!set || set.isDefault) return;
+    const ok = await this.confirm.ask({
+      title: 'Supprimer le modèle de zones',
+      message: `Supprimer « ${set.name} » et ses ${set.zoneCount} zones ? `
+        + 'Les athlètes concernés reviennent au modèle par défaut.',
+      confirmLabel: 'Supprimer', danger: true,
+    });
+    if (!ok) return;
+    this.setService.delete(set.id).subscribe({
+      next: () => {
+        this.sets.update((list) => list.filter((s) => s.id !== set.id));
+        this.onSetChange((this.sets().find((s) => s.isDefault) ?? this.sets()[0])?.id ?? '');
+        this.toast.info('Modèle supprimé.');
+      },
+      error: () => this.toast.error('Suppression impossible.'),
     });
   }
 
@@ -345,8 +462,13 @@ export class TrainingZonesComponent implements OnInit {
   create(): void {
     const name = this.draft.name.trim();
     if (!name) return;
-    this.zoneService.create({ name, color: this.draft.color, description: this.draft.description || null }).subscribe((z) => {
+    this.zoneService.create({
+      name, color: this.draft.color, description: this.draft.description || null,
+      // La zone naît dans le modèle affiché, pas dans le jeu par défaut.
+      zoneSetId: this.activeSetId() || null,
+    }).subscribe((z) => {
       this.zones.update((list) => [...list, z]);
+      this.sets.update((list) => list.map((s) => (s.id === this.activeSetId() ? { ...s, zoneCount: s.zoneCount + 1 } : s)));
       this.draft = { name: '', color: '#22c55e', description: '' };
       // Une zone neuve n'a ni métrique ni règle : sans enchaîner sur sa configuration, elle
       // reste vide et le coach ne comprend pas pourquoi elle ne calcule rien.
@@ -385,6 +507,7 @@ export class TrainingZonesComponent implements OnInit {
     if (!ok) return;
     this.zoneService.delete(z.id).subscribe(() => {
       this.zones.update((list) => list.filter((x) => x.id !== z.id));
+      this.sets.update((list) => list.map((s) => (s.id === this.activeSetId() ? { ...s, zoneCount: Math.max(0, s.zoneCount - 1) } : s)));
       this.toast.success('Zone supprimée.');
     });
   }

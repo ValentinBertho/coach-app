@@ -1,6 +1,7 @@
 package com.coachrun.controller;
 
 import com.coachrun.dto.request.CourseStructureRequest;
+import com.coachrun.dto.request.SaveAsTemplateRequest;
 import com.coachrun.dto.request.ScheduleSessionRequest;
 import com.coachrun.dto.response.CalculatedSessionResponse;
 import com.coachrun.dto.response.CourseStructureResponse;
@@ -52,6 +53,18 @@ public class CourseSessionController {
     public CalculatedSessionResponse calculated(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                                 @PathVariable UUID templateId) {
         return courseSessionService.calculateForAthlete(clubId, athleteId, templateId);
+    }
+
+    /**
+     * Verse une séance construite au calendrier dans la bibliothèque, sous forme de nouveau modèle.
+     */
+    @PostMapping("/athletes/{athleteId}/workouts/{workoutId}/save-as-template")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canRead(authentication, #athleteId)")
+    public CourseStructureResponse saveAsTemplate(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                                  @PathVariable UUID workoutId,
+                                                  @Valid @RequestBody SaveAsTemplateRequest request) {
+        return courseSessionService.saveWorkoutAsTemplate(clubId, workoutId, request);
     }
 
     /** Assigne la séance au calendrier de l'athlète (snapshot figé + cibles calculées). */

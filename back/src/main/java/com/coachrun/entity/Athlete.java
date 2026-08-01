@@ -117,6 +117,14 @@ public class Athlete extends BaseEntity {
     @Column(name = "discipline", length = 16)
     private Discipline discipline = Discipline.ROUTE;
 
+    /**
+     * Modèle de zones appliqué à cet athlète ; {@code null} = jeu par défaut du club. Permet
+     * d'entraîner route et trail, ou débutants et confirmés, sur des échelles distinctes.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "zone_set_id")
+    private ZoneSet zoneSet;
+
     /** Seuils physiologiques en m/s (données de santé, chiffrées au repos). */
     @Convert(converter = EncryptedBigDecimalConverter.class)
     @Column(name = "lt1_ms")

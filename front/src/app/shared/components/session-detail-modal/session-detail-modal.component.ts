@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, ou
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../icon/icon.component';
-import { SessionCategory } from '../../../core/models/session-category.model';
+import { CategoryOption, SessionCategory, categoryOptions } from '../../../core/models/session-category.model';
 import { CourseBlock, CourseStructureResponse, courseBlockTypeLabel } from '../../../core/models/course.model';
 import { TrainingZone } from '../../../core/models/training-zone.model';
 import { CourseService } from '../../../core/services/course.service';
@@ -32,7 +32,7 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                 <span class="sd-cat-lb">Catégorie</span>
                 <select class="form-control" [ngModel]="categoryId()" (ngModelChange)="categoryChange.emit($event)">
                   <option value="">Sans catégorie</option>
-                  @for (c of categories(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+                  @for (c of categoryChoices(); track c.category.id) { <option [value]="c.category.id">{{ c.label }}</option> }
                 </select>
               </label>
             } @else if (data()?.categoryName) {
@@ -123,6 +123,9 @@ export class SessionDetailModalComponent {
   readonly closed = output<void>();
   /** Émis quand le coach change la catégorie (id ou '' pour aucune). */
   readonly categoryChange = output<string>();
+
+  /** Catégories à plat, sous-catégories indentées sous leur parent. */
+  readonly categoryChoices = computed<CategoryOption[]>(() => categoryOptions(this.categories()));
 
   private readonly course = inject(CourseService);
   private readonly zoneService = inject(TrainingZoneService);

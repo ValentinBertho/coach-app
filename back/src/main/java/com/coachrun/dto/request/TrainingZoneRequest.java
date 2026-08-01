@@ -12,6 +12,8 @@ public record TrainingZoneRequest(
         @Size(max = 1024) String description,
         ZoneScope scope,
         Discipline discipline,
-        Integer sortOrder
+        Integer sortOrder,
+        /** Modèle de zones d'accueil (création seulement) ; null = jeu par défaut du club. */
+        java.util.UUID zoneSetId
 ) {
 }

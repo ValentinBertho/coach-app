@@ -190,10 +190,10 @@ export class CommandPaletteComponent {
       error: () => this.loading.set(false),
     });
 
-    this.templateService.list().subscribe({
-      next: (page) => this.templates.update((list) => [
+    this.templateService.listAll().subscribe({
+      next: (all) => this.templates.update((list) => [
         ...list.filter((r) => r.kind !== 'course'),
-        ...page.content.map((t) => ({
+        ...all.map((t) => ({
           kind: 'course' as const,
           id: t.id,
           label: t.name,

@@ -9,7 +9,9 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { SessionCategoryService } from '../../core/services/session-category.service';
-import { SessionCategory } from '../../core/models/session-category.model';
+import {
+  CategoryOption, SessionCategory, categoryOptions, categoryPath, categoryWithDescendants,
+} from '../../core/models/session-category.model';
 import { SessionDetailModalComponent } from '../../shared/components/session-detail-modal/session-detail-modal.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
@@ -48,12 +50,18 @@ export class TemplateListComponent implements OnInit {
   /** Séance dont on consulte le détail (modale) ; null = fermée. */
   readonly detail = signal<{ id: string; name: string } | null>(null);
 
-  /** Modèles filtrés (recherche nom/titre + catégorie). */
+  /**
+   * Modèles filtrés (recherche nom/titre + catégorie). Filtrer sur une catégorie parente inclut
+   * ses sous-catégories : sinon « Seuil » n'afficherait rien dès que tout est rangé dans
+   * « Seuil › Seuil long ».
+   */
   readonly filtered = computed(() => {
     const q = this.search().trim().toLowerCase();
     const cat = this.categoryFilter();
+    const branch = cat && cat !== 'none' ? categoryWithDescendants(this.categories(), cat) : null;
     return this.templates().filter((t) => {
-      const matchesCat = !cat || (cat === 'none' ? !t.categoryId : t.categoryId === cat);
+      const matchesCat = !cat
+        || (cat === 'none' ? !t.categoryId : !!t.categoryId && branch!.has(t.categoryId));
       const matchesQ = !q || t.name.toLowerCase().includes(q) || (t.title ?? '').toLowerCase().includes(q);
       return matchesCat && matchesQ;
     });
@@ -65,13 +73,21 @@ export class TemplateListComponent implements OnInit {
   toggleCategories(): void { this.showCategories.update((v) => !v); }
   openDetail(t: WorkoutTemplate): void { this.detail.set({ id: t.id, name: t.name }); }
 
-  // Création minimale : nom, titre, catégorie. La structure se construit ensuite dans l'éditeur.
+  /**
+   * Création minimale : le <b>titre</b> suffit. Exiger en plus un « nom du modèle » revenait à
+   * saisir deux fois la même chose ; le nom de rangement reprend le titre s'il reste vide, et
+   * reste modifiable dans l'éditeur.
+   */
   readonly form = this.fb.group({
-    name: ['', Validators.required],
     title: ['', Validators.required],
+    name: [''],
     notes: [''],
     categoryId: [''],
   });
+
+  /** Champ « nom du modèle » replié : ouvert seulement si le coach veut un nom distinct du titre. */
+  readonly showName = signal(false);
+  toggleName(): void { this.showName.update((v) => !v); }
 
   ngOnInit(): void {
     this.load();
@@ -87,8 +103,8 @@ export class TemplateListComponent implements OnInit {
 
   load(): void {
     this.loading.set(true);
-    this.templateService.list().subscribe({
-      next: (p) => { this.templates.set(p.content); this.loading.set(false); },
+    this.templateService.listAll().subscribe({
+      next: (t) => { this.templates.set(t); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
   }
@@ -101,7 +117,8 @@ export class TemplateListComponent implements OnInit {
     if (this.form.invalid) { this.form.markAllAsTouched(); return; }
     const raw = this.form.getRawValue();
     const body: WorkoutTemplateRequest = {
-      name: raw.name!,
+      // Nom de rangement : celui saisi, à défaut le titre (le serveur applique la même règle).
+      name: (raw.name || '').trim() || raw.title!,
       type: 'ENDURANCE',
       title: raw.title!,
       notes: raw.notes || null,
@@ -112,6 +129,7 @@ export class TemplateListComponent implements OnInit {
       next: (created) => {
         this.toast.success('Modèle créé — construis la structure');
         this.form.reset({ categoryId: '' });
+        this.showName.set(false);
         this.showForm.set(false);
         this.router.navigate(['/app/templates', created.id, 'structure']);
       },
@@ -122,6 +140,34 @@ export class TemplateListComponent implements OnInit {
   categoryName(id: string | null): string {
     if (!id) return '';
     return this.categories().find((c) => c.id === id)?.name ?? '';
+  }
+
+  /** Chemin complet d'une catégorie (« VMA › VMA courte ») — les sous-catégories restent situables. */
+  categoryPathOf(id: string | null): string {
+    return categoryPath(this.categories(), id);
+  }
+
+  /** Catégories à plat, sous-catégories indentées sous leur parent (menus déroulants). */
+  readonly categoryChoices = computed<CategoryOption[]>(() => categoryOptions(this.categories()));
+
+  /**
+   * Renomme une séance sans passer par l'éditeur : après une duplication, « … (copie) » n'était
+   * modifiable nulle part depuis la bibliothèque.
+   */
+  rename(t: WorkoutTemplate): void {
+    const name = window.prompt('Renommer la séance', t.name)?.trim();
+    if (!name || name === t.name) return;
+    this.templateService.update(t.id, {
+      name, type: t.type, title: t.title, notes: t.notes,
+      targetDistanceM: t.targetDistanceM, targetDurationS: t.targetDurationS,
+      categoryId: t.categoryId, steps: t.steps,
+    }).subscribe({
+      next: (updated) => {
+        this.templates.update((list) => list.map((x) => (x.id === t.id ? updated : x)));
+        this.toast.success('Séance renommée');
+      },
+      error: () => this.toast.error('Renommage impossible.'),
+    });
   }
 
   /**
@@ -157,18 +203,37 @@ export class TemplateListComponent implements OnInit {
   }
 
   // --- Gestion des catégories (créer / renommer / supprimer) -----------------
+
+  /** Catégorie parente de la prochaine création ('' = catégorie racine). */
+  newCategoryParentId = '';
+
   createCategory(): void {
     const name = this.newCategoryName.trim();
     if (!name || this.savingCategory()) return;
     this.savingCategory.set(true);
-    this.categoryService.create({ name }).subscribe({
+    this.categoryService.create({ name, parentId: this.newCategoryParentId || null }).subscribe({
       next: (c) => {
         this.categories.update((list) => [...list, c].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name)));
         this.newCategoryName = '';
         this.savingCategory.set(false);
-        this.toast.success('Catégorie créée');
+        this.toast.success(this.newCategoryParentId ? 'Sous-catégorie créée' : 'Catégorie créée');
       },
       error: () => { this.savingCategory.set(false); this.toast.error('Création impossible.'); },
+    });
+  }
+
+  /** Range une catégorie sous une autre (ou la remonte à la racine avec ''). */
+  setCategoryParent(c: SessionCategory, parentId: string): void {
+    const next = parentId || null;
+    if (next === c.parentId) return;
+    this.categoryService.update(c.id, {
+      name: c.name, parentId: next, discipline: c.discipline, sortOrder: c.sortOrder,
+    }).subscribe({
+      next: (updated) => {
+        this.categories.update((list) => list.map((x) => (x.id === c.id ? updated : x)));
+        this.toast.success(next ? 'Sous-catégorie rangée.' : 'Catégorie remontée à la racine.');
+      },
+      error: () => this.toast.error('Déplacement impossible.'),
     });
   }
 
@@ -193,7 +258,10 @@ export class TemplateListComponent implements OnInit {
     if (!ok) return;
     this.categoryService.delete(c.id).subscribe({
       next: () => {
-        this.categories.update((list) => list.filter((x) => x.id !== c.id));
+        // Le serveur détache (FK SET NULL) : les sous-catégories remontent à la racine.
+        this.categories.update((list) => list
+          .filter((x) => x.id !== c.id)
+          .map((x) => (x.parentId === c.id ? { ...x, parentId: null } : x)));
         this.templates.update((list) => list.map((t) => (t.categoryId === c.id ? { ...t, categoryId: null, categoryName: null } : t)));
         if (this.categoryFilter() === c.id) this.categoryFilter.set('');
         this.toast.info('Catégorie supprimée.');

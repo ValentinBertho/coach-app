@@ -30,12 +30,18 @@ export class PhysioService {
     return this.http.get<Vdot>(`${this.base(athleteId)}/vdot`);
   }
 
-  /** Test de Vitesse Critique : calcule la VC (+ D') depuis plusieurs efforts. */
+  /**
+   * Test de Vitesse Critique : calcule la VC (+ D') depuis plusieurs efforts. La FC moyenne de
+   * chaque effort est facultative ; renvoyée agrégée (pondérée par la durée) dans `avgHr`.
+   */
   vcTest(
     athleteId: string,
-    body: { trials: { distanceM: number; timeS: number }[]; applyToProfile: boolean },
-  ): Observable<{ vcMs: number; vcKmh: number; dPrimeM: number }> {
-    return this.http.post<{ vcMs: number; vcKmh: number; dPrimeM: number }>(
+    body: {
+      trials: { distanceM: number; timeS: number; avgHr?: number | null }[];
+      applyToProfile: boolean;
+    },
+  ): Observable<{ vcMs: number; vcKmh: number; dPrimeM: number; avgHr: number | null }> {
+    return this.http.post<{ vcMs: number; vcKmh: number; dPrimeM: number; avgHr: number | null }>(
       `${this.base(athleteId)}/vc-test`, body,
     );
   }

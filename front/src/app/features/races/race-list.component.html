@@ -13,8 +13,12 @@
         <option value="A">A — majeur</option><option value="B">B</option><option value="C">C</option>
       </select>
     </div>
-    <div class="form-group"><label>Distance (m)</label><input type="number" class="form-control" [(ngModel)]="draft.distanceM" /></div>
-    <div class="form-group"><label>Chrono visé (s)</label><input type="number" class="form-control" [(ngModel)]="draft.targetTimeS" /></div>
+    <div class="form-group"><label>Distance (km)</label><input type="number" step="0.1" class="form-control" [(ngModel)]="draft.km" placeholder="42.195" /></div>
+    <div class="form-group">
+      <label>Chrono visé</label>
+      <input class="form-control" [(ngModel)]="draft.targetTime" placeholder="hh:mm:ss" inputmode="numeric" />
+      <span class="field-hint">Format hh:mm:ss (ou mm:ss)</span>
+    </div>
     <div class="form-group" style="justify-content:flex-end"><button type="button" class="btn btn-primary" (click)="create()">+ Ajouter</button></div>
   </div>
 </div>

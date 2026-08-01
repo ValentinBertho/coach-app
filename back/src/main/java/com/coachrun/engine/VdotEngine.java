@@ -31,6 +31,51 @@ public class VdotEngine {
         return (int) Math.round(secPerKm);
     }
 
+    /**
+     * Allure d'entraînement (secondes/km) tenue à un pourcentage donné du VDOT — méthode Daniels :
+     * la vitesse est celle dont la demande en O₂ vaut {@code pctVdot × VDOT}.
+     *
+     * <p>Sert aux deux allures que le coach lit en premier : l'endurance fondamentale (≈ 70 %) et
+     * le seuil (≈ 88 %), qu'aucune équivalence de course ne donnait jusqu'ici.</p>
+     */
+    public int trainingPaceSecPerKm(double targetVdot, double pctVdot) {
+        double velocityMetersPerMin = velocityForVo2(targetVdot * pctVdot);
+        return (int) Math.round(60_000.0 / velocityMetersPerMin);
+    }
+
+    /** Allure d'endurance fondamentale (« easy ») : 70 % du VDOT, milieu de la plage 59–74 %. */
+    public int easyPaceSecPerKm(double targetVdot) {
+        return trainingPaceSecPerKm(targetVdot, EASY_PCT);
+    }
+
+    /** Allure au seuil (« threshold ») : 88 % du VDOT — l'allure tenable ~60 min. */
+    public int thresholdPaceSecPerKm(double targetVdot) {
+        return trainingPaceSecPerKm(targetVdot, THRESHOLD_PCT);
+    }
+
+    /** Part du VDOT tenue en endurance fondamentale (Daniels : 59–74 %, milieu de plage). */
+    public static final double EASY_PCT = 0.70;
+    /** Part du VDOT tenue au seuil lactique (Daniels). */
+    public static final double THRESHOLD_PCT = 0.88;
+
+    /**
+     * Vitesse (m/min) dont le coût énergétique vaut {@code vo2}, par inversion de la relation
+     * vitesse → VO₂ de Daniels (polynôme du second degré, strictement croissant sur le domaine utile).
+     */
+    private double velocityForVo2(double vo2) {
+        double lo = 1.0;
+        double hi = 1_000.0; // 1000 m/min = 60 km/h : bien au-delà de tout coureur
+        for (int i = 0; i < 100; i++) {
+            double mid = (lo + hi) / 2.0;
+            if (vo2AtVelocity(mid) < vo2) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        return (lo + hi) / 2.0;
+    }
+
     /** Temps (secondes) nécessaire pour couvrir {@code distanceMeters} à {@code targetVdot}. */
     public double timeForVdot(double targetVdot, int distanceMeters) {
         double lo = 1.0;         // borne basse : 1 s
@@ -52,12 +97,17 @@ public class VdotEngine {
 
     private double vdotCore(double distanceMeters, double timeSeconds) {
         double velocityMetersPerMin = distanceMeters / (timeSeconds / 60.0);
-        double vo2 = -4.60 + 0.182258 * velocityMetersPerMin
-                + 0.000104 * velocityMetersPerMin * velocityMetersPerMin;
+        double vo2 = vo2AtVelocity(velocityMetersPerMin);
         double minutes = timeSeconds / 60.0;
         double percentMax = 0.8
                 + 0.1894393 * Math.exp(-0.012778 * minutes)
                 + 0.2989558 * Math.exp(-0.1932605 * minutes);
         return vo2 / percentMax;
+    }
+
+    /** Demande en O₂ (ml/kg/min) d'une vitesse de course (m/min) — relation de Daniels. */
+    private double vo2AtVelocity(double velocityMetersPerMin) {
+        return -4.60 + 0.182258 * velocityMetersPerMin
+                + 0.000104 * velocityMetersPerMin * velocityMetersPerMin;
     }
 }

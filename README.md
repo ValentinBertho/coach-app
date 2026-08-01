@@ -36,17 +36,26 @@ L'application sert **trois rôles** : administrateur plateforme, coach (responsa
 assistant), et athlète (PWA mobile).
 
 ### Module course à pied
-- **Profil physiologique** par athlète : performances de référence → **VDOT** + allures, seuils
-  **LT1/LT2** (tests lactate), **domaines d'intensité** (1/2/3), FC de seuil.
-- **Bibliothèque de séances** + catégories, **éditeur de structure unique** (échauffement / corps /
-  retour au calme) en **fourchettes** (% LT1/LT2/VC/allures) avec **calculateur live** par athlète.
-  Saisie simplifiée (bascule Distance/Durée, durée en minutes, blocs pré-remplis) ; **éducatifs de
-  course** (gammes technique/amplitude) attachables aux blocs. Affichage **cartes compactes ↔ liste
-  dense** avec recherche et filtre par type.
+- **Profil physiologique** par athlète : performances de référence → **VDOT**, allures
+  d'équivalence **et allures d'entraînement** (easy ≈ 70 % VDOT, seuil ≈ 88 %), seuils
+  **LT1/LT2** et **vitesse critique** saisis directement (ou calculés par le test de VC, FC
+  moyenne des efforts comprise), **domaines d'intensité** (1/2/3), FC de seuil.
+- **Bibliothèque de séances** + catégories **et sous-catégories**, **éditeur de structure unique**
+  (échauffement / corps / retour au calme) en **fourchettes** (% LT1/LT2/VC/allures) avec
+  **calculateur live** par athlète. Identité (nom, titre, catégorie) éditable dans l'éditeur ;
+  volumes saisis dans **l'unité de son choix** (sec / min / h · m / km) ; blocs pré-remplis ;
+  **éducatifs de course** (gammes technique/amplitude) attachables aux blocs. Affichage
+  **cartes compactes ↔ liste dense** avec recherche et filtre par catégorie.
 - **Calendrier** multi-types (course / force / test / objectif / indispo) avec drag & drop et
-  snapshot figé de la prescription. **Bibliothèque latérale repliable** (semaine pleine largeur) ;
+  snapshot figé de la prescription. Une séance construite directement dans le calendrier
+  s'**enregistre comme nouveau modèle** de bibliothèque en un geste.
+  **Bibliothèque latérale repliable** (semaine pleine largeur) ;
   les actions d'écriture (planifier, dupliquer la semaine, mésocycle) sont **désactivées sur un
   athlète en lecture seule** (cohérent avec la permission `write`).
+- **Zones d'entraînement paramétrables** : le coach nomme ses zones, leurs métriques et leurs
+  règles de calcul (ancre + %), et peut entretenir **plusieurs modèles de zones** (route / trail,
+  débutant / confirmé…) qu'il applique athlète par athlète ; les cibles se recalculent seules
+  quand une valeur de référence change.
 - **Dashboard coach** : tableaux Route/Trail, **pastilles de forme** (fatigue + douleur, jamais RPE),
   portée mes athlètes / privés / club.
 - **Portail athlète** (PWA, offline-friendly) : séance du jour **avec cibles en fourchettes**
@@ -107,7 +116,7 @@ unitairement et **source de vérité** (recalcul à la sauvegarde, équivalent d
 |---|---|
 | **Frontend** | Angular 17 (standalone components, signals, control-flow `@if`/`@for`, OnPush), PWA, TypeScript 5.4, Leaflet (cartes) |
 | **Backend** | Spring Boot 3.2.5, Java 21, API REST (~236 endpoints), Springdoc/OpenAPI |
-| **Base de données** | PostgreSQL 18 · **Liquibase** (58 migrations versionnées) |
+| **Base de données** | PostgreSQL 18 · **Liquibase** (65 migrations versionnées) |
 | **Auth** | JWT (access tokens) + liens magiques d'invitation athlète · `@PreAuthorize` multi-tenant |
 | **Sécurité** | AES-256-GCM (données santé + jetons OAuth chiffrés au repos), CSP, CORS allowlist, rate-limiting |
 | **Intégrations** | Strava (OAuth), import GPX/FIT, e-mail Resend, Web Push (VAPID), export PDF (OpenPDF) |

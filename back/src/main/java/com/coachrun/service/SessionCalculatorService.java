@@ -47,16 +47,54 @@ public class SessionCalculatorService {
     private final AthleteRepository athleteRepository;
     private final AthleteVdotPaceRepository vdotPaceRepository;
     private final AthleteZoneValueRepository zoneValueRepository;
+    private final com.coachrun.repository.TrainingZoneRepository zoneRepository;
     private final SessionCalculatorEngine engine;
 
-    /** Cibles de zone d'un athlète, indexées par zone puis par code de métrique (PACE/HR/RPE…). */
-    private Map<UUID, Map<String, AthleteZoneValue>> zoneTargetsFor(UUID athleteId) {
+    /**
+     * Cibles de zone d'un athlète, indexées par zone puis par code de métrique (PACE/HR/RPE…).
+     *
+     * <p>Les zones sont aussi indexées <b>par nom</b>. Une séance de bibliothèque référence les
+     * zones du modèle où elle a été écrite ; un athlète rattaché à un autre modèle de zones ne
+     * porte pas ces identifiants — sans repli par nom, la séance s'afficherait sans aucune cible
+     * alors que son échelle contient bien une « EF » ou un « Seuil ».</p>
+     */
+    private ZoneTargets zoneTargetsFor(UUID athleteId) {
         Map<UUID, Map<String, AthleteZoneValue>> byZone = new HashMap<>();
+        Map<String, Map<String, AthleteZoneValue>> byName = new HashMap<>();
         for (AthleteZoneValue v : zoneValueRepository.findByAthleteId(athleteId)) {
             byZone.computeIfAbsent(v.getZone().getId(), z -> new HashMap<>())
                     .put(v.getMetricType().getCode(), v);
+            byName.computeIfAbsent(normalized(v.getZone().getName()), z -> new HashMap<>())
+                    .put(v.getMetricType().getCode(), v);
         }
-        return byZone;
+        return new ZoneTargets(byZone, byName, zoneRepository);
+    }
+
+    private static String normalized(String name) {
+        return name == null ? "" : name.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /**
+     * Cibles d'un athlète, résolues par identifiant de zone puis, à défaut, par nom de zone
+     * (séance écrite sur un autre modèle de zones que celui de l'athlète).
+     */
+    private record ZoneTargets(
+            Map<UUID, Map<String, AthleteZoneValue>> byZone,
+            Map<String, Map<String, AthleteZoneValue>> byName,
+            com.coachrun.repository.TrainingZoneRepository zoneRepository) {
+
+        Map<String, AthleteZoneValue> of(UUID zoneId) {
+            if (zoneId == null) {
+                return Map.of();
+            }
+            Map<String, AthleteZoneValue> direct = byZone.get(zoneId);
+            if (direct != null) {
+                return direct;
+            }
+            return zoneRepository.findById(zoneId)
+                    .map(z -> byName.getOrDefault(normalized(z.getName()), Map.<String, AthleteZoneValue>of()))
+                    .orElse(Map.of());
+        }
     }
 
     /** Calcul d'un bloc isolé (aperçu live de l'éditeur). */
@@ -74,7 +112,7 @@ public class SessionCalculatorService {
     /** Calcul d'une séance entière pour un athlète, avec totaux estimés. */
     public CalculatedSessionResponse calculateSession(UUID clubId, UUID athleteId, SessionStructure structure) {
         AthletePaceContext ctx = contextFor(clubId, athleteId);
-        Map<UUID, Map<String, AthleteZoneValue>> zoneTargets = zoneTargetsFor(athleteId);
+        ZoneTargets zoneTargets = zoneTargetsFor(athleteId);
         SessionStructure s = structure == null ? SessionStructure.empty() : structure;
 
         Totals totals = new Totals();
@@ -90,7 +128,7 @@ public class SessionCalculatorService {
     // --- Internes -------------------------------------------------------------
 
     private List<CalculatedBlockEntry> calcSection(List<CourseBlock> blocks, AthletePaceContext ctx,
-                                                   Map<UUID, Map<String, AthleteZoneValue>> zoneTargets, Totals totals) {
+                                                   ZoneTargets zoneTargets, Totals totals) {
         List<CalculatedBlockEntry> entries = new ArrayList<>();
         if (blocks == null) {
             return entries;
@@ -117,7 +155,7 @@ public class SessionCalculatorService {
     }
 
     private CalculatedBlockResponse calcBlock(CourseBlock block, AthletePaceContext ctx,
-                                              Map<UUID, Map<String, AthleteZoneValue>> zoneTargets) {
+                                              ZoneTargets zoneTargets) {
         CoursePrescription p = block.prescription();
         if (p == null) {
             return null;
@@ -135,7 +173,7 @@ public class SessionCalculatorService {
     }
 
     private CalculatedBlockResponse calcRecovery(CourseRecovery recovery, AthletePaceContext ctx,
-                                                 Map<UUID, Map<String, AthleteZoneValue>> zoneTargets) {
+                                                 ZoneTargets zoneTargets) {
         if (recovery == null || recovery.prescription() == null) {
             return null;
         }
@@ -159,10 +197,9 @@ public class SessionCalculatorService {
      */
     private CalculatedBlockResponse calcZone(UUID zoneId, UUID hrZoneId, Integer reps, Integer distanceM,
                                              Integer durationS,
-                                             Map<UUID, Map<String, AthleteZoneValue>> zoneTargets) {
-        Map<String, AthleteZoneValue> byCode = zoneTargets.getOrDefault(zoneId, Map.of());
-        Map<String, AthleteZoneValue> hrCodes = hrZoneId == null
-                ? byCode : zoneTargets.getOrDefault(hrZoneId, Map.of());
+                                             ZoneTargets zoneTargets) {
+        Map<String, AthleteZoneValue> byCode = zoneTargets.of(zoneId);
+        Map<String, AthleteZoneValue> hrCodes = hrZoneId == null ? byCode : zoneTargets.of(hrZoneId);
         AthleteZoneValue pace = byCode.get("PACE");
         AthleteZoneValue hr = hrCodes.get("HR");
         AthleteZoneValue rpe = byCode.get("RPE");

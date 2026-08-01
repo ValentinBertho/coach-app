@@ -53,8 +53,27 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
           </div>
         </div>
 
+        <!-- Allures d'entraînement : ce que le coach lit en premier pour prescrire un footing
+             ou un seuil — les équivalences de course ci-dessous ne le disent pas. -->
+        @if (vdot()?.trainingPaces?.length) {
+          <h3 class="allures-title">Allures d'entraînement (VDOT)</h3>
+          <table class="allures">
+            <tbody>
+              @for (p of vdot()!.trainingPaces; track p.distance) {
+                @if (p.paceSecPerKm) {
+                  <tr>
+                    <td class="allure-dist">{{ trainingPaceLabel(p.distance) }}</td>
+                    <td class="metric allure-pace">{{ p.paceLabel }}/km</td>
+                    <td class="metric allure-speed">{{ p.speedKmh }} km/h</td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        }
+
         @if (vdot()?.paces?.length) {
-          <h3 class="allures-title">Allures calculées (VDOT)</h3>
+          <h3 class="allures-title">Allures d'équivalence (VDOT)</h3>
           <table class="allures">
             <tbody>
               @for (p of vdot()!.paces; track p.distance) {
@@ -182,6 +201,11 @@ export class PhysioPanelComponent implements OnInit {
       error: () => this.loading.set(false),
     });
     this.physio.vdot(this.athleteId()).subscribe({ next: (v) => this.vdot.set(v) });
+  }
+
+  /** Libellé FR d'une allure d'entraînement (code renvoyé par le serveur). */
+  trainingPaceLabel(code: string): string {
+    return { EASY: 'Allure easy (endurance)', THRESHOLD: 'Allure seuil (threshold)' }[code] ?? code;
   }
 
   kmh(value: number | null | undefined): string {

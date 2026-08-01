@@ -11,21 +11,34 @@
 @if (showCategories()) {
   <section class="card cat-manager">
     <h2>Catégories de la bibliothèque</h2>
-    <p class="field-hint">Range tes séances par catégorie (VMA courte, Seuil, Fartlek, Endurance…). La suppression détache les séances sans les effacer.</p>
+    <p class="field-hint">Range tes séances par catégorie et sous-catégorie (VMA › VMA courte, Seuil › Seuil long…).
+      La suppression détache les séances et remonte les sous-catégories à la racine, sans rien effacer.</p>
     <div class="cat-create">
       <input class="form-control" [(ngModel)]="newCategoryName" placeholder="Nouvelle catégorie…" maxlength="255"
              (keydown.enter)="createCategory()" />
+      <select class="form-control" [(ngModel)]="newCategoryParentId" title="Catégorie parente">
+        <option value="">Catégorie principale</option>
+        @for (c of categoryChoices(); track c.category.id) { <option [value]="c.category.id">Sous-catégorie de {{ c.label }}</option> }
+      </select>
       <button type="button" class="btn btn-primary btn-sm" (click)="createCategory()" [disabled]="savingCategory() || !newCategoryName.trim()">
         <app-icon name="check" [size]="15" /> Ajouter
       </button>
     </div>
     @if (categories().length) {
       <ul class="cat-list">
-        @for (c of categories(); track c.id) {
-          <li class="cat-row">
-            <span class="cat-name">{{ c.name }}</span>
-            <button type="button" class="icon-btn" (click)="renameCategory(c)" title="Renommer"><app-icon name="pencil" [size]="14" /></button>
-            <button type="button" class="icon-btn danger" (click)="deleteCategory(c)" title="Supprimer"><app-icon name="x" [size]="15" /></button>
+        @for (c of categoryChoices(); track c.category.id) {
+          <li class="cat-row" [style.padding-left.px]="c.depth * 20">
+            <span class="cat-name">{{ c.depth ? '↳ ' : '' }}{{ c.category.name }}</span>
+            <!-- Déplacer une catégorie sous une autre : c'est ce qui construit l'arbre après coup. -->
+            <select class="form-control cat-parent" [ngModel]="c.category.parentId ?? ''"
+                    (ngModelChange)="setCategoryParent(c.category, $event)" title="Ranger sous…">
+              <option value="">Catégorie principale</option>
+              @for (p of categoryChoices(); track p.category.id) {
+                @if (p.category.id !== c.category.id) { <option [value]="p.category.id">Sous-catégorie de {{ p.label }}</option> }
+              }
+            </select>
+            <button type="button" class="icon-btn" (click)="renameCategory(c.category)" title="Renommer"><app-icon name="pencil" [size]="14" /></button>
+            <button type="button" class="icon-btn danger" (click)="deleteCategory(c.category)" title="Supprimer"><app-icon name="x" [size]="15" /></button>
           </li>
         }
       </ul>
@@ -40,15 +53,23 @@
     <p class="field-hint">Renseigne les informations du modèle ; tu construiras ensuite sa structure
       (échauffement / corps / retour au calme) en <strong>zones</strong> dans l'éditeur.</p>
     <div class="form-row">
-      <div class="form-group"><label>Nom du modèle *</label><input class="form-control" formControlName="name" placeholder="VMA courte" /></div>
+      <div class="form-group"><label>Titre de la séance *</label><input class="form-control" formControlName="title" placeholder="VMA 10×400 m" /></div>
       <div class="form-group"><label>Catégorie</label>
         <select class="form-control" formControlName="categoryId">
           <option value="">Sans catégorie</option>
-          @for (c of categories(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+          @for (c of categoryChoices(); track c.category.id) { <option [value]="c.category.id">{{ c.label }}</option> }
         </select>
       </div>
     </div>
-    <div class="form-group"><label>Titre *</label><input class="form-control" formControlName="title" placeholder="VMA 10×400m" /></div>
+    <!-- Le nom de rangement reprend le titre par défaut : un seul champ à remplir. -->
+    @if (showName()) {
+      <div class="form-group">
+        <label>Nom dans la bibliothèque</label>
+        <input class="form-control" formControlName="name" placeholder="Repris du titre si vide" />
+      </div>
+    } @else {
+      <button type="button" class="btn btn-ghost btn-sm" (click)="toggleName()">+ Nom différent dans la bibliothèque</button>
+    }
     <div class="form-group"><label>Notes (optionnel)</label><textarea class="form-control" rows="2" formControlName="notes" placeholder="Intention de séance…"></textarea></div>
     <button type="submit" class="btn btn-primary btn-lg" style="margin-top:var(--sp-4)">Créer et éditer la structure →</button>
   </form>
@@ -66,7 +87,7 @@
     <select class="form-control tpl-cat-filter" [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)" title="Filtrer par catégorie">
       <option value="">Toutes catégories</option>
       @if (uncategorizedCount()) { <option value="none">Sans catégorie ({{ uncategorizedCount() }})</option> }
-      @for (c of categories(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+      @for (c of categoryChoices(); track c.category.id) { <option [value]="c.category.id">{{ c.label }}</option> }
     </select>
     <span class="tpl-count">{{ filtered().length }} séance(s)</span>
     <div class="view-switch">
@@ -86,10 +107,11 @@
       @for (t of filtered(); track t.id) {
         <div class="card tpl" (click)="openDetail(t)">
           <div class="tpl-head">
-            @if (t.categoryName) { <span class="badge badge-neutral tpl-cat-badge">{{ t.categoryName }}</span> }
+            @if (t.categoryId) { <span class="badge badge-neutral tpl-cat-badge">{{ categoryPathOf(t.categoryId) }}</span> }
             @else { <span class="badge badge-neutral tpl-cat-badge muted">Sans catégorie</span> }
             <div class="tpl-head-actions" (click)="$event.stopPropagation()">
               <button type="button" class="icon-btn" (click)="openDetail(t)" title="Consulter"><app-icon name="eye" [size]="15" /></button>
+              <button type="button" class="icon-btn" (click)="rename(t)" title="Renommer"><app-icon name="type" [size]="15" /></button>
               <a [routerLink]="['/app/templates', t.id, 'structure']" class="icon-btn" title="Modifier"><app-icon name="pencil" [size]="15" /></a>
               <button type="button" class="icon-btn" (click)="duplicate(t)" [disabled]="duplicating()" title="Dupliquer"><app-icon name="copy" [size]="15" /></button>
               <button type="button" class="icon-btn danger" (click)="remove(t)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
@@ -109,11 +131,12 @@
         <div class="tpl-row" (click)="openDetail(t)">
           <div class="tpl-row-id">
             <strong>{{ t.name }}</strong>
-            <span class="field-hint">{{ t.title }}@if (t.categoryName) { · {{ t.categoryName }} }</span>
+            <span class="field-hint">{{ t.title }}@if (t.categoryId) { · {{ categoryPathOf(t.categoryId) }} }</span>
             <app-zone-bar [steps]="t.steps" />
           </div>
           <div class="tpl-row-actions" (click)="$event.stopPropagation()">
             <button type="button" class="icon-btn" (click)="openDetail(t)" title="Consulter"><app-icon name="eye" [size]="15" /></button>
+            <button type="button" class="icon-btn" (click)="rename(t)" title="Renommer"><app-icon name="type" [size]="15" /></button>
             <a [routerLink]="['/app/templates', t.id, 'structure']" class="icon-btn" title="Modifier"><app-icon name="pencil" [size]="15" /></a>
             <button type="button" class="icon-btn" (click)="duplicate(t)" [disabled]="duplicating()" title="Dupliquer"><app-icon name="copy" [size]="15" /></button>
             <button type="button" class="icon-btn danger" (click)="remove(t)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>

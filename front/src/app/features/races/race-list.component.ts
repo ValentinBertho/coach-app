@@ -24,7 +24,16 @@ export class RaceListComponent implements OnInit {
 
   readonly races = signal<RaceObjective[]>([]);
   readonly loading = signal(true);
-  draft = { name: '', raceDate: '', distanceM: null as number | null, targetTimeS: null as number | null, priority: 'B' as 'A' | 'B' | 'C' };
+  /**
+   * Saisie de l'objectif. La distance se donne en kilomètres et le chrono en hh:mm:ss : personne
+   * ne pense un marathon en « 42195 m » ni un objectif en « 10800 s ».
+   */
+  draft = {
+    name: '', raceDate: '',
+    km: null as number | null,
+    targetTime: '',
+    priority: 'B' as 'A' | 'B' | 'C',
+  };
 
   ngOnInit(): void {
     this.load();
@@ -43,11 +52,34 @@ export class RaceListComponent implements OnInit {
       this.toast.warning('Nom et date requis.');
       return;
     }
-    this.raceService.create(this.athleteId(), { ...this.draft }).subscribe(() => {
+    const targetTimeS = this.parseTime(this.draft.targetTime);
+    if (this.draft.targetTime.trim() && targetTimeS == null) {
+      this.toast.warning('Chrono visé invalide — attendu hh:mm:ss (ou mm:ss).');
+      return;
+    }
+    this.raceService.create(this.athleteId(), {
+      name: this.draft.name,
+      raceDate: this.draft.raceDate,
+      distanceM: this.draft.km != null ? Math.round(this.draft.km * 1000) : null,
+      targetTimeS,
+      priority: this.draft.priority,
+    }).subscribe(() => {
       this.toast.success('Objectif ajouté');
-      this.draft = { name: '', raceDate: '', distanceM: null, targetTimeS: null, priority: 'B' };
+      this.draft = { name: '', raceDate: '', km: null, targetTime: '', priority: 'B' };
       this.load();
     });
+  }
+
+  /** « hh:mm:ss », « mm:ss » ou un nombre de minutes → secondes ; null si inexploitable. */
+  private parseTime(raw: string): number | null {
+    const t = raw.trim();
+    if (!t) return null;
+    const parts = t.split(':').map((p) => Number(p));
+    if (parts.some((n) => Number.isNaN(n) || n < 0)) return null;
+    if (parts.length === 1) return Math.round(parts[0] * 60);
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    return null;
   }
 
   async remove(r: RaceObjective): Promise<void> {

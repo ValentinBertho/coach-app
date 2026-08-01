@@ -16,6 +16,9 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
     /** Scoping tenant systématique (anti-IDOR) : jamais de findById nu. Club principal uniquement. */
     Optional<Athlete> findByIdAndClubId(UUID id, UUID clubId);
 
+    /** Athlètes rattachés à un modèle de zones (le jeu porte déjà son club : scoping assuré). */
+    java.util.List<Athlete> findByZoneSetId(UUID zoneSetId);
+
     /**
      * Scoping tenant aligné sur le modèle multi-club : l'athlète appartient au club soit comme
      * club principal, soit comme club additionnel — cohérent avec {@link #search}. À utiliser pour

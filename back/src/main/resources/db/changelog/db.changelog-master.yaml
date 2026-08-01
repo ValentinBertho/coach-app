@@ -131,3 +131,5 @@ databaseChangeLog:
       file: db/changelog/changes/063-user-password-changed-at.yaml
   - include:
       file: db/changelog/changes/064-attachment-club-quota.yaml
+  - include:
+      file: db/changelog/changes/065-zone-sets.yaml
