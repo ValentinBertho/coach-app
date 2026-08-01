@@ -65,10 +65,10 @@ class SessionLibraryFixesTest {
     void templateCreatedWithTitleOnly() throws Exception {
         JsonNode created = json(mvc.perform(post("/clubs/{c}/workout-templates", clubId)
                         .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"type\":\"INTERVALS\",\"title\":\"VMA 10×400 m\"}"))
+                        .content("{\"type\":\"INTERVALS\",\"title\":\"VMA 10x400 m\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
 
-        assertThat(created.get("name").asText()).isEqualTo("VMA 10×400 m");
+        assertThat(created.get("name").asText()).isEqualTo("VMA 10x400 m");
     }
 
     /**
@@ -100,10 +100,10 @@ class SessionLibraryFixesTest {
         // Renommage depuis l'éditeur (le geste impossible après une duplication).
         JsonNode renamed = json(mvc.perform(put("/clubs/{c}/workout-templates/{t}/structure", clubId, templateId)
                         .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Seuil long\",\"title\":\"3×10 min seuil\"}"))
+                        .content("{\"name\":\"Seuil long\",\"title\":\"3x10 min seuil\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(renamed.get("name").asText()).isEqualTo("Seuil long");
-        assertThat(renamed.get("title").asText()).isEqualTo("3×10 min seuil");
+        assertThat(renamed.get("title").asText()).isEqualTo("3x10 min seuil");
         assertThat(renamed.get("categoryId").asText()).isEqualTo(categoryId);
 
         // Détachement explicite.
@@ -133,17 +133,17 @@ class SessionLibraryFixesTest {
         JsonNode template = json(mvc.perform(
                         post("/clubs/{c}/athletes/{a}/workouts/{w}/save-as-template", clubId, athleteId, workoutId)
                                 .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"title\":\"6×1000 m\"}"))
+                                .content("{\"title\":\"6x1000 m\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
 
-        assertThat(template.get("name").asText()).isEqualTo("6×1000 m");
+        assertThat(template.get("name").asText()).isEqualTo("6x1000 m");
         assertThat(template.get("structure").get("main")).hasSize(1);
 
         // Le modèle est bien dans la bibliothèque du club.
         JsonNode library = json(mvc.perform(get("/clubs/{c}/workout-templates?size=200", clubId)
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertThat(library.get("content").toString()).contains("6×1000 m");
+        assertThat(library.get("content").toString()).contains("6x1000 m");
     }
 
     /** La bibliothèque n'est plus plafonnée à vingt modèles pour un écran sans pagination. */

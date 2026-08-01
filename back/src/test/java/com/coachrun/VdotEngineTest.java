@@ -37,9 +37,9 @@ class VdotEngineTest {
     }
 
     /**
-     * Allures d'entraînement : pour un VDOT 50, Daniels donne ≈ 4:15/km en endurance et
-     * ≈ 3:30/km au seuil — l'easy est nécessairement plus lent que le seuil, lui-même plus lent
-     * que l'allure de compétition sur 5 km.
+     * Allures d'entraînement, calées sur la table Daniels pour un VDOT 50 : endurance
+     * 5:09–5:41/km et seuil 4:15/km. L'easy est nécessairement plus lente que le seuil, lui-même
+     * plus lent que l'allure de compétition sur 5 km.
      */
     @Test
     void trainingPacesFrameTheRacePace() {
@@ -49,8 +49,8 @@ class VdotEngineTest {
 
         assertThat(easy).isGreaterThan(threshold);
         assertThat(threshold).isGreaterThan(race5km);
-        assertThat(easy).isBetween(230, 280);      // ≈ 4:15/km
-        assertThat(threshold).isBetween(190, 230); // ≈ 3:30/km
+        assertThat(easy).isBetween(309, 341);       // 5:09–5:41/km
+        assertThat(threshold).isCloseTo(255, org.assertj.core.api.Assertions.within(5)); // 4:15/km
     }
 
     @Test

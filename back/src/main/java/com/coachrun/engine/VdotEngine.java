@@ -43,7 +43,7 @@ public class VdotEngine {
         return (int) Math.round(60_000.0 / velocityMetersPerMin);
     }
 
-    /** Allure d'endurance fondamentale (« easy ») : 70 % du VDOT, milieu de la plage 59–74 %. */
+    /** Allure d'endurance fondamentale (« easy »). */
     public int easyPaceSecPerKm(double targetVdot) {
         return trainingPaceSecPerKm(targetVdot, EASY_PCT);
     }
@@ -53,9 +53,13 @@ public class VdotEngine {
         return trainingPaceSecPerKm(targetVdot, THRESHOLD_PCT);
     }
 
-    /** Part du VDOT tenue en endurance fondamentale (Daniels : 59–74 %, milieu de plage). */
-    public static final double EASY_PCT = 0.70;
-    /** Part du VDOT tenue au seuil lactique (Daniels). */
+    /**
+     * Part du VDOT tenue en endurance fondamentale. Calée sur la table de Daniels plutôt que sur
+     * le milieu théorique de la plage E (59–74 %) : à 70 % on sortait de la fourchette publiée
+     * (5:06/km pour un VDOT 50, contre 5:09–5:41 en table), soit une « easy » trop rapide.
+     */
+    public static final double EASY_PCT = 0.68;
+    /** Part du VDOT tenue au seuil lactique (Daniels) — retombe sur la table (4:15/km à VDOT 50). */
     public static final double THRESHOLD_PCT = 0.88;
 
     /**
