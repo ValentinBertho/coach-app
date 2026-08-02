@@ -113,6 +113,13 @@ app:
   demo:
     reset:
       enabled: ${DEMO_RESET_ENABLED:false}   # RAZ démo : interdit par défaut (jamais en prod)
+  registration:
+    # « invite » : /auth/register exige un code d'invitation (cohorte fermée de la bêta).
+    # « open »   : inscription libre. Le profil prod force « invite » (application-prod.yml).
+    mode: ${REGISTRATION_MODE:open}
+    # Code partagé de la cohorte. En mode invite, un code vide bloquerait toute inscription :
+    # le garde-fou de démarrage le refuse en production.
+    invite-code: ${REGISTRATION_INVITE_CODE:}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     max-requests: ${RATE_LIMIT_MAX:20}

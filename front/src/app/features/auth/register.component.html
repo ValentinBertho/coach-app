@@ -42,6 +42,16 @@
       }
     </div>
 
+    <!-- Bêta sur invitation : le serveur refuse l'inscription sans code quand le mode « invite »
+         est actif. Le champ reste facultatif côté formulaire — c'est le serveur qui tranche, et
+         son message explique précisément ce qui manque. -->
+    <div class="form-group">
+      <label for="invitationCode">Code d'invitation</label>
+      <input id="invitationCode" type="text" class="form-control" formControlName="invitationCode"
+             autocomplete="off" placeholder="Reçu par e-mail" />
+      <span class="field-hint">La bêta est ouverte sur invitation. Laisse vide si tu n'as pas de code.</span>
+    </div>
+
     <div class="form-group">
       <label class="consent-check">
         <input type="checkbox" formControlName="termsAccepted" />

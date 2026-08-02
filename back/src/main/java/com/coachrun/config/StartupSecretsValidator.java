@@ -38,6 +38,8 @@ public class StartupSecretsValidator {
     private final String corsOrigins;
     private final String vapidPublicKey;
     private final String vapidPrivateKey;
+    private final String registrationMode;
+    private final String registrationInviteCode;
 
     @SuppressWarnings("checkstyle:ParameterNumber")
     public StartupSecretsValidator(
@@ -48,7 +50,9 @@ public class StartupSecretsValidator {
             @Value("${app.mail.resend-api-key:}") String resendApiKey,
             @Value("${app.cors.origins:}") String corsOrigins,
             @Value("${app.vapid.public-key:}") String vapidPublicKey,
-            @Value("${app.vapid.private-key:}") String vapidPrivateKey) {
+            @Value("${app.vapid.private-key:}") String vapidPrivateKey,
+            @Value("${app.registration.mode:open}") String registrationMode,
+            @Value("${app.registration.invite-code:}") String registrationInviteCode) {
         this.jwtSecret = jwtSecret;
         this.fieldEncryptionKey = fieldEncryptionKey;
         this.frontendUrl = frontendUrl;
@@ -57,6 +61,8 @@ public class StartupSecretsValidator {
         this.corsOrigins = corsOrigins;
         this.vapidPublicKey = vapidPublicKey;
         this.vapidPrivateKey = vapidPrivateKey;
+        this.registrationMode = registrationMode;
+        this.registrationInviteCode = registrationInviteCode;
     }
 
     @PostConstruct
@@ -91,6 +97,13 @@ public class StartupSecretsValidator {
         if (isBlank(vapidPublicKey) || isBlank(vapidPrivateKey)) {
             problems.add("VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY manquantes : "
                     + "les notifications push (séance planifiée, commentaire du coach) seraient inertes.");
+        }
+
+        // Inscription fermée sans code : plus personne ne peut créer de compte, et le message
+        // d'erreur ne s'affiche qu'au premier candidat qui essaie.
+        if ("invite".equalsIgnoreCase(registrationMode) && isBlank(registrationInviteCode)) {
+            problems.add("REGISTRATION_MODE=invite sans REGISTRATION_INVITE_CODE : "
+                    + "aucune inscription ne serait possible.");
         }
 
         if (!problems.isEmpty()) {

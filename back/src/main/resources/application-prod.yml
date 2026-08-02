@@ -26,3 +26,8 @@ springdoc:
 app:
   seed:
     enabled: false
+  registration:
+    # Bêta sur invitation : le runbook prévoit une cohorte de 5 à 8 coachs, mais /auth/register
+    # était public et n'exigeait que l'unicité de l'e-mail — n'importe qui pouvait créer un club.
+    # Passer à « open » le jour de l'ouverture publique.
+    mode: ${REGISTRATION_MODE:invite}

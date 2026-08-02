@@ -8,6 +8,10 @@ import jakarta.validation.constraints.Size;
 /**
  * Inscription d'un coach : crée son compte (HEAD_COACH) et son club implicite.
  * L'acceptation des CGU / politique de confidentialité est exigée (RGPD).
+ *
+ * <p>{@code invitationCode} n'est exigé qu'en mode d'inscription « invite » (bêta sur cohorte
+ * fermée) : la validation de sa présence est portée par le service, qui seul connaît le mode
+ * actif.</p>
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record RegisterRequest(
@@ -16,5 +20,6 @@ public record RegisterRequest(
         @NotBlank @Size(max = 120) String fullName,
         @NotBlank @Size(max = 120) String clubName,
         @jakarta.validation.constraints.AssertTrue(message = "L'acceptation des conditions d'utilisation est requise.")
-        boolean termsAccepted) {
+        boolean termsAccepted,
+        @Size(max = 120) String invitationCode) {
 }

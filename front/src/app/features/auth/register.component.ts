@@ -30,6 +30,9 @@ export class RegisterComponent {
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required, Validators.minLength(8)]],
     termsAccepted: [false, [Validators.requiredTrue]],
+    // Exigé seulement quand le serveur est en mode « invite » : lui seul connaît le mode actif,
+    // et son message d'erreur dit précisément ce qui ne va pas.
+    invitationCode: ['', [Validators.maxLength(120)]],
   });
 
   submit(): void {
