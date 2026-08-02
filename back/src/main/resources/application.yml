@@ -26,6 +26,14 @@ spring:
     multipart:
       max-file-size: 10MB        # pièces jointes messagerie
       max-request-size: 12MB
+  task:
+    scheduling:
+      # Cinq jobs planifiés (import Strava horaire, rappel 18 h, digest 7 h, débriefing horaire,
+      # purge des jetons révoqués). Avec le pool par défaut d'UN thread, un import Strava lent
+      # décale tous les autres, e-mails compris. Quatre threads : chaque job garde son créneau.
+      pool:
+        size: 4
+      thread-name-prefix: darilab-sched-
 
 server:
   servlet:

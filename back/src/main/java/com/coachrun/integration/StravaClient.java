@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
+import com.coachrun.config.HttpClients;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -36,8 +37,10 @@ public class StravaClient {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         this.redirectUri = redirectUri;
-        this.oauth = RestClient.builder().baseUrl(OAUTH_BASE).build();
-        this.api = RestClient.builder().baseUrl(API_BASE).build();
+        // Timeouts explicites : l'import Strava tourne dans un job planifié, une connexion qui
+        // pend y retiendrait un thread du pool pour toujours.
+        this.oauth = RestClient.builder().baseUrl(OAUTH_BASE).requestFactory(HttpClients.timeouts()).build();
+        this.api = RestClient.builder().baseUrl(API_BASE).requestFactory(HttpClients.timeouts()).build();
     }
 
     public boolean isConfigured() {
