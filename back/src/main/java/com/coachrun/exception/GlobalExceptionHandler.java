@@ -53,6 +53,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
+    /**
+     * Corps absent ou illisible. Sans ce cas, le filet à {@code Exception} plus bas transformait
+     * un POST sans corps en 500 « erreur interne » — une requête malformée n'est pas une panne du
+     * serveur, et le client n'avait aucun moyen de comprendre ce qui manquait.
+     */
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadableBody(
+            org.springframework.http.converter.HttpMessageNotReadableException ex,
+            HttpServletRequest request) {
+        ApiError error = ApiError.of(HttpStatus.BAD_REQUEST.value(),
+                "Corps de requête absent ou illisible.", request.getRequestURI());
+        return ResponseEntity.badRequest().body(error);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest request) {
         String correlationId = UUID.randomUUID().toString();

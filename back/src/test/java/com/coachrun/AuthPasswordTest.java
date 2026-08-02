@@ -1,5 +1,6 @@
 package com.coachrun;
 
+import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.UserRepository;
 import com.coachrun.service.DemoSeedService;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,6 +35,7 @@ class AuthPasswordTest {
     @Autowired private DemoSeedService demoSeedService;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private UserRepository userRepository;
+    @Autowired private AthleteRepository athleteRepository;
 
     private MockMvc mvc;
     private String bearer;
@@ -69,10 +71,28 @@ class AuthPasswordTest {
                 .get("inviteUrl").asText();
         String token = url.substring(url.lastIndexOf('/') + 1);
 
+        // Le consentement santé (RGPD art. 9) n'est pas optionnel : sans corps, ou avec un
+        // consentement refusé, le compte ne doit pas être créé. Le service ne posait
+        // l'horodatage que si le booléen était vrai — un POST nu passait donc sans consentement.
+        mvc.perform(post("/public/invitations/{t}/accept", token))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/public/invitations/{t}/accept", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"password\":\"athletepass1\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/public/invitations/{t}/accept", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"healthDataConsent\":false,\"password\":\"athletepass1\"}"))
+                .andExpect(status().isBadRequest());
+
         mvc.perform(post("/public/invitations/{t}/accept", token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"healthDataConsent\":true,\"password\":\"athletepass1\"}"))
                 .andExpect(status().isOk());
+
+        // Le consentement est bien horodaté, pas seulement accepté au passage.
+        assertThat(athleteRepository.findById(java.util.UUID.fromString(athleteId)).orElseThrow()
+                .getHealthDataConsentAt()).isNotNull();
 
         // Reconnexion avec e-mail + mot de passe.
         JsonNode session = login("lea.connect@darilab.app", "athletepass1");

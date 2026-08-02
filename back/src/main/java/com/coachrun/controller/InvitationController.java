@@ -30,13 +30,18 @@ public class InvitationController {
         return athleteService.invitationInfo(token);
     }
 
+    /**
+     * Acceptation d'une invitation athlète. Le corps est <b>obligatoire</b> : tant qu'il était
+     * facultatif, un POST sans corps créait le compte athlète sans consentement santé (art. 9),
+     * puisque le service ne posait l'horodatage que si le booléen valait vrai.
+     */
     @PostMapping("/{token}/accept")
     public AuthResponse accept(@PathVariable String token,
-                              @jakarta.validation.Valid @RequestBody(required = false)
+                              @jakarta.validation.Valid @RequestBody
                               InvitationAcceptRequest request) {
         return authService.acceptInvitation(token,
-                request != null && request.healthDataConsent(),
-                request == null ? null : request.email(),
-                request == null ? null : request.password());
+                Boolean.TRUE.equals(request.healthDataConsent()),
+                request.email(),
+                request.password());
     }
 }
