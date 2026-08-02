@@ -117,3 +117,10 @@ app:
     enabled: ${RATE_LIMIT_ENABLED:true}
     max-requests: ${RATE_LIMIT_MAX:20}
     window-seconds: ${RATE_LIMIT_WINDOW:60}
+    # Plafond des routes authentifiées (messages, pièces jointes, import GPX), par porteur de
+    # jeton : large pour ne pas gêner une navigation soutenue, mais il existe.
+    authenticated-max-requests: ${RATE_LIMIT_AUTHENTICATED_MAX:300}
+    # Nombre de relais de confiance devant l'application (Vercel → Railway = 2 en production).
+    # Sert à lire la bonne adresse dans X-Forwarded-For : le client contrôle le début de la
+    # chaîne, seuls les derniers éléments sont écrits par des proxys de confiance.
+    trusted-proxy-hops: ${RATE_LIMIT_TRUSTED_PROXY_HOPS:1}
