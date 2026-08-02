@@ -69,7 +69,24 @@ Chaque niveau dispose d'un trio `--urg-X` (texte/bordure), `--urg-X-bg` (fond p�
 > **Règle d'accessibilité non négociable** : couleur **+** icône **+** libellé. Une échéance en retard
 > reste identifiable en noir et blanc, à l'impression, et par une personne daltonienne.
 
-### 2.4 Criticité — un axe distinct de l'urgence
+### 2.4 Événements d'agenda — un registre visuel distinct des échéances
+
+Une échéance et un rendez-vous ne doivent **jamais** se confondre dans un calendrier. Ils n'ont ni la
+même forme, ni la même place :
+
+| Objet | Forme | Position | Couleur |
+|---|---|---|---|
+| **Échéance** | Pastille + libellé, hauteur fixe | **Bandeau « toute la journée »**, en haut de la colonne du jour | Échelle d'urgence (§ 2.3) |
+| **Rendez-vous** | Bloc rectangulaire proportionnel à sa durée | Dans la grille horaire | `--primary` sur `--primary-light`, filet gauche `--primary` |
+| **Audience / AG** | Bloc + liseré `--brass` | Grille horaire | `--brass` — ce sont les rendez-vous qu'on ne manque pas |
+| **Indisponibilité** | Bloc hachuré, sans bordure | Grille horaire, en arrière-plan | `--paper-sunk` |
+| **Calendrier externe** (Outlook / Google) | Bloc **grisé, non modifiable**, opacité 60 % | Grille horaire, calque de fond | `--ink-4` |
+| **À confirmer** | Bloc à **bordure pointillée** | Grille horaire | Couleur du type, fond transparent |
+
+Tokens dédiés : `--evt-rdv`, `--evt-solennel` (audience/AG), `--evt-indispo`, `--evt-externe`,
+chacun avec sa variante `-bg`.
+
+### 2.5 Criticité — un axe distinct de l'urgence
 
 L'urgence dit *quand*, la criticité dit *combien ça coûte si on rate*. Elle n'est **pas** rendue par la
 couleur (déjà prise) mais par un **filet vertical à gauche de la ligne** et un pictogramme :
@@ -80,7 +97,7 @@ couleur (déjà prise) mais par un **filet vertical à gauche de la ligne** et u
 | `IMPORTANTE` | Filet 2 px `--brass` | Manquement rattrapable |
 | `CONFORT` | Filet 1 px `--paper-line` | Organisation interne |
 
-### 2.5 Statuts métier → badge
+### 2.6 Statuts métier → badge
 
 | Statut | Couleur de badge |
 |---|---|
@@ -90,6 +107,7 @@ couleur (déjà prise) mais par un **filet vertical à gauche de la ligne** et u
 | Dossier `CLOS` | Vert `--urg-faite` |
 | Dossier `ARCHIVE` | Gris `--urg-neutre` |
 | Échéance | Échelle d'urgence (§ 2.3) |
+| Événement `A_CONFIRMER` / `TENU` / `ANNULE` | Bordure pointillée / ✓ vert / barré `--ink-4` |
 | Nature `JUDICIAIRE` | Badge laiton `--brass` + mention « délai de procédure » |
 
 ---
@@ -139,6 +157,12 @@ skeletons, `empty-state`.
 |---|---|
 | `app-echeance-row` | **Le composant central.** Une ligne : filet de criticité · pastille d'urgence · intitulé · société · date + compte à rebours · base légale · actions rapides (fait / reporter) |
 | `app-echeance-card` | Version carte pour le tableau de bord et le mobile |
+| `app-agenda-jour` | **Vue du jour** : bandeau des échéances en haut, grille horaire 7 h → 21 h, ligne rouge de l'heure courante, bloc-notes du jour à droite |
+| `app-agenda-semaine` | 5 ou 7 colonnes, même superposition, glisser-déposer d'un rendez-vous, imprimable |
+| `app-evenement-bloc` | Bloc de rendez-vous : heure, intitulé, lieu ou visio, pastille de dossier, formes du § 2.4 |
+| `app-evenement-form` | Création rapide : intitulé, créneau, récurrence, lieu, participants, dossier lié, rappel |
+| `app-selecteur-calques` | Affiche/masque : échéances · rendez-vous · indisponibilités · calendrier externe |
+| `app-notes-jour` | Bloc-notes daté, sauvegarde automatique, imprimable avec la vue jour |
 | `app-calendrier-mois` | Grille mensuelle 7 colonnes, pastilles d'urgence par jour, sélection d'un jour ouvrant le panneau latéral, imprimable |
 | `app-liste-du-mois` | Liste groupée par jour avec en-têtes de date collants — **la vue explicitement demandée** |
 | `app-trace-calcul` | Encart dépliable expliquant le calcul : fait générateur → formule → report → base légale → date de vérification |
@@ -148,7 +172,7 @@ skeletons, `empty-state`.
 | `app-timeline-dossier` | Chronologie verticale mêlant échéances et entrées de journal |
 | `app-application-modele` | Assistant : fait générateur → **tableau des échéances proposées, modifiables** → confirmation |
 | `app-statut-selector` | Changement de statut avec motif obligatoire quand la transition l'exige |
-| `app-badge-criticite` / `app-badge-urgence` | Badges canoniques (§ 2.3, 2.4) |
+| `app-badge-criticite` / `app-badge-urgence` | Badges canoniques (§ 2.3, 2.5) |
 | `app-entite-header` | En-tête de société : dénomination, forme, SIREN, greffe, **date de clôture mise en avant** |
 | `app-recherche-globale` | Palette `Ctrl/Cmd+K` |
 | `app-avertissement-procedure` | Bandeau sur les échéances `JUDICIAIRE` (texte au § 3.6 du référentiel) |
@@ -159,6 +183,8 @@ skeletons, `empty-state`.
 
 - **Le retard est toujours en tête**, sur tous les écrans, dans un bloc rouge qui ne se replie pas tant qu'il reste une échéance dépassée.
 - **Deux clics maximum** pour marquer une échéance faite depuis n'importe quelle vue.
+- **Créer un rendez-vous en un geste** : clic (ou cliquer-glisser) sur un créneau libre → formulaire pré-rempli avec l'horaire ; `Échap` annule.
+- **Ne jamais confondre les deux objets** : une échéance ne s'affiche jamais dans la grille horaire, un rendez-vous jamais dans le bandeau — la place dans l'écran est porteuse de sens (§ 2.4).
 - **Motif obligatoire** pour reporter ou passer en `SANS_OBJET` — c'est ce qui rend l'historique exploitable.
 - **Toujours expliquer une date calculée** (`app-trace-calcul` accessible d'un clic sur la date).
 - **Pré-remplissage contextuel** : « Nouvelle échéance » depuis une fiche société arrive avec la société et le dernier exercice déjà renseignés (`?entiteId=…&exercice=…`).
@@ -207,6 +233,7 @@ Keyframes autorisées : `fadeIn`, `slideInRight` (panneau latéral), `toastIn`, 
 ### Écrans clés
 
 - **Tableau de bord** — dans cet ordre, sans exception : ① **En retard** ② **Aujourd'hui** ③ Cette semaine ④ 30 prochains jours ⑤ Alertes (dossiers sans échéance, règles non vérifiées depuis 18 mois).
+- **Agenda Jour** — c'est probablement son écran d'accueil réel : échéances du jour en bandeau, rendez-vous à l'heure, notes du jour à droite. Doit être lisible sans faire défiler entre 8 h et 19 h.
 - **Vue mois** — calendrier à gauche (2/3), liste du mois groupée par jour à droite (1/3) sur desktop ; empilé sur mobile ; bouton « Imprimer le plan du mois ».
 - **Fiche dossier** — en-tête (référence mono, intitulé, société, statut, criticité) + onglets *Échéances · Documents · Journal · Contacts*, colonne de droite : prochaine échéance, contacts clés, chiffres du dossier.
 - **Fiche société** — identité + **frise de l'année sociale** en haut (c'est ce qu'elle vient voir) + mandats + dossiers rattachés.
@@ -222,8 +249,8 @@ société → base légale en petit. Sur une ligne d'échéance, **l'œil doit t
 
 - **Breakpoints** : `≤ 600px` (mobile : cartes empilées, filtres dans un tiroir, bottom-nav 4 entrées), `≤ 1024px` (tablette : calendrier au-dessus de la liste), `≥ 1280px` (desktop : deux colonnes, tableaux complets).
 - **Mobile** = consultation + marquage « fait ». La saisie d'une société ou d'un modèle reste desktop, sans être bloquée.
-- **A11y** : contraste AA minimum (les couleurs du § 2.3 sont choisies pour passer sur `--paper` **et** sur leur fond pâle), `:focus-visible` net, cibles ≥ 44 px, navigation clavier complète sur les listes, `aria-live` sur les toasts, tableaux avec en-têtes associés, pinch-zoom conservé.
-- **Impression** (`@media print`) : fond blanc, encre noire, urgence rendue par **icône + libellé + trame**, filets de criticité conservés en niveaux de gris, en-tête « Plan du mois — octobre 2026 » avec date d'édition, pas de barre latérale, sauts de page entre semaines.
+- **A11y** : contraste AA minimum (les couleurs des §§ 2.3 et 2.4 sont choisies pour passer sur `--paper` **et** sur leur fond pâle), `:focus-visible` net, cibles ≥ 44 px, navigation clavier complète sur les listes, `aria-live` sur les toasts, tableaux avec en-têtes associés, pinch-zoom conservé.
+- **Impression** (`@media print`) : la **semaine d'agenda** et le **plan du mois** s'impriment sur une page A4 paysage lisible ; fond blanc, encre noire, urgence rendue par **icône + libellé + trame**, filets de criticité conservés en niveaux de gris, en-tête « Plan du mois — octobre 2026 » avec date d'édition, pas de barre latérale, sauts de page entre semaines.
 
 ---
 

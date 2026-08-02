@@ -62,6 +62,7 @@ faiblesses structurelles :
 
 ### Objectifs secondaires
 - **Voir** : tableau de bord (aujourd'hui / cette semaine / en retard), **vue mensuelle**, vue par dossier, vue par société.
+- **Tenir son agenda** : rendez-vous, audiences, assemblées, réunions — avec horaires, lieu et participants — **affichés dans le même calendrier que les échéances** (§ 3.4).
 - **Tracer** : historique horodaté par dossier, preuve de réalisation attachée à l'échéance (récépissé de dépôt, PV signé…).
 - **Retrouver** : recherche globale instantanée sur dossiers, sociétés, contacts, documents.
 - **Sécuriser** : un seul compte, identifiants en variables d'environnement, chiffrement au repos, aucune indexation, aucune inscription possible.
@@ -175,29 +176,84 @@ Un **modèle** est une checklist ordonnée d'étapes, chacune portant une règle
 - Modèles livrés en jeu de données initial : approbation des comptes (SARL / SAS / SA), cession de parts, transfert de siège, changement de dirigeant, congé triennal de bail, renouvellement de bail, renouvellement de marque, suites d'un jugement de première instance, violation de données personnelles. Détail et bases légales : [`Referentiel-juridique.md`](./Referentiel-juridique.md) § 4.
 - **Génération annuelle automatique** : à chaque nouvel exercice clos, les échéances récurrentes d'une société sont créées par un job planifié, **idempotent** (clé unique `société + exercice + code d'échéance`) — jamais de doublon.
 
-## 3.4 Vues et navigation (M)
+## 3.4 Agenda — rendez-vous et journée de travail (M)
+
+> **Une échéance n'est pas un rendez-vous.** L'échéance est une **date limite** (déposer avant le 20/07)
+> calculée par le moteur ; le rendez-vous est un **créneau horaire** (AG le 26/06 à 14 h 30, salle du
+> conseil, avec le notaire). Les deux vivent dans le même calendrier, mais ce sont deux objets
+> différents — les confondre produirait soit un agenda incapable de calculer un délai, soit un moteur de
+> délais encombré d'horaires. Dies gère les deux et **les affiche ensemble**.
+
+### 3.4.1 Événements (M)
+
+- **Types** : `RENDEZ_VOUS` · `AUDIENCE` · `ASSEMBLEE` (AG, conseil) · `REUNION` · `SIGNATURE` (acte, closing) · `APPEL` · `DEPLACEMENT` · `FORMATION` · `RAPPEL_PERSONNEL` · `INDISPONIBILITE` (congé, absence).
+- **Champs** : intitulé, type, **date et heure de début / fin** (ou « journée entière »), lieu (adresse **ou lien de visioconférence**), participants (contacts liés), **dossier et/ou société rattachés**, notes, statut (`CONFIRME` / `A_CONFIRMER` / `ANNULE`), rappel propre (15 min / 1 h / 1 j / 1 semaine avant).
+- **Récurrence** : quotidienne, hebdomadaire, mensuelle (quantième ou « 3e mardi »), annuelle, avec fin par date ou par nombre d'occurrences. Une occurrence peut être **déplacée ou annulée sans casser la série**.
+- **Lien avec une échéance** : une échéance peut porter un rendez-vous (l'AG d'approbation à tenir avant le 30/06 → l'AG effectivement convoquée le 26/06 à 14 h 30). Le lien est explicite : **tenir le rendez-vous marque l'échéance comme faite**, en un clic.
+- **Détection de conflit** : chevauchement de créneaux, et alerte si un rendez-vous est posé le jour d'une échéance `BLOQUANTE` ou pendant une indisponibilité.
+- **Préparation** : bloc « à préparer » sur l'événement (checklist libre) — utile avant une AG ou une audience.
+
+### 3.4.2 Vues d'agenda (M)
+
+| Vue | Contenu |
+|---|---|
+| **Jour** | Colonne horaire (7 h → 21 h) avec les rendez-vous, **bandeau « toute la journée » en haut portant les échéances du jour**, et un **bloc-notes daté** libre (« ce qu'il faut faire aujourd'hui ») |
+| **Semaine** | 5 ou 7 colonnes, même superposition échéances / rendez-vous, imprimable |
+| **Mois** | Calendrier unifié : pastilles d'urgence pour les échéances, blocs horaires pour les rendez-vous, + **liste du mois groupée par jour** |
+| **Planning** | Liste chronologique continue « ce qui vient », tous objets confondus |
+
+Un **sélecteur de calques** permet d'afficher ou masquer : échéances · rendez-vous · indisponibilités ·
+calendrier externe (§ 3.4.4).
+
+### 3.4.3 Notes de journée (S)
+
+Un bloc-notes daté par jour, libre, chiffré — l'équivalent numérique de la page d'agenda papier :
+ce qu'elle a fait, ce qu'il reste, ce qu'on lui a demandé. Recherchable, imprimable avec la vue jour.
+_(Distinct du journal de dossier § 3.8, qui est rattaché à une affaire et verrouillé.)_
+
+### 3.4.4 Articulation avec Outlook / Google Agenda (S) — **la question à trancher avec elle**
+
+Trois niveaux, du moins cher au plus coûteux. **Recommandation : niveaux 1 et 2, pas le 3.**
+
+| Niveau | Principe | Coût | Limite |
+|---|---|---|---|
+| **1. Export** *(déjà prévu, § 3.10)* | Dies publie un flux iCal ; Outlook/Google **s'y abonnent** et affichent échéances et rendez-vous | Faible | Lecture seule côté Outlook, rafraîchissement différé (jusqu'à 24 h chez Microsoft) |
+| **2. Import en lecture seule** | Elle colle dans Dies l'**URL de publication** de son agenda Outlook ou Google ; Dies l'affiche en calque grisé, non modifiable | Faible — une URL, pas d'OAuth | Lecture seule, pas de création depuis Dies |
+| **3. Synchronisation bidirectionnelle** | Microsoft Graph / Google Calendar API, OAuth, jetons, gestion des conflits | **Élevé** | Complexité, tokens à maintenir, risque de doublons et de boucles de synchronisation — et souvent bloqué par la DSI de l'employeur |
+
+Avec les niveaux 1 et 2, elle **voit tout au même endroit dans les deux sens** sans qu'aucun système
+n'écrive chez l'autre. C'est le meilleur rapport valeur/risque pour une application privée.
+
+> ⚠️ **À vérifier avec elle avant de développer quoi que ce soit ici** : si son agenda professionnel est
+> imposé par son employeur (Outlook d'entreprise), la question n'est pas technique mais organisationnelle
+> — a-t-elle le droit de publier son calendrier vers un outil personnel ? Si non, on reste au niveau 1
+> (Dies exporte, elle s'abonne) et l'agenda interne de Dies sert aux rendez-vous liés aux dossiers.
+
+## 3.5 Vues et navigation (M)
 
 | Vue | Contenu | Priorité |
 |---|---|---|
-| **Tableau de bord** | En retard (rouge, en tête) · Aujourd'hui · Cette semaine · 30 prochains jours · dossiers sans échéance à venir · compteurs | **M** |
+| **Tableau de bord** | En retard (rouge, en tête) · **Aujourd'hui : échéances + rendez-vous** · Cette semaine · 30 prochains jours · dossiers sans échéance à venir · compteurs | **M** |
+| **Agenda Jour / Semaine / Mois** | Cf. § 3.4.2 — échéances et rendez-vous superposés, imprimables | **M** |
 | **Vue mois** | Calendrier mensuel + **liste du mois groupée par jour** (demande explicite), filtrable par société/type/criticité, imprimable en PDF « plan du mois » | **M** |
 | **Vue liste** | Toutes les échéances, filtres combinables, tri, pagination serveur, export CSV | **M** |
-| **Vue dossier** | En-tête + onglets *Échéances / Documents / Journal / Contacts* + frise chronologique | **M** |
+| **Vue dossier** | En-tête + onglets *Échéances / Agenda / Documents / Journal / Contacts* + frise chronologique | **M** |
 | **Vue société** | Identité, dirigeants, **frise de l'année sociale**, dossiers rattachés, échéances récurrentes | **M** |
-| **Vue semaine / agenda** | Les 7 jours à venir, format « à faire » | S |
-| **Recherche globale** | Palette `Ctrl/Cmd+K` : dossiers, sociétés, contacts, documents, échéances | S |
+| **Recherche globale** | Palette `Ctrl/Cmd+K` : dossiers, sociétés, contacts, documents, échéances, rendez-vous | S |
 
-## 3.5 Rappels et notifications (M)
+## 3.6 Rappels et notifications (M)
 
 - **Canal principal : e-mail** (le seul qui la trouvera où qu'elle soit).
 - **Canal secondaire : notification push PWA** _(S)_.
 - **Paliers** par criticité (§ 3.3), **surchargeables échéance par échéance**.
-- **Brief hebdomadaire** : e-mail le **lundi 8 h** — retards, échéances de la semaine, échéances des 30 jours. **(M)**
+- **Rappels de rendez-vous** : propres à l'événement (15 min / 1 h / 1 j / 1 semaine avant), indépendants des paliers d'échéance. **(M avec l'agenda)**
+- **Brief hebdomadaire** : e-mail le **lundi 8 h** — retards, échéances de la semaine, **rendez-vous de la semaine**, échéances des 30 jours. **(M)**
+- **Point du matin** _(S, activable)_ : e-mail à 7 h 30 — **la journée en un écran** : rendez-vous du jour avec horaires, échéances du jour, retards.
 - **Plan du mois** : e-mail le **1er du mois** — toutes les échéances du mois, groupées par société. **(S)**
 - **Anti-bruit** : un seul e-mail par déclenchement regroupant toutes les échéances concernées ; pas de rappel pour une échéance `FAITE` ou `SANS_OBJET` ; **idempotence stricte** (clé `échéance + palier`) pour qu'un redémarrage du serveur ne renvoie jamais deux fois le même rappel.
 - **Digest de retard** : tant qu'une échéance `BLOQUANTE` est en retard, relance quotidienne jusqu'à traitement ou mise en `SANS_OBJET`.
 
-## 3.6 Documents (S, essentiel dès le lot 3)
+## 3.7 Documents (S, essentiel dès le lot 3)
 
 - Pièces jointes rattachées à un dossier, une société ou une **échéance** (preuve de réalisation).
 - Types : statuts, PV d'assemblée, K-bis, comptes annuels, récépissé de dépôt, contrat, jugement, courrier, acte de commissaire de justice, autre.
@@ -206,19 +262,19 @@ Un **modèle** est une checklist ordonnée d'étapes, chacune portant une règle
 - Marquage **« Confidentiel — consultation juridique »** _(à valider selon son statut, cf. `Referentiel-juridique.md` § 6.3)_.
 - Limite : 25 Mo par fichier _(à valider)_ ; formats PDF, DOCX, XLSX, images, EML.
 
-## 3.7 Journal de dossier / main courante (S)
+## 3.8 Journal de dossier / main courante (S)
 
 - Entrées horodatées : appel, e-mail, réunion, décision, envoi de courrier, note.
 - Saisie en une ligne, sans quitter la vue dossier.
 - **Journal non modifiable après 24 h** _(à valider)_ — un historique qu'on peut réécrire ne prouve rien.
 
-## 3.8 Contacts / tiers (S)
+## 3.9 Contacts / tiers (S)
 
 - Avocat, notaire, commissaire de justice, greffe, expert-comptable, commissaire aux comptes, interlocuteur interne, contrepartie.
 - Rattachement multiple aux dossiers et sociétés, avec le rôle tenu dans chaque dossier.
 - Champs : nom, structure, fonction, e-mail, téléphone, adresse, note ; lien « écrire » (mailto pré-rempli avec la référence du dossier).
 
-## 3.9 Import / export / interopérabilité (S)
+## 3.10 Import / export / interopérabilité (S)
 
 | Fonction | Détail | Priorité |
 |---|---|---|
@@ -228,7 +284,7 @@ Un **modèle** est une checklist ordonnée d'étapes, chacune portant une règle
 | **Export PDF** | « Plan du mois » et « fiche dossier » | S |
 | **Sauvegarde manuelle** | Bouton « exporter toutes mes données » (ZIP : JSON + documents) | S |
 
-## 3.10 Paramètres (M)
+## 3.11 Paramètres (M)
 
 - Compte : changement de mot de passe **hors périmètre applicatif** (il vit en variable d'environnement — la procédure est documentée dans `Techno.md` § 3.4).
 - Préférences de rappel : heure d'envoi, paliers par défaut, activation du brief hebdo/mensuel, adresse e-mail de destination.
@@ -246,22 +302,27 @@ Un **modèle** est une checklist ordonnée d'étapes, chacune portant une règle
 3. Validation → **10 échéances datées** apparaissent, chacune avec sa base légale et son explication de calcul.
 4. Les années suivantes se génèrent seules.
 
-### 4.2 La boucle hebdomadaire (M) — *le vrai usage*
+### 4.2 Sa journée (M) — *le premier écran du matin*
+1. Elle ouvre Dies : la **vue Jour** affiche en haut le bandeau des échéances du jour, en dessous ses rendez-vous à l'heure, à côté son bloc-notes du jour.
+2. Elle ajoute un rendez-vous en deux clics depuis un créneau libre, le rattache au dossier concerné.
+3. À 14 h 30, l'AG se tient : elle ouvre l'événement, coche « tenue » → **l'échéance « AG d'approbation » passe à faite**, et les échéances qui en dépendent (PV, dépôt au greffe) sont datées automatiquement.
+
+### 4.3 La boucle hebdomadaire (M) — *le vrai usage*
 1. Lundi 8 h : e-mail « Votre semaine » (retards, cette semaine, 30 jours).
 2. Un clic → tableau de bord.
 3. Elle traite : marque faite (avec pièce jointe), reporte (avec motif), crée une échéance de suite.
 
-### 4.3 Répondre à « qu'est-ce qui tombe en octobre ? » (M) — *5 secondes*
+### 4.4 Répondre à « qu'est-ce qui tombe en octobre ? » (M) — *5 secondes*
 1. Vue mois → octobre.
 2. Filtre par société si besoin.
 3. Impression PDF ou export si elle doit en discuter avec quelqu'un.
 
-### 4.4 Ouvrir un contentieux et sécuriser les délais (S)
+### 4.5 Ouvrir un contentieux et sécuriser les délais (S)
 1. Nouveau dossier `CONTENTIEUX`, saisie de la **date de signification** du jugement.
 2. Application du modèle « suites d'un jugement de première instance ».
 3. Délai d'appel, signification de la déclaration d'appel, conclusions : datés, avec report des week-ends et fériés, **et un avertissement rappelant que le délai de procédure doit être revérifié**.
 
-### 4.5 Suivre un bail (S)
+### 4.6 Suivre un bail (S)
 1. Dossier `BAIL_IMMOBILIER` : date d'effet, durée, périodicité triennale, préavis.
 2. Dies calcule chaque **date limite de congé** (échéance triennale − 6 mois, reportée au jour ouvrable **précédent**) et alerte 9 mois avant pour laisser le temps de la décision.
 
@@ -296,7 +357,7 @@ supérieur à celui d'un outil personnel ordinaire.
   donnée sensible au sens de l'art. 9 RGPD).
 - **Durée de conservation** : archivage d'un dossier clos, purge proposée au-delà de la durée de
   prescription applicable _(à valider : 5 ans par défaut, art. 2224 C. civ.)_.
-- **Export intégral** disponible à tout moment (§ 3.9).
+- **Export intégral** disponible à tout moment (§ 3.10).
 - Mention d'information à afficher aux contacts si des données leur sont demandées _(C)_.
 - Si elle est **juriste d'entreprise**, tenir compte du régime de **confidentialité des consultations
   juridiques** (cf. `Referentiel-juridique.md` § 6.3) : marquage des documents concernés, traçabilité de
@@ -368,6 +429,9 @@ développement. Détail : `Techno.md` § 3.4.
 | `Mandat` | Mandat social rattaché à une entité (dirigeant, CAC) avec date de fin |
 | `Dossier` | Affaire, contrat, contentieux, opération |
 | `Echeance` | Date à tenir, avec sa règle, sa criticité, son statut et sa preuve |
+| `Evenement` | Rendez-vous, audience, assemblée, réunion : créneau horaire, lieu, participants, récurrence |
+| `NoteJour` | Bloc-notes daté (la page d'agenda) |
+| `CalendrierExterne` | Abonnement en lecture seule à un agenda Outlook / Google publié |
 | `RegleDelai` | Règle de calcul réutilisable (référentiel : formule + base légale) |
 | `ModeleProcedure` / `EtapeModele` | Checklist type générant des échéances |
 | `Rappel` | Envoi planifié rattaché à une échéance et à un palier (idempotent) |
@@ -403,9 +467,10 @@ Schéma détaillé (colonnes, contraintes, index) : [`Techno.md`](./Techno.md) �
 | **Lot 1 — Dossiers & échéances** | CRUD dossiers, CRUD échéances manuelles, vue liste, vue dossier, tableau de bord | **M** |
 | **Lot 2 — Moteur & référentiel** | `DeadlineEngine` testé, règles de délai, sociétés + année sociale, modèles de procédure, génération annuelle | **M** |
 | **Lot 3 — Rappels & vues** | E-mails de rappel, brief du lundi, vue mois + liste du mois, import CSV initial | **M** |
-| **Lot 4 — Documents & journal** | Pièces jointes chiffrées, preuve de réalisation, main courante, contacts | **S** |
-| **Lot 5 — Confort** | Abonnement iCal, recherche globale, exports PDF/CSV, push PWA, plan du mois | **S** |
-| **Lot 6 — Ultérieur** | Suivi du temps, modèles de courriers/actes, second utilisateur, statistiques d'activité | **C/W** |
+| **Lot 4 — Agenda** | Événements (RDV, audiences, AG), vues Jour/Semaine/Mois unifiées, récurrence, notes de journée, lien événement ↔ échéance, calque de calendrier externe | **M** |
+| **Lot 5 — Documents & journal** | Pièces jointes chiffrées, preuve de réalisation, main courante, contacts | **S** |
+| **Lot 6 — Confort** | Abonnement iCal, recherche globale, exports PDF/CSV, push PWA, plan du mois | **S** |
+| **Lot 7 — Ultérieur** | Suivi du temps, modèles de courriers/actes, second utilisateur, statistiques d'activité | **C/W** |
 
 Découpage opérationnel prêt à donner à Claude Code : [`PLAN-DEVELOPPEMENT.md`](./PLAN-DEVELOPPEMENT.md).
 
@@ -419,6 +484,7 @@ Découpage opérationnel prêt à donner à Claude Code : [`PLAN-DEVELOPPEMENT.m
 | 2 | Le moteur de délais est juste sur un jeu de 30 cas de référence (mois, jours francs, fériés, préavis) | **Tests unitaires obligatoires** |
 | 3 | Un rappel n'est jamais envoyé deux fois, même après redémarrage | Test d'intégration sur l'idempotence |
 | 4 | La vue mois affiche toutes les échéances du mois groupées par jour, filtrables et imprimables | Test manuel |
+| 4 bis | La vue Jour affiche ensemble échéances et rendez-vous ; marquer un rendez-vous « tenu » met à jour l'échéance liée | Test manuel |
 | 5 | Aucun accès n'est possible sans authentification (toute route non authentifiée renvoie 401) | Test de sécurité automatisé |
 | 6 | L'application refuse de démarrer en production sans identifiants ni clé de chiffrement valides | Test de démarrage |
 | 7 | Le tableur existant est importé sans perte, avec rapport d'erreurs | Recette avec le fichier réel |
@@ -451,6 +517,7 @@ Découpage opérationnel prêt à donner à Claude Code : [`PLAN-DEVELOPPEMENT.m
 - **CAC** : commissaire aux comptes.
 - **SHAL** : support habilité à recevoir des annonces légales.
 - **Forclusion** : extinction du droit d'agir par expiration du délai.
+- **Échéance / rendez-vous** : une échéance est une **date limite** calculée (déposer avant le 20/07) ; un rendez-vous est un **créneau horaire** (AG le 26/06 à 14 h 30). Dies gère les deux et les affiche ensemble.
 
 ---
 

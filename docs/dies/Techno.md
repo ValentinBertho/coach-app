@@ -25,7 +25,7 @@
 | Push _(S)_ | WebPush VAPID | — |
 | Planification | Spring `@Scheduled` + **ShedLock** (garantit une seule exécution) | — |
 | Stockage documents | AWS SDK v2 S3 (Scaleway / OVH / MinIO — **UE**) ou disque chiffré | — |
-| Calendrier | **iCal4j** (flux `.ics` d'abonnement) | — |
+| Calendrier | **iCal4j** — génération du flux `.ics`, **analyse des règles de récurrence RRULE** et lecture des agendas externes publiés | — |
 | Import | Apache POI (XLSX) + OpenCSV | — |
 | Export PDF | OpenPDF / Flying Saucer _(hypothèse)_ | — |
 | Doc API | Springdoc OpenAPI — **exposé hors production uniquement** | — |
@@ -59,6 +59,7 @@ back/src/main/java/com/dies/
   ├── controller/      # REST, une ressource par controller
   ├── service/         # Métier
   │   ├── deadline/    # DeadlineEngine, CalendrierChomeService, ProcedureApplicationService
+  │   ├── agenda/      # EvenementService, RecurrenceService, CalendrierExterneService
   │   ├── reminder/    # ReminderPlannerService, ReminderSenderService, DigestService
   │   └── importexport/# CsvImportService, IcalFeedService, PdfExportService
   ├── entity/ + entity/enums/
@@ -71,6 +72,7 @@ front/src/app/
   ├── core/            # services/, models/, guards/, interceptors/
   ├── features/
   │   ├── dashboard/   # tableau de bord
+  │   ├── agenda/      # vues jour / semaine / mois, formulaire d'événement, notes de journée
   │   ├── echeances/   # liste, mois, formulaire
   │   ├── dossiers/    # liste, détail (onglets), formulaire
   │   ├── entites/     # sociétés, année sociale, mandats
@@ -108,6 +110,10 @@ réseau, seulement des `LocalDate` et un calendrier injecté. C'est ce qui le re
 |---|---|
 | Auth | `POST /auth/login` · `POST /auth/refresh` · `POST /auth/logout` · `GET /auth/me` |
 | Tableau de bord | `GET /dashboard` (agrégats : retards, aujourd'hui, semaine, 30 jours) |
+| Agenda | `GET /agenda?du=&au=&calques=` (échéances + événements + calendrier externe, une seule requête) · `GET /agenda/jour/{date}` |
+| Événements | `GET /evenements` · `POST` · `PUT /{id}` · `PATCH /{id}/statut` · `POST /{id}/tenu` (marque l'échéance liée comme faite) · `DELETE /{id}?portee=OCCURRENCE\|SERIE` |
+| Notes de journée | `GET /notes-jour/{date}` · `PUT /notes-jour/{date}` |
+| Calendriers externes | `GET/POST/DELETE /calendriers-externes` · `POST /{id}/rafraichir` |
 | Échéances | `GET /echeances` (filtres : `du`, `au`, `statut`, `criticite`, `nature`, `dossierId`, `entiteId`, `q`, pagination) · `GET /echeances/mois/{annee}/{mois}` · `POST` · `PUT /{id}` · `PATCH /{id}/statut` · `POST /{id}/reporter` · `DELETE /{id}` |
 | Dossiers | `GET /dossiers` · `POST` · `GET /{id}` · `PUT /{id}` · `PATCH /{id}/statut` · `POST /{id}/dupliquer` · `DELETE /{id}` |
 | Entités | `GET /entites` · `POST` · `GET /{id}` · `PUT /{id}` · `GET /{id}/annee-sociale/{exercice}` · `POST /{id}/generer-annee/{exercice}` |
@@ -142,7 +148,18 @@ regle_delai       (code UNIQUE, libelle, quantite, unite, sens, report, delai_di
                    nature, verifie_le, actif)
 modele_procedure  (code UNIQUE, libelle, domaine, fait_generateur_libelle, actif)
 etape_modele      (modele_id, ordre, libelle, regle_delai_id?, offset_libre?, obligatoire)
-rappel            (echeance_id, palier, date_envoi_prevue, canal, statut, envoye_le, erreur)
+evenement         (dossier_id?, entite_id?, echeance_id?, intitule, type_evenement,
+                   debut timestamptz, fin timestamptz, journee_entiere bool,
+                   lieu🔒, lien_visio🔒, notes🔒, statut, rrule?, serie_id?,
+                   rappels_minutes[], preparation🔒)
+evenement_exception (serie_id, date_occurrence, action ENUM[DEPLACEE, ANNULEE],
+                   nouveau_debut?, nouvelle_fin?)
+evenement_participant (evenement_id, contact_id, role)
+note_jour         (date UNIQUE, contenu🔒)
+calendrier_externe (libelle, url_ics🔒, couleur, actif, dernier_import, dernier_statut)
+evenement_externe (calendrier_id, uid, debut, fin, intitule🔒, cache_expire_le)
+rappel            (echeance_id?, evenement_id?, palier, date_envoi_prevue, canal,
+                   statut, envoye_le, erreur)
 document          (dossier_id?, echeance_id?, entite_id?, nom_fichier, type_document,
                    date_acte, cle_stockage, taille, sha256, confidentiel bool)
 contact           (nom, structure, fonction, email, telephone, adresse🔒, note🔒)
@@ -160,10 +177,13 @@ parametres        (singleton : email_destination, heure_envoi, briefs actifs,
 | Contrainte | Raison |
 |---|---|
 | `UNIQUE (entite_id, exercice, code_regle)` sur `echeance` | **Idempotence de la génération annuelle** — jamais de doublon d'échéance récurrente |
-| `UNIQUE (echeance_id, palier)` sur `rappel` | **Idempotence des rappels** — un redémarrage ne renvoie rien deux fois |
+| `UNIQUE (echeance_id, palier)` et `UNIQUE (evenement_id, palier)` sur `rappel` | **Idempotence des rappels** — un redémarrage ne renvoie rien deux fois |
+| `UNIQUE (serie_id, date_occurrence)` sur `evenement_exception` | Une occurrence déplacée ou annulée une seule fois |
+| `UNIQUE (calendrier_id, uid)` sur `evenement_externe` | Pas de doublon à chaque rafraîchissement du calendrier externe |
 | `UNIQUE (reference)` sur `dossier` | Référence non réutilisable |
 | `UNIQUE (code)` sur `regle_delai`, `modele_procedure` | Référentiel stable |
 | Index `(date_echeance, statut)` sur `echeance` | Tableau de bord, vue mois, planificateur |
+| Index `(debut, fin)` sur `evenement` | Vues jour / semaine / mois |
 | Index `(dossier_id, date_echeance)` · `(entite_id, exercice)` | Vues dossier et société |
 | Index GIN `tags` sur `dossier` _(hypothèse)_ | Filtre par tag |
 
@@ -178,6 +198,8 @@ Dossier   : OUVERT → EN_COURS → EN_ATTENTE_TIERS ⇄ SUSPENDU → CLOS → A
 Echeance  : A_FAIRE → EN_COURS → FAITE
             A_FAIRE → SANS_OBJET (motif requis)
             A_FAIRE → REPORTEE  (nouvelle date + motif requis, ancienne date conservée)
+Evenement : A_CONFIRMER → CONFIRME → TENU | ANNULE
+            (TENU sur un événement lié à une échéance ⇒ l'échéance passe FAITE, en une transaction)
 Rappel    : PLANIFIE → ENVOYE | ECHEC (réessai ×3, puis alerte Sentry)
 ```
 Toute transition non prévue → `409 Conflict`, validée **en service**, jamais dans le controller.
@@ -239,8 +261,11 @@ hachage, mettre à jour la variable, redéployer. C'est documenté dans `OPERATI
 | Job | Fréquence | Rôle |
 |---|---|---|
 | `RappelScheduler` | Toutes les heures | Sélectionne les rappels `PLANIFIE` échus, regroupe par destinataire, envoie **un** e-mail, marque `ENVOYE` (idempotence par `UNIQUE (echeance_id, palier)`) |
+| `RappelEvenementScheduler` | Toutes les 5 min | Rappels de rendez-vous (15 min / 1 h / 1 j avant) — granularité fine, contrairement aux échéances |
+| `SyncCalendrierExterneScheduler` | Toutes les heures | Récupère les agendas externes publiés (HTTP `GET` du `.ics`, délai d'attente 10 s, taille plafonnée à 5 Mo, dédup par `uid`) ; en cas d'échec, conserve le cache et signale la date du dernier import |
 | `BriefHebdoScheduler` | Lundi 8 h | Brief de la semaine — **envoyé même s'il n'y a rien** (« tout est calme »), ce qui prouve chaque semaine que la chaîne d'alerte fonctionne |
 | `PlanDuMoisScheduler` _(S)_ | 1er du mois 8 h | Plan du mois par société |
+| `PointDuMatinScheduler` _(S)_ | Quotidien 7 h 30 | « Votre journée » : rendez-vous avec horaires, échéances du jour, retards |
 | `GenerationAnnuelleScheduler` | Quotidien 3 h | Pour chaque entité dont l'exercice vient de clore : applique `MOD_ANNEE_SOCIALE`, idempotent |
 | `RecalculStatutScheduler` | Quotidien 0 h 05 | Bascule les échéances dépassées en retard, recalcule les compteurs |
 | `PurgeScheduler` | Mensuel | Journal d'accès > 12 mois, rappels envoyés > 24 mois, brouillons orphelins |
@@ -333,6 +358,9 @@ sujet. Cette bascule est **une décision de lot 0**, à ne pas rouvrir ensuite.
 - ⚠️ **Fuseau horaire** : tout en `Europe/Paris`, `LocalDate` (pas d'`Instant`) pour les échéances — une échéance est une date civile, pas un instant. Seuls les délais en **heures** (72 h RGPD) utilisent un `Instant`.
 - ⚠️ **Stockage des documents** : S3 UE dès le départ, ou disque chiffré puis migration ? Recommandation : **S3 UE dès le lot 4** (la sauvegarde est incluse dans le service).
 - ⚠️ **2FA** : recommandée. Si l'ergonomie gêne, alternative acceptable : mot de passe long (≥ 20 caractères) + limitation de débit stricte + alerte e-mail à chaque connexion depuis une IP nouvelle.
+- ⚠️ **Récurrence des événements** : stocker la **règle** (`rrule`) et calculer les occurrences à la volée sur la fenêtre affichée, **jamais** matérialiser des milliers de lignes. Les exceptions (occurrence déplacée ou annulée) vivent dans `evenement_exception`. Limiter la fenêtre de calcul à 24 mois.
+- ⚠️ **Fuseau et heure d'été** : les événements sont des `timestamptz` (un rendez-vous est un instant), **contrairement aux échéances qui sont des `LocalDate`**. Une récurrence hebdomadaire à 14 h doit rester à 14 h après le changement d'heure : calculer les occurrences en heure locale `Europe/Paris`, puis convertir.
+- ⚠️ **Calendrier externe** : lecture seule, par URL de publication `.ics` (Outlook « Publier le calendrier », Google « Adresse secrète au format iCal »). **Pas de Microsoft Graph ni de Google Calendar API en v1** — OAuth, jetons à renouveler, DSI à convaincre, synchronisation bidirectionnelle à arbitrer : c'est un projet à soi seul. L'URL est un secret : stockée chiffrée, jamais journalisée, jamais affichée en entier.
 - ⚠️ **Version d'Angular** : 17 pour rester aligné avec DARI Lab, ou dernière LTS pour un projet neuf. Recommandation : **dernière LTS**, le partage de code étant nul.
 
 ### À conserver absolument de l'ADN DARI Lab

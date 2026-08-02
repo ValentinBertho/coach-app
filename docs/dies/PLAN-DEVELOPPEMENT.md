@@ -1,6 +1,6 @@
 # PLAN-DEVELOPPEMENT.md — Découpage exécutable de **Dies**
 
-> Sept lots, dans l'ordre. Chaque lot est **livrable et utilisable** en l'état, contient sa
+> Huit lots, dans l'ordre. Chaque lot est **livrable et utilisable** en l'état, contient sa
 > **définition de terminé**, et se termine par une vérification réelle (`mvn verify`, `npm run build`,
 > démarrage). Le texte en bloc citation à la fin de chaque lot est **directement copiable comme
 > consigne à Claude Code**.
@@ -107,7 +107,34 @@ perte.
 
 ---
 
-## Lot 4 — Documents, journal, contacts (≈ 2 sessions)
+## Lot 4 — Agenda (≈ 2 sessions)
+
+**Objectif** : répondre à « **qu'est-ce que je fais aujourd'hui, et à quelle heure ?** ». Jusqu'ici Dies
+sait ce qui est dû ; à partir d'ici il sait aussi ce qui est prévu.
+
+- Entité `Evenement` (créneau horaire, lieu, lien de visioconférence, participants, dossier et société liés, statut, bloc de préparation) + `evenement_participant`.
+- **Récurrence** : `rrule` stockée, occurrences **calculées à la volée** sur la fenêtre affichée (24 mois max), exceptions dans `evenement_exception` (occurrence déplacée ou annulée sans casser la série).
+- **Lien événement ↔ échéance** : `POST /evenements/{id}/tenu` marque l'échéance liée comme `FAITE` dans la même transaction, et déclenche les échéances suivantes (PV, dépôt).
+- **Vues d'agenda** : `app-agenda-jour` (bandeau d'échéances + grille horaire + notes du jour), `app-agenda-semaine`, calendrier mensuel unifié, sélecteur de calques. Création d'un rendez-vous par clic-glisser sur un créneau.
+- **Rappels de rendez-vous** : 15 min / 1 h / 1 j / 1 semaine avant, `RappelEvenementScheduler` toutes les 5 min, même idempotence que les échéances.
+- **Notes de journée** (`note_jour`), chiffrées, sauvegarde automatique, imprimables avec la vue jour.
+- **Détection de conflit** : chevauchement de créneaux, rendez-vous posé le jour d'une échéance `BLOQUANTE`.
+- **Calque de calendrier externe** : abonnement en lecture seule à une URL `.ics` publiée (Outlook / Google), rafraîchissement horaire, affichage grisé non modifiable, URL stockée chiffrée. **Ni Microsoft Graph, ni Google Calendar API.**
+- **Point du matin** _(optionnel)_ : e-mail 7 h 30 avec les rendez-vous et échéances du jour.
+- Impression de la semaine en A4 paysage.
+
+**Terminé quand** : elle pose un rendez-vous en deux clics, le voit à côté de ses échéances dans la vue
+jour, reçoit un rappel 1 h avant, et marquer l'AG « tenue » fait basculer l'échéance correspondante.
+
+> **Consigne Claude Code** — « Implémente le lot 4 (agenda) selon `docs/Cahier-des-charges.md` § 3.4 et
+> `docs/Techno.md` §§ 3.1-3.3. Attention : une échéance est un `LocalDate` calculé, un événement est un
+> créneau `timestamptz` saisi — deux entités distinctes affichées dans un même calendrier, avec les
+> rendus visuels du `docs/Design.md` § 2.4. La récurrence se calcule à la volée depuis une `rrule`,
+> jamais matérialisée en lignes. Le calendrier externe est en **lecture seule** par URL `.ics` publiée. »
+
+---
+
+## Lot 5 — Documents, journal, contacts (≈ 2 sessions)
 
 - Entité `Document` : téléversement chiffré, stockage objet UE, empreinte SHA-256, téléchargement par URL signée à durée courte, contrôle du type MIME et de la taille.
 - **Preuve de réalisation** rattachée à une échéance passée à `FAITE`.
@@ -116,13 +143,13 @@ perte.
 - Onglets *Documents / Journal / Contacts* sur la fiche dossier.
 - Marquage « Confidentiel — consultation juridique » _(si le régime s'applique, cf. référentiel § 6.3)_.
 
-> **Consigne Claude Code** — « Implémente le lot 4 : documents chiffrés au repos avec stockage objet et
+> **Consigne Claude Code** — « Implémente le lot 5 : documents chiffrés au repos avec stockage objet et
 > URL signées, preuve de réalisation sur les échéances, journal de dossier verrouillé après 24 h,
 > contacts avec rôle par dossier. Contrôle strict des types de fichiers et de la taille. »
 
 ---
 
-## Lot 5 — Confort et intégration à son quotidien (≈ 2 sessions)
+## Lot 6 — Confort et intégration à son quotidien (≈ 2 sessions)
 
 - **Flux iCal** : `GET /ical/{token}.ics`, jeton opaque révocable, **contenu minimal** (intitulé, date, référence). Documentation de l'abonnement dans Outlook et Google Agenda.
 - **Recherche globale** `Ctrl/Cmd+K` (dossiers, sociétés, contacts, échéances).
@@ -131,12 +158,12 @@ perte.
 - Notifications push PWA _(optionnel)_.
 - Raccourcis clavier, écran d'aide, page « à propos » avec la date de dernière revue du référentiel.
 
-> **Consigne Claude Code** — « Implémente le lot 5 : flux iCal par jeton révocable avec contenu minimal,
+> **Consigne Claude Code** — « Implémente le lot 6 : flux iCal par jeton révocable avec contenu minimal,
 > recherche globale (palette de commandes), exports CSV/PDF/ZIP, e-mail « plan du mois ». »
 
 ---
 
-## Lot 6 — Mise en service (≈ 1 session) — **à ne pas sauter**
+## Lot 7 — Mise en service (≈ 1 session) — **à ne pas sauter**
 
 - Déploiement : base PostgreSQL managée **UE**, back conteneurisé, front sur Vercel, domaine + HTTPS.
 - Secrets générés (JWT, clé de chiffrement, hachage BCrypt) et **consignés dans un gestionnaire de mots de passe**.
@@ -151,7 +178,7 @@ perte.
 
 ---
 
-## Lot 7 — Ultérieur (selon usage réel)
+## Lot 8 — Ultérieur (selon usage réel)
 
 Suivi du temps par dossier · modèles de courriers et d'actes · statistiques d'activité · second
 utilisateur · rapprochement avec le calendrier fiscal de l'expert-comptable · alertes sur indices
@@ -166,9 +193,10 @@ utilisateur · rapprochement avec le calendrier fiscal de l'expert-comptable · 
 | Rang | Élément | Pourquoi |
 |---|---|---|
 | 1 | Lots 0 → 3 | En dessous, l'outil ne remplace pas le tableur |
-| 2 | Lot 6 (mise en service, sauvegardes) | Un outil non déployé et non sauvegardé ne sert à rien |
-| 3 | Lot 4 (documents, journal) | Confort important, mais le tableur ne le faisait pas non plus |
-| 4 | Lot 5 (iCal, exports) | Fort effet de levier, faible coût — à faire dès que possible |
+| 1 bis | Lot 4 (agenda) | C'est ce qui la fait ouvrir Dies **tous les matins** plutôt qu'une fois par semaine |
+| 2 | Lot 7 (mise en service, sauvegardes) | Un outil non déployé et non sauvegardé ne sert à rien |
+| 3 | Lot 5 (documents, journal) | Confort important, mais le tableur ne le faisait pas non plus |
+| 4 | Lot 6 (iCal, exports) | Fort effet de levier, faible coût — à faire dès que possible |
 
 ---
 

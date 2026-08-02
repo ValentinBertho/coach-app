@@ -10,19 +10,19 @@
 
 ---
 
-## 1. Le produit en cinq phrases
+## 1. Le produit en six phrases
 
 Dies suit les **dossiers juridiques** d'une juriste et surtout leurs **échéances datées** (tenir l'AG
 d'approbation des comptes, déposer les comptes au greffe, dénoncer un bail, renouveler une marque,
 respecter un délai d'appel). Il **calcule** ces dates à partir de règles de délai sourcées, les
 **génère automatiquement** chaque année pour chaque société suivie, et **rappelle** par e-mail selon des
-paliers. Une seule personne s'y connecte, avec des identifiants en variables d'environnement. Les données
+paliers. Il tient aussi son **agenda** — rendez-vous, audiences, assemblées — affiché dans le même calendrier que les échéances. Une seule personne s'y connecte, avec des identifiants en variables d'environnement. Les données
 sont **confidentielles** : elles concernent des entreprises tierces. **Rien ne doit être perdu, rien ne
 doit fuiter, aucun rappel ne doit être manqué ni envoyé deux fois.**
 
 ---
 
-## 2. Les cinq invariants — à ne jamais casser
+## 2. Les six invariants — à ne jamais casser
 
 1. **Le `DeadlineEngine` est juste, pur et testé.** Aucune dépendance JPA/réseau, tous les cas de test du
    référentiel § 5 passent. Modifier le moteur sans ajouter de test = refusé.
@@ -33,7 +33,11 @@ doit fuiter, aucun rappel ne doit être manqué ni envoyé deux fois.**
    `UNIQUE (entite_id, exercice, code_regle)` sur `echeance`, `UNIQUE (echeance_id, palier)` sur `rappel`.
 4. **Toute échéance calculée explique son calcul** (`trace_calcul` persistée + base légale + date de
    vérification de la règle). Une date sans explication ne sera pas suivie par l'utilisatrice.
-5. **Aucune donnée de dossier hors du périmètre sécurisé** : ni dans les logs, ni dans Sentry, ni dans le
+5. **Une échéance n'est pas un rendez-vous.** L'échéance est une **date limite** (`LocalDate`, calculée
+   par le moteur, portée par une règle) ; l'événement est un **créneau horaire** (`timestamptz`, saisi à
+   la main, avec lieu et participants). Deux entités, deux rendus visuels, un seul calendrier. Les
+   fusionner ferait perdre le calcul de délai ; les cloisonner à l'écran ferait perdre l'usage.
+6. **Aucune donnée de dossier hors du périmètre sécurisé** : ni dans les logs, ni dans Sentry, ni dans le
    flux iCal, ni dans le corps des e-mails de rappel (intitulé + référence uniquement).
 
 ---
@@ -48,14 +52,17 @@ doit fuiter, aucun rappel ne doit être manqué ni envoyé deux fois.**
 | `Echeance` | **Objet central** : date à tenir, avec règle, criticité, preuve | `A_FAIRE → EN_COURS → FAITE` · `SANS_OBJET` · `REPORTEE` |
 | `RegleDelai` | Règle réutilisable du référentiel (formule + base légale + `verifieLe`) | `actif` |
 | `ModeleProcedure` / `EtapeModele` | Checklist type générant des échéances | — |
-| `Rappel` | Envoi planifié (échéance × palier) | `PLANIFIE → ENVOYE / ECHEC` |
+| `Evenement` | **Rendez-vous** : créneau horaire, lieu, participants, récurrence, lié à un dossier et éventuellement à une échéance | `A_CONFIRMER → CONFIRME → TENU / ANNULE` |
+| `NoteJour` | Bloc-notes daté (la page d'agenda) | — |
+| `CalendrierExterne` | Abonnement **lecture seule** à un agenda Outlook/Google publié | `actif` |
+| `Rappel` | Envoi planifié (échéance ou événement × palier) | `PLANIFIE → ENVOYE / ECHEC` |
 | `Document` | Pièce jointe chiffrée (dont **preuve de réalisation**) | — |
 | `Contact` | Avocat, greffe, CAC, expert-comptable, contrepartie | — |
 | `EntreeJournal` | Main courante horodatée, verrouillée après 24 h | — |
 | `JourChome` | Férié légal, Alsace-Moselle, congé personnel | — |
 | `JournalAcces` | Connexions et actions sensibles | — |
 
-**Enums clés** : `TypeDossier` · `NatureEcheance` (`LEGALE, REGLEMENTAIRE, JUDICIAIRE, CONTRACTUELLE, FISCALE, INTERNE`) ·
+**Enums clés** : `TypeDossier` · `TypeEvenement` (`RENDEZ_VOUS, AUDIENCE, ASSEMBLEE, REUNION, SIGNATURE, APPEL, DEPLACEMENT, FORMATION, RAPPEL_PERSONNEL, INDISPONIBILITE`) · `NatureEcheance` (`LEGALE, REGLEMENTAIRE, JUDICIAIRE, CONTRACTUELLE, FISCALE, INTERNE`) ·
 `Criticite` (`BLOQUANTE, IMPORTANTE, CONFORT`) · `UniteDelai` (`JOURS_CALENDAIRES, JOURS_FRANCS, JOURS_OUVRABLES, JOURS_OUVRES, MOIS, ANNEES`) ·
 `SensDelai` (`AVANT, APRES, AUCUN`) · `FormeJuridique` · `StatutEcheance` · `PalierRappel`.
 
@@ -118,6 +125,10 @@ doit fuiter, aucun rappel ne doit être manqué ni envoyé deux fois.**
 - **Planification des rappels** : à la création ou au déplacement d'une échéance, les `Rappel` des paliers futurs sont (re)générés ; ceux déjà `ENVOYE` ne sont jamais recréés.
 - **Regroupement des envois** : un seul e-mail par déclenchement, listant toutes les échéances concernées, trié par urgence puis criticité.
 - **Brief hebdomadaire même vide** : preuve hebdomadaire que la chaîne d'alerte fonctionne.
+- **Récurrence calculée, jamais matérialisée** : on stocke la `rrule` et on développe les occurrences sur la fenêtre affichée (24 mois maximum). Les occurrences déplacées ou annulées vivent dans `evenement_exception`. **Ne jamais créer 500 lignes pour un rendez-vous hebdomadaire.**
+- **Événement tenu ⇒ échéance faite** : `POST /evenements/{id}/tenu` met à jour l'événement **et** l'échéance liée dans une seule transaction, puis déclenche les échéances qui en dépendent (PV, dépôt).
+- **Heure locale d'abord** : les occurrences récurrentes se calculent en `Europe/Paris` puis se convertissent — un rendez-vous hebdomadaire à 14 h reste à 14 h après le changement d'heure.
+- **Calendrier externe en lecture seule** : on récupère un `.ics` publié (délai d'attente court, taille plafonnée, dédup par `uid`), on l'affiche grisé, **on n'y écrit jamais**. L'URL est un secret : chiffrée, jamais journalisée.
 - **Pré-remplissage par queryParams** : `?entiteId=…&exercice=…&regle=SOC_DEPOT_ELEC`.
 - **Recherche** : `ILIKE` sur les champs non chiffrés (référence, intitulé, dénomination) ; les champs chiffrés ne sont **pas** cherchables — c'est un arbitrage assumé, à rappeler dans l'UI.
 
@@ -139,6 +150,9 @@ doit fuiter, aucun rappel ne doit être manqué ni envoyé deux fois.**
 ❌ Appliquer le report « jour ouvrable suivant » à un préavis.
 ❌ Envoyer un rappel sans clé d'idempotence.
 ❌ Écraser une date ajustée manuellement lors d'un recalcul.
+❌ Matérialiser les occurrences d'un événement récurrent en lignes de base.
+❌ Afficher une échéance dans la grille horaire d'un agenda (elle n'a pas d'heure) ou un rendez-vous dans le bandeau « toute la journée » (il en a une).
+❌ Écrire dans un calendrier externe, ou brancher Microsoft Graph / Google Calendar API en v1.
 ❌ Logguer une dénomination sociale, un intitulé de dossier ou un contenu de note.
 ❌ Ajouter une route publique « juste pour tester ».
 ❌ Mettre le mot de passe en clair dans une variable d'environnement (c'est un **hachage BCrypt** qu'on stocke).
@@ -174,7 +188,7 @@ doit fuiter, aucun rappel ne doit être manqué ni envoyé deux fois.**
 ### Ce qui doit déclencher une question plutôt qu'une supposition
 - Une **règle de délai** dont la base légale n'est pas certaine → demander, ne pas inventer un article.
 - Un **choix de périmètre** qui ouvre le multi-utilisateur, une route publique ou un partage externe.
-- Toute **dérogation** à un des cinq invariants du § 2.
+- Toute **dérogation** à un des six invariants du § 2.
 
 ---
 
@@ -184,8 +198,9 @@ doit fuiter, aucun rappel ne doit être manqué ni envoyé deux fois.**
 2. Dossiers + échéances manuelles + tableau de bord + vue liste.
 3. `DeadlineEngine` + référentiel de règles + sociétés + modèles de procédure + génération annuelle.
 4. Rappels e-mail + brief du lundi + vue mois / liste du mois + import du tableur existant.
-5. Documents chiffrés + preuve de réalisation + journal + contacts.
-6. iCal, recherche globale, exports PDF/CSV, push PWA.
+5. **Agenda** : événements, vues jour/semaine/mois unifiées, récurrence, notes de journée, calque externe.
+6. Documents chiffrés + preuve de réalisation + journal + contacts.
+7. iCal, recherche globale, exports PDF/CSV, push PWA.
 
 Détail exécutable : `docs/PLAN-DEVELOPPEMENT.md`.
 
