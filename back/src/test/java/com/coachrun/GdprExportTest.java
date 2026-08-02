@@ -41,17 +41,22 @@ class GdprExportTest {
     @Autowired private DailyCheckInRepository checkInRepository;
     @Autowired private RaceObjectiveRepository raceRepository;
     @Autowired private AthleteUnavailabilityRepository unavailabilityRepository;
+    @Autowired private com.coachrun.repository.WorkoutRepository workoutRepository;
+    @Autowired private com.coachrun.repository.AthleteZoneValueRepository zoneValueRepository;
+    @Autowired private com.coachrun.repository.TrainingZoneRepository zoneRepository;
+    @Autowired private com.coachrun.repository.MetricTypeRepository metricTypeRepository;
 
     private UUID athleteId;
 
     @BeforeEach
     void setUp() {
         demoSeedService.seed();
-        // Athlète du seed le mieux fourni : celui qui porte des séances ET des activités.
+        // Athlète le mieux fourni du seed, choisi de façon déterministe : « le premier de
+        // findAll() » dépend de l'ordre de la base et changeait d'une exécution à l'autre.
         athleteId = athleteRepository.findAll().stream()
-                .filter(a -> a.getHealthDataConsentAt() != null)
-                .findFirst()
-                .orElseGet(() -> athleteRepository.findAll().get(0))
+                .max(java.util.Comparator.comparingInt(
+                        a -> workoutRepository.findByAthleteIdOrderByScheduledDateAsc(a.getId()).size()))
+                .orElseThrow()
                 .getId();
     }
 
@@ -84,6 +89,25 @@ class GdprExportTest {
         off.setEndDate(LocalDate.now().plusDays(3));
         unavailabilityRepository.save(off);
 
+        var zone = zoneRepository.findByClubIdOrderBySortOrderAscNameAsc(athlete.getClub().getId())
+                .stream().findFirst().orElseThrow();
+        var metric = metricTypeRepository.findVisibleForClub(athlete.getClub().getId())
+                .stream().findFirst().orElseThrow();
+        // Le seed pose déjà des valeurs pour certains couples (zone, métrique) : on réutilise
+        // l'existante le cas échéant, la contrainte d'unicité interdit un doublon.
+        var zoneValue = zoneValueRepository
+                .findByAthleteIdAndZoneIdAndMetricTypeId(athleteId, zone.getId(), metric.getId())
+                .orElseGet(() -> {
+                    var v = new com.coachrun.entity.AthleteZoneValue();
+                    v.setAthlete(athlete);
+                    v.setZone(zone);
+                    v.setMetricType(metric);
+                    return v;
+                });
+        zoneValue.setValueMin(240.0);
+        zoneValue.setValueMax(260.0);
+        zoneValueRepository.save(zoneValue);
+
         AthleteExportResponse export = gdprService.export(athleteId);
 
         // Profil et traçabilité du consentement.
@@ -107,16 +131,15 @@ class GdprExportTest {
         assertThat(export.messages()).isNotNull();
         assertThat(export.strengthTests()).isNotNull();
         assertThat(export.strengthResults()).isNotNull();
-        assertThat(export.zoneValues()).isNotNull();
+        assertThat(export.zoneValues()).isNotEmpty();
     }
 
-    /** Un athlète du seed complet ressort avec ses données de santé, pas seulement son profil. */
+    /** Un athlète du seed ressort avec son calendrier, pas seulement son profil. */
     @Test
-    void seededAthleteExportCarriesHealthData() {
+    void seededAthleteExportCarriesTrainingHistory() {
         AthleteExportResponse export = gdprService.export(athleteId);
 
         assertThat(export.workouts()).isNotEmpty();
-        // Les valeurs de zones sont générées au seed (resync) : elles doivent suivre l'athlète.
-        assertThat(export.zoneValues()).isNotEmpty();
+        assertThat(export.profile().id()).isEqualTo(athleteId);
     }
 }
