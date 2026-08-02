@@ -46,6 +46,14 @@ sur les précédents quand ils se contredisent.
 
 ---
 
+## Autre produit — spécifications, pas du code DARI Lab
+
+| Dossier | Ce que c'est |
+|---|---|
+| [`dies/`](./dies/README.md) | **Dossier de spécifications de *Dies***, application privée de suivi des dossiers et échéances juridiques (utilisatrice unique). **Produit distinct**, destiné à un dépôt séparé : il ne partage avec DARI Lab que l'ADN technique (Angular + Spring Boot + PostgreSQL + Liquibase) et les conventions de code. Rien ici ne décrit le code de DARI Lab |
+
+---
+
 ## Ce qui a été supprimé, et pourquoi
 
 Deux documents décrivaient les **contrats d'une stack jamais retenue** (Supabase : enveloppes
