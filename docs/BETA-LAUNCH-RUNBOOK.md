@@ -30,11 +30,35 @@ STRAVA_REDIRECT_URI=https://www.darilab.app/app/strava/callback
 > L'URL canonique est `www.darilab.app` : l'apex y redirige en 308.
 > Railway redéploie automatiquement à l'enregistrement.
 
-### 1.2 Strava
+### 1.2 Clés VAPID (push web) · 🔴 BLOQUANT
+Depuis le lot « notifications », **« séance planifiée » et « commentaire du coach » partent en
+push + centre in-app, sans repli e-mail** : sans clés VAPID, ces deux notifications ne partent
+nulle part — et rien ne le signale. Le backend refuse désormais de démarrer en prod sans elles.
+
+```bash
+npx web-push generate-vapid-keys
+```
+Railway → service **backend** → **Variables** :
+```
+VAPID_PUBLIC_KEY=<clé publique>
+VAPID_PRIVATE_KEY=<clé privée>
+VAPID_SUBJECT=mailto:contact@darilab.app
+```
+> La clé **privée** ne doit exister que sur Railway et dans le gestionnaire de mots de passe.
+> Changer la paire invalide tous les abonnements existants : les athlètes devront réautoriser
+> les notifications.
+
+- [ ] Le backend redémarre sans erreur (le garde-fou de démarrage valide aussi `FRONTEND_URL`,
+      `CORS_ORIGINS`, `RESEND_API_KEY` si `MAIL_ENABLED=true`, `JWT_SECRET` et
+      `FIELD_ENCRYPTION_KEY` — un manque bloque le boot avec la liste complète en clair)
+- [ ] Depuis le portail athlète : activer les notifications → planifier une séance côté coach →
+      la notification arrive
+
+### 1.3 Strava
 [developers.strava.com](https://developers.strava.com) → ton application →
 **Authorization Callback Domain** = `darilab.app`
 
-### 1.3 Vérifier
+### 1.4 Vérifier
 - [ ] `https://www.darilab.app` s'affiche en HTTPS
 - [ ] Connexion avec un compte existant → OK
 - [ ] `https://www.darilab.app/legal/confidentialite` s'affiche
