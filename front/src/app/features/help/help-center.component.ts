@@ -5,6 +5,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 import { AuthService } from '../../core/services/auth.service';
 import { HelpService } from './help.service';
 import { HELP_GUIDES, HelpAudience, HelpBlock, HelpGuide, HelpSection } from './help-content';
+import { SUPPORT_EMAIL, supportMailto as supportLink } from '../../shared/components/support-link';
 
 /**
  * Centre d'aide intégré, adaptatif selon le profil (athlète / coach / admin).
@@ -97,7 +98,13 @@ import { HELP_GUIDES, HelpAudience, HelpBlock, HelpGuide, HelpSection } from './
       </div>
 
       <p class="help-foot field-hint">
-        Une question sans réponse ici ? {{ contactHint() }}
+        Une question sans réponse ici ?
+        @if (effectiveAudience() === 'athlete') {
+          Écris à ton coach depuis l'onglet <a routerLink="/athlete/messages">Messages</a>.
+        } @else {
+          <a [href]="supportMailto()">Écrire au support</a> ({{ supportEmail }}) — la version de
+          l'application et la page courante sont pré-remplies dans le message.
+        }
       </p>
     </div>
   `,
@@ -217,10 +224,15 @@ export class HelpCenterComponent {
     }
   }
 
-  contactHint(): string {
-    return this.effectiveAudience() === 'athlete'
-      ? 'Écris à ton coach depuis l\'onglet Messages.'
-      : 'Contactez le support de la plateforme.';
+  /** Adresse de support affichée en clair, à côté du lien (copier-coller, lecteurs d'écran). */
+  readonly supportEmail = SUPPORT_EMAIL;
+
+  /**
+   * Lien de contact du support. La phrase disait « Contactez le support de la plateforme. »
+   * sans adresse ni lien : un coach bloqué n'avait aucun moyen de joindre qui que ce soit.
+   */
+  supportMailto(): string {
+    return supportLink('Demande de support');
   }
 
   /**
