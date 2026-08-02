@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Observable, finalize, shareReplay, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { clearFeedbackQueue } from './feedback-queue.storage';
 import {
   AuthResponse,
   LoginRequest,
@@ -16,7 +17,16 @@ const USER_KEY = 'darilab.user';
 
 function readStoredUser(): User | null {
   const raw = localStorage.getItem(USER_KEY);
-  return raw ? (JSON.parse(raw) as User) : null;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as User;
+  } catch {
+    // Valeur corrompue : sans ce filet, l'exception remontait à l'instanciation d'un service
+    // `providedIn: 'root'` — écran blanc au démarrage, et aucun moyen de s'en sortir côté
+    // utilisateur puisque l'application ne se chargeait plus assez pour offrir « se déconnecter ».
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
 }
 
 /**
@@ -199,6 +209,10 @@ export class AuthService {
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(USER_KEY);
+    // File des retours saisis hors ligne : elle contient des RPE, douleurs et fatigues (données
+    // de santé, art. 9). Conservée au logout, elle était rejouée par le compte suivant sur le
+    // même appareil — les retours de l'athlète A partaient sous le jeton de B.
+    clearFeedbackQueue();
     this.token.set(null);
     this.currentUser.set(null);
     void this.purgeCaches();

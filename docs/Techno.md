@@ -187,7 +187,12 @@ Multi-tenant scoping (`clubId`) · Machine à états (Workout/Plan) · Notificat
 `JWT_SECRET`, `FIELD_ENCRYPTION_KEY` (64 hex), `JDBC_DATABASE_URL`/`PGUSER`/`PGPASSWORD`, `FRONTEND_URL`, `CORS_ORIGINS`,
 `RESEND_API_KEY`/`MAIL_FROM`, `VAPID_*`, `S3_*`, `STORAGE_TYPE`, `SENTRY_DSN`,
 **`STRAVA_CLIENT_ID`/`STRAVA_CLIENT_SECRET`/`STRAVA_WEBHOOK_VERIFY_TOKEN`**, `GARMIN_*`, `COROS_*`, **`STRIPE_*`** _(hypothèse)_.
-En prod, l'app refuse de démarrer si `JWT_SECRET`/VAPID restent par défaut.
+En prod, l'app refuse de démarrer si `JWT_SECRET` ou `FIELD_ENCRYPTION_KEY` restent à leur valeur de
+développement, si `FRONTEND_URL` pointe encore sur `localhost`, si `MAIL_ENABLED=true` sans
+`RESEND_API_KEY`, si `CORS_ORIGINS` contient `localhost`, ou si les clés `VAPID_*` sont absentes
+(cf. `StartupSecretsValidator`). Jusqu'à ce lot, seuls `JWT_SECRET` et `FIELD_ENCRYPTION_KEY` étaient
+contrôlés : la phrase qui affirmait que VAPID l'était aussi était fausse, et le push partait
+silencieusement dans le vide.
 
 ### Monitoring & logging
 - Sentry front+back (`send-default-pii: false` — **crucial vu les données de santé**, traces échantillonnées).

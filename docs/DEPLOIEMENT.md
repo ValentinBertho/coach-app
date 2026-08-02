@@ -109,8 +109,11 @@ Zone DNS (hors NS/MX/SPF gérés par OVH) :
 | `GARMIN_*` / `COROS_*` | back | OAuth Garmin / Coros **[OPT]** | — |
 | `STORAGE_TYPE` | back | `local` ou `s3` **[DÉFAUT local]** | `s3` |
 | `S3_ENDPOINT` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_PUBLIC_URL` | back | Stockage FIT/GPX **[OPT]** | R2 / S3 |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | back | Push WebPush **[OPT — Communication]** | `web-push generate-vapid-keys` |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | back | Push WebPush **[PROD-REQUIS]** — « séance planifiée » et « commentaire du coach » partent en push **sans repli e-mail** : sans clés, ces notifications ne partent nulle part | `npx web-push generate-vapid-keys` |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | back | Paiements **[OPT — Billing]** | console Stripe |
+| `REGISTRATION_MODE` | back | `invite` (code exigé) ou `open` **[PROD-REQUIS — défaut `invite` en prod]** | `invite` |
+| `REGISTRATION_INVITE_CODE` | back | Code partagé de la cohorte **[REQUIS si mode=invite]** | `BETA-2026-XXXX` |
+| `RATE_LIMIT_TRUSTED_PROXY_HOPS` | back | Relais de confiance devant l'app (Vercel → Railway = 2) **[DÉFAUT 1]** | `2` |
 | `SENTRY_DSN` | back + front | Monitoring erreurs **[OPT]** | `https://...@sentry.io/...` |
 | `apiUrl` (`environment.ts`) | front | URL de l'API | `/api` ou URL Railway |
 

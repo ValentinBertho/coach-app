@@ -28,6 +28,8 @@ export interface RegisterRequest {
   clubName: string;
   /** Acceptation des CGU / politique de confidentialité (requise, horodatée côté serveur). */
   termsAccepted: boolean;
+  /** Code de la cohorte, exigé seulement quand le serveur est en mode d'inscription « invite ». */
+  invitationCode?: string;
 }
 
 export interface LoginRequest {

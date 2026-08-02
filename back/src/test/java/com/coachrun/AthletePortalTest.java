@@ -71,7 +71,10 @@ class AthletePortalTest {
         String inviteToken = inviteUrl.substring(inviteUrl.lastIndexOf('/') + 1);
 
         // acceptation → compte ATHLETE + jetons
-        JsonNode athAuth = objectMapper.readTree(mvc.perform(post("/public/invitations/{t}/accept", inviteToken))
+        JsonNode athAuth = objectMapper.readTree(mvc.perform(
+                        post("/public/invitations/{t}/accept", inviteToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"healthDataConsent\":true}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.role").value("ATHLETE"))
                 .andReturn().getResponse().getContentAsString());

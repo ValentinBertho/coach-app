@@ -15,6 +15,9 @@ public interface DailyCheckInRepository extends JpaRepository<DailyCheckIn, UUID
 
     Optional<DailyCheckIn> findByAthleteIdAndCheckDate(UUID athleteId, LocalDate checkDate);
 
+    /** Historique complet (export RGPD : ce sont des données de santé déclarées par l'athlète). */
+    List<DailyCheckIn> findByAthleteIdOrderByCheckDateDesc(UUID athleteId);
+
     /**
      * Dernier check-in porteur d'un signal de forme (fatigue ou douleur). Un check-in où
      * l'athlète n'a bougé que le curseur de sommeil ne dit rien de sa forme : il ne doit pas

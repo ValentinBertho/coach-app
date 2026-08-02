@@ -57,8 +57,22 @@ public class AuthService {
     @org.springframework.beans.factory.annotation.Value("${app.frontend-url}")
     private String frontendUrl;
 
+    /** Mode d'inscription : « invite » (cohorte fermée) ou « open ». Prod : invite par défaut. */
+    @org.springframework.beans.factory.annotation.Value("${app.registration.mode:open}")
+    private String registrationMode;
+
+    /** Code partagé de la cohorte, exigé en mode « invite ». */
+    @org.springframework.beans.factory.annotation.Value("${app.registration.invite-code:}")
+    private String registrationInviteCode;
+
+    /**
+     * Inscription libre ou sur code, selon {@code app.registration.mode}. Le runbook prévoit une
+     * bêta sur cohorte fermée, mais {@code /auth/register} était public et n'exigeait que
+     * l'unicité de l'e-mail : n'importe qui pouvait créer un club sur l'instance de production.
+     */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        requireValidInvitation(request.invitationCode());
         if (userRepository.existsByEmailIgnoreCase(request.email())) {
             throw new ConflictException("Un compte existe déjà avec cet email.");
         }
@@ -169,6 +183,29 @@ public class AuthService {
         notificationService.notifyEmailVerification(user.getEmail(), user.getFullName(),
                 frontendUrl + "/verify-email/" + user.getVerifyToken());
         log.info("E-mail de vérification renvoyé (user={})", user.getId());
+    }
+
+    /**
+     * Vérifie le code d'invitation quand l'inscription est fermée. Message explicite : « accès
+     * refusé » laisserait le coach invité penser que son compte est bloqué, alors qu'il s'est
+     * seulement trompé de code.
+     */
+    private void requireValidInvitation(String submitted) {
+        if (!"invite".equalsIgnoreCase(registrationMode)) {
+            return;
+        }
+        if (!org.springframework.util.StringUtils.hasText(registrationInviteCode)) {
+            // Mode fermé sans code configuré : personne ne pourrait s'inscrire. C'est une erreur
+            // d'exploitation, pas une faute de l'utilisateur — on la signale comme telle.
+            log.error("Inscription en mode « invite » sans REGISTRATION_INVITE_CODE configuré.");
+            throw new com.coachrun.exception.ForbiddenException(
+                    "Les inscriptions sont momentanément fermées. Contactez l'équipe Darilab.");
+        }
+        if (submitted == null || !registrationInviteCode.equals(submitted.trim())) {
+            throw new com.coachrun.exception.ForbiddenException(
+                    "Code d'invitation invalide. La bêta est ouverte sur invitation : "
+                            + "utilisez le code reçu par e-mail.");
+        }
     }
 
     private String randomToken() {

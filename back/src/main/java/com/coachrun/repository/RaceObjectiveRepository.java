@@ -14,6 +14,9 @@ public interface RaceObjectiveRepository extends JpaRepository<RaceObjective, UU
 
     List<RaceObjective> findByClubIdAndAthleteIdOrderByRaceDateAsc(UUID clubId, UUID athleteId);
 
+    /** Tous les objectifs d'un athlète, tous clubs confondus (export RGPD). */
+    List<RaceObjective> findByAthleteIdOrderByRaceDateAsc(UUID athleteId);
+
     Optional<RaceObjective> findByIdAndClubId(UUID id, UUID clubId);
 
     Optional<RaceObjective> findFirstByAthleteIdAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(

@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import com.coachrun.config.HttpClients;
 import org.springframework.web.client.RestClient;
 
 import java.util.LinkedHashMap;
@@ -28,6 +29,8 @@ public class ResendMailClient {
         this.restClient = RestClient.builder()
                 .baseUrl("https://api.resend.com")
                 .defaultHeader("Authorization", "Bearer " + apiKey)
+                // Sans read timeout, une connexion qui pend bloque le thread appelant sans fin.
+                .requestFactory(HttpClients.timeouts())
                 .build();
     }
 

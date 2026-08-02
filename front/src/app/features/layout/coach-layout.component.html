@@ -53,6 +53,9 @@
            e-mails — soit exactement là où l'on cherche à se désabonner. -->
       <a routerLink="/app/notifications" routerLinkActive="active" title="Notifications"><app-icon name="bell" [size]="18" /><span>Notifications</span></a>
       <a routerLink="/app/aide" routerLinkActive="active" title="Aide"><app-icon name="life-buoy" [size]="18" /><span>Aide</span></a>
+      <!-- Canal de support explicite : l'aide se contentait d'inviter à « contacter le support »
+           sans adresse ni lien, et rien dans la navigation ne menait nulle part. -->
+      <a [href]="supportMailto()" title="Signaler un problème au support"><app-icon name="inbox" [size]="18" /><span>Signaler un problème</span></a>
     </nav>
 
     <div class="side-user">
@@ -142,6 +145,7 @@
         <a routerLink="/app/settings" routerLinkActive="active" (click)="closeMore()"><app-icon name="settings" [size]="18" /><span>Paramètres</span></a>
         <a routerLink="/app/notifications" routerLinkActive="active" (click)="closeMore()"><app-icon name="bell" [size]="18" /><span>Notifications</span></a>
         <a routerLink="/app/aide" routerLinkActive="active" (click)="closeMore()"><app-icon name="life-buoy" [size]="18" /><span>Aide</span></a>
+        <a [href]="supportMailto()" (click)="closeMore()"><app-icon name="inbox" [size]="18" /><span>Signaler un problème</span></a>
       </nav>
     </div>
   }

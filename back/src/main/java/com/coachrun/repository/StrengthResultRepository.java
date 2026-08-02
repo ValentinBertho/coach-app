@@ -11,4 +11,7 @@ public interface StrengthResultRepository extends JpaRepository<StrengthResult, 
     List<StrengthResult> findByScheduledSessionIdOrderByExerciseIdAscSetNumberAsc(UUID scheduledSessionId);
 
     List<StrengthResult> findByAthleteIdAndExerciseIdOrderByCreatedAtDesc(UUID athleteId, UUID exerciseId);
+
+    /** Toutes les séries réalisées d'un athlète (export RGPD). */
+    List<StrengthResult> findByAthleteIdOrderByCreatedAtDesc(UUID athleteId);
 }

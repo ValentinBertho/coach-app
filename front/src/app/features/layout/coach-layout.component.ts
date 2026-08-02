@@ -14,6 +14,7 @@ import { OfflineBannerComponent } from '../../shared/components/offline-banner/o
 import { PushButtonComponent } from '../../shared/components/push-button/push-button.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { NotificationBellComponent } from '../../shared/components/notification-bell/notification-bell.component';
+import { supportMailto as supportLink } from '../../shared/components/support-link';
 
 /**
  * Coquille de l'espace coach : en-tête (club, utilisateur, déconnexion), navigation,
@@ -37,6 +38,15 @@ export class CoachLayoutComponent implements OnInit {
   private readonly messages = inject(MessageService);
   private readonly dashboard = inject(CoachDashboardService);
   private readonly destroyRef = inject(DestroyRef);
+
+  /**
+   * Lien « Signaler un problème » : un mailto vers le support, avec version d'application et
+   * page courante déjà remplies. C'est le seul canal de support de la bêta ; sans entrée dans
+   * la navigation, il n'était atteignable de nulle part.
+   */
+  supportMailto(): string {
+    return supportLink('Signalement depuis l’espace coach');
+  }
 
   /** Non-lus de la messagerie, tous athlètes confondus (badge de l'entrée « Messages »). */
   readonly unreadMessages = this.messages.unread;

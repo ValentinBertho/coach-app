@@ -26,6 +26,14 @@ spring:
     multipart:
       max-file-size: 10MB        # pièces jointes messagerie
       max-request-size: 12MB
+  task:
+    scheduling:
+      # Cinq jobs planifiés (import Strava horaire, rappel 18 h, digest 7 h, débriefing horaire,
+      # purge des jetons révoqués). Avec le pool par défaut d'UN thread, un import Strava lent
+      # décale tous les autres, e-mails compris. Quatre threads : chaque job garde son créneau.
+      pool:
+        size: 4
+      thread-name-prefix: darilab-sched-
 
 server:
   servlet:
@@ -105,7 +113,21 @@ app:
   demo:
     reset:
       enabled: ${DEMO_RESET_ENABLED:false}   # RAZ démo : interdit par défaut (jamais en prod)
+  registration:
+    # « invite » : /auth/register exige un code d'invitation (cohorte fermée de la bêta).
+    # « open »   : inscription libre. Le profil prod force « invite » (application-prod.yml).
+    mode: ${REGISTRATION_MODE:open}
+    # Code partagé de la cohorte. En mode invite, un code vide bloquerait toute inscription :
+    # le garde-fou de démarrage le refuse en production.
+    invite-code: ${REGISTRATION_INVITE_CODE:}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     max-requests: ${RATE_LIMIT_MAX:20}
     window-seconds: ${RATE_LIMIT_WINDOW:60}
+    # Plafond des routes authentifiées (messages, pièces jointes, import GPX), par porteur de
+    # jeton : large pour ne pas gêner une navigation soutenue, mais il existe.
+    authenticated-max-requests: ${RATE_LIMIT_AUTHENTICATED_MAX:300}
+    # Nombre de relais de confiance devant l'application (Vercel → Railway = 2 en production).
+    # Sert à lire la bonne adresse dans X-Forwarded-For : le client contrôle le début de la
+    # chaîne, seuls les derniers éléments sont écrits par des proxys de confiance.
+    trusted-proxy-hops: ${RATE_LIMIT_TRUSTED_PROXY_HOPS:1}

@@ -15,6 +15,7 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
 import { PhysioProfile, Performance, Vdot } from '../../core/models/physio.model';
 import { LactateTest } from '../../core/models/lactate.model';
 import { RaceObjective } from '../../core/models/race.model';
+import { supportMailto as supportLink } from '../../shared/components/support-link';
 import {
   Unavailability, UnavailabilityReason, UnavailabilityRequest,
 } from '../../core/models/unavailability.model';
@@ -48,6 +49,17 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
           <span class="help-link__txt">
             <strong>Aide & guide</strong>
             <span class="field-hint">Comment utiliser l'app, pas à pas.</span>
+          </span>
+          <app-icon name="chevron-right" [size]="18" />
+        </a>
+
+        <!-- Canal de support : l'aide renvoyait l'athlète vers son coach, ce qui ne sert à rien
+             quand c'est l'application elle-même qui dysfonctionne. -->
+        <a [href]="supportMailto()" class="card help-link">
+          <span class="help-link__ic"><app-icon name="inbox" [size]="20" /></span>
+          <span class="help-link__txt">
+            <strong>Signaler un problème</strong>
+            <span class="field-hint">Écrire au support — version et page déjà renseignées.</span>
           </span>
           <app-icon name="chevron-right" [size]="18" />
         </a>
@@ -409,6 +421,12 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
   `],
 })
 export class AthleteProfileComponent implements OnInit {
+
+  /** Lien « Signaler un problème » : mailto au support, contexte technique pré-rempli. */
+  supportMailto(): string {
+    return supportLink('Signalement depuis l’espace athlète');
+  }
+
   private readonly portal = inject(AthletePortalService);
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);

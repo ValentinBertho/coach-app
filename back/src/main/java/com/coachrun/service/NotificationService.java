@@ -418,6 +418,25 @@ public class NotificationService {
             log.info("[mail désactivé] -> {} : {}", to, subject);
             return;
         }
+        // Envoi APRÈS commit quand on est dans une transaction. Un appel HTTP fait au milieu d'une
+        // transaction retient une connexion Hikari (pool de 10) pendant toute sa durée : quelques
+        // envois lents suffisaient à assécher le pool et à figer l'API. Bénéfice secondaire : une
+        // transaction qui échoue n'envoie plus d'e-mail annonçant une action qui n'a pas eu lieu.
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            dispatch(to, subject, bodyHtml, audience);
+                        }
+                    });
+            return;
+        }
+        dispatch(to, subject, bodyHtml, audience);
+    }
+
+    /** Envoi effectif (hors transaction) : rendu du gabarit puis appel au client Resend. */
+    private void dispatch(String to, String subject, String bodyHtml, Audience audience) {
         try {
             MailTemplate.Rendered mail = mailTemplate.render(subject, bodyHtml, audience);
             mailClient.send(to, subject, mail.html(), mail.text(),
