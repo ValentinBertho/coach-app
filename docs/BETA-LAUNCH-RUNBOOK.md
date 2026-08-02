@@ -12,13 +12,14 @@
 |---|---|
 | ✅ Domaine `darilab.app` (OVH → Vercel), HTTPS | ⬜ Variables Railway alignées sur le domaine |
 | ✅ Pages légales + consentement RGPD horodaté | ⬜ Emails (Resend) |
-| ✅ `state` OAuth Strava signé, rate limiting élargi | ⬜ Sentry (DSN à renseigner) |
-| ✅ Workflow de sauvegarde chiffrée écrit | ⬜ Uptime (Better Stack) |
-| ✅ CI alignée sur PostgreSQL 18 (= prod) | ⬜ Test de restauration BDD |
+| ✅ `state` OAuth Strava signé, rate limiting durci (IP de confiance, plafond authentifié) | ⬜ Sentry backend (DSN Railway) |
+| ✅ DSN Sentry **frontend** committé | ⬜ Uptime (Better Stack) |
+| ✅ Workflow de sauvegarde chiffrée écrit | ⬜ **Test de restauration BDD** (bloquant) |
+| ✅ CI alignée sur PostgreSQL 18 (= prod) | ⬜ Clés VAPID + code d'invitation sur Railway |
 
 ---
 
-## Phase 1 — Aligner la configuration sur le domaine ⏱️ 5 min
+## Phase 1 — Configuration de production ⏱️ 15 min · 🔴 BLOQUANT
 
 ### 1.1 Railway
 Service **backend** → onglet **Variables** :
@@ -54,11 +55,29 @@ VAPID_SUBJECT=mailto:contact@darilab.app
 - [ ] Depuis le portail athlète : activer les notifications → planifier une séance côté coach →
       la notification arrive
 
-### 1.3 Strava
+### 1.3 Fermer l'inscription (cohorte sur invitation) · 🔴 BLOQUANT
+Le runbook prévoit une cohorte de 5 à 8 coachs, mais `/auth/register` est public : sans ce
+réglage, n'importe qui peut créer un club sur l'instance de production — avec les données de
+santé que cela implique.
+
+Railway → **Variables** :
+```
+REGISTRATION_MODE=invite
+REGISTRATION_INVITE_CODE=<code partagé de la cohorte>
+```
+> `invite` est déjà la valeur par défaut du profil `prod` ; il reste à **poser le code**, sans
+> lequel le backend refuse de démarrer (aucune inscription ne serait possible).
+> Le jour de l'ouverture publique : `REGISTRATION_MODE=open`.
+
+- [ ] Inscription sans code → message « Code d'invitation invalide… », pas de compte créé
+- [ ] Inscription avec le code → club créé
+- [ ] Le code est transmis aux coachs invités avec le lien d'inscription
+
+### 1.4 Strava
 [developers.strava.com](https://developers.strava.com) → ton application →
 **Authorization Callback Domain** = `darilab.app`
 
-### 1.4 Vérifier
+### 1.5 Vérifier
 - [ ] `https://www.darilab.app` s'affiche en HTTPS
 - [ ] Connexion avec un compte existant → OK
 - [ ] `https://www.darilab.app/legal/confidentialite` s'affiche
@@ -143,9 +162,9 @@ Le code est déjà branché des deux côtés : il ne manque que les DSN.
    SENTRY_DSN=<DSN backend>
    SENTRY_ENV=production
    ```
-5. **DSN frontend** : il se renseigne dans `front/src/environments/environment.ts`
-   (clé `sentryDsn`). Ce DSN n'est pas un secret — il est public par conception.
-   → **transmettre le DSN pour commit**, ou l'éditer soi-même puis pousser.
+5. **DSN frontend** : ✅ **déjà committé** dans `front/src/environments/environment.ts`
+   (clé `sentryDsn`) — rien à transmettre. Ce DSN n'est pas un secret, il est public par
+   conception. À ne rééditer que si le projet Sentry frontend est recréé.
 6. **Alertes** : Sentry → **Alerts** → règle *« When a new issue is created → email »*
    sur chaque projet.
 
@@ -187,8 +206,10 @@ Repo → **Settings** → **Secrets and variables** → **Actions** :
 ### 5.3 Backups Railway (complément)
 - [ ] Railway → service PostgreSQL → **Backups** → activer les backups quotidiens
 
-### 5.4 Test de restauration — **ne pas sauter cette étape**
-Un backup non testé n'existe pas. Procédure complète : `OPERATIONS.md` §2.
+### 5.4 Test de restauration · 🔴 **BLOQUANT — case à cocher, pas une recommandation**
+Un backup non testé n'existe pas : tant que cette case n'est pas cochée, on ne sait pas si la
+sauvegarde protège quoi que ce soit. C'est la seule étape du runbook dont l'échec est
+irrattrapable après coup. Procédure complète : `OPERATIONS.md` §2.
 ```bash
 # Déchiffrer l'artefact téléchargé
 openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
@@ -262,7 +283,9 @@ pg_restore --no-owner --no-privileges -h localhost -U postgres \
 Non bloquant, mais à traiter dans les deux premières semaines :
 
 - [ ] **Impersonation admin** (lecture seule) — outil de support n° 1
-- [ ] **Canal de feedback** dans l'app (lien « Signaler un problème »)
+- [x] ~~**Canal de feedback** dans l'app (lien « Signaler un problème »)~~ ✅ livré :
+      entrée dans la navigation coach et le profil athlète, mailto pré-rempli
+      (version, page, navigateur)
 - [ ] **Onboarding coach** : checklist « premier jour » sur le dashboard
 - [ ] **Dump avant chaque déploiement** contenant une migration (règle à appliquer)
 - [ ] Tags git + `appVersion` incrémenté (corrélation bug ↔ version dans Sentry)
@@ -273,8 +296,9 @@ Non bloquant, mais à traiter dans les deux premières semaines :
 
 ## Feu vert bêta 🚦
 
-La bêta peut s'ouvrir quand **toutes les cases 🔴 des phases 2 à 5 sont cochées**
-et que la phase 6 est passée sans blocage.
+La bêta peut s'ouvrir quand **toutes les cases 🔴 des phases 1 à 5 sont cochées** — clés VAPID
+(1.2) et **test de restauration réussi (5.4)** compris — et que la phase 6 est passée sans
+blocage.
 
 **Cohorte 1 recommandée : 5 à 8 coachs sur invitation.** Élargir à 15–20 après deux
 semaines si Sentry reste calme. L'architecture encaisse 20–30 coachs ; la limite réelle
