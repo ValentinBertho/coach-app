@@ -166,12 +166,28 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
             <h2>4. Destinataires et sous-traitants</h2>
             <p>
               Vos données sont accessibles à votre coach (pour un athlète) dans la limite de ses
-              permissions, et aux sous-traitants techniques suivants : Railway (hébergement
-              application et base de données), Vercel (interface web), Resend (envoi d'emails —
-              aucune donnée de santé n'est incluse dans les emails), Sentry (suivi des erreurs
-              techniques), Strava (si vous connectez votre compte). Certains sous-traitants sont
-              situés aux États-Unis ; les transferts sont encadrés par des clauses contractuelles
-              types et/ou le Data Privacy Framework.
+              permissions, et aux sous-traitants techniques suivants :
+            </p>
+            <ul>
+              <li><strong>Railway</strong> — hébergement de l'application et de la base de
+                données (toutes les données du Service) ; durée : vie du compte.</li>
+              <li><strong>GitHub</strong> — stockage des <strong>sauvegardes quotidiennes
+                chiffrées de la base</strong>, hors de l'infrastructure d'hébergement. Ces
+                sauvegardes contiennent donc l'ensemble des données, y compris les données de
+                santé, sous forme chiffrée (AES-256, clé détenue par l'éditeur) ; durée de
+                rétention : <strong>14 jours</strong>, purge automatique ensuite.</li>
+              <li><strong>Vercel</strong> — diffusion de l'interface web ; aucune donnée de santé
+                n'y transite en dehors des appels API relayés vers Railway.</li>
+              <li><strong>Resend</strong> — envoi des e-mails fonctionnels ; aucune donnée de
+                santé n'est incluse dans les e-mails.</li>
+              <li><strong>Sentry</strong> — suivi des erreurs techniques ; les données
+                personnelles y sont désactivées (<code>send-default-pii: false</code>).</li>
+              <li><strong>Strava</strong> — uniquement si vous connectez votre compte, pour
+                importer vos activités.</li>
+            </ul>
+            <p>
+              Certains sous-traitants sont situés aux États-Unis ; les transferts sont encadrés
+              par des clauses contractuelles types et/ou le Data Privacy Framework.
             </p>
 
             <h2>5. Durées de conservation</h2>
@@ -194,10 +210,25 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
 
             <h2>7. Cookies et stockage local</h2>
             <p>
-              DARI Lab n'utilise <strong>aucun cookie publicitaire ni traceur tiers</strong>.
-              Le navigateur stocke uniquement les éléments techniques nécessaires au
-              fonctionnement : jeton de session et préférences d'affichage (stockage local).
-              Aucune bannière de consentement n'est donc requise.
+              DARI Lab n'utilise <strong>aucun cookie publicitaire ni traceur tiers</strong>, et
+              aucune bannière de consentement n'est donc requise. En revanche, le fonctionnement
+              hors ligne de l'application suppose de conserver certaines données
+              <strong>sur votre appareil</strong> :
+            </p>
+            <ul>
+              <li><strong>Jeton de session et profil</strong> (stockage local) — vous garder
+                connecté·e.</li>
+              <li><strong>Préférences d'affichage</strong> (unité d'allure, panneaux repliés).</li>
+              <li><strong>File de retours hors ligne</strong> — un retour de séance saisi sans
+                réseau (effort perçu, fatigue, douleur) est conservé sur l'appareil jusqu'à son
+                envoi : ce sont des <strong>données de santé</strong>.</li>
+              <li><strong>Cache de l'application installée (PWA)</strong> — la séance du jour et
+                sa prescription sont mises en cache une heure pour rester consultables sans
+                réseau.</li>
+            </ul>
+            <p>
+              Ces éléments sont <strong>effacés à la déconnexion</strong> (file de retours et
+              cache compris). Sur un appareil partagé, déconnectez-vous pour qu'il ne reste rien.
             </p>
 
             <h2>8. Sécurité</h2>
