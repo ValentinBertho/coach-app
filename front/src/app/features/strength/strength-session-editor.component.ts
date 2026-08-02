@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, injec
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { Observable, switchMap, tap } from 'rxjs';
 import { AthleteService } from '../../core/services/athlete.service';
 import { StrengthService } from '../../core/services/strength.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -58,12 +59,14 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
    * Auto-sauvegarde : construire une séance de force prend de longues minutes, et rien
    * n'avertissait avant de quitter l'écran. Chaque mutation passe par `touch()`.
    */
-  readonly autosave = new Autosave(
-    () => this.strength.putStructure(this.sessionId(), { blocks: this.blocks() }),
-    inject(DestroyRef),
-  );
+  readonly autosave = new Autosave(() => this.persist(), inject(DestroyRef));
 
   readonly name = signal('');
+  /** Notes de la séance : relues à l'enregistrement du nom, que le contrat serveur remplace. */
+  private readonly notes = signal<string | null>(null);
+  /** Le nom a changé depuis la dernière écriture : sans ce drapeau, chaque sauvegarde de
+   *  structure enverrait aussi un renommage inutile. */
+  private nameDirty = false;
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly blocks = signal<StrengthBlock[]>([]);
@@ -175,12 +178,13 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     this.strength.getSession(this.sessionId()).subscribe({
       next: (s) => {
         this.name.set(s.name);
+        this.notes.set(s.notes);
         this.blocks.set(s.structure?.blocks ?? []);
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
     });
-    this.strength.listExercises({ page: 0 }).subscribe((p) => this.exercises.set(p.content));
+    this.strength.listAllExercises().subscribe((e) => this.exercises.set(e));
     this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
   }
 
@@ -289,6 +293,31 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     this.blocks.set([...this.blocks()]);
     this.recompute();
     this.autosave.markDirty();
+  }
+
+  // --- Identité de la séance -------------------------------------------------
+  // Une séance dupliquée restait « … (copie) » à vie : l'éditeur est le seul écran de sa vie, et
+  // il n'en montrait pas le nom.
+
+  /** Renomme la séance (le nom part avec la prochaine auto-sauvegarde). */
+  setName(value: string): void {
+    this.name.set(value);
+    this.nameDirty = true;
+    this.touch();
+  }
+
+  /**
+   * Écriture effective : la structure, et le nom s'il a changé. Un nom vidé n'est pas envoyé
+   * (le serveur l'exige non blanc) : la séance garde alors celui qu'elle avait.
+   */
+  private persist(): Observable<unknown> {
+    const structure$ = this.strength.putStructure(this.sessionId(), { blocks: this.blocks() });
+    const name = this.name().trim();
+    if (!this.nameDirty || !name) return structure$;
+    return structure$.pipe(
+      switchMap(() => this.strength.updateSession(this.sessionId(), { name, notes: this.notes() })),
+      tap(() => { this.nameDirty = false; }),
+    );
   }
 
   /** Enregistrement explicite : ne fait qu'anticiper le debounce, avec un accusé de réception. */

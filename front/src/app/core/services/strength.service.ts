@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { EMPTY, Observable, expand, reduce } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { PageResponse } from '../models/athlete.model';
 import {
@@ -33,13 +33,30 @@ export class StrengthService {
     return `${environment.apiUrl}/clubs/${this.auth.clubId()}`;
   }
 
+  /**
+   * Taille de page demandée : les bibliothèques (séances de force, exercices) s'affichent d'un
+   * bloc, sans pagination visible. Aucun écran ne réclamait la page suivante — au-delà de la
+   * première, séances et exercices devenaient tout simplement invisibles.
+   */
+  private static readonly PAGE_SIZE = 200;
+
   // --- Exercices ---
   listExercises(opts: { category?: string; level?: string; muscle?: string; equipment?: string; q?: string; page?: number } = {}): Observable<PageResponse<PpExercise>> {
-    let params = new HttpParams().set('page', opts.page ?? 0);
+    let params = new HttpParams()
+      .set('page', opts.page ?? 0)
+      .set('size', StrengthService.PAGE_SIZE);
     for (const k of ['category', 'level', 'muscle', 'equipment', 'q'] as const) {
       if (opts[k]) params = params.set(k, opts[k] as string);
     }
     return this.http.get<PageResponse<PpExercise>>(`${this.club()}/pp/exercises`, { params });
+  }
+
+  /** Catalogue d'exercices complet (sélecteur de l'éditeur de séance de force). */
+  listAllExercises(opts: { category?: string; level?: string; muscle?: string; equipment?: string; q?: string } = {}): Observable<PpExercise[]> {
+    return this.listExercises({ ...opts, page: 0 }).pipe(
+      expand((p) => (p.page + 1 < p.totalPages ? this.listExercises({ ...opts, page: p.page + 1 }) : EMPTY)),
+      reduce((acc: PpExercise[], p) => [...acc, ...p.content], []),
+    );
   }
 
   createExercise(body: PpExerciseRequest): Observable<PpExercise> {
@@ -56,13 +73,29 @@ export class StrengthService {
 
   // --- Séances ---
   listSessions(q?: string, page = 0): Observable<PageResponse<StrengthSession>> {
-    let params = new HttpParams().set('page', page);
+    let params = new HttpParams().set('page', page).set('size', StrengthService.PAGE_SIZE);
     if (q) params = params.set('q', q);
     return this.http.get<PageResponse<StrengthSession>>(`${this.club()}/pp/sessions`, { params });
   }
 
+  /** Bibliothèque de force complète : on enchaîne les pages jusqu'à la dernière. */
+  listAllSessions(q?: string): Observable<StrengthSession[]> {
+    return this.listSessions(q, 0).pipe(
+      expand((p) => (p.page + 1 < p.totalPages ? this.listSessions(q, p.page + 1) : EMPTY)),
+      reduce((acc: StrengthSession[], p) => [...acc, ...p.content], []),
+    );
+  }
+
   createSession(body: { name: string; notes?: string }): Observable<StrengthSession> {
     return this.http.post<StrengthSession>(`${this.club()}/pp/sessions`, body);
+  }
+
+  /**
+   * Renomme une séance de force (et ses notes / épinglage). Sans ce chemin, une séance dupliquée
+   * restait « … (copie) » pour toujours : aucun écran n'exposait la mise à jour des métadonnées.
+   */
+  updateSession(id: string, body: { name: string; notes?: string | null; favorite?: boolean }): Observable<StrengthSession> {
+    return this.http.put<StrengthSession>(`${this.club()}/pp/sessions/${id}`, body);
   }
 
   getSession(id: string): Observable<StrengthSession> {

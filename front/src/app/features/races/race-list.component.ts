@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } fro
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { RaceObjective } from '../../core/models/race.model';
+import { formatDuration, parseDuration } from '../../core/utils/duration';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { RaceService } from '../../core/services/race.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -72,14 +73,7 @@ export class RaceListComponent implements OnInit {
 
   /** « hh:mm:ss », « mm:ss » ou un nombre de minutes → secondes ; null si inexploitable. */
   private parseTime(raw: string): number | null {
-    const t = raw.trim();
-    if (!t) return null;
-    const parts = t.split(':').map((p) => Number(p));
-    if (parts.some((n) => Number.isNaN(n) || n < 0)) return null;
-    if (parts.length === 1) return Math.round(parts[0] * 60);
-    if (parts.length === 2) return parts[0] * 60 + parts[1];
-    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    return null;
+    return parseDuration(raw);
   }
 
   async remove(r: RaceObjective): Promise<void> {
@@ -107,12 +101,6 @@ export class RaceListComponent implements OnInit {
 
   /** Chrono visé formaté h:mm:ss ou m:ss. */
   targetTime(seconds: number | null): string | null {
-    if (seconds == null) return null;
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.round(seconds % 60);
-    const mm = m.toString().padStart(2, '0');
-    const ss = s.toString().padStart(2, '0');
-    return h > 0 ? `${h}:${mm}:${ss}` : `${m}:${ss}`;
+    return seconds == null ? null : formatDuration(seconds);
   }
 }

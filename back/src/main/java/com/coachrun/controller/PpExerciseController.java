@@ -46,7 +46,9 @@ public class PpExerciseController {
             @RequestParam(required = false) MuscleGroup muscle,
             @RequestParam(required = false) EquipmentType equipment,
             @RequestParam(required = false) String q,
-            @PageableDefault(size = 20) Pageable pageable) {
+            // Le catalogue s'affiche d'un bloc (sélecteur de l'éditeur, grille filtrée) : une page
+            // de vingt tronquait la bibliothèque sans que rien ne le signale.
+            @PageableDefault(size = 200) Pageable pageable) {
         return exerciseService.search(clubId, category, level, muscle, equipment, q, pageable);
     }
 

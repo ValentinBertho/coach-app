@@ -547,7 +547,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
         this.loadOverlays();
       }
     });
-    this.strengthService.listSessions().subscribe((p) => this.librarySessions.set(p.content));
+    this.strengthService.listAllSessions().subscribe((s) => this.librarySessions.set(s));
     this.templateService.listAll().subscribe((t) => this.courseTemplates.set(t));
     this.drillService.list().subscribe((d) => this.drills.set(d));
     this.categoryService.list().subscribe({ next: (c) => this.categories.set(c), error: () => this.categories.set([]) });

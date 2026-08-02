@@ -177,6 +177,9 @@
             <strong>{{ s.name }}</strong>
             @if (s.favorite) { <span class="badge badge-warning"><app-icon name="star" [size]="12" /></span> }
             <span class="ex-head-actions" (click)="$event.preventDefault(); $event.stopPropagation()">
+              <button type="button" class="icon-btn" (click)="renameSession(s)" title="Renommer">
+                <app-icon name="type" [size]="15" />
+              </button>
               <button type="button" class="icon-btn" (click)="duplicateSession(s)" [disabled]="duplicating()" title="Dupliquer">
                 <app-icon name="copy" [size]="15" />
               </button>

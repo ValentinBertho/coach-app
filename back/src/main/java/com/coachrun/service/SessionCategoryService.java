@@ -76,7 +76,13 @@ public class SessionCategoryService {
             c.setSortOrder(req.sortOrder());
         }
         if (req.parentId() != null) {
-            c.setParent(require(clubId, req.parentId()));
+            // Les arbres sont listés par domaine : ranger une catégorie course sous une catégorie
+            // de prépa physique la ferait disparaître des deux écrans à la fois.
+            SessionCategory parent = require(clubId, req.parentId());
+            if (parent.getDomain() != c.getDomain()) {
+                throw new ConflictException("La catégorie parente appartient à une autre bibliothèque.");
+            }
+            c.setParent(parent);
         } else {
             c.setParent(null);
         }

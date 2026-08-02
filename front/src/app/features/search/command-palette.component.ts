@@ -205,10 +205,10 @@ export class CommandPaletteComponent {
       error: () => { /* la palette reste utilisable sans les modèles */ },
     });
 
-    this.strengthService.listSessions().subscribe({
-      next: (page) => this.templates.update((list) => [
+    this.strengthService.listAllSessions().subscribe({
+      next: (sessions) => this.templates.update((list) => [
         ...list.filter((r) => r.kind !== 'strength'),
-        ...page.content.map((s) => ({
+        ...sessions.map((s) => ({
           kind: 'strength' as const,
           id: s.id,
           label: s.name,

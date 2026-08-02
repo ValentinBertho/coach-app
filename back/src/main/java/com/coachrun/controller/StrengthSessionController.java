@@ -38,7 +38,9 @@ public class StrengthSessionController {
     @GetMapping
     public PageResponse<StrengthSessionResponse> list(@PathVariable UUID clubId,
                                                       @RequestParam(required = false) String q,
-                                                      @PageableDefault(size = 20) Pageable pageable) {
+                                                      // Même plafond que la bibliothèque course :
+                                                      // vingt séances, et la suivante disparaissait.
+                                                      @PageableDefault(size = 200) Pageable pageable) {
         return sessionService.search(clubId, q, pageable);
     }
 

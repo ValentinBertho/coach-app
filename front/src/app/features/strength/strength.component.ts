@@ -319,8 +319,8 @@ export class StrengthComponent implements OnInit {
   // --- Séances ---
   loadSessions(): void {
     this.loadingSes.set(true);
-    this.strength.listSessions().subscribe({
-      next: (p) => { this.sessions.set(p.content); this.loadingSes.set(false); },
+    this.strength.listAllSessions().subscribe({
+      next: (s) => { this.sessions.set(s); this.loadingSes.set(false); },
       error: () => this.loadingSes.set(false),
     });
   }
@@ -336,6 +336,22 @@ export class StrengthComponent implements OnInit {
 
   /** Duplication en cours (évite le double clic, qui créerait deux copies). */
   readonly duplicating = signal(false);
+
+  /**
+   * Renomme une séance sans passer par l'éditeur : après une duplication, « … (copie) » n'était
+   * modifiable nulle part.
+   */
+  renameSession(s: StrengthSession): void {
+    const name = window.prompt('Renommer la séance', s.name)?.trim();
+    if (!name || name === s.name) return;
+    this.strength.updateSession(s.id, { name, notes: s.notes, favorite: s.favorite }).subscribe({
+      next: (updated) => {
+        this.sessions.update((list) => list.map((x) => (x.id === s.id ? updated : x)));
+        this.toast.success('Séance renommée');
+      },
+      error: () => this.toast.error('Renommage impossible.'),
+    });
+  }
 
   /**
    * Duplique une séance de force et ouvre son éditeur de structure : on duplique pour créer une
