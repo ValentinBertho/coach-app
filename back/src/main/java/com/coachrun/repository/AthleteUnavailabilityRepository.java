@@ -12,6 +12,9 @@ public interface AthleteUnavailabilityRepository extends JpaRepository<AthleteUn
 
     List<AthleteUnavailability> findByClubIdAndAthleteIdOrderByStartDateDesc(UUID clubId, UUID athleteId);
 
+    /** Toutes les indisponibilités d'un athlète, tous clubs confondus (export RGPD). */
+    List<AthleteUnavailability> findByAthleteIdOrderByStartDateDesc(UUID athleteId);
+
     Optional<AthleteUnavailability> findByIdAndClubId(UUID id, UUID clubId);
 
     List<AthleteUnavailability> findByAthleteIdAndEndDateGreaterThanEqualOrderByStartDateAsc(
