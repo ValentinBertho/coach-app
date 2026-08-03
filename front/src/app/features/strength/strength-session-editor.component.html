@@ -2,6 +2,12 @@
   <div>
     <a [routerLink]="['/app/library/strength']" class="back-link">← Séances de force</a>
     <h1 class="display-sm">{{ name() || 'Séance de force' }}</h1>
+    <!-- Nom éditable : sans lui, une séance dupliquée restait « … (copie) » sans recours. -->
+    <div class="form-group session-name">
+      <label for="ss-name">Nom de la séance</label>
+      <input id="ss-name" class="form-control" [ngModel]="name()" (ngModelChange)="setName($event)"
+             placeholder="Force max — bas du corps" maxlength="255" />
+    </div>
     <p class="subtitle">Structure : blocs, formats avancés et prescription des exercices.</p>
   </div>
   <div class="editor-head-actions">

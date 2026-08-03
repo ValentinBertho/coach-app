@@ -7,13 +7,14 @@ import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { RaceObjective, RacePriority } from '../../core/models/race.model';
+import { formatDuration, parseDuration } from '../../core/utils/duration';
 
 interface Draft {
   id: string | null;
   name: string;
   raceDate: string;
   km: number | null;
-  targetTime: string; // hh:mm
+  targetTime: string; // hh:mm:ss (mm:ss sous l'heure), comme côté coach
   priority: RacePriority;
 }
 
@@ -51,7 +52,7 @@ interface Draft {
           </div>
           <div class="rf-row">
             <label>Distance (km)<input type="number" min="0" step="0.1" class="form-control" [(ngModel)]="draft.km" name="km" /></label>
-            <label>Temps visé (hh:mm)<input class="form-control" [(ngModel)]="draft.targetTime" name="tt" placeholder="3:30" /></label>
+            <label>Temps visé (hh:mm:ss)<input class="form-control" [(ngModel)]="draft.targetTime" name="tt" placeholder="3:29:59" /></label>
           </div>
           <div class="rf-actions">
             <button type="button" class="btn btn-ghost btn-sm" (click)="cancel()">Annuler</button>
@@ -149,12 +150,19 @@ export class AthleteRacesComponent implements OnInit {
 
   submit(): void {
     if (!this.draft.name?.trim() || !this.draft.raceDate || this.busy()) { return; }
+    // Un chrono illisible partait jusqu'ici en « pas d'objectif de temps », sans un mot : l'athlète
+    // croyait l'avoir enregistré.
+    const targetTimeS = this.parseTime(this.draft.targetTime);
+    if (this.draft.targetTime.trim() && targetTimeS == null) {
+      this.toast.warning('Temps visé invalide — attendu hh:mm:ss (ou mm:ss).');
+      return;
+    }
     this.busy.set(true);
     const req = {
       name: this.draft.name.trim(),
       raceDate: this.draft.raceDate,
       distanceM: this.draft.km != null ? Math.round(this.draft.km * 1000) : null,
-      targetTimeS: this.parseTime(this.draft.targetTime),
+      targetTimeS,
       priority: this.draft.priority,
     };
     const call = this.draft.id
@@ -178,16 +186,10 @@ export class AthleteRacesComponent implements OnInit {
   }
 
   private fmtTime(s: number): string {
-    const h = Math.floor(s / 3600);
-    const m = Math.round((s % 3600) / 60);
-    return `${h}:${m.toString().padStart(2, '0')}`;
+    return formatDuration(s);
   }
 
   private parseTime(t: string): number | null {
-    if (!t?.trim()) { return null; }
-    const parts = t.split(':').map((x) => Number(x));
-    if (parts.some((n) => Number.isNaN(n))) { return null; }
-    const [h, m = 0] = parts;
-    return h * 3600 + m * 60;
+    return parseDuration(t);
   }
 }

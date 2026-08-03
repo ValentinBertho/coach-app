@@ -11,6 +11,12 @@
   font-size: 0.85rem;
 }
 
+/* Nom de la séance : discret sous le titre, mais toujours à portée de clic. */
+.session-name {
+  max-width: 320px;
+  margin: var(--sp-2) 0;
+}
+
 .block-card {
   margin-bottom: var(--sp-4);
 }
