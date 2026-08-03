@@ -21,17 +21,19 @@ class StartupSecretsValidatorTest {
     private static final String GOOD_CORS = "https://www.darilab.app,https://darilab.app";
     private static final String GOOD_VAPID_PUB = "BJ-public-key";
     private static final String GOOD_VAPID_PRIV = "private-key";
+    /** Topologie réelle de production : client → Vercel → Railway. */
+    private static final int TRUSTED_HOPS = 2;
 
     private StartupSecretsValidator validator(String jwt, String key, String url, boolean mailEnabled,
                                               String resendKey, String cors, String vapidPub, String vapidPriv) {
         return new StartupSecretsValidator(jwt, key, url, mailEnabled, resendKey, cors, vapidPub, vapidPriv,
-                "open", "");
+                "open", "", TRUSTED_HOPS);
     }
 
     /** Variante pour les scénarios d'inscription fermée. */
     private StartupSecretsValidator registrationValidator(String mode, String code) {
         return new StartupSecretsValidator(GOOD_JWT, GOOD_KEY, GOOD_URL, false, "", GOOD_CORS,
-                GOOD_VAPID_PUB, GOOD_VAPID_PRIV, mode, code);
+                GOOD_VAPID_PUB, GOOD_VAPID_PRIV, mode, code, TRUSTED_HOPS);
     }
 
     @Test

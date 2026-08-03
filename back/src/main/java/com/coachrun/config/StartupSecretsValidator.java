@@ -40,6 +40,7 @@ public class StartupSecretsValidator {
     private final String vapidPrivateKey;
     private final String registrationMode;
     private final String registrationInviteCode;
+    private final int trustedProxyHops;
 
     @SuppressWarnings("checkstyle:ParameterNumber")
     public StartupSecretsValidator(
@@ -52,7 +53,8 @@ public class StartupSecretsValidator {
             @Value("${app.vapid.public-key:}") String vapidPublicKey,
             @Value("${app.vapid.private-key:}") String vapidPrivateKey,
             @Value("${app.registration.mode:open}") String registrationMode,
-            @Value("${app.registration.invite-code:}") String registrationInviteCode) {
+            @Value("${app.registration.invite-code:}") String registrationInviteCode,
+            @Value("${app.rate-limit.trusted-proxy-hops:1}") int trustedProxyHops) {
         this.jwtSecret = jwtSecret;
         this.fieldEncryptionKey = fieldEncryptionKey;
         this.frontendUrl = frontendUrl;
@@ -63,6 +65,7 @@ public class StartupSecretsValidator {
         this.vapidPrivateKey = vapidPrivateKey;
         this.registrationMode = registrationMode;
         this.registrationInviteCode = registrationInviteCode;
+        this.trustedProxyHops = trustedProxyHops;
     }
 
     @PostConstruct
@@ -97,6 +100,18 @@ public class StartupSecretsValidator {
         if (isBlank(vapidPublicKey) || isBlank(vapidPrivateKey)) {
             problems.add("VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY manquantes : "
                     + "les notifications push (séance planifiée, commentaire du coach) seraient inertes.");
+        }
+
+        // Nombre de relais devant l'application. Laissé à sa valeur par défaut (1) derrière la
+        // chaîne Vercel → Railway, le filtre de rate limiting retient l'adresse du relais Vercel
+        // — la même pour tout le monde. Tous les utilisateurs partagent alors le même compteur :
+        // cinq mots de passe erronés et plus personne ne peut se connecter. Le défaut ne se voit
+        // qu'en charge, sur l'écran qu'on ne peut pas se permettre de casser ; on le refuse donc
+        // au démarrage plutôt qu'au support.
+        if (trustedProxyHops < 2) {
+            problems.add("RATE_LIMIT_TRUSTED_PROXY_HOPS=" + trustedProxyHops
+                    + " : derrière Vercel puis Railway il en faut 2. Avec 1, le rate limiting "
+                    + "compte l'adresse du proxy et non celle du client — un seul seau pour tous.");
         }
 
         // Inscription fermée sans code : plus personne ne peut créer de compte, et le message

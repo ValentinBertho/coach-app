@@ -25,8 +25,9 @@ sur les précédents quand ils se contredisent.
 
 | Document | Angle | État |
 |---|---|---|
-| [`AUDIT-BETA-OUVERTE-2026-07.md`](./AUDIT-BETA-OUVERTE-2026-07.md) | **Le plus récent.** Parcours coach et athlète face à une bêta ouverte : complétude, ergonomie, design, accessibilité, réglages, politique de notification | 🔵 Correctifs bloquants livrés — voir son plan d'exécution pour le reste |
-| [`AUDIT-BETA-READINESS-2026-07.md`](./AUDIT-BETA-READINESS-2026-07.md) | **Exploitation** : infra, sauvegardes, monitoring, sécurité, RGPD | 🔵 En cours — suivre le runbook. ⚠️ Son §5 sous-estimait le volume d'e-mails ; corrigé par l'audit de bêta ouverte §6.1 |
+| [`AUDIT-TECHNIQUE-2026-08.md`](./AUDIT-TECHNIQUE-2026-08.md) | **Le plus récent.** Ce que les audits de juillet n'ont pas vu : chemin push devenu chemin chaud, consentement santé traité comme une case et non comme un état, back-office inatteignable faute d'administrateur, gestion d'erreurs | 🔵 Correctifs livrés. Restent 3 actions d'exploitation : compte admin, test de restauration, identité de l'éditeur |
+| [`AUDIT-BETA-OUVERTE-2026-07.md`](./AUDIT-BETA-OUVERTE-2026-07.md) | Parcours coach et athlète face à une bêta ouverte : complétude, ergonomie, design, accessibilité, réglages, politique de notification | 🔵 Correctifs bloquants livrés — voir son plan d'exécution pour le reste |
+| [`AUDIT-BETA-READINESS-2026-07.md`](./AUDIT-BETA-READINESS-2026-07.md) | **Exploitation** : infra, sauvegardes, monitoring, sécurité, RGPD | 🔵 En cours — suivre le runbook. ⚠️ Son §5 sous-estimait le volume d'e-mails (corrigé par l'audit de bêta ouverte §6.1) et son §4 annonce un TTL de jeton de 900 s, en réalité 3600 (cf. audit technique §1) |
 | [`AUDIT-RC-2026-07.md`](./AUDIT-RC-2026-07.md) | **Code** : les lots 1 à 8 livrés avant la bêta | ✅ Lots 1-8 livrés. Lot 9 (comparaison répétition par répétition) après la bêta |
 | [`archive/audit-produit-dari-lab.md`](./archive/audit-produit-dari-lab.md) | Produit et logique métier, écran par écran | 🟡 Historique — largement traité depuis |
 | [`archive/audit-ui-ux-dari-lab.md`](./archive/audit-ui-ux-dari-lab.md) | UI / UX / design, écran par écran | 🟡 Historique — son §8 tient le suivi d'exécution |

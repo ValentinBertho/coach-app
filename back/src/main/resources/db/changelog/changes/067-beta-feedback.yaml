@@ -1,0 +1,49 @@
+# ============================================================================
+# 067 — Retours de bêta envoyés depuis l'application.
+#
+#   Le seul canal existant était un lien « mailto: » pré-rempli. C'est mieux que rien, mais sur
+#   une PWA mobile un mailto ouvre au mieux un client mail non configuré, au pire rien du tout —
+#   et il ne laisse aucune trace exploitable : ni file à traiter, ni statut, ni recoupement avec
+#   les erreurs remontées par Sentry.
+#
+#   La table stocke le message ET son contexte technique (page, version déployée, navigateur,
+#   identifiant de corrélation de la dernière erreur vue). C'est exactement ce qu'on redemande
+#   sinon au premier échange, et ce qui permet de relier un retour à une trace serveur :
+#   GlobalExceptionHandler produit déjà un correlationId que personne ne récupérait.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 067-create-beta-feedback
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: beta_feedback
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: user_id, type: UUID }
+              - column: { name: kind, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: message, type: VARCHAR(4000), constraints: { nullable: false } }
+              - column: { name: page, type: VARCHAR(512) }
+              - column: { name: app_version, type: VARCHAR(64) }
+              - column: { name: user_agent, type: VARCHAR(512) }
+              - column: { name: correlation_id, type: VARCHAR(64) }
+              - column: { name: status, type: VARCHAR(16), defaultValue: NEW, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        # Le retour survit à la suppression du compte (SET NULL) : un bug reste un bug même si
+        # son auteur s'en va, et le lien vers l'utilisateur n'est pas ce qui le rend utile.
+        - addForeignKeyConstraint:
+            constraintName: fk_beta_feedback_user
+            baseTableName: beta_feedback
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL
+        # La file de traitement se lit « les non traités, du plus récent au plus ancien ».
+        - createIndex:
+            indexName: idx_beta_feedback_status_created
+            tableName: beta_feedback
+            columns:
+              - column: { name: status }
+              - column: { name: created_at }

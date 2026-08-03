@@ -35,7 +35,14 @@ services:
       JDBC_DATABASE_URL: jdbc:postgresql://postgres:5432/coachrun
       PGUSER: postgres
       PGPASSWORD: postgres
-      JWT_SECRET: dev-local-secret-change-in-production-min-256-bits-long!!
+      # Secrets de développement, volontairement reconnaissables comme tels : le garde-fou de
+      # démarrage en profil prod refuse le préfixe « dev- », les clés de moins de 512 bits et la
+      # clé de chiffrement nulle. Cette stack tourne en profil dev, donc elle les accepte —
+      # mais la longueur respecte le minimum de production, pour qu'un développeur qui bascule
+      # SPRING_PROFILES_ACTIVE=prod pour reproduire un incident échoue sur le bon message
+      # (« valeur de dev interdite ») et non sur une longueur insuffisante, qui l'enverrait
+      # chercher un problème de configuration inexistant.
+      JWT_SECRET: dev-local-secret-change-in-production-min-512-bits-long-padding-aaaa
       FIELD_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
       MAIL_ENABLED: "false"
       CORS_ORIGINS: http://localhost:4200

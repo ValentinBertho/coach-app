@@ -39,16 +39,22 @@ public class RateLimitFilter extends OncePerRequestFilter {
     public static final String LOGIN_BUCKET = "auth-login";
     /** Bucket fourre-tout des routes authentifiées, compté par porteur de jeton. */
     public static final String AUTHENTICATED_BUCKET = "api-authenticated";
+    /** Bucket des routes qui déclenchent un envoi d'e-mail, compté à l'heure. */
+    public static final String EMAIL_BUCKET = "api-email";
 
     private final FixedWindowRateLimiter limiter;
     private final FixedWindowRateLimiter loginLimiter;
     private final FixedWindowRateLimiter authenticatedLimiter;
+    private final FixedWindowRateLimiter emailLimiter;
     private final int trustedProxyHops;
 
+    @SuppressWarnings("checkstyle:ParameterNumber")
     public RateLimitFilter(@Value("${app.rate-limit.max-requests:20}") int maxRequests,
                            @Value("${app.rate-limit.window-seconds:60}") int windowSeconds,
                            @Value("${app.rate-limit.login-max-requests:5}") int loginMaxRequests,
                            @Value("${app.rate-limit.authenticated-max-requests:300}") int authenticatedMax,
+                           @Value("${app.rate-limit.email-max-requests:3}") int emailMax,
+                           @Value("${app.rate-limit.email-window-seconds:3600}") int emailWindowSeconds,
                            @Value("${app.rate-limit.trusted-proxy-hops:1}") int trustedProxyHops) {
         this.limiter = new FixedWindowRateLimiter(maxRequests, Duration.ofSeconds(windowSeconds));
         // La connexion a son propre seuil, bien plus strict : 20 essais par minute et par IP
@@ -57,6 +63,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // Plafond global : large (une navigation soutenue reste très en dessous), mais il existe.
         this.authenticatedLimiter =
                 new FixedWindowRateLimiter(authenticatedMax, Duration.ofSeconds(windowSeconds));
+        // Envois d'e-mail : quelques-uns par heure suffisent à tout usage légitime (on renvoie une
+        // vérification parce qu'elle n'est pas arrivée, pas trois cents fois par minute).
+        this.emailLimiter =
+                new FixedWindowRateLimiter(emailMax, Duration.ofSeconds(emailWindowSeconds));
         this.trustedProxyHops = Math.max(1, trustedProxyHops);
     }
 
@@ -80,7 +90,36 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (uri.contains("/invitations/") && uri.endsWith("/accept")) {
             return "invitation-accept";
         }
+        // Dépôt d'un retour de bêta : écriture de texte libre en base, donc un plafond, même
+        // large. Le chemin complet est exigé : « /feedback » seul attraperait aussi
+        // PATCH /me/workouts/{id}/feedback, le retour de séance de l'athlète — qui serait alors
+        // plafonné par IP, donc partagé par tous les athlètes d'un même club derrière une box.
+        if (uri.endsWith("/api/feedback")) {
+            return "beta-feedback";
+        }
         return null;
+    }
+
+    /**
+     * Routes authentifiées qui <b>déclenchent un envoi d'e-mail</b>, et sont donc comptées à part,
+     * très bas, par porteur de jeton.
+     *
+     * <p>Elles retombaient sur le plafond général de 300 requêtes/minute — c'est-à-dire qu'un
+     * compte légitime pouvait provoquer ~300 e-mails par minute. Or {@code /auth/resend-verification}
+     * régénère et renvoie un lien à chaque appel, et {@code PATCH /auth/me} envoie une vérification
+     * à toute nouvelle adresse : la seconde permet donc d'arroser une adresse <b>arbitraire</b>.
+     * Le plan Resend de la bêta est à 100 e-mails/jour ; le quota tombait en vingt secondes, et il
+     * emporte avec lui les réinitialisations de mot de passe et les invitations — précisément les
+     * envois qu'on ne peut pas perdre.</p>
+     */
+    public static boolean isEmailTriggering(String uri, String method) {
+        if (uri == null) {
+            return false;
+        }
+        if (uri.endsWith("/auth/resend-verification")) {
+            return true;
+        }
+        return uri.endsWith("/auth/me") && "PATCH".equalsIgnoreCase(method);
     }
 
     @Override
@@ -95,6 +134,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (bucket != null) {
             key = clientIp(request) + ":" + bucket;
             applicable = LOGIN_BUCKET.equals(bucket) ? loginLimiter : limiter;
+        } else if (isEmailTriggering(request.getRequestURI(), request.getMethod())) {
+            // Envoi d'e-mail déclenché par un compte : seuil très bas, et par porteur de jeton
+            // (c'est le compte qui déclenche, pas l'adresse réseau).
+            String bearerKey = bearerKey(request);
+            key = (bearerKey != null ? bearerKey : clientIp(request)) + ":" + EMAIL_BUCKET;
+            applicable = emailLimiter;
         } else {
             // Route non listée : plafond global par porteur de jeton. Les requêtes anonymes hors
             // buckets (actuator, pages publiques) ne sont pas comptées ici.
@@ -127,13 +172,27 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * d'authentification), on se contente d'une empreinte stable de sa charge utile. Un jeton
      * forgé n'ouvre aucun accès — au pire il choisit son propre compteur, ce qui ne dessert
      * que lui.</p>
+     *
+     * <p>Le jeton est aussi cherché dans le paramètre {@code access_token}. Les flux SSE
+     * ({@code EventSource} ne sait pas poser d'en-tête) et l'ouverture d'une pièce jointe dans un
+     * onglet l'y placent — et comme cette méthode ne lisait que l'en-tête, ces routes
+     * échappaient <b>entièrement</b> au comptage : une reconnexion SSE en boucle, ou un
+     * téléchargement répété de pièces jointes servies depuis la base, n'avaient aucune limite.</p>
      */
     private String bearerKey(HttpServletRequest request) {
+        String token = null;
         String header = request.getHeader("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
+        if (header != null && header.startsWith("Bearer ")) {
+            token = header.substring(7);
+        } else {
+            String param = request.getParameter("access_token");
+            if (param != null && !param.isBlank()) {
+                token = param;
+            }
+        }
+        if (token == null) {
             return null;
         }
-        String token = header.substring(7);
         int first = token.indexOf('.');
         int second = token.indexOf('.', first + 1);
         if (first < 0 || second < 0) {

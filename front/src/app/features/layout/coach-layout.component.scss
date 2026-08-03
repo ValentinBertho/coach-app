@@ -40,7 +40,10 @@
   color: var(--ink-4); padding: var(--sp-3) var(--sp-3) var(--sp-1);
 }
 .snav-group:first-child { padding-top: var(--sp-1); }
-.snav a {
+// « Signaler un problème » ouvre un panneau et non une page : c'est un bouton, pas un lien.
+// Il partage le rendu des entrées de navigation pour ne pas se détacher visuellement.
+.snav a,
+.snav .snav-action {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
@@ -51,7 +54,16 @@
   font-size: var(--text-sm);
   transition: background var(--duration-fast) var(--ease), color var(--duration-fast) var(--ease);
 }
-.snav a:hover { background: var(--paper-sunk); color: var(--ink); }
+.snav .snav-action {
+  width: 100%;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.snav a:hover,
+.snav .snav-action:hover { background: var(--paper-sunk); color: var(--ink); }
 .snav a.active { background: var(--primary-wash); color: var(--primary); }
 .snav app-icon { flex-shrink: 0; }
 
@@ -91,8 +103,10 @@
 }
 .sidebar.collapsed .brand { justify-content: center; padding: 0; }
 .sidebar.collapsed .nav-toggle { align-self: center; }
-.sidebar.collapsed .snav a { justify-content: center; gap: 0; padding: var(--sp-2); }
-.sidebar.collapsed .snav a span { display: none; }
+.sidebar.collapsed .snav a,
+.sidebar.collapsed .snav .snav-action { justify-content: center; gap: 0; padding: var(--sp-2); }
+.sidebar.collapsed .snav a span,
+.sidebar.collapsed .snav .snav-action span { display: none; }
 /* En rail d'icônes, les libellés de section deviennent de simples séparateurs. */
 .sidebar.collapsed .snav-group {
   font-size: 0; padding: 0; height: 1px;
@@ -187,13 +201,19 @@
   display: flex; align-items: center; justify-content: space-between;
   font-weight: 700; color: var(--ink-2); padding: 0 var(--sp-1) var(--sp-1);
 }
-.more-sheet__panel a {
+.more-sheet__panel a,
+.more-sheet__panel .snav-action {
   display: flex; align-items: center; gap: var(--sp-3);
   padding: var(--sp-3);
   border-radius: var(--radius);
   color: var(--ink-2); font-weight: 600; font-size: var(--text-sm);
 }
+.more-sheet__panel .snav-action {
+  width: 100%; background: none; border: 0;
+  font-family: inherit; text-align: left; cursor: pointer;
+}
 .more-sheet__panel a:hover,
+.more-sheet__panel .snav-action:hover,
 .more-sheet__panel a.active { background: var(--primary-wash); color: var(--primary); }
 
 /* --- Fil d'Ariane (barre supérieure desktop) --- */

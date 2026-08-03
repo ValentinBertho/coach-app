@@ -64,6 +64,7 @@ public class GdprService {
     private final StrengthTestRepository strengthTestRepository;
     private final StrengthResultRepository strengthResultRepository;
     private final AthleteZoneValueRepository zoneValueRepository;
+    private final NotificationService notificationService;
 
     public AthleteExportResponse export(UUID athleteId) {
         Athlete athlete = athleteRepository.findById(athleteId)
@@ -114,5 +115,99 @@ public class GdprService {
         }
         athleteRepository.deleteById(athleteId);
         log.warn("[RGPD] Données de l'athlète {} supprimées (droit à l'oubli).", athleteId);
+    }
+
+    /** État courant du consentement au traitement des données de santé. */
+    public com.coachrun.dto.response.HealthConsentResponse consent(UUID athleteId) {
+        Athlete athlete = require(athleteId);
+        return new com.coachrun.dto.response.HealthConsentResponse(
+                athlete.isHealthDataConsentActive(),
+                athlete.getHealthDataConsentAt(),
+                athlete.getHealthDataConsentWithdrawnAt());
+    }
+
+    /**
+     * RGPD art. 7-3 — retrait du consentement au traitement des données de santé.
+     *
+     * <p><b>Périmètre de l'effacement.</b> Il suit exactement ce que la politique de
+     * confidentialité publiée désigne comme donnée de l'article 9 : « mesures de lactate,
+     * niveaux de douleur et de fatigue, indisponibilités (blessure, maladie) ». Rien de plus,
+     * rien de moins — élargir détruirait des données dont la base légale est l'exécution du
+     * contrat (allures, distances, RPE, qui mesure un effort et non un état de santé), et
+     * restreindre laisserait des données sans base légale.</p>
+     *
+     * <p>Concrètement : les tests de lactate sont supprimés ; la douleur et la fatigue déclarées
+     * sont effacées des check-ins et des séances ; le motif médical d'une indisponibilité est
+     * ramené à « autre » et son commentaire libre effacé — la période reste, car c'est une
+     * information de planification que le coach a besoin de conserver et qui ne dit plus rien de
+     * l'état de santé ; les notes médicales libres du profil sont effacées.</p>
+     *
+     * <p>Le compte, lui, n'est pas touché : le retrait de consentement et le droit à l'oubli sont
+     * deux droits distincts, et confondre les deux dissuaderait d'exercer le premier.</p>
+     */
+    @Transactional
+    public void withdrawHealthConsent(UUID athleteId) {
+        Athlete athlete = require(athleteId);
+        if (!athlete.isHealthDataConsentActive()) {
+            return; // déjà retiré : idempotent, pas d'erreur
+        }
+        athlete.setHealthDataConsentWithdrawnAt(Instant.now());
+
+        var lactateTests = lactateTestRepository.findByAthleteIdOrderByTestDateDesc(athleteId);
+        int lactate = lactateTests.size();
+        lactateTestRepository.deleteAll(lactateTests);
+
+        int checkIns = 0;
+        for (var checkIn : dailyCheckInRepository.findByAthleteIdOrderByCheckDateDesc(athleteId)) {
+            if (checkIn.getPain() != null || checkIn.getFatigue() != null) {
+                checkIn.setPain(null);
+                checkIn.setFatigue(null);
+                checkIns++;
+            }
+        }
+
+        int workouts = 0;
+        for (var workout : workoutRepository.findByAthleteIdOrderByScheduledDateAsc(athleteId)) {
+            if (workout.getPain() != null) {
+                workout.setPain(null);
+                workouts++;
+            }
+        }
+
+        int unavailabilities = 0;
+        for (var unavailability : unavailabilityRepository.findByAthleteIdOrderByStartDateDesc(athleteId)) {
+            if (unavailability.getReason() != com.coachrun.entity.enums.UnavailabilityReason.OTHER
+                    || unavailability.getNotes() != null) {
+                unavailability.setReason(com.coachrun.entity.enums.UnavailabilityReason.OTHER);
+                unavailability.setNotes(null);
+                unavailabilities++;
+            }
+        }
+
+        athlete.setMedicalNotes(null);
+
+        log.warn("[RGPD] Consentement santé retiré (athlète={}) — effacé : {} test(s) lactate, "
+                        + "{} check-in(s), {} séance(s), {} indisponibilité(s), notes médicales.",
+                athleteId, lactate, checkIns, workouts, unavailabilities);
+
+        // Le coach doit le savoir : sinon il continue de saisir des mesures désormais refusées,
+        // et constate une fiche qui se vide sans explication.
+        notificationService.notifyHealthConsentWithdrawn(athlete);
+    }
+
+    /** L'athlète redonne son consentement : la collecte reprend, le passé effacé ne revient pas. */
+    @Transactional
+    public void grantHealthConsent(UUID athleteId) {
+        Athlete athlete = require(athleteId);
+        if (athlete.isHealthDataConsentActive()) {
+            return;
+        }
+        athlete.setHealthDataConsentAt(Instant.now());
+        log.info("[RGPD] Consentement santé redonné (athlète={}).", athleteId);
+    }
+
+    private Athlete require(UUID athleteId) {
+        return athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
     }
 }

@@ -27,6 +27,16 @@ public record AthleteResponse(
         BigDecimal vma,
         BigDecimal weightKg,
         String medicalNotes,
+        /**
+         * Le traitement des données de santé de cet athlète est-il autorisé en ce moment ?
+         *
+         * <p>Le consentement n'était exposé nulle part : le coach saisissait notes médicales,
+         * tests de lactate et douleurs sans aucun moyen de savoir si l'athlète avait accepté son
+         * invitation — et le parcours normal est justement de remplir la fiche <em>avant</em>
+         * d'inviter. Il n'avait pas non plus de quoi comprendre un refus après retrait.</p>
+         */
+        boolean healthDataConsentGranted,
+        java.time.Instant healthDataConsentAt,
         boolean invitationPending,
         java.util.UUID groupId,
         String groupName,
@@ -52,6 +62,8 @@ public record AthleteResponse(
                 a.getBirthDate(), a.getSex(), a.getLevel(), a.getStatus(),
                 a.getHrMax(), a.getHrRest(), a.getVma(), a.getWeightKg(),
                 a.getMedicalNotes(),
+                a.isHealthDataConsentActive(),
+                a.getHealthDataConsentAt(),
                 a.getInviteToken() != null,
                 a.getGroup() != null ? a.getGroup().getId() : null,
                 a.getGroup() != null ? a.getGroup().getName() : null,

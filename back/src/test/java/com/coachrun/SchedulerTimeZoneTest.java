@@ -72,8 +72,13 @@ class SchedulerTimeZoneTest {
 
     @Test
     void reminderSchedulerTargetsTomorrowInTheBusinessZone() {
+        // Le balayage délègue chaque rappel à `remindOne` via le proxy Spring : en test unitaire,
+        // le fournisseur renvoie simplement l'instance elle-même.
+        ReminderScheduler[] holder = new ReminderScheduler[1];
         ReminderScheduler scheduler = new ReminderScheduler(
-                workoutRepository, notificationService, clockAt(AFTER_MIDNIGHT_IN_PARIS));
+                workoutRepository, notificationService, clockAt(AFTER_MIDNIGHT_IN_PARIS),
+                selfProvider(() -> holder[0]));
+        holder[0] = scheduler;
         when(workoutRepository.findByScheduledDateAndStatus(any(), any())).thenReturn(List.of());
 
         scheduler.sendTomorrowReminders();
@@ -141,5 +146,35 @@ class SchedulerTimeZoneTest {
         u.setNotifyPushEnabled(true);
         u.setUsualSessionTime(usualSessionTime);
         return u;
+    }
+
+    /**
+     * Fournisseur minimal tenant lieu de proxy Spring. En production, le planificateur passe par
+     * lui pour que le {@code @Transactional} de {@code remindOne} s'applique réellement ; ici,
+     * il rend l'instance sous test.
+     */
+    private static <T> org.springframework.beans.factory.ObjectProvider<T> selfProvider(
+            java.util.function.Supplier<T> supplier) {
+        return new org.springframework.beans.factory.ObjectProvider<>() {
+            @Override
+            public T getObject() {
+                return supplier.get();
+            }
+
+            @Override
+            public T getObject(Object... args) {
+                return supplier.get();
+            }
+
+            @Override
+            public T getIfAvailable() {
+                return supplier.get();
+            }
+
+            @Override
+            public T getIfUnique() {
+                return supplier.get();
+            }
+        };
     }
 }

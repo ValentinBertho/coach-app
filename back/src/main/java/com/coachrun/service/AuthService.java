@@ -267,7 +267,8 @@ public class AuthService {
      * ATHLETE rattaché à l'athlète, puis émet les jetons. Sans mot de passe.
      */
     @Transactional
-    public AuthResponse acceptInvitation(String token, boolean healthDataConsent, String email, String password) {
+    public AuthResponse acceptInvitation(String token, boolean healthDataConsent,
+                                         boolean termsAccepted, String email, String password) {
         Athlete athlete = athleteRepository.findByInviteToken(token)
                 .filter(a -> a.getInviteExpiresAt() != null
                         && a.getInviteExpiresAt().isAfter(java.time.Instant.now()))
@@ -303,6 +304,11 @@ public class AuthService {
         user.setStatus(UserStatus.ACTIVE);
         if (org.springframework.util.StringUtils.hasText(password)) {
             user.setPasswordHash(passwordEncoder.encode(password));
+        }
+        // Preuve de consentement aux CGU, au même titre que pour un coach. Elle manquait pour les
+        // athlètes : l'avertissement santé et la clause de bêta ne leur étaient pas opposables.
+        if (termsAccepted && user.getTermsAcceptedAt() == null) {
+            user.setTermsAcceptedAt(java.time.Instant.now());
         }
         user = userRepository.save(user);
         if (provided != null && existing == null) {

@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, Injector, computed, inject, signal } from '@angular/core';
 import { Observable, finalize, shareReplay, tap, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { clearFeedbackQueue } from './feedback-queue.storage';
@@ -37,6 +37,13 @@ function readStoredUser(): User | null {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiUrl}/auth`;
+  /**
+   * Résolution tardive de `PushService` : il dépend de `SwPush`, qui n'existe que si
+   * `provideServiceWorker` est en place. L'injecter au constructeur ferait de l'authentification
+   * — le service le plus bas de la pile — un dépendant du service worker, et casserait tout
+   * contexte de test qui ne le fournit pas. On le demande au moment du logout, ou pas du tout.
+   */
+  private readonly injector = inject(Injector);
 
   readonly token = signal<string | null>(localStorage.getItem(ACCESS_KEY));
   readonly currentUser = signal<User | null>(readStoredUser());
@@ -112,16 +119,24 @@ export class AuthService {
       .pipe(tap((res) => this.applySession(res)));
   }
 
-  /** Onboarding athlète par lien magique : définit identifiants + session. */
+  /**
+   * Onboarding athlète par lien magique : définit identifiants + session.
+   *
+   * `termsAccepted` est désormais transmis et exigé par le serveur : les athlètes — moitié des
+   * utilisateurs, et les personnes concernées par les données de santé — n'acceptaient jamais
+   * les CGU, donc ni l'avertissement santé ni la clause de bêta ne leur étaient opposables.
+   */
   acceptInvitation(
     token: string,
     healthDataConsent: boolean,
-    email?: string,
-    password?: string,
+    termsAccepted: boolean,
+    email: string,
+    password: string,
   ): Observable<AuthResponse> {
     return this.http
       .post<AuthResponse>(`${environment.apiUrl}/public/invitations/${token}/accept`, {
         healthDataConsent,
+        termsAccepted,
         email,
         password,
       })
@@ -202,9 +217,13 @@ export class AuthService {
   }
 
   logout(): void {
-    // Révocation côté serveur (best-effort) avant purge locale.
+    // Révocation côté serveur (best-effort) avant purge locale. L'ordre compte : ces appels
+    // doivent partir tant que le jeton est encore lisible par l'intercepteur.
     if (this.token()) {
       this.http.post(`${this.base}/logout`, {}).subscribe({ next: () => {}, error: () => {} });
+      // Notifications push : l'abonnement du navigateur restait rattaché au compte précédent,
+      // donc un appareil partagé continuait d'afficher ses notifications.
+      void this.disablePush();
     }
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
@@ -216,6 +235,20 @@ export class AuthService {
     this.token.set(null);
     this.currentUser.set(null);
     void this.purgeCaches();
+  }
+
+  /**
+   * Désabonne l'appareil des notifications push, si le service worker est disponible.
+   * Chargé à la demande (cf. `injector`) et strictement best-effort : dans un contexte sans
+   * service worker — tests, navigateur incompatible — il n'y a simplement rien à couper.
+   */
+  private async disablePush(): Promise<void> {
+    try {
+      const { PushService } = await import('./push.service');
+      await this.injector.get(PushService).disable();
+    } catch {
+      // Service worker absent ou module indisponible : rien à désabonner.
+    }
   }
 
   /**

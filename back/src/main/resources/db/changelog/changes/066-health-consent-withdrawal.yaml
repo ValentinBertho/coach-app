@@ -1,0 +1,28 @@
+# ============================================================================
+# 066 — Retrait du consentement au traitement des données de santé (RGPD art. 7-3).
+#
+#   La politique de confidentialité publiée promet le retrait « à tout moment », et l'article
+#   7-3 exige qu'il soit aussi simple à retirer qu'à donner. Rien ne l'implémentait :
+#   health_data_consent_at était écrit une fois à l'acceptation de l'invitation, puis jamais
+#   relu ailleurs que dans l'export de portabilité. Le consentement était une case franchie à
+#   l'entrée, pas un état gouvernant le traitement.
+#
+#   La colonne ajoutée porte la date du dernier retrait. Le consentement est actif quand
+#   health_data_consent_at est renseigné ET postérieur à health_data_consent_withdrawn_at (ou
+#   que ce dernier est nul) : on conserve ainsi l'historique des deux mouvements plutôt que
+#   d'effacer la date de consentement, ce qui détruirait la preuve du traitement passé — lequel
+#   reste licite (art. 7-3, seconde phrase).
+#
+#   Additif et non destructif : les athlètes existants gardent leur consentement en vigueur.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 066-athlete-health-consent-withdrawn-at
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: athletes
+            columns:
+              - column:
+                  name: health_data_consent_withdrawn_at
+                  type: TIMESTAMP

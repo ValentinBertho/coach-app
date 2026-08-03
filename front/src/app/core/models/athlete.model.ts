@@ -32,6 +32,16 @@ export interface AthleteSummary {
 }
 
 export interface Athlete extends AthleteSummary {
+  /**
+   * L'athlète autorise-t-il actuellement le traitement de ses données de santé (RGPD art. 9) ?
+   *
+   * <p>Faux tant qu'il n'a pas accepté son invitation, et après un retrait de consentement.
+   * Le serveur refuse alors les tests de lactate, les douleurs et les motifs médicaux : sans
+   * cette information, le coach subissait le refus sans pouvoir le comprendre — et, avant que la
+   * garde existe, saisissait des données de santé sans base légale.</p>
+   */
+  healthDataConsentGranted: boolean;
+  healthDataConsentAt?: string | null;
   groupId?: string | null;
   email: string | null;
   birthDate: string | null;

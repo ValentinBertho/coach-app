@@ -66,4 +66,32 @@ export class PushService {
     );
     return true;
   }
+
+  /**
+   * Coupe les notifications de ce compte à la déconnexion.
+   *
+   * <p>Sans ça, l'abonnement du navigateur restait rattaché au compte précédent côté serveur :
+   * sur un téléphone partagé — le cas d'usage que la purge des caches et de la file de retours
+   * couvre déjà — l'appareil continuait d'afficher « Retour de votre coach : <titre de séance> »
+   * pour quelqu'un d'autre. Le titre d'une séance n'est pas une donnée de santé, mais c'est bien
+   * la vie d'entraînement d'un tiers.</p>
+   *
+   * <p>Best-effort et sans attente : la déconnexion ne doit jamais dépendre du réseau. On
+   * prévient le serveur, puis on désabonne le navigateur lui-même — l'un sans l'autre laisserait
+   * soit une ligne morte en base, soit un abonnement local orphelin.</p>
+   */
+  async disable(): Promise<void> {
+    try {
+      await firstValueFrom(this.http.delete(`${environment.apiUrl}/push/subscriptions`));
+    } catch {
+      // Hors ligne ou session déjà expirée : la ligne serveur sera retirée au premier 404/410.
+    }
+    try {
+      if (this.swPush.isEnabled) {
+        await this.swPush.unsubscribe();
+      }
+    } catch {
+      // Aucun abonnement actif : rien à faire.
+    }
+  }
 }

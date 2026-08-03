@@ -395,6 +395,30 @@ public class NotificationService {
         });
     }
 
+    /**
+     * L'athlète a retiré son consentement au traitement de ses données de santé → prévient son
+     * coach référent (in-app + push, jamais d'e-mail).
+     *
+     * <p>Sans ce signal, le coach découvre une fiche qui s'est vidée — plus de tests de lactate,
+     * plus de douleur déclarée — et ses prochaines saisies sont refusées, sans qu'il comprenne
+     * pourquoi. Le message ne dit rien de l'état de santé de l'athlète : il annonce un changement
+     * de droits, ce qui est précisément l'information dont le coach a besoin.</p>
+     */
+    public void notifyHealthConsentWithdrawn(com.coachrun.entity.Athlete athlete) {
+        UUID clubId = athlete.getClub() != null ? athlete.getClub().getId() : null;
+        referentCoach(athlete.getId(), clubId).ifPresent(coach -> {
+            String athleteName = (athlete.getFirstName() + " " + athlete.getLastName()).trim();
+            record(coach.getId(), "HEALTH_CONSENT_WITHDRAWN", "Consentement santé retiré",
+                    athleteName + " ne partage plus ses données de santé (douleur, lactate).",
+                    "/app/athletes/" + athlete.getId());
+            if (coach.isNotifyPushEnabled()) {
+                pushService.sendToUser(coach.getId(), "Consentement santé retiré",
+                        athleteName + " ne partage plus ses données de santé.",
+                        frontendUrl + "/app/athletes/" + athlete.getId());
+            }
+        });
+    }
+
     /** Libellé français d'un motif d'indisponibilité. */
     private String reasonLabel(com.coachrun.entity.enums.UnavailabilityReason reason) {
         if (reason == null) {

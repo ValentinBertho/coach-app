@@ -6,6 +6,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { BreadcrumbService } from '../../core/services/breadcrumb.service';
 import { CoachDashboardService } from '../../core/services/coach-dashboard.service';
 import { CommandPaletteService } from '../../core/services/command-palette.service';
+import { FeedbackService } from '../../core/services/feedback.service';
 import { MessageService } from '../../core/services/message.service';
 import { ToastService } from '../../core/services/toast.service';
 import { HelpService } from '../help/help.service';
@@ -38,11 +39,23 @@ export class CoachLayoutComponent implements OnInit {
   private readonly messages = inject(MessageService);
   private readonly dashboard = inject(CoachDashboardService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly feedback = inject(FeedbackService);
 
   /**
-   * Lien « Signaler un problème » : un mailto vers le support, avec version d'application et
-   * page courante déjà remplies. C'est le seul canal de support de la bêta ; sans entrée dans
-   * la navigation, il n'était atteignable de nulle part.
+   * « Signaler un problème » : ouvre le panneau de retour, qui enregistre le message en base
+   * avec son contexte (page, version, navigateur, dernière erreur serveur).
+   *
+   * <p>C'était un `mailto:` — mieux que rien, mais il suppose un client mail configuré, ce qui
+   * est rarement le cas sur une PWA mobile, et il ne laissait aucune trace exploitable : ni file
+   * à traiter, ni statut, ni recoupement possible avec les erreurs remontées par Sentry.</p>
+   */
+  openFeedback(): void {
+    this.feedback.open();
+  }
+
+  /**
+   * Repli par e-mail, conservé pour l'aide : si le panneau ne part pas — session expirée,
+   * hors ligne — il reste une adresse à qui écrire.
    */
   supportMailto(): string {
     return supportLink('Signalement depuis l’espace coach');

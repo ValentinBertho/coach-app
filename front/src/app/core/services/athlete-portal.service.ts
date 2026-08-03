@@ -334,4 +334,26 @@ export class AthletePortalService {
   deleteAccount(): Observable<void> {
     return this.http.delete<void>(this.base);
   }
+
+  /** RGPD — état de mon consentement au traitement des données de santé. */
+  healthConsent(): Observable<HealthConsent> {
+    return this.http.get<HealthConsent>(`${this.base}/consent`);
+  }
+
+  /** RGPD art. 7-3 — je retire mon consentement (efface les données de santé déjà collectées). */
+  withdrawHealthConsent(): Observable<void> {
+    return this.http.post<void>(`${this.base}/consent/withdraw`, {});
+  }
+
+  /** Je redonne mon consentement : la collecte reprend, l'effacé ne revient pas. */
+  grantHealthConsent(): Observable<void> {
+    return this.http.post<void>(`${this.base}/consent/grant`, {});
+  }
+}
+
+/** État du consentement au traitement des données de santé (RGPD art. 9). */
+export interface HealthConsent {
+  granted: boolean;
+  grantedAt: string | null;
+  withdrawnAt: string | null;
 }

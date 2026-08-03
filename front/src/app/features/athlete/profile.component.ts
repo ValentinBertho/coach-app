@@ -2,9 +2,10 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { AthletePortalService } from '../../core/services/athlete-portal.service';
+import { AthletePortalService, HealthConsent } from '../../core/services/athlete-portal.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ConfirmService } from '../../core/services/confirm.service';
+import { FeedbackService } from '../../core/services/feedback.service';
 import { NotificationPreferences, NotificationService } from '../../core/services/notification.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
@@ -55,14 +56,14 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
 
         <!-- Canal de support : l'aide renvoyait l'athlète vers son coach, ce qui ne sert à rien
              quand c'est l'application elle-même qui dysfonctionne. -->
-        <a [href]="supportMailto()" class="card help-link">
+        <button type="button" (click)="openFeedback()" class="card help-link">
           <span class="help-link__ic"><app-icon name="inbox" [size]="20" /></span>
           <span class="help-link__txt">
             <strong>Signaler un problème</strong>
-            <span class="field-hint">Écrire au support — version et page déjà renseignées.</span>
+            <span class="field-hint">Bug, idée ou question — version et page déjà renseignées.</span>
           </span>
           <app-icon name="chevron-right" [size]="18" />
-        </a>
+        </button>
 
         <!-- Installation, notifications et déconnexion encombraient la barre supérieure de
              « Aujourd'hui », un écran qui devrait ne porter que la séance. Ce sont des
@@ -321,6 +322,37 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
           <button type="button" class="btn btn-ghost" (click)="exportData()">Exporter mes données (JSON)</button>
         </div>
 
+        <!--
+          Consentement au traitement des données de santé. La politique de confidentialité
+          promettait le retrait « à tout moment » sans qu'aucun écran ne le permette ; l'article
+          7-3 du RGPD exige qu'il soit aussi simple à retirer qu'à donner.
+        -->
+        @if (consent(); as c) {
+          <div class="card">
+            <h2>Mes données de santé</h2>
+            @if (c.granted) {
+              <p class="field-hint">
+                Tu autorises ton coach à suivre ta <strong>douleur</strong>, ta
+                <strong>fatigue</strong>, tes <strong>tests de lactate</strong> et tes
+                indisponibilités médicales.
+                @if (c.grantedAt) { <span>Accepté le {{ c.grantedAt | date: 'dd/MM/yyyy' }}.</span> }
+              </p>
+              <button type="button" class="btn btn-ghost" (click)="withdrawConsent()">
+                Retirer mon consentement
+              </button>
+            } @else {
+              <p class="field-hint">
+                Tu ne partages actuellement <strong>aucune donnée de santé</strong>. Ton coach ne
+                peut plus enregistrer de douleur, de test de lactate ni de motif médical.
+                @if (c.withdrawnAt) { <span>Retiré le {{ c.withdrawnAt | date: 'dd/MM/yyyy' }}.</span> }
+              </p>
+              <button type="button" class="btn btn-ghost" (click)="grantConsent()">
+                Réactiver le partage
+              </button>
+            }
+          </div>
+        }
+
         <div class="card danger-zone">
           <div>
             <strong>Supprimer mon compte</strong>
@@ -340,7 +372,9 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
     .top { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-3) var(--sp-4); padding-top: max(var(--sp-3), env(safe-area-inset-top)); background: var(--paper); border-bottom: 1px solid var(--hairline); position: sticky; top: 0; }
     .wrap { max-width: 560px; margin-inline: auto; padding: var(--sp-5) var(--sp-4) var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-4); }
     .subtitle { color: var(--ink-3); margin: 0; }
-    .help-link { display: flex; align-items: center; gap: var(--sp-3); text-decoration: none; color: var(--ink); padding: var(--sp-3); }
+    /* « Signaler un problème » ouvre un panneau : c'est un bouton, rendu comme la carte-lien voisine. */
+    .help-link { display: flex; align-items: center; gap: var(--sp-3); text-decoration: none; color: var(--ink); padding: var(--sp-3); width: 100%; text-align: left; font: inherit; cursor: pointer; }
+    button.help-link { border: 1px solid var(--line); }
     .app-settings__row { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
     .debrief-time { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-top: var(--sp-4); }
     .debrief-time label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -422,7 +456,16 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
 })
 export class AthleteProfileComponent implements OnInit {
 
-  /** Lien « Signaler un problème » : mailto au support, contexte technique pré-rempli. */
+  /**
+   * « Signaler un problème » : ouvre le panneau de retour, enregistré en base avec son contexte.
+   * Le mailto reste disponible en repli (cf. {@link #supportMailto}) — un athlète hors ligne ou
+   * dont la session a expiré doit garder une adresse à qui écrire.
+   */
+  openFeedback(): void {
+    this.feedbackPanel.open();
+  }
+
+  /** Repli par e-mail : mailto au support, contexte technique pré-rempli. */
   supportMailto(): string {
     return supportLink('Signalement depuis l’espace athlète');
   }
@@ -433,6 +476,7 @@ export class AthleteProfileComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   private readonly notifications = inject(NotificationService);
+  private readonly feedbackPanel = inject(FeedbackService);
   readonly user = this.auth.currentUser;
 
   /** Heure habituelle de séance, format « HH:mm » ; vide = rappel de ressenti désactivé. */
@@ -440,6 +484,9 @@ export class AthleteProfileComponent implements OnInit {
 
   /** Canaux de notification (push / e-mail) — c'est ici que les e-mails renvoient. */
   readonly prefs = signal<NotificationPreferences | null>(null);
+
+  /** Consentement au traitement des données de santé (RGPD art. 9), et son retrait (art. 7-3). */
+  readonly consent = signal<HealthConsent | null>(null);
 
   readonly physio = signal<PhysioProfile | null>(null);
   readonly vdot = signal<Vdot | null>(null);
@@ -527,7 +574,54 @@ export class AthleteProfileComponent implements OnInit {
       next: (p) => { this.prefs.set(p); this.usualSessionTime.set(p.usualSessionTime ?? ''); },
       error: () => this.usualSessionTime.set(''),
     });
+    this.loadConsent();
     this.loadUnavailabilities();
+  }
+
+  // --- Consentement aux données de santé (RGPD art. 9 / 7-3) --------------------
+
+  private loadConsent(): void {
+    this.portal.healthConsent().subscribe({
+      next: (c) => this.consent.set(c),
+      error: () => this.consent.set(null),
+    });
+  }
+
+  /**
+   * Retrait du consentement. La confirmation nomme ce qui sera effacé : le retrait n'est pas
+   * qu'un interrupteur, il détruit les données de santé déjà collectées — l'athlète doit le
+   * savoir avant, pas le découvrir après.
+   */
+  async withdrawConsent(): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Retirer mon consentement',
+      message:
+        'Tes tests de lactate, tes douleurs et fatigues déclarées et les motifs médicaux de tes '
+        + 'indisponibilités seront effacés — définitivement. Ton coach en sera informé et ne '
+        + 'pourra plus en enregistrer. Ton compte et tes séances restent intacts.',
+      confirmLabel: 'Retirer et effacer',
+      danger: true,
+    });
+    if (!ok) return;
+    this.portal.withdrawHealthConsent().subscribe({
+      next: () => {
+        this.toast.success('Consentement retiré. Tes données de santé ont été effacées.');
+        this.loadConsent();
+        // La fiche physio et les tests affichés à l'écran viennent d'être vidés côté serveur.
+        this.portal.lactateTests().subscribe({ next: (t) => this.lactateTests.set(t) });
+        this.loadUnavailabilities();
+      },
+    });
+  }
+
+  /** Réactivation : la collecte reprend, mais ce qui a été effacé ne revient pas. */
+  grantConsent(): void {
+    this.portal.grantHealthConsent().subscribe({
+      next: () => {
+        this.toast.success('Partage réactivé.');
+        this.loadConsent();
+      },
+    });
   }
 
   // --- Indisponibilités déclarées par l'athlète ---------------------------------
@@ -647,14 +741,31 @@ export class AthleteProfileComponent implements OnInit {
     this.router.navigate(['/']);
   }
 
+  /**
+   * Suppression de compte, en deux temps.
+   *
+   * <p>Une seule boîte de dialogue séparait un tap d'une suppression en cascade — profil,
+   * séances, activités, check-ins, tests, messages, compte — sans ressaisie, sans délai, sans
+   * confirmation par e-mail. Le seul recours était la restauration sélective d'une sauvegarde,
+   * une procédure lourde. C'est trop court pour une action irréversible sur un écran consulté
+   * au téléphone.</p>
+   *
+   * <p>On ajoute donc une étape volontaire — écrire SUPPRIMER — et on propose d'abord l'export,
+   * puisque c'est presque toujours ce que l'on veut avant de partir. La mention du coach est là
+   * parce que l'historique effacé est aussi le sien : il ne sera pas prévenu autrement.</p>
+   */
   async deleteAccount(): Promise<void> {
-    const ok = await this.confirm.ask({
+    const confirmed = await this.confirm.askForText({
       title: 'Supprimer mon compte',
-      message: 'Cette action est irréversible : profil, séances et activités seront effacés. Continuer ?',
+      message:
+        'Cette action est irréversible : ton profil, tes séances, tes activités, tes ressentis '
+        + 'et tes messages seront effacés. Ton coach perdra aussi tout ton historique. '
+        + 'Pense à exporter tes données avant, si tu veux les garder.',
+      requiredText: 'SUPPRIMER',
       confirmLabel: 'Supprimer définitivement',
       danger: true,
     });
-    if (!ok) return;
+    if (!confirmed) return;
     this.portal.deleteAccount().subscribe(() => {
       this.auth.logout();
       this.toast.info('Ton compte a été supprimé.');

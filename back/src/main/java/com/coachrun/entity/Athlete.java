@@ -174,6 +174,29 @@ public class Athlete extends BaseEntity {
     @Column(name = "health_data_consent_at")
     private Instant healthDataConsentAt;
 
+    /**
+     * Date du dernier retrait de consentement (RGPD art. 7-3), {@code null} s'il n'y en a jamais
+     * eu. On ne remet pas {@link #healthDataConsentAt} à {@code null} : le traitement antérieur
+     * reste licite et sa preuve doit survivre au retrait.
+     */
+    @Column(name = "health_data_consent_withdrawn_at")
+    private Instant healthDataConsentWithdrawnAt;
+
     @Column(name = "device_consent_at")
     private Instant deviceConsentAt;
+
+    /**
+     * Le traitement des données de santé est-il autorisé <b>en ce moment</b> ?
+     *
+     * <p>Vrai si un consentement a été donné et qu'aucun retrait ne lui est postérieur. C'est le
+     * seul test à utiliser avant de collecter une donnée de l'article 9 — la seule présence de
+     * {@link #healthDataConsentAt} ne dit rien du présent.</p>
+     */
+    public boolean isHealthDataConsentActive() {
+        if (healthDataConsentAt == null) {
+            return false;
+        }
+        return healthDataConsentWithdrawnAt == null
+                || healthDataConsentWithdrawnAt.isBefore(healthDataConsentAt);
+    }
 }

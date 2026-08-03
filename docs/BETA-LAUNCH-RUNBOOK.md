@@ -16,6 +16,9 @@
 | ✅ DSN Sentry **frontend** committé | ⬜ Uptime (Better Stack) |
 | ✅ Workflow de sauvegarde chiffrée écrit | ⬜ **Test de restauration BDD** (bloquant) |
 | ✅ CI alignée sur PostgreSQL 18 (= prod) | ⬜ Clés VAPID + code d'invitation sur Railway |
+| ✅ Consentement santé : CGU athlète, retrait (art. 7-3), garde de collecte | ⬜ **Compte administrateur plateforme** (1.1 bis, bloquant) |
+| ✅ Push hors transaction, borné, abonnements morts purgés | ⬜ **Identité de l'éditeur** dans `LEGAL_OWNER` (bloquant) |
+| ✅ Canal de retour en base + écran `/admin/feedback` | |
 
 ---
 
@@ -30,6 +33,35 @@ STRAVA_REDIRECT_URI=https://www.darilab.app/app/strava/callback
 ```
 > L'URL canonique est `www.darilab.app` : l'apex y redirige en 308.
 > Railway redéploie automatiquement à l'enregistrement.
+
+> **Relais de confiance.** `RATE_LIMIT_TRUSTED_PROXY_HOPS` vaut désormais **2** par défaut, ce
+> qui correspond à la chaîne réelle client → Vercel → Railway. Il n'y a donc rien à poser, mais
+> il y a quelque chose à savoir : à 1 — l'ancienne valeur — le rate limiting retenait l'adresse
+> du relais Vercel, **la même pour tous les utilisateurs**, et tout le monde partageait le même
+> compteur (cinq mots de passe erronés et plus personne ne se connecte). Le backend refuse
+> maintenant de démarrer avec une valeur inférieure à 2. Si la topologie change — un
+> sous-domaine `api.darilab.app` pointant directement sur Railway, comme envisagé en phase 6
+> pour le SSE — **il faut repasser à 1**, sinon l'adresse lue sera fausse dans l'autre sens.
+
+### 1.1 bis Administrateur plateforme · 🔴 BLOQUANT
+Aucun compte `PLATFORM_ADMIN` n'existait en production : le seul qui en créait un était le jeu de
+démonstration, réservé au profil `dev`. Conséquence, `/admin` était **inatteignable** — donc pas
+de révocation d'invitation (seul chemin du produit), pas de suppression de compte coach (seul
+chemin pour honorer une demande d'effacement RGPD, que la politique de confidentialité promet
+pourtant par e-mail), pas de statistiques, pas de lecture des retours de bêta.
+
+Railway → **Variables** :
+```
+PLATFORM_ADMIN_EMAIL=admin@darilab.app
+PLATFORM_ADMIN_PASSWORD=<mot de passe fort, 12 caractères minimum>
+```
+> Le compte est créé au premier démarrage puis **jamais modifié** : un redéploiement ne
+> réinitialise pas l'accès administrateur à la valeur d'une variable d'environnement. La rotation
+> du mot de passe se fait depuis l'application. Pour repartir de zéro, supprimer le compte en base.
+
+- [ ] Connexion sur `/admin` avec ce compte → tableau de bord plateforme visible
+- [ ] Changer le mot de passe depuis l'application, puis **vider `PLATFORM_ADMIN_PASSWORD`**
+      dans Railway (la variable n'est lue qu'à la création)
 
 ### 1.2 Clés VAPID (push web) · 🔴 BLOQUANT
 Depuis le lot « notifications », **« séance planifiée » et « commentaire du coach » partent en
@@ -283,14 +315,28 @@ pg_restore --no-owner --no-privileges -h localhost -U postgres \
 Non bloquant, mais à traiter dans les deux premières semaines :
 
 - [ ] **Impersonation admin** (lecture seule) — outil de support n° 1
-- [x] ~~**Canal de feedback** dans l'app (lien « Signaler un problème »)~~ ✅ livré :
-      entrée dans la navigation coach et le profil athlète, mailto pré-rempli
-      (version, page, navigateur)
+- [x] ~~**Canal de feedback** dans l'app~~ ✅ livré, deuxième version : le `mailto:` supposait un
+      client mail configuré (rare sur PWA mobile) et ne laissait aucune trace. Le retour part
+      maintenant **en base** avec son contexte (page, version, navigateur, identifiant de
+      corrélation de la dernière erreur serveur), se lit sur `/admin/feedback` et se marque comme
+      traité. Le `mailto:` reste en repli depuis le centre d'aide.
 - [ ] **Onboarding coach** : checklist « premier jour » sur le dashboard
 - [ ] **Dump avant chaque déploiement** contenant une migration (règle à appliquer)
-- [ ] Tags git + `appVersion` incrémenté (corrélation bug ↔ version dans Sentry)
-- [ ] État front « API indisponible » propre pendant les redéploiements
+- [x] ~~Tags git + `appVersion` incrémenté~~ ✅ aligné en **0.2.0** (`back/pom.xml`,
+      `front/package.json`, `front/src/environments/*`). Reste à **poser le tag git à chaque
+      déploiement notable** : sans lui, tous les événements Sentry portent la même version et
+      « ça marchait hier » reste indécidable.
+- [x] ~~État front « API indisponible » propre pendant les redéploiements~~ ✅ livré : le bandeau
+      distingue « hors ligne » (l'appareil) de « service momentanément indisponible » (le
+      serveur), et les toasts n'accusent plus le réseau de l'utilisateur d'une panne Railway.
 - [ ] Relecture des pages légales par un œil juridique
+- [ ] **Mesure d'usage** : aucun compteur produit n'existe (combien de coachs ont planifié une
+      séance en semaine 2 ? combien d'athlètes reviennent deux jours de suite ?). Sentry dit ce
+      qui casse, pas ce qui sert. À faire côté serveur, sans traceur tiers, pour ne pas casser
+      l'engagement « aucun cookie publicitaire » des pages légales.
+- [ ] **Purge des comptes inactifs** : la politique de confidentialité annonce désormais une
+      suppression après 24 mois d'inactivité avec préavis. Rien ne l'implémente encore — l'échéance
+      est lointaine, mais l'engagement est publié.
 
 ---
 

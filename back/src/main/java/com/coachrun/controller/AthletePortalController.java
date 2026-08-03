@@ -507,6 +507,39 @@ public class AthletePortalController {
         return gdprService.export(principal.athleteId());
     }
 
+    /** RGPD — état de mon consentement au traitement des données de santé. */
+    @GetMapping("/consent")
+    public com.coachrun.dto.response.HealthConsentResponse consent(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return gdprService.consent(principal.athleteId());
+    }
+
+    /**
+     * RGPD art. 7-3 — retrait du consentement au traitement des données de santé.
+     *
+     * <p>La politique de confidentialité promet ce retrait « à tout moment » ; il n'existait
+     * nulle part. Le consentement était écrit une fois à l'acceptation de l'invitation, puis
+     * jamais relu ailleurs que dans l'export : c'était une case franchie, pas un état gouvernant
+     * le traitement. L'article 7-3 exige qu'il soit aussi simple de retirer que de donner.</p>
+     *
+     * <p>Le retrait n'efface pas le compte — c'est le rôle du droit à l'oubli, distinct. Il
+     * efface les données de santé déjà collectées, coupe leur collecte future, et prévient le
+     * coach référent : sans lui, le coach continuerait de saisir des mesures qui seraient
+     * désormais refusées, sans comprendre pourquoi.</p>
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/consent/withdraw")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void withdrawConsent(@AuthenticationPrincipal AuthPrincipal principal) {
+        gdprService.withdrawHealthConsent(principal.athleteId());
+    }
+
+    /** RGPD — je redonne mon consentement après l'avoir retiré. */
+    @org.springframework.web.bind.annotation.PostMapping("/consent/grant")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void grantConsent(@AuthenticationPrincipal AuthPrincipal principal) {
+        gdprService.grantHealthConsent(principal.athleteId());
+    }
+
     /** RGPD — droit à l'oubli : suppression du compte et de toutes les données. */
     @DeleteMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
