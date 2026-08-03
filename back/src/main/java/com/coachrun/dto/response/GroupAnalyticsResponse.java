@@ -19,8 +19,13 @@ public record GroupAnalyticsResponse(
         Aggregate totals,
         List<Row> athletes) {
 
-    /** Répartition de l'état de forme (fatigue + douleur) sur le groupe. */
-    public record FormDistribution(int green, int orange, int red) {
+    /**
+     * Répartition de l'état de forme (fatigue + douleur) sur le groupe.
+     *
+     * <p>{@code stale} compte les athlètes sans signal récent. Ils étaient auparavant comptés en
+     * vert — un groupe entièrement silencieux s'affichait donc « tout le monde va bien ».</p>
+     */
+    public record FormDistribution(int green, int orange, int red, int stale) {
     }
 
     /** Agrégats du groupe sur la fenêtre demandée. */

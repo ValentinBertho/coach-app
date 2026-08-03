@@ -31,12 +31,14 @@ class RateLimitEmailAndStreamTest {
     private static final int LOGIN_MAX = 5;
     private static final int AUTH_MAX = 4;
     private static final int EMAIL_MAX = 2;
+    /** Plafond horaire des routes anonymes qui envoient un e-mail (inscription, mot de passe oublié). */
+    private static final int ANON_EMAIL_MAX = 2;
 
     /** Jeton JWT factice : le filtre n'en lit que la charge utile, sans la valider. */
     private static final String TOKEN = "aaa.bbbbbbbb.ccc";
 
     private RateLimitFilter filter() {
-        return new RateLimitFilter(MAX, 60, LOGIN_MAX, AUTH_MAX, EMAIL_MAX, 3600, 2);
+        return new RateLimitFilter(MAX, 60, LOGIN_MAX, AUTH_MAX, EMAIL_MAX, 3600, ANON_EMAIL_MAX, 2);
     }
 
     private int call(RateLimitFilter filter, MockHttpServletRequest request) {
@@ -105,6 +107,59 @@ class RateLimitEmailAndStreamTest {
     void athleteWorkoutFeedbackIsNotTheBetaFeedbackBucket() {
         assertThat(RateLimitFilter.bucket("/api/me/workouts/abc/feedback")).isNull();
         assertThat(RateLimitFilter.bucket("/api/feedback")).isEqualTo("beta-feedback");
+    }
+
+    // --- Routes anonymes qui envoient un e-mail (V0-08) ------------------------
+
+    /**
+     * L'inscription envoie un e-mail de vérification à chaque appel et ne porte aucun jeton : le
+     * plafond par porteur ne la voyait pas, elle retombait sur les 20 requêtes/minute générales.
+     * Ouvrir la bêta consiste précisément à ouvrir cette route.
+     */
+    @Test
+    void registrationIsCappedHourlyPerIp() {
+        RateLimitFilter filter = filter();
+        for (int i = 0; i < ANON_EMAIL_MAX; i++) {
+            assertThat(call(filter, anonymousRequest("POST", "/api/auth/register"))).isEqualTo(200);
+        }
+        assertThat(call(filter, anonymousRequest("POST", "/api/auth/register")))
+                .as("une seule IP ne peut pas vider le quota d'envoi de la journée")
+                .isEqualTo(429);
+    }
+
+    @Test
+    void passwordResetRequestIsCappedHourlyPerIp() {
+        RateLimitFilter filter = filter();
+        for (int i = 0; i < ANON_EMAIL_MAX; i++) {
+            assertThat(call(filter, anonymousRequest("POST", "/api/public/password-reset"))).isEqualTo(200);
+        }
+        assertThat(call(filter, anonymousRequest("POST", "/api/public/password-reset"))).isEqualTo(429);
+    }
+
+    /**
+     * Les variantes porteuses d'un jeton n'envoient rien — valider un lien puis poser le nouveau
+     * mot de passe ne doit pas consommer le quota d'envoi de l'utilisateur qui s'en sert.
+     */
+    @Test
+    void tokenBearingResetRoutesDoNotConsumeTheSendingQuota() {
+        assertThat(RateLimitFilter.isAnonymousEmailTriggering(
+                "/api/public/password-reset/abc-123", "POST")).isFalse();
+        assertThat(RateLimitFilter.isAnonymousEmailTriggering(
+                "/api/public/password-reset/abc-123", "GET")).isFalse();
+        assertThat(RateLimitFilter.isAnonymousEmailTriggering(
+                "/api/public/password-reset", "POST")).isTrue();
+    }
+
+    /** Se connecter n'envoie aucun e-mail : ce plafond ne doit pas s'y appliquer. */
+    @Test
+    void loginIsNotAnEmailRoute() {
+        assertThat(RateLimitFilter.isAnonymousEmailTriggering("/api/auth/login", "POST")).isFalse();
+    }
+
+    private MockHttpServletRequest anonymousRequest(String method, String uri) {
+        MockHttpServletRequest request = new MockHttpServletRequest(method, uri);
+        request.setRemoteAddr("203.0.113.9");
+        return request;
     }
 
     private MockHttpServletRequest verificationRequest() {

@@ -2,12 +2,16 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 import { DataOriginTagComponent } from '../data-origin-tag/data-origin-tag.component';
 
 /** Niveau d'état de forme, calculé par le backend (source de vérité). */
-export type FormLevel = 'green' | 'orange' | 'red';
+export type FormLevel = 'green' | 'orange' | 'red' | 'stale';
 
 const LEVEL_META: Record<FormLevel, { label: string; cssVar: string }> = {
   green:  { label: 'Bonne forme',   cssVar: 'var(--form-green)' },
   orange: { label: 'À surveiller',  cssVar: 'var(--form-orange)' },
   red:    { label: 'Vigilance',     cssVar: 'var(--form-red)' },
+  // Ni vert ni rouge : l'athlète n'a rien déclaré depuis assez longtemps pour qu'on puisse
+  // dire quoi que ce soit de son état. Le peindre en vert donnait une assurance que
+  // personne n'avait fournie ; le laisser en rouge accusait un signal périmé.
+  stale:  { label: 'Sans signal',   cssVar: 'var(--ink-3)' },
 };
 
 /**

@@ -1,6 +1,5 @@
 package com.coachrun;
 
-import com.coachrun.engine.IntensityDomainEngine;
 import com.coachrun.engine.SessionCalculatorEngine;
 import com.coachrun.engine.SessionCalculatorEngine.AthletePaceContext;
 import com.coachrun.engine.SessionCalculatorEngine.PrescriptionInput;
@@ -16,8 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class SessionCalculatorEngineTest {
 
-    private final SessionCalculatorEngine engine =
-            new SessionCalculatorEngine(new IntensityDomainEngine());
+    private final SessionCalculatorEngine engine = new SessionCalculatorEngine();
 
     /** Profil type : LT1 3.5 / LT2 3.9 m/s, FC 148/163/178, allure 5 km = 4:07 (247 s/km). */
     private AthletePaceContext ctx() {
@@ -112,5 +110,80 @@ class SessionCalculatorEngineTest {
         assertThat(r.computable()).isTrue();         // l'allure reste calculable
         assertThat(r.hrMin()).isNull();
         assertThat(r.hrMax()).isNull();
+    }
+
+    // --- RPE prescrit (V0-01) -------------------------------------------------
+
+    /** Profil sans aucun seuil mesuré : uniquement des allures VDOT et une VMA. */
+    private AthletePaceContext ctxNoThresholds() {
+        return new AthletePaceContext(
+                null, null, null,               // LT1 / LT2 / VC non mesurés
+                null, null, null, 80, 90,
+                null, null, 230, 245, 260, null, 285, 300, null, 18.0);
+    }
+
+    /**
+     * Régression du défaut le plus visible du produit : sans test lactate, le RPE affiché à
+     * l'athlète tombait sur la bande du domaine 1 (2–4) pour <b>toutes</b> les séances, fractionné
+     * de VMA compris. Le coach prescrivait RPE 8, l'athlète lisait « RPE 2–4 ».
+     */
+    @Test
+    void prescribesHardRpeForVmaIntervalsWithoutAnyMeasuredThreshold() {
+        PrescriptionInput intervals =
+                new PrescriptionInput(PrescriptionRef.PCT_VMA, 103, 107, 10, 400, null);
+        Result r = engine.calculate(intervals, ctxNoThresholds());
+
+        assertThat(r.computable()).isTrue();
+        assertThat(r.rpeMin()).isEqualTo(7);
+        assertThat(r.rpeMax()).isEqualTo(9);
+    }
+
+    /** Le même profil doit continuer à produire un RPE facile sur un footing. */
+    @Test
+    void prescribesEasyRpeForSubThresholdWorkWithoutMeasuredThreshold() {
+        PrescriptionInput easy =
+                new PrescriptionInput(PrescriptionRef.PCT_LT1, 72, 80, null, null, 2400);
+        Result r = engine.calculate(easy, ctxNoThresholds());
+
+        assertThat(r.rpeMin()).isEqualTo(2);
+        assertThat(r.rpeMax()).isEqualTo(4);
+    }
+
+    /** Travail au seuil : domaine 2, entre les deux frontières. */
+    @Test
+    void prescribesThresholdRpeAtLt2() {
+        Result r = engine.calculate(
+                new PrescriptionInput(PrescriptionRef.PCT_LT2, 97, 100, 4, null, 480),
+                ctxNoThresholds());
+
+        assertThat(r.rpeMin()).isEqualTo(5);
+        assertThat(r.rpeMax()).isEqualTo(7);
+    }
+
+    /**
+     * Le RPE ne doit plus dépendre du profil : deux athlètes recevant la même prescription lisent
+     * la même consigne d'effort perçu — c'est ce qu'un coach attend d'un RPE.
+     */
+    @Test
+    void rpeIsIdenticalWithAndWithoutMeasuredThresholds() {
+        PrescriptionInput in = new PrescriptionInput(PrescriptionRef.PCT_VC, 98, 102, 5, 1000, null);
+
+        Result measured = engine.calculate(in, ctx());
+        Result estimated = engine.calculate(in, ctxNoThresholds());
+
+        assertThat(measured.rpeMin()).isEqualTo(estimated.rpeMin());
+        assertThat(measured.rpeMax()).isEqualTo(estimated.rpeMax());
+        assertThat(measured.rpeMin()).isEqualTo(7);
+    }
+
+    /** Le domaine suit le pourcentage, pas seulement le référentiel. */
+    @Test
+    void percentageShiftsTheDomain() {
+        assertThat(engine.domainForPrescription(PrescriptionRef.PCT_LT2, 85, 88))
+                .isEqualTo(com.coachrun.entity.enums.IntensityDomain.DOMAIN_1);
+        assertThat(engine.domainForPrescription(PrescriptionRef.PCT_LT2, 98, 100))
+                .isEqualTo(com.coachrun.entity.enums.IntensityDomain.DOMAIN_2);
+        assertThat(engine.domainForPrescription(PrescriptionRef.PCT_LT2, 104, 108))
+                .isEqualTo(com.coachrun.entity.enums.IntensityDomain.DOMAIN_3);
     }
 }

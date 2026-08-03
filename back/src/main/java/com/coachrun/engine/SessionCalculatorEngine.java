@@ -12,15 +12,14 @@ import org.springframework.stereotype.Component;
  * <p>Convention DARI Lab : un % plus élevé = effort plus rapide (moins de secondes/km).
  * La FC cible est estimée par interpolation linéaire FC↔vitesse ancrée sur LT1/LT2 (modèle
  * sous-maximal classique) ; elle reste nulle si les ancrages FC manquent.</p>
+ *
+ * <p>Le RPE, lui, ne dépend d'aucune mesure : il se dérive du référentiel et du pourcentage
+ * <b>prescrits</b> (cf. {@link #domainForPrescription}). Ce moteur ne dépend donc plus de
+ * {@link IntensityDomainEngine}, qui reclassifie une vitesse contre des seuils mesurés — utile pour
+ * juger un effort réalisé, inapplicable à une prescription destinée à un athlète sans test.</p>
  */
 @Component
 public class SessionCalculatorEngine {
-
-    private final IntensityDomainEngine domainEngine;
-
-    public SessionCalculatorEngine(IntensityDomainEngine domainEngine) {
-        this.domainEngine = domainEngine;
-    }
 
     /** Profil de l'athlète nécessaire au calcul (seuils + allures d'équivalence VDOT). */
     public record AthletePaceContext(
@@ -84,12 +83,12 @@ public class SessionCalculatorEngine {
         Integer hrHigh = hrForSpeed(PaceUtil.secPerKmToMs(paceFast), ctx);
         Integer hrLow = hrForSpeed(PaceUtil.secPerKmToMs(paceSlow), ctx);
 
-        // RPE estimé d'après le domaine de l'allure moyenne.
         int meanPace = (paceFast + paceSlow) / 2;
-        double meanSpeedMs = PaceUtil.secPerKmToMs(meanPace);
-        IntensityDomain domain = domainEngine.classify(meanSpeedMs, null,
-                ctx.lt1Ms(), ctx.lt2Ms(), ctx.fcMax(), ctx.fcDomain1Pct(), ctx.fcDomain2Pct());
-        int[] rpe = rpeBand(domain);
+
+        // RPE estimé d'après le domaine de la prescription (référentiel + %), et non d'après une
+        // reclassification de l'allure obtenue. Voir domainForPrescription : reclassifier exigeait
+        // LT1 et LT2 mesurés, que la grande majorité des athlètes n'a pas.
+        int[] rpe = rpeBand(domainForPrescription(in.ref(), in.minPct(), in.maxPct()));
 
         // Durée / distance estimées du bloc.
         Integer estimatedDistanceM = null;
@@ -227,6 +226,70 @@ public class SessionCalculatorEngine {
         }
         hr = Math.max(hr, 60);
         return (int) Math.round(hr);
+    }
+
+    /**
+     * Vitesse de chaque référentiel exprimée en fraction de la vitesse au <b>LT2</b>.
+     *
+     * <p>Ces rapports sont les mêmes équivalences physiologiques que celles déjà utilisées par
+     * {@link #resolveBasePace} pour le repli VDOT (Daniels) : LT1 ≈ allure marathon, LT2 ≈ allure
+     * d'environ une heure de course (10–15 km), VC et VMA au-dessus. Ils ne dépendent d'aucune
+     * mesure propre à l'athlète — c'est tout l'intérêt : la <b>prescription</b> porte son domaine,
+     * quel que soit l'état du profil.</p>
+     */
+    private static final java.util.Map<PrescriptionRef, Double> SPEED_RATIO_TO_LT2 =
+            java.util.Map.ofEntries(
+                    java.util.Map.entry(PrescriptionRef.PCT_LT1, 0.94),
+                    java.util.Map.entry(PrescriptionRef.PCT_LT2, 1.00),
+                    java.util.Map.entry(PrescriptionRef.PCT_VC, 1.05),
+                    java.util.Map.entry(PrescriptionRef.PCT_VMA, 1.09),
+                    java.util.Map.entry(PrescriptionRef.PCT_PACE_MARATHON, 0.94),
+                    java.util.Map.entry(PrescriptionRef.PCT_PACE_SEMI, 0.98),
+                    java.util.Map.entry(PrescriptionRef.PCT_PACE_15KM, 1.00),
+                    java.util.Map.entry(PrescriptionRef.PCT_PACE_10KM, 1.02),
+                    java.util.Map.entry(PrescriptionRef.PCT_PACE_5KM, 1.06),
+                    java.util.Map.entry(PrescriptionRef.PCT_PACE_3000M, 1.09),
+                    java.util.Map.entry(PrescriptionRef.PCT_PACE_1500M, 1.15),
+                    java.util.Map.entry(PrescriptionRef.PCT_PACE_800M, 1.22));
+
+    /** Rapport LT1/LT2 en vitesse : le LT1 se situe autour de l'allure marathon. */
+    private static final double LT1_OVER_LT2 = 0.94;
+
+    /**
+     * Domaine d'intensité <b>de la prescription</b>, dérivé du référentiel et du pourcentage visés.
+     *
+     * <p><b>Pourquoi ce chemin existe.</b> Le RPE affiché passait auparavant par
+     * {@link IntensityDomainEngine#classify}, qui reclassifie une <em>vitesse</em> contre les seuils
+     * <em>mesurés</em> de l'athlète. Sa branche physiologique exige {@code lt1Ms} et {@code lt2Ms}
+     * non nuls, sa branche de repli exige une fréquence cardiaque que ce chemin n'a pas — l'appel
+     * passait {@code null}. Tout athlète sans test lactate tombait donc sur le défaut conservatif
+     * {@code DOMAIN_1}, et lisait « RPE 2–4 » sur la totalité de ses séances, y compris un 10×400 m
+     * prescrit par son coach à RPE 8. L'allure, elle, était juste : seul le RPE mentait, et rien ne
+     * le signalait.</p>
+     *
+     * <p><b>Le principe retenu.</b> Un bloc à 105 % de VMA est en domaine 3 par construction, quel
+     * que soit l'état du profil de l'athlète : c'est l'intention du coach qui porte l'intensité, pas
+     * la mesure. La vitesse visée est ramenée à une fraction du LT2 via
+     * {@link #SPEED_RATIO_TO_LT2}, puis comparée aux deux frontières (LT1 puis LT2). Effet de bord
+     * bienvenu : deux athlètes recevant la même prescription lisent le même RPE, ce qu'un coach
+     * attend d'une consigne d'effort perçu.</p>
+     *
+     * @param minPct borne basse de la fourchette prescrite (% du référentiel)
+     * @param maxPct borne haute de la fourchette prescrite
+     */
+    public IntensityDomain domainForPrescription(PrescriptionRef ref, double minPct, double maxPct) {
+        Double ratio = ref == null ? null : SPEED_RATIO_TO_LT2.get(ref);
+        if (ratio == null) {
+            return IntensityDomain.DOMAIN_1;
+        }
+        // La fourchette est jugée sur son milieu : c'est aussi ce qui sert au volume estimé.
+        double meanPct = (minPct + maxPct) / 2.0;
+        double speedOverLt2 = ratio * meanPct / 100.0;
+
+        if (speedOverLt2 < LT1_OVER_LT2) {
+            return IntensityDomain.DOMAIN_1;
+        }
+        return speedOverLt2 <= 1.0 ? IntensityDomain.DOMAIN_2 : IntensityDomain.DOMAIN_3;
     }
 
     private int[] rpeBand(IntensityDomain domain) {

@@ -72,7 +72,20 @@ critique. Sinon, ils le deviennent et repoussent l'ouverture d'autant.
 
 ### Vague 0 — Bloquant absolu (≈ 4,5 j dev + 1,5 j ops)
 
-#### V0-01 · Corriger le RPE prescrit affiché à l'athlète 🔴 · Métier · **S**
+> **État au 3 août 2026 — les huit items de code sont livrés et couverts par des tests.**
+> `./mvnw clean verify` : **BUILD SUCCESS, 316 tests, 0 échec** (contre 295 avant le lot).
+> `npm run build` : OK · `npm test` : **64/64**.
+> Restent V0-09, V0-10 et V0-11, qui ne se règlent pas dans le code.
+>
+> **NC-01 tranché** (condition d'ouverture n° 4) : l'interface des plans périodisés est bien
+> absente — aucune route, aucun appel d'API, aucun module `plans` côté front. Elle **ne remonte
+> pourtant pas en vague 0** : le besoin « planifier plusieurs semaines » est couvert par un autre
+> chemin, entièrement câblé (génération de mésocycle et duplication de semaine, individuelles et
+> par groupe). Ce qui reste inaccessible, c'est le module `TrainingPlan` — neuf endpoints de code
+> serveur sans écran. C'est une décision à prendre (construire l'écran ou retirer le module), pas
+> un blocage d'ouverture.
+
+#### ✅ V0-01 · Corriger le RPE prescrit affiché à l'athlète 🔴 · Métier · **S**
 Le domaine d'intensité est reclassé depuis la vitesse moyenne du bloc, ce qui exige LT1 **et** LT2
 mesurés ; sans eux le moteur retombe sur `DOMAIN_1` et affiche RPE 2–4 sur toutes les séances.
 **À faire** : dériver le domaine du référentiel et du pourcentage **prescrits** (un bloc à 105 %
@@ -84,7 +97,7 @@ de vitesse. En repli, afficher le RPE saisi par le coach sur le bloc plutôt qu'
 **Critère de recette** : un athlète sans test lactate, avec un chrono 10 km, voit RPE 7–9 sur un
 bloc à 105 % VMA et RPE 2–4 sur un footing.
 
-#### V0-02 · Ajouter « séance non faite » + durée réelle à la feuille de ressenti 🔴 · Métier · **M**
+#### ✅ V0-02 · Ajouter « séance non faite » + durée réelle à la feuille de ressenti 🔴 · Métier · **M**
 Deux boutons seulement (« réalisée » / « partiellement ») : l'athlète n'a aucun moyen de clôturer
 une séance non faite, et « partiellement » ne dit ni combien ni pourquoi.
 **À faire** : troisième action « Pas faite » avec motif court (imprévu / maladie / fatigue /
@@ -95,7 +108,7 @@ météo) écrivant `WorkoutStatus.MISSED` ; champ durée réelle affiché quand 
 pour la durée réalisée et le motif.
 **Dépendance** : à faire avant V0-03, qui consomme la durée réelle.
 
-#### V0-03 · Calculer la charge sur la durée réalisée 🔴 · Métier · **M**
+#### ✅ V0-03 · Calculer la charge sur la durée réalisée 🔴 · Métier · **M**
 `load = RPE × durée **prescrite**`, sans regarder le statut : une sortie longue abandonnée au tiers
 compte pour 100 % et fait monter l'ACWR d'un athlète qui s'est entraîné moins.
 **À faire** : ordre de préférence — durée saisie par l'athlète (V0-02), sinon durée de l'activité
@@ -105,7 +118,7 @@ rapprochée (`Activity.durationS`), sinon durée prescrite. Ne compter une séan
 l'effet visible arrive en semaine 3–4. Cet item est en vague 0 **parce qu'il partage la même
 surface que V0-02**, pas parce qu'il mord le premier jour.
 
-#### V0-04 · Périmer la pastille de forme 🔴 · Métier · **M**
+#### ✅ V0-04 · Périmer la pastille de forme 🔴 · Métier · **M**
 Le dernier retour connu est classé sans borne de fraîcheur : un rouge de novembre reste rouge en
 janvier, et la date n'est affichée nulle part.
 **À faire** : fenêtre de fraîcheur (7–10 j, à trancher avec le coach référent) ; au-delà, statut
@@ -115,7 +128,7 @@ carte athlète et dans la file « à surveiller ».
 `back/.../service/CoachDashboardService.java:183-186` ·
 `front/.../features/dashboard/dashboard.component.{ts,html}`
 
-#### V0-05 · Brancher le garde-fou de consentement santé sur tous ses points de collecte 🔴 · RGPD · **M**
+#### ✅ V0-05 · Brancher le garde-fou de consentement santé sur tous ses points de collecte 🔴 · RGPD · **M**
 `HealthDataConsentValidator` documente quatre familles de données de l'article 9 et n'est appelé
 que par les tests de lactate. Le parcours normal du coach — créer l'athlète, remplir sa fiche,
 **puis** l'inviter — collecte donc des données de santé sans base légale.
@@ -127,14 +140,14 @@ d'indisponibilité et de la douleur/fatigue de séance.
 `StrengthScheduleService.submitFeedback`
 **Recette** : tests d'accès sur le modèle de `HealthConsentTest`, un par point de collecte.
 
-#### V0-06 · Compléter l'effacement au retrait de consentement 🔴 · RGPD · **S**
+#### ✅ V0-06 · Compléter l'effacement au retrait de consentement 🔴 · RGPD · **S**
 Le retrait efface `workout.pain` mais pas `workout.fatigue`, et ignore entièrement la préparation
 physique — alors que le journal `[RGPD]` affirme le contraire.
 **À faire** : effacer `workout.fatigue`, `ScheduledStrengthSession.sessionPain` /
 `sessionFatigue`, `StrengthResult.pain` ; corriger le décompte journalisé.
 **Fichiers** : `back/.../service/GdprService.java:149-197`
 
-#### V0-07 · Filtrer le périmètre « Tout le club » par les droits athlète 🟠→bloquant · Sécurité/RGPD · **S**
+#### ✅ V0-07 · Filtrer le périmètre « Tout le club » par les droits athlète 🟠→bloquant · Sécurité/RGPD · **S**
 Le cockpit renvoie tout le club sans passer par `AthleteAccessValidator` — un coach assistant voit
 la fatigue et la douleur des athlètes **privés** de ses collègues. Le calendrier de groupe, lui,
 filtre correctement : c'est un oubli, pas un choix.
@@ -145,7 +158,7 @@ KPI, tableau de forme, file d'alertes.
 **Pourquoi vague 0** : se déclenche dès le premier club à deux coachs, et porte sur de la donnée
 de santé.
 
-#### V0-08 · Plafonner les routes anonymes qui envoient un e-mail 🟠→bloquant · Sécurité · **S**
+#### ✅ V0-08 · Plafonner les routes anonymes qui envoient un e-mail 🟠→bloquant · Sécurité · **S**
 Le bucket à 3 envois/h ne couvre que les routes authentifiées. `/auth/register` et
 `/public/password-reset` restent à 20 req/min/IP — et **ouvrir la bêta, c'est précisément passer
 `REGISTRATION_MODE=open`**, donc exposer le quota Resend (100/jour, partagé avec les
@@ -279,7 +292,7 @@ anomalie → e-mail » ; tag git à chaque déploiement, aligné sur `appVersion
 | V2-05 | Signaler au coach les séances déplacées par l'athlète (champs déjà renvoyés par l'API, absents du modèle front) + garde-fous (pas de déplacement dans le passé, alerte au-delà de N séances/jour) | `front/.../core/models/workout.model.ts` · calendrier coach · `WorkoutService.moveByAthlete:440-449` | M | Métier |
 | V2-06 | Compte athlète : changement de mot de passe, de nom et d'adresse dans la PWA (les endpoints existent déjà et acceptent le rôle) | `front/.../features/athlete/profile.component.ts` | M | UX |
 | V2-07 | Contrôle `canRead` sur la lecture des zones par `?athleteId=` | `TrainingZoneController.java:45-47` | S | Sécurité |
-| V2-08 | Purger `emailLimiter` avec les autres fenêtres (fuite mémoire lente) | `RateLimitFilter.java:236-240` | S | Technique |
+| V2-08 ✅ | Purger `emailLimiter` avec les autres fenêtres — *livré avec V0-08, même méthode* | `RateLimitFilter.java` | S | Technique |
 | V2-09 | Tests des trois moteurs sans couverture (`CriticalSpeedEngine`, `PlannedLoadEngine`, `PaceUtil`) | `back/src/test` | M | Technique |
 | V2-10 | Paginer le fil de messages (chargé entier aujourd'hui) | `MessageService.java:47,113` · `MessageController` | M | Technique |
 | V2-11 | Remettre le README d'équerre (tests, contrôleurs, services, moteurs, migrations, endpoints, « import FIT » non implémenté) | `README.md` | S | Doc |
@@ -417,7 +430,7 @@ Ces points peuvent être bloquants. Aucun audit ne les a instruits ; ils sont li
 
 | # | Point | Pourquoi c'est ouvert | Coût de la vérification |
 |---|---|---|---|
-| NC-01 | **Interface des plans périodisés** | L'audit de juillet la donnait absente (fonctionnalité complète côté serveur, aucun écran) ; l'audit technique d'août la listait toujours ouverte. Aucun des deux passages récents ne l'a revérifiée. Indice : il n'existe pas de module `plans` côté front. **Si c'est confirmé, un pan entier du produit est inaccessible et cela remonte en vague 0.** | 30 min |
+| NC-01 ✅ | **Interface des plans périodisés** — *vérifié le 3 août : absente, mais non bloquante (cf. vague 0)* | L'audit de juillet la donnait absente (fonctionnalité complète côté serveur, aucun écran) ; l'audit technique d'août la listait toujours ouverte. Aucun des deux passages récents ne l'a revérifiée. Indice : il n'existe pas de module `plans` côté front. **Si c'est confirmé, un pan entier du produit est inaccessible et cela remonte en vague 0.** | 30 min |
 | NC-02 | **Accessibilité** | L'audit de juillet relevait deux points bloquants (curseurs du check-in non stylés sous Chrome, contraste insuffisant sur le texte secondaire en thème clair) et les déclarait corrigés. Non revérifié depuis. | 1 h |
 | NC-03 | **Tenue en charge** | Jamais mesurée. Nombre d'utilisateurs simultanés supportés, comportement des flux temps réel sous charge, saturation du pool de connexions : inconnus. Conditionne OPS-10. | 0,5 j |
 | NC-04 | **Comportement hors ligne réel de la PWA** | La file de retours hors ligne existe et est testée unitairement ; jamais éprouvée en conditions réelles (tunnel, perte de réseau en cours de séance) — or c'est le cas d'usage nominal d'un athlète en sortie. | 0,5 j |

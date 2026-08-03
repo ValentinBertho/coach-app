@@ -89,4 +89,29 @@ class HealthConsentTest {
     void validatorIgnoresNullAthlete() {
         assertThatCode(() -> validator.requireConsent(null, "un test")).doesNotThrowAnyException();
     }
+
+    // --- Minimisation des valeurs déclarées par l'athlète (V0-05) --------------
+
+    /**
+     * Deuxième régime, distinct du refus : quand c'est l'athlète qui déclare une valeur sur
+     * lui-même, on écarte la donnée plutôt que de bloquer le geste. Refuser son retour de séance
+     * casserait la boucle quotidienne pour un RPE et un commentaire qui, eux, relèvent de
+     * l'exécution du contrat.
+     */
+    @Test
+    void keepsSelfDeclaredHealthValueWhenConsentIsActive() {
+        assertThat(validator.keepIfAllowed(athlete(Instant.now(), null), 7)).isEqualTo(7);
+    }
+
+    @Test
+    void dropsSelfDeclaredHealthValueWithoutConsent() {
+        assertThat(validator.keepIfAllowed(athlete(null, null), 7)).isNull();
+    }
+
+    @Test
+    void dropsSelfDeclaredHealthValueAfterWithdrawal() {
+        Athlete withdrawn = athlete(
+                Instant.now().minus(30, ChronoUnit.DAYS), Instant.now().minus(1, ChronoUnit.DAYS));
+        assertThat(validator.keepIfAllowed(withdrawn, 4)).isNull();
+    }
 }

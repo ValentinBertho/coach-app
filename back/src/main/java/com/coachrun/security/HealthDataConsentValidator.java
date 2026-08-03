@@ -56,4 +56,23 @@ public class HealthDataConsentValidator {
     public boolean isAllowed(Athlete athlete) {
         return athlete != null && athlete.isHealthDataConsentActive();
     }
+
+    /**
+     * Valeur de santé <b>déclarée par l'athlète sur lui-même</b> : conservée si la collecte est
+     * autorisée, écartée sinon.
+     *
+     * <p><b>Pourquoi deux régimes.</b> {@link #requireConsent} refuse par une 403, ce qui est le bon
+     * comportement quand c'est le <em>coach</em> qui saisit : il doit savoir pourquoi son geste est
+     * refusé, et il a un recours (relancer l'invitation, demander le consentement). Appliquer la
+     * même règle au retour de séance de l'athlète casserait la boucle quotidienne : le RPE, le
+     * statut et le commentaire relèvent de l'exécution du contrat et doivent continuer de passer.
+     * On applique donc ici la minimisation plutôt que le refus — la séance se clôture, seules la
+     * fatigue et la douleur ne sont pas enregistrées.</p>
+     *
+     * <p>Côté interface, ces champs ne devraient pas être proposés à un athlète qui a retiré son
+     * consentement ; cette méthode est la ceinture, pas les bretelles.</p>
+     */
+    public Integer keepIfAllowed(Athlete athlete, Integer declaredValue) {
+        return isAllowed(athlete) ? declaredValue : null;
+    }
 }

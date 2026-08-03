@@ -9,7 +9,7 @@ import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
 import { Activity, TimeInZone, WeekSummary } from '../models/activity.model';
 import { Analytics } from './analytics.service';
 import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
-import { Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
+import { MissedReason, Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
 import { StravaStatus } from '../models/strava.model';
 import { E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthPrescriptionView, StrengthResultEntry } from '../models/strength.model';
 
@@ -32,6 +32,10 @@ export interface WorkoutFeedback {
   fatigue?: number | null;
   pain?: number | null;
   comment?: string | null;
+  /** Durée réellement effectuée (secondes) sur une séance écourtée — c'est elle qui pèse dans la charge. */
+  actualDurationS?: number | null;
+  /** Motif accompagnant un statut MISSED. */
+  missedReason?: MissedReason | null;
 }
 
 export interface StrengthFeedback {

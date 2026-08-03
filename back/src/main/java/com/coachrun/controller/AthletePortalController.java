@@ -93,8 +93,7 @@ public class AthletePortalController {
     public WorkoutResponse feedback(@AuthenticationPrincipal AuthPrincipal principal,
                                     @PathVariable UUID workoutId,
                                     @Valid @RequestBody WorkoutFeedbackRequest request) {
-        return workoutService.submitFeedback(principal.athleteId(), workoutId, request.status(),
-                request.rpe(), request.fatigue(), request.pain(), request.comment());
+        return workoutService.submitFeedback(principal.athleteId(), workoutId, request);
     }
 
     /**

@@ -27,6 +27,9 @@ public interface ScheduledStrengthSessionRepository extends JpaRepository<Schedu
 
     Optional<ScheduledStrengthSession> findByIdAndAthleteId(UUID id, UUID athleteId);
 
+    /** Toutes les séances de force d'un athlète — export et effacement RGPD (pas de fenêtre). */
+    List<ScheduledStrengthSession> findByAthleteIdOrderByScheduledDateAsc(UUID athleteId);
+
     /** Séances de force d'un jour donné restées non clôturées (rappel de débriefing). */
     List<ScheduledStrengthSession> findByScheduledDateAndCompletedFalse(LocalDate date);
 

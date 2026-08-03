@@ -81,8 +81,10 @@ class CoachFormDashboardTest {
             }
         }
         assertThat(mine).isNotNull();
-        // Sans retour de séance : athlète frais → pastille verte.
-        assertThat(mine.get("formStatus").asText()).isEqualTo("GREEN");
+        // Sans aucun retour de séance, l'athlète n'est pas « en forme » : il est sans signal.
+        // Le vert était une assurance que personne n'avait donnée — une valeur absente était
+        // lue comme un zéro de fatigue et de douleur.
+        assertThat(mine.get("formStatus").asText()).isEqualTo("STALE");
         assertThat(mine.get("discipline").asText()).isEqualTo("TRAIL");
     }
 }

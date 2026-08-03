@@ -28,7 +28,7 @@ export interface FeedbackQueueItem {
   comment: string | null;
 }
 
-export type FormStatus = 'GREEN' | 'ORANGE' | 'RED';
+export type FormStatus = 'GREEN' | 'ORANGE' | 'RED' | 'STALE';
 
 export interface AthleteForm {
   id: string;

@@ -5,6 +5,9 @@ const LEVEL_META: Record<FormLevel, { label: string; cssVar: string }> = {
   green: { label: 'En forme', cssVar: 'var(--form-green)' },
   orange: { label: 'À surveiller', cssVar: 'var(--form-orange)' },
   red: { label: 'Vigilance', cssVar: 'var(--form-red)' },
+  // Sans signal récent : ni vert (une assurance que personne n'a donnée) ni rouge
+  // (une accusation portée par une donnée périmée).
+  stale: { label: 'Sans signal', cssVar: 'var(--ink-3)' },
 };
 
 /**

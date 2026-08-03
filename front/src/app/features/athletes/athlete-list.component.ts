@@ -14,7 +14,8 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
 
 type ListState = 'loading' | 'ready' | 'error';
 
-const LEVEL_OF: Record<FormStatus, FormLevel> = { GREEN: 'green', ORANGE: 'orange', RED: 'red' };
+const LEVEL_OF: Record<FormStatus, FormLevel> =
+    { GREEN: 'green', ORANGE: 'orange', RED: 'red', STALE: 'stale' };
 
 @Component({
   selector: 'app-athlete-list',

@@ -26,6 +26,7 @@ public class DailyCheckInService {
 
     private final DailyCheckInRepository repository;
     private final AthleteRepository athleteRepository;
+    private final com.coachrun.security.HealthDataConsentValidator consentValidator;
 
     /** Check-in du jour, ou {@code null} si l'athlète ne l'a pas encore rempli. */
     public DailyCheckInResponse forDay(UUID athleteId, LocalDate day) {
@@ -46,8 +47,11 @@ public class DailyCheckInService {
                     return fresh;
                 });
         checkIn.setSleep(request.sleep());
-        checkIn.setFatigue(request.fatigue());
-        checkIn.setPain(request.pain());
+        // Fatigue et douleur sont des données de l'article 9 ; le sommeil relève du contexte
+        // d'entraînement. Sans consentement actif, le check-in se enregistre quand même, amputé de
+        // ses deux mesures de santé — l'athlète n'est pas empêché de faire son geste du matin.
+        checkIn.setFatigue(consentValidator.keepIfAllowed(checkIn.getAthlete(), request.fatigue()));
+        checkIn.setPain(consentValidator.keepIfAllowed(checkIn.getAthlete(), request.pain()));
         return DailyCheckInResponse.of(repository.save(checkIn));
     }
 }

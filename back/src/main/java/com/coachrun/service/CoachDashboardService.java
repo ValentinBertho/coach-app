@@ -7,6 +7,7 @@ import com.coachrun.dto.response.CoachFormDashboardResponse;
 import com.coachrun.dto.response.FeedbackQueueItemResponse;
 import com.coachrun.dto.response.RaceObjectiveResponse;
 import com.coachrun.engine.FormStatusEngine;
+import com.coachrun.entity.enums.FormStatus;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.CoachAthleteRelation;
@@ -46,6 +47,7 @@ public class CoachDashboardService {
     private final CoachAthleteRelationRepository relationRepository;
     private final AthleteLoadService loadService;
     private final AthleteFeedbackService feedbackService;
+    private final com.coachrun.security.AthleteAccessValidator accessValidator;
     private final ScheduledStrengthSessionRepository strengthRepository;
     private final ClockService clock;
 
@@ -168,6 +170,25 @@ public class CoachDashboardService {
     }
 
     /**
+     * État de forme d'un athlète : la classification fatigue + douleur, <b>si le signal est encore
+     * frais</b>.
+     *
+     * <p>Le moteur reste intact — il traduit deux nombres en couleur, c'est tout son rôle, et
+     * l'invariant « jamais le RPE » lui appartient. La péremption est une décision de service :
+     * elle dépend de la date du retour, que le moteur n'a pas à connaître.</p>
+     *
+     * <p>Sans elle, une valeur absente était lue comme un zéro et un athlète sans aucun retour
+     * s'affichait vert ; et un rouge déclaré après une compétition restait rouge des semaines
+     * durant, en tête de la file « à surveiller », devant les athlètes qui, eux, avaient signalé
+     * quelque chose le matin même.</p>
+     */
+    private FormStatus formStatusOf(AthleteFeedbackService.LastFeedback last) {
+        return last.isFresh(clock.today())
+                ? formStatusEngine.classify(last.fatigue(), last.pain())
+                : FormStatus.STALE;
+    }
+
+    /**
      * Tableau de bord « état de forme » : athlètes actifs répartis Route/Trail, chacun avec sa
      * pastille de forme (fatigue + douleur du dernier retour).
      */
@@ -182,7 +203,7 @@ public class CoachDashboardService {
             // Course + force confondues : un retour de renforcement compte autant qu'une course.
             AthleteFeedbackService.LastFeedback last = feedbackService.lastFeedback(a.getId());
             AthleteFormResponse row = AthleteFormResponse.of(
-                    a, formStatusEngine.classify(last.fatigue(), last.pain()),
+                    a, formStatusOf(last),
                     last.fatigue(), last.pain(), last.date());
 
             if (a.getDiscipline() == Discipline.TRAIL) {
@@ -196,10 +217,33 @@ public class CoachDashboardService {
                 route.size() + trail.size(), route.size(), trail.size(), route, trail);
     }
 
-    /** Athlètes d'un périmètre : all = tout le club ; mine/private/club = via les relations du coach. */
+    /**
+     * Athlètes d'un périmètre : all = tout le club ; mine/private/club = via les relations du coach.
+     *
+     * <p><b>« Tout le club » n'est pas « tous les athlètes du club ».</b> Ce chemin renvoyait la
+     * table entière sans passer par
+     * {@link com.coachrun.security.AthleteAccessValidator} — alors que le calendrier de groupe,
+     * lui, filtre athlète par athlète. Comme le périmètre par défaut du cockpit est {@code all},
+     * un coach assistant y lisait la fatigue et la douleur des athlètes <b>privés</b> de ses
+     * collègues, sur l'écran le plus consulté du produit. Un athlète privé n'est jamais partagé :
+     * c'est la règle du modèle multi-coach, et elle vaut ici comme ailleurs.</p>
+     *
+     * <p>Le filtrage utilise la variante par identifiant de coach, qui ne connaît pas le rôle
+     * plateforme : un {@code PLATFORM_ADMIN} qui ouvrirait un cockpit de club n'y verrait donc pas
+     * les athlètes privés. C'est volontaire — la supervision passe par le back-office
+     * d'administration, pas par une vue de coach.</p>
+     */
     private List<Athlete> athletesInScope(UUID clubId, String scope, UUID coachId) {
         if (scope == null || scope.isBlank() || "all".equalsIgnoreCase(scope)) {
-            return athleteRepository.findByClubIdOrderByLastNameAsc(clubId);
+            List<Athlete> all = athleteRepository.findByClubIdOrderByLastNameAsc(clubId);
+            if (coachId == null) {
+                // Balayage serveur (digest quotidien) : pas de coach demandeur, donc rien à
+                // filtrer. Le digest réachemine ensuite chaque alerte vers le coach référent.
+                return all;
+            }
+            return all.stream()
+                    .filter(a -> accessValidator.effectiveLevel(coachId, a.getId()).isPresent())
+                    .toList();
         }
         return relationRepository.findByCoachIdAndActiveTrue(coachId).stream()
                 .filter(rel -> switch (scope.toLowerCase()) {
@@ -233,7 +277,10 @@ public class CoachDashboardService {
 
             // --- Douleur (dernier retour, course ou force) ---
             AthleteFeedbackService.LastFeedback lastFeedback = feedbackService.lastFeedback(a.getId());
-            Integer pain = lastFeedback.pain();
+            // Une douleur périmée n'est pas une douleur d'aujourd'hui : elle ne doit plus lever
+            // d'alerte, sinon un athlète qui a cessé de saisir reste en tête de file pour toujours.
+            // Son silence, lui, est déjà couvert par l'alerte « athlète silencieux » plus bas.
+            Integer pain = lastFeedback.isFresh(today) ? lastFeedback.pain() : null;
             if (pain != null && pain >= 5) {
                 alerts.add(alert(a, name, discipline, "RED", "PAIN",
                         "Douleur élevée", "Douleur " + pain + "/10 au dernier retour."));

@@ -33,7 +33,7 @@ class RateLimitHardeningTest {
 
     /** Filtre configuré avec un seul relais de confiance (cas d'un déploiement simple). */
     private RateLimitFilter filter(int hops) {
-        return new RateLimitFilter(MAX, 60, LOGIN_MAX, AUTH_MAX, EMAIL_MAX, 3600, hops);
+        return new RateLimitFilter(MAX, 60, LOGIN_MAX, AUTH_MAX, EMAIL_MAX, 3600, 50, hops);
     }
 
     private MockHttpServletResponse call(RateLimitFilter filter, MockHttpServletRequest request)

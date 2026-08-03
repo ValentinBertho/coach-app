@@ -137,3 +137,5 @@ databaseChangeLog:
       file: db/changelog/changes/066-health-consent-withdrawal.yaml
   - include:
       file: db/changelog/changes/067-beta-feedback.yaml
+  - include:
+      file: db/changelog/changes/068-workout-actual-duration.yaml

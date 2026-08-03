@@ -1,0 +1,31 @@
+# ============================================================================
+# 068 — Durée réalisée et motif de séance non faite.
+#
+#   Deux manques qui se tenaient. D'abord, la charge sRPE était calculée sur la
+#   durée PRESCRITE : une sortie longue de 1 h 45 abandonnée à 40 minutes
+#   comptait pour 100 %, et faisait monter l'ACWR d'un athlète qui s'était
+#   justement entraîné moins. La séance ne portait aucune durée réalisée.
+#
+#   Ensuite, l'athlète n'avait que « réalisée » et « partiellement » : aucun
+#   moyen de déclarer une séance non faite. Le seul geste possible était de ne
+#   rien faire, ce qui alimentait l'alerte « séances manquées » sans qu'il ait
+#   jamais pu dire pourquoi.
+#
+#   Nulles pour l'historique : la charge retombe alors sur la durée prescrite,
+#   comme avant. Aucun recalcul rétroactif.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 068-workout-actual-duration
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workouts
+            columns:
+              # Durée réellement effectuée (secondes), déclarée par l'athlète sur une séance
+              # écourtée. Prioritaire sur la durée de l'activité rapprochée, elle-même
+              # prioritaire sur la durée prescrite.
+              - column: { name: actual_duration_s, type: INT }
+              # Motif d'une séance déclarée non faite. HEALTH est ramené à OTHER quand le
+              # consentement santé n'est pas actif (cf. HealthDataConsentValidator).
+              - column: { name: missed_reason, type: VARCHAR(32) }

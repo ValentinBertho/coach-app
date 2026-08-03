@@ -4,7 +4,8 @@ function make(over: Partial<Workout>): Workout {
   return {
     id: 'w1', athleteId: 'a1', scheduledDate: '2026-07-28', type: 'ENDURANCE',
     status: 'PLANNED', title: 'Footing', notes: null,
-    targetDistanceM: null, targetDurationS: null, rpe: null, athleteComment: null,
+    targetDistanceM: null, targetDurationS: null, actualDurationS: null, missedReason: null,
+    rpe: null, athleteComment: null,
     coachComment: null, coachCommentAt: null, plannedLoadUa: null, orderIndex: 0, steps: [],
     ...over,
   };
@@ -24,5 +25,13 @@ describe('workout.model — ressenti athlète', () => {
     expect(awaitsFeedback(make({ status: 'PARTIAL', rpe: 6 }))).toBeFalse();
     expect(awaitsFeedback(make({ status: 'PARTIAL', athleteComment: 'genou sensible' }))).toBeFalse();
     expect(awaitsFeedback(make({ status: 'COMPLETED' }))).toBeFalse();
+  });
+
+  it('considère close une séance déclarée non faite', () => {
+    // L'athlète n'avait auparavant aucun moyen de le dire : son seul recours était le silence,
+    // qui ressortait en alerte « séance manquée » côté coach, sans motif.
+    const missed = make({ status: 'MISSED', missedReason: 'UNEXPECTED' });
+    expect(needsFeedback(missed)).toBeFalse();
+    expect(awaitsFeedback(missed)).toBeFalse();
   });
 });

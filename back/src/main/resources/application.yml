@@ -150,3 +150,9 @@ app:
     # partagée avec les réinitialisations de mot de passe.
     email-max-requests: ${RATE_LIMIT_EMAIL_MAX:3}
     email-window-seconds: ${RATE_LIMIT_EMAIL_WINDOW:3600}
+    # Routes ANONYMES qui envoient un e-mail : inscription et mot de passe oublié. Le plafond
+    # ci-dessus compte par porteur de jeton — ces routes n'en portent pas, elles y échappaient
+    # donc et retombaient sur les 20 requêtes/minute générales, soit jusqu'à 1 200 envois par
+    # heure et par IP sur un quota partagé de 100 par jour. Compté à l'heure, par IP.
+    # Cinq laisse largement la place à un utilisateur qui se trompe d'adresse ou réessaie.
+    anonymous-email-max-requests: ${RATE_LIMIT_ANONYMOUS_EMAIL_MAX:5}

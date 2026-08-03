@@ -54,6 +54,7 @@
 .seg--green { background: var(--form-green); }
 .seg--orange { background: var(--form-orange); }
 .seg--red { background: var(--form-red); }
+.seg--stale { background: var(--ink-3); }
 .distrib-legend { display: flex; flex-wrap: wrap; gap: var(--sp-3); font-size: var(--text-sm); color: var(--ink-2); }
 .distrib-legend span { display: inline-flex; align-items: center; gap: var(--sp-1); }
 @media (max-width: 768px) { .club-grid { grid-template-columns: 1fr; } }
