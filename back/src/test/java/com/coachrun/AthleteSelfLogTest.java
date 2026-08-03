@@ -61,7 +61,8 @@ class AthleteSelfLogTest {
         String token = url.substring(url.lastIndexOf('/') + 1);
 
         mvc.perform(post("/public/invitations/{t}/accept", token).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"healthDataConsent\":true,\"password\":\"athletepass1\"}"))
+                        .content("{\"healthDataConsent\":true,\"termsAccepted\":true,"
+                                + "\"email\":\"" + email + "\",\"password\":\"athletepass1\"}"))
                 .andExpect(status().isOk());
 
         String athlete = "Bearer " + objectMapper.readTree(mvc.perform(post("/auth/login")

@@ -74,7 +74,9 @@ class AthletePortalTest {
         JsonNode athAuth = objectMapper.readTree(mvc.perform(
                         post("/public/invitations/{t}/accept", inviteToken)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"healthDataConsent\":true}"))
+                                .content("{\"healthDataConsent\":true,\"termsAccepted\":true,"
+                                        + "\"email\":\"portail.athlete@darilab.app\","
+                                        + "\"password\":\"athletepass1\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.role").value("ATHLETE"))
                 .andReturn().getResponse().getContentAsString());
