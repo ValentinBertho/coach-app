@@ -319,6 +319,7 @@ le produit et les parcours) :
 | [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md) | déploiement Railway/Vercel + variables |
 | [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | **exploitation : Sentry, sauvegardes BDD, Actuator, CI (pas-à-pas)** |
 | [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md) | **runbook de mise en service : Resend, Sentry, uptime, backups (pas-à-pas)** |
+| [`docs/AUDIT-BETA-OUVERTE-2026-08.md`](./docs/AUDIT-BETA-OUVERTE-2026-08.md) | **audit le plus récent** : second passage de bêta ouverte (builds exécutés, consentement santé, autorisations club, plafonds SSE et e-mail) |
 | [`docs/AUDIT-BETA-OUVERTE-2026-07.md`](./docs/AUDIT-BETA-OUVERTE-2026-07.md) | audit de bêta ouverte : parcours coach/athlète, ergonomie, accessibilité, notifications |
 | [`docs/AUDIT-BETA-READINESS-2026-07.md`](./docs/AUDIT-BETA-READINESS-2026-07.md) | audit de préparation à la bêta (infra, sécurité, RGPD, exploitation) |
 | [`docs/AUDIT-RC-2026-07.md`](./docs/AUDIT-RC-2026-07.md) | audit code de la release candidate (lots 1 à 8, livrés) |
