@@ -24,7 +24,7 @@
              compilés en caractères de remplacement. -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <jjwt.version>0.12.5</jjwt.version>
+        <jjwt.version>0.13.0</jjwt.version>
         <springdoc.version>2.5.0</springdoc.version>
     </properties>
 
@@ -97,12 +97,12 @@
         <dependency>
             <groupId>nl.martijndwars</groupId>
             <artifactId>web-push</artifactId>
-            <version>5.1.1</version>
+            <version>5.1.2</version>
         </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.78.1</version>
+            <version>1.85</version>
         </dependency>
 
         <!-- Lombok -->
