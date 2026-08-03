@@ -83,7 +83,7 @@ jobs:
           rm -f "$OUT"
 
       - name: Publier l'artefact (rétention 14 jours)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ env.OUT }}.enc
           path: ${{ env.OUT }}.enc
