@@ -33,12 +33,14 @@ Le nom n'est utilisé que dans les libellés et le nom du dépôt : le changer c
 | [`Design.md`](./Design.md) | **La charte graphique** : identité, tokens de couleur, échelle d'urgence, typographie, composants, accessibilité, impression | Le développement |
 | [`CLAUDE.md`](./CLAUDE.md) | **Les conventions de code et les six invariants** — à placer à la racine du dépôt `dies` sous le nom `CLAUDE.md` | Claude Code, en premier |
 | [`PLAN-DEVELOPPEMENT.md`](./PLAN-DEVELOPPEMENT.md) | **Le découpage en 8 lots**, avec les consignes prêtes à copier | Le développement |
+| [`PROMPT-MAQUETTES.md`](./PROMPT-MAQUETTES.md) | **Trois prompts prêts à coller** pour faire dessiner les écrans par Claude avant d'écrire du code | À utiliser en tout premier |
 | [`env.example`](./env.example) | **Les variables d'environnement** commentées, dont les identifiants de connexion | Le déploiement |
 
 ---
 
 ## 3. Comment lancer les développements
 
+0. **Maquetter d'abord** : dérouler les prompts de [`PROMPT-MAQUETTES.md`](./PROMPT-MAQUETTES.md) et faire valider l'identité visuelle et la vue « Ma journée » **par elle**. Une maquette se jette sans regret, pas un lot codé.
 1. **Créer un dépôt neuf** `dies` (application distincte de DARI Lab — la justification est au § 0 du cahier des charges).
 2. Copier ce dossier dans `dies/docs/`, et **`CLAUDE.md` à la racine** du dépôt.
 3. Ouvrir une session Claude Code à la racine et donner la consigne du **lot 0** de `PLAN-DEVELOPPEMENT.md`.
