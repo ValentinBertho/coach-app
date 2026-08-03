@@ -38,6 +38,7 @@ public class LactateTestService {
     private final LactateTestRepository testRepository;
     private final AthleteRepository athleteRepository;
     private final LactateThresholdEngine engine;
+    private final com.coachrun.security.HealthDataConsentValidator consentValidator;
 
     /** Détection temps réel (sans persistance) pour l'UI de saisie. */
     public LTDetectionResponse detect(UUID clubId, UUID athleteId, LactateDetectRequest req) {
@@ -73,6 +74,9 @@ public class LactateTestService {
     @Transactional
     public LactateTestResponse create(UUID clubId, UUID athleteId, LactateTestRequest req) {
         Athlete a = requireAthlete(clubId, athleteId);
+        // Une mesure de lactate est une donnée de santé (art. 9) : la base légale est le
+        // consentement de l'athlète, et il doit être vérifié avant l'écriture, pas supposé.
+        consentValidator.requireConsent(a, "un test de lactate");
 
         LactateTest test = new LactateTest();
         test.setClub(a.getClub());

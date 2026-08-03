@@ -85,9 +85,18 @@ class AuthPasswordTest {
                         .content("{\"healthDataConsent\":false,\"password\":\"athletepass1\"}"))
                 .andExpect(status().isBadRequest());
 
+        // CGU refusées : même règle que le consentement santé. Les athlètes ne les acceptaient
+        // jamais, alors que ce sont elles qui portent l'avertissement santé et la clause de bêta.
         mvc.perform(post("/public/invitations/{t}/accept", token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"healthDataConsent\":true,\"password\":\"athletepass1\"}"))
+                        .content("{\"healthDataConsent\":true,\"termsAccepted\":false,"
+                                + "\"email\":\"" + "lea.connect@darilab.app" + "\",\"password\":\"athletepass1\"}"))
+                .andExpect(status().isBadRequest());
+
+        mvc.perform(post("/public/invitations/{t}/accept", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"healthDataConsent\":true,\"termsAccepted\":true,"
+                                + "\"email\":\"" + "lea.connect@darilab.app" + "\",\"password\":\"athletepass1\"}"))
                 .andExpect(status().isOk());
 
         // Le consentement est bien horodaté, pas seulement accepté au passage.

@@ -133,3 +133,7 @@ databaseChangeLog:
       file: db/changelog/changes/064-attachment-club-quota.yaml
   - include:
       file: db/changelog/changes/065-zone-sets.yaml
+  - include:
+      file: db/changelog/changes/066-health-consent-withdrawal.yaml
+  - include:
+      file: db/changelog/changes/067-beta-feedback.yaml

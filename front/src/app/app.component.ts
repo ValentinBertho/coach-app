@@ -8,6 +8,7 @@ import { ThemeService } from './core/services/theme.service';
 import { UpdateService } from './core/services/update.service';
 import { CelebrationOverlayComponent } from './shared/components/celebration/celebration-overlay.component';
 import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confirm-dialog.component';
+import { FeedbackPanelComponent } from './shared/components/feedback-panel/feedback-panel.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
 import { UpdateBannerComponent } from './shared/components/update-banner/update-banner.component';
 import { HelpSearchOverlayComponent } from './features/help/help-search-overlay.component';
@@ -21,7 +22,7 @@ import { CommandPaletteComponent } from './features/search/command-palette.compo
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent, CommandPaletteComponent, UpdateBannerComponent, CelebrationOverlayComponent],
+  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent, CommandPaletteComponent, UpdateBannerComponent, CelebrationOverlayComponent, FeedbackPanelComponent],
   template: `
     <router-outlet />
     <app-toast />
@@ -30,6 +31,9 @@ import { CommandPaletteComponent } from './features/search/command-palette.compo
     <app-help-search-overlay />
     <app-command-palette />
     <app-update-banner />
+    <!-- Monté ici, comme la confirmation : le retour doit pouvoir s'ouvrir depuis n'importe
+         quel écran des deux coquilles, pas seulement depuis une entrée de navigation. -->
+    <app-feedback-panel />
   `,
 })
 export class AppComponent {

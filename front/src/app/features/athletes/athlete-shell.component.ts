@@ -90,6 +90,17 @@ const SECTION_LABELS: Record<string, string> = {
                 @for (club of a.clubs; track club.id) { <span class="badge badge-info">{{ club.name }}</span> }
               }
               @if (a.level) { <span class="badge badge-neutral">{{ levelLabels[a.level] }}</span> }
+              <!--
+                Base légale des données de santé. Sans ce badge, le coach saisit douleur, lactate
+                et motif médical sans savoir si l'athlète a consenti — et le parcours habituel est
+                justement de remplir la fiche avant d'inviter.
+              -->
+              @if (!a.healthDataConsentGranted) {
+                <span class="badge badge-warning"
+                      title="Sans consentement, les données de santé (douleur, lactate, motif médical) ne peuvent pas être enregistrées.">
+                  <app-icon name="lock" [size]="13" /> Santé non consentie
+                </span>
+              }
             </div>
             <p class="subtitle">{{ a.email || 'Pas d\\'email' }}</p>
           </div>

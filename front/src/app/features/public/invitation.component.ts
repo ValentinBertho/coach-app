@@ -51,7 +51,21 @@ type State = 'loading' | 'ok' | 'invalid';
               <input type="checkbox" [(ngModel)]="consent" />
               <span>J'accepte la collecte de mes <strong>données physiologiques</strong> (FC, allure, ressenti)
                 pour le suivi de mon entraînement (RGPD, art. 9) — voir la
-                <a routerLink="/legal/confidentialite" target="_blank">politique de confidentialité</a>.</span>
+                <a routerLink="/legal/confidentialite" target="_blank">politique de confidentialité</a>.
+                <em class="consent-note">Tu pourras le retirer à tout moment depuis ton profil.</em></span>
+            </label>
+            <!--
+              Acceptation des CGU. Elle manquait côté athlète : seuls les coachs l'accordaient,
+              à l'inscription et à l'invitation. Or ce sont les CGU qui portent l'avertissement
+              santé (« aucun avis médical ») et la clause de version bêta — les deux clauses qui
+              concernent le plus directement l'athlète.
+            -->
+            <label class="consent">
+              <input type="checkbox" [(ngModel)]="terms" />
+              <span>J'accepte les
+                <a routerLink="/legal/cgu" target="_blank">conditions générales d'utilisation</a>,
+                dont l'avertissement santé : Darilab est un outil d'entraînement et ne remplace
+                pas un avis médical.</span>
             </label>
             @if (error()) { <p class="field-error">{{ error() }}</p> }
             <button type="button" class="btn btn-primary btn-lg" [disabled]="joining() || !canSubmit()" (click)="accept()">
@@ -74,6 +88,7 @@ type State = 'loading' | 'ok' | 'invalid';
     .field-error { color: var(--danger); font-size: var(--text-sm); margin: 0; }
     .consent { display: flex; gap: var(--sp-2); text-align: left; font-size: var(--text-sm); color: var(--ink-2); align-items: flex-start; }
     .consent input { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; }
+    .consent-note { display: block; margin-top: 2px; color: var(--ink-3); font-style: normal; font-size: var(--text-xs); }
     .btn-lg { width: 100%; }
   `],
 })
@@ -88,11 +103,13 @@ export class InvitationComponent implements OnInit {
   readonly joining = signal(false);
   readonly error = signal<string | null>(null);
   consent = false;
+  terms = false;
   email = '';
   password = '';
 
   canSubmit(): boolean {
-    return this.consent && this.email.trim().length > 0 && this.password.length >= 8;
+    return this.consent && this.terms
+      && this.email.trim().length > 0 && this.password.length >= 8;
   }
 
   ngOnInit(): void {
@@ -112,7 +129,9 @@ export class InvitationComponent implements OnInit {
     if (!this.canSubmit()) return;
     this.error.set(null);
     this.joining.set(true);
-    this.auth.acceptInvitation(this.token(), this.consent, this.email.trim(), this.password).subscribe({
+    this.auth.acceptInvitation(
+      this.token(), this.consent, this.terms, this.email.trim(), this.password,
+    ).subscribe({
       next: () => this.router.navigate(['/athlete/today']),
       error: (err) => {
         this.joining.set(false);

@@ -40,9 +40,27 @@ public class PushController {
                 request.keys() != null ? request.keys().auth() : null);
     }
 
+    /**
+     * Désabonnement d'un appareil. L'{@code endpoint} est désormais confronté au porteur du
+     * jeton : la route acceptait n'importe quelle valeur et supprimait l'abonnement
+     * correspondant, quel qu'en soit le propriétaire — le seul endroit du produit où une
+     * ressource d'autrui était modifiable sans contrôle de propriété.
+     */
     @DeleteMapping("/subscribe")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void unsubscribe(@RequestParam String endpoint) {
-        pushService.unsubscribe(endpoint);
+    public void unsubscribe(@AuthenticationPrincipal AuthPrincipal principal,
+                            @RequestParam String endpoint) {
+        pushService.unsubscribe(principal.userId(), endpoint);
+    }
+
+    /**
+     * Désabonne <b>tous</b> les appareils du compte courant. Appelé à la déconnexion : sans ça,
+     * un téléphone partagé continue de recevoir les notifications du compte précédent — dont le
+     * titre des séances commentées par son coach.
+     */
+    @DeleteMapping("/subscriptions")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void unsubscribeAll(@AuthenticationPrincipal AuthPrincipal principal) {
+        pushService.unsubscribeUser(principal.userId());
     }
 }

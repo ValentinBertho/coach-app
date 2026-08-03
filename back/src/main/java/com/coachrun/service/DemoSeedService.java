@@ -923,6 +923,11 @@ public class DemoSeedService {
             a.setEmail(a.getFirstName().toLowerCase() + "." + a.getLastName().toLowerCase()
                     + index + "@example.fr");
         }
+        // Consentement au traitement des données de santé : le jeu de démo contient des tests de
+        // lactate, des douleurs et des indisponibilités médicales, que le serveur refuse
+        // désormais sans base légale. Un athlète de démonstration représente un athlète ayant
+        // accepté son invitation — c'est le seul état cohérent avec les données qu'on lui pose.
+        a.setHealthDataConsentAt(java.time.Instant.now());
         a.setHrMax(180 + random.nextInt(25));
         a.setHrRest(45 + random.nextInt(15));
         // La VMA n'est pas tirée au hasard : elle est déduite du niveau dans seedPhysio, en même

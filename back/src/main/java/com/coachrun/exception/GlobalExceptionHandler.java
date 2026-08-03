@@ -67,6 +67,78 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
+    /**
+     * Paramètre de chemin ou de requête au mauvais type — typiquement un UUID malformé dans une
+     * URL (lien tronqué dans un e-mail, copier-coller partiel, exploration automatisée).
+     *
+     * <p>Sans ce cas, le filet à {@code Exception} plus bas en faisait une <b>500 « erreur
+     * interne »</b> : l'utilisateur voyait une panne serveur pour une URL invalide, et chaque
+     * requête de ce genre écrivait une trace et remontait dans Sentry. Or c'est exactement le
+     * bruit qui rend inexploitable la règle d'alerte « nouvelle anomalie → e-mail » recommandée
+     * pour la bêta : le premier robot d'indexation la déclenche.</p>
+     */
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request) {
+        ApiError error = ApiError.of(HttpStatus.BAD_REQUEST.value(),
+                "Paramètre « " + ex.getName() + " » invalide.", request.getRequestURI());
+        return ResponseEntity.badRequest().body(error);
+    }
+
+    /** Paramètre de requête obligatoire absent : requête malformée, pas panne du serveur. */
+    @ExceptionHandler(org.springframework.web.bind.MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiError> handleMissingParam(
+            org.springframework.web.bind.MissingServletRequestParameterException ex,
+            HttpServletRequest request) {
+        ApiError error = ApiError.of(HttpStatus.BAD_REQUEST.value(),
+                "Paramètre « " + ex.getParameterName() + " » manquant.", request.getRequestURI());
+        return ResponseEntity.badRequest().body(error);
+    }
+
+    /**
+     * Pièce jointe au-delà de la limite de téléversement (10 Mo, {@code spring.servlet.multipart}).
+     *
+     * <p>Le front sait déjà afficher proprement un 413 — le message du quota de stockage passe
+     * par là — mais la limite de taille produisait une 500 générique : « Une erreur interne est
+     * survenue » pour un fichier trop gros, alors que la cause est parfaitement explicable et que
+     * l'utilisateur peut y remédier seul.</p>
+     */
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleUploadTooLarge(
+            org.springframework.web.multipart.MaxUploadSizeExceededException ex,
+            HttpServletRequest request) {
+        ApiError error = ApiError.of(HttpStatus.PAYLOAD_TOO_LARGE.value(),
+                "Fichier trop volumineux (10 Mo maximum).", request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(error);
+    }
+
+    /** Méthode HTTP non supportée sur cette route : 405, pas 500. */
+    @ExceptionHandler(org.springframework.web.HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMethodNotSupported(
+            org.springframework.web.HttpRequestMethodNotSupportedException ex,
+            HttpServletRequest request) {
+        ApiError error = ApiError.of(HttpStatus.METHOD_NOT_ALLOWED.value(),
+                "Méthode " + ex.getMethod() + " non autorisée sur cette ressource.",
+                request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(error);
+    }
+
+    /**
+     * Violation de contrainte en base (unicité, clé étrangère). C'est un conflit métier — deux
+     * coachs qui créent la même ressource en même temps, une suppression qui laisserait une
+     * référence pendante — et non une panne : 409 plutôt que 500, sans exposer le détail SQL.
+     */
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrity(
+            org.springframework.dao.DataIntegrityViolationException ex, HttpServletRequest request) {
+        log.warn("Violation de contrainte sur {} : {}", request.getRequestURI(), ex.getMostSpecificCause().getMessage());
+        ApiError error = ApiError.of(HttpStatus.CONFLICT.value(),
+                "Cette opération entre en conflit avec des données existantes.",
+                request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest request) {
         String correlationId = UUID.randomUUID().toString();

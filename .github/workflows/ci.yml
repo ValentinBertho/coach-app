@@ -52,6 +52,17 @@ jobs:
       - name: Build & test (Liquibase sur H2)
         run: mvn -B -ntp clean verify
 
+      # Le profil prod active StartupSecretsValidator, qui refuse de démarrer sur une
+      # configuration incomplète. Les valeurs ci-dessous sont donc contraintes : `FRONTEND_URL` et
+      # `CORS_ORIGINS` ne peuvent pas pointer sur localhost (des liens d'invitation en localhost
+      # n'ouvrent rien), les clés VAPID sont exigées (« séance planifiée » et « commentaire du
+      # coach » n'ont plus de repli e-mail sans elles), et le mode « invite » — défaut du profil
+      # prod — impose un code.
+      #
+      # Ces règles ont été ajoutées sans que ce fichier suive : le smoke test ne démarrait donc
+      # plus, et le job échouait après 40 tentatives. C'est exactement ce que ce test est censé
+      # attraper — un backend qui refuse de booter en configuration de production — et il le
+      # signalait sur sa propre configuration, pas sur le code.
       - name: Smoke test démarrage (PostgreSQL éphémère + Liquibase)
         env:
           SPRING_PROFILES_ACTIVE: prod
@@ -60,8 +71,17 @@ jobs:
           PGPASSWORD: postgres
           JWT_SECRET: ci-smoke-test-secret-not-for-production-rotate-me-aaaaaaaaaaaaaaaa
           FIELD_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-          CORS_ORIGINS: http://localhost:4200
-          FRONTEND_URL: http://localhost:4200
+          CORS_ORIGINS: https://ci.invalid
+          FRONTEND_URL: https://ci.invalid
+          # Valeurs factices : le smoke test vérifie que l'application démarre et migre, il
+          # n'envoie aucune notification. `.invalid` est un TLD réservé (RFC 2606) — rien ne
+          # peut être joint par erreur.
+          VAPID_PUBLIC_KEY: ci-smoke-test-public-key
+          VAPID_PRIVATE_KEY: ci-smoke-test-private-key
+          REGISTRATION_INVITE_CODE: ci-smoke-test
+          # Topologie de CI : aucun proxy devant l'application (le validateur exige ≥ 2 pour la
+          # chaîne Vercel → Railway ; ici on ne teste pas le rate limiting, on satisfait la règle).
+          RATE_LIMIT_TRUSTED_PROXY_HOPS: "2"
         run: |
           java -jar target/coachrun-back.jar &
           APP_PID=$!

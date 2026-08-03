@@ -1,0 +1,56 @@
+# ============================================================================
+# Surveillance des dépendances.
+#
+#   Le projet chiffre des données de santé, manipule des jetons OAuth et sert des pièces jointes :
+#   une faille dans une dépendance transitive est un risque réel, et rien ne la signalait. Une
+#   bêta dure plusieurs mois — assez pour qu'une CVE sorte sur Spring Boot, Angular ou une
+#   bibliothèque de parsing.
+#
+#   Cadence hebdomadaire et lots groupés : l'objectif est de voir passer les mises à jour, pas
+#   d'ouvrir quinze pull requests par semaine sur un dépôt tenu par une personne. Les montées de
+#   version majeures sont séparées — elles se relisent, elles ne se fusionnent pas à la volée.
+# ============================================================================
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /back
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Un seul lot pour les correctifs : ils se relisent ensemble et se fusionnent ensemble.
+      backend-patches:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    labels: ["dépendances", "backend"]
+    commit-message:
+      prefix: "deps(back)"
+
+  - package-ecosystem: npm
+    directory: /front
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      angular:
+        patterns: ["@angular/*", "@angular-devkit/*", "zone.js", "typescript"]
+      frontend-patches:
+        patterns: ["*"]
+        exclude-patterns: ["@angular/*", "@angular-devkit/*"]
+        update-types: ["minor", "patch"]
+    labels: ["dépendances", "frontend"]
+    commit-message:
+      prefix: "deps(front)"
+
+  # Les actions épinglées sur une version majeure ne bougent pas toutes seules ; une action
+  # obsolète finit par être désactivée par GitHub, et c'est la sauvegarde quotidienne qui
+  # s'arrête en silence.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: ["dépendances", "ci"]
+    commit-message:
+      prefix: "deps(ci)"

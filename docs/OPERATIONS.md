@@ -189,8 +189,21 @@ Sentry est **inactif tant que le DSN est vide** (no-op).
 - [ ] `SENTRY_DSN` (back) et `sentryDsn` (front) renseignés.
 - [ ] Canal email **activé et testé** : `MAIL_ENABLED=true`, `RESEND_API_KEY`, domaine `MAIL_FROM` vérifié (cf. §8).
 - [ ] Uptime monitor sur `/api/actuator/health`.
+- [ ] **Compte administrateur plateforme créé** : `PLATFORM_ADMIN_EMAIL` + `PLATFORM_ADMIN_PASSWORD`.
+      Sans lui, `/admin` est inatteignable — donc ni révocation d'invitation, ni suppression de
+      compte coach (la seule réponse possible à une demande d'effacement RGPD d'un coach), ni
+      lecture des retours de bêta. Vider `PLATFORM_ADMIN_PASSWORD` une fois le compte créé et le
+      mot de passe changé depuis l'application.
+- [ ] **`RATE_LIMIT_TRUSTED_PROXY_HOPS` cohérent avec la topologie** : 2 derrière Vercel →
+      Railway (valeur par défaut, refusée en dessous au démarrage), 1 si le front attaque
+      directement l'API. Une valeur fausse fait compter l'adresse d'un proxy, la même pour tous
+      les utilisateurs — le rate limiting devient alors un seau unique partagé.
+- [ ] **Identité de l'éditeur renseignée** dans `LEGAL_OWNER` (`legal.component.ts`) :
+      `legalName` et `address`. L'exemption LCEN pour éditeur non professionnel couvre les
+      mentions légales, pas l'article 13 du RGPD, qui impose l'identité et les coordonnées du
+      responsable de traitement — et le Service traite des données de santé.
 - [ ] Secrets via variables d'env (jamais commités) : `JWT_SECRET`, `FIELD_ENCRYPTION_KEY`,
-      `STRAVA_*`, `VAPID_*`, `SENTRY_DSN`.
+      `STRAVA_*`, `VAPID_*`, `SENTRY_DSN`, `PLATFORM_ADMIN_PASSWORD`.
 - [ ] Logs centralisés + rétention.
 - [ ] Dépendances surveillées (Dependabot/Snyk).
 - [ ] HTTPS + en-têtes proxy (déjà : `forward-headers-strategy: framework`).

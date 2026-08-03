@@ -14,8 +14,28 @@ export const LEGAL_OWNER = {
   name: 'DARI Lab',
   /** Email de contact (RGPD + support). */
   email: 'contact@darilab.app',
+
+  /**
+   * Identité civile et adresse du **responsable de traitement** (RGPD art. 13-1-a).
+   *
+   * ⚠️ **À COMPLÉTER AVANT D'OUVRIR LA BÊTA.** Ces deux champs sont vides et les blocs
+   * correspondants ne s'affichent pas tant qu'ils le restent.
+   *
+   * L'exemption de l'article 6, III-2 de la LCEN — invoquée plus bas, à raison — dispense
+   * l'éditeur **non professionnel** de publier son identité dans les *mentions légales*, à
+   * condition de l'avoir communiquée à son hébergeur. Elle ne dispense de rien au titre du
+   * RGPD : l'article 13 impose de fournir « l'identité et les coordonnées du responsable du
+   * traitement » aux personnes concernées, et le Service traite des données de santé
+   * (article 9). Un nom commercial et une adresse e-mail n'y suffisent pas.
+   *
+   * Renseigner : `legalName` = prénom et nom (ou raison sociale + forme juridique et SIREN si
+   * une structure est créée) ; `address` = adresse postale complète.
+   */
+  legalName: '',
+  address: '',
+
   /** Date de dernière mise à jour des présentes pages. */
-  updated: 'juillet 2026',
+  updated: 'août 2026',
 };
 
 type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
@@ -48,6 +68,8 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
               non professionnel sous le nom <strong>{{ owner.name }}</strong>
               (article 6, III-2 de la loi n° 2004-575 du 21 juin 2004 — LCEN : l'identité de
               l'éditeur non professionnel est tenue à la disposition des hébergeurs ci-dessous).<br />
+              @if (owner.legalName) { Éditeur : {{ owner.legalName }}.<br /> }
+              @if (owner.address) { {{ owner.address }}.<br /> }
               Contact : <a href="mailto:{{ owner.email }}">{{ owner.email }}</a>.
             </p>
 
@@ -133,7 +155,8 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
 
             <h2>1. Responsable de traitement</h2>
             <p>
-              {{ owner.name }} —
+              {{ owner.name }}@if (owner.legalName) { ({{ owner.legalName }}) } —
+              @if (owner.address) { {{ owner.address }} — }
               contact : <a href="mailto:{{ owner.email }}">{{ owner.email }}</a>.
             </p>
 
@@ -151,7 +174,12 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
               <strong>chiffrées au repos (AES-256)</strong>.<br />
               <strong>Données d'appareils connectés</strong> : si vous connectez volontairement
               votre compte Strava, les activités sportives associées sont importées ; les jetons
-              d'accès sont chiffrés au repos.
+              d'accès sont chiffrés au repos.<br />
+              <strong>Retours envoyés depuis l'application</strong> : lorsque vous utilisez
+              « Signaler un problème », votre message est enregistré avec le contexte technique
+              nécessaire à son traitement — écran concerné, version de l'application, navigateur
+              et référence de l'erreur affichée. Ces retours sont conservés jusqu'à
+              <strong>12 mois</strong> après leur traitement, puis supprimés.
             </p>
 
             <h2>3. Finalités et bases légales</h2>
@@ -184,6 +212,10 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
                 personnelles y sont désactivées (<code>send-default-pii: false</code>).</li>
               <li><strong>Strava</strong> — uniquement si vous connectez votre compte, pour
                 importer vos activités.</li>
+              <li><strong>Service de notification de votre navigateur</strong> (Google, Mozilla
+                ou Apple selon le navigateur) — si vous activez les notifications push. Le
+                contenu des notifications est chiffré de bout en bout ; ces services acheminent
+                le message sans pouvoir le lire, et ne reçoivent aucune donnée de santé.</li>
             </ul>
             <p>
               Certains sous-traitants sont situés aux États-Unis ; les transferts sont encadrés
@@ -192,9 +224,19 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
 
             <h2>5. Durées de conservation</h2>
             <p>
-              Les données sont conservées tant que votre compte est actif. À la suppression du
-              compte, elles sont effacées sans délai (suppression en cascade). Les sauvegardes
-              techniques sont purgées selon leur cycle de rotation (14 jours).
+              Les données sont conservées tant que votre compte est actif. Un compte resté
+              <strong>inactif pendant 24 mois</strong> (aucune connexion) est supprimé après un
+              e-mail de préavis. À la suppression du compte, les données sont effacées sans délai
+              (suppression en cascade). Les sauvegardes techniques sont purgées selon leur cycle
+              de rotation (14 jours), et les retours envoyés depuis l'application sont conservés
+              12 mois après traitement.
+            </p>
+            <p>
+              Le <strong>retrait de votre consentement</strong> au traitement des données de
+              santé entraîne l'effacement immédiat des données concernées déjà collectées (tests
+              de lactate, douleurs et fatigues déclarées, motifs médicaux d'indisponibilité,
+              notes médicales) et l'arrêt de leur collecte. Votre compte et votre historique
+              d'entraînement, eux, sont conservés : ce sont deux droits distincts.
             </p>
 
             <h2>6. Vos droits</h2>
@@ -204,8 +246,9 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
               et <strong>supprimer son compte</strong> directement depuis son profil dans
               l'application. Pour toute autre demande (y compris la suppression d'un compte
               coach) : <a href="mailto:{{ owner.email }}">{{ owner.email }}</a>. Vous pouvez
-              retirer votre consentement au traitement des données de santé à tout moment, et
-              introduire une réclamation auprès de la CNIL (cnil.fr).
+              <strong>retirer votre consentement</strong> au traitement des données de santé à
+              tout moment, directement depuis votre profil dans l'application (« Mes données de
+              santé »), et introduire une réclamation auprès de la CNIL (cnil.fr).
             </p>
 
             <h2>7. Cookies et stockage local</h2>

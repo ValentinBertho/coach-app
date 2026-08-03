@@ -110,6 +110,13 @@ app:
     client-secret: ${STRAVA_CLIENT_SECRET:}
     redirect-uri: ${STRAVA_REDIRECT_URI:http://localhost:4200/app/strava/callback}
     sync-cron: ${STRAVA_SYNC_CRON:0 30 * * * *}
+  admin:
+    # Compte PLATFORM_ADMIN créé au premier démarrage en production (cf. PlatformAdminBootstrap).
+    # Sans lui, /admin est inatteignable : ni révocation d'invitation, ni suppression de compte
+    # coach, ni statistiques plateforme. Création idempotente : un compte existant n'est jamais
+    # modifié, la rotation du mot de passe se fait depuis l'application.
+    email: ${PLATFORM_ADMIN_EMAIL:}
+    password: ${PLATFORM_ADMIN_PASSWORD:}
   demo:
     reset:
       enabled: ${DEMO_RESET_ENABLED:false}   # RAZ démo : interdit par défaut (jamais en prod)
@@ -130,4 +137,16 @@ app:
     # Nombre de relais de confiance devant l'application (Vercel → Railway = 2 en production).
     # Sert à lire la bonne adresse dans X-Forwarded-For : le client contrôle le début de la
     # chaîne, seuls les derniers éléments sont écrits par des proxys de confiance.
-    trusted-proxy-hops: ${RATE_LIMIT_TRUSTED_PROXY_HOPS:1}
+    #
+    # Le défaut était à 1, alors que ce commentaire annonçait 2 et que rien ne posait la variable
+    # en production : le filtre retenait donc l'adresse du relais Vercel — identique pour tous les
+    # utilisateurs — et le rate limiting devenait un compteur unique partagé par toute la
+    # plateforme (cinq mots de passe erronés = plus personne ne se connecte). Le défaut suit
+    # désormais la topologie réelle, et StartupSecretsValidator refuse toute valeur < 2 en prod.
+    # Sans proxy (dev, docker compose), l'en-tête est absent et l'adresse TCP fait foi.
+    trusted-proxy-hops: ${RATE_LIMIT_TRUSTED_PROXY_HOPS:2}
+    # Routes authentifiées qui déclenchent un e-mail (renvoi de vérification, changement
+    # d'adresse) : quelques-unes par heure suffisent, et le quota d'envoi est une ressource
+    # partagée avec les réinitialisations de mot de passe.
+    email-max-requests: ${RATE_LIMIT_EMAIL_MAX:3}
+    email-window-seconds: ${RATE_LIMIT_EMAIL_WINDOW:3600}

@@ -394,6 +394,11 @@ export const routes: Routes = [
           import('./features/admin/admin-invitations.component').then((m) => m.AdminInvitationsComponent),
       },
       {
+        path: 'feedback',
+        loadComponent: () =>
+          import('./features/admin/admin-feedback.component').then((m) => m.AdminFeedbackComponent),
+      },
+      {
         path: 'aide',
         data: { audience: 'admin' },
         loadComponent: () =>

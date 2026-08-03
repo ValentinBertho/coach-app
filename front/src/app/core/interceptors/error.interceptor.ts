@@ -1,7 +1,9 @@
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpErrorResponse, HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError, switchMap, throwError } from 'rxjs';
+import { catchError, switchMap, tap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { FeedbackService } from '../services/feedback.service';
+import { NetworkStatusService } from '../services/network-status.service';
 import { ToastService } from '../services/toast.service';
 
 /**
@@ -56,12 +58,25 @@ function label(field: string): string {
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const toast = inject(ToastService);
   const auth = inject(AuthService);
+  const network = inject(NetworkStatusService);
+  const feedback = inject(FeedbackService);
   const silent =
     SILENT_PATTERNS.some((re) => re.test(req.url))
     || FORM_HANDLED_PATTERNS.some((re) => re.test(req.url));
 
   return next(req).pipe(
+    // Une réponse reçue, quel qu'en soit le code, prouve que l'API répond : c'est ce qui fait
+    // retomber le bandeau « service momentanément indisponible » sans attendre de sonde dédiée.
+    tap((event) => { if (event instanceof HttpResponse) network.reportApiSuccess(); }),
     catchError((error: HttpErrorResponse) => {
+      // Aucune réponse exploitable : réseau coupé, ou serveur en cours de redéploiement. Le
+      // distinguer permet d'afficher un bandeau honnête au lieu d'accuser le réseau de
+      // l'utilisateur (Railway redémarre l'instance à chaque déploiement).
+      if (error.status === 0 || error.status === 502 || error.status === 503 || error.status === 504) {
+        network.reportApiFailure();
+      } else {
+        network.reportApiSuccess();
+      }
       // 401 sur une route protégée : rafraîchir puis rejouer une fois avant d'abandonner.
       if (error.status === 401 && !silent && auth.token() && auth.refreshTokenValue()) {
         return auth.refresh().pipe(
@@ -83,7 +98,16 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       if (!silent) {
         switch (error.status) {
           case 0:
-            toast.error('Connexion impossible — vérifie ton réseau.');
+            // Ne plus accuser le réseau de l'utilisateur quand l'appareil est en ligne : la
+            // cause la plus fréquente en bêta est un redéploiement du serveur.
+            toast.error(network.online()
+              ? 'Service momentanément indisponible — nouvelle tentative dans un instant.'
+              : 'Connexion impossible — vérifie ton réseau.');
+            break;
+          case 502:
+          case 503:
+          case 504:
+            toast.error('Service momentanément indisponible — réessaie dans un instant.');
             break;
           case 401:
             auth.logout();
@@ -105,6 +129,10 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
             toast.error(error.error?.message ?? 'Trop de requêtes — réessaie dans un instant.');
             break;
           default:
+            // Le serveur joint un identifiant de corrélation à chaque erreur interne
+            // (GlobalExceptionHandler) ; personne ne le récupérait. Mémorisé ici, il part avec
+            // le prochain retour de bêta et relie « ça a planté » à une trace précise.
+            feedback.rememberCorrelation(error.error?.correlationId);
             toast.error(error.error?.message ?? 'Une erreur est survenue.');
         }
       }
