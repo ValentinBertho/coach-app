@@ -3,6 +3,8 @@ package com.coachrun;
 import com.coachrun.dto.request.RegisterRequest;
 import com.coachrun.exception.ForbiddenException;
 import com.coachrun.service.AuthService;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -27,6 +29,32 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class RegistrationModeTest {
 
     @Autowired private AuthService authService;
+
+    private String initialMode;
+    private String initialCode;
+
+    /**
+     * {@code AuthService} est un singleton du contexte Spring, et ce contexte est <b>mis en
+     * cache et partagé</b> par toutes les classes annotées {@code @SpringBootTest
+     * @ActiveProfiles("test")}. Forcer le mode d'inscription ici sans le remettre en place le
+     * laissait à « invite » pour toute la suite : chaque {@code POST /auth/register} des classes
+     * exécutées ensuite repartait en 403, puis en {@code NullPointerException} sur
+     * {@code accessToken} absent de la réponse. Le rollback de {@code @Transactional} ne restaure
+     * que la base, pas les champs d'un bean.
+     *
+     * <p>L'ordre des classes de test dépend du système de fichiers : le défaut ne se voyait pas
+     * forcément en local et sortait en CI.</p>
+     */
+    @BeforeEach
+    void captureRegistrationSettings() {
+        initialMode = (String) ReflectionTestUtils.getField(authService, "registrationMode");
+        initialCode = (String) ReflectionTestUtils.getField(authService, "registrationInviteCode");
+    }
+
+    @AfterEach
+    void restoreRegistrationSettings() {
+        mode(initialMode, initialCode);
+    }
 
     private void mode(String mode, String code) {
         ReflectionTestUtils.setField(authService, "registrationMode", mode);
