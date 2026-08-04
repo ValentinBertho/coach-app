@@ -38,6 +38,22 @@ public class AthletePhysioController {
 
     private final AthletePhysioService physioService;
     private final SessionCalculatorService calculatorService;
+    private final com.coachrun.service.DailyCheckInService checkInService;
+
+    /**
+     * Check-ins matinaux récents de l'athlète — sommeil, fatigue, douleur.
+     *
+     * <p>L'athlète les renseignait chaque matin et le coach n'y avait <b>aucun accès</b> : ni
+     * endpoint, ni écran. Fatigue et douleur ne l'atteignaient que compressées dans la pastille de
+     * forme, sans historique ; le sommeil n'arrivait nulle part. Or c'est précisément ce qu'on
+     * regarde avant de décider d'alléger la séance du jour.</p>
+     */
+    @GetMapping("/checkins")
+    public List<com.coachrun.dto.response.DailyCheckInResponse> checkIns(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "14") int days) {
+        return checkInService.history(athleteId, days);
+    }
 
     @GetMapping("/physio")
     public PhysioProfileResponse getProfile(@PathVariable UUID clubId, @PathVariable UUID athleteId) {

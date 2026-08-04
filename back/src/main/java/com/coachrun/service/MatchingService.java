@@ -31,12 +31,25 @@ public class MatchingService {
                 .map(s -> s.workout);
     }
 
-    /** Statut résultant d'un rapprochement, selon l'écart de distance au prévu. */
+    /**
+     * Statut résultant d'un rapprochement, selon l'écart au prévu.
+     *
+     * <p>Sans cible mesurable, le statut retenu était {@code COMPLETED} : n'importe quelle activité
+     * du jour validait donc une séance dont on ne pouvait rien vérifier. On retient désormais
+     * {@code PARTIAL} — la sortie a bien eu lieu, mais rien ne prouve qu'elle correspond à la
+     * séance prescrite, et c'est à l'athlète ou au coach de trancher.</p>
+     *
+     * <p><b>Ce que ce calcul ne dit pas.</b> Il compare des volumes, pas des structures : un
+     * 10 × 400 m remplacé par un footing de même distance ressort « réalisé ». Comparer la
+     * structure demanderait le découpage réel de l'activité, que l'import ne fournit pas
+     * aujourd'hui ; en attendant, le ressenti de l'athlète reste la seule source qui distingue
+     * les deux.</p>
+     */
     public WorkoutStatus resolvedStatus(Activity activity, Workout workout) {
         Integer target = workout.getTargetDistanceM();
         Integer actual = activity.getDistanceM();
         if (target == null || target == 0 || actual == null) {
-            return WorkoutStatus.COMPLETED;
+            return WorkoutStatus.PARTIAL;
         }
         double ratio = Math.abs(actual - target) / (double) target;
         return ratio <= COMPLETED_DISTANCE_TOLERANCE ? WorkoutStatus.COMPLETED : WorkoutStatus.PARTIAL;
@@ -62,7 +75,10 @@ public class MatchingService {
         Double distScore = closeness(workout.getTargetDistanceM(), activity.getDistanceM());
         Double durationScore = closeness(workout.getTargetDurationS(), activity.getDurationS());
         if (distScore == null && durationScore == null) {
-            return dateScore; // rien de comparable : on se fie à la date
+            // Rien de comparable : la date seule ne prouve rien. Se fier à elle rapprochait
+            // automatiquement n'importe quelle sortie du jour de n'importe quelle séance sans
+            // cible — et la validait au passage. On laisse le rapprochement à la main.
+            return 0.0;
         }
 
         // La date pèse la moitié ; le reste se partage entre les mesures disponibles.

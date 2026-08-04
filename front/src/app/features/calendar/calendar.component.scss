@@ -314,3 +314,9 @@
 .meso-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); }
 .picker__note-actions{display:flex;justify-content:flex-end;gap:var(--sp-2);margin-top:var(--sp-2)}
 
+
+/* Séance déplacée par l'athlète : discret mais lisible d'un coup d'oeil sur la semaine. */
+.wc-moved {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-size: var(--text-xs); font-weight: 600; color: var(--ink-3);
+}

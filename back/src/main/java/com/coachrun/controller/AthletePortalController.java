@@ -402,8 +402,9 @@ public class AthletePortalController {
     /** Messagerie : fil de discussion avec le coach. */
     @GetMapping("/messages")
     public java.util.List<com.coachrun.dto.response.MessageResponse> messages(
-            @AuthenticationPrincipal AuthPrincipal principal) {
-        return messageService.athleteThread(principal.athleteId());
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam(defaultValue = "100") int limit) {
+        return messageService.athleteThread(principal.athleteId(), limit);
     }
 
     @PostMapping("/messages")

@@ -68,6 +68,53 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
         <!-- Installation, notifications et déconnexion encombraient la barre supérieure de
              « Aujourd'hui », un écran qui devrait ne porter que la séance. Ce sont des
              réglages de compte : leur place est ici. -->
+        <!-- Compte : changer son mot de passe, son nom ou son adresse. Les endpoints existaient
+             et acceptaient le rôle athlète, mais aucun écran ne les appelait — le seul recours
+             pour un mot de passe compromis était « mot de passe oublié ». -->
+        <section class="card acct">
+          <h2>Mon compte</h2>
+
+          <label class="field">
+            <span class="field-label">Nom</span>
+            <input class="form-control" [ngModel]="acctName()" (ngModelChange)="acctName.set($event)" />
+          </label>
+          <label class="field">
+            <span class="field-label">Adresse e-mail</span>
+            <input class="form-control" type="email" [ngModel]="acctEmail()"
+                   (ngModelChange)="acctEmail.set($event)" />
+            <span class="field-hint">Changer d'adresse demande une nouvelle vérification.</span>
+          </label>
+          <button type="button" class="btn btn-outline" [disabled]="acctBusy()" (click)="saveAccount()">
+            Enregistrer
+          </button>
+
+          <hr class="acct__sep" />
+
+          @if (pwdOpen()) {
+            <label class="field">
+              <span class="field-label">Mot de passe actuel</span>
+              <input class="form-control" type="password" autocomplete="current-password"
+                     [ngModel]="pwdCurrent()" (ngModelChange)="pwdCurrent.set($event)" />
+            </label>
+            <label class="field">
+              <span class="field-label">Nouveau mot de passe</span>
+              <input class="form-control" type="password" autocomplete="new-password"
+                     [ngModel]="pwdNew()" (ngModelChange)="pwdNew.set($event)" />
+              <span class="field-hint">8 caractères minimum.</span>
+            </label>
+            <div class="acct__actions">
+              <button type="button" class="btn btn-accent" [disabled]="pwdBusy()" (click)="savePassword()">
+                Changer le mot de passe
+              </button>
+              <button type="button" class="btn btn-ghost" (click)="pwdOpen.set(false)">Annuler</button>
+            </div>
+          } @else {
+            <button type="button" class="btn btn-outline" (click)="pwdOpen.set(true)">
+              Changer mon mot de passe
+            </button>
+          }
+        </section>
+
         <section class="card app-settings">
           <h2>L'application</h2>
           <p class="field-hint">Installe Darilab sur ton téléphone et reçois un rappel quand une séance t'attend.</p>
@@ -470,6 +517,15 @@ export class AthleteProfileComponent implements OnInit {
     return supportLink('Signalement depuis l’espace athlète');
   }
 
+  // --- Mon compte -----------------------------------------------------------
+  readonly acctName = signal('');
+  readonly acctEmail = signal('');
+  readonly acctBusy = signal(false);
+  readonly pwdOpen = signal(false);
+  readonly pwdCurrent = signal('');
+  readonly pwdNew = signal('');
+  readonly pwdBusy = signal(false);
+
   private readonly portal = inject(AthletePortalService);
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);
@@ -564,7 +620,52 @@ export class AthleteProfileComponent implements OnInit {
       .join(' ');
   }
 
+  /** Enregistre nom et adresse. Un changement d'adresse repasse le compte en « non vérifié ». */
+  saveAccount(): void {
+    const name = this.acctName().trim();
+    const email = this.acctEmail().trim();
+    if (!name || !email) { this.toast.warning('Nom et adresse sont requis.'); return; }
+    this.acctBusy.set(true);
+    this.auth.updateProfile({ fullName: name, email }).subscribe({
+      next: () => { this.acctBusy.set(false); this.toast.success('Profil mis à jour'); },
+      error: (err: { error?: { message?: string } }) => {
+        this.acctBusy.set(false);
+        this.toast.error(err.error?.message ?? 'Mise à jour impossible.');
+      },
+    });
+  }
+
+  /** Change le mot de passe. Le serveur exige l'actuel et révoque les sessions antérieures. */
+  savePassword(): void {
+    const current = this.pwdCurrent();
+    const next = this.pwdNew();
+    if (!current || next.length < 8) {
+      this.toast.warning('Mot de passe actuel requis, nouveau d\'au moins 8 caractères.');
+      return;
+    }
+    this.pwdBusy.set(true);
+    this.auth.changePassword(current, next).subscribe({
+      next: () => {
+        this.pwdBusy.set(false);
+        this.pwdOpen.set(false);
+        this.pwdCurrent.set('');
+        this.pwdNew.set('');
+        // Le changement périme les jetons émis avant : la session courante comprise.
+        this.toast.success('Mot de passe changé — reconnecte-toi.');
+        this.auth.logout();
+        this.router.navigateByUrl('/login');
+      },
+      error: (err: { error?: { message?: string } }) => {
+        this.pwdBusy.set(false);
+        this.toast.error(err.error?.message ?? 'Changement impossible — vérifie ton mot de passe actuel.');
+      },
+    });
+  }
+
   ngOnInit(): void {
+    const me = this.auth.currentUser();
+    this.acctName.set(me?.fullName ?? '');
+    this.acctEmail.set(me?.email ?? '');
     this.portal.physio().subscribe({ next: (p) => this.physio.set(p), error: () => this.physio.set(null) });
     this.portal.vdot().subscribe({ next: (v) => this.vdot.set(v), error: () => this.vdot.set(null) });
     this.portal.races().subscribe({ next: (r) => this.races.set(r), error: () => this.races.set(null) });

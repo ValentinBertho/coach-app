@@ -44,9 +44,15 @@ public class MessageService {
     private final AthleteAccessValidator accessValidator;
 
     // --- Côté coach (scopé club) ---
-    public List<MessageResponse> coachThread(UUID clubId, UUID athleteId) {
-        return messageRepository.findByClubIdAndAthleteIdOrderByCreatedAtAsc(clubId, athleteId)
-                .stream().map(MessageResponse::from).toList();
+    /**
+     * Fil du coach, borné aux {@code limit} messages les plus récents (rendus dans l'ordre
+     * chronologique). Le fil entier était chargé à chaque ouverture : sans borne, une conversation
+     * qui dure une saison finit par transporter des centaines de messages à chaque affichage.
+     */
+    public List<MessageResponse> coachThread(UUID clubId, UUID athleteId, int limit) {
+        var page = messageRepository.findByClubIdAndAthleteIdOrderByCreatedAtDesc(
+                clubId, athleteId, org.springframework.data.domain.PageRequest.of(0, threadLimit(limit)));
+        return reversed(page);
     }
 
     @Transactional
@@ -110,9 +116,27 @@ public class MessageService {
     }
 
     // --- Côté athlète (scopé athleteId du principal) ---
-    public List<MessageResponse> athleteThread(UUID athleteId) {
-        return messageRepository.findByAthleteIdOrderByCreatedAtAsc(athleteId)
-                .stream().map(MessageResponse::from).toList();
+    /** Fil de l'athlète, même bornage que le fil du coach. */
+    public List<MessageResponse> athleteThread(UUID athleteId, int limit) {
+        var page = messageRepository.findByAthleteIdOrderByCreatedAtDesc(
+                athleteId, org.springframework.data.domain.PageRequest.of(0, threadLimit(limit)));
+        return reversed(page);
+    }
+
+    /** Profondeur par défaut d'un fil : de quoi couvrir plusieurs semaines d'échanges. */
+    public static final int DEFAULT_THREAD_LIMIT = 100;
+
+    private static int threadLimit(int requested) {
+        return Math.max(1, Math.min(requested <= 0 ? DEFAULT_THREAD_LIMIT : requested, 500));
+    }
+
+    /** Les plus récents d'abord en base, du plus ancien au plus récent à l'affichage. */
+    private static List<MessageResponse> reversed(List<com.coachrun.entity.Message> page) {
+        List<MessageResponse> out = new java.util.ArrayList<>(page.size());
+        for (int i = page.size() - 1; i >= 0; i--) {
+            out.add(MessageResponse.from(page.get(i)));
+        }
+        return out;
     }
 
     @Transactional

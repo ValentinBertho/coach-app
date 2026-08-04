@@ -43,6 +43,14 @@ export interface Workout {
   /** Retour du coach sur la séance réalisée (feedback in situ), visible par l'athlète. */
   coachComment: string | null;
   coachCommentAt: string | null;
+  /**
+   * L'athlète a déplacé cette séance lui-même. Renvoyé par l'API depuis toujours, mais absent du
+   * modèle : le coach n'avait donc aucun signal, ni notification, quand sa semaine était
+   * réorganisée.
+   */
+  movedByAthlete: boolean;
+  /** Date à laquelle la séance était initialement prévue, si elle a été déplacée. */
+  originalDate: string | null;
   /** Charge prévue en UA (sRPE appliqué à la prescription) — total hebdo du calendrier. */
   plannedLoadUa: number | null;
   /** Ordre d'affichage au sein d'un même jour (glisser-déposer intra-jour). */

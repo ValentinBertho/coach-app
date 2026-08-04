@@ -51,6 +51,7 @@ public class CoachDashboardService {
     private final ScheduledStrengthSessionRepository strengthRepository;
     private final ClockService clock;
     private final com.coachrun.repository.AthleteUnavailabilityRepository unavailabilityRepository;
+    private final ProgressionService progressionService;
 
     /**
      * KPI du cockpit, restreints au périmètre choisi (all / mine / private / club) — comme la
@@ -321,6 +322,24 @@ public class CoachDashboardService {
                 }
             } catch (RuntimeException ignored) {
                 // un calcul de charge en échec ne doit pas masquer les autres alertes
+            }
+
+            // --- Force : douleur, RPE proche de l'échec, RIR nul, charge sous la prescription ---
+            // Ces alertes existaient déjà mais restaient enfermées dans l'écran d'une séance :
+            // il fallait les ouvrir une par une pour les voir. Elles remontent ici, dédoublonnées
+            // par type — trois séries douloureuses dans la semaine, c'est une alerte, pas trois.
+            try {
+                java.util.Set<String> seenStrength = new java.util.HashSet<>();
+                for (var sa : progressionService.recentAlerts(a.getId(), today.minusDays(MISSED_WINDOW_DAYS))) {
+                    if (!seenStrength.add(sa.code())) {
+                        continue;
+                    }
+                    alerts.add(alert(a, name, discipline,
+                            "HIGH".equals(sa.level()) ? "RED" : "ORANGE",
+                            "STRENGTH_" + sa.code(), "Renforcement — " + sa.exerciseName(), sa.message()));
+                }
+            } catch (RuntimeException ignored) {
+                // un snapshot de séance illisible ne doit pas masquer les autres alertes
             }
 
             // --- Séances manquées (14 derniers jours) ---

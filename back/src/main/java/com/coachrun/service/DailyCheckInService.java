@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -33,6 +34,22 @@ public class DailyCheckInService {
         return repository.findByAthleteIdAndCheckDate(athleteId, day)
                 .map(DailyCheckInResponse::of)
                 .orElse(null);
+    }
+
+    /**
+     * Historique récent des check-ins d'un athlète, du plus récent au plus ancien.
+     *
+     * <p>L'athlète renseignait sommeil, fatigue et douleur chaque matin et <b>rien n'arrivait au
+     * coach</b> : aucun endpoint, aucun écran. Fatigue et douleur ne l'atteignaient que compressées
+     * dans une pastille de forme, sans historique, et le sommeil n'arrivait nulle part. Demander une
+     * saisie quotidienne dont personne ne voit le résultat est le meilleur moyen qu'elle s'arrête.</p>
+     */
+    public List<DailyCheckInResponse> history(UUID athleteId, int days) {
+        LocalDate since = LocalDate.now().minusDays(Math.max(1, Math.min(days, 90)));
+        return repository.findByAthleteIdOrderByCheckDateDesc(athleteId).stream()
+                .filter(c -> !c.getCheckDate().isBefore(since))
+                .map(DailyCheckInResponse::of)
+                .toList();
     }
 
     /** Crée ou met à jour le check-in du jour (idempotent). */

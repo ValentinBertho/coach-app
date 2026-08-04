@@ -6,7 +6,8 @@ function make(over: Partial<Workout>): Workout {
     status: 'PLANNED', title: 'Footing', notes: null,
     targetDistanceM: null, targetDurationS: null, actualDurationS: null, missedReason: null,
     rpe: null, athleteComment: null,
-    coachComment: null, coachCommentAt: null, plannedLoadUa: null, orderIndex: 0, steps: [],
+    coachComment: null, coachCommentAt: null, movedByAthlete: false, originalDate: null,
+    plannedLoadUa: null, orderIndex: 0, steps: [],
     ...over,
   };
 }

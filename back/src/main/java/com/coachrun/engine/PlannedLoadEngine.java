@@ -10,9 +10,12 @@ import java.util.List;
  * Charge <strong>prévue</strong> d'une séance course, en unités arbitraires (UA).
  *
  * <p>Même méthode que la charge réalisée (sRPE de Foster : RPE × durée en minutes), mais
- * appliquée à la prescription : RPE de bloc × durée estimée du bloc, récupérations comprises.
- * Permet d'afficher un total hebdomadaire en charge à côté des kilomètres — le volume seul ne
- * dit rien de la difficulté d'une semaine.</p>
+ * appliquée à la prescription : RPE de bloc × durée estimée du bloc. Permet d'afficher un total
+ * hebdomadaire en charge à côté des kilomètres — le volume seul ne dit rien de la difficulté
+ * d'une semaine.</p>
+ *
+ * <p>Les récupérations sont <b>exclues</b> du calcul (cf. {@code sectionLoad}) : la javadoc
+ * annonçait l'inverse, alors qu'y plaquer le RPE du bloc gonflerait la charge d'un fractionné.</p>
  *
  * <p>Un bloc sans RPE prescrit ne contribue pas : mieux vaut une charge sous-estimée qu'une
  * valeur inventée. Logique pure, testable sans contexte Spring.</p>

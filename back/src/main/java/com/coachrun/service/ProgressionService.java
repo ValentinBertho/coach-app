@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -53,6 +54,28 @@ public class ProgressionService {
             throw new NotFoundException("Athlète introuvable.");
         }
         return compute(requireScheduled(scheduledId, athleteId));
+    }
+
+    /**
+     * Alertes de force des séances récentes d'un athlète, tous exercices confondus.
+     *
+     * <p>Les alertes du §6.8 — douleur, RPE proche de l'échec, RIR nul, charge sous la prescription
+     * — n'existaient que séance par séance, derrière un appel que le coach devait déclencher à la
+     * main. Pour vingt-cinq athlètes faisant deux séances de force par semaine, il aurait fallu
+     * ouvrir une cinquantaine de séances chaque semaine pour les voir. Autant dire qu'elles
+     * n'atteignaient personne.</p>
+     */
+    public List<AlertResponse> recentAlerts(UUID athleteId, LocalDate since) {
+        List<AlertResponse> out = new ArrayList<>();
+        for (ScheduledStrengthSession s : scheduledRepository
+                .findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
+                        athleteId, since, LocalDate.now())) {
+            if (!s.isCompleted()) {
+                continue;
+            }
+            out.addAll(compute(s).alerts());
+        }
+        return out;
     }
 
     /** Côté athlète : scopé à l'athleteId du principal. */
@@ -99,12 +122,12 @@ public class ProgressionService {
             int targetReps = p != null && p.repsFixed() != null ? p.repsFixed() : Integer.MAX_VALUE;
             Integer targetRir = p != null ? p.rirMin() : null;
             double currentCharge = currentChargeByExercise.getOrDefault(exerciseId, 0.0);
-            Double previousCharge = previousCharge(scheduled, exerciseId);
+            Double reference = prescribedCharge(scheduled, exerciseId);
 
             Suggestion s = engine.suggest(targetReps, targetRir, sets, currentCharge);
             progressions.add(new ExerciseProgression(exerciseId, name, s.recommended(), s.label(), s.deltaKg()));
 
-            for (Alert a : engine.alerts(targetRir, isReath, sets, previousCharge, currentCharge)) {
+            for (Alert a : engine.alerts(targetRir, isReath, sets, reference, currentCharge)) {
                 alerts.add(new AlertResponse(a.level().name(), a.code(), a.message(), exerciseId, name));
             }
         }
@@ -112,13 +135,38 @@ public class ProgressionService {
         return new ProgressionResponse(scheduled.getId(), progressions, alerts);
     }
 
-    /** Charge de travail de la séance précédente pour cet exercice (hors séance courante). */
-    private Double previousCharge(ScheduledStrengthSession scheduled, UUID exerciseId) {
-        for (StrengthResult r : resultRepository
-                .findByAthleteIdAndExerciseIdOrderByCreatedAtDesc(scheduled.getAthlete().getId(), exerciseId)) {
-            if (!r.getScheduledSession().getId().equals(scheduled.getId()) && r.getChargeKg() != null) {
-                return r.getChargeKg().doubleValue();
+    /**
+     * Charge <b>prescrite</b> pour cet exercice dans cette séance (borne haute de la fourchette).
+     *
+     * <p>L'alerte « chute de charge » comparait auparavant le maximum soulevé aujourd'hui à la
+     * <em>dernière série enregistrée</em> de la séance précédente — deux agrégats différents. Un
+     * drop-set en fin de séance précédente abaissait donc la référence, et surtout une semaine de
+     * décharge programmée par l'application elle-même (−40 % appliqués à la prescription) levait
+     * mécaniquement une alerte de niveau haut sur chaque exercice. Le coach recevait une alerte
+     * provoquée par sa propre planification.</p>
+     *
+     * <p>La référence est désormais ce que la séance demandait. Un deload prescrit moins, l'athlète
+     * soulève ce qui est prescrit, et le rapport reste à 1 : plus d'alerte. À l'inverse, un athlète
+     * qui n'arrive pas à tenir la charge du jour est signalé, ce qui est bien le fait à remonter.</p>
+     */
+    private Double prescribedCharge(ScheduledStrengthSession scheduled, UUID exerciseId) {
+        if (scheduled.getCalculatedCharges() == null || scheduled.getCalculatedCharges().isBlank()) {
+            return null;
+        }
+        try {
+            var calc = objectMapper.readValue(scheduled.getCalculatedCharges(),
+                    com.coachrun.dto.response.CalculatedStrengthResponse.class);
+            for (var block : calc.blocks()) {
+                for (var exercise : block.exercises()) {
+                    if (exerciseId.equals(exercise.item().exerciseId())
+                            && exercise.charge() != null && exercise.charge().computable()
+                            && exercise.charge().kgMax() != null && exercise.charge().kgMax() > 0) {
+                        return exercise.charge().kgMax();
+                    }
+                }
             }
+        } catch (Exception ignored) {
+            // Charges calculées illisibles : pas de référence, l'alerte de charge ne se déclenche pas.
         }
         return null;
     }

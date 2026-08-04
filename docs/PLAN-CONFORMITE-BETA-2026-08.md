@@ -288,20 +288,24 @@ anomalie → e-mail » ; tag git à chaque déploiement, aligné sur `appVersion
 
 ### Vague 2 — Dans les 2 à 4 semaines suivant l'ouverture
 
+> **État au 4 août 2026 — livrée par anticipation, avant l'ouverture.**
+> `./mvnw clean verify` : **BUILD SUCCESS, 335 tests, 0 échec** · `npm run build` : OK ·
+> `npm test` : **64/64**. Les douze items sont traités (V2-08 l'avait été avec V0-08).
+
 | # | Action | Fichiers | Effort | Nature |
 |---|---|---|---|---|
-| V2-01 | Rendre les check-ins visibles au coach (endpoint + historique 14 j, sommeil compris — aujourd'hui il n'arrive nulle part) | nouveau contrôleur coach · `DailyCheckInService` · `AthleteFeedbackService` | M | Métier |
-| V2-02 | Rendre l'alerte « chute de charge » comparable : même agrégat des deux côtés (max vs max), et neutralisation pendant une semaine de décharge programmée | `ProgressionEngine.java:76-79` · `ProgressionService.java:84,116-124` | S | Métier |
-| V2-03 | Agréger les alertes de force au tableau de bord (aujourd'hui : une séance à ouvrir à la main, ~50/semaine pour 25 athlètes) | `ProgressionService` · `CoachDashboardService.alerts` | M | Métier |
-| V2-04 | Comparer la **structure** et non le seul volume avant de valider une séance ; refuser la validation automatique quand la séance n'a ni distance ni durée cible | `MatchingService.java:35-42,66-68` | M | Métier |
-| V2-05 | Signaler au coach les séances déplacées par l'athlète (champs déjà renvoyés par l'API, absents du modèle front) + garde-fous (pas de déplacement dans le passé, alerte au-delà de N séances/jour) | `front/.../core/models/workout.model.ts` · calendrier coach · `WorkoutService.moveByAthlete:440-449` | M | Métier |
-| V2-06 | Compte athlète : changement de mot de passe, de nom et d'adresse dans la PWA (les endpoints existent déjà et acceptent le rôle) | `front/.../features/athlete/profile.component.ts` | M | UX |
-| V2-07 | Contrôle `canRead` sur la lecture des zones par `?athleteId=` | `TrainingZoneController.java:45-47` | S | Sécurité |
+| V2-01 ✅ | Rendre les check-ins visibles au coach (endpoint + historique 14 j, sommeil compris — aujourd'hui il n'arrive nulle part) | nouveau contrôleur coach · `DailyCheckInService` · `AthleteFeedbackService` | M | Métier |
+| V2-02 ✅ | Rendre l'alerte « chute de charge » comparable : même agrégat des deux côtés (max vs max), et neutralisation pendant une semaine de décharge programmée | `ProgressionEngine.java:76-79` · `ProgressionService.java:84,116-124` | S | Métier |
+| V2-03 ✅ | Agréger les alertes de force au tableau de bord (aujourd'hui : une séance à ouvrir à la main, ~50/semaine pour 25 athlètes) | `ProgressionService` · `CoachDashboardService.alerts` | M | Métier |
+| V2-04 ✅ | Comparer la **structure** et non le seul volume avant de valider une séance ; refuser la validation automatique quand la séance n'a ni distance ni durée cible | `MatchingService.java:35-42,66-68` | M | Métier |
+| V2-05 ✅ | Signaler au coach les séances déplacées par l'athlète (champs déjà renvoyés par l'API, absents du modèle front) + garde-fous (pas de déplacement dans le passé, alerte au-delà de N séances/jour) | `front/.../core/models/workout.model.ts` · calendrier coach · `WorkoutService.moveByAthlete:440-449` | M | Métier |
+| V2-06 ✅ | Compte athlète : changement de mot de passe, de nom et d'adresse dans la PWA (les endpoints existent déjà et acceptent le rôle) | `front/.../features/athlete/profile.component.ts` | M | UX |
+| V2-07 ✅ | Contrôle `canRead` sur la lecture des zones par `?athleteId=` | `TrainingZoneController.java:45-47` | S | Sécurité |
 | V2-08 ✅ | Purger `emailLimiter` avec les autres fenêtres — *livré avec V0-08, même méthode* | `RateLimitFilter.java` | S | Technique |
-| V2-09 | Tests des trois moteurs sans couverture (`CriticalSpeedEngine`, `PlannedLoadEngine`, `PaceUtil`) | `back/src/test` | M | Technique |
-| V2-10 | Paginer le fil de messages (chargé entier aujourd'hui) | `MessageService.java:47,113` · `MessageController` | M | Technique |
-| V2-11 | Remettre le README d'équerre (tests, contrôleurs, services, moteurs, migrations, endpoints, « import FIT » non implémenté) | `README.md` | S | Doc |
-| V2-12 | Aligner la javadoc de `PlannedLoadEngine` sur le code (« récupérations comprises » vs exclues) | `PlannedLoadEngine.java:23,47-50` | S | Doc |
+| V2-09 ✅ | Tests des trois moteurs sans couverture (`CriticalSpeedEngine`, `PlannedLoadEngine`, `PaceUtil`) | `back/src/test` | M | Technique |
+| V2-10 ✅ | Paginer le fil de messages (chargé entier aujourd'hui) | `MessageService.java:47,113` · `MessageController` | M | Technique |
+| V2-11 ✅ | Remettre le README d'équerre (tests, contrôleurs, services, moteurs, migrations, endpoints, « import FIT » non implémenté) | `README.md` | S | Doc |
+| V2-12 ✅ | Aligner la javadoc de `PlannedLoadEngine` sur le code (« récupérations comprises » vs exclues) | `PlannedLoadEngine.java:23,47-50` | S | Doc |
 
 ---
 
