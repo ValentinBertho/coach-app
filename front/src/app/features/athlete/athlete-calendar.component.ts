@@ -161,9 +161,16 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                         }
                       </div>
                     }
-                    @if (e.recoveryCalc?.computable && e.recoveryCalc!.paceMinLabel) {
+<!-- Récupération : sa durée (ou sa distance) d'abord, l'allure ensuite si elle est
+                         calculable. Seule l'allure était affichée, et uniquement quand elle existait :
+                         « 5 × 2000 m » n'indiquait donc pas combien de temps on récupère entre les
+                         répétitions — l'information qui fait la séance. -->
+                    @if (e.block.recovery) {
                       <div class="targets recov field-hint">
-                        récup · {{ e.recoveryCalc!.paceMinLabel }}–{{ e.recoveryCalc!.paceMaxLabel }}/km
+                        récup{{ recoveryVol(e) ? ' · ' + recoveryVol(e) : '' }}
+                        @if (e.recoveryCalc?.computable && e.recoveryCalc!.paceMinLabel) {
+                          · {{ e.recoveryCalc!.paceMinLabel }}–{{ e.recoveryCalc!.paceMaxLabel }}/km
+                        }
                       </div>
                     }
                     @if (e.block.note) { <p class="blk-note field-hint">{{ e.block.note }}</p> }
@@ -437,6 +444,31 @@ export class AthleteCalendarComponent implements OnInit {
     const reps = (b.reps ?? 1) > 1 ? `${b.reps} × ` : '';
     const size = b.distanceM ? `${b.distanceM} m` : (b.durationS ? this.fmtDur(b.durationS) : '');
     return (reps + size).trim() || courseBlockTypeLabel(b.type);
+  }
+
+  /**
+   * Volume d'une récupération : sa distance, sinon sa durée. Chaîne vide si le coach n'en a
+   * prescrit aucun (récup libre).
+   *
+   * <p>Les secondes sont conservées, contrairement à {@link fmtDur} qui arrondit à la minute :
+   * une récupération se prescrit en 45 s, 1'30 ou 2'30, et « 2 min » pour 1'30 n'est pas la même
+   * séance.</p>
+   */
+  recoveryVol(e: CalculatedBlockEntry): string {
+    const r = e.block.recovery;
+    if (!r) return '';
+    if (r.distanceM) {
+      return r.distanceM >= 1000
+        ? `${(r.distanceM / 1000).toFixed(r.distanceM % 1000 ? 1 : 0)} km`
+        : `${r.distanceM} m`;
+    }
+    if (r.durationS) {
+      const m = Math.floor(r.durationS / 60);
+      const s = r.durationS % 60;
+      if (!m) return `${s} s`;
+      return s ? `${m}'${s.toString().padStart(2, '0')}` : `${m} min`;
+    }
+    return '';
   }
 
   /** Durée « h:mm » ou « m min ». */

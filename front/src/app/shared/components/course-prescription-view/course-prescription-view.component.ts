@@ -57,10 +57,14 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                       <app-range-prescription-pill label="RPE" [min]="e.calc!.rpeMin" [max]="e.calc!.rpeMax" />
                     }
                   </div>
-                  @if (e.block.recovery && e.recoveryCalc?.paceMinLabel) {
+<!-- La récupération s'affiche dès qu'elle existe. Elle était conditionnée à son *allure* :
+                       une récup sans cible d'allure — le cas le plus courant, on trotte — disparaissait
+                       entièrement, y compris sa durée. L'athlète lisait « 5 × 2000 m » sans savoir
+                       combien de temps il récupérait entre les répétitions. -->
+                  @if (e.block.recovery) {
                     <div class="cpv__rec">
-                      Récup : {{ recoveryVol(e) }}
-                      @if (e.recoveryCalc?.computable) {
+                      Récup{{ recoveryVol(e) ? ' : ' + recoveryVol(e) : '' }}
+                      @if (e.recoveryCalc?.computable && e.recoveryCalc?.paceMinLabel) {
                         <span class="cpv__rec-pace">{{ e.recoveryCalc!.paceMinLabel }}–{{ e.recoveryCalc!.paceMaxLabel }} /km</span>
                       }
                     </div>
