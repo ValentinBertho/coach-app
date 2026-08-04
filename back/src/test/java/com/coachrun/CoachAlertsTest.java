@@ -95,6 +95,62 @@ class CoachAlertsTest {
     }
 
     /**
+     * Un athlète déclaré indisponible ne doit plus alimenter les alertes que son indisponibilité
+     * explique déjà.
+     *
+     * <p>L'indisponibilité n'était consultée par personne : les séances de la période restaient
+     * planifiées, et l'athlète blessé cumulait « séances manquées », « athlète silencieux » et
+     * « charge en baisse » — renvoyés en outre chaque matin par le digest. Le coach recevait tous
+     * les jours le rappel d'un fait qu'il avait lui-même saisi, et cessait de lire ses alertes.</p>
+     */
+    @Test
+    void aDeclaredUnavailabilitySilencesTheAlertsItExplains() throws Exception {
+        String athleteId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"Marc\",\"lastName\":\"Blessé\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        for (int daysAgo : new int[]{3, 5, 7}) {
+            mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                            .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"scheduledDate\":\"" + LocalDate.now().minusDays(daysAgo)
+                                    + "\",\"type\":\"ENDURANCE\",\"title\":\"Footing\"}"))
+                    .andExpect(status().isCreated());
+        }
+        assertThat(alertTypesFor(athleteId)).contains("MISSED");
+
+        // Le coach déclare l'absence qui couvre toute la période. Motif non médical à dessein :
+        // un athlète qui n'a pas encore accepté son invitation n'a pas consenti au traitement de
+        // ses données de santé, et le garde-fou refuserait « blessure ». Ce sont deux règles
+        // distinctes, et la mise en sourdine des alertes ne dépend pas du motif.
+        mvc.perform(post("/clubs/{c}/athletes/{a}/unavailabilities", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"startDate\":\"" + LocalDate.now().minusDays(10)
+                                + "\",\"endDate\":\"" + LocalDate.now().plusDays(10)
+                                + "\",\"reason\":\"VACATION\"}"))
+                .andExpect(status().isCreated());
+
+        assertThat(alertTypesFor(athleteId))
+                .as("les séances de la période d'indisponibilité ne sont plus « manquées »")
+                .doesNotContain("MISSED", "SILENCE", "ACWR_LOW");
+    }
+
+    /** Types d'alerte remontés pour un athlète donné. */
+    private java.util.List<String> alertTypesFor(String athleteId) throws Exception {
+        JsonNode alerts = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/dashboard/alerts", clubId).header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        java.util.List<String> types = new java.util.ArrayList<>();
+        for (JsonNode al : alerts) {
+            if (athleteId.equals(al.get("athleteId").asText())) {
+                types.add(al.get("type").asText());
+            }
+        }
+        return types;
+    }
+
+    /**
      * Un athlète qui vient de commencer ne doit jamais déclencher d'alerte de charge. Sa charge
      * chronique est divisée par 4 semaines dont il n'en a vécu qu'une : l'ACWR sortait à ~4,0 et
      * le cockpit affichait « risque de blessure » dès la première semaine de coaching.

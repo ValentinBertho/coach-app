@@ -405,6 +405,24 @@ public class AuthService {
                 .orElseThrow(() -> new NotFoundException("Invitation invalide ou expirée."));
     }
 
+    /**
+     * Déconnexion : périme tous les jetons du compte émis jusqu'ici.
+     *
+     * <p>La liste noire en mémoire ne couvrait que l'access token présenté, et disparaissait au
+     * premier redéploiement. Le refresh token — trente jours — restait donc valable côté serveur :
+     * se déconnecter effaçait une copie locale, sans rien fermer.</p>
+     *
+     * <p>La révocation vaut pour <b>tous</b> les appareils du compte. C'est un choix : conserver
+     * une granularité par appareil demanderait de stocker un jeton par session, alors que la
+     * déconnexion est justement le moment où l'on veut être certain que plus rien ne traîne.</p>
+     */
+    @Transactional
+    public void logout(UUID userId) {
+        userRepository.findById(userId)
+                .ifPresent(user -> user.setSessionsInvalidatedAt(java.time.Instant.now()));
+        log.info("Déconnexion (user={}) — sessions antérieures révoquées", userId);
+    }
+
     public UserResponse currentUser(UUID userId) {
         return userRepository.findById(userId)
                 .map(UserResponse::from)

@@ -18,7 +18,9 @@ public record ActivityImportRequest(
         @Min(0) Integer distanceM,
         @Min(0) Integer durationS,
         @Min(0) Integer avgHr,
-        @Min(0) Integer elevationGainM) {
+        @Min(0) Integer elevationGainM,
+        /** Confirme l'enregistrement malgré une sortie très proche déjà présente le même jour. */
+        Boolean confirmDuplicate) {
 
     public ActivitySource sourceOrDefault() {
         return source != null ? source : ActivitySource.MANUAL;

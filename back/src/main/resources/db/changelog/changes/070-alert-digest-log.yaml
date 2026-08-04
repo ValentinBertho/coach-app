@@ -1,0 +1,49 @@
+# ============================================================================
+# 070 — Mémoire du digest d'alertes.
+#
+#   Le digest quotidien recalculait les alertes et les envoyait toutes, chaque
+#   matin, sans jamais se souvenir de ce qu'il avait déjà dit. Un athlète blessé
+#   produisait donc le même paquet — séances manquées, athlète silencieux, charge
+#   en baisse — tous les jours, pendant toute la durée de sa blessure. Sur un
+#   club de 25 athlètes avec deux blessés, c'est une dizaine de lignes
+#   quotidiennes portant sur des faits que le coach a lui-même saisis.
+#
+#   Une ligne par (coach, athlète, type d'alerte) : le digest ne réémet une
+#   alerte persistante qu'après un délai de rappel. Le signal reste, la
+#   répétition disparaît.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 070-create-alert-digest-log
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: alert_digest_log
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints: { primaryKey: true, nullable: false }
+              - column:
+                  name: coach_id
+                  type: UUID
+                  constraints: { nullable: false }
+              - column:
+                  name: athlete_id
+                  type: UUID
+                  constraints: { nullable: false }
+              - column:
+                  name: alert_type
+                  type: VARCHAR(32)
+                  constraints: { nullable: false }
+              - column:
+                  name: last_sent_at
+                  type: TIMESTAMP
+                  constraints: { nullable: false }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: alert_digest_log
+            columnNames: coach_id, athlete_id, alert_type
+            constraintName: uk_alert_digest_log_coach_athlete_type

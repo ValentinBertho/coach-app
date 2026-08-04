@@ -102,6 +102,45 @@ class ClubCoachManagementTest {
         assertThat(members().size()).isEqualTo(before);
     }
 
+    /**
+     * La composition du club est réservée au propriétaire.
+     *
+     * <p>Le modèle à trois rôles était documenté depuis le début mais n'était consulté par aucune
+     * autorisation : le seul contrôle était l'appartenance au club. Dans un club à trois coachs,
+     * un assistant pouvait donc éjecter le coach principal et ses collègues — en leur faisant
+     * perdre l'accès à leurs propres athlètes.</p>
+     */
+    @Test
+    void assistantCoachCannotManageClubMembership() throws Exception {
+        JsonNode assistantAuth = objectMapper.readTree(mvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + DemoSeedService.COACH_EMAIL
+                                + "\",\"password\":\"" + DemoSeedService.DEMO_PASSWORD + "\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String assistantBearer = "Bearer " + assistantAuth.get("accessToken").asText();
+
+        String ownerId = null;
+        for (JsonNode m : members()) {
+            if ("OWNER".equals(m.get("clubRole").asText())) ownerId = m.get("coachId").asText();
+        }
+        assertThat(ownerId).isNotNull();
+
+        // Ni retirer un collègue…
+        mvc.perform(delete("/clubs/{c}/members/{id}", clubId, ownerId)
+                        .header("Authorization", assistantBearer))
+                .andExpect(status().isForbidden());
+
+        // …ni en ajouter un.
+        mvc.perform(post("/clubs/{c}/members", clubId).header("Authorization", assistantBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"intrus@darilab.app\",\"role\":\"COACH_ASSISTANT\"}"))
+                .andExpect(status().isForbidden());
+
+        // Il garde évidemment la lecture de la composition du club.
+        mvc.perform(get("/clubs/{c}/members", clubId).header("Authorization", assistantBearer))
+                .andExpect(status().isOk());
+    }
+
     @Test
     void ownerCannotBeRemoved() throws Exception {
         String ownerId = null;

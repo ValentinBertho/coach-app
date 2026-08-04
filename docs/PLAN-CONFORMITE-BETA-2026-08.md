@@ -198,7 +198,12 @@ l'hébergeur, redéployer, se connecter, changer le mot de passe depuis l'applic
 
 ### Vague 1 — Bloquant pour ouvrir, parallélisable (≈ 6 j dev + 0,5 j ops)
 
-#### V1-01 · Faire taire les alertes sur un athlète déclaré indisponible 🔴 · Métier · **M**
+> **État au 3 août 2026 — les huit items de code sont livrés et couverts par des tests.**
+> `./mvnw clean verify` : **BUILD SUCCESS, 325 tests, 0 échec** (295 avant la vague 0).
+> `npm run build` : OK · `npm test` : **64/64**.
+> Reste V1-09, qui relève de l'exploitation (DSN Sentry backend et tags de déploiement).
+
+#### ✅ V1-01 · Faire taire les alertes sur un athlète déclaré indisponible 🔴 · Métier · **M**
 L'indisponibilité n'écrit que des dates : les séances restent planifiées, et l'athlète blessé
 cumule « séances manquées », « athlète silencieux » et ACWR bas — renvoyés **intégralement chaque
 matin** par un digest sans mémoire.
@@ -212,7 +217,7 @@ séance par séance.
 **Pourquoi vague 1** : mord à partir de la deuxième ou troisième semaine, et se construit
 indépendamment du reste.
 
-#### V1-02 · Seeder un catalogue d'exercices et de catégories 🟠 · Métier · **L**
+#### ✅ V1-02 · Seeder un catalogue d'exercices et de catégories 🟠 · Métier · **L**
 Seules les zones et les métriques sont provisionnées. Un préparateur physique doit saisir 40 à 60
 exercices à la main avant sa première séance de force — le point d'abandon le plus probable d'un
 bêta-testeur non accompagné.
@@ -221,7 +226,7 @@ les zones (idempotent, à la première lecture), dupliqué au club et éditable 
 **Fichiers** : nouveau service sur le modèle de
 `back/.../service/TrainingZoneSeedService.java` · `PpExerciseService` · `SessionCategoryService`
 
-#### V1-03 · Dédoublonner les imports fichier et manuels 🟠 · Métier · **M**
+#### ✅ V1-03 · Dédoublonner les imports fichier et manuels 🟠 · Métier · **M**
 La déduplication ne porte que sur `(athleteId, source, externalId)`, et `externalId` n'est jamais
 posé pour un GPX/TCX ni pour une saisie manuelle. Un athlète qui importe son fichier **et** connecte
 Strava a deux fois la même sortie. Le récapitulatif hebdomadaire somme tout : « 64/45 km » sur une
@@ -233,14 +238,14 @@ et durée à une tolérance près), proposée à l'utilisateur plutôt que refus
 `back/.../service/AnalyticsService.java:74-81`
 **Référence** : critère d'acceptation « zéro doublon » du cahier des charges §11.
 
-#### V1-04 · Contrôler l'accès athlète sur l'assignation d'un cycle de force 🟠 · Sécurité · **S**
+#### ✅ V1-04 · Contrôler l'accès athlète sur l'assignation d'un cycle de force 🟠 · Sécurité · **S**
 `POST /clubs/{clubId}/pp/cycles/{id}/assign/{athleteId}` n'est protégé que par le contrôle de club :
 tout coach peut planifier N semaines chez un athlète privé d'un collègue. Les deux routes
 équivalentes font le contrôle.
 **À faire** : ajouter `@athleteAccessValidator.canWrite(authentication, #athleteId)`.
 **Fichiers** : `back/.../controller/StrengthCycleController.java:66` (+ test d'accès)
 
-#### V1-05 · Faire respecter les rôles de club 🟠 · Sécurité · **M**
+#### ✅ V1-05 · Faire respecter les rôles de club 🟠 · Sécurité · **M**
 N'importe quel coach du club peut en retirer un autre (seul le propriétaire est protégé) et en
 ajouter — le `ClubRole` existe en base et n'est jamais consulté en autorisation.
 **À faire** : validateur de rôle club ; réserver l'ajout et le retrait de membres à
@@ -248,14 +253,14 @@ ajouter — le `ClubRole` existe en base et n'est jamais consulté en autorisati
 **Fichiers** : `back/.../controller/ClubController.java:60,73` ·
 `back/.../service/ClubMembershipService.java:129-140`
 
-#### V1-06 · Plafonner les flux SSE de messagerie 🟠 · Sécurité/stabilité · **S**
+#### ✅ V1-06 · Plafonner les flux SSE de messagerie 🟠 · Sécurité/stabilité · **S**
 Le plafond posé en août n'a été appliqué qu'au compteur de notifications ; la messagerie n'a ni
 borne ni purge, pour la même cause (le proxy coupe mal les connexions longues, `EventSource`
 rouvre seul).
 **À faire** : recopier le plafond par clé et la fermeture du plus ancien.
 **Fichiers** : `back/.../service/MessageStreamService.java:29`
 
-#### V1-07 · Révoquer réellement la session au logout 🟠 · Sécurité · **M**
+#### ✅ V1-07 · Révoquer réellement la session au logout 🟠 · Sécurité · **M**
 La déconnexion ne blackliste que l'access token ; le refresh (30 jours) reste valable côté serveur,
 et la liste noire en mémoire est vidée à chaque redéploiement.
 **À faire** : colonne `sessions_invalidated_at` posée au logout et lue par `TokenFreshnessValidator`,
@@ -263,7 +268,7 @@ sur le modèle de `passwordChangedAt`. Pas de dépendance externe nécessaire.
 **Fichiers** : `back/.../controller/AuthController.java:84` ·
 `back/.../security/TokenFreshnessValidator.java` · migration Liquibase
 
-#### V1-08 · Garde-fou sur le test 1RM qui contredit le profil 🟠 · Métier · **S**
+#### ✅ V1-08 · Garde-fou sur le test 1RM qui contredit le profil 🟠 · Métier · **S**
 Un test direct écrase toujours le profil : un AMRAP mal placé fait chuter le e1RM de 15 %, toutes
 les charges prescrites suivent, et la séance suivante déclenche une alerte « chute de charge »
 causée par le recalcul de l'outil.

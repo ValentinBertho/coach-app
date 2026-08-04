@@ -9,6 +9,7 @@ import { AthleteService } from '../../core/services/athlete.service';
 import { StrengthService } from '../../core/services/strength.service';
 import { SessionCategoryService } from '../../core/services/session-category.service';
 import { SessionCategory } from '../../core/models/session-category.model';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
@@ -45,6 +46,7 @@ export class StrengthComponent implements OnInit {
   private readonly athletes = inject(AthleteService);
   private readonly categoryService = inject(SessionCategoryService);
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
   private readonly router = inject(Router);
 
   readonly tab = signal<Tab>('exercises');
@@ -390,7 +392,7 @@ export class StrengthComponent implements OnInit {
     this.strength.listTests(a).subscribe((t) => this.tests.set(t));
   }
 
-  recordTest(): void {
+  recordTest(confirmLargeGap = false): void {
     const a = this.selectedAthlete();
     if (!a) { this.toast.warning('Sélectionne un athlète d\'abord.'); return; }
     if (!this.newTest.exerciseId) { this.toast.warning('Choisis un exercice.'); return; }
@@ -400,9 +402,24 @@ export class StrengthComponent implements OnInit {
       weightKg: this.newTest.weightKg,
       reps: this.needsReps() ? this.newTest.reps : null,
       durationSec: this.needsDuration() ? this.newTest.durationSec : null,
-    }).subscribe((t) => {
-      this.toast.success(`Test enregistré — e1RM ${t.computedE1rmKg} kg`);
-      this.loadTests();
+      confirmLargeGap,
+    }).subscribe({
+      next: (t) => {
+        this.toast.success(`Test enregistré — e1RM ${t.computedE1rmKg} kg`);
+        this.loadTests();
+      },
+      // 409 : le test s'écarte de plus de 10 % du profil. Le serveur explique l'écart en chiffres ;
+      // on le montre tel quel plutôt que de le reformuler, et on laisse le coach trancher. Un test
+      // mal placé faisait sinon chuter le profil, et toutes les charges prescrites avec lui.
+      error: async (err: { status?: number; error?: { message?: string } }) => {
+        if (err.status !== 409 || confirmLargeGap) return;
+        const ok = await this.confirm.ask({
+          title: 'Écart important avec le 1RM actuel',
+          message: err.error?.message ?? 'Ce test s\'écarte nettement du profil enregistré.',
+          confirmLabel: 'Enregistrer quand même',
+        });
+        if (ok) this.recordTest(true);
+      },
     });
   }
 

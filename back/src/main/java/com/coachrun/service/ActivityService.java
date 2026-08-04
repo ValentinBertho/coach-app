@@ -96,6 +96,8 @@ public class ActivityService {
                 && activityRepository.existsByAthleteIdAndSourceAndExternalId(athleteId, source, request.externalId())) {
             throw new ConflictException("Cette activité a déjà été importée.");
         }
+        rejectIfDuplicate(athleteId, request.activityDate(), request.distanceM(), request.durationS(),
+                Boolean.TRUE.equals(request.confirmDuplicate()));
 
         Activity activity = new Activity();
         activity.setClub(athlete.getClub());
@@ -115,6 +117,75 @@ public class ActivityService {
         activity = activityRepository.save(activity);
         log.info("Activité importée {} (athlète={}, statut={})", activity.getId(), athleteId, activity.getStatus());
         return toResponse(activity);
+    }
+
+    /** Écart toléré sur la distance et la durée avant de considérer deux sorties identiques. */
+    private static final double DUPLICATE_TOLERANCE = 0.05;
+
+    /**
+     * Refuse une sortie qui en double une autre du même jour, quelle que soit sa provenance.
+     *
+     * <p><b>Pourquoi ce contrôle existe.</b> La déduplication ne portait que sur le triplet
+     * (athlète, source, identifiant externe). Or cet identifiant n'existe que pour les activités
+     * venues d'une plateforme : un fichier GPX importé et une saisie manuelle n'en ont jamais.
+     * Deux gestes très ordinaires produisaient donc des doublons — exporter la trace de sa montre
+     * puis connecter Strava, ou ré-importer le même fichier par maladresse sur mobile — et comme
+     * les sources diffèrent, même un contrôle d'unicité sur l'identifiant ne les aurait pas
+     * rapprochées.</p>
+     *
+     * <p>L'effet se voyait sur le seul chiffre que l'athlète regarde : le récapitulatif
+     * hebdomadaire additionne toutes les activités de la semaine, et affichait « 64/45 km » sur
+     * une semaine où il en avait couru 32. Le cahier des charges pose pourtant « zéro doublon »
+     * en critère d'acceptation.</p>
+     *
+     * <p>Ce n'est pas un refus définitif : la réponse nomme la sortie en cause et l'appelant peut
+     * confirmer. Deux séances le même jour, ça existe — mais deux séances identiques au kilomètre
+     * et à la minute près, beaucoup moins.</p>
+     */
+    private void rejectIfDuplicate(UUID athleteId, java.time.LocalDate date,
+                                   Integer distanceM, Integer durationS, boolean confirmed) {
+        if (confirmed || date == null) {
+            return;
+        }
+        for (Activity existing : activityRepository
+                .findByAthleteIdAndActivityDateBetween(athleteId, date, date)) {
+            if (looksLikeSameOuting(existing, distanceM, durationS)) {
+                throw new ConflictException(String.format(
+                        "Une sortie très proche est déjà enregistrée ce jour-là (%s%s). "
+                                + "Confirmez si vous avez bien couru deux fois.",
+                        sourceLabel(existing.getSource()),
+                        existing.getDistanceM() == null ? ""
+                                : String.format(", %.1f km", existing.getDistanceM() / 1000.0)));
+            }
+        }
+    }
+
+    /** Deux sorties du même jour se ressemblent-elles au point d'être la même ? */
+    private boolean looksLikeSameOuting(Activity existing, Integer distanceM, Integer durationS) {
+        Boolean sameDistance = closeEnough(existing.getDistanceM(), distanceM);
+        Boolean sameDuration = closeEnough(existing.getDurationS(), durationS);
+        if (sameDistance == null && sameDuration == null) {
+            // Ni distance ni durée comparables : la date seule ne prouve rien, on laisse passer.
+            return false;
+        }
+        return !Boolean.FALSE.equals(sameDistance) && !Boolean.FALSE.equals(sameDuration);
+    }
+
+    /** {@code null} si la comparaison n'a pas de sens (valeur absente d'un côté ou de l'autre). */
+    private Boolean closeEnough(Integer a, Integer b) {
+        if (a == null || b == null || a <= 0 || b <= 0) {
+            return null;
+        }
+        return Math.abs(a - b) <= Math.max(a, b) * DUPLICATE_TOLERANCE;
+    }
+
+    private String sourceLabel(ActivitySource source) {
+        return switch (source) {
+            case STRAVA -> "importée de Strava";
+            case FILE -> "importée d'un fichier";
+            case MANUAL -> "saisie à la main";
+            default -> "déjà importée";
+        };
     }
 
     /**
@@ -156,10 +227,11 @@ public class ActivityService {
 
     /** Import d'un fichier GPX/TCX → activité + tracé, puis rapprochement automatique. */
     @Transactional
-    public ActivityResponse importFile(UUID clubId, UUID athleteId, String filename, byte[] bytes) {
+    public ActivityResponse importFile(UUID clubId, UUID athleteId, String filename, byte[] bytes,
+                                       boolean confirmDuplicate) {
         com.coachrun.entity.Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
-        return createFromFile(athlete, athleteId, filename, bytes);
+        return createFromFile(athlete, athleteId, filename, bytes, confirmDuplicate);
     }
 
     // --- Portail athlète : saisie / import par l'athlète sur ses propres données ---
@@ -169,6 +241,9 @@ public class ActivityService {
     public ActivityResponse logForAthlete(UUID athleteId, ActivityImportRequest request) {
         com.coachrun.entity.Athlete athlete = athleteRepository.findById(athleteId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        rejectIfDuplicate(athleteId, request.activityDate(), request.distanceM(), request.durationS(),
+                Boolean.TRUE.equals(request.confirmDuplicate()));
+
         Activity activity = new Activity();
         activity.setClub(athlete.getClub());
         activity.setAthlete(athlete);
@@ -188,14 +263,15 @@ public class ActivityService {
 
     /** L'athlète importe sa propre trace (GPX/TCX). Scopé par son propre id. */
     @Transactional
-    public ActivityResponse importFileForAthlete(UUID athleteId, String filename, byte[] bytes) {
+    public ActivityResponse importFileForAthlete(UUID athleteId, String filename, byte[] bytes,
+                                                 boolean confirmDuplicate) {
         com.coachrun.entity.Athlete athlete = athleteRepository.findById(athleteId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
-        return createFromFile(athlete, athleteId, filename, bytes);
+        return createFromFile(athlete, athleteId, filename, bytes, confirmDuplicate);
     }
 
     private ActivityResponse createFromFile(com.coachrun.entity.Athlete athlete, UUID athleteId,
-                                            String filename, byte[] bytes) {
+                                            String filename, byte[] bytes, boolean confirmDuplicate) {
         com.coachrun.util.GpxParser.ParsedActivity parsed;
         try {
             parsed = com.coachrun.util.GpxParser.parse(bytes);
@@ -203,6 +279,11 @@ public class ActivityService {
             throw new com.coachrun.exception.ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
                     ex.getMessage());
         }
+
+        // Le cas le plus courant du doublon : ré-importer le même fichier, ou importer la trace
+        // d'une sortie déjà remontée par la montre.
+        rejectIfDuplicate(athleteId, parsed.date(), parsed.distanceM(), parsed.durationS(),
+                confirmDuplicate);
 
         Activity activity = new Activity();
         activity.setClub(athlete.getClub());

@@ -24,6 +24,8 @@ export interface ActivityLog {
   durationS?: number | null;
   avgHr?: number | null;
   elevationGainM?: number | null;
+  /** Confirme l'enregistrement malgré une sortie très proche déjà présente le même jour. */
+  confirmDuplicate?: boolean;
 }
 
 export interface WorkoutFeedback {
@@ -97,11 +99,18 @@ export class AthletePortalService {
     return this.http.post<Activity>(`${this.base}/activities`, body);
   }
 
-  /** J'importe ma propre trace (GPX/TCX). */
-  importActivityFile(file: File): Observable<Activity> {
+  /**
+   * J'importe ma propre trace (GPX/TCX).
+   *
+   * `confirmDuplicate` lève le contrôle de doublon : ré-importer le même fichier, ou importer la
+   * trace d'une sortie déjà remontée par la montre, produisait deux fois la même sortie — et le
+   * récapitulatif hebdomadaire les additionnait.
+   */
+  importActivityFile(file: File, confirmDuplicate = false): Observable<Activity> {
     const form = new FormData();
     form.append('file', file);
-    return this.http.post<Activity>(`${this.base}/activities/import-file`, form);
+    const params = confirmDuplicate ? new HttpParams().set('confirmDuplicate', 'true') : undefined;
+    return this.http.post<Activity>(`${this.base}/activities/import-file`, form, { params });
   }
 
   /** Prochaine course (204 → null). */

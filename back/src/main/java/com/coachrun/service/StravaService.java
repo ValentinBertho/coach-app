@@ -137,7 +137,9 @@ public class StravaService {
                         extras(a, accessToken));
                 imported++;
             } catch (ConflictException dup) {
-                // Course entre deux synchros : l'activité vient d'être importée ailleurs.
+                // Deux cas, même traitement : course entre deux synchros, ou sortie déjà présente
+                // sous une autre provenance. Dans les deux cas on passe — c'est le doublon qu'on
+                // ne veut pas, pas l'import.
             }
         }
         conn.setLastImportEpoch(Instant.now().getEpochSecond());
@@ -210,7 +212,11 @@ public class StravaService {
                 a.distance() != null ? (int) Math.round(a.distance()) : null,
                 a.movingTime(),
                 a.averageHeartrate() != null ? (int) Math.round(a.averageHeartrate()) : null,
-                a.totalElevationGain() != null ? (int) Math.round(a.totalElevationGain()) : null);
+                a.totalElevationGain() != null ? (int) Math.round(a.totalElevationGain()) : null,
+                // Jamais de confirmation automatique : si la sortie est déjà en base sous une
+                // autre provenance (trace GPX importée à la main), la synchro doit l'écarter,
+                // pas en créer une seconde copie.
+                false);
     }
 
     /**

@@ -26,15 +26,24 @@ public class TokenFreshnessValidator {
 
     private final UserRepository userRepository;
 
-    /** Vrai si le jeton a été émis avant le dernier changement de mot de passe du compte. */
+    /**
+     * Vrai si le jeton a été émis avant la dernière révocation du compte — changement de mot de
+     * passe <b>ou</b> déconnexion.
+     *
+     * <p>La déconnexion a rejoint le changement de mot de passe pour la même raison : elle ne
+     * révoquait que l'access token, via une liste noire en mémoire, pendant que le refresh token
+     * restait valable trente jours côté serveur.</p>
+     */
     public boolean isStale(UUID userId, Instant issuedAt) {
         if (userId == null || issuedAt == null) {
             return false;
         }
-        Instant changedAt = userRepository.findPasswordChangedAt(userId).orElse(null);
-        // Le « iat » d'un JWT est à la seconde : un jeton émis dans la même seconde que le
-        // changement est considéré comme postérieur (c'est celui que le changement vient d'émettre).
-        return changedAt != null && issuedAt.isBefore(changedAt.truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
+        Instant cutoff = userRepository.findTokenCutoff(userId)
+                .map(UserRepository.TokenCutoff::latest)
+                .orElse(null);
+        // Le « iat » d'un JWT est à la seconde : un jeton émis dans la même seconde que la
+        // révocation est considéré comme postérieur (c'est celui que la révocation vient d'émettre).
+        return cutoff != null && issuedAt.isBefore(cutoff.truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
     }
 
     /** Variante pour un jeton déjà décodé. */

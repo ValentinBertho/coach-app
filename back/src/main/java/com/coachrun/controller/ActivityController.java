@@ -61,8 +61,12 @@ public class ActivityController {
     @ResponseStatus(HttpStatus.CREATED)
     public ActivityResponse importFile(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                        @org.springframework.web.bind.annotation.RequestParam("file")
-                                       org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
-        return activityService.importFile(clubId, athleteId, file.getOriginalFilename(), file.getBytes());
+                                       org.springframework.web.multipart.MultipartFile file,
+                                       @org.springframework.web.bind.annotation.RequestParam(
+                                               name = "confirmDuplicate", defaultValue = "false")
+                                       boolean confirmDuplicate) throws java.io.IOException {
+        return activityService.importFile(clubId, athleteId, file.getOriginalFilename(),
+                file.getBytes(), confirmDuplicate);
     }
 
     @GetMapping("/{activityId}/route")

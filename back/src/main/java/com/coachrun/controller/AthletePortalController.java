@@ -343,9 +343,12 @@ public class AthletePortalController {
     public com.coachrun.dto.response.ActivityResponse importMyFile(
             @AuthenticationPrincipal AuthPrincipal principal,
             @org.springframework.web.bind.annotation.RequestParam("file")
-            org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+            org.springframework.web.multipart.MultipartFile file,
+            @org.springframework.web.bind.annotation.RequestParam(
+                    name = "confirmDuplicate", defaultValue = "false")
+            boolean confirmDuplicate) throws java.io.IOException {
         return activityService.importFileForAthlete(
-                principal.athleteId(), file.getOriginalFilename(), file.getBytes());
+                principal.athleteId(), file.getOriginalFilename(), file.getBytes(), confirmDuplicate);
     }
 
     /** Mes performances / records (par distance), avec le VDOT impliqué. */

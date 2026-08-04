@@ -50,6 +50,7 @@ public class CoachDashboardService {
     private final com.coachrun.security.AthleteAccessValidator accessValidator;
     private final ScheduledStrengthSessionRepository strengthRepository;
     private final ClockService clock;
+    private final com.coachrun.repository.AthleteUnavailabilityRepository unavailabilityRepository;
 
     /**
      * KPI du cockpit, restreints au périmètre choisi (all / mine / private / club) — comme la
@@ -275,6 +276,14 @@ public class CoachDashboardService {
             String name = (a.getFirstName() + " " + a.getLastName()).trim();
             String discipline = a.getDiscipline() == Discipline.TRAIL ? "TRAIL" : "ROUTE";
 
+            // Ce que le coach a déjà saisi ne doit pas lui revenir en alerte : une indisponibilité
+            // déclarée explique à elle seule les séances non faites, le silence et la charge qui
+            // retombe. Sans ce filtre, l'athlète blessé devenait le plus alarmant du club, tous les
+            // matins, pendant toute la durée de sa blessure.
+            List<com.coachrun.entity.AthleteUnavailability> unavailable = unavailabilityRepository
+                    .findByAthleteIdAndEndDateGreaterThanEqualAndStartDateLessThanEqual(
+                            a.getId(), today.minusDays(MISSED_WINDOW_DAYS), today);
+
             // --- Douleur (dernier retour, course ou force) ---
             AthleteFeedbackService.LastFeedback lastFeedback = feedbackService.lastFeedback(a.getId());
             // Une douleur périmée n'est pas une douleur d'aujourd'hui : elle ne doit plus lever
@@ -299,7 +308,10 @@ public class CoachDashboardService {
                 } else if (ratio != null && ratio >= 1.3) {
                     alerts.add(alert(a, name, discipline, "ORANGE", "ACWR_HIGH",
                             "Charge en hausse", "ACWR " + ratio + " (zone de vigilance)."));
-                } else if (ratio != null && ratio < 0.8 && load.sessions28d() > 0) {
+                } else if (ratio != null && ratio < 0.8 && load.sessions28d() > 0
+                        && unavailable.isEmpty()) {
+                    // Une charge qui retombe pendant une coupure déclarée n'est pas un
+                    // désentraînement subi : c'est le plan.
                     alerts.add(alert(a, name, discipline, "ORANGE", "ACWR_LOW",
                             "Charge en baisse", "ACWR " + ratio + " (désentraînement possible)."));
                 }
@@ -314,10 +326,11 @@ public class CoachDashboardService {
             // --- Séances manquées (14 derniers jours) ---
             List<Workout> recent = workoutRepository
                     .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
-                            clubId, a.getId(), today.minusDays(14), today);
+                            clubId, a.getId(), today.minusDays(MISSED_WINDOW_DAYS), today);
             long missed = recent.stream()
                     .filter(w -> w.getScheduledDate().isBefore(today)
-                            && w.getStatus() == WorkoutStatus.PLANNED)
+                            && w.getStatus() == WorkoutStatus.PLANNED
+                            && !fallsWithin(w.getScheduledDate(), unavailable))
                     .count();
             if (missed >= 3) {
                 alerts.add(alert(a, name, discipline, "RED", "MISSED",
@@ -331,7 +344,8 @@ public class CoachDashboardService {
             boolean hasRecentProgram = !recent.isEmpty();
             LocalDate lastFb = lastFeedback.date();
             long silence = lastFb == null ? Long.MAX_VALUE : ChronoUnit.DAYS.between(lastFb, today);
-            if (hasRecentProgram && silence > 10) {
+            // Un athlète en coupure déclarée n'a rien à déclarer : son silence est attendu.
+            if (hasRecentProgram && silence > 10 && unavailable.isEmpty()) {
                 String detail = lastFb == null ? "Aucun retour de séance enregistré."
                         : "Dernier retour il y a " + silence + " jours.";
                 alerts.add(alert(a, name, discipline, "ORANGE", "SILENCE", "Athlète silencieux", detail));
@@ -343,6 +357,16 @@ public class CoachDashboardService {
                 .comparingInt((CoachAlertResponse al) -> "RED".equals(al.severity()) ? 0 : 1)
                 .thenComparing(CoachAlertResponse::athleteName));
         return alerts;
+    }
+
+    /** Profondeur de la fenêtre « séances manquées », et donc de la recherche d'indisponibilités. */
+    private static final int MISSED_WINDOW_DAYS = 14;
+
+    /** La date tombe-t-elle dans l'une des périodes d'indisponibilité déclarées ? */
+    private static boolean fallsWithin(LocalDate date,
+                                       List<com.coachrun.entity.AthleteUnavailability> windows) {
+        return windows.stream().anyMatch(u ->
+                !date.isBefore(u.getStartDate()) && !date.isAfter(u.getEndDate()));
     }
 
     private CoachAlertResponse alert(Athlete a, String name, String discipline,

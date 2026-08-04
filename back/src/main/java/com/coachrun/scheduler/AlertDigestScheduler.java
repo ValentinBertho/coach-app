@@ -12,6 +12,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -34,6 +36,7 @@ public class AlertDigestScheduler {
     private final ClubRepository clubRepository;
     private final CoachDashboardService dashboardService;
     private final NotificationService notificationService;
+    private final com.coachrun.repository.AlertDigestLogRepository digestLogRepository;
 
     /**
      * Référence sur soi <b>via le proxy</b>. {@code @Transactional} est appliqué par un proxy :
@@ -100,8 +103,77 @@ public class AlertDigestScheduler {
                 coaches.putIfAbsent(coach.getId(), coach);
             });
         }
-        byCoach.forEach((coachId, list) ->
-                notificationService.notifyCoachAlertDigest(coaches.get(coachId), list));
-        return true;
+
+        boolean sent = false;
+        for (Map.Entry<UUID, List<CoachAlertResponse>> entry : byCoach.entrySet()) {
+            List<CoachAlertResponse> fresh = withoutRecentlySent(entry.getKey(), entry.getValue());
+            if (fresh.isEmpty()) {
+                continue;
+            }
+            notificationService.notifyCoachAlertDigest(coaches.get(entry.getKey()), fresh);
+            sent = true;
+        }
+        return sent;
+    }
+
+    /**
+     * Délai avant de rappeler une alerte déjà signalée et toujours vraie.
+     *
+     * <p>Sept jours : assez long pour qu'une blessure de trois semaines ne produise pas vingt et un
+     * digests identiques, assez court pour qu'une situation qui s'installe revienne se rappeler au
+     * coach une fois par semaine.</p>
+     */
+    private static final Duration REMINDER_DELAY = Duration.ofDays(7);
+
+    /**
+     * Retire les alertes déjà envoyées à ce coach et toujours dans leur délai de rappel, et note
+     * les autres comme envoyées.
+     *
+     * <p>La clé est (coach, athlète, type) : une <em>nouvelle</em> alerte sur un athlète déjà
+     * signalé passe donc immédiatement — c'est bien un fait nouveau. Une alerte qui disparaît puis
+     * revient repart de zéro, sa ligne ayant été purgée entre-temps.</p>
+     */
+    private List<CoachAlertResponse> withoutRecentlySent(UUID coachId, List<CoachAlertResponse> alerts) {
+        Instant now = Instant.now();
+        Instant reminderCutoff = now.minus(REMINDER_DELAY);
+
+        Map<String, com.coachrun.entity.AlertDigestLog> seen = new HashMap<>();
+        for (var row : digestLogRepository.findByCoachId(coachId)) {
+            seen.put(key(row.getAthleteId(), row.getAlertType()), row);
+        }
+
+        List<CoachAlertResponse> fresh = new ArrayList<>();
+        for (CoachAlertResponse a : alerts) {
+            var previous = seen.get(key(a.athleteId(), a.type()));
+            if (previous != null && previous.getLastSentAt().isAfter(reminderCutoff)) {
+                continue; // déjà dit, et toujours dans le délai de rappel
+            }
+            fresh.add(a);
+            if (previous != null) {
+                previous.setLastSentAt(now);
+            } else {
+                var row = new com.coachrun.entity.AlertDigestLog();
+                row.setCoachId(coachId);
+                row.setAthleteId(a.athleteId());
+                row.setAlertType(a.type());
+                row.setLastSentAt(now);
+                digestLogRepository.save(row);
+            }
+        }
+        return fresh;
+    }
+
+    private static String key(UUID athleteId, String type) {
+        return athleteId + "|" + type;
+    }
+
+    /**
+     * Purge quotidienne des traces plus anciennes que le délai de rappel : passé ce délai, elles
+     * ne filtrent plus rien et une alerte qui reviendrait doit repartir de zéro.
+     */
+    @Scheduled(cron = "${app.alerts.digest-purge-cron:0 30 3 * * *}")
+    @Transactional
+    public void purgeStaleDigestLog() {
+        digestLogRepository.deleteByLastSentAtBefore(Instant.now().minus(REMINDER_DELAY));
     }
 }

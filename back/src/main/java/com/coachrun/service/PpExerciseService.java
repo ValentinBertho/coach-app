@@ -29,10 +29,16 @@ public class PpExerciseService {
     private final PpExerciseRepository exerciseRepository;
     private final ClubRepository clubRepository;
     private final SessionCategoryService categoryService;
+    private final PpCatalogSeedService catalogSeedService;
 
     public PageResponse<PpExerciseResponse> search(UUID clubId, ExerciseCategory category,
                                                    ExerciseLevel level, MuscleGroup muscle,
                                                    EquipmentType equipment, String query, Pageable pageable) {
+        // Provisionnement paresseux, comme les zones : à la première ouverture de la bibliothèque,
+        // le club récupère un répertoire de départ au lieu d'une page blanche. Idempotent — un club
+        // qui a déjà commencé la sienne n'est jamais touché.
+        catalogSeedService.seedDefaultsIfEmpty(clubRepository.getReferenceById(clubId));
+
         String q = StringUtils.hasText(query) ? query.trim() : "";
         return PageResponse.from(
                 exerciseRepository.search(clubId, category, level, muscle, equipment, q, pageable),

@@ -62,7 +62,17 @@ public class StrengthCycleController {
         cycleService.delete(clubId, id);
     }
 
-    /** Assigne un cycle au calendrier d'un athlète. */
+    /**
+     * Assigne un cycle au calendrier d'un athlète.
+     *
+     * <p>Le {@code @PreAuthorize} de classe ne teste que le club : sans le contrôle ci-dessous,
+     * tout coach du club pouvait écrire N semaines de séances chez un athlète <b>privé</b> d'un
+     * collègue, ou chez un athlète sur lequel il n'a qu'une permission de lecture. Les deux routes
+     * équivalentes le font déjà — application d'un plan et planification d'une séance depuis la
+     * bibliothèque : c'était un oubli, pas un choix.</p>
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)"
+            + " and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/cycles/{id}/assign/{athleteId}")
     public Map<String, Integer> assign(@PathVariable UUID clubId, @PathVariable UUID id,
                                        @PathVariable UUID athleteId, @Valid @RequestBody AssignCycleRequest request) {

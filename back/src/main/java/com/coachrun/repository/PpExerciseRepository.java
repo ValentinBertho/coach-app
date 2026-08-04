@@ -18,6 +18,9 @@ public interface PpExerciseRepository extends JpaRepository<PpExercise, UUID> {
 
     Optional<PpExercise> findByIdAndClubId(UUID id, UUID clubId);
 
+    /** Le club a-t-il déjà une bibliothèque ? Garde d'idempotence du seed de catalogue. */
+    boolean existsByClubId(UUID clubId);
+
     /**
      * Recherche filtrable (catégorie, niveau, groupe musculaire, matériel, texte). Les enums
      * nuls désactivent le filtre ; {@code q} est toujours lié à "" (jamais null) — cf. RAF (piège
