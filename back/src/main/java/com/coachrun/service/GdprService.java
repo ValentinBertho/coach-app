@@ -66,6 +66,8 @@ public class GdprService {
     private final com.coachrun.repository.ScheduledStrengthSessionRepository scheduledStrengthRepository;
     private final AthleteZoneValueRepository zoneValueRepository;
     private final NotificationService notificationService;
+    private final com.coachrun.repository.UserRepository userRepository;
+    private final PushNotificationService pushNotificationService;
 
     public AthleteExportResponse export(UUID athleteId) {
         Athlete athlete = athleteRepository.findById(athleteId)
@@ -109,11 +111,20 @@ public class GdprService {
                 messages, strengthTests, strengthResults, zoneValues);
     }
 
+    /**
+     * Droit à l'oubli. Les abonnements push partent <b>avant</b> l'athlète : la table
+     * {@code push_subscriptions} porte un {@code user_id} nu, sans clé étrangère, donc aucune
+     * cascade ne l'atteint. Ses lignes survivaient à la suppression du compte — or un endpoint
+     * WebPush est l'adresse d'un appareil, c'est-à-dire une donnée personnelle, et un canal
+     * encore ouvert vers la personne dont on vient d'effacer le dossier.
+     */
     @Transactional
     public void deleteAthleteData(UUID athleteId) {
         if (!athleteRepository.existsById(athleteId)) {
             throw new NotFoundException("Athlète introuvable.");
         }
+        userRepository.findByAthleteId(athleteId)
+                .ifPresent(user -> pushNotificationService.unsubscribeUser(user.getId()));
         athleteRepository.deleteById(athleteId);
         log.warn("[RGPD] Données de l'athlète {} supprimées (droit à l'oubli).", athleteId);
     }

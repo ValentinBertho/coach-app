@@ -1,5 +1,5 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, NgZone, inject } from '@angular/core';
+import { Injectable, NgZone, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { SwPush } from '@angular/service-worker';
 import { firstValueFrom } from 'rxjs';
@@ -25,6 +25,14 @@ export class PushService {
   private readonly router = inject(Router);
   private readonly zone = inject(NgZone);
 
+  /**
+   * Cet appareil est-il réellement abonné ? Lu depuis le navigateur, pas depuis un souvenir de
+   * session : le bouton « Notifications » se masquait sur un simple drapeau local, remis à faux
+   * à chaque rechargement. Un athlète qui avait déjà accepté revoyait donc la proposition
+   * indéfiniment, sans jamais pouvoir dire si les notifications étaient actives ou non.
+   */
+  readonly subscribed = signal(false);
+
   get available(): boolean {
     return this.swPush.isEnabled;
   }
@@ -40,6 +48,7 @@ export class PushService {
    */
   init(): void {
     if (!this.swPush.isEnabled) return;
+    this.watchSubscription();
     this.swPush.notificationClicks.subscribe(({ action, notification }) => {
       const data = notification.data as NotificationData | undefined;
       const url = (action ? data?.onActionClick?.[action]?.url : undefined) ?? data?.url;
@@ -49,6 +58,28 @@ export class PushService {
         const target = new URL(url, document.baseURI);
         this.zone.run(() => this.router.navigateByUrl(target.pathname + target.search));
       } catch { /* URL invalide : on ignore */ }
+    });
+  }
+
+  /**
+   * Suit l'abonnement du navigateur et le <b>réaligne</b> sur le serveur.
+   *
+   * <p>Les deux moitiés du dispositif vivent des vies séparées : le navigateur garde son
+   * abonnement, le serveur garde la ligne qui lui dit où pousser. Elles se désynchronisent — le
+   * serveur supprime une ligne sur un 404/410 passager, une restauration de sauvegarde la perd,
+   * ou le navigateur renouvelle ses clés. L'appareil se croit alors abonné et le serveur ne sait
+   * plus où écrire : l'athlète cesse d'être prévenu <b>sans aucun signe</b>, et le repli e-mail
+   * ne se déclenche pas puisque personne ne le sait. Un ré-enregistrement au démarrage coûte une
+   * requête et referme ce trou de lui-même.</p>
+   */
+  private watchSubscription(): void {
+    this.swPush.subscription.subscribe((sub) => {
+      this.subscribed.set(!!sub);
+      if (sub) {
+        this.http.post(`${environment.apiUrl}/push/subscribe`, sub.toJSON()).subscribe({
+          error: () => { /* hors ligne ou non connecté : le prochain démarrage réessaiera */ },
+        });
+      }
     });
   }
 
@@ -64,6 +95,7 @@ export class PushService {
     await firstValueFrom(
       this.http.post(`${environment.apiUrl}/push/subscribe`, sub.toJSON())
     );
+    this.subscribed.set(true);
     return true;
   }
 
@@ -81,6 +113,7 @@ export class PushService {
    * soit une ligne morte en base, soit un abonnement local orphelin.</p>
    */
   async disable(): Promise<void> {
+    this.subscribed.set(false);
     try {
       await firstValueFrom(this.http.delete(`${environment.apiUrl}/push/subscriptions`));
     } catch {

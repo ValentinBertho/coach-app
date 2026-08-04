@@ -51,6 +51,7 @@ public class AuthService {
     private final com.coachrun.security.TokenFreshnessValidator tokenFreshness;
     private final com.coachrun.security.LoginAttemptTracker loginAttempts;
     private final NotificationService notificationService;
+    private final PushNotificationService pushNotificationService;
 
     private static final java.security.SecureRandom RESET_RANDOM = new java.security.SecureRandom();
 
@@ -415,11 +416,19 @@ public class AuthService {
      * <p>La révocation vaut pour <b>tous</b> les appareils du compte. C'est un choix : conserver
      * une granularité par appareil demanderait de stocker un jeton par session, alors que la
      * déconnexion est justement le moment où l'on veut être certain que plus rien ne traîne.</p>
+     *
+     * <p>Les abonnements push partent avec. Le navigateur prévenait déjà le serveur avant de se
+     * déconnecter, mais au mieux : hors ligne ou session déjà expirée, l'appel échouait en
+     * silence et l'appareil continuait d'afficher « Retour de votre coach — <i>titre de
+     * séance</i> » pour le compte précédent. Sur un téléphone partagé, c'est l'entraînement de
+     * quelqu'un d'autre qui s'affiche sur l'écran verrouillé. Révoquer les jetons sans couper le
+     * canal qui, lui, continue de parler à l'appareil serait une demi-déconnexion.</p>
      */
     @Transactional
     public void logout(UUID userId) {
         userRepository.findById(userId)
                 .ifPresent(user -> user.setSessionsInvalidatedAt(java.time.Instant.now()));
+        pushNotificationService.unsubscribeUser(userId);
         log.info("Déconnexion (user={}) — sessions antérieures révoquées", userId);
     }
 
