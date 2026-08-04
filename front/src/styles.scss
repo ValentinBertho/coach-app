@@ -289,6 +289,10 @@
 .form-dot--green { background: var(--form-green); }
 .form-dot--orange { background: var(--form-orange); }
 .form-dot--red { background: var(--form-red); }
+/* « Sans signal » : volontairement neutre — ce n'est pas une couleur de forme, c'est l'absence
+   d'information. Un athlète silencieux ne doit ressembler ni à un athlète en forme ni à un
+   athlète en alerte. */
+.form-dot--stale { background: var(--ink-3); }
 
 /* --- Chips discipline / domaines / formats de bloc ------------------------- */
 .discipline-chip { display: inline-flex; align-items: center; gap: var(--sp-1); padding: 1px 8px; border-radius: var(--radius-full); font-size: var(--text-xs); font-weight: 700; color: #fff; }

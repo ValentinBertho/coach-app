@@ -13,7 +13,7 @@ import java.util.List;
  * ou augmentation du volume).</p>
  *
  * <p>Alertes : douleur &gt; 3 en réathlétisation (haute) ; RPE ≥ 9,5 (moyenne) ; RIR 0 alors que
- * 1–2 prescrit (moyenne) ; chute de charge &gt; 15 % vs séance précédente (haute).</p>
+ * 1–2 prescrit (moyenne) ; charge réalisée &gt; 15 % sous la charge <b>prescrite</b> (haute).</p>
  */
 @Component
 public class ProgressionEngine {
@@ -50,9 +50,17 @@ public class ProgressionEngine {
         return new Suggestion(false, "MAINTAIN", null, null, "Maintenir la charge");
     }
 
-    /** Alertes coach (§6.8). {@code isReath} = exercice de réathlétisation. */
+    /**
+     * Alertes coach (§6.8). {@code isReath} = exercice de réathlétisation.
+     *
+     * @param referenceChargeKg charge <b>prescrite</b> pour la séance, ou {@code null} si elle
+     *                          n'est pas calculable. C'était auparavant la dernière charge
+     *                          enregistrée à la séance précédente : un agrégat différent de
+     *                          {@code currentChargeKg} (un maximum), si bien qu'un drop-set
+     *                          d'hier ou une semaine de décharge programmée levaient une alerte.
+     */
     public List<Alert> alerts(Integer targetRirMin, boolean isReath, List<DoneSet> sets,
-                              Double previousChargeKg, double currentChargeKg) {
+                              Double referenceChargeKg, double currentChargeKg) {
         List<Alert> out = new ArrayList<>();
         if (sets.isEmpty()) {
             return out;
@@ -72,9 +80,9 @@ public class ProgressionEngine {
         if (minRir == 0 && targetRirMin != null && targetRirMin >= 1 && targetRirMin <= 2) {
             out.add(new Alert(AlertLevel.MEDIUM, "RIR_ZERO", "RIR 0 alors que " + targetRirMin + " prescrit"));
         }
-        if (previousChargeKg != null && previousChargeKg > 0 && currentChargeKg > 0
-                && currentChargeKg < previousChargeKg * 0.85) {
-            out.add(new Alert(AlertLevel.HIGH, "CHARGE_DROP", "Chute de charge > 15 % vs séance précédente"));
+        if (referenceChargeKg != null && referenceChargeKg > 0 && currentChargeKg > 0
+                && currentChargeKg < referenceChargeKg * 0.85) {
+            out.add(new Alert(AlertLevel.HIGH, "CHARGE_DROP", "Charge réalisée > 15 % sous la prescription"));
         }
         return out;
     }

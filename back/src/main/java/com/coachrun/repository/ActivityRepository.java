@@ -17,6 +17,9 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
 
     List<Activity> findByAthleteIdOrderByActivityDateDesc(UUID athleteId);
 
+    /** Activités d'une fenêtre — durées mesurées pour le calcul de charge (une requête, pas N). */
+    List<Activity> findByAthleteIdAndActivityDateBetween(UUID athleteId, java.time.LocalDate from, java.time.LocalDate to);
+
     /** Activité réalisée rapprochée d'une séance planifiée (vue « réalisé » de la fiche séance). */
     Optional<Activity> findByClubIdAndAthleteIdAndMatchedWorkoutId(UUID clubId, UUID athleteId, UUID workoutId);
 

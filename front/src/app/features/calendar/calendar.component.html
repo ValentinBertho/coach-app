@@ -439,6 +439,13 @@
               <span class="wc-meta">
                 <span class="wc-type-label">{{ typeLabels[w.type] }}</span>
                 @if (w.targetDistanceM) { <span class="metric w-metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span> }
+                <!-- Le coach n'avait aucun signal : l'athlète réorganisait sa semaine et la
+                     prescription affichée n'était plus celle qui avait été posée. -->
+                @if (w.movedByAthlete) {
+                  <span class="wc-moved" [title]="movedTitle(w)">
+                    <app-icon name="move" [size]="11" /> déplacée
+                  </span>
+                }
               </span>
               <app-zone-bar [steps]="w.steps" />
             </button>

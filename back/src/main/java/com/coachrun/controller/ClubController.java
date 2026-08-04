@@ -58,7 +58,7 @@ public class ClubController {
      * l'invitant doit être vérifiée.
      */
     @PostMapping("/members")
-    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)"
+    @PreAuthorize("@clubRoleValidator.isOwner(authentication, #clubId)"
             + " and @emailVerificationValidator.isVerified(authentication)")
     @ResponseStatus(HttpStatus.CREATED)
     public com.coachrun.dto.response.CoachInviteResponse addCoach(
@@ -69,8 +69,15 @@ public class ClubController {
                 request.fullName(), principal.userId());
     }
 
-    /** Retire un coach du club (le propriétaire ne peut pas être retiré). */
+    /**
+     * Retire un coach du club (le propriétaire ne peut pas être retiré).
+     *
+     * <p>Réservé au propriétaire : le seul contrôle était l'appartenance au club, donc un
+     * assistant pouvait éjecter le coach principal et ses collègues — et leur faire perdre au
+     * passage l'accès à leurs propres athlètes.</p>
+     */
     @DeleteMapping("/members/{coachId}")
+    @PreAuthorize("@clubRoleValidator.isOwner(authentication, #clubId)")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removeCoach(@PathVariable UUID clubId, @PathVariable UUID coachId) {
         clubService.removeCoach(clubId, coachId);

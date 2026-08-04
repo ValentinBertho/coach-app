@@ -153,15 +153,19 @@
         <div class="card club-distrib">
           <span class="stat-label">Répartition de la forme</span>
           <div class="distrib-bar" role="img"
-               [attr.aria-label]="formCounts().GREEN + ' en forme, ' + formCounts().ORANGE + ' à surveiller, ' + formCounts().RED + ' en vigilance'">
+               [attr.aria-label]="formCounts().GREEN + ' en forme, ' + formCounts().ORANGE + ' à surveiller, ' + formCounts().RED + ' en vigilance, ' + formCounts().STALE + ' sans signal récent'">
             @if (formCounts().GREEN) { <span class="seg seg--green" [style.flex]="formCounts().GREEN"></span> }
             @if (formCounts().ORANGE) { <span class="seg seg--orange" [style.flex]="formCounts().ORANGE"></span> }
             @if (formCounts().RED) { <span class="seg seg--red" [style.flex]="formCounts().RED"></span> }
+            @if (formCounts().STALE) { <span class="seg seg--stale" [style.flex]="formCounts().STALE"></span> }
           </div>
           <div class="distrib-legend">
             <span><span class="form-dot form-dot--green"></span> {{ formCounts().GREEN }} en forme</span>
             <span><span class="form-dot form-dot--orange"></span> {{ formCounts().ORANGE }} à surveiller</span>
             <span><span class="form-dot form-dot--red"></span> {{ formCounts().RED }} vigilance</span>
+            @if (formCounts().STALE) {
+              <span><span class="form-dot form-dot--stale"></span> {{ formCounts().STALE }} sans signal</span>
+            }
           </div>
         </div>
         <a class="card stat-card card-interactive" routerLink="/app/athletes">

@@ -18,6 +18,10 @@ public record WorkoutResponse(
         String notes,
         Integer targetDistanceM,
         Integer targetDurationS,
+        /** Durée réellement effectuée sur une séance écourtée ; null si menée à son terme. */
+        Integer actualDurationS,
+        /** Motif renseigné quand l'athlète a déclaré la séance non faite. */
+        com.coachrun.entity.enums.MissedReason missedReason,
         Integer rpe,
         Integer fatigue,
         Integer pain,
@@ -44,6 +48,8 @@ public record WorkoutResponse(
                 w.getNotes(),
                 w.getTargetDistanceM(),
                 w.getTargetDurationS(),
+                w.getActualDurationS(),
+                w.getMissedReason(),
                 w.getRpe(),
                 w.getFatigue(),
                 w.getPain(),

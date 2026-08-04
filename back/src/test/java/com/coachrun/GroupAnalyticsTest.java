@@ -52,8 +52,10 @@ class GroupAnalyticsTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.athleteCount").value(2))
                 .andExpect(jsonPath("$.athletes.length()").value(2))
-                // Sans retour de séance, l'état de forme par défaut est « vert ».
-                .andExpect(jsonPath("$.form.green").value(2))
+                // Sans retour de séance, l'état n'est pas « vert » mais « sans signal » : deux
+                // athlètes qui n'ont rien déclaré ne disent rien de leur forme.
+                .andExpect(jsonPath("$.form.green").value(0))
+                .andExpect(jsonPath("$.form.stale").value(2))
                 .andExpect(jsonPath("$.totals.plannedKm").exists());
     }
 

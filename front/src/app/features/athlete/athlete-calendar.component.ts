@@ -21,7 +21,7 @@ interface DayRow {
   unavailability: Unavailability | null;
 }
 interface MoveTarget { kind: 'run' | 'strength'; id: string; title: string; date: string; }
-interface PickDay { date: string; label: string; isCurrent: boolean; }
+interface PickDay { date: string; label: string; isCurrent: boolean; isPast: boolean; }
 
 function toIso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -115,7 +115,8 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
         <p class="move-lead">{{ t.title }}<br /><span class="field-hint">Le contenu de la séance reste inchangé.</span></p>
         <div class="pick-grid">
           @for (p of pickDays(); track p.date) {
-            <button type="button" class="pick" [class.pick--current]="p.isCurrent" [disabled]="p.isCurrent" (click)="confirmMove(p.date)">
+            <button type="button" class="pick" [class.pick--current]="p.isCurrent"
+                    [disabled]="p.isCurrent || p.isPast" (click)="confirmMove(p.date)">
               {{ p.label }}
             </button>
           }
@@ -348,15 +349,26 @@ export class AthleteCalendarComponent implements OnInit {
   });
 
   /** Jours proposés pour le déplacement : 14 jours à partir du lundi courant. */
+  /**
+   * Jours proposés au déplacement : la quinzaine affichée, jours passés exclus.
+   *
+   * Déplacer une séance vers hier n'a pas de sens — elle n'a pas été faite ce jour-là non plus —
+   * et brouillait la lecture du coach comme le calcul de charge. Rien ne l'empêchait.
+   */
   readonly pickDays = computed<PickDay[]>(() => {
     const t = this.moveTarget();
     const start = mondayOf(this.anchor());
+    const today = toIso(new Date());
     const fmt = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
     return Array.from({ length: 14 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       const iso = toIso(d);
-      return { date: iso, label: fmt.format(d), isCurrent: !!t && iso === t.date };
+      return {
+        date: iso, label: fmt.format(d),
+        isCurrent: !!t && iso === t.date,
+        isPast: iso < today,
+      };
     });
   });
 

@@ -66,6 +66,7 @@ public class StrengthTestService {
 
         double e1rm = oneRmEngine.e1rmForTest(req.protocol(), req.weightKg(), req.reps());
         BigDecimal e1rmKg = BigDecimal.valueOf(e1rm).setScale(2, RoundingMode.HALF_UP);
+        requireGapConfirmation(athlete, req, e1rmKg);
 
         StrengthTest test = new StrengthTest();
         test.setAthlete(athlete);
@@ -86,6 +87,47 @@ public class StrengthTestService {
         log.info("Test 1RM {} enregistré (athlète={}, exercice={}, e1RM={} kg)",
                 req.protocol(), athleteId, req.exerciseId(), e1rmKg);
         return StrengthTestResponse.from(test);
+    }
+
+    /** Écart au-delà duquel un test doit être confirmé avant d'écraser le profil. */
+    private static final double MAX_UNCONFIRMED_GAP = 0.10;
+
+    /**
+     * Refuse un test qui contredit franchement le profil courant, tant qu'il n'est pas confirmé.
+     *
+     * <p><b>Pourquoi.</b> Un test direct écrasait toujours le profil, sans le moindre contrôle. Un
+     * AMRAP passé en fin de séance, ou un jour de fatigue, fait chuter le e1RM de 15 % ; toutes les
+     * charges prescrites suivent mécaniquement, et la séance suivante lève une alerte « chute de
+     * charge » — provoquée par le recalcul de l'outil, pas par l'athlète. Le coach voit un athlète
+     * qui régresse ; en réalité c'est un test mal placé.</p>
+     *
+     * <p>Le garde-fou est symétrique : un bond de 20 % vers le haut est tout aussi suspect (charge
+     * mal saisie, mauvais exercice) et coûte plus cher — il fait prescrire trop lourd.</p>
+     *
+     * <p>Ce n'est pas un refus définitif : le coach confirme et le test passe. On l'oblige
+     * seulement à regarder l'écart avant de l'accepter.</p>
+     */
+    private void requireGapConfirmation(Athlete athlete, StrengthTestRequest req, BigDecimal e1rmKg) {
+        if (Boolean.TRUE.equals(req.confirmLargeGap())) {
+            return;
+        }
+        BigDecimal current = profileRepository
+                .findByAthleteIdAndExerciseId(athlete.getId(), req.exerciseId())
+                .map(Athlete1rmProfile::getRmKg)
+                .orElse(null);
+        if (current == null || current.signum() <= 0) {
+            return; // premier test sur cet exercice : rien à contredire.
+        }
+        double previous = current.doubleValue();
+        double gap = (e1rmKg.doubleValue() - previous) / previous;
+        if (Math.abs(gap) <= MAX_UNCONFIRMED_GAP) {
+            return;
+        }
+        String direction = gap > 0 ? "au-dessus" : "en dessous";
+        throw new ApiException(HttpStatus.CONFLICT, String.format(
+                "Ce test ressort à %.1f kg, soit %.0f %% %s du 1RM actuel (%.1f kg). "
+                        + "Vérifiez la charge et l'exercice, puis confirmez pour l'enregistrer.",
+                e1rmKg.doubleValue(), Math.abs(gap) * 100, direction, previous));
     }
 
     private void historise(Athlete athlete, StrengthTestRequest req, BigDecimal e1rmKg) {

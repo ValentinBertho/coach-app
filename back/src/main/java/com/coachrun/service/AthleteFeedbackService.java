@@ -39,10 +39,32 @@ public class AthleteFeedbackService {
     private final ScheduledStrengthSessionRepository strengthRepository;
     private final DailyCheckInRepository checkInRepository;
 
+    /**
+     * Au-delà de ce délai, le dernier retour ne décrit plus l'état du jour.
+     *
+     * <p>Dix jours : au-dessus d'une semaine — un athlète qui s'entraîne trois fois par semaine
+     * peut sauter une semaine sans que sa fiche bascule — et bien en dessous du délai à partir
+     * duquel l'alerte « athlète silencieux » se déclenche déjà.</p>
+     */
+    public static final int FRESHNESS_DAYS = 10;
+
     /** Dernier retour connu ; les champs sont nuls si l'athlète n'a jamais rien déclaré. */
     public record LastFeedback(Integer fatigue, Integer pain, LocalDate date) {
 
         public static final LastFeedback NONE = new LastFeedback(null, null, null);
+
+        /**
+         * Le retour est-il assez récent pour décrire l'état d'aujourd'hui ?
+         *
+         * <p>Aucun retour du tout n'est pas frais non plus : un athlète qui n'a jamais rien déclaré
+         * n'est pas « en forme », il est sans signal. L'afficher en vert donnait au coach une
+         * assurance que personne ne lui avait fournie.</p>
+         */
+        public boolean isFresh(LocalDate today) {
+            return date != null
+                    && !date.isBefore(today.minusDays(FRESHNESS_DAYS))
+                    && (fatigue != null || pain != null);
+        }
     }
 
     public LastFeedback lastFeedback(UUID athleteId) {

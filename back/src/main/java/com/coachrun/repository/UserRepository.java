@@ -17,13 +17,33 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmailIgnoreCase(String email);
 
     /**
-     * Date du dernier changement de mot de passe, seule colonne dont le filtre JWT a besoin —
-     * inutile de charger l'utilisateur entier à chaque requête.
+     * Les deux dates qui périment un jeton — changement de mot de passe et déconnexion — en une
+     * seule lecture. Le filtre JWT s'exécute à chaque requête authentifiée : deux requêtes là où
+     * une projection suffit se paieraient sur toute la surface de l'API.
      */
     @org.springframework.data.jpa.repository.Query(
-            "select u.passwordChangedAt from User u where u.id = :userId")
-    Optional<java.time.Instant> findPasswordChangedAt(
+            "select u.passwordChangedAt as passwordChangedAt,"
+                    + " u.sessionsInvalidatedAt as sessionsInvalidatedAt"
+                    + " from User u where u.id = :userId")
+    Optional<TokenCutoff> findTokenCutoff(
             @org.springframework.data.repository.query.Param("userId") UUID userId);
+
+    /** Projection des dates de péremption des jetons d'un compte. */
+    interface TokenCutoff {
+        java.time.Instant getPasswordChangedAt();
+
+        java.time.Instant getSessionsInvalidatedAt();
+
+        /** La plus récente des deux, ou {@code null} si le compte n'a jamais rien révoqué. */
+        default java.time.Instant latest() {
+            java.time.Instant a = getPasswordChangedAt();
+            java.time.Instant b = getSessionsInvalidatedAt();
+            if (a == null) {
+                return b;
+            }
+            return b == null || a.isAfter(b) ? a : b;
+        }
+    }
 
     boolean existsByEmailIgnoreCase(String email);
 

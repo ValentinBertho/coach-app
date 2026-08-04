@@ -45,15 +45,19 @@ const FORM_DOT: Record<string, string> = { GREEN: 'form-dot--green', ORANGE: 'fo
       <div class="card">
         <span class="stat-label">Répartition de la forme</span>
         <div class="distrib-bar" role="img"
-             [attr.aria-label]="d.form.green + ' en forme, ' + d.form.orange + ' à surveiller, ' + d.form.red + ' en vigilance'">
+             [attr.aria-label]="d.form.green + ' en forme, ' + d.form.orange + ' à surveiller, ' + d.form.red + ' en vigilance, ' + d.form.stale + ' sans signal récent'">
           @if (d.form.green) { <span class="seg seg--green" [style.flex]="d.form.green"></span> }
           @if (d.form.orange) { <span class="seg seg--orange" [style.flex]="d.form.orange"></span> }
           @if (d.form.red) { <span class="seg seg--red" [style.flex]="d.form.red"></span> }
+          @if (d.form.stale) { <span class="seg seg--stale" [style.flex]="d.form.stale"></span> }
         </div>
         <div class="distrib-legend">
           <span><span class="form-dot form-dot--green"></span> {{ d.form.green }} en forme</span>
           <span><span class="form-dot form-dot--orange"></span> {{ d.form.orange }} à surveiller</span>
           <span><span class="form-dot form-dot--red"></span> {{ d.form.red }} en vigilance</span>
+          @if (d.form.stale) {
+            <span><span class="form-dot form-dot--stale"></span> {{ d.form.stale }} sans signal</span>
+          }
         </div>
       </div>
 
@@ -90,6 +94,7 @@ const FORM_DOT: Record<string, string> = { GREEN: 'form-dot--green', ORANGE: 'fo
     .seg--green { background: var(--form-green); }
     .seg--orange { background: var(--form-orange); }
     .seg--red { background: var(--form-red); }
+    .seg--stale { background: var(--ink-3); }
     .distrib-legend { display: flex; gap: var(--sp-4); flex-wrap: wrap; font-size: var(--text-sm); color: var(--ink-2); }
     .distrib-legend span { display: inline-flex; align-items: center; gap: var(--sp-1); }
   `],

@@ -31,6 +31,7 @@ public class AthleteLoadService {
     private final AthleteRepository athleteRepository;
     private final WorkoutRepository workoutRepository;
     private final com.coachrun.repository.StrengthLoadTrackingRepository strengthLoadRepository;
+    private final com.coachrun.repository.ActivityRepository activityRepository;
     private final LoadEngine loadEngine;
     private final ClockService clock;
 
@@ -109,13 +110,22 @@ public class AthleteLoadService {
      */
     private List<SessionLoad> collectSessions(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         List<SessionLoad> sessions = new ArrayList<>();
+        // Durées mesurées des activités rapprochées, indexées une fois pour toute la fenêtre :
+        // les interroger séance par séance ferait une requête par jour de la courbe de charge.
+        java.util.Map<UUID, Integer> measuredByWorkout = new java.util.HashMap<>();
+        for (var a : activityRepository.findByAthleteIdAndActivityDateBetween(athleteId, from, to)) {
+            if (a.getMatchedWorkoutId() != null && a.getDurationS() != null && a.getDurationS() > 0) {
+                measuredByWorkout.putIfAbsent(a.getMatchedWorkoutId(), a.getDurationS());
+            }
+        }
+
         for (Workout w : workoutRepository
                 .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
                         clubId, athleteId, from, to)) {
-            if (w.getRpe() == null) {
+            if (w.getRpe() == null || w.getStatus() == com.coachrun.entity.enums.WorkoutStatus.MISSED) {
                 continue;
             }
-            Integer durationS = durationSeconds(w);
+            Integer durationS = durationSeconds(w, measuredByWorkout.get(w.getId()));
             if (durationS == null || durationS <= 0) {
                 continue;
             }
@@ -138,8 +148,27 @@ public class AthleteLoadService {
         return sessions;
     }
 
-    /** Durée de séance : cible globale, sinon somme des étapes. */
-    private Integer durationSeconds(Workout w) {
+    /**
+     * Durée retenue pour la charge, par ordre de fiabilité décroissante :
+     * <ol>
+     *   <li>la durée <b>déclarée</b> par l'athlète sur une séance écourtée ;</li>
+     *   <li>la durée <b>mesurée</b> de l'activité rapprochée (montre, import GPX) ;</li>
+     *   <li>à défaut, la durée prescrite — cible globale, sinon somme des étapes.</li>
+     * </ol>
+     *
+     * <p>Seul le troisième cas existait. La charge d'une sortie longue de 1 h 45 abandonnée à
+     * 40 minutes valait donc {@code RPE × 105 min} : 735 UA au lieu de 280. Deux séances écourtées
+     * dans la semaine faisaient franchir 1,5 à l'ACWR et déclenchaient « charge en forte hausse —
+     * risque de blessure » sur un athlète qui venait de s'entraîner deux fois moins que prévu.
+     * L'information existait pourtant déjà côté activité : elle n'était simplement pas lue.</p>
+     */
+    private Integer durationSeconds(Workout w, Integer measuredS) {
+        if (w.getActualDurationS() != null && w.getActualDurationS() > 0) {
+            return w.getActualDurationS();
+        }
+        if (measuredS != null && measuredS > 0) {
+            return measuredS;
+        }
         if (w.getTargetDurationS() != null && w.getTargetDurationS() > 0) {
             return w.getTargetDurationS();
         }

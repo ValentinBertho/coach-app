@@ -528,6 +528,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
     return (m / 1000).toFixed(1);
   });
 
+  /** Infobulle d'une séance déplacée par l'athlète : d'où elle vient. */
+  movedTitle(w: Workout): string {
+    if (!w.originalDate) return 'Déplacée par l\'athlète';
+    const fmt = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return `Déplacée par l'athlète — initialement le ${fmt.format(new Date(w.originalDate + 'T00:00:00'))}`;
+  }
+
   ngOnInit(): void {
     // Onglet « Programme » d'un athlète : le calendrier est cadré sur lui, le sélecteur
     // d'athlète disparaît (c'est le contexte de la coquille qui dit de qui il s'agit).

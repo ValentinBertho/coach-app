@@ -263,6 +263,11 @@ export interface StrengthTestRequest {
   durationSec?: number | null;
   rir?: number | null;
   notes?: string | null;
+  /**
+   * Confirme un écart de plus de 10 % avec le 1RM courant. Sans lui le serveur refuse en 409 :
+   * un test mal placé faisait chuter le profil, et toutes les charges prescrites avec lui.
+   */
+  confirmLargeGap?: boolean;
 }
 
 export interface StrengthResultEntry {

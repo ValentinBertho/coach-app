@@ -33,8 +33,10 @@ public class MessageController {
     private final MessageStreamService streamService;
 
     @GetMapping
-    public List<MessageResponse> thread(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
-        return messageService.coachThread(clubId, athleteId);
+    public List<MessageResponse> thread(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                        @org.springframework.web.bind.annotation.RequestParam(
+                                                defaultValue = "100") int limit) {
+        return messageService.coachThread(clubId, athleteId, limit);
     }
 
     /** Accusé de lecture : le coach a ouvert le fil, ses non-lus repassent à zéro. */

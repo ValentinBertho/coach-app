@@ -7,6 +7,7 @@ import com.coachrun.dto.response.CoachFormDashboardResponse;
 import com.coachrun.dto.response.FeedbackQueueItemResponse;
 import com.coachrun.dto.response.RaceObjectiveResponse;
 import com.coachrun.engine.FormStatusEngine;
+import com.coachrun.entity.enums.FormStatus;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.CoachAthleteRelation;
@@ -46,8 +47,11 @@ public class CoachDashboardService {
     private final CoachAthleteRelationRepository relationRepository;
     private final AthleteLoadService loadService;
     private final AthleteFeedbackService feedbackService;
+    private final com.coachrun.security.AthleteAccessValidator accessValidator;
     private final ScheduledStrengthSessionRepository strengthRepository;
     private final ClockService clock;
+    private final com.coachrun.repository.AthleteUnavailabilityRepository unavailabilityRepository;
+    private final ProgressionService progressionService;
 
     /**
      * KPI du cockpit, restreints au périmètre choisi (all / mine / private / club) — comme la
@@ -168,6 +172,25 @@ public class CoachDashboardService {
     }
 
     /**
+     * État de forme d'un athlète : la classification fatigue + douleur, <b>si le signal est encore
+     * frais</b>.
+     *
+     * <p>Le moteur reste intact — il traduit deux nombres en couleur, c'est tout son rôle, et
+     * l'invariant « jamais le RPE » lui appartient. La péremption est une décision de service :
+     * elle dépend de la date du retour, que le moteur n'a pas à connaître.</p>
+     *
+     * <p>Sans elle, une valeur absente était lue comme un zéro et un athlète sans aucun retour
+     * s'affichait vert ; et un rouge déclaré après une compétition restait rouge des semaines
+     * durant, en tête de la file « à surveiller », devant les athlètes qui, eux, avaient signalé
+     * quelque chose le matin même.</p>
+     */
+    private FormStatus formStatusOf(AthleteFeedbackService.LastFeedback last) {
+        return last.isFresh(clock.today())
+                ? formStatusEngine.classify(last.fatigue(), last.pain())
+                : FormStatus.STALE;
+    }
+
+    /**
      * Tableau de bord « état de forme » : athlètes actifs répartis Route/Trail, chacun avec sa
      * pastille de forme (fatigue + douleur du dernier retour).
      */
@@ -182,7 +205,7 @@ public class CoachDashboardService {
             // Course + force confondues : un retour de renforcement compte autant qu'une course.
             AthleteFeedbackService.LastFeedback last = feedbackService.lastFeedback(a.getId());
             AthleteFormResponse row = AthleteFormResponse.of(
-                    a, formStatusEngine.classify(last.fatigue(), last.pain()),
+                    a, formStatusOf(last),
                     last.fatigue(), last.pain(), last.date());
 
             if (a.getDiscipline() == Discipline.TRAIL) {
@@ -196,10 +219,33 @@ public class CoachDashboardService {
                 route.size() + trail.size(), route.size(), trail.size(), route, trail);
     }
 
-    /** Athlètes d'un périmètre : all = tout le club ; mine/private/club = via les relations du coach. */
+    /**
+     * Athlètes d'un périmètre : all = tout le club ; mine/private/club = via les relations du coach.
+     *
+     * <p><b>« Tout le club » n'est pas « tous les athlètes du club ».</b> Ce chemin renvoyait la
+     * table entière sans passer par
+     * {@link com.coachrun.security.AthleteAccessValidator} — alors que le calendrier de groupe,
+     * lui, filtre athlète par athlète. Comme le périmètre par défaut du cockpit est {@code all},
+     * un coach assistant y lisait la fatigue et la douleur des athlètes <b>privés</b> de ses
+     * collègues, sur l'écran le plus consulté du produit. Un athlète privé n'est jamais partagé :
+     * c'est la règle du modèle multi-coach, et elle vaut ici comme ailleurs.</p>
+     *
+     * <p>Le filtrage utilise la variante par identifiant de coach, qui ne connaît pas le rôle
+     * plateforme : un {@code PLATFORM_ADMIN} qui ouvrirait un cockpit de club n'y verrait donc pas
+     * les athlètes privés. C'est volontaire — la supervision passe par le back-office
+     * d'administration, pas par une vue de coach.</p>
+     */
     private List<Athlete> athletesInScope(UUID clubId, String scope, UUID coachId) {
         if (scope == null || scope.isBlank() || "all".equalsIgnoreCase(scope)) {
-            return athleteRepository.findByClubIdOrderByLastNameAsc(clubId);
+            List<Athlete> all = athleteRepository.findByClubIdOrderByLastNameAsc(clubId);
+            if (coachId == null) {
+                // Balayage serveur (digest quotidien) : pas de coach demandeur, donc rien à
+                // filtrer. Le digest réachemine ensuite chaque alerte vers le coach référent.
+                return all;
+            }
+            return all.stream()
+                    .filter(a -> accessValidator.effectiveLevel(coachId, a.getId()).isPresent())
+                    .toList();
         }
         return relationRepository.findByCoachIdAndActiveTrue(coachId).stream()
                 .filter(rel -> switch (scope.toLowerCase()) {
@@ -231,9 +277,20 @@ public class CoachDashboardService {
             String name = (a.getFirstName() + " " + a.getLastName()).trim();
             String discipline = a.getDiscipline() == Discipline.TRAIL ? "TRAIL" : "ROUTE";
 
+            // Ce que le coach a déjà saisi ne doit pas lui revenir en alerte : une indisponibilité
+            // déclarée explique à elle seule les séances non faites, le silence et la charge qui
+            // retombe. Sans ce filtre, l'athlète blessé devenait le plus alarmant du club, tous les
+            // matins, pendant toute la durée de sa blessure.
+            List<com.coachrun.entity.AthleteUnavailability> unavailable = unavailabilityRepository
+                    .findByAthleteIdAndEndDateGreaterThanEqualAndStartDateLessThanEqual(
+                            a.getId(), today.minusDays(MISSED_WINDOW_DAYS), today);
+
             // --- Douleur (dernier retour, course ou force) ---
             AthleteFeedbackService.LastFeedback lastFeedback = feedbackService.lastFeedback(a.getId());
-            Integer pain = lastFeedback.pain();
+            // Une douleur périmée n'est pas une douleur d'aujourd'hui : elle ne doit plus lever
+            // d'alerte, sinon un athlète qui a cessé de saisir reste en tête de file pour toujours.
+            // Son silence, lui, est déjà couvert par l'alerte « athlète silencieux » plus bas.
+            Integer pain = lastFeedback.isFresh(today) ? lastFeedback.pain() : null;
             if (pain != null && pain >= 5) {
                 alerts.add(alert(a, name, discipline, "RED", "PAIN",
                         "Douleur élevée", "Douleur " + pain + "/10 au dernier retour."));
@@ -252,7 +309,10 @@ public class CoachDashboardService {
                 } else if (ratio != null && ratio >= 1.3) {
                     alerts.add(alert(a, name, discipline, "ORANGE", "ACWR_HIGH",
                             "Charge en hausse", "ACWR " + ratio + " (zone de vigilance)."));
-                } else if (ratio != null && ratio < 0.8 && load.sessions28d() > 0) {
+                } else if (ratio != null && ratio < 0.8 && load.sessions28d() > 0
+                        && unavailable.isEmpty()) {
+                    // Une charge qui retombe pendant une coupure déclarée n'est pas un
+                    // désentraînement subi : c'est le plan.
                     alerts.add(alert(a, name, discipline, "ORANGE", "ACWR_LOW",
                             "Charge en baisse", "ACWR " + ratio + " (désentraînement possible)."));
                 }
@@ -264,13 +324,32 @@ public class CoachDashboardService {
                 // un calcul de charge en échec ne doit pas masquer les autres alertes
             }
 
+            // --- Force : douleur, RPE proche de l'échec, RIR nul, charge sous la prescription ---
+            // Ces alertes existaient déjà mais restaient enfermées dans l'écran d'une séance :
+            // il fallait les ouvrir une par une pour les voir. Elles remontent ici, dédoublonnées
+            // par type — trois séries douloureuses dans la semaine, c'est une alerte, pas trois.
+            try {
+                java.util.Set<String> seenStrength = new java.util.HashSet<>();
+                for (var sa : progressionService.recentAlerts(a.getId(), today.minusDays(MISSED_WINDOW_DAYS))) {
+                    if (!seenStrength.add(sa.code())) {
+                        continue;
+                    }
+                    alerts.add(alert(a, name, discipline,
+                            "HIGH".equals(sa.level()) ? "RED" : "ORANGE",
+                            "STRENGTH_" + sa.code(), "Renforcement — " + sa.exerciseName(), sa.message()));
+                }
+            } catch (RuntimeException ignored) {
+                // un snapshot de séance illisible ne doit pas masquer les autres alertes
+            }
+
             // --- Séances manquées (14 derniers jours) ---
             List<Workout> recent = workoutRepository
                     .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
-                            clubId, a.getId(), today.minusDays(14), today);
+                            clubId, a.getId(), today.minusDays(MISSED_WINDOW_DAYS), today);
             long missed = recent.stream()
                     .filter(w -> w.getScheduledDate().isBefore(today)
-                            && w.getStatus() == WorkoutStatus.PLANNED)
+                            && w.getStatus() == WorkoutStatus.PLANNED
+                            && !fallsWithin(w.getScheduledDate(), unavailable))
                     .count();
             if (missed >= 3) {
                 alerts.add(alert(a, name, discipline, "RED", "MISSED",
@@ -284,7 +363,8 @@ public class CoachDashboardService {
             boolean hasRecentProgram = !recent.isEmpty();
             LocalDate lastFb = lastFeedback.date();
             long silence = lastFb == null ? Long.MAX_VALUE : ChronoUnit.DAYS.between(lastFb, today);
-            if (hasRecentProgram && silence > 10) {
+            // Un athlète en coupure déclarée n'a rien à déclarer : son silence est attendu.
+            if (hasRecentProgram && silence > 10 && unavailable.isEmpty()) {
                 String detail = lastFb == null ? "Aucun retour de séance enregistré."
                         : "Dernier retour il y a " + silence + " jours.";
                 alerts.add(alert(a, name, discipline, "ORANGE", "SILENCE", "Athlète silencieux", detail));
@@ -296,6 +376,16 @@ public class CoachDashboardService {
                 .comparingInt((CoachAlertResponse al) -> "RED".equals(al.severity()) ? 0 : 1)
                 .thenComparing(CoachAlertResponse::athleteName));
         return alerts;
+    }
+
+    /** Profondeur de la fenêtre « séances manquées », et donc de la recherche d'indisponibilités. */
+    private static final int MISSED_WINDOW_DAYS = 14;
+
+    /** La date tombe-t-elle dans l'une des périodes d'indisponibilité déclarées ? */
+    private static boolean fallsWithin(LocalDate date,
+                                       List<com.coachrun.entity.AthleteUnavailability> windows) {
+        return windows.stream().anyMatch(u ->
+                !date.isBefore(u.getStartDate()) && !date.isAfter(u.getEndDate()));
     }
 
     private CoachAlertResponse alert(Athlete a, String name, String discipline,

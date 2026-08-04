@@ -123,4 +123,19 @@ public class User extends BaseEntity {
      */
     @Column(name = "password_changed_at")
     private java.time.Instant passwordChangedAt;
+
+    /**
+     * Date de la dernière révocation volontaire des sessions (déconnexion).
+     *
+     * <p>Même rôle que {@link #passwordChangedAt}, pour un geste différent : la déconnexion ne
+     * révoquait que l'access token, via une liste noire en mémoire. Le refresh token restait
+     * valable trente jours côté serveur — seule sa copie locale disparaissait — et un
+     * redéploiement vidait la liste noire, ressuscitant tous les jetons déjà rotés.</p>
+     *
+     * <p>Conséquence assumée : se déconnecter ferme la session sur <b>tous</b> les appareils du
+     * compte. C'est le comportement sûr, et le seul qui tienne sans stocker un jeton par
+     * appareil.</p>
+     */
+    @Column(name = "sessions_invalidated_at")
+    private java.time.Instant sessionsInvalidatedAt;
 }

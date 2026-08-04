@@ -63,6 +63,7 @@ public class GdprService {
     private final MessageRepository messageRepository;
     private final StrengthTestRepository strengthTestRepository;
     private final StrengthResultRepository strengthResultRepository;
+    private final com.coachrun.repository.ScheduledStrengthSessionRepository scheduledStrengthRepository;
     private final AthleteZoneValueRepository zoneValueRepository;
     private final NotificationService notificationService;
 
@@ -168,9 +169,32 @@ public class GdprService {
 
         int workouts = 0;
         for (var workout : workoutRepository.findByAthleteIdOrderByScheduledDateAsc(athleteId)) {
-            if (workout.getPain() != null) {
+            // La fatigue déclarée était oubliée ici alors que la politique la désigne au même titre
+            // que la douleur : le retrait laissait donc en base une partie exacte de ce qu'il
+            // annonçait effacer, et le journal ci-dessous affirmait le contraire.
+            if (workout.getPain() != null || workout.getFatigue() != null) {
                 workout.setPain(null);
+                workout.setFatigue(null);
                 workouts++;
+            }
+        }
+
+        // Préparation physique : la douleur et la fatigue s'y déclarent exactement comme en course
+        // (retour de séance et série par série) et n'étaient pas touchées du tout.
+        int strengthSessions = 0;
+        for (var session : scheduledStrengthRepository.findByAthleteIdOrderByScheduledDateAsc(athleteId)) {
+            if (session.getSessionPain() != null || session.getSessionFatigue() != null) {
+                session.setSessionPain(null);
+                session.setSessionFatigue(null);
+                strengthSessions++;
+            }
+        }
+
+        int strengthSets = 0;
+        for (var result : strengthResultRepository.findByAthleteIdOrderByCreatedAtDesc(athleteId)) {
+            if (result.getPain() != null) {
+                result.setPain(null);
+                strengthSets++;
             }
         }
 
@@ -187,8 +211,9 @@ public class GdprService {
         athlete.setMedicalNotes(null);
 
         log.warn("[RGPD] Consentement santé retiré (athlète={}) — effacé : {} test(s) lactate, "
-                        + "{} check-in(s), {} séance(s), {} indisponibilité(s), notes médicales.",
-                athleteId, lactate, checkIns, workouts, unavailabilities);
+                        + "{} check-in(s), {} séance(s) course, {} séance(s) de force, {} série(s), "
+                        + "{} indisponibilité(s), notes médicales.",
+                athleteId, lactate, checkIns, workouts, strengthSessions, strengthSets, unavailabilities);
 
         // Le coach doit le savoir : sinon il continue de saisir des mesures désormais refusées,
         // et constate une fiche qui se vide sans explication.

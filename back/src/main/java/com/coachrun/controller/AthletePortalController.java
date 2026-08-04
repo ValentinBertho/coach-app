@@ -93,8 +93,7 @@ public class AthletePortalController {
     public WorkoutResponse feedback(@AuthenticationPrincipal AuthPrincipal principal,
                                     @PathVariable UUID workoutId,
                                     @Valid @RequestBody WorkoutFeedbackRequest request) {
-        return workoutService.submitFeedback(principal.athleteId(), workoutId, request.status(),
-                request.rpe(), request.fatigue(), request.pain(), request.comment());
+        return workoutService.submitFeedback(principal.athleteId(), workoutId, request);
     }
 
     /**
@@ -344,9 +343,12 @@ public class AthletePortalController {
     public com.coachrun.dto.response.ActivityResponse importMyFile(
             @AuthenticationPrincipal AuthPrincipal principal,
             @org.springframework.web.bind.annotation.RequestParam("file")
-            org.springframework.web.multipart.MultipartFile file) throws java.io.IOException {
+            org.springframework.web.multipart.MultipartFile file,
+            @org.springframework.web.bind.annotation.RequestParam(
+                    name = "confirmDuplicate", defaultValue = "false")
+            boolean confirmDuplicate) throws java.io.IOException {
         return activityService.importFileForAthlete(
-                principal.athleteId(), file.getOriginalFilename(), file.getBytes());
+                principal.athleteId(), file.getOriginalFilename(), file.getBytes(), confirmDuplicate);
     }
 
     /** Mes performances / records (par distance), avec le VDOT impliqué. */
@@ -400,8 +402,9 @@ public class AthletePortalController {
     /** Messagerie : fil de discussion avec le coach. */
     @GetMapping("/messages")
     public java.util.List<com.coachrun.dto.response.MessageResponse> messages(
-            @AuthenticationPrincipal AuthPrincipal principal) {
-        return messageService.athleteThread(principal.athleteId());
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam(defaultValue = "100") int limit) {
+        return messageService.athleteThread(principal.athleteId(), limit);
     }
 
     @PostMapping("/messages")

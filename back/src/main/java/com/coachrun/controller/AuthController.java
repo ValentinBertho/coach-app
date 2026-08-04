@@ -78,18 +78,29 @@ public class AuthController {
         authService.resendVerification(principal.userId());
     }
 
-    /** Déconnexion : révoque le token courant (blacklist jusqu'à son expiration). */
+    /**
+     * Déconnexion : périme durablement les jetons du compte.
+     *
+     * <p>La liste noire en mémoire reste utile — elle coupe l'access token courant immédiatement,
+     * sans attendre une lecture en base — mais elle ne suffisait pas : elle ignorait le refresh
+     * token (trente jours) et disparaissait au premier redéploiement. L'horodatage en base prend
+     * le relais et vaut pour les deux types de jetons.</p>
+     */
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(HttpServletRequest request) {
+    public void logout(HttpServletRequest request,
+                       @AuthenticationPrincipal AuthPrincipal principal) {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             try {
                 Claims claims = jwtService.parse(header.substring(7));
                 tokenBlacklist.revoke(claims.getId(), claims.getExpiration().toInstant());
             } catch (RuntimeException ignored) {
-                // token déjà invalide → rien à révoquer
+                // token déjà invalide → rien à révoquer côté liste noire
             }
+        }
+        if (principal != null) {
+            authService.logout(principal.userId());
         }
     }
 }

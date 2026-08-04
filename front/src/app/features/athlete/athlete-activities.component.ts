@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import * as L from 'leaflet';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import {
@@ -150,6 +151,7 @@ import { TimeInZoneBarComponent } from '../../shared/components/time-in-zone-bar
 export class AthleteActivitiesComponent implements OnInit, OnDestroy {
   private readonly portal = inject(AthletePortalService);
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
   readonly mapEl = viewChild<ElementRef<HTMLDivElement>>('map');
 
   readonly loading = signal(true);
@@ -182,7 +184,7 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
     this.showLog.update((v) => !v);
   }
 
-  submitLog(): void {
+  submitLog(confirmDuplicate = false): void {
     if (!this.draft.activityDate || this.busy()) { return; }
     this.busy.set(true);
     this.portal.logActivity({
@@ -191,6 +193,7 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
       distanceM: this.draft.km != null ? Math.round(this.draft.km * 1000) : null,
       durationS: this.draft.min != null ? Math.round(this.draft.min * 60) : null,
       elevationGainM: this.draft.dplus,
+      confirmDuplicate,
     }).subscribe({
       next: () => {
         this.busy.set(false);
@@ -199,7 +202,26 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
         this.toast.success('Sortie ajoutée');
         this.load();
       },
-      error: () => { this.busy.set(false); this.toast.error('Enregistrement impossible.'); },
+      error: async (err: { status?: number; error?: { message?: string } }) => {
+        this.busy.set(false);
+        if (err.status !== 409 || confirmDuplicate) {
+          this.toast.error('Enregistrement impossible.');
+          return;
+        }
+        if (await this.askDuplicate(err.error?.message)) { this.submitLog(true); }
+      },
+    });
+  }
+
+  /**
+   * Doublon détecté côté serveur : on montre le message tel quel — il nomme la sortie déjà
+   * enregistrée — et on laisse l'athlète trancher. Deux séances le même jour, ça existe.
+   */
+  private askDuplicate(message?: string): Promise<boolean> {
+    return this.confirm.ask({
+      title: 'Sortie déjà enregistrée ?',
+      message: message ?? 'Une sortie très proche existe déjà ce jour-là.',
+      confirmLabel: 'Enregistrer quand même',
     });
   }
 
@@ -207,15 +229,32 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) { return; }
+    this.sendFile(file, false, input);
+  }
+
+  private sendFile(file: File, confirmDuplicate: boolean, input?: HTMLInputElement): void {
     this.fileBusy.set(true);
-    this.portal.importActivityFile(file).subscribe({
+    this.portal.importActivityFile(file, confirmDuplicate).subscribe({
       next: () => {
         this.fileBusy.set(false);
-        input.value = '';
+        if (input) { input.value = ''; }
         this.toast.success('Trace importée');
         this.load();
       },
-      error: () => { this.fileBusy.set(false); input.value = ''; this.toast.error('Import impossible (fichier GPX/TCX attendu).'); },
+      error: async (err: { status?: number; error?: { message?: string } }) => {
+        this.fileBusy.set(false);
+        if (err.status !== 409 || confirmDuplicate) {
+          if (input) { input.value = ''; }
+          this.toast.error('Import impossible (fichier GPX/TCX attendu).');
+          return;
+        }
+        // Le cas courant : la trace de la montre a déjà été remontée par Strava.
+        if (await this.askDuplicate(err.error?.message)) {
+          this.sendFile(file, true, input);
+        } else if (input) {
+          input.value = '';
+        }
+      },
     });
   }
 

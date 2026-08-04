@@ -65,6 +65,23 @@ public class Workout extends BaseEntity {
     @Column(name = "target_duration_s")
     private Integer targetDurationS;
 
+    /**
+     * Durée <strong>réellement</strong> effectuée (secondes), déclarée par l'athlète sur une séance
+     * écourtée. Distincte de {@link #targetDurationS}, qui est une cible.
+     *
+     * <p>Sans elle, la charge sRPE valait {@code RPE × durée prescrite} : une sortie longue de
+     * 1 h 45 abandonnée à 40 minutes pesait 735 UA au lieu de 280, et deux abandons dans la semaine
+     * suffisaient à déclencher « charge en forte hausse » sur un athlète qui s'était entraîné
+     * moins. Nulle sur l'historique et sur toute séance menée à son terme.</p>
+     */
+    @Column(name = "actual_duration_s")
+    private Integer actualDurationS;
+
+    /** Motif renseigné quand l'athlète déclare la séance non faite ({@code MISSED}). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "missed_reason", length = 32)
+    private com.coachrun.entity.enums.MissedReason missedReason;
+
     /** Feedback athlète (ressenti d'effort 1–10 + commentaire). */
     @Column(name = "rpe")
     private Integer rpe;

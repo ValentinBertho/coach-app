@@ -54,6 +54,7 @@ public class AthleteService {
     private final com.coachrun.security.AthleteAccessValidator accessValidator;
     private final ZoneValueSyncService zoneValueSyncService;
     private final NotificationService notificationService;
+    private final com.coachrun.security.HealthDataConsentValidator consentValidator;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -256,7 +257,14 @@ public class AthleteService {
         athlete.setHrRest(request.hrRest());
         athlete.setVma(request.vma());
         athlete.setWeightKg(request.weightKg());
-        athlete.setMedicalNotes(StringUtils.hasText(request.medicalNotes()) ? request.medicalNotes() : null);
+        // Notes médicales : donnée de l'article 9. Le consentement n'est exigé que pour en
+        // *écrire* une — effacer le champ reste toujours possible, y compris après un retrait.
+        if (StringUtils.hasText(request.medicalNotes())) {
+            consentValidator.requireConsent(athlete, "une note médicale");
+            athlete.setMedicalNotes(request.medicalNotes());
+        } else {
+            athlete.setMedicalNotes(null);
+        }
         if (request.groupId() != null) {
             athlete.setGroup(groupRepository.findByIdAndClubId(request.groupId(), athlete.getClub().getId())
                     .orElseThrow(() -> new NotFoundException("Groupe introuvable.")));

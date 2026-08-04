@@ -74,6 +74,91 @@ class ActivityControllerTest {
                 .andExpect(status().isConflict());
     }
 
+    /**
+     * Le doublon le plus courant ne partage aucun identifiant externe : l'athlète importe la trace
+     * de sa montre, puis connecte Strava — même sortie, deux provenances. La déduplication ne
+     * portait que sur (athlète, source, identifiant externe), et laissait donc passer les deux.
+     * Le récapitulatif hebdomadaire les additionnait ensuite.
+     */
+    @Test
+    void nearIdenticalOutingFromAnotherSourceIsRefusedThenAcceptedOnConfirmation() throws Exception {
+        MockMvc mvc = mockMvc();
+        JsonNode ctx = clubWithAthlete(mvc, "dup");
+        String token = ctx.get("token").asText();
+        String clubId = ctx.get("clubId").asText();
+        String athleteId = ctx.get("athleteId").asText();
+
+        // Trace importée d'un fichier : 12,0 km en 60 min.
+        mvc.perform(post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source\":\"FILE\",\"activityDate\":\"2026-07-02\","
+                                + "\"distanceM\":12000,\"durationS\":3600}"))
+                .andExpect(status().isCreated());
+
+        // La même sortie remontée par Strava : 12,1 km en 61 min, identifiant externe différent.
+        mvc.perform(post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source\":\"STRAVA\",\"externalId\":\"999\","
+                                + "\"activityDate\":\"2026-07-02\",\"distanceM\":12100,\"durationS\":3660}"))
+                .andExpect(status().isConflict());
+
+        // Deux séances le même jour, ça existe : la confirmation passe.
+        mvc.perform(post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source\":\"STRAVA\",\"externalId\":\"999\","
+                                + "\"activityDate\":\"2026-07-02\",\"distanceM\":12100,"
+                                + "\"durationS\":3660,\"confirmDuplicate\":true}"))
+                .andExpect(status().isCreated());
+    }
+
+    /** Une vraie deuxième séance du jour — bien plus courte — ne doit pas être confondue. */
+    @Test
+    void aGenuinelyDifferentSecondOutingOfTheDayIsAccepted() throws Exception {
+        MockMvc mvc = mockMvc();
+        JsonNode ctx = clubWithAthlete(mvc, "dup2");
+        String token = ctx.get("token").asText();
+        String clubId = ctx.get("clubId").asText();
+        String athleteId = ctx.get("athleteId").asText();
+
+        mvc.perform(post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source\":\"MANUAL\",\"activityDate\":\"2026-07-03\","
+                                + "\"distanceM\":18000,\"durationS\":5400}"))
+                .andExpect(status().isCreated());
+
+        // Footing de récupération le soir : 5 km en 30 min.
+        mvc.perform(post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"source\":\"MANUAL\",\"activityDate\":\"2026-07-03\","
+                                + "\"distanceM\":5000,\"durationS\":1800}"))
+                .andExpect(status().isCreated());
+    }
+
+    /** Club + athlète fraîchement créés, renvoyés en un nœud pour alléger les tests. */
+    private JsonNode clubWithAthlete(MockMvc mvc, String prefix) throws Exception {
+        JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"email":"%s-%s@test.fr","password":"password123","fullName":"C",\
+                                "termsAccepted": true, "clubName":"AC %s"}
+                                """.formatted(prefix, UUID.randomUUID(), UUID.randomUUID())))
+                .andReturn().getResponse().getContentAsString());
+        String token = auth.get("accessToken").asText();
+        String clubId = auth.get("user").get("clubId").asText();
+        String athleteId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes", clubId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"firstName\":\"A\",\"lastName\":\"B\"}"))
+                .andReturn().getResponse().getContentAsString()).get("id").asText();
+        return objectMapper.createObjectNode()
+                .put("token", token).put("clubId", clubId).put("athleteId", athleteId);
+    }
+
     @Test
     void matchedActivityIsExposedOnTheWorkout() throws Exception {
         MockMvc mvc = mockMvc();

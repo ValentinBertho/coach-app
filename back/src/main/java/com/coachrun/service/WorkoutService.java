@@ -55,6 +55,7 @@ public class WorkoutService {
     private final ObjectMapper objectMapper;
     private final com.coachrun.repository.RunDrillRepository runDrillRepository;
     private final SessionCalculatorService sessionCalculatorService;
+    private final com.coachrun.security.HealthDataConsentValidator consentValidator;
 
     public List<WorkoutResponse> calendar(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         return workoutRepository
@@ -413,10 +414,11 @@ public class WorkoutService {
     }
 
     @Transactional
-    public WorkoutResponse submitFeedback(UUID athleteId, UUID workoutId, WorkoutStatus status,
-                                          Integer rpe, Integer fatigue, Integer pain, String comment) {
+    public WorkoutResponse submitFeedback(UUID athleteId, UUID workoutId,
+                                          com.coachrun.dto.request.WorkoutFeedbackRequest request) {
         Workout workout = workoutRepository.findByIdAndAthleteId(workoutId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
+        WorkoutStatus status = request.status();
         if (status != null) {
             if (!workout.getStatus().canTransitionTo(status)) {
                 throw new ConflictException(
@@ -424,12 +426,52 @@ public class WorkoutService {
             }
             workout.setStatus(status);
         }
-        workout.setRpe(rpe);
-        workout.setFatigue(fatigue);
-        workout.setPain(pain);
-        workout.setAthleteComment(comment);
+
+        if (status == WorkoutStatus.MISSED) {
+            // Une séance non faite n'a produit aucune charge : lui laisser un RPE la ferait peser
+            // dans l'ACWR pour une durée prescrite qui n'a jamais été courue.
+            applyMissed(workout, request);
+        } else {
+            workout.setMissedReason(null);
+            workout.setRpe(request.rpe());
+            // Fatigue et douleur : données de l'article 9. Sans consentement actif elles ne sont
+            // pas enregistrées, mais la séance se clôture — RPE, statut et commentaire passent.
+            workout.setFatigue(consentValidator.keepIfAllowed(workout.getAthlete(), request.fatigue()));
+            workout.setPain(consentValidator.keepIfAllowed(workout.getAthlete(), request.pain()));
+            // La durée réalisée n'a de sens que sur une séance écourtée : sur une séance menée à
+            // son terme, la prescription fait foi et le champ reste vide.
+            workout.setActualDurationS(
+                    status == WorkoutStatus.PARTIAL ? request.actualDurationS() : null);
+        }
+
+        workout.setAthleteComment(request.comment());
         notificationService.notifyAthleteFeedback(workout);
         return WorkoutResponse.from(workout);
+    }
+
+    /**
+     * Séance déclarée non faite : on efface tout ce qui décrirait un effort, et on garde le motif.
+     *
+     * <p>L'athlète n'avait jusqu'ici que « réalisée » et « partiellement ». Pour une séance qu'il
+     * n'avait pas faite — déplacement professionnel, maladie, imprévu — le seul geste possible
+     * était de ne rien faire, et son silence ressortait quelques jours plus tard en alerte
+     * « séances manquées » côté coach, sans motif.</p>
+     */
+    private void applyMissed(Workout workout, com.coachrun.dto.request.WorkoutFeedbackRequest request) {
+        workout.setRpe(null);
+        workout.setFatigue(null);
+        workout.setPain(null);
+        workout.setActualDurationS(null);
+
+        var reason = request.missedReason() == null
+                ? com.coachrun.entity.enums.MissedReason.OTHER : request.missedReason();
+        // « Santé » révèle un état de santé (art. 9) : même traitement que le motif d'une
+        // indisponibilité, il est ramené à « autre » sans consentement actif.
+        if (reason == com.coachrun.entity.enums.MissedReason.HEALTH
+                && !consentValidator.isAllowed(workout.getAthlete())) {
+            reason = com.coachrun.entity.enums.MissedReason.OTHER;
+        }
+        workout.setMissedReason(reason);
     }
 
     /**

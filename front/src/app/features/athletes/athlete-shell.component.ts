@@ -287,7 +287,8 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
   readonly form = computed<{ level: FormLevel; fatigue: number | null; pain: number | null; stale: boolean } | null>(() => {
     const f = this.formData();
     if (!f) return null;
-    const levels: Record<FormStatus, FormLevel> = { GREEN: 'green', ORANGE: 'orange', RED: 'red' };
+    const levels: Record<FormStatus, FormLevel> =
+    { GREEN: 'green', ORANGE: 'orange', RED: 'red', STALE: 'stale' };
     return { level: levels[f.formStatus], fatigue: f.fatigue, pain: f.pain, stale: !f.lastFeedbackDate };
   });
 

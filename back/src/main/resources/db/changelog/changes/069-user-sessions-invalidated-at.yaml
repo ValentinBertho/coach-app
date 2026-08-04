@@ -1,0 +1,22 @@
+# ============================================================================
+# 069 — Date de révocation des sessions d'un compte.
+#
+#   La déconnexion ne révoquait que l'access token, via une liste noire en
+#   mémoire. Le refresh token — 30 jours — restait valable côté serveur : seule
+#   sa copie locale était effacée. « Se déconnecter » ne fermait donc rien pour
+#   un jeton déjà exfiltré, et le moindre redéploiement vidait la liste noire,
+#   ressuscitant au passage tous les refresh tokens déjà rotés.
+#
+#   Même mécanique que password_changed_at (migration 063), et lue par le même
+#   validateur : tout jeton émis avant cette date est rejeté. Nulle pour les
+#   comptes existants = aucune session invalidée rétroactivement.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 069-user-sessions-invalidated-at
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column: { name: sessions_invalidated_at, type: TIMESTAMP }

@@ -74,6 +74,55 @@ class SessionRevocationTest {
                 .andExpect(status().isUnauthorized());
     }
 
+    /**
+     * La déconnexion doit fermer la session pour de bon.
+     *
+     * <p>Elle ne révoquait que l'access token présenté, via une liste noire en mémoire : le
+     * refresh token restait valable trente jours côté serveur — seule sa copie locale
+     * disparaissait — et le moindre redéploiement vidait la liste noire.</p>
+     */
+    @Test
+    void loggingOutInvalidatesTheRefreshTokenToo() throws Exception {
+        MockMvc mvc = mockMvc();
+        JsonNode session = register(mvc, "logout");
+        String access = session.get("accessToken").asText();
+        String refresh = session.get("refreshToken").asText();
+
+        // Une seconde d'écart : le « iat » d'un JWT n'a pas de précision plus fine.
+        Thread.sleep(1100);
+        mvc.perform(post("/auth/logout").header("Authorization", "Bearer " + access))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(get("/auth/me").header("Authorization", "Bearer " + access))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/auth/refresh")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refresh + "\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    /** Se reconnecter juste après doit fonctionner : on révoque le passé, pas le compte. */
+    @Test
+    void loggingBackInAfterLogoutWorks() throws Exception {
+        MockMvc mvc = mockMvc();
+        JsonNode session = register(mvc, "logout2");
+        String email = session.get("user").get("email").asText();
+
+        Thread.sleep(1100);
+        mvc.perform(post("/auth/logout")
+                        .header("Authorization", "Bearer " + session.get("accessToken").asText()))
+                .andExpect(status().isNoContent());
+
+        String fresh = objectMapper.readTree(mvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + email + "\",\"password\":\"password123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString())
+                .get("accessToken").asText();
+
+        mvc.perform(get("/auth/me").header("Authorization", "Bearer " + fresh))
+                .andExpect(status().isOk());
+    }
+
     @Test
     void aFreshLoginWorksRightAfterThePasswordChange() throws Exception {
         MockMvc mvc = mockMvc();

@@ -48,6 +48,7 @@ public class StrengthResultService {
     private final com.coachrun.repository.StrengthLoadTrackingRepository loadTrackingRepository;
     private final OneRmEngine oneRmEngine;
     private final com.coachrun.engine.StrengthLoadEngine loadEngine;
+    private final com.coachrun.security.HealthDataConsentValidator consentValidator;
 
     /** Enregistre les séries réalisées d'une séance et met à jour le e1RM par exercice. */
     @Transactional
@@ -74,7 +75,9 @@ public class StrengthResultService {
             r.setDurationSecDone(e.durationSecDone());
             r.setRpeDone(e.rpeDone());
             r.setRirDone(e.rirDone());
-            r.setPain(e.pain());
+            // Douleur par série : donnée de l'article 9, écartée sans consentement actif. La
+            // série reste enregistrée — charge, répétitions et RIR pilotent la progression.
+            r.setPain(consentValidator.keepIfAllowed(athlete, e.pain()));
             r.setComment(e.comment());
             r = resultRepository.save(r);
 

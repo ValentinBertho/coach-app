@@ -17,6 +17,13 @@ export interface WorkoutStep {
   notes: string | null;
 }
 
+/**
+ * Motif d'une séance non faite. L'athlète n'avait auparavant que « réalisée » et
+ * « partiellement » : pour une séance qu'il n'avait pas faite, le seul geste possible était de
+ * ne rien faire, et son silence ressortait en alerte « séance manquée » côté coach.
+ */
+export type MissedReason = 'UNEXPECTED' | 'NO_TIME' | 'WEATHER' | 'HEALTH' | 'OTHER';
+
 export interface Workout {
   id: string;
   athleteId: string;
@@ -27,11 +34,23 @@ export interface Workout {
   notes: string | null;
   targetDistanceM: number | null;
   targetDurationS: number | null;
+  /** Durée réellement effectuée sur une séance écourtée ; null si menée à son terme. */
+  actualDurationS: number | null;
+  /** Motif renseigné quand l'athlète a déclaré la séance non faite. */
+  missedReason: MissedReason | null;
   rpe: number | null;
   athleteComment: string | null;
   /** Retour du coach sur la séance réalisée (feedback in situ), visible par l'athlète. */
   coachComment: string | null;
   coachCommentAt: string | null;
+  /**
+   * L'athlète a déplacé cette séance lui-même. Renvoyé par l'API depuis toujours, mais absent du
+   * modèle : le coach n'avait donc aucun signal, ni notification, quand sa semaine était
+   * réorganisée.
+   */
+  movedByAthlete: boolean;
+  /** Date à laquelle la séance était initialement prévue, si elle a été déplacée. */
+  originalDate: string | null;
   /** Charge prévue en UA (sRPE appliqué à la prescription) — total hebdo du calendrier. */
   plannedLoadUa: number | null;
   /** Ordre d'affichage au sein d'un même jour (glisser-déposer intra-jour). */

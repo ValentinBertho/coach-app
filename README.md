@@ -115,11 +115,11 @@ unitairement et **source de vérité** (recalcul à la sauvegarde, équivalent d
 | Couche | Techno |
 |---|---|
 | **Frontend** | Angular 17 (standalone components, signals, control-flow `@if`/`@for`, OnPush), PWA, TypeScript 5.4, Leaflet (cartes) |
-| **Backend** | Spring Boot 3.2.5, Java 21, API REST (~236 endpoints), Springdoc/OpenAPI |
-| **Base de données** | PostgreSQL 18 · **Liquibase** (65 migrations versionnées) |
+| **Backend** | Spring Boot 3.2.5, Java 21, API REST (~295 endpoints), Springdoc/OpenAPI |
+| **Base de données** | PostgreSQL 18 · **Liquibase** (70 migrations versionnées) |
 | **Auth** | JWT (access tokens) + liens magiques d'invitation athlète · `@PreAuthorize` multi-tenant |
 | **Sécurité** | AES-256-GCM (données santé + jetons OAuth chiffrés au repos), CSP, CORS allowlist, rate-limiting |
-| **Intégrations** | Strava (OAuth), import GPX/FIT, e-mail Resend, Web Push (VAPID), export PDF (OpenPDF) |
+| **Intégrations** | Strava (OAuth), import GPX/TCX, e-mail Resend, Web Push (VAPID), export PDF (OpenPDF) |
 | **Temps réel** | Server-Sent Events (messagerie) |
 | **CI/CD** | GitHub Actions · Docker · Railway (back + DB) · Vercel (front) |
 
@@ -189,19 +189,19 @@ npm start                       # proxy vers http://localhost:8080/api
 .
 ├── back/                       # API Spring Boot (Java 21, Maven)
 │   └── src/main/java/com/coachrun/
-│       ├── controller/         # 41 contrôleurs REST
-│       ├── service/            # 47 services métier
-│       ├── engine/             # 11 moteurs de calcul (physiologie pure) + PaceUtil
+│       ├── controller/         # 47 contrôleurs REST
+│       ├── service/            # 61 services métier
+│       ├── engine/             # 12 moteurs de calcul (physiologie pure) + PaceUtil
 │       ├── entity/             # entités JPA (héritent de BaseEntity)
 │       ├── dto/                # request/ et response/ séparés
 │       ├── repository/         # Spring Data JPA
 │       ├── security/           # JWT, chiffrement, CORS, rate-limit, anti-IDOR
 │       └── integration/        # Strava, Resend (clients HTTP)
-│   └── src/main/resources/db/changelog/   # 42 migrations Liquibase
+│   └── src/main/resources/db/changelog/   # 70 migrations Liquibase
 ├── front/                      # App Angular (PWA)
 │   └── src/app/
 │       ├── core/               # services, models, guards, intercepteurs
-│       └── features/           # 21 modules (athletes, strength, physio, messages, calendar…)
+│       └── features/           # 25 modules (athletes, strength, physio, messages, calendar…)
 ├── docs/                       # Cahier des charges, design, techno, audits, exploitation
 │   ├── README.md               # index : quel document fait foi, et sur quoi
 │   └── archive/                # historique non maintenu (CDC d'origine, blueprint, wireframes)
@@ -218,14 +218,15 @@ npm start                       # proxy vers http://localhost:8080/api
 ## Qualité, tests & CI
 
 ```bash
-# Backend : build + 151 tests + smoke test de démarrage
+# Backend : build + tests + smoke test de démarrage
 cd back && ./mvnw -B -ntp clean verify
 
 # Frontend : build de production (typecheck AOT)
 cd front && npm run build
 ```
 
-- **151 tests backend** (moteurs purs + intégration MockMvc), exécutés sur **H2 en mode PostgreSQL**.
+- **~340 tests backend** (moteurs purs + intégration MockMvc), exécutés sur **H2 en mode PostgreSQL**,
+  et **64 tests front** (Karma headless), tous joués en CI.
 - **Smoke test de démarrage** en CI sur un **PostgreSQL réel** (migrations Liquibase appliquées) pour
   attraper les écarts H2↔PG.
 - CI GitHub Actions (`.github/workflows/ci.yml`) : jobs back (`mvn verify` + smoke PG) et front (`npm ci` + build).
@@ -319,6 +320,9 @@ le produit et les parcours) :
 | [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md) | déploiement Railway/Vercel + variables |
 | [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | **exploitation : Sentry, sauvegardes BDD, Actuator, CI (pas-à-pas)** |
 | [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md) | **runbook de mise en service : Resend, Sentry, uptime, backups (pas-à-pas)** |
+| [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md) | **plan de mise en conformité** : vagues 0 à 3, check-lists légale/RGPD et opérationnelle, recommandation GO/NO-GO |
+| [`docs/AUDIT-FONCTIONNEL-2026-08.md`](./docs/AUDIT-FONCTIONNEL-2026-08.md) | audit métier : parcours coach/athlète sur un mésocycle réel (prescription, charge, alertes, blessure, force) |
+| [`docs/AUDIT-BETA-OUVERTE-2026-08.md`](./docs/AUDIT-BETA-OUVERTE-2026-08.md) | audit de bêta ouverte : second passage (builds exécutés, consentement santé, autorisations club, plafonds SSE et e-mail) |
 | [`docs/AUDIT-BETA-OUVERTE-2026-07.md`](./docs/AUDIT-BETA-OUVERTE-2026-07.md) | audit de bêta ouverte : parcours coach/athlète, ergonomie, accessibilité, notifications |
 | [`docs/AUDIT-BETA-READINESS-2026-07.md`](./docs/AUDIT-BETA-READINESS-2026-07.md) | audit de préparation à la bêta (infra, sécurité, RGPD, exploitation) |
 | [`docs/AUDIT-RC-2026-07.md`](./docs/AUDIT-RC-2026-07.md) | audit code de la release candidate (lots 1 à 8, livrés) |

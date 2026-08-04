@@ -9,7 +9,7 @@ import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
 import { Activity, TimeInZone, WeekSummary } from '../models/activity.model';
 import { Analytics } from './analytics.service';
 import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
-import { Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
+import { MissedReason, Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
 import { StravaStatus } from '../models/strava.model';
 import { E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthPrescriptionView, StrengthResultEntry } from '../models/strength.model';
 
@@ -24,6 +24,8 @@ export interface ActivityLog {
   durationS?: number | null;
   avgHr?: number | null;
   elevationGainM?: number | null;
+  /** Confirme l'enregistrement malgré une sortie très proche déjà présente le même jour. */
+  confirmDuplicate?: boolean;
 }
 
 export interface WorkoutFeedback {
@@ -32,6 +34,10 @@ export interface WorkoutFeedback {
   fatigue?: number | null;
   pain?: number | null;
   comment?: string | null;
+  /** Durée réellement effectuée (secondes) sur une séance écourtée — c'est elle qui pèse dans la charge. */
+  actualDurationS?: number | null;
+  /** Motif accompagnant un statut MISSED. */
+  missedReason?: MissedReason | null;
 }
 
 export interface StrengthFeedback {
@@ -93,11 +99,18 @@ export class AthletePortalService {
     return this.http.post<Activity>(`${this.base}/activities`, body);
   }
 
-  /** J'importe ma propre trace (GPX/TCX). */
-  importActivityFile(file: File): Observable<Activity> {
+  /**
+   * J'importe ma propre trace (GPX/TCX).
+   *
+   * `confirmDuplicate` lève le contrôle de doublon : ré-importer le même fichier, ou importer la
+   * trace d'une sortie déjà remontée par la montre, produisait deux fois la même sortie — et le
+   * récapitulatif hebdomadaire les additionnait.
+   */
+  importActivityFile(file: File, confirmDuplicate = false): Observable<Activity> {
     const form = new FormData();
     form.append('file', file);
-    return this.http.post<Activity>(`${this.base}/activities/import-file`, form);
+    const params = confirmDuplicate ? new HttpParams().set('confirmDuplicate', 'true') : undefined;
+    return this.http.post<Activity>(`${this.base}/activities/import-file`, form, { params });
   }
 
   /** Prochaine course (204 → null). */

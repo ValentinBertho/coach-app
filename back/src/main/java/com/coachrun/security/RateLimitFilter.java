@@ -41,11 +41,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
     public static final String AUTHENTICATED_BUCKET = "api-authenticated";
     /** Bucket des routes qui déclenchent un envoi d'e-mail, compté à l'heure. */
     public static final String EMAIL_BUCKET = "api-email";
+    /** Bucket des routes <b>anonymes</b> qui déclenchent un envoi d'e-mail, compté à l'heure par IP. */
+    public static final String ANONYMOUS_EMAIL_BUCKET = "public-email";
 
     private final FixedWindowRateLimiter limiter;
     private final FixedWindowRateLimiter loginLimiter;
     private final FixedWindowRateLimiter authenticatedLimiter;
     private final FixedWindowRateLimiter emailLimiter;
+    private final FixedWindowRateLimiter anonymousEmailLimiter;
     private final int trustedProxyHops;
 
     @SuppressWarnings("checkstyle:ParameterNumber")
@@ -55,6 +58,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                            @Value("${app.rate-limit.authenticated-max-requests:300}") int authenticatedMax,
                            @Value("${app.rate-limit.email-max-requests:3}") int emailMax,
                            @Value("${app.rate-limit.email-window-seconds:3600}") int emailWindowSeconds,
+                           @Value("${app.rate-limit.anonymous-email-max-requests:5}") int anonymousEmailMax,
                            @Value("${app.rate-limit.trusted-proxy-hops:1}") int trustedProxyHops) {
         this.limiter = new FixedWindowRateLimiter(maxRequests, Duration.ofSeconds(windowSeconds));
         // La connexion a son propre seuil, bien plus strict : 20 essais par minute et par IP
@@ -67,6 +71,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // vérification parce qu'elle n'est pas arrivée, pas trois cents fois par minute).
         this.emailLimiter =
                 new FixedWindowRateLimiter(emailMax, Duration.ofSeconds(emailWindowSeconds));
+        // Envois d'e-mail déclenchés SANS être connecté : inscription et mot de passe oublié. Le
+        // plafond ci-dessus ne les couvrait pas — il compte par porteur de jeton, et ces routes
+        // n'en portent aucun. Elles retombaient donc sur le seuil général (20/min/IP), soit
+        // 1 200 e-mails par heure et par adresse, sur un quota d'envoi partagé de 100 par jour.
+        // Tant que l'inscription est sur invitation, le risque dort ; ouvrir la bêta le réveille.
+        this.anonymousEmailLimiter =
+                new FixedWindowRateLimiter(anonymousEmailMax, Duration.ofSeconds(emailWindowSeconds));
         this.trustedProxyHops = Math.max(1, trustedProxyHops);
     }
 
@@ -122,11 +133,42 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return uri.endsWith("/auth/me") && "PATCH".equalsIgnoreCase(method);
     }
 
+    /**
+     * Routes <b>anonymes</b> dont chaque appel provoque un envoi d'e-mail : inscription et demande
+     * de réinitialisation de mot de passe.
+     *
+     * <p>Elles ne portent aucun jeton, donc {@link #isEmailTriggering} — qui compte par porteur —
+     * ne les voyait pas. Elles retombaient sur le seuil général de 20 requêtes par minute et par
+     * IP, soit jusqu'à 1 200 e-mails par heure depuis une seule adresse, sur un quota d'envoi de
+     * 100 par jour partagé avec les invitations d'athlètes. Tant que l'inscription reste sur
+     * invitation, {@code /auth/register} est fermée et le risque dort ; <b>ouvrir la bêta consiste
+     * précisément à l'ouvrir</b>.</p>
+     *
+     * <p>La correspondance est volontairement exacte sur la réinitialisation : les variantes
+     * porteuses d'un jeton ({@code GET} de validation du lien, {@code POST} d'application du
+     * nouveau mot de passe) n'envoient rien et ne doivent pas consommer ce quota.</p>
+     */
+    public static boolean isAnonymousEmailTriggering(String uri, String method) {
+        if (uri == null || !"POST".equalsIgnoreCase(method)) {
+            return false;
+        }
+        return uri.endsWith("/auth/register") || uri.endsWith("/public/password-reset");
+    }
+
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain)
             throws ServletException, IOException {
+        // Plafond horaire des envois anonymes, en plus du seuil par minute ci-dessous : l'un borne
+        // la rafale, l'autre borne la consommation du quota d'envoi sur la journée.
+        if (isAnonymousEmailTriggering(request.getRequestURI(), request.getMethod())
+                && !anonymousEmailLimiter.tryAcquire(
+                        clientIp(request) + ":" + ANONYMOUS_EMAIL_BUCKET)) {
+            reject(response);
+            return;
+        }
+
         String bucket = bucket(request.getRequestURI());
         String key;
         FixedWindowRateLimiter applicable;
@@ -153,14 +195,19 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         if (!applicable.tryAcquire(key)) {
-            response.setStatus(429);
-            response.setContentType("application/json");
-            response.setCharacterEncoding("UTF-8");
-            response.getWriter().write(
-                    "{\"status\":429,\"message\":\"Trop de requêtes, réessayez plus tard.\"}");
+            reject(response);
             return;
         }
         filterChain.doFilter(request, response);
+    }
+
+    /** Réponse 429 commune à tous les plafonds. */
+    private void reject(HttpServletResponse response) throws IOException {
+        response.setStatus(429);
+        response.setContentType("application/json");
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(
+                "{\"status\":429,\"message\":\"Trop de requêtes, réessayez plus tard.\"}");
     }
 
     /**
@@ -237,5 +284,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         limiter.purgeExpired();
         loginLimiter.purgeExpired();
         authenticatedLimiter.purgeExpired();
+        // Les deux seaux horaires manquaient à l'appel : leurs tables, indexées sur des clés que
+        // l'appelant contrôle, grossissaient sans jamais être nettoyées.
+        emailLimiter.purgeExpired();
+        anonymousEmailLimiter.purgeExpired();
     }
 }

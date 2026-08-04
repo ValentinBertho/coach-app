@@ -80,7 +80,8 @@ export interface GroupAnalytics {
   groupId: string;
   name: string;
   athleteCount: number;
-  form: { green: number; orange: number; red: number };
+  /** Répartition de forme du groupe ; `stale` = athlètes sans signal récent (comptés en vert auparavant). */
+  form: { green: number; orange: number; red: number; stale: number };
   totals: { avgAcwr: number | null; plannedKm: number; realizedKm: number; compliancePct: number | null };
   athletes: GroupAnalyticsRow[];
 }

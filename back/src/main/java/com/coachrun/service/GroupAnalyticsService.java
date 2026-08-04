@@ -37,6 +37,7 @@ public class GroupAnalyticsService {
     private final FormStatusEngine formStatusEngine;
     private final AthleteLoadService loadService;
     private final AnalyticsService analyticsService;
+    private final ClockService clock;
 
     public GroupAnalyticsResponse compute(UUID clubId, UUID groupId, int weeks) {
         TrainingGroup group = groupRepository.findByIdAndClubId(groupId, clubId)
@@ -48,6 +49,7 @@ public class GroupAnalyticsService {
         int green = 0;
         int orange = 0;
         int red = 0;
+        int stale = 0;
         double acwrSum = 0;
         int acwrCount = 0;
         double totalPlanned = 0;
@@ -59,11 +61,17 @@ public class GroupAnalyticsService {
                     .orElse(null);
             Integer fatigue = last == null ? null : last.getFatigue();
             Integer pain = last == null ? null : last.getPain();
-            FormStatus status = formStatusEngine.classify(fatigue, pain);
+            // Même règle de péremption que le cockpit : un retour trop ancien ne décrit plus
+            // l'état du jour, et un athlète sans aucun retour n'est pas « en forme ».
+            boolean fresh = last != null && last.getScheduledDate() != null
+                    && !last.getScheduledDate().isBefore(
+                            clock.today().minusDays(AthleteFeedbackService.FRESHNESS_DAYS));
+            FormStatus status = fresh ? formStatusEngine.classify(fatigue, pain) : FormStatus.STALE;
             switch (status) {
                 case GREEN -> green++;
                 case ORANGE -> orange++;
                 case RED -> red++;
+                case STALE -> stale++;
                 default -> { }
             }
 
@@ -92,7 +100,7 @@ public class GroupAnalyticsService {
                 avgAcwr, round1(totalPlanned), round1(totalRealized), compliance(totalPlanned, totalRealized));
 
         return new GroupAnalyticsResponse(group.getId(), group.getName(), rows.size(),
-                new GroupAnalyticsResponse.FormDistribution(green, orange, red), totals, rows);
+                new GroupAnalyticsResponse.FormDistribution(green, orange, red, stale), totals, rows);
     }
 
     private static Integer compliance(double planned, double realized) {

@@ -23,12 +23,42 @@ public class MessageStreamService {
 
     private static final long TIMEOUT_MS = 30 * 60 * 1000L;
 
+    /**
+     * Flux simultanés tolérés par fil de conversation.
+     *
+     * <p>Le plafond posé sur le compteur de notifications n'avait pas été appliqué ici, alors que
+     * la cause est la même : le proxy coupe mal les connexions longues et {@code EventSource}
+     * rouvre tout seul, indéfiniment. Le rate limiting attrape bien ces routes, mais au plafond
+     * authentifié de 300 requêtes par minute — de quoi empiler des centaines d'émetteurs retenus
+     * une demi-heure chacun.</p>
+     *
+     * <p>La clé est le fil, pas l'utilisateur : l'athlète et ses coachs le partagent. Douze couvre
+     * donc un athlète sur deux appareils et plusieurs coachs regardant la même conversation.</p>
+     */
+    private static final int MAX_STREAMS_PER_THREAD = 12;
+
     private final Map<UUID, List<SseEmitter>> emitters = new ConcurrentHashMap<>();
 
-    /** Ouvre un flux SSE pour le fil d'un athlète. */
+    /** Ouvre un flux SSE pour le fil d'un athlète, en fermant le plus ancien au-delà du plafond. */
     public SseEmitter subscribe(UUID athleteId) {
         SseEmitter emitter = new SseEmitter(TIMEOUT_MS);
-        emitters.computeIfAbsent(athleteId, k -> new CopyOnWriteArrayList<>()).add(emitter);
+        List<SseEmitter> threadEmitters =
+                emitters.computeIfAbsent(athleteId, k -> new CopyOnWriteArrayList<>());
+        // Le plus ancien cède la place : un onglet fermé sans que le serveur en soit informé ne
+        // doit pas condamner les suivants.
+        while (threadEmitters.size() >= MAX_STREAMS_PER_THREAD) {
+            SseEmitter oldest = threadEmitters.isEmpty() ? null : threadEmitters.get(0);
+            if (oldest == null) {
+                break;
+            }
+            threadEmitters.remove(oldest);
+            try {
+                oldest.complete();
+            } catch (RuntimeException ignored) {
+                // Déjà terminé côté client : rien à fermer.
+            }
+        }
+        threadEmitters.add(emitter);
 
         emitter.onCompletion(() -> remove(athleteId, emitter));
         emitter.onTimeout(() -> remove(athleteId, emitter));

@@ -16,7 +16,14 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
 
     List<Message> findByClubIdAndAthleteIdOrderByCreatedAtAsc(UUID clubId, UUID athleteId);
 
+    /** Fil borné (les plus récents d'abord) — le fil entier était chargé à chaque ouverture. */
+    List<Message> findByClubIdAndAthleteIdOrderByCreatedAtDesc(
+            UUID clubId, UUID athleteId, org.springframework.data.domain.Pageable pageable);
+
     List<Message> findByAthleteIdOrderByCreatedAtAsc(UUID athleteId);
+
+    List<Message> findByAthleteIdOrderByCreatedAtDesc(
+            UUID athleteId, org.springframework.data.domain.Pageable pageable);
 
     // --- Boîte de réception coach ---
 

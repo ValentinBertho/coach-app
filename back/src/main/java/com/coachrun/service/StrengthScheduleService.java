@@ -35,6 +35,7 @@ public class StrengthScheduleService {
 
     private final ScheduledStrengthSessionRepository scheduledRepository;
     private final AthleteRepository athleteRepository;
+    private final com.coachrun.security.HealthDataConsentValidator consentValidator;
     private final StrengthSessionService strengthSessionService;
     private final ObjectMapper objectMapper;
 
@@ -171,8 +172,10 @@ public class StrengthScheduleService {
             ss.setCompletedAt(Instant.now());
         }
         ss.setSessionRpe(req.sessionRpe());
-        ss.setSessionFatigue(req.fatigue());
-        ss.setSessionPain(req.pain());
+        // RPE et commentaire relèvent de l'exécution du contrat ; fatigue et douleur sont des
+        // données de l'article 9 et tombent si le consentement n'est pas actif.
+        ss.setSessionFatigue(consentValidator.keepIfAllowed(ss.getAthlete(), req.fatigue()));
+        ss.setSessionPain(consentValidator.keepIfAllowed(ss.getAthlete(), req.pain()));
         ss.setSessionComment(req.comment());
         return ScheduledStrengthResponse.from(ss);
     }

@@ -19,4 +19,11 @@ public interface AthleteUnavailabilityRepository extends JpaRepository<AthleteUn
 
     List<AthleteUnavailability> findByAthleteIdAndEndDateGreaterThanEqualOrderByStartDateAsc(
             UUID athleteId, LocalDate from);
+
+    /**
+     * Indisponibilités chevauchant une fenêtre — sert à taire les alertes d'un athlète dont on
+     * sait déjà qu'il ne s'entraîne pas.
+     */
+    List<AthleteUnavailability> findByAthleteIdAndEndDateGreaterThanEqualAndStartDateLessThanEqual(
+            UUID athleteId, LocalDate windowStart, LocalDate windowEnd);
 }

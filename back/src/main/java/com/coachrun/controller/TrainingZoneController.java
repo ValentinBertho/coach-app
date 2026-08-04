@@ -37,7 +37,16 @@ public class TrainingZoneController {
     /**
      * Zones d'un modèle ({@code setId}) ou de l'échelle appliquée à un athlète ({@code athleteId}) ;
      * sans paramètre, le jeu par défaut du club.
+     *
+     * <p>Le contrôle d'accès à l'athlète s'ajoute au contrôle de club : c'était la dernière route
+     * portant un {@code athleteId} sans garde de niveau athlète, et elle laissait donc lire
+     * l'échelle de zones — donc les allures et fréquences cardiaques de travail — d'un athlète
+     * privé d'un collègue. Le paramètre étant optionnel, la garde ne s'applique que lorsqu'il est
+     * fourni : sans lui, il n'y a pas d'athlète à protéger.</p>
      */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)"
+            + " and (#athleteId == null"
+            + " or @athleteAccessValidator.canRead(authentication, #athleteId))")
     @GetMapping
     public List<TrainingZoneResponse> list(
             @PathVariable UUID clubId,

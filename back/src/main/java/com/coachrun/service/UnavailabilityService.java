@@ -27,6 +27,18 @@ public class UnavailabilityService {
     private final AthleteRepository athleteRepository;
     private final ClockService clock;
     private final NotificationService notificationService;
+    private final com.coachrun.security.HealthDataConsentValidator consentValidator;
+
+    /**
+     * Un motif d'indisponibilité relève-t-il de l'article 9 ? Blessure et maladie décrivent un état
+     * de santé ; vacances, personnel et autre décrivent une disponibilité. Un commentaire libre est
+     * traité comme médical par précaution — c'est là qu'on écrit « déchirure ischio droit ».
+     */
+    private static boolean isMedical(UnavailabilityRequest req) {
+        return req.reason() == com.coachrun.entity.enums.UnavailabilityReason.INJURY
+                || req.reason() == com.coachrun.entity.enums.UnavailabilityReason.ILLNESS
+                || org.springframework.util.StringUtils.hasText(req.notes());
+    }
 
     public List<UnavailabilityResponse> list(UUID clubId, UUID athleteId) {
         return repository.findByClubIdAndAthleteIdOrderByStartDateDesc(clubId, athleteId)
@@ -43,6 +55,11 @@ public class UnavailabilityService {
     public UnavailabilityResponse create(UUID clubId, UUID athleteId, UnavailabilityRequest req) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        // Saisie par le coach : un motif médical exige une base légale, et le coach doit savoir
+        // pourquoi elle manque — il a un recours (relancer l'invitation, demander le consentement).
+        if (isMedical(req)) {
+            consentValidator.requireConsent(athlete, "un motif d'indisponibilité médical");
+        }
         AthleteUnavailability u = new AthleteUnavailability();
         u.setClub(athlete.getClub());
         u.setAthlete(athlete);
@@ -63,6 +80,13 @@ public class UnavailabilityService {
         u.setClub(athlete.getClub());
         u.setAthlete(athlete);
         apply(u, req);
+        // Déclaration par l'athlète : on ne lui refuse pas de signaler son absence — la période est
+        // de l'information de planification. Sans base légale, seul le caractère médical tombe,
+        // exactement comme le fait le retrait de consentement sur l'historique existant.
+        if (!consentValidator.isAllowed(athlete)) {
+            u.setReason(com.coachrun.entity.enums.UnavailabilityReason.OTHER);
+            u.setNotes(null);
+        }
         UnavailabilityResponse saved = UnavailabilityResponse.from(repository.save(u));
         notificationService.notifyAthleteUnavailability(athlete, u);
         return saved;
@@ -80,6 +104,11 @@ public class UnavailabilityService {
     @Transactional
     public UnavailabilityResponse update(UUID clubId, UUID id, UnavailabilityRequest req) {
         AthleteUnavailability u = require(clubId, id);
+        // Requalifier une absence en blessure, c'est collecter une donnée de santé : même règle
+        // qu'à la création, sinon la garde se contourne par une modification.
+        if (isMedical(req)) {
+            consentValidator.requireConsent(u.getAthlete(), "un motif d'indisponibilité médical");
+        }
         apply(u, req);
         return UnavailabilityResponse.from(u);
     }
