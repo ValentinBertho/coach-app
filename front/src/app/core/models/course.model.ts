@@ -1,12 +1,45 @@
 export type PrescriptionRef =
-  | 'PCT_LT1' | 'PCT_LT2' | 'PCT_VC'
+  | 'PCT_LT1' | 'PCT_LT2' | 'PCT_VC' | 'PCT_VMA'
   | 'PCT_PACE_800M' | 'PCT_PACE_1500M' | 'PCT_PACE_3000M' | 'PCT_PACE_5KM'
   | 'PCT_PACE_10KM' | 'PCT_PACE_15KM' | 'PCT_PACE_SEMI' | 'PCT_PACE_MARATHON';
 
+/** Libellés FR des référentiels d'allure (le code reste en anglais, cf. convention README). */
+export const PRESCRIPTION_REF_LABELS: Record<PrescriptionRef, string> = {
+  PCT_LT2: 'LT2 (seuil lactique)',
+  PCT_LT1: 'LT1 (seuil aérobie)',
+  PCT_VC: 'VC (vitesse critique)',
+  PCT_VMA: 'VMA',
+  PCT_PACE_800M: 'Allure 800 m',
+  PCT_PACE_1500M: 'Allure 1500 m',
+  PCT_PACE_3000M: 'Allure 3000 m',
+  PCT_PACE_5KM: 'Allure 5 km',
+  PCT_PACE_10KM: 'Allure 10 km',
+  PCT_PACE_15KM: 'Allure 15 km',
+  PCT_PACE_SEMI: 'Allure semi',
+  PCT_PACE_MARATHON: 'Allure marathon',
+};
+
+/** Libellé court d'un référentiel, pour les pastilles denses (« % LT2 », « % 5 km »). */
+export const PRESCRIPTION_REF_SHORT: Record<PrescriptionRef, string> = {
+  PCT_LT2: 'LT2',
+  PCT_LT1: 'LT1',
+  PCT_VC: 'VC',
+  PCT_VMA: 'VMA',
+  PCT_PACE_800M: '800 m',
+  PCT_PACE_1500M: '1500 m',
+  PCT_PACE_3000M: '3000 m',
+  PCT_PACE_5KM: '5 km',
+  PCT_PACE_10KM: '10 km',
+  PCT_PACE_15KM: '15 km',
+  PCT_PACE_SEMI: 'semi',
+  PCT_PACE_MARATHON: 'marathon',
+};
+
 /**
  * Prescription d'intensité d'un bloc. Authoring cible (Z3) : `zoneId` seul (zone à 100 %),
- * la cible allure/FC est lue sur la fiche athlète. Champs legacy `ref/minPct/maxPct` conservés
- * pour la lecture des snapshots figés et anciens modèles.
+ * la cible allure/FC est lue sur la fiche athlète. Le couple `ref/minPct/maxPct` sert aux
+ * snapshots figés et anciens modèles — et, avec `custom`, à la fourchette que le coach écrit
+ * lui-même pour un fractionné (« 102–106 % de VC ») qui ne rentre dans aucune zone nommée.
  */
 export interface CoursePrescription {
   zoneId?: string | null;
@@ -18,6 +51,11 @@ export interface CoursePrescription {
   ref?: PrescriptionRef | null;
   minPct?: number | null;
   maxPct?: number | null;
+  /**
+   * La fourchette `ref + %` est voulue par le coach : le serveur la fait primer sur toute zone,
+   * y compris celle qu'il déduirait du même couple à la relecture.
+   */
+  custom?: boolean | null;
 }
 
 export interface CourseRecovery {

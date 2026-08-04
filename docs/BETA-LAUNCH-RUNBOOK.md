@@ -86,6 +86,15 @@ VAPID_SUBJECT=mailto:contact@darilab.app
       `FIELD_ENCRYPTION_KEY` — un manque bloque le boot avec la liste complète en clair)
 - [ ] Depuis le portail athlète : activer les notifications → planifier une séance côté coach →
       la notification arrive
+- [ ] Se déconnecter sur ce même appareil, puis planifier une autre séance → **rien n'arrive**
+      (le canal se coupe côté serveur à la déconnexion, pas seulement côté navigateur : c'est le
+      cas du téléphone partagé)
+
+> **Côté code, rien ne reste à faire** : émission (séance planifiée, commentaire du coach, retour
+> d'athlète, rappel J-1, digest d'alertes), réglage par canal côté coach et athlète, actions
+> rapides, purge des abonnements caducs, coupure à la déconnexion et au droit à l'oubli sont en
+> place et couverts par `PushSubscriptionTest`. Il ne manque que **la paire de clés ci-dessus** et
+> la vérification sur un vrai téléphone — un push ne se teste pas en CI.
 
 ### 1.3 Fermer l'inscription (cohorte sur invitation) · 🔴 BLOQUANT
 Le runbook prévoit une cohorte de 5 à 8 coachs, mais `/auth/register` est public : sans ce

@@ -3,7 +3,7 @@
     @if (isWorkout()) {
       <a [routerLink]="['/app/athletes', athleteId(), 'workouts', workoutId()]" class="back-link">← Séance</a>
     } @else {
-      <a routerLink="/app/library/course" class="back-link">← Bibliothèque</a>
+      <a routerLink="/app/library/course" [queryParams]="libraryQueryParams()" class="back-link">← Bibliothèque</a>
     }
     <h1 class="display-sm">{{ name() || 'Éditeur de séance' }}</h1>
     <p class="subtitle">Un bloc = <strong>volume + zone</strong>. La cible (allure · FC · RPE) est lue depuis la fiche athlète.</p>
@@ -133,10 +133,32 @@
             </select>
           </span>
 
+          <!-- Intensité : une zone du club, ou une fourchette en % écrite pour cette séance.
+               Un « 6×1000 à 102–106 % de VC » ne rentre dans aucune bande nommée, et les zones
+               ne se retouchent pas athlète par athlète. -->
           @if (b.prescription) {
-            <app-zone-picker class="block-zone" [dense]="true"
-              [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
-              [selectedId]="b.prescription.zoneId" (zoneChange)="onBlockZone(b, $event)" />
+            @if (usesPct(b)) {
+              <span class="block-pct" title="Allure prescrite en % d'un référentiel">
+                <input type="number" class="pct-in" [ngModel]="b.prescription.minPct"
+                       (ngModelChange)="setPctBound(b, 'min', $event)" min="30" max="150" step="1" />
+                <span class="pct-sep">–</span>
+                <input type="number" class="pct-in" [ngModel]="b.prescription.maxPct"
+                       (ngModelChange)="setPctBound(b, 'max', $event)" min="30" max="150" step="1" />
+                <span class="pct-u">% de</span>
+                <select class="pct-ref" [ngModel]="b.prescription.ref" (ngModelChange)="setPctRef(b, $event)">
+                  @for (r of prescriptionRefs; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
+                </select>
+                <button type="button" class="pct-back" (click)="switchToZone(b)" title="Revenir à une zone">
+                  <app-icon name="rotate-ccw" [size]="14" />
+                </button>
+              </span>
+            } @else {
+              <app-zone-picker class="block-zone" [dense]="true"
+                [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
+                [selectedId]="b.prescription.zoneId" (zoneChange)="onBlockZone(b, $event)" />
+              <button type="button" class="pct-switch" (click)="switchToPct(b)"
+                      title="Prescrire une allure sur mesure (% de VC, LT1/LT2, allure de course)">%</button>
+            }
           }
 
           <!-- Effort perçu visé (RPE 1–10), propre au contenu de la séance. -->
@@ -159,7 +181,14 @@
           <p class="block-cible metric">{{ t }}</p>
         } @else if (calc()[b.id] && !calc()[b.id].computable) {
           <p class="block-cible block-cible--na">
-            Cible non renseignée
+            <!-- En allure sur mesure, on rappelle ce qui est prescrit : « non calculable » sans
+                 dire de quoi il s'agit ne dit pas au coach que c'est le référentiel qui manque
+                 chez cet athlète, pas sa saisie. -->
+            @if (usesPct(b)) {
+              {{ b.prescription!.minPct }}–{{ b.prescription!.maxPct }} % de {{ pctRefShort(b) }} — référence absente du profil
+            } @else {
+              Cible non renseignée
+            }
             @if (calcAthleteId(); as aid) { · <a [routerLink]="['/app/athletes', aid, 'zones']">régler sur la fiche →</a> }
           </p>
         }
@@ -203,7 +232,7 @@
             }
             <!-- Zone cardio en second : les deux échelles étant séparées, c'est elle qui ajoute
                  la cible FC à côté de l'allure dans la ligne de cible du bloc. -->
-            @if (b.prescription && cardioZones().length && !isCardioZone(b.prescription.zoneId)) {
+            @if (b.prescription && !usesPct(b) && cardioZones().length && !isCardioZone(b.prescription.zoneId)) {
               <div class="block-hr">
                 <span class="bd-lb">Cible FC</span>
                 @if (b.prescription.hrZoneId) {

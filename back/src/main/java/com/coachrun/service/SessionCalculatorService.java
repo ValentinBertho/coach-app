@@ -160,6 +160,12 @@ public class SessionCalculatorService {
         if (p == null) {
             return null;
         }
+        // Fourchette écrite par le coach : elle prime sur la zone, y compris sur celle que la
+        // migration douce a pu déduire du même couple ref + %.
+        if (p.isCustomRange()) {
+            return CalculatedBlockResponse.from(engine.calculate(new PrescriptionInput(
+                    p.ref(), p.minPct(), p.maxPct(), block.reps(), block.distanceM(), block.durationS()), ctx));
+        }
         if (p.hasZone()) {
             return calcZone(p.zoneId(), p.hrZoneId(), block.reps(), block.distanceM(), block.durationS(),
                     zoneTargets);
@@ -178,6 +184,10 @@ public class SessionCalculatorService {
             return null;
         }
         CoursePrescription p = recovery.prescription();
+        if (p.isCustomRange()) {
+            return CalculatedBlockResponse.from(engine.calculate(new PrescriptionInput(
+                    p.ref(), p.minPct(), p.maxPct(), null, recovery.distanceM(), recovery.durationS()), ctx));
+        }
         if (p.hasZone()) {
             return calcZone(p.zoneId(), p.hrZoneId(), null, recovery.distanceM(), recovery.durationS(),
                     zoneTargets);

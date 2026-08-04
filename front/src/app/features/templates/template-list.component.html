@@ -84,7 +84,7 @@
   <div class="tpl-toolbar">
     <input class="form-control tpl-search" type="search" placeholder="Rechercher une séance…"
            [ngModel]="search()" (ngModelChange)="search.set($event)" />
-    <select class="form-control tpl-cat-filter" [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)" title="Filtrer par catégorie">
+    <select class="form-control tpl-cat-filter" [ngModel]="categoryFilter()" (ngModelChange)="setCategoryFilter($event)" title="Filtrer par catégorie">
       <option value="">Toutes catégories</option>
       @if (uncategorizedCount()) { <option value="none">Sans catégorie ({{ uncategorizedCount() }})</option> }
       @for (c of categoryChoices(); track c.category.id) { <option [value]="c.category.id">{{ c.label }}</option> }

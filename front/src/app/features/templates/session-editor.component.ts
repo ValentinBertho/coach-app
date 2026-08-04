@@ -11,7 +11,10 @@ import { rpeWithLabel } from '../../shared/components/rpe-scale';
 import { RunDrillService } from '../../core/services/run-drill.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
-import { CalculatedBlock, COURSE_BLOCK_TYPE_LABELS, CourseBlock, CourseBlockType, CourseRecovery, SessionStructure } from '../../core/models/course.model';
+import {
+  CalculatedBlock, COURSE_BLOCK_TYPE_LABELS, CourseBlock, CourseBlockType, CourseRecovery,
+  PRESCRIPTION_REF_LABELS, PRESCRIPTION_REF_SHORT, PrescriptionRef, SessionStructure,
+} from '../../core/models/course.model';
 import { PhysioProfile } from '../../core/models/physio.model';
 import { RunDrill } from '../../core/models/run-drill.model';
 import { TrainingZone } from '../../core/models/training-zone.model';
@@ -255,6 +258,93 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   setBlockHrZone(b: CourseBlock, hrZoneId: string | null): void {
     if (!b.prescription) return;
     b.prescription.hrZoneId = hrZoneId;
+    this.onBlockEdited(b);
+  }
+
+  // --- Allure sur mesure : fourchette en % d'un référentiel ------------------
+  // Les zones du club sont une échelle de référence, pas un réglage de séance : on ne les
+  // retouche pas pour un fractionné particulier. Un « 6×1000 à 102–106 % de VC » n'avait donc
+  // aucun endroit où s'écrire, alors que le moteur sait le calculer depuis toujours.
+
+  /** Bornes acceptées par le serveur pour un pourcentage prescrit. */
+  private static readonly PCT_MIN = 30;
+  private static readonly PCT_MAX = 150;
+
+  /** Référentiels proposés : seuils physiologiques d'abord, allures de course ensuite. */
+  readonly prescriptionRefs: { value: PrescriptionRef; label: string }[] =
+    (Object.keys(PRESCRIPTION_REF_LABELS) as PrescriptionRef[])
+      .map((value) => ({ value, label: PRESCRIPTION_REF_LABELS[value] }));
+
+  /**
+   * Fourchette de départ par type de bloc, pour que le premier clic donne déjà une prescription
+   * plausible plutôt qu'un « 100–100 % » à retoucher entièrement.
+   */
+  private readonly PCT_DEFAULTS: Record<string, { ref: PrescriptionRef; minPct: number; maxPct: number }> = {
+    intervals: { ref: 'PCT_VC', minPct: 102, maxPct: 108 },
+    threshold: { ref: 'PCT_LT2', minPct: 96, maxPct: 100 },
+    tempo: { ref: 'PCT_LT2', minPct: 88, maxPct: 94 },
+    easy: { ref: 'PCT_LT1', minPct: 80, maxPct: 90 },
+    long: { ref: 'PCT_LT1', minPct: 85, maxPct: 92 },
+    run: { ref: 'PCT_LT1', minPct: 85, maxPct: 95 },
+    warmup: { ref: 'PCT_LT1', minPct: 70, maxPct: 80 },
+    cooldown: { ref: 'PCT_LT1', minPct: 70, maxPct: 80 },
+    recovery: { ref: 'PCT_LT1', minPct: 65, maxPct: 78 },
+  };
+
+  /** Zone d'origine d'un bloc passé en % : retrouvée telle quelle si le coach fait marche arrière. */
+  private readonly zoneBeforePct = signal<Record<string, string | null>>({});
+
+  /** Le bloc est-il prescrit en fourchette de % plutôt que par une zone ? */
+  usesPct(b: CourseBlock): boolean {
+    return !!b.prescription?.custom && !!b.prescription?.ref;
+  }
+
+  /** Référentiel court affiché à côté des bornes (« % de VC »). */
+  pctRefShort(b: CourseBlock): string {
+    const ref = b.prescription?.ref;
+    return ref ? PRESCRIPTION_REF_SHORT[ref] : '';
+  }
+
+  /** Passe le bloc en allure sur mesure, en partant d'une fourchette usuelle pour son type. */
+  switchToPct(b: CourseBlock): void {
+    const d = this.PCT_DEFAULTS[b.type] ?? { ref: 'PCT_LT2' as PrescriptionRef, minPct: 90, maxPct: 100 };
+    this.zoneBeforePct.update((m) => ({ ...m, [b.id]: b.prescription?.zoneId ?? null }));
+    // La zone disparaît : elle primerait sur le %. La zone cardio aussi — le chemin en %
+    // estime la FC par interpolation depuis les seuils, il n'en lit aucune.
+    b.prescription = { zoneId: null, hrZoneId: null, ref: d.ref, minPct: d.minPct, maxPct: d.maxPct, custom: true };
+    this.onBlockEdited(b);
+  }
+
+  /** Revient à une prescription par zone (celle d'avant le passage en %, si elle existait). */
+  switchToZone(b: CourseBlock): void {
+    const previous = this.zoneBeforePct()[b.id] ?? this.defaultZoneIdForType(b.type);
+    b.prescription = { zoneId: previous };
+    this.onBlockEdited(b);
+  }
+
+  setPctRef(b: CourseBlock, ref: PrescriptionRef): void {
+    if (!b.prescription) return;
+    b.prescription.ref = ref;
+    this.onBlockEdited(b);
+  }
+
+  /**
+   * Borne basse / haute de la fourchette. Les deux bornes se poussent l'une l'autre : une borne
+   * basse au-dessus de la haute ferait refuser le calcul par le serveur, et le coach n'aurait
+   * pour tout retour qu'une cible disparue.
+   */
+  setPctBound(b: CourseBlock, which: 'min' | 'max', value: number | null): void {
+    const p = b.prescription;
+    if (!p || value == null || Number.isNaN(value)) return;
+    const pct = Math.round(Math.min(SessionEditorComponent.PCT_MAX,
+      Math.max(SessionEditorComponent.PCT_MIN, value)));
+    if (which === 'min') {
+      p.minPct = pct;
+      if (p.maxPct == null || p.maxPct < pct) p.maxPct = pct;
+    } else {
+      p.maxPct = pct;
+      if (p.minPct == null || p.minPct > pct) p.minPct = pct;
+    }
     this.onBlockEdited(b);
   }
 
@@ -684,7 +774,10 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     // Chemin Z3 : cible lue depuis la zone de l'athlète. Repli legacy (ref + %) pour l'adaptation
     // d'anciens snapshots non encore migrés vers une zone.
     let body: Parameters<CourseService['sessionCalc']>[1] | null = null;
-    if (p.zoneId) {
+    // Ordre calqué sur le serveur : une fourchette voulue par le coach prime sur la zone.
+    if (p.custom && p.ref && p.minPct != null && p.maxPct != null) {
+      body = { ref: p.ref, minPct: p.minPct, maxPct: p.maxPct, reps: b.reps, distanceM: b.distanceM, durationS: b.durationS };
+    } else if (p.zoneId) {
       body = {
         zoneId: p.zoneId, hrZoneId: p.hrZoneId ?? null,
         reps: b.reps, distanceM: b.distanceM, durationS: b.durationS,
@@ -800,8 +893,10 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   }
 
   /**
-   * Enregistrement explicite : ne fait qu'anticiper le debounce. En mode « adapter une séance »,
-   * il vaut aussi « j'ai fini » et renvoie donc à la séance de l'athlète.
+   * Enregistrement explicite : ne fait qu'anticiper le debounce, mais vaut aussi « j'ai fini ».
+   * Il renvoie donc à l'écran d'où l'on vient — la séance de l'athlète en mode adaptation, la
+   * bibliothèque sinon. Rester sur l'éditeur après avoir cliqué « Enregistrer » laissait le coach
+   * sans issue évidente alors qu'il venait de dire qu'il avait terminé.
    */
   save(): void {
     this.autosave.flush().subscribe((ok) => {
@@ -811,7 +906,17 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
         this.router.navigate(['/app/athletes', this.athleteId(), 'workouts', this.workoutId()]);
       } else {
         this.toast.success('Séance enregistrée');
+        this.router.navigate(['/app/library/course'], { queryParams: this.libraryQueryParams() });
       }
     });
+  }
+
+  /**
+   * Retour à la bibliothèque sur la catégorie de la séance : un coach qui travaille sa catégorie
+   * « Seuil » y enchaîne plusieurs séances, et retomber sur la vue globale à chaque enregistrement
+   * l'oblige à re-filtrer à chaque fois.
+   */
+  libraryQueryParams(): { cat: string | null } {
+    return { cat: this.categoryId() || null };
   }
 }

@@ -57,6 +57,20 @@
 
 .block-zone { min-width: 0; }
 
+/* Allure sur mesure : fourchette en % d'un référentiel, à la place de la zone. */
+.block-pct { display: inline-flex; align-items: center; gap: var(--sp-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 0 var(--sp-1) 0 var(--sp-2); background: var(--paper); }
+.pct-in { width: 52px; border: none; background: none; min-height: 40px; text-align: center; font-family: var(--font-data); font-weight: 700; color: var(--ink-1); }
+.pct-in:focus { outline: none; }
+.pct-sep { color: var(--ink-4); font-weight: 700; }
+.pct-u { font-size: var(--text-sm); color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+.pct-ref { border: none; background: none; color: var(--ink-1); font-size: var(--text-sm); font-weight: 700; cursor: pointer; min-height: 38px; padding: 0 var(--sp-1); max-width: 160px; }
+.pct-ref:focus { outline: none; }
+.pct-back { border: none; background: none; color: var(--ink-4); cursor: pointer; display: inline-flex; align-items: center; padding: var(--sp-1); border-radius: var(--radius-sm); }
+.pct-back:hover { background: var(--paper-sunk); color: var(--ink-2); }
+/* Bascule vers le sur-mesure : discrète tant que la zone suffit. */
+.pct-switch { border: 1px solid var(--line); background: var(--paper); color: var(--ink-3); cursor: pointer; min-height: 34px; min-width: 32px; border-radius: var(--radius-md); font-weight: 800; font-size: var(--text-sm); }
+.pct-switch:hover { border-color: var(--dari-teal); color: var(--dari-teal); }
+
 /* Effort perçu (RPE) : saisi sur le contenu de la séance, pas dans les zones */
 .rpe { display: inline-flex; align-items: center; gap: var(--sp-1); border: 1px solid var(--line); border-radius: var(--radius-md); padding: 0 var(--sp-2); background: var(--paper); }
 .rpe-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 800; }

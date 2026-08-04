@@ -42,7 +42,9 @@ assistant), et athlète (PWA mobile).
   moyenne des efforts comprise), **domaines d'intensité** (1/2/3), FC de seuil.
 - **Bibliothèque de séances** + catégories **et sous-catégories**, **éditeur de structure unique**
   (échauffement / corps / retour au calme) en **fourchettes** (% LT1/LT2/VC/allures) avec
-  **calculateur live** par athlète. Identité (nom, titre, catégorie) éditable dans l'éditeur ;
+  **calculateur live** par athlète. Chaque bloc se prescrit **par zone** du club ou, d'un clic, en
+  **fourchette de % sur mesure** (« 6 × 1000 à 102–106 % de VC ») quand aucune bande nommée ne
+  convient. Identité (nom, titre, catégorie) éditable dans l'éditeur ;
   volumes saisis dans **l'unité de son choix** (sec / min / h · m / km) ; blocs pré-remplis ;
   **éducatifs de course** (gammes technique/amplitude) attachables aux blocs. Affichage
   **cartes compactes ↔ liste dense** avec recherche et filtre par catégorie.

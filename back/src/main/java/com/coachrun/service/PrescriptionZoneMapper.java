@@ -61,8 +61,13 @@ public class PrescriptionZoneMapper {
                         || (b.recovery() != null && isLegacyWithoutZone(b.recovery().prescription())));
     }
 
+    /**
+     * Bloc encore prescrit en {@code ref + %} sans zone. Une fourchette <b>voulue</b> par le coach
+     * (« 102–106 % de VC ») n'est pas un reliquat à migrer : lui recoller une zone reviendrait à
+     * remplacer sa cible par la bande standard la plus proche, à son insu.
+     */
     private boolean isLegacyWithoutZone(CoursePrescription p) {
-        return p != null && !p.hasZone() && p.ref() != null;
+        return p != null && !p.hasZone() && p.ref() != null && !p.isCustomRange();
     }
 
     private List<CourseBlock> mapBlocks(List<CourseBlock> blocks, Map<String, UUID> zonesByName, UUID fallback) {
@@ -90,7 +95,7 @@ public class PrescriptionZoneMapper {
             return p;
         }
         UUID zoneId = zonesByName.getOrDefault(zoneNameFor(p.ref(), p.minPct(), p.maxPct()), fallback);
-        return new CoursePrescription(zoneId, p.hrZoneId(), p.ref(), p.minPct(), p.maxPct());
+        return new CoursePrescription(zoneId, p.hrZoneId(), p.ref(), p.minPct(), p.maxPct(), p.custom());
     }
 
     /**

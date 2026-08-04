@@ -1,9 +1,9 @@
 import { ZoneBarComponent } from '../../shared/components/zone-bar/zone-bar.component';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { WorkoutTemplate, WorkoutTemplateRequest } from '../../core/models/workout-template.model';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -29,7 +29,15 @@ export class TemplateListComponent implements OnInit {
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly categoryService = inject(SessionCategoryService);
+
+  /**
+   * Catégorie de travail, portée par l'URL (`?cat=`). Le filtre vivait dans un signal local : il
+   * s'évaporait au moindre aller-retour vers l'éditeur, et le coach qui construisait sa catégorie
+   * « Seuil » retombait sur la bibliothèque entière après chaque séance créée.
+   */
+  readonly cat = input<string>('');
 
   readonly templates = signal<WorkoutTemplate[]>([]);
   readonly loading = signal(true);
@@ -90,8 +98,26 @@ export class TemplateListComponent implements OnInit {
   toggleName(): void { this.showName.update((v) => !v); }
 
   ngOnInit(): void {
+    this.categoryFilter.set(this.cat());
     this.load();
     this.loadCategories();
+  }
+
+  /** Change de catégorie de travail et l'inscrit dans l'URL, pour qu'elle survive à l'éditeur. */
+  setCategoryFilter(value: string): void {
+    this.categoryFilter.set(value);
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { cat: value || null },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  /** Catégorie réelle en cours de consultation ('' pour « toutes » et « sans catégorie »). */
+  private activeCategoryId(): string {
+    const cat = this.categoryFilter();
+    return cat === 'none' ? '' : cat;
   }
 
   loadCategories(): void {
@@ -109,7 +135,15 @@ export class TemplateListComponent implements OnInit {
     });
   }
 
-  toggleForm(): void { this.showForm.update((v) => !v); }
+  /**
+   * Ouvre le formulaire de création en reprenant la catégorie consultée : créer une séance depuis
+   * « Seuil › Seuil long » et la voir atterrir « sans catégorie » obligeait à la ranger à la main
+   * juste après, alors que le contexte disait déjà où elle allait.
+   */
+  toggleForm(): void {
+    this.showForm.update((v) => !v);
+    if (this.showForm()) this.form.patchValue({ categoryId: this.activeCategoryId() });
+  }
 
   /** Crée le modèle (métadonnées) puis ouvre l'éditeur de structure. Le « type » technique est
    * conservé par défaut côté modèle (l'UI ne raisonne plus qu'en catégories). */
@@ -263,7 +297,7 @@ export class TemplateListComponent implements OnInit {
           .filter((x) => x.id !== c.id)
           .map((x) => (x.parentId === c.id ? { ...x, parentId: null } : x)));
         this.templates.update((list) => list.map((t) => (t.categoryId === c.id ? { ...t, categoryId: null, categoryName: null } : t)));
-        if (this.categoryFilter() === c.id) this.categoryFilter.set('');
+        if (this.categoryFilter() === c.id) this.setCategoryFilter('');
         this.toast.info('Catégorie supprimée.');
       },
       error: () => this.toast.error('Suppression impossible.'),
