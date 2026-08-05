@@ -33,7 +33,9 @@ public record ActivityResponse(
         ActivityStatus status,
         UUID matchedWorkoutId,
         Integer distanceDeltaM,
-        Integer durationDeltaS) {
+        Integer durationDeltaS,
+        Integer rpe,
+        String athleteComment) {
 
     public static ActivityResponse from(Activity a, Integer distanceDeltaM, Integer durationDeltaS) {
         return new ActivityResponse(
@@ -41,7 +43,8 @@ public record ActivityResponse(
                 a.getDistanceM(), a.getDurationS(), a.getAvgHr(), a.getElevationGainM(),
                 a.getMaxHr(), a.getAvgCadence(), a.getAvgPowerW(), a.getCalories(),
                 pace(a.getDistanceM(), a.getDurationS()),
-                a.getStatus(), a.getMatchedWorkoutId(), distanceDeltaM, durationDeltaS);
+                a.getStatus(), a.getMatchedWorkoutId(), distanceDeltaM, durationDeltaS,
+                a.getRpe(), a.getAthleteComment());
     }
 
     /** Allure moyenne (s/km), ou {@code null} si distance ou durée manquent. */

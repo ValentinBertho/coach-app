@@ -10,7 +10,8 @@ import { AthletePortalService } from '../../core/services/athlete-portal.service
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
-import { SegmentedControlComponent } from '../../shared/components/ui';
+import { BottomSheetComponent, SegmentedControlComponent } from '../../shared/components/ui';
+import { RpeScaleSelectorComponent } from '../../shared/components/rpe-scale-selector/rpe-scale-selector.component';
 import {
   ACTIVITY_STATUS_BADGE, ACTIVITY_STATUS_LABELS, Activity,
 } from '../../core/models/activity.model';
@@ -35,7 +36,8 @@ interface MonthGroup {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     DatePipe, DecimalPipe, FormsModule, RouterLink, IconComponent,
-    SegmentedControlComponent, ActivityLapsComponent, TimeInZoneBarComponent,
+    SegmentedControlComponent, BottomSheetComponent, RpeScaleSelectorComponent,
+    ActivityLapsComponent, TimeInZoneBarComponent,
   ],
   template: `
     <div class="acts">
@@ -112,6 +114,16 @@ interface MonthGroup {
                   <span class="badge" [class]="statusBadge(a.status)">{{ statusLabel(a.status) }}</span>
                   <app-icon class="row-caret" [name]="selected() === a.id ? 'chevron-up' : 'chevron-down'" [size]="18" />
                 </button>
+                <!-- Ressenti déclaré : visible sans ouvrir la sortie, sinon l'athlète ne sait
+                     pas s'il a déjà écrit à son coach — et le réécrit, ou pas du tout. -->
+                @if (a.rpe != null || a.athleteComment) {
+                  <p class="row-felt">
+                    @if (a.rpe != null) { <span class="row-rpe">RPE {{ a.rpe }}/10</span> }
+                    @if (a.athleteComment) {
+                      <span class="row-note"><app-icon name="message-square" [size]="13" /> {{ a.athleteComment }}</span>
+                    }
+                  </p>
+                }
                 <div class="row-kpis">
                   @if (a.distanceM != null) {
                     <span><app-icon name="footprints" [size]="14" /> {{ (a.distanceM / 1000) | number: '1.0-2' }} km</span>
@@ -154,6 +166,11 @@ interface MonthGroup {
                   <div class="row-zones">
                     <app-time-in-zone-bar [activityId]="a.id" />
                   </div>
+                  <div class="row-edit">
+                    <button type="button" class="btn btn-ghost btn-sm" (click)="openEdit(a)">
+                      <app-icon name="pencil" [size]="15" /> Modifier / noter
+                    </button>
+                  </div>
                 }
               </article>
             }
@@ -161,6 +178,59 @@ interface MonthGroup {
         }
       }
     </div>
+
+    <!-- Corriger une sortie et la noter. Le ressenti n'existait que sur les séances prescrites :
+         une course ou un footing improvisé arrivait chez le coach sans un mot. -->
+    <app-bottom-sheet [(open)]="editOpen" title="Ma sortie">
+      @if (editing(); as a) {
+        <form class="edit" (ngSubmit)="saveEdit()">
+          <label class="ef">Titre
+            <input class="form-control" [(ngModel)]="draftEdit.title" name="et" placeholder="Sortie" />
+          </label>
+
+          @if (a.source === 'MANUAL') {
+            <div class="ef-row">
+              <label class="ef">Date
+                <input type="date" class="form-control" [(ngModel)]="draftEdit.date" name="ed" />
+              </label>
+              <label class="ef">Distance (km)
+                <input type="number" min="0" step="0.1" class="form-control" [(ngModel)]="draftEdit.km" name="ek" />
+              </label>
+            </div>
+            <div class="ef-row">
+              <label class="ef">Durée (min)
+                <input type="number" min="0" class="form-control" [(ngModel)]="draftEdit.min" name="em" />
+              </label>
+              <label class="ef">D+ (m)
+                <input type="number" min="0" class="form-control" [(ngModel)]="draftEdit.dplus" name="ep" />
+              </label>
+            </div>
+          } @else {
+            <p class="field-hint edit-locked">
+              <app-icon name="watch" [size]="14" />
+              Distance, durée et dénivelé viennent de ta montre : ils ne se modifient pas ici.
+              Ton titre, ton ressenti et ton mot au coach, si.
+            </p>
+          }
+
+          <app-rpe-scale-selector [(value)]="draftEdit.rpe" label="Ton effort perçu (RPE)" />
+
+          <label class="ef">Un mot pour ton coach
+            <textarea class="form-control" rows="3" [(ngModel)]="draftEdit.comment" name="ec"
+                      placeholder="Sensations, météo, terrain, douleur…"></textarea>
+          </label>
+
+          <div class="edit-actions">
+            <button type="submit" class="btn btn-primary" [disabled]="editBusy()">
+              {{ editBusy() ? 'Enregistrement…' : 'Enregistrer' }}
+            </button>
+            <button type="button" class="btn btn-ghost edit-del" (click)="removeActivity(a)" [disabled]="editBusy()">
+              <app-icon name="trash-2" [size]="15" /> Supprimer
+            </button>
+          </div>
+        </form>
+      }
+    </app-bottom-sheet>
   `,
   styles: [`
     /* padding-top : safe-area de la coquille athlète (PWA) — sinon le titre passe sous l'heure. */
@@ -188,11 +258,22 @@ interface MonthGroup {
     .row-id strong { color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .row-id .field-hint { text-transform: capitalize; }
     .row-caret { color: var(--ink-4); flex-shrink: 0; }
+    .row-felt { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin: 0; padding: 0 var(--sp-4) var(--sp-2); }
+    .row-rpe { padding: 1px 8px; border-radius: var(--radius-full); background: var(--primary-wash); color: var(--primary); font-size: var(--text-xs); font-weight: 700; }
+    .row-note { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); font-size: var(--text-sm); min-width: 0; }
     .row-kpis { display: flex; flex-wrap: wrap; gap: var(--sp-3); padding: 0 var(--sp-4) var(--sp-3); color: var(--ink-2); font-size: var(--text-sm); }
     .row-kpis span { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
     .map { height: 260px; width: 100%; }
     .map-empty { padding: 0 var(--sp-4) var(--sp-4); }
     .row-laps, .row-zones { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--hairline); }
+    .row-edit { padding: 0 var(--sp-4) var(--sp-3); }
+
+    .edit { display: flex; flex-direction: column; gap: var(--sp-4); }
+    .ef { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); color: var(--ink-2); font-weight: 600; flex: 1; min-width: 110px; }
+    .ef-row { display: flex; gap: var(--sp-2); }
+    .edit-locked { display: flex; align-items: flex-start; gap: var(--sp-2); margin: 0; }
+    .edit-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+    .edit-del { color: var(--danger-text, var(--ink-3)); }
   `],
 })
 export class AthleteActivitiesComponent implements OnInit, OnDestroy {
@@ -297,6 +378,84 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
 
   toggleLog(): void {
     this.showLog.update((v) => !v);
+  }
+
+  // --- Corriger / noter / supprimer une sortie ----------------------------
+
+  readonly editOpen = signal(false);
+  readonly editing = signal<Activity | null>(null);
+  readonly editBusy = signal(false);
+  draftEdit: {
+    title: string; date: string; km: number | null; min: number | null;
+    dplus: number | null; rpe: number | null; comment: string;
+  } = { title: '', date: '', km: null, min: null, dplus: null, rpe: null, comment: '' };
+
+  openEdit(a: Activity): void {
+    this.editing.set(a);
+    this.draftEdit = {
+      title: a.title ?? '',
+      date: a.activityDate,
+      km: a.distanceM != null ? Math.round(a.distanceM / 100) / 10 : null,
+      min: a.durationS != null ? Math.round(a.durationS / 60) : null,
+      dplus: a.elevationGainM,
+      rpe: a.rpe,
+      comment: a.athleteComment ?? '',
+    };
+    this.editOpen.set(true);
+  }
+
+  saveEdit(): void {
+    const target = this.editing();
+    if (!target || this.editBusy()) { return; }
+    this.editBusy.set(true);
+
+    const manual = target.source === 'MANUAL';
+    const comment = this.draftEdit.comment.trim();
+    this.portal.updateActivity(target.id, {
+      title: this.draftEdit.title.trim() || null,
+      // Les mesures d'une montre ne partent pas : le serveur les refuserait de toute façon,
+      // autant ne pas laisser croire à l'écran qu'il les a envoyées.
+      activityDate: manual ? this.draftEdit.date : undefined,
+      distanceM: manual && this.draftEdit.km != null ? Math.round(this.draftEdit.km * 1000) : undefined,
+      durationS: manual && this.draftEdit.min != null ? Math.round(this.draftEdit.min * 60) : undefined,
+      elevationGainM: manual ? this.draftEdit.dplus : undefined,
+      rpe: this.draftEdit.rpe ?? undefined,
+      clearRpe: this.draftEdit.rpe == null,
+      comment: comment || undefined,
+      clearComment: !comment,
+    }).subscribe({
+      next: (updated) => {
+        this.editBusy.set(false);
+        this.editOpen.set(false);
+        this.activities.set(this.activities().map((a) => (a.id === updated.id ? updated : a)));
+        this.toast.success('Sortie mise à jour');
+      },
+      error: () => { this.editBusy.set(false); this.toast.error('Enregistrement impossible.'); },
+    });
+  }
+
+  async removeActivity(a: Activity): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Supprimer cette sortie ?',
+      message: a.matchedWorkoutId
+        ? 'Elle est rattachée à une séance : la séance redeviendra « à faire ».'
+        : 'Cette sortie sera définitivement retirée de ton historique.',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    });
+    if (!ok) { return; }
+    this.editBusy.set(true);
+    this.portal.deleteActivity(a.id).subscribe({
+      next: () => {
+        this.editBusy.set(false);
+        this.editOpen.set(false);
+        this.destroyMap();
+        this.selected.set(null);
+        this.activities.set(this.activities().filter((x) => x.id !== a.id));
+        this.toast.info('Sortie supprimée');
+      },
+      error: () => { this.editBusy.set(false); this.toast.error('Suppression impossible.'); },
+    });
   }
 
   submitLog(confirmDuplicate = false): void {

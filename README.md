@@ -67,7 +67,10 @@ assistant), et athlète (PWA mobile).
   L'agenda se lit en **prévu / réalisé / les deux** : les sorties qui n'étaient pas au programme
   y apparaissent, marquées comme telles. Chaque sortie s'ouvre sur son tracé, son temps en zone
   et son **détail tour par tour** — les tours de la montre quand elle en a pris (les répétitions
-  d'un fractionné), des splits kilométriques calculés sinon.
+  d'un fractionné), des splits kilométriques calculés sinon. L'athlète **corrige, note et
+  supprime** ses sorties : RPE et mot au coach vivent sur la sortie elle-même, seul endroit
+  possible quand aucune séance prescrite ne les porte (les mesures d'une montre, elles, restent
+  en lecture seule).
 
 ### Module préparation physique (force)
 - **Bibliothèque d'exercices** (catégories, groupes musculaires, matériel, vidéo, progression/régression).

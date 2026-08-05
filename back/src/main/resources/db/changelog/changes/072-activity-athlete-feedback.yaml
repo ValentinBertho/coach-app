@@ -1,0 +1,18 @@
+# ============================================================================
+# 072 — Ressenti de l'athlète sur une sortie réalisée : RPE + commentaire.
+#   Le ressenti n'existait que porté par une SÉANCE PRESCRITE. Une sortie sans
+#   séance — une course, un footing improvisé, tout ce que l'agenda vient de
+#   rendre visible — n'avait donc aucun moyen d'être commentée ni notée, alors
+#   que c'est précisément là que le coach n'a rien d'autre à lire.
+#   Additif, nullable, non destructif.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 072-activity-athlete-feedback
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: activities
+            columns:
+              - column: { name: rpe, type: INT }
+              - column: { name: athlete_comment, type: VARCHAR(2000) }

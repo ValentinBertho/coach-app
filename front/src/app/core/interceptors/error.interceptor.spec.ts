@@ -2,6 +2,7 @@ import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { AuthService } from '../services/auth.service';
 import { FeedbackService } from '../services/feedback.service';
 import { NetworkStatusService } from '../services/network-status.service';
 import { ToastService } from '../services/toast.service';
@@ -99,5 +100,93 @@ describe('errorInterceptor', () => {
       httpMock.expectOne('/api/nope').flush(null, { status: 403, statusText: 'Forbidden' });
     }
     expect(network.apiUnreachable()).toBe(false);
+  });
+
+  /**
+   * Fin de session — la partie la plus coûteuse de l'intercepteur quand elle se trompe.
+   *
+   * <p>Le rejeu était couvert par le même `catchError` que le rafraîchissement : dès lors qu'une
+   * requête rejouée échouait — un 500, un 404, une coupure d'une demi-seconde en mobilité — la
+   * session prenait fin alors que le rafraîchissement venait de réussir. Et cette fin de session
+   * appelait `logout()`, donc `POST /auth/logout`, qui <b>révoque tous les jetons du compte sur
+   * tous les appareils</b> : le téléphone qui perd le réseau déconnectait l'ordinateur.</p>
+   */
+  describe('401 et fin de session', () => {
+    let auth: AuthService;
+
+    /** Session complète en place, comme après une connexion réussie. */
+    function signIn(): void {
+      localStorage.setItem('darilab.accessToken', 'jeton-expire');
+      localStorage.setItem('darilab.refreshToken', 'refresh-valide');
+      auth.token.set('jeton-expire');
+    }
+
+    beforeEach(() => {
+      auth = TestBed.inject(AuthService);
+      signIn();
+    });
+
+    it('rafraîchit puis rejoue la requête refusée', () => {
+      let received: unknown;
+      http.get('/api/me/today').subscribe({ next: (r) => { received = r; }, error: () => {} });
+
+      httpMock.expectOne('/api/me/today').flush(null, { status: 401, statusText: 'Unauthorized' });
+      httpMock.expectOne((r) => r.url.endsWith('/auth/refresh'))
+        .flush({ accessToken: 'neuf', refreshToken: 'neuf-r', user: { id: 'u1' } });
+      httpMock.expectOne('/api/me/today').flush({ ok: true });
+
+      expect(received).toEqual({ ok: true } as never);
+      expect(auth.token()).toBe('neuf');
+    });
+
+    /** Le cœur du correctif : le rejeu échoue, mais la session reste ouverte. */
+    it('garde la session quand c’est la requête rejouée qui échoue', () => {
+      http.get('/api/me/today').subscribe({ next: () => {}, error: () => {} });
+
+      httpMock.expectOne('/api/me/today').flush(null, { status: 401, statusText: 'Unauthorized' });
+      httpMock.expectOne((r) => r.url.endsWith('/auth/refresh'))
+        .flush({ accessToken: 'neuf', refreshToken: 'neuf-r', user: { id: 'u1' } });
+      httpMock.expectOne('/api/me/today').error(new ProgressEvent('error'), { status: 0 });
+
+      expect(auth.isAuthenticated()).toBe(true);
+      expect(auth.token()).toBe('neuf');
+    });
+
+    /** Réseau coupé pendant le rafraîchissement : on ne sait rien des jetons, on ne jette rien. */
+    it('garde la session quand le rafraîchissement n’aboutit pas faute de réseau', () => {
+      http.get('/api/me/today').subscribe({ next: () => {}, error: () => {} });
+
+      httpMock.expectOne('/api/me/today').flush(null, { status: 401, statusText: 'Unauthorized' });
+      httpMock.expectOne((r) => r.url.endsWith('/auth/refresh'))
+        .error(new ProgressEvent('error'), { status: 0 });
+
+      expect(auth.isAuthenticated()).toBe(true);
+    });
+
+    it('met fin à la session quand le serveur refuse explicitement le rafraîchissement', () => {
+      http.get('/api/me/today').subscribe({ next: () => {}, error: () => {} });
+
+      httpMock.expectOne('/api/me/today').flush(null, { status: 401, statusText: 'Unauthorized' });
+      httpMock.expectOne((r) => r.url.endsWith('/auth/refresh'))
+        .flush(null, { status: 401, statusText: 'Unauthorized' });
+
+      expect(auth.isAuthenticated()).toBe(false);
+      // Aucune révocation serveur : les autres appareils du compte n'ont rien demandé.
+      httpMock.expectNone((r) => r.url.endsWith('/auth/logout'));
+    });
+
+    /**
+     * La tuyauterie push se réenregistre toute seule au démarrage. Son échec ne doit ni parler
+     * à l'utilisateur, ni toucher à la session — sur l'écran de connexion, il affichait
+     * « Session expirée, reconnecte-toi » avant même la saisie du mot de passe.
+     */
+    it('reste muet et sans effet sur un échec des routes push', () => {
+      const toast = TestBed.inject(ToastService);
+      http.post('/api/push/subscribe', {}).subscribe({ next: () => {}, error: () => {} });
+      httpMock.expectOne('/api/push/subscribe').flush(null, { status: 500, statusText: 'Server Error' });
+
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(auth.isAuthenticated()).toBe(true);
+    });
   });
 });

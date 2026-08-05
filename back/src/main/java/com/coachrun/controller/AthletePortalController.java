@@ -302,6 +302,28 @@ public class AthletePortalController {
     }
 
     /**
+     * Je corrige une de mes sorties, et j'y laisse mon ressenti pour mon coach.
+     *
+     * <p>Indispensable sur une sortie <b>non prescrite</b> : le RPE et le commentaire vivaient
+     * uniquement sur les séances du programme, donc une course ou un footing improvisé
+     * arrivaient chez le coach sans un mot, avec les seuls chiffres de la montre.</p>
+     */
+    @PatchMapping("/activities/{activityId}")
+    public com.coachrun.dto.response.ActivityResponse updateMyActivity(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID activityId,
+            @Valid @RequestBody com.coachrun.dto.request.ActivityUpdateRequest request) {
+        return activityService.updateForAthlete(principal.athleteId(), activityId, request);
+    }
+
+    /** Je supprime une de mes sorties (doublon, erreur de saisie). */
+    @DeleteMapping("/activities/{activityId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteMyActivity(@AuthenticationPrincipal AuthPrincipal principal,
+                                 @PathVariable UUID activityId) {
+        activityService.deleteForAthlete(principal.athleteId(), activityId);
+    }
+
+    /**
      * Tours d'une de mes sorties : les répétitions telles que ma montre les a découpées, ou des
      * splits kilométriques calculés si elle ne l'a pas fait. C'est ce qui permet de relire un
      * fractionné autrement que par sa moyenne.

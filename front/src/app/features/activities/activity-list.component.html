@@ -57,6 +57,15 @@
           <div>
             <div class="a-title">{{ a.title || 'Activité' }} · {{ a.source }}</div>
             <div class="field-hint">{{ a.activityDate | date: 'EEE d MMM y' }}</div>
+            <!-- Ressenti porté par la sortie elle-même. Sur une sortie hors programme — course,
+                 footing improvisé — c'est le seul mot de l'athlète : il n'y a pas de séance
+                 prescrite pour l'accueillir. -->
+            @if (a.rpe != null || a.athleteComment) {
+              <div class="a-felt">
+                @if (a.rpe != null) { <span class="a-rpe">RPE {{ a.rpe }}/10</span> }
+                @if (a.athleteComment) { <span class="a-note">« {{ a.athleteComment }} »</span> }
+              </div>
+            }
           </div>
         </div>
         <div class="a-metrics">

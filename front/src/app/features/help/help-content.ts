@@ -121,6 +121,8 @@ const ATHLETE: HelpGuide = {
         { kind: 'text', text: 'Pour connecter ta montre, le plus simple est la carte Strava de ton écran d\'accueil (« Connecter Strava ») ; tu la retrouves aussi dans Profil → « Gérer mes connexions ». L\'import se fait ensuite tout seul, toutes les heures, avec déduplication — donc pas de doublon.' },
         { kind: 'text', text: 'Tu viens de rentrer de sortie et tu ne veux pas attendre ? La même carte porte un bouton « Synchroniser » qui va chercher tes dernières activités immédiatement.' },
         { kind: 'text', text: 'Tes sorties sont classées par mois, de la plus récente à la plus ancienne, comme ton historique. Touche l\'une d\'elles pour l\'ouvrir : tu y trouves le tracé, le temps passé par zone, et le détail tour par tour — l\'allure, le temps et la FC de chaque répétition. Si ta montre n\'a pas découpé la sortie en tours, le détail est présenté au kilomètre.' },
+        { kind: 'text', text: 'Une sortie ouverte se corrige et se note : « Modifier / noter » permet de changer le titre, de poser ton effort perçu (RPE) et de laisser un mot à ton coach. C\'est surtout utile sur une sortie qui n\'était pas au programme — une course, un footing improvisé : sans séance prescrite pour l\'accueillir, c\'est le seul endroit où ton ressenti peut s\'écrire. Tu peux aussi supprimer une sortie en double ou saisie par erreur.' },
+        { kind: 'callout', tone: 'info', text: 'Sur une sortie venue de ta montre, la distance, la durée et le dénivelé ne se modifient pas : ce sont des mesures, et c\'est sur elles que ton coach lit ta charge. Le titre, le RPE et le commentaire restent à toi.' },
       ],
     },
     {

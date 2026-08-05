@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, DestroyRef, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { AuthService } from './core/services/auth.service';
 import { FeedbackQueueService } from './core/services/feedback-queue.service';
 import { NetworkStatusService } from './core/services/network-status.service';
 import { PushService } from './core/services/push.service';
@@ -44,10 +45,27 @@ export class AppComponent {
   private readonly theme = inject(ThemeService);
   private readonly update = inject(UpdateService);
   private readonly push = inject(PushService);
+  private readonly auth = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
     this.theme.init();
     this.update.init();
     this.push.init();
+    this.keepSessionAlive();
+  }
+
+  /**
+   * Garde la session vivante entre deux usages. Une PWA mobile passe l'essentiel de son temps en
+   * arrière-plan : sans ce réveil, le retour au premier plan commençait par une salve de requêtes
+   * expirées. On rafraîchit au démarrage, puis à chaque retour au premier plan.
+   */
+  private keepSessionAlive(): void {
+    this.auth.ensureFreshToken();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') this.auth.ensureFreshToken();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    this.destroyRef.onDestroy(() => document.removeEventListener('visibilitychange', onVisible));
   }
 }

@@ -78,6 +78,17 @@ public class Activity extends BaseEntity {
     @Column(name = "calories")
     private Integer calories;
 
+    /**
+     * Ressenti de l'athlète sur cette sortie (1–10). Distinct du RPE d'une séance prescrite :
+     * il porte le vécu d'une sortie qui n'était au programme de personne.
+     */
+    @Column(name = "rpe")
+    private Integer rpe;
+
+    /** Mot de l'athlète à son coach sur cette sortie. */
+    @Column(name = "athlete_comment", length = 2000)
+    private String athleteComment;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 16)
     private ActivityStatus status = ActivityStatus.IMPORTED;

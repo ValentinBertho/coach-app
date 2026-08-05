@@ -29,6 +29,20 @@ const FORM_HANDLED_PATTERNS = [
 ];
 
 /**
+ * Tuyauterie de fond : ces appels partent tout seuls, sans que l'utilisateur ait rien demandé.
+ * Leur échec ne doit donc jamais lui être annoncé — mais il reste un échec ordinaire, qui
+ * profite du rafraîchissement de jeton comme les autres (contrairement aux deux listes
+ * ci-dessus, qui court-circuitent tout).
+ *
+ * <p>Les notifications push en sont l'exemple : l'application réenregistre l'abonnement du
+ * navigateur à chaque démarrage, y compris avant toute connexion. Sur l'écran de connexion,
+ * cet appel répondait 401 et l'utilisateur voyait « Session expirée, reconnecte-toi » avant
+ * même d'avoir tapé son mot de passe. Et lorsqu'il activait les notifications, l'échec
+ * s'affichait deux fois : une par ce toast, une par le bouton.</p>
+ */
+const BACKGROUND_PATTERNS = [/\/push\//];
+
+/**
  * Message d'un 400 de validation. Le `GlobalExceptionHandler` renvoie déjà un `fieldErrors`
  * {champ: message} : afficher « Requête invalide » sans dire quel champ oblige l'utilisateur à
  * deviner. On nomme les champs fautifs (au plus trois, le toast n'est pas un formulaire).
@@ -51,18 +65,38 @@ function label(field: string): string {
 }
 
 /**
+ * Fin de session subie : on oublie la session <b>localement</b>, sans rien révoquer côté serveur.
+ *
+ * <p>Un rafraîchissement qui échoue parce que le réseau a sauté (statut 0) ou parce que le
+ * serveur redémarre (5xx) ne dit rien de la validité des jetons : on garde la session et
+ * l'utilisateur réessaiera. Seul un refus explicite du serveur (401/403 : jeton révoqué,
+ * expiré, mot de passe changé) met fin à la session.</p>
+ */
+function endSession(auth: AuthService, toast: ToastService, error: HttpErrorResponse): void {
+  if (error.status === 0 || error.status >= 500) {
+    toast.error('Service momentanément indisponible — réessaie dans un instant.');
+    return;
+  }
+  auth.expireSession();
+  toast.error('Session expirée, reconnecte-toi.');
+}
+
+/**
  * Intercepteur d'erreurs global → toasts par code. Sur 401 d'une route protégée, tente d'abord
  * un rafraîchissement silencieux de l'access token (via le refresh token) puis rejoue la requête ;
- * ne déconnecte qu'en cas d'échec du refresh. Évite la déconnexion à chaque expiration (15 min).
+ * ne met fin à la session que si le rafraîchissement lui-même est refusé.
  */
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const toast = inject(ToastService);
   const auth = inject(AuthService);
   const network = inject(NetworkStatusService);
   const feedback = inject(FeedbackService);
-  const silent =
+  /** L'appelant se charge de l'erreur : ni toast, ni rafraîchissement, ni fin de session. */
+  const callerHandles =
     SILENT_PATTERNS.some((re) => re.test(req.url))
     || FORM_HANDLED_PATTERNS.some((re) => re.test(req.url));
+  /** Rien à annoncer à l'utilisateur — mais le reste du traitement s'applique normalement. */
+  const quiet = callerHandles || BACKGROUND_PATTERNS.some((re) => re.test(req.url));
 
   return next(req).pipe(
     // Une réponse reçue, quel qu'en soit le code, prouve que l'API répond : c'est ce qui fait
@@ -78,8 +112,16 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         network.reportApiSuccess();
       }
       // 401 sur une route protégée : rafraîchir puis rejouer une fois avant d'abandonner.
-      if (error.status === 401 && !silent && auth.token() && auth.refreshTokenValue()) {
+      if (error.status === 401 && !callerHandles && auth.token() && auth.refreshTokenValue()) {
         return auth.refresh().pipe(
+          // Le catchError est placé ICI, sur le rafraîchissement seul, et non après le rejeu.
+          // En aval, il attrapait aussi l'échec de la requête rejouée : un 500, un 404 ou une
+          // coupure réseau d'une demi-seconde — la vie ordinaire d'un téléphone — mettait fin
+          // à la session alors que le rafraîchissement venait de réussir.
+          catchError((refreshError: HttpErrorResponse) => {
+            endSession(auth, toast, refreshError);
+            return throwError(() => refreshError);
+          }),
           switchMap(() => {
             const retried = req.clone({
               setHeaders: { Authorization: `Bearer ${auth.token()}` },
@@ -87,15 +129,10 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
             });
             return next(retried);
           }),
-          catchError((refreshError) => {
-            auth.logout();
-            toast.error('Session expirée, reconnecte-toi.');
-            return throwError(() => refreshError);
-          }),
         );
       }
 
-      if (!silent) {
+      if (!quiet) {
         switch (error.status) {
           case 0:
             // Ne plus accuser le réseau de l'utilisateur quand l'appareil est en ligne : la
@@ -110,8 +147,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
             toast.error('Service momentanément indisponible — réessaie dans un instant.');
             break;
           case 401:
-            auth.logout();
-            toast.error('Session expirée, reconnecte-toi.');
+            endSession(auth, toast, error);
             break;
           case 403:
             toast.error('Accès refusé.');
