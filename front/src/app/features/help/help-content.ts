@@ -117,7 +117,8 @@ const ATHLETE: HelpGuide = {
           'Par fichier : « Importer un GPX » (formats GPX et TCX) — le tracé s\'affiche sur une carte.',
           'Automatiquement : connecte Strava et tes sorties s\'importent toutes seules.',
         ] },
-        { kind: 'text', text: 'Pour connecter ta montre, va dans Profil → « Gérer mes connexions », ou l\'onglet Synchronisation, puis « Connecter Strava ». L\'import se fait ensuite automatiquement (avec déduplication, donc pas de doublon).' },
+        { kind: 'text', text: 'Pour connecter ta montre, le plus simple est la carte Strava de ton écran d\'accueil (« Connecter Strava ») ; tu la retrouves aussi dans Profil → « Gérer mes connexions ». L\'import se fait ensuite tout seul, toutes les heures, avec déduplication — donc pas de doublon.' },
+        { kind: 'text', text: 'Tu viens de rentrer de sortie et tu ne veux pas attendre ? La même carte porte un bouton « Synchroniser » qui va chercher tes dernières activités immédiatement.' },
       ],
     },
     {

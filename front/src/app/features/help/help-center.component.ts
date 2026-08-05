@@ -109,7 +109,9 @@ import { SUPPORT_EMAIL, supportMailto as supportLink } from '../../shared/compon
     </div>
   `,
   styles: [`
-    .help { max-width: 760px; margin-inline: auto; padding: var(--sp-5) var(--sp-4) var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-4); }
+    /* Écran partagé coach/athlète : --safe-top n'est posée que par la coquille athlète (PWA
+       plein cadre), donc le retrait haut vaut sp-5 côté coach et suit l'encoche côté athlète. */
+    .help { max-width: 760px; margin-inline: auto; padding: var(--sp-5) var(--sp-4) var(--sp-12); padding-top: max(var(--sp-5), var(--safe-top, 0px)); display: flex; flex-direction: column; gap: var(--sp-4); }
 
     .help-top { display: flex; flex-direction: column; gap: var(--sp-3); }
     .help-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }

@@ -213,7 +213,9 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
   `,
   styles: [`
     :host { display: block; }
-    .cal-top { padding: var(--sp-4) var(--sp-4) 0; max-width: 560px; margin-inline: auto; }
+    /* Le titre et la navigation de semaine passaient derrière l'heure et l'encoche en PWA :
+       le retrait haut suit la safe-area exposée par la coquille athlète. */
+    .cal-top { padding: var(--sp-4) var(--sp-4) 0; padding-top: max(var(--sp-4), var(--safe-top, 0px)); max-width: 560px; margin-inline: auto; }
     .cal-top h1 { margin: 0; }
     .cal-title { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
     .week-nav { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0 var(--sp-1); }

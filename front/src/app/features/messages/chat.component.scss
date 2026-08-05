@@ -1,5 +1,11 @@
 .chat { display: flex; flex-direction: column; gap: var(--sp-4); }
-.chat.standalone { max-width: 640px; margin-inline: auto; padding: var(--sp-5) var(--sp-4); min-height: 100dvh; }
+/* Mode athlète (PWA plein cadre) : le retrait haut suit la safe-area exposée par la coquille
+   athlète, sinon « Messagerie » se glisse derrière l'heure et l'encoche. */
+.chat.standalone {
+  max-width: 640px; margin-inline: auto; min-height: 100dvh;
+  padding: var(--sp-5) var(--sp-4);
+  padding-top: max(var(--sp-5), var(--safe-top, 0px));
+}
 
 .thread { display: flex; flex-direction: column; gap: var(--sp-3); min-height: 300px; max-height: 60vh; overflow-y: auto; }
 .empty { margin: auto; }

@@ -73,6 +73,30 @@ export const routes: Routes = [
       import('./features/dev/api-status.component').then((m) => m.ApiStatusComponent),
   },
   {
+    /**
+     * Retour d'autorisation Strava — **hors** de la coquille coach et **sans garde de rôle**.
+     *
+     * Cet écran était déclaré comme enfant de `/app`, donc protégé par `coachGuard` : un athlète
+     * revenant de Strava était renvoyé vers `/athlete/today` avant même l'échange du code, et sa
+     * connexion Strava ne pouvait jamais aboutir depuis la PWA. Comme l'URL de redirection est
+     * figée côté Strava (`…/app/strava/callback`), on la garde telle quelle mais on la sert
+     * ici — déclarée AVANT `app`, elle gagne sur ses enfants.
+     *
+     * Le composant décide lui-même de la suite : finalisation athlète ou coach selon le rôle,
+     * détour par `/login` si la session manque (retour hors PWA).
+     */
+    path: 'app/strava/callback',
+    loadComponent: () =>
+      import('./features/athletes/strava-callback.component').then((m) => m.StravaCallbackComponent),
+  },
+  {
+    // Même écran sur un chemin neutre : c'est celui à configurer côté Strava pour les nouveaux
+    // environnements (`STRAVA_REDIRECT_URI`), l'espace coach n'ayant rien à voir là-dedans.
+    path: 'strava/callback',
+    loadComponent: () =>
+      import('./features/athletes/strava-callback.component').then((m) => m.StravaCallbackComponent),
+  },
+  {
     path: 'app',
     // coachGuard, pas authGuard : ce dernier laissait entrer un athlète connecté.
     canActivate: [coachGuard],
@@ -160,11 +184,8 @@ export const routes: Routes = [
             (m) => m.StrengthSessionEditorComponent
           ),
       },
-      {
-        path: 'strava/callback',
-        loadComponent: () =>
-          import('./features/athletes/strava-callback.component').then((m) => m.StravaCallbackComponent),
-      },
+      // `strava/callback` vivait ici : déplacé à la racine (voir plus haut) pour que l'athlète
+      // qui revient de Strava ne se heurte plus à `coachGuard`.
       {
         path: 'groups',
         loadComponent: () =>

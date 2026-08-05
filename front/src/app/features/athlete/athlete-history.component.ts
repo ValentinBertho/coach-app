@@ -91,7 +91,8 @@ interface MonthGroup {
     </div>
   `,
   styles: [`
-    .hist { max-width: 560px; margin-inline: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
+    /* padding-top : safe-area de la coquille athlète (PWA) — sinon le titre passe sous l'heure. */
+    .hist { max-width: 560px; margin-inline: auto; padding: var(--sp-4); padding-top: max(var(--sp-4), var(--safe-top, 0px)); display: flex; flex-direction: column; gap: var(--sp-3); }
     .hist-top { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
     .hist-top h1 { margin: 0; }
     .subtitle { color: var(--ink-3); margin: 0; }

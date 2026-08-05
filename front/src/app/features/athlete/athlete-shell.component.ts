@@ -39,7 +39,15 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
   `,
   styles: [`
     .ashell { min-height: 100dvh; background: var(--canvas); }
-    .ashell__content { padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)); }
+    .ashell__content {
+      padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+      /* Retrait haut du portail, exposé en propriété personnalisée : celles-ci traversent
+         l'encapsulation, donc chaque écran monté ici (agenda, progrès, messagerie…) peut
+         commencer SOUS l'heure et l'encoche sans rien savoir de la coquille — un simple
+         max(var(--sp-4), var(--safe-top, 0px)). Hors du portail (cockpit coach, où la barre
+         supérieure gère déjà l'encoche) la variable n'existe pas et le retrait vaut zéro. */
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
 
     .ashell__nav {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 200;
@@ -56,6 +64,8 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
       min-height: 56px; justify-content: center;
       transition: color var(--duration-fast) var(--ease);
     }
+    /* Chrome applicatif : on ne sélectionne pas les libellés d'une barre d'onglets native. */
+    .ashell__nav { -webkit-user-select: none; user-select: none; }
     .ashell__nav a .lb { white-space: nowrap; }
     .ashell__nav a .ic { font-size: 20px; line-height: 1; filter: grayscale(0.4); opacity: 0.75; }
     .ashell__nav a.active { color: var(--primary); }
