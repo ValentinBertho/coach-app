@@ -1,6 +1,11 @@
 # ============================================================================
 # Profil dev — développement local (Docker Desktop ou Postgres local).
-# Secrets de dev par défaut acceptés ; logs SQL plus verbeux ; seed possible.
+# Secrets de dev par défaut acceptés ; seed possible.
+#
+# Le SQL n'est PLUS journalisé par défaut. Il l'était, et c'était de loin la première source de
+# bruit : une seule ouverture d'écran produit des dizaines de requêtes, si bien que la ligne qu'on
+# cherche — un refus d'authentification, un rappel parti — se noyait dans le détail des requêtes.
+# Il reste à un interrupteur près : LOG_LEVEL_SQL=DEBUG le temps d'une session de mise au point.
 # ============================================================================
 spring:
   jpa:
@@ -10,9 +15,10 @@ spring:
 
 logging:
   level:
-    com.coachrun: DEBUG
-    org.springframework.web: INFO
-    org.hibernate.SQL: DEBUG
+    com.coachrun: ${LOG_LEVEL_APP:DEBUG}
+    org.springframework.web: ${LOG_LEVEL_WEB:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
+    org.hibernate.orm.jdbc.bind: ${LOG_LEVEL_SQL_PARAMS:WARN}
 
 app:
   seed:
