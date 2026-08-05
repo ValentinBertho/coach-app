@@ -134,17 +134,19 @@ app:
     # Plafond des routes authentifiées (messages, pièces jointes, import GPX), par porteur de
     # jeton : large pour ne pas gêner une navigation soutenue, mais il existe.
     authenticated-max-requests: ${RATE_LIMIT_AUTHENTICATED_MAX:300}
-    # Nombre de relais de confiance devant l'application (Vercel → Railway = 2 en production).
+    # Nombre de relais de confiance devant l'API — la topologie des appels API, pas celle du site.
     # Sert à lire la bonne adresse dans X-Forwarded-For : le client contrôle le début de la
     # chaîne, seuls les derniers éléments sont écrits par des proxys de confiance.
     #
-    # Le défaut était à 1, alors que ce commentaire annonçait 2 et que rien ne posait la variable
-    # en production : le filtre retenait donc l'adresse du relais Vercel — identique pour tous les
-    # utilisateurs — et le rate limiting devenait un compteur unique partagé par toute la
-    # plateforme (cinq mots de passe erronés = plus personne ne se connecte). Le défaut suit
-    # désormais la topologie réelle, et StartupSecretsValidator refuse toute valeur < 2 en prod.
+    # Le navigateur appelle l'API sur son propre domaine, sans passer par le front : un seul
+    # relais, celui de l'hébergeur de l'API. Le défaut était à 2, hérité de la chaîne du *site*
+    # (Vercel → Railway). Avec 2, la lecture de X-Forwarded-For échoue à chaque requête — la
+    # chaîne n'a qu'un élément — et le filtre retombe sur l'adresse TCP, c'est-à-dire celle du
+    # relais : identique pour tout le monde. Toute la plateforme partageait alors un compteur
+    # unique de vingt requêtes par minute, et les utilisateurs étaient déconnectés sans cesse.
+    # À porter à 2 si l'API passe elle-même derrière un relais supplémentaire (CDN devant l'API).
     # Sans proxy (dev, docker compose), l'en-tête est absent et l'adresse TCP fait foi.
-    trusted-proxy-hops: ${RATE_LIMIT_TRUSTED_PROXY_HOPS:2}
+    trusted-proxy-hops: ${RATE_LIMIT_TRUSTED_PROXY_HOPS:1}
     # Routes authentifiées qui déclenchent un e-mail (renvoi de vérification, changement
     # d'adresse) : quelques-unes par heure suffisent, et le quota d'envoi est une ressource
     # partagée avec les réinitialisations de mot de passe.

@@ -30,10 +30,12 @@ class RateLimitHardeningTest {
     private static final int LOGIN_MAX = 2;
     private static final int AUTH_MAX = 4;
     private static final int EMAIL_MAX = 2;
+    /** Rafraîchissement : plafond propre, volontairement large (cf. RateLimitFilter). */
+    private static final int REFRESH_MAX = 60;
 
     /** Filtre configuré avec un seul relais de confiance (cas d'un déploiement simple). */
     private RateLimitFilter filter(int hops) {
-        return new RateLimitFilter(MAX, 60, LOGIN_MAX, AUTH_MAX, EMAIL_MAX, 3600, 50, hops);
+        return new RateLimitFilter(MAX, 60, LOGIN_MAX, REFRESH_MAX, AUTH_MAX, EMAIL_MAX, 3600, 50, hops);
     }
 
     private MockHttpServletResponse call(RateLimitFilter filter, MockHttpServletRequest request)

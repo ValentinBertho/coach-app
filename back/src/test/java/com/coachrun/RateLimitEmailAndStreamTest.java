@@ -38,7 +38,7 @@ class RateLimitEmailAndStreamTest {
     private static final String TOKEN = "aaa.bbbbbbbb.ccc";
 
     private RateLimitFilter filter() {
-        return new RateLimitFilter(MAX, 60, LOGIN_MAX, AUTH_MAX, EMAIL_MAX, 3600, ANON_EMAIL_MAX, 2);
+        return new RateLimitFilter(MAX, 60, LOGIN_MAX, 60, AUTH_MAX, EMAIL_MAX, 3600, ANON_EMAIL_MAX, 2);
     }
 
     private int call(RateLimitFilter filter, MockHttpServletRequest request) {
