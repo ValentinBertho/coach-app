@@ -56,6 +56,7 @@ public class WorkoutService {
     private final com.coachrun.repository.RunDrillRepository runDrillRepository;
     private final SessionCalculatorService sessionCalculatorService;
     private final com.coachrun.security.HealthDataConsentValidator consentValidator;
+    private final ClockService clock;
 
     public List<WorkoutResponse> calendar(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         return workoutRepository
@@ -88,6 +89,22 @@ public class WorkoutService {
     /** Création avec rattachement optionnel à un plan ({@code planId}) pour le suivi d'avancement. */
     @Transactional
     public WorkoutResponse create(UUID clubId, UUID athleteId, WorkoutRequest request, UUID planId) {
+        return create(clubId, athleteId, request, planId, true);
+    }
+
+    /**
+     * Création, en disant explicitement si l'athlète doit en être averti.
+     *
+     * <p>{@code notifyAthlete} vaut {@code false} sur les chemins de <b>génération en lot</b> :
+     * l'attribution d'un plan descend jusqu'ici une fois par séance, et notifier à ce niveau
+     * produisait une cinquantaine de notifications pour un seul geste du coach. Le lot émet à sa
+     * place une notification unique (cf. {@code NotificationService#notifyPlanAssigned}). Le
+     * drapeau est porté par un paramètre plutôt que déduit de {@code planId} : poser une séance
+     * de plan à l'unité reste une création ordinaire, qui doit se voir.</p>
+     */
+    @Transactional
+    public WorkoutResponse create(UUID clubId, UUID athleteId, WorkoutRequest request, UUID planId,
+                                  boolean notifyAthlete) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
 
@@ -100,17 +117,67 @@ public class WorkoutService {
 
         workout = workoutRepository.save(workout);
         log.info("Séance créée {} (athlète={}, plan={})", workout.getId(), athleteId, planId);
-        notificationService.notifyWorkoutPlanned(workout);
+        if (notifyAthlete) {
+            notificationService.notifyWorkoutPlanned(workout);
+        }
         return WorkoutResponse.from(workout);
     }
 
+    /**
+     * Modification d'une séance par le coach → l'athlète en est averti dès que le changement le
+     * concerne.
+     *
+     * <p>Rien ne partait : un coach qui déplaçait la sortie longue du dimanche au samedi, ou qui
+     * doublait le volume d'une séance de seuil, ne prévenait personne. L'athlète le découvrait en
+     * ouvrant l'application, ou pas du tout.</p>
+     *
+     * <p>Deux garde-fous pour que ça ne devienne pas du bruit. La <b>signature</b> compare l'avant
+     * et l'après : réenregistrer une séance sans rien changer — ce que fait un formulaire rouvert
+     * puis validé — ne notifie pas. Et seules les séances <b>encore à faire</b> déclenchent :
+     * corriger le libellé d'une séance déjà réalisée n'a aucun intérêt pour l'athlète. L'anti-rafale
+     * qui regroupe le remaniement d'une semaine entière est porté par le service de notification.</p>
+     */
     @Transactional
     public WorkoutResponse update(UUID clubId, UUID workoutId, WorkoutRequest request) {
         Workout workout = require(clubId, workoutId);
+        boolean wasPlanned = workout.getStatus() == WorkoutStatus.PLANNED;
+        String before = signature(workout);
+        LocalDate previousDate = workout.getScheduledDate();
+
         apply(workout, request);
+
+        if (wasPlanned && !before.equals(signature(workout))) {
+            notificationService.notifyWorkoutChanged(
+                    workout, !previousDate.equals(workout.getScheduledDate()));
+        }
         return WorkoutResponse.from(workout);
     }
 
+    /**
+     * Empreinte de ce qu'une séance annonce à l'athlète : sa date, sa nature, son intitulé et son
+     * contenu. Sert à ne notifier qu'un changement réel.
+     *
+     * <p>Les étapes en font partie : passer 6 × 400 m à 8 × 400 m ne touche ni la date ni le
+     * titre, et c'est pourtant le changement que l'athlète a le plus besoin de connaître.</p>
+     */
+    private static String signature(Workout w) {
+        StringBuilder sb = new StringBuilder()
+                .append(w.getScheduledDate()).append('|').append(w.getType()).append('|')
+                .append(w.getTitle()).append('|').append(w.getNotes()).append('|')
+                .append(w.getTargetDistanceM()).append('|').append(w.getTargetDurationS());
+        for (WorkoutStep s : w.getSteps()) {
+            sb.append('|').append(s.getStepType()).append(':').append(s.getRepetitions())
+                    .append(':').append(s.getZone()).append(':').append(s.getDistanceM())
+                    .append(':').append(s.getDurationS()).append(':').append(s.getNotes());
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Transition d'état par le coach. Volontairement muette : c'est une écriture de suivi
+     * (« je note que cette séance a été manquée »), pas une information nouvelle pour l'athlète,
+     * qui est la source du fait constaté.
+     */
     @Transactional
     public WorkoutResponse updateStatus(UUID clubId, UUID workoutId, WorkoutStatus target) {
         Workout workout = require(clubId, workoutId);
@@ -122,11 +189,20 @@ public class WorkoutService {
         return WorkoutResponse.from(workout);
     }
 
-    /** Replanification (glisser-déposer) : change uniquement la date. */
+    /**
+     * Replanification (glisser-déposer) : change uniquement la date, et prévient l'athlète.
+     *
+     * <p>C'est le geste par lequel une séance se déplace le plus souvent, et il était muet.</p>
+     */
     @Transactional
     public WorkoutResponse reschedule(UUID clubId, UUID workoutId, java.time.LocalDate date) {
         Workout workout = require(clubId, workoutId);
+        boolean moved = workout.getStatus() == WorkoutStatus.PLANNED
+                && !date.equals(workout.getScheduledDate());
         workout.setScheduledDate(date);
+        if (moved) {
+            notificationService.notifyWorkoutChanged(workout, true);
+        }
         return WorkoutResponse.from(workout);
     }
 
@@ -359,9 +435,20 @@ public class WorkoutService {
         return toPrescription(require(clubId, workoutId));
     }
 
+    /**
+     * Suppression d'une séance. L'athlète est averti si elle était <b>encore à faire et pas
+     * passée</b> : c'est alors une annulation, une information qu'il attend. Supprimer une séance
+     * d'une semaine écoulée est du ménage de calendrier, et ne regarde que le coach.
+     */
     @Transactional
     public void delete(UUID clubId, UUID workoutId) {
         Workout workout = require(clubId, workoutId);
+        // Avant la suppression : la notification a besoin du titre et de la date, et sa trace
+        // in-app participe de la même transaction — si l'effacement échoue, elle disparaît avec.
+        if (workout.getStatus() == WorkoutStatus.PLANNED
+                && !workout.getScheduledDate().isBefore(clock.today())) {
+            notificationService.notifyWorkoutCancelled(workout);
+        }
         workoutRepository.delete(workout);
     }
 

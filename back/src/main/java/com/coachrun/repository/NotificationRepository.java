@@ -18,6 +18,18 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
 
     long countByUserIdAndReadAtIsNull(UUID userId);
 
+    /**
+     * Anti-rafale : une notification de même type et de même destination existe-t-elle déjà pour
+     * cet utilisateur dans la fenêtre ?
+     *
+     * <p>Le centre de notifications sert ici de mémoire du canal — il n'y a rien d'autre à tenir
+     * à jour, et la trace est déjà écrite avant tout envoi. Le lien identifie le sujet (le fil de
+     * messagerie, le calendrier de l'athlète), donc deux sujets distincts ne se masquent jamais.
+     * Couvert par {@code idx_notifications_user_created} sur sa colonne de tête.</p>
+     */
+    boolean existsByUserIdAndTypeAndLinkAndCreatedAtAfter(
+            UUID userId, String type, String link, Instant createdAt);
+
     Optional<Notification> findByIdAndUserId(UUID id, UUID userId);
 
     @Modifying

@@ -1,11 +1,14 @@
 package com.coachrun.service;
 
 import com.coachrun.dto.response.CoachAlertResponse;
+import com.coachrun.entity.Athlete;
 import com.coachrun.entity.CoachAthleteRelation;
+import com.coachrun.entity.Message;
 import com.coachrun.entity.Notification;
 import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.enums.UserRole;
+import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.integration.MailTemplate;
 import com.coachrun.integration.MailTemplate.Audience;
 import com.coachrun.integration.ResendMailClient;
@@ -18,8 +21,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -79,6 +87,121 @@ public class NotificationService {
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
+    /** Calendrier de l'athlète : destination commune des notifications qui portent sur son programme. */
+    private static final String ATHLETE_CALENDAR = "/athlete/calendar";
+
+    /** Dates affichées aux utilisateurs : « samedi 12 juillet », pas « 2026-07-12 ». */
+    private static final DateTimeFormatter DAY_FR =
+            DateTimeFormatter.ofPattern("EEEE d MMMM", Locale.FRENCH);
+
+    /**
+     * Anti-rafale d'un fil de messagerie. Un échange vif — cinq messages en trois minutes — est
+     * une conversation, pas cinq événements : le premier message fait sonner le téléphone, les
+     * suivants se lisent dans le fil qu'il vient d'ouvrir.
+     */
+    private static final Duration MESSAGE_BURST_WINDOW = Duration.ofMinutes(10);
+
+    /**
+     * Anti-rafale des changements de programme. Un coach qui remanie une semaine déplace trois
+     * séances et en supprime une en quelques minutes : l'athlète a besoin de savoir que son
+     * programme a bougé, pas de recevoir quatre notifications pour un seul remaniement.
+     */
+    private static final Duration WORKOUT_CHANGE_BURST_WINDOW = Duration.ofMinutes(30);
+
+    // ------------------------------------------------------------------------------------------
+    // Point d'entrée unique des notifications de routine
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * Dépose une notification de routine : trace au centre de notifications (<b>toujours</b>),
+     * puis push si l'utilisateur l'accepte.
+     *
+     * <p>Ce couple {@code record(...)} + {@code if (isNotifyPushEnabled()) sendToUser(...)} était
+     * recopié à l'identique dans chacun des déclencheurs. Toute règle transversale à venir —
+     * heures de silence, préférence par catégorie, métrique de remise — aurait dû y être ajoutée
+     * autant de fois, et oubliée à la suivante. Elle n'a désormais qu'un seul endroit où vivre.</p>
+     */
+    private void notifyUser(User target, String type, String title, String body, String link) {
+        notifyUser(target, type, title, body, body, link);
+    }
+
+    /**
+     * Variante à corps distincts. Le centre de notifications se lit posément et peut porter le
+     * nom complet et la période ; la notification système est lue d'un coup d'œil sur un écran
+     * verrouillé, et se contente de l'essentiel.
+     */
+    private void notifyUser(User target, String type, String title, String body, String pushBody,
+                            String link) {
+        if (target == null) {
+            return;
+        }
+        record(target.getId(), type, title, body, link);
+        pushOnly(target, title, pushBody, link);
+    }
+
+    /**
+     * Push seul, sans trace in-app. Réservé à ce qui est périmé le lendemain (le rappel de
+     * débriefing) : une ligne « Ta séance est finie ? » relue trois jours plus tard n'a plus
+     * aucun sens au centre de notifications.
+     */
+    private void pushOnly(User target, String title, String body, String link) {
+        if (target == null || !target.isNotifyPushEnabled()) {
+            return;
+        }
+        pushService.sendToUser(target.getId(), title, body, frontendUrl + link);
+    }
+
+    /** Idem, avec des actions rapides affichées par le système sous la notification. */
+    private void pushOnly(User target, String title, String body, String link,
+                          List<PushNotificationService.QuickAction> actions) {
+        if (target == null || !target.isNotifyPushEnabled()) {
+            return;
+        }
+        pushService.sendToUser(target.getId(), title, body, frontendUrl + link, actions);
+    }
+
+    /** Ce compte accepte-t-il le push, <em>et</em> un appareil peut-il réellement le recevoir ? */
+    private boolean pushReaches(User target) {
+        return target != null && target.isNotifyPushEnabled() && pushService.canReach(target.getId());
+    }
+
+    /** Compte utilisateur d'un athlète, ou {@code null} s'il n'a pas encore activé son espace. */
+    private User athleteUser(Athlete athlete) {
+        return athlete == null ? null
+                : userRepository.findByAthleteId(athlete.getId()).orElse(null);
+    }
+
+    /**
+     * Une notification de même nature et de même destination a-t-elle déjà été déposée dans la
+     * fenêtre ? Le couple (type, lien) identifie le sujet : le lien porte le fil de messagerie ou
+     * le calendrier de l'athlète, donc deux sujets distincts ne se masquent jamais l'un l'autre.
+     *
+     * <p>En cas d'indisponibilité du dépôt, on notifie : rater une notification est pire que
+     * d'en envoyer une de trop.</p>
+     */
+    private boolean recentlyNotified(UUID userId, String type, String link, Duration window) {
+        try {
+            return notificationRepository.existsByUserIdAndTypeAndLinkAndCreatedAtAfter(
+                    userId, type, link, Instant.now().minus(window));
+        } catch (RuntimeException ex) {
+            log.warn("Anti-rafale indisponible ({}) : {}", type, ex.getMessage());
+            return false;
+        }
+    }
+
+    /** Date en toutes lettres, pour un corps de notification lu par un humain. */
+    private static String fr(LocalDate date) {
+        return date == null ? "" : DAY_FR.format(date);
+    }
+
+    private static String fullName(Athlete athlete) {
+        return (athlete.getFirstName() + " " + athlete.getLastName()).trim();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Déclencheurs
+    // ------------------------------------------------------------------------------------------
+
     /**
      * Séance planifiée → notifie l'athlète, <strong>in-app + push, sans e-mail</strong>.
      *
@@ -86,19 +209,104 @@ public class NotificationService {
      * envoyait cinq e-mails à l'athlète dans la minute. La séance apparaît de toute façon dans
      * son agenda et dans « Aujourd'hui » ; l'e-mail n'apportait qu'un doublon, au prix du plus
      * gros poste de consommation du quota d'envoi.</p>
+     *
+     * <p>Ce déclencheur vaut pour une séance <b>posée à l'unité</b>. La génération en lot
+     * (attribution d'un plan) le court-circuite et passe par {@link #notifyPlanAssigned} : voir
+     * la javadoc de cette méthode.</p>
      */
     public void notifyWorkoutPlanned(Workout workout) {
-        User athleteUser = userRepository.findByAthleteId(workout.getAthlete().getId()).orElse(null);
-        if (athleteUser == null) {
+        notifyUser(athleteUser(workout.getAthlete()), "WORKOUT_PLANNED", "Nouvelle séance",
+                workout.getTitle() + " — " + fr(workout.getScheduledDate()), "/athlete/today");
+    }
+
+    /**
+     * Attribution d'un plan → <strong>une seule</strong> notification pour tout le programme.
+     *
+     * <p>L'attribution génère une séance par item : douze semaines à quatre séances en produisent
+     * une cinquantaine, chacune notifiée, en une salve. Pour un seul geste du coach, l'athlète
+     * recevait cinquante notifications système — le moyen le plus sûr de lui faire couper le
+     * canal qu'on cherche précisément à garder ouvert. Et comme l'attribution est
+     * idempotente-régénérante, chaque réattribution rejouait la salve entière.</p>
+     *
+     * <p>Ce qui compte pour l'athlète n'est de toute façon pas la cinquantième séance prise
+     * isolément, mais le fait qu'un programme l'attende.</p>
+     */
+    public void notifyPlanAssigned(Athlete athlete, String planName, int sessions, LocalDate lastDate) {
+        if (sessions <= 0) {
             return;
         }
-        record(athleteUser.getId(), "WORKOUT_PLANNED", "Nouvelle séance",
-                workout.getTitle() + " — " + workout.getScheduledDate(), "/athlete/today");
-        if (athleteUser.isNotifyPushEnabled()) {
-            pushService.sendToUser(athleteUser.getId(), "Nouvelle séance",
-                    workout.getTitle() + " — " + workout.getScheduledDate(),
-                    frontendUrl + "/athlete/today");
+        String body = "« " + planName + " » — " + sessions + (sessions > 1 ? " séances" : " séance")
+                + (lastDate == null ? "" : " jusqu'au " + fr(lastDate));
+        notifyUser(athleteUser(athlete), "PLAN_ASSIGNED", "Nouveau plan d'entraînement",
+                body, ATHLETE_CALENDAR);
+    }
+
+    /**
+     * Séance modifiée ou déplacée par le coach → notifie l'athlète.
+     *
+     * <p>Le trou le plus visible du dispositif : un coach qui déplaçait la sortie longue du
+     * dimanche au samedi ne prévenait personne. L'athlète découvrait le changement en ouvrant
+     * l'application — ou ne le découvrait pas, et manquait sa séance.</p>
+     *
+     * <p>Dédoublonné par athlète sur {@link #WORKOUT_CHANGE_BURST_WINDOW} : remanier une semaine
+     * est un seul geste, et le lien mène au calendrier, où tout le remaniement se lit d'un coup.
+     * C'est aussi pourquoi modification, déplacement et annulation partagent un même type — seul
+     * le libellé du premier événement de la salve est retenu.</p>
+     */
+    public void notifyWorkoutChanged(Workout workout, boolean moved) {
+        notifyWorkoutChange(workout, moved ? "Séance déplacée" : "Séance modifiée");
+    }
+
+    /** Séance supprimée par le coach → notifie l'athlète (même anti-rafale que la modification). */
+    public void notifyWorkoutCancelled(Workout workout) {
+        notifyWorkoutChange(workout, "Séance annulée");
+    }
+
+    private void notifyWorkoutChange(Workout workout, String title) {
+        User target = athleteUser(workout.getAthlete());
+        if (target == null
+                || recentlyNotified(target.getId(), "WORKOUT_UPDATED", ATHLETE_CALENDAR,
+                        WORKOUT_CHANGE_BURST_WINDOW)) {
+            return;
         }
+        notifyUser(target, "WORKOUT_UPDATED", title,
+                workout.getTitle() + " — " + fr(workout.getScheduledDate()), ATHLETE_CALENDAR);
+    }
+
+    /**
+     * Nouveau message dans le fil coach ↔ athlète → notifie l'autre partie.
+     *
+     * <p>C'était le manque le plus criant du produit : la messagerie n'appelait jamais ce
+     * service. Elle diffuse bien le message en temps réel, mais uniquement aux clients qui ont
+     * déjà l'écran ouvert — c'est-à-dire exactement le cas où la notification est inutile. Un
+     * athlète qui posait une question le soir n'avait aucun moyen de savoir que son coach avait
+     * répondu.</p>
+     *
+     * <p><b>Le corps ne reprend jamais le texte du message</b>, seulement le nom de l'expéditeur.
+     * Une conversation coach ↔ athlète parle de blessures et de fatigue : la faire apparaître sur
+     * un écran verrouillé, ou la figer au centre de notifications, contreviendrait à l'invariant
+     * que respectent déjà tous les autres déclencheurs.</p>
+     */
+    public void notifyNewMessage(Message message) {
+        Athlete athlete = message.getAthlete();
+        if (athlete == null) {
+            return;
+        }
+        boolean fromAthlete = message.getSenderRole() == UserRole.ATHLETE;
+        String link = fromAthlete
+                ? "/app/athletes/" + athlete.getId() + "/messages"
+                : "/athlete/messages";
+        User target = fromAthlete
+                ? referentCoach(athlete.getId(),
+                        athlete.getClub() == null ? null : athlete.getClub().getId()).orElse(null)
+                : athleteUser(athlete);
+
+        // Un coach qui gère son propre dossier d'athlète ne s'écrit pas à lui-même.
+        if (target == null || target.getId().equals(message.getSenderUserId())
+                || recentlyNotified(target.getId(), "NEW_MESSAGE", link, MESSAGE_BURST_WINDOW)) {
+            return;
+        }
+        notifyUser(target, "NEW_MESSAGE", "Nouveau message", message.getSenderName(), link);
     }
 
     /**
@@ -110,16 +318,8 @@ public class NotificationService {
      * on renvoie vers la séance.</p>
      */
     public void notifyCoachComment(Workout workout) {
-        User athleteUser = userRepository.findByAthleteId(workout.getAthlete().getId()).orElse(null);
-        if (athleteUser == null) {
-            return;
-        }
-        record(athleteUser.getId(), "COACH_COMMENT", "Retour de votre coach",
+        notifyUser(athleteUser(workout.getAthlete()), "COACH_COMMENT", "Retour de votre coach",
                 workout.getTitle(), "/athlete/history");
-        if (athleteUser.isNotifyPushEnabled()) {
-            pushService.sendToUser(athleteUser.getId(), "Retour de votre coach",
-                    workout.getTitle(), frontendUrl + "/athlete/history");
-        }
     }
 
     /**
@@ -132,16 +332,30 @@ public class NotificationService {
      * navigation, et le digest quotidien de 7 h.</p>
      */
     public void notifyAthleteFeedback(Workout workout) {
-        coachToNotify(workout).ifPresent(c -> {
-            record(c.getId(), "ATHLETE_FEEDBACK", "Séance mise à jour",
-                    workout.getAthlete().getFirstName() + " " + workout.getAthlete().getLastName()
-                            + " — " + workout.getStatus(), "/app/feedback");
-            if (c.isNotifyPushEnabled()) {
-                pushService.sendToUser(c.getId(), "Séance mise à jour",
-                        workout.getAthlete().getFirstName() + " — " + workout.getStatus(),
-                        frontendUrl + "/app/feedback");
-            }
-        });
+        Athlete athlete = workout.getAthlete();
+        String status = statusLabel(workout.getStatus());
+        coachToNotify(workout).ifPresent(c -> notifyUser(c, "ATHLETE_FEEDBACK", "Séance mise à jour",
+                fullName(athlete) + " — " + status,
+                athlete.getFirstName() + " — " + status,
+                "/app/feedback"));
+    }
+
+    /**
+     * Libellé français d'un état de séance.
+     *
+     * <p>Le code de l'énumération était concaténé tel quel : le coach lisait « Marie Durand —
+     * COMPLETED », seul endroit du produit à parler en anglais et en majuscules.</p>
+     */
+    private String statusLabel(WorkoutStatus status) {
+        if (status == null) {
+            return "mise à jour";
+        }
+        return switch (status) {
+            case PLANNED -> "à venir";
+            case COMPLETED -> "réalisée";
+            case PARTIAL -> "partiellement réalisée";
+            case MISSED -> "non réalisée";
+        };
     }
 
     private Optional<User> coachToNotify(Workout workout) {
@@ -204,14 +418,10 @@ public class NotificationService {
         }
         int count = perAthlete.size();
 
-        record(coach.getId(), "COACH_ALERTS", "Alertes à traiter",
+        notifyUser(coach, "COACH_ALERTS", "Alertes à traiter",
                 count + (count > 1 ? " athlètes nécessitent votre attention" : " athlète nécessite votre attention"),
+                count + (count > 1 ? " athlètes à surveiller" : " athlète à surveiller"),
                 "/app");
-        if (coach.isNotifyPushEnabled()) {
-            pushService.sendToUser(coach.getId(), "Alertes à traiter",
-                    count + (count > 1 ? " athlètes à surveiller" : " athlète à surveiller"),
-                    frontendUrl + "/app");
-        }
 
         if (coach.getEmail() == null || !coach.isNotifyEmailEnabled()) {
             return;
@@ -250,15 +460,14 @@ public class NotificationService {
      * système ne serait plus prévenu du tout.</p>
      */
     public void notifyWorkoutReminder(Workout workout) {
-        User athleteUser = userRepository.findByAthleteId(workout.getAthlete().getId()).orElse(null);
+        User athleteUser = athleteUser(workout.getAthlete());
         String title = "Séance demain";
         String body = workout.getTitle();
 
         if (athleteUser != null) {
             record(athleteUser.getId(), "WORKOUT_REMINDER", title, body, "/athlete/today");
-            if (athleteUser.isNotifyPushEnabled() && pushService.canReach(athleteUser.getId())) {
-                pushService.sendToUser(athleteUser.getId(), title, body,
-                        frontendUrl + "/athlete/today");
+            if (pushReaches(athleteUser)) {
+                pushOnly(athleteUser, title, body, "/athlete/today");
                 return;
             }
         }
@@ -291,16 +500,12 @@ public class NotificationService {
      *                     ajoutent {@code &rpe=…}), ex. {@code /athlete/today?feedback=<id>}
      */
     public void notifySessionDebrief(User athleteUser, String sessionTitle, String feedbackPath) {
-        if (athleteUser == null || !athleteUser.isNotifyPushEnabled()) {
-            return;
-        }
         List<PushNotificationService.QuickAction> actions = List.of(
                 quickAction(3, "Facile", feedbackPath),
                 quickAction(6, "Moyen", feedbackPath),
                 quickAction(8, "Dur", feedbackPath));
-        pushService.sendToUser(athleteUser.getId(), "Ta séance est finie ?",
-                sessionTitle + " — note ton ressenti en un tap.",
-                frontendUrl + feedbackPath, actions);
+        pushOnly(athleteUser, "Ta séance est finie ?",
+                sessionTitle + " — note ton ressenti en un tap.", feedbackPath, actions);
     }
 
     private PushNotificationService.QuickAction quickAction(int rpe, String label, String feedbackPath) {
@@ -373,16 +578,13 @@ public class NotificationService {
                                             com.coachrun.entity.AthleteUnavailability unavailability) {
         UUID clubId = athlete.getClub() != null ? athlete.getClub().getId() : null;
         referentCoach(athlete.getId(), clubId).ifPresent(coach -> {
-            String athleteName = (athlete.getFirstName() + " " + athlete.getLastName()).trim();
-            String period = unavailability.getStartDate() + " → " + unavailability.getEndDate();
+            String athleteName = fullName(athlete);
+            String period = fr(unavailability.getStartDate()) + " → " + fr(unavailability.getEndDate());
             String reason = reasonLabel(unavailability.getReason());
 
-            record(coach.getId(), "ATHLETE_UNAVAILABILITY", "Indisponibilité déclarée",
-                    athleteName + " — " + reason + " (" + period + ")", "/app/calendar");
-            if (coach.isNotifyPushEnabled()) {
-                pushService.sendToUser(coach.getId(), "Indisponibilité déclarée",
-                        athleteName + " — " + reason, frontendUrl + "/app/calendar");
-            }
+            notifyUser(coach, "ATHLETE_UNAVAILABILITY", "Indisponibilité déclarée",
+                    athleteName + " — " + reason + " (" + period + ")",
+                    athleteName + " — " + reason, "/app/calendar");
             if (coach.getEmail() == null || !coach.isNotifyEmailEnabled()) {
                 return;
             }
@@ -407,15 +609,11 @@ public class NotificationService {
     public void notifyHealthConsentWithdrawn(com.coachrun.entity.Athlete athlete) {
         UUID clubId = athlete.getClub() != null ? athlete.getClub().getId() : null;
         referentCoach(athlete.getId(), clubId).ifPresent(coach -> {
-            String athleteName = (athlete.getFirstName() + " " + athlete.getLastName()).trim();
-            record(coach.getId(), "HEALTH_CONSENT_WITHDRAWN", "Consentement santé retiré",
+            String athleteName = fullName(athlete);
+            notifyUser(coach, "HEALTH_CONSENT_WITHDRAWN", "Consentement santé retiré",
                     athleteName + " ne partage plus ses données de santé (douleur, lactate).",
+                    athleteName + " ne partage plus ses données de santé.",
                     "/app/athletes/" + athlete.getId());
-            if (coach.isNotifyPushEnabled()) {
-                pushService.sendToUser(coach.getId(), "Consentement santé retiré",
-                        athleteName + " ne partage plus ses données de santé.",
-                        frontendUrl + "/app/athletes/" + athlete.getId());
-            }
         });
     }
 

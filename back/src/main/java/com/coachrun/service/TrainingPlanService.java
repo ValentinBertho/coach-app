@@ -58,6 +58,7 @@ public class TrainingPlanService {
     private final MesocycleTemplateRepository mesocycleTemplateRepository;
     private final ObjectMapper objectMapper;
     private final ClockService clock;
+    private final NotificationService notificationService;
 
     public List<TrainingPlanResponse> list(UUID clubId) {
         return planRepository.findByClubIdOrderByNameAsc(clubId).stream()
@@ -100,6 +101,12 @@ public class TrainingPlanService {
      * <strong>rattachant chaque séance au plan</strong> ({@code planId}) et en enregistrant
      * l'attribution datée (suivi d'avancement). Idempotent : les séances encore planifiées d'une
      * application précédente sont purgées d'abord (l'historique réalisé est préservé).
+     *
+     * <p><b>Une seule notification</b> pour tout le programme, émise en fin de génération. Chaque
+     * séance générée descendait jusqu'à la création unitaire, qui notifiait : un plan de douze
+     * semaines à quatre séances en produisait une cinquantaine d'un coup, et chaque réattribution
+     * — la méthode étant régénérante — rejouait la salve. L'information utile à l'athlète tient en
+     * une ligne : un programme l'attend, jusqu'à telle date.</p>
      */
     @Transactional
     public int applyToAthlete(UUID clubId, UUID planId, UUID athleteId, LocalDate startDate) {
@@ -129,6 +136,7 @@ public class TrainingPlanService {
 
         List<PlanItemDto> items = readItems(p.getItemsJson());
         int created = 0;
+        LocalDate lastDate = null;
         for (PlanItemDto item : items) {
             LocalDate date = startDate.plusWeeks(item.weekIndex()).plusDays(item.dayOfWeek() - 1L);
             if (item.kindOrDefault() == PlanItemKind.STRENGTH) {
@@ -137,10 +145,15 @@ public class TrainingPlanService {
             } else {
                 double multiplier = meso == null ? 1.0 : com.coachrun.util.MesocycleMath.multiplierForWeek(
                         item.weekIndex(), meso.getIncreasePct(), meso.getDeloadEvery(), meso.getDeloadPct());
-                templateService.apply(clubId, item.templateId(), athleteId, date, planId, multiplier);
+                // Sans notification par séance : le lot en émet une seule, ci-dessous.
+                templateService.apply(clubId, item.templateId(), athleteId, date, planId, multiplier, false);
             }
             created++;
+            if (lastDate == null || date.isAfter(lastDate)) {
+                lastDate = date;
+            }
         }
+        notificationService.notifyPlanAssigned(athlete, p.getName(), created, lastDate);
         return created;
     }
 

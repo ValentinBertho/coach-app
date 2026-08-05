@@ -31,6 +31,7 @@ public class MessageService {
     private final AthleteRepository athleteRepository;
     private final UserRepository userRepository;
     private final MessageStreamService streamService;
+    private final NotificationService notificationService;
     private final com.coachrun.repository.MessageAttachmentRepository attachmentRepository;
 
     /** Quota de stockage par club (pièces jointes de messagerie). */
@@ -158,8 +159,20 @@ public class MessageService {
         m.setBody(request.body());
         m.setWorkoutId(request.workoutId());
         Message saved = messageRepository.save(m);
-        streamService.broadcast(athlete.getId(), MessageResponse.from(saved));
+        deliver(athlete, saved);
         return saved;
+    }
+
+    /**
+     * Remise d'un message : temps réel pour qui regarde déjà le fil, notification pour les autres.
+     *
+     * <p>La messagerie ne se reposait que sur le flux SSE, qui n'atteint que les clients ayant
+     * l'écran ouvert — c'est-à-dire ceux qui n'ont besoin de rien. Un athlète qui posait une
+     * question le soir n'apprenait la réponse de son coach qu'en rouvrant l'application.</p>
+     */
+    private void deliver(Athlete athlete, Message saved) {
+        streamService.broadcast(athlete.getId(), MessageResponse.from(saved));
+        notificationService.notifyNewMessage(saved);
     }
 
     // --- Pièces jointes ---
@@ -223,7 +236,7 @@ public class MessageService {
         m.setAttachmentFilename(att.getFilename());
         m.setAttachmentContentType(att.getContentType());
         Message saved = messageRepository.save(m);
-        streamService.broadcast(athlete.getId(), MessageResponse.from(saved));
+        deliver(athlete, saved);
         return saved;
     }
 

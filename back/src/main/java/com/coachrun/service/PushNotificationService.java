@@ -2,6 +2,8 @@ package com.coachrun.service;
 
 import com.coachrun.entity.PushSubscription;
 import com.coachrun.repository.PushSubscriptionRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +26,10 @@ import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -88,6 +93,7 @@ public class PushNotificationService {
     private static final int QUEUE_CAPACITY = 2_000;
 
     private final PushSubscriptionRepository repository;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.vapid.public-key:}")
     private String publicKey;
@@ -286,37 +292,47 @@ public class PushNotificationService {
      * est passé tel quel à {@code showNotification}, et {@code data.onActionClick} dit à ngsw
      * où naviguer selon le bouton pressé — c'est ce qui rend l'action rapide « en deux taps »
      * possible sans que l'athlète ait à retrouver sa séance dans l'app.
+     *
+     * <p><b>Sérialisé par Jackson, plus à la main.</b> Le JSON était assemblé par concaténation,
+     * avec un échappement qui ne traitait que l'antislash et le guillemet. Or le titre d'une
+     * séance est une saisie libre du coach, sans contrainte de ligne unique : un titre collé
+     * depuis un document et portant un retour à la ligne produisait un JSON invalide, rejeté par
+     * le service de push. L'athlète n'était pas prévenu, et rien ne le signalait — l'échec se
+     * confondait avec une absence de notification.</p>
      */
     private String payload(String title, String body, String url, List<QuickAction> actions) {
-        StringBuilder sb = new StringBuilder("{\"notification\":{\"title\":").append(json(title))
-                .append(",\"body\":").append(json(body));
+        Map<String, Object> notification = new LinkedHashMap<>();
+        notification.put("title", title == null ? "" : title);
+        notification.put("body", body == null ? "" : body);
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("url", url);
 
         if (!actions.isEmpty()) {
-            sb.append(",\"actions\":[");
-            for (int i = 0; i < actions.size(); i++) {
-                QuickAction a = actions.get(i);
-                sb.append(i > 0 ? "," : "")
-                        .append("{\"action\":").append(json(a.id()))
-                        .append(",\"title\":").append(json(a.title())).append("}");
-            }
-            sb.append("]");
-        }
-
-        sb.append(",\"data\":{\"url\":").append(json(url));
-        if (!actions.isEmpty()) {
-            sb.append(",\"onActionClick\":{\"default\":")
-                    .append(navigate(url));
+            List<Map<String, String>> buttons = new ArrayList<>(actions.size());
+            Map<String, Object> onActionClick = new LinkedHashMap<>();
+            onActionClick.put("default", navigate(url));
             for (QuickAction a : actions) {
-                sb.append(",").append(json(a.id())).append(":").append(navigate(a.url()));
+                buttons.add(Map.of("action", a.id(), "title", a.title()));
+                onActionClick.put(a.id(), navigate(a.url()));
             }
-            sb.append("}");
+            notification.put("actions", buttons);
+            data.put("onActionClick", onActionClick);
         }
-        return sb.append("}}}").toString();
+        notification.put("data", data);
+
+        try {
+            return objectMapper.writeValueAsString(Map.of("notification", notification));
+        } catch (JsonProcessingException ex) {
+            // Inatteignable avec des chaînes et des maps ; on ne laisse pas pour autant une
+            // notification malformée partir sur le réseau.
+            throw new IllegalStateException("Charge utile push non sérialisable", ex);
+        }
     }
 
     /** Opération ngsw : réutiliser l'onglet déjà ouvert plutôt qu'en empiler un nouveau. */
-    private String navigate(String url) {
-        return "{\"operation\":\"navigateLastFocusedOrOpen\",\"url\":" + json(url) + "}";
+    private Map<String, String> navigate(String url) {
+        return Map.of("operation", "navigateLastFocusedOrOpen", "url", url);
     }
 
     private PushService service() throws Exception {
@@ -398,9 +414,5 @@ public class PushNotificationService {
                 log.debug("Fermeture du client push : {}", e.getMessage());
             }
         }
-    }
-
-    private String json(String s) {
-        return "\"" + (s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"")) + "\"";
     }
 }

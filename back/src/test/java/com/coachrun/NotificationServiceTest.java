@@ -3,6 +3,7 @@ package com.coachrun;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Club;
 import com.coachrun.entity.CoachAthleteRelation;
+import com.coachrun.entity.Message;
 import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.enums.UserRole;
@@ -10,23 +11,29 @@ import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.integration.MailTemplate;
 import com.coachrun.integration.ResendMailClient;
 import com.coachrun.repository.CoachAthleteRelationRepository;
+import com.coachrun.repository.NotificationRepository;
 import com.coachrun.repository.UserRepository;
 import com.coachrun.service.NotificationService;
+import com.coachrun.service.NotificationStreamService;
 import com.coachrun.service.PushNotificationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -47,6 +54,10 @@ class NotificationServiceTest {
     private PushNotificationService pushService;
     @Mock
     private CoachAthleteRelationRepository relationRepository;
+    @Mock
+    private NotificationRepository notificationRepository;
+    @Mock
+    private NotificationStreamService streamService;
     @InjectMocks
     private NotificationService notificationService;
 
@@ -257,5 +268,181 @@ class NotificationServiceTest {
         verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Nouvelle séance"),
                 any(), contains("/athlete/today"));
         verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Attribution d'un plan : une notification, pas une par séance
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Le plan entier tient en une notification. C'est le correctif central : l'attribution
+     * générait une séance — donc une notification — par item, soit une cinquantaine en une salve
+     * pour un plan de douze semaines.
+     */
+    @Test
+    void planAssignmentSendsOneNotificationForTheWholeProgram() {
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Athlete athlete = athleteWithUser();
+        User athleteUser = userFor(athlete);
+
+        notificationService.notifyPlanAssigned(athlete, "Prépa 10 km", 48, LocalDate.of(2026, 11, 12));
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Nouveau plan d'entraînement"),
+                body.capture(), contains("/athlete/calendar"));
+        assertThat(body.getValue()).contains("Prépa 10 km").contains("48 séances").contains("novembre");
+        verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
+    }
+
+    /** Un plan sans séance générée ne notifie rien. */
+    @Test
+    void emptyPlanAssignmentNotifiesNothing() {
+        notificationService.notifyPlanAssigned(new Athlete(), "Plan vide", 0, null);
+
+        verifyNoInteractions(pushService);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Messagerie
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Un message du coach atteint l'athlète hors de l'application — c'est tout l'objet du
+     * correctif : la messagerie ne se reposait que sur le flux temps réel, inutile à qui n'a pas
+     * déjà l'écran ouvert.
+     *
+     * <p>Le corps ne porte que le nom de l'expéditeur : une conversation coach ↔ athlète parle de
+     * blessures et de fatigue, et n'a rien à faire sur un écran verrouillé.</p>
+     */
+    @Test
+    void coachMessageNotifiesAthleteWithoutQuotingTheMessage() {
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Athlete athlete = athleteWithUser();
+        User athleteUser = userFor(athlete);
+        Message m = message(athlete, UserRole.COACH, "Coach Bernard", "Ton genou va mieux ?");
+
+        notificationService.notifyNewMessage(m);
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Nouveau message"),
+                body.capture(), contains("/athlete/messages"));
+        assertThat(body.getValue()).isEqualTo("Coach Bernard").doesNotContain("genou");
+    }
+
+    /** Un message de l'athlète remonte à son coach référent, sur le fil de cet athlète. */
+    @Test
+    void athleteMessageNotifiesReferentCoachOnThatThread() {
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Athlete athlete = new Athlete();
+        athlete.setId(UUID.randomUUID());
+        athlete.setFirstName("Marie");
+        athlete.setLastName("Durand");
+        User referent = coach("referent@test.fr");
+        when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athlete.getId()))
+                .thenReturn(Optional.of(relWith(referent)));
+
+        notificationService.notifyNewMessage(message(athlete, UserRole.ATHLETE, "Marie Durand", "coucou"));
+
+        verify(pushService).sendToUser(eq(referent.getId()), eq("Nouveau message"),
+                eq("Marie Durand"), contains("/app/athletes/" + athlete.getId() + "/messages"));
+    }
+
+    /**
+     * Anti-rafale : cinq messages en trois minutes font une conversation, pas cinq notifications.
+     * Le centre de notifications sert de mémoire — la trace précédente suffit à savoir qu'on
+     * vient de sonner.
+     */
+    @Test
+    void burstOfMessagesOnTheSameThreadNotifiesOnce() {
+        Athlete athlete = athleteWithUser();
+        userFor(athlete);
+        when(notificationRepository.existsByUserIdAndTypeAndLinkAndCreatedAtAfter(
+                any(), eq("NEW_MESSAGE"), anyString(), any(Instant.class))).thenReturn(true);
+
+        notificationService.notifyNewMessage(message(athlete, UserRole.COACH, "Coach", "et aussi…"));
+
+        verifyNoInteractions(pushService);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Changements de programme
+    // ---------------------------------------------------------------------------------------
+
+    /** Une séance déplacée par le coach ne passait plus aucun signal à l'athlète. */
+    @Test
+    void movedWorkoutNotifiesTheAthlete() {
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Workout w = sampleWorkout();
+        w.getAthlete().setId(UUID.randomUUID());
+        User athleteUser = userFor(w.getAthlete());
+
+        notificationService.notifyWorkoutChanged(w, true);
+
+        verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Séance déplacée"),
+                contains("Footing"), contains("/athlete/calendar"));
+    }
+
+    /** Remanier une semaine est un seul geste : la salve est regroupée. */
+    @Test
+    void burstOfWorkoutChangesNotifiesOnce() {
+        Workout w = sampleWorkout();
+        w.getAthlete().setId(UUID.randomUUID());
+        userFor(w.getAthlete());
+        when(notificationRepository.existsByUserIdAndTypeAndLinkAndCreatedAtAfter(
+                any(), eq("WORKOUT_UPDATED"), anyString(), any(Instant.class))).thenReturn(true);
+
+        notificationService.notifyWorkoutChanged(w, false);
+        notificationService.notifyWorkoutCancelled(w);
+
+        verifyNoInteractions(pushService);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Libellés
+    // ---------------------------------------------------------------------------------------
+
+    /** Le coach lisait « Marie Durand — COMPLETED » : seul endroit du produit parlant anglais. */
+    @Test
+    void feedbackBodyUsesFrenchStatusLabel() {
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Workout w = feedbackWorkout();
+        w.setStatus(WorkoutStatus.PARTIAL);
+        User referent = coach("referent@test.fr");
+        when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
+                .thenReturn(Optional.of(relWith(referent)));
+
+        notificationService.notifyAthleteFeedback(w);
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(pushService).sendToUser(eq(referent.getId()), eq("Séance mise à jour"),
+                body.capture(), any());
+        assertThat(body.getValue()).isEqualTo("Marie — partiellement réalisée");
+    }
+
+    // ---------------------------------------------------------------------------------------
+
+    private Athlete athleteWithUser() {
+        Athlete a = new Athlete();
+        a.setId(UUID.randomUUID());
+        a.setFirstName("Marie");
+        a.setLastName("Durand");
+        return a;
+    }
+
+    /** Rattache un compte utilisateur à l'athlète et le renvoie. */
+    private User userFor(Athlete athlete) {
+        User u = coach("athlete@test.fr");
+        when(userRepository.findByAthleteId(athlete.getId())).thenReturn(Optional.of(u));
+        return u;
+    }
+
+    private Message message(Athlete athlete, UserRole senderRole, String senderName, String body) {
+        Message m = new Message();
+        m.setAthlete(athlete);
+        m.setSenderRole(senderRole);
+        m.setSenderName(senderName);
+        m.setSenderUserId(UUID.randomUUID());
+        m.setBody(body);
+        return m;
     }
 }
