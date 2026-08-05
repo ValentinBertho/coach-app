@@ -138,4 +138,113 @@ class NotificationCenterTest {
             assertThat(n.get("type").asText()).isNotEqualTo("WORKOUT_PLANNED");
         }
     }
+
+    /**
+     * Attribuer un plan de six séances ne produit <b>qu'une</b> notification.
+     *
+     * <p>C'est le correctif qui justifie tout le reste : chaque séance générée descendait jusqu'à
+     * la création unitaire, qui notifiait. Un plan de douze semaines à quatre séances en envoyait
+     * une cinquantaine d'un coup — et la méthode étant régénérante, chaque réattribution rejouait
+     * la salve. Le test passe par l'API de bout en bout, parce que le défaut n'était pas dans le
+     * service de notification mais dans le chemin qui y mène.</p>
+     */
+    @Test
+    void assigningAPlanNotifiesOnceForTheWholeProgram() throws Exception {
+        JsonNode templates = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/workout-templates", clubId).header("Authorization", coachBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
+        String templateId = templates.get("content").get(0).get("id").asText();
+
+        StringBuilder items = new StringBuilder();
+        for (int week = 0; week < 3; week++) {
+            for (int day : new int[] {2, 5}) {
+                items.append(items.isEmpty() ? "" : ",")
+                        .append("{\"weekIndex\":").append(week)
+                        .append(",\"dayOfWeek\":").append(day)
+                        .append(",\"kind\":\"COURSE\",\"templateId\":\"").append(templateId).append("\"}");
+            }
+        }
+        String planId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/training-plans", clubId)
+                        .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Prépa 10 km\",\"durationWeeks\":3,\"items\":[" + items + "]}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsByteArray())
+                .get("id").asText();
+
+        long before = unread();
+        JsonNode applied = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/training-plans/{p}/apply", clubId, planId)
+                                .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"athleteId\":\"" + athleteId + "\",\"startDate\":\""
+                                        + LocalDate.now().plusDays(1) + "\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
+
+        assertThat(applied.get("created").asInt()).isEqualTo(6);
+        assertThat(unread()).isEqualTo(before + 1);
+
+        JsonNode latest = latestNotification();
+        assertThat(latest.get("type").asText()).isEqualTo("PLAN_ASSIGNED");
+        assertThat(latest.get("body").asText()).contains("Prépa 10 km").contains("6 séances");
+    }
+
+    /**
+     * Déplacer une séance prévient l'athlète. Le geste le plus courant du calendrier — glisser une
+     * séance d'un jour à l'autre — ne passait jusqu'ici aucun signal.
+     */
+    @Test
+    void reschedulingAWorkoutNotifiesTheAthlete() throws Exception {
+        String workoutId = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                                .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"scheduledDate\":\"" + LocalDate.now().plusDays(2)
+                                        + "\",\"type\":\"ENDURANCE\",\"title\":\"Sortie longue\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsByteArray())
+                .get("id").asText();
+
+        long before = unread();
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .patch("/clubs/{c}/athletes/{a}/workouts/{w}/reschedule", clubId, athleteId, workoutId)
+                        .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scheduledDate\":\"" + LocalDate.now().plusDays(4) + "\"}"))
+                .andExpect(status().isOk());
+
+        assertThat(unread()).isEqualTo(before + 1);
+        JsonNode latest = latestNotification();
+        assertThat(latest.get("type").asText()).isEqualTo("WORKOUT_UPDATED");
+        assertThat(latest.get("title").asText()).isEqualTo("Séance déplacée");
+    }
+
+    /**
+     * Un message du coach atteint l'athlète hors de l'application, et <b>sans en citer le
+     * contenu</b> : le fil coach ↔ athlète parle de blessures et de fatigue.
+     */
+    @Test
+    void coachMessageNotifiesAthleteWithoutQuotingIt() throws Exception {
+        long before = unread();
+
+        mvc.perform(post("/clubs/{c}/athletes/{a}/messages", clubId, athleteId)
+                        .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"body\":\"Comment va ton genou ?\"}"))
+                .andExpect(status().isCreated());
+
+        assertThat(unread()).isEqualTo(before + 1);
+        JsonNode latest = latestNotification();
+        assertThat(latest.get("type").asText()).isEqualTo("NEW_MESSAGE");
+        assertThat(latest.get("body").asText()).doesNotContain("genou");
+        assertThat(latest.get("link").asText()).isEqualTo("/athlete/messages");
+
+        // Anti-rafale : le deuxième message de la salve ne resonne pas.
+        mvc.perform(post("/clubs/{c}/athletes/{a}/messages", clubId, athleteId)
+                        .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"body\":\"Et pour dimanche ?\"}"))
+                .andExpect(status().isCreated());
+        assertThat(unread()).isEqualTo(before + 1);
+    }
+
+    /** Notification la plus récente de l'athlète. */
+    private JsonNode latestNotification() throws Exception {
+        return objectMapper.readTree(mvc.perform(get("/notifications")
+                        .header("Authorization", athleteBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray())
+                .get("content").get(0);
+    }
 }
