@@ -4,6 +4,7 @@ import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { authErrorMessage } from '../../core/utils/auth-error';
+import { readPendingStravaAuth } from '../../core/services/strava-pending.storage';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 
 @Component({
@@ -37,9 +38,13 @@ export class LoginComponent {
     this.submitting.set(true);
     this.errorMessage.set(null);
     this.auth.login(this.form.getRawValue()).subscribe({
-      next: (res) => {
+      next: () => {
         this.toast.success('Connexion réussie');
-        this.router.navigateByUrl(this.auth.homeRoute());
+        // Autorisation Strava mise en attente (retour d'OAuth hors PWA, où la session manquait) :
+        // on reprend la finalisation avant d'envoyer l'utilisateur chez lui.
+        this.router.navigateByUrl(
+          readPendingStravaAuth() ? '/strava/callback' : this.auth.homeRoute(),
+        );
       },
       error: (err) => {
         this.submitting.set(false);

@@ -85,7 +85,8 @@ interface Draft {
     </div>
   `,
   styles: [`
-    .races { max-width: 560px; margin-inline: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
+    /* padding-top : safe-area de la coquille athlète (PWA) — sinon le titre passe sous l'heure. */
+    .races { max-width: 560px; margin-inline: auto; padding: var(--sp-4); padding-top: max(var(--sp-4), var(--safe-top, 0px)); display: flex; flex-direction: column; gap: var(--sp-3); }
     .races-top { display: flex; flex-direction: column; gap: var(--sp-1); align-items: flex-start; }
     .races-top h1 { margin: 0; }
     .subtitle { color: var(--ink-3); margin: 0; }

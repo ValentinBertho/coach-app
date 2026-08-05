@@ -307,6 +307,13 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; min-height: 100%; }
 
+html {
+  /* Sans ça, iOS « inflate » le texte en paysage : les tailles ne sont plus celles du design,
+     et l'application ne ressemble plus à une application. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   font-family: var(--font-ui);
   font-size: var(--text-md);
@@ -315,7 +322,23 @@ body {
   background: var(--canvas);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Le rebond de fin de page (et le « tirer pour rafraîchir ») fait sortir la PWA du cadre
+     applicatif : le scroll s'arrête au bord, comme dans une app native. */
+  overscroll-behavior-y: none;
 }
+
+/* --- PWA : le geste doit répondre comme dans une app native ------------------
+   `touch-action: manipulation` supprime le double-tap-pour-zoomer (et le délai de 300 ms qui
+   va avec) sur les cibles interactives — sans jamais désactiver le zoom de la page, qui reste
+   un besoin d'accessibilité. Le halo gris du tap disparaît au profit de nos propres états. */
+button, a, [role='button'], label, summary, input, select, textarea {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Écrans montés en PWA plein cadre : le contenu doit commencer SOUS l'heure et l'encoche.
+   Sans ce retrait, les premières lignes passent derrière la barre d'état. */
+.safe-top { padding-top: max(var(--sp-4), env(safe-area-inset-top, 0px)); }
 
 h1, h2, h3 {
   font-family: var(--font-display);

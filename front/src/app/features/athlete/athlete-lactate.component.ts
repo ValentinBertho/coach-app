@@ -119,7 +119,8 @@ const W = 320, H = 180, PL = 34, PR = 10, PT = 12, PB = 26;
     </div>
   `,
   styles: [`
-    .lac { max-width: 560px; margin-inline: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
+    /* padding-top : safe-area de la coquille athlète (PWA) — sinon le titre passe sous l'heure. */
+    .lac { max-width: 560px; margin-inline: auto; padding: var(--sp-4); padding-top: max(var(--sp-4), var(--safe-top, 0px)); display: flex; flex-direction: column; gap: var(--sp-3); }
     .lac-top { display: flex; flex-direction: column; gap: var(--sp-1); align-items: flex-start; }
     .lac-top h1 { margin: 0; }
     .subtitle { color: var(--ink-3); margin: 0; }

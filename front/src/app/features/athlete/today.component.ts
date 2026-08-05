@@ -24,6 +24,7 @@ import { NotificationBellComponent } from '../../shared/components/notification-
 import { IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { MorningCheckInComponent } from './morning-check-in.component';
+import { StravaCardComponent } from './strava-card.component';
 import { HelpHintComponent } from '../help/help-hint.component';
 
 type State = 'loading' | 'ready' | 'error';
@@ -46,7 +47,7 @@ type State = 'loading' | 'ready' | 'error';
   imports: [DecimalPipe, IconComponent, RouterLink,
     LogoComponent, OfflineBannerComponent, NotificationBellComponent,
     IntensityZoneBadgeComponent, WorkoutFeedbackSheetComponent,
-    CoursePrescriptionViewComponent, MorningCheckInComponent, HelpHintComponent,
+    CoursePrescriptionViewComponent, MorningCheckInComponent, StravaCardComponent, HelpHintComponent,
   ],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',
@@ -227,6 +228,21 @@ export class TodayComponent implements OnInit {
         this.portal.ackFeedbackPrompt(prompt.activityId).subscribe({ error: () => undefined });
       },
       error: () => undefined,
+    });
+  }
+
+  /**
+   * Une synchro Strava manuelle vient de ramener des sorties : l'écran doit s'en apercevoir tout
+   * de suite. Une activité importée peut être rapprochée d'une séance (statut, retour attendu) et
+   * elle compte dans le volume de la semaine — sans ce rafraîchissement, l'athlète synchronise et
+   * ne voit rien changer.
+   */
+  onStravaSynced(): void {
+    this.load();
+    this.loadPending();
+    this.portal.weekSummary().subscribe({
+      next: (w) => this.week.set(w),
+      error: () => this.week.set(null),
     });
   }
 

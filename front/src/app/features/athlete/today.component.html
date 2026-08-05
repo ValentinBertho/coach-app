@@ -25,6 +25,11 @@
          et l'état de forme existe dès le matin — au moment où le coach adapte la journée. -->
     <app-morning-check-in />
 
+    <!-- Montre connectée : l'invitation à brancher Strava (ou la synchro immédiate) vit ici,
+         sur l'écran ouvert chaque matin. Enterrée dans Profil → Synchronisation, elle ne
+         rencontrait jamais l'athlète qui en a le plus besoin : celui qui n'a rien connecté. -->
+    <app-strava-card (synced)="onStravaSynced()" />
+
     <!-- Ma semaine : deux chiffres, pas un graphe. C'est ce qu'un athlète regarde en semaine —
          « où j'en suis » — et ça tenait jusqu'ici uniquement dans l'écran du coach. -->
     @if (week(); as w) {

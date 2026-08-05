@@ -34,6 +34,12 @@ STRAVA_REDIRECT_URI=https://www.darilab.app/app/strava/callback
 > L'URL canonique est `www.darilab.app` : l'apex y redirige en 308.
 > Railway redéploie automatiquement à l'enregistrement.
 
+> **URL de retour Strava.** `…/app/strava/callback` reste valide — l'écran de retour est servi à
+> la racine du routeur, hors de la coquille coach et sans garde de rôle, précisément pour que
+> l'athlète qui revient de Strava ne soit plus renvoyé chez lui avant l'échange du code. Rien à
+> changer côté Strava. Un chemin neutre, `https://www.darilab.app/strava/callback`, sert le même
+> écran : c'est celui à configurer pour tout nouvel environnement.
+
 > **Relais de confiance.** `RATE_LIMIT_TRUSTED_PROXY_HOPS` vaut désormais **2** par défaut, ce
 > qui correspond à la chaîne réelle client → Vercel → Railway. Il n'y a donc rien à poser, mais
 > il y a quelque chose à savoir : à 1 — l'ancienne valeur — le rate limiting retenait l'adresse
