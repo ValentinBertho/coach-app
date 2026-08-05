@@ -12,6 +12,7 @@ import com.coachrun.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,8 +35,8 @@ import java.util.UUID;
  * tombe dans l'heure courante : chacun est notifié à son propre rythme, pas à une heure de
  * club unique. Un athlète qui a déjà donné son ressenti n'est jamais relancé.</p>
  *
- * <p>Mono-instance pour le MVP, comme les autres schedulers (passer à ShedLock en cas de
- * scale-out : deux instances enverraient le rappel en double).</p>
+ * <p>Protégé par un verrou distribué : sans lui, deux instances enverraient le rappel en
+ * double, à la minute près.</p>
  */
 @Slf4j
 @Component
@@ -55,6 +56,7 @@ public class SessionDebriefScheduler {
     private boolean enabled;
 
     @Scheduled(cron = "${app.debrief.cron:0 5 * * * *}")
+    @SchedulerLock(name = "sendDebriefReminders", lockAtLeastFor = "PT5M", lockAtMostFor = "PT30M")
     @Transactional(readOnly = true)
     public void sendDebriefReminders() {
         if (!enabled) {

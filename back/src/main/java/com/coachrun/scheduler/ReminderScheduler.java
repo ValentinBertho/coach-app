@@ -8,6 +8,7 @@ import com.coachrun.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +22,7 @@ import java.util.UUID;
 
 /**
  * Rappel quotidien J-1 : notifie les athlètes des séances prévues le lendemain.
- * (Mono-instance pour le MVP ; passer à ShedLock en cas de scale-out.)
+ * Protégé par un verrou distribué : à deux instances, l'athlète recevrait son rappel en double.
  */
 @Slf4j
 @Component
@@ -50,6 +51,7 @@ public class ReminderScheduler {
      * indépendant — c'est un service quotidien, il vaut mieux qu'il soit partiel qu'absent.</p>
      */
     @Scheduled(cron = "${app.reminders.cron:0 0 18 * * *}")
+    @SchedulerLock(name = "sendTomorrowReminders", lockAtLeastFor = "PT5M", lockAtMostFor = "PT30M")
     public void sendTomorrowReminders() {
         LocalDate tomorrow = clock.today().plusDays(1);
         // Groupé par athlète : deux séances demain font un rappel, pas deux notifications

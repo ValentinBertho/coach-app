@@ -34,10 +34,31 @@ public class PushController {
     @PostMapping("/subscribe")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void subscribe(@AuthenticationPrincipal AuthPrincipal principal,
-                          @Valid @RequestBody PushSubscribeRequest request) {
+                          @Valid @RequestBody PushSubscribeRequest request,
+                          @org.springframework.web.bind.annotation.RequestHeader(
+                                  value = "User-Agent", required = false) String userAgent) {
         pushService.subscribe(principal.userId(), request.endpoint(),
                 request.keys() != null ? request.keys().p256dh() : null,
-                request.keys() != null ? request.keys().auth() : null);
+                request.keys() != null ? request.keys().auth() : null,
+                userAgent);
+    }
+
+    /**
+     * Appareils abonnés du compte courant. La réponse ne porte jamais l'endpoint : c'est une URL
+     * secrète, et un identifiant opaque suffit à désigner la ligne à retirer.
+     */
+    @GetMapping("/devices")
+    public java.util.List<com.coachrun.dto.response.PushDeviceResponse> devices(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return pushService.devices(principal.userId());
+    }
+
+    /** Retire un appareil précis — celui qu'on a perdu, revendu, ou prêté. */
+    @DeleteMapping("/devices/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeDevice(@AuthenticationPrincipal AuthPrincipal principal,
+                             @org.springframework.web.bind.annotation.PathVariable java.util.UUID id) {
+        pushService.removeDevice(principal.userId(), id);
     }
 
     /**

@@ -149,3 +149,7 @@ databaseChangeLog:
       file: db/changelog/changes/072-activity-athlete-feedback.yaml
   - include:
       file: db/changelog/changes/073-notification-preferences-fine.yaml
+  - include:
+      file: db/changelog/changes/074-push-subscription-devices.yaml
+  - include:
+      file: db/changelog/changes/075-shedlock.yaml

@@ -22,6 +22,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -70,10 +71,78 @@ class PushSubscriptionTest {
     }
 
     private void subscribe(String bearer, String endpoint) throws Exception {
-        mvc.perform(post("/push/subscribe").header("Authorization", bearer)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"endpoint\":\"" + endpoint + "\"," + KEYS + "}"))
+        subscribe(bearer, endpoint, null);
+    }
+
+    private void subscribe(String bearer, String endpoint, String userAgent) throws Exception {
+        var request = post("/push/subscribe").header("Authorization", bearer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"endpoint\":\"" + endpoint + "\"," + KEYS + "}");
+        if (userAgent != null) {
+            request = request.header("User-Agent", userAgent);
+        }
+        mvc.perform(request).andExpect(status().isNoContent());
+    }
+
+    /**
+     * Les appareils se listent avec un nom reconnaissable, et <b>sans jamais leur endpoint</b> :
+     * c'est une URL secrète, qui donne à qui la détient le pouvoir de pousser sur l'appareil.
+     */
+    @Test
+    void devicesAreListedByNameAndNeverExposeTheirEndpoint() throws Exception {
+        subscribe(coachBearer, "https://fcm.example/coach-phone",
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 "
+                        + "(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1");
+
+        // Lu en octets : MockMvc décode par défaut avec un jeu qui abîme les accents et le « · ».
+        byte[] raw = mvc.perform(get("/push/devices").header("Authorization", coachBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+        String body = new String(raw, java.nio.charset.StandardCharsets.UTF_8);
+
+        JsonNode devices = objectMapper.readTree(raw);
+        assertThat(devices).hasSize(1);
+        assertThat(devices.get(0).get("label").asText()).isEqualTo("iPhone · Safari");
+        assertThat(devices.get(0).get("fingerprint").asText()).hasSize(16);
+        assertThat(body).doesNotContain("fcm.example");
+    }
+
+    /**
+     * Retrait ciblé d'un appareil. Il n'existait qu'un retrait par endpoint, c'est-à-dire depuis
+     * l'appareil lui-même : un téléphone perdu ou revendu restait abonné jusqu'à ce que son
+     * navigateur réponde 410 — ce qui peut ne jamais arriver.
+     */
+    @Test
+    void theOwnerRemovesOneDeviceAmongSeveral() throws Exception {
+        subscribe(coachBearer, "https://fcm.example/coach-phone", "Mozilla/5.0 (iPhone)");
+        subscribe(coachBearer, "https://fcm.example/coach-laptop", "Mozilla/5.0 (Macintosh) Chrome/120");
+
+        JsonNode devices = objectMapper.readTree(
+                mvc.perform(get("/push/devices").header("Authorization", coachBearer))
+                        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String phoneId = devices.get(0).get("label").asText().startsWith("iPhone")
+                ? devices.get(0).get("id").asText() : devices.get(1).get("id").asText();
+
+        mvc.perform(delete("/push/devices/{id}", phoneId).header("Authorization", coachBearer))
                 .andExpect(status().isNoContent());
+
+        assertThat(subscriptionRepository.findByUserId(coachUserId)).hasSize(1);
+        assertThat(subscriptionRepository.findByEndpoint("https://fcm.example/coach-laptop")).isPresent();
+    }
+
+    /** L'appareil d'autrui n'est pas retirable, et le refus est muet : répondre 404 le révélerait. */
+    @Test
+    void anotherAccountCannotRemoveThisDeviceById() throws Exception {
+        subscribe(coachBearer, "https://fcm.example/coach-phone", "Mozilla/5.0 (iPhone)");
+        String deviceId = objectMapper.readTree(
+                mvc.perform(get("/push/devices").header("Authorization", coachBearer))
+                        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString())
+                .get(0).get("id").asText();
+        String athleteBearer = "Bearer " + login(DemoSeedService.ATHLETE_EMAIL).get("accessToken").asText();
+
+        mvc.perform(delete("/push/devices/{id}", deviceId).header("Authorization", athleteBearer))
+                .andExpect(status().isNoContent());
+
+        assertThat(subscriptionRepository.findByEndpoint("https://fcm.example/coach-phone")).isPresent();
     }
 
     @Test

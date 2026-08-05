@@ -8,6 +8,7 @@ import com.coachrun.service.CoachDashboardService;
 import com.coachrun.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +27,7 @@ import java.util.UUID;
  * <strong>référent</strong> et lui envoie un récapitulatif (push + email, sans donnée de santé).
  * C'est le branchement des signaux du tableau de bord (Chantier 3) sur le canal de notification.
  * No-op tant que {@code MAIL_ENABLED=false} (email) ; le push dépend des souscriptions.
- * Mono-instance pour le MVP (passer à ShedLock en cas de scale-out).
+ * Protégé par un verrou distribué : un digest envoyé deux fois est un digest qu'on cesse de lire.
  */
 @Slf4j
 @Component
@@ -62,6 +63,7 @@ public class AlertDigestScheduler {
      * service quotidien, il vaut mieux qu'il soit partiel que absent.</p>
      */
     @Scheduled(cron = "${app.alerts.digest-cron:0 0 7 * * *}")
+    @SchedulerLock(name = "sendDailyAlertDigests", lockAtLeastFor = "PT5M", lockAtMostFor = "PT30M")
     public void sendDailyAlertDigests() {
         int clubsWithAlerts = 0;
         for (UUID clubId : clubRepository.findAll().stream().map(Club::getId).toList()) {
@@ -172,6 +174,7 @@ public class AlertDigestScheduler {
      * ne filtrent plus rien et une alerte qui reviendrait doit repartir de zéro.
      */
     @Scheduled(cron = "${app.alerts.digest-purge-cron:0 30 3 * * *}")
+    @SchedulerLock(name = "purgeStaleDigestLog", lockAtMostFor = "PT10M")
     @Transactional
     public void purgeStaleDigestLog() {
         digestLogRepository.deleteByLastSentAtBefore(Instant.now().minus(REMINDER_DELAY));

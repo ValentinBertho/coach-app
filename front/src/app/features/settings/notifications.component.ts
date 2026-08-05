@@ -5,6 +5,7 @@ import { AppNotification } from '../../core/models/notification.model';
 import {
   NotificationCategory, NotificationPreferences, NotificationService,
 } from '../../core/services/notification.service';
+import { PushDevice, PushService } from '../../core/services/push.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
@@ -132,6 +133,36 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
     }
 
     <div class="card">
+      <h2>Mes appareils</h2>
+      <p class="field-hint">
+        Les appareils qui reçoivent tes notifications. Retire ceux que tu n'utilises plus —
+        un téléphone revendu reste abonné tant que personne ne l'a retiré.
+      </p>
+      @if (devices() === null) {
+        <app-skeleton shape="text" [rows]="2" />
+      } @else if (devices()!.length === 0) {
+        <p class="field-hint">Aucun appareil abonné pour l'instant.</p>
+      } @else {
+        <ul class="dlist">
+          @for (d of devices(); track d.id) {
+            <li class="drow">
+              <span class="chan__ic"><app-icon name="smartphone" [size]="18" /></span>
+              <div class="chan__txt">
+                <strong>{{ d.label }}</strong>
+                <span class="field-hint">
+                  Ajouté le {{ d.createdAt | date: 'd MMM y' }}@if (d.lastSuccessAt) {
+                    · vu {{ d.lastSuccessAt | date: 'd MMM, HH:mm' }}
+                  }
+                </span>
+              </div>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="removeDevice(d)">Retirer</button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <div class="card">
       <h2>Historique</h2>
       @if (loading()) {
         <app-skeleton shape="text" [rows]="4" />
@@ -189,6 +220,9 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
     .switch input:checked + .switch__track::after { transform: translateX(22px); }
     .switch input:focus-visible + .switch__track { outline: 2px solid var(--primary); outline-offset: 2px; }
 
+    .dlist { list-style: none; margin: var(--sp-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+    .drow { display: flex; align-items: flex-start; gap: var(--sp-3); }
+
     .quiet { display: flex; gap: var(--sp-4); margin-top: var(--sp-3); flex-wrap: wrap; }
     .quiet__f { display: flex; flex-direction: column; gap: 2px; }
     .quiet__f input {
@@ -214,11 +248,14 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
 })
 export class NotificationsComponent implements OnInit {
   private readonly notif = inject(NotificationService);
+  private readonly push = inject(PushService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
   readonly items = signal<AppNotification[]>([]);
   readonly prefs = signal<NotificationPreferences | null>(null);
+  /** `null` tant que la liste n'est pas revenue — à distinguer de « aucun appareil ». */
+  readonly devices = signal<PushDevice[] | null>(null);
   readonly loading = signal(true);
   readonly unread = this.notif.unread;
 
@@ -254,6 +291,25 @@ export class NotificationsComponent implements OnInit {
       error: () => { this.loading.set(false); this.toast.error('Chargement des notifications impossible.'); },
     });
     this.notif.preferences().subscribe({ next: (p) => this.prefs.set(p), error: () => {} });
+    this.push.devices().subscribe({ next: (d) => this.devices.set(d), error: () => this.devices.set([]) });
+  }
+
+  /**
+   * Retire un appareil. Si c'est celui qu'on utilise, on défait aussi l'abonnement du navigateur :
+   * sans ça il se croirait encore abonné, et le serveur ne saurait plus où pousser — l'appareil
+   * cesserait d'être notifié sans que rien ne le signale.
+   */
+  removeDevice(device: PushDevice): void {
+    this.push.removeDevice(device.id).subscribe({
+      next: async () => {
+        this.devices.update((list) => (list ?? []).filter((d) => d.id !== device.id));
+        this.toast.success('Appareil retiré');
+        if (await this.push.currentFingerprint() === device.fingerprint) {
+          await this.push.forgetLocalSubscription();
+        }
+      },
+      error: () => this.toast.error('Retrait impossible.'),
+    });
   }
 
   setChannel(channel: 'email' | 'push', event: Event): void {

@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, NgZone, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { SwPush } from '@angular/service-worker';
-import { firstValueFrom } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
 
@@ -17,6 +17,19 @@ interface NotificationData {
 
 /** Échec d'activation dont le message est directement affichable à l'utilisateur. */
 export class PushError extends Error {}
+
+/**
+ * Un appareil abonné, tel que le serveur le décrit. L'endpoint n'en fait volontairement pas
+ * partie : c'est une URL secrète, et l'identifiant opaque suffit à désigner la ligne à retirer.
+ */
+export interface PushDevice {
+  id: string;
+  label: string;
+  /** SHA-256 tronqué de l'endpoint : permet à ce navigateur de reconnaître sa propre ligne. */
+  fingerprint: string;
+  createdAt: string;
+  lastSuccessAt: string | null;
+}
 
 /**
  * Notifications push côté client (SwPush). Disponible uniquement quand le service worker
@@ -167,6 +180,50 @@ export class PushService {
       return this.unsupportedMessage();
     }
     return "Abonnement impossible sur cet appareil.";
+  }
+
+  /**
+   * Appareils abonnés du compte, tous navigateurs confondus.
+   *
+   * <p>Il n'existait aucun moyen de savoir ce qui recevait ses notifications, ni d'en retirer un
+   * seul : un téléphone revendu restait abonné jusqu'à ce que son navigateur réponde 410, ce qui
+   * peut ne jamais arriver.</p>
+   */
+  devices(): Observable<PushDevice[]> {
+    return this.http.get<PushDevice[]>(`${environment.apiUrl}/push/devices`);
+  }
+
+  removeDevice(id: string): Observable<void> {
+    return this.http.delete<void>(`${environment.apiUrl}/push/devices/${id}`);
+  }
+
+  /**
+   * Empreinte de l'abonnement de <b>cet</b> appareil, ou `null` s'il n'y en a pas.
+   *
+   * <p>Sert à reconnaître sa propre ligne dans la liste des appareils. Sans ça, retirer
+   * l'appareil courant ne tiendrait pas : `watchSubscription` le ré-enregistre au démarrage dès
+   * qu'un abonnement navigateur existe, et la ligne réapparaîtrait d'elle-même.</p>
+   */
+  async currentFingerprint(): Promise<string | null> {
+    if (!this.swPush.isEnabled || !crypto?.subtle) return null;
+    const sub = await firstValueFrom(this.swPush.subscription);
+    if (!sub) return null;
+    const bytes = new TextEncoder().encode(sub.endpoint);
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
+    return [...digest.slice(0, 8)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  /**
+   * Défait l'abonnement de ce navigateur, sans prévenir le serveur — il vient précisément de
+   * supprimer la ligne. Le faire dans l'autre sens laisserait l'appareil se croire abonné.
+   */
+  async forgetLocalSubscription(): Promise<void> {
+    this.subscribed.set(false);
+    try {
+      if (this.swPush.isEnabled) await this.swPush.unsubscribe();
+    } catch {
+      // Aucun abonnement actif : rien à faire.
+    }
   }
 
   /**

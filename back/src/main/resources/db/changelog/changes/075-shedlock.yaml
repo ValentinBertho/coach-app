@@ -1,0 +1,22 @@
+# ============================================================================
+# 075 — Verrou distribué des tâches planifiées (ShedLock).
+#
+# Les planificateurs — rappel J-1, débriefing, digest d'alertes, purges, synchro Strava — étaient
+# documentés « mono-instance pour le MVP ». À deux instances, chacun s'exécuterait deux fois :
+# l'athlète recevrait son rappel en double, le coach son digest en double, et la synchro Strava
+# importerait deux fois les mêmes activités. Le verrou est porté par la base déjà en place.
+#
+# Schéma imposé par ShedLock (net.javacrumbs.shedlock.provider.jdbctemplate).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 075-shedlock
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: shedlock
+            columns:
+              - column: { name: name, type: VARCHAR(64), constraints: { primaryKey: true, nullable: false } }
+              - column: { name: lock_until, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: locked_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: locked_by, type: VARCHAR(255), constraints: { nullable: false } }

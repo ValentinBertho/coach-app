@@ -4,6 +4,7 @@ import com.coachrun.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +40,7 @@ public class NotificationPurgeScheduler {
     private int retentionDays;
 
     @Scheduled(cron = "${app.notifications.purge-cron:0 45 3 * * *}")
+    @SchedulerLock(name = "purgeOldNotifications", lockAtMostFor = "PT10M")
     @Transactional
     public void purgeOldNotifications() {
         Instant cutoff = Instant.now().minus(Duration.ofDays(Math.max(1, retentionDays)));

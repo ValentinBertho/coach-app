@@ -28,4 +28,28 @@ public interface PushSubscriptionRepository extends JpaRepository<PushSubscripti
     @Modifying
     @Transactional
     int deleteByEndpoint(String endpoint);
+
+    /** Abonnements d'un utilisateur, le plus récemment ajouté d'abord (écran « mes appareils »). */
+    List<PushSubscription> findByUserIdOrderByCreatedAtDesc(UUID userId);
+
+    Optional<PushSubscription> findByIdAndUserId(UUID id, UUID userId);
+
+    /**
+     * Marque un endpoint comme joignable, <b>au plus une fois par heure</b> — d'où le
+     * {@code staleBefore} : sans lui, chaque notification écrirait une ligne par appareil, pour
+     * une information qui se lit à l'heure près.
+     *
+     * <p>Transaction portée par le dépôt : l'appel vient du fil de remise, délibérément hors de
+     * toute transaction métier.</p>
+     */
+    @Modifying
+    @Transactional
+    @org.springframework.data.jpa.repository.Query("""
+            update PushSubscription s set s.lastSuccessAt = :now
+            where s.endpoint = :endpoint
+              and (s.lastSuccessAt is null or s.lastSuccessAt < :staleBefore)
+            """)
+    int markUsed(@org.springframework.data.repository.query.Param("endpoint") String endpoint,
+                 @org.springframework.data.repository.query.Param("now") java.time.Instant now,
+                 @org.springframework.data.repository.query.Param("staleBefore") java.time.Instant staleBefore);
 }
