@@ -1,0 +1,20 @@
+# ============================================================================
+# 076 — Fuseau horaire par utilisateur (additif).
+#
+# Tout le produit raisonnait dans un fuseau unique (app.timezone, Europe/Paris). Acceptable pour
+# un club français, faux dès le premier athlète expatrié — et le plus visible des symptômes est
+# aussi le plus désagréable : ses heures de silence se décalent, donc il est réveillé la nuit.
+#
+# NULL = le fuseau de l'application, ce qui est le cas de la quasi-totalité des comptes.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 076-user-timezone
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: timezone
+                  type: VARCHAR(64)

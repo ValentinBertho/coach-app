@@ -140,8 +140,9 @@ public class TrainingPlanService {
         for (PlanItemDto item : items) {
             LocalDate date = startDate.plusWeeks(item.weekIndex()).plusDays(item.dayOfWeek() - 1L);
             if (item.kindOrDefault() == PlanItemKind.STRENGTH) {
+                // Sans notification par séance, comme pour la course : le lot en émet une seule.
                 strengthScheduleService.schedule(clubId, athleteId, item.templateId(), date,
-                        FieldsPreset.DEBUTANT, planId);
+                        FieldsPreset.DEBUTANT, planId, 0d, false);
             } else {
                 double multiplier = meso == null ? 1.0 : com.coachrun.util.MesocycleMath.multiplierForWeek(
                         item.weekIndex(), meso.getIncreasePct(), meso.getDeloadEvery(), meso.getDeloadPct());

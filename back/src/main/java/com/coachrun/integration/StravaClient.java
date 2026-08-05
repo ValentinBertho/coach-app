@@ -11,6 +11,7 @@ import com.coachrun.config.HttpClients;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -77,15 +78,43 @@ public class StravaClient {
                 .retrieve().body(TokenResponse.class);
     }
 
-    /** Liste les activités postérieures à {@code afterEpoch} (secondes). */
+    /** Taille de page demandée à Strava (maximum autorisé : 200). */
+    private static final int PER_PAGE = 100;
+
+    /**
+     * Nombre de pages parcourues au plus. Dix pages, soit mille sorties, couvrent très largement
+     * un premier import de trente jours ; le plafond existe pour qu'un compte hors norme ne
+     * consomme pas le quota Strava (100 requêtes par tranche de 15 minutes) à lui seul.
+     */
+    private static final int MAX_PAGES = 10;
+
+    /**
+     * Sorties postérieures à {@code afterEpoch}, <b>toutes pages confondues</b>.
+     *
+     * <p>Une seule page était demandée. Au-delà de la cinquantième sortie de la fenêtre — ce qui
+     * arrive dès le premier import d'un athlète assidu — le reste n'était jamais lu, et le
+     * curseur avançait quand même : les sorties sautées l'étaient définitivement.</p>
+     */
     public List<StravaActivity> listActivities(String accessToken, long afterEpoch) {
-        StravaActivity[] body = api.get()
-                .uri(uri -> uri.path("/athlete/activities")
-                        .queryParam("after", afterEpoch)
-                        .queryParam("per_page", 50).build())
-                .header("Authorization", "Bearer " + accessToken)
-                .retrieve().body(StravaActivity[].class);
-        return body == null ? List.of() : List.of(body);
+        List<StravaActivity> all = new ArrayList<>();
+        for (int page = 1; page <= MAX_PAGES; page++) {
+            final int current = page;
+            StravaActivity[] body = api.get()
+                    .uri(uri -> uri.path("/athlete/activities")
+                            .queryParam("after", afterEpoch)
+                            .queryParam("page", current)
+                            .queryParam("per_page", PER_PAGE).build())
+                    .header("Authorization", "Bearer " + accessToken)
+                    .retrieve().body(StravaActivity[].class);
+            if (body == null || body.length == 0) {
+                break;
+            }
+            all.addAll(List.of(body));
+            if (body.length < PER_PAGE) {
+                break;
+            }
+        }
+        return all;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -215,7 +244,13 @@ public class StravaClient {
             @JsonProperty("workout_type") Integer workoutType,
             @JsonProperty("pr_count") Integer prCount,
             ActivityMap map,
-            @JsonProperty("start_date_local") String startDateLocal) {
+            @JsonProperty("start_date_local") String startDateLocal,
+            /**
+             * Départ en UTC ({@code 2026-08-05T16:00:00Z}). Distinct de {@code start_date_local},
+             * qui n'a pas de décalage et ne peut donc pas se convertir en instant : c'est celui-ci
+             * qui sert à positionner le curseur d'import.
+             */
+            @JsonProperty("start_date") String startDate) {
     }
 
     /** Carte de l'activité : le tracé encodé (Google Encoded Polyline). */

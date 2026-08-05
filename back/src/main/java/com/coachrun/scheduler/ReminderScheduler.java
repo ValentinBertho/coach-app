@@ -8,17 +8,21 @@ import com.coachrun.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
  * Rappel quotidien J-1 : notifie les athlètes des séances prévues le lendemain.
- * (Mono-instance pour le MVP ; passer à ShedLock en cas de scale-out.)
+ * Protégé par un verrou distribué : à deux instances, l'athlète recevrait son rappel en double.
  */
 @Slf4j
 @Component
@@ -47,34 +51,42 @@ public class ReminderScheduler {
      * indépendant — c'est un service quotidien, il vaut mieux qu'il soit partiel qu'absent.</p>
      */
     @Scheduled(cron = "${app.reminders.cron:0 0 18 * * *}")
+    @SchedulerLock(name = "sendTomorrowReminders", lockAtLeastFor = "PT5M", lockAtMostFor = "PT30M")
     public void sendTomorrowReminders() {
         LocalDate tomorrow = clock.today().plusDays(1);
-        List<UUID> workoutIds = workoutRepository
-                .findByScheduledDateAndStatus(tomorrow, WorkoutStatus.PLANNED)
-                .stream().map(Workout::getId).toList();
-        log.info("Rappels J-1 : {} séance(s) prévue(s) le {}", workoutIds.size(), tomorrow);
+        // Groupé par athlète : deux séances demain font un rappel, pas deux notifications
+        // consécutives à 18 h disant la même chose.
+        Map<UUID, List<UUID>> byAthlete = new LinkedHashMap<>();
+        for (Workout w : workoutRepository.findByScheduledDateAndStatus(tomorrow, WorkoutStatus.PLANNED)) {
+            byAthlete.computeIfAbsent(w.getAthlete().getId(), k -> new ArrayList<>()).add(w.getId());
+        }
+        log.info("Rappels J-1 : {} athlète(s) pour le {}", byAthlete.size(), tomorrow);
 
         int failures = 0;
-        for (UUID workoutId : workoutIds) {
+        for (Map.Entry<UUID, List<UUID>> entry : byAthlete.entrySet()) {
             try {
-                self.getObject().remindOne(workoutId);
+                self.getObject().remindAthlete(entry.getValue());
             } catch (RuntimeException ex) {
                 failures++;
-                log.error("Rappel J-1 en échec pour la séance {} — les autres continuent", workoutId, ex);
+                log.error("Rappel J-1 en échec pour l'athlète {} — les autres continuent",
+                        entry.getKey(), ex);
                 io.sentry.Sentry.captureException(ex);
             }
         }
         if (failures > 0) {
-            log.warn("Rappels J-1 : {} échec(s) sur {}", failures, workoutIds.size());
+            log.warn("Rappels J-1 : {} échec(s) sur {}", failures, byAthlete.size());
         }
     }
 
     /**
-     * Rappel d'une séance, dans sa propre transaction <b>en écriture</b> : la notification in-app
-     * est persistée, le push part après commit, et l'e-mail de repli aussi.
+     * Rappel des séances d'un athlète, dans sa propre transaction <b>en écriture</b> : la
+     * notification in-app est persistée, le push part après commit, et l'e-mail de repli aussi.
      */
     @Transactional
-    public void remindOne(UUID workoutId) {
-        workoutRepository.findById(workoutId).ifPresent(notificationService::notifyWorkoutReminder);
+    public void remindAthlete(List<UUID> workoutIds) {
+        List<Workout> workouts = workoutRepository.findAllById(workoutIds);
+        if (!workouts.isEmpty()) {
+            notificationService.notifyWorkoutReminder(workouts);
+        }
     }
 }

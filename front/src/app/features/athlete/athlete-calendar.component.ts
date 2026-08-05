@@ -234,6 +234,21 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
           @if (d.empty) {
             <p class="dsheet-empty field-hint">Rien de prévu ni de réalisé ce jour-là.</p>
           }
+
+          <!-- Une sortie improvisée n'avait aucune porte d'entrée depuis l'agenda : il fallait
+               deviner qu'elle se saisit dans l'onglet Activités, puis y ressaisir la date du jour
+               qu'on venait justement d'ouvrir. Les deux gestes partent d'ici avec la date déjà
+               posée, et retombent sur le formulaire existant — contrôle de doublon compris. -->
+          <div class="dsheet-add">
+            <a class="btn btn-ghost btn-sm" [routerLink]="['/athlete/activities']"
+               [queryParams]="{ log: d.date }">
+              <app-icon name="pencil" [size]="14" /> Saisir une sortie
+            </a>
+            <a class="btn btn-ghost btn-sm" [routerLink]="['/athlete/activities']"
+               [queryParams]="{ import: 1 }">
+              <app-icon name="download" [size]="14" /> Importer un fichier
+            </a>
+          </div>
         </div>
       }
     </app-bottom-sheet>
@@ -360,6 +375,10 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     .dsheet { display: flex; flex-direction: column; gap: var(--sp-2); }
     .dsheet-off { display: flex; align-items: center; gap: var(--sp-2); margin: 0; color: var(--ink-3); font-size: var(--text-sm); }
     .dsheet-empty { margin: 0; text-align: center; }
+    .dsheet-add {
+      display: flex; gap: var(--sp-2); flex-wrap: wrap; justify-content: center;
+      padding-top: var(--sp-2); border-top: 1px solid var(--hairline);
+    }
 
     .agenda { max-width: 560px; margin-inline: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
     .day { background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius-lg); padding: var(--sp-3); }

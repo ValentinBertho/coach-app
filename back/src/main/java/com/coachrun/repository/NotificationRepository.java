@@ -35,4 +35,14 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     @Modifying
     @Query("update Notification n set n.readAt = :now where n.user.id = :userId and n.readAt is null")
     int markAllRead(@Param("userId") UUID userId, @Param("now") Instant now);
+
+    /**
+     * Purge de rétention : la table n'en avait aucune, et grossissait d'une ligne par séance
+     * planifiée, par rappel et par message, indéfiniment.
+     *
+     * @return nombre de lignes retirées.
+     */
+    @Modifying
+    @Query("delete from Notification n where n.createdAt < :cutoff")
+    int deleteByCreatedAtBefore(@Param("cutoff") Instant cutoff);
 }

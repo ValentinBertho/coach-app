@@ -28,4 +28,7 @@ public interface RaceObjectiveRepository extends JpaRepository<RaceObjective, UU
     /** Prochaines courses restreintes à un périmètre d'athlètes (cockpit coach). */
     List<RaceObjective> findTop5ByAthleteIdInAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(
             Collection<UUID> athleteIds, RaceObjectiveStatus status, LocalDate from);
+
+    /** Courses tombant un jour donné, tous clubs confondus (rappels J-7 et J-1). */
+    List<RaceObjective> findByStatusAndRaceDate(RaceObjectiveStatus status, LocalDate raceDate);
 }

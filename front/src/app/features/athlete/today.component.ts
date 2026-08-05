@@ -25,6 +25,7 @@ import { IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../.
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { MorningCheckInComponent } from './morning-check-in.component';
 import { StravaCardComponent } from './strava-card.component';
+import { PushPromptComponent } from './push-prompt.component';
 import { HelpHintComponent } from '../help/help-hint.component';
 
 type State = 'loading' | 'ready' | 'error';
@@ -48,6 +49,7 @@ type State = 'loading' | 'ready' | 'error';
     LogoComponent, OfflineBannerComponent, NotificationBellComponent,
     IntensityZoneBadgeComponent, WorkoutFeedbackSheetComponent,
     CoursePrescriptionViewComponent, MorningCheckInComponent, StravaCardComponent, HelpHintComponent,
+    PushPromptComponent,
   ],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',

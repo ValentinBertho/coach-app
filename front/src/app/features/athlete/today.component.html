@@ -25,6 +25,12 @@
          et l'état de forme existe dès le matin — au moment où le coach adapte la journée. -->
     <app-morning-check-in />
 
+    <!-- Notifications : l'opt-in ne vivait que dans Profil, écran qu'on n'ouvre presque jamais.
+         Tout le dispositif — rappel de séance, débriefing, message du coach — reposait donc sur
+         une autorisation que sa cible ne croisait pas. Même raisonnement que la carte Strava
+         ci-dessous. La carte disparaît dès qu'on accepte ou qu'on décline. -->
+    <app-push-prompt />
+
     <!-- Montre connectée : l'invitation à brancher Strava (ou la synchro immédiate) vit ici,
          sur l'écran ouvert chaque matin. Enterrée dans Profil → Synchronisation, elle ne
          rencontrait jamais l'athlète qui en a le plus besoin : celui qui n'a rien connecté. -->

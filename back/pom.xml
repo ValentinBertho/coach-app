@@ -99,6 +99,22 @@
             <artifactId>web-push</artifactId>
             <version>5.1.1</version>
         </dependency>
+        <!--
+            Verrou distribué des tâches planifiées. Les planificateurs sont documentés « mono-
+            instance » depuis le MVP : à deux instances, chacune enverrait le rappel J-1 et le
+            digest, et chaque athlète recevrait tout en double. Le verrou s'appuie sur la base
+            déjà présente — aucune infrastructure supplémentaire.
+        -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-spring</artifactId>
+            <version>5.13.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>5.13.0</version>
+        </dependency>
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>

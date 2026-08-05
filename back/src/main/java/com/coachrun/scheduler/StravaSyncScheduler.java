@@ -7,6 +7,7 @@ import com.coachrun.repository.DeviceConnectionRepository.AthleteClubIds;
 import com.coachrun.service.StravaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -16,7 +17,8 @@ import java.util.List;
  * Synchronisation Strava planifiée : importe périodiquement les nouvelles activités de chaque
  * athlète connecté (import incrémental déjà géré par {@link StravaService} via le watermark
  * {@code lastImportEpoch} + rafraîchissement de jeton). Évite l'import manuel et fiabilise les
- * données réelles (charge/analytics). No-op si Strava n'est pas configuré. Mono-instance (MVP).
+ * données réelles (charge/analytics). No-op si Strava n'est pas configuré. Protégé par un verrou
+ * distribué : deux instances importeraient deux fois les mêmes activités.
  */
 @Slf4j
 @Component
@@ -28,6 +30,7 @@ public class StravaSyncScheduler {
     private final StravaService stravaService;
 
     @Scheduled(cron = "${app.strava.sync-cron:0 30 * * * *}")
+    @SchedulerLock(name = "syncConnectedAthletes", lockAtLeastFor = "PT5M", lockAtMostFor = "PT50M")
     public void syncConnectedAthletes() {
         if (!client.isConfigured()) {
             return; // intégration non configurée → rien à faire

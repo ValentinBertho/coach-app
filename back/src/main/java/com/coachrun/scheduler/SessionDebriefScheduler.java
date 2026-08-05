@@ -12,6 +12,7 @@ import com.coachrun.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,8 +35,8 @@ import java.util.UUID;
  * tombe dans l'heure courante : chacun est notifié à son propre rythme, pas à une heure de
  * club unique. Un athlète qui a déjà donné son ressenti n'est jamais relancé.</p>
  *
- * <p>Mono-instance pour le MVP, comme les autres schedulers (passer à ShedLock en cas de
- * scale-out : deux instances enverraient le rappel en double).</p>
+ * <p>Protégé par un verrou distribué : sans lui, deux instances enverraient le rappel en
+ * double, à la minute près.</p>
  */
 @Slf4j
 @Component
@@ -55,19 +56,19 @@ public class SessionDebriefScheduler {
     private boolean enabled;
 
     @Scheduled(cron = "${app.debrief.cron:0 5 * * * *}")
+    @SchedulerLock(name = "sendDebriefReminders", lockAtLeastFor = "PT5M", lockAtMostFor = "PT30M")
     @Transactional(readOnly = true)
     public void sendDebriefReminders() {
         if (!enabled) {
             return;
         }
         LocalDate today = clock.today();
-        int currentHour = clock.now().getHour();
         Set<UUID> notifiedUsers = new HashSet<>();
         int sent = 0;
 
         // Course : la feuille de ressenti attend un RPE, d'où les actions rapides.
         for (Workout w : workoutRepository.findByScheduledDateAndStatus(today, WorkoutStatus.PLANNED)) {
-            User athleteUser = debriefTarget(w.getAthlete().getId(), currentHour);
+            User athleteUser = debriefTarget(w.getAthlete().getId());
             if (athleteUser == null || !notifiedUsers.add(athleteUser.getId())) {
                 continue;
             }
@@ -79,7 +80,7 @@ public class SessionDebriefScheduler {
         // Force : même rappel, mais il ouvre le mode séance — c'est là que se saisissent les
         // séries, et le ressenti se donne à la fin du parcours guidé.
         for (ScheduledStrengthSession s : strengthRepository.findByScheduledDateAndCompletedFalse(today)) {
-            User athleteUser = debriefTarget(s.getAthlete().getId(), currentHour);
+            User athleteUser = debriefTarget(s.getAthlete().getId());
             if (athleteUser == null || !notifiedUsers.add(athleteUser.getId())) {
                 continue;
             }
@@ -89,20 +90,25 @@ public class SessionDebriefScheduler {
         }
 
         if (sent > 0) {
-            log.info("Rappels de débriefing envoyés : {} (heure {}h)", sent, currentHour);
+            log.info("Rappels de débriefing envoyés : {}", sent);
         }
     }
 
     /**
      * Compte athlète à relancer maintenant, ou {@code null}. Une heure habituelle nulle vaut
      * opt-out, et le push coupé vaut refus explicite : on ne contourne ni l'un ni l'autre.
+     *
+     * <p>L'heure est celle de <b>l'athlète</b>, pas celle du serveur. « Deux heures après ma
+     * séance » n'a de sens que dans le fuseau où la séance a lieu : comparée à l'heure de Paris,
+     * la relance d'un athlète installé ailleurs tombait au milieu de sa nuit ou de sa journée de
+     * travail. Le balayage horaire rendait ce réglage possible sans rien changer d'autre.</p>
      */
-    private User debriefTarget(UUID athleteId, int currentHour) {
+    private User debriefTarget(UUID athleteId) {
         User user = userRepository.findByAthleteId(athleteId).orElse(null);
         if (user == null || !user.isNotifyPushEnabled() || user.getUsualSessionTime() == null) {
             return null;
         }
         int debriefHour = (user.getUsualSessionTime().getHour() + DEBRIEF_DELAY_HOURS) % 24;
-        return debriefHour == currentHour ? user : null;
+        return debriefHour == clock.now(user).getHour() ? user : null;
     }
 }

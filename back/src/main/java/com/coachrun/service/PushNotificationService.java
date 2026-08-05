@@ -26,6 +26,7 @@ import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -92,8 +93,28 @@ public class PushNotificationService {
      */
     private static final int QUEUE_CAPACITY = 2_000;
 
+    /**
+     * Nombre total de tentatives par appareil, première comprise. Trois couvre la panne passagère
+     * — celle qui dure quelques secondes — sans transformer une indisponibilité de fond en file
+     * d'attente qui se vide des heures plus tard, quand la notification n'a plus d'objet.
+     */
+    private static final int MAX_ATTEMPTS = 3;
+
+    /** Premier délai de réessai, doublé à chaque tentative (1 s puis 2 s). */
+    private static final long RETRY_BASE_DELAY_MS = 1_000L;
+
+    /**
+     * Plafond de réessais en attente. Même raison d'être que la file de remise : lors d'une panne
+     * générale du service de push, c'est la remise qui doit se dégrader, pas la mémoire du serveur.
+     */
+    private static final int MAX_RETRIES_IN_FLIGHT = 500;
+
+    /** Fréquence maximale d'écriture de l'horodatage « appareil joignable ». */
+    private static final java.time.Duration TOUCH_INTERVAL = java.time.Duration.ofHours(1);
+
     private final PushSubscriptionRepository repository;
     private final ObjectMapper objectMapper;
+    private final io.micrometer.core.instrument.MeterRegistry meterRegistry;
 
     @Value("${app.vapid.public-key:}")
     private String publicKey;
@@ -105,6 +126,9 @@ public class PushNotificationService {
     private volatile PushService pushService;
     private volatile CloseableHttpClient httpClient;
     private volatile ThreadPoolExecutor deliveryExecutor;
+    private volatile java.util.concurrent.ScheduledExecutorService retryScheduler;
+    private final java.util.concurrent.atomic.AtomicInteger retriesInFlight =
+            new java.util.concurrent.atomic.AtomicInteger();
 
     public boolean isEnabled() {
         return StringUtils.hasText(publicKey) && StringUtils.hasText(privateKey);
@@ -132,13 +156,37 @@ public class PushNotificationService {
     }
 
     @Transactional
-    public void subscribe(UUID userId, String endpoint, String p256dh, String auth) {
+    public void subscribe(UUID userId, String endpoint, String p256dh, String auth, String userAgent) {
         PushSubscription sub = repository.findByEndpoint(endpoint).orElseGet(PushSubscription::new);
         sub.setUserId(userId);
         sub.setEndpoint(endpoint);
         sub.setP256dh(p256dh);
         sub.setAuth(auth);
+        if (StringUtils.hasText(userAgent)) {
+            // Tronqué à la largeur de la colonne : certaines chaînes de navigateur sont énormes,
+            // et ce qui identifie l'appareil se trouve toujours au début.
+            sub.setUserAgent(userAgent.length() > 255 ? userAgent.substring(0, 255) : userAgent);
+        }
         repository.save(sub);
+    }
+
+    /** Appareils abonnés de l'utilisateur, pour qu'il puisse voir — et retirer — ce qui le suit. */
+    public List<com.coachrun.dto.response.PushDeviceResponse> devices(UUID userId) {
+        return repository.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .map(com.coachrun.dto.response.PushDeviceResponse::from)
+                .toList();
+    }
+
+    /**
+     * Retrait d'un appareil <b>par identifiant</b>, borné au propriétaire.
+     *
+     * <p>Le retrait n'existait que par endpoint, c'est-à-dire depuis l'appareil lui-même : un
+     * téléphone revendu ou perdu restait abonné jusqu'à ce que son navigateur réponde 410, ce qui
+     * peut ne jamais arriver.</p>
+     */
+    @Transactional
+    public void removeDevice(UUID userId, UUID subscriptionId) {
+        repository.findByIdAndUserId(subscriptionId, userId).ifPresent(repository::delete);
     }
 
     /**
@@ -226,29 +274,124 @@ public class PushNotificationService {
      */
     void deliver(UUID userId, String payload) {
         for (PushSubscription sub : repository.findByUserId(userId)) {
-            try {
-                Notification notification = Notification.builder()
-                        .endpoint(sub.getEndpoint())
-                        .userPublicKey(sub.getP256dh())
-                        .userAuth(sub.getAuth())
-                        .payload(payload.getBytes(StandardCharsets.UTF_8))
-                        .build();
-                int status = post(notification);
-                // 404/410 : l'endpoint a été révoqué par le navigateur. C'est définitif, et c'est
-                // la seule information qui nous dise qu'un abonnement ne vaut plus rien.
-                if (status == 404 || status == 410) {
-                    dropSubscription(sub.getEndpoint());
-                } else if (status >= 400) {
-                    log.warn("Push refusé ({}) pour l'abonnement {} — user={}",
-                            status, truncate(sub.getEndpoint()), userId);
-                }
-            } catch (Exception ex) {
-                // Best-effort, mais plus silencieux : un push qui ne part jamais est indiscernable
-                // d'une absence de notification, côté utilisateur comme côté support.
-                log.warn("Échec d'envoi push vers {} (user={}) : {}",
-                        truncate(sub.getEndpoint()), userId, ex.getMessage());
-                io.sentry.Sentry.captureException(ex);
+            attempt(userId, sub.getEndpoint(), sub.getP256dh(), sub.getAuth(), payload, 0);
+        }
+    }
+
+    /**
+     * Une tentative de remise vers un appareil, avec réessai différé sur panne passagère.
+     *
+     * <p>Il n'y avait aucun réessai : un 500 du service de push, une coupure réseau d'une seconde,
+     * et la notification était perdue sans trace. C'est précisément la classe de panne qui se
+     * répare toute seule — FCM et Mozilla renvoient des 5xx transitoires, et un {@code 429} dit
+     * explicitement « reviens plus tard ».</p>
+     *
+     * <p>Le réessai est <b>différé, pas bloquant</b> : dormir sur le fil de remise occuperait l'un
+     * des deux threads du pool pendant toute l'attente, et une salve de pannes suffirait à figer
+     * la remise de tout le monde. Le nombre de réessais en vol est plafonné pour la même raison
+     * que la file d'attente l'est : une panne générale doit dégrader la remise, pas la mémoire du
+     * serveur.</p>
+     */
+    private void attempt(UUID userId, String endpoint, String p256dh, String auth,
+                         String payload, int attempt) {
+        try {
+            Notification notification = Notification.builder()
+                    .endpoint(endpoint)
+                    .userPublicKey(p256dh)
+                    .userAuth(auth)
+                    .payload(payload.getBytes(StandardCharsets.UTF_8))
+                    .build();
+            int status = post(notification);
+
+            if (status >= 200 && status < 300) {
+                count("sent");
+                touch(endpoint);
+                return;
             }
+            // 404/410 : l'endpoint a été révoqué par le navigateur. C'est définitif, et c'est
+            // la seule information qui nous dise qu'un abonnement ne vaut plus rien.
+            if (status == 404 || status == 410) {
+                count("expired");
+                dropSubscription(endpoint);
+                return;
+            }
+            if (retryable(status) && retry(userId, endpoint, p256dh, auth, payload, attempt)) {
+                return;
+            }
+            count("failed");
+            log.warn("Push refusé ({}) pour l'abonnement {} — user={}, tentative {}",
+                    status, truncate(endpoint), userId, attempt + 1);
+        } catch (Exception ex) {
+            // Une panne réseau est par nature passagère : elle mérite le même réessai qu'un 5xx.
+            if (retry(userId, endpoint, p256dh, auth, payload, attempt)) {
+                return;
+            }
+            count("failed");
+            // Best-effort, mais plus silencieux : un push qui ne part jamais est indiscernable
+            // d'une absence de notification, côté utilisateur comme côté support.
+            log.warn("Échec d'envoi push vers {} (user={}) après {} tentative(s) : {}",
+                    truncate(endpoint), userId, attempt + 1, ex.getMessage());
+            io.sentry.Sentry.captureException(ex);
+        }
+    }
+
+    /**
+     * Ce code appelle-t-il un réessai ? Les 5xx sont des pannes du service de push, et
+     * {@code 429} est une demande explicite de ralentir. Un {@code 400} ou un {@code 403}, en
+     * revanche, dit que la requête est fautive : la rejouer à l'identique ne peut que rater.
+     */
+    private static boolean retryable(int status) {
+        return status == 429 || status >= 500;
+    }
+
+    /**
+     * Reprogramme une tentative si le quota le permet.
+     *
+     * @return vrai si un réessai a été planifié — l'appelant n'a alors rien à journaliser.
+     */
+    private boolean retry(UUID userId, String endpoint, String p256dh, String auth,
+                          String payload, int attempt) {
+        if (attempt >= MAX_ATTEMPTS - 1) {
+            return false;
+        }
+        if (retriesInFlight.incrementAndGet() > MAX_RETRIES_IN_FLIGHT) {
+            retriesInFlight.decrementAndGet();
+            count("dropped");
+            log.warn("Réessais push saturés : remise abandonnée (user={})", userId);
+            return false;
+        }
+        long delayMs = RETRY_BASE_DELAY_MS * (1L << attempt);
+        count("retried");
+        retryScheduler().schedule(() -> {
+            try {
+                attempt(userId, endpoint, p256dh, auth, payload, attempt + 1);
+            } finally {
+                retriesInFlight.decrementAndGet();
+            }
+        }, delayMs, TimeUnit.MILLISECONDS);
+        return true;
+    }
+
+    /**
+     * Marque l'appareil comme joignable, au plus une fois par heure.
+     *
+     * <p>Sans ce garde-fou, chaque notification écrirait une ligne par appareil : l'information
+     * cherchée — « cet appareil répond-il encore ? » — se lit à l'heure près, pas à la seconde.</p>
+     */
+    private void touch(String endpoint) {
+        try {
+            repository.markUsed(endpoint, Instant.now(), Instant.now().minus(TOUCH_INTERVAL));
+        } catch (RuntimeException ex) {
+            log.debug("Horodatage d'appareil non mis à jour : {}", ex.getMessage());
+        }
+    }
+
+    /** Compteur de remise, exposé par l'actuator : un canal muet doit se voir en supervision. */
+    private void count(String outcome) {
+        try {
+            meterRegistry.counter("darilab.push.delivery", "outcome", outcome).increment();
+        } catch (RuntimeException ignored) {
+            // La métrique ne doit jamais faire échouer une remise.
         }
     }
 
@@ -393,9 +536,31 @@ public class PushNotificationService {
         return deliveryExecutor;
     }
 
+    /**
+     * Fil unique porteur des réessais différés. Séparé de l'exécuteur de remise à dessein : une
+     * attente n'a pas à consommer l'un des deux threads qui font le travail utile.
+     */
+    private java.util.concurrent.ScheduledExecutorService retryScheduler() {
+        if (retryScheduler == null) {
+            synchronized (this) {
+                if (retryScheduler == null) {
+                    retryScheduler = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                        Thread t = new Thread(r, "darilab-push-retry");
+                        t.setDaemon(true);
+                        return t;
+                    });
+                }
+            }
+        }
+        return retryScheduler;
+    }
+
     /** Arrêt propre : on laisse un court délai aux remises en cours, sans retenir l'arrêt. */
     @PreDestroy
     void shutdown() {
+        if (retryScheduler != null) {
+            retryScheduler.shutdownNow();
+        }
         if (deliveryExecutor != null) {
             deliveryExecutor.shutdown();
             try {

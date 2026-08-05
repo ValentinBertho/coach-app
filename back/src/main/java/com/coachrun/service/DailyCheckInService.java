@@ -28,6 +28,7 @@ public class DailyCheckInService {
     private final DailyCheckInRepository repository;
     private final AthleteRepository athleteRepository;
     private final com.coachrun.security.HealthDataConsentValidator consentValidator;
+    private final NotificationService notificationService;
 
     /** Check-in du jour, ou {@code null} si l'athlète ne l'a pas encore rempli. */
     public DailyCheckInResponse forDay(UUID athleteId, LocalDate day) {
@@ -69,6 +70,10 @@ public class DailyCheckInService {
         // ses deux mesures de santé — l'athlète n'est pas empêché de faire son geste du matin.
         checkIn.setFatigue(consentValidator.keepIfAllowed(checkIn.getAthlete(), request.fatigue()));
         checkIn.setPain(consentValidator.keepIfAllowed(checkIn.getAthlete(), request.pain()));
-        return DailyCheckInResponse.of(repository.save(checkIn));
+        DailyCheckIn saved = repository.save(checkIn);
+        // Une douleur élevée déclarée au réveil attendait le digest du lendemain — vingt-trois
+        // heures pendant lesquelles l'athlète pouvait courir la séance qui aggrave la blessure.
+        notificationService.notifyPainAlert(saved.getAthlete(), saved.getPain());
+        return DailyCheckInResponse.of(saved);
     }
 }

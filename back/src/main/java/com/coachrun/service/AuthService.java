@@ -241,21 +241,32 @@ public class AuthService {
     }
 
     public AuthResponse refresh(RefreshRequest request) {
+        // Les cinq causes de refus sont journalisées distinctement. Elles se présentaient toutes
+        // au client sous la forme d'un unique 401, donc d'un « Session expirée » indifférencié :
+        // impossible, en production, de dire si un utilisateur déconnecté l'a été par un jeton
+        // périmé, par une rotation rejouée ou par un changement de mot de passe.
         final Claims claims;
         try {
             claims = jwtService.parse(request.refreshToken());
         } catch (RuntimeException ex) {
+            log.info("Refresh refusé : jeton illisible ou expiré ({})", ex.getClass().getSimpleName());
             throw new UnauthorizedException("Jeton de rafraîchissement invalide ou expiré.");
         }
         if (!JwtService.TYPE_REFRESH.equals(claims.get("typ", String.class))) {
+            log.warn("Refresh refusé : jeton du mauvais type (user={})", claims.getSubject());
             throw new UnauthorizedException("Jeton de rafraîchissement invalide.");
         }
         if (tokenBlacklist.isRevoked(claims.getId())) {
+            log.info("Refresh refusé : jeton déjà utilisé, rotation rejouée (user={})", claims.getSubject());
             throw new UnauthorizedException("Jeton de rafraîchissement déjà utilisé.");
         }
         User user = userRepository.findById(UUID.fromString(claims.getSubject()))
-                .orElseThrow(() -> new UnauthorizedException("Compte introuvable."));
+                .orElseThrow(() -> {
+                    log.warn("Refresh refusé : compte introuvable (user={})", claims.getSubject());
+                    return new UnauthorizedException("Compte introuvable.");
+                });
         if (tokenFreshness.isStale(claims)) {
+            log.info("Refresh refusé : jeton antérieur à la dernière révocation (user={})", user.getId());
             throw new UnauthorizedException("Le mot de passe a changé, reconnectez-vous.");
         }
         // Rotation : on révoque l'ancien refresh avant d'en émettre un nouveau.
@@ -287,6 +298,9 @@ public class AuthService {
                 : (existing != null ? existing : "ath-" + athlete.getId() + "@athlete.coachrun.local");
 
         User user = userRepository.findByAthleteId(athlete.getId()).orElse(null);
+        // Première activation, par opposition à un lien rejoué : seule la première intéresse le
+        // coach, qui attend de savoir quand il peut commencer à poser des séances.
+        boolean firstActivation = user == null;
         if (user == null) {
             user = new User();
             user.setFullName(athlete.getFirstName() + " " + athlete.getLastName());
@@ -319,6 +333,9 @@ public class AuthService {
         athlete.setStatus(AthleteStatus.ACTIVE);
         athlete.setInviteToken(null);
         athlete.setInviteExpiresAt(null);
+        if (firstActivation) {
+            notificationService.notifyAthleteJoined(athlete);
+        }
         return toAuthResponse(user);
     }
 

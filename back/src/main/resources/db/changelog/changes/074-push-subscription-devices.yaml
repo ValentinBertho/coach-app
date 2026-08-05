@@ -1,0 +1,23 @@
+# ============================================================================
+# 074 — Identification des appareils abonnés au push (additif).
+#   user_agent     : chaîne du navigateur au moment de l'abonnement, pour nommer l'appareil.
+#   last_success_at: dernière remise acceptée par cet endpoint (écrite au plus une fois par heure).
+#
+# La table ne portait que des clés cryptographiques : impossible pour un utilisateur de savoir
+# quels appareils recevaient ses notifications, ni d'en retirer un seul — un téléphone revendu
+# restait abonné jusqu'à ce que son navigateur réponde 410.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 074-push-subscription-devices
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: push_subscriptions
+            columns:
+              - column:
+                  name: user_agent
+                  type: VARCHAR(255)
+              - column:
+                  name: last_success_at
+                  type: TIMESTAMP

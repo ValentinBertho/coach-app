@@ -1,0 +1,35 @@
+# ============================================================================
+# 073 — Réglage fin des notifications (additif) :
+#   notify_muted_categories : familles dont le push est coupé (liste séparée par des virgules).
+#   notify_quiet_start / notify_quiet_end : heures de silence, 22 h – 7 h par défaut.
+#
+# Le centre de notifications n'est jamais concerné : ces colonnes ne portent que sur le push.
+# Les heures de silence sont posées par défaut pour tous les comptes, existants compris — un
+# commentaire de coach écrit à 23 h 40 n'a jamais eu à faire vibrer le téléphone d'un athlète.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 073-notification-preferences-fine
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column:
+                  name: notify_muted_categories
+                  type: VARCHAR(255)
+              - column:
+                  name: notify_quiet_start
+                  type: TIME
+                  defaultValue: "22:00:00"
+              - column:
+                  name: notify_quiet_end
+                  type: TIME
+                  defaultValue: "07:00:00"
+        # Les comptes déjà créés n'ont pas de valeur par défaut appliquée rétroactivement.
+        - update:
+            tableName: users
+            columns:
+              - column: { name: notify_quiet_start, value: "22:00:00" }
+              - column: { name: notify_quiet_end, value: "07:00:00" }
+            where: notify_quiet_start IS NULL AND notify_quiet_end IS NULL
