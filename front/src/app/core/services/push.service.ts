@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { SwPush } from '@angular/service-worker';
 import { firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
 
 /**
  * Charge utile `data` posée par le serveur. `onActionClick` est la convention du service
@@ -13,6 +14,9 @@ interface NotificationData {
   url?: string;
   onActionClick?: Record<string, { operation?: string; url?: string }>;
 }
+
+/** Échec d'activation dont le message est directement affichable à l'utilisateur. */
+export class PushError extends Error {}
 
 /**
  * Notifications push côté client (SwPush). Disponible uniquement quand le service worker
@@ -24,6 +28,7 @@ export class PushService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly zone = inject(NgZone);
+  private readonly auth = inject(AuthService);
 
   /**
    * Cet appareil est-il réellement abonné ? Lu depuis le navigateur, pas depuis un souvenir de
@@ -75,7 +80,9 @@ export class PushService {
   private watchSubscription(): void {
     this.swPush.subscription.subscribe((sub) => {
       this.subscribed.set(!!sub);
-      if (sub) {
+      // Sans session, il n'y a personne à réenregistrer : cet appel partait quand même au
+      // démarrage — y compris sur l'écran de connexion — et repartait en 401.
+      if (sub && this.auth.isAuthenticated()) {
         this.http.post(`${environment.apiUrl}/push/subscribe`, sub.toJSON()).subscribe({
           error: () => { /* hors ligne ou non connecté : le prochain démarrage réessaiera */ },
         });
@@ -83,20 +90,83 @@ export class PushService {
     });
   }
 
-  /** Demande l'autorisation, s'abonne et enregistre l'abonnement côté serveur. */
+  /**
+   * Demande l'autorisation, s'abonne et enregistre l'abonnement côté serveur.
+   *
+   * <p>Chaque issue possible porte son propre message : refus de l'utilisateur, navigateur qui
+   * ne peut pas s'abonner (iOS hors écran d'accueil), serveur sans clés VAPID, ou panne
+   * d'enregistrement. L'activation affichait jusqu'ici « Autorisation refusée » pour tout, y
+   * compris quand l'autorisation venait d'être accordée et que c'était l'enregistrement serveur
+   * qui avait échoué — doublé du toast global de l'intercepteur.</p>
+   *
+   * @throws PushError avec un message affichable tel quel
+   */
   async enable(): Promise<boolean> {
-    if (!this.swPush.isEnabled) return false;
-    const cfg = await firstValueFrom(
-      this.http.get<{ enabled: boolean; publicKey: string }>(`${environment.apiUrl}/push/public-key`)
-    );
-    if (!cfg.enabled || !cfg.publicKey) return false;
+    if (!this.swPush.isEnabled) {
+      throw new PushError(this.unsupportedMessage());
+    }
 
-    const sub = await this.swPush.requestSubscription({ serverPublicKey: cfg.publicKey });
-    await firstValueFrom(
-      this.http.post(`${environment.apiUrl}/push/subscribe`, sub.toJSON())
-    );
+    let cfg: { enabled: boolean; publicKey: string };
+    try {
+      cfg = await firstValueFrom(
+        this.http.get<{ enabled: boolean; publicKey: string }>(`${environment.apiUrl}/push/public-key`)
+      );
+    } catch {
+      throw new PushError('Service indisponible pour le moment — réessaie dans un instant.');
+    }
+    if (!cfg.enabled || !cfg.publicKey) {
+      throw new PushError("Les notifications ne sont pas activées sur ce serveur.");
+    }
+
+    let sub: PushSubscription;
+    try {
+      sub = await this.swPush.requestSubscription({ serverPublicKey: cfg.publicKey });
+    } catch (err) {
+      throw new PushError(this.subscriptionErrorMessage(err));
+    }
+
+    try {
+      await firstValueFrom(this.http.post(`${environment.apiUrl}/push/subscribe`, sub.toJSON()));
+    } catch {
+      // L'abonnement existe côté navigateur mais le serveur ne le connaît pas : on le défait,
+      // sinon l'appareil se croit abonné pour toujours et n'est jamais notifié.
+      await this.swPush.unsubscribe().catch(() => undefined);
+      throw new PushError("Enregistrement impossible — réessaie dans un instant.");
+    }
     this.subscribed.set(true);
     return true;
+  }
+
+  /**
+   * Pourquoi ce navigateur ne peut pas s'abonner. Sur iOS, le web push n'existe que dans une
+   * PWA <b>installée</b> : proposer « autorise les notifications » à qui navigue dans Safari,
+   * c'est demander l'impossible sans le dire.
+   */
+  private unsupportedMessage(): string {
+    const iOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+      || (navigator as { standalone?: boolean }).standalone === true;
+    if (iOS && !standalone) {
+      return "Sur iPhone, ajoute d'abord Darilab à ton écran d'accueil (Partager → « Sur l'écran "
+        + "d'accueil »), puis réessaie depuis l'application.";
+    }
+    return "Ce navigateur ne gère pas les notifications.";
+  }
+
+  /** Message d'un échec d'abonnement, selon ce que le navigateur a refusé. */
+  private subscriptionErrorMessage(err: unknown): string {
+    const name = (err as { name?: string })?.name;
+    // `typeof` et non `Notification?.` : sur un navigateur sans l'API, l'identifiant n'existe
+    // pas du tout et sa simple lecture lève une ReferenceError — que ce message est censé éviter.
+    const denied = typeof Notification !== 'undefined' && Notification.permission === 'denied';
+    if (name === 'NotAllowedError' || denied) {
+      return 'Notifications bloquées pour ce site. Autorise-les dans les réglages de ton '
+        + 'navigateur, puis réessaie.';
+    }
+    if (name === 'AbortError') {
+      return this.unsupportedMessage();
+    }
+    return "Abonnement impossible sur cet appareil.";
   }
 
   /**

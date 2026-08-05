@@ -78,6 +78,47 @@ export class AuthService {
     return this.refreshInFlight;
   }
 
+  /**
+   * Rafraîchit le jeton d'avance s'il est sur le point d'expirer. Appelé au démarrage et chaque
+   * fois que l'application revient au premier plan.
+   *
+   * <p>Jusqu'ici le rafraîchissement était purement réactif : on attendait un 401. Sur mobile,
+   * l'application est ouverte quelques minutes puis mise en arrière-plan des heures ; au retour,
+   * <b>toutes</b> les requêtes du premier écran partaient avec un jeton périmé, échouaient
+   * ensemble, et la session se rejouait sur un rafraîchissement au milieu d'une salve d'erreurs.
+   * Une requête d'avance, au moment où rien d'autre ne se passe, remplace tout cela.</p>
+   *
+   * <p>Best-effort et silencieux : un échec ici ne dit rien de plus que « on réessaiera au
+   * prochain appel », et l'intercepteur reste le filet de sécurité.</p>
+   */
+  ensureFreshToken(): void {
+    if (!this.token() || !this.refreshTokenValue()) {
+      return;
+    }
+    const expiry = this.accessTokenExpiry();
+    // Marge d'une minute : au-delà, on laisse vivre le jeton — le rafraîchir à chaque retour au
+    // premier plan ferait tourner la rotation des jetons pour rien.
+    if (expiry != null && expiry - Date.now() > 60_000) {
+      return;
+    }
+    this.refresh().subscribe({ next: () => undefined, error: () => undefined });
+  }
+
+  /** Instant d'expiration (ms) de l'access token, lu dans le JWT ; `null` s'il est illisible. */
+  private accessTokenExpiry(): number | null {
+    const token = this.token();
+    const payload = token?.split('.')[1];
+    if (!payload) return null;
+    try {
+      const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+      const exp = (JSON.parse(json) as { exp?: number }).exp;
+      return typeof exp === 'number' ? exp * 1000 : null;
+    } catch {
+      // Jeton opaque ou tronqué : on ne sait pas, donc on rafraîchit (le cas se traite tout seul).
+      return null;
+    }
+  }
+
   /** Identifiant du club courant (scoping tenant des appels API). */
   clubId(): string | null {
     return this.currentUser()?.clubId ?? null;
@@ -216,6 +257,14 @@ export class AuthService {
     );
   }
 
+  /**
+   * Déconnexion <b>voulue</b> par l'utilisateur : révoque la session côté serveur, coupe les
+   * notifications de cet appareil, puis purge tout localement.
+   *
+   * <p>La révocation serveur vaut pour <b>tous</b> les appareils du compte — c'est le
+   * comportement attendu quand on clique « Se déconnecter », et c'est exactement ce qu'il ne
+   * faut pas faire tout seul dans le dos de l'utilisateur : voir {@link expireSession}.</p>
+   */
   logout(): void {
     // Révocation côté serveur (best-effort) avant purge locale. L'ordre compte : ces appels
     // doivent partir tant que le jeton est encore lisible par l'intercepteur.
@@ -225,6 +274,27 @@ export class AuthService {
       // donc un appareil partagé continuait d'afficher ses notifications.
       void this.disablePush();
     }
+    this.clearLocalSession();
+  }
+
+  /**
+   * Fin de session <b>subie</b> : le serveur ne reconnaît plus nos jetons. On oublie la session
+   * ici, et on ne touche à rien d'autre.
+   *
+   * <p>C'est la différence qui coûtait sa session aux athlètes. L'expiration automatique appelait
+   * {@link logout}, donc {@code POST /auth/logout}, qui <b>invalide tous les jetons du compte,
+   * sur tous les appareils</b>. Un incident sur le téléphone — le cas courant en mobilité —
+   * déconnectait donc aussi l'ordinateur, et réciproquement. Pire : le jeton qu'on vient de
+   * juger invalide sert quand même à révoquer les autres, qui, eux, étaient parfaitement bons.</p>
+   *
+   * <p>On ne coupe pas non plus les notifications : l'utilisateur n'a pas quitté cet appareil,
+   * il va s'y reconnecter. Le désabonnement est réservé au départ volontaire.</p>
+   */
+  expireSession(): void {
+    this.clearLocalSession();
+  }
+
+  private clearLocalSession(): void {
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(USER_KEY);

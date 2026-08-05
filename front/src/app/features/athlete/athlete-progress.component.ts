@@ -86,17 +86,38 @@ const SOURCE_LABEL: Record<string, string> = {
                 <span class="field-hint">Volume hebdomadaire (km)</span>
                 <span class="legend"><i class="sw planned"></i>Prévu <i class="sw realized"></i>Réalisé</span>
               </div>
-              <div class="bars">
+
+              <!-- Chaque barre est une cible tactile, et la semaine choisie se lit en toutes
+                   lettres ici. Le détail ne vivait que dans un attribut title, donc dans une
+                   infobulle de souris : au doigt il n'existait pas, et on voyait douze paires
+                   de barres sans un seul chiffre. -->
+              <div class="bars" role="group" aria-label="Volume hebdomadaire, semaine par semaine">
                 @for (b of bars(); track b.label) {
-                  <div class="bgrp" [title]="b.label + ' — prévu ' + b.planned + ' / réalisé ' + b.realized + ' km'">
-                    <div class="bpair">
+                  <button type="button" class="bgrp" [class.bgrp--on]="selectedWeek() === b.label"
+                          [attr.aria-pressed]="selectedWeek() === b.label"
+                          [attr.aria-label]="b.full + ' : ' + b.realized + ' km réalisés sur ' + b.planned + ' prévus'"
+                          (click)="selectWeek(b.label)">
+                    <span class="bpair">
                       <span class="bar planned" [style.height.%]="b.px"></span>
                       <span class="bar realized" [style.height.%]="b.rx"></span>
-                    </div>
+                    </span>
                     <span class="blab">{{ b.label }}</span>
-                  </div>
+                  </button>
                 }
               </div>
+
+              @if (selectedBar(); as b) {
+                <div class="readout">
+                  <strong class="readout-week">{{ b.full }}</strong>
+                  <span class="readout-vals">
+                    <span><i class="sw planned"></i>{{ b.planned | number: '1.0-1' }} km prévus</span>
+                    <span><i class="sw realized"></i>{{ b.realized | number: '1.0-1' }} km réalisés</span>
+                    <span class="readout-delta" [class.up]="b.delta > 0" [class.down]="b.delta < 0">
+                      {{ b.delta > 0 ? '+' : '' }}{{ b.delta | number: '1.0-1' }} km
+                    </span>
+                  </span>
+                </div>
+              }
             </div>
           }
           @if (zones().length > 0) {
@@ -291,13 +312,31 @@ const SOURCE_LABEL: Record<string, string> = {
     .legend .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
     .sw.planned { background: var(--ink-4); }
     .sw.realized { background: var(--dari-violet); }
-    .bars { display: flex; align-items: flex-end; gap: 6px; height: 110px; }
-    .bgrp { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+    .bars { display: flex; align-items: flex-end; gap: 4px; height: 124px; }
+    .bgrp {
+      flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px;
+      height: 100%; justify-content: flex-end; padding: 0; cursor: pointer;
+      background: transparent; border: none; border-radius: var(--radius-sm);
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* La semaine lue se distingue au fond, jamais à la couleur des barres : ce sont elles qui
+       portent la comparaison prévu/réalisé, et un surlignage ne doit pas s'y mêler. */
+    .bgrp--on { background: var(--paper-sunk); }
+    .bgrp--on .blab { color: var(--ink-2); font-weight: 700; }
+    .bgrp:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
     .bpair { display: flex; align-items: flex-end; gap: 2px; height: 100%; width: 100%; justify-content: center; }
     .bar { width: 40%; min-height: 2px; border-radius: 3px 3px 0 0; }
     .bar.planned { background: var(--ink-4); }
     .bar.realized { background: var(--dari-violet); }
     .blab { font-size: var(--text-2xs); color: var(--ink-4); white-space: nowrap; }
+
+    .readout { display: flex; flex-direction: column; gap: 2px; padding-top: var(--sp-2); border-top: 1px solid var(--hairline); }
+    .readout-week { color: var(--ink); font-size: var(--text-sm); }
+    .readout-vals { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); color: var(--ink-2); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+    .readout-vals span { display: inline-flex; align-items: center; gap: 4px; }
+    .readout-delta { font-weight: 800; color: var(--ink-3); }
+    .readout-delta.up { color: var(--success-text); }
+    .readout-delta.down { color: var(--warning-text); }
 
     .zline { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) 0; }
     .ztag { width: 28px; font-size: var(--text-sm); font-weight: 700; color: var(--ink-3); }
@@ -364,19 +403,45 @@ export class AthleteProgressComponent implements OnInit {
     return { planned, realized, compliance };
   });
 
+  /** Semaine dont le détail est affiché sous le graphe (clé = libellé court de la barre). */
+  readonly selectedWeek = signal<string | null>(null);
+
   /** Barres de volume hebdo (hauteur en % du max prévu/réalisé). */
   readonly bars = computed(() => {
     const a = this.analytics();
     if (!a) return [];
     const max = Math.max(1, ...a.weeklyVolume.flatMap((w) => [w.plannedKm, w.realizedKm]));
-    return a.weeklyVolume.map((w) => ({
-      label: w.weekStart.slice(5),
-      planned: Math.round(w.plannedKm * 10) / 10,
-      realized: Math.round(w.realizedKm * 10) / 10,
-      px: Math.round((w.plannedKm / max) * 100),
-      rx: Math.round((w.realizedKm / max) * 100),
-    }));
+    const fmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' });
+    return a.weeklyVolume.map((w) => {
+      const planned = Math.round(w.plannedKm * 10) / 10;
+      const realized = Math.round(w.realizedKm * 10) / 10;
+      return {
+        label: w.weekStart.slice(5),
+        /** « Semaine du 12 août » : la lecture au doigt a besoin d'un repère, pas de « 08-12 ». */
+        full: `Semaine du ${fmt.format(new Date(w.weekStart + 'T00:00:00'))}`,
+        planned,
+        realized,
+        delta: Math.round((realized - planned) * 10) / 10,
+        px: Math.round((w.plannedKm / max) * 100),
+        rx: Math.round((w.realizedKm / max) * 100),
+      };
+    });
   });
+
+  /**
+   * Semaine détaillée : celle qu'on a touchée, sinon la dernière du graphe. Un détail toujours
+   * présent vaut mieux qu'une zone vide qui n'apprend à personne qu'elle est tactile.
+   */
+  readonly selectedBar = computed(() => {
+    const bars = this.bars();
+    if (bars.length === 0) return null;
+    return bars.find((b) => b.label === this.selectedWeek()) ?? bars[bars.length - 1];
+  });
+
+  /** Un second appui sur la même barre revient à la dernière semaine. */
+  selectWeek(label: string): void {
+    this.selectedWeek.update((cur) => (cur === label ? null : label));
+  }
 
   /** Répartition par zone (largeur en % du max). */
   readonly zones = computed(() => {

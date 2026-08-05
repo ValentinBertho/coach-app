@@ -6,7 +6,7 @@ import { RaceObjective, RaceObjectiveRequest } from '../models/race.model';
 import { WorkoutPrescription } from '../models/course.model';
 import { Unavailability, UnavailabilityRequest } from '../models/unavailability.model';
 import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
-import { Activity, ActivityLaps, TimeInZone, WeekSummary } from '../models/activity.model';
+import { Activity, ActivityLaps, ActivityUpdate, TimeInZone, WeekSummary } from '../models/activity.model';
 import { Analytics } from './analytics.service';
 import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
 import { MissedReason, Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
@@ -285,6 +285,14 @@ export class AthletePortalService {
   /** Tours d'une de mes sorties (montre), ou splits kilométriques calculés à défaut. */
   activityLaps(activityId: string): Observable<ActivityLaps> {
     return this.http.get<ActivityLaps>(`${this.base}/activities/${activityId}/laps`);
+  }
+  /** Je corrige une de mes sorties et j'y laisse mon ressenti pour mon coach. */
+  updateActivity(activityId: string, body: ActivityUpdate): Observable<Activity> {
+    return this.http.patch<Activity>(`${this.base}/activities/${activityId}`, body);
+  }
+  /** Je supprime une de mes sorties (doublon, erreur de saisie). */
+  deleteActivity(activityId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/activities/${activityId}`);
   }
   /** Mes performances / records par distance. */
   performances(): Observable<Performance[]> {

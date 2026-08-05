@@ -145,3 +145,5 @@ databaseChangeLog:
       file: db/changelog/changes/070-alert-digest-log.yaml
   - include:
       file: db/changelog/changes/071-activity-laps.yaml
+  - include:
+      file: db/changelog/changes/072-activity-athlete-feedback.yaml

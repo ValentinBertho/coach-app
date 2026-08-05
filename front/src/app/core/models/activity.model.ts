@@ -22,6 +22,26 @@ export interface Activity {
   matchedWorkoutId: string | null;
   distanceDeltaM: number | null;
   durationDeltaS: number | null;
+  /** Ressenti déclaré par l'athlète sur cette sortie (1–10) — utile surtout hors programme. */
+  rpe: number | null;
+  /** Mot de l'athlète à son coach sur cette sortie. */
+  athleteComment: string | null;
+}
+
+/**
+ * Correction d'une sortie par l'athlète. Champ absent = inchangé ; les deux drapeaux `clear*`
+ * servent à effacer, ce qu'un `null` ne pourrait pas exprimer sans tout effacer par défaut.
+ */
+export interface ActivityUpdate {
+  title?: string | null;
+  activityDate?: string | null;
+  distanceM?: number | null;
+  durationS?: number | null;
+  elevationGainM?: number | null;
+  rpe?: number | null;
+  comment?: string | null;
+  clearRpe?: boolean;
+  clearComment?: boolean;
 }
 
 export interface ActivityImportRequest {

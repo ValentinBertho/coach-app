@@ -254,13 +254,100 @@ public class ActivityService {
         }
     }
 
+    // --- Correction d'une sortie par l'athlète -----------------------------
+
+    /**
+     * L'athlète corrige une de ses sorties et y pose son ressenti.
+     *
+     * <p>Le ressenti n'existait que porté par une séance <em>prescrite</em>. Une sortie sans
+     * séance — une course, un footing improvisé — n'avait donc aucun moyen d'être commentée,
+     * alors que c'est exactement là que le coach n'a rien d'autre à lire : ni prescription à
+     * comparer, ni retour de séance.</p>
+     */
+    @Transactional
+    public ActivityResponse updateForAthlete(UUID athleteId, UUID activityId,
+                                             com.coachrun.dto.request.ActivityUpdateRequest request) {
+        Activity a = ownedByAthlete(athleteId, activityId);
+
+        if (request.title() != null) {
+            a.setTitle(request.title().isBlank() ? null : request.title().trim());
+        }
+        if (Boolean.TRUE.equals(request.clearRpe())) {
+            a.setRpe(null);
+        } else if (request.rpe() != null) {
+            a.setRpe(request.rpe());
+        }
+        if (Boolean.TRUE.equals(request.clearComment())) {
+            a.setAthleteComment(null);
+        } else if (request.comment() != null) {
+            a.setAthleteComment(request.comment().isBlank() ? null : request.comment().trim());
+        }
+
+        // Les mesures d'une montre ne se réécrivent pas : elles font foi, et la charge du coach
+        // est calculée dessus. Une saisie manuelle, elle, n'a jamais été qu'une déclaration.
+        if (a.getSource() == ActivitySource.MANUAL) {
+            boolean movedOrResized = false;
+            if (request.activityDate() != null && !request.activityDate().equals(a.getActivityDate())) {
+                a.setActivityDate(request.activityDate());
+                movedOrResized = true;
+            }
+            if (request.distanceM() != null) {
+                a.setDistanceM(request.distanceM());
+                movedOrResized = true;
+            }
+            if (request.durationS() != null) {
+                a.setDurationS(request.durationS());
+                movedOrResized = true;
+            }
+            if (request.elevationGainM() != null) {
+                a.setElevationGainM(request.elevationGainM());
+            }
+            // Date ou volume corrigés : le rapprochement d'origine ne vaut plus. On détache la
+            // séance (qui redevient à faire) et on relance la recherche sur les nouvelles valeurs.
+            if (movedOrResized) {
+                detachWorkout(a);
+                autoMatch(athleteId, a);
+            }
+        }
+        return toResponse(a);
+    }
+
+    /**
+     * L'athlète supprime une de ses sorties (doublon, erreur de saisie, sortie de quelqu'un
+     * d'autre importée par erreur). La séance rapprochée, s'il y en avait une, redevient à faire :
+     * plus rien n'atteste qu'elle a été réalisée.
+     */
+    @Transactional
+    public void deleteForAthlete(UUID athleteId, UUID activityId) {
+        Activity a = ownedByAthlete(athleteId, activityId);
+        detachWorkout(a);
+        activityRepository.delete(a);
+        log.info("Sortie supprimée {} par l'athlète {}", activityId, athleteId);
+    }
+
+    /** Rend sa séance à l'état « à faire » et détache l'activité. */
+    private void detachWorkout(Activity a) {
+        UUID workoutId = a.getMatchedWorkoutId();
+        if (workoutId == null) {
+            return;
+        }
+        workoutRepository.findById(workoutId)
+                .ifPresent(w -> w.setStatus(WorkoutStatus.PLANNED));
+        a.setMatchedWorkoutId(null);
+        a.setStatus(ActivityStatus.UNMATCHED);
+    }
+
+    private Activity ownedByAthlete(UUID athleteId, UUID activityId) {
+        return activityRepository.findById(activityId)
+                .filter(a -> a.getAthlete().getId().equals(athleteId))
+                .orElseThrow(() -> new NotFoundException("Activité introuvable."));
+    }
+
     // --- Lecture des tours -------------------------------------------------
 
     /** Tours d'une de mes activités (portail athlète). */
     public ActivityLapsResponse lapsForAthlete(UUID athleteId, UUID activityId) {
-        return laps(activityRepository.findById(activityId)
-                .filter(a -> a.getAthlete().getId().equals(athleteId))
-                .orElseThrow(() -> new NotFoundException("Activité introuvable.")));
+        return laps(ownedByAthlete(athleteId, activityId));
     }
 
     /** Tours d'une activité vue par le coach (scopé club). */
