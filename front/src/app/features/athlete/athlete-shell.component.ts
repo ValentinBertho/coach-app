@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { DebriefPromptComponent } from './debrief-prompt.component';
 
 /**
  * Shell mobile-first du portail athlète (PWA) : contenu + bottom-nav persistante.
@@ -10,23 +11,32 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
   selector: 'app-athlete-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, DebriefPromptComponent],
   template: `
     <!-- Peau « night-track » : le portail athlète est toujours sombre (immersion mobile),
          indépendamment du thème du coach. Les tokens sombres sont scopés à ce sous-arbre. -->
     <div class="ashell" data-theme="dark">
       <div class="ashell__content"><router-outlet /></div>
 
+      <!-- Invitation au débrief, montée dans la coquille : elle vivait dans « Aujourd'hui », et
+           depuis que le calendrier ouvre le portail, un athlète pouvait traverser toute
+           l'application sans qu'on lui demande jamais son ressenti. -->
+      <app-debrief-prompt />
+
       <!-- Quatre entrées, pas six : sur 375 px, six cibles tombaient à ~52 px avec des
-           libellés à 10 px, et « Agenda / Sorties / Progrès » se recouvrent pour qui n'est pas
-           expert. « Sorties » entre dans Progrès (accès rapide), « Profil » devient l'avatar
-           de la barre supérieure. -->
+           libellés à 10 px. « Sorties » entre dans Progrès (accès rapide), « Profil » devient
+           l'avatar de la barre supérieure.
+
+           Le calendrier passe en première position, et devient l'écran d'ouverture du portail :
+           en lançant l'application, un athlète veut d'abord voir la forme de son mois — ce qui
+           l'attend, ce qu'il a fait. « Aujourd'hui » reste juste à côté : c'est l'écran de la
+           journée en cours (check-in, séance, ressenti), pas celui de la vue d'ensemble. -->
       <nav class="ashell__nav" aria-label="Navigation athlète">
-        <a routerLink="/athlete/today" routerLinkActive="active">
-          <app-icon name="house" [size]="22" /><span class="lb">Séance</span>
-        </a>
         <a routerLink="/athlete/calendar" routerLinkActive="active">
-          <app-icon name="calendar" [size]="22" /><span class="lb">Agenda</span>
+          <app-icon name="calendar-days" [size]="22" /><span class="lb">Calendrier</span>
+        </a>
+        <a routerLink="/athlete/today" routerLinkActive="active">
+          <app-icon name="house" [size]="22" /><span class="lb">Aujourd'hui</span>
         </a>
         <a routerLink="/athlete/progress" routerLinkActive="active">
           <app-icon name="trending-up" [size]="22" /><span class="lb">Progrès</span>

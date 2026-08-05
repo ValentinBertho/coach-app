@@ -58,7 +58,7 @@ const ATHLETE: HelpGuide = {
             'Ouvre le lien d\'invitation sur ton téléphone.',
             'Choisis ton e-mail et un mot de passe (8 caractères minimum) pour pouvoir te reconnecter plus tard.',
             'Coche le consentement pour le suivi de tes données physiologiques (obligatoire, exigence RGPD).',
-            'Tu arrives directement sur ta séance du jour.',
+            'Tu arrives directement sur ton calendrier : tout ton mois d\'entraînement, d\'un coup d\'œil.',
           ],
         },
         { kind: 'callout', tone: 'tip', text: 'Installe l\'app sur ton écran d\'accueil : touche « Installer » dans l\'en-tête (ou « Partager → Ajouter à l\'écran d\'accueil » sur iPhone). Elle s\'ouvre alors en plein écran, comme une vraie application, et reste consultable même hors connexion.' },
@@ -71,7 +71,7 @@ const ATHLETE: HelpGuide = {
       title: 'Ma séance du jour',
       summary: 'Lire la prescription, comprendre les fourchettes, noter ton retour.',
       blocks: [
-        { kind: 'text', text: 'L\'onglet « Séance » affiche ce que tu as à faire aujourd\'hui : course, renforcement, ou les deux. Si tu as une double séance, chaque séance apparaît sur sa propre carte.' },
+        { kind: 'text', text: 'L\'onglet « Aujourd\'hui » affiche ce que tu as à faire dans la journée : course, renforcement, ou les deux. Si tu as une double séance, chaque séance apparaît sur sa propre carte. C\'est aussi là que vivent ton check-in du matin, tes retours en attente et la synchro de ta montre.' },
         { kind: 'text', text: 'Tes cibles sont données en fourchettes (allure, fréquence cardiaque, RPE) et en zones d\'intensité colorées. Reste dans la fourchette : c\'est volontairement une plage, pas une valeur unique à atteindre au centième.' },
         { kind: 'list', items: [
           'Zones colorées = intensité visée pour chaque bloc (échauffement, corps, retour au calme).',
@@ -87,15 +87,17 @@ const ATHLETE: HelpGuide = {
         ] },
         { kind: 'callout', tone: 'info', text: 'Pas de réseau ? Aucun souci : ton retour est enregistré sur ton téléphone et envoyé automatiquement dès que la connexion revient.' },
         { kind: 'callout', tone: 'tip', text: 'Ton état de forme est calculé à partir de ta fatigue et de tes douleurs — jamais à partir du RPE. Sois honnête sur ces deux curseurs, c\'est ce qui aide ton coach à ajuster.' },
+        { kind: 'callout', tone: 'info', text: 'Tu n\'as pas à y penser : dès qu\'une sortie arrive de ta montre, l\'application te propose d\'elle-même de la débriefer, sur n\'importe quel écran. Si la sortie n\'était pas au programme, on te demande directement ton RPE et un mot pour ton coach — il n\'y a pas de séance prescrite pour les porter.' },
       ],
     },
     {
       id: 'agenda',
-      icon: 'calendar',
-      title: 'Mon agenda',
-      summary: 'Voir ta semaine, déplacer une séance, signaler une indisponibilité.',
+      icon: 'calendar-days',
+      title: 'Mon calendrier',
+      summary: 'Ton mois d\'un coup d\'œil, le détail d\'un jour, déplacer une séance.',
       blocks: [
-        { kind: 'text', text: 'L\'onglet « Agenda » montre ta semaine, jour par jour. Tu navigues d\'une semaine à l\'autre avec les flèches.' },
+        { kind: 'text', text: 'C\'est l\'écran qui s\'ouvre quand tu lances l\'application : ton mois entier, une case par jour, avec la durée et la distance de chaque séance. Les flèches changent de mois, la boucle revient à aujourd\'hui, et le jour même est entouré.' },
+        { kind: 'text', text: 'Touche un jour pour l\'ouvrir : tu y trouves le détail de chaque séance, ses blocs et ses cibles, le bouton pour la déplacer, et tes sorties réellement effectuées. La bascule « Semaine » donne la même chose en liste verticale, jour après jour.' },
         { kind: 'text', text: 'Trois lectures, au choix : « Prévu » (le programme de ton coach), « Réalisé » (tes sorties réelles, y compris celles qui n\'étaient pas prévues — une course, un footing improvisé), et « Les deux » pour comparer d\'un coup d\'œil. Une sortie qui ne correspond à aucune séance est marquée « hors programme » ; touche-la pour ouvrir son détail.' },
         { kind: 'text', text: 'Tu peux déplacer une séance (par exemple décaler la sortie longue d\'un jour) :' },
         { kind: 'steps', items: [

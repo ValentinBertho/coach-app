@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
-import { STEP_TYPE_LABELS, WORKOUT_TYPE_LABELS, Workout, awaitsFeedback, needsFeedback } from '../../core/models/workout.model';
+import {
+  STEP_TYPE_LABELS, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_META, Workout, awaitsFeedback, needsFeedback,
+} from '../../core/models/workout.model';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
 import { RouterLink } from '@angular/router';
@@ -10,6 +12,9 @@ import { ToastService } from '../../core/services/toast.service';
 import { formatPace, paceFrom } from '../../core/utils/pace';
 import { DataOriginTagComponent, IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
 import { BottomSheetComponent, SegmentedControlComponent } from '../../shared/components/ui';
+import {
+  AthleteMonthGridComponent, type MonthChip, type MonthDay, type MonthWeek,
+} from './athlete-month-grid.component';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { HelpHintComponent } from '../help/help-hint.component';
 import { CalculatedBlockEntry, courseBlockTypeLabel, CourseBlock, WorkoutPrescription } from '../../core/models/course.model';
@@ -43,6 +48,15 @@ function mondayOf(d: Date): Date {
   return date;
 }
 
+/** Numéro de semaine ISO 8601 — celui que les coureurs et les plans d'entraînement emploient. */
+function isoWeek(d: Date): number {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  // Le jeudi de la semaine décide de l'année ISO à laquelle elle appartient.
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+}
+
 const REASON_ICON: Record<UnavailabilityReason, string> = {
   INJURY: 'heart-pulse', ILLNESS: 'thermometer', VACATION: 'palmtree', PERSONAL: 'pin', OTHER: 'ban',
 };
@@ -59,25 +73,52 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
   imports: [
     IconComponent, IntensityZoneBadgeComponent, DataOriginTagComponent, BottomSheetComponent,
     SegmentedControlComponent, WorkoutFeedbackSheetComponent, HelpHintComponent, RouterLink,
+    AthleteMonthGridComponent,
   ],
   template: `
     <header class="cal-top">
-      <div class="cal-title"><h1 class="display-sm">Mon calendrier</h1><app-help-hint section="agenda" label="Aide : mon agenda" /></div>
-      <div class="week-nav">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)" aria-label="Semaine précédente"><app-icon name="arrow-left" [size]="16" /></button>
-        <button type="button" class="btn btn-ghost btn-sm" (click)="goThisWeek()">Cette semaine</button>
-        <button type="button" class="btn btn-ghost btn-sm" (click)="shift(1)" aria-label="Semaine suivante"><app-icon name="arrow-right" [size]="16" /></button>
+      <div class="cal-title">
+        <h1 class="display-sm">{{ mode() === 'month' ? 'Mon mois' : 'Ma semaine' }}</h1>
+        <app-help-hint section="agenda" label="Aide : mon agenda" />
       </div>
-      <p class="subtitle">{{ periodLabel() }}</p>
-      <!-- Prévu / Réalisé / Les deux : sans « réalisé », une sortie non programmée — une course,
-           un footing improvisé — n'existait nulle part dans l'agenda, alors qu'elle compte dans
-           la semaine d'entraînement autant que le reste. -->
-      <div class="view-nav">
+
+      <!-- Navigation : un pas de mois ou de semaine selon la vue, et le retour à aujourd'hui
+           toujours à portée — c'est le geste le plus fréquent après avoir feuilleté. -->
+      <div class="week-nav">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="shift(-1)"
+                [attr.aria-label]="mode() === 'month' ? 'Mois précédent' : 'Semaine précédente'">
+          <app-icon name="arrow-left" [size]="16" />
+        </button>
+        <span class="period">{{ periodLabel() }}</span>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="shift(1)"
+                [attr.aria-label]="mode() === 'month' ? 'Mois suivant' : 'Semaine suivante'">
+          <app-icon name="arrow-right" [size]="16" />
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm today-btn" (click)="goToday()"
+                aria-label="Revenir à aujourd'hui">
+          <app-icon name="rotate-ccw" [size]="15" />
+        </button>
+      </div>
+
+      <div class="cal-controls">
+        <app-segmented-control [options]="modeOptions" [value]="mode()"
+          (valueChange)="setMode($event)" ariaLabel="Vue du calendrier" />
+        <!-- Prévu / Réalisé / Les deux : sans « réalisé », une sortie non programmée — une course,
+             un footing improvisé — n'existait nulle part dans l'agenda, alors qu'elle compte dans
+             la semaine d'entraînement autant que le reste. -->
         <app-segmented-control [options]="viewOptions" [value]="view()"
           (valueChange)="setView($event)" ariaLabel="Contenu de l'agenda" />
       </div>
     </header>
 
+    @if (mode() === 'month') {
+      <main class="month">
+        <app-athlete-month-grid [weeks]="monthWeeks()" (dayPicked)="openDay($event)" />
+        <p class="month-hint field-hint">Touche un jour pour l'ouvrir.</p>
+      </main>
+    }
+
+    @if (mode() === 'week') {
     <main class="agenda">
       @for (day of days(); track day.date) {
         <section class="day" [class.day--today]="day.isToday" [class.day--unavailable]="day.unavailability">
@@ -140,6 +181,62 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
         </section>
       }
     </main>
+    }
+
+    <!-- Contenu d'un jour, ouvert depuis la grille du mois : la case ne peut porter que deux
+         chiffres, tout le reste (blocs, déplacement, ressenti) vit ici. -->
+    <app-bottom-sheet [(open)]="dayOpen" [title]="dayLabel()">
+      @if (daySelected(); as d) {
+        <div class="dsheet">
+          @if (d.unavailability; as u) {
+            <p class="dsheet-off"><app-icon [name]="reasonIcon[u.reason]" [size]="14" /> Indisponibilité déclarée</p>
+          }
+          @for (w of d.workouts; track w.id) {
+            <div class="ses ses--run">
+              <button type="button" class="ses-body" (click)="openDetail(w)">
+                <span class="ses-main">
+                  <span class="ses-title">{{ typeLabels[w.type] }} · {{ w.title }}</span>
+                  @if (w.targetDistanceM) { <span class="ses-km metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span> }
+                  @if (isLate(w)) { <span class="ses-todo">à noter</span> }
+                </span>
+                <span class="ses-zones">
+                  @for (z of zonesOf(w); track z) { <app-intensity-zone-badge [zone]="z" /> }
+                </span>
+              </button>
+              <button type="button" class="ses-move-btn" (click)="openMove('run', w.id, w.title, w.scheduledDate)">
+                <app-icon name="move" [size]="13" /> déplacer
+              </button>
+            </div>
+          }
+          @for (s of d.strength; track s.id) {
+            <button type="button" class="ses ses--strength" (click)="openMove('strength', s.id, s.title, s.scheduledDate)">
+              <span class="ses-main">
+                <span class="ses-title"><app-icon name="dumbbell" [size]="14" /> {{ s.title }}</span>
+                @if (s.completed) { <span class="badge badge-success">Réalisé</span> }
+              </span>
+              <span class="ses-move" aria-hidden="true"><app-icon name="move" [size]="13" /> déplacer</span>
+            </button>
+          }
+          @for (a of d.activities; track a.id) {
+            <a class="ses ses--done" [routerLink]="['/athlete/activities']" [queryParams]="{ open: a.id }">
+              <span class="ses-main">
+                <span class="ses-title"><app-icon name="check" [size]="14" /> {{ a.title || 'Sortie' }}</span>
+                @if (a.status !== 'MATCHED') { <span class="ses-extra">hors programme</span> }
+              </span>
+              <span class="ses-facts">
+                @if (a.distanceM) { <span class="metric">{{ (a.distanceM / 1000).toFixed(1) }} km</span> }
+                @if (a.durationS) { <span class="metric">{{ fmtDur(a.durationS) }}</span> }
+                @if (actPace(a); as p) { <span class="metric">{{ p }}/km</span> }
+                @if (a.rpe != null) { <span class="metric">RPE {{ a.rpe }}</span> }
+              </span>
+            </a>
+          }
+          @if (d.empty) {
+            <p class="dsheet-empty field-hint">Rien de prévu ni de réalisé ce jour-là.</p>
+          }
+        </div>
+      }
+    </app-bottom-sheet>
 
     <!-- Déplacer une séance -->
     <app-bottom-sheet [(open)]="moveOpen" title="Déplacer la séance">
@@ -247,11 +344,22 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     :host { display: block; }
     /* Le titre et la navigation de semaine passaient derrière l'heure et l'encoche en PWA :
        le retrait haut suit la safe-area exposée par la coquille athlète. */
-    .cal-top { padding: var(--sp-4) var(--sp-4) 0; padding-top: max(var(--sp-4), var(--safe-top, 0px)); max-width: 560px; margin-inline: auto; }
+    .cal-top { padding: var(--sp-4) var(--sp-4) 0; padding-top: max(var(--sp-4), var(--safe-top, 0px)); max-width: 720px; margin-inline: auto; }
     .cal-top h1 { margin: 0; }
     .cal-title { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
-    .week-nav { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0 var(--sp-1); }
+    .week-nav { display: flex; align-items: center; gap: var(--sp-1); margin: var(--sp-2) 0; }
+    /* La période prend la place libre entre les flèches : c'est le titre réel de la vue. */
+    .period { flex: 1; text-align: center; font-weight: 700; color: var(--ink); text-transform: capitalize; font-size: var(--text-md); }
+    .today-btn { flex-shrink: 0; }
+    .cal-controls { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
     .subtitle { color: var(--ink-3); margin: 0; text-transform: capitalize; }
+
+    .month { max-width: 720px; margin-inline: auto; padding: var(--sp-3) var(--sp-4) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
+    .month-hint { text-align: center; margin: 0; }
+
+    .dsheet { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .dsheet-off { display: flex; align-items: center; gap: var(--sp-2); margin: 0; color: var(--ink-3); font-size: var(--text-sm); }
+    .dsheet-empty { margin: 0; text-align: center; }
 
     .agenda { max-width: 560px; margin-inline: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
     .day { background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius-lg); padding: var(--sp-3); }
@@ -349,6 +457,17 @@ export class AthleteCalendarComponent implements OnInit {
   readonly activities = signal<Activity[]>([]);
   readonly unavailabilities = signal<Unavailability[]>([]);
 
+  readonly modeOptions = [
+    { label: 'Mois', value: 'month' },
+    { label: 'Semaine', value: 'week' },
+  ];
+  /**
+   * Le mois d'abord : c'est ce qu'on vient voir en ouvrant l'application — la forme du mois, la
+   * charge des jours à venir. La semaine reste d'un geste, pour lire le détail des séances et
+   * les déplacer.
+   */
+  readonly mode = signal<'month' | 'week'>('month');
+
   readonly viewOptions = [
     { label: 'Prévu', value: 'planned' },
     { label: 'Réalisé', value: 'done' },
@@ -414,12 +533,87 @@ export class AthleteCalendarComponent implements OnInit {
   });
 
   readonly periodLabel = computed(() => {
+    if (this.mode() === 'month') {
+      return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(this.anchor());
+    }
     const start = mondayOf(this.anchor());
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
     const fmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long' });
     return `${fmt.format(start)} – ${fmt.format(end)}`;
   });
+
+  /**
+   * Grille du mois : les semaines complètes qui couvrent le mois affiché, débordements compris
+   * (un lundi de fin de mois appartient à une semaine d'entraînement qui continue).
+   */
+  readonly monthWeeks = computed<MonthWeek[]>(() => {
+    const today = toIso(new Date());
+    const ref = this.anchor();
+    const monthRef = ref.getMonth();
+    const first = mondayOf(new Date(ref.getFullYear(), monthRef, 1));
+    const lastDay = new Date(ref.getFullYear(), monthRef + 1, 0);
+    const view = this.view();
+    const showPlanned = view !== 'done';
+    const showDone = view !== 'planned';
+
+    const weeks: MonthWeek[] = [];
+    const cursor = new Date(first);
+    // Tant qu'on n'a pas dépassé le dernier jour du mois : 4 à 6 semaines selon le calendrier.
+    while (cursor <= lastDay || weeks.length === 0) {
+      const days: MonthDay[] = [];
+      for (let i = 0; i < 7; i++) {
+        const iso = toIso(cursor);
+        days.push({
+          date: iso,
+          dayNum: cursor.getDate(),
+          isToday: iso === today,
+          inMonth: cursor.getMonth() === monthRef,
+          unavailable: this.unavailabilities().some((u) => iso >= u.startDate && iso <= u.endDate),
+          chips: this.chipsFor(iso, showPlanned, showDone),
+        });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      weeks.push({ weekNumber: isoWeek(new Date(days[0].date + 'T00:00:00')), days });
+    }
+    return weeks;
+  });
+
+  /** Pastilles d'un jour : séances prescrites, renforcement, puis sorties réellement faites. */
+  private chipsFor(iso: string, showPlanned: boolean, showDone: boolean): MonthChip[] {
+    const chips: MonthChip[] = [];
+    if (showPlanned) {
+      for (const w of this.workouts().filter((x) => x.scheduledDate === iso)) {
+        const meta = WORKOUT_TYPE_META[w.type];
+        chips.push({
+          color: meta.color,
+          icon: meta.icon,
+          duration: w.targetDurationS ? this.fmtDur(w.targetDurationS) : WORKOUT_TYPE_LABELS[w.type].slice(0, 4),
+          volume: w.targetDistanceM ? `${Math.round(w.targetDistanceM / 100) / 10} km` : '',
+          done: false,
+          title: `${WORKOUT_TYPE_LABELS[w.type]} · ${w.title}`,
+        });
+      }
+      for (const s of this.strength().filter((x) => x.scheduledDate === iso)) {
+        chips.push({
+          color: WORKOUT_TYPE_META.STRENGTH.color, icon: 'dumbbell',
+          duration: 'Renfo', volume: '', done: false, title: s.title,
+        });
+      }
+    }
+    if (showDone) {
+      for (const a of this.activities().filter((x) => x.activityDate === iso)) {
+        chips.push({
+          color: 'var(--success, var(--dari-teal))', icon: 'check',
+          duration: a.durationS ? this.fmtDur(a.durationS) : 'Fait',
+          volume: a.distanceM ? `${Math.round(a.distanceM / 100) / 10} km` : '',
+          done: true,
+          title: a.title || 'Sortie réalisée',
+        });
+      }
+    }
+    return chips;
+  }
 
   /** Jours proposés pour le déplacement : 14 jours à partir du lundi courant. */
   /**
@@ -456,9 +650,15 @@ export class AthleteCalendarComponent implements OnInit {
   }
 
   load(): void {
-    const start = mondayOf(this.anchor());
+    // La vue mensuelle affiche des semaines entières, débordements des mois voisins compris :
+    // la plage chargée part du lundi de la première semaine et va jusqu'au dimanche de la
+    // dernière. En vue hebdomadaire, la quinzaine suffit (elle couvre le choix de déplacement).
+    const ref = this.anchor();
+    const start = this.mode() === 'month'
+      ? mondayOf(new Date(ref.getFullYear(), ref.getMonth(), 1))
+      : mondayOf(ref);
     const end = new Date(start);
-    end.setDate(start.getDate() + 13); // couvre la fenêtre de déplacement
+    end.setDate(start.getDate() + (this.mode() === 'month' ? 41 : 13));
     const from = toIso(start);
     const to = toIso(end);
     this.portal.workouts(from, to).subscribe({ next: (w) => this.workouts.set(w), error: () => this.workouts.set([]) });
@@ -473,20 +673,73 @@ export class AthleteCalendarComponent implements OnInit {
     return formatPace(a.paceSPerKm) ?? paceFrom(a.distanceM, a.durationS);
   }
 
+  /** Un pas = un mois en vue mensuelle, une semaine en vue hebdomadaire. */
   shift(step: number): void {
     const d = new Date(this.anchor());
-    d.setDate(d.getDate() + step * 7);
+    if (this.mode() === 'month') {
+      // Le 1er du mois avant d'ajouter : partir du 31 donnerait le 3 du mois suivant.
+      d.setDate(1);
+      d.setMonth(d.getMonth() + step);
+    } else {
+      d.setDate(d.getDate() + step * 7);
+    }
     this.anchor.set(d);
     this.load();
   }
-  goThisWeek(): void { this.anchor.set(new Date()); this.load(); }
+
+  goToday(): void { this.anchor.set(new Date()); this.load(); }
+
+  setMode(mode: string): void {
+    this.mode.set(mode as 'month' | 'week');
+    this.load();
+  }
+
+  // --- Feuille d'un jour (ouverte depuis la grille du mois) ----------------
+
+  readonly dayOpen = signal(false);
+  readonly daySelected = signal<DayRow | null>(null);
+
+  dayLabel(): string {
+    const d = this.daySelected();
+    if (!d) return 'Ce jour';
+    return new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
+      .format(new Date(d.date + 'T00:00:00'));
+  }
+
+  openDay(iso: string): void {
+    this.daySelected.set(this.rowFor(iso));
+    this.dayOpen.set(true);
+  }
+
+  /** Contenu d'un jour quelconque, y compris hors de la semaine affichée par la vue hebdo. */
+  private rowFor(iso: string): DayRow {
+    const view = this.view();
+    const workouts = view !== 'done' ? this.workouts().filter((w) => w.scheduledDate === iso) : [];
+    const strength = view !== 'done' ? this.strength().filter((s) => s.scheduledDate === iso) : [];
+    const activities = view !== 'planned' ? this.activities().filter((a) => a.activityDate === iso) : [];
+    const d = new Date(iso + 'T00:00:00');
+    return {
+      date: iso,
+      weekday: this.weekdays[(d.getDay() + 6) % 7],
+      dayNum: d.getDate(),
+      isToday: iso === toIso(new Date()),
+      workouts,
+      strength,
+      activities,
+      unavailability: this.unavailabilities().find((u) => iso >= u.startDate && iso <= u.endDate) ?? null,
+      empty: workouts.length === 0 && strength.length === 0 && activities.length === 0,
+    };
+  }
 
   openMove(kind: 'run' | 'strength', id: string, title: string, date: string): void {
+    // La feuille du jour se referme d'abord : deux feuilles empilées sont illisibles au pouce.
+    this.dayOpen.set(false);
     this.moveTarget.set({ kind, id, title, date });
     this.moveOpen.set(true);
   }
 
   openDetail(w: Workout): void {
+    this.dayOpen.set(false);
     this.detailWorkout.set(w);
     this.detailPrescription.set(null);
     this.detailOpen.set(true);
