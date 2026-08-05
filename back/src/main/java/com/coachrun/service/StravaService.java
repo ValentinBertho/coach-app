@@ -233,7 +233,34 @@ public class StravaService {
                 round(a.averageWatts()),
                 round(a.calories()),
                 com.coachrun.util.PolylineDecoder.decode(polyline),
-                toStream(client.activityStreams(accessToken, a.id())));
+                toStream(client.activityStreams(accessToken, a.id())),
+                toLaps(client.activityLaps(accessToken, a.id())));
+    }
+
+    /**
+     * Tours Strava → tours applicatifs. Un tour unique n'en est pas un (Strava en renvoie toujours
+     * au moins un, couvrant toute la sortie) : la liste est alors laissée vide et la lecture
+     * retombera sur des splits kilométriques.
+     */
+    private java.util.List<com.coachrun.dto.response.ActivityLapsResponse.Lap> toLaps(
+            java.util.List<StravaClient.StravaLap> laps) {
+        if (laps == null || laps.size() < 2) {
+            return java.util.List.of();
+        }
+        java.util.List<com.coachrun.dto.response.ActivityLapsResponse.Lap> out = new java.util.ArrayList<>();
+        for (StravaClient.StravaLap l : laps) {
+            out.add(com.coachrun.dto.response.ActivityLapsResponse.Lap.of(
+                    l.lapIndex() != null ? l.lapIndex() : out.size() + 1,
+                    l.distance() != null ? (int) Math.round(l.distance()) : null,
+                    // Le temps en mouvement, comme partout ailleurs : un feu rouge n'est pas du travail.
+                    l.movingTime() != null ? l.movingTime() : l.elapsedTime(),
+                    round(l.averageHeartrate()),
+                    round(l.maxHeartrate()),
+                    // Cadence par jambe côté Strava, doublée pour rester en pas/min.
+                    l.averageCadence() != null ? (int) Math.round(l.averageCadence() * 2) : null,
+                    round(l.totalElevationGain())));
+        }
+        return out;
     }
 
     private Integer round(Double value) {

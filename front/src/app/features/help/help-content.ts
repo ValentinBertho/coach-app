@@ -96,6 +96,7 @@ const ATHLETE: HelpGuide = {
       summary: 'Voir ta semaine, déplacer une séance, signaler une indisponibilité.',
       blocks: [
         { kind: 'text', text: 'L\'onglet « Agenda » montre ta semaine, jour par jour. Tu navigues d\'une semaine à l\'autre avec les flèches.' },
+        { kind: 'text', text: 'Trois lectures, au choix : « Prévu » (le programme de ton coach), « Réalisé » (tes sorties réelles, y compris celles qui n\'étaient pas prévues — une course, un footing improvisé), et « Les deux » pour comparer d\'un coup d\'œil. Une sortie qui ne correspond à aucune séance est marquée « hors programme » ; touche-la pour ouvrir son détail.' },
         { kind: 'text', text: 'Tu peux déplacer une séance (par exemple décaler la sortie longue d\'un jour) :' },
         { kind: 'steps', items: [
           'Touche la séance à déplacer.',
@@ -119,6 +120,7 @@ const ATHLETE: HelpGuide = {
         ] },
         { kind: 'text', text: 'Pour connecter ta montre, le plus simple est la carte Strava de ton écran d\'accueil (« Connecter Strava ») ; tu la retrouves aussi dans Profil → « Gérer mes connexions ». L\'import se fait ensuite tout seul, toutes les heures, avec déduplication — donc pas de doublon.' },
         { kind: 'text', text: 'Tu viens de rentrer de sortie et tu ne veux pas attendre ? La même carte porte un bouton « Synchroniser » qui va chercher tes dernières activités immédiatement.' },
+        { kind: 'text', text: 'Tes sorties sont classées par mois, de la plus récente à la plus ancienne, comme ton historique. Touche l\'une d\'elles pour l\'ouvrir : tu y trouves le tracé, le temps passé par zone, et le détail tour par tour — l\'allure, le temps et la FC de chaque répétition. Si ta montre n\'a pas découpé la sortie en tours, le détail est présenté au kilomètre.' },
       ],
     },
     {

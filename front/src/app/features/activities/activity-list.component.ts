@@ -11,6 +11,7 @@ import { Workout } from '../../core/models/workout.model';
 import { ActivityService } from '../../core/services/activity.service';
 import { WorkoutService } from '../../core/services/workout.service';
 import { ToastService } from '../../core/services/toast.service';
+import { ActivityLapsComponent } from '../../shared/components/activity-laps/activity-laps.component';
 import { TimeInZoneBarComponent } from '../../shared/components/time-in-zone-bar/time-in-zone-bar.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
@@ -18,7 +19,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
   selector: 'app-activity-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, ReactiveFormsModule, RouterLink, DatePipe, TimeInZoneBarComponent],
+  imports: [SkeletonComponent, ReactiveFormsModule, RouterLink, DatePipe, ActivityLapsComponent, TimeInZoneBarComponent],
   templateUrl: './activity-list.component.html',
   styleUrl: './activity-list.component.scss',
 })

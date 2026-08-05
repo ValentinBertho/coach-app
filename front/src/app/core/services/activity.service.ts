@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Activity, ActivityImportRequest, TimeInZone } from '../models/activity.model';
+import { Activity, ActivityImportRequest, ActivityLaps, TimeInZone } from '../models/activity.model';
 import { AuthService } from './auth.service';
 
 /** Activités réalisées d'un athlète (import + rapprochement). Scoping tenant via clubId. */
@@ -56,5 +56,10 @@ export class ActivityService {
   /** Répartition du temps par zone (allure + FC) pour une activité (V2-7). */
   timeInZone(athleteId: string, activityId: string): Observable<TimeInZone> {
     return this.http.get<TimeInZone>(`${this.base(athleteId)}/${activityId}/time-in-zone`);
+  }
+
+  /** Tours de l'activité (montre), ou splits kilométriques calculés à défaut. */
+  laps(athleteId: string, activityId: string): Observable<ActivityLaps> {
+    return this.http.get<ActivityLaps>(`${this.base(athleteId)}/${activityId}/laps`);
   }
 }

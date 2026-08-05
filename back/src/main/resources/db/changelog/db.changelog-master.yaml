@@ -143,3 +143,5 @@ databaseChangeLog:
       file: db/changelog/changes/069-user-sessions-invalidated-at.yaml
   - include:
       file: db/changelog/changes/070-alert-digest-log.yaml
+  - include:
+      file: db/changelog/changes/071-activity-laps.yaml

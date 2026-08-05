@@ -3,10 +3,13 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 import { STEP_TYPE_LABELS, WORKOUT_TYPE_LABELS, Workout, awaitsFeedback, needsFeedback } from '../../core/models/workout.model';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
+import { RouterLink } from '@angular/router';
+import { Activity } from '../../core/models/activity.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { ToastService } from '../../core/services/toast.service';
+import { formatPace, paceFrom } from '../../core/utils/pace';
 import { DataOriginTagComponent, IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
-import { BottomSheetComponent } from '../../shared/components/ui';
+import { BottomSheetComponent, SegmentedControlComponent } from '../../shared/components/ui';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { HelpHintComponent } from '../help/help-hint.component';
 import { CalculatedBlockEntry, courseBlockTypeLabel, CourseBlock, WorkoutPrescription } from '../../core/models/course.model';
@@ -18,8 +21,14 @@ interface DayRow {
   isToday: boolean;
   workouts: Workout[];
   strength: ScheduledStrength[];
+  activities: Activity[];
   unavailability: Unavailability | null;
+  /** Le jour porte-t-il quelque chose une fois le filtre appliqué ? */
+  empty: boolean;
 }
+
+/** Ce que l'agenda montre : le programme, ce qui a réellement été couru, ou les deux. */
+type AgendaView = 'planned' | 'done' | 'both';
 interface MoveTarget { kind: 'run' | 'strength'; id: string; title: string; date: string; }
 interface PickDay { date: string; label: string; isCurrent: boolean; isPast: boolean; }
 
@@ -49,7 +58,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     IconComponent, IntensityZoneBadgeComponent, DataOriginTagComponent, BottomSheetComponent,
-    WorkoutFeedbackSheetComponent, HelpHintComponent,
+    SegmentedControlComponent, WorkoutFeedbackSheetComponent, HelpHintComponent, RouterLink,
   ],
   template: `
     <header class="cal-top">
@@ -60,6 +69,13 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
         <button type="button" class="btn btn-ghost btn-sm" (click)="shift(1)" aria-label="Semaine suivante"><app-icon name="arrow-right" [size]="16" /></button>
       </div>
       <p class="subtitle">{{ periodLabel() }}</p>
+      <!-- Prévu / Réalisé / Les deux : sans « réalisé », une sortie non programmée — une course,
+           un footing improvisé — n'existait nulle part dans l'agenda, alors qu'elle compte dans
+           la semaine d'entraînement autant que le reste. -->
+      <div class="view-nav">
+        <app-segmented-control [options]="viewOptions" [value]="view()"
+          (valueChange)="setView($event)" ariaLabel="Contenu de l'agenda" />
+      </div>
     </header>
 
     <main class="agenda">
@@ -101,7 +117,23 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                 <span class="ses-move" aria-hidden="true"><app-icon name="move" [size]="13" /> déplacer</span>
               </button>
             }
-            @if (day.workouts.length === 0 && day.strength.length === 0) {
+            <!-- Sorties réellement effectuées. Celles qui ne sont rattachées à aucune séance
+                 portent « hors programme » : c'est l'information que l'agenda taisait. -->
+            @for (a of day.activities; track a.id) {
+              <a class="ses ses--done" [routerLink]="['/athlete/activities']" [queryParams]="{ open: a.id }">
+                <span class="ses-main">
+                  <span class="ses-title"><app-icon name="check" [size]="14" /> {{ a.title || 'Sortie' }}</span>
+                  @if (a.status !== 'MATCHED') { <span class="ses-extra">hors programme</span> }
+                </span>
+                <span class="ses-facts">
+                  @if (a.distanceM) { <span class="metric">{{ (a.distanceM / 1000).toFixed(1) }} km</span> }
+                  @if (a.durationS) { <span class="metric">{{ fmtDur(a.durationS) }}</span> }
+                  @if (actPace(a); as p) { <span class="metric">{{ p }}/km</span> }
+                  @if (a.avgHr) { <span class="metric">{{ a.avgHr }} bpm</span> }
+                </span>
+              </a>
+            }
+            @if (day.empty) {
               <p class="day-empty">—</p>
             }
           </div>
@@ -241,6 +273,16 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     .ses:active { transform: scale(0.99); }
     .ses--run { --type-c: var(--dari-teal); }
     .ses--strength { --type-c: var(--dari-violet); }
+    /* Le réalisé se distingue du prescrit à la couleur du rail, sans avoir à lire l'étiquette. */
+    .ses--done { --type-c: var(--success, var(--dari-teal)); text-decoration: none; color: inherit; }
+    .ses-facts { display: flex; flex-wrap: wrap; gap: var(--sp-2); color: var(--ink-3); font-size: var(--text-sm); }
+    .ses-extra {
+      padding: 2px 8px; border-radius: var(--radius-full);
+      background: var(--paper-sunk); color: var(--ink-3);
+      font-size: var(--text-xs); font-weight: 700; white-space: nowrap;
+    }
+
+    .view-nav { margin-top: var(--sp-2); }
     .ses-body { display: flex; flex-direction: column; gap: var(--sp-1); text-align: left; width: 100%; background: transparent; border: none; padding: 0; cursor: pointer; }
     .ses-main { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
     .ses-title { font-weight: 700; color: var(--ink); flex: 1; }
@@ -304,7 +346,20 @@ export class AthleteCalendarComponent implements OnInit {
   readonly anchor = signal<Date>(new Date());
   readonly workouts = signal<Workout[]>([]);
   readonly strength = signal<ScheduledStrength[]>([]);
+  readonly activities = signal<Activity[]>([]);
   readonly unavailabilities = signal<Unavailability[]>([]);
+
+  readonly viewOptions = [
+    { label: 'Prévu', value: 'planned' },
+    { label: 'Réalisé', value: 'done' },
+    { label: 'Les deux', value: 'both' },
+  ];
+  /**
+   * « Les deux » par défaut : c'est la lecture qui répond à la question qu'on se pose en ouvrant
+   * son agenda — ce que j'avais à faire, et ce que j'ai fait. Les deux autres vues servent à
+   * isoler l'un ou l'autre.
+   */
+  readonly view = signal<AgendaView>('both');
 
   /** Feuille de ressenti partagée (même parcours que « Aujourd'hui »). */
   private readonly feedbackSheet = viewChild(WorkoutFeedbackSheetComponent);
@@ -330,21 +385,30 @@ export class AthleteCalendarComponent implements OnInit {
   readonly days = computed<DayRow[]>(() => {
     const today = toIso(new Date());
     const start = mondayOf(this.anchor());
+    const view = this.view();
+    const showPlanned = view !== 'done';
+    const showDone = view !== 'planned';
     const ws = this.workouts();
     const ss = this.strength();
+    const acts = this.activities();
     const un = this.unavailabilities();
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       const iso = toIso(d);
+      const workouts = showPlanned ? ws.filter((w) => w.scheduledDate === iso) : [];
+      const strength = showPlanned ? ss.filter((s) => s.scheduledDate === iso) : [];
+      const activities = showDone ? acts.filter((a) => a.activityDate === iso) : [];
       return {
         date: iso,
         weekday: this.weekdays[i],
         dayNum: d.getDate(),
         isToday: iso === today,
-        workouts: ws.filter((w) => w.scheduledDate === iso),
-        strength: ss.filter((s) => s.scheduledDate === iso),
+        workouts,
+        strength,
+        activities,
         unavailability: un.find((u) => iso >= u.startDate && iso <= u.endDate) ?? null,
+        empty: workouts.length === 0 && strength.length === 0 && activities.length === 0,
       };
     });
   });
@@ -381,7 +445,15 @@ export class AthleteCalendarComponent implements OnInit {
     });
   });
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    // Une seule fois : l'API des sorties n'est pas bornée par semaine, le filtrage par jour se
+    // fait à l'affichage. La recharger à chaque flèche serait un appel de plus pour rien.
+    this.portal.activities().subscribe({
+      next: (a) => this.activities.set(a),
+      error: () => this.activities.set([]),
+    });
+  }
 
   load(): void {
     const start = mondayOf(this.anchor());
@@ -392,6 +464,13 @@ export class AthleteCalendarComponent implements OnInit {
     this.portal.workouts(from, to).subscribe({ next: (w) => this.workouts.set(w), error: () => this.workouts.set([]) });
     this.portal.ppScheduled(from, to).subscribe({ next: (s) => this.strength.set(s), error: () => this.strength.set([]) });
     this.portal.unavailabilities().subscribe({ next: (u) => this.unavailabilities.set(u), error: () => this.unavailabilities.set([]) });
+  }
+
+  setView(view: string): void { this.view.set(view as AgendaView); }
+
+  /** Allure réelle d'une sortie, celle déjà calculée côté serveur si elle existe. */
+  actPace(a: Activity): string | null {
+    return formatPace(a.paceSPerKm) ?? paceFrom(a.distanceM, a.durationS);
   }
 
   shift(step: number): void {

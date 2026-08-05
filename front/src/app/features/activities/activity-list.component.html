@@ -68,7 +68,7 @@
         <!-- Un import Strava porte désormais tracé et flux, comme un GPX : la carte et le temps
              en zone ne sont plus réservés aux fichiers importés à la main. -->
         @if (hasDetail(a)) {
-          <button type="button" class="btn btn-ghost btn-sm" [class.active]="zonesOpen() === a.id" (click)="toggleZones(a.id)">Zones</button>
+          <button type="button" class="btn btn-ghost btn-sm" [class.active]="zonesOpen() === a.id" (click)="toggleZones(a.id)">Détail</button>
           <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', athleteId(), 'activities', a.id, 'map']">Carte</a>
         }
         @if (a.status === 'MATCHED') {
@@ -94,6 +94,9 @@
         }
         @if (zonesOpen() === a.id) {
           <div class="a-zones">
+            <!-- Le détail par tour d'abord : c'est lui qui dit si le fractionné a été tenu.
+                 La répartition en zones vient après, comme lecture d'ensemble. -->
+            <app-activity-laps [athleteId]="athleteId()" [activityId]="a.id" />
             <app-time-in-zone-bar [athleteId]="athleteId()" [activityId]="a.id" />
           </div>
         }

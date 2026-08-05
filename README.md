@@ -64,6 +64,10 @@ assistant), et athlète (PWA mobile).
   (allure/FC/RPE) et éducatifs liés, retour (RPE / fatigue / douleur / commentaire), **déplacement**
   de séance (jamais de modification/suppression), **mes activités** (saisie manuelle + import GPX/TCX),
   **mes objectifs** (CRUD A/B/C) et **connexion de sa montre** (Strava) directement côté athlète.
+  L'agenda se lit en **prévu / réalisé / les deux** : les sorties qui n'étaient pas au programme
+  y apparaissent, marquées comme telles. Chaque sortie s'ouvre sur son tracé, son temps en zone
+  et son **détail tour par tour** — les tours de la montre quand elle en a pris (les répétitions
+  d'un fractionné), des splits kilométriques calculés sinon.
 
 ### Module préparation physique (force)
 - **Bibliothèque d'exercices** (catégories, groupes musculaires, matériel, vidéo, progression/régression).
