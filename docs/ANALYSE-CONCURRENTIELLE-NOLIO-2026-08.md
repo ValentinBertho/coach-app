@@ -304,26 +304,64 @@ Le socle métier est **le même**, et c'est ce qui fait de Nolio un concurrent :
 
 ---
 
-## 6. Le passif interne à solder d'abord
+## 6. L'état réel du passif interne
 
-Ces points viennent de vos propres audits (août 2026) et **priment sur toute nouvelle
-fonctionnalité** : ils attaquent exactement l'argument qui vous différencie de Nolio — la justesse
-physiologique.
+> **Correction (première version de ce document)** : cette section affirmait que les bloquants
+> métier et RGPD des audits n'étaient pas corrigés, en se fiant à l'index `docs/README.md`
+> (« aucun correctif appliqué »). **C'est faux.** Le plan de conformité et le code disent le
+> contraire : les **huit items de code de la vague 0 et les huit de la vague 1 sont livrés et
+> couverts par des tests** (295 tests avant, 316 après V0, 325 après V1). Vérifié dans le code :
+> `SessionCalculatorEngine` dérive désormais le RPE du **référentiel prescrit**
+> (`domainForPrescription`) et non d'une reclassification d'allure ; `HealthDataConsentValidator`
+> est injecté dans `DailyCheckInService`, `StrengthResultService` et `StrengthScheduleService`.
+> L'index `docs/README.md` est la source périmée, pas le plan.
 
-| # | Problème | Effet | Effort |
+### 6.1 Ce qui reste vraiment ouvert avant d'ouvrir
+
+Aucun n'est un problème de code — c'est précisément pour ça qu'ils traînent.
+
+| # | Reste à faire | Nature | Pourquoi c'est bloquant |
 |---|---|---|---|
-| **B1** | Sans test lactate, **toute** séance affiche « RPE 2–4 » côté athlète, y compris un 10×400 prescrit à RPE 8 (le RPE saisi par le coach n'est jamais affiché) | Touche la quasi-totalité des athlètes en bêta ; séance ratée ou perte de confiance dans les chiffres | ~1 h |
-| **B2** | Une pastille de forme rouge **ne périme jamais** : un retour de six semaines pèse autant qu'un signalement du matin | Le tri « à surveiller » remonte le mauvais athlète | 0,5 j |
-| **B3** | Une indisponibilité (blessure) est purement déclarative : séances maintenues, alertes « séance manquée » et « athlète silencieux » déclenchées, digest quotidien | L'athlète blessé devient le plus alarmant du club | — |
-| **B4** | La charge est calculée sur la **durée prévue**, pas réalisée : une séance abandonnée au tiers compte pour 100 % | L'ACWR monte pour quelqu'un qui s'est justement entraîné moins — le chiffre de sécurité ment | — |
-| **RGPD** | Le validateur de consentement santé n'est branché que sur **une** des quatre familles de données qu'il déclare couvrir ; le retrait efface la douleur mais pas la fatigue ni la prépa physique | Bloquant d'ouverture | — |
-| **Ops** | Plafond SSE posé sur les notifications mais pas la messagerie ; plafond d'e-mails absent des routes anonymes (dont `/auth/register`) | Exposition le jour de l'ouverture | — |
+| **V0-09** | `legalName` et `address` sont **encore vides** (`legal.component.ts:34-35`) | Légal | Article 13 du RGPD : l'identité du responsable de traitement est obligatoire, et le service traite des données de santé. L'exemption LCEN ne couvre pas ça |
+| **V0-10** | `ops/backup-db.sh` **n'est exécuté par rien** (aucun cron, aucun workflow) et la restauration n'a **jamais été jouée** | Exploitation | Seule étape irrattrapable du plan : une perte de données ne se rattrape pas après coup |
+| **V0-11** | Compte administrateur de plateforme absent en production | Exploitation | `/admin` inatteignable : ni révocation d'invitation, ni suppression de compte — alors que la politique de confidentialité la promet |
+| **V1-09** | DSN Sentry backend et tags de déploiement | Exploitation | Sans lui, une erreur en production est invisible |
+| **L-04** | Relecture juridique des CGU et de la politique de confidentialité | Légal | Ne peut pas être remplacée par un audit de code |
 
-À quoi s'ajoutent les limites structurelles connues : **SSE mono-instance** (Redis pub/sub requis
-pour scaler), **jeton en query param** pour SSE et pièces jointes, **import Strava par polling**
-(webhook à faire), **pagination** non généralisée, **pièces jointes en base** (`bytea`), **tests
-front et e2e** insuffisants (pas de Playwright/Cypress), **assertions sur H2** plutôt que
-Testcontainers.
+Charge résiduelle : de l'ordre de **2 à 3 jours**, dont une bonne partie n'est pas du
+développement (décision d'identité civile, test de restauration, relecture juridique).
+
+### 6.2 Les limites structurelles qui mordront après l'ouverture
+
+**SSE mono-instance** (Redis pub/sub requis pour scaler), **jeton en query param** pour SSE et
+pièces jointes, **import Strava par polling** (webhook à faire), **pagination** non généralisée,
+**pièces jointes en base** (`bytea`), **tests front et e2e** insuffisants (pas de
+Playwright/Cypress), **assertions sur H2** plutôt que Testcontainers.
+
+### 6.3 Deux contraintes externes qui pèsent plus que tout le reste
+
+Elles ne sont pas dans le code, ne se corrigent pas par du développement, et conditionnent la
+stratégie d'ouverture.
+
+**A. Le programme développeur Garmin est fermé.** Votre propre dossier
+(`docs/DEMANDES-API-GARMIN-COROS.md`, 4 août 2026) l'établit : Garmin a **suspendu la revue et
+l'approbation des nouvelles demandes**, le formulaire public a été retiré, il n'existe **ni liste
+d'attente ni date de réouverture**. Garmin exige en outre une **personne morale** — les demandes
+personnelles sont refusées. Conséquence : *« je me lance quand j'aurai l'export montre »* revient à
+fixer sa date d'ouverture sur une décision de Garmin qu'on ne contrôle pas. **COROS, lui, est
+ouvert** et annonce un processus non discriminatoire — c'est la seule des deux demandes qui peut
+aboutir aujourd'hui.
+
+**B. Les conditions de l'API Strava restreignent l'affichage des données à un tiers.** L'accord
+API mis à jour par Strava énonce que les données d'un utilisateur ne peuvent être affichées **qu'à
+cet utilisateur**, et interdit de les divulguer à un autre utilisateur — les plateformes de
+coaching qui montrent les données d'un athlète à son coach sont explicitement visées. Or c'est
+exactement ce que fait `ActivityController` (`/clubs/{clubId}/athletes/{athleteId}/activities`,
+lecture coach) sur des activités `ActivitySource.STRAVA`. Strava nuance de son côté que la
+majorité des usages de coaching restent autorisés — **le texte est ambigu et son application
+incertaine**. Ce document ne tranche pas : il signale que **l'unique chaîne d'ingestion automatique
+de l'application repose sur un contrat qu'il faut relire avant d'ouvrir**, et qu'un repli
+(import `.fit`, COROS) doit exister avant, pas après.
 
 ---
 
@@ -383,22 +421,31 @@ compte pour un coach qui choisit un outil.
 
 ### 7.3 Feuille de route priorisée
 
-**Vague 0 — avant d'ouvrir à des inconnus** *(dette qui détruit votre argument différenciant)*
-1. **B1** — dériver le domaine d'intensité du référentiel prescrit, et afficher le RPE du coach
-   quand il existe. *(~1 h, impact maximal)*
-2. **RGPD** — brancher le validateur de consentement santé sur ses quatre familles de données et
-   corriger le retrait.
-3. **Ops** — plafond SSE sur la messagerie, rate-limit sur les routes anonymes (`/auth/register`).
-4. **B2** — fenêtre de fraîcheur (7–10 j) sur la pastille de forme. *(0,5 j)*
-5. **B4** — calculer la charge sur la durée réalisée.
-6. **B3** — propager l'indisponibilité aux séances, aux alertes et au digest.
+**Vague 0 — avant d'ouvrir à des inconnus** *(2–3 j, dont peu de développement)*
+1. **V0-09** — renseigner l'identité civile et l'adresse de l'éditeur. Décision humaine, à lancer
+   le premier jour.
+2. **V0-10** — planifier les sauvegardes **et jouer une restauration** dans une base jetable.
+   Seule étape irrattrapable.
+3. **V0-11** — créer le compte administrateur de plateforme en production.
+4. **V1-09** — brancher le DSN Sentry backend.
+5. **L-04** — relecture juridique des CGU et de la politique de confidentialité.
+6. **Relire l'accord API Strava** au regard de la lecture coach des activités importées (§6.3-B),
+   et décider : restreindre l'affichage, ou accélérer un repli d'ingestion.
+
+*(Les bloquants métier et RGPD de code — RPE prescrit, consentement, forme périmée, charge réelle,
+indisponibilité, plafonds — sont **livrés**. Voir §6.)*
 
 **Vague 1 — combler l'écart qui fait perdre des athlètes** *(0–3 mois)*
-7. **Export des séances structurées vers Garmin** (dossier API déjà rédigé), puis COROS.
-8. **Import `.fit`** et **connecteur Garmin en entrée**.
-9. **Webhook Strava** à la place du polling.
-10. **Exposer les plans périodisés** dans l'UI (le back existe déjà).
-11. **Métriques quotidiennes** : poids, FC de repos, sommeil.
+7. **Demande d'accès COROS** — la seule des deux qui peut aboutir aujourd'hui, à envoyer
+   maintenant. En parallèle, ouvrir un ticket au support développeur Garmin pour l'antériorité.
+8. **Import `.fit`** — indépendant de tout partenariat, couvre Garmin et COROS en entrée dès
+   aujourd'hui, et réduit la dépendance à Strava.
+9. **Export des séances vers la montre** dès qu'un des deux accès est obtenu (COROS d'abord,
+   Garmin quand le programme rouvre). **Ne pas conditionner l'ouverture à cette étape.**
+10. **Webhook Strava** à la place du polling.
+11. **Exposer les plans périodisés** dans l'UI, ou retirer le module (décision NC-01, toujours
+    ouverte : neuf endpoints sans écran).
+12. **Métriques quotidiennes** : poids, FC de repos, sommeil.
 
 **Vague 2 — rattraper le vocabulaire du marché** *(3–6 mois)*
 12. **Modèles de charge** TRIMP / Foster / TSS en complément du sRPE.
