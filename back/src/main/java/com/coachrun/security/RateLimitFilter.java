@@ -43,9 +43,25 @@ public class RateLimitFilter extends OncePerRequestFilter {
     public static final String EMAIL_BUCKET = "api-email";
     /** Bucket des routes <b>anonymes</b> qui déclenchent un envoi d'e-mail, compté à l'heure par IP. */
     public static final String ANONYMOUS_EMAIL_BUCKET = "public-email";
+    /**
+     * Bucket du rafraîchissement de jeton.
+     *
+     * <p>Il partageait le seuil général — vingt requêtes par minute et par IP, calibré contre le
+     * devinage d'identifiants. Or un rafraîchissement n'est pas une tentative : c'est l'opération
+     * la plus banale d'une application ouverte plusieurs fois par jour, et elle se déclenche à
+     * chaque retour au premier plan. Deux contextes sur le même téléphone — l'application
+     * installée et le même site dans le navigateur — la déclenchent chacun pour leur compte, et
+     * derrière un NAT d'opérateur toute une cohorte partage l'adresse.</p>
+     *
+     * <p>Le dépassement ne se contentait pas de ralentir : le client interprétait le 429 comme un
+     * refus de session et déconnectait. Un plafond destiné à protéger le mot de passe finissait
+     * par éjecter des utilisateurs parfaitement authentifiés.</p>
+     */
+    public static final String REFRESH_BUCKET = "auth-refresh";
 
     private final FixedWindowRateLimiter limiter;
     private final FixedWindowRateLimiter loginLimiter;
+    private final FixedWindowRateLimiter refreshLimiter;
     private final FixedWindowRateLimiter authenticatedLimiter;
     private final FixedWindowRateLimiter emailLimiter;
     private final FixedWindowRateLimiter anonymousEmailLimiter;
@@ -55,6 +71,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     public RateLimitFilter(@Value("${app.rate-limit.max-requests:20}") int maxRequests,
                            @Value("${app.rate-limit.window-seconds:60}") int windowSeconds,
                            @Value("${app.rate-limit.login-max-requests:5}") int loginMaxRequests,
+                           @Value("${app.rate-limit.refresh-max-requests:60}") int refreshMaxRequests,
                            @Value("${app.rate-limit.authenticated-max-requests:300}") int authenticatedMax,
                            @Value("${app.rate-limit.email-max-requests:3}") int emailMax,
                            @Value("${app.rate-limit.email-window-seconds:3600}") int emailWindowSeconds,
@@ -64,6 +81,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // La connexion a son propre seuil, bien plus strict : 20 essais par minute et par IP
         // laissent 28 800 mots de passe par jour à un attaquant, ce qui n'est pas une limite.
         this.loginLimiter = new FixedWindowRateLimiter(loginMaxRequests, Duration.ofSeconds(windowSeconds));
+        // Rafraîchissement : large, parce qu'il est légitime et fréquent. Il reste borné — un
+        // jeton rejoué est de toute façon refusé par la rotation et la liste noire.
+        this.refreshLimiter = new FixedWindowRateLimiter(refreshMaxRequests, Duration.ofSeconds(windowSeconds));
         // Plafond global : large (une navigation soutenue reste très en dessous), mais il existe.
         this.authenticatedLimiter =
                 new FixedWindowRateLimiter(authenticatedMax, Duration.ofSeconds(windowSeconds));
@@ -90,7 +110,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return "auth-register";
         }
         if (uri.endsWith("/auth/refresh")) {
-            return "auth-refresh";
+            return REFRESH_BUCKET;
         }
         if (uri.contains("/public/password-reset")) {
             return "password-reset";
@@ -175,7 +195,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
         if (bucket != null) {
             key = clientIp(request) + ":" + bucket;
-            applicable = LOGIN_BUCKET.equals(bucket) ? loginLimiter : limiter;
+            if (LOGIN_BUCKET.equals(bucket)) {
+                applicable = loginLimiter;
+            } else if (REFRESH_BUCKET.equals(bucket)) {
+                applicable = refreshLimiter;
+            } else {
+                applicable = limiter;
+            }
         } else if (isEmailTriggering(request.getRequestURI(), request.getMethod())) {
             // Envoi d'e-mail déclenché par un compte : seuil très bas, et par porteur de jeton
             // (c'est le compte qui déclenche, pas l'adresse réseau).
@@ -268,11 +294,31 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (index < 0 || index >= hops.length) {
             // Moins de relais qu'annoncé : chaîne incomplète ou falsifiée. On retombe sur
             // l'adresse de la connexion TCP, la seule que le client ne peut pas choisir.
+            //
+            // Ce repli est sûr, mais il n'est bon que si l'adresse TCP est bien celle du client.
+            // Derrière un relais, c'est celle *du relais* — la même pour tout le monde — et tous
+            // les utilisateurs tombent alors dans un compteur unique : les plafonds destinés à
+            // contenir un attaquant éjectent la cohorte entière. C'est ce que produit une
+            // topologie mal déclarée, d'où l'alerte : le repli protège, il ne répare pas.
+            warnOnce(hops.length);
             return request.getRemoteAddr();
         }
         String ip = hops[index].trim();
         return ip.isEmpty() ? request.getRemoteAddr() : ip;
     }
+
+    /** Une seule alerte par démarrage : la topologie ne change pas d'une requête à l'autre. */
+    private void warnOnce(int actualHops) {
+        if (proxyHopsWarned.compareAndSet(false, true)) {
+            logger.warn("X-Forwarded-For porte " + actualHops + " relais alors que "
+                    + "RATE_LIMIT_TRUSTED_PROXY_HOPS=" + trustedProxyHops
+                    + ". Le rate limiting retombe sur le premier élément de la chaîne. "
+                    + "Ajuster la variable à la topologie réelle.");
+        }
+    }
+
+    private final java.util.concurrent.atomic.AtomicBoolean proxyHopsWarned =
+            new java.util.concurrent.atomic.AtomicBoolean();
 
     /**
      * Purge des fenêtres closes. Les tables sont indexées sur des clés que l'appelant contrôle
@@ -283,6 +329,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     void purgeExpiredWindows() {
         limiter.purgeExpired();
         loginLimiter.purgeExpired();
+        refreshLimiter.purgeExpired();
         authenticatedLimiter.purgeExpired();
         // Les deux seaux horaires manquaient à l'appel : leurs tables, indexées sur des clés que
         // l'appelant contrôle, grossissaient sans jamais être nettoyées.

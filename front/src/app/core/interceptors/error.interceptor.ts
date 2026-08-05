@@ -73,8 +73,18 @@ function label(field: string): string {
  * expiré, mot de passe changé) met fin à la session.</p>
  */
 function endSession(auth: AuthService, toast: ToastService, error: HttpErrorResponse): void {
-  if (error.status === 0 || error.status >= 500) {
-    toast.error('Service momentanément indisponible — réessaie dans un instant.');
+  // Seul un refus explicite du serveur met fin à une session. Tout le reste — réseau coupé,
+  // serveur en redéploiement, plafond de requêtes atteint — dit « réessaie », pas « ton compte
+  // n'est plus valable ».
+  //
+  // Le 429 était le plus coûteux des cas mal classés : le rafraîchissement de jeton partageait
+  // le plafond anti-devinage de mot de passe, si bien qu'une application ouverte deux fois dans
+  // la minute suffisait à le franchir. Le client en concluait une session morte et déconnectait
+  // un utilisateur parfaitement authentifié.
+  if (error.status !== 401 && error.status !== 403) {
+    toast.error(error.status === 429
+      ? 'Trop de requêtes — réessaie dans quelques secondes.'
+      : 'Service momentanément indisponible — réessaie dans un instant.');
     return;
   }
   // Une salve échoue en bloc. Au retour au premier plan, le premier écran lance une dizaine de
