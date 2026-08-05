@@ -23,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Bout en bout des tours d'activité : import d'un TCX de fractionné, stockage JSON, relecture par
+ * Bout en bout d'un fichier de montre importé : TCX ou FIT, stockage JSON, relecture par
  * l'athlète depuis son portail.
  *
  * <p>Le chemin critique est celui du stockage : les tours passent par une colonne CLOB en JSON et
@@ -115,6 +115,72 @@ class ActivityLapsEndpointTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.kind").value("SPLIT"))
                 .andExpect(jsonPath("$.laps.length()").value(0));
+    }
+
+    /**
+     * Le même parcours en FIT — le format que rend Garmin Connect, et celui que rendront les
+     * synchronisations COROS et Garmin quand leurs accès seront ouverts. Ce test garde la
+     * chaîne complète : octets binaires → décodage → activité stockée → tours relus.
+     */
+    @Test
+    void unFitDeMontreSImporteAvecSesToursEtSaFcMoyenne() throws Exception {
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        String athlete = signUpAthlete(mvc);
+
+        java.util.List<FitFileBuilder.Field> record = java.util.List.of(
+                new FitFileBuilder.Field(253, 4, FitFileBuilder.TYPE_U32),
+                new FitFileBuilder.Field(0, 4, FitFileBuilder.TYPE_S32),
+                new FitFileBuilder.Field(1, 4, FitFileBuilder.TYPE_S32),
+                new FitFileBuilder.Field(3, 1, FitFileBuilder.TYPE_U8));
+        java.util.List<FitFileBuilder.Field> lap = java.util.List.of(
+                new FitFileBuilder.Field(8, 4, FitFileBuilder.TYPE_U32),
+                new FitFileBuilder.Field(9, 4, FitFileBuilder.TYPE_U32),
+                new FitFileBuilder.Field(15, 1, FitFileBuilder.TYPE_U8));
+        java.util.List<FitFileBuilder.Field> session = java.util.List.of(
+                new FitFileBuilder.Field(2, 4, FitFileBuilder.TYPE_U32),
+                new FitFileBuilder.Field(8, 4, FitFileBuilder.TYPE_U32),
+                new FitFileBuilder.Field(9, 4, FitFileBuilder.TYPE_U32),
+                new FitFileBuilder.Field(16, 1, FitFileBuilder.TYPE_U8));
+        long t0 = FitFileBuilder.fitTime("2026-06-20T08:00:00Z");
+
+        byte[] fit = new FitFileBuilder()
+                .define(0, 20, record)
+                .data(0, record, t0, FitFileBuilder.semicircles(45.75), FitFileBuilder.semicircles(4.85), 150)
+                .data(0, record, t0 + 84, FitFileBuilder.semicircles(45.7536), FitFileBuilder.semicircles(4.852), 168)
+                .define(1, 19, lap)
+                .data(1, lap, 84_000, 40_000, 168)
+                .data(1, lap, 120_000, 20_000, 132)
+                .define(2, 18, session)
+                .data(2, session, t0, 204_000, 60_000, 152)
+                .build();
+
+        String activityId = objectMapper.readTree(mvc.perform(
+                        multipart("/me/activities/import-file")
+                                .file(new MockMultipartFile("file", "seance.fit",
+                                        "application/octet-stream", fit))
+                                .header("Authorization", athlete))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.source").value("FILE"))
+                .andExpect(jsonPath("$.activityDate").value("2026-06-20"))
+                // Totaux de la montre, et non un haversine sur deux points.
+                .andExpect(jsonPath("$.distanceM").value(600))
+                .andExpect(jsonPath("$.durationS").value(204))
+                // La FC moyenne du message de session : sans elle, l'import FIT afficherait
+                // moins de choses qu'une remontée Strava de la même sortie.
+                .andExpect(jsonPath("$.avgHr").value(152))
+                // Le titre reprend le nom du fichier, extension retirée.
+                .andExpect(jsonPath("$.title").value("seance"))
+                .andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        mvc.perform(get("/me/activities/{id}/laps", activityId).header("Authorization", athlete))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kind").value("DEVICE"))
+                .andExpect(jsonPath("$.laps.length()").value(2))
+                .andExpect(jsonPath("$.laps[0].distanceM").value(400))
+                .andExpect(jsonPath("$.laps[0].durationS").value(84))
+                .andExpect(jsonPath("$.laps[0].paceSPerKm").value(210))
+                .andExpect(jsonPath("$.laps[0].avgHr").value(168));
     }
 
     /** Athlète inscrit par invitation, comme dans la vraie vie : coach → invitation → compte. */

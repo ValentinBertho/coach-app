@@ -74,7 +74,7 @@ import { StravaStatus } from '../../core/models/strava.model';
       </div>
 
       <p class="field-hint note">
-        Tu peux aussi <a routerLink="/athlete/activities">ajouter une sortie manuellement ou importer un GPX</a>.
+        Tu peux aussi <a routerLink="/athlete/activities">ajouter une sortie manuellement ou importer un fichier de montre (FIT, GPX, TCX)</a>.
       </p>
     </div>
   `,

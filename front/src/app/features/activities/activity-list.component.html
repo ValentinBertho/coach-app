@@ -36,11 +36,11 @@
 <div class="card" style="margin-bottom: var(--sp-5); display:flex; align-items:center; justify-content:space-between; gap:var(--sp-3); flex-wrap:wrap">
   <div>
     <strong>Importer un fichier GPS</strong>
-    <p class="field-hint">Formats GPX / TCX (montre, Strava export…). Le tracé et les métriques sont calculés.</p>
+    <p class="field-hint">Formats FIT, GPX et TCX (export Garmin Connect, COROS, Strava…). Le tracé et les métriques sont repris du fichier.</p>
   </div>
   <label class="btn btn-ghost">
     Choisir un fichier
-    <input type="file" accept=".gpx,.tcx" hidden (change)="onFile($event)" />
+    <input type="file" accept=".fit,.gpx,.tcx" hidden (change)="onFile($event)" />
   </label>
 </div>
 

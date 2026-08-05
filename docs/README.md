@@ -36,6 +36,12 @@ sur les précédents quand ils se contredisent.
 | [`archive/audit-produit-dari-lab.md`](./archive/audit-produit-dari-lab.md) | Produit et logique métier, écran par écran | 🟡 Historique — largement traité depuis |
 | [`archive/audit-ui-ux-dari-lab.md`](./archive/audit-ui-ux-dari-lab.md) | UI / UX / design, écran par écran | 🟡 Historique — son §8 tient le suivi d'exécution |
 
+## Analyses de marché — datées, elles aussi
+
+| Document | Angle | État |
+|---|---|---|
+| [`ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md`](./ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md) | **Concurrence** : comparaison à Nolio (fonctionnalités, UX, UI, ergonomie), verdict de concurrence, maturité estimée, feuille de route priorisée en 4 vagues | 🟡 Août 2026. ⚠️ Le volet Nolio repose sur de la recherche web, **pas sur une prise en main** — `nolio.io` est inaccessible depuis l'environnement d'analyse. À revalider par un essai réel |
+
 ## Archive — historique, plus maintenu
 
 `archive/` contient ce qui a servi à construire l'application et qu'on garde pour la traçabilité,

@@ -112,12 +112,12 @@ const ATHLETE: HelpGuide = {
       id: 'sorties',
       icon: 'footprints',
       title: 'Mes sorties',
-      summary: 'Enregistrer une course : à la main, par fichier GPX, ou via Strava.',
+      summary: 'Enregistrer une course : à la main, par fichier de montre, ou via Strava.',
       blocks: [
         { kind: 'text', text: 'L\'onglet « Sorties » regroupe tes activités réelles. Trois façons de les ajouter :' },
         { kind: 'list', items: [
           'À la main : « Ajouter une sortie » → date, distance, durée, dénivelé.',
-          'Par fichier : « Importer un GPX » (formats GPX et TCX) — le tracé s\'affiche sur une carte.',
+          'Par fichier : « Importer un fichier » (formats FIT, GPX et TCX) — le tracé s\'affiche sur une carte.',
           'Automatiquement : connecte Strava et tes sorties s\'importent toutes seules.',
         ] },
         { kind: 'text', text: 'Pour connecter ta montre, le plus simple est la carte Strava de ton écran d\'accueil (« Connecter Strava ») ; tu la retrouves aussi dans Profil → « Gérer mes connexions ». L\'import se fait ensuite tout seul, toutes les heures, avec déduplication — donc pas de doublon.' },
@@ -355,14 +355,14 @@ const COACH: HelpGuide = {
       id: 'integrations',
       icon: 'watch',
       title: 'Intégrations & export',
-      summary: 'Strava (côté athlète), import GPX/TCX, export PDF du programme.',
+      summary: 'Strava (côté athlète), import FIT/GPX/TCX, export PDF du programme.',
       blocks: [
         { kind: 'list', items: [
           'Strava : la connexion est initiée par l\'athlète (depuis son espace) ; tu vois l\'état en lecture seule.',
-          'Import de fichiers GPX/TCX et saisie manuelle d\'activités côté athlète.',
+          'Import de fichiers FIT, GPX et TCX, et saisie manuelle d\'activités côté athlète.',
           'Export PDF du programme d\'un athlète pour un partage hors-ligne.',
         ] },
-        { kind: 'callout', tone: 'info', text: 'Garmin et COROS sont prévus mais pas encore disponibles. Le fallback GPX/TCX couvre l\'essentiel des montres.' },
+        { kind: 'callout', tone: 'info', text: 'La synchronisation automatique Garmin et COROS n\'est pas encore ouverte. En attendant, l\'export FIT de leurs applications s\'importe tel quel : c\'est le format natif de ces montres, avec les totaux qu\'elles ont mesurés.' },
       ],
     },
     {

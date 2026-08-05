@@ -320,7 +320,7 @@ anomalie → e-mail » ; tag git à chaque déploiement, aligné sur `appVersion
 | V3-05 | Wellness étendu : HRV, humeur, poids quotidien | L | Métier |
 | V3-06 | Ouvrir une séance depuis le fil de messages côté athlète | S | UX |
 | V3-07 | Export de données brutes pour un préparateur physique externe (aujourd'hui : PDF seulement) | M | Métier |
-| V3-08 | Import FIT, puis Garmin / COROS | L | Métier |
+| V3-08 | ✅ Import FIT **livré** (`FitParser`, décodeur maison). Reste la synchronisation Garmin / COROS, suspendue à l'ouverture de leurs programmes | L | Métier |
 | V3-09 | Facturation et abonnements | L | Métier |
 | V3-10 | Jetons courts signés à la place du jeton en paramètre d'URL (SSE et pièces jointes) | M | Sécurité |
 | V3-11 | Pièces jointes vers un stockage objet (aujourd'hui en base, quota 200 Mo/club) | M | Technique |

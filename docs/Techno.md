@@ -24,7 +24,7 @@
 | Stockage objet | AWS SDK v2 S3 (R2/MinIO/S3) — fichiers FIT/GPX, photos | — |
 | Scheduling distribué | ShedLock | — |
 | HTTP client externe | `RestClient` / `WebClient` (Strava, Garmin, Coros) | — |
-| Parsing activités | lib FIT (Garmin FIT SDK) + parser GPX/TCX _(hypothèse)_ | — |
+| Parsing activités | décodeurs maison `FitParser` (binaire) et `GpxParser` (XML), géométrie partagée par `ActivityTrack` — pas de SDK externe | ✅ |
 | Doc API | Springdoc OpenAPI / Swagger | — |
 | Monitoring | Sentry | — |
 | Build | Maven | — |

@@ -106,7 +106,7 @@ export class AthletePortalService {
   }
 
   /**
-   * J'importe ma propre trace (GPX/TCX).
+   * J'importe ma propre trace (FIT/GPX/TCX).
    *
    * `confirmDuplicate` lève le contrôle de doublon : ré-importer le même fichier, ou importer la
    * trace d'une sortie déjà remontée par la montre, produisait deux fois la même sortie — et le

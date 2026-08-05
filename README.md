@@ -64,7 +64,7 @@ assistant), et athlète (PWA mobile).
   case par jour, durée et distance de chaque séance, couleur par type, sortie réalisée
   distinguée du prescrit ; un jour se touche pour son détail. Puis séance du jour **avec cibles en fourchettes**
   (allure/FC/RPE) et éducatifs liés, retour (RPE / fatigue / douleur / commentaire), **déplacement**
-  de séance (jamais de modification/suppression), **mes activités** (saisie manuelle + import GPX/TCX),
+  de séance (jamais de modification/suppression), **mes activités** (saisie manuelle + import FIT/GPX/TCX),
   **mes objectifs** (CRUD A/B/C) et **connexion de sa montre** (Strava) directement côté athlète.
   L'agenda se lit en **prévu / réalisé / les deux** : les sorties qui n'étaient pas au programme
   y apparaissent, marquées comme telles. Chaque sortie s'ouvre sur son tracé, son temps en zone
@@ -93,8 +93,10 @@ assistant), et athlète (PWA mobile).
   (blessure / maladie / vacances).
 - **Sync Strava** (OAuth) **initiée par l'athlète** (l'intégration est d'abord côté athlète, CDC §12),
   import automatique des activités avec déduplication ; le coach voit l'état en lecture seule. Import
-  fichier **GPX/TCX** et **saisie manuelle** d'une sortie par l'athlète. Garmin / COROS : prévus
-  (enum présent), non implémentés.
+  fichier **FIT / GPX / TCX** — le FIT est le format natif Garmin et COROS, décodé sans dépendance
+  externe (totaux de la montre, tours et vitesse mesurée compris) — et **saisie manuelle** d'une
+  sortie par l'athlète. La **synchronisation automatique** Garmin / COROS reste à venir : demandes
+  d'accès déposées, l'import FIT en tient lieu en attendant.
 - **Export PDF** du programme d'un athlète.
 - Notifications e-mail (Resend) et push (Web Push / VAPID).
 
@@ -130,7 +132,7 @@ unitairement et **source de vérité** (recalcul à la sauvegarde, équivalent d
 | **Base de données** | PostgreSQL 18 · **Liquibase** (70 migrations versionnées) |
 | **Auth** | JWT (access tokens) + liens magiques d'invitation athlète · `@PreAuthorize` multi-tenant |
 | **Sécurité** | AES-256-GCM (données santé + jetons OAuth chiffrés au repos), CSP, CORS allowlist, rate-limiting |
-| **Intégrations** | Strava (OAuth), import GPX/TCX, e-mail Resend, Web Push (VAPID), export PDF (OpenPDF) |
+| **Intégrations** | Strava (OAuth), import FIT/GPX/TCX (décodeurs maison), e-mail Resend, Web Push (VAPID), export PDF (OpenPDF) |
 | **Temps réel** | Server-Sent Events (messagerie) |
 | **CI/CD** | GitHub Actions · Docker · Railway (back + DB) · Vercel (front) |
 
@@ -332,6 +334,7 @@ le produit et les parcours) :
 | [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | **exploitation : Sentry, sauvegardes BDD, Actuator, CI (pas-à-pas)** |
 | [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md) | **runbook de mise en service : Resend, Sentry, uptime, backups (pas-à-pas)** |
 | [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md) | **plan de mise en conformité** : vagues 0 à 3, check-lists légale/RGPD et opérationnelle, recommandation GO/NO-GO |
+| [`docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md`](./docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md) | **analyse concurrentielle Nolio** : fonctionnalités, UX, UI, ergonomie, verdict, maturité, feuille de route |
 | [`docs/AUDIT-FONCTIONNEL-2026-08.md`](./docs/AUDIT-FONCTIONNEL-2026-08.md) | audit métier : parcours coach/athlète sur un mésocycle réel (prescription, charge, alertes, blessure, force) |
 | [`docs/AUDIT-BETA-OUVERTE-2026-08.md`](./docs/AUDIT-BETA-OUVERTE-2026-08.md) | audit de bêta ouverte : second passage (builds exécutés, consentement santé, autorisations club, plafonds SSE et e-mail) |
 | [`docs/AUDIT-BETA-OUVERTE-2026-07.md`](./docs/AUDIT-BETA-OUVERTE-2026-07.md) | audit de bêta ouverte : parcours coach/athlète, ergonomie, accessibilité, notifications |
