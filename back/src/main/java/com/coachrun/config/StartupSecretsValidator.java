@@ -102,24 +102,21 @@ public class StartupSecretsValidator {
                     + "les notifications push (séance planifiée, commentaire du coach) seraient inertes.");
         }
 
-        // Nombre de relais devant l'API. Doit correspondre à la topologie RÉELLE, et le contrôle
-        // ne peut donc pas imposer une valeur : il ne peut qu'exiger qu'elle soit plausible.
+        // Nombre de relais devant l'application. Laissé à sa valeur par défaut (1) derrière la
+        // chaîne Vercel → Railway, le filtre de rate limiting retient l'adresse du relais Vercel
+        // — la même pour tout le monde. Tous les utilisateurs partagent alors le même compteur :
+        // cinq mots de passe erronés et plus personne ne peut se connecter. Le défaut ne se voit
+        // qu'en charge, sur l'écran qu'on ne peut pas se permettre de casser ; on le refuse donc
+        // au démarrage plutôt qu'au support.
         //
-        // Il exigeait 2, au motif d'une chaîne « Vercel → Railway ». C'est la topologie du *site*,
-        // pas celle de l'API : le navigateur appelle l'API sur son propre domaine, sans passer par
-        // Vercel — c'est d'ailleurs pourquoi il faut du CORS. Il n'y a donc qu'un relais, et
-        // annoncer 2 fait échouer la lecture de la chaîne à chaque requête : le filtre retombe sur
-        // l'adresse TCP, celle du relais, identique pour tout le monde. Toute la plateforme se
-        // retrouve dans un compteur unique — vingt requêtes par minute à se partager, et des
-        // utilisateurs déconnectés « sans cesse ». Le garde-fou fabriquait la panne qu'il
-        // annonçait éviter.
-        if (trustedProxyHops < 1) {
+        // La valeur exacte reste un fait de déploiement : si l'hébergeur de l'API ajoute lui-même
+        // un élément à la chaîne, il en faut 3. RateLimitFilter journalise la chaîne observée au
+        // premier appel — c'est elle qui tranche, pas une supposition.
+        if (trustedProxyHops < 2) {
             problems.add("RATE_LIMIT_TRUSTED_PROXY_HOPS=" + trustedProxyHops
-                    + " : il faut au moins 1 relais. La valeur doit refléter le nombre de proxys "
-                    + "traversés par les appels API — 1 si le navigateur atteint l'API "
-                    + "directement, davantage si elle est elle-même derrière un relais. "
-                    + "Une valeur trop grande fait compter l'adresse du proxy et non celle du "
-                    + "client : un seul seau pour tous.");
+                    + " : derrière Vercel puis Railway il en faut au moins 2. Avec 1, le rate "
+                    + "limiting compte l'adresse du proxy et non celle du client — un seul seau "
+                    + "pour tous.");
         }
 
         // Inscription fermée sans code : plus personne ne peut créer de compte, et le message

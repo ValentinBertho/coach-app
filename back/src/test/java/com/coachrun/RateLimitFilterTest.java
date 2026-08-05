@@ -79,16 +79,16 @@ class RateLimitFilterTest {
     /**
      * Déclarer un relais de trop réunit tous les clients dans un compteur unique.
      *
-     * <p>C'est le défaut qui déconnectait « sans cesse ». La chaîne annoncée est plus longue que
-     * la réelle, sa lecture échoue, et le filtre retombe sur l'adresse de la connexion TCP —
-     * c'est-à-dire celle du relais, identique pour tout le monde. Le plafond destiné à contenir
-     * un attaquant éjecte alors la cohorte entière.</p>
+     * <p>La chaîne annoncée est plus longue que la réelle, sa lecture échoue, et le filtre
+     * retombe sur l'adresse de la connexion TCP — celle du relais, identique pour tout le monde.
+     * Le plafond destiné à contenir un attaquant éjecte alors la cohorte entière. Sous-déclarer
+     * produit la même panne par l'autre bout : on lit l'adresse d'un relais au lieu du client.</p>
      *
-     * <p>Le repli est délibérément conservé : l'adresse TCP est la seule que le client ne peut
-     * pas choisir, et s'en écarter rouvrirait le contournement que
-     * {@code RateLimitHardeningTest} verrouille. Ce test fige donc la conséquence, pour que la
-     * valeur de {@code trusted-proxy-hops} reste comprise comme un fait de topologie et non comme
-     * un réglage de confort.</p>
+     * <p>Le repli sur l'adresse TCP est délibérément conservé : c'est la seule valeur que le
+     * client ne peut pas choisir, et s'en écarter rouvrirait le contournement que
+     * {@code RateLimitHardeningTest} verrouille. Ce test fige donc la conséquence, pour que
+     * {@code trusted-proxy-hops} reste lu comme un fait de topologie — mesuré par la trace émise
+     * au premier appel — et non comme un réglage de confort.</p>
      */
     @Test
     void declaringOneProxyTooManyPutsEveryClientInTheSameBucket() throws Exception {

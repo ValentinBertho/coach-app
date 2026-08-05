@@ -134,19 +134,20 @@ app:
     # Plafond des routes authentifiées (messages, pièces jointes, import GPX), par porteur de
     # jeton : large pour ne pas gêner une navigation soutenue, mais il existe.
     authenticated-max-requests: ${RATE_LIMIT_AUTHENTICATED_MAX:300}
-    # Nombre de relais de confiance devant l'API — la topologie des appels API, pas celle du site.
+    # Nombre de relais de confiance devant l'application (Vercel → Railway = 2 en production).
     # Sert à lire la bonne adresse dans X-Forwarded-For : le client contrôle le début de la
     # chaîne, seuls les derniers éléments sont écrits par des proxys de confiance.
     #
-    # Le navigateur appelle l'API sur son propre domaine, sans passer par le front : un seul
-    # relais, celui de l'hébergeur de l'API. Le défaut était à 2, hérité de la chaîne du *site*
-    # (Vercel → Railway). Avec 2, la lecture de X-Forwarded-For échoue à chaque requête — la
-    # chaîne n'a qu'un élément — et le filtre retombe sur l'adresse TCP, c'est-à-dire celle du
-    # relais : identique pour tout le monde. Toute la plateforme partageait alors un compteur
-    # unique de vingt requêtes par minute, et les utilisateurs étaient déconnectés sans cesse.
-    # À porter à 2 si l'API passe elle-même derrière un relais supplémentaire (CDN devant l'API).
+    # Le front appelle /api en relatif ; Vercel réécrit vers Railway (cf. front/vercel.json).
+    # La chaîne vue par l'API est donc « client, Vercel » — deux éléments — et le filtre lit
+    # l'avant-dernier. Une valeur trop PETITE retient l'adresse du relais, identique pour tous :
+    # un seul seau pour la plateforme entière. Une valeur trop GRANDE fait échouer la lecture et
+    # retombe sur l'adresse TCP, celle du relais : le même seau unique, par un autre chemin.
+    # Les deux erreurs produisent la même panne, d'où le contrôle au démarrage et la trace émise
+    # par RateLimitFilter au premier appel — porter cette valeur à 3 si l'hébergeur de l'API
+    # ajoute son propre élément à la chaîne.
     # Sans proxy (dev, docker compose), l'en-tête est absent et l'adresse TCP fait foi.
-    trusted-proxy-hops: ${RATE_LIMIT_TRUSTED_PROXY_HOPS:1}
+    trusted-proxy-hops: ${RATE_LIMIT_TRUSTED_PROXY_HOPS:2}
     # Routes authentifiées qui déclenchent un e-mail (renvoi de vérification, changement
     # d'adresse) : quelques-unes par heure suffisent, et le quota d'envoi est une ressource
     # partagée avec les réinitialisations de mot de passe.

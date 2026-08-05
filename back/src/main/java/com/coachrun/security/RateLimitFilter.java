@@ -291,6 +291,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         String[] hops = forwarded.split(",");
         int index = hops.length - trustedProxyHops;
+        describeChainOnce(hops.length, index);
         if (index < 0 || index >= hops.length) {
             // Moins de relais qu'annoncé : chaîne incomplète ou falsifiée. On retombe sur
             // l'adresse de la connexion TCP, la seule que le client ne peut pas choisir.
@@ -300,24 +301,42 @@ public class RateLimitFilter extends OncePerRequestFilter {
             // les utilisateurs tombent alors dans un compteur unique : les plafonds destinés à
             // contenir un attaquant éjectent la cohorte entière. C'est ce que produit une
             // topologie mal déclarée, d'où l'alerte : le repli protège, il ne répare pas.
-            warnOnce(hops.length);
             return request.getRemoteAddr();
         }
         String ip = hops[index].trim();
         return ip.isEmpty() ? request.getRemoteAddr() : ip;
     }
 
-    /** Une seule alerte par démarrage : la topologie ne change pas d'une requête à l'autre. */
-    private void warnOnce(int actualHops) {
-        if (proxyHopsWarned.compareAndSet(false, true)) {
-            logger.warn("X-Forwarded-For porte " + actualHops + " relais alors que "
+    /**
+     * Trace, une fois par démarrage, la chaîne réellement observée.
+     *
+     * <p>Le bon nombre de relais est un fait de déploiement que le code ne peut pas deviner : il
+     * dépend de ce que chaque intermédiaire ajoute à {@code X-Forwarded-For}. Se tromper dans un
+     * sens comme dans l'autre produit la <b>même</b> panne — le compteur retient l'adresse d'un
+     * relais, identique pour tous, et les plafonds éjectent la cohorte entière — sans que rien ne
+     * le signale, puisque tout continue de fonctionner tant que le trafic est faible.</p>
+     *
+     * <p>Une ligne au premier appel remplace donc la supposition par une mesure. La topologie ne
+     * changeant pas d'une requête à l'autre, elle n'est émise qu'une fois.</p>
+     */
+    private void describeChainOnce(int actualHops, int index) {
+        if (!chainDescribed.compareAndSet(false, true)) {
+            return;
+        }
+        if (index < 0 || index >= actualHops) {
+            logger.warn("X-Forwarded-For porte " + actualHops + " élément(s) alors que "
+                    + "RATE_LIMIT_TRUSTED_PROXY_HOPS=" + trustedProxyHops + " : la lecture échoue "
+                    + "et le rate limiting retombe sur l'adresse TCP, celle du relais — donc un "
+                    + "compteur unique pour tous les utilisateurs. Régler la variable sur "
+                    + actualHops + ".");
+        } else {
+            logger.info("X-Forwarded-For porte " + actualHops + " élément(s), "
                     + "RATE_LIMIT_TRUSTED_PROXY_HOPS=" + trustedProxyHops
-                    + ". Le rate limiting retombe sur le premier élément de la chaîne. "
-                    + "Ajuster la variable à la topologie réelle.");
+                    + " : le client est lu en position " + index + ".");
         }
     }
 
-    private final java.util.concurrent.atomic.AtomicBoolean proxyHopsWarned =
+    private final java.util.concurrent.atomic.AtomicBoolean chainDescribed =
             new java.util.concurrent.atomic.AtomicBoolean();
 
     /**
