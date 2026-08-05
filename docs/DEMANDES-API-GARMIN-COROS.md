@@ -25,20 +25,25 @@
 
 | | **COROS** | **Garmin Connect Developer Program** |
 |---|---|---|
-| **Statut (août 2026)** | ✅ **Ouvert** — onboarding standardisé | ⛔ **En pause** — nouvelles demandes suspendues |
-| **Voie d'entrée** | E-mail à `api@coros.com` + formulaire de candidature | Formulaire d'accès (retiré du site) / formulaire de contact développeur |
-| **Qui peut demander** | Plateforme tierce avec représentant technique autorisé | **Personne morale uniquement** (société, université, hôpital, institut de recherche) — les usages personnels sont refusés |
+| **Statut (août 2026)** | ✅ **Ouvert** — mais **sélectif** | ⛔ **En pause** — nouvelles demandes suspendues |
+| **Voie d'entrée** | **Formulaire de candidature COROS** (24 champs, §3) + e-mail à `api@coros.com` | Formulaire d'accès (retiré du site) / formulaire de contact développeur |
+| **Critères de sélection** | Annoncés en tête du formulaire : **taille de marché actuelle**, usage prévu des données, « et d'autres facteurs ». Toutes les demandes ne sont pas acceptées. | **Personne morale uniquement** (société, université, hôpital, institut de recherche) — les usages personnels sont refusés |
 | **Sync activités** | ✅ Activités, données journalières, sommeil, EvoLab | ✅ **Activity API** |
-| **Envoi de séances vers la montre** | ⚠️ **À confirmer explicitement** dans la demande (voir §3.4) | ✅ **Training API** (séances structurées + plans, publiés dans le calendrier Garmin Connect puis synchronisés sur la montre) |
+| **Envoi de séances vers la montre** | ✅ **Oui** — option « Structured Workouts and Training Plans Sync (from your platform to COROS) » du formulaire | ✅ **Training API** (séances structurées + plans, publiés dans le calendrier Garmin Connect puis synchronisés sur la montre) |
 | **Délai annoncé** | Vérification d'identité puis émission Client ID / Secret | 2 jours ouvrés pour l'accusé de réception… **quand le programme est ouvert** |
-| **Coût** | Termes d'usage standard, non discriminatoires | Gratuit, mais sous validation partenaire |
+| **Coût** | **Aucun frais de partenariat** (annoncé sur le formulaire) | Gratuit, mais sous validation partenaire |
 
 ### Ce que ça implique concrètement
 
-1. **COROS d'abord.** C'est la seule des deux demandes qui peut aboutir aujourd'hui. Elle est aussi
-   la plus simple : COROS annonce un processus **standardisé et non discriminatoire** — toute
-   plateforme qui satisfait leurs exigences de sécurité et d'exploitation obtient l'accès. Il n'y a
-   pas de sélection sur le volume d'utilisateurs ou la notoriété.
+1. **COROS d'abord.** C'est la seule des deux demandes qui peut aboutir aujourd'hui, et la bonne
+   nouvelle est que **la publication de séances vers la montre est explicitement au catalogue** —
+   c'est une case à cocher du formulaire, pas une hypothèse.
+   ⚠️ **Mais l'accès n'est pas automatique.** Le formulaire l'annonce sans détour : *« nous ne
+   sommes pas en mesure d'offrir l'accès API à toutes les parties qui postulent. Pour choisir les
+   nouvelles candidatures que nous acceptons, nous considérons : la taille de marché actuelle, la
+   manière dont les données seront utilisées, et d'autres facteurs. »* La **taille de marché** est
+   donc un critère explicite — c'est le point faible d'une plateforme qui démarre, et la §3.5
+   explique comment le compenser.
 
 2. **Garmin : demande impossible à soumettre en l'état.** Garmin « fait évoluer et modernise » le
    programme et a **temporairement suspendu la revue et l'approbation des nouvelles demandes**.
@@ -71,20 +76,23 @@ information que le code ne contient pas.
 | Champ | Valeur |
 |---|---|
 | Nom commercial du produit | **DARI Lab** |
-| Raison sociale | `[À COMPLÉTER]` — dénomination légale exacte |
-| Forme juridique / pays | `[À COMPLÉTER]` — ex. SAS, France |
-| Numéro d'immatriculation | `[À COMPLÉTER]` — SIREN / SIRET / n° TVA intracommunautaire |
-| Adresse du siège | `[À COMPLÉTER]` |
+| Dénomination légale | ⚠️ **À recopier du registre** — cf. §3.3.1 (probablement `Valentin Bertho`, entreprise individuelle) |
+| Forme juridique / pays | Entreprise immatriculée en **France** (UE) — forme exacte à confirmer au registre |
+| Numéro d'immatriculation | **SIRET 914 436 118 00022** — SIREN **914 436 118** |
+| Adresse du siège | `[À COMPLÉTER]` — celle de l'immatriculation |
 | Site web | `https://www.darilab.app` |
-| Contact business | `[À COMPLÉTER]` — nom, fonction, e-mail nominatif du domaine `darilab.app` |
-| Contact technique (représentant technique autorisé) | `[À COMPLÉTER]` — nom, e-mail du domaine `darilab.app` |
-| Contact sécurité / incident | `[À COMPLÉTER]` — ex. `security@darilab.app` |
-| DPO / contact RGPD | `[À COMPLÉTER]` — ex. `privacy@darilab.app` |
+| Dirigeant | **Valentin Bertho** — Founder & Lead Developer |
+| Contact business | Valentin Bertho — `contact@darilab.app` |
+| Contact technique (représentant technique autorisé) | Valentin Bertho — `contact@darilab.app` |
+| Contact secondaire | ⚠️ **À créer** — `valentin@darilab.app` ou `tech@darilab.app` (cf. §3.3.2) |
+| Contact sécurité / incident | `security@darilab.app` — alias à créer |
+| DPO / contact RGPD | `privacy@darilab.app` — alias à créer |
 
-> ⚠️ **Utilisez des adresses du domaine `darilab.app`, pas une adresse Gmail.** Les deux
-> programmes vérifient l'identité de l'entité ; une adresse personnelle sur un domaine grand public
-> est le premier motif de rejet ou d'aller-retour. `contact@darilab.app` figure déjà dans la
-> configuration (`VAPID_SUBJECT`), le domaine est donc déjà opérationnel côté e-mail.
+> ⚠️ **Utilisez des adresses du domaine `darilab.app`, pas votre Gmail.** Les deux programmes
+> vérifient l'identité de l'entité ; une adresse personnelle sur un domaine grand public est le
+> premier motif de rejet ou d'aller-retour. `contact@darilab.app` figure déjà dans la configuration
+> (`VAPID_SUBJECT`), le domaine est donc déjà opérationnel côté e-mail — les alias supplémentaires
+> sont gratuits sur OVH et se créent en quelques minutes.
 
 ### 2.2 Description du produit (texte réutilisable tel quel)
 
@@ -139,7 +147,7 @@ Health API ni la Women's Health API.
 | **Redirect URI OAuth — développement** | `http://localhost:4200/app/garmin/callback` et `http://localhost:4200/app/coros/callback` |
 | **URL de callback push / webhook** | `https://coachrun-back.up.railway.app/api/webhooks/garmin` (idem `/coros`) — voir la note ci-dessous |
 | **Origines web (CORS)** | `https://www.darilab.app`, `https://darilab.app` |
-| **Volumétrie estimée** | `[À COMPLÉTER]` — nombre d'athlètes attendus la 1re année (soyez réaliste : quelques centaines se défend très bien, un chiffre gonflé attire des questions) |
+| **Volumétrie** | **~10 utilisateurs actifs aujourd'hui**, **50 à 100 attendus dans l'année**. Annoncez les deux chiffres : le réel là où on le demande, la trajectoire dans le texte libre (cf. §3.3.3) |
 | **Fréquence d'appel** | Synchronisation planifiée horaire par athlète connecté (`STRAVA_SYNC_CRON=0 30 * * * *` aujourd'hui), plus les synchronisations à la demande. Bascule sur notification push dès que le fournisseur en propose une. |
 | **Environnements** | 1 production + 1 environnement de développement local |
 
@@ -175,62 +183,254 @@ le dépôt, ce qui est un vrai atout — vous n'avez rien à promettre au futur.
 | Localisation des données | Union européenne `[À VÉRIFIER]` — confirmez la région de vos instances Railway/Vercel | — |
 | Durée de conservation | `[À COMPLÉTER]` — annoncez une durée (ex. « le temps de l'abonnement + 12 mois ») cohérente avec votre politique de confidentialité |
 | Sous-traitants | Railway (hébergement back + base), Vercel (front), Resend (e-mail) | `docs/DEPLOIEMENT.md` |
-| Politique de confidentialité publique | `[À COMPLÉTER]` — **URL publique obligatoire**, elle doit citer nommément Garmin et COROS |
-| CGU publiques | `[À COMPLÉTER]` — URL publique |
+| Politique de confidentialité publique | ✅ `https://www.darilab.app/legal/confidentialite` — ⚠️ doit **citer nommément** Garmin et COROS | route publique `app.routes.ts:55` |
+| CGU publiques | ✅ `https://www.darilab.app/legal/cgu` | route publique `app.routes.ts:55` |
+| Portail de connexion public *(exigé par COROS)* | ✅ `https://www.darilab.app/login` | `app.routes.ts:19` |
+| Page de support publique *(exigée par COROS)* | ❌ **Manquante** — le centre d'aide est derrière l'authentification | `app.routes.ts:199` (`app/aide`) |
 
-> 🔴 **Le point bloquant le plus fréquent : la politique de confidentialité.** Les deux programmes
-> exigent une URL publique, accessible sans compte, qui mentionne **explicitement** la collecte de
-> données via l'API du fournisseur, la finalité, la durée de conservation et le moyen de révoquer.
-> Une page « bientôt disponible » suffit à faire rejeter le dossier. Publiez-la **avant** d'envoyer.
+> 🔴 **Deux points bloquants à traiter avant de soumettre.**
+> **(a) La politique de confidentialité existe, mais son contenu doit suivre :** les deux programmes
+> exigent qu'elle mentionne **explicitement** la collecte de données via l'API du fournisseur
+> (« Garmin », « COROS » nommés), la finalité, la durée de conservation et le moyen de révoquer.
+> Vérifiez le texte de `legal.component`, pas seulement l'existence de l'URL.
+> **(b) La page de support publique manque** — voir §3.5, point 1.
 
 ---
 
 ## 3. Demande COROS — à envoyer maintenant
 
-### 3.1 Le processus officiel (3 étapes)
+### 3.1 Ce que dit le formulaire officiel
 
-1. **Soumettre les détails techniques** — un représentant technique autorisé transmet les
-   informations de la société, les contacts techniques et les **redirect URIs OAuth 2.0**.
-2. **Accepter les conditions d'usage** — conditions standard et non discriminatoires : exigences de
-   sécurité, conformité à la protection des données, limites de débit.
-3. **Recevoir les identifiants** — après vérification de l'identité et des spécifications de
-   sécurité, COROS émet le **Client ID** et le **Client Secret**.
+Le dossier COROS se dépose via un **formulaire de 24 champs** (« COROS API Application »). Ses
+conditions liminaires, à lire avant de remplir quoi que ce soit :
 
-### 3.2 Où envoyer
+- **La sélection est réelle.** *« Nous examinons chaque candidature. Cependant, nous ne sommes pas
+  en mesure d'offrir l'accès API à toutes les parties qui postulent. Pour choisir les nouvelles
+  candidatures que nous acceptons, nous considérons : la taille de marché actuelle, la manière dont
+  les données seront utilisées, et d'autres facteurs. »*
+- **Suivi obligatoire du développement.** Une fois le Client ID et les clés émis, COROS n'a plus de
+  visibilité : vous devez les tenir informés de l'avancement et **prévenir idéalement 1 semaine
+  avant la mise en production**.
+- **Deux pages obligatoires sur votre plateforme** : un **portail de connexion** et une **page de
+  support**, pour que les utilisateurs accèdent à l'intégration et demandent de l'aide technique.
+- **Aucun frais** de partenariat.
+- Un **API Reference Guide** (lien Dropbox en tête de formulaire) et un **API Agreement** (lien
+  Dropbox au champ 21) sont à télécharger et à conserver. Le guide contient notamment la
+  **section 5.7**, référencée par le champ 13, qui décrit le service de push des données.
 
-- **E-mail** : **`api@coros.com`** (équipe developer operations) — c'est le canal fiable.
-- **Formulaire de candidature** : l'article du centre d'aide COROS contient un lien « apply to the
-  API ». ⚠️ **Le lien exact n'a pas pu être récupéré** — l'accès à `support.coros.com` est bloqué
-  depuis cet environnement (403 au niveau du proxy réseau). Ouvrez l'article
+### 3.2 Où déposer
+
+- **Formulaire** : lien « apply to the API » dans l'article
   [Submit an API Application](https://support.coros.com/hc/en-us/articles/17085887816340-Submit-an-API-Application)
-  (ou sa [version française](https://support.coros.com/hc/fr/articles/17085887816340-Soumettre-une-demande-d-acc%C3%A8s-%C3%A0-l-API))
-  et récupérez-y le lien du formulaire. **Faites les deux** : formulaire + e-mail. L'e-mail vous
-  donne une trace datée et un interlocuteur.
+  ([version FR](https://support.coros.com/hc/fr/articles/17085887816340-Soumettre-une-demande-d-acc%C3%A8s-%C3%A0-l-API)).
+  C'est le canal principal.
+- **E-mail** : **`api@coros.com`** en complément — il vous donne une trace datée et un
+  interlocuteur nommé. Le texte est en §3.4.
 
-### 3.3 E-mail prêt à envoyer
+### 3.3 Réponses au formulaire, champ par champ
+
+> Les champs marqués ✳ sont obligatoires. Les valeurs sont prêtes à copier ; **`⚠️`** signale ce
+> qui reste à trancher ou à créer avant de soumettre.
+
+| # | Champ | Réponse |
+|---|---|---|
+| 1 ✳ | Platform / Application Name | `DARI Lab` |
+| 2 ✳ | Company Name | ⚠️ **La dénomination légale exacte** — voir §3.3.1 |
+| 3 ✳ | Primary Contact Email | `contact@darilab.app` |
+| 4 ✳ | Secondary Contact Email | ⚠️ **Doit être différente du champ 3** — voir §3.3.2 |
+| 5 ✳ | Privacy Officer Email | `privacy@darilab.app` (alias à créer) |
+| 6 ✳ | Company Owner Name and Title | `Valentin Bertho — Founder & Lead Developer` |
+| 7 | Platform / Application URL | `https://www.darilab.app` |
+| 8 ✳ | Description (**100 caractères max**) | `Physiology-driven coaching platform: coaches prescribe running and strength sessions.` *(85 car.)* |
+| 9 ✳ | Total Active Users | La tranche contenant **10** (la plus basse proposée). Voir §3.3.3 |
+| 10 ✳ | Primary Region | `France (Europe)` |
+| 11 ✳ | Which API function(s) does your app need? | ☑️ `Activity / Workout Data Sync (one way, COROS to your platform)`<br>☑️ `Structured Workouts and Training Plans Sync (from your platform to COROS)`<br>☐ les 5 autres — voir §3.3.4 |
+| 12 ✳ | Authorized Callback Domain (redirect_uri) | `https://www.darilab.app` |
+| 13 ✳ | Workout Data Receiving Endpoint URL | `https://api.darilab.app/api/webhooks/coros` ⚠️ sous-domaine à créer |
+| 14 ✳ | Service Status Check URL | `https://api.darilab.app/api/actuator/health` |
+| 15 ✳ | Bluetooth / ANT+ protocol link | `N/A` |
+| 16 ✳ | Personal or public use? | `Public` |
+| 17 ✳ | Commercial or non-commercial use? | `Commercial` |
+| 18 ✳ | Intended use of data? | Texte prêt en §3.3.5 |
+| 19 | Expected Integration Launch Date | ⚠️ Voir §3.3.6 |
+| 20 ✳ | Agree to COROS API Application Terms? | `Yes` |
+| 21 ✳ | Agree to COROS API Agreement? | `Yes` — **après l'avoir lu** (lien Dropbox du champ 21) |
+| 22 ✳ | Please enter your name | `Valentin Bertho` |
+| 23 ✳ | Submit Date | Date du jour, format `DD-MM-YYYY` |
+| 24 ✳ | Logos PNG | ✅ **Les 4 fichiers sont générés** — voir §3.3.7 |
+
+#### 3.3.1 Champ 2 — Company Name (votre question)
+
+**Non, ne mettez pas juste « Darilab ».** Ce champ alimente le contrat : COROS y attend la
+**dénomination légale**, pas le nom commercial. Le nom commercial, lui, va au champ 1.
+
+Votre SIRET **914 436 118 00022** (SIREN **914 436 118**) prouve que vous êtes **immatriculé** —
+c'est un vrai atout, ne le sous-vendez pas. Reste à savoir sous quelle forme :
+
+- **Si vous êtes en entreprise individuelle / micro-entreprise** — le cas le plus probable — la
+  dénomination légale est **votre nom civil**, pas « DARI Lab ». Répondez :
+  `Valentin Bertho (sole proprietorship, trading as DARI Lab)`
+- **Si vous avez créé une société** (SASU, SARL…), répondez la **dénomination sociale exacte**
+  telle qu'immatriculée, par exemple `DARI LAB SAS`.
+
+⚠️ **Vérifiez avant de remplir** : ouvrez
+`https://annuaire-entreprises.data.gouv.fr/entreprise/914436118` et recopiez le champ
+**« Dénomination »** au caractère près. Je n'ai pas pu le faire pour vous — l'accès au registre est
+bloqué depuis cet environnement (403 du proxy réseau). Une dénomination inexacte fait revenir le
+dossier au moment de la signature de l'API Agreement.
+
+> ❌ **Ce qu'il ne faut surtout pas écrire** : « individual developer, not yet registered as a
+> company », comme le faisait le brouillon. C'est **faux** — vous avez un SIRET — et devant un
+> comité qui sélectionne sur la crédibilité commerciale, c'est le genre de phrase qui classe le
+> dossier sans autre examen.
+
+#### 3.3.2 Champ 4 — l'adresse secondaire
+
+Le formulaire réclame une **deuxième** adresse, distincte de la première. Deux options :
+
+- **Recommandé** : créez un second alias sur votre domaine — `valentin@darilab.app` ou
+  `tech@darilab.app`. C'est gratuit sur OVH et ça donne l'image d'une structure qui tient.
+- **À éviter** : votre Gmail personnel. Sur un dossier où l'on juge la crédibilité d'une entreprise,
+  une adresse grand public en contact secondaire dessert.
+
+Pendant que vous y êtes, créez les quatre alias d'un coup — `contact@`, `valentin@`, `privacy@`,
+`support@` — ils servent tous dans ce dossier et dans celui de Garmin.
+
+#### 3.3.3 Champ 9 — le nombre d'utilisateurs, le vrai sujet du dossier
+
+**Répondez la vérité : la tranche qui contient vos ~10 utilisateurs actifs.** Gonfler le chiffre
+serait une mauvaise idée — c'est vérifiable après l'octroi, et le contrat vous engage.
+
+Mais soyons lucides : la « taille de marché actuelle » est un critère de sélection annoncé, et 10
+utilisateurs, c'est petit. Ça ne condamne pas le dossier, à condition de **déplacer le débat sur
+les autres critères**, ceux que vous maîtrisez :
+
+1. **Le multiplicateur B2B.** Vous ne vendez pas à des athlètes isolés, vous vendez à des
+   **entraîneurs**, et chaque entraîneur amène son groupe. Dites-le : c'est ce qui transforme
+   « 10 utilisateurs » en « 10 utilisateurs et une courbe qui part de l'entraîneur, pas de
+   l'athlète ». Votre projection 50–100 sur l'année devient alors crédible plutôt qu'optimiste.
+2. **La preuve d'exécution.** Vous avez **déjà une intégration Strava en production** : même flux
+   OAuth 2.0, mêmes jetons chiffrés, même synchronisation planifiée. Pour COROS, ça répond à la
+   question qui coûte le plus cher — *est-ce que ces gens vont vraiment livrer ?* Un partenaire qui
+   n'intègre jamais est une perte sèche pour eux. C'est votre meilleur argument, il est dans
+   l'e-mail §3.4 et dans le champ 18.
+3. **L'usage des données.** Deuxième critère annoncé, et le plus facile à bien traiter : vous
+   demandez peu, pour une finalité précise, et vous le dites (champ 18).
+
+> 💡 Si le formulaire propose une tranche du type « 1–100 », elle vous va. S'il n'existe qu'un
+> « moins de 1 000 », idem. Mentionnez la trajectoire **en toutes lettres au champ 18 et dans
+> l'e-mail**, jamais en gonflant le champ 9.
+
+#### 3.3.4 Champ 11 — les fonctions API à cocher
+
+| Option | Cocher ? | Pourquoi |
+|---|---|---|
+| Activity / Workout Data Sync **(one way, COROS → votre plateforme)** | ✅ **Oui** | C'est exactement votre besoin : importer les activités réalisées |
+| Activity / Workout Data Sync **(two ways)** | ❌ Non | Le retour signifierait renvoyer des activités **vers** COROS. Vous n'en avez pas besoin, et demander plus que nécessaire est un motif de questions |
+| **Structured Workouts and Training Plans Sync** (votre plateforme → COROS) | ✅ **Oui** | 🎉 C'est votre second besoin, et il est bien au catalogue |
+| GPX Route Import / Export | ❌ Non | Tentant pour le trail, mais hors périmètre aujourd'hui. À redemander plus tard si besoin |
+| Access Daily Health Data | ❌ **Surtout pas** | Données de santé en continu, sans rapport avec votre finalité. Les cocher affaiblit tout le dossier |
+| Bluetooth Connectivity | ❌ Non | Pas de composant matériel |
+| ANT+ Connectivity | ❌ Non | Idem |
+
+Deux cases sur sept : c'est un dossier **proportionné**, et ça se voit.
+
+⚠️ Cocher « Structured Workouts and Training Plans Sync » **rend obligatoires les deux logos
+supplémentaires** du champ 24 (128×128 et 396×396).
+
+#### 3.3.5 Champ 18 — Intended use of data (texte prêt)
+
+```
+Athletes connect their own COROS account through OAuth 2.0, from their personal
+account page — a coach can never connect an account on an athlete's behalf.
+
+We import completed training activities only: start time, distance, moving time,
+elevation gain, average and max heart rate, cadence, power, calories, and where
+available the time / heart-rate / speed samples needed to compute time spent in each
+training zone. This data is shown to the athlete and to the coach that athlete has
+explicitly accepted, and is used to compare the prescribed session with what was
+actually performed, and to compute training load indicators (ACWR, monotony,
+time-in-zone).
+
+In the other direction, we publish the coach's prescribed structured sessions to the
+athlete's COROS watch, so athletes no longer have to re-enter interval structures by
+hand.
+
+We do not request continuous health monitoring, sleep or all-day wellness data. We do
+not sell, rent or share user data with any third party, and we do not use it for
+advertising or for training machine-learning models. Data is hosted in the European
+Union, OAuth tokens are encrypted at rest, and athletes can disconnect at any time
+from their account page — which immediately deletes the stored tokens.
+
+DARI Lab is a commercial B2B platform: our customers are coaches, and each coach
+brings their own group of athletes. We currently have around 10 active users and
+expect 50 to 100 within the year. We already operate a Strava integration in
+production using the same architecture (OAuth 2.0 authorisation code flow, encrypted
+token storage, scheduled sync, de-duplication by external activity id), so this
+integration can be delivered quickly.
+```
+
+#### 3.3.6 Champ 19 — date de lancement prévue
+
+Champ non obligatoire, mais le renseigner est un signal de sérieux — et COROS demande de toute
+façon d'être prévenu **1 semaine avant la mise en production**.
+
+Comptez à partir de la réception des identifiants, pas de la soumission : **environ 3 mois** est
+honnête pour la synchronisation des activités **plus** la publication des séances (le second sens
+est du travail neuf, cf. §6). Une date à 3–4 mois de la soumission est un bon repère. Mieux vaut
+annoncer large et livrer en avance que l'inverse.
+
+#### 3.3.7 Champ 24 — les logos (bloquant, mais réglé)
+
+Le formulaire est catégorique : *« API applications cannot be approved without all of the required
+files »*. Comme vous cochez la synchronisation des séances, **les quatre fichiers sont requis** :
+
+| Taille | Requis pour | Fichier généré |
+|---|---|---|
+| 190 × 190 | Toute candidature | `docs/assets/api-partners/darilab-logo-190x190.png` |
+| 300 × 300 | Toute candidature | `docs/assets/api-partners/darilab-logo-300x300.png` |
+| 128 × 128 | Sync séances / plans | `docs/assets/api-partners/darilab-logo-128x128.png` |
+| 396 × 396 | Sync séances / plans | `docs/assets/api-partners/darilab-logo-396x396.png` |
+
+✅ **Les quatre sont dans le dépôt**, générés depuis votre icône d'application
+(`front/src/assets/icons/icon-512x512.png`) par rééchantillonnage Lanczos, en PNG RGBA aux
+dimensions exactes. Vous n'avez qu'à les téléverser.
+
+> 💡 Ils reprennent l'icône PWA (squircle bleu, courbe blanche ascendante). C'est cohérent avec
+> votre identité et ça passe partout. Si vous préférez un logo sur fond transparent pour la page
+> partenaires de COROS, dites-le-moi : la source vectorielle `front/src/favicon.svg` permet de
+> régénérer les quatre tailles autrement.
+
+### 3.4 E-mail d'accompagnement (à envoyer à `api@coros.com`)
+
+Le formulaire reste le canal officiel ; cet e-mail l'accompagne. Il reprend les mêmes informations,
+en plus développé — et il vous donne un interlocuteur et une trace datée.
+**Envoyez-le juste après avoir soumis le formulaire**, en le mentionnant.
 
 > **À** : api@coros.com
-> **Objet** : API access application — DARI Lab (coaching platform, France)
+> **Objet** : API access application submitted — DARI Lab (coaching platform, France)
 
 ```
 Hello COROS API team,
 
-We would like to apply for COROS API access for DARI Lab, a coaching platform for
-running and strength training used by coaches and their athletes.
+We have just submitted the COROS API Application form for DARI Lab, a coaching
+platform for running and strength training used by coaches and their athletes. This
+email provides the same information in more detail, and gives you a direct contact
+should you need anything further.
 
 COMPANY
-  Legal entity      : [RAISON SOCIALE]
-  Registration no.  : [SIREN / VAT]
-  Country           : [PAYS]
+  Legal entity      : [DÉNOMINATION EXACTE — cf. §3.3.1]
+  SIRET             : 914 436 118 00022  (SIREN 914 436 118)
+  Country           : France (European Union)
   Website           : https://www.darilab.app
-  Privacy policy    : https://www.darilab.app/[URL]
-  Terms of use      : https://www.darilab.app/[URL]
+  Privacy policy    : https://www.darilab.app/legal/confidentialite
+  Terms of use      : https://www.darilab.app/legal/cgu
 
 CONTACTS
-  Technical (authorised representative) : [NOM] — [EMAIL]@darilab.app
-  Business                              : [NOM] — [EMAIL]@darilab.app
+  Technical (authorised representative) : Valentin Bertho — contact@darilab.app
+  Business                              : Valentin Bertho — contact@darilab.app
+  Privacy officer                       : privacy@darilab.app
   Security / incident                   : security@darilab.app
-  Data protection                       : privacy@darilab.app
 
 PRODUCT
 DARI Lab is a SaaS coaching platform for running and strength training. Coaches build
@@ -240,11 +440,17 @@ ranges. Athletes follow the programme in a mobile PWA, complete the session and 
 their feedback. The platform then compares planned vs. actual training and computes
 training load (ACWR, monotony, time-in-zone).
 
-We already run a production Strava integration with the same architecture (OAuth 2.0
-authorisation code flow, encrypted token storage, scheduled hourly sync), so our
-integration work is well understood and can be completed quickly.
+DARI Lab is a commercial B2B platform: our customers are coaches, and each coach
+brings their own group of athletes. We currently have around 10 active users and
+expect 50 to 100 within the year, which is why we are integrating device partners now
+rather than later — athletes choose their watch before they choose their coach.
 
-REQUESTED USE CASES
+We already run a production Strava integration with the same architecture (OAuth 2.0
+authorisation code flow, encrypted token storage, scheduled sync, de-duplication by
+external activity id). The integration path is therefore well understood on our side
+and can be delivered quickly.
+
+REQUESTED USE CASES  (form question 11: one-way activity sync + structured workouts)
   1. Activity synchronisation (watch -> platform). After an athlete connects their
      COROS account, we import their completed training activities: summary metrics
      (start time, distance, moving time, elevation gain, average and max heart rate,
@@ -259,23 +465,22 @@ REQUESTED USE CASES
      distance targets, pace and heart-rate ranges, recovery), which maps directly onto
      a structured-workout model.
 
-     Could you confirm whether the COROS API supports publishing structured workouts
-     or training plans to a user's watch, and if so which endpoints and scopes cover
-     it? If this is not currently available, we would still like to proceed with use
-     case 1.
-
-We are not requesting continuous health monitoring, sleep or all-day wellness data.
-We only need data about deliberate training sessions.
+We are not requesting two-way activity sync, GPX route import/export, daily health
+data, or Bluetooth/ANT+ connectivity. We only need data about deliberate training
+sessions, and the ability to publish the sessions a coach has prescribed.
 
 TECHNICAL DETAILS
+  Authorized callback domain           : https://www.darilab.app
   OAuth 2.0 redirect URI (production)  : https://www.darilab.app/app/coros/callback
-  OAuth 2.0 redirect URI (development) : http://localhost:4200/app/coros/callback
-  Webhook / callback URL               : https://api.darilab.app/api/webhooks/coros
+  Workout data receiving endpoint      : https://api.darilab.app/api/webhooks/coros
+  Service status check URL             : https://api.darilab.app/api/actuator/health
   Web origins                          : https://www.darilab.app, https://darilab.app
-  Expected volume, year 1              : approx. [N] connected athletes
-  Call pattern                         : hourly scheduled sync per connected athlete,
-                                         plus on-demand sync; we will switch to
-                                         push notifications if COROS provides them
+  Current active users                 : approx. 10
+  Expected within 12 months            : 50 to 100 connected athletes
+  Call pattern                         : we intend to use your Workout Summary Data
+                                         Push Service (Reference Guide section 5.7);
+                                         our fallback is an hourly scheduled sync per
+                                         connected athlete, plus on-demand sync
   Environments                         : 1 production + 1 local development
 
 SECURITY AND DATA PROTECTION
@@ -288,27 +493,47 @@ SECURITY AND DATA PROTECTION
   - We are GDPR-compliant: explicit consent as the legal basis, data subject export
     and erasure are implemented, data is hosted in the EU.
   - Sub-processors: Railway (backend and database), Vercel (frontend), Resend (email).
+  - Login portal: https://www.darilab.app/login
+  - Support page: https://www.darilab.app/[URL SUPPORT]
 
-We are happy to accept your standard API Terms of Use and to provide any further
-documentation or a product demo.
+We have read and accept the COROS API Application Terms and the COROS API Agreement,
+and we will keep you informed of our development progress and notify you at least one
+week before the integration goes live, as requested.
+
+We would be happy to provide any further documentation or a product demo.
 
 Best regards,
-[NOM] — [FONCTION], DARI Lab
-[EMAIL]@darilab.app — [TÉLÉPHONE]
+Valentin Bertho — Founder & Lead Developer, DARI Lab
+contact@darilab.app
 ```
 
-### 3.4 La question à ne pas oublier : l'envoi de séances
+### 3.5 Les trois pièges de ce dossier
 
-C'est le point à **poser noir sur blanc** (il est déjà dans l'e-mail ci-dessus). L'API COROS
-officielle est bien documentée pour la **récupération** des activités et des données. En revanche,
-les capacités de **publication de séances structurées vers la montre** que l'on trouve décrites en
-ligne proviennent en bonne partie de projets communautaires qui exploitent l'API **non officielle**
-de l'application COROS — ce n'est pas une base sur laquelle bâtir un produit, et ce n'est pas une
-garantie que l'API officielle l'expose.
+**1. La page de support publique — le seul vrai blocage technique.**
+COROS l'exige noir sur blanc : *« nous demandons à tous les partenaires d'ajouter un portail de
+connexion et une page de support à leur plateforme »*. Votre portail de connexion existe
+(`/login`, route publique). Votre **page de support, non** : le centre d'aide est à `app/aide`,
+c'est-à-dire **derrière l'authentification** (`front/src/app/app.routes.ts:199`), donc inaccessible
+à quelqu'un qui n'a pas encore de compte — exactement le cas que COROS veut couvrir.
+→ **À créer avant de soumettre** : une page publique, même minimale, avec un moyen de contact.
+Le plus rapide est d'ajouter un `support` au composant `legal/:page` déjà public, ou une route
+publique `/support`. Dites-le-moi si vous voulez que je la fasse.
 
-Demander la confirmation dans la demande initiale a trois vertus : vous obtenez une réponse
-qui fait foi, vous ne construisez pas sur une hypothèse, et vous ne bloquez pas la synchronisation
-des activités (cas d'usage 1) si la réponse est négative.
+**2. Le sous-domaine `api.darilab.app`.**
+Les champs 13 et 14 enregistrent vos URL **dans la configuration de votre application COROS** ;
+en changer plus tard demande de repasser par leur support. `coachrun-back.up.railway.app` est un
+domaine d'hébergeur : mettez le CNAME `api.darilab.app` en place **avant** de soumettre.
+Bonne nouvelle pour le champ 14 : `/actuator/health` est **déjà public** et ne renvoie que
+`{"status":"UP"}` aux appels anonymes (`SecurityConfig.java:40`, `show-details: when_authorized`) —
+il n'y a rien à coder, et rien qui fuite.
+
+**3. Les documents à lire avant de cocher « Yes ».**
+Les champs 20 et 21 vous engagent contractuellement. Téléchargez l'**API Reference Guide** (lien en
+tête du formulaire) et l'**API Agreement** (lien du champ 21) et lisez-les — en particulier la
+**section 5.7** du guide, qui décrit le service de push référencé par le champ 13, et les clauses
+de l'Agreement sur la propriété des données et la résiliation. C'est aussi le guide qui vous dira
+quels endpoints couvrent réellement la publication de séances, information que vous n'avez pas
+aujourd'hui.
 
 ---
 
@@ -369,7 +594,8 @@ currently paused while the programme is being modernised. We would like to regis
 our interest so that we can be considered when applications reopen, and to ask how
 best to be notified.
 
-  Company   : [RAISON SOCIALE] ([PAYS], registration no. [SIREN])
+  Company   : [DÉNOMINATION EXACTE — cf. §3.3.1]
+              France, SIRET 914 436 118 00022
   Product   : DARI Lab — https://www.darilab.app
   Use case  : DARI Lab is a SaaS coaching platform for running and strength training.
               We are seeking (1) the Activity API, to import athletes' completed
@@ -385,8 +611,8 @@ Could you confirm whether there is any way to be notified when the programme reo
 or whether we should simply monitor developer.garmin.com?
 
 Thank you,
-[NOM] — [FONCTION], DARI Lab
-[EMAIL]@darilab.app
+Valentin Bertho — Founder & Lead Developer, DARI Lab
+contact@darilab.app
 ```
 
 ### 4.5 Les contournements, et pourquoi je ne les recommande pas ici
@@ -402,22 +628,36 @@ Thank you,
 
 ## 5. Checklist avant d'envoyer
 
-À faire dans l'ordre — les quatre premiers points sont bloquants pour les deux dossiers.
+Dans l'ordre. Les six premiers points sont **bloquants** : soumettre sans eux, c'est griller sa
+candidature auprès d'un partenaire qui sélectionne.
 
-- [ ] **Entité légale** : raison sociale, immatriculation, adresse confirmées `[§2.1]`
-- [ ] **Politique de confidentialité publiée** à une URL publique, citant Garmin et COROS
-      nommément, avec finalité, durée de conservation et moyen de révoquer `[§2.5]`
-- [ ] **CGU publiées** à une URL publique
-- [ ] **Adresses e-mail sur `darilab.app`** créées (technique, business, sécurité, privacy)
-- [ ] **Sous-domaine `api.darilab.app`** en place et pointant sur le back (avant de figer les URL
-      de callback chez les fournisseurs) `[§2.4]`
-- [ ] Volumétrie année 1 chiffrée et réaliste `[§2.4]`
+**Avant de toucher au formulaire**
+
+- [ ] 🔴 **Page de support publique** créée et en ligne — exigence explicite de COROS `[§3.5-1]`
+- [ ] 🔴 **Dénomination légale** vérifiée sur `annuaire-entreprises.data.gouv.fr/entreprise/914436118`
+      et recopiée au caractère près `[§3.3.1]`
+- [ ] 🔴 **Sous-domaine `api.darilab.app`** en place (CNAME → Railway), avant de figer les URL des
+      champs 13 et 14 `[§3.5-2]`
+- [ ] 🔴 **Alias e-mail créés** sur OVH : `valentin@` (ou `tech@`), `privacy@`, `support@` `[§3.3.2]`
+- [ ] 🔴 **Politique de confidentialité relue** : Garmin et COROS **nommés**, finalité, durée de
+      conservation, moyen de révoquer `[§2.5]`
+- [ ] 🔴 **API Reference Guide et API Agreement téléchargés et lus** (section 5.7 notamment) `[§3.5-3]`
+- [ ] Adresse du siège récupérée `[§2.1]`
 - [ ] Durée de conservation des données arrêtée `[§2.5]`
 - [ ] Région d'hébergement Railway/Vercel vérifiée (UE) `[§2.5]`
-- [ ] **COROS** : lien du formulaire récupéré depuis l'article du centre d'aide `[§3.2]`
-- [ ] **COROS** : e-mail §3.3 personnalisé et envoyé à `api@coros.com`
-- [ ] **GARMIN** : état du programme vérifié sur `developer.garmin.com` `[§4.1]`
-- [ ] **GARMIN** : ticket ouvert au support développeur si toujours en pause `[§4.4]`
+- [ ] Date de lancement prévue choisie (≈ 3–4 mois) `[§3.3.6]`
+
+**Soumission COROS**
+
+- [ ] Lien du formulaire récupéré depuis l'article du centre d'aide `[§3.2]`
+- [ ] Les 24 champs remplis d'après le tableau `[§3.3]`
+- [ ] ✅ Les 4 logos PNG téléversés — déjà générés dans `docs/assets/api-partners/` `[§3.3.7]`
+- [ ] E-mail d'accompagnement envoyé à `api@coros.com` juste après `[§3.4]`
+
+**Garmin**
+
+- [ ] État du programme vérifié sur `developer.garmin.com` `[§4.1]`
+- [ ] Ticket ouvert au support développeur si toujours en pause `[§4.4]`
 
 ---
 
@@ -462,15 +702,23 @@ workout structuré** du fournisseur :
 - les formats de préparation physique n'ont pas d'équivalent propre sur montre de course : prévoir
   de ne publier que les séances de course dans un premier temps.
 
-Ce travail est **commun** à Garmin (Training API), à COROS (si confirmé) et à l'export **FIT**
-manuel — d'où l'intérêt de le commencer par le FIT pendant que Garmin est fermé : il sert dans les
-trois cas.
+Ce travail est **commun** à Garmin (Training API), à COROS (« Structured Workouts and Training
+Plans Sync ») et à l'export **FIT** manuel — d'où l'intérêt de le commencer par le FIT pendant que
+Garmin est fermé : il sert dans les trois cas.
+
+> ⚠️ COROS demande d'être **tenu informé de l'avancement du développement** et prévenu **au moins
+> une semaine avant la mise en production**. Prévoyez ces deux points de contact dans le planning
+> dès l'obtention des identifiants — c'est une obligation du formulaire, pas une politesse.
 
 ---
 
 ## 7. Sources
 
 **COROS**
+- **Formulaire « COROS API Application » lui-même** — source de la §3, la plus fiable du document :
+  les 24 champs, les conditions liminaires (sélection sur la taille de marché, portail de connexion
+  et page de support obligatoires, suivi du développement, absence de frais) et les liens vers
+  l'API Reference Guide et l'API Agreement en proviennent directement.
 - [Submit an API Application — COROS Help Center](https://support.coros.com/hc/en-us/articles/17085887816340-Submit-an-API-Application) ([version FR](https://support.coros.com/hc/fr/articles/17085887816340-Soumettre-une-demande-d-acc%C3%A8s-%C3%A0-l-API))
 - [Supported 3rd Party Apps — COROS Help Center](https://support.coros.com/hc/en-us/articles/360040256531-Supported-3rd-Party-Apps)
 - [COROS API Integration — Terra API](https://tryterra.co/integrations/coros)
