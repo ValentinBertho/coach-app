@@ -7,6 +7,9 @@ import { AuthService } from './auth.service';
 
 interface Page<T> { content: T[]; }
 
+/** Familles de notifications réglables. Le centre reste alimenté quoi qu'il arrive. */
+export type NotificationCategory = 'PROGRAMME' | 'RAPPELS' | 'MESSAGES' | 'SUIVI';
+
 export interface NotificationPreferences {
   emailEnabled: boolean;
   pushEnabled: boolean;
@@ -15,6 +18,11 @@ export interface NotificationPreferences {
    * finie ? », envoyé 2 h après. Vide ou `null` = ce rappel est désactivé.
    */
   usualSessionTime: string | null;
+  /** Familles dont le push est coupé. L'envoi remplace la liste, il ne s'y ajoute pas. */
+  mutedCategories: NotificationCategory[];
+  /** Heures de silence, « HH:mm ». Deux bornes identiques = pas de silence. */
+  quietStart: string | null;
+  quietEnd: string | null;
 }
 
 /** Centre de notifications de l'utilisateur connecté (coach ou athlète). */

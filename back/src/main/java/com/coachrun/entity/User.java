@@ -92,6 +92,65 @@ public class User extends BaseEntity {
     @Column(name = "usual_session_time")
     private java.time.LocalTime usualSessionTime = java.time.LocalTime.of(18, 0);
 
+    /**
+     * Catégories dont le <b>push</b> est coupé, en liste séparée par des virgules
+     * ({@code PROGRAMME,MESSAGES}). Vide = tout passe, ce qui est le réglage par défaut.
+     *
+     * <p>Une colonne unique plutôt qu'un booléen par famille : ajouter une catégorie ne demande
+     * alors ni migration ni colonne morte pour les comptes existants. Le format est un détail
+     * d'entreposage — {@link #mutedCategories()} et {@link #setMutedCategories} sont la seule
+     * porte d'entrée, et l'énumération reste la source de vérité.</p>
+     */
+    @Column(name = "notify_muted_categories", length = 255)
+    private String notifyMutedCategories;
+
+    /**
+     * Début et fin des heures de silence, dans le fuseau de l'application. Pendant cette plage,
+     * aucune notification système n'est émise — le centre de notifications, lui, continue de se
+     * remplir : on retire l'interruption, jamais l'information.
+     *
+     * <p>Réglé par défaut sur 22 h – 7 h. Un commentaire de coach écrit à 23 h 40 faisait vibrer
+     * le téléphone de son athlète, ce qu'aucune des deux parties ne demandait. Mettre les deux
+     * bornes à la même heure désactive le silence.</p>
+     */
+    @Column(name = "notify_quiet_start")
+    private java.time.LocalTime notifyQuietStart = java.time.LocalTime.of(22, 0);
+
+    @Column(name = "notify_quiet_end")
+    private java.time.LocalTime notifyQuietEnd = java.time.LocalTime.of(7, 0);
+
+    /** Catégories coupées, décodées. Jamais {@code null}. */
+    public java.util.Set<com.coachrun.entity.enums.NotificationCategory> mutedCategories() {
+        if (notifyMutedCategories == null || notifyMutedCategories.isBlank()) {
+            return java.util.EnumSet.noneOf(com.coachrun.entity.enums.NotificationCategory.class);
+        }
+        java.util.Set<com.coachrun.entity.enums.NotificationCategory> out =
+                java.util.EnumSet.noneOf(com.coachrun.entity.enums.NotificationCategory.class);
+        for (String raw : notifyMutedCategories.split(",")) {
+            String name = raw.trim();
+            if (name.isEmpty()) {
+                continue;
+            }
+            try {
+                out.add(com.coachrun.entity.enums.NotificationCategory.valueOf(name));
+            } catch (IllegalArgumentException ignored) {
+                // Catégorie retirée du produit depuis : la préférence n'a plus d'objet.
+            }
+        }
+        return out;
+    }
+
+    /** Remplace les catégories coupées (l'ordre de l'énumération rend la valeur stable en base). */
+    public void setMutedCategories(java.util.Set<com.coachrun.entity.enums.NotificationCategory> categories) {
+        if (categories == null || categories.isEmpty()) {
+            this.notifyMutedCategories = null;
+            return;
+        }
+        this.notifyMutedCategories = java.util.EnumSet.copyOf(categories).stream()
+                .map(Enum::name)
+                .collect(java.util.stream.Collectors.joining(","));
+    }
+
     /** Réinitialisation de mot de passe : jeton et expiration ; nuls une fois utilisé. */
     @Column(name = "reset_token", length = 64, unique = true)
     private String resetToken;

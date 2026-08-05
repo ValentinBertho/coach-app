@@ -287,6 +287,9 @@ public class AuthService {
                 : (existing != null ? existing : "ath-" + athlete.getId() + "@athlete.coachrun.local");
 
         User user = userRepository.findByAthleteId(athlete.getId()).orElse(null);
+        // Première activation, par opposition à un lien rejoué : seule la première intéresse le
+        // coach, qui attend de savoir quand il peut commencer à poser des séances.
+        boolean firstActivation = user == null;
         if (user == null) {
             user = new User();
             user.setFullName(athlete.getFirstName() + " " + athlete.getLastName());
@@ -319,6 +322,9 @@ public class AuthService {
         athlete.setStatus(AthleteStatus.ACTIVE);
         athlete.setInviteToken(null);
         athlete.setInviteExpiresAt(null);
+        if (firstActivation) {
+            notificationService.notifyAthleteJoined(athlete);
+        }
         return toAuthResponse(user);
     }
 

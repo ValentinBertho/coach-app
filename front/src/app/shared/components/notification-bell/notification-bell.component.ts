@@ -121,7 +121,15 @@ export class NotificationBellComponent implements OnInit {
   readonly loading = signal(false);
   readonly items = signal<AppNotification[]>([]);
   readonly showPrefs = signal(false);
-  readonly prefs = signal<NotificationPreferences>({ emailEnabled: true, pushEnabled: true, usualSessionTime: null });
+  /**
+   * Valeurs de départ avant la première réponse du serveur. Le panneau de la cloche ne règle que
+   * les deux canaux ; les familles et les heures de silence se règlent sur l'écran dédié, où il y
+   * a la place de les expliquer.
+   */
+  readonly prefs = signal<NotificationPreferences>({
+    emailEnabled: true, pushEnabled: true, usualSessionTime: null,
+    mutedCategories: [], quietStart: null, quietEnd: null,
+  });
 
   ngOnInit(): void {
     this.notif.refreshUnread().subscribe({ error: () => {} });

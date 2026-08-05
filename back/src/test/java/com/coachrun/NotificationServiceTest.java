@@ -6,16 +6,20 @@ import com.coachrun.entity.CoachAthleteRelation;
 import com.coachrun.entity.Message;
 import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
+import com.coachrun.entity.enums.NotificationCategory;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.integration.MailTemplate;
 import com.coachrun.integration.ResendMailClient;
+import com.coachrun.repository.AlertDigestLogRepository;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.NotificationRepository;
 import com.coachrun.repository.UserRepository;
+import com.coachrun.service.ClockService;
 import com.coachrun.service.NotificationService;
 import com.coachrun.service.NotificationStreamService;
 import com.coachrun.service.PushNotificationService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -27,7 +31,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,6 +42,7 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -58,8 +66,21 @@ class NotificationServiceTest {
     private NotificationRepository notificationRepository;
     @Mock
     private NotificationStreamService streamService;
+    @Mock
+    private AlertDigestLogRepository digestLogRepository;
+    @Mock
+    private ClockService clock;
     @InjectMocks
     private NotificationService notificationService;
+
+    /**
+     * Milieu d'après-midi : hors des heures de silence par défaut (22 h – 7 h), donc les tests
+     * qui ne parlent pas d'horaire ne les rencontrent jamais.
+     */
+    @BeforeEach
+    void aQuinzeHeures() {
+        lenient().when(clock.now()).thenReturn(LocalTime.of(15, 0));
+    }
 
     private Workout sampleWorkout() {
         Athlete athlete = new Athlete();
@@ -123,6 +144,9 @@ class NotificationServiceTest {
         ReflectionTestUtils.setField(mailTemplate, "frontendUrl", "http://localhost:4200");
         ReflectionTestUtils.setField(mailTemplate, "publisher", "Darilab");
         Workout w = feedbackWorkout();
+        // Douleur déclarée : c'est ce qui justifie désormais d'interrompre le coach. Ce test porte
+        // sur le *destinataire* (référent plutôt que head coach), pas sur le seuil.
+        w.setPain(4);
         CoachAthleteRelation rel = new CoachAthleteRelation();
         rel.setCoach(coach("referent@test.fr"));
         when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
@@ -181,6 +205,9 @@ class NotificationServiceTest {
         ReflectionTestUtils.setField(notificationService, "enabled", true);
         ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
         Workout w = feedbackWorkout();
+        // Signal présent : sans lui le push serait déjà supprimé par le seuil, et le test ne
+        // prouverait plus rien sur la préférence de canal.
+        w.setPain(4);
         User coach = coach("muted@test.fr");
         coach.setNotifyPushEnabled(false);
         when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
@@ -205,6 +232,7 @@ class NotificationServiceTest {
         ReflectionTestUtils.setField(mailTemplate, "frontendUrl", "http://localhost:4200");
         ReflectionTestUtils.setField(mailTemplate, "publisher", "Darilab");
         Workout w = feedbackWorkout();
+        w.setPain(4);
         when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
                 .thenReturn(Optional.empty());
         User head = coach("head@test.fr");
@@ -407,6 +435,7 @@ class NotificationServiceTest {
         ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
         Workout w = feedbackWorkout();
         w.setStatus(WorkoutStatus.PARTIAL);
+        w.setPain(4);
         User referent = coach("referent@test.fr");
         when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
                 .thenReturn(Optional.of(relWith(referent)));
@@ -420,6 +449,202 @@ class NotificationServiceTest {
     }
 
     // ---------------------------------------------------------------------------------------
+    // Préférences : catégories coupées et heures de silence
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Couper une famille fait taire le push et <b>rien d'autre</b>. La trace reste au centre de
+     * notifications : on retire l'interruption, jamais l'information — sans quoi l'utilisateur
+     * perdrait la séance elle-même en croyant n'éteindre qu'une sonnerie.
+     */
+    @Test
+    void mutedCategorySuppressesPushButKeepsInApp() {
+        Workout w = sampleWorkout();
+        w.getAthlete().setId(UUID.randomUUID());
+        User athleteUser = userFor(w.getAthlete());
+        athleteUser.setMutedCategories(Set.of(NotificationCategory.PROGRAMME));
+        when(userRepository.findById(athleteUser.getId())).thenReturn(Optional.of(athleteUser));
+
+        notificationService.notifyWorkoutPlanned(w);
+
+        verifyNoInteractions(pushService);
+        verify(notificationRepository).save(any());
+    }
+
+    /** Couper une famille n'en fait pas taire une autre. */
+    @Test
+    void mutingOneCategoryLeavesTheOthersAudible() {
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Athlete athlete = athleteWithUser();
+        User athleteUser = userFor(athlete);
+        athleteUser.setMutedCategories(Set.of(NotificationCategory.PROGRAMME));
+
+        notificationService.notifyNewMessage(message(athlete, UserRole.COACH, "Coach", "salut"));
+
+        verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Nouveau message"), any(), any());
+    }
+
+    /** 23 h 30 tombe dans la plage par défaut : la trace se dépose, le téléphone ne sonne pas. */
+    @Test
+    void quietHoursSuppressPushButKeepInApp() {
+        when(clock.now()).thenReturn(LocalTime.of(23, 30));
+        Workout w = sampleWorkout();
+        w.getAthlete().setId(UUID.randomUUID());
+        User athleteUser = userFor(w.getAthlete());
+        when(userRepository.findById(athleteUser.getId())).thenReturn(Optional.of(athleteUser));
+
+        notificationService.notifyCoachComment(w);
+
+        verifyNoInteractions(pushService);
+        verify(notificationRepository).save(any());
+    }
+
+    /** La plage traverse minuit : 6 h est encore dans la nuit, 8 h n'y est plus. */
+    @Test
+    void quietWindowWrapsAroundMidnight() {
+        User u = new User();
+        assertThat(NotificationService.inQuietHours(u, LocalTime.of(23, 0))).isTrue();
+        assertThat(NotificationService.inQuietHours(u, LocalTime.of(6, 0))).isTrue();
+        assertThat(NotificationService.inQuietHours(u, LocalTime.of(7, 0))).isFalse();
+        assertThat(NotificationService.inQuietHours(u, LocalTime.of(8, 0))).isFalse();
+        assertThat(NotificationService.inQuietHours(u, LocalTime.of(21, 59))).isFalse();
+    }
+
+    /** Deux bornes identiques valent « pas de silence », et non « silence permanent ». */
+    @Test
+    void identicalQuietBoundsDisableSilence() {
+        User u = new User();
+        u.setNotifyQuietStart(LocalTime.of(9, 0));
+        u.setNotifyQuietEnd(LocalTime.of(9, 0));
+        assertThat(NotificationService.inQuietHours(u, LocalTime.of(9, 0))).isFalse();
+        assertThat(NotificationService.inQuietHours(u, LocalTime.of(3, 0))).isFalse();
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Retours de séance : push seulement si le retour appelle une décision
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Une séance réalisée comme prévu ne fait plus sonner le coach : c'est l'information la moins
+     * urgente du produit, et elle représentait l'essentiel de ses notifications quotidiennes. Elle
+     * reste dans sa file et dans son centre.
+     */
+    @Test
+    void routineFeedbackLandsInAppWithoutPush() {
+        Workout w = feedbackWorkout();
+        w.setRpe(5);
+        User referent = coach("referent@test.fr");
+        when(userRepository.findById(referent.getId())).thenReturn(Optional.of(referent));
+        when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
+                .thenReturn(Optional.of(relWith(referent)));
+
+        notificationService.notifyAthleteFeedback(w);
+
+        verifyNoInteractions(pushService);
+        verify(notificationRepository).save(any());
+    }
+
+    /** Une douleur déclarée, elle, appelle une décision le jour même. */
+    @Test
+    void painfulFeedbackStillPushes() {
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Workout w = feedbackWorkout();
+        w.setPain(4);
+        User referent = coach("referent@test.fr");
+        when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
+                .thenReturn(Optional.of(relWith(referent)));
+
+        notificationService.notifyAthleteFeedback(w);
+
+        verify(pushService).sendToUser(eq(referent.getId()), eq("Séance mise à jour"),
+                any(), contains("/app/feedback"));
+    }
+
+    /** Une séance déclarée non faite aussi. */
+    @Test
+    void missedSessionStillPushes() {
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Workout w = feedbackWorkout();
+        w.setStatus(WorkoutStatus.MISSED);
+        User referent = coach("referent@test.fr");
+        when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
+                .thenReturn(Optional.of(relWith(referent)));
+
+        notificationService.notifyAthleteFeedback(w);
+
+        verify(pushService).sendToUser(eq(referent.getId()), any(), any(), any());
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Douleur élevée : le coach est prévenu tout de suite, sans l'intensité
+    // ---------------------------------------------------------------------------------------
+
+    /**
+     * Une douleur 8/10 partait au digest du lendemain : vingt-trois heures d'attente sur le seul
+     * signal du produit dont le délai se paie en blessure. Le corps ne porte pas l'intensité.
+     */
+    @Test
+    void severePainAlertsTheCoachImmediatelyWithoutTheNumber() {
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Athlete athlete = athleteWithUser();
+        athlete.setClub(clubWithId());
+        User referent = coach("referent@test.fr");
+        when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athlete.getId()))
+                .thenReturn(Optional.of(relWith(referent)));
+        when(digestLogRepository.findByCoachId(referent.getId())).thenReturn(List.of());
+
+        notificationService.notifyPainAlert(athlete, 8);
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(pushService).sendToUser(eq(referent.getId()), eq("Douleur signalée"),
+                body.capture(), contains("/app/athletes/" + athlete.getId()));
+        assertThat(body.getValue()).contains("Marie Durand").doesNotContain("8");
+        // L'envoi est inscrit dans la mémoire du digest, qui ne le redira donc pas demain matin.
+        verify(digestLogRepository).save(any());
+    }
+
+    /** Une douleur modérée n'interrompt pas : elle passe par le digest, comme avant. */
+    @Test
+    void moderatePainDoesNotRaiseAnImmediateAlert() {
+        notificationService.notifyPainAlert(athleteWithUser(), 3);
+
+        verifyNoInteractions(pushService);
+        verifyNoInteractions(digestLogRepository);
+    }
+
+    // ---------------------------------------------------------------------------------------
+    // Rappel J-1 groupé
+    // ---------------------------------------------------------------------------------------
+
+    /** Deux séances demain font un rappel, pas deux notifications à la suite à 18 h. */
+    @Test
+    void tomorrowRemindersAreGroupedPerAthlete() {
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Workout morning = sampleWorkout();
+        morning.getAthlete().setId(UUID.randomUUID());
+        Workout evening = new Workout();
+        evening.setAthlete(morning.getAthlete());
+        evening.setTitle("Renforcement");
+        evening.setScheduledDate(morning.getScheduledDate());
+        User athleteUser = userFor(morning.getAthlete());
+        when(pushService.canReach(athleteUser.getId())).thenReturn(true);
+
+        notificationService.notifyWorkoutReminder(List.of(morning, evening));
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        verify(pushService).sendToUser(eq(athleteUser.getId()), eq("2 séances demain"),
+                body.capture(), contains("/athlete/today"));
+        assertThat(body.getValue()).contains("Footing").contains("Renforcement");
+        verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
+    }
+
+    // ---------------------------------------------------------------------------------------
+
+    private Club clubWithId() {
+        Club c = new Club();
+        c.setId(UUID.randomUUID());
+        return c;
+    }
 
     private Athlete athleteWithUser() {
         Athlete a = new Athlete();

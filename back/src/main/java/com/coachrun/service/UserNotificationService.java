@@ -75,13 +75,28 @@ public class UserNotificationService {
         if (req.usualSessionTime() != null) {
             u.setUsualSessionTime(parseTime(req.usualSessionTime()));
         }
+        // Remplacement, pas fusion : l'écran envoie l'état complet des cases, et une case
+        // décochée doit pouvoir revenir à « non coupée ».
+        if (req.mutedCategories() != null) {
+            u.setMutedCategories(req.mutedCategories());
+        }
+        if (req.quietStart() != null) {
+            u.setNotifyQuietStart(parseTime(req.quietStart()));
+        }
+        if (req.quietEnd() != null) {
+            u.setNotifyQuietEnd(parseTime(req.quietEnd()));
+        }
         return toResponse(u);
     }
 
     private NotificationPreferencesResponse toResponse(User u) {
-        LocalTime time = u.getUsualSessionTime();
         return new NotificationPreferencesResponse(u.isNotifyEmailEnabled(), u.isNotifyPushEnabled(),
-                time == null ? null : time.format(DateTimeFormatter.ofPattern("HH:mm")));
+                hhmm(u.getUsualSessionTime()), u.mutedCategories(),
+                hhmm(u.getNotifyQuietStart()), hhmm(u.getNotifyQuietEnd()));
+    }
+
+    private String hhmm(LocalTime time) {
+        return time == null ? null : time.format(DateTimeFormatter.ofPattern("HH:mm"));
     }
 
     /** « HH:mm » → heure ; chaîne vide (ou horaire illisible) = rappel de débriefing désactivé. */

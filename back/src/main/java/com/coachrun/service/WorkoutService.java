@@ -533,6 +533,9 @@ public class WorkoutService {
 
         workout.setAthleteComment(request.comment());
         notificationService.notifyAthleteFeedback(workout);
+        // Une douleur élevée ne peut pas attendre le digest du lendemain matin : c'est le seul
+        // signal du produit dont le délai se paie en blessure.
+        notificationService.notifyPainAlert(workout.getAthlete(), workout.getPain());
         return WorkoutResponse.from(workout);
     }
 

@@ -240,6 +240,46 @@ class NotificationCenterTest {
         assertThat(unread()).isEqualTo(before + 1);
     }
 
+    /**
+     * Les préférences fines font l'aller-retour, et couper une famille fait taire son push
+     * <b>sans</b> vider le centre — c'est l'invariant qui rend le réglage acceptable : on retire
+     * l'interruption, jamais l'information.
+     */
+    @Test
+    void mutingACategoryKeepsTheNotificationCentreFed() throws Exception {
+        JsonNode saved = objectMapper.readTree(mvc.perform(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .put("/notifications/preferences")
+                                .header("Authorization", athleteBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"mutedCategories\":[\"PROGRAMME\"],\"quietStart\":\"23:00\","
+                                        + "\"quietEnd\":\"06:30\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
+        assertThat(saved.get("mutedCategories")).hasSize(1);
+        assertThat(saved.get("mutedCategories").get(0).asText()).isEqualTo("PROGRAMME");
+        assertThat(saved.get("quietStart").asText()).isEqualTo("23:00");
+        assertThat(saved.get("quietEnd").asText()).isEqualTo("06:30");
+
+        long before = unread();
+        mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                        .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"scheduledDate\":\"" + LocalDate.now()
+                                + "\",\"type\":\"ENDURANCE\",\"title\":\"Footing\"}"))
+                .andExpect(status().isCreated());
+
+        // La famille est coupée : le push ne part pas, mais la ligne est bien là.
+        assertThat(unread()).isEqualTo(before + 1);
+        assertThat(latestNotification().get("type").asText()).isEqualTo("WORKOUT_PLANNED");
+
+        // Et la liste vide réactive tout.
+        JsonNode reset = objectMapper.readTree(mvc.perform(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .put("/notifications/preferences")
+                                .header("Authorization", athleteBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"mutedCategories\":[]}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
+        assertThat(reset.get("mutedCategories")).isEmpty();
+    }
+
     /** Notification la plus récente de l'athlète. */
     private JsonNode latestNotification() throws Exception {
         return objectMapper.readTree(mvc.perform(get("/notifications")

@@ -38,6 +38,7 @@ public class StrengthScheduleService {
     private final com.coachrun.security.HealthDataConsentValidator consentValidator;
     private final StrengthSessionService strengthSessionService;
     private final ObjectMapper objectMapper;
+    private final NotificationService notificationService;
 
     @Transactional
     public ScheduledStrengthResponse schedule(UUID clubId, UUID athleteId, UUID sessionId,
@@ -63,6 +64,17 @@ public class StrengthScheduleService {
     public ScheduledStrengthResponse schedule(UUID clubId, UUID athleteId, UUID sessionId,
                                               LocalDate date, FieldsPreset preset, UUID planId,
                                               Double chargePctAdjustment) {
+        return schedule(clubId, athleteId, sessionId, date, preset, planId, chargePctAdjustment, true);
+    }
+
+    /**
+     * Idem, en disant si l'athlète doit être averti — {@code false} sur la génération en lot
+     * d'une attribution de plan, qui émet une notification unique pour tout le programme.
+     */
+    @Transactional
+    public ScheduledStrengthResponse schedule(UUID clubId, UUID athleteId, UUID sessionId,
+                                              LocalDate date, FieldsPreset preset, UUID planId,
+                                              Double chargePctAdjustment, boolean notifyAthlete) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         StrengthSessionResponse session = strengthSessionService.get(clubId, sessionId);
@@ -87,7 +99,11 @@ public class StrengthScheduleService {
         ss.setCalculatedCharges(writeJson(calc));
         ss.setRequiredFields((preset != null ? preset : FieldsPreset.DEBUTANT).json());
         ss.setScheduledDate(date);
-        return ScheduledStrengthResponse.from(scheduledRepository.save(ss), summarize(calc));
+        ScheduledStrengthSession saved = scheduledRepository.save(ss);
+        if (notifyAthlete) {
+            notificationService.notifyStrengthPlanned(athlete, saved.getTitle(), date);
+        }
+        return ScheduledStrengthResponse.from(saved, summarize(calc));
     }
 
     public List<ScheduledStrengthResponse> coachCalendar(UUID clubId, UUID athleteId,
@@ -177,6 +193,8 @@ public class StrengthScheduleService {
         ss.setSessionFatigue(consentValidator.keepIfAllowed(ss.getAthlete(), req.fatigue()));
         ss.setSessionPain(consentValidator.keepIfAllowed(ss.getAthlete(), req.pain()));
         ss.setSessionComment(req.comment());
+        notificationService.notifyStrengthFeedback(ss);
+        notificationService.notifyPainAlert(ss.getAthlete(), ss.getSessionPain());
         return ScheduledStrengthResponse.from(ss);
     }
 

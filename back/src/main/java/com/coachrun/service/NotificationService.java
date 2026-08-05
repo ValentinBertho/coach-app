@@ -7,11 +7,13 @@ import com.coachrun.entity.Message;
 import com.coachrun.entity.Notification;
 import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
+import com.coachrun.entity.enums.NotificationCategory;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.integration.MailTemplate;
 import com.coachrun.integration.MailTemplate.Audience;
 import com.coachrun.integration.ResendMailClient;
+import com.coachrun.repository.AlertDigestLogRepository;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.NotificationRepository;
 import com.coachrun.repository.UserRepository;
@@ -24,6 +26,7 @@ import org.springframework.web.util.HtmlUtils;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -80,6 +83,8 @@ public class NotificationService {
     private final CoachAthleteRelationRepository relationRepository;
     private final NotificationRepository notificationRepository;
     private final NotificationStreamService streamService;
+    private final AlertDigestLogRepository digestLogRepository;
+    private final ClockService clock;
 
     @Value("${app.mail.enabled:false}")
     private boolean enabled;
@@ -122,7 +127,7 @@ public class NotificationService {
      * autant de fois, et oubliée à la suivante. Elle n'a désormais qu'un seul endroit où vivre.</p>
      */
     private void notifyUser(User target, String type, String title, String body, String link) {
-        notifyUser(target, type, title, body, body, link);
+        notifyUser(target, type, title, body, body, link, true);
     }
 
     /**
@@ -132,37 +137,89 @@ public class NotificationService {
      */
     private void notifyUser(User target, String type, String title, String body, String pushBody,
                             String link) {
+        notifyUser(target, type, title, body, pushBody, link, true);
+    }
+
+    /**
+     * Forme complète. {@code push} à {@code false} dépose la trace sans interrompre : c'est le
+     * réglage des notifications dont l'intérêt est réel mais l'urgence nulle — elles se découvrent
+     * à la pastille de la cloche, quand l'utilisateur revient de lui-même.
+     */
+    private void notifyUser(User target, String type, String title, String body, String pushBody,
+                            String link, boolean push) {
         if (target == null) {
             return;
         }
         record(target.getId(), type, title, body, link);
-        pushOnly(target, title, pushBody, link);
+        if (push) {
+            pushOnly(target, type, title, pushBody, link);
+        }
     }
 
     /**
-     * Push seul, sans trace in-app. Réservé à ce qui est périmé le lendemain (le rappel de
-     * débriefing) : une ligne « Ta séance est finie ? » relue trois jours plus tard n'a plus
-     * aucun sens au centre de notifications.
+     * Push seul, sans trace in-app. Réservé à ce qui est périmé le lendemain : une ligne « Ta
+     * séance est finie ? » relue trois jours plus tard n'a plus aucun sens.
      */
-    private void pushOnly(User target, String title, String body, String link) {
-        if (target == null || !target.isNotifyPushEnabled()) {
+    private void pushOnly(User target, String type, String title, String body, String link) {
+        if (!pushAllowed(target, type)) {
             return;
         }
         pushService.sendToUser(target.getId(), title, body, frontendUrl + link);
     }
 
-    /** Idem, avec des actions rapides affichées par le système sous la notification. */
-    private void pushOnly(User target, String title, String body, String link,
+    /**
+     * Remise système, sous les trois conditions que l'utilisateur maîtrise : le push activé, la
+     * catégorie non coupée, et l'heure hors de sa plage de silence.
+     *
+     * <p>Les deux derniers filtres ne touchent que ce canal. La trace in-app est déposée avant
+     * l'appel et reste intacte : couper une famille ou dormir ne doit jamais faire perdre une
+     * information, seulement l'interruption qui l'accompagnait.</p>
+     */
+    private void pushOnly(User target, String type, String title, String body, String link,
                           List<PushNotificationService.QuickAction> actions) {
-        if (target == null || !target.isNotifyPushEnabled()) {
+        if (!pushAllowed(target, type)) {
             return;
         }
         pushService.sendToUser(target.getId(), title, body, frontendUrl + link, actions);
     }
 
-    /** Ce compte accepte-t-il le push, <em>et</em> un appareil peut-il réellement le recevoir ? */
-    private boolean pushReaches(User target) {
-        return target != null && target.isNotifyPushEnabled() && pushService.canReach(target.getId());
+    /** Préférences de l'utilisateur réunies : canal, catégorie, heure. */
+    private boolean pushAllowed(User target, String type) {
+        if (target == null || !target.isNotifyPushEnabled()) {
+            return false;
+        }
+        if (target.mutedCategories().contains(NotificationCategory.of(type))) {
+            return false;
+        }
+        return !inQuietHours(target, clock.now());
+    }
+
+    /**
+     * L'heure tombe-t-elle dans la plage de silence ? La plage traverse minuit dans le cas
+     * courant (22 h → 7 h), d'où la comparaison en deux morceaux ; deux bornes identiques valent
+     * « pas de silence », et non « silence permanent ».
+     *
+     * <p>Prédicat pur, exposé pour être éprouvé directement : le passage de minuit est le genre de
+     * détail qu'on croit évident et qu'on écrit à l'envers une fois sur deux.</p>
+     */
+    public static boolean inQuietHours(User target, LocalTime now) {
+        LocalTime start = target.getNotifyQuietStart();
+        LocalTime end = target.getNotifyQuietEnd();
+        if (start == null || end == null || start.equals(end)) {
+            return false;
+        }
+        return start.isBefore(end)
+                ? !now.isBefore(start) && now.isBefore(end)
+                : !now.isBefore(start) || now.isBefore(end);
+    }
+
+    /**
+     * Ce compte accepte-t-il ce push <em>maintenant</em>, et un appareil peut-il le recevoir ?
+     * Condition du repli e-mail du rappel de séance : un rappel tombant en heures de silence doit
+     * partir par e-mail plutôt que de disparaître.
+     */
+    private boolean pushReaches(User target, String type) {
+        return pushAllowed(target, type) && pushService.canReach(target.getId());
     }
 
     /** Compte utilisateur d'un athlète, ou {@code null} s'il n'a pas encore activé son espace. */
@@ -310,6 +367,57 @@ public class NotificationService {
     }
 
     /**
+     * Séance de renforcement planifiée → notifie l'athlète, comme une séance de course.
+     *
+     * <p>Le produit traitait ses deux disciplines différemment sans raison : poser un footing
+     * prévenait l'athlète, poser une séance de force ne prévenait personne. L'asymétrie était
+     * invisible côté coach — il fait le même geste — et déroutante côté athlète, qui découvrait
+     * du renforcement dans son calendrier sans l'avoir vu arriver.</p>
+     */
+    public void notifyStrengthPlanned(Athlete athlete, String sessionTitle, LocalDate date) {
+        notifyUser(athleteUser(athlete), "STRENGTH_PLANNED", "Nouvelle séance de renforcement",
+                sessionTitle + " — " + fr(date), ATHLETE_CALENDAR);
+    }
+
+    /**
+     * Retour sur une séance de renforcement → notifie le coach référent, mêmes règles que pour la
+     * course : push seulement si le retour appelle une décision, sinon trace au centre.
+     *
+     * <p>Le pendant manquant de {@link #notifyAthleteFeedback} : le rappel de débriefing relançait
+     * bien l'athlète sur ses séances de force, mais sa réponse n'arrivait nulle part.</p>
+     */
+    public void notifyStrengthFeedback(com.coachrun.entity.ScheduledStrengthSession session) {
+        Athlete athlete = session.getAthlete();
+        UUID clubId = session.getClub() != null ? session.getClub().getId() : null;
+        // Le RPE de force est décimal (7,5 est une valeur courante), d'où la comparaison BigDecimal.
+        boolean notable = (session.getSessionPain() != null && session.getSessionPain() >= PAIN_REPORTED)
+                || (session.getSessionRpe() != null
+                        && session.getSessionRpe().compareTo(java.math.BigDecimal.valueOf(RPE_MAXIMAL)) >= 0);
+        referentCoach(athlete.getId(), clubId).ifPresent(coach -> notifyUser(coach,
+                "ATHLETE_FEEDBACK", "Renforcement mis à jour",
+                fullName(athlete) + " — " + session.getTitle(),
+                athlete.getFirstName() + " — renforcement",
+                "/app/feedback", notable));
+    }
+
+    /**
+     * Un athlète invité vient d'activer son espace → prévient le coach qui l'a invité.
+     *
+     * <p>Le coach envoyait l'invitation puis n'entendait plus rien : il devait rouvrir la fiche
+     * de temps en temps pour voir si le statut avait changé. C'est pourtant le moment où il a
+     * quelque chose à faire — poser les premières séances.</p>
+     */
+    public void notifyAthleteJoined(Athlete athlete) {
+        UUID clubId = athlete.getClub() != null ? athlete.getClub().getId() : null;
+        referentCoach(athlete.getId(), clubId).ifPresent(coach -> {
+            String name = fullName(athlete);
+            notifyUser(coach, "ATHLETE_JOINED", "Nouvel athlète",
+                    name + " a activé son espace.", name + " a rejoint ton groupe.",
+                    "/app/athletes/" + athlete.getId());
+        });
+    }
+
+    /**
      * Commentaire du coach sur une séance réalisée → notifie l'athlète,
      * <strong>in-app + push, sans e-mail</strong>.
      *
@@ -334,10 +442,105 @@ public class NotificationService {
     public void notifyAthleteFeedback(Workout workout) {
         Athlete athlete = workout.getAthlete();
         String status = statusLabel(workout.getStatus());
+        boolean notable = notable(workout);
         coachToNotify(workout).ifPresent(c -> notifyUser(c, "ATHLETE_FEEDBACK", "Séance mise à jour",
                 fullName(athlete) + " — " + status,
                 athlete.getFirstName() + " — " + status,
-                "/app/feedback"));
+                "/app/feedback", notable));
+    }
+
+    /**
+     * Ce retour mérite-t-il d'interrompre le coach, ou seulement d'attendre dans sa file ?
+     *
+     * <p>Un coach de vingt athlètes recevait une quinzaine de push par jour pour des séances
+     * réalisées comme prévu — l'information la moins urgente du produit, et la première à faire
+     * couper le canal. Elle est déjà servie par la file « Retours à traiter », sa pastille, et le
+     * digest de 7 h.</p>
+     *
+     * <p>Reste ce qui appelle une décision le jour même : une douleur déclarée, une séance non
+     * faite, un effort au bout du rouleau. Ces trois-là passent en push ; tout le reste se dépose
+     * au centre de notifications, où le coach le trouvera quand il viendra.</p>
+     */
+    private boolean notable(Workout workout) {
+        return (workout.getPain() != null && workout.getPain() >= PAIN_REPORTED)
+                || workout.getStatus() == WorkoutStatus.MISSED
+                || (workout.getRpe() != null && workout.getRpe() >= RPE_MAXIMAL);
+    }
+
+    /** Douleur à partir de laquelle un retour de séance mérite d'interrompre le coach. */
+    private static final int PAIN_REPORTED = 3;
+
+    /** Douleur à partir de laquelle le coach est prévenu <b>tout de suite</b>, hors digest. */
+    private static final int PAIN_SEVERE = 5;
+
+    /** RPE au-delà duquel l'effort mérite un regard le jour même. */
+    private static final int RPE_MAXIMAL = 9;
+
+    /** Une alerte de douleur n'est pas répétée à ce coach pour cet athlète avant ce délai. */
+    private static final Duration PAIN_ALERT_WINDOW = Duration.ofDays(7);
+
+    /**
+     * Douleur élevée déclarée → prévient le coach référent <strong>immédiatement</strong>.
+     *
+     * <p>Une douleur 8/10 saisie au check-in de 8 h attendait le digest du lendemain matin :
+     * vingt-trois heures pendant lesquelles l'athlète pouvait courir la séance qui aggrave la
+     * blessure. C'est le seul signal du produit dont le délai coûte quelque chose de physique.</p>
+     *
+     * <p>Le corps ne porte <b>pas l'intensité</b>, seulement le nom et la catégorie — même
+     * arbitrage que pour l'indisponibilité déclarée, dont le motif (« blessure ») est ce dont le
+     * coach a besoin pour agir, là où « douleur 8/10 » est une mesure de santé qui n'a rien à
+     * faire sur un écran verrouillé.</p>
+     *
+     * <p>L'envoi est inscrit dans la mémoire du digest : l'alerte n'est donc pas redite le
+     * lendemain matin par un second canal, et elle revient d'elle-même après le délai de rappel
+     * si la situation dure.</p>
+     */
+    public void notifyPainAlert(Athlete athlete, Integer pain) {
+        if (athlete == null || pain == null || pain < PAIN_SEVERE) {
+            return;
+        }
+        UUID clubId = athlete.getClub() != null ? athlete.getClub().getId() : null;
+        referentCoach(athlete.getId(), clubId).ifPresent(coach -> {
+            if (painAlreadySignalled(coach.getId(), athlete.getId())) {
+                return;
+            }
+            String name = fullName(athlete);
+            notifyUser(coach, "PAIN_ALERT", "Douleur signalée",
+                    name + " — à regarder avant sa prochaine séance.",
+                    name + " — à regarder.",
+                    "/app/athletes/" + athlete.getId());
+        });
+    }
+
+    /**
+     * Cette douleur a-t-elle déjà été signalée à ce coach ? Partage la mémoire du digest quotidien
+     * ({@code alert_digest_log}, clé coach × athlète × type) : dire la même chose deux fois par
+     * deux canaux est exactement le bruit que le digest avait été conçu pour supprimer.
+     */
+    private boolean painAlreadySignalled(UUID coachId, UUID athleteId) {
+        try {
+            Instant now = Instant.now();
+            var previous = digestLogRepository.findByCoachId(coachId).stream()
+                    .filter(row -> row.getAthleteId().equals(athleteId) && "PAIN".equals(row.getAlertType()))
+                    .findFirst();
+            if (previous.isPresent()) {
+                if (previous.get().getLastSentAt().isAfter(now.minus(PAIN_ALERT_WINDOW))) {
+                    return true;
+                }
+                previous.get().setLastSentAt(now);
+                return false;
+            }
+            var row = new com.coachrun.entity.AlertDigestLog();
+            row.setCoachId(coachId);
+            row.setAthleteId(athleteId);
+            row.setAlertType("PAIN");
+            row.setLastSentAt(now);
+            digestLogRepository.save(row);
+            return false;
+        } catch (RuntimeException ex) {
+            log.warn("Mémoire des alertes indisponible : {}", ex.getMessage());
+            return false;
+        }
     }
 
     /**
@@ -460,26 +663,46 @@ public class NotificationService {
      * système ne serait plus prévenu du tout.</p>
      */
     public void notifyWorkoutReminder(Workout workout) {
-        User athleteUser = athleteUser(workout.getAthlete());
-        String title = "Séance demain";
-        String body = workout.getTitle();
+        notifyWorkoutReminder(List.of(workout));
+    }
+
+    /**
+     * Rappel J-1 groupé : <b>une notification par athlète</b>, quel que soit le nombre de séances
+     * prévues le lendemain.
+     *
+     * <p>Le rappel partait par séance : un athlète qui a footing le matin et renforcement le soir
+     * recevait deux notifications à la suite, à 18 h, disant la même chose. La veille au soir,
+     * l'information utile est « demain, voilà ce qui t'attend » — une fois.</p>
+     */
+    public void notifyWorkoutReminder(List<Workout> workouts) {
+        if (workouts == null || workouts.isEmpty()) {
+            return;
+        }
+        Athlete athlete = workouts.get(0).getAthlete();
+        User athleteUser = athleteUser(athlete);
+        int count = workouts.size();
+        String title = count > 1 ? count + " séances demain" : "Séance demain";
+        String body = workouts.stream().map(Workout::getTitle).collect(java.util.stream.Collectors.joining(" · "));
 
         if (athleteUser != null) {
             record(athleteUser.getId(), "WORKOUT_REMINDER", title, body, "/athlete/today");
-            if (pushReaches(athleteUser)) {
-                pushOnly(athleteUser, title, body, "/athlete/today");
+            if (pushReaches(athleteUser, "WORKOUT_REMINDER")) {
+                pushOnly(athleteUser, "WORKOUT_REMINDER", title, body, "/athlete/today");
                 return;
             }
         }
 
-        String email = workout.getAthlete().getEmail();
+        String email = athlete.getEmail();
         if (email == null || (athleteUser != null && !athleteUser.isNotifyEmailEnabled())) {
             return;
         }
-        send(email, "Rappel : séance demain",
-                "<p>Bonjour " + esc(workout.getAthlete().getFirstName()) + ",</p>"
-                        + "<p>Rappel : <strong>" + esc(workout.getTitle()) + "</strong> est prévue demain.</p>"
-                        + cta("Voir ma séance", frontendUrl + "/athlete/today"),
+        StringBuilder items = new StringBuilder();
+        workouts.forEach(w -> items.append("<li>").append(esc(w.getTitle())).append("</li>"));
+        send(email, count > 1 ? "Rappel : " + count + " séances demain" : "Rappel : séance demain",
+                "<p>Bonjour " + esc(athlete.getFirstName()) + ",</p>"
+                        + "<p>Rappel — demain :</p><ul>" + items + "</ul>"
+                        + cta(count > 1 ? "Voir mes séances" : "Voir ma séance",
+                                frontendUrl + "/athlete/today"),
                 Audience.ATHLETE);
     }
 
@@ -493,18 +716,26 @@ public class NotificationService {
      * mènent à une feuille pré-remplie — l'athlète confirme fatigue et douleur, il ne saisit
      * pas tout depuis zéro.</p>
      *
-     * <p>Push uniquement : pas d'e-mail (le canal est trop lent pour un ressenti à chaud) et
-     * pas de trace au centre de notifications (le lendemain, elle serait périmée).</p>
+     * <p>Pas d'e-mail : le canal est trop lent pour un ressenti à chaud. Mais une trace au centre
+     * de notifications, désormais — le rappel était en push pur, si bien qu'un athlète ayant
+     * refusé les notifications système n'avait <b>aucun</b> chemin vers sa feuille de ressenti,
+     * et que celui qui les acceptait perdait le lien dès qu'il balayait la notification. La ligne
+     * périme vite ; c'est la purge du centre qui s'en charge, pas son absence.</p>
      *
      * @param feedbackPath chemin front portant déjà un paramètre de requête (les actions y
      *                     ajoutent {@code &rpe=…}), ex. {@code /athlete/today?feedback=<id>}
      */
     public void notifySessionDebrief(User athleteUser, String sessionTitle, String feedbackPath) {
+        if (athleteUser == null) {
+            return;
+        }
         List<PushNotificationService.QuickAction> actions = List.of(
                 quickAction(3, "Facile", feedbackPath),
                 quickAction(6, "Moyen", feedbackPath),
                 quickAction(8, "Dur", feedbackPath));
-        pushOnly(athleteUser, "Ta séance est finie ?",
+        record(athleteUser.getId(), "SESSION_DEBRIEF", "Ta séance est finie ?",
+                sessionTitle + " — note ton ressenti.", feedbackPath);
+        pushOnly(athleteUser, "SESSION_DEBRIEF", "Ta séance est finie ?",
                 sessionTitle + " — note ton ressenti en un tap.", feedbackPath, actions);
     }
 
