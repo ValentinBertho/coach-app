@@ -617,24 +617,66 @@ pendant qu'il modernise le programme. Le formulaire public
 file d'attente ni liste de notification**, et aucune date de réouverture n'est annoncée. Les
 partenaires déjà intégrés ne sont pas affectés.
 
-> ⚠️ Ces informations proviennent de sources tierces (forums Garmin, éditeurs partenaires) : les
-> pages officielles `developer.garmin.com` sont **inaccessibles depuis cet environnement** (403 au
-> niveau du proxy réseau). **Vérifiez vous-même l'état actuel** en ouvrant
-> [developer.garmin.com/gc-developer-program](https://developer.garmin.com/gc-developer-program/)
-> et en cherchant le bouton de demande d'accès. Si le formulaire est de retour, le dossier §4.3 est
-> directement soumissible.
+**Les pages officielles le confirment indirectement** (relevé sur les captures du site, août 2026) :
+
+- Aucune des six pages du programme n'affiche de bouton « Request Access » ou de lien vers un
+  formulaire de candidature. C'est la confirmation la plus nette qu'on puisse obtenir sans
+  déclaration explicite de Garmin.
+- Un encadré **« Stay tuned for more updates on the program »** figure en haut à droite de
+  **toutes** les pages — la formulation d'un programme en transition.
+- Le seul canal d'entrée visible est le lien **« emailing us »** (bas de chaque page d'API) et le
+  lien **Contact** du pied de page. Les pages **Activity API** et **Health API** ajoutent un bouton
+  **« CONTACT US »** ; les pages **Training API** et **Courses API**, non.
+
+→ **L'e-mail est donc la seule voie ouverte**, ce qui tombe bien : c'est exactement ce que prépare
+la §4.4.
+
+### 4.1 bis Ce que les pages officielles apprennent d'utile
+
+Quatre points relevés sur les pages Activity, Training, Courses et Health, qui changent quelque
+chose pour vous :
+
+1. **L'Activity API livre des fichiers FIT.** *« Full Activity Details Access: Activity data files
+   (.FIT, GPX, .TCX formats) »* et *« The Activity API offers access to FIT files »*. Autrement dit,
+   le détail d'une activité Garmin **passe par un parseur FIT** — que vous n'avez pas encore
+   (`GpxParser` couvre GPX/TCX). C'est un argument de plus pour attaquer le FIT dès maintenant :
+   ce n'est plus seulement un repli en attendant Garmin, c'est **une brique obligatoire de
+   l'intégration Garmin elle-même**.
+2. **Vous choisissez l'architecture.** *« Ping/Pull or Push Architecture: Choose the integration
+   option that best matches your needs »* (Activity et Health). Le **Push** vous convient : il évite
+   le polling et rejoint ce que fait déjà COROS.
+3. **Environnements de test après approbation.** Activity API → *« an evaluation environment »* ;
+   Training et Courses → *« test your integration against the production environment with
+   throttled access »*. Deux régimes différents, à intégrer au planning.
+4. **Ce que le programme inclut** : documentation, accès au **logo officiel Garmin Connect et aux
+   exigences de marque**, **accès direct à l'équipe support** du programme, et du **code
+   d'exemple** — mais seulement *« for Health, Activity, and Women's Health APIs »*. **Pas
+   d'exemple pour la Training API**, celle qui vous demandera le plus de travail. À budgéter.
+
+> ℹ️ Deux détails à ne pas confondre : la **Health API** est positionnée « Corporate Wellness,
+> Population Health, Patient Monitoring » avec une mention *« Commercial use requires a license fee
+> payment »* sur certaines métriques. Rien à voir avec votre besoin — raison de plus pour ne pas la
+> demander. Et les **Garmin Health SDKs** (connexion directe app mobile ↔ montre) sont un produit
+> distinct : les Connect APIs sont **cloud-to-cloud**, ce qui est bien ce que vous voulez.
 
 ### 4.2 Que faire maintenant — dans cet ordre
 
-1. **Vérifier** la page officielle du programme. Si le formulaire est réapparu → soumettre le
-   dossier §4.3 immédiatement.
-2. **Sinon, ouvrir un ticket** via le formulaire de contact développeur Garmin. Ça ne débloque pas
-   l'accès, mais ça crée une trace datée et vous met dans le système — utile quand la file
-   redémarre. Message court prêt à envoyer en §4.4.
-3. **Recontrôler périodiquement** (mensuel suffit ; il n'y a pas de notification à attendre).
-4. **En attendant, ne rien promettre dans le produit.** Le README et l'onboarding annoncent déjà
-   Garmin/COROS comme « prévus » — cette formulation reste la bonne, ne la faites pas passer à
-   « bientôt » tant que Garmin n'a pas rouvert.
+1. **Envoyer l'e-mail de demande d'accès §4.4.** C'est un dossier complet, rédigé comme si le
+   programme était ouvert — parce que c'est la bonne posture : si la file a rouvert sans annonce,
+   vous êtes candidat le jour même ; si elle est encore fermée, vous avez une demande datée,
+   argumentée et déjà instruite quand elle redémarre. Un message qui se contente de demander
+   « prévenez-moi quand ça rouvre » n'obtient qu'une réponse polie et aucune place dans la file.
+2. **Où l'envoyer** : le lien **« emailing us »** en bas de la page
+   [Training API](https://developer.garmin.com/gc-developer-program/training-api/) — c'est le
+   canal des questions de programme. Le lien **Contact** du pied de page mène au même endroit.
+   Le bouton **« CONTACT US »** de la page Activity API vise plutôt les demandes commerciales
+   (« Looking for a business solution ») : à réserver en relance si l'e-mail reste sans réponse.
+3. **Recontrôler la page du programme périodiquement** (mensuel suffit ; il n'existe pas de
+   notification à attendre). Si un bouton de demande d'accès réapparaît, remplissez-le en reprenant
+   la §4.3 — sans attendre de réponse à votre e-mail.
+4. **Ne rien promettre dans le produit en attendant.** Le README, l'onboarding et la nouvelle page
+   de support annoncent Garmin/COROS comme « prévus » / « en préparation » — c'est la bonne
+   formulation, ne la faites pas passer à « bientôt » tant que Garmin n'a pas rouvert.
 
 ### 4.3 Réponses au formulaire d'accès Garmin (prêtes)
 
@@ -643,47 +685,160 @@ Garmin demande les mêmes rubriques. Les spécificités Garmin :
 
 | Champ Garmin | Réponse |
 |---|---|
-| **Type d'entité** | Société commerciale. ⚠️ Garmin **exige une personne morale** — société, université, hôpital ou institut de recherche. Une demande à titre personnel est rejetée. C'est le motif de rejet n° 1. |
+| **Type d'entité** | Entreprise immatriculée en France, SIRET 914 436 118 00022. ⚠️ Garmin **exige une personne morale** — société, université, hôpital ou institut de recherche. Une demande à titre personnel est rejetée : c'est le motif de rejet n° 1, et c'est précisément ce que votre SIRET écarte. |
 | **APIs demandées** | ☑️ **Activity API** (import des activités réalisées) · ☑️ **Training API** (publication des séances structurées) · ☐ Health API · ☐ Women's Health API · ☐ Courses API |
-| **Pourquoi Activity API** | Cf. cas d'usage 1 en §2.3 |
-| **Pourquoi Training API** | Cf. cas d'usage 2 en §2.3 — la Training API publie les séances structurées et les plans dans le calendrier Garmin Connect, l'athlète les synchronise ensuite sur sa montre compatible |
-| **Pourquoi PAS la Health API** | À dire explicitement : « We do not need continuous health monitoring, sleep or all-day wellness data — only deliberate training sessions. » |
-| **Modèle de notification** | Garmin fonctionne en **push** : les données sont envoyées à vos URL de callback quand l'utilisateur synchronise sa montre. Déclarez `https://api.darilab.app/api/webhooks/garmin` (Ping/Push). **Prévoyez que ce endpoint réponde en 200 rapidement** — Garmin attend un accusé immédiat et rejoue en cas d'échec. |
-| **Politique de confidentialité** | URL publique obligatoire, mentionnant Garmin nommément |
-| **Volumétrie** | Cf. §2.4 |
+| **Pourquoi Activity API** | Cf. cas d'usage 1 en §2.3. Détail des activités livré en **fichiers FIT** (§4.1 bis) |
+| **Pourquoi Training API** | Cf. cas d'usage 2 en §2.3 — publie les séances et plans dans le **calendrier Garmin Connect**, l'athlète les synchronise ensuite sur sa montre compatible. C'est Garmin Connect qui gère l'échange avec l'appareil, vous n'y touchez pas |
+| **Pourquoi PAS la Health API** | À dire explicitement : « We do not need all-day health monitoring, sleep or stress data — only deliberate training sessions. » Elle vise de toute façon un autre marché (Corporate Wellness, Population Health) et certaines métriques sont payantes |
+| **Pourquoi PAS la Courses API** | Publication d'itinéraires — hors périmètre aujourd'hui. À redemander si vous ajoutez la prescription de parcours trail |
+| **Modèle d'intégration** | **Ping/Pull ou Push, au choix** (§4.1 bis). Prenez **Push** : les données sont envoyées à votre callback quand l'athlète synchronise sa montre, sans polling. Déclarez `https://[api.darilab.app ou www.darilab.app]/api/webhooks/garmin`. **Ce endpoint doit répondre 200 rapidement** — accusé immédiat, traitement asynchrone derrière |
+| **Politique de confidentialité** | URL publique obligatoire, mentionnant Garmin nommément (à faire avant la mise en production, cf. §2.5) |
+| **Volumétrie** | Cf. §2.4 — 10 aujourd'hui, 50 à 100 dans l'année |
 
-### 4.4 Message de contact prêt à envoyer (pendant la pause)
+### 4.4 E-mail de demande d'accès (prêt à envoyer)
 
-> **Objet** : Garmin Connect Developer Program — access request while applications are paused
+> **À** : lien « emailing us » de la page Training API (cf. §4.2)
+> **Objet** : API access request — DARI Lab (Activity API + Training API), France
+
+**Avant d'envoyer** — trois substitutions et une décision :
+
+- `[DÉNOMINATION EXACTE]` → la dénomination du registre (§3.3.1), la même que celle donnée à COROS.
+- `[URL]` des champs 13/14 → `api.darilab.app` ou `www.darilab.app` selon l'option retenue (§3.5-2).
+- La **dernière ligne** (« If new applications are not currently being accepted… ») : gardez-la
+  telle quelle. Elle ne fragilise pas la demande — le corps du message reste un dossier complet —
+  et elle évite le silence poli qu'obtient un message qui ignore visiblement l'état du programme.
+  Supprimez-la seulement si un bouton de demande d'accès est visiblement revenu sur le site.
 
 ```
 Hello,
 
-We understand that new access requests to the Garmin Connect Developer Program are
-currently paused while the programme is being modernised. We would like to register
-our interest so that we can be considered when applications reopen, and to ask how
-best to be notified.
+We would like to apply for access to the Garmin Connect Developer Program for DARI
+Lab, a coaching platform for running and strength training used by coaches and their
+athletes. We are requesting the Activity API and the Training API.
 
-  Company   : [DÉNOMINATION EXACTE — cf. §3.3.1]
-              France, SIRET 914 436 118 00022
-  Product   : DARI Lab — https://www.darilab.app
-  Use case  : DARI Lab is a SaaS coaching platform for running and strength training.
-              We are seeking (1) the Activity API, to import athletes' completed
-              training activities so coaches can compare prescribed vs. actual
-              sessions, and (2) the Training API, to publish coaches' structured
-              workouts to athletes' Garmin devices. We are not requesting the Health
-              API — we only need data about deliberate training sessions.
-  Status    : We already operate a production Strava integration using the same
-              architecture (OAuth 2.0, encrypted token storage, scheduled sync), so
-              we can integrate quickly once access is granted.
+COMPANY
+  Legal entity      : [DÉNOMINATION EXACTE]
+  Registration       : SIRET 914 436 118 00022 (SIREN 914 436 118)
+  Country           : France (European Union)
+  Website           : https://www.darilab.app
+  Privacy policy    : https://www.darilab.app/legal/confidentialite
+  Terms of use      : https://www.darilab.app/legal/cgu
+  Support page      : https://www.darilab.app/support
+  Login portal      : https://www.darilab.app/login
 
-Could you confirm whether there is any way to be notified when the programme reopens,
-or whether we should simply monitor developer.garmin.com?
+CONTACTS
+  Technical / primary : Valentin Bertho — contact@darilab.app
+  Secondary           : Valentin Bertho — valentin@darilab.app
+  Privacy             : Valentin Bertho — valentin@darilab.app
 
-Thank you,
+PRODUCT
+DARI Lab is a SaaS coaching platform for running and strength training. Coaches build
+structured workouts from each athlete's physiological profile (LT1/LT2 lactate
+thresholds, critical speed, VDOT, 1RM) and prescribe them as pace, heart-rate and RPE
+ranges. Athletes follow the programme in a mobile PWA, complete the session and submit
+their feedback. The platform then compares planned vs. actual training and computes
+training load indicators (ACWR, monotony, time-in-zone).
+
+It is a commercial B2B platform: our customers are coaches, and each coach brings their
+own group of athletes. We currently have around 10 active users and expect 50 to 100
+within the year. Garmin is by a wide margin the most common watch among the athletes we
+coach, which is why device integration is on our roadmap now rather than later.
+
+We already run a Strava integration in production, built on the same architecture we
+would use here: OAuth 2.0 authorisation code flow, encrypted token storage, scheduled
+synchronisation, and de-duplication of imported activities by external activity id. The
+integration work is therefore well understood on our side.
+
+APIS REQUESTED
+  1. Activity API — to import athletes' completed training activities.
+
+     After an athlete connects their Garmin Connect account, we would import their
+     completed running and strength activities: start time, distance, moving time,
+     elevation gain, average and max heart rate, cadence, power and calories, plus the
+     time / heart-rate / speed samples needed to compute time spent in each training
+     zone. This lets the coach compare the session they prescribed with the session the
+     athlete actually performed.
+
+     We understand activity details are delivered as FIT files. We already parse GPX and
+     TCX for manual imports, and we are adding FIT support using the Garmin FIT SDK.
+
+     Regarding integration architecture, we would prefer the Push option over Ping/Pull:
+     it avoids polling your infrastructure, and our backend already exposes a callback
+     endpoint for this purpose.
+
+  2. Training API — to publish coaches' structured workouts to athletes' devices.
+
+     Our sessions are already stored as structured blocks (warm-up / main set /
+     cool-down, repetitions, duration or distance targets, pace and heart-rate ranges,
+     recovery intervals), which maps directly onto the structured-workout model. Publishing
+     them to the Garmin Connect calendar would remove the step our athletes dislike most:
+     re-entering interval structures by hand on the watch before a session.
+
+APIS WE ARE NOT REQUESTING
+We are not requesting the Health API, the Women's Health API or the Courses API. We have
+no need for all-day health monitoring, sleep, stress or menstrual cycle data: we only
+process data about deliberate training sessions, prescribed by a coach and performed by
+an athlete who has explicitly accepted that coaching relationship. We would rather have
+a narrow, well-justified scope than a broad one.
+
+TECHNICAL DETAILS
+  OAuth 2.0 redirect URI (production)  : https://www.darilab.app/app/garmin/callback
+  OAuth 2.0 redirect URI (development) : http://localhost:4200/app/garmin/callback
+  Push / ping callback endpoint        : https://[URL]/api/webhooks/garmin
+  Service health endpoint              : https://[URL]/api/actuator/health
+  Web origins                          : https://www.darilab.app, https://darilab.app
+  Current active users                 : approx. 10
+  Expected within 12 months            : 50 to 100 connected athletes
+  Environments                         : 1 production + 1 local development
+  Backend                              : Java 21 / Spring Boot 3, PostgreSQL, hosted in
+                                         the European Union
+  Frontend                             : Angular PWA
+
+Our callback endpoint is designed to acknowledge notifications immediately and process
+them asynchronously, so it returns quickly under load.
+
+SECURITY AND DATA PROTECTION
+  - OAuth tokens are encrypted at rest (column-level AES encryption).
+  - All traffic is TLS 1.2+; tokens are never written to logs.
+  - The OAuth state parameter is signed and verified (CSRF protection).
+  - Access tokens are refreshed automatically before expiry.
+  - Each athlete initiates and revokes the connection themselves, from their own account
+    page — a coach can never connect an account on an athlete's behalf. Revoking deletes
+    the stored tokens immediately.
+  - We are GDPR-compliant: explicit consent is the legal basis for health-related data,
+    data subject export and erasure are implemented in the product, and data is hosted in
+    the European Union.
+  - We do not sell, rent or share user data with third parties, and we do not use it for
+    advertising or for training machine-learning models.
+  - Sub-processors: Railway (backend and database), Vercel (frontend), Resend (email).
+
+We will of course comply with the Garmin Connect branding requirements, update our
+privacy policy to name Garmin explicitly as a data source before going live, and follow
+the API terms of use.
+
+Could you let us know how to proceed, and what further information you need from us? If
+new applications are not currently being accepted, we would be grateful to know how to
+be considered once they reopen.
+
+Best regards,
 Valentin Bertho — Founder & Lead Developer, DARI Lab
-contact@darilab.app
+contact@darilab.app — https://www.darilab.app
 ```
+
+**Ce que ce message fait, et pourquoi il est construit ainsi**
+
+- **Il demande deux API sur cinq, et le dit.** La section « APIs we are not requesting » n'est pas
+  de la politesse : c'est le signal qu'un examinateur cherche. Une demande large est une demande
+  qu'il faut instruire ; une demande étroite et argumentée, il peut l'approuver.
+- **Il montre que vous avez déjà livré une intégration comparable.** Strava en production répond à
+  la question qui coûte le plus cher à Garmin — *est-ce que ce partenaire va vraiment intégrer ?*
+- **Il parle leur langue technique.** Mentionner les fichiers FIT, le choix Push plutôt que
+  Ping/Pull, et un endpoint qui acquitte immédiatement montre que vous avez lu leurs pages. C'est
+  rare dans les demandes qu'ils reçoivent, et ça se voit.
+- **Il assume la volumétrie.** 10 utilisateurs annoncés franchement, avec la raison pour laquelle
+  l'intégration arrive maintenant. Garmin n'exige pas de taille minimale — contrairement à COROS,
+  la « taille de marché » n'est pas un critère annoncé chez eux ; l'exigence dure est la
+  **personne morale**, que votre SIRET satisfait.
 
 ### 4.5 Les contournements, et pourquoi je ne les recommande pas ici
 
@@ -692,7 +847,7 @@ contact@darilab.app
 | **Agrégateur** (Terra, Spike, Open Wearables…) qui détient déjà l'accès partenaire Garmin | Débloque la **lecture** des activités sans attendre Garmin. Mais : coût récurrent au contrat, un sous-traitant de plus à déclarer au RGPD (données de santé), une dépendance sur le chemin critique du produit — et **l'envoi de séances vers la montre n'est en général pas couvert**, or c'est la moitié de votre besoin. À considérer seulement si la sync Garmin devient bloquante commercialement. |
 | **API Garmin Connect non officielle** (bibliothèques communautaires) | ❌ **Non.** Violation des CGU Garmin, casse à chaque changement côté Garmin, exige de manipuler les identifiants Garmin de vos athlètes — rédhibitoire pour une plateforme qui traite des données de santé et qui vise un partenariat officiel plus tard. |
 | **Connect IQ** | Ne donne pas accès aux données Connect ni à la publication de séances. Hors sujet ici. |
-| **Fichiers FIT** | ✅ **La vraie bonne piste intermédiaire.** L'export d'une séance en **fichier FIT de workout** que l'athlète dépose dans Garmin Connect (ou directement dans le dossier `NEWFILES` de la montre) fonctionne **sans aucune API**, et l'import FIT dans l'autre sens complète le GPX/TCX déjà en place. C'est déjà identifié dans vos audits (`docs/AUDIT-FONCTIONNEL-2026-08.md` A7, `PLAN-CONFORMITE-BETA-2026-08.md` V3-08). Le SDK FIT Garmin est librement téléchargeable. Manuel pour l'athlète, mais réel, et le travail de modélisation est **exactement celui** que réclamera la Training API le jour venu. |
+| **Fichiers FIT** | ✅ **Ce n'est plus un contournement, c'est un prérequis.** Les pages officielles indiquent que l'**Activity API livre les détails d'activité en fichiers FIT** (§4.1 bis) : vous aurez besoin d'un parseur FIT **de toute façon**, accès Garmin ou pas. Et dans l'autre sens, l'export d'une séance en **fichier FIT de workout**, que l'athlète dépose dans Garmin Connect (ou dans le dossier `NEWFILES` de sa montre), fonctionne **sans aucune API** — manuel, mais réel, et disponible dès aujourd'hui. C'est déjà identifié dans vos audits (`docs/AUDIT-FONCTIONNEL-2026-08.md` A7, `PLAN-CONFORMITE-BETA-2026-08.md` V3-08). Le SDK FIT Garmin est librement téléchargeable. **C'est le chantier à lancer maintenant** : il sert au repli immédiat, à l'intégration Garmin future et à COROS. |
 
 ---
 
@@ -722,15 +877,20 @@ candidature auprès d'un partenaire qui sélectionne.
 
 **Soumission COROS**
 
-- [ ] Lien du formulaire récupéré depuis l'article du centre d'aide `[§3.2]`
-- [ ] Les 24 champs remplis d'après le tableau `[§3.3]`
-- [ ] ✅ Les 4 logos PNG téléversés — déjà générés dans `docs/assets/api-partners/` `[§3.3.7]`
-- [ ] E-mail d'accompagnement envoyé à `api@coros.com` juste après `[§3.4]`
+- [x] ✅ **Formulaire soumis**
+- [ ] E-mail d'accompagnement envoyé à `api@coros.com` `[§3.4]`
+- [ ] Relance si pas de réponse sous ~3 semaines
 
 **Garmin**
 
-- [ ] État du programme vérifié sur `developer.garmin.com` `[§4.1]`
-- [ ] Ticket ouvert au support développeur si toujours en pause `[§4.4]`
+- [x] ✅ État du programme vérifié sur `developer.garmin.com` — aucun formulaire d'accès visible `[§4.1]`
+- [ ] 🔴 **E-mail de demande d'accès envoyé** via le lien « emailing us » de la page Training API `[§4.4]`
+- [ ] Page du programme recontrôlée mensuellement `[§4.2]`
+
+**Ensuite, sans attendre les réponses**
+
+- [ ] Lancer le **support des fichiers FIT** — prérequis de l'Activity API Garmin, repli immédiat
+      pour les deux marques, et socle commun de la publication de séances `[§4.5, §6]`
 
 ---
 
@@ -805,9 +965,13 @@ Garmin est fermé : il sert dans les trois cas.
 - [Garmin API Integration — Open Wearables](https://openwearables.io/docs/providers/garmin-api-integration)
 - [Sync your workout schedule to Garmin Connect — Tredict](https://www.tredict.com/blog/garmin_training_api_integration/) (retour d'expérience Training API)
 
-> ⚠️ Les pages `developer.garmin.com`, `www.garmin.com` et `support.coros.com` n'ont **pas pu être
-> lues directement** depuis l'environnement de rédaction (blocage 403 du proxy réseau). Le contenu
-> de ce document s'appuie sur les extraits indexés de ces pages et sur des sources tierces
-> concordantes. **Relisez les pages officielles avant d'envoyer** — en particulier l'état du
-> programme Garmin (§4.1) et le lien du formulaire COROS (§3.2), les deux points les plus
-> susceptibles d'avoir changé.
+> ℹ️ **Ce qui a été lu directement, et ce qui ne l'a pas été.**
+> Les domaines `developer.garmin.com`, `www.garmin.com`, `support.coros.com` et le registre des
+> entreprises sont **bloqués depuis l'environnement de rédaction** (403 du proxy réseau).
+> En revanche, les **captures fournies** ont permis de lire de première main : le **formulaire
+> COROS** dans son intégralité (source de la §3) et les pages officielles **Overview, Activity API,
+> Training API, Courses API et Health API** du programme Garmin (source des §4.1 et 4.1 bis) —
+> ce sont les parties les plus fiables du document.
+> Le reste — statut de la pause Garmin, processus COROS en trois étapes — s'appuie sur des sources
+> tierces concordantes. Le seul point resté invérifié est la **dénomination légale exacte**
+> (§3.3.1), à recopier du registre avant d'envoyer quoi que ce soit.
