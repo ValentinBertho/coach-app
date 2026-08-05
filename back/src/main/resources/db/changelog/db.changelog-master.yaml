@@ -155,3 +155,5 @@ databaseChangeLog:
       file: db/changelog/changes/075-shedlock.yaml
   - include:
       file: db/changelog/changes/076-user-timezone.yaml
+  - include:
+      file: db/changelog/changes/077-reset-strava-watermark.yaml

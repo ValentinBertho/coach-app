@@ -1,0 +1,26 @@
+# ============================================================================
+# 077 — Remise à zéro du curseur d'import Strava.
+#
+# Le curseur (device_connections.last_import_epoch) était posé à *l'instant de la synchro*, alors
+# que le paramètre `after` de Strava filtre sur l'heure de *départ* de la sortie. Toute sortie
+# commencée avant la synchro précédente était donc exclue, définitivement : une course de 18 h à
+# 19 h 10 déposée à 19 h 14 n'était jamais vue par la synchro de 19 h 30, qui demandait « ce qui a
+# commencé après 18 h 30 ».
+#
+# Corriger le calcul ne suffit pas : les curseurs déjà en base portent une valeur trop avancée, et
+# la nouvelle logique refuse — à raison — de faire reculer un curseur. Sans cette remise à zéro,
+# les sorties déjà perdues le resteraient.
+#
+# NULL rouvre la fenêtre par défaut de trente jours à la prochaine synchro. Le dédoublonnage
+# (source + identifiant externe) est déjà en place : rien ne sera importé deux fois.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 077-reset-strava-watermark
+      author: coachrun
+      changes:
+        - update:
+            tableName: device_connections
+            columns:
+              - column: { name: last_import_epoch, value: null }
+            where: provider = 'STRAVA'

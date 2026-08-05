@@ -23,6 +23,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -118,15 +120,21 @@ public class StravaService {
                 .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "Compte Strava non connecté."));
 
         String accessToken = freshAccessToken(conn);
+        // Plancher glissant : au-delà de trente jours en arrière, on ne remonte pas — sinon un
+        // compte resté longtemps sans sortie relirait un historique entier à chaque synchro.
+        long floor = Instant.now().getEpochSecond() - DEFAULT_LOOKBACK_SEC;
         long after = conn.getLastImportEpoch() != null
-                ? conn.getLastImportEpoch()
-                : Instant.now().getEpochSecond() - DEFAULT_LOOKBACK_SEC;
+                ? Math.max(conn.getLastImportEpoch(), floor)
+                : floor;
 
         int imported = 0;
+        long latestStart = 0L;
+        List<ImportedActivity> summaries = new ArrayList<>();
         for (StravaActivity a : client.listActivities(accessToken, after)) {
             if (a.id() == null || a.startDateLocal() == null) {
                 continue;
             }
+            latestStart = Math.max(latestStart, startEpoch(a));
             // Les flux détaillés coûtent un appel par activité (quota Strava : 100 req / 15 min).
             // On écarte donc les activités déjà connues AVANT d'aller les chercher : sur une
             // synchro horaire, la quasi-totalité de la page renvoyée est déjà en base.
@@ -137,19 +145,78 @@ public class StravaService {
                 activityService.importActivity(clubId, athleteId, toImportRequest(a),
                         extras(a, accessToken));
                 imported++;
+                summaries.add(new ImportedActivity(a.name(),
+                        a.movingTime(),
+                        a.distance() == null ? null : (int) Math.round(a.distance())));
             } catch (ConflictException dup) {
                 // Deux cas, même traitement : course entre deux synchros, ou sortie déjà présente
                 // sous une autre provenance. Dans les deux cas on passe — c'est le doublon qu'on
                 // ne veut pas, pas l'import.
             }
         }
-        conn.setLastImportEpoch(Instant.now().getEpochSecond());
+        conn.setLastImportEpoch(nextWatermark(after, latestStart));
         connectionRepository.save(conn);
         log.info("Import Strava athlète {} : {} activité(s)", athleteId, imported);
         // Une seule notification pour tout l'import, jamais une par activité : la synchro horaire
         // en remonte parfois plusieurs d'un coup après un week-end sans réseau.
-        notificationService.notifyActivitiesImported(conn.getAthlete(), imported);
+        notificationService.notifyActivitiesImported(conn.getAthlete(), summaries);
         return imported;
+    }
+
+    /** Résumé d'une sortie tout juste importée, pour la notification. */
+    public record ImportedActivity(String title, Integer durationS, Integer distanceM)
+            implements NotificationService.ImportedActivitySummary {
+    }
+
+    /**
+     * Recul appliqué au curseur, pour rattraper les sorties déposées en retard.
+     *
+     * <p>Deux jours : couvre la montre restée sans réseau le week-end et la trace téléversée le
+     * lendemain. Le doublon est déjà écarté en amont, donc relire large ne coûte qu'une requête
+     * de vérification par sortie — jamais un import en double.</p>
+     */
+    private static final long WATERMARK_OVERLAP_SEC = 2L * 24 * 3600;
+
+    /**
+     * Position du curseur pour la prochaine synchro.
+     *
+     * <p><strong>C'était le défaut le plus coûteux de l'intégration.</strong> Le curseur était
+     * posé à <em>l'instant de la synchro</em>, alors que le paramètre {@code after} de Strava
+     * filtre sur <em>l'heure de départ de la sortie</em>. Toute sortie commencée avant la synchro
+     * précédente était donc exclue — définitivement. Concrètement : la synchro passe à 19 h 30,
+     * on court de 18 h à 19 h 12, on téléverse à 19 h 14, et la sortie n'est jamais importée,
+     * puisque la requête suivante demande « ce qui a commencé après 19 h 30 ».</p>
+     *
+     * <p>Cela explique aussi pourquoi le premier import fonctionne toujours : sans curseur, la
+     * fenêtre de trente jours ramène tout, et le problème n'apparaît qu'à partir de la deuxième
+     * synchro.</p>
+     *
+     * <p>Le curseur suit désormais le <b>départ de la dernière sortie vue</b>, reculé d'une marge.
+     * Aucune sortie vue ne le fait avancer : sans quoi une période sans course ferait glisser le
+     * curseur en avant et sauterait une trace déposée tardivement.</p>
+     *
+     * <p>Fonction pure, exposée pour être éprouvée directement : c'est une arithmétique de trois
+     * lignes dont l'erreur a coûté toutes les sorties de plus d'une demi-heure.</p>
+     */
+    public static long nextWatermark(long previous, long latestStart) {
+        return latestStart <= 0 ? previous
+                : Math.max(previous, latestStart - WATERMARK_OVERLAP_SEC);
+    }
+
+    /**
+     * Départ de la sortie en secondes epoch. {@code start_date} porte le fuseau (UTC) ;
+     * {@code start_date_local} n'en a pas et ne peut donc pas être converti sans se tromper de
+     * plusieurs heures — précisément l'erreur qu'un curseur ne pardonne pas.
+     */
+    public static long startEpoch(StravaActivity a) {
+        if (a.startDate() == null) {
+            return 0L;
+        }
+        try {
+            return Instant.parse(a.startDate()).getEpochSecond();
+        } catch (java.time.format.DateTimeParseException ex) {
+            return 0L;
+        }
     }
 
     @Transactional

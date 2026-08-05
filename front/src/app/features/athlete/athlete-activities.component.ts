@@ -285,6 +285,8 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
   private readonly confirm = inject(ConfirmService);
   private readonly route = inject(ActivatedRoute);
   readonly mapEl = viewChild<ElementRef<HTMLDivElement>>('map');
+  /** Champ de fichier masqué : l'agenda peut demander l'import sans passer par la barre d'actions. */
+  readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('file');
 
   readonly loading = signal(true);
   readonly activities = signal<Activity[]>([]);
@@ -347,7 +349,12 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
   private load(): void {
     this.loading.set(true);
     this.portal.activities().subscribe({
-      next: (a) => { this.activities.set(a); this.loading.set(false); this.openRequested(); },
+      next: (a) => {
+        this.activities.set(a);
+        this.loading.set(false);
+        this.openRequested();
+        this.intentRequested();
+      },
       error: () => { this.activities.set([]); this.loading.set(false); },
     });
   }
@@ -360,6 +367,7 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
   private openRequested(): void {
     const id = this.route.snapshot.queryParamMap.get('open');
     if (!id) return;
+
     const target = this.activities().find((a) => a.id === id);
     if (!target) return;
     const from = this.rangeStart();
@@ -367,6 +375,29 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
       this.weeks.set('all');
     }
     this.toggle(target);
+  }
+
+  /**
+   * `?log=<jour>` et `?import=1` : l'agenda envoie ici avec l'intention déjà formée — « ce
+   * jour-là, j'ai couru ». On ouvre donc directement le bon outil, date pré-remplie, plutôt que
+   * de recopier le formulaire de saisie et le contrôle de doublon dans l'écran du calendrier.
+   */
+  private intentRequested(): void {
+    const params = this.route.snapshot.queryParamMap;
+    const day = params.get('log');
+    if (day) {
+      this.draft = { ...this.draft, activityDate: day };
+      this.showLog.set(true);
+      return;
+    }
+    if (params.get('import') === '1') {
+      this.pickFile();
+    }
+  }
+
+  /** Ouvre le sélecteur de fichier du navigateur (même bouton que la barre d'actions). */
+  pickFile(): void {
+    this.fileInput()?.nativeElement.click();
   }
 
   /**

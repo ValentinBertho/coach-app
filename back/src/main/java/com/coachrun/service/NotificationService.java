@@ -429,24 +429,61 @@ public class NotificationService {
     }
 
     /**
-     * Activités importées depuis la montre → <strong>trace in-app seule, jamais de push</strong>.
+     * Sortie remontée de la montre → notifie l'athlète, <strong>avec ses chiffres</strong>.
      *
-     * <p>L'import tournait en silence : l'athlète ne savait pas si sa sortie était bien remontée,
-     * et découvrait le contraire quand son coach lui demandait pourquoi il n'avait rien couru.</p>
+     * <p>L'import tournait en silence : l'athlète ne savait pas si sa sortie était bien arrivée,
+     * et l'apprenait quand son coach lui demandait pourquoi il n'avait rien couru.</p>
      *
-     * <p>Pas de push, et c'est délibéré : le geste vient de l'athlète — il vient de courir, il
-     * sait qu'il a couru. Le faire sonner pour le lui confirmer serait la définition même de la
-     * notification inutile. La ligne au centre répond à la seule vraie question, « est-ce bien
-     * arrivé ? », au moment où il se la pose.</p>
+     * <p>Le corps porte le nom, la durée et la distance. C'est ce qui distingue une confirmation
+     * utile — « voilà ce que j'ai enregistré, ça correspond » — d'un simple accusé de réception :
+     * l'athlète vérifie d'un coup d'œil que la bonne sortie est remontée, sans ouvrir l'app.</p>
+     *
+     * <p>Une seule notification par synchro. Quand plusieurs sorties arrivent ensemble — montre
+     * restée sans réseau —, le détail laisse la place au décompte.</p>
      */
-    public void notifyActivitiesImported(Athlete athlete, int count) {
-        if (count <= 0) {
+    public void notifyActivitiesImported(Athlete athlete,
+                                         List<? extends ImportedActivitySummary> imported) {
+        if (imported == null || imported.isEmpty()) {
             return;
         }
-        notifyInAppOnly(athleteUser(athlete), "ACTIVITY_IMPORTED", "Activité importée",
-                count > 1 ? count + " activités récupérées depuis ta montre."
-                        : "1 activité récupérée depuis ta montre.",
-                "/athlete/activities");
+        String body = imported.size() == 1
+                ? describe(imported.get(0))
+                : imported.size() + " sorties récupérées depuis ta montre.";
+        notifyUser(athleteUser(athlete), "ACTIVITY_IMPORTED", "Nouvelle sortie synchronisée",
+                body, "/athlete/activities");
+    }
+
+    /**
+     * Ce que sait dire une sortie importée. Interface plutôt que type concret : le service
+     * d'import garde son propre résumé, sans que le service de notification ait à connaître
+     * Strava — ni le prochain fournisseur de montre.
+     */
+    public interface ImportedActivitySummary {
+        String title();
+
+        Integer durationS();
+
+        Integer distanceM();
+    }
+
+    /** « Afternoon Run · 1:12:31 · 14,4 km », en n'écrivant que ce qui est connu. */
+    private String describe(ImportedActivitySummary a) {
+        StringBuilder sb = new StringBuilder(a.title() == null ? "Sortie" : a.title());
+        if (a.durationS() != null && a.durationS() > 0) {
+            sb.append(" · ").append(duration(a.durationS()));
+        }
+        if (a.distanceM() != null && a.distanceM() > 0) {
+            sb.append(" · ").append(String.format(Locale.FRENCH, "%.1f km", a.distanceM() / 1000.0));
+        }
+        return sb.toString();
+    }
+
+    /** « 1:12:31 », ou « 48:05 » sous l'heure. */
+    private static String duration(int seconds) {
+        int h = seconds / 3600;
+        int m = (seconds % 3600) / 60;
+        int s = seconds % 60;
+        return h > 0 ? String.format("%d:%02d:%02d", h, m, s) : String.format("%d:%02d", m, s);
     }
 
     /**

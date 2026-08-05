@@ -77,6 +77,14 @@ function endSession(auth: AuthService, toast: ToastService, error: HttpErrorResp
     toast.error('Service momentanément indisponible — réessaie dans un instant.');
     return;
   }
+  // Une salve échoue en bloc. Au retour au premier plan, le premier écran lance une dizaine de
+  // requêtes d'un coup : avec un jeton refusé, chacune passait ici et redemandait un
+  // rafraîchissement — d'où « Session expirée, reconnecte-toi ×9 », et surtout neuf appels de
+  // rotation là où un seul avait un sens. La première fin de session vide le jeton ; les
+  // suivantes n'ont plus rien à terminer.
+  if (!auth.isAuthenticated()) {
+    return;
+  }
   auth.expireSession();
   toast.error('Session expirée, reconnecte-toi.');
 }
