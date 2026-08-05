@@ -301,6 +301,17 @@ public class AthletePortalController {
         return timeInZoneService.forActivityOfAthlete(principal.athleteId(), activityId);
     }
 
+    /**
+     * Tours d'une de mes sorties : les répétitions telles que ma montre les a découpées, ou des
+     * splits kilométriques calculés si elle ne l'a pas fait. C'est ce qui permet de relire un
+     * fractionné autrement que par sa moyenne.
+     */
+    @GetMapping("/activities/{activityId}/laps")
+    public com.coachrun.dto.response.ActivityLapsResponse myActivityLaps(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID activityId) {
+        return activityService.lapsForAthlete(principal.athleteId(), activityId);
+    }
+
     /** Mes activités réalisées (Strava/GPX/manuel), du plus récent au plus ancien. */
     @GetMapping("/activities")
     public java.util.List<com.coachrun.dto.response.ActivityResponse> myActivities(

@@ -1,6 +1,7 @@
 package com.coachrun.service;
 
 import com.coachrun.dto.request.ActivityImportRequest;
+import com.coachrun.dto.response.ActivityLapsResponse;
 import com.coachrun.dto.response.ActivityResponse;
 import com.coachrun.dto.response.FeedbackPromptResponse;
 import com.coachrun.entity.Activity;
@@ -79,10 +80,20 @@ public class ActivityService {
      *
      * @param route  tracé {@code [[lat,lon],…]}, format commun au GPX et à la polyline Strava
      * @param stream flux {@code [[elapsedS,hr,paceSecPerKm],…]} (-1 = absent), pour le temps-en-zone
+     * @param laps   tours relevés par la montre. Vides quand la source n'en donne qu'un : une
+     *               sortie continue n'a pas de tours, et la lecture retombera sur des splits
+     *               kilométriques calculés — qu'on ne stocke pas, puisqu'ils se recalculent.
      */
     public record ImportExtras(
             Integer maxHr, Integer avgCadence, Integer avgPowerW, Integer calories,
-            java.util.List<double[]> route, java.util.List<int[]> stream) {
+            java.util.List<double[]> route, java.util.List<int[]> stream,
+            java.util.List<com.coachrun.dto.response.ActivityLapsResponse.Lap> laps) {
+
+        /** Variante sans tours, pour les sources qui n'en fournissent pas. */
+        public ImportExtras(Integer maxHr, Integer avgCadence, Integer avgPowerW, Integer calories,
+                            java.util.List<double[]> route, java.util.List<int[]> stream) {
+            this(maxHr, avgCadence, avgPowerW, calories, route, stream, java.util.List.of());
+        }
     }
 
     @Transactional
@@ -223,6 +234,71 @@ public class ActivityService {
                 // flux optionnel
             }
         }
+        applyLaps(activity, extras.laps());
+    }
+
+    /**
+     * Stocke les tours de la montre. Seuls ceux-là méritent la place : des splits kilométriques
+     * se recalculent à la lecture depuis le flux, et les stocker figerait une découpe qu'on peut
+     * refaire à tout moment (y compris sur les activités importées avant cette fonctionnalité).
+     */
+    private void applyLaps(Activity activity, java.util.List<ActivityLapsResponse.Lap> laps) {
+        if (laps == null || laps.size() < 2) {
+            return;
+        }
+        try {
+            activity.setLapsJson(objectMapper.writeValueAsString(
+                    new ActivityLapsResponse(ActivityLapsResponse.Kind.DEVICE, laps)));
+        } catch (Exception ignored) {
+            // tours optionnels
+        }
+    }
+
+    // --- Lecture des tours -------------------------------------------------
+
+    /** Tours d'une de mes activités (portail athlète). */
+    public ActivityLapsResponse lapsForAthlete(UUID athleteId, UUID activityId) {
+        return laps(activityRepository.findById(activityId)
+                .filter(a -> a.getAthlete().getId().equals(athleteId))
+                .orElseThrow(() -> new NotFoundException("Activité introuvable.")));
+    }
+
+    /** Tours d'une activité vue par le coach (scopé club). */
+    public ActivityLapsResponse laps(UUID clubId, UUID activityId) {
+        return laps(require(clubId, activityId));
+    }
+
+    /**
+     * Tours de la montre s'ils existent, splits kilométriques calculés sinon.
+     *
+     * <p>Le repli fait tout l'intérêt du dispositif en bêta : les sorties déjà importées n'ont
+     * pas de tours en base, mais elles ont leur flux — elles se décortiquent donc dès maintenant,
+     * sans réimport et sans reprise de données.</p>
+     */
+    private ActivityLapsResponse laps(Activity a) {
+        if (a.getLapsJson() != null) {
+            try {
+                return objectMapper.readValue(a.getLapsJson(), ActivityLapsResponse.class);
+            } catch (Exception e) {
+                log.warn("Tours illisibles pour l'activité {} : repli sur les splits", a.getId());
+            }
+        }
+        java.util.List<ActivityLapsResponse.Lap> splits =
+                com.coachrun.util.SplitCalculator.perKilometer(stream(a), a.getDistanceM());
+        return new ActivityLapsResponse(ActivityLapsResponse.Kind.SPLIT, splits);
+    }
+
+    /** Flux stocké de l'activité, ou liste vide (saisie manuelle, montre sans capteur). */
+    private java.util.List<int[]> stream(Activity a) {
+        if (a.getStreamJson() == null) {
+            return java.util.List.of();
+        }
+        try {
+            return objectMapper.readValue(a.getStreamJson(),
+                    new com.fasterxml.jackson.core.type.TypeReference<java.util.List<int[]>>() { });
+        } catch (Exception e) {
+            return java.util.List.of();
+        }
     }
 
     /** Import d'un fichier GPX/TCX → activité + tracé, puis rapprochement automatique. */
@@ -307,6 +383,8 @@ public class ActivityService {
                 // flux optionnel
             }
         }
+        // Les tours d'un TCX : c'est là que le fractionné est lisible tel qu'il a été couru.
+        applyLaps(activity, parsed.laps());
         autoMatch(athleteId, activity);
         activity = activityRepository.save(activity);
         log.info("Activité importée par fichier {} ({} pts)", activity.getId(), parsed.route().size());

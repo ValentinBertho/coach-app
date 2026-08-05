@@ -75,6 +75,13 @@ public class ActivityController {
         return activityService.route(clubId, activityId);
     }
 
+    /** Tours de l'activité (montre), ou splits kilométriques calculés à défaut. */
+    @GetMapping("/{activityId}/laps")
+    public com.coachrun.dto.response.ActivityLapsResponse laps(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID activityId) {
+        return activityService.laps(clubId, activityId);
+    }
+
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/{activityId}/match/{workoutId}")
     public ActivityResponse match(@PathVariable UUID clubId, @PathVariable UUID athleteId,

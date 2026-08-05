@@ -35,9 +35,15 @@ public final class GpxParser {
     public record Sample(int elapsedS, int hr, int paceSecPerKm) {
     }
 
+    /**
+     * @param laps tours relevés par la montre (TCX uniquement — le GPX n'en porte pas). Vide
+     *             quand le fichier n'en déclare qu'un : une sortie continue n'a pas de tours,
+     *             l'écran retombera alors sur des splits kilométriques calculés.
+     */
     public record ParsedActivity(
             LocalDate date, Integer distanceM, Integer durationS, Integer elevationGainM,
-            List<double[]> route, List<int[]> stream) {
+            List<double[]> route, List<int[]> stream,
+            List<com.coachrun.dto.response.ActivityLapsResponse.Lap> laps) {
     }
 
     public static ParsedActivity parse(byte[] content) {
@@ -64,7 +70,92 @@ public final class GpxParser {
         LocalDate date = first != null ? first.atZone(ZoneOffset.UTC).toLocalDate() : LocalDate.now();
 
         return new ParsedActivity(date, (int) Math.round(distance), durationS,
-                (int) Math.round(elevationGain), downsample(points), buildStream(points));
+                (int) Math.round(elevationGain), downsample(points), buildStream(points),
+                readTcxLaps(content));
+    }
+
+    /**
+     * Tours d'un fichier TCX ({@code <Lap>}), dans l'ordre du fichier.
+     *
+     * <p>C'est là que vit le fractionné : un TCX de montre découpe « 10 × 400 / 200 » en vingt
+     * et un tours, avec leur temps, leur distance et leur FC. Le GPX, lui, n'a pas de notion de
+     * tour — d'où le repli sur des splits kilométriques côté lecture.</p>
+     *
+     * <p>Un tour unique n'en est pas un : la montre a simplement enregistré la sortie d'un bloc.
+     * On renvoie alors une liste vide plutôt qu'un « tour 1 » qui répéterait le total.</p>
+     */
+    private static List<com.coachrun.dto.response.ActivityLapsResponse.Lap> readTcxLaps(byte[] content) {
+        try {
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            dbf.setNamespaceAware(false);
+            var doc = dbf.newDocumentBuilder().parse(new ByteArrayInputStream(content));
+
+            NodeList nodes = doc.getElementsByTagName("Lap");
+            List<com.coachrun.dto.response.ActivityLapsResponse.Lap> laps = new ArrayList<>();
+            for (int i = 0; i < nodes.getLength(); i++) {
+                Element lap = (Element) nodes.item(i);
+                Double seconds = directChildDouble(lap, "TotalTimeSeconds");
+                Double meters = directChildDouble(lap, "DistanceMeters");
+                if (seconds == null && meters == null) {
+                    continue;
+                }
+                laps.add(com.coachrun.dto.response.ActivityLapsResponse.Lap.of(
+                        laps.size() + 1,
+                        meters != null ? (int) Math.round(meters) : null,
+                        seconds != null ? (int) Math.round(seconds) : null,
+                        nestedValue(lap, "AverageHeartRateBpm"),
+                        nestedValue(lap, "MaximumHeartRateBpm"),
+                        intOrNull(directChildDouble(lap, "Cadence")),
+                        null));
+            }
+            return laps.size() > 1 ? laps : List.of();
+        } catch (Exception e) {
+            return List.of(); // les tours sont un bonus : leur absence n'invalide pas le fichier
+        }
+    }
+
+    /**
+     * Valeur d'un enfant DIRECT, jamais d'un descendant : un {@code <Lap>} contient ses
+     * {@code <Trackpoint>}, dont les {@code <DistanceMeters>} donneraient la distance cumulée
+     * du dernier point au lieu de celle du tour.
+     */
+    private static Double directChildDouble(Element parent, String tag) {
+        for (Node n = parent.getFirstChild(); n != null; n = n.getNextSibling()) {
+            if (n.getNodeType() == Node.ELEMENT_NODE && localName(n).equals(tag)) {
+                String t = n.getTextContent();
+                if (t != null && !t.isBlank()) {
+                    try {
+                        return Double.parseDouble(t.trim());
+                    } catch (NumberFormatException ignored) {
+                        return null;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /** {@code <AverageHeartRateBpm><Value>152</Value></AverageHeartRateBpm>} en enfant direct. */
+    private static Integer nestedValue(Element parent, String tag) {
+        for (Node n = parent.getFirstChild(); n != null; n = n.getNextSibling()) {
+            if (n.getNodeType() == Node.ELEMENT_NODE && localName(n).equals(tag)) {
+                Element e = (Element) n;
+                NodeList v = e.getElementsByTagName("Value");
+                return parseIntOrNull(v.getLength() > 0 ? v.item(0).getTextContent() : e.getTextContent());
+            }
+        }
+        return null;
+    }
+
+    private static String localName(Node n) {
+        String name = n.getNodeName();
+        int c = name.indexOf(':');
+        return c >= 0 ? name.substring(c + 1) : name;
+    }
+
+    private static Integer intOrNull(Double d) {
+        return d != null && d > 0 ? (int) Math.round(d) : null;
     }
 
     /**

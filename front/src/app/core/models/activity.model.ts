@@ -47,6 +47,28 @@ export const ACTIVITY_STATUS_BADGE: Record<ActivityStatus, string> = {
   UNMATCHED: 'badge-warning',
 };
 
+/**
+ * Un tour d'activité : soit un tour relevé par la montre (une répétition de fractionné), soit un
+ * split kilométrique calculé. La distinction est portée par {@link ActivityLaps.kind}.
+ */
+export interface ActivityLap {
+  index: number;
+  distanceM: number | null;
+  durationS: number | null;
+  /** Allure moyenne du tour (s/km), calculée backend pour que tous les écrans s'accordent. */
+  paceSPerKm: number | null;
+  avgHr: number | null;
+  maxHr: number | null;
+  avgCadence: number | null;
+  elevationGainM: number | null;
+}
+
+export interface ActivityLaps {
+  /** `DEVICE` = tours de la montre (les vraies répétitions) ; `SPLIT` = découpe au kilomètre. */
+  kind: 'DEVICE' | 'SPLIT';
+  laps: ActivityLap[];
+}
+
 /** Temps passé par zone pour une activité (une échelle par métrique : Allure, FC…). V2-7. */
 export interface TimeInZoneBucket {
   zoneId: string;

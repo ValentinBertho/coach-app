@@ -1,0 +1,17 @@
+# ============================================================================
+# 071 — Tours d'une activité (« laps ») pour décortiquer une séance.
+#   Stocké en JSON auto-descriptif {"kind":"DEVICE|SPLIT","laps":[…]} : les tours
+#   pris par la montre (les répétitions d'un fractionné) ne sont pas la même chose
+#   que des splits kilométriques dérivés, et l'écran doit pouvoir le dire.
+#   Additif, nullable, non destructif — les activités déjà importées retombent sur
+#   des splits calculés à la lecture depuis stream_json.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 071-activity-laps
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: activities
+            columns:
+              - column: { name: laps_json, type: CLOB }

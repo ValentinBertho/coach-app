@@ -100,4 +100,13 @@ public class Activity extends BaseEntity {
     /** Flux échantillonné JSON [[elapsedS,hr,paceSecPerKm],…] (-1 = absent) pour le temps-en-zone. */
     @Column(name = "stream_json")
     private String streamJson;
+
+    /**
+     * Tours de l'activité, JSON {@code {"kind":"DEVICE|SPLIT","laps":[…]}}. {@code DEVICE} = les
+     * tours pris par la montre (les répétitions d'un fractionné, ce qu'on veut vraiment lire) ;
+     * {@code SPLIT} = des splits kilométriques calculés faute de mieux. Null sur une saisie
+     * manuelle, et sur tout ce qui a été importé avant l'arrivée des tours.
+     */
+    @Column(name = "laps_json")
+    private String lapsJson;
 }

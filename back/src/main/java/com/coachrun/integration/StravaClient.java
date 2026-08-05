@@ -133,6 +133,45 @@ public class StravaClient {
         }
     }
 
+    /**
+     * Tours d'une activité ({@code /activities/{id}/laps}) : les répétitions telles que la montre
+     * les a découpées. C'est la seule façon de relire un fractionné — le résumé d'activité ne
+     * porte que des moyennes, où « 10 × 400 à 3:20 » et un footing de 8 km se ressemblent.
+     *
+     * <p>Un appel de plus par activité <strong>nouvellement</strong> importée, comme les flux.
+     * Dégrade en liste vide si le quota est atteint : l'import continue sans les tours.</p>
+     */
+    public List<StravaLap> activityLaps(String accessToken, long activityId) {
+        try {
+            StravaLap[] body = api.get()
+                    .uri(uri -> uri.path("/activities/{id}/laps").build(activityId))
+                    .header("Authorization", "Bearer " + accessToken)
+                    .retrieve().body(StravaLap[].class);
+            return body == null ? List.of() : List.of(body);
+        } catch (HttpClientErrorException.TooManyRequests ex) {
+            log.warn("Quota Strava atteint sur les tours de l'activité {} — import poursuivi sans "
+                    + "détail par tour", activityId);
+            return List.of();
+        } catch (RestClientException ex) {
+            log.warn("Tours Strava indisponibles pour l'activité {} : {}", activityId, ex.getMessage());
+            return List.of();
+        }
+    }
+
+    /** Un tour Strava. {@code moving_time} et non {@code elapsed_time} : les arrêts ne sont pas du travail. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record StravaLap(
+            @JsonProperty("lap_index") Integer lapIndex,
+            String name,
+            Double distance,
+            @JsonProperty("moving_time") Integer movingTime,
+            @JsonProperty("elapsed_time") Integer elapsedTime,
+            @JsonProperty("average_heartrate") Double averageHeartrate,
+            @JsonProperty("max_heartrate") Double maxHeartrate,
+            @JsonProperty("average_cadence") Double averageCadence,
+            @JsonProperty("total_elevation_gain") Double totalElevationGain) {
+    }
+
     private static List<Double> values(Stream stream) {
         return stream == null || stream.data() == null ? List.of() : stream.data();
     }
