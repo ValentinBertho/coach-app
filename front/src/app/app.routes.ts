@@ -61,6 +61,16 @@ export const routes: Routes = [
       import('./features/public/legal.component').then((m) => m.LegalComponent),
   },
   {
+    // Support public, hors authentification : le centre d'aide de l'application vit sous
+    // `app/aide` et suppose un compte. Or il faut une page joignable SANS compte — pour un
+    // athlète qui n'a pas encore reçu son invitation, et parce que les partenaires
+    // d'intégration (COROS notamment) l'exigent pour valider un accès API.
+    path: 'support',
+    data: { page: 'support' },
+    loadComponent: () =>
+      import('./features/public/legal.component').then((m) => m.LegalComponent),
+  },
+  {
     // Living styleguide des primitives UI (dev). Cf. docs/archive/ux-redesign-blueprint.md.
     // Réservé à l'équipe : en bêta ouverte, un coach qui tombe dessus voit un écran de debug.
     path: 'dev/ui-kit',
