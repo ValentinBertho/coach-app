@@ -14,53 +14,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Parseur d'activités GPX / TCX (XML, sans dépendance externe). Calcule distance (haversine),
- * durée, dénivelé positif et renvoie un tracé sous-échantillonné. FIT (binaire) non géré ici.
+ * Décodeur d'activités <b>GPX / TCX</b> (XML, sans dépendance externe).
+ *
+ * <p>Il ne fait que lire le fichier : la géométrie et le flux temps-en-zone sont calculés par
+ * {@link ActivityTrack}, partagé avec le décodeur FIT. Le binaire des montres, lui, est
+ * l'affaire de {@link FitParser} ; {@link ActivityFileParser} choisit entre les deux.</p>
  */
 public final class GpxParser {
-
-    private static final int MAX_POINTS = 400;
-    private static final double EARTH_RADIUS_M = 6_371_000;
 
     private GpxParser() {
     }
 
-    public record Point(double lat, double lon, Double ele, Instant time, Integer hr) {
-    }
-
-    /**
-     * Échantillon de flux (temps-en-zone) : secondes écoulées depuis le départ, FC instantanée et
-     * allure instantanée (s/km). {@code -1} = valeur absente. Cf. PROPOSITION-ZONES §3.7 / E7 (V2-7).
-     */
-    public record Sample(int elapsedS, int hr, int paceSecPerKm) {
-    }
-
-    /**
-     * @param laps tours relevés par la montre (TCX uniquement — le GPX n'en porte pas). Vide
-     *             quand le fichier n'en déclare qu'un : une sortie continue n'a pas de tours,
-     *             l'écran retombera alors sur des splits kilométriques calculés.
-     */
-    public record ParsedActivity(
-            LocalDate date, Integer distanceM, Integer durationS, Integer elevationGainM,
-            List<double[]> route, List<int[]> stream,
-            List<com.coachrun.dto.response.ActivityLapsResponse.Lap> laps) {
-    }
-
-    public static ParsedActivity parse(byte[] content) {
-        List<Point> points = readPoints(content);
+    public static ActivityTrack.ParsedActivity parse(byte[] content) {
+        List<ActivityTrack.Point> points = readPoints(content);
         if (points.isEmpty()) {
             throw new IllegalArgumentException("Fichier sans points GPS exploitables.");
-        }
-
-        double distance = 0;
-        double elevationGain = 0;
-        for (int i = 1; i < points.size(); i++) {
-            distance += haversine(points.get(i - 1), points.get(i));
-            Double prev = points.get(i - 1).ele();
-            Double cur = points.get(i).ele();
-            if (prev != null && cur != null && cur > prev) {
-                elevationGain += cur - prev;
-            }
         }
 
         Instant first = points.get(0).time();
@@ -69,8 +37,11 @@ public final class GpxParser {
                 ? (int) Duration.between(first, last).getSeconds() : null;
         LocalDate date = first != null ? first.atZone(ZoneOffset.UTC).toLocalDate() : LocalDate.now();
 
-        return new ParsedActivity(date, (int) Math.round(distance), durationS,
-                (int) Math.round(elevationGain), downsample(points), buildStream(points),
+        List<ActivityTrack.Point> positioned = ActivityTrack.positioned(points);
+        return new ActivityTrack.ParsedActivity(date,
+                ActivityTrack.distanceM(positioned), durationS,
+                ActivityTrack.elevationGainM(points), ActivityTrack.avgHr(points),
+                ActivityTrack.downsample(positioned), ActivityTrack.buildStream(points),
                 readTcxLaps(content));
     }
 
@@ -158,70 +129,19 @@ public final class GpxParser {
         return d != null && d > 0 ? (int) Math.round(d) : null;
     }
 
-    /**
-     * Flux échantillonné [elapsedS, hr, paceSecPerKm] (-1 = absent) pour le calcul du temps-en-zone.
-     * L'allure instantanée est lissée sur une fenêtre (~15 s / plusieurs points) pour amortir le
-     * bruit GPS. Vide si aucun horodatage exploitable.
-     */
-    private static List<int[]> buildStream(List<Point> points) {
-        Instant start = points.get(0).time();
-        if (start == null) {
-            return List.of();
-        }
-        int step = Math.max(1, points.size() / MAX_POINTS);
-        List<int[]> stream = new ArrayList<>();
-        for (int i = 0; i < points.size(); i += step) {
-            Point p = points.get(i);
-            if (p.time() == null) {
-                continue;
-            }
-            int elapsed = (int) Duration.between(start, p.time()).getSeconds();
-            int hr = p.hr() != null ? p.hr() : -1;
-            int pace = instantPace(points, i, step);
-            stream.add(new int[] {elapsed, hr, pace});
-        }
-        return stream;
-    }
-
-    /** Allure instantanée (s/km) autour du point i, moyennée sur la fenêtre [i, i+step] ; -1 si N/A. */
-    private static int instantPace(List<Point> points, int i, int step) {
-        int j = Math.min(points.size() - 1, i + step);
-        if (j <= i) {
-            return -1;
-        }
-        Point a = points.get(i);
-        Point b = points.get(j);
-        if (a.time() == null || b.time() == null) {
-            return -1;
-        }
-        double dtS = Duration.between(a.time(), b.time()).toMillis() / 1000.0;
-        double dm = 0;
-        for (int k = i + 1; k <= j; k++) {
-            dm += haversine(points.get(k - 1), points.get(k));
-        }
-        if (dtS <= 0 || dm < 1) {
-            return -1; // arrêt / GPS immobile → allure non définie
-        }
-        double secPerKm = dtS / (dm / 1000.0);
-        if (secPerKm < 120 || secPerKm > 1800) {
-            return -1; // hors plage plausible (2:00 → 30:00 /km)
-        }
-        return (int) Math.round(secPerKm);
-    }
-
-    private static List<Point> readPoints(byte[] content) {
+    private static List<ActivityTrack.Point> readPoints(byte[] content) {
         try {
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
             dbf.setNamespaceAware(false);
             var doc = dbf.newDocumentBuilder().parse(new ByteArrayInputStream(content));
 
-            List<Point> points = new ArrayList<>();
+            List<ActivityTrack.Point> points = new ArrayList<>();
             // GPX : <trkpt lat lon><ele/><time/>
             NodeList trkpts = doc.getElementsByTagName("trkpt");
             for (int i = 0; i < trkpts.getLength(); i++) {
                 Element e = (Element) trkpts.item(i);
-                points.add(new Point(
+                points.add(ActivityTrack.Point.gps(
                         parseD(e.getAttribute("lat")), parseD(e.getAttribute("lon")),
                         childDouble(e, "ele"), childInstant(e, "time"), gpxHr(e)));
             }
@@ -237,33 +157,13 @@ public final class GpxParser {
                 if (lat == null || lon == null) {
                     continue;
                 }
-                points.add(new Point(lat, lon, childDouble(e, "AltitudeMeters"),
+                points.add(ActivityTrack.Point.gps(lat, lon, childDouble(e, "AltitudeMeters"),
                         childInstant(e, "Time"), tcxHr(e)));
             }
             return points;
         } catch (Exception e) {
             throw new IllegalArgumentException("Fichier GPX/TCX invalide.", e);
         }
-    }
-
-    private static double haversine(Point a, Point b) {
-        double dLat = Math.toRadians(b.lat() - a.lat());
-        double dLon = Math.toRadians(b.lon() - a.lon());
-        double h = Math.sin(dLat / 2) * Math.sin(dLat / 2)
-                + Math.cos(Math.toRadians(a.lat())) * Math.cos(Math.toRadians(b.lat()))
-                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-        return EARTH_RADIUS_M * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-    }
-
-    private static List<double[]> downsample(List<Point> points) {
-        int step = Math.max(1, points.size() / MAX_POINTS);
-        List<double[]> route = new ArrayList<>();
-        for (int i = 0; i < points.size(); i += step) {
-            route.add(new double[] {
-                    Math.round(points.get(i).lat() * 1e5) / 1e5,
-                    Math.round(points.get(i).lon() * 1e5) / 1e5 });
-        }
-        return route;
     }
 
     private static Double childDouble(Element parent, String tag) {

@@ -36,7 +36,7 @@ C'est la seule zone d'incertitude de ce document ; tout le reste est vérifiable
 | Positionnement | Plateforme d'entraînement généraliste, pilotée par la donnée | Coaching **physiologique** (LT1/LT2, VC, VDOT, 1RM) |
 | Plateformes | Web + **apps natives iOS / Android** | Web + **PWA** (portail athlète installable) |
 | Modèle | Athlète gratuit / Premium ~7 €/mois · Coach 19,90–39,90 €/mois · Club 29,90–49,90 € · Marketplace + facturation Stripe | **Aucun** (pas de facturation, pas d'abonnement) |
-| Intégrations | ~18 marques et apps (Garmin, Coros, Polar, Suunto, Wahoo, Whoop, Oura, Apple Santé, Strava…), **export séances vers montre** | **Strava seul** (OAuth, import polling) + GPX/TCX + saisie manuelle |
+| Intégrations | ~18 marques et apps (Garmin, Coros, Polar, Suunto, Wahoo, Whoop, Oura, Apple Santé, Strava…), **export séances vers montre** | **Strava seul** en automatique (OAuth, polling) + import **FIT/GPX/TCX** + saisie manuelle |
 | Trou majeur | **Pas de module musculation / prépa physique** (annoncé en roadmap moyen terme) | Pas d'export montre, pas de multi-sport, pas de monétisation |
 
 ---
@@ -68,7 +68,7 @@ Le socle métier est **le même**, et c'est ce qui fait de Nolio un concurrent :
 |---|---|
 | **Export vers la montre** | Les séances structurées partent **automatiquement** sur Garmin (et autres) dès l'association du compte. L'athlète court sa séance guidée au poignet. Limite connue : ~40 intervalles max côté Garmin. **C'est le manque n° 1 de votre application.** |
 | **Écosystème de sync** | Garmin, Suunto, Polar, Wahoo, Coros, Fitbit, Withings, Decathlon, Oura, Whoop, Apple Watch, Concept2 + Strava, Kinomap, HealthFit, Adidas Running, Klimat, PlanMyRun, Apple Santé. Vous : **Strava uniquement**. |
-| **Formats de fichier** | `.fit`, `.tcx`, `.srm`, `.gpx`. Vous : `.gpx` / `.tcx` — **pas de `.fit`**, qui est pourtant le format natif de Garmin/Coros et le seul qui porte toutes les métriques. |
+| **Formats de fichier** | `.fit`, `.tcx`, `.srm`, `.gpx`. Vous : `.fit`, `.gpx`, `.tcx` depuis août 2026 — **l'écart est refermé**, seul `.srm` (cyclisme) manque. |
 | **Multi-sport** | Cyclisme (puissance, TSS/Coggan), natation, triathlon, ski. Vous : course + force. Un coach de triathlon ne peut pas vous utiliser. |
 | **Modèles de charge multiples** | Foster, Coggan (TSS), TRIMP activables et configurables — le vocabulaire du marché. Vous : sRPE → ATL/CTL/ACWR/monotonie, un seul modèle (excellent, mais non reconnaissable par un coach venant de TrainingPeaks). |
 | **Métriques quotidiennes & santé** | Sommeil, poids, FC de repos, **HRV mesurée dans l'app mobile** (ceinture ou caméra du smartphone), métriques rangées par famille (Cardiaque, Santé, Puissance), **tableaux de bord personnalisables**. Vous : check-in matinal à 3 curseurs (sommeil / fatigue / douleur), pas de poids, pas de FC repos, pas de HRV, dashboards figés. |
@@ -105,8 +105,9 @@ Le socle métier est **le même**, et c'est ce qui fait de Nolio un concurrent :
 1. **Export des séances structurées vers la montre** (Garmin en premier, puis COROS). Sans cela,
    l'athlète recopie sa séance à la main : c'est le motif de rejet le plus probable en bêta.
    Le dossier `docs/DEMANDES-API-GARMIN-COROS.md` existe déjà — c'est la marche à monter.
-2. **Import `.fit`** et **connecteur Garmin en entrée** (Strava seul est un point de fragilité :
-   dépendance à un tiers, polling, pas de puissance ni de dynamique de course).
+2. ✅ **Import `.fit`** — *livré*. Reste le **connecteur Garmin en entrée** : Strava seul est un
+   point de fragilité (dépendance à un tiers, polling, et des conditions d'API qui restreignent
+   l'affichage au coach — cf. §6.3-B).
 3. **Corriger les quatre bloquants métier de l'audit fonctionnel** (voir §6) : ils coûtent plus
    cher que n'importe quelle fonctionnalité manquante, parce qu'ils détruisent la confiance dans
    les chiffres — le seul terrain où vous battez Nolio.
@@ -401,7 +402,7 @@ compte pour un coach qui choisit un outil.
 |---|---|---|---|
 | Fonctionnel — cœur planification/suivi | 25 % | **80 %** | Tout le socle est là, souvent mieux fait |
 | Fonctionnel — physiologie & force | 15 % | **130 %** | Vous dépassez Nolio ; module force inexistant chez eux |
-| Intégrations & écosystème montres | 20 % | **15 %** | Strava seul, pas d'export, pas de `.fit` |
+| Intégrations & écosystème montres | 20 % | **25 %** | `.fit` livré ; reste Strava seul en automatique, et aucun export vers la montre |
 | UX | 12 % | **85 %** | Excellent calendrier coach, PWA soignée ; friction de sync |
 | UI & design system | 8 % | **95 %** | Design system tokenisé, composants métier riches |
 | Ergonomie & navigation | 8 % | **90 %** | Contexte persistant, raccourcis, aide contextuelle |
@@ -438,8 +439,8 @@ indisponibilité, plafonds — sont **livrés**. Voir §6.)*
 **Vague 1 — combler l'écart qui fait perdre des athlètes** *(0–3 mois)*
 7. **Demande d'accès COROS** — la seule des deux qui peut aboutir aujourd'hui, à envoyer
    maintenant. En parallèle, ouvrir un ticket au support développeur Garmin pour l'antériorité.
-8. **Import `.fit`** — indépendant de tout partenariat, couvre Garmin et COROS en entrée dès
-   aujourd'hui, et réduit la dépendance à Strava.
+8. ✅ **Import `.fit`** — *livré (août 2026)*. Indépendant de tout partenariat, il couvre Garmin
+   et COROS en entrée dès aujourd'hui et réduit la dépendance à Strava.
 9. **Export des séances vers la montre** dès qu'un des deux accès est obtenu (COROS d'abord,
    Garmin quand le programme rouvre). **Ne pas conditionner l'ouverture à cette étape.**
 10. **Webhook Strava** à la place du polling.

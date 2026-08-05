@@ -1,5 +1,6 @@
 package com.coachrun;
 
+import com.coachrun.util.ActivityTrack;
 import com.coachrun.util.GpxParser;
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +20,7 @@ class GpxParserTest {
                   <trkpt lat="45.7750" lon="4.8450"><ele>175</ele><time>2026-07-01T08:10:00Z</time></trkpt>
                 </trkseg></trk></gpx>
                 """;
-        GpxParser.ParsedActivity a = GpxParser.parse(gpx.getBytes(StandardCharsets.UTF_8));
+        ActivityTrack.ParsedActivity a = GpxParser.parse(gpx.getBytes(StandardCharsets.UTF_8));
         assertThat(a.distanceM()).isGreaterThan(500);
         assertThat(a.durationS()).isEqualTo(600);
         assertThat(a.elevationGainM()).isEqualTo(10);
@@ -40,7 +41,7 @@ class GpxParserTest {
                     <extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>158</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
                 </trkseg></trk></gpx>
                 """;
-        GpxParser.ParsedActivity a = GpxParser.parse(gpx.getBytes(StandardCharsets.UTF_8));
+        ActivityTrack.ParsedActivity a = GpxParser.parse(gpx.getBytes(StandardCharsets.UTF_8));
         assertThat(a.stream()).isNotEmpty();
         // Chaque échantillon = [elapsedS, hr, paceSecPerKm] ; la FC est extraite des extensions.
         int[] first = a.stream().get(0);

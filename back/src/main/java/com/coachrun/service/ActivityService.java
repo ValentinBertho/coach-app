@@ -388,7 +388,7 @@ public class ActivityService {
         }
     }
 
-    /** Import d'un fichier GPX/TCX → activité + tracé, puis rapprochement automatique. */
+    /** Import d'un fichier FIT/GPX/TCX → activité + tracé, puis rapprochement automatique. */
     @Transactional
     public ActivityResponse importFile(UUID clubId, UUID athleteId, String filename, byte[] bytes,
                                        boolean confirmDuplicate) {
@@ -424,7 +424,7 @@ public class ActivityService {
         return toResponse(activity);
     }
 
-    /** L'athlète importe sa propre trace (GPX/TCX). Scopé par son propre id. */
+    /** L'athlète importe sa propre trace (FIT/GPX/TCX). Scopé par son propre id. */
     @Transactional
     public ActivityResponse importFileForAthlete(UUID athleteId, String filename, byte[] bytes,
                                                  boolean confirmDuplicate) {
@@ -435,9 +435,9 @@ public class ActivityService {
 
     private ActivityResponse createFromFile(com.coachrun.entity.Athlete athlete, UUID athleteId,
                                             String filename, byte[] bytes, boolean confirmDuplicate) {
-        com.coachrun.util.GpxParser.ParsedActivity parsed;
+        com.coachrun.util.ActivityTrack.ParsedActivity parsed;
         try {
-            parsed = com.coachrun.util.GpxParser.parse(bytes);
+            parsed = com.coachrun.util.ActivityFileParser.parse(bytes);
         } catch (IllegalArgumentException ex) {
             throw new com.coachrun.exception.ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
                     ex.getMessage());
@@ -453,10 +453,15 @@ public class ActivityService {
         activity.setAthlete(athlete);
         activity.setSource(ActivitySource.FILE);
         activity.setActivityDate(parsed.date());
-        activity.setTitle(filename != null ? filename.replaceAll("\\.(gpx|tcx)$", "") : "Activité importée");
+        activity.setTitle(filename != null
+                ? filename.replaceAll("(?i)\\.(fit|gpx|tcx)$", "") : "Activité importée");
         activity.setDistanceM(parsed.distanceM());
         activity.setDurationS(parsed.durationS());
         activity.setElevationGainM(parsed.elevationGainM());
+        // La FC moyenne : un FIT la porte dans son message de session, un GPX/TCX se déduit de
+        // ses points. Sans elle, une sortie importée s'affichait sans cardio là où la même sortie
+        // remontée par Strava en avait une.
+        activity.setAvgHr(parsed.avgHr());
         activity.setStatus(ActivityStatus.IMPORTED);
         try {
             activity.setRouteJson(objectMapper.writeValueAsString(parsed.route()));

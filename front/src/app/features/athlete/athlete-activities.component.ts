@@ -54,9 +54,11 @@ interface MonthGroup {
           <app-icon name="pencil" [size]="15" /> {{ showLog() ? 'Fermer' : 'Ajouter une sortie' }}
         </button>
         <button type="button" class="btn btn-ghost btn-sm" (click)="file.click()" [disabled]="fileBusy()">
-          <app-icon name="download" [size]="15" /> {{ fileBusy() ? 'Import…' : 'Importer un GPX' }}
+          <app-icon name="download" [size]="15" /> {{ fileBusy() ? 'Import…' : 'Importer un fichier' }}
         </button>
-        <input #file type="file" accept=".gpx,.tcx" hidden (change)="onFile($event)" />
+        <!-- FIT en premier : c'est ce que rend Garmin Connect, et le seul format qui porte les
+             totaux de la montre (distance à l'odomètre, dénivelé barométrique, FC moyenne). -->
+        <input #file type="file" accept=".fit,.gpx,.tcx" hidden (change)="onFile($event)" />
       </div>
 
       @if (showLog()) {
@@ -82,7 +84,8 @@ interface MonthGroup {
         <div class="card empty">
           <h2>Aucune activité</h2>
           <p class="field-hint">
-            Ajoute une sortie à la main, importe un fichier GPX, ou connecte ta montre :
+            Ajoute une sortie à la main, importe un fichier de ta montre (FIT, GPX, TCX),
+            ou connecte-la :
             tes sorties remonteront ensuite toutes seules.
           </p>
           <a routerLink="/athlete/sync" class="btn btn-primary btn-sm">
@@ -519,7 +522,10 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
         this.fileBusy.set(false);
         if (err.status !== 409 || confirmDuplicate) {
           if (input) { input.value = ''; }
-          this.toast.error('Import impossible (fichier GPX/TCX attendu).');
+          // Pas de toast ici : l'intercepteur d'erreurs affiche déjà le message du serveur, qui
+          // dit précisément ce qui cloche (format inconnu, fichier vide, séance sans point
+          // exploitable). Celui qui vivait ici s'y ajoutait en double, et annonçait « fichier
+          // GPX/TCX attendu » quelle que soit la vraie cause.
           return;
         }
         // Le cas courant : la trace de la montre a déjà été remontée par Strava.

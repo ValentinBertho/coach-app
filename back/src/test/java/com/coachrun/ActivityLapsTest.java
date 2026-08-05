@@ -1,6 +1,7 @@
 package com.coachrun;
 
 import com.coachrun.dto.response.ActivityLapsResponse.Lap;
+import com.coachrun.util.ActivityTrack;
 import com.coachrun.util.GpxParser;
 import com.coachrun.util.SplitCalculator;
 import org.junit.jupiter.api.Test;
@@ -131,7 +132,7 @@ class ActivityLapsTest {
 
     @Test
     void litLesToursDUnTcxSansConfondreAvecLesPointsDeTrace() {
-        GpxParser.ParsedActivity parsed =
+        ActivityTrack.ParsedActivity parsed =
                 GpxParser.parse(TCX_INTERVALLES.getBytes(StandardCharsets.UTF_8));
 
         assertThat(parsed.laps()).hasSize(2);
