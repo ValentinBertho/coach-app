@@ -18,7 +18,7 @@
 
 | Lot | Thème | Effort | Sortie attendue |
 |---|---|---:|---|
-| **0** | Socle + anti-spam | ~3 j | Le canal cesse de se saborder |
+| **0** ✅ | Socle + anti-spam | ~3 j | Le canal cesse de se saborder — **livré** |
 | **1** | Les manques criants | ~4 j | Ce que l'utilisateur attend arrive enfin |
 | **2** | Hygiène et réglage | ~5 j | Le canal devient acceptable dans la durée |
 | **3** | Robustesse d'exploitation | ~3 j | Le canal survit au scale-out et se supervise |
@@ -29,7 +29,23 @@ suivre.
 
 ---
 
-## Lot 0 — Socle et anti-spam *(prérequis de tout le reste)*
+## Lot 0 — Socle et anti-spam ✅ *livré*
+
+> **Écarts constatés à l'implémentation**, tous dans le sens d'un périmètre un peu plus large :
+>
+> - La méthode d'attribution s'appelle `TrainingPlanService.applyToAthlete`, et non `assign`.
+> - Le lien « calendrier à la date annoncée » supposait que le calendrier athlète sache lire une
+>   date : il ne le savait pas (`anchor` était toujours initialisé à aujourd'hui). Le correctif
+>   emporte donc une petite évolution front, `?date=AAAA-MM-JJ`, sans quoi 0.3 n'aurait rien
+>   corrigé du tout.
+> - `tag` seul aurait **dégradé** le comportement : sur Chrome, une notification qui en remplace
+>   une autre arrive silencieusement. `renotify` l'accompagne obligatoirement.
+> - Trois déclencheurs avaient un corps différent entre l'in-app et le push (retour d'athlète,
+>   digest, indisponibilité). Le point d'entrée unique conserve cette distinction plutôt que de
+>   l'aplatir : le refactoring reste sans changement de comportement.
+> - Vérifié au passage : la duplication de semaine et la génération de mésocycle écrivent
+>   directement en base, sans passer par `create`. Elles ne spammaient donc pas — mais elles
+>   n'annoncent rien non plus, ce qui est un manque à traiter au lot 1.
 
 ### 0.1 Point d'entrée unique de notification
 

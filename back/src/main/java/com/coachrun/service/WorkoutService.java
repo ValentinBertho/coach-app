@@ -88,6 +88,22 @@ public class WorkoutService {
     /** Création avec rattachement optionnel à un plan ({@code planId}) pour le suivi d'avancement. */
     @Transactional
     public WorkoutResponse create(UUID clubId, UUID athleteId, WorkoutRequest request, UUID planId) {
+        return create(clubId, athleteId, request, planId, true);
+    }
+
+    /**
+     * Création, en disant explicitement si l'athlète doit en être <b>notifié à l'unité</b>.
+     *
+     * <p>{@code notifyAthlete = false} n'est pas « ne pas prévenir » : c'est « ce n'est pas moi
+     * qui préviens ». Une génération de plan appelle cette méthode une fois par séance — une
+     * cinquantaine de fois pour un bloc de douze semaines — et c'est l'appelant qui émet ensuite
+     * une notification unique pour tout le lot
+     * ({@link NotificationService#notifyPlanAssigned}). Le défaut reste {@code true} : une séance
+     * posée à l'unité par le coach est bien un fait nouveau à annoncer.</p>
+     */
+    @Transactional
+    public WorkoutResponse create(UUID clubId, UUID athleteId, WorkoutRequest request, UUID planId,
+                                  boolean notifyAthlete) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
 
@@ -100,7 +116,9 @@ public class WorkoutService {
 
         workout = workoutRepository.save(workout);
         log.info("Séance créée {} (athlète={}, plan={})", workout.getId(), athleteId, planId);
-        notificationService.notifyWorkoutPlanned(workout);
+        if (notifyAthlete) {
+            notificationService.notifyWorkoutPlanned(workout);
+        }
         return WorkoutResponse.from(workout);
     }
 

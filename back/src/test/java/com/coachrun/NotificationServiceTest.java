@@ -122,7 +122,7 @@ class NotificationServiceTest {
         // Le retour d'un athlète est une notification de routine : push + centre de
         // notifications, jamais d'e-mail (c'était le flux le plus volumineux côté coach).
         verify(pushService).sendToUser(eq(rel.getCoach().getId()), eq("Séance mise à jour"),
-                any(), contains("/app/feedback"));
+                any(), contains("/app/feedback"), any(), eq("ATHLETE_FEEDBACK"));
         verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
         // Le head coach n'est pas sollicité quand un référent existe.
         verify(userRepository, never()).findFirstByClubIdAndRole(any(), any());
@@ -177,7 +177,7 @@ class NotificationServiceTest {
 
         notificationService.notifyAthleteFeedback(w);
 
-        verify(pushService, never()).sendToUser(any(), any(), any(), any());
+        verify(pushService, never()).sendToUser(any(), any(), any(), any(), any(), any());
         verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
     }
 
@@ -203,7 +203,7 @@ class NotificationServiceTest {
         notificationService.notifyAthleteFeedback(w);
 
         verify(pushService).sendToUser(eq(head.getId()), eq("Séance mise à jour"),
-                any(), contains("/app/feedback"));
+                any(), contains("/app/feedback"), any(), eq("ATHLETE_FEEDBACK"));
         verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
     }
 
@@ -228,7 +228,7 @@ class NotificationServiceTest {
         notificationService.notifyWorkoutReminder(w);
 
         verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Séance demain"),
-                any(), contains("/athlete/today"));
+                any(), contains("/athlete/today"), any(), eq("WORKOUT_REMINDER"));
         verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
 
         // Aucun appareil abonné : l'e-mail reprend son rôle de repli.
@@ -254,8 +254,87 @@ class NotificationServiceTest {
 
         notificationService.notifyWorkoutPlanned(w);
 
+        // Le lien ouvre le calendrier à la date annoncée, pas l'écran « Aujourd'hui » : la séance
+        // du 1er juillet n'est pas sur l'écran du jour quand le coach la pose en juin.
         verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Nouvelle séance"),
-                any(), contains("/athlete/today"));
+                any(), contains("/athlete/calendar?date=2026-07-01"), any(), eq("WORKOUT_PLANNED"));
         verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
+    }
+
+    /**
+     * Le corps d'une notification est lu par un humain : le statut y apparaît en toutes lettres.
+     * La concaténation directe de l'enum donnait « Marie Durand — COMPLETED ».
+     */
+    @Test
+    void feedbackSpellsOutStatusInsteadOfEnumName() {
+        ReflectionTestUtils.setField(notificationService, "enabled", true);
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Workout w = feedbackWorkout();
+        CoachAthleteRelation rel = relWith(coach("referent@test.fr"));
+        when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(w.getAthlete().getId()))
+                .thenReturn(Optional.of(rel));
+
+        notificationService.notifyAthleteFeedback(w);
+
+        org.mockito.ArgumentCaptor<String> body = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(pushService).sendToUser(any(), any(), body.capture(), any(), any(), any());
+        org.assertj.core.api.Assertions.assertThat(body.getValue())
+                .isEqualTo("Marie — réalisée")
+                .doesNotContain("COMPLETED");
+    }
+
+    /**
+     * Une séance annoncée porte une date lisible, pas un ISO brut : « mercredi 1 juillet » et non
+     * « 2026-07-01 ».
+     */
+    @Test
+    void plannedWorkoutSpellsOutTheDate() {
+        ReflectionTestUtils.setField(notificationService, "enabled", true);
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Workout w = feedbackWorkout();
+        User athleteUser = coach("athlete@test.fr");
+        when(userRepository.findByAthleteId(w.getAthlete().getId())).thenReturn(Optional.of(athleteUser));
+
+        notificationService.notifyWorkoutPlanned(w);
+
+        org.mockito.ArgumentCaptor<String> body = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(pushService).sendToUser(any(), any(), body.capture(), any(), any(), any());
+        org.assertj.core.api.Assertions.assertThat(body.getValue())
+                .isEqualTo("Footing — mercredi 1 juillet");
+    }
+
+    /**
+     * Un plan attribué produit <b>un seul</b> message qui annonce le bloc, avec le décompte et le
+     * terme — et non une notification par séance générée.
+     */
+    @Test
+    void planAssignedAnnouncesTheWholeBlockOnce() {
+        ReflectionTestUtils.setField(notificationService, "enabled", true);
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Athlete athlete = new Athlete();
+        athlete.setId(UUID.randomUUID());
+        User athleteUser = coach("athlete@test.fr");
+        when(userRepository.findByAthleteId(athlete.getId())).thenReturn(Optional.of(athleteUser));
+
+        notificationService.notifyPlanAssigned(athlete, "Prépa 10 km", 48,
+                LocalDate.of(2026, 8, 24), LocalDate.of(2026, 11, 12));
+
+        verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Ton plan est en ligne"),
+                eq("Prépa 10 km — 48 séances jusqu'au jeudi 12 novembre"),
+                contains("/athlete/calendar?date=2026-08-24"), any(), eq("PLAN_ASSIGNED"));
+    }
+
+    /** Un plan qui n'a généré aucune séance n'annonce rien. */
+    @Test
+    void emptyPlanAnnouncesNothing() {
+        ReflectionTestUtils.setField(notificationService, "enabled", true);
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Athlete athlete = new Athlete();
+        athlete.setId(UUID.randomUUID());
+
+        notificationService.notifyPlanAssigned(athlete, "Plan vide", 0,
+                LocalDate.of(2026, 8, 24), null);
+
+        verifyNoInteractions(pushService);
     }
 }

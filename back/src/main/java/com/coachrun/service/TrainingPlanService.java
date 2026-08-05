@@ -58,6 +58,7 @@ public class TrainingPlanService {
     private final MesocycleTemplateRepository mesocycleTemplateRepository;
     private final ObjectMapper objectMapper;
     private final ClockService clock;
+    private final NotificationService notificationService;
 
     public List<TrainingPlanResponse> list(UUID clubId) {
         return planRepository.findByClubIdOrderByNameAsc(clubId).stream()
@@ -129,6 +130,7 @@ public class TrainingPlanService {
 
         List<PlanItemDto> items = readItems(p.getItemsJson());
         int created = 0;
+        LocalDate lastDate = null;
         for (PlanItemDto item : items) {
             LocalDate date = startDate.plusWeeks(item.weekIndex()).plusDays(item.dayOfWeek() - 1L);
             if (item.kindOrDefault() == PlanItemKind.STRENGTH) {
@@ -137,10 +139,19 @@ public class TrainingPlanService {
             } else {
                 double multiplier = meso == null ? 1.0 : com.coachrun.util.MesocycleMath.multiplierForWeek(
                         item.weekIndex(), meso.getIncreasePct(), meso.getDeloadEvery(), meso.getDeloadPct());
-                templateService.apply(clubId, item.templateId(), athleteId, date, planId, multiplier);
+                // Notification supprimée à l'unité : le lot entier en émet une seule, plus bas.
+                templateService.apply(clubId, item.templateId(), athleteId, date, planId, multiplier, false);
             }
             created++;
+            if (lastDate == null || date.isAfter(lastDate)) {
+                lastDate = date;
+            }
         }
+
+        // Un seul message pour tout le bloc. Une notification par séance générée transformait le
+        // geste le plus banal du coach — attribuer un plan — en une salve d'une cinquantaine de
+        // push, rejouée à chaque réattribution puisque la génération est idempotente.
+        notificationService.notifyPlanAssigned(athlete, p.getName(), created, startDate, lastDate);
         return created;
     }
 

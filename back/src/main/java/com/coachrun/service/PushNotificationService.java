@@ -2,6 +2,9 @@ package com.coachrun.service;
 
 import com.coachrun.entity.PushSubscription;
 import com.coachrun.repository.PushSubscriptionRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -88,6 +91,7 @@ public class PushNotificationService {
     private static final int QUEUE_CAPACITY = 2_000;
 
     private final PushSubscriptionRepository repository;
+    private final ObjectMapper objectMapper;
 
     @Value("${app.vapid.public-key:}")
     private String publicKey;
@@ -174,7 +178,7 @@ public class PushNotificationService {
 
     /** Envoie une notification à tous les appareils d'un utilisateur (best-effort). */
     public void sendToUser(UUID userId, String title, String body, String url) {
-        sendToUser(userId, title, body, url, List.of());
+        sendToUser(userId, title, body, url, List.of(), null);
     }
 
     /**
@@ -187,10 +191,30 @@ public class PushNotificationService {
      * la transaction métier de l'appelant (cf. javadoc de classe).</p>
      */
     public void sendToUser(UUID userId, String title, String body, String url, List<QuickAction> actions) {
+        sendToUser(userId, title, body, url, actions, null);
+    }
+
+    /**
+     * Notification avec actions rapides et <b>regroupement</b>.
+     *
+     * <p>{@code tag} dit au système « celle-ci remplace la précédente du même genre » plutôt que
+     * de l'empiler : trois retours d'athlètes d'affilée laissaient trois lignes sur l'écran de
+     * verrouillage du coach, alors que le centre de notifications garde de toute façon le détail.
+     * Le push est une interruption, le centre est la mémoire.</p>
+     *
+     * <p>{@code renotify} l'accompagne obligatoirement : sans lui, une notification qui en
+     * remplace une autre arrive <em>silencieusement</em> — le second retour ne ferait plus ni
+     * bruit ni vibration, ce qui reviendrait à le perdre.</p>
+     */
+    public void sendToUser(UUID userId, String title, String body, String url,
+                           List<QuickAction> actions, String tag) {
         if (!isEnabled() || userId == null) {
             return;
         }
-        String payload = payload(title, body, url, actions);
+        String payload = payload(title, body, url, actions, tag);
+        if (payload == null) {
+            return;
+        }
         // Dans une transaction : on attend le commit. Une notification annonçant une séance dont
         // l'enregistrement a échoué est pire que pas de notification du tout.
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -286,37 +310,59 @@ public class PushNotificationService {
      * est passé tel quel à {@code showNotification}, et {@code data.onActionClick} dit à ngsw
      * où naviguer selon le bouton pressé — c'est ce qui rend l'action rapide « en deux taps »
      * possible sans que l'athlète ait à retrouver sa séance dans l'app.
+     *
+     * <p><b>Sérialisée par Jackson</b>, et non plus concaténée à la main. L'échappement maison ne
+     * traitait que {@code \} et {@code "} : un titre de séance saisi par le coach avec un retour à
+     * la ligne produisait un JSON invalide, et le service worker n'affichait alors
+     * <em>rien du tout</em> — sans erreur nulle part, ni côté serveur ni côté navigateur.</p>
+     *
+     * @return la charge utile, ou {@code null} si elle n'a pas pu être sérialisée (rien n'est
+     *         alors envoyé : mieux vaut pas de notification qu'une remise qui échouera).
      */
-    private String payload(String title, String body, String url, List<QuickAction> actions) {
-        StringBuilder sb = new StringBuilder("{\"notification\":{\"title\":").append(json(title))
-                .append(",\"body\":").append(json(body));
-
-        if (!actions.isEmpty()) {
-            sb.append(",\"actions\":[");
-            for (int i = 0; i < actions.size(); i++) {
-                QuickAction a = actions.get(i);
-                sb.append(i > 0 ? "," : "")
-                        .append("{\"action\":").append(json(a.id()))
-                        .append(",\"title\":").append(json(a.title())).append("}");
-            }
-            sb.append("]");
+    private String payload(String title, String body, String url, List<QuickAction> actions, String tag) {
+        ObjectNode root = objectMapper.createObjectNode();
+        ObjectNode notification = root.putObject("notification");
+        notification.put("title", title == null ? "" : title);
+        notification.put("body", body == null ? "" : body);
+        if (StringUtils.hasText(tag)) {
+            notification.put("tag", tag);
+            notification.put("renotify", true);
         }
 
-        sb.append(",\"data\":{\"url\":").append(json(url));
         if (!actions.isEmpty()) {
-            sb.append(",\"onActionClick\":{\"default\":")
-                    .append(navigate(url));
+            ArrayNode array = notification.putArray("actions");
             for (QuickAction a : actions) {
-                sb.append(",").append(json(a.id())).append(":").append(navigate(a.url()));
+                ObjectNode action = array.addObject();
+                action.put("action", a.id());
+                action.put("title", a.title());
             }
-            sb.append("}");
         }
-        return sb.append("}}}").toString();
+
+        ObjectNode data = notification.putObject("data");
+        data.put("url", url);
+        if (!actions.isEmpty()) {
+            ObjectNode onActionClick = data.putObject("onActionClick");
+            onActionClick.set("default", navigate(url));
+            for (QuickAction a : actions) {
+                onActionClick.set(a.id(), navigate(a.url()));
+            }
+        }
+
+        try {
+            return objectMapper.writeValueAsString(root);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            log.error("Charge utile push non sérialisable (titre « {} ») : {}", title, ex.getMessage());
+            io.sentry.Sentry.captureException(ex);
+            return null;
+        }
     }
 
     /** Opération ngsw : réutiliser l'onglet déjà ouvert plutôt qu'en empiler un nouveau. */
-    private String navigate(String url) {
-        return "{\"operation\":\"navigateLastFocusedOrOpen\",\"url\":" + json(url) + "}";
+    private ObjectNode navigate(String url) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("operation", "navigateLastFocusedOrOpen");
+        node.put("url", url);
+        return node;
     }
 
     private PushService service() throws Exception {
@@ -398,9 +444,5 @@ public class PushNotificationService {
                 log.debug("Fermeture du client push : {}", e.getMessage());
             }
         }
-    }
-
-    private String json(String s) {
-        return "\"" + (s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"")) + "\"";
     }
 }

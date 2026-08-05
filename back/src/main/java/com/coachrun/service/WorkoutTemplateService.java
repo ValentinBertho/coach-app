@@ -153,13 +153,27 @@ public class WorkoutTemplateService {
     @Transactional
     public WorkoutResponse apply(UUID clubId, UUID templateId, UUID athleteId,
                                  java.time.LocalDate date, java.util.UUID planId, double multiplier) {
+        return apply(clubId, templateId, athleteId, date, planId, multiplier, true);
+    }
+
+    /**
+     * Même application, en disant si l'athlète doit être notifié <b>de cette séance-là</b>.
+     *
+     * <p>La génération d'un plan appelle cette méthode une fois par item : elle passe
+     * {@code false} et émet une notification unique pour tout le bloc. Sans ça, attribuer un plan
+     * de douze semaines envoyait une cinquantaine de notifications dans la même seconde.</p>
+     */
+    @Transactional
+    public WorkoutResponse apply(UUID clubId, UUID templateId, UUID athleteId,
+                                 java.time.LocalDate date, java.util.UUID planId, double multiplier,
+                                 boolean notifyAthlete) {
         WorkoutTemplate t = require(clubId, templateId);
         java.util.List<com.coachrun.dto.request.WorkoutStepRequest> steps = readSteps(t.getStepsJson())
                 .stream().map(s -> scaleStep(s, multiplier)).toList();
         WorkoutRequest req = new WorkoutRequest(
                 date, t.getType(), t.getTitle(), t.getNotes(),
                 scale(t.getTargetDistanceM(), multiplier), scale(t.getTargetDurationS(), multiplier), steps);
-        return workoutService.create(clubId, athleteId, req, planId);
+        return workoutService.create(clubId, athleteId, req, planId, notifyAthlete);
     }
 
     private com.coachrun.dto.request.WorkoutStepRequest scaleStep(

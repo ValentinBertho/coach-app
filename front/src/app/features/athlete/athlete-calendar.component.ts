@@ -5,7 +5,7 @@ import {
 } from '../../core/models/workout.model';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Activity } from '../../core/models/activity.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -445,6 +445,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
 export class AthleteCalendarComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
   private readonly toast = inject(ToastService);
+  private readonly route = inject(ActivatedRoute);
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
   readonly stepLabels = STEP_TYPE_LABELS;
@@ -640,6 +641,7 @@ export class AthleteCalendarComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.openOnRequestedDate();
     this.load();
     // Une seule fois : l'API des sorties n'est pas bornée par semaine, le filtrage par jour se
     // fait à l'affichage. La recharger à chaque flèche serait un appel de plus pour rien.
@@ -647,6 +649,25 @@ export class AthleteCalendarComponent implements OnInit {
       next: (a) => this.activities.set(a),
       error: () => this.activities.set([]),
     });
+  }
+
+  /**
+   * Ouvre le calendrier sur la date passée en `?date=AAAA-MM-JJ`, quand on arrive depuis une
+   * notification. Sans ça, « Nouvelle séance — mercredi 19 août » ramenait toujours sur le mois
+   * courant : l'athlète tapait la notification et ne trouvait pas ce qu'elle annonçait.
+   *
+   * <p>Une date absente ou illisible laisse simplement le mois courant — un paramètre d'URL
+   * abîmé ne doit jamais empêcher le calendrier de s'afficher.</p>
+   */
+  private openOnRequestedDate(): void {
+    const raw = this.route.snapshot.queryParamMap.get('date');
+    if (!raw || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return;
+    // Construction locale : `new Date('2026-08-19')` est interprété en UTC et recule d'un jour
+    // à l'ouest de Greenwich — la séance annoncée basculerait sur la veille.
+    const [year, month, day] = raw.split('-').map(Number);
+    const target = new Date(year, month - 1, day);
+    if (Number.isNaN(target.getTime())) return;
+    this.anchor.set(target);
   }
 
   load(): void {
