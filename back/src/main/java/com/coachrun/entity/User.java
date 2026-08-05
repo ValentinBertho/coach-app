@@ -119,6 +119,32 @@ public class User extends BaseEntity {
     @Column(name = "notify_quiet_end")
     private java.time.LocalTime notifyQuietEnd = java.time.LocalTime.of(7, 0);
 
+    /**
+     * Fuseau de l'utilisateur (identifiant IANA, ex. {@code America/New_York}). {@code null} =
+     * celui de l'application, ce qui couvre la quasi-totalité des comptes.
+     *
+     * <p>Sert d'abord aux heures de silence : c'est là que l'erreur se paie le plus cher, un
+     * athlète expatrié étant réveillé la nuit par une plage calculée à Paris.</p>
+     */
+    @Column(name = "timezone", length = 64)
+    private String timezone;
+
+    /**
+     * Fuseau effectif, avec repli sur celui fourni. Un identifiant devenu invalide — fuseau
+     * renommé, saisie corrompue — ne doit pas faire échouer une notification : on retombe sur le
+     * fuseau de l'application, qui est le comportement d'avant.
+     */
+    public java.time.ZoneId zoneOr(java.time.ZoneId fallback) {
+        if (timezone == null || timezone.isBlank()) {
+            return fallback;
+        }
+        try {
+            return java.time.ZoneId.of(timezone);
+        } catch (java.time.DateTimeException ex) {
+            return fallback;
+        }
+    }
+
     /** Catégories coupées, décodées. Jamais {@code null}. */
     public java.util.Set<com.coachrun.entity.enums.NotificationCategory> mutedCategories() {
         if (notifyMutedCategories == null || notifyMutedCategories.isBlank()) {

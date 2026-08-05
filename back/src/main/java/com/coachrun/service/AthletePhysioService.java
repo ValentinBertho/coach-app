@@ -46,6 +46,7 @@ public class AthletePhysioService {
     private final CriticalSpeedEngine criticalSpeedEngine;
     private final VdotEngine vdotEngine;
     private final ZoneValueSyncService zoneValueSyncService;
+    private final NotificationService notificationService;
 
     // ---------------------------------------------------------------------
     // Profil physiologique
@@ -101,6 +102,10 @@ public class AthletePhysioService {
     @Transactional
     public PerformanceResponse addPerformance(UUID clubId, UUID athleteId, PerformanceRequest req) {
         Athlete a = requireAthlete(clubId, athleteId);
+        // Avant l'enregistrement : c'est le meilleur chrono *antérieur* sur cette distance qui
+        // dit si celui-ci est un record.
+        boolean record = beatsPreviousBest(athleteId, req);
+
         AthletePerformance perf = new AthletePerformance();
         perf.setAthlete(a);
         perf.setDistance(req.distance());
@@ -111,7 +116,34 @@ public class AthletePhysioService {
         // Recalcul auto des zones : les allures VDOT (ancres) ont changé.
         zoneValueSyncService.resync(clubId, athleteId);
         log.info("Performance {} ajoutée pour l'athlète {} (recalcul VDOT + zones)", req.distance(), athleteId);
+        if (record) {
+            notificationService.notifyPersonalRecord(a, req.distance().code(), formatTime(req.timeSeconds()));
+        }
         return PerformanceResponse.from(perf, vdotOf(perf));
+    }
+
+    /**
+     * Ce chrono bat-il tout ce que l'athlète a déjà couru sur cette distance ?
+     *
+     * <p>Un <b>premier</b> chrono sur une distance n'est pas un record : c'est une référence. On ne
+     * félicite que ce qui a été amélioré — sinon la saisie initiale d'un profil, qui enchaîne
+     * volontiers cinq distances, déclencherait cinq célébrations d'un coup.</p>
+     */
+    private boolean beatsPreviousBest(UUID athleteId, PerformanceRequest req) {
+        return performanceRepository.findByAthleteIdOrderByDateSetDescCreatedAtDesc(athleteId).stream()
+                .filter(p -> p.getDistance() == req.distance())
+                .mapToInt(AthletePerformance::getTimeSeconds)
+                .min()
+                .stream()
+                .anyMatch(best -> req.timeSeconds() < best);
+    }
+
+    /** « 38:42 », ou « 2:59:31 » au-delà de l'heure. */
+    private static String formatTime(int seconds) {
+        int h = seconds / 3600;
+        int m = (seconds % 3600) / 60;
+        int s = seconds % 60;
+        return h > 0 ? String.format("%d:%02d:%02d", h, m, s) : String.format("%d:%02d", m, s);
     }
 
     /** Portail athlète : l'athlète déclare lui-même une perf de référence (bootstrap VDOT/allures). */

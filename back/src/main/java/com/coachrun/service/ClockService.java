@@ -68,4 +68,24 @@ public class ClockService {
     public Instant instant() {
         return clock.instant();
     }
+
+    /**
+     * Horloge dans le fuseau d'un utilisateur, avec repli sur celui de l'application.
+     *
+     * <p>Passe par l'horloge injectée et non par {@code Clock.system(...)} : sans ça, un test qui
+     * fige l'instant verrait cette méthode seule lui échapper et retourner l'heure réelle.</p>
+     */
+    public java.time.Clock clockIn(com.coachrun.entity.User user) {
+        return user == null ? clock : clock.withZone(user.zoneOr(clock.getZone()));
+    }
+
+    /** Heure locale courante d'un utilisateur, dans son fuseau. */
+    public LocalTime now(com.coachrun.entity.User user) {
+        return LocalTime.now(clockIn(user));
+    }
+
+    /** Date du jour d'un utilisateur, dans son fuseau. */
+    public LocalDate today(com.coachrun.entity.User user) {
+        return LocalDate.now(clockIn(user));
+    }
 }

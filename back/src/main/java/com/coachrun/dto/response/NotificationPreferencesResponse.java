@@ -15,5 +15,6 @@ import java.util.Set;
 public record NotificationPreferencesResponse(boolean emailEnabled, boolean pushEnabled,
                                               String usualSessionTime,
                                               Set<NotificationCategory> mutedCategories,
-                                              String quietStart, String quietEnd) {
+                                              String quietStart, String quietEnd,
+                                              String timezone) {
 }

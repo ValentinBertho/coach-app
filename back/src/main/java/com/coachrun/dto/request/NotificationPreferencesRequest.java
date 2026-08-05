@@ -18,10 +18,14 @@ import java.util.Set;
  *
  * <p>{@code quietStart} / {@code quietEnd} bornent les heures de silence, au format {@code HH:mm}.
  * Deux bornes identiques valent « pas de silence » ; la chaîne vide efface la borne.</p>
+ *
+ * <p>{@code timezone} est un identifiant IANA ({@code Europe/Paris}) ; la chaîne vide revient au
+ * fuseau de l'application.</p>
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record NotificationPreferencesRequest(Boolean emailEnabled, Boolean pushEnabled,
                                              String usualSessionTime,
                                              Set<NotificationCategory> mutedCategories,
-                                             String quietStart, String quietEnd) {
+                                             String quietStart, String quietEnd,
+                                             String timezone) {
 }

@@ -153,3 +153,5 @@ databaseChangeLog:
       file: db/changelog/changes/074-push-subscription-devices.yaml
   - include:
       file: db/changelog/changes/075-shedlock.yaml
+  - include:
+      file: db/changelog/changes/076-user-timezone.yaml

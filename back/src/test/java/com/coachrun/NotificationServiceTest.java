@@ -29,9 +29,11 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -79,7 +81,18 @@ class NotificationServiceTest {
      */
     @BeforeEach
     void aQuinzeHeures() {
-        lenient().when(clock.now()).thenReturn(LocalTime.of(15, 0));
+        atLocalTime(15, 0);
+    }
+
+    /**
+     * Fige l'heure locale du destinataire. C'est bien elle que le service consulte — les heures de
+     * silence se calculent dans le fuseau de celui qui dort, pas dans celui du serveur.
+     */
+    private void atLocalTime(int hour, int minute) {
+        Clock fixed = Clock.fixed(
+                LocalDate.of(2026, 7, 1).atTime(hour, minute).toInstant(ZoneOffset.UTC),
+                ZoneOffset.UTC);
+        lenient().when(clock.clockIn(org.mockito.ArgumentMatchers.nullable(User.class))).thenReturn(fixed);
     }
 
     private Workout sampleWorkout() {
@@ -487,7 +500,7 @@ class NotificationServiceTest {
     /** 23 h 30 tombe dans la plage par défaut : la trace se dépose, le téléphone ne sonne pas. */
     @Test
     void quietHoursSuppressPushButKeepInApp() {
-        when(clock.now()).thenReturn(LocalTime.of(23, 30));
+        atLocalTime(23, 30);
         Workout w = sampleWorkout();
         w.getAthlete().setId(UUID.randomUUID());
         User athleteUser = userFor(w.getAthlete());

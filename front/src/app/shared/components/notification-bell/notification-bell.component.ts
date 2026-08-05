@@ -128,7 +128,7 @@ export class NotificationBellComponent implements OnInit {
    */
   readonly prefs = signal<NotificationPreferences>({
     emailEnabled: true, pushEnabled: true, usualSessionTime: null,
-    mutedCategories: [], quietStart: null, quietEnd: null,
+    mutedCategories: [], quietStart: null, quietEnd: null, timezone: null,
   });
 
   ngOnInit(): void {

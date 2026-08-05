@@ -86,17 +86,37 @@ public class UserNotificationService {
         if (req.quietEnd() != null) {
             u.setNotifyQuietEnd(parseTime(req.quietEnd()));
         }
+        if (req.timezone() != null) {
+            u.setTimezone(parseZone(req.timezone()));
+        }
         return toResponse(u);
     }
 
     private NotificationPreferencesResponse toResponse(User u) {
         return new NotificationPreferencesResponse(u.isNotifyEmailEnabled(), u.isNotifyPushEnabled(),
                 hhmm(u.getUsualSessionTime()), u.mutedCategories(),
-                hhmm(u.getNotifyQuietStart()), hhmm(u.getNotifyQuietEnd()));
+                hhmm(u.getNotifyQuietStart()), hhmm(u.getNotifyQuietEnd()), u.getTimezone());
     }
 
     private String hhmm(LocalTime time) {
         return time == null ? null : time.format(DateTimeFormatter.ofPattern("HH:mm"));
+    }
+
+    /**
+     * Identifiant IANA validé ; chaîne vide = retour au fuseau de l'application. On refuse une
+     * valeur inconnue plutôt que de l'accepter silencieusement : elle retomberait sur le fuseau
+     * par défaut, et l'utilisateur croirait avoir réglé quelque chose.
+     */
+    private String parseZone(String raw) {
+        String value = raw.trim();
+        if (value.isEmpty()) {
+            return null;
+        }
+        if (!java.time.ZoneId.getAvailableZoneIds().contains(value)) {
+            throw new com.coachrun.exception.ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Fuseau horaire inconnu (identifiant attendu, ex. Europe/Paris).");
+        }
+        return value;
     }
 
     /** « HH:mm » → heure ; chaîne vide (ou horaire illisible) = rappel de débriefing désactivé. */

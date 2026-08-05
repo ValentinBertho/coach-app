@@ -23,6 +23,8 @@ export interface NotificationPreferences {
   /** Heures de silence, « HH:mm ». Deux bornes identiques = pas de silence. */
   quietStart: string | null;
   quietEnd: string | null;
+  /** Identifiant IANA, ou `null` pour suivre le fuseau du club. */
+  timezone: string | null;
 }
 
 /** Centre de notifications de l'utilisateur connecté (coach ou athlète). */

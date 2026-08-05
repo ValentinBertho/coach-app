@@ -14,10 +14,13 @@ package com.coachrun.entity.enums;
  */
 public enum NotificationCategory {
 
-    /** Ce que le coach a déposé au calendrier : séance, plan, modification, annulation. */
+    /**
+     * Ce qui bouge sur l'entraînement de l'athlète : séance déposée, plan attribué, séance
+     * déplacée ou annulée, activité remontée de la montre, record battu.
+     */
     PROGRAMME,
 
-    /** Ce qui relance l'athlète au bon moment : rappel de séance, débriefing. */
+    /** Ce qui relance au bon moment : rappel de séance, débriefing, course qui approche. */
     RAPPELS,
 
     /** Ce qu'une personne a écrit : message du fil, commentaire de séance. */
@@ -36,8 +39,9 @@ public enum NotificationCategory {
             return SUIVI;
         }
         return switch (type) {
-            case "WORKOUT_PLANNED", "PLAN_ASSIGNED", "WORKOUT_UPDATED", "STRENGTH_PLANNED" -> PROGRAMME;
-            case "WORKOUT_REMINDER", "SESSION_DEBRIEF" -> RAPPELS;
+            case "WORKOUT_PLANNED", "PLAN_ASSIGNED", "WORKOUT_UPDATED", "STRENGTH_PLANNED",
+                 "ACTIVITY_IMPORTED", "PERSONAL_RECORD" -> PROGRAMME;
+            case "WORKOUT_REMINDER", "SESSION_DEBRIEF", "RACE_REMINDER" -> RAPPELS;
             case "NEW_MESSAGE", "COACH_COMMENT" -> MESSAGES;
             default -> SUIVI;
         };

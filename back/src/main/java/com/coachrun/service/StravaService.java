@@ -53,6 +53,7 @@ public class StravaService {
     private final AthleteRepository athleteRepository;
     private final ActivityService activityService;
     private final com.coachrun.security.OAuthStateCodec stateCodec;
+    private final NotificationService notificationService;
 
     public StravaStatusResponse status(UUID clubId, UUID athleteId) {
         requireAthlete(clubId, athleteId);
@@ -145,6 +146,9 @@ public class StravaService {
         conn.setLastImportEpoch(Instant.now().getEpochSecond());
         connectionRepository.save(conn);
         log.info("Import Strava athlète {} : {} activité(s)", athleteId, imported);
+        // Une seule notification pour tout l'import, jamais une par activité : la synchro horaire
+        // en remonte parfois plusieurs d'un coup après un week-end sans réseau.
+        notificationService.notifyActivitiesImported(conn.getAthlete(), imported);
         return imported;
     }
 

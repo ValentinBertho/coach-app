@@ -129,6 +129,23 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
                    aria-label="Fin des heures de silence" />
           </label>
         </div>
+
+        <!-- Un fuseau se choisit mal dans une liste de quatre cents entrées : le navigateur
+             connaît déjà le sien, il suffit de le proposer. -->
+        <p class="field-hint tzline">
+          Heures interprétées dans le fuseau
+          <strong>{{ p.timezone ?? 'du club' }}</strong>.
+          @if (p.timezone !== deviceZone) {
+            <button type="button" class="btn btn-ghost btn-sm" (click)="useDeviceZone()">
+              Utiliser celui de cet appareil ({{ deviceZone }})
+            </button>
+          }
+          @if (p.timezone) {
+            <button type="button" class="btn btn-ghost btn-sm" (click)="useClubZone()">
+              Revenir à celui du club
+            </button>
+          }
+        </p>
       </div>
     }
 
@@ -225,6 +242,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
 
     .quiet { display: flex; gap: var(--sp-4); margin-top: var(--sp-3); flex-wrap: wrap; }
     .quiet__f { display: flex; flex-direction: column; gap: 2px; }
+    .tzline { margin-top: var(--sp-3); display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
     .quiet__f input {
       min-height: 44px; padding: 0 var(--sp-2); border-radius: var(--radius-sm);
       border: 1px solid var(--hairline); background: var(--paper); color: inherit;
@@ -337,6 +355,18 @@ export class NotificationsComponent implements OnInit {
     const current = new Set(this.prefs()?.mutedCategories ?? []);
     if (wanted) { current.delete(key); } else { current.add(key); }
     this.save({ mutedCategories: [...current] }, wanted ? 'Notifications réactivées' : 'Notifications coupées');
+  }
+
+  /** Fuseau de cet appareil, tel que le navigateur le connaît. */
+  readonly deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  useDeviceZone(): void {
+    this.save({ timezone: this.deviceZone }, 'Fuseau horaire mis à jour');
+  }
+
+  /** Chaîne vide, et non `null` : `null` signifie « champ inchangé » côté API. */
+  useClubZone(): void {
+    this.save({ timezone: '' }, 'Fuseau du club rétabli');
   }
 
   setQuiet(bound: 'start' | 'end', event: Event): void {

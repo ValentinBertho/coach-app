@@ -157,6 +157,15 @@ public class NotificationService {
     }
 
     /**
+     * Trace au centre de notifications, sans jamais faire sonner. Pour ce dont l'intérêt est réel
+     * mais l'urgence nulle : l'utilisateur le découvre à la pastille de la cloche, quand il
+     * revient de lui-même.
+     */
+    private void notifyInAppOnly(User target, String type, String title, String body, String link) {
+        notifyUser(target, type, title, body, body, link, false);
+    }
+
+    /**
      * Push seul, sans trace in-app. Réservé à ce qui est périmé le lendemain : une ligne « Ta
      * séance est finie ? » relue trois jours plus tard n'a plus aucun sens.
      */
@@ -191,7 +200,9 @@ public class NotificationService {
         if (target.mutedCategories().contains(NotificationCategory.of(type))) {
             return false;
         }
-        return !inQuietHours(target, clock.now());
+        // Heure locale du destinataire, pas celle du serveur : une plage de silence calculée à
+        // Paris réveille la nuit un athlète installé ailleurs — exactement ce qu'elle évite ici.
+        return !inQuietHours(target, java.time.LocalTime.now(clock.clockIn(target)));
     }
 
     /**
@@ -415,6 +426,62 @@ public class NotificationService {
                     name + " a activé son espace.", name + " a rejoint ton groupe.",
                     "/app/athletes/" + athlete.getId());
         });
+    }
+
+    /**
+     * Activités importées depuis la montre → <strong>trace in-app seule, jamais de push</strong>.
+     *
+     * <p>L'import tournait en silence : l'athlète ne savait pas si sa sortie était bien remontée,
+     * et découvrait le contraire quand son coach lui demandait pourquoi il n'avait rien couru.</p>
+     *
+     * <p>Pas de push, et c'est délibéré : le geste vient de l'athlète — il vient de courir, il
+     * sait qu'il a couru. Le faire sonner pour le lui confirmer serait la définition même de la
+     * notification inutile. La ligne au centre répond à la seule vraie question, « est-ce bien
+     * arrivé ? », au moment où il se la pose.</p>
+     */
+    public void notifyActivitiesImported(Athlete athlete, int count) {
+        if (count <= 0) {
+            return;
+        }
+        notifyInAppOnly(athleteUser(athlete), "ACTIVITY_IMPORTED", "Activité importée",
+                count > 1 ? count + " activités récupérées depuis ta montre."
+                        : "1 activité récupérée depuis ta montre.",
+                "/athlete/activities");
+    }
+
+    /**
+     * Record personnel battu → félicite l'athlète, informe son coach.
+     *
+     * <p>Le produit n'avait <b>aucun signal de réussite</b> : il savait dire une douleur, une
+     * séance manquée, une charge inquiétante, un silence — jamais qu'un athlète venait de courir
+     * plus vite qu'il ne l'avait jamais fait. C'est la seule notification du lot dont on peut
+     * espérer qu'elle fasse plaisir à la recevoir.</p>
+     *
+     * <p>Côté coach, in-app sans push : ce n'est pas une décision à prendre dans l'heure, mais
+     * c'est une information de suivi réelle — un nouveau record recalcule le VDOT, donc toutes les
+     * allures prescrites.</p>
+     */
+    public void notifyPersonalRecord(Athlete athlete, String distanceLabel, String time) {
+        String body = distanceLabel + " en " + time;
+        notifyUser(athleteUser(athlete), "PERSONAL_RECORD", "Nouveau record personnel",
+                body + " — bravo !", "/athlete/progress");
+
+        UUID clubId = athlete.getClub() != null ? athlete.getClub().getId() : null;
+        referentCoach(athlete.getId(), clubId).ifPresent(coach -> notifyInAppOnly(coach,
+                "PERSONAL_RECORD", "Record personnel",
+                fullName(athlete) + " — " + body + " (VDOT et allures recalculés).",
+                "/app/athletes/" + athlete.getId()));
+    }
+
+    /**
+     * Course cible qui approche → prévient l'athlète.
+     *
+     * <p>Une date d'objectif dormait dans une fiche que personne n'ouvre la veille. J-7 est le
+     * moment de l'affûtage, J-1 celui de la logistique : deux rappels, pas un de plus.</p>
+     */
+    public void notifyRaceApproaching(Athlete athlete, String raceName, int daysLeft) {
+        String title = daysLeft <= 1 ? "Ta course, c'est demain" : "Ta course dans " + daysLeft + " jours";
+        notifyUser(athleteUser(athlete), "RACE_REMINDER", title, raceName, "/athlete/races");
     }
 
     /**

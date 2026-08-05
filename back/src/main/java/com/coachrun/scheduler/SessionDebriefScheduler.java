@@ -63,13 +63,12 @@ public class SessionDebriefScheduler {
             return;
         }
         LocalDate today = clock.today();
-        int currentHour = clock.now().getHour();
         Set<UUID> notifiedUsers = new HashSet<>();
         int sent = 0;
 
         // Course : la feuille de ressenti attend un RPE, d'où les actions rapides.
         for (Workout w : workoutRepository.findByScheduledDateAndStatus(today, WorkoutStatus.PLANNED)) {
-            User athleteUser = debriefTarget(w.getAthlete().getId(), currentHour);
+            User athleteUser = debriefTarget(w.getAthlete().getId());
             if (athleteUser == null || !notifiedUsers.add(athleteUser.getId())) {
                 continue;
             }
@@ -81,7 +80,7 @@ public class SessionDebriefScheduler {
         // Force : même rappel, mais il ouvre le mode séance — c'est là que se saisissent les
         // séries, et le ressenti se donne à la fin du parcours guidé.
         for (ScheduledStrengthSession s : strengthRepository.findByScheduledDateAndCompletedFalse(today)) {
-            User athleteUser = debriefTarget(s.getAthlete().getId(), currentHour);
+            User athleteUser = debriefTarget(s.getAthlete().getId());
             if (athleteUser == null || !notifiedUsers.add(athleteUser.getId())) {
                 continue;
             }
@@ -91,20 +90,25 @@ public class SessionDebriefScheduler {
         }
 
         if (sent > 0) {
-            log.info("Rappels de débriefing envoyés : {} (heure {}h)", sent, currentHour);
+            log.info("Rappels de débriefing envoyés : {}", sent);
         }
     }
 
     /**
      * Compte athlète à relancer maintenant, ou {@code null}. Une heure habituelle nulle vaut
      * opt-out, et le push coupé vaut refus explicite : on ne contourne ni l'un ni l'autre.
+     *
+     * <p>L'heure est celle de <b>l'athlète</b>, pas celle du serveur. « Deux heures après ma
+     * séance » n'a de sens que dans le fuseau où la séance a lieu : comparée à l'heure de Paris,
+     * la relance d'un athlète installé ailleurs tombait au milieu de sa nuit ou de sa journée de
+     * travail. Le balayage horaire rendait ce réglage possible sans rien changer d'autre.</p>
      */
-    private User debriefTarget(UUID athleteId, int currentHour) {
+    private User debriefTarget(UUID athleteId) {
         User user = userRepository.findByAthleteId(athleteId).orElse(null);
         if (user == null || !user.isNotifyPushEnabled() || user.getUsualSessionTime() == null) {
             return null;
         }
         int debriefHour = (user.getUsualSessionTime().getHour() + DEBRIEF_DELAY_HOURS) % 24;
-        return debriefHour == currentHour ? user : null;
+        return debriefHour == clock.now(user).getHour() ? user : null;
     }
 }
