@@ -5,8 +5,10 @@ import { map } from 'rxjs';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 
 /**
- * Pages légales publiques : politique de confidentialité, mentions légales, CGU (bêta).
- * Une seule route `legal/:page` sert les trois rubriques.
+ * Pages publiques hors application : confidentialité, mentions légales, CGU (bêta) et support.
+ * La route `legal/:page` sert les trois premières ; la page support est servie en plus sous
+ * `/support`, une URL qu'on donne à des tiers (partenaires API, annuaires) et qui n'a rien à
+ * faire sous `/legal`.
  * Les coordonnées de l'éditeur sont centralisées dans LEGAL_OWNER (à compléter avant la bêta).
  */
 export const LEGAL_OWNER = {
@@ -38,7 +40,7 @@ export const LEGAL_OWNER = {
   updated: 'août 2026',
 };
 
-type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
+type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
 
 @Component({
   selector: 'app-legal',
@@ -50,6 +52,7 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
       <header class="legal-head">
         <a routerLink="/" class="legal-logo"><app-logo [size]="36" [showText]="true" /></a>
         <nav class="legal-nav">
+          <a routerLink="/support" [class.active]="page() === 'support'">Support</a>
           <a routerLink="/legal/confidentialite" [class.active]="page() === 'confidentialite'">Confidentialité</a>
           <a routerLink="/legal/mentions-legales" [class.active]="page() === 'mentions-legales'">Mentions légales</a>
           <a routerLink="/legal/cgu" [class.active]="page() === 'cgu'">CGU</a>
@@ -58,6 +61,90 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu';
 
       <article class="card legal-body">
         @switch (page()) {
+          @case ('support') {
+            <h1>Support</h1>
+            <p class="muted">Dernière mise à jour : {{ owner.updated }}</p>
+
+            <h2>Nous contacter</h2>
+            <p>
+              Une question, un problème, une demande sur vos données : écrivez à
+              <a href="mailto:{{ owner.email }}">{{ owner.email }}</a>. Nous répondons sous
+              <strong>3 jours ouvrés</strong>. Vous n'avez pas besoin d'un compte pour nous écrire.
+            </p>
+            <p>
+              Pour aller plus vite, indiquez : l'adresse e-mail de votre compte, l'écran concerné,
+              ce que vous attendiez et ce qui s'est passé, et — s'il y en a une — la référence
+              d'erreur affichée à l'écran.
+            </p>
+
+            <h2>Montres et applications connectées</h2>
+            <p>
+              {{ owner.name }} importe vos activités depuis votre montre pour que votre coach compare la
+              séance prescrite à la séance réalisée. <strong>C'est vous qui connectez votre
+              compte</strong>, depuis <em>Synchronisation</em> dans votre espace athlète : un coach
+              ne peut jamais le faire à votre place.
+            </p>
+            <ul>
+              <li>
+                <strong>Strava</strong> — disponible. La connexion se fait par autorisation
+                Strava (OAuth) ; vos activités sont ensuite importées automatiquement.
+              </li>
+              <li>
+                <strong>Garmin et COROS</strong> — intégrations en préparation. En attendant, vous
+                pouvez importer un fichier <strong>GPX ou TCX</strong> exporté depuis votre compte,
+                ou saisir une sortie à la main, depuis <em>Mes activités</em>.
+              </li>
+            </ul>
+            <p>
+              <strong>Se déconnecter à tout moment.</strong> Sur la même page
+              <em>Synchronisation</em>, le bouton <em>Déconnecter</em> coupe la liaison et supprime
+              immédiatement les jetons d'accès conservés. Les activités déjà importées restent dans
+              votre historique ; vous pouvez les supprimer une par une depuis
+              <em>Mes activités</em>.
+            </p>
+            <p>
+              <strong>Une activité n'est pas remontée ?</strong> Vérifiez d'abord qu'elle est bien
+              synchronisée dans l'application de votre montre — nous ne voyons que ce qui s'y
+              trouve. L'import automatique tourne toutes les heures. Si l'activité manque toujours
+              au-delà, écrivez-nous en précisant la date, l'heure de départ et la montre utilisée.
+            </p>
+            <p class="muted">
+              <em>Device integrations — support in English is available at
+              <a href="mailto:{{ owner.email }}">{{ owner.email }}</a>.</em>
+            </p>
+
+            <h2>Questions fréquentes</h2>
+            <p>
+              <strong>Je n'arrive pas à me connecter.</strong> Utilisez « Mot de passe oublié » sur
+              l'écran de connexion : un lien de réinitialisation vous est envoyé par e-mail.
+              Pensez à regarder dans vos indésirables.<br />
+              <strong>Comment obtenir un compte athlète ?</strong> Les comptes athlètes sont créés
+              sur <strong>invitation d'un coach</strong>. Si vous n'avez pas reçu votre invitation,
+              demandez à votre coach de la renvoyer.<br />
+              <strong>Comment récupérer ou supprimer mes données ?</strong> Depuis votre profil
+              dans l'application : <em>exporter mes données</em> et <em>supprimer mon compte</em>.
+              Pour toute autre demande, écrivez-nous.<br />
+              <strong>Je ne reçois pas les notifications.</strong> Vérifiez qu'elles sont autorisées
+              dans les réglages de votre navigateur ou de votre téléphone, puis réactivez-les dans
+              <em>Réglages → Notifications</em>.
+            </p>
+
+            <h2>Signaler un problème depuis l'application</h2>
+            <p>
+              Une fois connecté·e, le bouton <strong>« Signaler un problème »</strong> transmet
+              votre message avec le contexte technique nécessaire (écran, version, navigateur,
+              référence d'erreur). C'est la voie la plus rapide pour un bug, parce qu'elle nous
+              évite un aller-retour pour reconstituer le contexte.
+            </p>
+
+            <h2>Confidentialité et données personnelles</h2>
+            <p>
+              Le détail des données collectées, de leur durée de conservation et de vos droits est
+              dans notre <a routerLink="/legal/confidentialite">politique de confidentialité</a>.
+              Pour exercer un droit ou poser une question relative à la protection des données :
+              <a href="mailto:{{ owner.email }}">{{ owner.email }}</a>.
+            </p>
+          }
           @case ('mentions-legales') {
             <h1>Mentions légales</h1>
             <p class="muted">Dernière mise à jour : {{ owner.updated }}</p>
@@ -308,13 +395,16 @@ export class LegalComponent {
   private readonly route = inject(ActivatedRoute);
   readonly owner = LEGAL_OWNER;
 
+  /** Rubrique figée par la route (`/support`), là où `legal/:page` n'a pas de paramètre. */
+  private readonly staticPage = this.route.snapshot.data['page'] as string | undefined;
+
   private readonly pageParam = toSignal(
-    this.route.paramMap.pipe(map((p) => p.get('page'))),
-    { initialValue: this.route.snapshot.paramMap.get('page') },
+    this.route.paramMap.pipe(map((p) => p.get('page') ?? this.staticPage ?? null)),
+    { initialValue: this.route.snapshot.paramMap.get('page') ?? this.staticPage ?? null },
   );
 
   readonly page = computed<LegalPage>(() => {
     const p = this.pageParam();
-    return p === 'mentions-legales' || p === 'cgu' ? p : 'confidentialite';
+    return p === 'mentions-legales' || p === 'cgu' || p === 'support' ? p : 'confidentialite';
   });
 }

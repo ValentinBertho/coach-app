@@ -186,14 +186,27 @@ le dépôt, ce qui est un vrai atout — vous n'avez rien à promettre au futur.
 | Politique de confidentialité publique | ✅ `https://www.darilab.app/legal/confidentialite` — ⚠️ doit **citer nommément** Garmin et COROS | route publique `app.routes.ts:55` |
 | CGU publiques | ✅ `https://www.darilab.app/legal/cgu` | route publique `app.routes.ts:55` |
 | Portail de connexion public *(exigé par COROS)* | ✅ `https://www.darilab.app/login` | `app.routes.ts:19` |
-| Page de support publique *(exigée par COROS)* | ❌ **Manquante** — le centre d'aide est derrière l'authentification | `app.routes.ts:199` (`app/aide`) |
+| Page de support publique *(exigée par COROS)* | ✅ `https://www.darilab.app/support` | `app.routes.ts` (route `support`), `legal.component.ts` |
 
-> 🔴 **Deux points bloquants à traiter avant de soumettre.**
-> **(a) La politique de confidentialité existe, mais son contenu doit suivre :** les deux programmes
-> exigent qu'elle mentionne **explicitement** la collecte de données via l'API du fournisseur
-> (« Garmin », « COROS » nommés), la finalité, la durée de conservation et le moyen de révoquer.
-> Vérifiez le texte de `legal.component`, pas seulement l'existence de l'URL.
-> **(b) La page de support publique manque** — voir §3.5, point 1.
+> 🔴 **Un point bloquant reste à traiter avant de soumettre : le contenu de la politique de
+> confidentialité.** L'URL existe, mais les deux programmes exigent qu'elle mentionne
+> **explicitement** la collecte de données via l'API du fournisseur — « Garmin » et « COROS »
+> **nommés**, comme Strava l'est déjà — la finalité, la durée de conservation et le moyen de
+> révoquer. À faire au moment où l'intégration est livrée, pas avant (annoncer une collecte qui
+> n'existe pas encore serait faux) : mais c'est un jalon à ne pas oublier, il conditionne la mise
+> en production.
+>
+> ⚠️ **Deux autres points à vérifier dans `legal.component.ts`, découverts en créant la page de
+> support** — ils ne bloquent pas la candidature, mais ils vous concernent :
+> **(a)** `LEGAL_OWNER.legalName` et `address` sont **vides**, avec un commentaire du code qui
+> signale qu'il faut les remplir avant la bêta. L'article 13 du RGPD impose de fournir « l'identité
+> et les coordonnées du responsable du traitement » — un nom commercial et un e-mail n'y suffisent
+> pas, a fortiori pour un service traitant des données de santé.
+> **(b)** Les mentions légales revendiquent une édition **« à titre non professionnel »**
+> (exemption LCEN art. 6, III-2). Avec un **SIRET actif** et une activité commerciale, cette
+> exemption ne s'applique probablement plus : un éditeur professionnel doit publier son identité,
+> son adresse et son numéro d'immatriculation. Je n'ai pas modifié ces pages — publier votre
+> identité civile et votre adresse est votre décision, pas la mienne.
 
 ---
 
@@ -237,8 +250,8 @@ conditions liminaires, à lire avant de remplir quoi que ce soit :
 | 1 ✳ | Platform / Application Name | `DARI Lab` |
 | 2 ✳ | Company Name | ⚠️ **La dénomination légale exacte** — voir §3.3.1 |
 | 3 ✳ | Primary Contact Email | `contact@darilab.app` |
-| 4 ✳ | Secondary Contact Email | ⚠️ **Doit être différente du champ 3** — voir §3.3.2 |
-| 5 ✳ | Privacy Officer Email | `privacy@darilab.app` (alias à créer) |
+| 4 ✳ | Secondary Contact Email | `valentin@darilab.app` ✅ |
+| 5 ✳ | Privacy Officer Email | `valentin@darilab.app` — voir §3.3.2 |
 | 6 ✳ | Company Owner Name and Title | `Valentin Bertho — Founder & Lead Developer` |
 | 7 | Platform / Application URL | `https://www.darilab.app` |
 | 8 ✳ | Description (**100 caractères max**) | `Physiology-driven coaching platform: coaches prescribe running and strength sessions.` *(85 car.)* |
@@ -246,8 +259,8 @@ conditions liminaires, à lire avant de remplir quoi que ce soit :
 | 10 ✳ | Primary Region | `France (Europe)` |
 | 11 ✳ | Which API function(s) does your app need? | ☑️ `Activity / Workout Data Sync (one way, COROS to your platform)`<br>☑️ `Structured Workouts and Training Plans Sync (from your platform to COROS)`<br>☐ les 5 autres — voir §3.3.4 |
 | 12 ✳ | Authorized Callback Domain (redirect_uri) | `https://www.darilab.app` |
-| 13 ✳ | Workout Data Receiving Endpoint URL | `https://api.darilab.app/api/webhooks/coros` ⚠️ sous-domaine à créer |
-| 14 ✳ | Service Status Check URL | `https://api.darilab.app/api/actuator/health` |
+| 13 ✳ | Workout Data Receiving Endpoint URL | `https://api.darilab.app/api/webhooks/coros` — ⚠️ deux options en §3.5-2 |
+| 14 ✳ | Service Status Check URL | `https://api.darilab.app/api/actuator/health` — ⚠️ idem |
 | 15 ✳ | Bluetooth / ANT+ protocol link | `N/A` |
 | 16 ✳ | Personal or public use? | `Public` |
 | 17 ✳ | Commercial or non-commercial use? | `Commercial` |
@@ -284,17 +297,20 @@ dossier au moment de la signature de l'API Agreement.
 > comité qui sélectionne sur la crédibilité commerciale, c'est le genre de phrase qui classe le
 > dossier sans autre examen.
 
-#### 3.3.2 Champ 4 — l'adresse secondaire
+#### 3.3.2 Champ 4 — l'adresse secondaire ✅ réglé
 
-Le formulaire réclame une **deuxième** adresse, distincte de la première. Deux options :
+`valentin@darilab.app` est créée : elle va au champ 4, distincte de `contact@darilab.app` au
+champ 3. **Ces deux adresses suffisent pour tout le dossier**, inutile d'en créer d'autres :
 
-- **Recommandé** : créez un second alias sur votre domaine — `valentin@darilab.app` ou
-  `tech@darilab.app`. C'est gratuit sur OVH et ça donne l'image d'une structure qui tient.
-- **À éviter** : votre Gmail personnel. Sur un dossier où l'on juge la crédibilité d'une entreprise,
-  une adresse grand public en contact secondaire dessert.
+| Champ | Adresse | Pourquoi celle-là |
+|---|---|---|
+| 3 — Primary Contact | `contact@darilab.app` | L'adresse générique du produit, déjà publiée dans les pages légales et la page de support |
+| 4 — Secondary Contact | `valentin@darilab.app` | Adresse nominative, distincte comme exigé |
+| 5 — Privacy Officer | `valentin@darilab.app` | Le champ demande *« l'e-mail de la personne responsable des questions de sécurité et de confidentialité des utilisateurs »* — c'est **une personne**, pas une boîte fonctionnelle. Vous êtes cette personne : l'adresse nominative est la réponse juste, et elle est cohérente avec le responsable de traitement déclaré dans votre politique de confidentialité |
 
-Pendant que vous y êtes, créez les quatre alias d'un coup — `contact@`, `valentin@`, `privacy@`,
-`support@` — ils servent tous dans ce dossier et dans celui de Garmin.
+> Les `security@` / `privacy@` évoqués plus haut n'étaient qu'une suggestion de confort — deux
+> adresses réelles valent mieux que quatre alias qui pointent au même endroit. L'e-mail
+> d'accompagnement (§3.4) a été aligné sur ces deux-là.
 
 #### 3.3.3 Champ 9 — le nombre d'utilisateurs, le vrai sujet du dossier
 
@@ -428,9 +444,8 @@ COMPANY
 
 CONTACTS
   Technical (authorised representative) : Valentin Bertho — contact@darilab.app
-  Business                              : Valentin Bertho — contact@darilab.app
-  Privacy officer                       : privacy@darilab.app
-  Security / incident                   : security@darilab.app
+  Business / secondary contact          : Valentin Bertho — valentin@darilab.app
+  Privacy officer                       : Valentin Bertho — valentin@darilab.app
 
 PRODUCT
 DARI Lab is a SaaS coaching platform for running and strength training. Coaches build
@@ -494,7 +509,7 @@ SECURITY AND DATA PROTECTION
     and erasure are implemented, data is hosted in the EU.
   - Sub-processors: Railway (backend and database), Vercel (frontend), Resend (email).
   - Login portal: https://www.darilab.app/login
-  - Support page: https://www.darilab.app/[URL SUPPORT]
+  - Support page: https://www.darilab.app/support
 
 We have read and accept the COROS API Application Terms and the COROS API Agreement,
 and we will keep you informed of our development progress and notify you at least one
@@ -509,23 +524,78 @@ contact@darilab.app
 
 ### 3.5 Les trois pièges de ce dossier
 
-**1. La page de support publique — le seul vrai blocage technique.**
+**1. La page de support publique — ✅ réglé.**
 COROS l'exige noir sur blanc : *« nous demandons à tous les partenaires d'ajouter un portail de
-connexion et une page de support à leur plateforme »*. Votre portail de connexion existe
-(`/login`, route publique). Votre **page de support, non** : le centre d'aide est à `app/aide`,
-c'est-à-dire **derrière l'authentification** (`front/src/app/app.routes.ts:199`), donc inaccessible
-à quelqu'un qui n'a pas encore de compte — exactement le cas que COROS veut couvrir.
-→ **À créer avant de soumettre** : une page publique, même minimale, avec un moyen de contact.
-Le plus rapide est d'ajouter un `support` au composant `legal/:page` déjà public, ou une route
-publique `/support`. Dites-le-moi si vous voulez que je la fasse.
+connexion et une page de support à leur plateforme »*. Le portail de connexion existait déjà
+(`/login`) ; la page de support, non — le centre d'aide vit sous `app/aide`, **derrière
+l'authentification**, donc invisible pour qui n'a pas encore de compte, exactement le cas que
+COROS veut couvrir.
 
-**2. Le sous-domaine `api.darilab.app`.**
-Les champs 13 et 14 enregistrent vos URL **dans la configuration de votre application COROS** ;
-en changer plus tard demande de repasser par leur support. `coachrun-back.up.railway.app` est un
-domaine d'hébergeur : mettez le CNAME `api.darilab.app` en place **avant** de soumettre.
-Bonne nouvelle pour le champ 14 : `/actuator/health` est **déjà public** et ne renvoie que
-`{"status":"UP"}` aux appels anonymes (`SecurityConfig.java:40`, `show-details: when_authorized`) —
-il n'y a rien à coder, et rien qui fuite.
+**`https://www.darilab.app/support`** est désormais publique, servie par le composant des pages
+légales (même coquille, même navigation) et liée depuis le pied de page d'accueil. Elle couvre :
+
+- le moyen de contact et le délai de réponse annoncé (3 jours ouvrés) ;
+- **une section « Montres et applications connectées »** — c'est celle que COROS vient vérifier :
+  qui initie la connexion (l'athlète, jamais le coach), ce qui est importé, **comment se
+  déconnecter**, et quoi faire quand une activité ne remonte pas ;
+- une ligne en anglais indiquant qu'un support en anglais est disponible, pour l'examinateur COROS
+  comme pour un utilisateur non francophone ;
+- une FAQ courte et le renvoi vers la politique de confidentialité.
+
+> Garmin et COROS y sont annoncés comme « intégrations en préparation », avec le repli GPX/TCX —
+> cohérent avec ce que dit déjà le README. À basculer en « disponible » le jour de la mise en
+> production, en même temps que la politique de confidentialité.
+
+**2. Les URL des champs 13 et 14 — deux options, l'une sans aucun travail d'infra.**
+
+Le vrai enjeu n'est pas « créer un sous-domaine » : c'est que **ces URL sont figées dans votre
+configuration COROS** et qu'en changer plus tard demande de repasser par leur support. La seule
+chose à éviter absolument, c'est de déclarer un domaine d'hébergeur
+(`coach-app-production-5674.up.railway.app`) : le jour où vous quittez Railway, l'intégration
+casse et il faut redemander.
+
+Les deux réponses acceptables — dans les deux cas, un domaine **que vous possédez** :
+
+| | **Option A — `api.darilab.app`** *(recommandée)* | **Option B — `www.darilab.app/api/…`** |
+|---|---|---|
+| Travail à faire | ~15 min de DNS | **aucun — ça marche déjà** |
+| Champ 13 | `https://api.darilab.app/api/webhooks/coros` | `https://www.darilab.app/api/webhooks/coros` |
+| Champ 14 | `https://api.darilab.app/api/actuator/health` | `https://www.darilab.app/api/actuator/health` |
+| Chemin réseau | COROS → Railway, direct | COROS → Vercel → Railway (réécriture `front/vercel.json`) |
+| Point faible | rien | le webhook dépend de la config de réécriture Vercel : changer d'hébergeur front casserait un chemin qui n'a rien à voir avec le front |
+
+**Pourquoi l'option A malgré les 15 minutes.** Un webhook doit répondre vite et ne rien avoir
+d'inutile sur son chemin critique ; y intercaler le proxy du front ajoute un intermédiaire et un
+couplage que rien ne justifie. Et le jour où vous changez d'hébergement, vous repointez un CNAME
+au lieu de rouvrir un ticket chez COROS.
+
+**Marche à suivre (option A)**
+
+1. **Railway** → service backend → *Settings → Networking → Custom Domain* → ajouter
+   `api.darilab.app`. Railway affiche une **cible CNAME** à recopier.
+2. **OVH** → zone `darilab.app` → ajouter un enregistrement **CNAME** `api` → cette cible.
+   ⚠️ Dans la **zone DNS**, pas dans l'onglet « Redirection » — `docs/DEPLOIEMENT.md` documente
+   déjà pourquoi cet onglet casse la configuration.
+3. Attendre la propagation ; Railway émet le certificat TLS tout seul.
+4. Vérifier : `curl https://api.darilab.app/api/actuator/health` doit renvoyer `{"status":"UP"}`.
+
+C'est **purement additif** : votre front passe par une réécriture Vercel `/api/*` et ne connaît
+aucune URL Railway en dur (`front/src/environments/environment.ts` → `apiUrl: '/api'`). Ajouter ce
+domaine ne peut donc rien casser dans l'application.
+
+**Bonne nouvelle pour le champ 14** : `/actuator/health` est **déjà public** et ne renvoie que
+`{"status":"UP"}` aux appels anonymes (`SecurityConfig.java:40` + `show-details: when_authorized`).
+Rien à coder, rien qui fuite.
+
+> ℹ️ **Le champ 13 pointe vers un endpoint qui n'existe pas encore.** C'est normal et sans
+> conséquence à ce stade : `/api/webhooks/coros` sera implémenté à la réception des identifiants
+> (cf. §6). Déclarez l'URL cible dès maintenant — c'est elle qui sera figée — et assurez-vous
+> qu'elle réponde **200 rapidement** le jour de l'intégration, COROS attendant un accusé immédiat.
+>
+> ⚠️ Au passage : `docs/DEPLOIEMENT.md` mentionne `coachrun-back.up.railway.app`, alors que le
+> déploiement réel est `coach-app-production-5674.up.railway.app` (`front/vercel.json`). La doc de
+> déploiement est en retard sur la réalité — sans effet ici puisqu'on ne déclare ni l'un ni
+> l'autre, mais à corriger un jour.
 
 **3. Les documents à lire avant de cocher « Yes ».**
 Les champs 20 et 21 vous engagent contractuellement. Téléchargez l'**API Reference Guide** (lien en
@@ -633,15 +703,18 @@ candidature auprès d'un partenaire qui sélectionne.
 
 **Avant de toucher au formulaire**
 
-- [ ] 🔴 **Page de support publique** créée et en ligne — exigence explicite de COROS `[§3.5-1]`
+- [x] ✅ **Page de support publique** — `https://www.darilab.app/support`, livrée `[§3.5-1]`
+- [x] ✅ **Adresse secondaire** — `valentin@darilab.app` créée, sert aux champs 4 et 5 `[§3.3.2]`
+- [ ] 🔴 **Déployer** la page de support en production (elle doit être en ligne **avant** que COROS
+      ne clique sur le lien)
 - [ ] 🔴 **Dénomination légale** vérifiée sur `annuaire-entreprises.data.gouv.fr/entreprise/914436118`
       et recopiée au caractère près `[§3.3.1]`
-- [ ] 🔴 **Sous-domaine `api.darilab.app`** en place (CNAME → Railway), avant de figer les URL des
-      champs 13 et 14 `[§3.5-2]`
-- [ ] 🔴 **Alias e-mail créés** sur OVH : `valentin@` (ou `tech@`), `privacy@`, `support@` `[§3.3.2]`
-- [ ] 🔴 **Politique de confidentialité relue** : Garmin et COROS **nommés**, finalité, durée de
-      conservation, moyen de révoquer `[§2.5]`
+- [ ] 🔴 **URL des champs 13 et 14** arrêtées — option A (`api.darilab.app`, CNAME à créer) ou
+      option B (`www.darilab.app/api/…`, disponible immédiatement) `[§3.5-2]`
 - [ ] 🔴 **API Reference Guide et API Agreement téléchargés et lus** (section 5.7 notamment) `[§3.5-3]`
+- [ ] Politique de confidentialité : Garmin et COROS à **nommer** au moment de la mise en
+      production de l'intégration `[§2.5]`
+- [ ] `LEGAL_OWNER.legalName` / `address` et le statut « éditeur non professionnel » à trancher `[§2.5]`
 - [ ] Adresse du siège récupérée `[§2.1]`
 - [ ] Durée de conservation des données arrêtée `[§2.5]`
 - [ ] Région d'hébergement Railway/Vercel vérifiée (UE) `[§2.5]`
