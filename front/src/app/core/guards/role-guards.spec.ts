@@ -69,9 +69,10 @@ describe('gardes de rôle', () => {
       expect(run(coachGuard)).toBe(true);
     });
 
+    /** « Chez lui » = son calendrier, l'écran d'ouverture du portail depuis la réorganisation. */
     it('renvoie un athlète chez lui, et non sur la landing publique', () => {
       signIn('ATHLETE');
-      expect(redirectOf(run(coachGuard))).toBe('/athlete/today');
+      expect(redirectOf(run(coachGuard))).toBe('/athlete/calendar');
     });
 
     it('renvoie un visiteur non connecté vers la connexion', () => {
@@ -100,7 +101,7 @@ describe('gardes de rôle', () => {
     /** C'était la redirection en dur vers `/app` : la mauvaise destination pour un athlète. */
     it('renvoie un athlète vers son espace, pas vers le cockpit coach', () => {
       signIn('ATHLETE');
-      expect(redirectOf(run(adminGuard))).toBe('/athlete/today');
+      expect(redirectOf(run(adminGuard))).toBe('/athlete/calendar');
     });
 
     it('renvoie un coach vers son cockpit', () => {

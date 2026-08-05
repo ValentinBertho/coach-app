@@ -90,6 +90,27 @@ export const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
   REST: 'Repos',
 };
 
+/** Sémantique d'un type de séance : couleur (token), icône, et nature « séance clé ». */
+export interface WorkoutTypeMeta { color: string; icon: string; key: boolean; }
+
+/**
+ * Couleur et icône par type de séance — **source unique**, partagée par le calendrier du coach
+ * et celui de l'athlète. Un même seuil doit avoir la même couleur des deux côtés, sinon coach et
+ * athlète ne parlent pas du même calendrier au téléphone.
+ */
+export const WORKOUT_TYPE_META: Record<WorkoutType, WorkoutTypeMeta> = {
+  ENDURANCE:      { color: 'var(--zone-2)', icon: 'footprints', key: false },
+  RECOVERY:       { color: 'var(--zone-1)', icon: 'wind', key: false },
+  TEMPO:          { color: 'var(--zone-3)', icon: 'timer', key: true },
+  THRESHOLD:      { color: 'var(--zone-4)', icon: 'flame', key: true },
+  INTERVALS:      { color: 'var(--zone-5)', icon: 'zap', key: true },
+  LONG_RUN:       { color: 'var(--primary)', icon: 'mountain-snow', key: true },
+  RACE:           { color: 'var(--energy)', icon: 'flag', key: true },
+  STRENGTH:       { color: 'var(--dari-violet)', icon: 'dumbbell', key: false },
+  CROSS_TRAINING: { color: 'var(--dari-teal)', icon: 'bike', key: false },
+  REST:           { color: 'var(--ink-4)', icon: 'moon', key: false },
+};
+
 export const STEP_TYPE_LABELS: Record<WorkoutStepType, string> = {
   WARMUP: 'Échauffement',
   STEADY: 'Bloc continu',

@@ -33,4 +33,13 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
      */
     List<Activity> findByAthleteIdAndStatusAndMatchedWorkoutIdIsNotNullAndFeedbackPromptedAtIsNullOrderByActivityDateDesc(
             UUID athleteId, ActivityStatus status);
+
+    /**
+     * Sorties jamais proposées au débrief, la plus récente d'abord — rattachées ou non.
+     *
+     * <p>La requête précédente exigeait un rapprochement avec une séance : une course, un
+     * footing improvisé, tout ce qui n'était au programme de personne n'était donc jamais
+     * proposé au ressenti. C'est pourtant là que le coach n'a rien d'autre à lire.</p>
+     */
+    List<Activity> findByAthleteIdAndFeedbackPromptedAtIsNullOrderByActivityDateDesc(UUID athleteId);
 }

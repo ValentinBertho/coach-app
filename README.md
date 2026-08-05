@@ -60,7 +60,9 @@ assistant), et athlète (PWA mobile).
   quand une valeur de référence change.
 - **Dashboard coach** : tableaux Route/Trail, **pastilles de forme** (fatigue + douleur, jamais RPE),
   portée mes athlètes / privés / club.
-- **Portail athlète** (PWA, offline-friendly) : séance du jour **avec cibles en fourchettes**
+- **Portail athlète** (PWA, offline-friendly) : ouvre sur un **calendrier mensuel visuel** — une
+  case par jour, durée et distance de chaque séance, couleur par type, sortie réalisée
+  distinguée du prescrit ; un jour se touche pour son détail. Puis séance du jour **avec cibles en fourchettes**
   (allure/FC/RPE) et éducatifs liés, retour (RPE / fatigue / douleur / commentaire), **déplacement**
   de séance (jamais de modification/suppression), **mes activités** (saisie manuelle + import GPX/TCX),
   **mes objectifs** (CRUD A/B/C) et **connexion de sa montre** (Strava) directement côté athlète.

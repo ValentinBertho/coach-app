@@ -135,7 +135,7 @@ export class AuthService {
   homeRoute(): string {
     switch (this.currentUser()?.role) {
       case 'PLATFORM_ADMIN': return '/admin';
-      case 'ATHLETE': return '/athlete/today';
+      case 'ATHLETE': return '/athlete/calendar';
       case 'COACH':
       case 'HEAD_COACH': return '/app';
       default: return '/login';

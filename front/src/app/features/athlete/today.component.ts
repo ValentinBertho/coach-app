@@ -12,7 +12,7 @@ import {
   needsFeedback,
 } from '../../core/models/workout.model';
 import { WeekSummary } from '../../core/models/activity.model';
-import { AthletePortalService, FeedbackPrompt } from '../../core/services/athlete-portal.service';
+import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { WorkoutPrescription } from '../../core/models/course.model';
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
@@ -170,10 +170,11 @@ export class TodayComponent implements OnInit {
           });
         }
         this.state.set('ready');
-        // Les deux ouvertures automatiques dépendent de la liste du jour : on les branche
-        // une fois qu'elle est là, pour pouvoir y retrouver la séance visée.
+        // L'ouverture depuis une notification dépend de la liste du jour : on la branche une
+        // fois qu'elle est là, pour pouvoir y retrouver la séance visée. L'invitation au débrief,
+        // elle, a rejoint la coquille (app-debrief-prompt) : elle doit se déclencher sur tous
+        // les écrans du portail, pas seulement sur celui-ci.
         this.openFromNotification();
-        this.openFromMatchedActivity();
       },
       error: () => this.state.set('error'),
     });
@@ -208,27 +209,6 @@ export class TodayComponent implements OnInit {
     }
     // L'URL ne doit pas garder le paramètre : un rafraîchissement rouvrirait la feuille.
     this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
-  }
-
-  /**
-   * Auto-détection : quand une activité importée a été rapprochée d'une séance, la feuille
-   * s'ouvre pré-remplie (distance, durée, FC) — l'athlète confirme, il ne saisit pas.
-   *
-   * Sans ça, le rapprochement clôture la séance côté données et la fait disparaître du bandeau
-   * des retours en attente : le coach n'a jamais de signal de forme sur les séances importées
-   * depuis la montre.
-   */
-  private openFromMatchedActivity(): void {
-    if (this.route.snapshot.queryParamMap.get('feedback')) return; // la notification a priorité
-    this.portal.feedbackPrompt().subscribe({
-      next: (prompt) => {
-        if (!prompt) return;
-        this.feedbackSheet()?.openFor(prompt.workout, { activity: prompt });
-        // Vue une fois, proposée une fois : un refus ne doit pas revenir à chaque lancement.
-        this.portal.ackFeedbackPrompt(prompt.activityId).subscribe({ error: () => undefined });
-      },
-      error: () => undefined,
-    });
   }
 
   /**

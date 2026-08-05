@@ -5,7 +5,10 @@ import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, co
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteSummary } from '../../core/models/athlete.model';
-import { STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, Workout, WorkoutType } from '../../core/models/workout.model';
+import {
+  STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_META,
+  Workout, WorkoutType, WorkoutTypeMeta,
+} from '../../core/models/workout.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { CourseService } from '../../core/services/course.service';
 import { StrengthService } from '../../core/services/strength.service';
@@ -91,20 +94,11 @@ const REASON_META: Record<UnavailabilityReason, { label: string; icon: string }>
   OTHER: { label: 'Indispo', icon: 'ban' },
 };
 
-/** Sémantique de type d'événement : couleur (token) + icône + nature « clé ». */
-interface TypeMeta { color: string; icon: string; key: boolean; }
-const TYPE_META: Record<WorkoutType, TypeMeta> = {
-  ENDURANCE:      { color: 'var(--zone-2)', icon: 'footprints', key: false },
-  RECOVERY:       { color: 'var(--zone-1)', icon: 'wind', key: false },
-  TEMPO:          { color: 'var(--zone-3)', icon: 'timer', key: true },
-  THRESHOLD:      { color: 'var(--zone-4)', icon: 'flame', key: true },
-  INTERVALS:      { color: 'var(--zone-5)', icon: 'zap', key: true },
-  LONG_RUN:       { color: 'var(--primary)', icon: 'mountain-snow', key: true },
-  RACE:           { color: 'var(--energy)', icon: 'flag', key: true },
-  STRENGTH:       { color: 'var(--dari-violet)', icon: 'dumbbell', key: false },
-  CROSS_TRAINING: { color: 'var(--dari-teal)', icon: 'bike', key: false },
-  REST:           { color: 'var(--ink-4)', icon: 'moon', key: false },
-};
+// La sémantique de type (couleur, icône, « séance clé ») vit dans le modèle : le calendrier de
+// l'athlète peint les mêmes couleurs, et un seuil ne peut pas changer de teinte d'un écran à
+// l'autre.
+type TypeMeta = WorkoutTypeMeta;
+const TYPE_META = WORKOUT_TYPE_META;
 
 function toIso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

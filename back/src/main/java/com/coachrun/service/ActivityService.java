@@ -501,13 +501,28 @@ public class ActivityService {
      * séance importée depuis la montre ne produirait jamais de signal de forme — c'est la fuite
      * exacte que l'auto-détection vient boucher.</p>
      */
+    /**
+     * Prochaine sortie à débriefer, rattachée à une séance <b>ou non</b>.
+     *
+     * <p>La proposition ne portait que sur les sorties rapprochées d'une séance prescrite. Une
+     * course, un footing improvisé — précisément ce qui n'a pas de prescription à comparer, donc
+     * ce sur quoi le coach n'a rien d'autre à lire — n'était jamais proposé : l'athlète devait
+     * penser à aller ouvrir sa sortie et à y saisir son ressenti lui-même.</p>
+     *
+     * <p>Une sortie sans séance revient avec {@code workout} nul : l'écran demande alors le
+     * ressenti sur la sortie elle-même (RPE + mot au coach), qu'elle porte désormais.</p>
+     */
     public FeedbackPromptResponse pendingFeedbackPrompt(UUID athleteId) {
-        var candidates = activityRepository
-                .findByAthleteIdAndStatusAndMatchedWorkoutIdIsNotNullAndFeedbackPromptedAtIsNullOrderByActivityDateDesc(
-                        athleteId, ActivityStatus.MATCHED);
-        for (Activity a : candidates) {
+        for (Activity a : activityRepository
+                .findByAthleteIdAndFeedbackPromptedAtIsNullOrderByActivityDateDesc(athleteId)) {
+            if (a.getMatchedWorkoutId() == null) {
+                // Déjà noté sur la sortie = l'athlète s'est exprimé, on ne le relance pas.
+                if (a.getRpe() == null && a.getAthleteComment() == null) {
+                    return FeedbackPromptResponse.of(a, null);
+                }
+                continue;
+            }
             Workout w = workoutRepository.findByIdAndAthleteId(a.getMatchedWorkoutId(), athleteId).orElse(null);
-            // Un RPE ou un commentaire déjà posé = l'athlète s'est exprimé, on ne le relance pas.
             if (w != null && w.getRpe() == null && w.getAthleteComment() == null) {
                 return FeedbackPromptResponse.of(a, w);
             }

@@ -69,11 +69,17 @@ export type DailyCheckInRequest = Pick<DailyCheckIn, 'sleep' | 'fatigue' | 'pain
 export interface FeedbackPrompt {
   activityId: string;
   source: string;
+  title: string | null;
+  activityDate: string | null;
   distanceM: number | null;
   durationS: number | null;
   avgHr: number | null;
   elevationGainM: number | null;
-  workout: Workout;
+  /**
+   * Séance rapprochée, ou `null` pour une sortie hors programme : le ressenti se pose alors sur
+   * la sortie elle-même, seul endroit possible quand aucune prescription ne peut le porter.
+   */
+  workout: Workout | null;
 }
 
 /** Date locale au format ISO (jamais `toISOString()`, qui bascule d'un jour selon le fuseau). */

@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { adminGuard } from './core/guards/admin.guard';
 import { athleteGuard } from './core/guards/athlete.guard';
 import { coachGuard } from './core/guards/coach.guard';
+import { installedAppGuard } from './core/guards/installed-app.guard';
 import { unsavedChangesGuard } from './core/guards/unsaved-changes.guard';
 
 /**
@@ -11,7 +12,10 @@ import { unsavedChangesGuard } from './core/guards/unsaved-changes.guard';
  */
 export const routes: Routes = [
   {
+    // La landing publique — sauf en application installée sans session, où l'on ouvre
+    // directement sur la connexion (cf. installedAppGuard).
     path: '',
+    canActivate: [installedAppGuard],
     loadComponent: () =>
       import('./features/home/home.component').then((m) => m.HomeComponent),
   },
@@ -314,7 +318,9 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/athlete/athlete-shell.component').then((m) => m.AthleteShellComponent),
     children: [
-      { path: '', pathMatch: 'full', redirectTo: 'today' },
+      // Le calendrier est la porte d'entrée du portail : l'athlète ouvre son application pour
+      // voir la forme de son mois, pas pour lire d'abord la séance du jour (qui est à un onglet).
+      { path: '', pathMatch: 'full', redirectTo: 'calendar' },
       {
         path: 'today',
         loadComponent: () =>
