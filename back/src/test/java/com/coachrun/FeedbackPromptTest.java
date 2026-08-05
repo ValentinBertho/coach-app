@@ -157,4 +157,52 @@ class FeedbackPromptTest {
 
         assertThat(prompt()).isNull();
     }
+
+    // --- Sorties hors programme ---------------------------------------------
+
+    /** Sortie libre de l'athlète, un jour sans séance prescrite : rien ne peut la rapprocher. */
+    private String seedUnplannedRun(LocalDate day, String title) throws Exception {
+        JsonNode activity = objectMapper.readTree(mvc.perform(post("/me/activities")
+                        .header("Authorization", athleteBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"activityDate\":\"" + day + "\",\"title\":\"" + title
+                                + "\",\"distanceM\":21100,\"durationS\":6300}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        assertThat(activity.get("status").asText()).isEqualTo("UNMATCHED");
+        return activity.get("id").asText();
+    }
+
+    /**
+     * Le cas que la relance ignorait : une course, un footing improvisé. Aucune prescription à
+     * comparer, donc rien d'autre à lire pour le coach que le ressenti — et c'était précisément
+     * le seul cas où on ne le demandait jamais, l'athlète devant penser à aller le saisir sur sa
+     * sortie.
+     */
+    @Test
+    void unplannedRunIsProposedToo() throws Exception {
+        // Un jour libre du jeu de démo : le rapprochement automatique ne doit rien trouver.
+        String activityId = seedUnplannedRun(LocalDate.now().plusDays(3), "Semi du dimanche");
+
+        JsonNode prompt = prompt();
+        assertThat(prompt).isNotNull();
+        assertThat(prompt.get("activityId").asText()).isEqualTo(activityId);
+        // Pas de séance : le ressenti se posera sur la sortie elle-même.
+        assertThat(prompt.get("workout").isNull()).isTrue();
+        // Le titre et la date remplacent la séance comme repère à l'écran.
+        assertThat(prompt.get("title").asText()).isEqualTo("Semi du dimanche");
+        assertThat(prompt.get("activityDate").asText()).isEqualTo(LocalDate.now().plusDays(3).toString());
+        assertThat(prompt.get("distanceM").asInt()).isEqualTo(21100);
+    }
+
+    /** Ressenti déjà posé sur la sortie = l'athlète s'est exprimé, on ne le relance pas. */
+    @Test
+    void unplannedRunAlreadyRatedIsNotProposed() throws Exception {
+        String activityId = seedUnplannedRun(LocalDate.now().plusDays(4), "Footing du soir");
+
+        mvc.perform(patch("/me/activities/{a}", activityId)
+                        .header("Authorization", athleteBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rpe\":7}"))
+                .andExpect(status().isOk());
+
+        assertThat(prompt()).isNull();
+    }
 }
