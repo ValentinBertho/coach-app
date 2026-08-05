@@ -127,7 +127,9 @@ public class StrengthResultService {
         load.setMechanicalLoad(BigDecimal.valueOf(mechanical));
         load.setMetabolicLoad(BigDecimal.valueOf(metabolic));
         loadTrackingRepository.save(load);
-        log.info("Charge force athlète={} → méca {} UA / métab {} UA", athlete.getId(), mechanical, metabolic);
+        // DEBUG et non INFO : recalculé à chaque série enregistrée, c'est le résultat d'un calcul
+        // interne, pas un événement métier. En production, ces lignes noyaient les autres.
+        log.debug("Charge force athlète={} → méca {} UA / métab {} UA", athlete.getId(), mechanical, metabolic);
     }
 
     public List<com.coachrun.dto.response.StrengthLoadResponse> loadTracking(

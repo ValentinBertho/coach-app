@@ -9,10 +9,15 @@ spring:
       hibernate:
         format_sql: false
 
+# Réglable sans redéploiement : poser LOG_LEVEL_APP=DEBUG le temps d'une mise au point, puis
+# retirer la variable. Le SQL reste à part — c'est le plus volumineux, et on ne l'allume que
+# lorsqu'on cherche précisément une requête.
 logging:
   level:
-    root: INFO
-    com.coachrun: INFO
+    root: ${LOG_LEVEL_ROOT:INFO}
+    com.coachrun: ${LOG_LEVEL_APP:INFO}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}
+    org.hibernate.orm.jdbc.bind: ${LOG_LEVEL_SQL_PARAMS:WARN}
 
 # Swagger/OpenAPI fermé en production : la spec expose toute la surface de l'API
 # (routes, paramètres, schémas) à un visiteur anonyme. Réactivable ponctuellement
