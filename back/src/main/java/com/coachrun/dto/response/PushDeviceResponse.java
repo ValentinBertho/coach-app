@@ -53,7 +53,7 @@ public record PushDeviceResponse(UUID id, String label, String fingerprint,
      * il ne sert qu'à ce que quelqu'un reconnaisse son propre téléphone dans une liste de deux ou
      * trois lignes, pas à faire de la statistique d'usage.
      */
-    static String label(String userAgent) {
+    public static String label(String userAgent) {
         if (userAgent == null || userAgent.isBlank()) {
             return "Appareil inconnu";
         }

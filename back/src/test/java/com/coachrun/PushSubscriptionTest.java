@@ -175,6 +175,10 @@ class PushSubscriptionTest {
         // VAPID absent en test : l'essai le dit plutôt que de laisser croire à un envoi réussi.
         assertThat(body.get("enabled").asBoolean()).isFalse();
         assertThat(body.get("channelMuted").asBoolean()).isFalse();
+        // Et surtout : rien n'a été remis. « Envoyé » ne voulait dire que « mis en file », ce qui
+        // reste vrai quand rien ne peut partir — la réponse la plus trompeuse possible pour un
+        // bouton dont tout l'objet est de lever un doute.
+        assertThat(body.get("delivered").asInt()).isZero();
     }
 
     /** Aucun appareil abonné : ce n'est pas un succès, et l'écran doit pouvoir le dire. */

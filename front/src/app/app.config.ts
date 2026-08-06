@@ -1,7 +1,7 @@
 import { registerLocaleData } from '@angular/common';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import localeFr from '@angular/common/locales/fr';
-import { ApplicationConfig, ErrorHandler, LOCALE_ID, importProvidersFrom, isDevMode } from '@angular/core';
+import { ApplicationConfig, ErrorHandler, LOCALE_ID, importProvidersFrom } from '@angular/core';
 import * as Sentry from '@sentry/angular-ivy';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { environment } from '../environments/environment';
@@ -54,8 +54,12 @@ export const appConfig: ApplicationConfig = {
       withRouterConfig({ paramsInheritanceStrategy: 'always' }),
     ),
     provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
+    // Enregistrement piloté par l'environnement, et non par `isDevMode()` : c'est la présence du
+    // fichier `ngsw-worker.js` dans le build qui décide, pas le mode d'exécution. `ng serve` ne le
+    // produit pas (drapeau à faux), un build « pwa » ou de production oui — et sans service worker
+    // enregistré, aucune notification push ne peut arriver, quelles que soient les clés du serveur.
     provideServiceWorker('ngsw-worker.js', {
-      enabled: !isDevMode(),
+      enabled: environment.serviceWorker,
       registrationStrategy: 'registerWhenStable:30000',
     }),
   ],

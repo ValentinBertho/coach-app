@@ -42,6 +42,14 @@ export interface PushTestResult {
   devices: number;
   /** Le canal push est coupé dans les préférences : l'essai part, la routine non. */
   channelMuted: boolean;
+  /**
+   * Appareils dont le service de push a **accepté** le message. C'est la seule information qui
+   * vaille : « envoyé » ne disait que « mis en file », ce qui reste vrai quand la signature est
+   * refusée et que rien n'arrive jamais.
+   */
+  delivered: number;
+  /** Une ligne par appareil en échec, en clair (« iPhone · Safari : abonnement expiré »). */
+  failures: string[];
 }
 
 /**
@@ -169,6 +177,13 @@ export class PushService {
    * c'est demander l'impossible sans le dire.
    */
   private unsupportedMessage(): string {
+    // En développement (`ng serve`), ce n'est pas le navigateur qui manque : c'est le service
+    // worker, que le serveur de développement ne produit pas. Le dire évite de chercher un défaut
+    // du côté du téléphone alors qu'il n'y a rien à chercher.
+    if (!environment.production && !environment.serviceWorker) {
+      return 'Service worker absent de ce build : les notifications push ne peuvent pas arriver. '
+        + 'Pour les éprouver en local, lance `npm run start:pwa`.';
+    }
     const iOS = /iP(hone|ad|od)/.test(navigator.userAgent);
     const standalone = window.matchMedia('(display-mode: standalone)').matches
       || (navigator as { standalone?: boolean }).standalone === true;

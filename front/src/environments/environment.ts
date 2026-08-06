@@ -6,6 +6,11 @@
 export const environment = {
   production: true,
   apiUrl: '/api',
+  /**
+   * Service worker enregistré. Il porte la mise en cache hors ligne ET la réception des
+   * notifications push : sans lui, aucun push n'arrive, quelles que soient les clés du serveur.
+   */
+  serviceWorker: true,
   // DSN public par conception (il transite dans le bundle navigateur) : il n'autorise
   // que l'envoi d'événements, jamais leur lecture. Projet `darilab-frontend`, région EU.
   sentryDsn: 'https://fd7d2aa386d365ec975fa3e269196e1d@o4511829269807104.ingest.de.sentry.io/4511829289861200',

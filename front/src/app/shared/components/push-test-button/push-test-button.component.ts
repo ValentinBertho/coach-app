@@ -47,22 +47,33 @@ export class PushTestButtonComponent {
     });
   }
 
-  /** Chaque issue a son message : « envoyé » sans destinataire ne veut rien dire. */
+  /**
+   * Chaque issue a son message. On rapporte ce que le service de push a **accepté**, pas ce qu'on
+   * lui a soumis : un essai « envoyé » alors que la signature est refusée est exactement le genre
+   * de réponse qui fait chercher le défaut du mauvais côté pendant une semaine.
+   */
   private report(result: PushTestResult): void {
     if (!result.enabled) {
-      this.toast.error("Les notifications ne sont pas activées sur ce serveur.");
+      this.toast.error('Ce serveur n’a pas de clés de notification (VAPID) : aucun push ne peut '
+        + 'partir, et aucun appareil ne peut s’abonner.');
       return;
     }
     if (result.devices === 0) {
       this.toast.error("Aucun appareil abonné : active d'abord les notifications sur ce téléphone.");
       return;
     }
-    const target = result.devices === 1 ? 'ton appareil' : `tes ${result.devices} appareils`;
-    if (result.channelMuted) {
-      this.toast.success(`Test envoyé à ${target}. Attention : le canal push est coupé dans tes `
-        + 'réglages, les notifications de routine ne partent pas.');
+    if (result.delivered === 0) {
+      // Le cas qui compte : des appareils, un serveur armé, et rien qui passe.
+      this.toast.error(`Aucun appareil n’a reçu l’essai — ${result.failures.join(' · ')}`);
       return;
     }
-    this.toast.success(`Test envoyé à ${target} — il arrive en quelques secondes.`);
+    const target = result.delivered === 1 ? '1 appareil' : `${result.delivered} appareils`;
+    const partial = result.failures.length
+      ? ` En échec : ${result.failures.join(' · ')}.`
+      : '';
+    const muted = result.channelMuted
+      ? ' Attention : le canal push est coupé dans tes réglages, les notifications de routine ne partent pas.'
+      : '';
+    this.toast.success(`Essai accepté par ${target} — il arrive en quelques secondes.${partial}${muted}`);
   }
 }

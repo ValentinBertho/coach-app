@@ -115,8 +115,12 @@ public class PushNotificationService {
     /** Essais autorisés par minute et par compte : de quoi vérifier, pas de quoi s'amuser. */
     private static final int TEST_MAX_PER_MINUTE = 10;
 
+    /** Appareils contactés par un essai. La remise y est synchrone : la requête doit rester courte. */
+    private static final int TEST_MAX_DEVICES = 10;
+
     private final PushSubscriptionRepository repository;
     private final com.coachrun.repository.UserRepository userRepository;
+    private final com.coachrun.config.VapidKeys vapidKeys;
     private final ObjectMapper objectMapper;
     private final io.micrometer.core.instrument.MeterRegistry meterRegistry;
 
@@ -128,10 +132,6 @@ public class PushNotificationService {
     private final com.coachrun.util.FixedWindowRateLimiter testLimiter =
             new com.coachrun.util.FixedWindowRateLimiter(TEST_MAX_PER_MINUTE, java.time.Duration.ofMinutes(1));
 
-    @Value("${app.vapid.public-key:}")
-    private String publicKey;
-    @Value("${app.vapid.private-key:}")
-    private String privateKey;
     @Value("${app.vapid.subject:mailto:no-reply@coachrun.fr}")
     private String subject;
 
@@ -143,11 +143,11 @@ public class PushNotificationService {
             new java.util.concurrent.atomic.AtomicInteger();
 
     public boolean isEnabled() {
-        return StringUtils.hasText(publicKey) && StringUtils.hasText(privateKey);
+        return vapidKeys.isConfigured();
     }
 
     public String publicKey() {
-        return publicKey;
+        return vapidKeys.publicKey();
     }
 
     /**
@@ -260,15 +260,76 @@ public class PushNotificationService {
                     org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
                     "Trop d'essais — réessaie dans une minute.");
         }
-        int devices = repository.findByUserId(userId).size();
+        List<PushSubscription> subscriptions = repository.findByUserId(userId);
         boolean muted = userRepository.findById(userId)
                 .map(u -> !u.isNotifyPushEnabled())
                 .orElse(false);
-        if (isEnabled() && devices > 0) {
-            sendToUser(userId, "Darilab — test de notification",
-                    "Si tu vois ce message, tes notifications fonctionnent.", url);
+        if (!isEnabled() || subscriptions.isEmpty()) {
+            return new com.coachrun.dto.response.PushTestResponse(
+                    isEnabled(), subscriptions.size(), muted, 0, List.of());
         }
-        return new com.coachrun.dto.response.PushTestResponse(isEnabled(), devices, muted);
+
+        // Remise SYNCHRONE, contrairement à tout le reste du service. C'est la raison d'être de
+        // cet essai : dire ce qui s'est réellement passé sur le réseau. Confié à l'exécuteur, il
+        // ne pourrait annoncer qu'« envoyé » — c'est-à-dire « mis en file », ce qui reste vrai
+        // quand le service de push refuse la signature et que rien n'arrive jamais.
+        String payload = payload("Darilab — test de notification",
+                "Si tu vois ce message, tes notifications fonctionnent.", url, List.of());
+        int delivered = 0;
+        List<String> failures = new ArrayList<>();
+        for (PushSubscription sub : subscriptions.stream().limit(TEST_MAX_DEVICES).toList()) {
+            String label = com.coachrun.dto.response.PushDeviceResponse.label(sub.getUserAgent());
+            try {
+                int status = post(Notification.builder()
+                        .endpoint(sub.getEndpoint())
+                        .userPublicKey(sub.getP256dh())
+                        .userAuth(sub.getAuth())
+                        .payload(payload.getBytes(StandardCharsets.UTF_8))
+                        .build());
+                if (status >= 200 && status < 300) {
+                    delivered++;
+                    count("sent");
+                    touch(sub.getEndpoint());
+                    continue;
+                }
+                if (status == 404 || status == 410) {
+                    // Abonnement révoqué par le navigateur : on le retire ici comme la remise
+                    // ordinaire le fait, sinon l'essai suivant réinterrogerait la même ligne morte.
+                    count("expired");
+                    dropSubscription(sub.getEndpoint());
+                } else {
+                    count("failed");
+                }
+                failures.add(label + " : " + explain(status));
+            } catch (Exception ex) {
+                count("failed");
+                log.warn("Essai push en échec vers {} (user={}) : {}",
+                        truncate(sub.getEndpoint()), userId, ex.getMessage());
+                failures.add(label + " : service de push injoignable");
+            }
+        }
+        return new com.coachrun.dto.response.PushTestResponse(
+                true, subscriptions.size(), muted, delivered, failures);
+    }
+
+    /**
+     * Ce que veut dire un refus du service de push, en français et sans code HTTP à décoder.
+     * Un « ça ne marche pas » se règle en lisant la cause, pas en la devinant.
+     */
+    private static String explain(int status) {
+        return switch (status) {
+            case 400 -> "requête refusée (400) — charge utile ou en-têtes invalides";
+            case 401, 403 -> "signature refusée (" + status + ") — les clés VAPID du serveur ne "
+                    + "sont pas celles avec lesquelles cet appareil s'est abonné : "
+                    + "il doit se réabonner";
+            case 404, 410 -> "abonnement expiré — appareil retiré, il faut réactiver les "
+                    + "notifications dessus";
+            case 413 -> "message trop long (413)";
+            case 429 -> "service de push saturé (429) — réessayer plus tard";
+            default -> status >= 500
+                    ? "panne du service de push (" + status + ")"
+                    : "refusé (" + status + ")";
+        };
     }
 
     /** Envoie une notification à tous les appareils d'un utilisateur (best-effort). */
@@ -530,7 +591,7 @@ public class PushNotificationService {
                     if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
                         Security.addProvider(new BouncyCastleProvider());
                     }
-                    pushService = new PushService(publicKey, privateKey, subject);
+                    pushService = new PushService(vapidKeys.publicKey(), vapidKeys.privateKey(), subject);
                 }
             }
         }
