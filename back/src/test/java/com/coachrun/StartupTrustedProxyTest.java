@@ -10,11 +10,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Nombre de relais de confiance : un réglage dont l'erreur ne se voit qu'en charge.
  *
- * <p>La valeur par défaut était 1 alors que la topologie de production est client → Vercel →
- * Railway, et rien ne posait la variable. Le filtre de rate limiting retenait donc l'adresse du
- * relais Vercel — <b>la même pour tous les utilisateurs</b> — et les compteurs devenaient un seau
- * unique partagé par la plateforme entière : cinq mots de passe erronés, et plus personne ne peut
- * se connecter. On refuse ce démarrage plutôt que de le découvrir au support.</p>
+ * <p>Le filtre de rate limiting compte par adresse cliente, qu'il lit dans la chaîne
+ * {@code X-Forwarded-For} en remontant du nombre de relais annoncé. Annoncer <b>plus</b> de relais
+ * qu'il n'y en a fait retenir l'adresse d'un proxy — la même pour tout le monde — et la plateforme
+ * entière se retrouve dans un seul compteur : vingt requêtes par minute à se partager, et des
+ * utilisateurs déconnectés « sans cesse ».</p>
+ *
+ * <p>Le navigateur atteint l'API <b>directement</b> (le front est servi par Vercel, l'API par
+ * Railway — c'est d'ailleurs pourquoi il faut du CORS) : un relais est donc la topologie normale,
+ * et le garde-fou ne refuse que le réglage impossible, celui qui ne compte aucun relais.</p>
  */
 class StartupTrustedProxyTest {
 
@@ -32,21 +36,24 @@ class StartupTrustedProxyTest {
         ReflectionTestUtils.invokeMethod(validator, "validate");
     }
 
+    /** Zéro relais ne décrit aucune topologie : il n'y a pas d'adresse cliente à lire. */
     @Test
-    void singleHopIsRefusedBecauseItCountsTheProxyAddress() {
-        assertThatThrownBy(() -> run(withHops(1)))
+    void zeroHopsIsRefused() {
+        assertThatThrownBy(() -> run(withHops(0)))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("RATE_LIMIT_TRUSTED_PROXY_HOPS");
     }
 
+    /** Un relais : le navigateur parle directement à l'API. C'est la production d'aujourd'hui. */
     @Test
-    void twoHopsMatchTheVercelThenRailwayChain() {
-        assertThatCode(() -> run(withHops(2))).doesNotThrowAnyException();
+    void oneHopMatchesTheBrowserCallingTheApiDirectly() {
+        assertThatCode(() -> run(withHops(1))).doesNotThrowAnyException();
     }
 
     /** Une chaîne plus longue reste acceptable : on refuse le sous-dimensionnement, pas l'inverse. */
     @Test
     void moreHopsAreAccepted() {
+        assertThatCode(() -> run(withHops(2))).doesNotThrowAnyException();
         assertThatCode(() -> run(withHops(3))).doesNotThrowAnyException();
     }
 }

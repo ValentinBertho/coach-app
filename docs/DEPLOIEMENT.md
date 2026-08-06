@@ -109,11 +109,11 @@ Zone DNS (hors NS/MX/SPF gérés par OVH) :
 | `GARMIN_*` / `COROS_*` | back | OAuth Garmin / Coros **[OPT]** | — |
 | `STORAGE_TYPE` | back | `local` ou `s3` **[DÉFAUT local]** | `s3` |
 | `S3_ENDPOINT` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_PUBLIC_URL` | back | Stockage FIT/GPX **[OPT]** | R2 / S3 |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | back | Push WebPush **[PROD-REQUIS]** — « séance planifiée » et « commentaire du coach » partent en push **sans repli e-mail** : sans clés, ces notifications ne partent nulle part | `npx web-push generate-vapid-keys` |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | back | Push WebPush **[PROD-REQUIS]** — « séance planifiée » et « commentaire du coach » partent en push **sans repli e-mail** : sans clés, ces notifications ne partent nulle part, et aucun appareil ne peut même s'abonner. En local, une paire est fabriquée automatiquement (cf. § Notifications push) | `npx web-push generate-vapid-keys` |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | back | Paiements **[OPT — Billing]** | console Stripe |
 | `REGISTRATION_MODE` | back | `invite` (code exigé) ou `open` **[PROD-REQUIS — défaut `invite` en prod]** | `invite` |
 | `REGISTRATION_INVITE_CODE` | back | Code partagé de la cohorte **[REQUIS si mode=invite]** | `BETA-2026-XXXX` |
-| `RATE_LIMIT_TRUSTED_PROXY_HOPS` | back | Relais de confiance devant l'app (Vercel → Railway = 2) **[DÉFAUT 1]** | `2` |
+| `RATE_LIMIT_TRUSTED_PROXY_HOPS` | back | Relais de confiance **devant l'API** **[DÉFAUT 1]**. Le navigateur appelle l'API directement (le front est sur Vercel, l'API sur Railway — d'où le CORS) : **1** est la bonne valeur. Annoncer plus fait compter l'adresse du proxy, la même pour tout le monde, et toute la plateforme partage alors un seul compteur | `1` |
 | `SENTRY_DSN` | back + front | Monitoring erreurs **[OPT]** | `https://...@sentry.io/...` |
 | `apiUrl` (`environment.ts`) | front | URL de l'API | `/api` ou URL Railway |
 
@@ -135,3 +135,41 @@ docker compose up --build
 
 La page d'accueil appelle `GET /api/public/ping` ; si le statut « En ligne » s'affiche,
 front et back communiquent. ✅
+
+---
+
+## 5. Notifications push
+
+La chaîne compte **quatre maillons**, et il suffit qu'un seul manque pour que rien n'arrive —
+sans le moindre message. Les voici dans l'ordre où il faut les vérifier.
+
+| Maillon | Comment savoir | S'il manque |
+|---|---|---|
+| **Service worker enregistré** (front) | `navigator.serviceWorker.getRegistration()` dans la console | `ng serve` n'en produit pas : **aucun push ne peut arriver en développement**. Utiliser `npm run start:pwa` (cf. ci-dessous) |
+| **Clés VAPID** (back) | ligne `Push VAPID : …` au démarrage du serveur | Le navigateur ne peut même pas s'abonner. En prod : poser `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` |
+| **Appareil abonné** | Notifications › Mes appareils (coach), Profil (athlète) | Activer les notifications sur l'appareil. Sur iPhone, l'application doit être **installée** sur l'écran d'accueil |
+| **Remise acceptée** | bouton **« Tester les notifications »** | Le message dit l'appareil et la cause : signature refusée, abonnement expiré, service injoignable |
+
+Le bouton de test envoie **en synchrone** et rapporte ce que le service de push a réellement
+accepté. C'est le point d'entrée du diagnostic : il distingue les quatre causes ci-dessus,
+là où « rien ne s'affiche sur mon téléphone » les confond toutes.
+
+### Éprouver le push en local
+
+`ng serve` ne sert pas `ngsw-worker.js` : les notifications y sont structurellement hors de
+portée. Pour la chaîne complète en local :
+
+```bash
+cd back && ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev   # génère .vapid-dev.json au 1er lancement
+cd front && npm run start:pwa                                     # build AVEC service worker, servi sur :4200
+```
+
+Puis : ouvrir http://localhost:4200 (contexte sécurisé, `localhost` suffit), activer les
+notifications depuis Profil, et cliquer « Tester les notifications ».
+
+Les clés de développement sont fabriquées au premier démarrage et **conservées** dans
+`back/.vapid-dev.json` (non versionné). La persistance n'est pas du confort : un abonnement de
+navigateur est lié à la clé publique avec laquelle il a été créé, donc une paire régénérée à
+chaque redémarrage couperait les abonnements du poste sans rien dire. En production, aucune
+génération automatique : une identité de serveur qui changerait au redéploiement couperait les
+abonnements de tous les athlètes.

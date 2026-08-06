@@ -102,9 +102,18 @@ app:
     enabled: ${DEBRIEF_REMINDERS_ENABLED:true}
     cron: ${DEBRIEF_CRON:0 5 * * * *}
   vapid:
+    # Identité du serveur pour le WebPush. Sans elle, le push est inerte ET silencieux : le
+    # navigateur ne peut même pas s'abonner, faute de clé publique à présenter.
+    # `npx web-push generate-vapid-keys` produit la paire.
     public-key: ${VAPID_PUBLIC_KEY:}
     private-key: ${VAPID_PRIVATE_KEY:}
     subject: ${VAPID_SUBJECT:mailto:no-reply@coachrun.fr}
+    # Fabrication automatique d'une paire quand rien n'est configuré : réservée au développement
+    # (activée dans application-dev.yml). En production, une identité qui changerait au
+    # redéploiement couperait les abonnements de tous les athlètes : on exige des clés explicites.
+    auto-generate: ${VAPID_AUTO_GENERATE:false}
+    # Où la paire de développement est conservée entre deux démarrages (jamais versionnée).
+    key-store: ${VAPID_KEY_STORE:.vapid-dev.json}
   strava:
     client-id: ${STRAVA_CLIENT_ID:}
     client-secret: ${STRAVA_CLIENT_SECRET:}

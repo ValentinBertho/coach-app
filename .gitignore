@@ -52,6 +52,12 @@ front/.env.local
 front/ngsw.json
 front/*.tsbuildinfo
 
+# ── Clés VAPID de développement ────────────────────────────────────────────
+# Générées au premier démarrage du profil dev (cf. VapidKeys). Propres au poste, et
+# jamais versionnées : une clé privée n'a rien à faire dans un dépôt, fût-elle de dev.
+back/.vapid-dev.json
+.vapid-dev.json
+
 # ============================================================================
 # DOCKER / DIVERS
 # ============================================================================

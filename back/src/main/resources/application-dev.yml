@@ -26,3 +26,11 @@ app:
   demo:
     reset:
       enabled: true # RAZ démo autorisée en dev
+  vapid:
+    # Sans clés, le push est inerte : le navigateur ne peut même pas s'abonner, faute de clé
+    # publique de serveur. En local, on en fabrique donc une paire au premier démarrage, conservée
+    # dans back/.vapid-dev.json — un abonnement de navigateur étant lié à la clé publique avec
+    # laquelle il a été créé, une paire qui changerait à chaque redémarrage couperait les
+    # notifications sans rien dire. La production, elle, exige des clés explicites : on ne fabrique
+    # pas en silence une identité de serveur qui changerait au prochain déploiement.
+    auto-generate: ${VAPID_AUTO_GENERATE:true}
