@@ -157,3 +157,5 @@ databaseChangeLog:
       file: db/changelog/changes/076-user-timezone.yaml
   - include:
       file: db/changelog/changes/077-reset-strava-watermark.yaml
+  - include:
+      file: db/changelog/changes/078-calendar-note-range.yaml

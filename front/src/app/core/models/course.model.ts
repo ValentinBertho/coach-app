@@ -98,6 +98,13 @@ export interface CourseBlock {
   durationS?: number | null;
   prescription?: CoursePrescription | null;
   recovery?: CourseRecovery | null;
+  /**
+   * Nombre de séries : le bloc entier — ses répétitions et sa récupération — est répété d'autant.
+   * `null` ou 1 = une seule série, ce que vaut toute séance écrite avant l'existence des séries.
+   */
+  sets?: number | null;
+  /** Récupération entre deux séries, en général plus longue que celle entre répétitions. */
+  setRecovery?: CourseRecovery | null;
   /** Effort perçu visé (RPE 1–10) — propre au contenu de la séance, pas aux zones. */
   rpe?: number | null;
   note?: string | null;

@@ -144,37 +144,59 @@ public class SessionCalculatorService {
                     totals.durationS += calc.estimatedDurationS();
                 }
             }
-            // Récupération entre répétitions (reps-1 intervalles).
-            if (block.recovery() != null && block.recovery().durationS() != null) {
-                int reps = block.reps() == null || block.reps() <= 1 ? 1 : block.reps() - 1;
-                totals.durationS += block.recovery().durationS() * reps;
-            }
+            totals.durationS += recoveryDurationS(block);
             entries.add(new CalculatedBlockEntry(block, calc, recoveryCalc));
         }
         return entries;
     }
 
+    /**
+     * Temps de récupération d'un bloc, séries comprises : {@code sets × (reps-1)} récupérations
+     * entre répétitions, plus {@code sets-1} récupérations entre séries.
+     *
+     * <p>Un bloc doublé double aussi ses récupérations : les compter une seule fois sous-estimerait
+     * la durée d'un fractionné de plusieurs séries — soit précisément la séance que les séries
+     * servent à écrire.</p>
+     */
+    private int recoveryDurationS(CourseBlock block) {
+        int sets = block.setCount();
+        int total = 0;
+        if (block.recovery() != null && block.recovery().durationS() != null) {
+            total += block.recovery().durationS() * (block.repCount() - 1) * sets;
+        }
+        if (sets > 1 && block.setRecovery() != null && block.setRecovery().durationS() != null) {
+            total += block.setRecovery().durationS() * (sets - 1);
+        }
+        return total;
+    }
+
+    /**
+     * Cibles d'un bloc. Les répétitions passées au moteur incluent les séries : pour le volume,
+     * « 2 × (6 × 400 m) » vaut 12 × 400 m, et c'est cette estimation que reprennent ensuite les
+     * totaux de séance et la charge prévue.
+     */
     private CalculatedBlockResponse calcBlock(CourseBlock block, AthletePaceContext ctx,
                                               ZoneTargets zoneTargets) {
         CoursePrescription p = block.prescription();
         if (p == null) {
             return null;
         }
+        int reps = block.repCount() * block.setCount();
         // Fourchette écrite par le coach : elle prime sur la zone, y compris sur celle que la
         // migration douce a pu déduire du même couple ref + %.
         if (p.isCustomRange()) {
             return CalculatedBlockResponse.from(engine.calculate(new PrescriptionInput(
-                    p.ref(), p.minPct(), p.maxPct(), block.reps(), block.distanceM(), block.durationS()), ctx));
+                    p.ref(), p.minPct(), p.maxPct(), reps, block.distanceM(), block.durationS()), ctx));
         }
         if (p.hasZone()) {
-            return calcZone(p.zoneId(), p.hrZoneId(), block.reps(), block.distanceM(), block.durationS(),
+            return calcZone(p.zoneId(), p.hrZoneId(), reps, block.distanceM(), block.durationS(),
                     zoneTargets);
         }
         if (p.ref() == null || p.minPct() == null || p.maxPct() == null) {
             return null;
         }
         PrescriptionInput input = new PrescriptionInput(
-                p.ref(), p.minPct(), p.maxPct(), block.reps(), block.distanceM(), block.durationS());
+                p.ref(), p.minPct(), p.maxPct(), reps, block.distanceM(), block.durationS());
         return CalculatedBlockResponse.from(engine.calculate(input, ctx));
     }
 

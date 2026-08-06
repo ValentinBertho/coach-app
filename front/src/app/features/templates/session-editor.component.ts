@@ -28,6 +28,7 @@ import { AthleteZoneValueService } from '../../core/services/athlete-zone-value.
 import { ZonePickerComponent } from '../../shared/components/zone-picker/zone-picker.component';
 import { AutosaveBadgeComponent } from '../../shared/components/autosave-badge/autosave-badge.component';
 import { Autosave } from '../../core/services/autosave';
+import { formatMinSec, parseMinSec } from '../../core/utils/duration';
 import { HasAutosave } from '../../core/guards/unsaved-changes.guard';
 
 /** Statut de complétude du profil pour la prescription course. */
@@ -73,6 +74,33 @@ function toUnit(durationS: number | null | undefined, distanceM: number | null |
   const raw = isTime(unit) ? durationS : distanceM;
   if (raw == null) return null;
   return Math.round((raw / factor(unit)) * 100) / 100;
+}
+
+/**
+ * Texte à afficher dans un champ de volume.
+ *
+ * <p>Une durée qui ne tombe pas sur la minute s'écrit en <b>m:ss</b> : « 1:30 », pas « 1.5 ».
+ * C'est la lecture d'un coureur, et c'est celle qui manquait — une récupération de 90 s affichée
+ * « 1.5 min » (ou arrondie à 2 min plus loin dans l'application) n'est pas la même séance.</p>
+ */
+export function volumeText(durationS: number | null | undefined,
+                           distanceM: number | null | undefined, unit: VolumeUnit): string {
+  if (unit === 'min' && durationS != null && distanceM == null && durationS % 60 !== 0) {
+    return formatMinSec(durationS);
+  }
+  const value = toUnit(durationS, distanceM, unit);
+  return value == null ? '' : String(value);
+}
+
+/**
+ * Nombre saisi dans un champ de volume : la virgule décimale française est acceptée, une saisie
+ * vide efface la valeur. `undefined` signale une saisie illisible — à ignorer, pas à écrire.
+ */
+export function parseNumber(raw: string): number | null | undefined {
+  const text = raw.trim().replace(',', '.');
+  if (!text) return null;
+  const value = Number(text);
+  return Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
 /** Écrit une valeur saisie dans l'unité donnée, en secondes ou en mètres selon la famille. */
@@ -453,12 +481,18 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
         if (!c?.computable) continue;
         if (c.estimatedDurationS) { durationS += c.estimatedDurationS; hasAny = true; }
         if (c.estimatedDistanceM) { distanceM += c.estimatedDistanceM; hasAny = true; }
-        // Récup entre répétitions : (reps - 1) × la récup.
+        // Récup entre répétitions : (reps - 1) × la récup, et autant de fois qu'il y a de séries.
+        const sets = this.setCount(b);
         const rc = recCalc[b.id];
-        const inter = b.reps && b.reps > 1 ? b.reps - 1 : 0;
+        const inter = (b.reps && b.reps > 1 ? b.reps - 1 : 0) * sets;
         if (rc?.computable && inter) {
           if (rc.estimatedDurationS) durationS += rc.estimatedDurationS * inter;
           if (rc.estimatedDistanceM) distanceM += rc.estimatedDistanceM * inter;
+        }
+        // Récup entre séries : (séries - 1). Elle n'a pas de cible calculée — c'est un temps,
+        // pris tel quel, comme le fait le serveur pour le total de la séance.
+        if (sets > 1 && b.setRecovery?.durationS) {
+          durationS += b.setRecovery.durationS * (sets - 1);
         }
       }
     }
@@ -563,13 +597,39 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     return toUnit(b.durationS, b.distanceM, this.unitOf(b));
   }
 
-  setVolumeValue(b: CourseBlock, value: number | null): void {
-    // L'unité se fige dès la première frappe : sans cela, taper « 60 » en minutes ferait basculer
-    // le champ en heures sous les doigts (1 h), et la valeur affichée changerait toute seule.
-    const unit = this.unitOf(b);
-    this.blockUnit.update((m) => ({ ...m, [b.id]: unit }));
-    applyUnit(b, unit, value);
-    this.onBlockEdited(b);
+  /** Texte du champ de volume : « 1:30 » dès que la durée ne tombe pas sur la minute. */
+  volumeText(b: CourseBlock): string {
+    return volumeText(b.durationS, b.distanceM, this.unitOf(b));
+  }
+
+  /**
+   * Écrit le volume saisi. Deux écritures acceptées : un nombre dans l'unité du champ, ou un
+   * temps en <b>min:sec</b> — « 1:30 » comme l'écrit un coach, sans avoir à convertir en 90 s
+   * puis à basculer l'unité.
+   *
+   * <p>Le champ est renormalisé à la sortie : une saisie illisible ne doit pas rester affichée
+   * comme si elle avait été prise en compte.</p>
+   */
+  setVolumeText(b: CourseBlock, input: HTMLInputElement): void {
+    const seconds = parseMinSec(input.value);
+    if (seconds != null) {
+      // Une écriture sexagésimale est un temps, quelle que soit l'unité affichée : on bascule le
+      // champ en minutes, seule unité où « 1:30 » se relit tel quel.
+      this.blockUnit.update((m) => ({ ...m, [b.id]: 'min' }));
+      applyUnit(b, 's', seconds);
+      this.onBlockEdited(b);
+    } else {
+      const value = parseNumber(input.value);
+      if (value !== undefined) {
+        // L'unité se fige dès la première saisie : sans cela, taper « 60 » en minutes ferait
+        // basculer le champ en heures, et la valeur affichée changerait toute seule.
+        const unit = this.unitOf(b);
+        this.blockUnit.update((m) => ({ ...m, [b.id]: unit }));
+        applyUnit(b, unit, value);
+        this.onBlockEdited(b);
+      }
+    }
+    input.value = this.volumeText(b);
   }
 
   /**
@@ -590,13 +650,31 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     return r ? toUnit(r.durationS ?? null, r.distanceM ?? null, this.recUnitOf(b)) : null;
   }
 
-  setRecVolumeValue(b: CourseBlock, value: number | null): void {
+  recVolumeText(b: CourseBlock): string {
+    const r = b.recovery;
+    return r ? volumeText(r.durationS ?? null, r.distanceM ?? null, this.recUnitOf(b)) : '';
+  }
+
+  /** Même contrat que {@link setVolumeText}, pour la récupération entre répétitions. */
+  setRecVolumeText(b: CourseBlock, input: HTMLInputElement): void {
     if (!b.recovery) return;
-    const unit = this.recUnitOf(b);
-    this.recUnit.update((m) => ({ ...m, [b.id]: unit }));
-    applyUnit(b.recovery, unit, value);
-    this.recalcRecovery(b);
-    this.touch();
+    const seconds = parseMinSec(input.value);
+    if (seconds != null) {
+      this.recUnit.update((m) => ({ ...m, [b.id]: 'min' }));
+      applyUnit(b.recovery, 's', seconds);
+      this.recalcRecovery(b);
+      this.touch();
+    } else {
+      const value = parseNumber(input.value);
+      if (value !== undefined) {
+        const unit = this.recUnitOf(b);
+        this.recUnit.update((m) => ({ ...m, [b.id]: unit }));
+        applyUnit(b.recovery, unit, value);
+        this.recalcRecovery(b);
+        this.touch();
+      }
+    }
+    input.value = this.recVolumeText(b);
   }
 
   setRecUnit(b: CourseBlock, unit: VolumeUnit): void {
@@ -604,6 +682,69 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     const r = b.recovery;
     if (!r || isTime(unit) === (r.durationS != null && r.distanceM == null)) return;
     this.setRecMeasure(b, isTime(unit) ? 'duration' : 'distance');
+  }
+
+  // --- Séries : le bloc entier doublé, triplé… ------------------------------
+  // « 2 × (6 × 400 m) » n'avait aucune écriture : il fallait saisir deux blocs identiques, donc
+  // les retoucher deux fois à chaque ajustement — et les récupérations entre séries n'étaient
+  // comptées nulle part.
+
+  /** Séries effectives : 1 quand rien n'est saisi (toute séance écrite avant les séries). */
+  setCount(b: CourseBlock): number {
+    return b.sets != null && b.sets > 1 ? Math.floor(b.sets) : 1;
+  }
+
+  /**
+   * Répétitions à envoyer au calculateur, séries comprises. `null` reste `null` quand il n'y a
+   * ni série ni répétition : un bloc simple ne doit pas se mettre à parler de « 1 × ».
+   */
+  private effectiveReps(b: CourseBlock): number | null | undefined {
+    const sets = this.setCount(b);
+    return sets > 1 ? (b.reps ?? 1) * sets : b.reps;
+  }
+
+  setBlockSets(b: CourseBlock, value: number | null): void {
+    const sets = value == null || value < 2 ? null : Math.min(20, Math.round(value));
+    b.sets = sets;
+    // Une seule série ne laisse pas de récupération entre séries derrière elle : elle ne serait
+    // plus visible nulle part et repartirait à la prochaine série ajoutée.
+    if (sets == null) b.setRecovery = null;
+    this.onBlockEdited(b);
+  }
+
+  addSeriesRecovery(b: CourseBlock): void {
+    b.setRecovery = {
+      type: 'jog', durationS: 180, distanceM: null,
+      prescription: { zoneId: this.zoneIdByName('Récupération') },
+    };
+    this.touch();
+  }
+
+  removeSeriesRecovery(b: CourseBlock): void {
+    b.setRecovery = null;
+    this.touch();
+  }
+
+  /** Récup entre séries : toujours un temps, écrit en minutes ou en min:sec. */
+  seriesRecText(b: CourseBlock): string {
+    return volumeText(b.setRecovery?.durationS ?? null, null, 'min');
+  }
+
+  setSeriesRecText(b: CourseBlock, input: HTMLInputElement): void {
+    const r = b.setRecovery;
+    if (!r) return;
+    const seconds = parseMinSec(input.value);
+    if (seconds != null) {
+      applyUnit(r, 's', seconds);
+      this.touch();
+    } else {
+      const value = parseNumber(input.value);
+      if (value !== undefined) {
+        applyUnit(r, 'min', value);
+        this.touch();
+      }
+    }
+    input.value = this.seriesRecText(b);
   }
 
   // --- Récupération inter-répétitions (fractionnés) --------------------------
@@ -774,16 +915,19 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     // Chemin Z3 : cible lue depuis la zone de l'athlète. Repli legacy (ref + %) pour l'adaptation
     // d'anciens snapshots non encore migrés vers une zone.
     let body: Parameters<CourseService['sessionCalc']>[1] | null = null;
+    // Séries comprises : pour le volume, « 2 × (6 × 400 m) » vaut 12 × 400 m — même règle que
+    // le serveur, sinon l'aperçu de l'éditeur et le total de la séance se contrediraient.
+    const reps = this.effectiveReps(b);
     // Ordre calqué sur le serveur : une fourchette voulue par le coach prime sur la zone.
     if (p.custom && p.ref && p.minPct != null && p.maxPct != null) {
-      body = { ref: p.ref, minPct: p.minPct, maxPct: p.maxPct, reps: b.reps, distanceM: b.distanceM, durationS: b.durationS };
+      body = { ref: p.ref, minPct: p.minPct, maxPct: p.maxPct, reps, distanceM: b.distanceM, durationS: b.durationS };
     } else if (p.zoneId) {
       body = {
         zoneId: p.zoneId, hrZoneId: p.hrZoneId ?? null,
-        reps: b.reps, distanceM: b.distanceM, durationS: b.durationS,
+        reps, distanceM: b.distanceM, durationS: b.durationS,
       };
     } else if (p.ref && p.minPct != null && p.maxPct != null) {
-      body = { ref: p.ref, minPct: p.minPct, maxPct: p.maxPct, reps: b.reps, distanceM: b.distanceM, durationS: b.durationS };
+      body = { ref: p.ref, minPct: p.minPct, maxPct: p.maxPct, reps, distanceM: b.distanceM, durationS: b.durationS };
     }
     if (!body) return;
     this.course.sessionCalc(a, body).subscribe((c) => this.calc.update((map) => ({ ...map, [b.id]: c })));

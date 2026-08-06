@@ -298,6 +298,24 @@
         }
       </div>
 
+      <!-- Ligne « tout le groupe » : déposer une séance ici la planifie pour chaque athlète du
+           groupe. Le même geste devait être répété ligne par ligne — quinze fois pour un groupe
+           de quinze, alors que l'entraînement collectif est justement le cas courant d'un club. -->
+      <div class="gg-row gg-row--all">
+        <span class="gg-athlete gg-athlete--all">
+          <span class="avatar avatar-sm gg-all-avatar"><app-icon name="users-round" [size]="14" /></span>
+          <span class="gg-name">Tout le groupe</span>
+        </span>
+        @for (d of weekDates(); track d.date) {
+          <div class="gg-cell gg-cell--all" [class.today]="d.isToday"
+               [class.gg-cell--busy]="groupScheduling()"
+               cdkDropList (cdkDropListDropped)="onGroupAllDrop($event, d.date)"
+               title="Déposer une séance ici la planifie pour tout le groupe">
+            <span class="gg-all-hint">+ tout le groupe</span>
+          </div>
+        }
+      </div>
+
       @for (row of groupRows(); track row.athleteId) {
         <div class="gg-row">
           <a class="gg-athlete" [routerLink]="['/app/athletes', row.athleteId, 'programme']"
@@ -375,10 +393,27 @@
       <div class="grid" [class.month]="mode() === 'month'" [class.loading]="loading()"
            (pointerdown)="onGridPointerDown($event)">
         @for (week of weeks(); track $index) {
+        <!-- Cycles de la semaine : un bandeau par cycle, calé sur les jours qu'il couvre. Les
+             bouts ouverts signalent qu'il déborde de la semaine affichée. -->
+        @if (week.cycles.length) {
+          <div class="cycle-row">
+            @for (c of week.cycles; track c.note.id) {
+              <button type="button" class="cycle-band"
+                      [class.cycle-band--open-start]="!c.startsHere"
+                      [class.cycle-band--open-end]="!c.endsHere"
+                      [style.grid-column]="(c.startCol + 1) + ' / span ' + c.span"
+                      [title]="c.note.text + ' — cliquer pour modifier le cycle'"
+                      (click)="openNote(c.note, $event)">
+                <app-icon name="flag" [size]="12" /><span class="cycle-band__txt">{{ c.note.text }}</span>
+              </button>
+            }
+          </div>
+        }
         @for (day of week.days; track day.date) {
       <div class="day-col" [class.today]="day.isToday" [class.dim]="!day.inMonth" [class.day-col--unavailable]="day.unavailability"
            [class.day-col--hover]="hoveredDate() === day.date" [class.day-col--ranged]="dayRange().includes(day.date)"
            [attr.data-day]="day.date"
+           (contextmenu)="openDayMenu(day.date, $event)"
            (mouseenter)="onDayEnter(day.date)" (mouseleave)="onDayLeave(day.date)">
         <header class="day-head">
           <div class="day-head__date">
@@ -569,6 +604,27 @@
   </div>
 }
 
+<!-- Menu contextuel d'un jour : la moitié manquante du copier-coller. Copier se découvrait par le
+     menu d'une séance ; coller n'existait qu'au clavier, sur le jour survolé. -->
+@if (dayMenu(); as m) {
+  <div class="ctx-backdrop" (click)="closeDayMenu()" (contextmenu)="$event.preventDefault(); closeDayMenu()"></div>
+  <div class="ctx-menu" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
+    <span class="ctx-title">{{ fmtDate(m.date) }}</span>
+    <button type="button" class="ctx-item" (click)="ctxPasteHere()" [disabled]="!clipboardLabel()">
+      <app-icon name="copy" [size]="14" />
+      {{ clipboardLabel() ? 'Coller « ' + clipboardLabel() + ' »' : 'Coller (presse-papier vide)' }}
+      <kbd class="ctx-kbd">{{ keys('mod','V') }}</kbd>
+    </button>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item" (click)="ctxPlanHere()">
+      <app-icon name="plus" [size]="14" /> Planifier une séance <kbd class="ctx-kbd">N</kbd>
+    </button>
+    <button type="button" class="ctx-item" (click)="ctxNoteHere()">
+      <app-icon name="file-text" [size]="14" /> Ajouter une note
+    </button>
+  </div>
+}
+
 <!-- Menu contextuel d'une séance de force planifiée : mêmes gestes que les séances course. -->
 @if (strengthMenu(); as m) {
   <div class="ctx-backdrop" (click)="closeStrengthMenu()" (contextmenu)="$event.preventDefault(); closeStrengthMenu()"></div>
@@ -589,12 +645,19 @@
 <app-side-panel [(open)]="notePanelOpen" title="Note" [width]="420">
   @if (activeNote(); as n) {
     <div class="sd">
-      <span class="field-hint metric">{{ n.noteDate | date: 'EEE d MMM y' }}</span>
+      <span class="field-hint metric">
+        {{ n.noteDate | date: 'EEE d MMM y' }}@if (n.endDate) { → {{ n.endDate | date: 'EEE d MMM y' }} }
+      </span>
 
       @if (canWriteSelected()) {
         <label class="form-group">
           <span>Texte de la note</span>
           <textarea class="form-control" rows="4" maxlength="500" [(ngModel)]="noteEditText"></textarea>
+        </label>
+        <!-- Vider la date rend la note à son seul jour ; la renseigner en fait un cycle. -->
+        <label class="form-group">
+          <span>Jusqu'au (facultatif — en fait un cycle)</span>
+          <input type="date" class="form-control" [(ngModel)]="noteEditEnd" [min]="n.noteDate" />
         </label>
         <div class="sd__actions sd__actions--split">
           <button type="button" class="btn btn-ghost btn-sm" (click)="deleteNote(n)">
@@ -698,15 +761,23 @@
       @if (noteOpen()) {
         <div class="picker__note">
           <textarea class="form-control" rows="2" [(ngModel)]="noteText" [placeholder]="'Note pour le ' + fmtDate(date) + '…'" (keydown.escape)="toggleNote()"></textarea>
+          <!-- Une fin renseignée fait de la note un CYCLE : un bandeau au-dessus des semaines
+               qu'il traverse, écrit une fois au lieu d'être répété chaque lundi. -->
+          <label class="picker__note-end">
+            <span class="field-hint">Jusqu'au (facultatif — en fait un cycle)</span>
+            <input type="date" class="form-control" [(ngModel)]="noteEnd" [min]="date" />
+          </label>
           <div class="picker__note-actions">
             <button type="button" class="btn btn-ghost btn-sm" (click)="toggleNote()">Annuler</button>
-            <button type="button" class="btn btn-primary btn-sm" [disabled]="!noteText.trim()" (click)="addNote()">Ajouter la note</button>
+            <button type="button" class="btn btn-primary btn-sm" [disabled]="!noteText.trim()" (click)="addNote()">
+              {{ noteEnd ? 'Ajouter le cycle' : 'Ajouter la note' }}
+            </button>
           </div>
         </div>
       } @else {
         <button type="button" class="picker__item" (click)="toggleNote()">
-          <span class="picker__name"><app-icon name="plus" [size]="15" /> Note</span>
-          <span class="picker__type">aide-mémoire sur le jour</span>
+          <span class="picker__name"><app-icon name="plus" [size]="15" /> Note ou cycle</span>
+          <span class="picker__type">aide-mémoire sur le jour, ou bandeau sur une période</span>
         </button>
       }
       <!-- Même panneau que la colonne latérale (recherche, favoris, fréquentes, catégories,

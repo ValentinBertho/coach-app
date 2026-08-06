@@ -66,6 +66,9 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                     @if (b.recovery; as r) {
                       <span class="sd-rec">récup {{ recoveryVol(r) }} · {{ zoneLabel(r) }}</span>
                     }
+                    @if (setRecoveryVol(b); as sr) {
+                      <span class="sd-rec">entre séries {{ sr }}</span>
+                    }
                   </div>
                   @if (b.note) { <p class="sd-note">« {{ b.note }} »</p> }
                 }
@@ -176,7 +179,16 @@ export class SessionDetailModalComponent {
   volume(b: CourseBlock): string {
     const unit = b.distanceM != null ? `${b.distanceM >= 1000 ? (b.distanceM / 1000) + ' km' : b.distanceM + ' m'}`
       : b.durationS != null ? this.dur(b.durationS) : '—';
-    return (b.reps && b.reps > 1) ? `${b.reps} × ${unit}` : unit;
+    const reps = (b.reps && b.reps > 1) ? `${b.reps} × ${unit}` : unit;
+    // Séries : « 2 × (6 × 400 m) ». Les parenthèses distinguent deux séries de six d'une seule
+    // série de douze — ce n'est pas la même séance.
+    return (b.sets && b.sets > 1) ? `${b.sets} × (${reps})` : reps;
+  }
+
+  /** Récupération entre séries, à annoncer dès que le bloc est répété. */
+  setRecoveryVol(b: CourseBlock): string {
+    if (!b.setRecovery || !(b.sets && b.sets > 1)) return '';
+    return this.recoveryVol(b.setRecovery);
   }
 
   recoveryVol(r: { durationS?: number | null; distanceM?: number | null; type: string }): string {
@@ -185,9 +197,23 @@ export class SessionDetailModalComponent {
     return `${t} ${v}`.trim();
   }
 
+  /**
+   * Durée d'un volume prescrit, <b>secondes comprises</b>.
+   *
+   * <p>Elle était arrondie à la minute : une récupération saisie à 90 s s'affichait « 2 min ».
+   * Ce n'est pas un détail d'arrondi — 1'30 et 2' ne sont pas la même séance, et le coach qui
+   * relisait sa séance y voyait la preuve que sa saisie n'avait pas été prise. Le calendrier de
+   * l'athlète le faisait déjà correctement ; c'est ici que la règle manquait.</p>
+   */
   private dur(s: number): string {
-    const m = Math.round(s / 60);
-    return m >= 60 ? `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}` : `${m} min`;
+    if (s < 60) return `${s} s`;
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    if (m >= 60) {
+      const h = Math.floor(m / 60);
+      return `${h}h${String(m % 60).padStart(2, '0')}`;
+    }
+    return sec ? `${m}'${String(sec).padStart(2, '0')}` : `${m} min`;
   }
 
   zoneLabel(b: { prescription?: { zoneId?: string | null; ref?: string | null; minPct?: number | null; maxPct?: number | null } | null }): string {

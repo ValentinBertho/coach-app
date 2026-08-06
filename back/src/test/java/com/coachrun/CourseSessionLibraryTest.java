@@ -150,4 +150,67 @@ class CourseSessionLibraryTest {
         assertThat(calc.get("totalDistanceM").asInt()).isGreaterThanOrEqualTo(6000);
         assertThat(calc.get("totalDurationS").asInt()).isGreaterThan(0);
     }
+
+    /**
+     * Séries : « 2 × (6 × 1000 m) » vaut 12 km, et double aussi les récupérations.
+     *
+     * <p>Un bloc à doubler n'existait pas : le coach saisissait deux blocs identiques, qu'il
+     * fallait ensuite retoucher deux fois. Le volume et la durée doivent suivre le nombre de
+     * séries, sans quoi les totaux de la semaine mentiraient sur la moitié de la séance.</p>
+     */
+    @Test
+    void setsMultiplyVolumeAndRecoveries() throws Exception {
+        String templateId = templateWithMain("""
+              {"type":"intervals","reps":6,"distanceM":1000,"sets":2,
+               "prescription":{"ref":"PCT_PACE_5KM","minPct":98,"maxPct":103},
+               "recovery":{"type":"jog","durationS":90},
+               "setRecovery":{"type":"jog","durationS":300}}""");
+
+        JsonNode calc = calculated(templateId);
+        assertThat(calc.get("main").get(0).get("calc").get("estimatedDistanceM").asInt()).isEqualTo(12000);
+
+        // Récupérations : 2 séries × 5 intervalles × 90 s, plus 1 récup entre séries de 300 s.
+        int running = calc.get("main").get(0).get("calc").get("estimatedDurationS").asInt();
+        assertThat(calc.get("totalDurationS").asInt() - running).isEqualTo(2 * 5 * 90 + 300);
+    }
+
+    /** Une séance écrite avant les séries n'en porte aucune, et ne doit pas bouger d'un mètre. */
+    @Test
+    void aBlockWithoutSetsCountsAsExactlyOne() throws Exception {
+        String templateId = templateWithMain("""
+              {"type":"intervals","reps":6,"distanceM":1000,
+               "prescription":{"ref":"PCT_PACE_5KM","minPct":98,"maxPct":103},
+               "recovery":{"type":"jog","durationS":90}}""");
+
+        JsonNode calc = calculated(templateId);
+        assertThat(calc.get("main").get(0).get("calc").get("estimatedDistanceM").asInt()).isEqualTo(6000);
+        int running = calc.get("main").get(0).get("calc").get("estimatedDurationS").asInt();
+        assertThat(calc.get("totalDurationS").asInt() - running).isEqualTo(5 * 90);
+    }
+
+    /** Modèle à un seul bloc de corps de séance, pour les cas de calcul ci-dessus. */
+    private String templateWithMain(String mainBlockJson) throws Exception {
+        mvc.perform(post("/clubs/{c}/athletes/{a}/performances", clubId, athleteId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"distance\":\"D5KM\",\"timeSeconds\":1197}"))
+                .andExpect(status().isCreated());
+        String templateId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/workout-templates", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Series " + java.util.UUID.randomUUID()
+                                + "\",\"type\":\"INTERVALS\",\"title\":\"Series\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+        mvc.perform(put("/clubs/{c}/workout-templates/{t}/structure", clubId, templateId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"structure\":{\"warmup\":[],\"main\":[" + mainBlockJson + "],\"cooldown\":[]}}"))
+                .andExpect(status().isOk());
+        return templateId;
+    }
+
+    private JsonNode calculated(String templateId) throws Exception {
+        return objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/{a}/workout-templates/{t}/calculated", clubId, athleteId, templateId)
+                                .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+    }
 }

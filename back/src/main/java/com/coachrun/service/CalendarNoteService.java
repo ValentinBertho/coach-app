@@ -25,13 +25,13 @@ public class CalendarNoteService {
     private final AthleteRepository athleteRepository;
 
     public List<CalendarNoteResponse> list(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
-        return noteRepository.findByClubIdAndAthleteIdAndNoteDateBetweenOrderByNoteDateAsc(clubId, athleteId, from, to)
+        return noteRepository.findOverlapping(clubId, athleteId, from, to)
                 .stream().map(CalendarNoteResponse::from).toList();
     }
 
     /** Variante athlète-scopée (portail /me) : l'athlète lit ses propres notes. */
     public List<CalendarNoteResponse> listForAthlete(UUID athleteId, LocalDate from, LocalDate to) {
-        return noteRepository.findByAthleteIdAndNoteDateBetweenOrderByNoteDateAsc(athleteId, from, to)
+        return noteRepository.findOverlappingForAthlete(athleteId, from, to)
                 .stream().map(CalendarNoteResponse::from).toList();
     }
 
@@ -43,6 +43,7 @@ public class CalendarNoteService {
         note.setClub(athlete.getClub());
         note.setAthlete(athlete);
         note.setNoteDate(req.noteDate());
+        note.setEndDate(endDateOf(req));
         note.setText(req.text());
         return CalendarNoteResponse.from(noteRepository.save(note));
     }
@@ -51,6 +52,7 @@ public class CalendarNoteService {
     public CalendarNoteResponse update(UUID clubId, UUID noteId, CalendarNoteRequest req) {
         CalendarNote note = require(clubId, noteId);
         note.setNoteDate(req.noteDate());
+        note.setEndDate(endDateOf(req));
         note.setText(req.text());
         return CalendarNoteResponse.from(note);
     }
@@ -58,6 +60,19 @@ public class CalendarNoteService {
     @Transactional
     public void delete(UUID clubId, UUID noteId) {
         noteRepository.delete(require(clubId, noteId));
+    }
+
+    /**
+     * Fin de période validée. Une fin antérieure au début est refusée plutôt que corrigée : la
+     * corriger en silence rendrait une saisie fautive indiscernable d'une saisie juste.
+     * Une fin égale au début vaut note d'un jour — on la ramène à {@code null}.
+     */
+    private LocalDate endDateOf(CalendarNoteRequest req) {
+        if (!req.hasValidRange()) {
+            throw new com.coachrun.exception.ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "La fin d'un cycle ne peut pas précéder son début.");
+        }
+        return req.endDate() == null || req.endDate().isEqual(req.noteDate()) ? null : req.endDate();
     }
 
     private CalendarNote require(UUID clubId, UUID noteId) {

@@ -69,6 +69,11 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                       }
                     </div>
                   }
+                  <!-- Récup entre séries : sans elle, un bloc doublé s'annonce comme s'il
+                       s'enchaînait sans pause. -->
+                  @if (hasSetRecovery(e)) {
+                    <div class="cpv__rec">Récup entre séries{{ setRecoveryVol(e) ? ' : ' + setRecoveryVol(e) : '' }}</div>
+                  }
                   @if (drillsOf(e); as ds) {
                     @if (ds.length) {
                       <div class="cpv__drills">
@@ -187,16 +192,35 @@ export class CoursePrescriptionViewComponent {
     return courseBlockTypeLabel(e.block.type);
   }
 
+  /**
+   * Volume d'un bloc, séries comprises : « 2 × (6 × 400 m) ». Les parenthèses ne sont pas
+   * décoratives — sans elles, « 2 × 6 × 400 m » se lit aussi bien comme douze répétitions
+   * d'affilée, ce qui n'est pas la séance prescrite.
+   */
   volume(e: CalculatedBlockEntry): string | null {
     const b = e.block;
     const unit = this.distOrTime(b.distanceM, b.durationS);
     if (!unit) return null;
-    return b.reps && b.reps > 1 ? `${b.reps} × ${unit}` : unit;
+    const reps = b.reps && b.reps > 1 ? `${b.reps} × ${unit}` : unit;
+    const sets = b.sets ?? 1;
+    return sets > 1 ? `${sets} × (${reps})` : reps;
   }
 
   recoveryVol(e: CalculatedBlockEntry): string {
     const r = e.block.recovery!;
     return this.distOrTime(r.distanceM ?? null, r.durationS ?? null) ?? '';
+  }
+
+  /** Récupération entre séries, quand le bloc en porte plusieurs. */
+  setRecoveryVol(e: CalculatedBlockEntry): string {
+    const r = e.block.setRecovery;
+    if (!r) return '';
+    return this.distOrTime(r.distanceM ?? null, r.durationS ?? null) ?? '';
+  }
+
+  /** Le bloc est-il répété en séries, avec une récupération entre elles à annoncer ? */
+  hasSetRecovery(e: CalculatedBlockEntry): boolean {
+    return (e.block.sets ?? 1) > 1 && !!e.block.setRecovery;
   }
 
   private distOrTime(distanceM: number | null | undefined, durationS: number | null | undefined): string | null {

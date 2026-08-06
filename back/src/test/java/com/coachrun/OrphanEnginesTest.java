@@ -78,7 +78,7 @@ class OrphanEnginesTest {
 
     private CalculatedBlockEntry block(Integer rpe, Integer estimatedDurationS) {
         CourseBlock b = new CourseBlock(
-                null, null, null, null, null, null, null, rpe, null, null);
+                null, null, null, null, null, null, null, rpe, null, null, null, null);
         CalculatedBlockResponse calc = new CalculatedBlockResponse(
                 true, null, null, null, null, null, null, null, null, null, null, null, null,
                 estimatedDurationS, null, false);

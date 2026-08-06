@@ -31,6 +31,11 @@
 
 /* Répétitions : ×N discret mais lisible */
 .reps { display: inline-flex; align-items: center; gap: 2px; }
+/* Séries : même champ que les répétitions, en retrait tant qu'il n'y en a qu'une — un bloc
+   simple ne doit pas se mettre à afficher « 1 × ( … ) » pour une fonction qu'il n'utilise pas. */
+.sets { display: inline-flex; align-items: center; gap: 2px; opacity: 0.55; }
+.sets:focus-within, .sets--on { opacity: 1; }
+.sets .reps-in { width: 40px; }
 .reps-in { width: 46px; text-align: center; font-weight: 800; font-family: var(--font-data); color: var(--dari-teal); border: 1px solid var(--line); border-radius: var(--radius-md); min-height: 40px; background: var(--paper); }
 .reps-x { font-weight: 800; color: var(--dari-teal); }
 
@@ -94,6 +99,9 @@
 .rec-count { font-family: var(--font-data); color: var(--ink-4); text-transform: none; letter-spacing: 0; }
 .rec-cible { font-size: var(--text-sm); color: var(--ink-2); font-weight: 700; }
 .rec-del { margin-left: auto; }
+/* Récup entre séries : même bandeau que la récup entre répétitions, unité figée en minutes. */
+.sets-row .vol-unit--fixed { color: var(--ink-3); font-size: var(--text-sm); font-weight: 600; padding: 0 var(--sp-1); }
+.sets-row .add-rec { margin: 0; }
 .add-rec { display: inline-flex; align-items: center; gap: 4px; margin: var(--sp-2) 0 0 34px; background: transparent; border: 1px dashed var(--line); border-radius: var(--radius-md); color: var(--ink-3); padding: var(--sp-1) var(--sp-3); font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
 .add-rec:hover { border-color: var(--dari-teal); color: var(--dari-teal); }
 

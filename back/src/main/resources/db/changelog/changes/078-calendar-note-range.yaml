@@ -1,0 +1,18 @@
+# ============================================================================
+# 078 — Note de calendrier sur une PÉRIODE (cycle).
+#   Une note ne tenait que sur un jour. Or ce qu'un coach pose sur son calendrier
+#   est le plus souvent un cycle — « bloc spécifique », « affûtage » — qui court
+#   sur plusieurs semaines et n'avait aucune écriture : il fallait répéter la
+#   même note chaque lundi, ou ne rien noter.
+#   `end_date` nullable : une note sans fin reste la note d'un jour, et toutes
+#   celles déjà saisies le restent sans migration de données.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 078-calendar-note-end-date
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: calendar_notes
+            columns:
+              - column: { name: end_date, type: DATE }

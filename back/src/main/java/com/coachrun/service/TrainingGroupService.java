@@ -1,6 +1,8 @@
 package com.coachrun.service;
 
+import com.coachrun.dto.request.GroupScheduleRequest;
 import com.coachrun.dto.request.TrainingGroupRequest;
+import com.coachrun.dto.response.GroupApplyResponse;
 import com.coachrun.dto.response.GroupCalendarResponse;
 import com.coachrun.dto.response.ScheduledStrengthResponse;
 import com.coachrun.dto.response.TrainingGroupResponse;
@@ -38,6 +40,8 @@ public class TrainingGroupService {
     private final WorkoutRepository workoutRepository;
     private final ScheduledStrengthSessionRepository strengthRepository;
     private final AthleteAccessValidator accessValidator;
+    private final CourseSessionService courseSessionService;
+    private final StrengthScheduleService strengthScheduleService;
 
     public List<TrainingGroupResponse> list(UUID clubId) {
         return groupRepository.findByClubIdOrderByNameAsc(clubId).stream()
@@ -75,6 +79,52 @@ public class TrainingGroupService {
                             .stream().map(ScheduledStrengthResponse::from).toList()));
         }
         return new GroupCalendarResponse(group.getId(), group.getName(), rows);
+    }
+
+    /**
+     * Planifie une même séance — course ou prépa physique — pour <b>tous</b> les athlètes actifs
+     * du groupe, à une date.
+     *
+     * <p>C'est le geste de base d'un entraînement collectif, et il n'existait pas : la vue de
+     * groupe savait montrer la semaine de quinze athlètes, mais planifier revenait à répéter le
+     * même glisser-déposer quinze fois, ligne par ligne. Le mésocycle de groupe, lui, part d'une
+     * semaine source déjà écrite chez chacun — il ne répond pas au « tout le monde fait du seuil
+     * jeudi ».</p>
+     *
+     * <p>L'accès en écriture est vérifié athlète par athlète, comme pour le mésocycle de groupe :
+     * un athlète hors du périmètre du coach est <b>ignoré</b> et compté dans {@code skipped},
+     * jamais planifié en douce. La séance est calculée pour chacun : deux athlètes du même groupe
+     * n'ont pas les mêmes allures, et c'est tout l'intérêt de prescrire une séance plutôt qu'un
+     * chrono.</p>
+     */
+    @Transactional
+    public GroupApplyResponse schedule(UUID clubId, UUID groupId, UUID coachId,
+                                       GroupScheduleRequest request) {
+        if (!request.isValid()) {
+            throw new com.coachrun.exception.ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Précise une séance course ou une séance de prépa physique, pas les deux.");
+        }
+        require(clubId, groupId);
+        int applied = 0;
+        int skipped = 0;
+        int created = 0;
+        for (Athlete a : athleteRepository.findActiveByGroup(groupId, clubId, AthleteStatus.ACTIVE)) {
+            boolean canWrite = accessValidator.effectiveLevel(coachId, a.getId())
+                    .map(l -> l.atLeast(PermissionLevel.WRITE)).orElse(false);
+            if (!canWrite) {
+                skipped++;
+                continue;
+            }
+            if (request.templateId() != null) {
+                courseSessionService.scheduleForAthlete(clubId, a.getId(), request.templateId(), request.date());
+            } else {
+                strengthScheduleService.schedule(clubId, a.getId(), request.strengthSessionId(),
+                        request.date(), com.coachrun.entity.enums.FieldsPreset.AVANCE);
+            }
+            applied++;
+            created++;
+        }
+        return new GroupApplyResponse(applied, skipped, created);
     }
 
     @Transactional
