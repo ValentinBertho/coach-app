@@ -98,6 +98,7 @@
 .rec-lb { display: inline-flex; align-items: baseline; gap: var(--sp-1); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); font-weight: 800; }
 .rec-count { font-family: var(--font-data); color: var(--ink-4); text-transform: none; letter-spacing: 0; }
 .rec-cible { font-size: var(--text-sm); color: var(--ink-2); font-weight: 700; }
+.rec-type { border: 1px solid var(--line); border-radius: var(--radius-md); background: var(--paper); color: var(--ink-2); font-size: var(--text-sm); font-weight: 600; min-height: 36px; padding: 0 var(--sp-1); cursor: pointer; }
 .rec-del { margin-left: auto; }
 /* Récup entre séries : même bandeau que la récup entre répétitions, unité figée en minutes. */
 .sets-row .vol-unit--fixed { color: var(--ink-3); font-size: var(--text-sm); font-weight: 600; padding: 0 var(--sp-1); }

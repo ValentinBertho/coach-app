@@ -12,8 +12,8 @@ import { RunDrillService } from '../../core/services/run-drill.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import {
-  CalculatedBlock, COURSE_BLOCK_TYPE_LABELS, CourseBlock, CourseBlockType, CourseRecovery,
-  PRESCRIPTION_REF_LABELS, PRESCRIPTION_REF_SHORT, PrescriptionRef, SessionStructure,
+  CalculatedBlock, COURSE_BLOCK_TYPE_LABELS, CourseBlock, CourseBlockType, CoursePrescription,
+  CourseRecovery, PRESCRIPTION_REF_LABELS, PRESCRIPTION_REF_SHORT, PrescriptionRef, SessionStructure,
 } from '../../core/models/course.model';
 import { PhysioProfile } from '../../core/models/physio.model';
 import { RunDrill } from '../../core/models/run-drill.model';
@@ -357,13 +357,33 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   }
 
   /**
-   * Borne basse / haute de la fourchette. Les deux bornes se poussent l'une l'autre : une borne
-   * basse au-dessus de la haute ferait refuser le calcul par le serveur, et le coach n'aurait
-   * pour tout retour qu'une cible disparue.
+   * Borne d'une fourchette en %, écrite <b>à la validation du champ</b> (sortie ou Entrée).
+   *
+   * <p>Elle l'était à chaque frappe, en repliant aussitôt la valeur dans [30, 150]. Taper « 102 »
+   * était donc impossible : le « 1 » devenait 30 sous les doigts, la suite de la frappe se collait
+   * derrière (« 305 »), repliée à 150 — et la borne haute, poussée par la basse, suivait. Le champ
+   * se battait contre celui qui le remplissait, ce qui explique le « des fois ça déconne ».</p>
+   *
+   * <p>Les deux bornes continuent de se pousser l'une l'autre, mais une seule fois, quand la
+   * saisie est finie : une borne basse au-dessus de la haute ferait refuser le calcul par le
+   * serveur, et le coach n'aurait pour tout retour qu'une cible disparue.</p>
    */
-  setPctBound(b: CourseBlock, which: 'min' | 'max', value: number | null): void {
-    const p = b.prescription;
-    if (!p || value == null || Number.isNaN(value)) return;
+  setPctBoundText(b: CourseBlock, which: 'min' | 'max', input: HTMLInputElement): void {
+    if (b.prescription && this.applyPctBound(b.prescription, which, input.value)) {
+      this.onBlockEdited(b);
+    }
+    input.value = String((which === 'min' ? b.prescription?.minPct : b.prescription?.maxPct) ?? '');
+  }
+
+  /**
+   * Écrit une borne dans une prescription. Une saisie vide ou illisible ne remplace <b>rien</b> :
+   * on ne remplace pas une prescription par une valeur inventée parce que le champ a été vidé.
+   *
+   * @return vrai si la prescription a changé
+   */
+  private applyPctBound(p: CoursePrescription, which: 'min' | 'max', raw: string): boolean {
+    const value = parseNumber(raw);
+    if (value == null || value === undefined) return false;
     const pct = Math.round(Math.min(SessionEditorComponent.PCT_MAX,
       Math.max(SessionEditorComponent.PCT_MIN, value)));
     if (which === 'min') {
@@ -373,7 +393,58 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
       p.maxPct = pct;
       if (p.minPct == null || p.minPct > pct) p.minPct = pct;
     }
-    this.onBlockEdited(b);
+    return true;
+  }
+
+  // --- Récupération : prescrite par zone, ou à la main en % d'un référentiel ------------------
+  // La récupération n'acceptait qu'une zone du club, quand le bloc au-dessus d'elle acceptait déjà
+  // une fourchette écrite pour la séance. Or c'est le même besoin : « récup à 65–70 % de LT1 » ne
+  // rentre dans aucune bande nommée, et les zones ne se retouchent pas séance par séance.
+
+  recUsesPct(b: CourseBlock): boolean {
+    const p = b.recovery?.prescription;
+    return !!p?.custom && !!p?.ref;
+  }
+
+  recPctRefShort(b: CourseBlock): string {
+    const ref = b.recovery?.prescription?.ref;
+    return ref ? PRESCRIPTION_REF_SHORT[ref] : '';
+  }
+
+  /** Passe la récup en allure sur mesure, en partant d'une fourchette de récupération usuelle. */
+  switchRecToPct(b: CourseBlock): void {
+    const r = b.recovery;
+    if (!r) return;
+    this.recZoneBeforePct.update((m) => ({ ...m, [b.id]: r.prescription?.zoneId ?? null }));
+    r.prescription = { zoneId: null, hrZoneId: null, ref: 'PCT_LT1', minPct: 55, maxPct: 70, custom: true };
+    this.recalcRecovery(b);
+    this.touch();
+  }
+
+  /** Revient à une récup prescrite par zone (celle d'avant, si elle existait). */
+  switchRecToZone(b: CourseBlock): void {
+    const r = b.recovery;
+    if (!r) return;
+    r.prescription = { zoneId: this.recZoneBeforePct()[b.id] ?? this.zoneIdByName('Récupération') };
+    this.recalcRecovery(b);
+    this.touch();
+  }
+
+  setRecPctRef(b: CourseBlock, ref: PrescriptionRef): void {
+    const p = b.recovery?.prescription;
+    if (!p) return;
+    p.ref = ref;
+    this.recalcRecovery(b);
+    this.touch();
+  }
+
+  setRecPctBoundText(b: CourseBlock, which: 'min' | 'max', input: HTMLInputElement): void {
+    const p = b.recovery?.prescription;
+    if (p && this.applyPctBound(p, which, input.value)) {
+      this.recalcRecovery(b);
+      this.touch();
+    }
+    input.value = String((which === 'min' ? p?.minPct : p?.maxPct) ?? '');
   }
 
   ngOnInit(): void {
@@ -582,6 +653,8 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   /** Unité choisie par bloc ; sans choix explicite, celle qui rend la valeur la plus lisible. */
   private readonly blockUnit = signal<Record<string, VolumeUnit>>({});
   private readonly recUnit = signal<Record<string, VolumeUnit>>({});
+  /** Zone de la récup avant son passage en %, pour pouvoir y revenir sans la retrouver à la main. */
+  private readonly recZoneBeforePct = signal<Record<string, string | null>>({});
 
   unitOf(b: CourseBlock): VolumeUnit {
     return this.blockUnit()[b.id] ?? naturalUnit(b.durationS, b.distanceM, 'min');
@@ -789,8 +862,17 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   recalcRecovery(b: CourseBlock): void {
     const a = this.calcAthleteId();
     const r = b.recovery;
-    if (!a || !r?.prescription?.zoneId) return;
-    this.course.sessionCalc(a, { zoneId: r.prescription.zoneId, distanceM: r.distanceM, durationS: r.durationS })
+    const p = r?.prescription;
+    if (!a || !p) return;
+    // Même ordre que pour un bloc : une fourchette écrite par le coach prime sur la zone.
+    let body: Parameters<CourseService['sessionCalc']>[1] | null = null;
+    if (p.custom && p.ref && p.minPct != null && p.maxPct != null) {
+      body = { ref: p.ref, minPct: p.minPct, maxPct: p.maxPct, distanceM: r!.distanceM, durationS: r!.durationS };
+    } else if (p.zoneId) {
+      body = { zoneId: p.zoneId, distanceM: r!.distanceM, durationS: r!.durationS };
+    }
+    if (!body) return;
+    this.course.sessionCalc(a, body)
       .subscribe((c) => this.recCalc.update((map) => ({ ...map, [b.id]: c })));
   }
 

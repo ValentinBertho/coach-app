@@ -48,24 +48,105 @@ describe('session-editor — allure en % d’un référentiel', () => {
     expect(component.usesPct(b)).toBeFalse();
   });
 
+  /** Champ de saisie, tel que le gabarit le passe au composant à la validation. */
+  function field(value: string): HTMLInputElement {
+    const input = document.createElement('input');
+    input.value = value;
+    return input;
+  }
+
   it('respecte les bornes acceptées par le serveur', () => {
     const b = block('intervals');
     component.switchToPct(b);
-    component.setPctBound(b, 'max', 400);
+    component.setPctBoundText(b, 'max', field('400'));
     expect(b.prescription!.maxPct).toBe(150);
-    component.setPctBound(b, 'min', 5);
+    component.setPctBoundText(b, 'min', field('5'));
     expect(b.prescription!.minPct).toBe(30);
+  });
+
+  /**
+   * Le défaut remonté en bêta (« des fois ça déconne quand je rentre les % »). La borne était
+   * repliée dans [30, 150] à <b>chaque frappe</b> : taper « 102 » écrivait 30 dès le « 1 », la
+   * suite de la saisie se collait derrière, et la borne haute suivait le mouvement. Une saisie
+   * intermédiaire ne doit rien écrire du tout — seule la valeur validée compte.
+   */
+  it('n’écrit qu’à la validation du champ, pas pendant la frappe', () => {
+    const b = block('intervals');
+    component.switchToPct(b);
+
+    component.setPctBoundText(b, 'min', field('102'));
+
+    expect(b.prescription!.minPct).toBe(102);
+    expect(b.prescription!.maxPct).toBe(108);
+  });
+
+  /** Un champ vidé ou illisible ne remplace pas la prescription par une valeur inventée. */
+  it('ignore une saisie vide ou illisible et réaffiche la valeur en place', () => {
+    const b = block('intervals');
+    component.switchToPct(b);
+
+    const empty = field('');
+    component.setPctBoundText(b, 'min', empty);
+    expect(b.prescription!.minPct).toBe(102);
+    expect(empty.value).toBe('102');
+
+    component.setPctBoundText(b, 'min', field('abc'));
+    expect(b.prescription!.minPct).toBe(102);
   });
 
   /** Une borne basse au-dessus de la haute fait refuser le calcul : la cible disparaîtrait sans un mot. */
   it('pousse l’autre borne plutôt que de laisser une fourchette inversée', () => {
     const b = block('intervals');
     component.switchToPct(b);
-    component.setPctBound(b, 'min', 120);
+    component.setPctBoundText(b, 'min', field('120'));
     expect(b.prescription!.maxPct).toBe(120);
 
-    component.setPctBound(b, 'max', 90);
+    component.setPctBoundText(b, 'max', field('90'));
     expect(b.prescription!.minPct).toBe(90);
+  });
+
+  /**
+   * Récupération prescrite à la main.
+   *
+   * <p>Elle n'acceptait qu'une zone du club, quand le bloc juste au-dessus acceptait déjà une
+   * fourchette écrite pour la séance. « Récup à 55–70 % de LT1 » n'avait donc nulle part où
+   * s'écrire, alors que le serveur sait calculer ce couple depuis toujours.</p>
+   */
+  describe('récupération en % d’un référentiel', () => {
+    function withRecovery(): CourseBlock {
+      const b = block('intervals');
+      b.recovery = { type: 'jog', durationS: 90, distanceM: null, prescription: { zoneId: 'z-recup' } };
+      return b;
+    }
+
+    it('passe la récup en % et retrouve sa zone au retour', () => {
+      const b = withRecovery();
+      component.switchRecToPct(b);
+
+      expect(component.recUsesPct(b)).toBeTrue();
+      expect(b.recovery!.prescription!.zoneId).toBeNull();
+      expect(b.recovery!.prescription!.ref).toBe('PCT_LT1');
+
+      component.switchRecToZone(b);
+      expect(component.recUsesPct(b)).toBeFalse();
+      expect(b.recovery!.prescription!.zoneId).toBe('z-recup');
+    });
+
+    it('borne et pousse la fourchette de récup comme celle d’un bloc', () => {
+      const b = withRecovery();
+      component.switchRecToPct(b);
+
+      component.setRecPctBoundText(b, 'min', field('400'));
+      expect(b.recovery!.prescription!.minPct).toBe(150);
+      expect(b.recovery!.prescription!.maxPct).toBe(150);
+    });
+
+    it('change le référentiel de la récup', () => {
+      const b = withRecovery();
+      component.switchRecToPct(b);
+      component.setRecPctRef(b, 'PCT_VC');
+      expect(component.recPctRefShort(b)).toBe('VC');
+    });
   });
 
   it('affiche le référentiel en abrégé à côté des bornes', () => {
