@@ -292,6 +292,15 @@
 .gg-cell.today { outline: 1px solid color-mix(in srgb, var(--primary) 40%, transparent); }
 .gg-chip { font-size: var(--text-xs); }
 
+/* Sortie importée qu'aucune séance ne porte : l'état se voit, et le clic mène au rapprochement. */
+.activity-card--loose { border-style: dashed; }
+.ac-loose {
+  margin-left: auto; flex-shrink: 0;
+  font-size: var(--text-2xs); font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em;
+  color: var(--ink-4);
+}
+.activity-card--loose:hover .ac-loose { color: var(--primary); }
+
 /* --- Ligne « tout le groupe » : la cible de la prescription collective ----- */
 .gg-row--all { margin-bottom: var(--sp-2); }
 .gg-athlete--all { font-weight: 700; }

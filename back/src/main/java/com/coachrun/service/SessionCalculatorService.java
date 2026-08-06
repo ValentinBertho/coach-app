@@ -136,18 +136,40 @@ public class SessionCalculatorService {
         for (CourseBlock block : blocks) {
             CalculatedBlockResponse calc = calcBlock(block, ctx, zoneTargets);
             CalculatedBlockResponse recoveryCalc = calcRecovery(block.recovery(), ctx, zoneTargets);
-            if (calc != null && calc.computable()) {
-                if (calc.estimatedDistanceM() != null) {
-                    totals.distanceM += calc.estimatedDistanceM();
-                }
-                if (calc.estimatedDurationS() != null) {
-                    totals.durationS += calc.estimatedDurationS();
-                }
-            }
+            boolean computable = calc != null && calc.computable();
+            Integer distance = computable ? calc.estimatedDistanceM() : null;
+            Integer duration = computable ? calc.estimatedDurationS() : null;
+            // Estimation d'abord, structure ensuite : chaque grandeur connue est comptée une fois.
+            totals.distanceM += distance != null ? distance : writtenDistanceM(block);
+            totals.durationS += duration != null ? duration : writtenDurationS(block);
             totals.durationS += recoveryDurationS(block);
             entries.add(new CalculatedBlockEntry(block, calc, recoveryCalc));
         }
         return entries;
+    }
+
+    /**
+     * Volume <b>écrit dans le bloc</b>, séries et répétitions comprises.
+     *
+     * <p>Un bloc de 20 minutes dure 20 minutes pour tout le monde, et 6 × 1000 m font 6 km quel que
+     * soit celui qui court : ces grandeurs ne dépendent pas de l'athlète, seule leur <i>conversion</i>
+     * (une durée déduite d'une distance, ou l'inverse) en dépend. Les totaux ne retenaient pourtant
+     * que les blocs <b>calculables</b> : une séance prescrite à un athlète dont le profil ne permet
+     * pas encore de calculer d'allure repartait donc avec {@code targetDistanceM} et
+     * {@code targetDurationS} nuls.</p>
+     *
+     * <p>Les conséquences ne s'arrêtaient pas à l'affichage. Une séance sans volume cible n'est
+     * comparable à rien : le rapprochement automatique d'une sortie importée
+     * ({@code MatchingService}) la laisse de côté par construction, la séance reste
+     * {@code PLANNED} pour toujours et le coach ne retrouve jamais ce qui a été fait. Le volume
+     * prévu de la semaine affichait 0 km en regard d'un réalisé bien réel.</p>
+     */
+    private int writtenDistanceM(CourseBlock block) {
+        return block.distanceM() == null ? 0 : block.distanceM() * block.repCount() * block.setCount();
+    }
+
+    private int writtenDurationS(CourseBlock block) {
+        return block.durationS() == null ? 0 : block.durationS() * block.repCount() * block.setCount();
     }
 
     /**

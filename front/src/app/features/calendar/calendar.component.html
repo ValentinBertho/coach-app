@@ -516,12 +516,21 @@
           <!-- Activités réalisées (importées) façon Nolio -->
           @if (showRealized()) {
             @for (a of day.activities; track a.id) {
-              <button type="button" class="activity-card" (click)="openActivity(a)"
-                      [title]="(a.title || 'Activité') + (a.matchedWorkoutId ? ' · rapprochée' : '')">
+              <!-- Rattachée ou non : sans ce repère, une sortie importée et une séance validée se
+                   ressemblaient, et rien ne disait qu'il restait un geste à faire pour que le
+                   prévu et le réalisé se rejoignent. -->
+              <button type="button" class="activity-card" [class.activity-card--loose]="!a.matchedWorkoutId"
+                      (click)="openActivity(a)"
+                      [title]="(a.title || 'Activité')
+                        + (a.matchedWorkoutId ? ' · rapprochée d’une séance' : ' · rattachée à aucune séance — cliquer pour la rapprocher')">
                 <span class="ac-head">
                   <app-icon class="ac-icon" name="activity" [size]="13" />
                   <span class="w-title">{{ a.title || 'Activité' }}</span>
-                  @if (a.matchedWorkoutId) { <app-icon name="check" [size]="12" /> }
+                  @if (a.matchedWorkoutId) {
+                    <app-icon name="check" [size]="12" />
+                  } @else {
+                    <span class="ac-loose">à rattacher</span>
+                  }
                 </span>
                 <span class="ac-meta metric">
                   @if (activityKm(a); as km) { {{ km }} km }
