@@ -149,12 +149,15 @@
                ne se retouchent pas athlète par athlète. -->
           @if (b.prescription) {
             @if (usesPct(b)) {
+              <!-- Bornes écrites à la validation du champ (sortie ou Entrée), pas à chaque frappe :
+                   repliées dans [30, 150] à chaque touche, elles rendaient « 102 » impossible à
+                   taper — le « 1 » devenait 30 sous les doigts. -->
               <span class="block-pct" title="Allure prescrite en % d'un référentiel">
-                <input type="number" class="pct-in" [ngModel]="b.prescription.minPct"
-                       (ngModelChange)="setPctBound(b, 'min', $event)" min="30" max="150" step="1" />
+                <input type="number" class="pct-in" [value]="b.prescription.minPct ?? ''"
+                       (change)="setPctBoundText(b, 'min', $any($event.target))" min="30" max="150" step="1" />
                 <span class="pct-sep">–</span>
-                <input type="number" class="pct-in" [ngModel]="b.prescription.maxPct"
-                       (ngModelChange)="setPctBound(b, 'max', $event)" min="30" max="150" step="1" />
+                <input type="number" class="pct-in" [value]="b.prescription.maxPct ?? ''"
+                       (change)="setPctBoundText(b, 'max', $any($event.target))" min="30" max="150" step="1" />
                 <span class="pct-u">% de</span>
                 <select class="pct-ref" [ngModel]="b.prescription.ref" (ngModelChange)="setPctRef(b, $event)">
                   @for (r of prescriptionRefs; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
@@ -232,6 +235,13 @@
           @if (hasRecovery(b) && b.recovery; as r) {
             <div class="rec">
               <span class="rec-lb">Récup. entre répétitions<span class="rec-count">× {{ (b.reps ?? 1) - 1 }}</span></span>
+              <!-- Nature de la récup : trot, marche ou statique. Le choix existait dans le modèle
+                   et s'affichait à l'athlète (« trot 90 s »), mais aucun écran ne permettait d'en
+                   changer : toute récup était un trot, y compris les repos complets. -->
+              <select class="rec-type" [ngModel]="r.type" (ngModelChange)="setRecType(b, $event)"
+                      title="Nature de la récupération">
+                @for (t of recoveryTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
+              </select>
               <span class="vol">
                 <!-- « 1:30 » autant que « 90 » : une récup se pense en minutes-secondes, et le
                      champ n'acceptait qu'un nombre entier dans l'unité choisie. -->
@@ -242,10 +252,33 @@
                   @for (u of volumeUnits; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
                 </select>
               </span>
+              <!-- Intensité de la récup : une zone du club, ou — comme pour un bloc — une
+                   fourchette écrite à la main pour cette séance. « Récup à 55–70 % de LT1 » ne
+                   rentre dans aucune bande nommée, et les zones ne se retouchent pas séance
+                   par séance. -->
               @if (r.prescription) {
-                <app-zone-picker class="block-zone" [dense]="true"
-                  [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
-                  [selectedId]="r.prescription.zoneId" (zoneChange)="setRecZone(b, $event)" />
+                @if (recUsesPct(b)) {
+                  <span class="block-pct" title="Récup prescrite en % d'un référentiel">
+                    <input type="number" class="pct-in" [value]="r.prescription.minPct ?? ''"
+                           (change)="setRecPctBoundText(b, 'min', $any($event.target))" min="30" max="150" step="1" />
+                    <span class="pct-sep">–</span>
+                    <input type="number" class="pct-in" [value]="r.prescription.maxPct ?? ''"
+                           (change)="setRecPctBoundText(b, 'max', $any($event.target))" min="30" max="150" step="1" />
+                    <span class="pct-u">% de</span>
+                    <select class="pct-ref" [ngModel]="r.prescription.ref" (ngModelChange)="setRecPctRef(b, $event)">
+                      @for (ref of prescriptionRefs; track ref.value) { <option [value]="ref.value">{{ ref.label }}</option> }
+                    </select>
+                    <button type="button" class="pct-back" (click)="switchRecToZone(b)" title="Revenir à une zone">
+                      <app-icon name="rotate-ccw" [size]="14" />
+                    </button>
+                  </span>
+                } @else {
+                  <app-zone-picker class="block-zone" [dense]="true"
+                    [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
+                    [selectedId]="r.prescription.zoneId" (zoneChange)="setRecZone(b, $event)" />
+                  <button type="button" class="pct-switch" (click)="switchRecToPct(b)"
+                          title="Prescrire la récup à la main (% de LT1, VC, allure de course)">%</button>
+                }
               }
               @if (recoveryTargetLabel(b.id); as rt) { <span class="rec-cible metric">{{ rt }}</span> }
               <button type="button" class="icon-btn danger rec-del" (click)="removeRecovery(b)" title="Retirer la récup"><app-icon name="x" [size]="15" /></button>
