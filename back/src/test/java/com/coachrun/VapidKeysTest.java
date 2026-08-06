@@ -30,13 +30,23 @@ class VapidKeysTest {
         return k;
     }
 
+    /**
+     * Les clés fournies font foi — la génération automatique ne s'en mêle pas, même autorisée.
+     * Elles doivent en revanche être <b>utilisables</b> : c'est la seule chose qui distingue une
+     * configuration correcte d'une configuration qui échouera à chaque envoi (cf. plus bas).
+     */
     @Test
     void configuredKeysWin(@TempDir Path dir) {
-        VapidKeys k = keys("pub-configuree", "priv-configuree", true, dir.resolve("v.json"));
+        VapidKeys source = keys("", "", true, dir.resolve("src.json"));
+        Path store = dir.resolve("v.json");
+
+        VapidKeys k = keys(source.publicKey(), source.privateKey(), true, store);
 
         assertThat(k.isConfigured()).isTrue();
-        assertThat(k.publicKey()).isEqualTo("pub-configuree");
-        assertThat(k.privateKey()).isEqualTo("priv-configuree");
+        assertThat(k.publicKey()).isEqualTo(source.publicKey());
+        assertThat(k.privateKey()).isEqualTo(source.privateKey());
+        // Rien n'a été fabriqué : la configuration prime, elle ne se double pas d'une paire locale.
+        assertThat(store).doesNotExist();
     }
 
     /** En production, l'absence reste une absence : on ne fabrique pas d'identité de serveur. */
@@ -77,6 +87,46 @@ class VapidKeysTest {
         assertThat(store).exists();
         assertThat(second.publicKey()).isEqualTo(first.publicKey());
         assertThat(second.privateKey()).isEqualTo(first.privateKey());
+    }
+
+    /**
+     * Deux clés présentes ne font pas une paire valide. Une publique et une privée issues de deux
+     * générations différentes — le cas classique quand on régénère et qu'on n'en recopie qu'une —
+     * laissent tout se dérouler normalement jusqu'à l'envoi, où <b>chaque</b> notification échoue.
+     * Le serveur doit se déclarer non configuré, pour que le navigateur cesse de s'abonner contre
+     * une clé avec laquelle rien ne pourra jamais être signé.
+     */
+    @Test
+    void mismatchedConfiguredKeysAreRefused(@TempDir Path dir) {
+        VapidKeys a = keys("", "", true, dir.resolve("a.json"));
+        VapidKeys b = keys("", "", true, dir.resolve("b.json"));
+
+        VapidKeys mixed = keys(a.publicKey(), b.privateKey(), false, dir.resolve("c.json"));
+
+        assertThat(mixed.isConfigured()).isFalse();
+    }
+
+    /** Une clé illisible (collage abîmé) est refusée au démarrage, pas à chaque envoi. */
+    @Test
+    void unreadableConfiguredKeysAreRefused(@TempDir Path dir) {
+        VapidKeys k = keys("pas-une-cle", "pas-une-cle-non-plus", false, dir.resolve("v.json"));
+
+        assertThat(k.isConfigured()).isFalse();
+    }
+
+    /**
+     * Un retour à la ligne collé au milieu d'une variable d'environnement ne doit pas condamner le
+     * push : c'est l'accident le plus banal d'une configuration recopiée à la main.
+     */
+    @Test
+    void whitespaceInConfiguredKeysIsTolerated(@TempDir Path dir) {
+        VapidKeys source = keys("", "", true, dir.resolve("src.json"));
+
+        VapidKeys k = keys(" " + source.publicKey() + "\n", "\n" + source.privateKey() + " ",
+                false, dir.resolve("v.json"));
+
+        assertThat(k.isConfigured()).isTrue();
+        assertThat(k.publicKey()).isEqualTo(source.publicKey());
     }
 
     /** Fichier abîmé : on régénère plutôt que de démarrer avec des clés inutilisables. */
