@@ -157,9 +157,14 @@ là où « rien ne s'affiche sur mon téléphone » les confond toutes.
 ### Éprouver le push en local
 
 `ng serve` ne sert pas `ngsw-worker.js` : les notifications y sont structurellement hors de
-portée. Pour la chaîne complète en local :
+portée. Deux façons d'avoir la chaîne complète en local :
 
 ```bash
+# a) Pile Docker : le front y est déjà servi par nginx depuis un build de production,
+#    service worker compris. Le back tourne en profil dev, donc génère ses clés.
+docker compose up --build
+
+# b) Sans Docker, en gardant le code du poste :
 cd back && ./mvnw spring-boot:run -Dspring-boot.run.profiles=dev   # génère .vapid-dev.json au 1er lancement
 cd front && npm run start:pwa                                     # build AVEC service worker, servi sur :4200
 ```

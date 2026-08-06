@@ -293,10 +293,13 @@ public class PushNotificationService {
                     continue;
                 }
                 if (status == 404 || status == 410) {
+                    // Abonnement révoqué par le navigateur : on le retire ici comme la remise
+                    // ordinaire le fait, sinon l'essai suivant réinterrogerait la même ligne morte.
                     count("expired");
                     dropSubscription(sub.getEndpoint());
+                } else {
+                    count("failed");
                 }
-                count(status == 404 || status == 410 ? "expired" : "failed");
                 failures.add(label + " : " + explain(status));
             } catch (Exception ex) {
                 count("failed");
