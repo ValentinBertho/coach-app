@@ -113,11 +113,25 @@ public class AthleteLoadService {
         // Durées mesurées des activités rapprochées, indexées une fois pour toute la fenêtre :
         // les interroger séance par séance ferait une requête par jour de la courbe de charge.
         java.util.Map<UUID, Integer> measuredByWorkout = new java.util.HashMap<>();
+        // Sorties importées sans séance en face — le quotidien d'un athlète qui synchronise sa
+        // montre sans plan écrit. Elles ne comptaient nulle part : la charge, l'ACWR et la
+        // répartition d'intensité ne voyaient que les séances prescrites, et un athlète qui
+        // s'entraîne entièrement par Strava affichait une charge quasi nulle en face d'un volume
+        // bien réel. On ne retient que celles dont l'effort est renseigné (RPE) : sans lui, il n'y
+        // a pas d'intensité à porter, et l'inventer serait pire que de ne rien compter.
+        List<SessionLoad> unmatched = new ArrayList<>();
         for (var a : activityRepository.findByAthleteIdAndActivityDateBetween(athleteId, from, to)) {
-            if (a.getMatchedWorkoutId() != null && a.getDurationS() != null && a.getDurationS() > 0) {
+            if (a.getDurationS() == null || a.getDurationS() <= 0) {
+                continue;
+            }
+            if (a.getMatchedWorkoutId() != null) {
                 measuredByWorkout.putIfAbsent(a.getMatchedWorkoutId(), a.getDurationS());
+            } else if (a.getRpe() != null && a.getRpe() > 0) {
+                unmatched.add(new SessionLoad(a.getActivityDate(),
+                        a.getRpe() * (a.getDurationS() / 60.0), a.getRpe()));
             }
         }
+        sessions.addAll(unmatched);
 
         for (Workout w : workoutRepository
                 .findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
