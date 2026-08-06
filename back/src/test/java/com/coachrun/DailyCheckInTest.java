@@ -36,6 +36,7 @@ class DailyCheckInTest {
     @Autowired private WebApplicationContext context;
     @Autowired private DemoSeedService demoSeedService;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private com.coachrun.service.ClockService clock;
 
     private MockMvc mvc;
     private String athleteBearer;
@@ -117,7 +118,10 @@ class DailyCheckInTest {
         assertThat(row.get("pain").asInt()).isEqualTo(6);
         assertThat(row.get("formStatus").asText()).isEqualTo("RED");
         // La pastille n'est plus « périmée » : le coach voit la forme du jour, dès le matin.
-        assertThat(row.get("lastFeedbackDate").asText()).isEqualTo(java.time.LocalDate.now().toString());
+        // Fuseau de l'application, pas de la JVM : le check-in est horodaté par ClockService
+        // (Europe/Paris), quand `LocalDate.now()` lit le fuseau du conteneur (UTC). Entre 22 h et
+        // minuit UTC les deux diffèrent d'un jour, et ce test échouait pour cette seule raison.
+        assertThat(row.get("lastFeedbackDate").asText()).isEqualTo(clock.today().toString());
     }
 
     @Test

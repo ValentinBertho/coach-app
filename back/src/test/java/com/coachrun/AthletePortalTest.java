@@ -32,6 +32,8 @@ class AthletePortalTest {
     private ObjectMapper objectMapper;
     @Autowired
     private com.coachrun.repository.UserRepository userRepository;
+    @Autowired
+    private com.coachrun.service.ClockService clock;
 
     private MockMvc mockMvc() {
         return MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
@@ -57,7 +59,12 @@ class AthletePortalTest {
                         .content("{\"firstName\":\"Lea\",\"lastName\":\"Run\"}"))
                 .andReturn().getResponse().getContentAsString()).get("id").asText();
 
-        String today = LocalDate.now().toString();
+        // Date du jour dans le fuseau de l'APPLICATION (Europe/Paris), pas celui de la JVM.
+        // `LocalDate.now()` lit le fuseau de la JVM — UTC en conteneur : entre 22 h et minuit
+        // UTC, il est déjà le lendemain à Paris, la séance était donc planifiée la veille de ce
+        // que `/me/today` considère comme aujourd'hui, et l'écran revenait vide. Un test qui ne
+        // tombe qu'entre 22 h et minuit est pire qu'un test absent : il fait douter du code.
+        String today = clock.today().toString();
         mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
                         .header("Authorization", "Bearer " + coachToken)
                         .contentType(MediaType.APPLICATION_JSON)
