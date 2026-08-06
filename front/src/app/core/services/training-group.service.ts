@@ -41,6 +41,30 @@ export class TrainingGroupService {
     const params = new HttpParams().set('from', from).set('to', to);
     return this.http.get<GroupCalendar>(`${this.base()}/${id}/calendar`, { params });
   }
+
+  /**
+   * Planifie une même séance pour tous les athlètes du groupe à une date.
+   *
+   * <p>Le serveur calcule la séance <b>pour chacun</b> — deux athlètes du même groupe n'ont pas
+   * les mêmes allures — et ignore ceux sur lesquels le coach n'a pas de droit d'écriture.</p>
+   */
+  schedule(id: string, body: GroupScheduleRequest): Observable<GroupApplyResult> {
+    return this.http.post<GroupApplyResult>(`${this.base()}/${id}/schedule`, body);
+  }
+}
+
+/** Une source et une seule : séance course, ou séance de prépa physique. */
+export interface GroupScheduleRequest {
+  date: string;
+  templateId?: string | null;
+  strengthSessionId?: string | null;
+}
+
+/** Ce que la planification de groupe a réellement fait, athlètes hors périmètre compris. */
+export interface GroupApplyResult {
+  athletes: number;
+  skipped: number;
+  created: number;
 }
 
 /** Une ligne du calendrier de groupe : l'athlète et ses séances sur la plage demandée. */

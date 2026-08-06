@@ -1,16 +1,6 @@
+<!-- La barre supérieure (marque, cloche, compte) est montée par la coquille du portail
+     (`AthleteTopbarComponent`) : elle vivait ici, donc sur ce seul écran. -->
 <div class="athlete-shell">
-  <header class="athlete-top">
-    <app-logo [size]="28" [showText]="true" />
-    <!-- Deux contrôles, pas cinq : cet écran doit porter la séance, pas la gestion du compte.
-         Installer / notifications / aide / déconnexion vivent désormais dans Profil. -->
-    <div class="top-actions">
-      <app-notification-bell />
-      <a routerLink="/athlete/profile" class="avatar-link" aria-label="Mon profil">
-        <span class="avatar avatar-sm">{{ initials() }}</span>
-      </a>
-    </div>
-  </header>
-
   <app-offline-banner />
 
   <main class="athlete-main">

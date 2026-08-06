@@ -18,9 +18,7 @@ import { WorkoutPrescription } from '../../core/models/course.model';
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
 import { AuthService } from '../../core/services/auth.service';
 import { CelebrationService } from '../../core/services/celebration.service';
-import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
-import { NotificationBellComponent } from '../../shared/components/notification-bell/notification-bell.component';
 import { IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { MorningCheckInComponent } from './morning-check-in.component';
@@ -46,7 +44,7 @@ type State = 'loading' | 'ready' | 'error';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DecimalPipe, IconComponent, RouterLink,
-    LogoComponent, OfflineBannerComponent, NotificationBellComponent,
+    OfflineBannerComponent,
     IntensityZoneBadgeComponent, WorkoutFeedbackSheetComponent,
     CoursePrescriptionViewComponent, MorningCheckInComponent, StravaCardComponent, HelpHintComponent,
     PushPromptComponent,
@@ -88,12 +86,6 @@ export class TodayComponent implements OnInit {
 
   /** L'athlète a-t-il des allures de travail (VDOT) ? Sinon on l'invite à saisir une perf. */
   readonly hasPaces = signal(true);
-
-  /** Initiales pour l'avatar de la barre supérieure (porte d'entrée du Profil). */
-  initials(): string {
-    const parts = (this.user()?.fullName ?? '').trim().split(/\s+/).filter(Boolean);
-    return (parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '');
-  }
 
   /** Récapitulatif de la semaine en cours : « 32/45 km, 3 séances sur 5 ». */
   readonly week = signal<WeekSummary | null>(null);

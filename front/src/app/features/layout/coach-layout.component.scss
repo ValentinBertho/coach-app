@@ -20,6 +20,9 @@
   overflow-y: auto;
 }
 .brand { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: 0 var(--sp-2); }
+/* Le logo est un lien vers l'accueil : il ne doit pas en prendre l'allure (soulignement, couleur
+   de lien) ni perdre sa cible tactile. */
+.brand__home { display: inline-flex; align-items: center; min-height: 44px; text-decoration: none; color: inherit; }
 .club-badge { width: fit-content; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* Bouton de repli de la nav (rail d'icônes) */

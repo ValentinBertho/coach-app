@@ -3,7 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { CourseBlock } from '../../core/models/course.model';
-import { SessionEditorComponent } from './session-editor.component';
+import { SessionEditorComponent, parseNumber, volumeText } from './session-editor.component';
 
 /**
  * Allure d'intervalle sur mesure dans l'éditeur de séance.
@@ -81,5 +81,44 @@ describe('session-editor — allure en % d’un référentiel', () => {
     expect(component.libraryQueryParams()).toEqual({ cat: null });
     component.setCategory('cat-seuil');
     expect(component.libraryQueryParams()).toEqual({ cat: 'cat-seuil' });
+  });
+});
+
+/**
+ * Saisie d'un volume : « 1:30 » autant que « 90 ».
+ *
+ * <p>Le champ n'acceptait qu'un nombre dans l'unité choisie à côté. Écrire une récup de 1'30
+ * supposait donc de convertir en 90 et de penser à basculer l'unité en secondes — et le premier
+ * écran venu réaffichait « 2 min ». Ces règles fixent l'aller-retour saisie ↔ affichage.</p>
+ */
+describe('volume d’un bloc (saisie et affichage)', () => {
+  it('écrit une durée à la minute pleine comme un nombre', () => {
+    expect(volumeText(600, null, 'min')).toBe('10');
+    expect(volumeText(90, null, 's')).toBe('90');
+  });
+
+  it('écrit une durée qui déborde de la minute en m:ss', () => {
+    expect(volumeText(90, null, 'min')).toBe('1:30');
+    expect(volumeText(3630, null, 'min')).toBe('60:30');
+  });
+
+  it('laisse les distances telles quelles', () => {
+    expect(volumeText(null, 400, 'm')).toBe('400');
+    expect(volumeText(null, 5000, 'km')).toBe('5');
+  });
+
+  it('rend une chaîne vide quand il n’y a rien à afficher', () => {
+    expect(volumeText(null, null, 'min')).toBe('');
+  });
+
+  it('lit un nombre, virgule française comprise', () => {
+    expect(parseNumber('12')).toBe(12);
+    expect(parseNumber('1,5')).toBe(1.5);
+  });
+
+  it('distingue « effacer » (null) d’une saisie illisible (undefined)', () => {
+    expect(parseNumber('')).toBeNull();
+    expect(parseNumber('abc')).toBeUndefined();
+    expect(parseNumber('-3')).toBeUndefined();
   });
 });

@@ -72,6 +72,17 @@ public class TrainingGroupController {
      * (modèle de mésocycle ou paramètres directs). L'accès en écriture est vérifié athlète par
      * athlète : les athlètes non accessibles sont ignorés.
      */
+    /**
+     * Planifie une même séance pour tout le groupe à une date : la prescription collective, qui
+     * n'existait que répétée athlète par athlète.
+     */
+    @PostMapping("/{id}/schedule")
+    public GroupApplyResponse schedule(@PathVariable UUID clubId, @PathVariable UUID id,
+                                       @Valid @RequestBody com.coachrun.dto.request.GroupScheduleRequest request,
+                                       @AuthenticationPrincipal AuthPrincipal principal) {
+        return groupService.schedule(clubId, id, principal.userId(), request);
+    }
+
     @PostMapping("/{id}/generate-mesocycle")
     public GroupApplyResponse generateMesocycle(@PathVariable UUID clubId, @PathVariable UUID id,
                                                 @Valid @RequestBody GenerateMesocycleRequest request,

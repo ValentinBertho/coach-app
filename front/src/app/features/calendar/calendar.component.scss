@@ -13,6 +13,32 @@
 .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(92px, 0.58fr); gap: var(--sp-2); transition: opacity var(--duration) var(--ease); }
 .grid.loading { opacity: 0.5; }
 
+/* --- Bandeaux de cycle (note posée sur une période) ------------------------
+   Une ligne à part entière de la grille, calquée sur ses colonnes de jours : le bandeau doit
+   commencer et finir sur les bons jours, sinon il ne dit pas quand le cycle court. */
+.cycle-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(92px, 0.58fr);
+  gap: var(--sp-2);
+  margin-bottom: calc(var(--sp-2) * -1 + 2px);
+}
+.cycle-band {
+  display: flex; align-items: center; gap: var(--sp-1); min-width: 0;
+  padding: 3px var(--sp-2); border: none; cursor: pointer; text-align: left;
+  font-size: var(--text-2xs); font-weight: 800; letter-spacing: 0.02em;
+  color: var(--primary); background: var(--primary-wash);
+  border-radius: var(--radius-full);
+}
+.cycle-band:hover { filter: brightness(0.97); }
+.cycle-band__txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Bout coupé : le cycle se prolonge hors de la semaine affichée. */
+.cycle-band--open-start { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cycle-band--open-end { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+
+/* Saisie de la fin de période dans le sélecteur de séance. */
+.picker__note-end { display: flex; flex-direction: column; gap: 2px; margin-top: var(--sp-2); }
+
 /* Cellule de totaux de la semaine. */
 .week-total {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -120,6 +146,9 @@
 
 @media (max-width: 768px) {
   .grid, .grid.month { grid-template-columns: 1fr; }
+  /* Une colonne : un bandeau calé sur des jours n'a plus de sens, il redevient une étiquette. */
+  .cycle-row { grid-template-columns: 1fr; }
+  .cycle-band { grid-column: 1 / -1 !important; }
   .weekday-row { display: none; }
   .day-col, .grid.month .day-col { min-height: auto; }
   .volume { margin-left: 0; }
@@ -262,6 +291,21 @@
 }
 .gg-cell.today { outline: 1px solid color-mix(in srgb, var(--primary) 40%, transparent); }
 .gg-chip { font-size: var(--text-xs); }
+
+/* --- Ligne « tout le groupe » : la cible de la prescription collective ----- */
+.gg-row--all { margin-bottom: var(--sp-2); }
+.gg-athlete--all { font-weight: 700; }
+.gg-all-avatar { display: inline-flex; align-items: center; justify-content: center; background: var(--primary-wash); color: var(--primary); }
+/* Cible de dépôt, pas une case de contenu : hachures discrètes, hauteur réduite — elle ne doit
+   pas peser autant qu'une ligne d'athlète. */
+.gg-cell--all {
+  min-height: 40px; align-items: center; justify-content: center;
+  background: transparent; border: 1px dashed var(--line);
+}
+.gg-cell--all .gg-all-hint { font-size: var(--text-2xs); font-weight: 700; color: var(--ink-4); text-transform: uppercase; letter-spacing: 0.04em; }
+.gg-cell--all.cdk-drop-list-dragging, .gg-cell--all:hover { border-color: var(--primary); }
+.gg-cell--all:hover .gg-all-hint { color: var(--primary); }
+.gg-cell--busy { opacity: 0.5; pointer-events: none; }
 
 /* --- Détail d'une séance de force planifiée (panneau latéral) ------------- */
 .sd { display: flex; flex-direction: column; gap: var(--sp-4); }

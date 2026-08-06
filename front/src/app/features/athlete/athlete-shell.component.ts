@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { AthleteTopbarComponent } from './athlete-topbar.component';
 import { DebriefPromptComponent } from './debrief-prompt.component';
 
 /**
@@ -11,11 +12,17 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
   selector: 'app-athlete-shell',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, DebriefPromptComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, DebriefPromptComponent,
+    AthleteTopbarComponent],
   template: `
     <!-- Peau « night-track » : le portail athlète est toujours sombre (immersion mobile),
          indépendamment du thème du coach. Les tokens sombres sont scopés à ce sous-arbre. -->
     <div class="ashell" data-theme="dark">
+      <!-- Marque, cloche et compte : dans la coquille, donc sur TOUS les écrans du portail. Cette
+           barre ne vivait que dans « Aujourd'hui » : le calendrier, les progrès, l'historique
+           n'avaient ni notifications ni accès au profil. -->
+      <app-athlete-topbar />
+
       <div class="ashell__content"><router-outlet /></div>
 
       <!-- Invitation au débrief, montée dans la coquille : elle vivait dans « Aujourd'hui », et
@@ -51,12 +58,12 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
     .ashell { min-height: 100dvh; background: var(--canvas); }
     .ashell__content {
       padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
-      /* Retrait haut du portail, exposé en propriété personnalisée : celles-ci traversent
-         l'encapsulation, donc chaque écran monté ici (agenda, progrès, messagerie…) peut
-         commencer SOUS l'heure et l'encoche sans rien savoir de la coquille — un simple
-         max(var(--sp-4), var(--safe-top, 0px)). Hors du portail (cockpit coach, où la barre
-         supérieure gère déjà l'encoche) la variable n'existe pas et le retrait vaut zéro. */
-      --safe-top: env(safe-area-inset-top, 0px);
+      /* Retrait haut du portail, exposé en propriété personnalisée : chaque écran monté ici
+         commence SOUS l'heure et l'encoche par un simple max(var(--sp-4), var(--safe-top, 0px)),
+         sans rien savoir de la coquille. Depuis que la barre supérieure est montée ici, c'est
+         ELLE qui absorbe l'encoche : la variable retombe à zéro, sinon chaque écran ajouterait
+         une seconde fois la hauteur de l'encoche sous une barre qui l'a déjà prise. */
+      --safe-top: 0px;
     }
 
     .ashell__nav {

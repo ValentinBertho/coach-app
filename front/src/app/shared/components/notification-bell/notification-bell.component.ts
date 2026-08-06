@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy, Component, ElementRef, HostListener, OnInit, inject, signal,
+} from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -28,7 +30,8 @@ import { SkeletonComponent } from '../skeleton/skeleton.component';
 
       @if (open()) {
         <div class="bell-backdrop" (click)="close()"></div>
-        <div class="bell-panel" role="dialog" aria-label="Notifications">
+        <div class="bell-panel" role="dialog" aria-label="Notifications"
+             [style.--bell-top.px]="anchorTop()" [style.--bell-right.px]="anchorRight()">
           <header class="bell-hd">
             <strong>Notifications</strong>
             <span class="bell-hd-actions">
@@ -84,13 +87,34 @@ import { SkeletonComponent } from '../skeleton/skeleton.component';
       font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
 
     .bell-backdrop { position: fixed; inset: 0; z-index: 300; }
-    .bell-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 301; width: min(360px, 92vw);
-      max-height: 70vh; overflow: auto; background: var(--paper); border: 1px solid var(--hairline);
+
+    /* Positionné par rapport à l'ÉCRAN, pas à la cloche.
+       En position absolue ancrée à droite, le panneau partait du bord droit du bouton — or la cloche
+       n'est pas au bord de l'écran (l'avatar est à sa droite). Sur un téléphone, ses 360 px
+       débordaient donc de l'écran par la GAUCHE : le titre et le début de chaque notification
+       étaient tronqués, hors d'atteinte du doigt comme du défilement (cf. capture bêta). On ancre
+       maintenant sur les coordonnées réelles du bouton, mesurées à l'ouverture, et la largeur est
+       bornée par la fenêtre. */
+    .bell-panel { position: fixed; top: var(--bell-top, 64px); right: var(--bell-right, 12px);
+      z-index: 301; width: min(360px, calc(100vw - 2 * var(--sp-3)));
+      max-height: min(70vh, calc(100dvh - var(--bell-top, 64px) - var(--sp-4)));
+      overflow-y: auto; overscroll-behavior: contain;
+      background: var(--paper); border: 1px solid var(--hairline);
       border-radius: var(--radius-lg); box-shadow: var(--shadow-lg, 0 12px 32px rgba(0,0,0,.18)); }
+
+    /* Sous 640 px, aucun ancrage ne tient : un panneau lisible occupe presque toute la largeur,
+       donc il s'étale entre les deux marges plutôt que de suivre le bouton. */
+    @media (max-width: 640px) {
+      .bell-panel { left: var(--sp-3); right: var(--sp-3); width: auto; }
+    }
+
     .bell-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
       padding: var(--sp-3) var(--sp-3); border-bottom: 1px solid var(--hairline); position: sticky; top: 0;
       background: var(--paper); z-index: 1; }
-    .bell-hd-actions { display: inline-flex; align-items: center; gap: var(--sp-1); }
+    /* Le titre cède la place aux actions plutôt que de les pousser hors du panneau. */
+    .bell-hd > strong { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bell-hd-actions { display: inline-flex; align-items: center; gap: var(--sp-1); flex-shrink: 0; }
+    .bell-hd-actions .btn { white-space: nowrap; }
     .bell-gear { display: inline-flex; padding: 4px; border: none; background: transparent; color: var(--ink-3); cursor: pointer; border-radius: var(--radius); }
     .bell-gear:hover { background: var(--paper-sunk); color: var(--ink); }
     .bell-prefs { display: flex; flex-direction: column; gap: 4px; padding: var(--sp-3); border-bottom: 1px solid var(--hairline); background: var(--paper-sunk); }
@@ -107,17 +131,23 @@ import { SkeletonComponent } from '../skeleton/skeleton.component';
     .bell-row:hover { background: var(--paper-sunk); }
     .bell-row.unread { background: var(--primary-wash, var(--paper-sunk)); }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-top: 6px; flex-shrink: 0; }
-    .bell-row-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-    .bell-row-title { font-weight: 700; color: var(--ink); }
-    .bell-row-text { font-size: var(--text-sm); color: var(--ink-2); }
+    /* flex: 1 avec min-width: 0 — sans le premier, le corps gardait sa largeur naturelle et un
+       titre long poussait la colonne au-delà du panneau au lieu de revenir à la ligne. */
+    .bell-row-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+    .bell-row-title { font-weight: 700; color: var(--ink); overflow-wrap: anywhere; }
+    .bell-row-text { font-size: var(--text-sm); color: var(--ink-2); overflow-wrap: anywhere; }
     .bell-row-date { font-size: var(--text-xs); color: var(--ink-4); }
   `],
 })
 export class NotificationBellComponent implements OnInit {
   protected readonly notif = inject(NotificationService);
   private readonly router = inject(Router);
+  private readonly host = inject(ElementRef<HTMLElement>);
 
   readonly open = signal(false);
+  /** Coordonnées du panneau, mesurées sur le bouton à l'ouverture (cf. styles). */
+  readonly anchorTop = signal(64);
+  readonly anchorRight = signal(12);
   readonly loading = signal(false);
   readonly items = signal<AppNotification[]>([]);
   readonly showPrefs = signal(false);
@@ -137,6 +167,7 @@ export class NotificationBellComponent implements OnInit {
 
   toggle(): void {
     if (this.open()) { this.close(); return; }
+    this.measure();
     this.open.set(true);
     this.loading.set(true);
     this.notif.list().subscribe({
@@ -146,6 +177,36 @@ export class NotificationBellComponent implements OnInit {
   }
 
   close(): void { this.open.set(false); this.showPrefs.set(false); }
+
+  /**
+   * Place le panneau sous le bouton, en coordonnées d'écran.
+   *
+   * <p>Mesuré à l'ouverture plutôt que déduit du flux : la cloche vit dans trois barres
+   * différentes (menu latéral coach, barre mobile coach, barre du portail athlète), à des
+   * distances du bord qu'aucune règle CSS ne connaît d'avance. Le décalage droit est plafonné pour
+   * qu'un panneau de 360 px reste entier à l'écran — c'est exactement ce qui manquait quand il
+   * débordait par la gauche.</p>
+   */
+  private measure(): void {
+    const button = (this.host.nativeElement as HTMLElement).querySelector('.bell-btn');
+    if (!button) { return; }
+    const rect = button.getBoundingClientRect();
+    // Marge et largeur maximale du panneau : les mêmes que la feuille de style (--sp-3 = 12px),
+    // sinon le plafonnement calculé ici et le rendu réel ne parleraient pas de la même boîte.
+    const margin = 12;
+    const width = Math.min(360, window.innerWidth - 2 * margin);
+    const fromRight = window.innerWidth - rect.right;
+    this.anchorTop.set(Math.round(rect.bottom + 6));
+    this.anchorRight.set(Math.round(
+      Math.min(Math.max(fromRight, margin), Math.max(window.innerWidth - width - margin, margin))
+    ));
+  }
+
+  /** La rotation d'un téléphone laisserait sinon le panneau à côté de sa cloche. */
+  @HostListener('window:resize')
+  onResize(): void {
+    if (this.open()) { this.measure(); }
+  }
 
   togglePrefs(): void {
     const next = !this.showPrefs();

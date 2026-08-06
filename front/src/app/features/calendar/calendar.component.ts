@@ -32,7 +32,7 @@ import { GroupCalendarRow, TrainingGroupService } from '../../core/services/trai
 import { MesocycleParams } from '../../core/services/workout.service';
 import { RunDrill } from '../../core/models/run-drill.model';
 import { RunDrillService } from '../../core/services/run-drill.service';
-import { CalendarNote } from '../../core/models/calendar-note.model';
+import { CalendarNote, isCycle } from '../../core/models/calendar-note.model';
 import { CalendarNoteService } from '../../core/services/calendar-note.service';
 import { SessionCategory } from '../../core/models/session-category.model';
 import { SessionCategoryService } from '../../core/services/session-category.service';
@@ -73,9 +73,25 @@ interface DayCell {
   conflict: boolean;
 }
 
+/**
+ * Un cycle tel qu'il traverse une semaine affichée : la note, et les colonnes qu'elle occupe.
+ * Un cycle de trois semaines produit trois bandeaux, un par ligne de la grille.
+ */
+interface CycleBand {
+  note: CalendarNote;
+  /** Colonne de départ dans la semaine (0 = lundi) et nombre de jours couverts. */
+  startCol: number;
+  span: number;
+  /** Le cycle commence — ou finit — dans cette semaine ? Sinon le bandeau se prolonge. */
+  startsHere: boolean;
+  endsHere: boolean;
+}
+
 /** Semaine (7 jours) + totaux agrégés (prévu et réalisé), façon Nolio (colonne de droite). */
 interface WeekRow {
   days: DayCell[];
+  /** Cycles actifs cette semaine (bandeaux au-dessus des jours). */
+  cycles: CycleBand[];
   km: number;
   durationS: number;
   /** Charge prévue de la semaine en UA (sRPE) : le volume seul ne dit rien de la difficulté. */
@@ -211,7 +227,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const strengthByDate = this.groupStrengthByDate();
     const objByDate = this.groupBy(this.objectives(), (o) => o.raceDate);
     const testByDate = this.groupBy(this.tests(), (t) => t.testDate);
-    const noteByDate = this.groupBy(this.notes(), (n) => n.noteDate);
+    // Une note de période est un cycle : elle vit en bandeau au-dessus de la semaine, pas en
+    // chip sur son premier jour — où elle donnerait à croire qu'elle ne concerne que lui.
+    const noteByDate = this.groupBy(this.notes().filter((n) => !isCycle(n)), (n) => n.noteDate);
     const activityByDate = this.groupBy(this.activities(), (a) => a.activityDate);
     const unavail = this.unavailabilities();
     const count = this.mode() === 'week' ? 7 : 42;
@@ -418,6 +436,50 @@ export class CalendarComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Une planification de groupe est en cours (une requête, N séances créées côté serveur). */
+  readonly groupScheduling = signal(false);
+
+  /**
+   * Dépôt sur la ligne « tout le groupe » : la séance est planifiée pour chaque athlète du
+   * groupe, en une requête.
+   *
+   * <p>Seule la bibliothèque est acceptée. Déplacer une séance <b>déjà planifiée</b> vers cette
+   * ligne n'aurait pas de sens : elle appartient à un athlète, et la dupliquer chez les quatorze
+   * autres en la déplaçant chez son propriétaire serait la dernière chose attendue d'un geste de
+   * déplacement.</p>
+   */
+  onGroupAllDrop(event: CdkDragDrop<unknown>, targetDate: string): void {
+    const item = event.item.data as Record<string, unknown> | undefined;
+    if (!item || !this.selectedGroupId) return;
+    if ('scheduledDate' in item) {
+      this.toast.warning('Glisse une séance de la bibliothèque pour la donner à tout le groupe.');
+      return;
+    }
+    if (item['category'] === 'TECHNIQUE' || item['category'] === 'AMPLITUDE') {
+      this.toast.warning('Les éducatifs se planifient athlète par athlète.');
+      return;
+    }
+    const isStrength = 'structure' in item;
+    const name = String(item['name'] ?? 'La séance');
+    this.groupScheduling.set(true);
+    this.groupService.schedule(this.selectedGroupId, {
+      date: targetDate,
+      templateId: isStrength ? null : (item['id'] as string),
+      strengthSessionId: isStrength ? (item['id'] as string) : null,
+    }).subscribe({
+      next: (r) => {
+        this.groupScheduling.set(false);
+        this.loadGroup();
+        // On annonce ce qui a réellement été fait : un athlète hors du périmètre du coach est
+        // ignoré côté serveur, et le taire ferait croire à une prescription complète.
+        const skipped = r.skipped > 0 ? ` — ${r.skipped} athlète(s) ignoré(s) (lecture seule)` : '';
+        this.toast.success(
+          `${name} planifiée le ${this.fmtDate(targetDate)} pour ${r.athletes} athlète(s)${skipped}`);
+      },
+      error: () => { this.groupScheduling.set(false); this.toast.error('Planification de groupe impossible.'); },
+    });
+  }
+
   private moveGroupWorkout(row: GroupCalendarRow, w: Workout, targetDate: string): void {
     if (w.scheduledDate === targetDate) return;
     this.patchGroupRow(row.athleteId, (r) => ({
@@ -474,10 +536,39 @@ export class CalendarComponent implements OnInit, OnDestroy {
       const realKm = days.reduce((s, d) => s + d.activities.reduce((a, x) => a + (x.distanceM ?? 0), 0), 0) / 1000;
       const realDurationS = days.reduce((s, d) => s + d.activities.reduce((a, x) => a + (x.durationS ?? 0), 0), 0);
       const realSessions = days.reduce((s, d) => s + d.activities.length, 0);
-      rows.push({ days, km, durationS, loadUa, sessions, realKm, realDurationS, realSessions });
+      rows.push({
+        days, cycles: this.bandsFor(days), km, durationS, loadUa, sessions,
+        realKm, realDurationS, realSessions,
+      });
     }
     return rows;
   });
+
+  /**
+   * Cycles traversant une semaine, découpés à ses bornes.
+   *
+   * <p>Un cycle commencé avant le lundi affiché — ou finissant après le dimanche — n'est pas
+   * tronqué de la vue : son bandeau démarre (ou s'arrête) au bord de la semaine, et perd sa
+   * marque de début ou de fin pour dire qu'il se prolonge au-delà.</p>
+   */
+  private bandsFor(days: DayCell[]): CycleBand[] {
+    const first = days[0].date;
+    const last = days[6].date;
+    const bands: CycleBand[] = [];
+    for (const note of this.notes()) {
+      if (!isCycle(note)) continue;
+      const end = note.endDate!;
+      if (note.noteDate > last || end < first) continue;
+      const startCol = note.noteDate <= first ? 0 : days.findIndex((d) => d.date === note.noteDate);
+      const endCol = end >= last ? 6 : days.findIndex((d) => d.date === end);
+      if (startCol < 0 || endCol < 0) continue;
+      bands.push({
+        note, startCol, span: endCol - startCol + 1,
+        startsHere: note.noteDate >= first, endsHere: end <= last,
+      });
+    }
+    return bands;
+  }
 
   /** Formatte une durée en « 3h25 » / « 45 min » (totaux hebdo). */
   fmtDuration(totalS: number): string {
@@ -804,12 +895,22 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.pickerDates.set([date]);
   }
 
-  closePicker(): void { this.pickerDates.set([]); this.noteOpen.set(false); this.noteText = ''; }
+  closePicker(): void {
+    this.pickerDates.set([]);
+    this.noteOpen.set(false);
+    this.noteText = '';
+    this.noteEnd = '';
+  }
 
   /** Saisie de note inline dans le picker (remplace l'ancien window.prompt). */
   readonly noteOpen = signal(false);
   noteText = '';
-  toggleNote(): void { this.noteOpen.update((v) => !v); if (!this.noteOpen()) this.noteText = ''; }
+  /** Fin de période : renseignée, la note devient un cycle affiché en bandeau. */
+  noteEnd = '';
+  toggleNote(): void {
+    this.noteOpen.update((v) => !v);
+    if (!this.noteOpen()) { this.noteText = ''; this.noteEnd = ''; }
+  }
 
   /** Drop d'un éducatif : crée une courte séance technique avec la gamme attachée à l'échauffement. */
   private dropDrill(drill: RunDrill, date: string, athleteId = this.selectedAthleteId, refresh = () => this.load()): void {
@@ -834,8 +935,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const date = this.pickerDate();
     const text = this.noteText.trim();
     if (!date || !text) return;
-    this.noteService.create(this.selectedAthleteId, { noteDate: date, text }).subscribe({
-      next: () => { this.closePicker(); this.toast.success('Note ajoutée'); this.load(); },
+    // Une fin renseignée fait de la note un cycle : même donnée, autre portée. C'est le seul
+    // moyen d'écrire « bloc spécifique » sur cinq semaines sans le répéter cinq fois.
+    const endDate = this.noteEnd || null;
+    if (endDate && endDate < date) { this.toast.error('La fin du cycle précède son début.'); return; }
+    this.noteService.create(this.selectedAthleteId, { noteDate: date, endDate, text }).subscribe({
+      next: () => {
+        this.closePicker();
+        this.toast.success(endDate ? 'Cycle ajouté' : 'Note ajoutée');
+        this.load();
+      },
       error: () => this.toast.error('Ajout impossible.'),
     });
   }
@@ -847,18 +956,24 @@ export class CalendarComponent implements OnInit, OnDestroy {
   readonly notePanelOpen = signal(false);
   readonly activeNote = signal<CalendarNote | null>(null);
   noteEditText = '';
+  /** Fin de période de la note ouverte ; vide = note d'un seul jour. */
+  noteEditEnd = '';
 
   openNote(n: CalendarNote, ev: Event): void {
     ev.stopPropagation();
     this.activeNote.set(n);
     this.noteEditText = n.text;
+    this.noteEditEnd = n.endDate ?? '';
     this.notePanelOpen.set(true);
   }
 
   saveNote(n: CalendarNote): void {
     const text = this.noteEditText.trim();
-    if (!text || text === n.text) { this.notePanelOpen.set(false); return; }
-    this.noteService.update(this.selectedAthleteId, n.id, { noteDate: n.noteDate, text }).subscribe({
+    const endDate = this.noteEditEnd || null;
+    if (!text) { this.notePanelOpen.set(false); return; }
+    if (text === n.text && endDate === (n.endDate ?? null)) { this.notePanelOpen.set(false); return; }
+    if (endDate && endDate < n.noteDate) { this.toast.error('La fin du cycle précède son début.'); return; }
+    this.noteService.update(this.selectedAthleteId, n.id, { noteDate: n.noteDate, endDate, text }).subscribe({
       next: () => { this.notePanelOpen.set(false); this.toast.success('Note enregistrée'); this.load(); },
       error: () => this.toast.error('Enregistrement impossible.'),
     });
@@ -1175,6 +1290,51 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.weekMenu.set({ start, sessions: week.sessions, x, y });
   }
   closeWeekMenu(): void { this.weekMenu.set(null); }
+
+  // --- Menu contextuel d'un jour -------------------------------------------
+  /**
+   * Le collage n'existait qu'au clavier ({@link keys}('mod','V')) et sur le jour <b>survolé</b>.
+   * Copier une séance était donc découvrable — le menu d'une chip le propose — mais la coller ne
+   * l'était pas : le geste s'arrêtait au milieu, et un coach concluait raisonnablement que le
+   * copier-coller n'existait pas. Le jour porte maintenant sa moitié du geste.
+   */
+  readonly dayMenu = signal<{ date: string; x: number; y: number } | null>(null);
+
+  openDayMenu(date: string, ev: MouseEvent): void {
+    ev.preventDefault();
+    if (!this.canWriteSelected() || this.scopeMode() !== 'athlete') return;
+    // Un clic droit sur une chip ouvre le menu de la chip : le sien ne doit pas s'y superposer.
+    if ((ev.target as HTMLElement).closest('[data-chip]')) return;
+    const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
+    this.hoveredDate.set(date);
+    this.dayMenu.set({ date, x, y });
+  }
+
+  closeDayMenu(): void { this.dayMenu.set(null); }
+
+  /** Ce que le presse-papier collerait ici, pour le libellé du menu. */
+  clipboardLabel(): string { return this.clipboard().label; }
+
+  ctxPasteHere(): void {
+    const m = this.dayMenu();
+    this.closeDayMenu();
+    if (m) this.pasteOn(m.date);
+  }
+
+  ctxPlanHere(): void {
+    const m = this.dayMenu();
+    this.closeDayMenu();
+    if (m) this.addWorkout(m.date);
+  }
+
+  /** Ouvre le sélecteur directement sur la saisie de note. */
+  ctxNoteHere(): void {
+    const m = this.dayMenu();
+    this.closeDayMenu();
+    if (!m) return;
+    this.addWorkout(m.date);
+    if (this.pickerDate()) this.noteOpen.set(true);
+  }
 
   /** Toutes les chips d'une semaine (7 jours à partir du lundi donné), course et force. */
   private weekChips(start: string): ChipRef[] {
@@ -1940,11 +2100,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Ferme ce qui est ouvert par-dessus la grille ; vrai si quelque chose s'est fermé. */
   private closeAllMenus(): boolean {
-    const wasOpen = !!(this.ctxMenu() || this.strengthMenu() || this.weekMenu())
+    const wasOpen = !!(this.ctxMenu() || this.strengthMenu() || this.weekMenu() || this.dayMenu())
       || this.viewMenuOpen() || this.actionsMenuOpen() || this.pickerDates().length > 0;
     this.closeContextMenu();
     this.closeStrengthMenu();
     this.closeWeekMenu();
+    this.closeDayMenu();
     this.viewMenuOpen.set(false);
     this.actionsMenuOpen.set(false);
     if (this.pickerDates().length) this.closePicker();

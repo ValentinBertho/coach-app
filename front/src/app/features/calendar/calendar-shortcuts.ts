@@ -34,6 +34,9 @@ export const CALENDAR_SHORTCUTS: readonly ShortcutGroup[] = [
     items: [
       { keys: ['mod', 'C'], label: 'Copier la sélection' },
       { keys: ['mod', 'V'], label: 'Coller sur le jour survolé' },
+      // Le clic droit sur un jour porte le même collage : le raccourci clavier était le seul
+      // moyen de coller, donc la moitié du copier-coller ne se découvrait jamais.
+      { keys: ['clic droit'], label: 'Menu d’un jour : coller, planifier, noter' },
       { keys: ['mod', 'D'], label: 'Dupliquer sur place' },
       { keys: ['Suppr'], label: 'Supprimer la sélection' },
       { keys: ['Alt', 'glisser'], label: 'Copier au lieu de déplacer' },

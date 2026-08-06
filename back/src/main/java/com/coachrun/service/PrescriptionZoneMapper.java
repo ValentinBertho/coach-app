@@ -58,7 +58,8 @@ public class PrescriptionZoneMapper {
         return List.of(s.warmup(), s.main(), s.cooldown()).stream()
                 .flatMap(List::stream)
                 .anyMatch(b -> isLegacyWithoutZone(b.prescription())
-                        || (b.recovery() != null && isLegacyWithoutZone(b.recovery().prescription())));
+                        || (b.recovery() != null && isLegacyWithoutZone(b.recovery().prescription()))
+                        || (b.setRecovery() != null && isLegacyWithoutZone(b.setRecovery().prescription())));
     }
 
     /**
@@ -78,7 +79,8 @@ public class PrescriptionZoneMapper {
                 b.id(), b.type(), b.reps(), b.distanceM(), b.durationS(),
                 mapPrescription(b.prescription(), zonesByName, fallback),
                 mapRecovery(b.recovery(), zonesByName, fallback),
-                b.rpe(), b.note(), b.drillIds())).toList();
+                b.rpe(), b.note(), b.drillIds(),
+                b.sets(), mapRecovery(b.setRecovery(), zonesByName, fallback))).toList();
     }
 
     private CourseRecovery mapRecovery(CourseRecovery r, Map<String, UUID> zonesByName, UUID fallback) {

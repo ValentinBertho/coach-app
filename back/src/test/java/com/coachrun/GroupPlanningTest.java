@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -122,5 +123,54 @@ class GroupPlanningTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.athletes").value(2))
                 .andExpect(jsonPath("$.created").value(2));
+    }
+
+    /**
+     * Prescription collective : la même séance, à la même date, pour tout le groupe.
+     *
+     * <p>C'est le geste de base d'un entraînement de club, et il n'existait que répété athlète par
+     * athlète. Le mésocycle de groupe ne le couvre pas : il part de la semaine déjà écrite chez
+     * chacun, quand celui-ci part d'une séance de la bibliothèque.</p>
+     */
+    @Test
+    void schedulesOneSessionForEveryAthleteOfTheGroup() throws Exception {
+        auth();
+        String groupId = objectMapper.readTree(postJson("/clubs/{c}/groups", "{\"name\":\"APV\"}"))
+                .get("id").asText();
+        String a1 = createAthleteInGroup(groupId);
+        String a2 = createAthleteInGroup(groupId);
+        String templateId = objectMapper.readTree(postJson("/clubs/{c}/workout-templates",
+                "{\"name\":\"Seuil collectif\",\"type\":\"THRESHOLD\",\"title\":\"Seuil\","
+                        + "\"targetDistanceM\":10000,\"steps\":[]}")).get("id").asText();
+
+        mvc.perform(post("/clubs/{c}/groups/{g}/schedule", clubId, groupId)
+                        .header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"date\":\"2026-09-10\",\"templateId\":\"" + templateId + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.athletes").value(2))
+                .andExpect(jsonPath("$.skipped").value(0))
+                .andExpect(jsonPath("$.created").value(2));
+
+        // Chaque athlète porte bien SA séance : une prescription de groupe reste individuelle.
+        for (String athleteId : List.of(a1, a2)) {
+            mvc.perform(get("/clubs/{c}/athletes/{a}/workouts?from=2026-09-10&to=2026-09-10", clubId, athleteId)
+                            .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.length()").value(1))
+                    .andExpect(jsonPath("$[0].title").value("Seuil"));
+        }
+    }
+
+    /** Ni séance course ni prépa physique — ou les deux : la requête ne dit pas quoi planifier. */
+    @Test
+    void refusesAScheduleWithoutExactlyOneSession() throws Exception {
+        auth();
+        String groupId = objectMapper.readTree(postJson("/clubs/{c}/groups", "{\"name\":\"APV\"}"))
+                .get("id").asText();
+
+        mvc.perform(post("/clubs/{c}/groups/{g}/schedule", clubId, groupId)
+                        .header("Authorization", "Bearer " + token).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"date\":\"2026-09-10\"}"))
+                .andExpect(status().isBadRequest());
     }
 }

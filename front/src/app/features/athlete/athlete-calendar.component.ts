@@ -317,6 +317,11 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                         }
                       </div>
                     }
+                    <!-- Récup entre séries : un bloc doublé s'annoncerait sinon comme s'il
+                         s'enchaînait sans pause. -->
+                    @if (setRecoveryVol(e); as sr) {
+                      <div class="targets recov field-hint">récup entre séries · {{ sr }}</div>
+                    }
                     @if (e.block.note) { <p class="blk-note field-hint">{{ e.block.note }}</p> }
                   </div>
                 }
@@ -792,11 +797,13 @@ export class AthleteCalendarComponent implements OnInit {
     this.workouts.set(this.workouts().map((w) => (w.id === updated.id ? updated : w)));
   }
 
-  /** Libellé d'un bloc : « 6 × 1000 m » / « 20 min ». */
+  /** Libellé d'un bloc : « 6 × 1000 m », « 20 min », « 2 × (6 × 400 m) » quand il est en séries. */
   blockLabel(b: CourseBlock): string {
     const reps = (b.reps ?? 1) > 1 ? `${b.reps} × ` : '';
     const size = b.distanceM ? `${b.distanceM} m` : (b.durationS ? this.fmtDur(b.durationS) : '');
-    return (reps + size).trim() || courseBlockTypeLabel(b.type);
+    const body = (reps + size).trim() || courseBlockTypeLabel(b.type);
+    // Séries : les parenthèses distinguent « 2 × (6 × 400) » de douze répétitions d'affilée.
+    return (b.sets ?? 1) > 1 ? `${b.sets} × (${body})` : body;
   }
 
   /**
@@ -807,6 +814,20 @@ export class AthleteCalendarComponent implements OnInit {
    * une récupération se prescrit en 45 s, 1'30 ou 2'30, et « 2 min » pour 1'30 n'est pas la même
    * séance.</p>
    */
+  /** Récupération entre séries, vide tant que le bloc n'en compte qu'une. */
+  setRecoveryVol(e: CalculatedBlockEntry): string {
+    const r = e.block.setRecovery;
+    if (!r || (e.block.sets ?? 1) <= 1) return '';
+    if (r.distanceM) return `${r.distanceM} m`;
+    if (r.durationS) {
+      const m = Math.floor(r.durationS / 60);
+      const s = r.durationS % 60;
+      if (!m) return `${s} s`;
+      return s ? `${m}'${s.toString().padStart(2, '0')}` : `${m} min`;
+    }
+    return '';
+  }
+
   recoveryVol(e: CalculatedBlockEntry): string {
     const r = e.block.recovery;
     if (!r) return '';

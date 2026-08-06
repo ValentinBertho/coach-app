@@ -118,6 +118,15 @@
         <div class="block-row">
           <button type="button" class="drag-handle" cdkDragHandle title="Glisser pour réordonner"><app-icon name="grip-vertical" [size]="16" /></button>
 
+          <!-- Séries × répétitions : « 2 × (6 × 400 m) ». Les deux comptes ne disent pas la même
+               chose, et seul le second existait. -->
+          <span class="sets" [class.sets--on]="setCount(b) > 1"
+                title="Séries : le bloc entier est répété d'autant (2 = bloc doublé)">
+            <input type="number" class="reps-in" [ngModel]="b.sets" (ngModelChange)="setBlockSets(b, $event)"
+                   min="1" max="20" placeholder="1" aria-label="Séries" />
+            @if (setCount(b) > 1) { <span class="reps-x">× (</span> }
+          </span>
+
           <span class="reps">
             <input type="number" class="reps-in" [(ngModel)]="b.reps" (ngModelChange)="onBlockEdited(b)" min="1" placeholder="1" title="Répétitions" />
             @if ((b.reps ?? 0) > 1) { <span class="reps-x">×</span> }
@@ -126,11 +135,13 @@
           <!-- Volume : la valeur et son unité (sec/min/h · m/km) se choisissent librement ;
                le stockage reste en secondes et en mètres. -->
           <span class="vol">
-            <input type="number" class="vol-in" step="any" [ngModel]="volumeValue(b)"
-                   (ngModelChange)="setVolumeValue(b, $event)" placeholder="0" />
+            <input type="text" inputmode="decimal" class="vol-in" [value]="volumeText(b)"
+                   (change)="setVolumeText(b, $any($event.target))" placeholder="0"
+                   title="Un nombre dans l'unité choisie, ou un temps en min:sec (1:30)" />
             <select class="vol-unit" [ngModel]="unitOf(b)" (ngModelChange)="setUnit(b, $event)" title="Unité">
               @for (u of volumeUnits; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
             </select>
+            @if (setCount(b) > 1) { <span class="reps-x">)</span> }
           </span>
 
           <!-- Intensité : une zone du club, ou une fourchette en % écrite pour cette séance.
@@ -193,14 +204,40 @@
           </p>
         }
 
+        <!-- Séries : le bloc entier (ses répétitions et sa récup) est répété d'autant.
+             « 2 × (6 × 400 m) » s'écrivait jusqu'ici en saisissant deux fois le même bloc, à
+             retoucher deux fois à chaque ajustement. -->
+        @if (setCount(b) > 1) {
+          <div class="rec sets-row">
+            <span class="rec-lb">Récup. entre séries<span class="rec-count">× {{ setCount(b) - 1 }}</span></span>
+            @if (b.setRecovery; as sr) {
+              <span class="vol">
+                <input type="text" inputmode="decimal" class="vol-in" [value]="seriesRecText(b)"
+                       (change)="setSeriesRecText(b, $any($event.target))" placeholder="0"
+                       title="Un nombre en minutes, ou un temps en min:sec (3:00)" />
+                <span class="vol-unit vol-unit--fixed">min</span>
+              </span>
+              <button type="button" class="icon-btn danger rec-del" (click)="removeSeriesRecovery(b)"
+                      title="Retirer la récup entre séries"><app-icon name="x" [size]="15" /></button>
+            } @else {
+              <button type="button" class="add-rec" (click)="addSeriesRecovery(b)">
+                <app-icon name="plus" [size]="14" /> Ajouter la récupération entre les séries
+              </button>
+            }
+          </div>
+        }
+
         <!-- Récupération inter-répétitions (imbriquée dans le groupe) -->
         @if ((b.reps ?? 0) > 1) {
           @if (hasRecovery(b) && b.recovery; as r) {
             <div class="rec">
               <span class="rec-lb">Récup. entre répétitions<span class="rec-count">× {{ (b.reps ?? 1) - 1 }}</span></span>
               <span class="vol">
-                <input type="number" class="vol-in" step="any" [ngModel]="recVolumeValue(b)"
-                       (ngModelChange)="setRecVolumeValue(b, $event)" placeholder="0" />
+                <!-- « 1:30 » autant que « 90 » : une récup se pense en minutes-secondes, et le
+                     champ n'acceptait qu'un nombre entier dans l'unité choisie. -->
+                <input type="text" inputmode="decimal" class="vol-in" [value]="recVolumeText(b)"
+                       (change)="setRecVolumeText(b, $any($event.target))" placeholder="0"
+                       title="Un nombre dans l'unité choisie, ou un temps en min:sec (1:30)" />
                 <select class="vol-unit" [ngModel]="recUnitOf(b)" (ngModelChange)="setRecUnit(b, $event)" title="Unité">
                   @for (u of volumeUnits; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
                 </select>

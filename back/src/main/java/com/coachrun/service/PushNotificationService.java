@@ -112,9 +112,21 @@ public class PushNotificationService {
     /** Fréquence maximale d'écriture de l'horodatage « appareil joignable ». */
     private static final java.time.Duration TOUCH_INTERVAL = java.time.Duration.ofHours(1);
 
+    /** Essais autorisés par minute et par compte : de quoi vérifier, pas de quoi s'amuser. */
+    private static final int TEST_MAX_PER_MINUTE = 10;
+
     private final PushSubscriptionRepository repository;
+    private final com.coachrun.repository.UserRepository userRepository;
     private final ObjectMapper objectMapper;
     private final io.micrometer.core.instrument.MeterRegistry meterRegistry;
+
+    /**
+     * Plafond de l'envoi d'essai, compté par compte. Le plafond global du {@code RateLimitFilter}
+     * est par porteur de jeton et large : il laisse passer une salve d'essais, dont chacun ouvre
+     * autant d'appels réseau sortants qu'il y a d'appareils abonnés.
+     */
+    private final com.coachrun.util.FixedWindowRateLimiter testLimiter =
+            new com.coachrun.util.FixedWindowRateLimiter(TEST_MAX_PER_MINUTE, java.time.Duration.ofMinutes(1));
 
     @Value("${app.vapid.public-key:}")
     private String publicKey;
@@ -224,6 +236,39 @@ public class PushNotificationService {
      * @param url   destination relative (ex. {@code /athlete/today?feedback=…&rpe=7})
      */
     public record QuickAction(String id, String title, String url) {
+    }
+
+    /**
+     * Envoi d'essai vers les appareils du compte, déclenché par son propriétaire.
+     *
+     * <p>Le push est le seul canal du produit dont personne ne peut vérifier l'état : l'athlète
+     * autorise les notifications, ne reçoit rien pendant trois jours, et n'a aucun moyen de savoir
+     * si c'est parce qu'il n'y avait rien à annoncer ou parce que la chaîne est cassée quelque part
+     * — abonnement révoqué par le navigateur, clés VAPID absentes du serveur, canal coupé dans ses
+     * propres réglages. Le support n'avait pas davantage de réponse. Cet essai rend la chaîne
+     * observable de bout en bout, depuis l'appareil qui la subit.</p>
+     *
+     * <p>L'envoi part <b>même si le canal est coupé</b> dans les préférences : il a été demandé
+     * explicitement, et l'utilisateur qui teste veut savoir si son téléphone reçoit, pas si son
+     * réglage est à « oui ». La réponse porte le réglage pour qu'il ne conclue pas de travers.</p>
+     *
+     * @param url destination à l'ouverture de la notification, selon le rôle de l'appelant
+     */
+    public com.coachrun.dto.response.PushTestResponse sendTest(UUID userId, String url) {
+        if (!testLimiter.tryAcquire(userId.toString())) {
+            throw new com.coachrun.exception.ApiException(
+                    org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
+                    "Trop d'essais — réessaie dans une minute.");
+        }
+        int devices = repository.findByUserId(userId).size();
+        boolean muted = userRepository.findById(userId)
+                .map(u -> !u.isNotifyPushEnabled())
+                .orElse(false);
+        if (isEnabled() && devices > 0) {
+            sendToUser(userId, "Darilab — test de notification",
+                    "Si tu vois ce message, tes notifications fonctionnent.", url);
+        }
+        return new com.coachrun.dto.response.PushTestResponse(isEnabled(), devices, muted);
     }
 
     /** Envoie une notification à tous les appareils d'un utilisateur (best-effort). */
