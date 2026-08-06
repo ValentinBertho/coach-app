@@ -12,6 +12,8 @@
   z-index: 10;
 }
 .brand { display: flex; align-items: center; gap: var(--sp-3); }
+/* Lien d'accueil : la marque garde son allure, pas celle d'un lien. */
+.brand__home { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 44px; text-decoration: none; color: inherit; }
 .logo { font-family: var(--font-display); font-weight: 700; font-size: var(--text-xl); color: var(--night-text); }
 
 .nav { display: flex; gap: var(--sp-2); margin-right: auto; flex-wrap: wrap; }

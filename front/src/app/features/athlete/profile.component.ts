@@ -8,10 +8,10 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { FeedbackService } from '../../core/services/feedback.service';
 import { NotificationPreferences, NotificationService } from '../../core/services/notification.service';
 import { ToastService } from '../../core/services/toast.service';
-import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { InstallButtonComponent } from '../../shared/components/install-button/install-button.component';
 import { PushButtonComponent } from '../../shared/components/push-button/push-button.component';
+import { PushTestButtonComponent } from '../../shared/components/push-test-button/push-test-button.component';
 import { DataOriginTagComponent } from '../../shared/components/physiology';
 import { PhysioProfile, Performance, Vdot } from '../../core/models/physio.model';
 import { LactateTest } from '../../core/models/lactate.model';
@@ -33,14 +33,13 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
   selector: 'app-athlete-profile',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, FormsModule, LogoComponent, IconComponent, DataOriginTagComponent, DatePipe, DecimalPipe,
-    InstallButtonComponent, PushButtonComponent],
+  imports: [RouterLink, FormsModule, IconComponent, DataOriginTagComponent, DatePipe, DecimalPipe,
+    InstallButtonComponent, PushButtonComponent, PushTestButtonComponent],
   template: `
     <div class="shell">
-      <header class="top">
-        <app-logo [size]="28" [showText]="true" />
-        <a routerLink="/athlete/today" class="btn btn-ghost btn-sm">← Aujourd'hui</a>
-      </header>
+      <!-- Plus de barre de marque ici : la coquille du portail en pose une, commune à tous les
+           écrans. Deux logos empilés, c'était le prix à payer pour un retour en arrière que le
+           bouton système et la barre d'onglets rendent de toute façon. -->
       <main class="wrap">
         <h1 class="display-sm">Profil & confidentialité</h1>
         <p class="subtitle">{{ user()?.fullName }}</p>
@@ -121,6 +120,10 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
           <div class="app-settings__row">
             <app-install-button />
             <app-push-button />
+            <!-- Vérifier soi-même que le canal fonctionne : autoriser les notifications ne dit
+                 rien de ce qui arrive vraiment sur le téléphone, et le silence des jours suivants
+                 ne distingue pas « rien à annoncer » de « la chaîne est cassée ». -->
+            <app-push-test-button />
           </div>
 
           <!-- Heure habituelle : elle ancre le rappel « Ta séance est finie ? », envoyé 2 h
@@ -416,7 +419,6 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
   `,
   styles: [`
     .shell { min-height: 100dvh; background: var(--canvas); }
-    .top { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-3) var(--sp-4); padding-top: max(var(--sp-3), env(safe-area-inset-top)); background: var(--paper); border-bottom: 1px solid var(--hairline); position: sticky; top: 0; }
     .wrap { max-width: 560px; margin-inline: auto; padding: var(--sp-5) var(--sp-4) var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-4); }
     .subtitle { color: var(--ink-3); margin: 0; }
     /* « Signaler un problème » ouvre un panneau : c'est un bouton, rendu comme la carte-lien voisine. */

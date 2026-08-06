@@ -53,6 +53,22 @@ public class PushController {
         return pushService.devices(principal.userId());
     }
 
+    /**
+     * Envoi d'essai vers ses propres appareils : le seul moyen, pour celui qui les porte, de
+     * savoir si la chaîne de notification fonctionne réellement.
+     *
+     * <p>La destination dépend du rôle — un athlète qui ouvre la notification doit retomber sur sa
+     * journée, un coach sur son centre de notifications. Ouvrir la racine renverrait l'un et
+     * l'autre sur la page publique.</p>
+     */
+    @PostMapping("/test")
+    public com.coachrun.dto.response.PushTestResponse test(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        String url = principal.role() == com.coachrun.entity.enums.UserRole.ATHLETE
+                ? "/athlete/today" : "/app/notifications";
+        return pushService.sendTest(principal.userId(), url);
+    }
+
     /** Retire un appareil précis — celui qu'on a perdu, revendu, ou prêté. */
     @DeleteMapping("/devices/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

@@ -1,8 +1,11 @@
 <div class="layout">
   <header class="topbar">
     <div class="brand">
-      <app-logo [size]="28" [showText]="false" />
-      <span class="logo">Darilab</span>
+      <!-- Le logo ramène à l'accueil de l'espace, comme partout ailleurs dans le produit. -->
+      <a routerLink="/admin" class="brand__home" aria-label="Accueil administration">
+        <app-logo [size]="28" [showText]="false" />
+        <span class="logo">Darilab</span>
+      </a>
       <span class="badge badge-danger">Admin</span>
     </div>
     <nav class="nav">

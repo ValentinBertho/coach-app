@@ -8,6 +8,7 @@ import {
 import { PushDevice, PushService } from '../../core/services/push.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { PushTestButtonComponent } from '../../shared/components/push-test-button/push-test-button.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 /**
@@ -27,7 +28,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
   selector: 'app-notifications',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, SkeletonComponent, DatePipe],
+  imports: [IconComponent, SkeletonComponent, DatePipe, PushTestButtonComponent],
   template: `
     <section class="page-header">
       <div>
@@ -177,6 +178,16 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
           }
         </ul>
       }
+
+      <!-- Vérifier soi-même : jusqu'ici, la seule façon de savoir si le push fonctionnait était
+           d'attendre qu'il se passe quelque chose — et un silence ne prouve rien. -->
+      <div class="dtest">
+        <app-push-test-button />
+        <span class="field-hint">
+          Envoie une notification d'essai à tous tes appareils abonnés. Rien n'arrive ? Le message
+          affiché dit à quelle étape ça coince.
+        </span>
+      </div>
     </div>
 
     <div class="card">
@@ -239,6 +250,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
 
     .dlist { list-style: none; margin: var(--sp-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
     .drow { display: flex; align-items: flex-start; gap: var(--sp-3); }
+    .dtest { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); margin-top: var(--sp-4); }
 
     .quiet { display: flex; gap: var(--sp-4); margin-top: var(--sp-3); flex-wrap: wrap; }
     .quiet__f { display: flex; flex-direction: column; gap: 2px; }

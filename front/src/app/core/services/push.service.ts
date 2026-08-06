@@ -32,6 +32,19 @@ export interface PushDevice {
 }
 
 /**
+ * Ce que le serveur a fait — ou n'a pas pu faire — d'une demande d'essai. Les trois causes d'un
+ * essai qui n'arrive pas se ressemblent vues du téléphone ; elles se distinguent ici.
+ */
+export interface PushTestResult {
+  /** Le serveur sait-il envoyer un push (clés VAPID configurées) ? */
+  enabled: boolean;
+  /** Appareils abonnés au compte, tous navigateurs confondus. */
+  devices: number;
+  /** Le canal push est coupé dans les préférences : l'essai part, la routine non. */
+  channelMuted: boolean;
+}
+
+/**
  * Notifications push côté client (SwPush). Disponible uniquement quand le service worker
  * est actif (build de production) et le navigateur compatible.
  */
@@ -195,6 +208,17 @@ export class PushService {
 
   removeDevice(id: string): Observable<void> {
     return this.http.delete<void>(`${environment.apiUrl}/push/devices/${id}`);
+  }
+
+  /**
+   * Demande au serveur une notification d'essai vers les appareils du compte.
+   *
+   * <p>Rien, côté application, ne pouvait dire si le push fonctionnait : l'autorisation accordée
+   * ne prouve que la moitié de la chaîne, et le silence des jours suivants ne distingue pas
+   * « rien à annoncer » de « la chaîne est cassée ».</p>
+   */
+  sendTest(): Observable<PushTestResult> {
+    return this.http.post<PushTestResult>(`${environment.apiUrl}/push/test`, {});
   }
 
   /**

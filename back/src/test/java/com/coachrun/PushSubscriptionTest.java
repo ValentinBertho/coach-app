@@ -154,6 +154,72 @@ class PushSubscriptionTest {
         assertThat(pushService.canReach(coachUserId)).isFalse(); // VAPID absent en test
     }
 
+    /**
+     * L'essai rend compte de l'état réel du canal.
+     *
+     * <p>C'est tout son intérêt : « rien ne s'affiche sur mon téléphone » recouvrait trois causes
+     * indiscernables — serveur sans clés VAPID, aucun appareil abonné, appareil abonné mais
+     * injoignable. Sans ce compte rendu, un essai n'apprendrait rien de plus que le silence qu'il
+     * est censé expliquer.</p>
+     */
+    @Test
+    void theTestReportsHowManyDevicesItReached() throws Exception {
+        subscribe(coachBearer, "https://fcm.example/coach-phone", "Mozilla/5.0 (iPhone)");
+        subscribe(coachBearer, "https://fcm.example/coach-laptop", "Mozilla/5.0 (Macintosh) Chrome/120");
+
+        JsonNode body = objectMapper.readTree(
+                mvc.perform(post("/push/test").header("Authorization", coachBearer))
+                        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        assertThat(body.get("devices").asInt()).isEqualTo(2);
+        // VAPID absent en test : l'essai le dit plutôt que de laisser croire à un envoi réussi.
+        assertThat(body.get("enabled").asBoolean()).isFalse();
+        assertThat(body.get("channelMuted").asBoolean()).isFalse();
+    }
+
+    /** Aucun appareil abonné : ce n'est pas un succès, et l'écran doit pouvoir le dire. */
+    @Test
+    void theTestSaysWhenNoDeviceIsSubscribed() throws Exception {
+        JsonNode body = objectMapper.readTree(
+                mvc.perform(post("/push/test").header("Authorization", coachBearer))
+                        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        assertThat(body.get("devices").asInt()).isZero();
+    }
+
+    /**
+     * Le canal coupé dans les préférences est signalé : sans ça, un essai « bien reçu » ferait
+     * conclure que tout fonctionne, alors que les notifications de routine, elles, ne partent pas.
+     */
+    @Test
+    void theTestFlagsAMutedChannel() throws Exception {
+        subscribe(coachBearer, "https://fcm.example/coach-phone", "Mozilla/5.0 (iPhone)");
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .put("/notifications/preferences").header("Authorization", coachBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"pushEnabled\":false}"))
+                .andExpect(status().isOk());
+
+        JsonNode body = objectMapper.readTree(
+                mvc.perform(post("/push/test").header("Authorization", coachBearer))
+                        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        assertThat(body.get("channelMuted").asBoolean()).isTrue();
+    }
+
+    /** Un essai ne vise que ses propres appareils : le compte rendu ne parle que d'eux. */
+    @Test
+    void theTestNeverReachesAnotherAccountDevices() throws Exception {
+        subscribe(coachBearer, "https://fcm.example/coach-phone", "Mozilla/5.0 (iPhone)");
+        String athleteBearer = "Bearer " + login(DemoSeedService.ATHLETE_EMAIL).get("accessToken").asText();
+
+        JsonNode body = objectMapper.readTree(
+                mvc.perform(post("/push/test").header("Authorization", athleteBearer))
+                        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        assertThat(body.get("devices").asInt()).isZero();
+    }
+
     /** L'endpoint d'autrui reste intouchable : la route ne prenait aucun contrôle de propriété. */
     @Test
     void anotherAccountCannotRevokeThisDevice() throws Exception {
