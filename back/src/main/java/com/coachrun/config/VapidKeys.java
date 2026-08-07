@@ -80,9 +80,24 @@ public class VapidKeys {
     @PostConstruct
     void resolve() {
         if (StringUtils.hasText(configuredPublicKey) && StringUtils.hasText(configuredPrivateKey)) {
-            publicKey = configuredPublicKey.trim();
-            privateKey = configuredPrivateKey.trim();
-            log.info("Push VAPID : clés fournies par la configuration — les notifications peuvent partir.");
+            // Espaces et retours à la ligne retirés : une clé collée depuis un terminal ou une
+            // interface web en emporte régulièrement, et ils suffisent à la rendre illisible.
+            publicKey = configuredPublicKey.replaceAll("\\s", "");
+            privateKey = configuredPrivateKey.replaceAll("\\s", "");
+            if (!usable(publicKey, privateKey)) {
+                // Refuser tout de suite plutôt que d'échouer à chaque envoi : avec une paire
+                // inutilisable, le navigateur s'abonne quand même (la clé publique lui suffit) et
+                // c'est la signature qui casse, appareil par appareil, pour toujours. Se déclarer
+                // non configuré fait dire la vérité à l'application dès l'abonnement.
+                publicKey = null;
+                privateKey = null;
+                log.error("Push VAPID : les clés fournies sont INUTILISABLES (format invalide, ou "
+                        + "publique et privée qui ne vont pas ensemble). Aucune notification ne "
+                        + "partira. Régénérer la paire : npx web-push generate-vapid-keys");
+                return;
+            }
+            log.info("Push VAPID : clés fournies par la configuration, vérifiées — "
+                    + "les notifications peuvent partir.");
             return;
         }
         if (!autoGenerate) {
@@ -96,6 +111,25 @@ public class VapidKeys {
             return;
         }
         generateAndStore();
+    }
+
+    /**
+     * La paire est-elle réellement exploitable par la bibliothèque de signature ?
+     *
+     * <p>Deux clés présentes ne font pas une paire valide : une seule ligne mal recopiée, une
+     * publique et une privée issues de deux générations différentes, et tout se passe normalement
+     * jusqu'à l'envoi — où chaque notification échoue, silencieusement.</p>
+     */
+    private boolean usable(String pub, String priv) {
+        try {
+            if (Security.getProvider(BouncyCastleProvider.PROVIDER_NAME) == null) {
+                Security.addProvider(new BouncyCastleProvider());
+            }
+            return Utils.verifyKeyPair(Utils.loadPrivateKey(priv), Utils.loadPublicKey(pub));
+        } catch (Exception e) {
+            log.debug("Push VAPID : lecture des clés impossible ({}).", e.toString());
+            return false;
+        }
     }
 
     /** Le serveur sait-il signer un push ? */

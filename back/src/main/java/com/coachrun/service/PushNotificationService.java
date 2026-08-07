@@ -304,12 +304,50 @@ public class PushNotificationService {
             } catch (Exception ex) {
                 count("failed");
                 log.warn("Essai push en échec vers {} (user={}) : {}",
-                        truncate(sub.getEndpoint()), userId, ex.getMessage());
-                failures.add(label + " : service de push injoignable");
+                        truncate(sub.getEndpoint()), userId, ex.toString());
+                failures.add(label + " : " + explainException(ex));
             }
         }
         return new com.coachrun.dto.response.PushTestResponse(
                 true, subscriptions.size(), muted, delivered, failures);
+    }
+
+    /**
+     * Ce qu'une exception d'envoi dit réellement.
+     *
+     * <p>Elle était rendue par un unique « service de push injoignable », qui couvrait trois
+     * étapes très différentes : construire le signataire, chiffrer et signer, puis émettre sur le
+     * réseau. Les deux premières sont des erreurs de <b>configuration</b> — elles échouent pour
+     * tous les appareils, à chaque essai, et aucun réseau n'y changera rien. Les confondre envoie
+     * chercher le défaut du mauvais côté, ce qui est exactement ce qui s'est produit.</p>
+     */
+    private static String explainException(Exception ex) {
+        Throwable root = ex;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        if (root instanceof java.net.UnknownHostException) {
+            return "service de push introuvable (DNS) — le serveur n'a pas d'accès sortant vers "
+                    + root.getMessage();
+        }
+        if (root instanceof java.net.ConnectException) {
+            return "connexion refusée par le service de push (accès sortant bloqué ?)";
+        }
+        if (root instanceof java.net.SocketTimeoutException
+                || root instanceof org.apache.http.conn.ConnectTimeoutException) {
+            return "délai dépassé en contactant le service de push";
+        }
+        if (root instanceof javax.net.ssl.SSLException) {
+            return "connexion TLS refusée par le service de push";
+        }
+        if (root instanceof java.security.GeneralSecurityException
+                || root instanceof org.jose4j.lang.JoseException
+                || root instanceof IllegalArgumentException) {
+            // Rien n'est parti sur le réseau : la requête n'a pas pu être signée ou chiffrée.
+            return "signature impossible côté serveur (clés VAPID ou abonnement illisibles) — "
+                    + root.getClass().getSimpleName();
+        }
+        return "envoi impossible (" + root.getClass().getSimpleName() + ")";
     }
 
     /**
