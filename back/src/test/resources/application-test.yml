@@ -28,3 +28,8 @@ app:
     field-encryption-key: "0000000000000000000000000000000000000000000000000000000000000000"
   cors:
     origins: http://localhost:4200
+  strava:
+    # Le défi de validation du webhook doit rester testable : sans jeton configuré, il est refusé
+    # par principe. Renseigné ici plutôt que par @SpringBootTest(properties=…), qui forkerait un
+    # second contexte — et rejouerait Liquibase sur la base H2 partagée du profil.
+    webhook-verify-token: jeton-de-test

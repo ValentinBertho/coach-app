@@ -1,0 +1,17 @@
+# Index de routage des événements Strava.
+#
+# Chaque événement entrant (une par activité enregistrée par n'importe quel athlète connecté,
+# plus les mises à jour) commence par retrouver l'athlète local à partir de son identifiant
+# Strava. C'est la première requête du chemin, sur une route publique : elle doit rester un accès
+# par index, et pas un balayage qui grandit avec le nombre de comptes connectés.
+databaseChangeLog:
+  - changeSet:
+      id: 079-device-connection-provider-athlete-index
+      author: darilab
+      changes:
+        - createIndex:
+            indexName: idx_device_connection_provider_athlete
+            tableName: device_connections
+            columns:
+              - column: { name: provider }
+              - column: { name: provider_athlete_id }

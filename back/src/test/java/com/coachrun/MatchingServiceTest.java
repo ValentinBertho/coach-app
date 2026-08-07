@@ -58,11 +58,28 @@ class MatchingServiceTest {
         assertThat(matching.findBestMatch(act, List.of(planned))).isEmpty();
     }
 
+    /**
+     * L'ordre réel des choses : on court, on note sa séance en rentrant — elle passe donc
+     * {@code COMPLETED} — et la montre se synchronise après. Ne retenir que les séances
+     * {@code PLANNED} rendait la séance introuvable pour la sortie qui arrivait derrière : la
+     * sortie restait « à rattacher » et la séance sans réalisé.
+     */
     @Test
-    void ignoresNonPlannedWorkouts() {
+    void matchesAWorkoutTheAthleteHasAlreadyReported() {
         LocalDate d = LocalDate.of(2026, 7, 1);
         Workout completed = workout(d, 10000, WorkoutStatus.COMPLETED);
-        assertThat(matching.findBestMatch(activity(d, 10000), List.of(completed))).isEmpty();
+        assertThat(matching.findBestMatch(activity(d, 10000), List.of(completed))).contains(completed);
+    }
+
+    /**
+     * Une séance déclarée non faite, en revanche, reste hors d'atteinte : l'athlète a dit ne pas
+     * l'avoir courue, et une sortie du même jour ne doit pas le contredire.
+     */
+    @Test
+    void ignoresMissedWorkouts() {
+        LocalDate d = LocalDate.of(2026, 7, 1);
+        Workout missed = workout(d, 10000, WorkoutStatus.MISSED);
+        assertThat(matching.findBestMatch(activity(d, 10000), List.of(missed))).isEmpty();
     }
 
     // --- La durée compte, elle aussi ------------------------------------------------------

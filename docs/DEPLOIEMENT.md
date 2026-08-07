@@ -105,7 +105,8 @@ Zone DNS (hors NS/MX/SPF gérés par OVH) :
 | `MAIL_ENABLED` | back | Active l'envoi d'emails **[DÉFAUT false]** | `true` |
 | `RESEND_API_KEY` | back | Clé API Resend **[OPT]** | `re_...` |
 | `MAIL_FROM` | back | Adresse expéditrice vérifiée **[OPT]** | `Darilab <no-reply@darilab.app>` |
-| `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` / `STRAVA_WEBHOOK_VERIFY_TOKEN` | back | App Strava **[OPT — Intégrations]** | console Strava |
+| `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` | back | App Strava **[OPT — Intégrations]** | console Strava |
+| `STRAVA_WEBHOOK_CALLBACK_URL` / `STRAVA_WEBHOOK_VERIFY_TOKEN` | back | Remontée immédiate des activités **[OPT]** — sans elles, la synchro reste horaire (cf. § Synchronisation Strava) | `https://api.darilab.app/public/strava/webhook`, `openssl rand -hex 16` |
 | `GARMIN_*` / `COROS_*` | back | OAuth Garmin / Coros **[OPT]** | — |
 | `STORAGE_TYPE` | back | `local` ou `s3` **[DÉFAUT local]** | `s3` |
 | `S3_ENDPOINT` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_PUBLIC_URL` | back | Stockage FIT/GPX **[OPT]** | R2 / S3 |
@@ -179,3 +180,61 @@ navigateur est lié à la clé publique avec laquelle il a été créé, donc un
 chaque redémarrage couperait les abonnements du poste sans rien dire. En production, aucune
 génération automatique : une identité de serveur qui changerait au redéploiement couperait les
 abonnements de tous les athlètes.
+
+---
+
+## 6. Synchronisation Strava — webhook
+
+Les activités remontent par **deux chemins**, et l'ordre compte :
+
+| Chemin | Délai | Rôle |
+|---|---|---|
+| **Webhook** (`POST /public/strava/webhook`) | quelques secondes | chemin principal : Strava prévient dès qu'une activité est enregistrée |
+| **Synchro planifiée** (`STRAVA_SYNC_CRON`, toutes les heures) | ≤ 1 h | filet : rattrape ce que le webhook a pu manquer (redéploiement en cours, coupure réseau, abonnement pas encore créé) |
+
+Sans abonnement créé, tout continue de fonctionner — simplement au rythme de la passe horaire.
+C'est l'état par défaut : rien ne se crée tout seul.
+
+### Créer l'abonnement (une fois par environnement)
+
+Strava n'accepte **qu'un seul abonnement par application**, avec une seule URL de rappel. Si
+chaque instance créait le sien au démarrage, production et préproduction se voleraient le flux à
+tour de rôle. L'abonnement se pose donc à la main, depuis l'environnement qui doit le recevoir.
+
+1. Poser les deux variables sur l'instance, et **la redéployer** :
+
+   ```bash
+   STRAVA_WEBHOOK_CALLBACK_URL=https://api.darilab.app/public/strava/webhook
+   STRAVA_WEBHOOK_VERIFY_TOKEN=$(openssl rand -hex 16)   # secret partagé avec Strava
+   ```
+
+2. Vérifier que l'adresse est joignable **depuis l'extérieur** — Strava la valide dans la seconde
+   qui suit la demande, et un 404 fait échouer la création :
+
+   ```bash
+   curl "https://api.darilab.app/public/strava/webhook?hub.mode=subscribe&hub.challenge=test&hub.verify_token=<le-jeton>"
+   # attendu : {"hub.challenge":"test"}
+   ```
+
+3. Créer l'abonnement, connecté en `PLATFORM_ADMIN` :
+
+   ```bash
+   curl -X POST https://api.darilab.app/admin/strava/webhook -H "Authorization: Bearer <jeton-admin>"
+   ```
+
+   `GET` sur la même adresse montre l'abonnement en place ; `DELETE /{id}` le retire.
+
+En cas de refus, Strava répond en clair et le message est remonté tel quel
+(« callback url not verifiable », « already exists » si un abonnement existe déjà — le supprimer
+d'abord).
+
+### Ce que le webhook ne fait pas
+
+- **Il n'importe rien lui-même.** Il déclenche la synchronisation existante, avec le jeton de
+  l'athlète : aucune donnée n'entre par ce canal, et un identifiant d'athlète inconnu de
+  l'instance est ignoré sans effet. C'est ce qui rend une URL publique acceptable.
+- **Il ne supprime pas.** Une activité effacée côté Strava reste chez nous : elle a pu être notée,
+  un ressenti déposé, une séance rapprochée — ce travail ne disparaît pas sur un signal externe.
+- **Il ne réimporte pas en boucle.** Une même sortie génère plusieurs événements (création, puis
+  renommage) ; ils se coalescent en une seule synchronisation, le quota Strava étant de 100
+  requêtes par quart d'heure pour toute l'application.

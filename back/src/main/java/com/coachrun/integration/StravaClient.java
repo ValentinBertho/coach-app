@@ -56,6 +56,68 @@ public class StravaClient {
         return redirectUri;
     }
 
+    // --- Abonnement aux événements (Webhook Events API) -------------------------
+    // Un abonnement par APPLICATION, pas par athlète : Strava pousse ensuite les créations
+    // d'activité de tous les athlètes connectés vers une unique URL de rappel. C'est ce qui
+    // remplace l'attente de la prochaine synchro planifiée par une remontée en quelques secondes.
+
+    /** Abonnement en place, ou vide s'il n'y en a aucun. Strava n'en accepte qu'un par application. */
+    public List<WebhookSubscription> viewWebhookSubscriptions() {
+        try {
+            WebhookSubscription[] subs = api.get()
+                    .uri(uri -> uri.path("/push_subscriptions")
+                            .queryParam("client_id", clientId)
+                            .queryParam("client_secret", clientSecret)
+                            .build())
+                    .retrieve()
+                    .body(WebhookSubscription[].class);
+            return subs == null ? List.of() : List.of(subs);
+        } catch (RestClientException e) {
+            throw new IllegalStateException("Lecture de l'abonnement Strava impossible : " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Crée l'abonnement. Strava appelle immédiatement {@code callbackUrl} en GET pour valider
+     * l'adresse : elle doit donc être publiquement joignable <b>avant</b> cet appel, et répondre
+     * au défi en moins de deux secondes.
+     */
+    public WebhookSubscription createWebhookSubscription(String callbackUrl, String verifyToken) {
+        try {
+            return api.post()
+                    .uri("/push_subscriptions")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED)
+                    .body("client_id=" + clientId + "&client_secret=" + clientSecret
+                            + "&callback_url=" + callbackUrl + "&verify_token=" + verifyToken)
+                    .retrieve()
+                    .body(WebhookSubscription.class);
+        } catch (HttpClientErrorException e) {
+            // Strava répond ici en clair (« callback url not verifiable », « already exists ») :
+            // remonter son message tel quel évite de faire deviner ce qui a été refusé.
+            throw new IllegalStateException("Strava a refusé l'abonnement : " + e.getResponseBodyAsString(), e);
+        } catch (RestClientException e) {
+            throw new IllegalStateException("Création de l'abonnement Strava impossible : " + e.getMessage(), e);
+        }
+    }
+
+    public void deleteWebhookSubscription(long subscriptionId) {
+        try {
+            api.delete()
+                    .uri(uri -> uri.path("/push_subscriptions/{id}")
+                            .queryParam("client_id", clientId)
+                            .queryParam("client_secret", clientSecret)
+                            .build(subscriptionId))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientException e) {
+            throw new IllegalStateException("Suppression de l'abonnement Strava impossible : " + e.getMessage(), e);
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record WebhookSubscription(Long id, @JsonProperty("callback_url") String callbackUrl) {
+    }
+
     /** Échange le code d'autorisation contre des jetons. */
     public TokenResponse exchangeCode(String code) {
         return oauth.post().uri("/oauth/token")

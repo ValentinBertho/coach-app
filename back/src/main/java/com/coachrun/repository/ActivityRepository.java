@@ -4,7 +4,10 @@ import com.coachrun.entity.Activity;
 import com.coachrun.entity.enums.ActivitySource;
 import com.coachrun.entity.enums.ActivityStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -42,4 +45,16 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
      * proposé au ressenti. C'est pourtant là que le coach n'a rien d'autre à lire.</p>
      */
     List<Activity> findByAthleteIdAndFeedbackPromptedAtIsNullOrderByActivityDateDesc(UUID athleteId);
+
+    /**
+     * Parmi ces séances, celles qui portent déjà une activité — donc à écarter d'un nouveau
+     * rapprochement automatique, sous peine de voler la sortie déjà rattachée.
+     *
+     * <p>Cette exclusion était jusqu'ici un effet de bord : le rapprochement faisait passer la
+     * séance hors de {@code PLANNED}, et le tri ne regardait que {@code PLANNED}. Le jour où une
+     * séance notée par l'athlète est redevenue rapprochable, l'effet de bord a disparu avec
+     * elle — d'où cette question, désormais posée pour ce qu'elle est.</p>
+     */
+    @Query("select a.matchedWorkoutId from Activity a where a.matchedWorkoutId in :workoutIds")
+    List<UUID> findMatchedWorkoutIdsIn(@Param("workoutIds") Collection<UUID> workoutIds);
 }

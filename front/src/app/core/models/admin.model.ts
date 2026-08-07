@@ -81,3 +81,20 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   COACH: 'Coach',
   ATHLETE: 'Athlète',
 };
+
+/** Abonnement Strava aux événements d'activité, tel que Strava le renvoie. */
+export interface StravaSubscription {
+  id: number;
+  callbackUrl: string;
+}
+
+/**
+ * État du webhook Strava sur cet environnement. `configured` dit si les deux réglages
+ * (adresse de rappel, jeton de validation) sont posés — sans eux, l'abonnement ne peut pas
+ * être créé et la synchronisation reste horaire.
+ */
+export interface StravaWebhookState {
+  configured: boolean;
+  callbackUrl: string;
+  subscriptions: StravaSubscription[];
+}

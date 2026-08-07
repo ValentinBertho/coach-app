@@ -17,6 +17,44 @@
   </div>
 }
 
+<!--
+  Webhook Strava : sans abonnement, les activités remontent quand même — au rythme de la passe
+  horaire. Avec, en quelques secondes. Un seul abonnement par application Strava, d'où le geste
+  explicite depuis l'environnement qui doit recevoir le flux.
+-->
+@if (strava(); as sw) {
+  <div class="card danger-zone">
+    <div>
+      <strong>Synchronisation Strava en direct</strong>
+      @if (sw.subscriptions.length) {
+        <p class="field-hint">
+          Actif — Strava pousse les activités vers {{ sw.subscriptions[0].callbackUrl }}
+        </p>
+      } @else if (!sw.configured) {
+        <p class="field-hint">
+          Non configuré : poser <code>STRAVA_WEBHOOK_CALLBACK_URL</code> et
+          <code>STRAVA_WEBHOOK_VERIFY_TOKEN</code>, puis redéployer. En attendant, les activités
+          remontent par la synchronisation horaire.
+        </p>
+      } @else {
+        <p class="field-hint">
+          Inactif — les activités remontent à l'heure. Strava validera
+          {{ sw.callbackUrl }} dès la création : l'instance doit être joignable depuis l'extérieur.
+        </p>
+      }
+    </div>
+    @if (sw.subscriptions.length) {
+      <button type="button" class="btn btn-danger" [disabled]="stravaBusy()"
+              (click)="deleteStravaWebhook(sw.subscriptions[0].id)">Retirer</button>
+    } @else {
+      <button type="button" class="btn btn-primary" [disabled]="stravaBusy() || !sw.configured"
+              (click)="createStravaWebhook()">
+        {{ stravaBusy() ? 'Création…' : 'Activer' }}
+      </button>
+    }
+  </div>
+}
+
 @if (resetAvailable()) {
   <div class="card danger-zone">
     <div>

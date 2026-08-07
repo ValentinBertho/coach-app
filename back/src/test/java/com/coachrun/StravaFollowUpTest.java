@@ -209,6 +209,109 @@ class StravaFollowUpTest {
         assertThat(acuteLoad()).isEqualTo(withSession);
     }
 
+    /**
+     * L'ordre réel des choses : on court, on note sa séance en rentrant, <b>et la montre se
+     * synchronise après</b>. La sortie doit retrouver la séance que l'athlète vient de clore.
+     *
+     * <p>Le rapprochement ne regardait que les séances encore {@code PLANNED} : noter sa séance
+     * la rendait donc introuvable pour la sortie qui arrivait derrière. Elle restait « à
+     * rattacher », la séance restait sans réalisé, et aucun des deux ne racontait l'autre — le
+     * « je ne retrouve plus les séances une fois faites » remonté en bêta.</p>
+     */
+    @Test
+    void uneSortieRetrouveLaSeanceDejaNoteeParLAthlete() throws Exception {
+        String workoutId = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                                .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"scheduledDate\":\"" + LocalDate.now()
+                                        + "\",\"type\":\"ENDURANCE\",\"title\":\"EF\","
+                                        + "\"targetDistanceM\":12000,\"targetDurationS\":3600}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        // L'athlète clôt sa séance dans l'application, avant toute synchronisation.
+        mvc.perform(patch("/me/workouts/{w}/feedback", workoutId)
+                        .header("Authorization", athleteBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"COMPLETED\",\"rpe\":6}"))
+                .andExpect(status().isOk());
+
+        JsonNode activity = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                                .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"activityDate\":\"" + LocalDate.now() + "\",\"title\":\"Sortie\","
+                                        + "\"distanceM\":12000,\"durationS\":3600,\"source\":\"STRAVA\","
+                                        + "\"externalId\":\"strava-note\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+
+        assertThat(activity.get("status").asText()).isEqualTo("MATCHED");
+        assertThat(activity.get("matchedWorkoutId").asText()).isEqualTo(workoutId);
+    }
+
+    /**
+     * Une séance déclarée non faite reste hors d'atteinte : une sortie du même jour ne doit pas
+     * contredire l'athlète qui a dit ne pas l'avoir courue.
+     */
+    @Test
+    void uneSeanceDeclareeNonFaiteNeSeLaissePasRapprocher() throws Exception {
+        String workoutId = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                                .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"scheduledDate\":\"" + LocalDate.now()
+                                        + "\",\"type\":\"ENDURANCE\",\"title\":\"EF ratee\","
+                                        + "\"targetDistanceM\":12000,\"targetDurationS\":3600}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+        mvc.perform(patch("/me/workouts/{w}/feedback", workoutId)
+                        .header("Authorization", athleteBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"MISSED\",\"missedReason\":\"HEALTH\"}"))
+                .andExpect(status().isOk());
+
+        JsonNode activity = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                                .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"activityDate\":\"" + LocalDate.now() + "\",\"title\":\"Sortie\","
+                                        + "\"distanceM\":12000,\"durationS\":3600,\"source\":\"STRAVA\","
+                                        + "\"externalId\":\"strava-missed\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+
+        assertThat(activity.get("matchedWorkoutId").isNull()).isTrue();
+    }
+
+    /**
+     * Deux sorties le même jour ne se disputent pas la même séance : la seconde ne doit pas
+     * déloger la première. Cette exclusion tenait à ce que le rapprochement fasse sortir la
+     * séance de {@code PLANNED} ; elle est désormais posée explicitement.
+     */
+    @Test
+    void uneSecondeSortieNeVolePasLaSeanceDeLaPremiere() throws Exception {
+        String workoutId = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                                .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"scheduledDate\":\"" + LocalDate.now()
+                                        + "\",\"type\":\"ENDURANCE\",\"title\":\"EF\","
+                                        + "\"targetDistanceM\":12000,\"targetDurationS\":3600}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        JsonNode first = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                                .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"activityDate\":\"" + LocalDate.now() + "\",\"title\":\"Sortie 1\","
+                                        + "\"distanceM\":12000,\"durationS\":3600,\"source\":\"STRAVA\","
+                                        + "\"externalId\":\"strava-a\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        assertThat(first.get("matchedWorkoutId").asText()).isEqualTo(workoutId);
+
+        JsonNode second = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                                .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"activityDate\":\"" + LocalDate.now() + "\",\"title\":\"Sortie 2\","
+                                        + "\"distanceM\":12000,\"durationS\":3600,\"source\":\"STRAVA\","
+                                        + "\"externalId\":\"strava-b\",\"confirmDuplicate\":true}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        assertThat(second.get("matchedWorkoutId").isNull()).isTrue();
+    }
+
     private double acuteLoad() throws Exception {
         return objectMapper.readTree(mvc.perform(
                         get("/clubs/{c}/athletes/{a}/load", clubId, athleteId).header("Authorization", coachBearer))
