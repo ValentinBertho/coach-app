@@ -10,6 +10,7 @@ import { UpdateService } from './core/services/update.service';
 import { CelebrationOverlayComponent } from './shared/components/celebration/celebration-overlay.component';
 import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confirm-dialog.component';
 import { FeedbackPanelComponent } from './shared/components/feedback-panel/feedback-panel.component';
+import { PushOnboardingComponent } from './shared/components/push-onboarding/push-onboarding.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
 import { UpdateBannerComponent } from './shared/components/update-banner/update-banner.component';
 import { HelpSearchOverlayComponent } from './features/help/help-search-overlay.component';
@@ -23,7 +24,7 @@ import { CommandPaletteComponent } from './features/search/command-palette.compo
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent, CommandPaletteComponent, UpdateBannerComponent, CelebrationOverlayComponent, FeedbackPanelComponent],
+  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent, CommandPaletteComponent, UpdateBannerComponent, CelebrationOverlayComponent, FeedbackPanelComponent, PushOnboardingComponent],
   template: `
     <router-outlet />
     <app-toast />
@@ -35,6 +36,10 @@ import { CommandPaletteComponent } from './features/search/command-palette.compo
     <!-- Monté ici, comme la confirmation : le retour doit pouvoir s'ouvrir depuis n'importe
          quel écran des deux coquilles, pas seulement depuis une entrée de navigation. -->
     <app-feedback-panel />
+    <!-- Invitation aux notifications au premier lancement de l'application installée. À la racine
+         parce qu'elle ne dépend d'aucun écran : celui qui vient d'installer n'en connaît encore
+         aucun, et c'est précisément ce que les invitations existantes supposaient. -->
+    <app-push-onboarding />
   `,
 })
 export class AppComponent {

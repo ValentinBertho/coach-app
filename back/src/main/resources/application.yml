@@ -94,6 +94,11 @@ app:
     # Quota de pièces jointes par club (stockées en base) : au-delà, l'envoi est refusé avec un
     # message explicite. C'est la sauvegarde quotidienne qui casse en premier, pas l'application.
     club-quota-mb: ${STORAGE_CLUB_QUOTA_MB:200}
+  reminders:
+    # Point de programme du soir : ce qui attend l'athlète demain, ou « repos » s'il n'y a rien.
+    # L'heure est lue dans le FUSEAU DE L'APPLICATION (app.timezone) et non celui de la machine :
+    # sans cela, « 21 h » signifiait 21 h UTC, soit 23 h à Paris en été.
+    cron: ${REMINDERS_CRON:0 0 21 * * *}
   alerts:
     digest-cron: ${ALERTS_DIGEST_CRON:0 0 7 * * *}
   debrief:

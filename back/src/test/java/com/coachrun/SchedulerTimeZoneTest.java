@@ -51,6 +51,7 @@ class SchedulerTimeZoneTest {
     private static final Instant AFTER_MIDNIGHT_IN_PARIS = Instant.parse("2026-06-30T23:30:00Z");
 
     @Mock private WorkoutRepository workoutRepository;
+    @Mock private com.coachrun.repository.AthleteRepository athleteRepository;
     @Mock private ScheduledStrengthSessionRepository strengthRepository;
     @Mock private UserRepository userRepository;
     @Mock private NotificationService notificationService;
@@ -74,11 +75,7 @@ class SchedulerTimeZoneTest {
     void reminderSchedulerTargetsTomorrowInTheBusinessZone() {
         // Le balayage délègue chaque rappel à `remindOne` via le proxy Spring : en test unitaire,
         // le fournisseur renvoie simplement l'instance elle-même.
-        ReminderScheduler[] holder = new ReminderScheduler[1];
-        ReminderScheduler scheduler = new ReminderScheduler(
-                workoutRepository, notificationService, clockAt(AFTER_MIDNIGHT_IN_PARIS),
-                selfProvider(() -> holder[0]));
-        holder[0] = scheduler;
+        ReminderScheduler scheduler = reminderScheduler(clockAt(AFTER_MIDNIGHT_IN_PARIS));
         when(workoutRepository.findByScheduledDateAndStatus(any(), any())).thenReturn(List.of());
 
         scheduler.sendTomorrowReminders();
@@ -86,6 +83,96 @@ class SchedulerTimeZoneTest {
         // Demain = 2 juillet à Paris, et non le 1er comme le donnerait LocalDate.now() en UTC.
         verify(workoutRepository).findByScheduledDateAndStatus(
                 eq(LocalDate.of(2026, 7, 2)), eq(WorkoutStatus.PLANNED));
+    }
+
+    /** Le balayage délègue via le proxy Spring : en test unitaire, le fournisseur rend l'instance. */
+    private ReminderScheduler reminderScheduler(ClockService clock) {
+        ReminderScheduler[] holder = new ReminderScheduler[1];
+        ReminderScheduler scheduler = new ReminderScheduler(
+                workoutRepository, athleteRepository, notificationService, clock,
+                selfProvider(() -> holder[0]));
+        holder[0] = scheduler;
+        return scheduler;
+    }
+
+    /**
+     * Point de programme du soir : un athlète suivi qui n'a rien demain doit l'apprendre.
+     *
+     * <p>Le rappel ne parlait qu'à ceux qui avaient une séance ; les autres devaient ouvrir
+     * l'application pour découvrir qu'il n'y avait justement rien. « Demain, repos » est une
+     * information d'entraînement, pas une absence d'information.</p>
+     */
+    @Test
+    void theEveningRoundAnnouncesRestToAthletesWithNothingPlanned() {
+        ClockService clock = clockAt(AFTER_MIDNIGHT_IN_PARIS);
+        ReminderScheduler scheduler = reminderScheduler(clock);
+        UUID resting = UUID.randomUUID();
+        Athlete athlete = new Athlete();
+        ReflectionTestUtils.setField(athlete, "id", resting);
+        athlete.setStatus(com.coachrun.entity.enums.AthleteStatus.ACTIVE);
+
+        when(workoutRepository.findByScheduledDateAndStatus(any(), any())).thenReturn(List.of());
+        when(workoutRepository.findAthleteIdsWithWorkoutsBetween(any(), any()))
+                .thenReturn(List.of(resting));
+        when(athleteRepository.findById(resting)).thenReturn(Optional.of(athlete));
+
+        scheduler.sendTomorrowReminders();
+
+        verify(notificationService).notifyRestDay(athlete);
+    }
+
+    /** Celui qui a une séance demain reçoit son programme, pas une annonce de repos. */
+    @Test
+    void anAthleteWithASessionTomorrowIsNotToldToRest() {
+        ClockService clock = clockAt(AFTER_MIDNIGHT_IN_PARIS);
+        ReminderScheduler scheduler = reminderScheduler(clock);
+        Workout workout = plannedWorkout();
+        UUID busy = workout.getAthlete().getId();
+
+        when(workoutRepository.findByScheduledDateAndStatus(any(), any())).thenReturn(List.of(workout));
+        when(workoutRepository.findAllById(any())).thenReturn(List.of(workout));
+        when(workoutRepository.findAthleteIdsWithWorkoutsBetween(any(), any())).thenReturn(List.of(busy));
+
+        scheduler.sendTomorrowReminders();
+
+        verify(notificationService).notifyWorkoutReminder(List.of(workout));
+        verify(notificationService, never()).notifyRestDay(any());
+    }
+
+    /**
+     * Un dossier sans programme vivant ne reçoit rien : sans ce filtre, tout compte dormant
+     * recevrait « Repos demain » toutes les nuits, indéfiniment.
+     */
+    @Test
+    void aDormantAthleteIsNeverToldToRest() {
+        ClockService clock = clockAt(AFTER_MIDNIGHT_IN_PARIS);
+        ReminderScheduler scheduler = reminderScheduler(clock);
+
+        when(workoutRepository.findByScheduledDateAndStatus(any(), any())).thenReturn(List.of());
+        when(workoutRepository.findAthleteIdsWithWorkoutsBetween(any(), any())).thenReturn(List.of());
+
+        scheduler.sendTomorrowReminders();
+
+        verify(notificationService, never()).notifyRestDay(any());
+    }
+
+    /** Athlète en pause ou archivé : son programme s'est arrêté, pas seulement sa journée. */
+    @Test
+    void aPausedAthleteIsNeverToldToRest() {
+        ClockService clock = clockAt(AFTER_MIDNIGHT_IN_PARIS);
+        ReminderScheduler scheduler = reminderScheduler(clock);
+        UUID paused = UUID.randomUUID();
+        Athlete athlete = new Athlete();
+        ReflectionTestUtils.setField(athlete, "id", paused);
+        athlete.setStatus(com.coachrun.entity.enums.AthleteStatus.PAUSED);
+
+        when(workoutRepository.findByScheduledDateAndStatus(any(), any())).thenReturn(List.of());
+        when(workoutRepository.findAthleteIdsWithWorkoutsBetween(any(), any())).thenReturn(List.of(paused));
+        when(athleteRepository.findById(paused)).thenReturn(Optional.of(athlete));
+
+        scheduler.sendTomorrowReminders();
+
+        verify(notificationService, never()).notifyRestDay(any());
     }
 
     @Test
