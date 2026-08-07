@@ -21,10 +21,30 @@ public class MatchingService {
     /** Tolérance de distance pour considérer la séance COMPLETED (sinon PARTIAL). */
     private static final double COMPLETED_DISTANCE_TOLERANCE = 0.15;
 
-    /** Meilleure séance prévue correspondant à l'activité, si le score dépasse le seuil. */
+    /**
+     * Meilleure séance correspondant à l'activité, si le score dépasse le seuil.
+     *
+     * <h2>Pourquoi une séance déjà notée reste rapprochable</h2>
+     *
+     * <p>Le tri ne retenait que les séances {@code PLANNED}. Or l'ordre naturel des choses est
+     * l'inverse : on court, on note sa séance dans l'application en rentrant — elle passe donc
+     * {@code COMPLETED} — <b>et la montre se synchronise après</b>. À l'arrivée, la sortie ne
+     * trouvait plus aucune séance à qui se rattacher : elle restait « à rattacher », la séance
+     * restait sans réalisé, et la comparaison prévu/réalisé n'existait pour ni l'un ni l'autre.
+     * C'est le « je ne retrouve plus les séances une fois qu'elles ont été faites » remonté en
+     * bêta, et le webhook — qui accélère la synchro sans changer son rang dans la séquence — ne
+     * l'aurait pas corrigé.</p>
+     *
+     * <p>Une séance {@code MISSED} reste écartée, elle : l'athlète a déclaré ne pas l'avoir faite,
+     * et une sortie du même jour ne doit pas contredire cette déclaration. C'est ce qui distingue
+     * les deux cas — l'un complète une déclaration, l'autre la nierait.</p>
+     *
+     * @param candidates séances de la fenêtre, <b>déjà débarrassées</b> de celles qui portent une
+     *                   activité : le tri ici ne sait pas ce qui est déjà rapproché
+     */
     public Optional<Workout> findBestMatch(Activity activity, List<Workout> candidates) {
         return candidates.stream()
-                .filter(w -> w.getStatus() == WorkoutStatus.PLANNED)
+                .filter(w -> w.getStatus() != WorkoutStatus.MISSED)
                 .map(w -> new Scored(w, score(activity, w)))
                 .filter(s -> s.score >= MATCH_THRESHOLD)
                 .max((a, b) -> Double.compare(a.score, b.score))

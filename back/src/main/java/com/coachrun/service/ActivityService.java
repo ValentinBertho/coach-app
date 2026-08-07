@@ -21,8 +21,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -605,6 +607,13 @@ public class ActivityService {
         List<Workout> candidates = workoutRepository
                 .findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
                         athleteId, activity.getActivityDate().minusDays(1), activity.getActivityDate().plusDays(1));
+        // Une séance qui porte déjà une sortie n'est plus disponible : sans ce tri, la deuxième
+        // sortie de la journée viendrait déloger la première.
+        if (!candidates.isEmpty()) {
+            Set<UUID> taken = new HashSet<>(activityRepository.findMatchedWorkoutIdsIn(
+                    candidates.stream().map(Workout::getId).toList()));
+            candidates = candidates.stream().filter(w -> !taken.contains(w.getId())).toList();
+        }
         Optional<Workout> best = matchingService.findBestMatch(activity, candidates);
         if (best.isPresent()) {
             link(activity, best.get());
@@ -616,7 +625,13 @@ public class ActivityService {
     private void link(Activity activity, Workout workout) {
         activity.setMatchedWorkoutId(workout.getId());
         activity.setStatus(ActivityStatus.MATCHED);
-        workout.setStatus(matchingService.resolvedStatus(activity, workout));
+        // Le statut ne se déduit des chiffres que si l'athlète ne s'est pas déjà prononcé : il a
+        // couru la séance, pas nous. Sa déclaration — « faite », « écourtée » — prime sur un
+        // écart de distance, qui ignore la façon dont la sortie a été enregistrée (montre coupée,
+        // échauffement compté à part) et n'a jamais eu vocation à contredire quelqu'un.
+        if (workout.getStatus() == WorkoutStatus.PLANNED) {
+            workout.setStatus(matchingService.resolvedStatus(activity, workout));
+        }
     }
 
     /** Activité réalisée rapprochée d'une séance (ou {@code null}), avec les écarts prévu/réalisé. */
