@@ -19,6 +19,19 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
     @EntityGraph(attributePaths = "athlete")
     List<Workout> findByScheduledDateAndStatus(LocalDate date, WorkoutStatus status);
 
+    /**
+     * Athlètes ayant un programme <b>vivant</b> sur une fenêtre : au moins une séance prévue ou
+     * passée dans l'intervalle.
+     *
+     * <p>Sert au point de programme du soir, qui annonce aussi les journées de repos. Sans ce
+     * filtre, la notification « Repos demain » partirait chaque nuit vers tout compte athlète
+     * jamais entraîné — un dossier dormant, un essai abandonné — et deviendrait la nuisance qu'un
+     * rappel quotidien devient toujours quand il ne dit rien à personne.</p>
+     */
+    @Query("select distinct w.athlete.id from Workout w where w.scheduledDate between :from and :to")
+    List<UUID> findAthleteIdsWithWorkoutsBetween(@Param("from") LocalDate from,
+                                                 @Param("to") LocalDate to);
+
     /** Plage de dates d'un athlète (calendrier), étapes incluses. Scoping tenant. */
     @EntityGraph(attributePaths = "steps")
     List<Workout> findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(

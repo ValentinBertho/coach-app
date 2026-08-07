@@ -811,6 +811,29 @@ public class NotificationService {
     }
 
     /**
+     * Point de programme du soir quand <b>rien</b> n'est prévu le lendemain : « Repos demain ».
+     *
+     * <p>Le rappel du soir ne parlait qu'aux athlètes ayant une séance : ceux qui n'avaient rien
+     * n'apprenaient rien, et devaient ouvrir l'application pour savoir que justement il n'y avait
+     * rien. Or « demain, repos » est une information d'entraînement à part entière — c'est même
+     * celle qui autorise à se coucher tard.</p>
+     *
+     * <p><b>Push seul, délibérément</b>, comme le rappel de débriefing : ni trace au centre de
+     * notifications, ni repli e-mail. Une ligne « Repos demain » relue trois jours plus tard ne
+     * veut plus rien dire, trois cent soixante-cinq lignes par an noieraient le centre, et un
+     * e-mail quotidien pour annoncer qu'il n'y a rien à faire serait la définition du courrier
+     * indésirable. Qui n'a pas le push n'a rien à y gagner.</p>
+     */
+    public void notifyRestDay(Athlete athlete) {
+        User athleteUser = athleteUser(athlete);
+        if (athleteUser == null) {
+            return;
+        }
+        pushOnly(athleteUser, "WORKOUT_REMINDER", "Repos demain",
+                "Rien de prévu — récupération.", "/athlete/calendar");
+    }
+
+    /**
      * Débriefing de séance : « Ta séance est finie ? », 2 h après l'heure habituelle, avec le
      * RPE en actions rapides.
      *

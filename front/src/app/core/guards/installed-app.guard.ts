@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { isInstalledApp } from '../utils/installed-app';
 
 /**
  * L'application installée ne montre pas de page de vente : elle ouvre sur la connexion.
@@ -23,20 +24,3 @@ export const installedAppGuard: CanActivateFn = () => {
   }
   return router.createUrlTree(['/login']);
 };
-
-/**
- * Application lancée depuis l'écran d'accueil ?
- *
- * <p>`display-mode` couvre Android et les navigateurs de bureau ; `navigator.standalone` est la
- * réponse d'iOS, qui n'a longtemps pas implémenté la media query. Les deux sont nécessaires,
- * et l'absence des deux (contexte de test, navigateur ancien) vaut « non installée » — le
- * comportement public, donc le plus sûr.</p>
- */
-function isInstalledApp(): boolean {
-  const modes = ['standalone', 'fullscreen', 'minimal-ui'];
-  const byMediaQuery = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-    && modes.some((mode) => window.matchMedia(`(display-mode: ${mode})`).matches);
-  const iOS = typeof navigator !== 'undefined'
-    && (navigator as { standalone?: boolean }).standalone === true;
-  return byMediaQuery || iOS;
-}

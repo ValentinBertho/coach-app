@@ -29,7 +29,14 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ReminderScheduler {
 
+    /**
+     * Fenêtre au-delà de laquelle un athlète n'est plus considéré comme suivi : sans séance ni
+     * avant ni après, il n'attend pas de point de programme quotidien.
+     */
+    private static final int LIVE_PROGRAM_DAYS = 14;
+
     private final WorkoutRepository workoutRepository;
+    private final com.coachrun.repository.AthleteRepository athleteRepository;
     private final NotificationService notificationService;
     private final ClockService clock;
     /** Passage par le proxy : sans lui, {@code @Transactional} ne s'appliquerait pas (cf. plus bas). */
@@ -50,17 +57,19 @@ public class ReminderScheduler {
      * les clubs. Un athlète en erreur emportait le lot entier. Chaque rappel est maintenant
      * indépendant — c'est un service quotidien, il vaut mieux qu'il soit partiel qu'absent.</p>
      */
-    @Scheduled(cron = "${app.reminders.cron:0 0 18 * * *}")
+    @Scheduled(cron = "${app.reminders.cron:0 0 21 * * *}", zone = "${app.timezone:Europe/Paris}")
     @SchedulerLock(name = "sendTomorrowReminders", lockAtLeastFor = "PT5M", lockAtMostFor = "PT30M")
     public void sendTomorrowReminders() {
         LocalDate tomorrow = clock.today().plusDays(1);
         // Groupé par athlète : deux séances demain font un rappel, pas deux notifications
-        // consécutives à 18 h disant la même chose.
+        // consécutives disant la même chose.
         Map<UUID, List<UUID>> byAthlete = new LinkedHashMap<>();
         for (Workout w : workoutRepository.findByScheduledDateAndStatus(tomorrow, WorkoutStatus.PLANNED)) {
             byAthlete.computeIfAbsent(w.getAthlete().getId(), k -> new ArrayList<>()).add(w.getId());
         }
-        log.info("Rappels J-1 : {} athlète(s) pour le {}", byAthlete.size(), tomorrow);
+        List<UUID> resting = restingAthletes(byAthlete.keySet());
+        log.info("Point de programme : {} athlète(s) avec séance, {} au repos, pour le {}",
+                byAthlete.size(), resting.size(), tomorrow);
 
         int failures = 0;
         for (Map.Entry<UUID, List<UUID>> entry : byAthlete.entrySet()) {
@@ -73,9 +82,39 @@ public class ReminderScheduler {
                 io.sentry.Sentry.captureException(ex);
             }
         }
-        if (failures > 0) {
-            log.warn("Rappels J-1 : {} échec(s) sur {}", failures, byAthlete.size());
+        for (UUID athleteId : resting) {
+            try {
+                self.getObject().announceRestDay(athleteId);
+            } catch (RuntimeException ex) {
+                failures++;
+                log.error("Annonce de repos en échec pour l'athlète {} — les autres continuent",
+                        athleteId, ex);
+                io.sentry.Sentry.captureException(ex);
+            }
         }
+        if (failures > 0) {
+            log.warn("Point de programme : {} échec(s) sur {}",
+                    failures, byAthlete.size() + resting.size());
+        }
+    }
+
+    /**
+     * Athlètes à prévenir qu'ils ne s'entraînent pas demain.
+     *
+     * <p>Deux filtres, et chacun évite une nuisance. On ne retient que les athlètes ayant un
+     * programme <b>vivant</b> — au moins une séance dans la quinzaine écoulée ou à venir : sans
+     * cela, chaque compte dormant recevrait « Repos demain » toutes les nuits, indéfiniment. Et on
+     * retire évidemment ceux qui ont déjà une séance annoncée pour demain. Le statut de l'athlète
+     * est vérifié au moment de l'envoi, quand son dossier est chargé.</p>
+     */
+    private List<UUID> restingAthletes(java.util.Set<UUID> withSessionTomorrow) {
+        LocalDate today = clock.today();
+        return workoutRepository
+                .findAthleteIdsWithWorkoutsBetween(today.minusDays(LIVE_PROGRAM_DAYS),
+                        today.plusDays(LIVE_PROGRAM_DAYS))
+                .stream()
+                .filter(id -> !withSessionTomorrow.contains(id))
+                .toList();
     }
 
     /**
@@ -88,5 +127,16 @@ public class ReminderScheduler {
         if (!workouts.isEmpty()) {
             notificationService.notifyWorkoutReminder(workouts);
         }
+    }
+
+    /**
+     * Annonce de repos, dans sa propre transaction comme les rappels de séance. Un athlète en
+     * pause ou archivé ne reçoit rien : son programme s'est arrêté, pas seulement sa journée.
+     */
+    @Transactional
+    public void announceRestDay(UUID athleteId) {
+        athleteRepository.findById(athleteId)
+                .filter(a -> a.getStatus() == com.coachrun.entity.enums.AthleteStatus.ACTIVE)
+                .ifPresent(notificationService::notifyRestDay);
     }
 }

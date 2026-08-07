@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { SwPush } from '@angular/service-worker';
 import { Observable, firstValueFrom } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { isInstalledApp } from '../utils/installed-app';
 import { AuthService } from './auth.service';
 
 /**
@@ -185,9 +186,7 @@ export class PushService {
         + 'Pour les éprouver en local, lance `npm run start:pwa`.';
     }
     const iOS = /iP(hone|ad|od)/.test(navigator.userAgent);
-    const standalone = window.matchMedia('(display-mode: standalone)').matches
-      || (navigator as { standalone?: boolean }).standalone === true;
-    if (iOS && !standalone) {
+    if (iOS && !isInstalledApp()) {
       return "Sur iPhone, ajoute d'abord Darilab à ton écran d'accueil (Partager → « Sur l'écran "
         + "d'accueil »), puis réessaie depuis l'application.";
     }
