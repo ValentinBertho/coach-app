@@ -16,9 +16,15 @@ import java.util.List;
 /**
  * Synchronisation Strava planifiée : importe périodiquement les nouvelles activités de chaque
  * athlète connecté (import incrémental déjà géré par {@link StravaService} via le watermark
- * {@code lastImportEpoch} + rafraîchissement de jeton). Évite l'import manuel et fiabilise les
- * données réelles (charge/analytics). No-op si Strava n'est pas configuré. Protégé par un verrou
- * distribué : deux instances importeraient deux fois les mêmes activités.
+ * {@code lastImportEpoch} + rafraîchissement de jeton). No-op si Strava n'est pas configuré.
+ * Protégé par un verrou distribué : deux instances importeraient deux fois les mêmes activités.
+ *
+ * <p><b>Ce n'est plus le chemin principal.</b> Depuis
+ * {@link com.coachrun.service.StravaWebhookService}, une sortie remonte en quelques secondes :
+ * Strava prévient. Cette passe reste comme filet, pour ce que le webhook peut manquer — un
+ * événement émis pendant un redéploiement, une coupure réseau de quelques minutes, un abonnement
+ * pas encore créé sur l'environnement. La rendre plus fréquente ne servirait donc plus à grand
+ * chose ; la garder, si.</p>
  */
 @Slf4j
 @Component

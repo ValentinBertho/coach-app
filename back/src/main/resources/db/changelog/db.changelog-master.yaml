@@ -159,3 +159,5 @@ databaseChangeLog:
       file: db/changelog/changes/077-reset-strava-watermark.yaml
   - include:
       file: db/changelog/changes/078-calendar-note-range.yaml
+  - include:
+      file: db/changelog/changes/079-device-connection-provider-athlete-index.yaml

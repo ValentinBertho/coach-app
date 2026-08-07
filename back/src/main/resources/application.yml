@@ -123,7 +123,19 @@ app:
     client-id: ${STRAVA_CLIENT_ID:}
     client-secret: ${STRAVA_CLIENT_SECRET:}
     redirect-uri: ${STRAVA_REDIRECT_URI:http://localhost:4200/app/strava/callback}
+    # Filet de rattrapage, plus le chemin principal : les activités remontent en quelques secondes
+    # par le webhook (cf. ci-dessous). Cette passe existe pour les événements perdus — redéploiement
+    # en cours, coupure réseau, abonnement pas encore créé.
     sync-cron: ${STRAVA_SYNC_CRON:0 30 * * * *}
+    # Webhook Events API : Strava prévient dès qu'une activité est enregistrée, au lieu d'attendre
+    # la passe planifiée. L'abonnement se crée à la main (POST /admin/strava/webhook) car Strava
+    # n'en accepte qu'UN par application : le créer au démarrage ferait se voler le flux entre
+    # production et préproduction. L'adresse doit être publiquement joignable AVANT la création,
+    # Strava la valide immédiatement par un GET.
+    webhook-callback-url: ${STRAVA_WEBHOOK_CALLBACK_URL:}
+    # Secret partagé avec Strava, redonné lors de cette validation. Non renseigné, aucune validation
+    # n'est acceptée — donc pas d'abonnement possible : c'est volontaire.
+    webhook-verify-token: ${STRAVA_WEBHOOK_VERIFY_TOKEN:}
   admin:
     # Compte PLATFORM_ADMIN créé au premier démarrage en production (cf. PlatformAdminBootstrap).
     # Sans lui, /admin est inatteignable : ni révocation d'invitation, ni suppression de compte

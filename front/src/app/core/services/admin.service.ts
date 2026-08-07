@@ -12,6 +12,8 @@ import {
   ClubAdmin,
   ClubRequest,
   InvitationAdmin,
+  StravaSubscription,
+  StravaWebhookState,
 } from '../models/admin.model';
 import { UserRole } from '../models/user.model';
 
@@ -30,6 +32,19 @@ export class AdminService {
   }
   reset(): Observable<{ status: string; message: string }> {
     return this.http.post<{ status: string; message: string }>(`${this.base}/demo/reset`, {});
+  }
+
+  // --- Webhook Strava ---
+  // Un abonnement par application Strava, posé une fois par environnement : il n'a rien à faire
+  // dans un démarrage automatique (prod et préprod se voleraient le flux), d'où ces trois appels.
+  stravaWebhook(): Observable<StravaWebhookState> {
+    return this.http.get<StravaWebhookState>(`${this.base}/strava/webhook`);
+  }
+  createStravaWebhook(): Observable<StravaSubscription> {
+    return this.http.post<StravaSubscription>(`${this.base}/strava/webhook`, {});
+  }
+  deleteStravaWebhook(id: number): Observable<{ deleted: boolean }> {
+    return this.http.delete<{ deleted: boolean }>(`${this.base}/strava/webhook/${id}`);
   }
 
   // --- Clubs ---

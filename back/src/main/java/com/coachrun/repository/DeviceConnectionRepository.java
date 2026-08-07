@@ -22,6 +22,23 @@ public interface DeviceConnectionRepository extends JpaRepository<DeviceConnecti
             """)
     List<AthleteClubIds> findAthleteClubIdsByProvider(@Param("provider") DeviceProvider provider);
 
+    /**
+     * Athlètes locaux rattachés à un compte externe donné, pour router un événement entrant.
+     *
+     * <p>Une liste, pas un {@code Optional} : rien n'interdit à deux athlètes de cette instance
+     * d'être liés au même compte Strava (un coach qui teste sur sa propre fiche, par exemple), et
+     * une contrainte d'unicité n'existe que sur le couple (athlète, provider).</p>
+     *
+     * <p>On ne renvoie que des identifiants : l'événement est traité hors requête, où la relation
+     * paresseuse vers l'athlète ne serait plus chargeable.</p>
+     */
+    @Query("""
+            select c.athlete.id from DeviceConnection c
+            where c.provider = :provider and c.providerAthleteId = :providerAthleteId
+            """)
+    List<UUID> findAthleteIdsByProviderAndProviderAthleteId(@Param("provider") DeviceProvider provider,
+                                                            @Param("providerAthleteId") String providerAthleteId);
+
     /** Projection légère pour la synchro (évite de charger les entités/tokens). */
     interface AthleteClubIds {
         UUID getAthleteId();
