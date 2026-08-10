@@ -89,7 +89,7 @@ class SchedulerTimeZoneTest {
     private ReminderScheduler reminderScheduler(ClockService clock) {
         ReminderScheduler[] holder = new ReminderScheduler[1];
         ReminderScheduler scheduler = new ReminderScheduler(
-                workoutRepository, athleteRepository, notificationService, clock,
+                workoutRepository, strengthRepository, athleteRepository, notificationService, clock,
                 selfProvider(() -> holder[0]));
         holder[0] = scheduler;
         return scheduler;
@@ -135,7 +135,62 @@ class SchedulerTimeZoneTest {
 
         scheduler.sendTomorrowReminders();
 
-        verify(notificationService).notifyWorkoutReminder(List.of(workout));
+        verify(notificationService).notifyTomorrowProgram(workout.getAthlete(), List.of("Séance seuil"));
+        verify(notificationService, never()).notifyRestDay(any());
+    }
+
+    /**
+     * Une séance de demain qui n'est plus {@code PLANNED} reste une séance de demain.
+     *
+     * <p>Le repos se décidait sur la liste des rappels envoyés, qui ne retient que les séances
+     * {@code PLANNED}. Une séance clôturée d'avance, écourtée, ou rapprochée automatiquement
+     * d'une sortie importée en sortait — et son athlète basculait mécaniquement dans le lot du
+     * repos, recevant « Rien de prévu » en regard d'une journée qui portait bel et bien une
+     * séance sur son calendrier.</p>
+     */
+    @Test
+    void aSessionTomorrowThatIsNoLongerPlannedStillCancelsTheRestNotice() {
+        ClockService clock = clockAt(AFTER_MIDNIGHT_IN_PARIS);
+        ReminderScheduler scheduler = reminderScheduler(clock);
+        UUID athleteId = UUID.randomUUID();
+
+        // Aucun rappel à envoyer (rien de PLANNED), mais la journée porte une séance.
+        when(workoutRepository.findByScheduledDateAndStatus(any(), any())).thenReturn(List.of());
+        when(workoutRepository.findAthleteIdsWithWorkoutOn(any())).thenReturn(List.of(athleteId));
+        when(workoutRepository.findAthleteIdsWithWorkoutsBetween(any(), any()))
+                .thenReturn(List.of(athleteId));
+
+        scheduler.sendTomorrowReminders();
+
+        verify(notificationService, never()).notifyRestDay(any());
+    }
+
+    /**
+     * Une journée de renforcement seul n'est pas une journée de repos.
+     *
+     * <p>Ce point de programme ne regardait que les séances course, alors que le rappel est écrit
+     * pour annoncer « footing le matin et renforcement le soir » en une fois. L'athlète dont le
+     * lendemain ne portait que du renfo n'était pas prévenu — et s'entendait dire qu'il n'avait
+     * rien de prévu.</p>
+     */
+    @Test
+    void aStrengthOnlyDayIsAnnouncedAndNeverCalledRest() {
+        ClockService clock = clockAt(AFTER_MIDNIGHT_IN_PARIS);
+        ReminderScheduler scheduler = reminderScheduler(clock);
+        com.coachrun.entity.ScheduledStrengthSession session = scheduledStrength();
+        UUID athleteId = session.getAthlete().getId();
+
+        when(workoutRepository.findByScheduledDateAndStatus(any(), any())).thenReturn(List.of());
+        when(workoutRepository.findAthleteIdsWithWorkoutOn(any())).thenReturn(List.of());
+        when(workoutRepository.findAthleteIdsWithWorkoutsBetween(any(), any()))
+                .thenReturn(List.of(athleteId));
+        when(strengthRepository.findByScheduledDate(any())).thenReturn(List.of(session));
+        when(strengthRepository.findAllById(any())).thenReturn(List.of(session));
+        when(workoutRepository.findAllById(any())).thenReturn(List.of());
+
+        scheduler.sendTomorrowReminders();
+
+        verify(notificationService).notifyTomorrowProgram(session.getAthlete(), List.of("Renfo bas du corps"));
         verify(notificationService, never()).notifyRestDay(any());
     }
 
@@ -225,6 +280,17 @@ class SchedulerTimeZoneTest {
         w.setTitle("Séance seuil");
         w.setStatus(WorkoutStatus.PLANNED);
         return w;
+    }
+
+    private com.coachrun.entity.ScheduledStrengthSession scheduledStrength() {
+        Athlete athlete = new Athlete();
+        athlete.setId(UUID.randomUUID());
+        athlete.setFirstName("Marie");
+        com.coachrun.entity.ScheduledStrengthSession s = new com.coachrun.entity.ScheduledStrengthSession();
+        ReflectionTestUtils.setField(s, "id", UUID.randomUUID());
+        s.setAthlete(athlete);
+        s.setTitle("Renfo bas du corps");
+        return s;
     }
 
     private User athleteUserTrainingAt(LocalTime usualSessionTime) {

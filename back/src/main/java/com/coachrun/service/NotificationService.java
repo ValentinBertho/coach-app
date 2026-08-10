@@ -823,11 +823,29 @@ public class NotificationService {
         if (workouts == null || workouts.isEmpty()) {
             return;
         }
-        Athlete athlete = workouts.get(0).getAthlete();
+        notifyTomorrowProgram(workouts.get(0).getAthlete(),
+                workouts.stream().map(Workout::getTitle).toList());
+    }
+
+    /**
+     * Rappel J-1 sur le <b>programme complet</b> du lendemain, course et renforcement confondus.
+     *
+     * <p>Le rappel se construisait à partir des seules séances course, alors qu'il est écrit pour
+     * annoncer « footing le matin et renforcement le soir » en une fois : un athlète dont le
+     * lendemain ne portait que du renforcement n'était donc pas prévenu — et pire, tombait dans
+     * l'annonce de repos. Prendre des intitulés plutôt que des entités permet aux deux natures de
+     * séance d'entrer dans le même message.</p>
+     *
+     * @param titles intitulés des séances de demain, dans l'ordre d'affichage
+     */
+    public void notifyTomorrowProgram(Athlete athlete, List<String> titles) {
+        if (athlete == null || titles == null || titles.isEmpty()) {
+            return;
+        }
         User athleteUser = athleteUser(athlete);
-        int count = workouts.size();
+        int count = titles.size();
         String title = count > 1 ? count + " séances demain" : "Séance demain";
-        String body = workouts.stream().map(Workout::getTitle).collect(java.util.stream.Collectors.joining(" · "));
+        String body = String.join(" · ", titles);
 
         if (athleteUser != null) {
             record(athleteUser.getId(), "WORKOUT_REMINDER", title, body, "/athlete/today");
@@ -842,7 +860,7 @@ public class NotificationService {
             return;
         }
         StringBuilder items = new StringBuilder();
-        workouts.forEach(w -> items.append("<li>").append(esc(w.getTitle())).append("</li>"));
+        titles.forEach(t -> items.append("<li>").append(esc(t)).append("</li>"));
         send(email, count > 1 ? "Rappel : " + count + " séances demain" : "Rappel : séance demain",
                 "<p>Bonjour " + esc(athlete.getFirstName()) + ",</p>"
                         + "<p>Rappel — demain :</p><ul>" + items + "</ul>"
