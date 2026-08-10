@@ -1,3 +1,5 @@
+import { Injury } from './injury.model';
+
 export type ActivitySource = 'MANUAL' | 'FILE' | 'STRAVA' | 'GARMIN' | 'COROS';
 export type ActivityStatus = 'IMPORTED' | 'MATCHED' | 'UNMATCHED';
 
@@ -24,6 +26,10 @@ export interface Activity {
   durationDeltaS: number | null;
   /** Ressenti déclaré par l'athlète sur cette sortie (1–10) — utile surtout hors programme. */
   rpe: number | null;
+  /** Sensation générale (1 = excellente … 5 = très mauvaise) ; distincte de la difficulté. */
+  feel: number | null;
+  /** Blessures nommées sur cette sortie ; liste vide si aucune. */
+  injuries: Injury[];
   /** Mot de l'athlète à son coach sur cette sortie. */
   athleteComment: string | null;
 }
@@ -39,8 +45,12 @@ export interface ActivityUpdate {
   durationS?: number | null;
   elevationGainM?: number | null;
   rpe?: number | null;
+  feel?: number | null;
   comment?: string | null;
+  /** Blessures déclarées ; champ absent = inchangé, liste vide = plus aucune. */
+  injuries?: Injury[];
   clearRpe?: boolean;
+  clearFeel?: boolean;
   clearComment?: boolean;
 }
 
@@ -83,10 +93,42 @@ export interface ActivityLap {
   elevationGainM: number | null;
 }
 
+/** `DEVICE` = tours de la montre (les vraies répétitions) ; `SPLIT` = découpe au kilomètre. */
+export type LapKind = 'DEVICE' | 'SPLIT';
+
 export interface ActivityLaps {
-  /** `DEVICE` = tours de la montre (les vraies répétitions) ; `SPLIT` = découpe au kilomètre. */
-  kind: 'DEVICE' | 'SPLIT';
+  kind: LapKind;
   laps: ActivityLap[];
+  /**
+   * Découpes que cette sortie sait produire. Une sortie portant à la fois les tours de sa montre
+   * et un tracé exploitable offre les deux lectures — et comparer les répétitions aux kilomètres
+   * est justement ce qu'on fait sur un fractionné en côte. Absent sur les réponses anciennes.
+   */
+  availableKinds?: LapKind[] | null;
+}
+
+export const LAP_KIND_LABELS: Record<LapKind, string> = {
+  DEVICE: 'Tours montre',
+  SPLIT: 'Tours 1 km',
+};
+
+/** Un point de la courbe de séance : FC et allure à une distance donnée. */
+export interface ActivityStreamPoint {
+  distanceM: number;
+  elapsedS: number;
+  hr: number | null;
+  paceSPerKm: number | null;
+}
+
+/**
+ * Courbe d'une sortie, en fonction de la **distance** — les moyennes disent ce que la séance a
+ * coûté, la courbe dit comment elle s'est passée (dérive cardiaque, dents de scie d'un fractionné).
+ */
+export interface ActivityStream {
+  points: ActivityStreamPoint[];
+  totalDistanceM: number;
+  hasHeartRate: boolean;
+  hasPace: boolean;
 }
 
 /** Temps passé par zone pour une activité (une échelle par métrique : Allure, FC…). V2-7. */

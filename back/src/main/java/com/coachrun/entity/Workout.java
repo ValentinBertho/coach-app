@@ -93,6 +93,20 @@ public class Workout extends BaseEntity {
     @Column(name = "pain")
     private Integer pain;
 
+    /**
+     * Sensation générale de la séance (1 = excellente … 5 = très mauvaise).
+     *
+     * <p>Distincte du RPE, qui mesure la <em>difficulté</em> : une séance de seuil peut être très
+     * dure et très bien vécue, un footing facile peut être pénible. Le coach lisait jusqu'ici un
+     * chiffre d'effort sans jamais savoir dans quel état l'athlète en était sorti.</p>
+     */
+    @Column(name = "feel")
+    private Integer feel;
+
+    /** Blessures déclarées au débrief, JSON {@code [{"kind":…,"area":…,"side":…,"note":…}]}. */
+    @Column(name = "injuries_json", length = 2000)
+    private String injuriesJson;
+
     @Column(name = "athlete_comment", length = 1024)
     private String athleteComment;
 

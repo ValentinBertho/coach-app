@@ -95,7 +95,66 @@ class ActivityLapsEndpointTest {
                 .andExpect(jsonPath("$.laps[0].paceSPerKm").value(210))
                 .andExpect(jsonPath("$.laps[0].avgHr").value(168))
                 .andExpect(jsonPath("$.laps[1].distanceM").value(200))
-                .andExpect(jsonPath("$.laps[3].index").value(4));
+                .andExpect(jsonPath("$.laps[3].index").value(4))
+                // La réponse annonce les découpes proposables : c'est ce qui autorise l'écran à
+                // offrir un onglet « Tours 1 km » sans risquer de l'ouvrir sur du vide.
+                .andExpect(jsonPath("$.availableKinds[0]").value("DEVICE"));
+    }
+
+    /**
+     * Une sortie qui porte à la fois ses tours de montre et un tracé exploitable offre les deux
+     * lectures, et l'onglet bascule de l'une à l'autre : les répétitions disent l'effort produit,
+     * les kilomètres disent le terrain parcouru. Sans bascule, la seconde lecture était perdue —
+     * les tours de la montre primaient et rien ne permettait d'y revenir.
+     */
+    @Test
+    void lesDeuxDecoupesCoexistentEtLOngletBascule() throws Exception {
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        String athlete = signUpAthlete(mvc);
+
+        String activityId = objectMapper.readTree(mvc.perform(
+                        multipart("/me/activities/import-file")
+                                .file(new MockMultipartFile("file", "seance.tcx", "application/xml",
+                                        TCX.getBytes(StandardCharsets.UTF_8)))
+                                .header("Authorization", athlete))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        // Sans découpe demandée : les tours de la montre priment, les deux sont annoncées.
+        mvc.perform(get("/me/activities/{id}/laps", activityId).header("Authorization", athlete))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kind").value("DEVICE"))
+                .andExpect(jsonPath("$.availableKinds.length()").value(2));
+
+        // Découpe demandée : le serveur recalcule, l'écran n'invente rien.
+        mvc.perform(get("/me/activities/{id}/laps", activityId)
+                        .param("kind", "SPLIT").header("Authorization", athlete))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kind").value("SPLIT"))
+                .andExpect(jsonPath("$.availableKinds.length()").value(2));
+    }
+
+    /**
+     * Une saisie à la main ne propose aucune découpe : demander {@code ?kind=SPLIT} ne doit pas
+     * inventer de tours, ni faire échouer l'appel.
+     */
+    @Test
+    void uneDecoupeDemandeeSurUneSortieSansDonneeResteVide() throws Exception {
+        MockMvc mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
+        String athlete = signUpAthlete(mvc);
+
+        String activityId = objectMapper.readTree(mvc.perform(post("/me/activities")
+                        .header("Authorization", athlete).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"activityDate\":\"2026-06-22\",\"title\":\"Footing\","
+                                + "\"distanceM\":8000,\"durationS\":2700}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        mvc.perform(get("/me/activities/{id}/laps", activityId)
+                        .param("kind", "SPLIT").header("Authorization", athlete))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.laps.length()").value(0))
+                .andExpect(jsonPath("$.availableKinds.length()").value(0));
     }
 
     /** Une saisie à la main n'a ni tours ni flux : l'écran doit le dire, pas inventer. */

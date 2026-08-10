@@ -69,6 +69,30 @@ public final class SplitCalculator {
         return laps;
     }
 
+    /**
+     * Distance cumulée (m) à chaque point du flux, <b>recalée sur la distance connue</b>.
+     *
+     * <p>Exposée pour que la courbe de la sortie et le tableau des tours partagent exactement la
+     * même abscisse : deux intégrations légèrement différentes placeraient le kilomètre 5 à deux
+     * endroits, et l'athlète qui compare la courbe à ses tours ne comprendrait pas l'écart.</p>
+     *
+     * @return tableau de la taille du flux, vide si le flux ne permet rien
+     */
+    public static double[] cumulativeDistances(List<int[]> stream, Integer distanceM) {
+        if (stream == null || stream.size() < 2) {
+            return new double[0];
+        }
+        double[] cumulative = integrate(stream);
+        double raw = cumulative[cumulative.length - 1];
+        double scale = raw > 0 && distanceM != null && distanceM > 0 ? distanceM / raw : 1.0;
+        if (scale != 1.0) {
+            for (int i = 0; i < cumulative.length; i++) {
+                cumulative[i] *= scale;
+            }
+        }
+        return cumulative;
+    }
+
     /** Premier échantillon dont la distance cumulée atteint la borne visée. */
     private static int firstIndexAtOrAfter(double[] cumulative, double scale, double target) {
         for (int i = 1; i < cumulative.length; i++) {

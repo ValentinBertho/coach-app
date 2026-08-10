@@ -6,9 +6,12 @@ import { RaceObjective, RaceObjectiveRequest } from '../models/race.model';
 import { WorkoutPrescription } from '../models/course.model';
 import { Unavailability, UnavailabilityRequest } from '../models/unavailability.model';
 import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
-import { Activity, ActivityLaps, ActivityUpdate, TimeInZone, WeekSummary } from '../models/activity.model';
+import {
+  Activity, ActivityLaps, ActivityStream, ActivityUpdate, LapKind, TimeInZone, WeekSummary,
+} from '../models/activity.model';
 import { Analytics } from './analytics.service';
 import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
+import { Injury } from '../models/injury.model';
 import { MissedReason, Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
 import { StravaStatus } from '../models/strava.model';
 import { E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthPrescriptionView, StrengthResultEntry } from '../models/strength.model';
@@ -31,9 +34,13 @@ export interface ActivityLog {
 export interface WorkoutFeedback {
   status?: WorkoutStatus;
   rpe?: number | null;
+  /** Sensation générale 1–5 : comment la séance a été vécue, jamais sa difficulté. */
+  feel?: number | null;
   fatigue?: number | null;
   pain?: number | null;
   comment?: string | null;
+  /** Blessures nommées ; champ absent = inchangé, liste vide = plus aucune. */
+  injuries?: Injury[];
   /** Durée réellement effectuée (secondes) sur une séance écourtée — c'est elle qui pèse dans la charge. */
   actualDurationS?: number | null;
   /** Motif accompagnant un statut MISSED. */
@@ -289,8 +296,25 @@ export class AthletePortalService {
     return this.http.get<number[][]>(`${this.base}/activities/${activityId}/route`);
   }
   /** Tours d'une de mes sorties (montre), ou splits kilométriques calculés à défaut. */
-  activityLaps(activityId: string): Observable<ActivityLaps> {
-    return this.http.get<ActivityLaps>(`${this.base}/activities/${activityId}/laps`);
+  activityLaps(activityId: string, kind?: LapKind): Observable<ActivityLaps> {
+    const params = kind ? new HttpParams().set('kind', kind) : undefined;
+    return this.http.get<ActivityLaps>(`${this.base}/activities/${activityId}/laps`, { params });
+  }
+
+  /** Courbe d'une de mes sorties : FC et allure le long de la distance. */
+  activityStream(activityId: string): Observable<ActivityStream> {
+    return this.http.get<ActivityStream>(`${this.base}/activities/${activityId}/stream`);
+  }
+
+  /** Une de mes séances, en détail (fiche « séance réalisée »). */
+  workout(workoutId: string): Observable<Workout> {
+    return this.http.get<Workout>(`${this.base}/workouts/${workoutId}`);
+  }
+
+  /** Ma sortie rapprochée de cette séance (204 → null). */
+  workoutActivity(workoutId: string): Observable<Activity | null> {
+    return this.http.get<Activity>(`${this.base}/workouts/${workoutId}/activity`, { observe: 'response' })
+      .pipe(map((res) => res.body ?? null));
   }
   /** Je corrige une de mes sorties et j'y laisse mon ressenti pour mon coach. */
   updateActivity(activityId: string, body: ActivityUpdate): Observable<Activity> {

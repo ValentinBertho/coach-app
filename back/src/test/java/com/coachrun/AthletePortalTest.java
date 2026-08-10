@@ -105,6 +105,61 @@ class AthletePortalTest {
                 .andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.rpe").value(7));
 
+        // Débrief complet : sensation et blessure nommée. Le produit ne savait dire que la
+        // difficulté (RPE) et un niveau de douleur — jamais comment la séance avait été vécue,
+        // ni où l'athlète avait mal, qui est la seule information sur laquelle le coach décide.
+        mvc.perform(patch("/me/workouts/{w}/feedback", wId)
+                        .header("Authorization", "Bearer " + athToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"COMPLETED","feel":2,"rpe":7,"pain":4,
+                                 "comment":"Bonnes sensations",
+                                 "injuries":[{"kind":"SPRAIN","area":"ANKLE","side":"RIGHT","note":"depuis le 3e km"}]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.feel").value(2))
+                .andExpect(jsonPath("$.injuries.length()").value(1))
+                .andExpect(jsonPath("$.injuries[0].kind").value("SPRAIN"))
+                .andExpect(jsonPath("$.injuries[0].area").value("ANKLE"))
+                .andExpect(jsonPath("$.injuries[0].side").value("RIGHT"));
+
+        // La fiche de séance de l'athlète relit ce qu'il a déclaré : sans cette route, le débrief
+        // disparaissait à la fermeture de la feuille et n'était plus consultable que par le coach.
+        mvc.perform(get("/me/workouts/{w}", wId).header("Authorization", "Bearer " + athToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.feel").value(2))
+                .andExpect(jsonPath("$.injuries[0].area").value("ANKLE"));
+
+        // Aucune sortie rapprochée : 204, et non une erreur — la fiche reste lisible sans montre.
+        mvc.perform(get("/me/workouts/{w}/activity", wId).header("Authorization", "Bearer " + athToken))
+                .andExpect(status().isNoContent());
+
+        // Une blessure survit à « pas faite » : c'est là qu'elle explique l'absence. Le reste du
+        // ressenti, lui, est effacé — une séance non courue n'a produit aucune charge.
+        // (Une séance clôturée repasse par PLANNED : la machine à états n'autorise pas COMPLETED
+        // → MISSED directement.)
+        reopen(mvc, athToken, wId);
+        mvc.perform(patch("/me/workouts/{w}/feedback", wId)
+                        .header("Authorization", "Bearer " + athToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"MISSED","missedReason":"HEALTH",
+                                 "injuries":[{"kind":"TENDINITIS","area":"ACHILLES","side":"LEFT"}]}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("MISSED"))
+                .andExpect(jsonPath("$.rpe").doesNotExist())
+                .andExpect(jsonPath("$.feel").doesNotExist())
+                .andExpect(jsonPath("$.injuries[0].kind").value("TENDINITIS"));
+
+        // Retour à l'état réalisé pour la suite du parcours (« ma semaine » compte les réalisées).
+        reopen(mvc, athToken, wId);
+        mvc.perform(patch("/me/workouts/{w}/feedback", wId)
+                        .header("Authorization", "Bearer " + athToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"COMPLETED\",\"rpe\":7,\"comment\":\"Bonnes sensations\"}"))
+                .andExpect(status().isOk());
+
         // « Ma semaine » : le chiffre que l'athlète regarde vraiment (« 0/0 km, 1 séance sur 1 »).
         mvc.perform(get("/me/week-summary").header("Authorization", "Bearer " + athToken))
                 .andExpect(status().isOk())
@@ -126,6 +181,18 @@ class AthletePortalTest {
         // RGPD — droit à l'oubli
         mvc.perform(delete("/me").header("Authorization", "Bearer " + athToken))
                 .andExpect(status().isNoContent());
+    }
+
+    /**
+     * Rouvre une séance clôturée. La machine à états ne permet pas de passer directement de
+     * COMPLETED à MISSED : on repasse par PLANNED, exactement comme le fait l'écran.
+     */
+    private void reopen(MockMvc mvc, String athToken, String workoutId) throws Exception {
+        mvc.perform(patch("/me/workouts/{w}/feedback", workoutId)
+                        .header("Authorization", "Bearer " + athToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"PLANNED\"}"))
+                .andExpect(status().isOk());
     }
 
     /**

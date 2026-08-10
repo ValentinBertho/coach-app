@@ -26,6 +26,9 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
     /** Activité réalisée rapprochée d'une séance planifiée (vue « réalisé » de la fiche séance). */
     Optional<Activity> findByClubIdAndAthleteIdAndMatchedWorkoutId(UUID clubId, UUID athleteId, UUID workoutId);
 
+    /** Même lecture depuis le portail athlète, qui n'a que son propre identifiant à porter. */
+    Optional<Activity> findByAthleteIdAndMatchedWorkoutId(UUID athleteId, UUID workoutId);
+
     /** Déduplication des imports (cf. contrainte UNIQUE athlete/source/external_id). */
     boolean existsByAthleteIdAndSourceAndExternalId(UUID athleteId, ActivitySource source, String externalId);
 

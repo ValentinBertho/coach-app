@@ -521,8 +521,13 @@ public class WorkoutService {
         } else {
             workout.setMissedReason(null);
             workout.setRpe(request.rpe());
-            // Fatigue et douleur : données de l'article 9. Sans consentement actif elles ne sont
-            // pas enregistrées, mais la séance se clôture — RPE, statut et commentaire passent.
+            // La sensation dit comment la séance a été vécue ; le RPE, sa difficulté. Elle relève
+            // de l'exécution du contrat comme le RPE — c'est un ressenti d'entraînement, pas un
+            // état de santé — et n'entre donc jamais dans le calcul de forme.
+            workout.setFeel(request.feel());
+            // Fatigue, douleur et blessures : données de l'article 9. Sans consentement actif
+            // elles ne sont pas enregistrées, mais la séance se clôture — RPE, sensation, statut
+            // et commentaire passent.
             workout.setFatigue(consentValidator.keepIfAllowed(workout.getAthlete(), request.fatigue()));
             workout.setPain(consentValidator.keepIfAllowed(workout.getAthlete(), request.pain()));
             // La durée réalisée n'a de sens que sur une séance écourtée : sur une séance menée à
@@ -531,11 +536,19 @@ public class WorkoutService {
                     status == WorkoutStatus.PARTIAL ? request.actualDurationS() : null);
         }
 
+        // Les blessures survivent aux trois statuts, y compris « pas faite » : c'est précisément
+        // là qu'elles expliquent l'absence. Les effacer avec le reste de l'effort perdrait le
+        // seul motif actionnable d'une séance manquée pour raison physique.
+        applyInjuries(workout, request);
         workout.setAthleteComment(request.comment());
         notificationService.notifyAthleteFeedback(workout);
         // Une douleur élevée ne peut pas attendre le digest du lendemain matin : c'est le seul
         // signal du produit dont le délai se paie en blessure.
         notificationService.notifyPainAlert(workout.getAthlete(), workout.getPain());
+        // Une blessure nommée ne franchit pas forcément le seuil de douleur (une entorse déclarée
+        // avec 4/10 le manquait) : la déclaration elle-même vaut alerte.
+        notificationService.notifyInjuryAlert(workout.getAthlete(),
+                com.coachrun.util.InjuryCodec.read(workout.getInjuriesJson()));
         return WorkoutResponse.from(workout);
     }
 
@@ -549,6 +562,7 @@ public class WorkoutService {
      */
     private void applyMissed(Workout workout, com.coachrun.dto.request.WorkoutFeedbackRequest request) {
         workout.setRpe(null);
+        workout.setFeel(null);
         workout.setFatigue(null);
         workout.setPain(null);
         workout.setActualDurationS(null);
@@ -565,6 +579,21 @@ public class WorkoutService {
     }
 
     /**
+     * Blessures déclarées au débrief : données de l'article 9, écartées sans consentement actif.
+     *
+     * <p>{@code null} veut dire « inchangé » — un écran qui ne pose pas la question ne doit pas
+     * effacer ce qui a déjà été déclaré — tandis qu'une liste vide efface bel et bien : c'est le
+     * geste de l'athlète qui retire sa déclaration.</p>
+     */
+    private void applyInjuries(Workout workout, com.coachrun.dto.request.WorkoutFeedbackRequest request) {
+        if (request.injuries() == null) {
+            return;
+        }
+        workout.setInjuriesJson(consentValidator.isAllowed(workout.getAthlete())
+                ? com.coachrun.util.InjuryCodec.write(request.injuries()) : null);
+    }
+
+    /**
      * Déplacement d'une séance par l'athlète : change la date et marque {@code movedByAthlete}.
      * L'athlète peut déplacer mais jamais modifier le contenu (cf. DARI Lab).
      */
@@ -578,6 +607,13 @@ public class WorkoutService {
         workout.setScheduledDate(date);
         workout.setMovedByAthlete(true);
         return WorkoutResponse.from(workout);
+    }
+
+    /** Une de mes séances — vue athlète (scopée par athleteId). */
+    public WorkoutResponse getForAthlete(UUID athleteId, UUID workoutId) {
+        return workoutRepository.findByIdAndAthleteId(workoutId, athleteId)
+                .map(WorkoutResponse::from)
+                .orElseThrow(() -> new NotFoundException("Séance introuvable."));
     }
 
     /** Prescription figée d'une séance — vue athlète (scopée par athleteId). */

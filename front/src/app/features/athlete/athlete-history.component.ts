@@ -53,7 +53,9 @@ interface MonthGroup {
                 </div>
                 <div class="row-body">
                   <div class="row-hd">
-                    <strong>{{ w.title }}</strong>
+                    <!-- L'historique listait des séances sans jamais permettre d'en ouvrir une :
+                         le détail du réalisé vit maintenant sur sa propre fiche. -->
+                    <a class="row-open" [routerLink]="['/athlete/workouts', w.id]">{{ w.title }}</a>
                     <span class="badge" [class]="statusBadge(w.status)">{{ statusLabel(w.status) }}</span>
                   </div>
                   <div class="row-meta field-hint">
@@ -113,6 +115,8 @@ interface MonthGroup {
     .row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
     .row-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
     .row-hd strong { color: var(--ink); min-width: 0; }
+    .row-open { color: var(--ink); min-width: 0; font-weight: 700; text-decoration: none; }
+    .row-open:hover { text-decoration: underline; }
     .row-meta { display: flex; flex-wrap: wrap; gap: 4px; }
     .row-cmt { margin: 2px 0 0; font-size: var(--text-sm); color: var(--ink-2); display: flex; align-items: center; gap: 4px; }
     .row-rate { align-self: flex-start; margin-top: var(--sp-2); }

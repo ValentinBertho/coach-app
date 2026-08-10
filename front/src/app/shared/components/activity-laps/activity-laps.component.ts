@@ -1,9 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
-import { ActivityLap, ActivityLaps } from '../../../core/models/activity.model';
+import { ActivityLap, ActivityLaps, LAP_KIND_LABELS, LapKind } from '../../../core/models/activity.model';
 import { ActivityService } from '../../../core/services/activity.service';
 import { AthletePortalService } from '../../../core/services/athlete-portal.service';
 import { formatPace } from '../../../core/utils/pace';
 import { IconComponent } from '../icon/icon.component';
+
+/** Ligne de moyennes du bas de tableau : ce que le tableau dit une fois agrégé. */
+interface LapAverages {
+  paceSPerKm: number | null;
+  avgHr: number | null;
+  elevationGainM: number | null;
+  distanceM: number;
+  durationS: number;
+}
 
 /**
  * Détail tour par tour d'une activité — de quoi décortiquer une séance au lieu de la lire en une
@@ -11,9 +20,14 @@ import { IconComponent } from '../icon/icon.component';
  * des répétitions, ni leur dérive, ni ce qui se passe pendant la récupération.
  *
  * <p>Deux natures de tours, jamais confondues : ceux relevés par la montre (`DEVICE`, les vraies
- * répétitions) et les splits kilométriques calculés quand elle n'a rien découpé (`SPLIT`). La
- * barre d'allure est <b>relative au tour le plus rapide</b> : c'est le contraste entre efforts et
- * récupérations qu'on veut voir d'un coup d'œil, pas une échelle absolue partant de zéro.</p>
+ * répétitions) et les splits kilométriques calculés (`SPLIT`). Quand la sortie porte les deux, un
+ * onglet bascule de l'une à l'autre — c'est la lecture de Nolio, et sur un fractionné en côte la
+ * comparaison est justement l'information : les répétitions disent l'effort produit, les
+ * kilomètres disent le terrain parcouru.</p>
+ *
+ * <p>La barre d'allure est <b>relative au tour le plus rapide</b> : c'est le contraste entre
+ * efforts et récupérations qu'on veut voir d'un coup d'œil, pas une échelle absolue partant de
+ * zéro. La ligne de moyennes ferme le tableau, comme sur une montre.</p>
  */
 @Component({
   selector: 'app-activity-laps',
@@ -28,10 +42,22 @@ import { IconComponent } from '../icon/icon.component';
         <div class="laps-hd">
           <span class="laps-title">
             <app-icon [name]="isDevice() ? 'timer' : 'footprints'" [size]="14" />
-            {{ isDevice() ? 'Tours de la montre' : 'Splits au kilomètre' }}
+            Sections
           </span>
           <span class="field-hint">{{ laps().length }} {{ isDevice() ? 'tours' : 'km' }}</span>
         </div>
+
+        <!-- Onglets uniquement quand la sortie sait produire les deux découpes : un onglet qui
+             ouvre sur du vide vaut moins que pas d'onglet du tout. -->
+        @if (kinds().length > 1) {
+          <div class="laps-tabs" role="tablist">
+            @for (k of kinds(); track k) {
+              <button type="button" class="laps-tab" role="tab"
+                      [class.is-on]="current() === k" [attr.aria-selected]="current() === k"
+                      (click)="switchTo(k)">{{ kindLabels[k] }}</button>
+            }
+          </div>
+        }
 
         <!-- Deux lignes par tour plutôt qu'un tableau à six colonnes. Les deux tiennent sur
              375 px, mais aligner distance, allure, temps, FC et cadence sur une seule ligne ne
@@ -67,10 +93,26 @@ import { IconComponent } from '../icon/icon.component';
           }
         </ol>
 
+        <!-- Moyennes : le tableau seul ne dit pas où se situe un tour par rapport à l'ensemble. -->
+        @if (averages(); as avg) {
+          <div class="lap-avg">
+            <span class="lap-avg-lb">Moyennes</span>
+            <span class="lap-avg-vals metric">
+              @if (avg.paceSPerKm) { {{ paceOf(avg.paceSPerKm) }}<small>/km</small> }
+              @if (avg.avgHr != null) { · {{ avg.avgHr }} bpm }
+              @if (avg.elevationGainM) { · +{{ avg.elevationGainM }} m }
+            </span>
+          </div>
+        }
+
         @if (!isDevice()) {
           <p class="laps-foot field-hint">
-            Ta montre n'a pas découpé cette sortie en tours : voici la découpe au kilomètre,
-            calculée depuis le tracé.
+            @if (kinds().length > 1) {
+              Découpe au kilomètre, calculée depuis le tracé.
+            } @else {
+              Ta montre n'a pas découpé cette sortie en tours : voici la découpe au kilomètre,
+              calculée depuis le tracé.
+            }
           </p>
         }
       </div>
@@ -84,6 +126,14 @@ import { IconComponent } from '../icon/icon.component';
     .laps { display: flex; flex-direction: column; gap: var(--sp-2); }
     .laps-hd { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
     .laps-title { display: inline-flex; align-items: center; gap: var(--sp-1); font-weight: 700; font-size: var(--text-sm); color: var(--ink); }
+
+    .laps-tabs { display: flex; gap: var(--sp-1); border-bottom: 1px solid var(--hairline); }
+    .laps-tab {
+      min-height: 40px; padding: var(--sp-1) var(--sp-3);
+      border: none; border-bottom: 2px solid transparent; background: transparent;
+      color: var(--ink-3); font-size: var(--text-sm); font-weight: 600; cursor: pointer;
+    }
+    .laps-tab.is-on { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
 
     .lap-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
     .lap {
@@ -106,6 +156,15 @@ import { IconComponent } from '../icon/icon.component';
     .lap--fastest .lap-fill { background: var(--accent); }
     .lap--fastest .lap-pace { color: var(--accent); }
 
+    .lap-avg {
+      display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2);
+      padding: var(--sp-2) var(--sp-3); border-radius: var(--radius);
+      background: var(--paper-sunk);
+    }
+    .lap-avg-lb { font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); }
+    .lap-avg-vals { font-weight: 800; color: var(--ink); font-size: var(--text-sm); }
+    .lap-avg-vals small { font-weight: 600; color: var(--ink-4); font-size: var(--text-2xs); }
+
     .laps-foot, .laps-empty { margin: 0; }
     .lap-skel { height: 96px; border-radius: var(--radius-md); background: var(--paper-sunk); animation: lap-pulse 1.2s ease-in-out infinite; }
     @keyframes lap-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }
@@ -124,9 +183,20 @@ export class ActivityLapsComponent {
 
   readonly loading = signal(true);
   readonly data = signal<ActivityLaps | null>(null);
+  /** Découpe demandée par l'athlète ; `null` = celle que le serveur choisit (montre d'abord). */
+  private readonly requested = signal<LapKind | null>(null);
+
+  protected readonly kindLabels = LAP_KIND_LABELS;
 
   readonly laps = computed<ActivityLap[]>(() => this.data()?.laps ?? []);
   readonly isDevice = computed(() => this.data()?.kind === 'DEVICE');
+  readonly current = computed<LapKind>(() => this.data()?.kind ?? 'SPLIT');
+
+  /** Découpes proposables. Une réponse ancienne (sans le champ) n'en annonce qu'une : la sienne. */
+  readonly kinds = computed<LapKind[]>(() => {
+    const available = this.data()?.availableKinds;
+    return available?.length ? available : this.data() ? [this.current()] : [];
+  });
 
   /** Allure du tour le plus rapide (s/km) : origine de l'échelle des barres. */
   readonly fastest = computed(() => {
@@ -140,19 +210,55 @@ export class ActivityLapsComponent {
     return paces.length ? Math.max(...paces) : null;
   });
 
+  /**
+   * Moyennes du tableau. L'allure est calculée sur les <b>totaux</b> (distance cumulée sur temps
+   * cumulé), pas en moyennant les allures des tours : une moyenne d'allures donne autant de poids
+   * à une récupération de 200 m qu'à une répétition d'un kilomètre, et fait mentir la ligne.
+   */
+  readonly averages = computed<LapAverages | null>(() => {
+    const laps = this.laps();
+    if (laps.length < 2) return null;
+
+    let distanceM = 0;
+    let durationS = 0;
+    let hrSum = 0;
+    let hrCount = 0;
+    let elevation = 0;
+    for (const l of laps) {
+      if (l.distanceM) distanceM += l.distanceM;
+      if (l.durationS) durationS += l.durationS;
+      if (l.avgHr != null) { hrSum += l.avgHr; hrCount++; }
+      if (l.elevationGainM) elevation += l.elevationGainM;
+    }
+    return {
+      distanceM,
+      durationS,
+      paceSPerKm: distanceM > 0 && durationS > 0 ? Math.round((durationS * 1000) / distanceM) : null,
+      avgHr: hrCount ? Math.round(hrSum / hrCount) : null,
+      elevationGainM: elevation || null,
+    };
+  });
+
   constructor() {
     effect(() => {
       const a = this.athleteId();
       const id = this.activityId();
-      if (id) this.fetch(a, id);
+      const kind = this.requested();
+      if (id) this.fetch(a, id, kind);
     }, { allowSignalWrites: true });
   }
 
-  private fetch(athleteId: string | null, activityId: string): void {
+  /** Bascule d'onglet : c'est le serveur qui recalcule la découpe, pas l'écran. */
+  protected switchTo(kind: LapKind): void {
+    if (this.current() === kind) return;
+    this.requested.set(kind);
+  }
+
+  private fetch(athleteId: string | null, activityId: string, kind: LapKind | null): void {
     this.loading.set(true);
     const request = athleteId
-      ? this.activityService.laps(athleteId, activityId)
-      : this.portal.activityLaps(activityId);
+      ? this.activityService.laps(athleteId, activityId, kind ?? undefined)
+      : this.portal.activityLaps(activityId, kind ?? undefined);
     request.subscribe({
       next: (d) => { this.data.set(d); this.loading.set(false); },
       error: () => { this.data.set(null); this.loading.set(false); },
@@ -183,6 +289,10 @@ export class ActivityLapsComponent {
   paceLabel(l: ActivityLap): string {
     const p = formatPace(l.paceSPerKm);
     return p ? `${p}` : '—';
+  }
+
+  paceOf(secPerKm: number): string {
+    return formatPace(secPerKm) ?? '—';
   }
 
   durLabel(l: ActivityLap): string {

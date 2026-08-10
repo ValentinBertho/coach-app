@@ -161,3 +161,5 @@ databaseChangeLog:
       file: db/changelog/changes/078-calendar-note-range.yaml
   - include:
       file: db/changelog/changes/079-device-connection-provider-athlete-index.yaml
+  - include:
+      file: db/changelog/changes/080-debrief-feel-injuries.yaml

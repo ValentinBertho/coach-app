@@ -166,6 +166,23 @@ public class AthletePortalController {
         return workoutService.prescriptionForAthlete(principal.athleteId(), workoutId);
     }
 
+    /** Une de mes séances, en détail (fiche « séance réalisée »). */
+    @GetMapping("/workouts/{workoutId}")
+    public WorkoutResponse myWorkout(@AuthenticationPrincipal AuthPrincipal principal,
+                                     @PathVariable UUID workoutId) {
+        return workoutService.getForAthlete(principal.athleteId(), workoutId);
+    }
+
+    /** Ma sortie rapprochée de cette séance (vue « réalisé »), ou 204 si aucune. */
+    @GetMapping("/workouts/{workoutId}/activity")
+    public org.springframework.http.ResponseEntity<com.coachrun.dto.response.ActivityResponse> myWorkoutActivity(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID workoutId) {
+        var activity = activityService.getForWorkoutOfAthlete(principal.athleteId(), workoutId);
+        return activity == null
+                ? org.springframework.http.ResponseEntity.noContent().build()
+                : org.springframework.http.ResponseEntity.ok(activity);
+    }
+
     // --- Préparation physique (séances de force planifiées) ------------------
 
     @GetMapping("/pp/scheduled")
@@ -330,8 +347,21 @@ public class AthletePortalController {
      */
     @GetMapping("/activities/{activityId}/laps")
     public com.coachrun.dto.response.ActivityLapsResponse myActivityLaps(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID activityId,
+            @RequestParam(required = false) com.coachrun.dto.response.ActivityLapsResponse.Kind kind) {
+        return activityService.lapsForAthlete(principal.athleteId(), activityId, kind);
+    }
+
+    /**
+     * Courbe d'une de mes sorties : FC et allure le long de la distance.
+     *
+     * <p>C'est la lecture qui manquait le plus au portail — les moyennes disent ce que la séance
+     * a coûté, la courbe dit comment elle s'est passée.</p>
+     */
+    @GetMapping("/activities/{activityId}/stream")
+    public com.coachrun.dto.response.ActivityStreamResponse myActivityStream(
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID activityId) {
-        return activityService.lapsForAthlete(principal.athleteId(), activityId);
+        return activityService.streamForAthlete(principal.athleteId(), activityId);
     }
 
     /** Mes activités réalisées (Strava/GPX/manuel), du plus récent au plus ancien. */

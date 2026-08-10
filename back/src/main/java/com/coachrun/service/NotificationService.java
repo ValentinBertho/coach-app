@@ -617,18 +617,59 @@ public class NotificationService {
     }
 
     /**
+     * Blessure <b>nommée</b> au débrief → prévient le coach référent immédiatement.
+     *
+     * <p>Un curseur de douleur ne franchit pas toujours le seuil d'alerte : une entorse de
+     * cheville déclarée avec une douleur à 4 passait donc inaperçue jusqu'au digest, alors que
+     * l'athlète venait d'écrire noir sur blanc qu'il s'était blessé. Nommer la blessure est un
+     * geste délibéré — il n'a pas de seuil à franchir.</p>
+     *
+     * <p>Comme pour la douleur, le corps ne porte <b>ni la nature ni la localisation</b> : elles
+     * s'afficheraient sur un écran verrouillé. Le coach est invité à ouvrir la fiche, où la
+     * déclaration est lisible en entier.</p>
+     */
+    public void notifyInjuryAlert(Athlete athlete, java.util.List<com.coachrun.dto.InjuryReport> injuries) {
+        if (athlete == null || injuries == null || injuries.isEmpty()) {
+            return;
+        }
+        UUID clubId = athlete.getClub() != null ? athlete.getClub().getId() : null;
+        referentCoach(athlete.getId(), clubId).ifPresent(coach -> {
+            if (alreadySignalled(coach.getId(), athlete.getId(), "INJURY", PAIN_ALERT_WINDOW)) {
+                return;
+            }
+            String name = fullName(athlete);
+            notifyUser(coach, "INJURY_ALERT", "Blessure déclarée",
+                    name + " a déclaré une blessure sur sa séance — à regarder.",
+                    name + " — blessure déclarée.",
+                    "/app/athletes/" + athlete.getId());
+        });
+    }
+
+    /**
      * Cette douleur a-t-elle déjà été signalée à ce coach ? Partage la mémoire du digest quotidien
      * ({@code alert_digest_log}, clé coach × athlète × type) : dire la même chose deux fois par
      * deux canaux est exactement le bruit que le digest avait été conçu pour supprimer.
      */
     private boolean painAlreadySignalled(UUID coachId, UUID athleteId) {
+        return alreadySignalled(coachId, athleteId, "PAIN", PAIN_ALERT_WINDOW);
+    }
+
+    /**
+     * Cette alerte a-t-elle déjà été envoyée à ce coach pour cet athlète dans la fenêtre donnée ?
+     *
+     * <p>Un type par nature d'alerte : une douleur signalée ne doit pas faire taire une blessure
+     * déclarée le lendemain, ce sont deux informations différentes. La mémoire est celle du
+     * digest quotidien, pour qu'aucune alerte immédiate ne soit redite le lendemain matin.</p>
+     */
+    private boolean alreadySignalled(UUID coachId, UUID athleteId, String alertType, Duration window) {
         try {
             Instant now = Instant.now();
             var previous = digestLogRepository.findByCoachId(coachId).stream()
-                    .filter(row -> row.getAthleteId().equals(athleteId) && "PAIN".equals(row.getAlertType()))
+                    .filter(row -> row.getAthleteId().equals(athleteId)
+                            && alertType.equals(row.getAlertType()))
                     .findFirst();
             if (previous.isPresent()) {
-                if (previous.get().getLastSentAt().isAfter(now.minus(PAIN_ALERT_WINDOW))) {
+                if (previous.get().getLastSentAt().isAfter(now.minus(window))) {
                     return true;
                 }
                 previous.get().setLastSentAt(now);
@@ -637,7 +678,7 @@ public class NotificationService {
             var row = new com.coachrun.entity.AlertDigestLog();
             row.setCoachId(coachId);
             row.setAthleteId(athleteId);
-            row.setAlertType("PAIN");
+            row.setAlertType(alertType);
             row.setLastSentAt(now);
             digestLogRepository.save(row);
             return false;

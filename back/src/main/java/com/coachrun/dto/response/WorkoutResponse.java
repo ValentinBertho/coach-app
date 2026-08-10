@@ -25,6 +25,10 @@ public record WorkoutResponse(
         Integer rpe,
         Integer fatigue,
         Integer pain,
+        /** Sensation générale déclarée (1 = excellente … 5 = très mauvaise) ; distincte du RPE. */
+        Integer feel,
+        /** Blessures déclarées au débrief ; liste vide si aucune. */
+        List<com.coachrun.dto.InjuryReport> injuries,
         String athleteComment,
         /** Retour du coach sur la séance réalisée (visible par l'athlète). */
         String coachComment,
@@ -53,6 +57,8 @@ public record WorkoutResponse(
                 w.getRpe(),
                 w.getFatigue(),
                 w.getPain(),
+                w.getFeel(),
+                com.coachrun.util.InjuryCodec.read(w.getInjuriesJson()),
                 w.getAthleteComment(),
                 w.getCoachComment(),
                 w.getCoachCommentAt(),

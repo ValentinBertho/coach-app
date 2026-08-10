@@ -75,11 +75,25 @@ public class ActivityController {
         return activityService.route(clubId, activityId);
     }
 
-    /** Tours de l'activité (montre), ou splits kilométriques calculés à défaut. */
+    /**
+     * Tours de l'activité (montre), ou splits kilométriques calculés à défaut.
+     *
+     * @param kind découpe voulue ({@code DEVICE} / {@code SPLIT}) ; absente = tours de la montre
+     *             d'abord. La réponse annonce les découpes disponibles pour cette sortie.
+     */
     @GetMapping("/{activityId}/laps")
     public com.coachrun.dto.response.ActivityLapsResponse laps(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID activityId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+            com.coachrun.dto.response.ActivityLapsResponse.Kind kind) {
+        return activityService.laps(clubId, activityId, kind);
+    }
+
+    /** Courbe de la sortie : FC et allure le long de la distance (graphique de séance). */
+    @GetMapping("/{activityId}/stream")
+    public com.coachrun.dto.response.ActivityStreamResponse stream(
             @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID activityId) {
-        return activityService.laps(clubId, activityId);
+        return activityService.streamCurve(clubId, activityId);
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")

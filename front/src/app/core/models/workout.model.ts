@@ -1,3 +1,5 @@
+import { Injury } from './injury.model';
+
 export type WorkoutType =
   | 'ENDURANCE' | 'RECOVERY' | 'TEMPO' | 'THRESHOLD' | 'INTERVALS'
   | 'LONG_RUN' | 'RACE' | 'STRENGTH' | 'CROSS_TRAINING' | 'REST';
@@ -39,6 +41,16 @@ export interface Workout {
   /** Motif renseigné quand l'athlète a déclaré la séance non faite. */
   missedReason: MissedReason | null;
   rpe: number | null;
+  /** Fatigue et douleur déclarées (données de santé, absentes sans consentement actif). */
+  fatigue: number | null;
+  pain: number | null;
+  /**
+   * Sensation générale de la séance (1 = excellente … 5 = très mauvaise).
+   * Jamais l'effort : une séance peut être très dure et très bien vécue.
+   */
+  feel: number | null;
+  /** Blessures nommées au débrief ; liste vide si aucune. */
+  injuries: Injury[];
   athleteComment: string | null;
   /** Retour du coach sur la séance réalisée (feedback in situ), visible par l'athlète. */
   coachComment: string | null;
@@ -142,8 +154,13 @@ export function needsFeedback(w: Pick<Workout, 'status'>): boolean {
  * partielle avec un RPE ou un commentaire a déjà livré son signal — la relancer serait du
  * harcèlement, alors qu'on garde le bouton pour lui permettre de corriger.
  */
-export function awaitsFeedback(w: Pick<Workout, 'status' | 'rpe' | 'athleteComment'>): boolean {
-  return needsFeedback(w) && w.rpe == null && !w.athleteComment;
+export function awaitsFeedback(
+  w: Pick<Workout, 'status' | 'rpe' | 'athleteComment'> & { feel?: number | null },
+): boolean {
+  // La sensation compte comme un signal au même titre que le RPE : un athlète qui a tapé un
+  // visage et rien d'autre s'est prononcé, le relancer serait lui redemander ce qu'il vient de
+  // dire. `feel` est optionnel pour les appelants qui ne projettent que les champs historiques.
+  return needsFeedback(w) && w.rpe == null && w.feel == null && !w.athleteComment;
 }
 
 export const STATUS_BADGE: Record<WorkoutStatus, string> = {

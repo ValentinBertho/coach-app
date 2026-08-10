@@ -1,11 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Injury } from '../../../core/models/injury.model';
 import { MissedReason, Workout, WorkoutStatus } from '../../../core/models/workout.model';
 import { AthletePortalService, WorkoutFeedback } from '../../../core/services/athlete-portal.service';
 import { FeedbackQueueService } from '../../../core/services/feedback-queue.service';
 import { NetworkStatusService } from '../../../core/services/network-status.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { FeelSelectorComponent } from '../feel-selector/feel-selector.component';
 import { IconComponent } from '../icon/icon.component';
+import { InjuryPickerComponent } from '../injury-picker/injury-picker.component';
 import { PainFatigueSelectorComponent } from '../physiology';
 import { BottomSheetComponent } from '../ui';
 import { RpeScaleSelectorComponent } from '../rpe-scale-selector/rpe-scale-selector.component';
@@ -27,11 +30,23 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 /**
- * Retour de séance course (RPE + fatigue + douleur + commentaire), en bottom sheet ~10 s.
+ * Débrief d'après séance, en bottom sheet : sensation, perception de l'effort, fatigue et
+ * douleur, commentaire, blessure.
  *
- * Composant unique partagé par « Aujourd'hui », l'agenda et l'historique : une séance non
- * clôturée doit être notable d'où qu'on la regarde, sans que la file hors ligne ni les
- * invariants (la forme = fatigue + douleur, jamais le RPE) soient réécrits trois fois.
+ * Composant unique partagé par « Aujourd'hui », l'agenda, l'historique et la fiche de séance :
+ * une séance non clôturée doit être notable d'où qu'on la regarde, sans que la file hors ligne
+ * ni les invariants soient réécrits quatre fois.
+ *
+ * Trois invariants, tenus ici et nulle part ailleurs :
+ * - l'état de forme est porté par la **fatigue et la douleur**, jamais par le RPE ni la sensation ;
+ * - la **sensation** (comment ça s'est passé) ne se déduit pas du **RPE** (ce que ça a coûté) —
+ *   une séance de seuil peut être très dure et excellente, un footing facile et pénible ;
+ * - une **blessure nommée** survit aux trois issues, y compris « pas faite » : c'est là qu'elle
+ *   explique l'absence.
+ *
+ * Une question par carte, façon Nolio, mais dans un seul défilement plutôt qu'un carrousel à
+ * cinq écrans : chaque question reste visible et sautable, et le débrief se ferme d'un tap
+ * depuis n'importe où — la validation ne dépend d'aucune réponse.
  *
  * @example
  * <app-workout-feedback-sheet [(open)]="fbOpen" [workout]="fbWorkout()" (saved)="onSaved($event)" />
@@ -40,13 +55,21 @@ const SOURCE_LABELS: Record<string, string> = {
   selector: 'app-workout-feedback-sheet',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, IconComponent, BottomSheetComponent, PainFatigueSelectorComponent, RpeScaleSelectorComponent],
+  imports: [
+    FormsModule, IconComponent, BottomSheetComponent, PainFatigueSelectorComponent,
+    RpeScaleSelectorComponent, FeelSelectorComponent, InjuryPickerComponent,
+  ],
   template: `
     <app-bottom-sheet [(open)]="open" [title]="sheetTitle()">
       @if (workout(); as w) {
         <div class="fb">
-          <!-- Une séance rattrapée n'est plus « celle du jour » : on rappelle laquelle on note. -->
-          @if (subtitle(); as s) { <p class="fb__lead">{{ w.title }}<br /><span class="field-hint">{{ s }}</span></p> }
+          <!-- Rappel de la séance notée, toujours affiché : la feuille s'ouvre depuis quatre
+               écrans (le jour, l'agenda, l'historique, une notification), et sur trois d'entre
+               eux rien ne garantissait qu'on notait bien la séance qu'on croyait. -->
+          <div class="fb__lead">
+            <span class="fb__lead-date metric">{{ dateLabel() }}</span>
+            <span class="fb__lead-title">{{ w.title }}</span>
+          </div>
 
           <!-- Activité rapprochée : les faits sont déjà là, l'athlète n'a qu'à confirmer.
                Ils restent en lecture seule — c'est de la donnée mesurée, pas déclarée. -->
@@ -65,14 +88,34 @@ const SOURCE_LABELS: Record<string, string> = {
           }
 
           @switch (step()) {
-            @case ('feel') {
-              <app-rpe-scale-selector [(value)]="rpe" />
+            @case ('debrief') {
+              <!-- Une question par carte, façon Nolio : le débrief se parcourt du pouce, et
+                   chaque bloc se répond ou se saute sans jamais bloquer l'envoi. L'ordre suit
+                   celui de la lecture du coach — comment ça s'est passé, ce que ça a coûté,
+                   ce qu'il y a à dire, ce qui fait mal. -->
+              <div class="fb__card">
+                <app-feel-selector [(value)]="feel" />
+              </div>
 
-              <app-pain-fatigue-selector kind="fatigue" [(value)]="fatigue" />
-              <app-pain-fatigue-selector kind="pain" [(value)]="pain" />
+              <div class="fb__card">
+                <app-rpe-scale-selector [(value)]="rpe" label="Perception de l'effort" />
+              </div>
 
-              <textarea class="form-control" rows="2" placeholder="Un commentaire ? (optionnel)"
-                        [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
+              <div class="fb__card fb__card--split">
+                <app-pain-fatigue-selector kind="fatigue" [(value)]="fatigue" />
+                <app-pain-fatigue-selector kind="pain" [(value)]="pain" />
+              </div>
+
+              <div class="fb__card">
+                <span class="fb__card-lb">Commentaire</span>
+                <textarea class="form-control" rows="2"
+                          placeholder="Tu peux écrire un mot à ton entraîneur ici."
+                          [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
+              </div>
+
+              <div class="fb__card">
+                <app-injury-picker [(injuries)]="injuries" />
+              </div>
 
               <div class="fb__actions">
                 <button type="button" class="btn btn-accent btn-lg" (click)="submitDone()">Séance réalisée <app-icon name="check" [size]="16" /></button>
@@ -97,7 +140,7 @@ const SOURCE_LABELS: Record<string, string> = {
               </div>
               <div class="fb__actions">
                 <button type="button" class="btn btn-accent btn-lg" (click)="submitPartial()">Enregistrer <app-icon name="check" [size]="16" /></button>
-                <button type="button" class="btn btn-ghost" (click)="step.set('feel')">Retour</button>
+                <button type="button" class="btn btn-ghost" (click)="step.set('debrief')">Retour</button>
               </div>
             }
 
@@ -111,9 +154,14 @@ const SOURCE_LABELS: Record<string, string> = {
               </div>
               <textarea class="form-control" rows="2" placeholder="Un mot pour ton coach ? (optionnel)"
                         [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
+              <!-- Une séance sautée pour raison physique est le cas où nommer la blessure sert le
+                   plus : c'est le seul motif sur lequel le coach a quelque chose à décider. -->
+              <div class="fb__card">
+                <app-injury-picker [(injuries)]="injuries" />
+              </div>
               <div class="fb__actions">
                 <button type="button" class="btn btn-accent btn-lg" (click)="submitMissed()">Confirmer <app-icon name="check" [size]="16" /></button>
-                <button type="button" class="btn btn-ghost" (click)="step.set('feel')">Retour</button>
+                <button type="button" class="btn btn-ghost" (click)="step.set('debrief')">Retour</button>
               </div>
             }
           }
@@ -122,9 +170,28 @@ const SOURCE_LABELS: Record<string, string> = {
     </app-bottom-sheet>
   `,
   styles: [`
-    .fb { display: flex; flex-direction: column; gap: var(--sp-5); }
-    .fb__lead { margin: 0; font-weight: 700; color: var(--ink); }
-    .fb__actions { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .fb { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+    /* Bandeau de rappel : la séance notée, date en tête — la lecture de Nolio, qui met la
+       séance en évidence avant de poser la moindre question. */
+    .fb__lead {
+      display: flex; flex-direction: column; gap: 2px;
+      padding: var(--sp-3); border-radius: var(--radius);
+      background: var(--primary); color: #fff;
+    }
+    .fb__lead-date { font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; }
+    .fb__lead-title { font-size: var(--text-lg); font-weight: 800; }
+
+    /* Une carte par question : chacune se répond, se saute, et se relit isolément. */
+    .fb__card {
+      display: flex; flex-direction: column; gap: var(--sp-3);
+      padding: var(--sp-3); border-radius: var(--radius);
+      background: var(--paper); border: 1px solid var(--hairline);
+    }
+    .fb__card--split { gap: var(--sp-4); }
+    .fb__card-lb { font-size: var(--text-sm); color: var(--ink-2); font-weight: 700; }
+
+    .fb__actions { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); }
     .fb__actions .btn { width: 100%; }
 
     .fb__matched {
@@ -171,18 +238,22 @@ export class WorkoutFeedbackSheetComponent {
   /** Séance mise à jour (optimiste hors ligne) : l'appelant rafraîchit sa liste. */
   readonly saved = output<Workout>();
 
+  /** Sensation générale 1–5 : comment la séance a été vécue, jamais sa difficulté. */
+  readonly feel = signal<number | null>(null);
   readonly rpe = signal<number | null>(null);
   readonly fatigue = signal<number | null>(null);
   readonly pain = signal<number | null>(null);
   readonly comment = signal('');
+  /** Blessures nommées au débrief (liste vide = aucune). */
+  readonly injuries = signal<Injury[]>([]);
   /** Activité rapprochée affichée en contexte, ou `null` (ouverture manuelle). */
   readonly activity = signal<MatchedActivity | null>(null);
 
   /**
-   * Étape de la feuille. Le ressenti reste l'écran par défaut et le geste en un tap ; les deux
-   * autres ne s'ouvrent que si l'athlète les demande, et posent une seule question chacune.
+   * Étape de la feuille. Le débrief reste l'écran par défaut ; les deux autres ne s'ouvrent que si
+   * l'athlète les demande, et posent une seule question chacune.
    */
-  readonly step = signal<'feel' | 'partial' | 'missed'>('feel');
+  readonly step = signal<'debrief' | 'partial' | 'missed'>('debrief');
   /** Durée réellement effectuée, en minutes (l'athlète ne compte pas en secondes). */
   readonly actualMinutes = signal<number | null>(null);
   readonly missedReason = signal<MissedReason>('UNEXPECTED');
@@ -196,15 +267,16 @@ export class WorkoutFeedbackSheetComponent {
   ];
 
   protected sheetTitle(): string {
-    return this.isLate() ? 'Ton ressenti (en retard)' : 'Ton ressenti';
+    return this.isLate() ? 'Débrief (en retard)' : 'Débrief';
   }
 
-  /** Rappel de la date pour une séance rattrapée ; rien pour la séance du jour. */
-  protected subtitle(): string | null {
+  /** « Aujourd'hui » pour la séance du jour, la date en toutes lettres sinon. */
+  protected dateLabel(): string {
     const w = this.workout();
-    if (!w || !this.isLate()) return null;
+    if (!w) return '';
+    if (!this.isLate()) return 'Aujourd’hui';
     const fmt = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-    return `Séance du ${fmt.format(new Date(w.scheduledDate + 'T00:00:00'))}`;
+    return fmt.format(new Date(w.scheduledDate + 'T00:00:00'));
   }
 
   private isLate(): boolean {
@@ -227,13 +299,17 @@ export class WorkoutFeedbackSheetComponent {
    */
   openFor(w: Workout, prefill?: { rpe?: number | null; activity?: MatchedActivity | null }): void {
     this.workout.set(w);
+    this.feel.set(w.feel ?? null);
     this.rpe.set(prefill?.rpe ?? w.rpe ?? null);
     this.fatigue.set(null);
     this.pain.set(null);
     this.comment.set(w.athleteComment ?? '');
+    // Rouvrir un débrief déjà rempli doit repartir de ce qui a été déclaré : sinon corriger son
+    // RPE effacerait silencieusement la blessure qu'on avait pris la peine de nommer.
+    this.injuries.set(w.injuries ?? []);
     this.activity.set(prefill?.activity ?? null);
     // Toujours rouvrir sur le ressenti : c'est le geste courant, les deux autres sont des sorties.
-    this.step.set('feel');
+    this.step.set('debrief');
     this.actualMinutes.set(null);
     this.missedReason.set('UNEXPECTED');
     this.open.set(true);
@@ -257,10 +333,12 @@ export class WorkoutFeedbackSheetComponent {
   protected submitDone(): void {
     this.send({
       status: 'COMPLETED',
+      feel: this.feel(),
       rpe: this.rpe(),
       fatigue: this.fatigue(),
       pain: this.pain(),
       comment: this.comment() || null,
+      injuries: this.injuries(),
     });
   }
 
@@ -272,22 +350,30 @@ export class WorkoutFeedbackSheetComponent {
     const minutes = this.actualMinutes();
     this.send({
       status: 'PARTIAL',
+      feel: this.feel(),
       rpe: this.rpe(),
       fatigue: this.fatigue(),
       pain: this.pain(),
       comment: this.comment() || null,
+      injuries: this.injuries(),
       actualDurationS: minutes && minutes > 0 ? Math.round(minutes * 60) : null,
     });
   }
 
-  /** Séance non faite : aucun effort à décrire, seulement un motif. */
+  /**
+   * Séance non faite : aucun effort à décrire, seulement un motif — et, s'il y en a une, la
+   * blessure qui l'explique. Elle survit là où le reste du ressenti est effacé : c'est
+   * précisément sur une séance sautée qu'elle est l'information la plus utile au coach.
+   */
   protected submitMissed(): void {
     this.send({
       status: 'MISSED',
+      feel: null,
       rpe: null,
       fatigue: null,
       pain: null,
       comment: this.comment() || null,
+      injuries: this.injuries(),
       missedReason: this.missedReason(),
     });
   }
@@ -298,7 +384,9 @@ export class WorkoutFeedbackSheetComponent {
     const optimistic: Workout = {
       ...w,
       status: body.status,
+      feel: body.feel ?? null,
       rpe: body.rpe ?? null,
+      injuries: body.injuries ?? [],
       athleteComment: body.comment ?? null,
       actualDurationS: body.actualDurationS ?? null,
       missedReason: body.missedReason ?? null,
