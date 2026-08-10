@@ -7,7 +7,9 @@ import { SegmentedControlComponent } from '../../shared/components/ui';
 import {
   STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, Workout, needsFeedback,
 } from '../../core/models/workout.model';
+import { PaceReferenceService } from '../../core/services/pace-reference.service';
 import { paceFrom } from '../../core/utils/pace';
+import { plannedVolume, plannedVolumeLabel } from '../../core/utils/planned-volume';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 
 interface MonthGroup {
@@ -60,7 +62,7 @@ interface MonthGroup {
                   </div>
                   <div class="row-meta field-hint">
                     <span>{{ typeLabel(w.type) }}</span>
-                    @if (w.targetDistanceM) { <span>· {{ (w.targetDistanceM / 1000) | number: '1.0-1' }} km</span> }
+                    @if (volumeLabel(w); as km) { <span>· {{ km }}</span> }
                     @if (pace(w); as p) { <span>· {{ p }} /km</span> }
                     @if (w.rpe != null) { <span>· RPE {{ w.rpe }}</span> }
                   </div>
@@ -124,6 +126,10 @@ interface MonthGroup {
 })
 export class AthleteHistoryComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
+  private readonly paceReference = inject(PaceReferenceService);
+
+  /** Mon allure d'endurance, seule base admise pour estimer un volume écrit en durée. */
+  readonly referencePace = signal<number | null>(null);
 
   readonly rangeOptions = [
     { label: '4 sem.', value: '4' },
@@ -154,7 +160,23 @@ export class AthleteHistoryComponent implements OnInit {
   /** Feuille de ressenti partagée (même parcours que « Aujourd'hui »). */
   private readonly feedbackSheet = viewChild(WorkoutFeedbackSheetComponent);
 
-  ngOnInit(): void { this.fetch(); }
+  ngOnInit(): void {
+    this.fetch();
+    this.paceReference.mine().subscribe({
+      next: (p) => this.referencePace.set(p),
+      error: () => this.referencePace.set(null),
+    });
+  }
+
+  /**
+   * Volume de la séance, « 12,0 km » ou « ≈ 10,0 km ». Une séance écrite en durée sans allure
+   * prescrite n'a pas de distance calculable : le total ne comptait alors que ses blocs
+   * chiffrables et pouvait annoncer « 0,1 km » pour une heure de course.
+   */
+  volumeLabel(w: Workout): string {
+    return plannedVolumeLabel(
+      plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace()));
+  }
 
   /** Séance passée encore ouverte au ressenti : le rattrapage n'a pas de date limite ici. */
   canRate(w: Workout): boolean { return needsFeedback(w); }
@@ -182,9 +204,14 @@ export class AthleteHistoryComponent implements OnInit {
   /**
    * Allure de la séance, dérivée de la cible distance/durée. Le réalisé n'est pas porté par la
    * séance (il vit dans l'activité rapprochée) : ce qui s'affiche ici est donc l'allure visée.
+   *
+   * <p>Elle ne se calcule que sur une distance <b>crédible</b> : dériver une allure d'une distance
+   * elle-même estimée depuis la durée redonnerait l'allure de référence de l'athlète, présentée
+   * comme une consigne du coach.</p>
    */
   pace(w: Workout): string | null {
-    return paceFrom(w.targetDistanceM, w.targetDurationS);
+    const volume = plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace());
+    return volume && !volume.indicative ? paceFrom(volume.distanceM, w.targetDurationS) : null;
   }
 
   statusLabel(s: Workout['status']): string { return STATUS_LABELS[s]; }

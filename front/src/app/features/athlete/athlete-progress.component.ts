@@ -8,6 +8,8 @@ import { Performance } from '../../core/models/physio.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { Analytics } from '../../core/services/analytics.service';
 import { AcwrIndicatorComponent, DataOriginTagComponent, type DataOrigin } from '../../shared/components/physiology';
+import { LoadExplainerComponent } from '../../shared/components/load-explainer/load-explainer.component';
+import { HelpHintComponent } from '../help/help-hint.component';
 import { MetricCardComponent } from '../../shared/components/ui';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
@@ -26,7 +28,10 @@ const SOURCE_LABEL: Record<string, string> = {
   selector: 'app-athlete-progress',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, IconComponent, RouterLink, DatePipe, DecimalPipe, DataOriginTagComponent, AcwrIndicatorComponent, MetricCardComponent],
+  imports: [
+    SkeletonComponent, IconComponent, RouterLink, DatePipe, DecimalPipe, DataOriginTagComponent,
+    AcwrIndicatorComponent, MetricCardComponent, LoadExplainerComponent, HelpHintComponent,
+  ],
   template: `
     <div class="prog">
       <header class="prog-top">
@@ -159,7 +164,10 @@ const SOURCE_LABEL: Record<string, string> = {
       <!-- Ma charge d'entraînement -->
       @if (load(); as l) {
         <section class="charge">
-          <h2 class="sect-h">Ma charge</h2>
+          <div class="sect-hd">
+            <h2 class="sect-h">Ma charge</h2>
+            <app-help-hint section="charge" label="Aide : ma charge d'entraînement" />
+          </div>
           <div class="card">
             <app-acwr-indicator [value]="l.ratio" [historyDays]="l.historyDays"
                                 [windowDays]="l.chronicWindowDays" />
@@ -170,6 +178,10 @@ const SOURCE_LABEL: Record<string, string> = {
             <app-metric-card label="Monotonie" [value]="l.monotony != null ? l.monotony.toFixed(2) : '—'" origin="calcule"
               [tone]="(l.monotony ?? 0) >= 2 ? 'alert' : 'neutral'" />
           </div>
+          <!-- Quatre termes de littérature scientifique posés devant quelqu'un qui vient voir
+               s'il progresse : sans lecture, les deux seuls réflexes possibles sont d'ignorer
+               l'écran, ou de s'inquiéter d'un chiffre qui n'a rien d'inquiétant. -->
+          <app-load-explainer [load]="l" />
         </section>
       }
 
@@ -288,6 +300,7 @@ const SOURCE_LABEL: Record<string, string> = {
     .hist-detail { margin-left: auto; }
 
     .sect-h { font-size: var(--text-lg); margin: var(--sp-2) 0; }
+    .sect-hd { display: flex; align-items: center; gap: var(--sp-2); }
     .sect { display: flex; flex-direction: column; gap: var(--sp-3); }
 
     .charge { display: flex; flex-direction: column; gap: var(--sp-3); }

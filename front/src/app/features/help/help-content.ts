@@ -146,6 +146,25 @@ const ATHLETE: HelpGuide = {
       ],
     },
     {
+      id: 'charge',
+      icon: 'activity',
+      title: 'Ma charge : ACWR, monotonie, UA',
+      summary: 'À quoi servent ces chiffres, et comment lire les tiens.',
+      blocks: [
+        { kind: 'text', text: 'Ces repères servent à une seule chose : progresser sans te blesser. Ils ne disent pas ta forme du jour — c\'est ton ressenti qui la porte — mais la façon dont ta charge d\'entraînement évolue d\'une semaine à l\'autre.' },
+        { kind: 'text', text: 'Tout part de la même unité, l\'« UA » (unité arbitraire) : la charge d\'une séance, c\'est son effort perçu multiplié par sa durée en minutes. Une heure à RPE 5 vaut 300 UA. Ce chiffre n\'a de sens que comparé à tes propres semaines, jamais à celles de quelqu\'un d\'autre.' },
+        { kind: 'list', items: [
+          'Charge aiguë (7 jours) : le total de ta semaine. Seule, elle ne se juge pas.',
+          'Charge chronique (28 jours) : ta moyenne hebdomadaire sur quatre semaines — le niveau que ton corps a appris à encaisser. Elle monte lentement, et c\'est elle qui te protège.',
+          'ACWR : le rapport entre les deux. En fais-tu soudainement beaucoup plus que d\'habitude ? Entre 0,8 et 1,3 la progression est régulière ; au-dessus de 1,5, c\'est le terrain sur lequel les blessures se produisent.',
+          'Monotonie : est-ce que tes journées se ressemblent toutes ? À volume égal, tout faire pareil fatigue plus qu\'alterner dur et facile. En dessous de 1,5 c\'est bien contrasté, à partir de 2 la routine devient elle-même un facteur de fatigue.',
+        ] },
+        { kind: 'callout', tone: 'info', text: 'L\'ACWR reste vide au début : calculé sur trop peu d\'historique, il dirait n\'importe quoi. Il faut environ un mois d\'entraînement enregistré, et il apparaît tout seul. Ce n\'est pas une panne.' },
+        { kind: 'callout', tone: 'tip', text: 'Sur l\'écran « Progrès », le bouton « Comprendre ces chiffres » te donne la lecture de tes propres valeurs, mises à jour à chaque séance.' },
+        { kind: 'callout', tone: 'warn', text: 'Un ACWR élevé n\'est pas une sanction : c\'est un signal à partager avec ton coach avant la prochaine séance dure, pas une raison d\'arrêter de toi-même.' },
+      ],
+    },
+    {
       id: 'objectifs',
       icon: 'flag',
       title: 'Mes objectifs',

@@ -19,6 +19,12 @@ export interface RealizedStats {
 export interface PlannedStats {
   durationS: number | null;
   distanceM: number | null;
+  /**
+   * La distance prévue n'est qu'un ordre de grandeur, faute d'allure prescrite : elle s'affiche
+   * alors précédée de « ≈ », et aucun écart n'est calculé contre elle — comparer un réalisé
+   * mesuré à une estimation produirait un écart qui ne dit rien.
+   */
+  distanceIndicative?: boolean;
 }
 
 /** Une case du bandeau : ce qui a été fait, et — repliable — ce qui était prévu. */
@@ -128,7 +134,10 @@ export class SessionStatsComponent {
   readonly stats = computed<Stat[]>(() => {
     const r = this.realized();
     const p = this.planned();
-    const plannedPace = p?.durationS && p?.distanceM
+    // L'allure prévue n'a de sens que si la distance prévue en a une : quand celle-ci est
+    // estimée depuis la durée, la diviser par la durée redonnerait l'allure de référence, qui
+    // n'a jamais été prescrite.
+    const plannedPace = p?.durationS && p?.distanceM && !p.distanceIndicative
       ? Math.round((p.durationS * 1000) / p.distanceM) : null;
 
     return [
@@ -141,8 +150,12 @@ export class SessionStatsComponent {
       {
         label: 'Distance',
         value: r.distanceM ? km(r.distanceM) : '—',
-        planned: p?.distanceM ? km(p.distanceM) : null,
-        ...delta(r.distanceM, p?.distanceM ?? null, (d) => `${d > 0 ? '+' : '−'}${(Math.abs(d) / 1000).toFixed(2).replace('.', ',')} km`),
+        planned: p?.distanceM ? (p.distanceIndicative ? `≈ ${km(p.distanceM)}` : km(p.distanceM)) : null,
+        // Pas d'écart contre une estimation : « −1,4 km » sous une distance prévue elle-même
+        // approchée ferait passer une incertitude pour un manquement.
+        ...(p?.distanceIndicative
+          ? { delta: null, deltaSign: 0 as const }
+          : delta(r.distanceM, p?.distanceM ?? null, (d) => `${d > 0 ? '+' : '−'}${(Math.abs(d) / 1000).toFixed(2).replace('.', ',')} km`)),
       },
       {
         label: 'Dénivelé +',

@@ -26,6 +26,8 @@ import { TrainingZone } from '../../core/models/training-zone.model';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
 import { Activity } from '../../core/models/activity.model';
 import { ActivityService } from '../../core/services/activity.service';
+import { PaceReferenceService } from '../../core/services/pace-reference.service';
+import { plannedVolume } from '../../core/utils/planned-volume';
 import { ActivityChartComponent } from '../../shared/components/activity-chart/activity-chart.component';
 import { ActivityLapsComponent } from '../../shared/components/activity-laps/activity-laps.component';
 import { ActivityRouteMapComponent } from '../../shared/components/activity-route-map/activity-route-map.component';
@@ -67,7 +69,11 @@ export class WorkoutDetailComponent implements OnInit {
   private readonly workoutService = inject(WorkoutService);
   private readonly zoneService = inject(TrainingZoneService);
   private readonly activityService = inject(ActivityService);
+  private readonly paceReference = inject(PaceReferenceService);
   private readonly toast = inject(ToastService);
+
+  /** Allure d'endurance de l'athlète, seule base admise pour estimer un volume écrit en durée. */
+  readonly referencePace = signal<number | null>(null);
   private readonly confirm = inject(ConfirmService);
   private readonly router = inject(Router);
 
@@ -100,9 +106,17 @@ export class WorkoutDetailComponent implements OnInit {
     const w = this.workout();
     if (!w) return null;
     const calc = this.courseRx()?.calculated;
+    const durationS = calc?.totalDurationS ?? w.targetDurationS ?? null;
+    // Une séance écrite en durée, sans allure prescrite, n'a pas de distance calculable : le
+    // total ne comptait alors que les blocs chiffrables et pouvait annoncer « 0,1 km » pour une
+    // heure de course. Un ordre de grandeur tiré de l'allure d'endurance de l'athlète, marqué
+    // comme tel, vaut mieux qu'un chiffre faux — et la séance, elle, n'est pas modifiée.
+    const volume = plannedVolume(
+      calc?.totalDistanceM ?? w.targetDistanceM ?? null, durationS, this.referencePace());
     return {
-      durationS: calc?.totalDurationS ?? w.targetDurationS ?? null,
-      distanceM: calc?.totalDistanceM ?? w.targetDistanceM ?? null,
+      durationS,
+      distanceM: volume?.distanceM ?? null,
+      distanceIndicative: volume?.indicative ?? false,
     };
   });
 
@@ -280,6 +294,10 @@ export class WorkoutDetailComponent implements OnInit {
     this.activityService.forWorkout(this.athleteId(), this.workoutId()).subscribe({
       next: (a) => this.activity.set(a),
       error: () => this.activity.set(null),
+    });
+    this.paceReference.forAthlete(this.athleteId()).subscribe({
+      next: (p) => this.referencePace.set(p),
+      error: () => this.referencePace.set(null),
     });
   }
 

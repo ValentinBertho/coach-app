@@ -9,7 +9,9 @@ import { RouterLink } from '@angular/router';
 import { Activity } from '../../core/models/activity.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { ToastService } from '../../core/services/toast.service';
+import { PaceReferenceService } from '../../core/services/pace-reference.service';
 import { formatPace, paceFrom } from '../../core/utils/pace';
+import { plannedVolume, plannedVolumeLabel } from '../../core/utils/planned-volume';
 import { DataOriginTagComponent, IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
 import { BottomSheetComponent, SegmentedControlComponent } from '../../shared/components/ui';
 import {
@@ -136,7 +138,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                 <button type="button" class="ses-body" (click)="openDetail(w)">
                   <span class="ses-main">
                     <span class="ses-title">{{ typeLabels[w.type] }} · {{ w.title }}</span>
-                    @if (w.targetDistanceM) { <span class="ses-km metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span> }
+                    @if (volumeLabel(w); as km) { <span class="ses-km metric">{{ km }}</span> }
                     <!-- Sans ce repère, rien n'indique qu'une séance passée attend encore un ressenti. -->
                     @if (isLate(w)) { <span class="ses-todo">à noter</span> }
                   </span>
@@ -196,7 +198,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
               <button type="button" class="ses-body" (click)="openDetail(w)">
                 <span class="ses-main">
                   <span class="ses-title">{{ typeLabels[w.type] }} · {{ w.title }}</span>
-                  @if (w.targetDistanceM) { <span class="ses-km metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span> }
+                  @if (volumeLabel(w); as km) { <span class="ses-km metric">{{ km }}</span> }
                   @if (isLate(w)) { <span class="ses-todo">à noter</span> }
                 </span>
                 <span class="ses-zones">
@@ -275,7 +277,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
           <div class="det-hd">
             <strong>{{ typeLabels[w.type] }} · {{ w.title }}</strong>
             <div class="det-meta field-hint">
-              @if (w.targetDistanceM) { <span>{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span> }
+              @if (volumeLabel(w); as km) { <span>{{ km }}</span> }
               @if (w.targetDurationS) { <span>· {{ fmtDur(w.targetDurationS) }}</span> }
             </div>
           </div>
@@ -474,7 +476,11 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
 })
 export class AthleteCalendarComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
+  private readonly paceReference = inject(PaceReferenceService);
   private readonly toast = inject(ToastService);
+
+  /** Mon allure d'endurance, seule base admise pour estimer un volume écrit en durée. */
+  readonly referencePace = signal<number | null>(null);
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
   readonly stepLabels = STEP_TYPE_LABELS;
@@ -619,7 +625,7 @@ export class AthleteCalendarComponent implements OnInit {
           color: meta.color,
           icon: meta.icon,
           duration: w.targetDurationS ? this.fmtDur(w.targetDurationS) : WORKOUT_TYPE_LABELS[w.type].slice(0, 4),
-          volume: w.targetDistanceM ? `${Math.round(w.targetDistanceM / 100) / 10} km` : '',
+          volume: this.volumeLabel(w),
           done: false,
           title: `${WORKOUT_TYPE_LABELS[w.type]} · ${w.title}`,
         });
@@ -676,6 +682,10 @@ export class AthleteCalendarComponent implements OnInit {
     this.portal.activities().subscribe({
       next: (a) => this.activities.set(a),
       error: () => this.activities.set([]),
+    });
+    this.paceReference.mine().subscribe({
+      next: (p) => this.referencePace.set(p),
+      error: () => this.referencePace.set(null),
     });
   }
 
@@ -849,6 +859,19 @@ export class AthleteCalendarComponent implements OnInit {
       return s ? `${m}'${s.toString().padStart(2, '0')}` : `${m} min`;
     }
     return '';
+  }
+
+  /**
+   * Volume d'une séance prévue, « 12,0 km » ou « ≈ 10,0 km ».
+   *
+   * <p>Une séance écrite en durée sans allure prescrite n'a pas de distance calculable : le total
+   * ne comptait alors que ses blocs chiffrables — quelques centaines de mètres d'éducatifs — et
+   * l'agenda affichait « 0,1 km » pour une heure de course. Faute de mieux, la durée est convertie
+   * à mon allure d'endurance, et le « ≈ » dit que c'est un repère, pas une consigne.</p>
+   */
+  volumeLabel(w: Workout): string {
+    return plannedVolumeLabel(
+      plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace()));
   }
 
   /** Durée « h:mm » ou « m min ». */
