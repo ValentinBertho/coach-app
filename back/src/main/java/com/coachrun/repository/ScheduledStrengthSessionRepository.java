@@ -2,6 +2,7 @@ package com.coachrun.repository;
 
 import com.coachrun.entity.ScheduledStrengthSession;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -32,6 +33,16 @@ public interface ScheduledStrengthSessionRepository extends JpaRepository<Schedu
 
     /** Séances de force d'un jour donné restées non clôturées (rappel de débriefing). */
     List<ScheduledStrengthSession> findByScheduledDateAndCompletedFalse(LocalDate date);
+
+    /**
+     * Séances de force d'un jour donné, athlète chargé — point de programme du soir.
+     *
+     * <p>Ce point de programme ne regardait que les séances course : un athlète dont le lendemain
+     * ne portait que du renforcement s'entendait annoncer « Repos demain », alors que le rappel
+     * lui-même est écrit pour couvrir « footing le matin et renforcement le soir ».</p>
+     */
+    @EntityGraph(attributePaths = "athlete")
+    List<ScheduledStrengthSession> findByScheduledDate(LocalDate date);
 
     /**
      * Dernier retour de séance de force portant un signal de forme (fatigue ou douleur).

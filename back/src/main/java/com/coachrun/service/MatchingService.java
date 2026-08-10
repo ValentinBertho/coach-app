@@ -39,16 +39,42 @@ public class MatchingService {
      * et une sortie du même jour ne doit pas contredire cette déclaration. C'est ce qui distingue
      * les deux cas — l'un complète une déclaration, l'autre la nierait.</p>
      *
+     * <h2>Pourquoi une séance de demain n'est jamais candidate</h2>
+     *
+     * <p>La proximité de date était symétrique : une séance de la veille et une séance du
+     * lendemain valaient le même demi-point. Or les deux situations n'ont rien à voir. Rattacher
+     * la sortie d'aujourd'hui à la séance d'hier décrit un fait ordinaire — on a couru en retard,
+     * ou la montre a basculé après minuit. La rattacher à la séance de <b>demain</b> affirme qu'on
+     * a déjà fait ce qui n'a pas encore eu lieu.</p>
+     *
+     * <p>Et l'écart de date se rattrapait trop facilement : un jour d'écart ne coûte que deux
+     * dixièmes du score final, qu'un volume presque identique récupère largement. Une sortie de
+     * 11,35 km en 57:45 se rapprochait donc de la séance du lendemain prévue à 11,32 km en 57:30
+     * (score 0,80) plutôt que de celle du jour même dont les cibles étaient mal renseignées
+     * (0,50) : la séance du jour restait sans réalisé, et celle du lendemain était déclarée faite
+     * avant d'avoir été courue — avec, dans la foulée, un « Repos demain » le soir venu.</p>
+     *
+     * <p>Le rapprochement <b>manuel</b> reste possible dans les deux sens : l'athlète qui avance
+     * réellement sa séance du samedi au vendredi la rattache lui-même. C'est un geste délibéré, ce
+     * que l'automatisme ne doit pas faire à sa place.</p>
+     *
      * @param candidates séances de la fenêtre, <b>déjà débarrassées</b> de celles qui portent une
      *                   activité : le tri ici ne sait pas ce qui est déjà rapproché
      */
     public Optional<Workout> findBestMatch(Activity activity, List<Workout> candidates) {
         return candidates.stream()
                 .filter(w -> w.getStatus() != WorkoutStatus.MISSED)
+                .filter(w -> !isAfterActivity(w, activity))
                 .map(w -> new Scored(w, score(activity, w)))
                 .filter(s -> s.score >= MATCH_THRESHOLD)
                 .max((a, b) -> Double.compare(a.score, b.score))
                 .map(s -> s.workout);
+    }
+
+    /** La séance est-elle prévue après la sortie ? On ne peut pas avoir déjà fait ce qui vient. */
+    private boolean isAfterActivity(Workout workout, Activity activity) {
+        return workout.getScheduledDate() != null && activity.getActivityDate() != null
+                && workout.getScheduledDate().isAfter(activity.getActivityDate());
     }
 
     /**
@@ -84,6 +110,8 @@ public class MatchingService {
      * rapprochable sur la date et la distance, comme avant.</p>
      */
     private double score(Activity activity, Workout workout) {
+        // Écart en jours, toujours positif : les séances postérieures à la sortie sont écartées
+        // en amont par findBestMatch, ce score ne juge donc que le passé et le jour même.
         long dayGap = Math.abs(java.time.temporal.ChronoUnit.DAYS.between(
                 workout.getScheduledDate(), activity.getActivityDate()));
         double dateScore = switch ((int) Math.min(dayGap, 2)) {

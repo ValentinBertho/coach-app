@@ -32,6 +32,17 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
     List<UUID> findAthleteIdsWithWorkoutsBetween(@Param("from") LocalDate from,
                                                  @Param("to") LocalDate to);
 
+    /**
+     * Athlètes ayant une séance ce jour-là, <b>quel qu'en soit le statut</b>.
+     *
+     * <p>Le point de programme du soir ne comptait que les séances {@code PLANNED} pour décider
+     * qui n'avait « rien de prévu ». Une séance déjà clôturée, écourtée ou déclarée non faite
+     * reste pourtant au programme du lendemain : l'athlète recevait « Repos demain » en regard
+     * d'une journée qui, sur son propre calendrier, portait bel et bien une séance.</p>
+     */
+    @Query("select distinct w.athlete.id from Workout w where w.scheduledDate = :date")
+    List<UUID> findAthleteIdsWithWorkoutOn(@Param("date") LocalDate date);
+
     /** Plage de dates d'un athlète (calendrier), étapes incluses. Scoping tenant. */
     @EntityGraph(attributePaths = "steps")
     List<Workout> findByClubIdAndAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
