@@ -13,6 +13,8 @@ import {
 } from '../../core/models/workout.model';
 import { WeekSummary } from '../../core/models/activity.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
+import { PaceReferenceService } from '../../core/services/pace-reference.service';
+import { plannedVolume, plannedVolumeLabel } from '../../core/utils/planned-volume';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { WorkoutPrescription } from '../../core/models/course.model';
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
@@ -54,6 +56,20 @@ type State = 'loading' | 'ready' | 'error';
 })
 export class TodayComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
+  private readonly paceReference = inject(PaceReferenceService);
+
+  /** Mon allure d'endurance, seule base admise pour estimer un volume écrit en durée. */
+  readonly referencePace = signal<number | null>(null);
+
+  /**
+   * Volume de la séance du jour, « 12,0 km » ou « ≈ 10,0 km ». Une séance écrite en durée sans
+   * allure prescrite n'a pas de distance calculable : le total ne comptait alors que ses blocs
+   * chiffrables et pouvait annoncer « 0,1 km » pour une heure de course.
+   */
+  volumeLabel(w: Workout): string {
+    return plannedVolumeLabel(
+      plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace()));
+  }
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -108,6 +124,10 @@ export class TodayComponent implements OnInit {
       error: () => this.week.set(null),
     });
     this.portal.nextRace().subscribe({ next: (r) => this.nextRace.set(r) });
+    this.paceReference.mine().subscribe({
+      next: (p) => this.referencePace.set(p),
+      error: () => this.referencePace.set(null),
+    });
     this.portal.vdot().subscribe({
       next: (v) => this.hasPaces.set((v.paces?.length ?? 0) > 0),
       error: () => this.hasPaces.set(true),

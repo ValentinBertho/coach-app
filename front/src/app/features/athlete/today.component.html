@@ -119,8 +119,9 @@
 
             <h2 class="hero__title">{{ w.title }}</h2>
 
-            @if (w.targetDistanceM) {
-              <p class="hero__target metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} <small>km</small></p>
+            <!-- « ≈ » quand la distance est estimée depuis la durée, faute d'allure prescrite. -->
+            @if (volumeLabel(w); as km) {
+              <p class="hero__target metric">{{ km }}</p>
             }
 
             @if (rxHasContent(w.id)) {

@@ -7,6 +7,8 @@ import {
   STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_META, Workout, needsFeedback,
 } from '../../core/models/workout.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
+import { PaceReferenceService } from '../../core/services/pace-reference.service';
+import { plannedVolume } from '../../core/utils/planned-volume';
 import { ActivityChartComponent } from '../../shared/components/activity-chart/activity-chart.component';
 import { ActivityLapsComponent } from '../../shared/components/activity-laps/activity-laps.component';
 import { ActivityRouteMapComponent } from '../../shared/components/activity-route-map/activity-route-map.component';
@@ -201,7 +203,11 @@ export class AthleteWorkoutDetailComponent implements OnInit {
   readonly workoutId = input.required<string>();
 
   private readonly portal = inject(AthletePortalService);
+  private readonly paceReference = inject(PaceReferenceService);
   private readonly feedbackSheet = viewChild(WorkoutFeedbackSheetComponent);
+
+  /** Mon allure d'endurance, seule base admise pour estimer un volume écrit en durée. */
+  readonly referencePace = signal<number | null>(null);
 
   readonly state = signal<State>('loading');
   readonly workout = signal<Workout | null>(null);
@@ -254,9 +260,17 @@ export class AthleteWorkoutDetailComponent implements OnInit {
     const w = this.workout();
     if (!w) return null;
     const calc = this.prescription()?.calculated;
+    const durationS = calc?.totalDurationS ?? w.targetDurationS ?? null;
+    // Une séance écrite en durée, sans allure prescrite, n'a pas de distance calculable : le
+    // total ne comptait alors que les blocs chiffrables (les éducatifs, quelques centaines de
+    // mètres) et annonçait « 0,1 km » pour une heure de course. On préfère un ordre de grandeur
+    // tiré de l'allure d'endurance de l'athlète, affiché comme tel.
+    const volume = plannedVolume(
+      calc?.totalDistanceM ?? w.targetDistanceM ?? null, durationS, this.referencePace());
     return {
-      durationS: calc?.totalDurationS ?? w.targetDurationS ?? null,
-      distanceM: calc?.totalDistanceM ?? w.targetDistanceM ?? null,
+      durationS,
+      distanceM: volume?.distanceM ?? null,
+      distanceIndicative: volume?.indicative ?? false,
     };
   });
 
@@ -278,6 +292,10 @@ export class AthleteWorkoutDetailComponent implements OnInit {
     this.portal.workoutPrescription(id).subscribe({
       next: (p) => this.prescription.set(p),
       error: () => this.prescription.set(null),
+    });
+    this.paceReference.mine().subscribe({
+      next: (p) => this.referencePace.set(p),
+      error: () => this.referencePace.set(null),
     });
   }
 
