@@ -41,6 +41,7 @@ public class ActivityService {
     private final AthleteRepository athleteRepository;
     private final WorkoutRepository workoutRepository;
     private final MatchingService matchingService;
+    private final com.coachrun.security.HealthDataConsentValidator consentValidator;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public List<ActivityResponse> list(UUID clubId, UUID athleteId) {
@@ -279,10 +280,21 @@ public class ActivityService {
         } else if (request.rpe() != null) {
             a.setRpe(request.rpe());
         }
+        if (Boolean.TRUE.equals(request.clearFeel())) {
+            a.setFeel(null);
+        } else if (request.feel() != null) {
+            a.setFeel(request.feel());
+        }
         if (Boolean.TRUE.equals(request.clearComment())) {
             a.setAthleteComment(null);
         } else if (request.comment() != null) {
             a.setAthleteComment(request.comment().isBlank() ? null : request.comment().trim());
+        }
+        // Blessures : donnée de l'article 9. Sans consentement actif on ne les enregistre pas,
+        // mais la correction de la sortie aboutit — même régime que la fatigue et la douleur.
+        if (request.injuries() != null) {
+            a.setInjuriesJson(consentValidator.isAllowed(a.getAthlete())
+                    ? com.coachrun.util.InjuryCodec.write(request.injuries()) : null);
         }
 
         // Les mesures d'une montre ne se réécrivent pas : elles font foi, et la charge du coach
@@ -348,33 +360,86 @@ public class ActivityService {
     // --- Lecture des tours -------------------------------------------------
 
     /** Tours d'une de mes activités (portail athlète). */
-    public ActivityLapsResponse lapsForAthlete(UUID athleteId, UUID activityId) {
-        return laps(ownedByAthlete(athleteId, activityId));
+    public ActivityLapsResponse lapsForAthlete(UUID athleteId, UUID activityId,
+                                               ActivityLapsResponse.Kind requested) {
+        return laps(ownedByAthlete(athleteId, activityId), requested);
     }
 
     /** Tours d'une activité vue par le coach (scopé club). */
-    public ActivityLapsResponse laps(UUID clubId, UUID activityId) {
-        return laps(require(clubId, activityId));
+    public ActivityLapsResponse laps(UUID clubId, UUID activityId,
+                                     ActivityLapsResponse.Kind requested) {
+        return laps(require(clubId, activityId), requested);
     }
 
     /**
-     * Tours de la montre s'ils existent, splits kilométriques calculés sinon.
+     * Tours de l'activité selon la découpe demandée, avec la liste de celles qu'elle sait produire.
      *
-     * <p>Le repli fait tout l'intérêt du dispositif en bêta : les sorties déjà importées n'ont
-     * pas de tours en base, mais elles ont leur flux — elles se décortiquent donc dès maintenant,
-     * sans réimport et sans reprise de données.</p>
+     * <p>Deux lectures d'une même sortie, jamais confondues : les tours de la montre sont les
+     * répétitions telles qu'elles ont été courues, les splits kilométriques une découpe régulière.
+     * Une sortie qui porte les deux mérite qu'on puisse basculer de l'une à l'autre — sur un
+     * fractionné en côte, la comparaison est justement l'information.</p>
+     *
+     * <p>Sans découpe demandée, les tours de la montre priment ; le repli sur les splits fait
+     * tout l'intérêt du dispositif en bêta, où les sorties déjà importées n'ont pas de tours en
+     * base mais ont leur flux — elles se décortiquent donc sans réimport.</p>
      */
-    private ActivityLapsResponse laps(Activity a) {
-        if (a.getLapsJson() != null) {
-            try {
-                return objectMapper.readValue(a.getLapsJson(), ActivityLapsResponse.class);
-            } catch (Exception e) {
-                log.warn("Tours illisibles pour l'activité {} : repli sur les splits", a.getId());
-            }
-        }
+    private ActivityLapsResponse laps(Activity a, ActivityLapsResponse.Kind requested) {
+        ActivityLapsResponse device = deviceLaps(a);
         java.util.List<ActivityLapsResponse.Lap> splits =
                 com.coachrun.util.SplitCalculator.perKilometer(stream(a), a.getDistanceM());
-        return new ActivityLapsResponse(ActivityLapsResponse.Kind.SPLIT, splits);
+
+        java.util.List<ActivityLapsResponse.Kind> available = new java.util.ArrayList<>();
+        if (device != null && !device.laps().isEmpty()) {
+            available.add(ActivityLapsResponse.Kind.DEVICE);
+        }
+        if (!splits.isEmpty()) {
+            available.add(ActivityLapsResponse.Kind.SPLIT);
+        }
+
+        boolean wantsSplit = requested == ActivityLapsResponse.Kind.SPLIT && !splits.isEmpty();
+        if (device == null || device.laps().isEmpty() || wantsSplit) {
+            return new ActivityLapsResponse(ActivityLapsResponse.Kind.SPLIT, splits, available);
+        }
+        return device.withAvailable(available);
+    }
+
+    /** Tours relevés par la montre, ou {@code null} s'il n'y en a pas (ou s'ils sont illisibles). */
+    private ActivityLapsResponse deviceLaps(Activity a) {
+        if (a.getLapsJson() == null) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(a.getLapsJson(), ActivityLapsResponse.class);
+        } catch (Exception e) {
+            log.warn("Tours illisibles pour l'activité {} : repli sur les splits", a.getId());
+            return null;
+        }
+    }
+
+    // --- Courbe de la sortie -----------------------------------------------
+
+    /** Courbe d'une de mes activités (portail athlète). */
+    public com.coachrun.dto.response.ActivityStreamResponse streamForAthlete(UUID athleteId,
+                                                                            UUID activityId) {
+        return curve(ownedByAthlete(athleteId, activityId));
+    }
+
+    /** Courbe d'une activité vue par le coach (scopé club). */
+    public com.coachrun.dto.response.ActivityStreamResponse streamCurve(UUID clubId, UUID activityId) {
+        return curve(require(clubId, activityId));
+    }
+
+    /**
+     * Flux prêt à tracer : FC et allure <b>en fonction de la distance</b>, pas du temps.
+     *
+     * <p>Le flux stocké ne porte que le temps écoulé ; la distance s'intègre depuis l'allure, puis
+     * se recale sur le total connu de la montre — même règle que les splits, pour que la courbe et
+     * le tableau des tours placent le kilomètre 5 au même endroit. Lire un fractionné sur un axe
+     * temporel écrase les récupérations et étire les répétitions : l'axe de distance est celui sur
+     * lequel un coureur reconnaît sa séance.</p>
+     */
+    private com.coachrun.dto.response.ActivityStreamResponse curve(Activity a) {
+        return com.coachrun.util.ActivityCurve.build(stream(a), a.getDistanceM());
     }
 
     /** Flux stocké de l'activité, ou liste vide (saisie manuelle, montre sans capteur). */
@@ -637,6 +702,17 @@ public class ActivityService {
     /** Activité réalisée rapprochée d'une séance (ou {@code null}), avec les écarts prévu/réalisé. */
     public ActivityResponse getForWorkout(UUID clubId, UUID athleteId, UUID workoutId) {
         return activityRepository.findByClubIdAndAthleteIdAndMatchedWorkoutId(clubId, athleteId, workoutId)
+                .map(this::toResponse)
+                .orElse(null);
+    }
+
+    /**
+     * Ma sortie rapprochée d'une de mes séances (ou {@code null}). Scopée par mon seul athleteId :
+     * le portail n'a pas de clubId à porter, et n'en a pas besoin — une activité appartient à un
+     * athlète, et c'est cette appartenance qui est vérifiée.
+     */
+    public ActivityResponse getForWorkoutOfAthlete(UUID athleteId, UUID workoutId) {
+        return activityRepository.findByAthleteIdAndMatchedWorkoutId(athleteId, workoutId)
                 .map(this::toResponse)
                 .orElse(null);
     }

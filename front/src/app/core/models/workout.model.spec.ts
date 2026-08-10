@@ -5,7 +5,7 @@ function make(over: Partial<Workout>): Workout {
     id: 'w1', athleteId: 'a1', scheduledDate: '2026-07-28', type: 'ENDURANCE',
     status: 'PLANNED', title: 'Footing', notes: null,
     targetDistanceM: null, targetDurationS: null, actualDurationS: null, missedReason: null,
-    rpe: null, athleteComment: null,
+    rpe: null, fatigue: null, pain: null, feel: null, injuries: [], athleteComment: null,
     coachComment: null, coachCommentAt: null, movedByAthlete: false, originalDate: null,
     plannedLoadUa: null, orderIndex: 0, steps: [],
     ...over,
@@ -25,6 +25,9 @@ describe('workout.model — ressenti athlète', () => {
     // Déjà noté (RPE ou commentaire) : plus de relance, même si le statut reste partiel.
     expect(awaitsFeedback(make({ status: 'PARTIAL', rpe: 6 }))).toBeFalse();
     expect(awaitsFeedback(make({ status: 'PARTIAL', athleteComment: 'genou sensible' }))).toBeFalse();
+    // Un visage tapé et rien d'autre est une réponse : relancer serait redemander ce qui vient
+    // d'être dit.
+    expect(awaitsFeedback(make({ status: 'PARTIAL', feel: 2 }))).toBeFalse();
     expect(awaitsFeedback(make({ status: 'COMPLETED' }))).toBeFalse();
   });
 

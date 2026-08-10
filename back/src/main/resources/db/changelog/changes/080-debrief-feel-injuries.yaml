@@ -1,0 +1,29 @@
+# ============================================================================
+# 080 — Débrief d'après séance : sensation générale + blessures déclarées.
+#   Le retour de l'athlète ne portait que l'effort (RPE) et deux curseurs
+#   fatigue/douleur. Deux choses lui manquaient, et ce sont celles que le coach
+#   lit en premier : COMMENT la séance s'est passée (sensation, distincte de sa
+#   difficulté), et OÙ ça fait mal quand ça fait mal — un « douleur 7 » sans
+#   localisation ni nature n'est pas actionnable.
+#   Additif, nullable, non destructif. Données de l'article 9 (santé) :
+#   la collecte reste gardée par le consentement, côté service.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 080-debrief-feel-injuries
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workouts
+            columns:
+              # Sensation générale 1–5 (1 = excellente … 5 = très mauvaise), jamais le RPE :
+              # une séance peut être très dure ET très bien vécue, l'inverse aussi.
+              - column: { name: feel, type: SMALLINT }
+              # [{"kind":…,"area":…,"side":…,"note":…}, …] — même parti que laps_json :
+              # une liste courte, lue en bloc, jamais requêtée champ par champ.
+              - column: { name: injuries_json, type: VARCHAR(2000) }
+        - addColumn:
+            tableName: activities
+            columns:
+              - column: { name: feel, type: SMALLINT }
+              - column: { name: injuries_json, type: VARCHAR(2000) }

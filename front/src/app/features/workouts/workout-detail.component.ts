@@ -26,6 +26,13 @@ import { TrainingZone } from '../../core/models/training-zone.model';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
 import { Activity } from '../../core/models/activity.model';
 import { ActivityService } from '../../core/services/activity.service';
+import { ActivityChartComponent } from '../../shared/components/activity-chart/activity-chart.component';
+import { ActivityLapsComponent } from '../../shared/components/activity-laps/activity-laps.component';
+import { ActivityRouteMapComponent } from '../../shared/components/activity-route-map/activity-route-map.component';
+import { FeedbackRecapComponent } from '../../shared/components/feedback-recap/feedback-recap.component';
+import {
+  PlannedStats, RealizedStats, SessionStatsComponent,
+} from '../../shared/components/session-stats/session-stats.component';
 
 /** Segment de la barre de répartition du temps par zone (façon Nolio). */
 interface ZoneSegment {
@@ -47,7 +54,12 @@ type State = 'loading' | 'ready' | 'error';
   selector: 'app-workout-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink, FormsModule, DatePipe, IntensityZoneBadgeComponent, DataOriginTagComponent, StickyActionBarComponent, CoursePrescriptionViewComponent],
+  imports: [
+    IconComponent, RouterLink, FormsModule, DatePipe, IntensityZoneBadgeComponent,
+    DataOriginTagComponent, StickyActionBarComponent, CoursePrescriptionViewComponent,
+    SessionStatsComponent, ActivityChartComponent, ActivityLapsComponent,
+    ActivityRouteMapComponent, FeedbackRecapComponent,
+  ],
   templateUrl: './workout-detail.component.html',
   styleUrl: './workout-detail.component.scss',
 })
@@ -62,21 +74,35 @@ export class WorkoutDetailComponent implements OnInit {
   /** Activité réalisée rapprochée de la séance (vue « réalisé » façon Nolio). */
   readonly activity = signal<Activity | null>(null);
 
-  /** Stats du réalisé + écarts prévu/réalisé, dérivés de l'activité rapprochée. */
-  readonly realizedStats = computed(() => {
+  /** Chiffres mesurés de la sortie rapprochée, tels que le bandeau partagé les attend. */
+  readonly realized = computed<RealizedStats | null>(() => {
     const a = this.activity();
     if (!a) return null;
-    const paceLabel = a.durationS && a.distanceM ? this.fmtPace(a.durationS / (a.distanceM / 1000)) : null;
     return {
-      durationLabel: a.durationS ? this.fmtDuration(a.durationS) : null,
-      distanceKm: a.distanceM ? a.distanceM / 1000 : null,
-      paceLabel,
-      elevationM: a.elevationGainM,
+      durationS: a.durationS,
+      distanceM: a.distanceM,
+      elevationGainM: a.elevationGainM,
+      paceSPerKm: a.paceSPerKm,
       avgHr: a.avgHr,
-      distanceDeltaKm: a.distanceDeltaM != null ? a.distanceDeltaM / 1000 : null,
-      durationDeltaS: a.durationDeltaS,
-      source: a.source,
-      date: a.activityDate,
+      maxHr: a.maxHr,
+      avgCadence: a.avgCadence,
+      avgPowerW: a.avgPowerW,
+      calories: a.calories,
+    };
+  });
+
+  /**
+   * Cibles prescrites, à confronter au réalisé. Les totaux calculés de la structure priment sur
+   * les cibles globales saisies à la main : c'est la prescription réellement construite bloc par
+   * bloc, celle que l'athlète a suivie.
+   */
+  readonly plannedStats = computed<PlannedStats | null>(() => {
+    const w = this.workout();
+    if (!w) return null;
+    const calc = this.courseRx()?.calculated;
+    return {
+      durationS: calc?.totalDurationS ?? w.targetDurationS ?? null,
+      distanceM: calc?.totalDistanceM ?? w.targetDistanceM ?? null,
     };
   });
 
@@ -135,10 +161,15 @@ export class WorkoutDetailComponent implements OnInit {
     return !!c && (c.warmup.length + c.main.length + c.cooldown.length) > 0;
   });
 
-  /** La séance a-t-elle un retour athlète déclaré ? */
+  /**
+   * La séance a-t-elle un retour athlète déclaré ? Un seul champ suffit : un athlète qui n'a tapé
+   * qu'un visage s'est prononcé, et afficher « aucun retour » effacerait son geste.
+   */
   readonly hasFeedback = computed(() => {
     const w = this.workout();
-    return !!w && (w.rpe != null || !!w.athleteComment);
+    if (!w) return false;
+    return w.feel != null || w.rpe != null || w.fatigue != null || w.pain != null
+      || !!w.athleteComment || (w.injuries?.length ?? 0) > 0;
   });
 
   /**

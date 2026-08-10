@@ -28,7 +28,12 @@ public record ActivityUpdateRequest(
         @PositiveOrZero Integer durationS,
         @PositiveOrZero Integer elevationGainM,
         @Min(1) @Max(10) Integer rpe,
+        /** Sensation générale (1 = excellente … 5 = très mauvaise) — comment ça s'est passé. */
+        @Min(1) @Max(5) Integer feel,
         @Size(max = 2000) String comment,
+        /** Blessures déclarées ({@code null} = inchangé, liste vide = plus aucune). */
+        @jakarta.validation.Valid @Size(max = 5) java.util.List<com.coachrun.dto.InjuryReport> injuries,
         Boolean clearRpe,
+        Boolean clearFeel,
         Boolean clearComment) {
 }

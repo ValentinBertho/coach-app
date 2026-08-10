@@ -357,6 +357,15 @@ export const routes: Routes = [
           import('./features/athlete/athlete-activities.component').then((m) => m.AthleteActivitiesComponent),
       },
       {
+        // Fiche « ma séance » : prescription, réalisé, courbe, tours, tracé et débrief au même
+        // endroit. Ces éléments existaient tous, éparpillés sur trois écrans dont aucun ne
+        // répondait à « ma séance de samedi, elle a donné quoi ? ».
+        path: 'workouts/:workoutId',
+        loadComponent: () =>
+          import('./features/athlete/athlete-workout-detail.component')
+            .then((m) => m.AthleteWorkoutDetailComponent),
+      },
+      {
         path: 'lactate',
         loadComponent: () =>
           import('./features/athlete/athlete-lactate.component').then((m) => m.AthleteLactateComponent),

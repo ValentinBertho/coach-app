@@ -93,41 +93,29 @@
           </section>
         }
 
-        <!-- ===== Réalisé (activité rapprochée) façon Nolio ===== -->
-        @if (realizedStats(); as r) {
+        <!-- ===== Réalisé (activité rapprochée) ===== -->
+        @if (activity(); as a) {
           <section class="card block realized">
             <div class="realized-head">
               <h2 class="block-title">Réalisé</h2>
-              <span class="badge badge-success">{{ r.source }} · {{ r.date | date: 'd MMM' }}</span>
+              <span class="badge badge-success">{{ a.source }} · {{ a.activityDate | date: 'd MMM' }}</span>
             </div>
-            <div class="stat-strip stat-strip--realized">
-              <div class="stat">
-                <span class="stat__lb">Durée</span>
-                <span class="stat__v metric">{{ r.durationLabel ?? '—' }}</span>
-                @if (r.durationDeltaS != null) {
-                  <span class="stat__delta" [class.pos]="r.durationDeltaS > 0" [class.neg]="r.durationDeltaS < 0">{{ fmtDeltaDuration(r.durationDeltaS) }}</span>
-                }
-              </div>
-              <div class="stat">
-                <span class="stat__lb">Distance</span>
-                <span class="stat__v metric">@if (r.distanceKm) { {{ r.distanceKm.toFixed(2) }} <small>km</small> } @else { — }</span>
-                @if (r.distanceDeltaKm != null) {
-                  <span class="stat__delta" [class.pos]="r.distanceDeltaKm > 0" [class.neg]="r.distanceDeltaKm < 0">{{ r.distanceDeltaKm > 0 ? '+' : '' }}{{ r.distanceDeltaKm.toFixed(2) }} km</span>
-                }
-              </div>
-              <div class="stat">
-                <span class="stat__lb">Allure</span>
-                <span class="stat__v metric">@if (r.paceLabel) { {{ r.paceLabel }} <small>/km</small> } @else { — }</span>
-              </div>
-              <div class="stat">
-                <span class="stat__lb">D+ / FC moy</span>
-                <span class="stat__v metric">
-                  @if (r.elevationM != null) { {{ r.elevationM }} <small>m</small> } @else { — }
-                  @if (r.avgHr != null) { · {{ r.avgHr }} <small>bpm</small> }
-                </span>
-              </div>
-            </div>
-            <p class="realized-hint field-hint">Écarts calculés par rapport aux cibles prévues (vert = au-delà, orange = en deçà).</p>
+            <!-- Réalisé en grand, prévu entre parenthèses juste dessous : comparer 16,5 km à
+                 18,3 km ne doit pas demander de faire l'aller-retour entre deux cartes. -->
+            <app-session-stats [realized]="realized()!" [planned]="plannedStats()" />
+          </section>
+
+          <!-- Comment la séance s'est passée : ce que ni les moyennes ni les tours ne disent. -->
+          <section class="card block">
+            <app-activity-chart [athleteId]="athleteId()" [activityId]="a.id" />
+          </section>
+
+          <section class="card block">
+            <app-activity-laps [athleteId]="athleteId()" [activityId]="a.id" />
+          </section>
+
+          <section class="card block">
+            <app-activity-route-map [athleteId]="athleteId()" [activityId]="a.id" [height]="260" />
           </section>
         }
 
@@ -146,35 +134,34 @@
             @if (hasFeedback()) { <app-data-origin-tag origin="saisi" /> }
           </div>
           @if (hasFeedback()) {
-            <div class="feedback-recap">
-              <!-- Prescrit vs ressenti : la boucle existait des deux côtés sans jamais être confrontée. -->
-              @if (prescribedRpe(); as planned) {
+            <!-- Sensation, effort, fatigue, douleur, blessures et commentaire — rendus à
+                 l'identique de ce que l'athlète relit sur sa propre fiche. -->
+            <app-feedback-recap [feel]="w.feel" [rpe]="w.rpe" [fatigue]="w.fatigue"
+                                [pain]="w.pain" [injuries]="w.injuries"
+                                [comment]="w.athleteComment" />
+
+            <!-- Prescrit vs ressenti : la boucle existait des deux côtés sans jamais être
+                 confrontée. Le récapitulatif ci-dessus dit ce que l'athlète a déclaré ; cette
+                 ligne dit ce que ça vaut par rapport à ce qui avait été demandé. -->
+            @if (prescribedRpe(); as planned) {
+              <div class="feedback-recap">
                 <div class="fb-stat">
                   <span class="fb-stat__k">RPE prescrit</span>
                   <span class="fb-stat__v metric">{{ planned }}<small>/10</small></span>
                 </div>
-              }
-              @if (w.rpe != null) {
-                <div class="fb-stat">
-                  <span class="fb-stat__k">RPE ressenti</span>
-                  <span class="fb-stat__v metric">{{ w.rpe }}<small>/10</small></span>
-                </div>
-              }
-              @if (rpeGap(); as gap) {
-                <div class="fb-stat fb-gap" [class.fb-gap--notable]="rpeGapNotable()">
-                  <span class="fb-stat__k">Écart</span>
-                  <span class="fb-stat__v metric">{{ gap > 0 ? '+' : '' }}{{ gap }}</span>
-                  @if (rpeGapNotable()) {
-                    <span class="fb-gap__hint">
-                      {{ gap > 0 ? 'ressentie plus dure que prévu' : 'ressentie plus facile que prévu' }}
-                    </span>
-                  }
-                </div>
-              }
-              @if (w.athleteComment) {
-                <blockquote class="fb-comment">{{ w.athleteComment }}</blockquote>
-              }
-            </div>
+                @if (rpeGap(); as gap) {
+                  <div class="fb-stat fb-gap" [class.fb-gap--notable]="rpeGapNotable()">
+                    <span class="fb-stat__k">Écart</span>
+                    <span class="fb-stat__v metric">{{ gap > 0 ? '+' : '' }}{{ gap }}</span>
+                    @if (rpeGapNotable()) {
+                      <span class="fb-gap__hint">
+                        {{ gap > 0 ? 'ressentie plus dure que prévu' : 'ressentie plus facile que prévu' }}
+                      </span>
+                    }
+                  </div>
+                }
+              </div>
+            }
           } @else {
             <p class="field-hint">Aucun retour pour l'instant.</p>
           }

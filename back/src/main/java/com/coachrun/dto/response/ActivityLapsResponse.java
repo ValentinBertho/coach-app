@@ -12,10 +12,28 @@ import java.util.List;
  * premiers ferait lire « 4:12 au km 3 » à un athlète qui cherche l'allure de sa 3<sup>e</sup>
  * répétition.</p>
  *
- * @param kind provenance des tours, jamais masquée à l'affichage
- * @param laps tours dans l'ordre chronologique
+ * <p>{@code availableKinds} annonce les découpes que <b>cette</b> sortie sait produire, pour que
+ * l'écran propose des onglets « Tours montre / Tours 1 km » sans avoir à deviner : une sortie avec
+ * tours de montre <em>et</em> flux GPS offre les deux lectures, et comparer les répétitions aux
+ * kilomètres est précisément ce qu'on fait sur un fractionné en côte. Nul ou absent (anciennes
+ * lignes stockées) = seule la découpe rendue est disponible.</p>
+ *
+ * @param kind           provenance des tours rendus, jamais masquée à l'affichage
+ * @param laps           tours dans l'ordre chronologique
+ * @param availableKinds découpes proposables pour cette sortie
  */
-public record ActivityLapsResponse(Kind kind, List<Lap> laps) {
+@com.fasterxml.jackson.annotation.JsonIgnoreProperties(ignoreUnknown = true)
+public record ActivityLapsResponse(Kind kind, List<Lap> laps, List<Kind> availableKinds) {
+
+    /** Forme courte : la découpe rendue est la seule disponible. */
+    public ActivityLapsResponse(Kind kind, List<Lap> laps) {
+        this(kind, laps, laps == null || laps.isEmpty() ? List.of() : List.of(kind));
+    }
+
+    /** Même contenu, avec la liste des découpes proposables recalculée par le service. */
+    public ActivityLapsResponse withAvailable(List<Kind> kinds) {
+        return new ActivityLapsResponse(kind, laps, kinds);
+    }
 
     public enum Kind {
         /** Tours relevés par la montre (bouton lap, ou structure de séance). */

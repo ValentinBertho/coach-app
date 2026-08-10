@@ -352,6 +352,12 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
           @if (canRate(w)) {
             <button type="button" class="btn btn-accent btn-lg det-cta" (click)="rate(w)">Noter mon retour</button>
           }
+          <!-- Cette feuille montre ce qui était prévu ; la fiche montre ce que ça a donné —
+               chiffres de la montre, courbe, tours, tracé et débrief relu. -->
+          <a class="btn btn-ghost btn-sm det-cta" [routerLink]="['/athlete/workouts', w.id]"
+             (click)="detailOpen.set(false)">
+            <app-icon name="chevron-right" [size]="15" /> Voir le détail de la séance
+          </a>
           <p class="det-foot field-hint">Lecture seule. Pour décaler la séance, utilise « déplacer ».</p>
         </div>
       }

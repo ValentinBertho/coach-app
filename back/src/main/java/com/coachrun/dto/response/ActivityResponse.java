@@ -35,6 +35,10 @@ public record ActivityResponse(
         Integer distanceDeltaM,
         Integer durationDeltaS,
         Integer rpe,
+        /** Sensation générale déclarée sur la sortie (1 = excellente … 5 = très mauvaise). */
+        Integer feel,
+        /** Blessures déclarées sur la sortie ; liste vide si aucune. */
+        java.util.List<com.coachrun.dto.InjuryReport> injuries,
         String athleteComment) {
 
     public static ActivityResponse from(Activity a, Integer distanceDeltaM, Integer durationDeltaS) {
@@ -44,7 +48,9 @@ public record ActivityResponse(
                 a.getMaxHr(), a.getAvgCadence(), a.getAvgPowerW(), a.getCalories(),
                 pace(a.getDistanceM(), a.getDurationS()),
                 a.getStatus(), a.getMatchedWorkoutId(), distanceDeltaM, durationDeltaS,
-                a.getRpe(), a.getAthleteComment());
+                a.getRpe(), a.getFeel(),
+                com.coachrun.util.InjuryCodec.read(a.getInjuriesJson()),
+                a.getAthleteComment());
     }
 
     /** Allure moyenne (s/km), ou {@code null} si distance ou durée manquent. */

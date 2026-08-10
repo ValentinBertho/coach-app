@@ -70,6 +70,34 @@ describe('activity-laps — échelle de lecture', () => {
     expect(component.barWidth(lap(6, null))).toBe(0);
   });
 
+  /**
+   * L'allure moyenne se calcule sur les totaux, jamais en moyennant les allures des tours :
+   * sinon une récupération de 200 m pèse autant qu'une répétition d'un kilomètre, et la ligne
+   * de moyennes annonce une allure que personne n'a courue.
+   */
+  it('moyenne l’allure sur les totaux, pas sur les tours', () => {
+    component.data.set({
+      kind: 'DEVICE',
+      laps: [lap(1, 200, 1000), lap(2, 400, 200)],
+    });
+
+    const avg = component.averages();
+    expect(avg?.distanceM).toBe(1200);
+    // 200 s sur 1000 m + 80 s sur 200 m = 280 s pour 1200 m, soit 233 s/km — et non 300,
+    // la moyenne naïve des deux allures.
+    expect(avg?.paceSPerKm).toBe(233);
+  });
+
+  /** Les onglets ne s'affichent que sur ce que la sortie sait produire. */
+  it('n’annonce que les découpes disponibles', () => {
+    component.data.set({ kind: 'DEVICE', laps: [lap(1, 200)], availableKinds: ['DEVICE', 'SPLIT'] });
+    expect(component.kinds()).toEqual(['DEVICE', 'SPLIT']);
+
+    // Réponse ancienne, sans le champ : une seule découpe, la sienne.
+    component.data.set({ kind: 'SPLIT', laps: [lap(1, 300, 1000)] });
+    expect(component.kinds()).toEqual(['SPLIT']);
+  });
+
   it('formate distances, allures et temps comme le reste de l’application', () => {
     expect(component.distLabel(lap(1, 200, 400))).toBe('400 m');
     expect(component.distLabel(lap(1, 300, 1000))).toBe('1 km');

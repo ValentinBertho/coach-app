@@ -89,6 +89,17 @@ public class Activity extends BaseEntity {
     @Column(name = "athlete_comment", length = 2000)
     private String athleteComment;
 
+    /**
+     * Sensation générale (1 = excellente … 5 = très mauvaise), déclarée sur la sortie elle-même
+     * quand aucune séance prescrite ne peut la porter. Jamais le RPE : celui-ci dit la difficulté.
+     */
+    @Column(name = "feel")
+    private Integer feel;
+
+    /** Blessures déclarées sur cette sortie, JSON — même format que sur la séance. */
+    @Column(name = "injuries_json", length = 2000)
+    private String injuriesJson;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 16)
     private ActivityStatus status = ActivityStatus.IMPORTED;
