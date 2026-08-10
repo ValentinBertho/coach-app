@@ -14,7 +14,8 @@ import java.math.BigDecimal;
 public record StrengthFeedbackRequest(
         Boolean completed,
         @DecimalMin("1.0") @DecimalMax("10.0") BigDecimal sessionRpe,
-        @Min(1) @Max(10) Integer fatigue,
+        /** Fatigue 0–10 — même échelle et mêmes bornes que le check-in du matin et la séance course. */
+        @Min(0) @Max(10) Integer fatigue,
         @Min(0) @Max(10) Integer pain,
         @Size(max = 1024) String comment
 ) {

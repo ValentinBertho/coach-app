@@ -127,6 +127,18 @@ class CalendarSchedulingTest {
         assertThat(fb.get("fatigue").asInt()).isEqualTo(6);
         assertThat(fb.get("pain").asInt()).isEqualTo(2);
 
+        // 6 bis. Zéro est une réponse, pas une absence de réponse — exactement comme au check-in
+        // du matin, qui accepte 0 sur les trois curseurs. La fatigue commençait ici à 1 alors que
+        // l'écran propose le même sélecteur 0–10 : « pas fatigué du tout » se saisissait, puis
+        // était rejeté par la validation sans que l'athlète sache ce qu'on lui reprochait.
+        JsonNode zero = objectMapper.readTree(mvc.perform(
+                        patch("/me/workouts/{w}/feedback", workoutId)
+                                .header("Authorization", athleteBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"status\":\"COMPLETED\",\"rpe\":3,\"fatigue\":0,\"pain\":0}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(zero.get("fatigue").asInt()).isZero();
+        assertThat(zero.get("pain").asInt()).isZero();
+
         // 7. L'athlète voit la prescription calculée de sa séance.
         mvc.perform(get("/me/workouts/{w}/prescription", workoutId)
                         .header("Authorization", athleteBearer))

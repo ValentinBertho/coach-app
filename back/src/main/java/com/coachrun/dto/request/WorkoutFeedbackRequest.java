@@ -29,7 +29,13 @@ public record WorkoutFeedbackRequest(
         /** Sensation générale : 1 = excellente … 5 = très mauvaise. Jamais l'effort. */
         @Min(1) @Max(5) Integer feel,
         @Min(1) @Max(10) Integer rpe,
-        @Min(1) @Max(10) Integer fatigue,
+        /**
+         * Fatigue 0–10, comme au check-in du matin. Elle commençait à 1 : le curseur proposait
+         * pourtant un 0 — le même composant que le check-in — et l'athlète qui déclarait « pas
+         * fatigué du tout » recevait une erreur de validation sans savoir ce qu'on lui reprochait.
+         * Une échelle déclarée doit commencer là où l'écran la fait commencer.
+         */
+        @Min(0) @Max(10) Integer fatigue,
         @Min(0) @Max(10) Integer pain,
         @Size(max = 1024) String comment,
         @Valid @Size(max = 5) java.util.List<com.coachrun.dto.InjuryReport> injuries,
