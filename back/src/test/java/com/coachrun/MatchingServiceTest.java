@@ -128,4 +128,49 @@ class MatchingServiceTest {
 
         assertThat(matching.findBestMatch(sprint, List.of(longRun))).isEmpty();
     }
+
+    // --- On ne peut pas avoir déjà fait ce qui n'a pas encore eu lieu ----------------------
+
+    /**
+     * Une séance prévue demain n'est jamais candidate, même parfaitement ressemblante.
+     *
+     * <p>La proximité de date était symétrique : un jour d'écart ne coûtait que deux dixièmes du
+     * score final, qu'un volume presque identique récupérait largement. La séance du lendemain
+     * gagnait donc contre celle du jour même, et se retrouvait déclarée faite avant d'avoir été
+     * courue.</p>
+     */
+    @Test
+    void neverMatchesAWorkoutPlannedAfterTheActivity() {
+        LocalDate today = LocalDate.of(2026, 8, 10);
+        Activity ran = activity(today, 11350, 3465);
+        Workout tomorrow = workout(today.plusDays(1), 11320, 3450, WorkoutStatus.PLANNED);
+
+        assertThat(matching.findBestMatch(ran, List.of(tomorrow))).isEmpty();
+    }
+
+    /**
+     * Le cas exact remonté : la séance du jour a des cibles inexploitables — une prescription
+     * écrite en durée dont aucun bloc n'est chiffrable ne totalise que ses éducatifs — pendant que
+     * celle du lendemain colle au mètre près. Le rapprochement doit s'abstenir, et surtout pas
+     * valider la séance de demain.
+     */
+    @Test
+    void prefersNothingOverTomorrowWhenTodaysTargetsAreUnusable() {
+        LocalDate today = LocalDate.of(2026, 8, 10);
+        Activity ran = activity(today, 11350, 3465);
+        Workout todaysSession = workout(today, 100, null, WorkoutStatus.PLANNED);
+        Workout tomorrow = workout(today.plusDays(1), 11320, 3450, WorkoutStatus.PLANNED);
+
+        assertThat(matching.findBestMatch(ran, List.of(todaysSession, tomorrow))).isEmpty();
+    }
+
+    /** La séance de la veille, elle, reste rapprochable : on a couru en retard, ça arrive. */
+    @Test
+    void stillMatchesYesterdaysWorkout() {
+        LocalDate today = LocalDate.of(2026, 8, 10);
+        Activity ran = activity(today, 11350, 3465);
+        Workout yesterday = workout(today.minusDays(1), 11320, 3450, WorkoutStatus.PLANNED);
+
+        assertThat(matching.findBestMatch(ran, List.of(yesterday))).contains(yesterday);
+    }
 }
