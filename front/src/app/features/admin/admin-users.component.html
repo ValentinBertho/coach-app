@@ -61,6 +61,12 @@
             <td>{{ u.clubName || '—' }}</td>
             <td class="table-actions">
               <button type="button" class="btn btn-ghost btn-sm" (click)="save(u)">Enregistrer</button>
+              <!-- Voir l'application comme cet utilisateur : la plupart des défauts remontés en
+                   bêta se décrivent par un écran, et ne se reproduisent que depuis son compte. -->
+              @if (canImpersonate(u)) {
+                <button type="button" class="btn btn-ghost btn-sm" (click)="impersonate(u)"
+                        [disabled]="impersonating()">Voir en tant que</button>
+              }
               <button type="button" class="btn btn-danger btn-sm" (click)="remove(u)">Suppr.</button>
             </td>
           </tr>

@@ -95,7 +95,13 @@ function endSession(auth: AuthService, toast: ToastService, error: HttpErrorResp
   if (!auth.isAuthenticated()) {
     return;
   }
-  auth.expireSession();
+  // Une impersonation expirée n'est pas une fin de session : l'administrateur retrouve son
+  // propre compte, là où il a le droit d'être, plutôt que de se faire déconnecter parce qu'il a
+  // regardé un compte pendant un quart d'heure.
+  if (auth.expireSession()) {
+    toast.info('Impersonation terminée — retour à ton compte.');
+    return;
+  }
   toast.error('Session expirée, reconnecte-toi.');
 }
 

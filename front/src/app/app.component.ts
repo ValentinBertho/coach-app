@@ -15,6 +15,7 @@ import { ToastComponent } from './shared/components/toast/toast.component';
 import { UpdateBannerComponent } from './shared/components/update-banner/update-banner.component';
 import { HelpSearchOverlayComponent } from './features/help/help-search-overlay.component';
 import { CommandPaletteComponent } from './features/search/command-palette.component';
+import { ImpersonationBannerComponent } from './shared/components/impersonation-banner/impersonation-banner.component';
 
 /**
  * Shell applicatif : router-outlet + toasts + célébration + confirmation + recherche globale
@@ -24,8 +25,11 @@ import { CommandPaletteComponent } from './features/search/command-palette.compo
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent, CommandPaletteComponent, UpdateBannerComponent, CelebrationOverlayComponent, FeedbackPanelComponent, PushOnboardingComponent],
+  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent, CommandPaletteComponent, UpdateBannerComponent, CelebrationOverlayComponent, FeedbackPanelComponent, PushOnboardingComponent, ImpersonationBannerComponent],
   template: `
+    <!-- Avant tout le reste : une session empruntée doit se voir dès le premier pixel, sur les
+         deux coquilles comme sur les écrans qui n'en ont pas. -->
+    <app-impersonation-banner />
     <router-outlet />
     <app-toast />
     <app-celebration-overlay />
