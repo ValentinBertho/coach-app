@@ -15,7 +15,7 @@ import {
   StravaSubscription,
   StravaWebhookState,
 } from '../models/admin.model';
-import { UserRole } from '../models/user.model';
+import { User, UserRole } from '../models/user.model';
 
 /** Back office d'administration (PLATFORM_ADMIN). Appelle /admin/**. */
 @Injectable({ providedIn: 'root' })
@@ -79,6 +79,17 @@ export class AdminService {
   createUser(body: AdminUserCreateRequest): Observable<AdminUser> {
     return this.http.post<AdminUser>(`${this.base}/users`, body);
   }
+  /**
+   * Ouvre une session au nom de cet utilisateur (impersonation), pour voir l'application comme lui.
+   *
+   * <p>Le jeton rendu n'a pas de rafraîchissement : la session dure le temps d'un jeton d'accès,
+   * après quoi l'écran ramène l'administrateur sur son propre compte.</p>
+   */
+  impersonate(id: string): Observable<{ accessToken: string; expiresIn: number; user: User }> {
+    return this.http.post<{ accessToken: string; expiresIn: number; user: User }>(
+      `${this.base}/users/${id}/impersonate`, {});
+  }
+
   updateUser(id: string, body: AdminUserUpdateRequest): Observable<AdminUser> {
     return this.http.put<AdminUser>(`${this.base}/users/${id}`, body);
   }

@@ -15,8 +15,17 @@ const ACCESS_KEY = 'darilab.accessToken';
 const REFRESH_KEY = 'darilab.refreshToken';
 const USER_KEY = 'darilab.user';
 
-function readStoredUser(): User | null {
-  const raw = localStorage.getItem(USER_KEY);
+/**
+ * Session de l'administrateur mise de côté pendant une impersonation. Trois clés distinctes, et
+ * non un drapeau : la session empruntée écrit par-dessus les clés normales, il faut donc que la
+ * sienne survive ailleurs — sinon « revenir à mon compte » n'aurait rien à restaurer.
+ */
+const IMP_ACCESS_KEY = 'darilab.impersonator.accessToken';
+const IMP_REFRESH_KEY = 'darilab.impersonator.refreshToken';
+const IMP_USER_KEY = 'darilab.impersonator.user';
+
+function readStoredUser(key: string = USER_KEY): User | null {
+  const raw = localStorage.getItem(key);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as User;
@@ -24,7 +33,7 @@ function readStoredUser(): User | null {
     // Valeur corrompue : sans ce filet, l'exception remontait à l'instanciation d'un service
     // `providedIn: 'root'` — écran blanc au démarrage, et aucun moyen de s'en sortir côté
     // utilisateur puisque l'application ne se chargeait plus assez pour offrir « se déconnecter ».
-    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(key);
     return null;
   }
 }
@@ -48,6 +57,14 @@ export class AuthService {
   readonly token = signal<string | null>(localStorage.getItem(ACCESS_KEY));
   readonly currentUser = signal<User | null>(readStoredUser());
   readonly isAuthenticated = computed(() => this.token() !== null);
+
+  /**
+   * Compte de l'administrateur pendant une impersonation, `null` en session normale. Alimente le
+   * bandeau permanent : une session empruntée qui ne se voit pas est un piège — on finit par
+   * écrire dans le compte de quelqu'un d'autre en croyant être chez soi.
+   */
+  readonly impersonator = signal<User | null>(readStoredUser(IMP_USER_KEY));
+  readonly isImpersonating = computed(() => this.impersonator() !== null);
 
   /** Refresh en cours partagé : évite les rafraîchissements concurrents sur une salve de 401. */
   private refreshInFlight: Observable<AuthResponse> | null = null;
@@ -290,11 +307,19 @@ export class AuthService {
    * <p>On ne coupe pas non plus les notifications : l'utilisateur n'a pas quitté cet appareil,
    * il va s'y reconnecter. Le désabonnement est réservé au départ volontaire.</p>
    */
-  expireSession(): void {
+  expireSession(): boolean {
+    // Une impersonation n'a pas de jeton de rafraîchissement : son expiration est le cas normal,
+    // pas un incident. Déconnecter l'administrateur pour autant lui ferait perdre sa propre
+    // session parce qu'il a regardé un compte pendant un quart d'heure.
+    if (this.isImpersonating() && this.stopImpersonation()) {
+      return true;
+    }
     this.clearLocalSession();
+    return false;
   }
 
   private clearLocalSession(): void {
+    this.forgetImpersonation();
     localStorage.removeItem(ACCESS_KEY);
     localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(USER_KEY);
@@ -336,6 +361,71 @@ export class AuthService {
     } catch {
       // Purge best-effort : un échec ne doit pas bloquer la déconnexion.
     }
+  }
+
+  /**
+   * Prend la place d'un utilisateur : la session courante est mise de côté, la sienne s'installe.
+   *
+   * <p>Rien n'est révoqué côté serveur — l'administrateur reste connecté, il regarde simplement
+   * l'application par les yeux de quelqu'un d'autre. La file des retours hors ligne est vidée au
+   * passage : elle contient des ressentis (données de santé) saisis par un autre compte, et les
+   * rejouer sous le jeton emprunté les attribuerait à la mauvaise personne.</p>
+   */
+  startImpersonation(res: { accessToken: string; user: User }): void {
+    const own = this.currentUser();
+    const ownAccess = localStorage.getItem(ACCESS_KEY);
+    const ownRefresh = localStorage.getItem(REFRESH_KEY);
+    // Deux impersonations d'affilée ne doivent pas écraser la session d'origine par la précédente.
+    if (own && ownAccess && !this.isImpersonating()) {
+      localStorage.setItem(IMP_ACCESS_KEY, ownAccess);
+      if (ownRefresh) localStorage.setItem(IMP_REFRESH_KEY, ownRefresh);
+      localStorage.setItem(IMP_USER_KEY, JSON.stringify(own));
+      this.impersonator.set(own);
+    }
+
+    clearFeedbackQueue();
+    localStorage.setItem(ACCESS_KEY, res.accessToken);
+    // Pas de jeton de rafraîchissement pour une impersonation : elle expire, elle ne se prolonge pas.
+    localStorage.removeItem(REFRESH_KEY);
+    localStorage.setItem(USER_KEY, JSON.stringify(res.user));
+    this.token.set(res.accessToken);
+    this.currentUser.set(res.user);
+  }
+
+  /**
+   * Rend la main : la session de l'administrateur reprend sa place.
+   *
+   * @returns `false` s'il n'y avait rien à restaurer — l'appelant traite alors la fin de session
+   *          comme d'habitude plutôt que de laisser l'écran dans un état indéterminé.
+   */
+  stopImpersonation(): boolean {
+    const access = localStorage.getItem(IMP_ACCESS_KEY);
+    const user = readStoredUser(IMP_USER_KEY);
+    if (!access || !user) {
+      this.forgetImpersonation();
+      return false;
+    }
+    const refresh = localStorage.getItem(IMP_REFRESH_KEY);
+
+    clearFeedbackQueue();
+    localStorage.setItem(ACCESS_KEY, access);
+    if (refresh) {
+      localStorage.setItem(REFRESH_KEY, refresh);
+    } else {
+      localStorage.removeItem(REFRESH_KEY);
+    }
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    this.token.set(access);
+    this.currentUser.set(user);
+    this.forgetImpersonation();
+    return true;
+  }
+
+  private forgetImpersonation(): void {
+    localStorage.removeItem(IMP_ACCESS_KEY);
+    localStorage.removeItem(IMP_REFRESH_KEY);
+    localStorage.removeItem(IMP_USER_KEY);
+    this.impersonator.set(null);
   }
 
   private applySession(res: AuthResponse): void {

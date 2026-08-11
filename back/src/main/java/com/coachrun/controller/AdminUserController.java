@@ -35,6 +35,25 @@ import java.util.UUID;
 public class AdminUserController {
 
     private final AdminUserService adminUserService;
+    private final com.coachrun.service.ImpersonationService impersonationService;
+
+    /**
+     * Ouvre une session au nom de cet utilisateur, pour voir l'application exactement comme lui.
+     *
+     * <p>La quasi-totalité des défauts remontés en bêta se décrivent par un écran, et se
+     * reproduisent seulement depuis le compte concerné — ses séances, ses allures, son historique.
+     * La seule alternative était de demander son mot de passe à l'utilisateur.</p>
+     *
+     * <p>Le jeton rendu n'a pas de rafraîchissement : la session dure le temps d'un jeton d'accès.
+     * Un compte d'administration ne peut pas être emprunté (cf. {@code ImpersonationService}).</p>
+     */
+    @PostMapping("/{id}/impersonate")
+    public com.coachrun.dto.response.ImpersonationResponse impersonate(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal
+            com.coachrun.security.AuthPrincipal principal,
+            @PathVariable UUID id) {
+        return impersonationService.impersonate(principal.userId(), id);
+    }
 
     @GetMapping
     public PageResponse<AdminUserResponse> list(@RequestParam(required = false) UserRole role,

@@ -6,6 +6,8 @@ import { UserRole } from '../../core/models/user.model';
 import { AdminService } from '../../core/services/admin.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
+import { AuthService } from '../../core/services/auth.service';
+import { Router } from '@angular/router';
 import { PaginatorComponent } from '../../shared/components/paginator/paginator.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
@@ -20,6 +22,8 @@ export class AdminUsersComponent implements OnInit {
   private readonly admin = inject(AdminService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
+  private readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
   private readonly searchInput$ = new Subject<void>();
 
   readonly roleLabels = ROLE_LABELS;
@@ -95,6 +99,41 @@ export class AdminUsersComponent implements OnInit {
     this.admin
       .updateUser(u.id, { fullName: u.fullName, role: u.role, status: u.status, clubId: u.clubId })
       .subscribe(() => this.toast.success('Utilisateur mis à jour.'));
+  }
+
+  /** Session d'impersonation en cours d'ouverture (évite le double clic). */
+  readonly impersonating = signal(false);
+
+  /**
+   * Un compte d'administration ne s'emprunte pas : l'impersonation sert à voir l'application comme
+   * un coach ou un athlète, pas à agir sous l'identité d'un pair. Le serveur le refuse aussi — ce
+   * test n'est là que pour ne pas proposer un bouton qui échouera.
+   */
+  canImpersonate(u: AdminUser): boolean {
+    return u.role !== 'PLATFORM_ADMIN';
+  }
+
+  async impersonate(u: AdminUser): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: `Voir l'application en tant que ${u.fullName || u.email} ?`,
+      message: 'Ta session reste ouverte et te sera rendue. Tout ce que tu feras pendant ce temps '
+        + "sera enregistré au nom de cette personne, sans distinction : c'est un outil de lecture.",
+      confirmLabel: 'Voir en tant que',
+    });
+    if (!ok || this.impersonating()) { return; }
+
+    this.impersonating.set(true);
+    this.admin.impersonate(u.id).subscribe({
+      next: (res) => {
+        this.impersonating.set(false);
+        this.auth.startImpersonation(res);
+        void this.router.navigateByUrl(this.auth.homeRoute());
+      },
+      error: () => {
+        this.impersonating.set(false);
+        // Le message du serveur est déjà affiché par l'intercepteur : il nomme la raison du refus.
+      },
+    });
   }
 
   async remove(u: AdminUser): Promise<void> {

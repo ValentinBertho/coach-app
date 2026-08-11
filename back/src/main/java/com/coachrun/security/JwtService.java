@@ -27,6 +27,12 @@ public class JwtService {
     private static final String CLAIM_ATHLETE = "athleteId";
     private static final String CLAIM_ROLE = "role";
     private static final String CLAIM_EMAIL = "email";
+    /**
+     * Administrateur à l'origine d'une session d'impersonation. Présent uniquement sur un jeton
+     * émis par {@code /admin/users/{id}/impersonate} : il rend la session identifiable pour qui
+     * inspecte le jeton, et distingue un accès de débogage d'une vraie connexion de l'utilisateur.
+     */
+    private static final String CLAIM_IMPERSONATOR = "imp";
 
     private final SecretKey key;
     private final long accessTtlSeconds;
@@ -49,6 +55,21 @@ public class JwtService {
         return build(user, TYPE_REFRESH, refreshTtlSeconds);
     }
 
+    /**
+     * Jeton d'accès émis pour un administrateur qui se met à la place d'un utilisateur.
+     *
+     * <p><b>Pas de jeton de rafraîchissement</b> pour cette session, et c'est délibéré : une
+     * impersonation dure le temps d'un jeton d'accès, pas trente jours. À l'expiration, l'écran
+     * ramène l'administrateur sur son propre compte — il repart de l'endroit où il a le droit
+     * d'être, plutôt que de prolonger silencieusement un accès emprunté.</p>
+     */
+    public String generateImpersonationToken(User target, java.util.UUID impersonatorId) {
+        Instant now = Instant.now();
+        return baseBuilder(target, TYPE_ACCESS, accessTtlSeconds, now)
+                .claim(CLAIM_IMPERSONATOR, impersonatorId.toString())
+                .compact();
+    }
+
     public long getAccessTtlSeconds() {
         return accessTtlSeconds;
     }
@@ -62,7 +83,10 @@ public class JwtService {
     }
 
     private String build(User user, String type, long ttlSeconds) {
-        Instant now = Instant.now();
+        return baseBuilder(user, type, ttlSeconds, Instant.now()).compact();
+    }
+
+    private io.jsonwebtoken.JwtBuilder baseBuilder(User user, String type, long ttlSeconds, Instant now) {
         var builder = Jwts.builder()
                 .id(java.util.UUID.randomUUID().toString())
                 .subject(user.getId().toString())
@@ -78,6 +102,6 @@ public class JwtService {
         if (user.getAthlete() != null) {
             builder.claim(CLAIM_ATHLETE, user.getAthlete().getId().toString());
         }
-        return builder.compact();
+        return builder;
     }
 }
