@@ -100,6 +100,20 @@ public class Activity extends BaseEntity {
     @Column(name = "injuries_json", length = 2000)
     private String injuriesJson;
 
+    /**
+     * Fatigue et douleur ressenties (0–10), pour que le débrief d'une sortie libre pose les
+     * mêmes questions que celui d'une séance prescrite.
+     *
+     * <p>Elles restent vides sur une sortie <b>rapprochée</b> : c'est alors la séance qui porte
+     * tout le ressenti (cf. {@code ActivityService#debriefTarget}). Données de l'article 9,
+     * gardées par le consentement au moment de l'écriture.</p>
+     */
+    @Column(name = "fatigue")
+    private Integer fatigue;
+
+    @Column(name = "pain")
+    private Integer pain;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 16)
     private ActivityStatus status = ActivityStatus.IMPORTED;

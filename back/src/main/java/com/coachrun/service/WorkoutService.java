@@ -181,10 +181,6 @@ public class WorkoutService {
     @Transactional
     public WorkoutResponse updateStatus(UUID clubId, UUID workoutId, WorkoutStatus target) {
         Workout workout = require(clubId, workoutId);
-        if (!workout.getStatus().canTransitionTo(target)) {
-            throw new ConflictException(
-                    "Transition de statut interdite : " + workout.getStatus() + " → " + target);
-        }
         workout.setStatus(target);
         return WorkoutResponse.from(workout);
     }
@@ -507,10 +503,8 @@ public class WorkoutService {
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
         WorkoutStatus status = request.status();
         if (status != null) {
-            if (!workout.getStatus().canTransitionTo(status)) {
-                throw new ConflictException(
-                        "Transition de statut interdite : " + workout.getStatus() + " → " + status);
-            }
+            // Aucune transition n'est refusée : rouvrir son débrief pour corriger « écourtée » en
+            // « réalisée » est un geste ordinaire, et c'est l'athlète qui sait (cf. WorkoutStatus).
             workout.setStatus(status);
         }
 

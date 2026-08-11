@@ -12,6 +12,10 @@ import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { BottomSheetComponent, SegmentedControlComponent } from '../../shared/components/ui';
 import { RpeScaleSelectorComponent } from '../../shared/components/rpe-scale-selector/rpe-scale-selector.component';
+import { FeelSelectorComponent } from '../../shared/components/feel-selector/feel-selector.component';
+import { InjuryPickerComponent } from '../../shared/components/injury-picker/injury-picker.component';
+import { PainFatigueSelectorComponent } from '../../shared/components/physiology';
+import { Injury } from '../../core/models/injury.model';
 import {
   ACTIVITY_STATUS_BADGE, ACTIVITY_STATUS_LABELS, Activity,
 } from '../../core/models/activity.model';
@@ -38,6 +42,7 @@ interface MonthGroup {
     DatePipe, DecimalPipe, FormsModule, RouterLink, IconComponent,
     SegmentedControlComponent, BottomSheetComponent, RpeScaleSelectorComponent,
     ActivityLapsComponent, TimeInZoneBarComponent,
+    FeelSelectorComponent, InjuryPickerComponent, PainFatigueSelectorComponent,
   ],
   template: `
     <div class="acts">
@@ -216,12 +221,36 @@ interface MonthGroup {
             </p>
           }
 
-          <app-rpe-scale-selector [(value)]="draftEdit.rpe" label="Ton effort perçu (RPE)" />
+          <!-- Le même débrief que sur une séance prescrite, et dans le même ordre.
+               Une sortie libre ne posait que deux questions sur cinq : le même effort se
+               racontait autrement selon qu'un coach l'avait prescrit ou non, et le coach lisait
+               deux formulaires pour une seule semaine d'entraînement.
+               Sur une sortie rapprochée, le serveur écrit ce ressenti sur la séance : il n'y en
+               a qu'un, où qu'on le saisisse. -->
+          @if (a.matchedWorkoutId) {
+            <p class="field-hint edit-linked">
+              <app-icon name="check" [size]="14" />
+              Cette sortie est rattachée à une séance : ton ressenti est celui de la séance.
+            </p>
+          }
+
+          <div class="ef-card"><app-feel-selector [(value)]="draftEdit.feel" /></div>
+
+          <div class="ef-card">
+            <app-rpe-scale-selector [(value)]="draftEdit.rpe" label="Perception de l'effort" />
+          </div>
+
+          <div class="ef-card ef-card--split">
+            <app-pain-fatigue-selector kind="fatigue" [(value)]="draftEdit.fatigue" />
+            <app-pain-fatigue-selector kind="pain" [(value)]="draftEdit.pain" />
+          </div>
 
           <label class="ef">Un mot pour ton coach
             <textarea class="form-control" rows="3" [(ngModel)]="draftEdit.comment" name="ec"
                       placeholder="Sensations, météo, terrain, douleur…"></textarea>
           </label>
+
+          <div class="ef-card"><app-injury-picker [(injuries)]="draftEdit.injuries" /></div>
 
           <div class="edit-actions">
             <button type="submit" class="btn btn-primary" [disabled]="editBusy()">
@@ -275,6 +304,18 @@ interface MonthGroup {
     .ef { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); color: var(--ink-2); font-weight: 600; flex: 1; min-width: 110px; }
     .ef-row { display: flex; gap: var(--sp-2); }
     .edit-locked { display: flex; align-items: flex-start; gap: var(--sp-2); margin: 0; }
+    /* Une carte par question, comme dans le débrief d'une séance : c'est la même feuille pour
+       l'athlète, il n'a pas à apprendre deux dispositions pour un même geste. */
+    .ef-card {
+      display: flex; flex-direction: column; gap: var(--sp-3);
+      padding: var(--sp-3); border-radius: var(--radius);
+      background: var(--paper); border: 1px solid var(--hairline);
+    }
+    .ef-card--split { gap: var(--sp-4); }
+    .edit-linked {
+      display: flex; align-items: flex-start; gap: var(--sp-2); margin: 0;
+      color: var(--primary); font-weight: 600;
+    }
     .edit-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
     .edit-del { color: var(--danger-text, var(--ink-3)); }
   `],
@@ -421,8 +462,12 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
   readonly editBusy = signal(false);
   draftEdit: {
     title: string; date: string; km: number | null; min: number | null;
-    dplus: number | null; rpe: number | null; comment: string;
-  } = { title: '', date: '', km: null, min: null, dplus: null, rpe: null, comment: '' };
+    dplus: number | null; rpe: number | null; feel: number | null;
+    fatigue: number | null; pain: number | null; comment: string; injuries: Injury[];
+  } = {
+    title: '', date: '', km: null, min: null, dplus: null,
+    rpe: null, feel: null, fatigue: null, pain: null, comment: '', injuries: [],
+  };
 
   openEdit(a: Activity): void {
     this.editing.set(a);
@@ -432,8 +477,14 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
       km: a.distanceM != null ? Math.round(a.distanceM / 100) / 10 : null,
       min: a.durationS != null ? Math.round(a.durationS / 60) : null,
       dplus: a.elevationGainM,
+      // Rouvrir un ressenti déjà donné doit repartir de ce qui a été déclaré — sur une sortie
+      // rapprochée, le serveur rend celui de la séance : c'est le même, et il n'y en a qu'un.
       rpe: a.rpe,
+      feel: a.feel ?? null,
+      fatigue: a.fatigue ?? null,
+      pain: a.pain ?? null,
       comment: a.athleteComment ?? '',
+      injuries: a.injuries ?? [],
     };
     this.editOpen.set(true);
   }
@@ -455,8 +506,15 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
       elevationGainM: manual ? this.draftEdit.dplus : undefined,
       rpe: this.draftEdit.rpe ?? undefined,
       clearRpe: this.draftEdit.rpe == null,
+      feel: this.draftEdit.feel ?? undefined,
+      clearFeel: this.draftEdit.feel == null,
+      fatigue: this.draftEdit.fatigue ?? undefined,
+      pain: this.draftEdit.pain ?? undefined,
       comment: comment || undefined,
       clearComment: !comment,
+      // Liste vide = « plus aucune blessure », et non « inchangé » : sans cet envoi explicite,
+      // une blessure déclarée par erreur ne pouvait plus être retirée.
+      injuries: this.draftEdit.injuries,
     }).subscribe({
       next: (updated) => {
         this.editBusy.set(false);

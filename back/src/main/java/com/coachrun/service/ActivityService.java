@@ -266,6 +266,11 @@ public class ActivityService {
      * séance — une course, un footing improvisé — n'avait donc aucun moyen d'être commentée,
      * alors que c'est exactement là que le coach n'a rien d'autre à lire : ni prescription à
      * comparer, ni retour de séance.</p>
+     *
+     * <p><b>Une sortie rapprochée n'a pas de ressenti à elle.</b> Elle et sa séance décrivent le
+     * même effort ; deux ressentis pour un seul effort, c'est un de trop, et rien ne disait
+     * lequel croyait le coach. Le ressenti est donc écrit sur la <b>séance</b>, et la sortie
+     * n'en garde aucune copie — ni ancienne, ni concurrente (cf. {@link #debriefTarget}).</p>
      */
     @Transactional
     public ActivityResponse updateForAthlete(UUID athleteId, UUID activityId,
@@ -275,27 +280,7 @@ public class ActivityService {
         if (request.title() != null) {
             a.setTitle(request.title().isBlank() ? null : request.title().trim());
         }
-        if (Boolean.TRUE.equals(request.clearRpe())) {
-            a.setRpe(null);
-        } else if (request.rpe() != null) {
-            a.setRpe(request.rpe());
-        }
-        if (Boolean.TRUE.equals(request.clearFeel())) {
-            a.setFeel(null);
-        } else if (request.feel() != null) {
-            a.setFeel(request.feel());
-        }
-        if (Boolean.TRUE.equals(request.clearComment())) {
-            a.setAthleteComment(null);
-        } else if (request.comment() != null) {
-            a.setAthleteComment(request.comment().isBlank() ? null : request.comment().trim());
-        }
-        // Blessures : donnée de l'article 9. Sans consentement actif on ne les enregistre pas,
-        // mais la correction de la sortie aboutit — même régime que la fatigue et la douleur.
-        if (request.injuries() != null) {
-            a.setInjuriesJson(consentValidator.isAllowed(a.getAthlete())
-                    ? com.coachrun.util.InjuryCodec.write(request.injuries()) : null);
-        }
+        applyDebrief(a, request);
 
         // Les mesures d'une montre ne se réécrivent pas : elles font foi, et la charge du coach
         // est calculée dessus. Une saisie manuelle, elle, n'a jamais été qu'une déclaration.
@@ -326,6 +311,170 @@ public class ActivityService {
         return toResponse(a);
     }
 
+    // --- Le ressenti : un seul, porté par la séance dès qu'il y en a une -----------------------
+
+    /**
+     * Qui porte le ressenti de cette sortie : sa séance si elle en a une, elle-même sinon.
+     *
+     * <p>C'est la règle entière, et elle tient en une ligne parce qu'elle n'a qu'un critère : le
+     * rapprochement. Tout le reste — quel écran a été ouvert, lequel des deux a été rempli en
+     * premier — n'entre pas en compte, sans quoi on retomberait sur deux vérités.</p>
+     */
+    private Optional<Workout> debriefTarget(Activity a) {
+        return a.getMatchedWorkoutId() == null
+                ? Optional.empty()
+                : workoutRepository.findById(a.getMatchedWorkoutId());
+    }
+
+    /**
+     * Pose le ressenti là où il doit vivre, et nulle part ailleurs.
+     *
+     * <p>Sur une sortie rapprochée, il est écrit sur la séance et la sortie est <b>vidée</b> de
+     * ce qu'elle en gardait : une copie qu'on ne lit plus est une copie qui ressortira un jour,
+     * au détachement ou dans un export, en contredisant celle qui fait foi.</p>
+     */
+    private void applyDebrief(Activity a, com.coachrun.dto.request.ActivityUpdateRequest request) {
+        Optional<Workout> workout = debriefTarget(a);
+        if (workout.isPresent()) {
+            writeDebrief(DebriefSink.of(workout.get()), a.getAthlete(), request);
+            clearDebrief(a);
+            return;
+        }
+        writeDebrief(DebriefSink.of(a), a.getAthlete(), request);
+    }
+
+    /**
+     * Où se posent les six champs d'un ressenti, sans que l'écriture ait à savoir sur quoi.
+     *
+     * <p>La règle champ par champ — {@code null} vaut « inchangé », un drapeau {@code clear}
+     * vaut « efface », la santé passe par le consentement — a été écrite deux fois, une pour la
+     * séance et une pour la sortie. Deux copies d'une même règle finissent toujours par
+     * diverger, et c'est exactement la divergence que tout ce code corrige. Il n'y en a plus
+     * qu'une : seule la destination change.</p>
+     */
+    private record DebriefSink(
+            java.util.function.Consumer<Integer> rpe,
+            java.util.function.Consumer<Integer> feel,
+            java.util.function.Consumer<Integer> fatigue,
+            java.util.function.Consumer<Integer> pain,
+            java.util.function.Consumer<String> comment,
+            java.util.function.Consumer<String> injuriesJson) {
+
+        static DebriefSink of(Workout w) {
+            return new DebriefSink(w::setRpe, w::setFeel, w::setFatigue, w::setPain,
+                    w::setAthleteComment, w::setInjuriesJson);
+        }
+
+        static DebriefSink of(Activity a) {
+            return new DebriefSink(a::setRpe, a::setFeel, a::setFatigue, a::setPain,
+                    a::setAthleteComment, a::setInjuriesJson);
+        }
+    }
+
+    private void writeDebrief(DebriefSink sink, com.coachrun.entity.Athlete athlete,
+                              com.coachrun.dto.request.ActivityUpdateRequest request) {
+        if (Boolean.TRUE.equals(request.clearRpe())) {
+            sink.rpe().accept(null);
+        } else if (request.rpe() != null) {
+            sink.rpe().accept(request.rpe());
+        }
+        if (Boolean.TRUE.equals(request.clearFeel())) {
+            sink.feel().accept(null);
+        } else if (request.feel() != null) {
+            sink.feel().accept(request.feel());
+        }
+        if (Boolean.TRUE.equals(request.clearComment())) {
+            sink.comment().accept(null);
+        } else if (request.comment() != null) {
+            sink.comment().accept(request.comment().isBlank() ? null : request.comment().trim());
+        }
+        // Fatigue, douleur et blessures : données de l'article 9. Sans consentement actif elles ne
+        // sont pas enregistrées, mais la correction de la sortie aboutit.
+        if (request.fatigue() != null) {
+            sink.fatigue().accept(consentValidator.keepIfAllowed(athlete, request.fatigue()));
+        }
+        if (request.pain() != null) {
+            sink.pain().accept(consentValidator.keepIfAllowed(athlete, request.pain()));
+        }
+        if (request.injuries() != null) {
+            sink.injuriesJson().accept(consentValidator.isAllowed(athlete)
+                    ? com.coachrun.util.InjuryCodec.write(request.injuries()) : null);
+        }
+    }
+
+    /**
+     * Un ressenti, détaché de ce qui le porte : les six champs, et rien d'autre.
+     *
+     * <p>Il n'existe que pour être <b>déplacé</b> d'une sortie vers sa séance et retour. Sans
+     * lui, chaque geste — lire, vider, transférer dans un sens, puis dans l'autre — réénumérait
+     * les six champs, soit autant d'occasions d'en oublier un le jour où un septième apparaît.
+     * C'est ici, et ici seulement, que la liste est écrite.</p>
+     */
+    private record Debrief(Integer rpe, Integer feel, Integer fatigue, Integer pain,
+                           String comment, String injuriesJson) {
+
+        static final Debrief EMPTY = new Debrief(null, null, null, null, null, null);
+
+        static Debrief of(Activity a) {
+            return new Debrief(a.getRpe(), a.getFeel(), a.getFatigue(), a.getPain(),
+                    a.getAthleteComment(), a.getInjuriesJson());
+        }
+
+        static Debrief of(Workout w) {
+            return new Debrief(w.getRpe(), w.getFeel(), w.getFatigue(), w.getPain(),
+                    w.getAthleteComment(), w.getInjuriesJson());
+        }
+
+        /** Rien n'a été déclaré. Un commentaire blanc n'est pas un commentaire. */
+        boolean isEmpty() {
+            return rpe == null && feel == null && fatigue == null && pain == null
+                    && injuriesJson == null && (comment == null || comment.isBlank());
+        }
+    }
+
+    private void write(DebriefSink sink, Debrief debrief) {
+        sink.rpe().accept(debrief.rpe());
+        sink.feel().accept(debrief.feel());
+        sink.fatigue().accept(debrief.fatigue());
+        sink.pain().accept(debrief.pain());
+        sink.comment().accept(debrief.comment());
+        sink.injuriesJson().accept(debrief.injuriesJson());
+    }
+
+    private void clearDebrief(Activity a) {
+        write(DebriefSink.of(a), Debrief.EMPTY);
+    }
+
+    /**
+     * Rapprochement : le ressenti déjà donné sur la sortie rejoint la séance.
+     *
+     * <p>Sans ce transfert, débriefer une sortie libre puis la voir rapprochée le lendemain
+     * — c'est l'ordre habituel quand la montre se synchronise après coup — ferait disparaître le
+     * ressenti de l'écran, puisque c'est désormais la séance qu'on lit. Il ne remplace jamais
+     * celui de la séance : si l'athlète s'est déjà prononcé sur la séance, c'est elle qui a
+     * raison, et la copie de la sortie est simplement effacée.</p>
+     */
+    private void adoptDebrief(Activity a, Workout w) {
+        Debrief fromActivity = Debrief.of(a);
+        if (!fromActivity.isEmpty() && Debrief.of(w).isEmpty()) {
+            write(DebriefSink.of(w), fromActivity);
+        }
+        clearDebrief(a);
+    }
+
+    /**
+     * Détachement : la sortie reprend le ressenti de la séance qu'elle quitte.
+     *
+     * <p>Symétrique du rapprochement, et pour la même raison : l'athlète a décrit un effort, cet
+     * effort est celui de la sortie, et le détacher ne doit pas le lui reprendre.</p>
+     */
+    private void releaseDebrief(Activity a, Workout w) {
+        Debrief fromWorkout = Debrief.of(w);
+        if (Debrief.of(a).isEmpty() && !fromWorkout.isEmpty()) {
+            write(DebriefSink.of(a), fromWorkout);
+        }
+    }
+
     /**
      * L'athlète supprime une de ses sorties (doublon, erreur de saisie, sortie de quelqu'un
      * d'autre importée par erreur). La séance rapprochée, s'il y en avait une, redevient à faire :
@@ -345,8 +494,10 @@ public class ActivityService {
         if (workoutId == null) {
             return;
         }
-        workoutRepository.findById(workoutId)
-                .ifPresent(w -> w.setStatus(WorkoutStatus.PLANNED));
+        workoutRepository.findById(workoutId).ifPresent(w -> {
+            releaseDebrief(a, w);
+            w.setStatus(WorkoutStatus.PLANNED);
+        });
         a.setMatchedWorkoutId(null);
         a.setStatus(ActivityStatus.UNMATCHED);
     }
@@ -654,8 +805,12 @@ public class ActivityService {
     private ActivityResponse relink(Activity activity, UUID clubId, UUID workoutId) {
         UUID previous = activity.getMatchedWorkoutId();
         if (previous != null && !previous.equals(workoutId)) {
-            workoutRepository.findByIdAndClubId(previous, clubId)
-                    .ifPresent(w -> w.setStatus(WorkoutStatus.PLANNED));
+            workoutRepository.findByIdAndClubId(previous, clubId).ifPresent(w -> {
+                // La sortie récupère le ressenti de la séance qu'elle quitte — sans quoi le
+                // détachement effacerait, sans le dire, ce que l'athlète avait décrit.
+                releaseDebrief(activity, w);
+                w.setStatus(WorkoutStatus.PLANNED);
+            });
         }
         if (workoutId == null) {
             activity.setMatchedWorkoutId(null);
@@ -716,6 +871,8 @@ public class ActivityService {
     private void link(Activity activity, Workout workout) {
         activity.setMatchedWorkoutId(workout.getId());
         activity.setStatus(ActivityStatus.MATCHED);
+        // À partir d'ici, le ressenti est celui de la séance : celui de la sortie la rejoint.
+        adoptDebrief(activity, workout);
         // Le statut ne se déduit des chiffres que si l'athlète ne s'est pas déjà prononcé : il a
         // couru la séance, pas nous. Sa déclaration — « faite », « écourtée » — prime sur un
         // écart de distance, qui ignore la façon dont la sortie a été enregistrée (montre coupée,
@@ -748,12 +905,20 @@ public class ActivityService {
                 .orElseThrow(() -> new NotFoundException("Activité introuvable."));
     }
 
+    /**
+     * Passage obligé de toute lecture d'une sortie — et c'est ce qui rend la règle tenable : le
+     * ressenti rendu est celui de la séance rapprochée, jamais une seconde version.
+     *
+     * <p>Repli sur celui de la sortie quand la séance n'en porte aucun : les sorties rapprochées
+     * <b>avant</b> cette règle gardent une copie en base, et la faire disparaître de l'écran
+     * parce qu'on a changé de porteur serait exactement le défaut qu'on corrige.</p>
+     */
     private ActivityResponse toResponse(Activity activity) {
         if (activity.getMatchedWorkoutId() == null) {
             return ActivityResponse.from(activity);
         }
         return workoutRepository.findById(activity.getMatchedWorkoutId())
-                .map(w -> ActivityResponse.from(activity,
+                .map(w -> ActivityResponse.of(activity, Debrief.of(w).isEmpty() ? null : w,
                         delta(activity.getDistanceM(), w.getTargetDistanceM()),
                         delta(activity.getDurationS(), w.getTargetDurationS())))
                 .orElseGet(() -> ActivityResponse.from(activity));
