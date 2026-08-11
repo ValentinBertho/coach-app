@@ -39,6 +39,7 @@ public class StrengthScheduleService {
     private final StrengthSessionService strengthSessionService;
     private final ObjectMapper objectMapper;
     private final NotificationService notificationService;
+    private final ClockService clock;
 
     @Transactional
     public ScheduledStrengthResponse schedule(UUID clubId, UUID athleteId, UUID sessionId,
@@ -126,7 +127,11 @@ public class StrengthScheduleService {
     @Transactional
     public ScheduledStrengthResponse moveByCoach(UUID clubId, UUID athleteId, UUID scheduledId, LocalDate date) {
         ScheduledStrengthSession ss = require(clubId, athleteId, scheduledId);
+        LocalDate before = ss.getScheduledDate();
         ss.setScheduledDate(date);
+        if (!date.equals(before)) {
+            notifyCalendarChange(ss, date, false);
+        }
         return ScheduledStrengthResponse.from(ss);
     }
 
@@ -145,7 +150,28 @@ public class StrengthScheduleService {
     /** Déprogramme une séance de force du calendrier de l'athlète. */
     @Transactional
     public void delete(UUID clubId, UUID athleteId, UUID scheduledId) {
-        scheduledRepository.delete(require(clubId, athleteId, scheduledId));
+        ScheduledStrengthSession ss = require(clubId, athleteId, scheduledId);
+        notifyCalendarChange(ss, ss.getScheduledDate(), true);
+        scheduledRepository.delete(ss);
+    }
+
+    /**
+     * Prévient l'athlète qu'une de ses séances de force a bougé — ou disparu.
+     *
+     * <p>Planifier prévenait déjà ; déplacer et déprogrammer, non. L'athlète se présentait en
+     * salle pour une séance retirée depuis, ou manquait celle qu'on avait avancée. Deux gardes,
+     * les mêmes que pour la course : on n'annonce ni une séance <b>déjà faite</b> — le retour est
+     * saisi, la modification est du ménage de calendrier — ni une séance <b>passée</b>.</p>
+     *
+     * <p>La date jugée est celle sur laquelle la séance <b>atterrit</b> (sa date d'origine pour
+     * une déprogrammation) : c'est la seule qui dit si l'athlète a encore quelque chose à faire.
+     * Reculer une séance dans le passé ne l'intéresse pas ; en ramener une dans sa semaine, si.</p>
+     */
+    private void notifyCalendarChange(ScheduledStrengthSession ss, LocalDate date, boolean cancelled) {
+        if (ss.isCompleted() || date.isBefore(clock.today())) {
+            return;
+        }
+        notificationService.notifyStrengthChanged(ss.getAthlete(), ss.getTitle(), date, cancelled);
     }
 
     private ScheduledStrengthSession require(UUID clubId, UUID athleteId, UUID scheduledId) {

@@ -28,6 +28,13 @@ import { MorningCheckInComponent } from './morning-check-in.component';
 import { StravaCardComponent } from './strava-card.component';
 import { PushPromptComponent } from './push-prompt.component';
 import { HelpHintComponent } from '../help/help-hint.component';
+import { CycleBannerComponent } from '../../shared/components/cycle-banner/cycle-banner.component';
+import { CalendarNote } from '../../core/models/calendar-note.model';
+
+/** Date du jour au format ISO local (jamais UTC : un cycle se lit dans le fuseau de l'athlète). */
+function toIso(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 type State = 'loading' | 'ready' | 'error';
 
@@ -50,7 +57,7 @@ type State = 'loading' | 'ready' | 'error';
     OfflineBannerComponent,
     IntensityZoneBadgeComponent, WorkoutFeedbackSheetComponent,
     CoursePrescriptionViewComponent, MorningCheckInComponent, StravaCardComponent, HelpHintComponent,
-    PushPromptComponent,
+    PushPromptComponent, CycleBannerComponent,
   ],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',
@@ -107,6 +114,14 @@ export class TodayComponent implements OnInit {
   /** Récapitulatif de la semaine en cours : « 32/45 km, 3 séances sur 5 ». */
   readonly week = signal<WeekSummary | null>(null);
 
+  /**
+   * Le cycle du jour, s'il y en a un. On ne demande qu'aujourd'hui : cet écran répond à une
+   * seule question — où j'en suis maintenant — la vue d'ensemble vit dans l'agenda.
+   */
+  readonly cycles = signal<CalendarNote[]>([]);
+  /** Date du jour, fixée au montage de l'écran (rouvert chaque matin, il se remonte). */
+  readonly todayIso = toIso(new Date());
+
   /** Part du volume hebdomadaire déjà couverte, plafonnée à 100 %. */
   readonly weekPct = computed(() => {
     const w = this.week();
@@ -125,6 +140,10 @@ export class TodayComponent implements OnInit {
       error: () => this.week.set(null),
     });
     this.portal.nextRace().subscribe({ next: (r) => this.nextRace.set(r) });
+    this.portal.cycles(this.todayIso, this.todayIso).subscribe({
+      next: (c) => this.cycles.set(c),
+      error: () => this.cycles.set([]),
+    });
     this.paceReference.mine().subscribe({
       next: (p) => this.referencePace.set(p),
       error: () => this.referencePace.set(null),
@@ -160,7 +179,7 @@ export class TodayComponent implements OnInit {
   }
 
   loadStrength(): void {
-    const day = this.todayIso();
+    const day = this.todayIso;
     this.portal.ppScheduled(day, day).subscribe({
       next: (list) => this.strengthSessions.set(list),
       error: () => this.strengthSessions.set([]),
@@ -281,8 +300,4 @@ export class TodayComponent implements OnInit {
     });
   }
 
-  private todayIso(): string {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }
 }

@@ -54,6 +54,7 @@ public class AthletePortalController {
     private final com.coachrun.service.AthleteLoadService loadService;
     private final com.coachrun.service.AnalyticsService analyticsService;
     private final com.coachrun.service.ActivityService activityService;
+    private final com.coachrun.service.CalendarNoteService calendarNoteService;
     private final com.coachrun.service.LactateTestService lactateTestService;
     private final com.coachrun.service.TrainingPlanService trainingPlanService;
     private final com.coachrun.service.StravaService stravaService;
@@ -164,6 +165,24 @@ public class AthletePortalController {
     public com.coachrun.dto.response.WorkoutPrescriptionResponse prescription(
             @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID workoutId) {
         return workoutService.prescriptionForAthlete(principal.athleteId(), workoutId);
+    }
+
+    /**
+     * Mes cycles d'entraînement sur une fenêtre : le bloc dans lequel je me situe.
+     *
+     * <p>Le coach pose ses cycles sur le calendrier — « spécifique », « affûtage » — et ils ne se
+     * voyaient que de son côté. L'athlète suivait donc son programme sans savoir à quelle phase de
+     * sa préparation il appartenait, alors que c'est ce qui donne son sens à une semaine.</p>
+     *
+     * <p>Seuls les <b>cycles</b> remontent : les notes d'un jour restent le carnet de travail du
+     * coach (cf. {@code CalendarNoteService#cyclesForAthlete}).</p>
+     */
+    @GetMapping("/cycles")
+    public java.util.List<com.coachrun.dto.response.CalendarNoteResponse> myCycles(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return calendarNoteService.cyclesForAthlete(principal.athleteId(), from, to);
     }
 
     /** Une de mes séances, en détail (fiche « séance réalisée »). */

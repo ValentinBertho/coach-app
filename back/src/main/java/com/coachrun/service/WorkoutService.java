@@ -634,6 +634,7 @@ public class WorkoutService {
         SessionStructure safe = structure == null ? SessionStructure.empty() : structure;
         CalculatedSessionResponse calc =
                 sessionCalculatorService.calculateSession(clubId, w.getAthlete().getId(), safe);
+        String before = w.getSessionSnapshot();
         w.setSessionSnapshot(writeJson(safe));
         w.setCalculatedPaces(writeJson(calc));
         // La charge prévue suit l'adaptation de structure : sinon elle resterait sur l'ancienne.
@@ -645,7 +646,31 @@ public class WorkoutService {
             w.setTargetDurationS(calc.totalDurationS());
         }
         log.info("Structure de séance {} mise à jour (athlète={})", workoutId, w.getAthlete().getId());
+        notifyStructureChanged(w, before);
         return toPrescription(w);
+    }
+
+    /**
+     * Réécriture de la structure par le coach → l'athlète en est averti.
+     *
+     * <p><b>Le dernier chemin muet.</b> Créer, déplacer, modifier et supprimer une séance
+     * prévenaient déjà ; « Adapter » — l'écran par lequel le coach réécrit réellement le contenu,
+     * passe un 6 × 400 en 8 × 400, change les allures ou ajoute une série — ne prévenait personne.
+     * C'est pourtant la modification la plus lourde de conséquences : l'athlète part courir la
+     * séance qu'il avait lue la veille, pas celle qui est désormais prescrite.</p>
+     *
+     * <p>Trois conditions, les mêmes que partout ailleurs : la séance doit être encore à faire,
+     * ne pas être passée — réécrire une séance de la semaine dernière est du ménage de calendrier
+     * — et la structure doit avoir <b>réellement</b> changé. Ouvrir l'éditeur puis enregistrer
+     * sans rien toucher ne notifie pas, sans quoi le canal se dévalue tout seul.</p>
+     */
+    private void notifyStructureChanged(Workout w, String previousSnapshot) {
+        if (w.getStatus() != WorkoutStatus.PLANNED
+                || w.getScheduledDate().isBefore(clock.today())
+                || java.util.Objects.equals(previousSnapshot, w.getSessionSnapshot())) {
+            return;
+        }
+        notificationService.notifyWorkoutChanged(w, false);
     }
 
     private String writeJson(Object value) {

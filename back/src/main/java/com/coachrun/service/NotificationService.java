@@ -330,15 +330,36 @@ public class NotificationService {
         notifyWorkoutChange(workout, "Séance annulée");
     }
 
+    /**
+     * Séance de renforcement déplacée ou déprogrammée par le coach → notifie l'athlète.
+     *
+     * <p>La même asymétrie que pour la planification, un cran plus loin : poser une séance de
+     * force prévenait déjà, la déplacer ou la retirer ne prévenait personne. L'athlète se
+     * présentait en salle pour une séance qui n'existait plus.</p>
+     *
+     * <p>Même type que la course, donc même anti-rafale : remanier une semaine — footing déplacé,
+     * renfo décalé dans la foulée — reste un seul geste, et le lien mène au calendrier où tout se
+     * lit d'un coup.</p>
+     */
+    public void notifyStrengthChanged(Athlete athlete, String sessionTitle, LocalDate date, boolean cancelled) {
+        notifyCalendarChange(athleteUser(athlete),
+                cancelled ? "Séance de renforcement annulée" : "Séance de renforcement déplacée",
+                sessionTitle + " — " + fr(date));
+    }
+
     private void notifyWorkoutChange(Workout workout, String title) {
-        User target = athleteUser(workout.getAthlete());
+        notifyCalendarChange(athleteUser(workout.getAthlete()), title,
+                workout.getTitle() + " — " + fr(workout.getScheduledDate()));
+    }
+
+    /** Remaniement du calendrier par le coach : un seul type, une seule salve, un seul lien. */
+    private void notifyCalendarChange(User target, String title, String body) {
         if (target == null
                 || recentlyNotified(target.getId(), "WORKOUT_UPDATED", ATHLETE_CALENDAR,
                         WORKOUT_CHANGE_BURST_WINDOW)) {
             return;
         }
-        notifyUser(target, "WORKOUT_UPDATED", title,
-                workout.getTitle() + " — " + fr(workout.getScheduledDate()), ATHLETE_CALENDAR);
+        notifyUser(target, "WORKOUT_UPDATED", title, body, ATHLETE_CALENDAR);
     }
 
     /**

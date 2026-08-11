@@ -20,6 +20,8 @@ import {
 } from './athlete-month-grid.component';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { HelpHintComponent } from '../help/help-hint.component';
+import { CycleBannerComponent } from '../../shared/components/cycle-banner/cycle-banner.component';
+import { CalendarNote } from '../../core/models/calendar-note.model';
 import { CalculatedBlockEntry, courseBlockTypeLabel, CourseBlock, WorkoutPrescription } from '../../core/models/course.model';
 
 interface DayRow {
@@ -76,7 +78,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
   imports: [
     IconComponent, IntensityZoneBadgeComponent, DataOriginTagComponent, BottomSheetComponent,
     SegmentedControlComponent, WorkoutFeedbackSheetComponent, HelpHintComponent, RouterLink,
-    AthleteMonthGridComponent,
+    AthleteMonthGridComponent, CycleBannerComponent,
   ],
   template: `
     <header class="cal-top">
@@ -113,6 +115,11 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
           (valueChange)="setView($event)" ariaLabel="Contenu de l'agenda" />
       </div>
     </header>
+
+    <!-- Les cycles posés par le coach : l'agenda montrait les séances sans jamais dire de quelle
+         phase elles faisaient partie. Trois semaines de côtes se lisent autrement quand on sait
+         qu'elles forment un bloc, et quand il finit. -->
+    <app-cycle-banner [cycles]="cycles()" [today]="todayIso" [from]="rangeFrom()" [to]="rangeTo()" />
 
     @if (mode() === 'month') {
       <main class="month">
@@ -492,6 +499,12 @@ export class AthleteCalendarComponent implements OnInit {
   readonly strength = signal<ScheduledStrength[]>([]);
   readonly activities = signal<Activity[]>([]);
   readonly unavailabilities = signal<Unavailability[]>([]);
+  /** Cycles du coach couvrant la plage affichée (périodes seulement, jamais ses notes du jour). */
+  readonly cycles = signal<CalendarNote[]>([]);
+  /** Plage effectivement chargée : le bandeau des cycles n'en montre pas d'autres. */
+  readonly rangeFrom = signal<string | null>(null);
+  readonly rangeTo = signal<string | null>(null);
+  readonly todayIso = toIso(new Date());
 
   readonly modeOptions = [
     { label: 'Mois', value: 'month' },
@@ -701,6 +714,9 @@ export class AthleteCalendarComponent implements OnInit {
     end.setDate(start.getDate() + (this.mode() === 'month' ? 41 : 13));
     const from = toIso(start);
     const to = toIso(end);
+    this.rangeFrom.set(from);
+    this.rangeTo.set(to);
+    this.portal.cycles(from, to).subscribe({ next: (c) => this.cycles.set(c), error: () => this.cycles.set([]) });
     this.portal.workouts(from, to).subscribe({ next: (w) => this.workouts.set(w), error: () => this.workouts.set([]) });
     this.portal.ppScheduled(from, to).subscribe({ next: (s) => this.strength.set(s), error: () => this.strength.set([]) });
     this.portal.unavailabilities().subscribe({ next: (u) => this.unavailabilities.set(u), error: () => this.unavailabilities.set([]) });
