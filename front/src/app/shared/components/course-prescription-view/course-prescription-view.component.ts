@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { AuthService } from '../../../core/services/auth.service';
 import { CalculatedBlockEntry, courseBlockTypeLabel, CourseDrill, WorkoutPrescription } from '../../../core/models/course.model';
 import { RangePrescriptionPillComponent } from '../range-prescription-pill/range-prescription-pill.component';
+import { formatBlockSets, formatBlockVolume } from '../../../core/utils/prescription-format';
 
 interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
 
@@ -198,12 +199,7 @@ export class CoursePrescriptionViewComponent {
    * d'affilée, ce qui n'est pas la séance prescrite.
    */
   volume(e: CalculatedBlockEntry): string | null {
-    const b = e.block;
-    const unit = this.distOrTime(b.distanceM, b.durationS);
-    if (!unit) return null;
-    const reps = b.reps && b.reps > 1 ? `${b.reps} × ${unit}` : unit;
-    const sets = b.sets ?? 1;
-    return sets > 1 ? `${sets} × (${reps})` : reps;
+    return formatBlockSets(e.block) || null;
   }
 
   recoveryVol(e: CalculatedBlockEntry): string {
@@ -223,13 +219,8 @@ export class CoursePrescriptionViewComponent {
     return (e.block.sets ?? 1) > 1 && !!e.block.setRecovery;
   }
 
+  /** Écriture partagée par tous les écrans qui montrent une prescription (cf. prescription-format). */
   private distOrTime(distanceM: number | null | undefined, durationS: number | null | undefined): string | null {
-    if (distanceM) return distanceM >= 1000 ? `${(distanceM / 1000).toFixed(distanceM % 1000 ? 1 : 0)} km` : `${distanceM} m`;
-    if (durationS) {
-      const m = Math.floor(durationS / 60);
-      const s = durationS % 60;
-      return s ? `${m}:${s.toString().padStart(2, '0')}` : `${m} min`;
-    }
-    return null;
+    return formatBlockVolume(distanceM, durationS) || null;
   }
 }

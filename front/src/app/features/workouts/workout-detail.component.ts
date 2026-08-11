@@ -28,6 +28,7 @@ import { Activity } from '../../core/models/activity.model';
 import { ActivityService } from '../../core/services/activity.service';
 import { PaceReferenceService } from '../../core/services/pace-reference.service';
 import { plannedVolume } from '../../core/utils/planned-volume';
+import { formatBlockVolume } from '../../core/utils/prescription-format';
 import { ActivityChartComponent } from '../../shared/components/activity-chart/activity-chart.component';
 import { ActivityLapsComponent } from '../../shared/components/activity-laps/activity-laps.component';
 import { ActivityRouteMapComponent } from '../../shared/components/activity-route-map/activity-route-map.component';
@@ -340,13 +341,8 @@ export class WorkoutDetailComponent implements OnInit {
     return n >= 1 && n <= 5 ? (n as ZoneNum) : null;
   }
 
+  /** Cible d'un pas course — écriture partagée par tous les écrans (cf. prescription-format). */
   stepTarget(distanceM: number | null, durationS: number | null): string {
-    if (distanceM) return distanceM >= 1000 ? `${(distanceM / 1000).toFixed(1)} km` : `${distanceM} m`;
-    if (durationS) {
-      const m = Math.floor(durationS / 60);
-      const s = durationS % 60;
-      return m ? `${m}:${s.toString().padStart(2, '0')}` : `${s} s`;
-    }
-    return '';
+    return formatBlockVolume(distanceM, durationS);
   }
 }

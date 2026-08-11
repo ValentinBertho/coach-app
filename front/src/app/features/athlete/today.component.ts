@@ -15,6 +15,7 @@ import { WeekSummary } from '../../core/models/activity.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { PaceReferenceService } from '../../core/services/pace-reference.service';
 import { plannedVolume, plannedVolumeLabel } from '../../core/utils/planned-volume';
+import { formatBlockVolume } from '../../core/utils/prescription-format';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { WorkoutPrescription } from '../../core/models/course.model';
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
@@ -247,15 +248,9 @@ export class TodayComponent implements OnInit {
     return n >= 1 && n <= 5 ? (n as ZoneNum) : null;
   }
 
-  /** Cible d'un pas course (distance ou durée) en texte tabulaire. */
+  /** Cible d'un pas course (distance ou durée) — écriture partagée (cf. prescription-format). */
   stepTarget(distanceM: number | null, durationS: number | null): string {
-    if (distanceM) return distanceM >= 1000 ? `${(distanceM / 1000).toFixed(1)} km` : `${distanceM} m`;
-    if (durationS) {
-      const m = Math.floor(durationS / 60);
-      const s = durationS % 60;
-      return m ? `${m}:${s.toString().padStart(2, '0')}` : `${s} s`;
-    }
-    return '';
+    return formatBlockVolume(distanceM, durationS);
   }
 
   /** Ouvre la feuille de ressenti — séance du jour comme séance en retard, même parcours. */
