@@ -71,6 +71,39 @@ public class MatchingService {
                 .map(s -> s.workout);
     }
 
+    /**
+     * Repli de dernier recours : cette séance peut-elle accueillir la sortie faute de mieux ?
+     *
+     * <p><b>Pourquoi ce repli existe.</b> Une séance dont le volume prévu n'est pas exploitable —
+     * une prescription écrite en durée dont aucun bloc n'est chiffrable, qui ne totalise que ses
+     * éducatifs — n'a rien à opposer à l'activité : le score tombe à zéro et la sortie du jour
+     * restait orpheline, à côté d'une séance qui restait sans réalisé. Deux écrans vides pour un
+     * entraînement qui a bel et bien eu lieu.</p>
+     *
+     * <p><b>Pourquoi il est aussi étroit.</b> La date seule ne prouve rien : c'est précisément ce
+     * qui avait fait retirer le rapprochement sur date. Trois gardes le rendent acceptable — la
+     * séance doit être celle du <b>jour même</b> (pas de la veille), ne pas avoir été déclarée
+     * non faite, et n'avoir <b>rien de comparable</b> à opposer : deux volumes qui se contredisent
+     * restent un refus, ils portent une information. L'appelant y ajoute la garde décisive — il
+     * faut que ce soit la <b>seule séance de la journée</b>, prises comprises, sans quoi le choix
+     * redevient arbitraire.</p>
+     *
+     * <p>Le statut retenu reste {@code PARTIAL} : la sortie a eu lieu, rien ne prouve qu'elle
+     * correspond à la séance prescrite, et c'est à l'athlète ou au coach de trancher.</p>
+     */
+    public boolean canFallBackOn(Activity activity, Workout workout) {
+        return workout.getStatus() != WorkoutStatus.MISSED
+                && workout.getScheduledDate() != null
+                && workout.getScheduledDate().equals(activity.getActivityDate())
+                && hasNothingComparable(activity, workout);
+    }
+
+    /** Ni distance ni durée exploitables du côté de la séance : il n'y a rien à confronter. */
+    private boolean hasNothingComparable(Activity activity, Workout workout) {
+        return distanceCloseness(activity, workout) == null
+                && durationCloseness(activity, workout) == null;
+    }
+
     /** La séance est-elle prévue après la sortie ? On ne peut pas avoir déjà fait ce qui vient. */
     private boolean isAfterActivity(Workout workout, Activity activity) {
         return workout.getScheduledDate() != null && activity.getActivityDate() != null
@@ -92,7 +125,9 @@ public class MatchingService {
      * les deux.</p>
      */
     public WorkoutStatus resolvedStatus(Activity activity, Workout workout) {
-        Integer target = workout.getTargetDistanceM();
+        // Même lecture que le rapprochement : un total sous le plancher n'est pas une cible, et
+        // ne peut donc pas servir à déclarer une séance réalisée.
+        Integer target = com.coachrun.util.PlannedVolume.usableDistanceM(workout.getTargetDistanceM());
         Integer actual = activity.getDistanceM();
         if (target == null || target == 0 || actual == null) {
             return WorkoutStatus.PARTIAL;
@@ -120,8 +155,8 @@ public class MatchingService {
             default -> 0.0;
         };
 
-        Double distScore = closeness(workout.getTargetDistanceM(), activity.getDistanceM());
-        Double durationScore = closeness(workout.getTargetDurationS(), activity.getDurationS());
+        Double distScore = distanceCloseness(activity, workout);
+        Double durationScore = durationCloseness(activity, workout);
         if (distScore == null && durationScore == null) {
             // Rien de comparable : la date seule ne prouve rien. Se fier à elle rapprochait
             // automatiquement n'importe quelle sortie du jour de n'importe quelle séance sans
@@ -134,6 +169,25 @@ public class MatchingService {
                 : durationScore == null ? distScore
                 : (distScore + durationScore) / 2.0;
         return 0.5 * dateScore + 0.5 * effortScore;
+    }
+
+    /**
+     * Proximité des distances, ou {@code null} si la séance n'a pas de distance exploitable.
+     *
+     * <p>Un total de séance sous le plancher de {@link com.coachrun.util.PlannedVolume} n'est pas
+     * une cible : c'est ce qui reste quand le calcul n'a su convertir que les éducatifs. Le
+     * comparer à une sortie de onze kilomètres produisait une proximité de 0,009 — un chiffre qui
+     * n'infirme rien mais qui écrase le score, au point de faire perdre la séance du jour contre
+     * celle du lendemain.</p>
+     */
+    private Double distanceCloseness(Activity activity, Workout workout) {
+        return closeness(com.coachrun.util.PlannedVolume.usableDistanceM(workout.getTargetDistanceM()),
+                activity.getDistanceM());
+    }
+
+    private Double durationCloseness(Activity activity, Workout workout) {
+        return closeness(com.coachrun.util.PlannedVolume.usableDurationS(workout.getTargetDurationS()),
+                activity.getDurationS());
     }
 
     /** Ratio de proximité min/max ∈ [0,1], ou null si non comparable. */

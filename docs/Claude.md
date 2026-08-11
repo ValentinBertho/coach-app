@@ -8,6 +8,11 @@
 > PostgreSQL + Liquibase**, multi-tenant, mobile-first, RGPD-by-design.
 > Sections _(hypothèse)_ = recommandations de conception, à valider avec le métier.
 
+> ⚠️ **L'application est en bêta, en production, avec de vrais coachs et de vrais athlètes.**
+> Ce n'est plus un projet vierge : il y a en base des historiques d'entraînement qui ne se
+> reconstituent pas. Toute évolution part de là — **§4 bis « Ne rien casser de ce qui existe »
+> prime sur le reste de ce document**.
+
 ---
 
 ## 1. Présentation synthétique
@@ -96,6 +101,52 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 6. **Idempotence des effets de bord** (sync, notifications) : réserve-puis-envoie, dédup.
 7. **RGPD & données de santé** : les données physiologiques (FC, HRV, poids) sont **sensibles** → consentement explicite, chiffrement au repos, droit à l'oubli.
 8. **Nommage anglais dans le code, libellés français dans l'UI.**
+9. **L'application est en bêta, avec de vrais athlètes dedans** — voir §4 bis.
+
+---
+
+## 4 bis. Ne rien casser de ce qui existe (bêta en production)
+
+> **Le contexte qui commande tout le reste.** Des coachs et des athlètes réels utilisent
+> l'application aujourd'hui. Leur historique d'entraînement — séances, sorties importées, ressentis,
+> tests — n'est pas un jeu de données de démonstration : il n'a pas de sauvegarde côté utilisateur,
+> et il ne se reconstitue pas. Une correction qui abîme l'existant coûte plus cher que le défaut
+> qu'elle répare, parce que le défaut se corrige encore demain alors que la donnée perdue, non.
+
+**Règles, de la plus contraignante à la plus souple.**
+
+1. **Une migration est additive, nullable, non destructive.** On ajoute des colonnes, on n'en
+   supprime pas, on n'en renomme pas, on ne réécrit pas de données existantes. Une colonne devenue
+   inutile reste en place plutôt que d'être droppée : le coût de la garder est nul, celui de se
+   tromper est irréversible.
+2. **Une donnée mal calculée se réinterprète à la lecture, elle ne se réécrit pas.** Quand un
+   calcul a produit des valeurs fausses (un volume de séance qui ne totalise que ses éducatifs),
+   la correction est une règle appliquée à l'affichage et aux agrégats — pas un `UPDATE` de
+   rattrapage. La donnée d'origine reste consultable, et un correctif qui se révèle faux à son tour
+   n'a rien détruit.
+3. **Les réponses d'API s'enrichissent, elles ne se réduisent pas.** Un champ s'ajoute ; il ne se
+   supprime ni ne se renomme, et son type ne change pas. Le front est une **PWA avec service
+   worker** : des clients tournent encore sur une version antérieure pendant des jours. Rendre un
+   champ optionnel côté TypeScript (`availableKinds?`) coûte une ligne et évite un écran blanc.
+4. **Ce qui est lu depuis du JSON stocké doit tolérer l'ancien format.** Les colonnes JSON
+   (`laps_json`, `session_snapshot`, `injuries_json`) contiennent des lignes écrites par des
+   versions précédentes : `@JsonIgnoreProperties(ignoreUnknown = true)`, valeurs par défaut, et
+   repli explicite quand le contenu est illisible — jamais d'exception qui empêche de lire la séance.
+5. **Restreindre un comportement automatique se réfléchit deux fois.** Durcir une règle (un seuil
+   de rapprochement, une validation de saisie) peut rendre inaccessible ce qui marchait pour
+   quelqu'un. Si le durcissement est juste, garder un **geste manuel** qui rattrape le cas écarté.
+6. **Élargir une validation est sûr, la resserrer ne l'est pas.** Une borne qu'on abaisse
+   (`@Min(1)` → `@Min(0)`) ne casse rien ; une borne qu'on relève refuse des saisies que l'écran
+   propose encore. Vérifier que la validation serveur et le composant de saisie disent la même chose.
+7. **Un défaut constaté en bêta se corrige à la racine ET se raconte.** Le commentaire dit ce qui
+   se passait avant, pas seulement ce que fait le code : c'est ce qui empêche quelqu'un de rétablir
+   le défaut six mois plus tard en « simplifiant ».
+
+**Avant de livrer, se poser ces trois questions.**
+
+- Qu'arrive-t-il à un athlète dont les données ont été créées **avant** ce changement ?
+- Qu'arrive-t-il à un téléphone qui a encore l'**ancien front** en cache ?
+- Si ce correctif est faux, qu'est-ce qui est **définitivement perdu** ?
 
 ---
 
@@ -154,8 +205,16 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 ✅ Valider les transitions d'état avant mutation.
 ✅ Toast sur chaque action ; libellés FR ; statuts traduits.
 ✅ Incrémenter la version à chaque session (`package.json` + `pom.xml`) et tenir à jour « État actuel ».
+✅ Migration **additive et nullable** ; corriger une donnée fausse par une règle de **lecture**, pas par un `UPDATE` (§4 bis).
+✅ Champ ajouté à une réponse d'API rendu **optionnel côté TypeScript** — des PWA tournent encore sur l'ancien front.
+✅ Tolérer l'ancien format en relisant du JSON stocké : `@JsonIgnoreProperties`, valeur par défaut, repli explicite.
+✅ Laisser un **geste manuel** de rattrapage quand on durcit une règle automatique.
 
 ❌ `alert()` / `confirm()` natifs (sauf suppression, et encore : `ConfirmDialogService`).
+❌ Supprimer/renommer une colonne, un champ de réponse ou un enum utilisé en base — on ajoute, on ne retire pas.
+❌ Réécrire des données d'athlètes pour rattraper un calcul fautif : le défaut se recorrige, la donnée perdue non.
+❌ Resserrer une validation sans vérifier ce que l'écran laisse encore saisir (l'inverse — élargir — est sûr).
+❌ Faire dépendre un test de la date du jour ou du programme de démonstration : un échec qui varie selon le jour de la semaine fait douter du code, pas du test.
 ❌ Composants `standalone: false`.
 ❌ DDL hors Liquibase / réutiliser un numéro de migration.
 ❌ `findById` non scopé → IDOR cross-club (un coach voit les athlètes d'un autre).
@@ -169,14 +228,16 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 
 ## 8. Développer une nouvelle fonctionnalité (full-stack)
 
-1. **Migration** : `NNN-description.yaml` + include master.
+0. **Existant** : qu'y a-t-il déjà en base pour cette entité, et que devient-il ? (§4 bis)
+1. **Migration** : `NNN-description.yaml` + include master — **additive et nullable**.
 2. **Entité** : étend/crée (hérite de `BaseEntity`).
-3. **DTOs** : `XxxRequest` (validé) + `XxxResponse`.
+3. **DTOs** : `XxxRequest` (validé) + `XxxResponse` — champs **ajoutés**, jamais retirés ni renommés.
 4. **Service** : logique métier, scoping tenant, transitions d'état, effets de bord (notifications/sync).
 5. **Controller** : route scopée, `@PreAuthorize`, `@RequiresModule`, `@Valid`.
-6. **Front** : `xxx.model.ts` → `xxx.service.ts` → composants `list/detail/form` standalone, routes lazy + guard.
+6. **Front** : `xxx.model.ts` (nouveau champ **optionnel**) → `xxx.service.ts` → composants `list/detail/form` standalone, routes lazy + guard.
 7. **UX** : toasts, skeletons/empty-state, badges de statut, responsive ≤768px.
-8. **Versionner** + mettre à jour « État actuel ».
+8. **Non-régression** : un athlète créé avant ce changement lit-il encore ses écrans sans erreur ?
+9. **Versionner** + mettre à jour « État actuel ».
 
 ### Exemples de premières features à livrer (MVP coaching)
 1. CRUD athlètes + profil physiologique (zones FC/allure) + invitation par lien.
@@ -194,10 +255,15 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 2. **Explorer avant d'écrire** : copier les conventions d'un module voisin existant.
 3. **Concis** : code d'abord, explication courte ensuite ; pas de préambule.
 4. **Signaler sans forcer** les risques (sécurité, données de santé, dette) + 1 alternative si nettement supérieure.
-5. **Implémenter le périmètre exact**, dans l'ordre du § 8.
+5. **Implémenter le périmètre exact**, dans l'ordre du § 8 — étape 0 comprise.
 6. **Référencer le code** par `chemin/fichier.ts:ligne`.
 7. **Vérifier** : `npm run build` (typecheck AOT) + `mvn verify` (+ smoke test démarrage/Liquibase). Ne pas dire « fait » sans vérif.
-8. **Git** : branche dédiée, commits clairs, push/PR uniquement sur demande.
+   Lire le **code de sortie de la commande elle-même** : `mvn verify | grep …` rend le statut de `grep`, pas celui de Maven —
+   annoncer une suite verte sur cette base, c'est annoncer n'importe quoi.
+8. **Un test qui échoue n'est pas coupable par défaut.** Avant de modifier son attente, vérifier s'il échouait
+   déjà avant le changement (worktree sur la base : `git worktree add … <commit>`). Corriger le code si c'est
+   une régression, le test s'il dépendait d'un contexte instable — jamais l'inverse par confort.
+9. **Git** : branche dédiée, commits clairs, push/PR uniquement sur demande.
 
 ---
 

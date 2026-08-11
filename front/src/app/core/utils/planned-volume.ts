@@ -10,12 +10,19 @@
  *
  * <p><b>La règle retenue.</b> Deux gardes, aucune invention :</p>
  * <ol>
- *   <li>une distance dont l'<b>allure implicite</b> (durée ÷ distance) sort de ce qu'un coureur
- *       peut tenir n'est pas une distance de séance : elle est écartée plutôt qu'affichée ;</li>
+ *   <li>un total sous 500 mètres ou sous trois minutes ne décrit aucune séance de course à pied,
+ *       échauffement compris : il est écarté plutôt qu'affiché. On a d'abord jugé la crédibilité
+ *       sur l'allure implicite (durée ÷ distance), mais 100 m en 20 secondes donne 3'20/km — une
+ *       allure plausible pour une séance qui ne l'est pas. Le résidu ne se reconnaît pas à son
+ *       incohérence, il se reconnaît à sa <b>taille</b> ;</li>
  *   <li>à défaut, la durée est convertie avec l'<b>allure d'endurance de l'athlète lui-même</b>
  *       (celle dérivée de son VDOT, ou la moyenne de ses sorties récentes). Le résultat est
  *       marqué comme une estimation — « ≈ 10 km » — et jamais comme une cible.</li>
  * </ol>
+ *
+ * <p>Les seuils sont ceux de {@code PlannedVolume} côté serveur : la même séance doit être lue de
+ * la même façon par l'écran qui l'affiche, le rapprochement qui la cherche et le total hebdomadaire
+ * qui la compte.</p>
  *
  * <p>Rien n'est écrit en base : la séance prescrite par le coach n'est pas modifiée, seule sa
  * lecture l'est. Sans référence d'allure propre à l'athlète, on n'affiche rien — un repère
@@ -28,13 +35,10 @@ export interface PlannedVolume {
   indicative: boolean;
 }
 
-/**
- * Bornes d'allure d'un coureur, en secondes par kilomètre : record du monde du marathon d'un côté,
- * marche rapide de l'autre. Hors de cette plage, le couple durée/distance ne décrit pas une course
- * à pied — c'est un reste de saisie, pas un volume.
- */
-const FASTEST_PLAUSIBLE_S_PER_KM = 120;
-const SLOWEST_PLAUSIBLE_S_PER_KM = 900;
+/** Sous ce seuil, le total ne décrit pas une séance mais ses éducatifs. Aligné sur le serveur. */
+const MIN_SESSION_DISTANCE_M = 500;
+/** Idem pour la durée : aucune séance prescrite ne dure moins de trois minutes. */
+const MIN_SESSION_DURATION_S = 180;
 
 /**
  * Distance prévue d'une séance, exacte si elle est crédible, estimée sinon.
@@ -49,28 +53,27 @@ export function plannedVolume(
   targetDurationS: number | null | undefined,
   referencePaceS: number | null | undefined,
 ): PlannedVolume | null {
-  if (targetDistanceM && targetDistanceM > 0 && isCredible(targetDistanceM, targetDurationS)) {
-    return { distanceM: targetDistanceM, indicative: false };
+  if (usableDistanceM(targetDistanceM) != null) {
+    return { distanceM: targetDistanceM as number, indicative: false };
   }
-  if (targetDurationS && targetDurationS > 0 && referencePaceS && referencePaceS > 0) {
+  const seconds = usableDurationS(targetDurationS);
+  if (seconds != null && referencePaceS && referencePaceS > 0) {
     // Arrondi à la centaine de mètres : afficher « 9 743 m » donnerait à une estimation la
     // précision d'une mesure.
-    const raw = (targetDurationS / referencePaceS) * 1000;
+    const raw = (seconds / referencePaceS) * 1000;
     return { distanceM: Math.round(raw / 100) * 100, indicative: true };
   }
   return null;
 }
 
-/**
- * La distance enregistrée décrit-elle bien cette séance ? Sans durée pour la confronter, on la
- * croit — c'est le cas d'une séance écrite en distance, où elle est justement la consigne.
- */
-function isCredible(distanceM: number, durationS: number | null | undefined): boolean {
-  if (!durationS || durationS <= 0) {
-    return true;
-  }
-  const impliedPace = (durationS * 1000) / distanceM;
-  return impliedPace >= FASTEST_PLAUSIBLE_S_PER_KM && impliedPace <= SLOWEST_PLAUSIBLE_S_PER_KM;
+/** Distance prévue si elle décrit bien une séance, `null` sinon. */
+export function usableDistanceM(distanceM: number | null | undefined): number | null {
+  return distanceM != null && distanceM >= MIN_SESSION_DISTANCE_M ? distanceM : null;
+}
+
+/** Durée prévue si elle décrit bien une séance, `null` sinon. */
+export function usableDurationS(durationS: number | null | undefined): number | null {
+  return durationS != null && durationS >= MIN_SESSION_DURATION_S ? durationS : null;
 }
 
 /**

@@ -15,6 +15,8 @@ import { StrengthService } from '../../core/services/strength.service';
 import { ScheduledStrength, StrengthPrescriptionView, StrengthSession } from '../../core/models/strength.model';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
+import { PaceReferenceService } from '../../core/services/pace-reference.service';
+import { plannedVolume, plannedVolumeLabel } from '../../core/utils/planned-volume';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { WorkoutService } from '../../core/services/workout.service';
@@ -203,7 +205,29 @@ export class CalendarComponent implements OnInit, OnDestroy {
   readonly lockedToAthlete = computed(() => !!this.athleteId());
 
   readonly athletes = signal<AthleteSummary[]>([]);
+  private readonly paceReference = inject(PaceReferenceService);
+
   selectedAthleteId = '';
+
+  /** Allure d'endurance de l'athlète affiché, seule base admise pour estimer un volume. */
+  readonly referencePace = signal<number | null>(null);
+
+  /**
+   * Volume d'une séance prévue, « 12 km » ou « ≈ 10 km ».
+   *
+   * <p>Une séance écrite en durée sans allure prescrite ne totalise que ses blocs chiffrables —
+   * quelques centaines de mètres d'éducatifs — et s'affichait « 0,1 km » pour une heure de
+   * course. Le « ≈ » distingue l'ordre de grandeur de la consigne.</p>
+   */
+  volumeLabel(w: Workout): string {
+    return plannedVolumeLabel(
+      plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace()));
+  }
+
+  /** Distance retenue pour les totaux : la cible crédible, ou l'estimation, ou rien. */
+  private volumeM(w: Workout): number {
+    return plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace())?.distanceM ?? 0;
+  }
   readonly mode = signal<'week' | 'month'>('week');
   /** Vue prévu / réalisé / les deux (façon Nolio). */
   readonly view = signal<CalView>('both');
@@ -241,7 +265,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
       const iso = toIso(d);
       const workouts = byDate.get(iso) ?? [];
       const strength = strengthByDate.get(iso) ?? [];
-      const km = workouts.reduce((s, w) => s + (w.targetDistanceM ?? 0), 0) / 1000;
+      const km = workouts.reduce((s, w) => s + this.volumeM(w), 0) / 1000;
       const sessions = workouts.length + strength.length;
       const hasKey = workouts.some((w) => TYPE_META[w.type].key);
       return {
@@ -609,7 +633,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   });
 
   readonly weeklyVolumeKm = computed(() => {
-    const m = this.workouts().reduce((s, w) => s + (w.targetDistanceM ?? 0), 0);
+    const m = this.workouts().reduce((s, w) => s + this.volumeM(w), 0);
     return (m / 1000).toFixed(1);
   });
 
@@ -662,6 +686,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.raceService.list(this.selectedAthleteId).subscribe({ next: (r) => this.objectives.set(r), error: () => this.objectives.set([]) });
     this.lactateService.list(this.selectedAthleteId).subscribe({ next: (t) => this.tests.set(t), error: () => this.tests.set([]) });
     this.athleteService.listUnavailabilities(this.selectedAthleteId).subscribe({ next: (u) => this.unavailabilities.set(u), error: () => this.unavailabilities.set([]) });
+    // Allure d'endurance : sans elle, une séance écrite en durée sans allure prescrite n'a
+    // aucun volume affichable, et le total de la semaine la compte pour zéro.
+    this.paceReference.forAthlete(this.selectedAthleteId).subscribe({
+      next: (pace) => this.referencePace.set(pace),
+      error: () => this.referencePace.set(null),
+    });
   }
 
   setMode(mode: 'week' | 'month'): void {
@@ -2034,7 +2064,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private chargeRecap(w: Workout): string {
     const parts: string[] = [];
     if (w.targetDurationS) parts.push(`~${Math.round(w.targetDurationS / 60)} min`);
-    if (w.targetDistanceM) parts.push(`${(w.targetDistanceM / 1000).toFixed(1)} km`);
+    if (this.volumeLabel(w)) parts.push(this.volumeLabel(w));
     if (w.plannedLoadUa) parts.push(`${w.plannedLoadUa} UA`);
     return parts.length ? ` — ${parts.join(' · ')}` : '';
   }
