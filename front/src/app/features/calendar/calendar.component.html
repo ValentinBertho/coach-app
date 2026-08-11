@@ -339,8 +339,8 @@
                     <span class="w-title">{{ w.title }}</span>
                     <span class="badge badge-dot" [class]="statusBadge[w.status]" [title]="statusLabels[w.status]"></span>
                   </span>
-                  @if (w.targetDistanceM) {
-                    <span class="wc-meta"><span class="metric w-metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span></span>
+                  @if (volumeLabel(w); as km) {
+                    <span class="wc-meta"><span class="metric w-metric">{{ km }}</span></span>
                   }
                 </button>
               }
@@ -473,7 +473,7 @@
               </span>
               <span class="wc-meta">
                 <span class="wc-type-label">{{ typeLabels[w.type] }}</span>
-                @if (w.targetDistanceM) { <span class="metric w-metric">{{ (w.targetDistanceM / 1000).toFixed(1) }} km</span> }
+                @if (volumeLabel(w); as km) { <span class="metric w-metric">{{ km }}</span> }
                 <!-- Le coach n'avait aucun signal : l'athlète réorganisait sa semaine et la
                      prescription affichée n'était plus celle qui avait été posée. -->
                 @if (w.movedByAthlete) {

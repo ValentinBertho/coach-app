@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable, map, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { Injury } from '../models/injury.model';
 import { RaceObjective } from '../models/race.model';
 import { AuthService } from './auth.service';
 
@@ -25,6 +26,10 @@ export interface FeedbackQueueItem {
   rpe: number | null;
   fatigue: number | null;
   pain: number | null;
+  /** Sensation générale 1–5 (séance course uniquement) ; distincte de la difficulté. */
+  feel: number | null;
+  /** Blessures nommées au débrief ; liste vide si aucune. */
+  injuries: Injury[];
   comment: string | null;
 }
 

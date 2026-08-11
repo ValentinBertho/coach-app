@@ -7,6 +7,7 @@ import {
   STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_META, Workout, needsFeedback,
 } from '../../core/models/workout.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
+import { ToastService } from '../../core/services/toast.service';
 import { PaceReferenceService } from '../../core/services/pace-reference.service';
 import { plannedVolume } from '../../core/utils/planned-volume';
 import { ActivityChartComponent } from '../../shared/components/activity-chart/activity-chart.component';
@@ -17,6 +18,7 @@ import { FeedbackRecapComponent } from '../../shared/components/feedback-recap/f
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { PlannedStats, RealizedStats, SessionStatsComponent } from '../../shared/components/session-stats/session-stats.component';
 import { TimeInZoneBarComponent } from '../../shared/components/time-in-zone-bar/time-in-zone-bar.component';
+import { BottomSheetComponent } from '../../shared/components/ui';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 
 type State = 'loading' | 'ready' | 'error';
@@ -53,6 +55,7 @@ const SOURCE_LABELS: Record<string, string> = {
     DatePipe, RouterLink, IconComponent, SessionStatsComponent, ActivityChartComponent,
     ActivityLapsComponent, ActivityRouteMapComponent, TimeInZoneBarComponent,
     FeedbackRecapComponent, CoursePrescriptionViewComponent, WorkoutFeedbackSheetComponent,
+    BottomSheetComponent,
   ],
   template: `
     @switch (state()) {
@@ -87,9 +90,18 @@ const SOURCE_LABELS: Record<string, string> = {
             </header>
 
             <!-- 1. Ce que ça a donné. Réalisé en grand, prévu juste en dessous. -->
-            @if (activity()) {
+            @if (activity(); as a) {
               <section class="card">
                 <app-session-stats [realized]="realized()!" [planned]="planned()" />
+                <!-- Le rapprochement se trompe — deux sorties le même jour, une séance déplacée —
+                     et son erreur était sans recours côté athlète : seul le coach pouvait la
+                     défaire. C'est pourtant l'athlète qui sait ce qu'il a couru. -->
+                <div class="wd-match">
+                  <span class="field-hint">Sortie {{ sourceLabel(a.source) }} rattachée à cette séance.</span>
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="detach(a)" [disabled]="matching()">
+                    <app-icon name="x" [size]="15" /> Ce n'est pas la bonne
+                  </button>
+                </div>
               </section>
             } @else {
               <section class="card wd-nodata">
@@ -97,7 +109,14 @@ const SOURCE_LABELS: Record<string, string> = {
                   Aucune sortie n'est encore rattachée à cette séance. Importe ta trace ou
                   connecte ta montre, et les chiffres viendront se poser ici.
                 </p>
-                <a routerLink="/athlete/activities" class="btn btn-ghost btn-sm">Mes activités</a>
+                <div class="wd-nodata-actions">
+                  @if (attachable().length) {
+                    <button type="button" class="btn btn-primary btn-sm" (click)="pickOpen.set(true)">
+                      <app-icon name="plus" [size]="15" /> Rattacher une sortie
+                    </button>
+                  }
+                  <a routerLink="/athlete/activities" class="btn btn-ghost btn-sm">Mes activités</a>
+                </div>
               </section>
             }
 
@@ -171,6 +190,30 @@ const SOURCE_LABELS: Record<string, string> = {
           </div>
 
           <app-workout-feedback-sheet (saved)="onFeedbackSaved($event)" />
+
+          <!-- Choix d'une sortie à rattacher : celles des jours voisins, non encore rattachées. -->
+          <app-bottom-sheet [(open)]="pickOpen" title="Quelle sortie ?">
+            @if (attachable().length) {
+              <ul class="wd-pick">
+                @for (a of attachable(); track a.id) {
+                  <li>
+                    <button type="button" class="wd-pick-row" (click)="attach(a)" [disabled]="matching()">
+                      <span class="wd-pick-id">
+                        <strong>{{ a.title || 'Sortie' }}</strong>
+                        <span class="field-hint">{{ a.activityDate | date: 'EEEE d MMMM' }}</span>
+                      </span>
+                      <span class="wd-pick-kpi metric">
+                        @if (a.distanceM) { {{ (a.distanceM / 1000).toFixed(1) }} km }
+                        @if (a.durationS) { · {{ durationLabel(a.durationS) }} }
+                      </span>
+                    </button>
+                  </li>
+                }
+              </ul>
+            } @else {
+              <p class="field-hint">Aucune sortie libre autour de cette date.</p>
+            }
+          </app-bottom-sheet>
         }
       }
     }
@@ -191,6 +234,25 @@ const SOURCE_LABELS: Record<string, string> = {
     .wd-h2 { margin: 0; font-size: var(--text-md); font-weight: 700; color: var(--ink); }
     .wd-notes { margin: 0; color: var(--ink-2); white-space: pre-wrap; }
     .wd-nodata { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+    .wd-nodata-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+    .wd-match {
+      display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+      flex-wrap: wrap; margin-top: var(--sp-3);
+      padding-top: var(--sp-3); border-top: 1px solid var(--hairline);
+    }
+
+    .wd-pick { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+    .wd-pick-row {
+      display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+      width: 100%; min-height: 56px; padding: var(--sp-3);
+      border: 1px solid var(--hairline); border-radius: var(--radius);
+      background: var(--paper); cursor: pointer; text-align: left;
+    }
+    .wd-pick-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .wd-pick-id strong { color: var(--ink); }
+    .wd-pick-id .field-hint { text-transform: capitalize; }
+    .wd-pick-kpi { font-weight: 700; color: var(--ink-2); white-space: nowrap; }
 
     .wd-coach { border-left: 3px solid var(--primary); }
     .wd-quote { margin: 0; color: var(--ink); font-style: italic; }
@@ -204,6 +266,7 @@ export class AthleteWorkoutDetailComponent implements OnInit {
 
   private readonly portal = inject(AthletePortalService);
   private readonly paceReference = inject(PaceReferenceService);
+  private readonly toast = inject(ToastService);
   private readonly feedbackSheet = viewChild(WorkoutFeedbackSheetComponent);
 
   /** Mon allure d'endurance, seule base admise pour estimer un volume écrit en durée. */
@@ -297,6 +360,11 @@ export class AthleteWorkoutDetailComponent implements OnInit {
       next: (p) => this.referencePace.set(p),
       error: () => this.referencePace.set(null),
     });
+    // Sorties des jours voisins, pour proposer un rattachement manuel quand l'automatique s'abstient.
+    this.portal.activities().subscribe({
+      next: (list) => this.activities.set(list),
+      error: () => this.activities.set([]),
+    });
   }
 
   protected openDebrief(): void {
@@ -312,6 +380,69 @@ export class AthleteWorkoutDetailComponent implements OnInit {
 
   protected onFeedbackSaved(updated: Workout): void {
     this.workout.set(updated);
+  }
+
+  // --- Rattacher / détacher une sortie ------------------------------------
+
+  /** Fenêtre de recherche autour de la séance : au-delà, ce n'est plus la même journée d'entraînement. */
+  private static readonly PICK_WINDOW_DAYS = 3;
+
+  readonly pickOpen = signal(false);
+  readonly matching = signal(false);
+  private readonly activities = signal<Activity[]>([]);
+
+  /**
+   * Sorties proposables : celles des jours voisins qui ne sont rattachées à rien.
+   *
+   * <p>Une sortie déjà rattachée à une autre séance n'est pas offerte : la déplacer ici laisserait
+   * l'autre séance sans réalisé, sans que l'athlète l'ait demandé. Il la détache d'abord.</p>
+   */
+  readonly attachable = computed<Activity[]>(() => {
+    const w = this.workout();
+    if (!w) return [];
+    const day = new Date(w.scheduledDate + 'T00:00:00').getTime();
+    const window = AthleteWorkoutDetailComponent.PICK_WINDOW_DAYS * 86_400_000;
+    return this.activities()
+      .filter((a) => !a.matchedWorkoutId)
+      .filter((a) => Math.abs(new Date(a.activityDate + 'T00:00:00').getTime() - day) <= window)
+      .sort((a, b) => b.activityDate.localeCompare(a.activityDate));
+  });
+
+  protected attach(a: Activity): void {
+    if (this.matching()) return;
+    this.matching.set(true);
+    this.portal.matchActivity(a.id, this.workoutId()).subscribe({
+      next: () => {
+        this.matching.set(false);
+        this.pickOpen.set(false);
+        this.toast.success('Sortie rattachée à ta séance');
+        this.load();
+      },
+      error: () => { this.matching.set(false); this.toast.error('Rattachement impossible.'); },
+    });
+  }
+
+  protected detach(a: Activity): void {
+    if (this.matching()) return;
+    this.matching.set(true);
+    this.portal.matchActivity(a.id, null).subscribe({
+      next: () => {
+        this.matching.set(false);
+        // La séance redevient « à faire » côté serveur : on recharge tout plutôt que de deviner.
+        this.toast.info('Sortie détachée');
+        this.load();
+      },
+      error: () => { this.matching.set(false); this.toast.error('Détachement impossible.'); },
+    });
+  }
+
+  /** « 42:10 » ou « 1:08:32 », comme partout ailleurs. */
+  protected durationLabel(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+      : `${m}:${String(s).padStart(2, '0')}`;
   }
 
   protected typeColor(): string {

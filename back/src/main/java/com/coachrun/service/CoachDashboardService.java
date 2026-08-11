@@ -115,14 +115,19 @@ public class CoachDashboardService {
                     "COURSE", w.getId(), w.getAthlete().getId(), names.get(w.getAthlete().getId()),
                     w.getTitle(), w.getScheduledDate(),
                     w.getRpe() == null ? null : w.getRpe().doubleValue(),
-                    w.getFatigue(), w.getPain(), w.getAthleteComment()));
+                    w.getFatigue(), w.getPain(), w.getFeel(),
+                    com.coachrun.util.InjuryCodec.read(w.getInjuriesJson()),
+                    w.getAthleteComment()));
         }
         for (ScheduledStrengthSession s : strengthRepository.findPendingFeedback(ids, since)) {
             items.add(new FeedbackQueueItemResponse(
                     "STRENGTH", s.getId(), s.getAthlete().getId(), names.get(s.getAthlete().getId()),
                     s.getTitle(), s.getScheduledDate(),
                     s.getSessionRpe() == null ? null : s.getSessionRpe().doubleValue(),
-                    s.getSessionFatigue(), s.getSessionPain(), s.getSessionComment()));
+                    // Le débrief de force ne collecte encore ni sensation ni blessure : la file
+                    // affiche donc ce qu'elle a, sans prétendre à une absence de déclaration.
+                    s.getSessionFatigue(), s.getSessionPain(), null, java.util.List.of(),
+                    s.getSessionComment()));
         }
         items.sort(java.util.Comparator
                 .comparing(FeedbackQueueItemResponse::sessionDate).reversed()

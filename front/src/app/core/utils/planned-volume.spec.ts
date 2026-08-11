@@ -21,11 +21,26 @@ describe('planned-volume — volume prévu d’une séance', () => {
     expect(plannedVolume(10000, null, REF)).toEqual({ distanceM: 10000, indicative: false });
   });
 
-  it('écarte une distance que l’allure implicite dément, et estime depuis la durée', () => {
-    // Le cas observé : 55 min pour 100 m, soit 9 h 10 au kilomètre. Ce n'est pas une séance.
+  it('écarte un total trop petit pour être une séance, et estime depuis la durée', () => {
+    // Le cas observé : une séance dont le total ne compte que ses éducatifs.
     const v = plannedVolume(100, 3300, REF);
     expect(v?.indicative).toBeTrue();
     expect(v?.distanceM).toBe(10000); // 3300 s à 5:30/km = 10 km
+  });
+
+  /**
+   * Le résidu ne se reconnaît pas à son incohérence : 100 m en 20 s donne 3'20/km, une allure
+   * parfaitement plausible pour une séance qui ne l'est pas du tout. C'est la taille qui tranche.
+   */
+  it('écarte un résidu même quand son allure implicite est plausible', () => {
+    const v = plannedVolume(100, 20, REF);
+    // Ni la distance ni la durée ne décrivent une séance : rien à estimer non plus.
+    expect(v).toBeNull();
+  });
+
+  it('écarte une durée trop courte pour être une séance', () => {
+    expect(plannedVolume(null, 120, REF)).toBeNull();
+    expect(plannedVolume(null, 180, REF)).not.toBeNull();
   });
 
   it('estime le volume d’une séance qui n’a qu’une durée', () => {

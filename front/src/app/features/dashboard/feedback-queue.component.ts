@@ -2,7 +2,9 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
+import { Injury, injuryLabel } from '../../core/models/injury.model';
 import { CoachDashboardService, FeedbackQueueItem } from '../../core/services/coach-dashboard.service';
+import { FEEL_COLORS, feelLabel } from '../../shared/components/feel-scale';
 import { StrengthService } from '../../core/services/strength.service';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkoutService } from '../../core/services/workout.service';
@@ -61,7 +63,7 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
         </div>
         <ul class="fq">
           @for (it of items(); track it.kind + it.sessionId) {
-            <li class="fq__row" [class.fq__row--alert]="(it.pain ?? 0) >= 3">
+            <li class="fq__row" [class.fq__row--alert]="(it.pain ?? 0) >= 3 || !!it.injuries?.length">
               <span class="fq__kind" [title]="it.kind === 'STRENGTH' ? 'Renforcement' : 'Course'">
                 <app-icon [name]="it.kind === 'STRENGTH' ? 'dumbbell' : 'footprints'" [size]="15" />
               </span>
@@ -73,6 +75,11 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
               </div>
 
               <div class="fq__metrics">
+                <!-- La sensation d'abord : c'est comment la séance a été vécue, ce que le RPE
+                     ne dit pas et que le coach cherchait dans le commentaire libre. -->
+                @if (it.feel != null) {
+                  <span class="badge fq__feel" [style.--fc]="feelColor(it.feel)">{{ feelLabel(it.feel) }}</span>
+                }
                 @if (it.rpe != null) { <span class="badge badge-neutral">RPE {{ it.rpe }}/10</span> }
                 @if (it.fatigue != null) { <span class="badge badge-neutral">Fatigue {{ it.fatigue }}/10</span> }
                 @if (it.pain != null) {
@@ -80,6 +87,17 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
                         [class.badge-neutral]="it.pain < 3">Douleur {{ it.pain }}/10</span>
                 }
               </div>
+
+              <!-- Une blessure nommée est ce qui se décide en premier dans cette file : elle a sa
+                   ligne, en toutes lettres, et ne se devine pas d'un niveau de douleur. -->
+              @if (it.injuries?.length) {
+                <p class="fq__injuries">
+                  <app-icon name="alert-triangle" [size]="14" />
+                  @for (i of it.injuries; track $index) {
+                    <span class="fq__injury">{{ injuryLabel(i) }}@if (i.note) { — « {{ i.note }} » }</span>
+                  }
+                </p>
+              }
 
               @if (it.comment) { <p class="fq__comment">« {{ excerpt(it.comment) }} »</p> }
 
@@ -109,7 +127,7 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
     .fq__row {
       display: grid; gap: var(--sp-2) var(--sp-3);
       grid-template-columns: auto 1fr auto;
-      grid-template-areas: 'kind id metrics' '. comment comment' '. actions actions';
+      grid-template-areas: 'kind id metrics' '. injuries injuries' '. comment comment' '. actions actions';
       align-items: start;
       padding: var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius-md);
       background: var(--paper);
@@ -123,10 +141,16 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
     .fq__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
     .fq__title { font-size: var(--text-sm); color: var(--ink-2); }
     .fq__metrics { grid-area: metrics; display: flex; gap: var(--sp-2); flex-wrap: wrap; justify-content: flex-end; }
+    .fq__feel { background: color-mix(in srgb, var(--fc) 16%, var(--paper)); color: var(--fc); border: 1px solid color-mix(in srgb, var(--fc) 40%, transparent); }
+    .fq__injuries {
+      grid-area: injuries; margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2);
+      font-size: var(--text-sm); font-weight: 700; color: var(--form-red);
+    }
+    .fq__injury::after { content: ''; }
     .fq__comment { grid-area: comment; margin: 0; font-size: var(--text-sm); color: var(--ink-2); font-style: italic; }
     .fq__actions { grid-area: actions; display: flex; gap: var(--sp-2); flex-wrap: wrap; }
     @media (max-width: 640px) {
-      .fq__row { grid-template-columns: auto 1fr; grid-template-areas: 'kind id' '. metrics' '. comment' '. actions'; }
+      .fq__row { grid-template-columns: auto 1fr; grid-template-areas: 'kind id' '. metrics' '. injuries' '. comment' '. actions'; }
       .fq__metrics { justify-content: flex-start; }
     }
   `],
@@ -138,6 +162,21 @@ export class FeedbackQueueComponent implements OnInit {
   private readonly toast = inject(ToastService);
 
   readonly items = signal<FeedbackQueueItem[]>([]);
+
+  /** « Excellente », « Difficile »… — le mot, jamais le chiffre nu : 4/5 ne veut rien dire. */
+  protected feelLabel(value: number): string {
+    const word = feelLabel(value);
+    return word ? word.charAt(0).toUpperCase() + word.slice(1) : '';
+  }
+
+  protected feelColor(value: number): string {
+    return FEEL_COLORS[value] ?? 'var(--ink-3)';
+  }
+
+  protected injuryLabel(injury: Injury): string {
+    return injuryLabel(injury);
+  }
+
   readonly loading = signal(true);
   /** Lignes en cours de traitement (évite le double clic). */
   readonly busy = signal<Set<string>>(new Set());

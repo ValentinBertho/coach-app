@@ -151,17 +151,74 @@ class MatchingServiceTest {
     /**
      * Le cas exact remonté : la séance du jour a des cibles inexploitables — une prescription
      * écrite en durée dont aucun bloc n'est chiffrable ne totalise que ses éducatifs — pendant que
-     * celle du lendemain colle au mètre près. Le rapprochement doit s'abstenir, et surtout pas
-     * valider la séance de demain.
+     * celle du lendemain colle au mètre près. C'est la séance du jour qui doit l'emporter, et en
+     * {@code PARTIAL} : la sortie a bien eu lieu, rien ne prouve qu'elle correspond à ce qui était
+     * prescrit.
      */
     @Test
-    void prefersNothingOverTomorrowWhenTodaysTargetsAreUnusable() {
+    void prefersTodaysUnusableSessionOverTomorrowsPerfectMatch() {
         LocalDate today = LocalDate.of(2026, 8, 10);
         Activity ran = activity(today, 11350, 3465);
         Workout todaysSession = workout(today, 100, null, WorkoutStatus.PLANNED);
         Workout tomorrow = workout(today.plusDays(1), 11320, 3450, WorkoutStatus.PLANNED);
 
-        assertThat(matching.findBestMatch(ran, List.of(todaysSession, tomorrow))).isEmpty();
+        assertThat(matching.findBestMatch(ran, List.of(todaysSession, tomorrow)))
+                .contains(todaysSession);
+        assertThat(matching.resolvedStatus(ran, todaysSession)).isEqualTo(WorkoutStatus.PARTIAL);
+    }
+
+    // --- Repli : la seule séance du jour, quand rien ne permet de la comparer ---------------
+
+    /**
+     * Une séance sans volume exploitable n'a rien à opposer à la sortie du jour. Refuser le
+     * rapprochement laissait deux écrans vides — la sortie orpheline, la séance sans réalisé —
+     * pour un entraînement qui a bel et bien eu lieu.
+     */
+    @Test
+    void matchesTheOnlySessionOfTheDayWhenNothingIsComparable() {
+        LocalDate d = LocalDate.of(2026, 8, 10);
+        Activity ran = activity(d, 11350, 3465);
+        Workout noTargets = workout(d, null, null, WorkoutStatus.PLANNED);
+
+        assertThat(matching.findBestMatch(ran, List.of(noTargets))).contains(noTargets);
+        assertThat(matching.resolvedStatus(ran, noTargets)).isEqualTo(WorkoutStatus.PARTIAL);
+    }
+
+    /** Deux séances le même jour : le choix redevient arbitraire, on n'en fait aucun. */
+    @Test
+    void doesNotGuessBetweenTwoSessionsOfTheSameDay() {
+        LocalDate d = LocalDate.of(2026, 8, 10);
+        Activity ran = activity(d, 11350, 3465);
+        Workout morning = workout(d, null, null, WorkoutStatus.PLANNED);
+        Workout evening = workout(d, null, null, WorkoutStatus.PLANNED);
+
+        assertThat(matching.findBestMatch(ran, List.of(morning, evening))).isEmpty();
+    }
+
+    /**
+     * Le repli ne vaut que pour le jour même : rattacher la sortie d'aujourd'hui à la séance
+     * d'hier sans rien pour l'étayer serait exactement le rapprochement sur date qu'on a retiré.
+     */
+    @Test
+    void theFallbackNeverReachesBackToYesterday() {
+        LocalDate d = LocalDate.of(2026, 8, 10);
+        Activity ran = activity(d, 11350, 3465);
+        Workout yesterday = workout(d.minusDays(1), null, null, WorkoutStatus.PLANNED);
+
+        assertThat(matching.findBestMatch(ran, List.of(yesterday))).isEmpty();
+    }
+
+    /**
+     * Deux volumes qui se contredisent restent un refus : ils portent une information, là où
+     * l'absence de cible n'en porte aucune.
+     */
+    @Test
+    void theFallbackDoesNotOverrideAContradictoryVolume() {
+        LocalDate d = LocalDate.of(2026, 8, 10);
+        Activity sprint = activity(d, 3000, 12 * 60);
+        Workout longRun = workout(d, 25000, 150 * 60, WorkoutStatus.PLANNED);
+
+        assertThat(matching.findBestMatch(sprint, List.of(longRun))).isEmpty();
     }
 
     /** La séance de la veille, elle, reste rapprochable : on a couru en retard, ça arrive. */

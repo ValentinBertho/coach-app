@@ -31,7 +31,24 @@ public class AnalyticsService {
     private final WorkoutRepository workoutRepository;
     private final ActivityRepository activityRepository;
     private final AthleteRepository athleteRepository;
+    private final EndurancePaceService endurancePaceService;
     private final ClockService clock;
+
+    /**
+     * Distance prévue d'une séance pour les totaux : la cible si elle décrit bien une séance,
+     * sinon une estimation depuis la durée et l'allure d'endurance de l'athlète.
+     *
+     * <p><b>Pourquoi ne pas se contenter de la cible.</b> Une séance dont la prescription est
+     * écrite en durée, sans allure calculable, ne totalise que ses éducatifs — quelques centaines
+     * de mètres — voire rien du tout. Elle comptait donc pour zéro kilomètre dans le volume
+     * hebdomadaire prévu et dans l'adhérence : le coach lisait « 12 km prévus, 47 réalisés » sur
+     * une semaine parfaitement suivie, et l'athlète un taux d'adhérence absurde. Zéro n'est pas
+     * une valeur prudente ici, c'est une valeur fausse.</p>
+     */
+    private Integer plannedDistanceM(Workout w, Integer referencePace) {
+        return com.coachrun.util.PlannedVolume.distanceOrEstimate(
+                w.getTargetDistanceM(), w.getTargetDurationS(), referencePace);
+    }
 
     /** Analytics — variante athlète-scopée (portail /me) : résout le club de l'athlète. */
     public AnalyticsResponse computeForAthlete(UUID athleteId, int weeks) {
@@ -51,6 +68,7 @@ public class AnalyticsService {
         LocalDate monday = clock.today().with(DayOfWeek.MONDAY);
         LocalDate sunday = monday.plusDays(6);
 
+        Integer referencePace = endurancePaceService.referencePace(athleteId);
         double plannedKm = 0;
         int plannedSessions = 0;
         int completedSessions = 0;
@@ -62,8 +80,9 @@ public class AnalyticsService {
                 continue;
             }
             plannedSessions++;
-            if (w.getTargetDistanceM() != null) {
-                plannedKm += w.getTargetDistanceM() / 1000.0;
+            Integer distanceM = plannedDistanceM(w, referencePace);
+            if (distanceM != null) {
+                plannedKm += distanceM / 1000.0;
             }
             if (w.getStatus() == com.coachrun.entity.enums.WorkoutStatus.COMPLETED
                     || w.getStatus() == com.coachrun.entity.enums.WorkoutStatus.PARTIAL) {
@@ -102,10 +121,12 @@ public class AnalyticsService {
         // Volume hebdo prévu/réalisé
         double[] planned = new double[n];
         double[] realized = new double[n];
+        Integer referencePace = endurancePaceService.referencePace(athleteId);
         for (Workout w : workouts) {
             int idx = weekIndex(monday, w.getScheduledDate(), n);
-            if (idx >= 0 && w.getTargetDistanceM() != null) {
-                planned[idx] += w.getTargetDistanceM() / 1000.0;
+            Integer distanceM = idx >= 0 ? plannedDistanceM(w, referencePace) : null;
+            if (distanceM != null) {
+                planned[idx] += distanceM / 1000.0;
             }
         }
         for (Activity a : activities) {
