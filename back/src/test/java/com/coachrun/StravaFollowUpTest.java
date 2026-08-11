@@ -253,10 +253,11 @@ class StravaFollowUpTest {
      */
     @Test
     void uneSeanceDeclareeNonFaiteNeSeLaissePasRapprocher() throws Exception {
+        LocalDate day = quietDay();
         String workoutId = objectMapper.readTree(mvc.perform(
                         post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
                                 .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"scheduledDate\":\"" + LocalDate.now()
+                                .content("{\"scheduledDate\":\"" + day
                                         + "\",\"type\":\"ENDURANCE\",\"title\":\"EF ratee\","
                                         + "\"targetDistanceM\":12000,\"targetDurationS\":3600}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
@@ -269,7 +270,7 @@ class StravaFollowUpTest {
         JsonNode activity = objectMapper.readTree(mvc.perform(
                         post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
                                 .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"activityDate\":\"" + LocalDate.now() + "\",\"title\":\"Sortie\","
+                                .content("{\"activityDate\":\"" + day + "\",\"title\":\"Sortie\","
                                         + "\"distanceM\":12000,\"durationS\":3600,\"source\":\"STRAVA\","
                                         + "\"externalId\":\"strava-missed\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
@@ -284,10 +285,11 @@ class StravaFollowUpTest {
      */
     @Test
     void uneSecondeSortieNeVolePasLaSeanceDeLaPremiere() throws Exception {
+        LocalDate day = quietDay();
         String workoutId = objectMapper.readTree(mvc.perform(
                         post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
                                 .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"scheduledDate\":\"" + LocalDate.now()
+                                .content("{\"scheduledDate\":\"" + day
                                         + "\",\"type\":\"ENDURANCE\",\"title\":\"EF\","
                                         + "\"targetDistanceM\":12000,\"targetDurationS\":3600}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
@@ -296,7 +298,7 @@ class StravaFollowUpTest {
         JsonNode first = objectMapper.readTree(mvc.perform(
                         post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
                                 .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"activityDate\":\"" + LocalDate.now() + "\",\"title\":\"Sortie 1\","
+                                .content("{\"activityDate\":\"" + day + "\",\"title\":\"Sortie 1\","
                                         + "\"distanceM\":12000,\"durationS\":3600,\"source\":\"STRAVA\","
                                         + "\"externalId\":\"strava-a\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
@@ -305,11 +307,25 @@ class StravaFollowUpTest {
         JsonNode second = objectMapper.readTree(mvc.perform(
                         post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
                                 .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"activityDate\":\"" + LocalDate.now() + "\",\"title\":\"Sortie 2\","
+                                .content("{\"activityDate\":\"" + day + "\",\"title\":\"Sortie 2\","
                                         + "\"distanceM\":12000,\"durationS\":3600,\"source\":\"STRAVA\","
                                         + "\"externalId\":\"strava-b\",\"confirmDuplicate\":true}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         assertThat(second.get("matchedWorkoutId").isNull()).isTrue();
+    }
+
+    /**
+     * Un jour que le programme de démonstration ne couvre pas.
+     *
+     * <p>Ces deux scénarios veulent vérifier qu'<b>aucune</b> séance ne se laisse rapprocher. Or
+     * la graine de démonstration pose un programme complet autour d'aujourd'hui : la séance
+     * qu'elle place le jour même captait la sortie du test, et l'assertion tombait sans que rien
+     * de ce qu'elle protège ne soit en cause. Le résultat dépendait du jour de la semaine — donc
+     * de la date à laquelle la suite tournait, ce qui est la pire forme d'échec : celle qui fait
+     * douter du code plutôt que du test.</p>
+     */
+    private LocalDate quietDay() {
+        return LocalDate.now().minusDays(40);
     }
 
     private double acuteLoad() throws Exception {

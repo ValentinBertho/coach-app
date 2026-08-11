@@ -669,22 +669,48 @@ public class ActivityService {
     }
 
     private void autoMatch(UUID athleteId, Activity activity) {
-        List<Workout> candidates = workoutRepository
+        List<Workout> window = workoutRepository
                 .findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
                         athleteId, activity.getActivityDate().minusDays(1), activity.getActivityDate().plusDays(1));
         // Une séance qui porte déjà une sortie n'est plus disponible : sans ce tri, la deuxième
         // sortie de la journée viendrait déloger la première.
-        if (!candidates.isEmpty()) {
-            Set<UUID> taken = new HashSet<>(activityRepository.findMatchedWorkoutIdsIn(
-                    candidates.stream().map(Workout::getId).toList()));
-            candidates = candidates.stream().filter(w -> !taken.contains(w.getId())).toList();
-        }
+        Set<UUID> taken = window.isEmpty() ? Set.of()
+                : new HashSet<>(activityRepository.findMatchedWorkoutIdsIn(
+                        window.stream().map(Workout::getId).toList()));
+        List<Workout> candidates = window.stream().filter(w -> !taken.contains(w.getId())).toList();
+
         Optional<Workout> best = matchingService.findBestMatch(activity, candidates);
+        if (best.isEmpty()) {
+            best = loneSessionOfTheDay(activity, window, taken);
+        }
         if (best.isPresent()) {
             link(activity, best.get());
         } else {
             activity.setStatus(ActivityStatus.UNMATCHED);
         }
+    }
+
+    /**
+     * Repli : la seule séance de la journée, quand rien ne permet de la comparer à la sortie.
+     *
+     * <p>La garde décisive se pose <b>ici</b> et pas dans l'algorithme de score, parce qu'elle
+     * demande de connaître la journée entière — séances déjà rapprochées comprises. Compter les
+     * seules séances encore libres reviendrait à dire « la seule séance <i>restante</i> », ce qui
+     * n'est pas la même chose : une journée à deux séances dont la première est déjà prise
+     * laisserait la seconde attraper n'importe quelle sortie, alors que le choix y est justement
+     * arbitraire.</p>
+     */
+    private Optional<Workout> loneSessionOfTheDay(Activity activity, List<Workout> window,
+                                                  Set<UUID> taken) {
+        List<Workout> sameDay = window.stream()
+                .filter(w -> activity.getActivityDate().equals(w.getScheduledDate()))
+                .toList();
+        if (sameDay.size() != 1) {
+            return Optional.empty();
+        }
+        Workout only = sameDay.get(0);
+        return !taken.contains(only.getId()) && matchingService.canFallBackOn(activity, only)
+                ? Optional.of(only) : Optional.empty();
     }
 
     private void link(Activity activity, Workout workout) {

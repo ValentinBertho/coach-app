@@ -62,22 +62,17 @@ public class MatchingService {
      *                   activité : le tri ici ne sait pas ce qui est déjà rapproché
      */
     public Optional<Workout> findBestMatch(Activity activity, List<Workout> candidates) {
-        List<Workout> eligible = candidates.stream()
+        return candidates.stream()
                 .filter(w -> w.getStatus() != WorkoutStatus.MISSED)
                 .filter(w -> !isAfterActivity(w, activity))
-                .toList();
-
-        Optional<Workout> best = eligible.stream()
                 .map(w -> new Scored(w, score(activity, w)))
                 .filter(s -> s.score >= MATCH_THRESHOLD)
                 .max((a, b) -> Double.compare(a.score, b.score))
                 .map(s -> s.workout);
-
-        return best.isPresent() ? best : onlySessionOfTheDay(activity, eligible);
     }
 
     /**
-     * Repli : la <b>seule</b> séance du jour, quand rien ne permet de la comparer à la sortie.
+     * Repli de dernier recours : cette séance peut-elle accueillir la sortie faute de mieux ?
      *
      * <p><b>Pourquoi ce repli existe.</b> Une séance dont le volume prévu n'est pas exploitable —
      * une prescription écrite en durée dont aucun bloc n'est chiffrable, qui ne totalise que ses
@@ -86,23 +81,21 @@ public class MatchingService {
      * entraînement qui a bel et bien eu lieu.</p>
      *
      * <p><b>Pourquoi il est aussi étroit.</b> La date seule ne prouve rien : c'est précisément ce
-     * qui avait fait retirer le rapprochement sur date. Trois gardes le rendent acceptable — il
-     * faut qu'il n'y ait <b>qu'une</b> séance ce jour-là (deux séances, et le choix redevient
-     * arbitraire), que ce soit le <b>jour même</b> (pas la veille), et qu'il n'y ait
-     * <b>rien de comparable</b> : deux volumes qui se contredisent restent un refus, ils portent
-     * une information. Le statut retenu est {@code PARTIAL} — la sortie a eu lieu, rien ne prouve
-     * qu'elle correspond à la séance prescrite, et c'est à l'athlète ou au coach de trancher.</p>
+     * qui avait fait retirer le rapprochement sur date. Trois gardes le rendent acceptable — la
+     * séance doit être celle du <b>jour même</b> (pas de la veille), ne pas avoir été déclarée
+     * non faite, et n'avoir <b>rien de comparable</b> à opposer : deux volumes qui se contredisent
+     * restent un refus, ils portent une information. L'appelant y ajoute la garde décisive — il
+     * faut que ce soit la <b>seule séance de la journée</b>, prises comprises, sans quoi le choix
+     * redevient arbitraire.</p>
+     *
+     * <p>Le statut retenu reste {@code PARTIAL} : la sortie a eu lieu, rien ne prouve qu'elle
+     * correspond à la séance prescrite, et c'est à l'athlète ou au coach de trancher.</p>
      */
-    private Optional<Workout> onlySessionOfTheDay(Activity activity, List<Workout> eligible) {
-        List<Workout> sameDay = eligible.stream()
-                .filter(w -> w.getScheduledDate() != null
-                        && w.getScheduledDate().equals(activity.getActivityDate()))
-                .toList();
-        if (sameDay.size() != 1) {
-            return Optional.empty();
-        }
-        Workout only = sameDay.get(0);
-        return hasNothingComparable(activity, only) ? Optional.of(only) : Optional.empty();
+    public boolean canFallBackOn(Activity activity, Workout workout) {
+        return workout.getStatus() != WorkoutStatus.MISSED
+                && workout.getScheduledDate() != null
+                && workout.getScheduledDate().equals(activity.getActivityDate())
+                && hasNothingComparable(activity, workout);
     }
 
     /** Ni distance ni durée exploitables du côté de la séance : il n'y a rien à confronter. */

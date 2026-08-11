@@ -151,48 +151,40 @@ class MatchingServiceTest {
     /**
      * Le cas exact remonté : la séance du jour a des cibles inexploitables — une prescription
      * écrite en durée dont aucun bloc n'est chiffrable ne totalise que ses éducatifs — pendant que
-     * celle du lendemain colle au mètre près. C'est la séance du jour qui doit l'emporter, et en
-     * {@code PARTIAL} : la sortie a bien eu lieu, rien ne prouve qu'elle correspond à ce qui était
-     * prescrit.
+     * celle du lendemain colle au mètre près. Aucune des deux ne gagne au score : celle de demain
+     * est écartée d'office, celle du jour n'a rien à opposer. C'est le repli qui la récupère.
      */
     @Test
-    void prefersTodaysUnusableSessionOverTomorrowsPerfectMatch() {
+    void neitherWinsOnScoreWhenTodaysTargetsAreUnusable() {
         LocalDate today = LocalDate.of(2026, 8, 10);
         Activity ran = activity(today, 11350, 3465);
         Workout todaysSession = workout(today, 100, null, WorkoutStatus.PLANNED);
         Workout tomorrow = workout(today.plusDays(1), 11320, 3450, WorkoutStatus.PLANNED);
 
-        assertThat(matching.findBestMatch(ran, List.of(todaysSession, tomorrow)))
-                .contains(todaysSession);
+        assertThat(matching.findBestMatch(ran, List.of(todaysSession, tomorrow))).isEmpty();
+        assertThat(matching.canFallBackOn(ran, todaysSession)).isTrue();
         assertThat(matching.resolvedStatus(ran, todaysSession)).isEqualTo(WorkoutStatus.PARTIAL);
     }
 
-    // --- Repli : la seule séance du jour, quand rien ne permet de la comparer ---------------
+    // --- Repli : la seule séance de la journée, quand rien ne permet de la comparer ----------
 
     /**
-     * Une séance sans volume exploitable n'a rien à opposer à la sortie du jour. Refuser le
+     * Une séance sans volume exploitable n'a rien à opposer à la sortie du jour. Refuser tout
      * rapprochement laissait deux écrans vides — la sortie orpheline, la séance sans réalisé —
      * pour un entraînement qui a bel et bien eu lieu.
+     *
+     * <p>La garde « une seule séance ce jour-là » n'est pas testée ici : elle demande de connaître
+     * la journée entière, séances déjà rapprochées comprises, et vit donc dans le service qui
+     * appelle ce prédicat.</p>
      */
     @Test
-    void matchesTheOnlySessionOfTheDayWhenNothingIsComparable() {
+    void allowsTheFallbackWhenNothingIsComparable() {
         LocalDate d = LocalDate.of(2026, 8, 10);
         Activity ran = activity(d, 11350, 3465);
         Workout noTargets = workout(d, null, null, WorkoutStatus.PLANNED);
 
-        assertThat(matching.findBestMatch(ran, List.of(noTargets))).contains(noTargets);
+        assertThat(matching.canFallBackOn(ran, noTargets)).isTrue();
         assertThat(matching.resolvedStatus(ran, noTargets)).isEqualTo(WorkoutStatus.PARTIAL);
-    }
-
-    /** Deux séances le même jour : le choix redevient arbitraire, on n'en fait aucun. */
-    @Test
-    void doesNotGuessBetweenTwoSessionsOfTheSameDay() {
-        LocalDate d = LocalDate.of(2026, 8, 10);
-        Activity ran = activity(d, 11350, 3465);
-        Workout morning = workout(d, null, null, WorkoutStatus.PLANNED);
-        Workout evening = workout(d, null, null, WorkoutStatus.PLANNED);
-
-        assertThat(matching.findBestMatch(ran, List.of(morning, evening))).isEmpty();
     }
 
     /**
@@ -205,7 +197,17 @@ class MatchingServiceTest {
         Activity ran = activity(d, 11350, 3465);
         Workout yesterday = workout(d.minusDays(1), null, null, WorkoutStatus.PLANNED);
 
-        assertThat(matching.findBestMatch(ran, List.of(yesterday))).isEmpty();
+        assertThat(matching.canFallBackOn(ran, yesterday)).isFalse();
+    }
+
+    /** Une séance déclarée non faite reste hors d'atteinte, y compris par le repli. */
+    @Test
+    void theFallbackNeverContradictsAMissedSession() {
+        LocalDate d = LocalDate.of(2026, 8, 10);
+        Activity ran = activity(d, 11350, 3465);
+        Workout missed = workout(d, null, null, WorkoutStatus.MISSED);
+
+        assertThat(matching.canFallBackOn(ran, missed)).isFalse();
     }
 
     /**
@@ -219,6 +221,7 @@ class MatchingServiceTest {
         Workout longRun = workout(d, 25000, 150 * 60, WorkoutStatus.PLANNED);
 
         assertThat(matching.findBestMatch(sprint, List.of(longRun))).isEmpty();
+        assertThat(matching.canFallBackOn(sprint, longRun)).isFalse();
     }
 
     /** La séance de la veille, elle, reste rapprochable : on a couru en retard, ça arrive. */
