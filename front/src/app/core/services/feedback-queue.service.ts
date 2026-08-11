@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { EMPTY, concatMap, from } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
@@ -12,6 +13,17 @@ import {
 interface QueuedFeedback {
   workoutId: string;
   body: WorkoutFeedback;
+}
+
+/**
+ * Le serveur a-t-il refusé ce retour ?
+ *
+ * <p>Un statut 0 signifie que la requête n'est jamais partie (réseau) : elle mérite d'être
+ * rejouée. Un 4xx est une réponse — la demande est comprise et refusée — et la rejouer donnera
+ * le même refus. Les 5xx, eux, sont des pannes passagères : on garde le retour.</p>
+ */
+function isRejectedByServer(error: unknown): boolean {
+  return error instanceof HttpErrorResponse && error.status >= 400 && error.status < 500;
 }
 
 /**
@@ -62,8 +74,18 @@ export class FeedbackQueueService {
               writeFeedbackQueue(this.read().filter((q) => q.workoutId !== item.workoutId));
               return EMPTY;
             }),
-            // Échec : le retour reste en file, il repartira au prochain retour réseau.
-            catchError(() => EMPTY),
+            // Échec : le retour reste en file et repartira au prochain retour réseau — sauf si le
+            // serveur l'a refusé. Un refus ne devient pas une acceptation en étant répété : la
+            // file rejouait indéfiniment un retour rejeté (statut impossible, séance supprimée
+            // entre-temps), et l'athlète gardait un compteur « en attente » qui ne tombait
+            // jamais. Ces entrées-là sont abandonnées, y compris celles qu'une version
+            // précédente a pu empiler.
+            catchError((error: unknown) => {
+              if (isRejectedByServer(error)) {
+                writeFeedbackQueue(this.read().filter((q) => q.workoutId !== item.workoutId));
+              }
+              return EMPTY;
+            }),
           ),
         ),
         finalize(() => { this.flushing = false; }),

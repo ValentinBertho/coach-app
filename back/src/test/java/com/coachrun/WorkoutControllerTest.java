@@ -92,17 +92,25 @@ class WorkoutControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.scheduledDate").value("2026-07-02"));
 
-        // transition valide PLANNED → COMPLETED
+        // PLANNED → COMPLETED
         mvc.perform(patch("/clubs/{c}/athletes/{a}/workouts/{w}/status", clubId, athleteId, workoutId)
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"COMPLETED\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
 
-        // transition invalide COMPLETED → PARTIAL → 409
+        // Et la correction : COMPLETED → PARTIAL.
+        //
+        // Ce test attendait ici un 409, au nom d'une machine à états qui n'autorisait, depuis un
+        // état terminal, que le retour à PLANNED. L'attente était fausse : un statut est une
+        // déclaration, et se corriger est le geste le plus banal qui soit — un athlète qui
+        // rouvrait son débrief pour passer « écourtée » à « réalisée » se voyait opposer
+        // « Transition de statut interdite ». Le même résultat s'obtenait de toute façon en deux
+        // temps, en repassant par PLANNED : la garde ne protégeait rien.
         mvc.perform(patch("/clubs/{c}/athletes/{a}/workouts/{w}/status", clubId, athleteId, workoutId)
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"PARTIAL\"}"))
-                .andExpect(status().isConflict());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PARTIAL"));
     }
 }

@@ -30,6 +30,13 @@ public record ActivityUpdateRequest(
         @Min(1) @Max(10) Integer rpe,
         /** Sensation générale (1 = excellente … 5 = très mauvaise) — comment ça s'est passé. */
         @Min(1) @Max(5) Integer feel,
+        /**
+         * Fatigue et douleur ressenties (0–10). {@code 0} est une valeur — « aucune » — et non
+         * une absence de réponse : même échelle et même règle que le point du matin et que le
+         * débrief d'une séance prescrite.
+         */
+        @Min(0) @Max(10) Integer fatigue,
+        @Min(0) @Max(10) Integer pain,
         @Size(max = 2000) String comment,
         /** Blessures déclarées ({@code null} = inchangé, liste vide = plus aucune). */
         @jakarta.validation.Valid @Size(max = 5) java.util.List<com.coachrun.dto.InjuryReport> injuries,

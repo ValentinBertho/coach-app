@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, model, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Injury } from '../../../core/models/injury.model';
@@ -407,7 +408,18 @@ export class WorkoutFeedbackSheetComponent {
         this.saved.emit(updated);
         this.toast.success(body.status === 'MISSED' ? 'Séance marquée non faite' : 'Ressenti enregistré');
       },
-      error: () => {
+      error: (error: unknown) => {
+        // Un serveur qui répond n'est pas un réseau absent.
+        //
+        // Toute erreur était traitée comme une panne de réseau : un refus du serveur — un statut
+        // rejeté, une valeur invalide — annonçait « Hors ligne, mis en file », refermait la
+        // feuille sur un état optimiste faux, et empilait dans la file un retour que le serveur
+        // venait de refuser. Il en repartait à chaque reconnexion pour être refusé à nouveau, et
+        // l'athlète croyait son ressenti enregistré. On ne met donc en file que ce que le réseau
+        // a empêché de partir ; le reste reste à l'écran, avec la feuille ouverte pour corriger.
+        if (!isNetworkFailure(error)) {
+          return;
+        }
         this.queue.enqueue(w.id, body);
         this.open.set(false);
         this.saved.emit(optimistic);
@@ -415,4 +427,15 @@ export class WorkoutFeedbackSheetComponent {
       },
     });
   }
+}
+
+/**
+ * L'échec vient-il du réseau, et non du serveur ?
+ *
+ * <p>Angular donne un statut 0 quand la requête n'a jamais abouti — pas de réponse, DNS, TLS,
+ * avion. Tout autre statut est une réponse : le serveur a compris et a refusé. Le message
+ * d'erreur est alors déjà affiché par l'intercepteur global, celui-là même qui dit pourquoi.</p>
+ */
+function isNetworkFailure(error: unknown): boolean {
+  return error instanceof HttpErrorResponse && error.status === 0;
 }

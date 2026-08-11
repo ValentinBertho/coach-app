@@ -24,13 +24,21 @@ export interface Activity {
   matchedWorkoutId: string | null;
   distanceDeltaM: number | null;
   durationDeltaS: number | null;
-  /** Ressenti déclaré par l'athlète sur cette sortie (1–10) — utile surtout hors programme. */
+  /**
+   * Ressenti de la sortie — **celui de sa séance** quand elle est rapprochée.
+   *
+   * Une sortie rapprochée et sa séance décrivent le même effort : il n'y a qu'un ressenti, porté
+   * par la séance, et le serveur le rend ici pour que les deux écrans ne puissent pas diverger.
+   */
   rpe: number | null;
   /** Sensation générale (1 = excellente … 5 = très mauvaise) ; distincte de la difficulté. */
   feel: number | null;
-  /** Blessures nommées sur cette sortie ; liste vide si aucune. */
+  /** Fatigue et douleur ressenties (0–10) — mêmes échelles que sur une séance. */
+  fatigue: number | null;
+  pain: number | null;
+  /** Blessures nommées ; liste vide si aucune. */
   injuries: Injury[];
-  /** Mot de l'athlète à son coach sur cette sortie. */
+  /** Mot de l'athlète à son coach. */
   athleteComment: string | null;
 }
 
@@ -46,6 +54,9 @@ export interface ActivityUpdate {
   elevationGainM?: number | null;
   rpe?: number | null;
   feel?: number | null;
+  /** Fatigue et douleur (0–10) — 0 est une valeur, pas une absence de réponse. */
+  fatigue?: number | null;
+  pain?: number | null;
   comment?: string | null;
   /** Blessures déclarées ; champ absent = inchangé, liste vide = plus aucune. */
   injuries?: Injury[];

@@ -1,0 +1,24 @@
+# ============================================================================
+# 081 — Fatigue et douleur sur une sortie libre.
+#   Le débrief d'une séance prescrite posait cinq questions (sensation, effort,
+#   fatigue, douleur, blessure) ; celui d'une sortie non prévue n'en posait que
+#   deux. Le même effort se racontait donc différemment selon qu'un coach
+#   l'avait prescrit ou non — et le coach lisait deux formulaires distincts
+#   pour une même semaine d'entraînement.
+#   Une sortie RAPPROCHÉE, elle, n'a pas de ressenti à elle : c'est sa séance
+#   qui le porte (cf. ActivityService#debriefTarget). Ces deux colonnes ne
+#   servent donc qu'aux sorties libres.
+#   Additif, nullable, non destructif. Données de l'article 9 (santé) :
+#   la collecte reste gardée par le consentement, côté service.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 081-activity-fatigue-pain
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: activities
+            columns:
+              # Mêmes échelles que sur une séance : 0–10, 0 étant une valeur et non une absence.
+              - column: { name: fatigue, type: SMALLINT }
+              - column: { name: pain, type: SMALLINT }
