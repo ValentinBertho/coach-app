@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import { RaceObjective, RaceObjectiveRequest } from '../models/race.model';
 import { WorkoutPrescription } from '../models/course.model';
 import { Unavailability, UnavailabilityRequest } from '../models/unavailability.model';
+import { CalendarNote } from '../models/calendar-note.model';
 import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
 import {
   Activity, ActivityLaps, ActivityStream, ActivityUpdate, LapKind, TimeInZone, WeekSummary,
@@ -202,6 +203,18 @@ export class AthletePortalService {
   /** L'athlète déplace une séance de force planifiée. */
   ppMove(scheduledId: string, scheduledDate: string): Observable<ScheduledStrength> {
     return this.http.patch<ScheduledStrength>(`${this.base}/pp/scheduled/${scheduledId}/move`, { scheduledDate });
+  }
+
+  /**
+   * Mes cycles d'entraînement sur une plage — les périodes posées par mon coach sur le calendrier
+   * (« bloc spécifique », « affûtage »).
+   *
+   * <p>Seules les périodes remontent : les notes d'un seul jour sont les notes de travail du
+   * coach, le serveur ne les envoie pas ici.</p>
+   */
+  cycles(from: string, to: string): Observable<CalendarNote[]> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<CalendarNote[]>(`${this.base}/cycles`, { params });
   }
 
   /** Mes indisponibilités (en cours/à venir). */

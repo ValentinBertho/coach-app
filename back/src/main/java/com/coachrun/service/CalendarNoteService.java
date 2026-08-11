@@ -35,6 +35,26 @@ public class CalendarNoteService {
                 .stream().map(CalendarNoteResponse::from).toList();
     }
 
+    /**
+     * Les <b>cycles</b> de l'athlète sur une fenêtre — et eux seuls.
+     *
+     * <p><b>Pourquoi ce filtre, et pas la liste complète.</b> Le calendrier du coach porte deux
+     * choses sous la même entité. Les <b>cycles</b> décrivent le bloc d'entraînement en cours
+     * (« spécifique », « affûtage ») : ils s'adressent à l'athlète, qui a besoin de savoir où il
+     * en est dans sa préparation, et c'est justement ce qui lui manquait. Les <b>notes d'un
+     * jour</b>, elles, sont le carnet de travail du coach — « relancer sur le sommeil »,
+     * « surveiller ce genou » — écrites en le croyant privé. Les exposer d'un bloc parce qu'elles
+     * partagent une table serait une rupture de confiance, et le coach cesserait d'en écrire.</p>
+     *
+     * <p>Un cycle se reconnaît à sa période : une date de fin postérieure à sa date de début.</p>
+     */
+    public List<CalendarNoteResponse> cyclesForAthlete(UUID athleteId, LocalDate from, LocalDate to) {
+        return noteRepository.findOverlappingForAthlete(athleteId, from, to).stream()
+                .filter(n -> n.getEndDate() != null && n.getEndDate().isAfter(n.getNoteDate()))
+                .map(CalendarNoteResponse::from)
+                .toList();
+    }
+
     @Transactional
     public CalendarNoteResponse create(UUID clubId, UUID athleteId, CalendarNoteRequest req) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)

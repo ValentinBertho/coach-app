@@ -10,6 +10,10 @@
     </div>
     <p class="subtitle">Bonjour {{ user()?.fullName }}</p>
 
+    <!-- Le cycle en cours, posé par le coach sur le calendrier. L'athlète recevait ses séances
+         sans jamais savoir dans quelle phase il se trouvait, ni quand elle finit. -->
+    <app-cycle-banner [cycles]="cycles()" [today]="todayIso" />
+
     <!-- Check-in matinal : la forme du coach se mettait à jour seulement APRÈS la séance,
          d'où les « aucun retour récent » permanents. Trois curseurs, moins de dix secondes,
          et l'état de forme existe dès le matin — au moment où le coach adapte la journée. -->
