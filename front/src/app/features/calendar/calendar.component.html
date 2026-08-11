@@ -294,7 +294,7 @@
       <div class="gg-head">
         <span class="gg-corner">Athlète</span>
         @for (d of weekDates(); track d.date) {
-          <span class="gg-day" [class.today]="d.isToday">{{ d.label }} {{ d.dayNum }}</span>
+          <span class="gg-day" [class.today]="d.isToday" [class.weekend]="d.weekend">{{ d.label }} {{ d.dayNum }}</span>
         }
       </div>
 
@@ -326,7 +326,7 @@
           </a>
 
           @for (d of weekDates(); track d.date) {
-            <div class="gg-cell" [class.today]="d.isToday"
+            <div class="gg-cell" [class.today]="d.isToday" [class.weekend]="d.weekend"
                  cdkDropList (cdkDropListDropped)="onGroupDrop($event, row, d.date)">
               @for (w of rowWorkouts(row, d.date); track w.id) {
                 <button type="button" class="workout-card gg-chip"
@@ -411,6 +411,7 @@
         }
         @for (day of week.days; track day.date) {
       <div class="day-col" [class.today]="day.isToday" [class.dim]="!day.inMonth" [class.day-col--unavailable]="day.unavailability"
+           [class.day-col--weekend]="day.weekend"
            [class.day-col--hover]="hoveredDate() === day.date" [class.day-col--ranged]="dayRange().includes(day.date)"
            [attr.data-day]="day.date"
            (contextmenu)="openDayMenu(day.date, $event)"
@@ -420,6 +421,13 @@
             @if (mode() === 'week') { <span class="day-name">{{ day.label }}</span> }
             <span class="day-num">{{ day.dayNum }}</span>
           </div>
+          <!-- Le volume du jour se lit là où on lit sa date. Il n'existait qu'au pied de la
+               colonne, collé à la barre de densité : deux informations de nature différente au
+               même endroit, et aucune des deux à l'endroit où l'œil arrive. La barre reste en
+               bas — elle ne dit pas un chiffre, elle compare les jours entre eux. -->
+          @if (showPlanned() && day.km > 0) {
+            <span class="day-km metric" [title]="day.km.toFixed(1) + ' km prévus'">{{ day.km.toFixed(0) }} km</span>
+          }
           @if (day.conflict) {
             <span class="day-flag" title="Charge élevée : plusieurs séances dont une séance clé"><app-icon name="alert-triangle" [size]="11" /> charge</span>
           }
@@ -542,9 +550,8 @@
         </div>
 
         @if (showPlanned() && day.km > 0) {
-          <div class="day-density" [title]="day.km.toFixed(1) + ' km prévus'">
+          <div class="day-density" [title]="day.km.toFixed(1) + ' km prévus'" aria-hidden="true">
             <span class="day-density__bar" [style.width.%]="(day.km / maxDayKm()) * 100"></span>
-            <span class="day-density__val metric">{{ day.km.toFixed(0) }}<small>km</small></span>
           </div>
         }
       </div>

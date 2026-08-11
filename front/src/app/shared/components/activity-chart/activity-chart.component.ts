@@ -124,7 +124,8 @@ const PAD_B = 18;
     .ch svg { width: 100%; height: 160px; overflow: visible; }
     .ch-grid { stroke: var(--hairline); stroke-width: 1; }
     .ch-axis { stroke: var(--hairline); stroke-width: 1; }
-    .ch-tick, .ch-ax-lb { fill: var(--ink-4); font-size: 9px; font-family: var(--font-data); }
+    /* 11 px : le plancher de lisibilité du produit vaut aussi pour les axes d'un graphique. */
+    .ch-tick, .ch-ax-lb { fill: var(--ink-4); font-size: 11px; font-family: var(--font-data); }
     .ch-tick { text-anchor: middle; }
     .ch-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
     .ch-line--hr { stroke: var(--zone-5); }

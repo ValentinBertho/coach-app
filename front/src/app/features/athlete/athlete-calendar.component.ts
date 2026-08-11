@@ -131,12 +131,22 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     @if (mode() === 'week') {
     <main class="agenda">
       @for (day of days(); track day.date) {
-        <section class="day" [class.day--today]="day.isToday" [class.day--unavailable]="day.unavailability">
+        <section class="day" [class.day--today]="day.isToday" [class.day--unavailable]="day.unavailability"
+                 [class.day--rest]="day.empty">
           <div class="day-hd">
             <span class="day-wd">{{ day.weekday }}</span>
             <span class="day-n metric">{{ day.dayNum }}</span>
+            @if (day.isToday) { <span class="day-now">aujourd'hui</span> }
             @if (day.unavailability; as u) {
               <span class="day-unavail"><app-icon [name]="reasonIcon[u.reason]" [size]="12" /> indispo</span>
+            }
+            <!-- À droite : le total du jour — la semaine se lit alors en descendant la colonne
+                 des chiffres, sans additionner les séances de tête — ou le mot « repos », qui
+                 tient sur la même ligne et évite au jour vide de prendre la place d'une séance. -->
+            @if (dayTotal(day); as t) {
+              <span class="day-sum metric">{{ t }}</span>
+            } @else if (day.empty) {
+              <span class="day-sum day-sum--rest">repos</span>
             }
           </div>
 
@@ -183,9 +193,6 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                   @if (a.avgHr) { <span class="metric">{{ a.avgHr }} bpm</span> }
                 </span>
               </a>
-            }
-            @if (day.empty) {
-              <p class="day-empty">—</p>
             }
           </div>
         </section>
@@ -400,16 +407,33 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
       padding-top: var(--sp-2); border-top: 1px solid var(--hairline);
     }
 
-    .agenda { max-width: 560px; margin-inline: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
+    .agenda { max-width: 560px; margin-inline: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
     .day { background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius-lg); padding: var(--sp-3); }
     .day--today { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
     .day--unavailable { background: repeating-linear-gradient(135deg, var(--paper) 0 10px, var(--paper-sunk) 10px 20px); }
+    /* Jour de repos : une ligne, pas une carte. Il reste visible — le repos fait partie du plan
+       — mais il cesse de peser autant qu'une séance dans la hauteur de la semaine. */
+    .day--rest { background: transparent; border-style: dashed; padding: var(--sp-2) var(--sp-3); }
+    .day--rest .day-hd { margin-bottom: 0; }
+    .day--rest .day-wd, .day--rest .day-n { color: var(--ink-4); }
     .day-hd { display: flex; align-items: baseline; gap: var(--sp-2); margin-bottom: var(--sp-2); }
     .day-wd { font-weight: 700; text-transform: capitalize; color: var(--ink-2); }
     .day-n { color: var(--ink-3); font-weight: 700; }
-    .day-unavail { margin-left: auto; font-size: var(--text-xs); font-weight: 700; color: var(--ink-3); }
+    /* Aujourd'hui se nomme : sur une liste qu'on fait défiler, le liseré seul sort du champ. */
+    .day-now {
+      padding: 1px 8px; border-radius: var(--radius-full);
+      background: var(--primary); color: var(--paper);
+      font-size: var(--text-2xs); font-weight: 800; letter-spacing: 0.02em;
+    }
+    .day-unavail { font-size: var(--text-xs); font-weight: 700; color: var(--ink-3); }
+    .day-sum { margin-left: auto; font-weight: 800; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+    .day-sum--rest {
+      font-weight: 700; color: var(--ink-4); text-transform: uppercase;
+      font-size: var(--text-2xs); letter-spacing: 0.04em;
+    }
     .day-items { display: flex; flex-direction: column; gap: var(--sp-2); }
-    .day-empty { color: var(--ink-4); margin: 0; padding: var(--sp-1) 0; }
+    /* Le jour de repos n'a plus de corps : sa mention tient dans l'en-tête. */
+    .day--rest .day-items { display: none; }
 
     .ses {
       display: flex; flex-direction: column; gap: var(--sp-1); text-align: left;
@@ -623,10 +647,48 @@ export class AthleteCalendarComponent implements OnInit {
         });
         cursor.setDate(cursor.getDate() + 1);
       }
-      weeks.push({ weekNumber: isoWeek(new Date(days[0].date + 'T00:00:00')), days });
+      weeks.push({
+        weekNumber: isoWeek(new Date(days[0].date + 'T00:00:00')),
+        days,
+        ...this.weekTotal(days, showPlanned, showDone),
+      });
     }
     return weeks;
   });
+
+  /**
+   * Total de la semaine, dans la gouttière : « quelle semaine ai-je chargée » sans ouvrir un
+   * seul jour.
+   *
+   * <p>Une seule valeur y tient, il faut donc choisir. Dès qu'une sortie a été enregistrée dans
+   * la semaine, c'est le <b>réalisé</b> qui compte — c'est la question qu'on se pose sur une
+   * semaine entamée. Sinon, le prévu. Les deux ne portent pas la même couleur, pour qu'on ne
+   * confonde jamais l'un avec l'autre en parcourant le mois.</p>
+   */
+  private weekTotal(days: MonthDay[], showPlanned: boolean, showDone: boolean):
+      Pick<MonthWeek, 'totalKm' | 'totalDone' | 'totalTitle'> {
+    const dates = new Set(days.map((d) => d.date));
+    const doneM = showDone
+      ? this.activities().filter((a) => dates.has(a.activityDate))
+          .reduce((s, a) => s + (a.distanceM ?? 0), 0)
+      : 0;
+    if (doneM > 0) {
+      return { totalKm: this.km(doneM), totalDone: true, totalTitle: `${this.km(doneM)} km réalisés` };
+    }
+    const plannedM = showPlanned
+      ? this.workouts().filter((w) => dates.has(w.scheduledDate))
+          .reduce((s, w) => s + (plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace())?.distanceM ?? 0), 0)
+      : 0;
+    if (plannedM > 0) {
+      return { totalKm: this.km(plannedM), totalDone: false, totalTitle: `${this.km(plannedM)} km prévus` };
+    }
+    return {};
+  }
+
+  /** Mètres → kilomètres entiers : la gouttière fait 26 px, une décimale n'y tient pas. */
+  private km(meters: number): string {
+    return String(Math.round(meters / 1000));
+  }
 
   /** Pastilles d'un jour : séances prescrites, renforcement, puis sorties réellement faites. */
   private chipsFor(iso: string, showPlanned: boolean, showDone: boolean): MonthChip[] {
@@ -637,8 +699,10 @@ export class AthleteCalendarComponent implements OnInit {
         chips.push({
           color: meta.color,
           icon: meta.icon,
-          duration: w.targetDurationS ? this.fmtDur(w.targetDurationS) : WORKOUT_TYPE_LABELS[w.type].slice(0, 4),
-          volume: this.volumeLabel(w),
+          // Le volume d'abord — c'est ce qu'on vient chercher ; la durée quand la séance n'est
+          // écrite qu'en temps. Jamais le type tronqué : l'icône le dit déjà, en entier.
+          value: this.volumeLabel(w) || (w.targetDurationS ? this.fmtDur(w.targetDurationS) : ''),
+          strong: meta.key,
           done: false,
           title: `${WORKOUT_TYPE_LABELS[w.type]} · ${w.title}`,
         });
@@ -646,7 +710,7 @@ export class AthleteCalendarComponent implements OnInit {
       for (const s of this.strength().filter((x) => x.scheduledDate === iso)) {
         chips.push({
           color: WORKOUT_TYPE_META.STRENGTH.color, icon: 'dumbbell',
-          duration: 'Renfo', volume: '', done: false, title: s.title,
+          value: '', strong: false, done: false, title: s.title,
         });
       }
     }
@@ -654,8 +718,10 @@ export class AthleteCalendarComponent implements OnInit {
       for (const a of this.activities().filter((x) => x.activityDate === iso)) {
         chips.push({
           color: 'var(--success, var(--dari-teal))', icon: 'check',
-          duration: a.durationS ? this.fmtDur(a.durationS) : 'Fait',
-          volume: a.distanceM ? `${Math.round(a.distanceM / 100) / 10} km` : '',
+          value: a.distanceM
+            ? `${Math.round(a.distanceM / 100) / 10} km`
+            : (a.durationS ? this.fmtDur(a.durationS) : ''),
+          strong: false,
           done: true,
           title: a.title || 'Sortie réalisée',
         });
@@ -878,6 +944,21 @@ export class AthleteCalendarComponent implements OnInit {
   volumeLabel(w: Workout): string {
     return plannedVolumeLabel(
       plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace()));
+  }
+
+  /**
+   * Total d'un jour de l'agenda : les kilomètres réalisés s'il y en a, sinon ceux prévus.
+   *
+   * <p>Même règle que la gouttière du mois, et pour la même raison : une seule valeur tient à
+   * droite d'un en-tête de jour, et sur un jour entamé c'est le réalisé qu'on regarde. Rien
+   * n'est rendu quand rien n'est chiffrable — un total absent vaut mieux qu'un « 0 km » faux.</p>
+   */
+  dayTotal(day: DayRow): string | null {
+    const doneM = day.activities.reduce((s, a) => s + (a.distanceM ?? 0), 0);
+    if (doneM > 0) return `${Math.round(doneM / 100) / 10} km`;
+    const plannedM = day.workouts.reduce(
+      (s, w) => s + (plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace())?.distanceM ?? 0), 0);
+    return plannedM > 0 ? `${Math.round(plannedM / 100) / 10} km` : null;
   }
 
   /** Durée « h:mm » ou « m min ». */
