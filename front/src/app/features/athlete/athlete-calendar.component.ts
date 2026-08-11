@@ -12,6 +12,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { PaceReferenceService } from '../../core/services/pace-reference.service';
 import { formatPace, paceFrom } from '../../core/utils/pace';
 import { plannedVolume, plannedVolumeLabel } from '../../core/utils/planned-volume';
+import { formatBlockSets, formatBlockVolume } from '../../core/utils/prescription-format';
 import { DataOriginTagComponent, IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
 import { BottomSheetComponent, SegmentedControlComponent } from '../../shared/components/ui';
 import {
@@ -340,8 +341,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                     @if (s.repetitions > 1) { <span class="blk-rep metric">×{{ s.repetitions }}</span> }
                   </div>
                   <div class="blk-target field-hint">
-                    @if (s.distanceM) { <span>{{ s.distanceM }} m</span> }
-                    @if (s.durationS) { <span>{{ fmtDur(s.durationS) }}</span> }
+                    @if (stepVolume(s.distanceM, s.durationS); as v) { <span>{{ v }}</span> }
                     @if (s.notes) { <span>· {{ s.notes }}</span> }
                   </div>
                 </li>
@@ -813,13 +813,21 @@ export class AthleteCalendarComponent implements OnInit {
     this.workouts.set(this.workouts().map((w) => (w.id === updated.id ? updated : w)));
   }
 
-  /** Libellé d'un bloc : « 6 × 1000 m », « 20 min », « 2 × (6 × 400 m) » quand il est en séries. */
+  /**
+   * Libellé d'un bloc : « 6 × 1000 m », « 20 min », « 2 × (6 × 400 m) » quand il est en séries.
+   *
+   * <p>L'écriture passait par {@link fmtDur}, qui arrondit à la minute : une répétition de
+   * 30 secondes s'y lisait « 1 min » et une récupération de 1'30 « 2 min ». La même séance
+   * annonçait donc des trentes secondes ici et des minutes sur la fiche de séance — un athlète
+   * qui suivait cet écran courait le double sans que rien ne le lui signale.</p>
+   */
+  /** Volume d'un pas hérité (WorkoutStep) — même écriture que les blocs structurés. */
+  stepVolume(distanceM: number | null, durationS: number | null): string {
+    return formatBlockVolume(distanceM, durationS);
+  }
+
   blockLabel(b: CourseBlock): string {
-    const reps = (b.reps ?? 1) > 1 ? `${b.reps} × ` : '';
-    const size = b.distanceM ? `${b.distanceM} m` : (b.durationS ? this.fmtDur(b.durationS) : '');
-    const body = (reps + size).trim() || courseBlockTypeLabel(b.type);
-    // Séries : les parenthèses distinguent « 2 × (6 × 400) » de douze répétitions d'affilée.
-    return (b.sets ?? 1) > 1 ? `${b.sets} × (${body})` : body;
+    return formatBlockSets(b) || courseBlockTypeLabel(b.type);
   }
 
   /**
@@ -834,31 +842,13 @@ export class AthleteCalendarComponent implements OnInit {
   setRecoveryVol(e: CalculatedBlockEntry): string {
     const r = e.block.setRecovery;
     if (!r || (e.block.sets ?? 1) <= 1) return '';
-    if (r.distanceM) return `${r.distanceM} m`;
-    if (r.durationS) {
-      const m = Math.floor(r.durationS / 60);
-      const s = r.durationS % 60;
-      if (!m) return `${s} s`;
-      return s ? `${m}'${s.toString().padStart(2, '0')}` : `${m} min`;
-    }
-    return '';
+    return formatBlockVolume(r.distanceM, r.durationS);
   }
 
   recoveryVol(e: CalculatedBlockEntry): string {
     const r = e.block.recovery;
     if (!r) return '';
-    if (r.distanceM) {
-      return r.distanceM >= 1000
-        ? `${(r.distanceM / 1000).toFixed(r.distanceM % 1000 ? 1 : 0)} km`
-        : `${r.distanceM} m`;
-    }
-    if (r.durationS) {
-      const m = Math.floor(r.durationS / 60);
-      const s = r.durationS % 60;
-      if (!m) return `${s} s`;
-      return s ? `${m}'${s.toString().padStart(2, '0')}` : `${m} min`;
-    }
-    return '';
+    return formatBlockVolume(r.distanceM, r.durationS);
   }
 
   /**

@@ -44,10 +44,16 @@ describe('athlete-calendar — volume de récupération', () => {
     expect(component.recoveryVol(entry({ type: 'jog', durationS: 180 }))).toBe('3 min');
   });
 
+  /**
+   * Le décimal s'écrit avec une virgule depuis que tous les écrans partagent la même écriture
+   * (`prescription-format`) : le reste de l'application — tours d'une sortie, volume prévu —
+   * l'écrivait déjà ainsi, et deux conventions dans la même langue sur le même écran, c'est une
+   * de trop.
+   */
   it('préfère la distance quand le coach l’a prescrite ainsi', () => {
     expect(component.recoveryVol(entry({ type: 'jog', distanceM: 400 }))).toBe('400 m');
     expect(component.recoveryVol(entry({ type: 'jog', distanceM: 1000 }))).toBe('1 km');
-    expect(component.recoveryVol(entry({ type: 'jog', distanceM: 1500 }))).toBe('1.5 km');
+    expect(component.recoveryVol(entry({ type: 'jog', distanceM: 1500 }))).toBe('1,5 km');
   });
 
   /** Récup libre : rien à afficher, mais la ligne « récup » reste rendue par le gabarit. */
