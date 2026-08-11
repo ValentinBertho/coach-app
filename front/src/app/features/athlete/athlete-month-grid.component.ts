@@ -13,9 +13,14 @@ export interface MonthChip {
   color: string;
   icon: string;
   /**
-   * Ce qu'on lit en premier : « 12 km », « 55 min », « ≈ 10 km ». Vide quand rien n'est chiffré —
-   * la pastille se réduit alors à son icône, ce qui reste une information (« il y a quelque
-   * chose ce jour-là »). Jamais un mot tronqué.
+   * Durée, en tête du bloc : « 55 min », « 1h07 ». Vide si la séance n'est écrite qu'en distance,
+   * ou si sa durée est un résidu sous le seuil d'une vraie séance.
+   */
+  sub: string;
+  /**
+   * Distance, sous la durée et en gras : « 12 km », « ≈ 10 km ». Vide quand rien n'est chiffré —
+   * le bloc se réduit alors à son icône, ce qui reste une information (« il y a quelque chose ce
+   * jour-là »). Jamais un mot tronqué.
    */
   value: string;
   /** Séance clé (seuil, VMA, sortie longue, course) : elle porte la couleur pleine. */
@@ -101,8 +106,12 @@ export interface MonthWeek {
                 @for (c of day.chips.slice(0, 2); track $index) {
                   <span class="chip" [class.chip--done]="c.done" [class.chip--strong]="c.strong"
                         [style.--c]="c.color" [title]="c.title">
-                    <app-icon class="chip-i" [name]="c.done ? 'check' : c.icon" [size]="11" />
-                    @if (c.value) { <span class="chip-v">{{ c.value }}</span> }
+                    @if (c.sub) { <span class="chip-s">{{ c.sub }}</span> }
+                    @if (c.value) {
+                      <span class="chip-v">{{ c.value }}</span>
+                    } @else if (!c.sub) {
+                      <app-icon class="chip-i" [name]="c.done ? 'check' : c.icon" [size]="13" />
+                    }
                   </span>
                 }
                 @if (day.chips.length > 2) {
@@ -118,9 +127,14 @@ export interface MonthWeek {
   styles: [`
     :host { display: block; }
     /* Gouttière de semaine + sept colonnes égales. minmax(0,1fr) et non 1fr : sans lui, une
-       pastille un peu large pousse sa colonne et le mois cesse d'être une grille. */
-    .mg-head, .mg-week { display: grid; grid-template-columns: 26px repeat(7, minmax(0, 1fr)); gap: 3px; }
-    .mg { display: flex; flex-direction: column; gap: 3px; }
+       pastille un peu large pousse sa colonne et le mois cesse d'être une grille.
+
+       <p>Chaque pixel pris ici est pris au texte des blocs : sur un écran de 390 px, la gouttière
+       et les sept espaces décident à eux seuls si « 12,4 km » s'écrit en entier ou se termine par
+       une lettre coupée. D'où une gouttière au plus juste (le numéro de semaine et deux chiffres
+       de volume) et des espaces de 2 px.</p> */
+    .mg-head, .mg-week { display: grid; grid-template-columns: 22px repeat(7, minmax(0, 1fr)); gap: 2px; }
+    .mg { display: flex; flex-direction: column; gap: 2px; }
     .mg-head { margin-bottom: 2px; }
     .mg-wd { text-align: center; font-size: var(--text-2xs); font-weight: 700; color: var(--ink-3); text-transform: lowercase; }
 
@@ -133,9 +147,12 @@ export interface MonthWeek {
        lit dans la couleur du fait, sinon les deux se confondent d'une semaine à l'autre. */
     .mg-km--done { color: var(--dari-teal); }
 
+    /* Une case vide n'a rien à montrer et ne mérite pas la hauteur d'une case pleine : la
+       hauteur minimale ne tient plus que le numéro du jour et un bloc, les jours chargés
+       poussent leur ligne d'eux-mêmes. Un mois calme tient alors dans l'écran. */
     .cell {
-      display: flex; flex-direction: column; align-items: stretch; gap: 3px;
-      min-height: 68px; padding: 3px; position: relative;
+      display: flex; flex-direction: column; align-items: stretch; gap: 2px;
+      min-height: 54px; padding: 3px 2px; position: relative;
       background: var(--paper); border: 1px solid var(--hairline); border-radius: var(--radius-sm);
       cursor: pointer; text-align: left; -webkit-tap-highlight-color: transparent;
     }
@@ -158,44 +175,59 @@ export interface MonthWeek {
     .cell-off { position: absolute; top: 3px; right: 3px; color: var(--ink-4); line-height: 0; }
     .cell-items { display: flex; flex-direction: column; gap: 2px; }
 
-    /* Pastille : l'icône, puis la valeur sous elle.
-       Elles ne tiennent pas côte à côte — une colonne de mois fait ~40 px de large sur un
-       téléphone, et « 12 km » en occupe déjà 30. C'est ce qui avait conduit à écrire les deux
-       lignes en 9 px ; le défaut n'était pas d'empiler, il était de rétrécir. On empile donc, au
-       plancher de lisibilité du produit. */
+    /* Bloc de séance : la durée, puis la distance sous elle.
+       <p>Il occupe toute la largeur de la case et n'a pas de rail : la couleur du bloc dit le
+       type, un liseré de 3 px ne faisait que voler la largeur du texte. C'est ce qui coupait les
+       chiffres — « 1,3 km » demande 36 px, et la case, une fois retirés le rail et les marges,
+       n'en offrait que 35 : on lisait « 1,3 kı ». Un chiffre tronqué est pire qu'absent.</p> */
     .chip {
-      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
-      padding: 2px 3px; border-radius: 4px; overflow: hidden; min-height: 17px;
-      background: color-mix(in srgb, var(--c, var(--primary)) 16%, var(--paper));
-      border-left: 3px solid var(--c, var(--primary));
-      color: var(--ink); line-height: 1.15;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0; padding: 3px 2px; border-radius: 5px; min-height: 18px;
+      background: color-mix(in srgb, var(--c, var(--primary)) 24%, var(--paper));
+      color: var(--ink); line-height: 1.2;
     }
     .chip-i { flex: none; color: var(--c, var(--primary)); }
-    .chip-v { font-size: var(--text-2xs); font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    /* Séance clé : la couleur remplit la pastille. Le mois montre alors ses points durs sans
-       qu'on ait à lire un seul mot. */
-    .chip--strong { background: color-mix(in srgb, var(--c, var(--primary)) 34%, var(--paper)); }
+    /* La durée en second rôle : c'est la distance qu'on compare d'un jour à l'autre. */
+    .chip-s { font-size: var(--text-2xs); font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    /* La distance passe à la ligne plutôt que d'être rognée. Calculer si « 12,4 km » tient dans
+       une colonne, c'est parier sur la largeur d'un écran et sur une police ; le repli à la ligne
+       ne parie sur rien : il ne s'applique que là où la place manque vraiment. */
+    .chip-v {
+      font-size: var(--text-2xs); font-weight: 800; font-variant-numeric: tabular-nums;
+      text-align: center; line-height: 1.15;
+    }
+    /* Séance clé : la couleur remplit le bloc. Le mois montre alors ses points durs sans qu'on
+       ait à lire un seul mot.
+
+       <p><b>Pourquoi 40 % et pas davantage.</b> Un aplat plus saturé serait plus beau, et
+       illisible : en thème sombre, l'encre claire (#eaf2f0) sur un bloc de zone 3 (le jaune)
+       tombe à 4,1:1 dès 55 % — sous le 4,5:1 exigé. À 40 % elle tient 5,9:1 sur le jaune et
+       6,4:1 sur le vert. La saturation s'arrête là où le texte cesse de se lire.</p> */
+    .chip--strong { background: color-mix(in srgb, var(--c, var(--primary)) 40%, var(--paper)); }
     /* Réalisé : coche à la place de l'icône de type, et trame pleine. Le fait et le prévu ne se
        distinguaient que par une nuance de fond, invisible sur un écran au soleil. */
-    .chip--done { background: color-mix(in srgb, var(--c, var(--primary)) 30%, var(--paper)); }
+    .chip--done { background: color-mix(in srgb, var(--c, var(--primary)) 34%, var(--paper)); }
     .chip--done .chip-i { color: var(--ink); }
     .chip--more {
       font-size: var(--text-2xs); font-weight: 800; color: var(--ink-3);
       background: var(--paper-sunk); border-left-color: var(--ink-4);
     }
 
-    /* Écran étroit (≤ 360 px) : la colonne tombe sous 40 px, et « 12,4 km » n'y tient plus sans
-       être rogné. Mieux vaut ne rien écrire qu'écrire un chiffre coupé — l'icône dit le type, et
-       la feuille du jour, à un tap, dit le reste. */
-    @media (max-width: 360px) {
-      .chip-v { display: none; }
+    /* Écran étroit (≤ 340 px) : la colonne tombe sous 40 px et la durée ne tient plus en plus de
+       la distance. C'est la durée qui cède — la distance est ce qu'on compare d'un jour à
+       l'autre, et la feuille du jour, à un tap, porte les deux. */
+    @media (max-width: 340px) {
+      /* Seulement quand une distance suit : une séance écrite en durée seule perdrait sinon sa
+         seule information et laisserait un bloc muet. Un navigateur sans le sélecteur :has()
+         garde la durée — le bloc est un peu serré, il n'est jamais vide. */
+      .chip-s:has(+ .chip-v) { display: none; }
     }
 
     /* À partir d'une tablette, la grille respire : cases plus hautes et texte lisible de loin. */
     @media (min-width: 600px) {
       .cell { min-height: 92px; padding: 4px; }
-      .chip { min-height: 20px; padding: 3px 5px; }
-      .chip-v { font-size: var(--text-xs); }
+      .chip { min-height: 20px; padding: 4px 5px; }
+      .chip-v, .chip-s { font-size: var(--text-xs); }
       .cell-n { font-size: var(--text-xs); }
     }
   `],

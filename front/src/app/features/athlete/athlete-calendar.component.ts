@@ -11,7 +11,7 @@ import { AthletePortalService } from '../../core/services/athlete-portal.service
 import { ToastService } from '../../core/services/toast.service';
 import { PaceReferenceService } from '../../core/services/pace-reference.service';
 import { formatPace, paceFrom } from '../../core/utils/pace';
-import { plannedVolume, plannedVolumeLabel } from '../../core/utils/planned-volume';
+import { plannedVolume, plannedVolumeLabel, usableDurationS } from '../../core/utils/planned-volume';
 import { formatBlockSets, formatBlockVolume } from '../../core/utils/prescription-format';
 import { DataOriginTagComponent, IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
 import { BottomSheetComponent, SegmentedControlComponent } from '../../shared/components/ui';
@@ -396,7 +396,11 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     .cal-controls { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
     .subtitle { color: var(--ink-3); margin: 0; text-transform: capitalize; }
 
-    .month { max-width: 720px; margin-inline: auto; padding: var(--sp-3) var(--sp-4) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
+    /* Marge latérale réduite : sur un téléphone, 16 px de chaque côté sont 32 px pris aux sept
+       colonnes — c'est-à-dire 4 px par jour, la différence entre « 12,4 km » et « 12,4 kı ». Le
+       reste de l'écran garde sa marge, la grille est le seul élément qui en manque. */
+    .month { max-width: 720px; margin-inline: auto; padding: var(--sp-3) var(--sp-2) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
+    @media (min-width: 600px) { .month { padding-inline: var(--sp-4); } }
     .month-hint { text-align: center; margin: 0; }
 
     .dsheet { display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -699,9 +703,10 @@ export class AthleteCalendarComponent implements OnInit {
         chips.push({
           color: meta.color,
           icon: meta.icon,
-          // Le volume d'abord — c'est ce qu'on vient chercher ; la durée quand la séance n'est
-          // écrite qu'en temps. Jamais le type tronqué : l'icône le dit déjà, en entier.
-          value: this.volumeLabel(w) || (w.targetDurationS ? this.fmtDur(w.targetDurationS) : ''),
+          // La durée au-dessus, la distance en dessous — les deux chiffres qu'un athlète cherche
+          // dans une case de calendrier. Jamais le type tronqué : l'icône le dit en entier.
+          sub: this.durationLabel(w.targetDurationS),
+          value: this.volumeLabel(w),
           strong: meta.key,
           done: false,
           title: `${WORKOUT_TYPE_LABELS[w.type]} · ${w.title}`,
@@ -710,7 +715,7 @@ export class AthleteCalendarComponent implements OnInit {
       for (const s of this.strength().filter((x) => x.scheduledDate === iso)) {
         chips.push({
           color: WORKOUT_TYPE_META.STRENGTH.color, icon: 'dumbbell',
-          value: '', strong: false, done: false, title: s.title,
+          sub: '', value: '', strong: false, done: false, title: s.title,
         });
       }
     }
@@ -718,9 +723,8 @@ export class AthleteCalendarComponent implements OnInit {
       for (const a of this.activities().filter((x) => x.activityDate === iso)) {
         chips.push({
           color: 'var(--success, var(--dari-teal))', icon: 'check',
-          value: a.distanceM
-            ? `${Math.round(a.distanceM / 100) / 10} km`
-            : (a.durationS ? this.fmtDur(a.durationS) : ''),
+          sub: this.durationLabel(a.durationS),
+          value: a.distanceM ? `${Math.round(a.distanceM / 100) / 10} km` : '',
           strong: false,
           done: true,
           title: a.title || 'Sortie réalisée',
@@ -959,6 +963,19 @@ export class AthleteCalendarComponent implements OnInit {
     const plannedM = day.workouts.reduce(
       (s, w) => s + (plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace())?.distanceM ?? 0), 0);
     return plannedM > 0 ? `${Math.round(plannedM / 100) / 10} km` : null;
+  }
+
+  /**
+   * Durée d'une case de calendrier, ou rien.
+   *
+   * <p>Une séance dont la durée enregistrée est un résidu — quelques secondes d'éducatifs, tout
+   * ce que le calcul a su convertir — affichait « <b>0 min</b> » : un chiffre faux, à côté d'une
+   * séance bien réelle. Le seuil est celui, partagé avec le serveur, en dessous duquel une durée
+   * ne décrit aucune séance de course à pied. Sous ce seuil, on n'écrit rien.</p>
+   */
+  private durationLabel(seconds: number | null | undefined): string {
+    const usable = usableDurationS(seconds);
+    return usable == null ? '' : this.fmtDur(usable);
   }
 
   /** Durée « h:mm » ou « m min ». */
