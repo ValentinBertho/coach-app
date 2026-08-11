@@ -43,19 +43,33 @@ interface CycleRow {
   `,
   styles: [`
     .cyc { display: flex; flex-direction: column; gap: var(--sp-1); }
+    /* Aligné en haut, pas au centre : le nom d'un cycle passe sur deux lignes, l'icône et
+       l'avancement restent sur la première. */
     .cyc__row {
-      display: flex; align-items: center; gap: var(--sp-2);
+      display: flex; align-items: flex-start; gap: var(--sp-2);
       padding: var(--sp-2) var(--sp-3);
       border-radius: var(--radius);
       background: var(--paper-sunk); color: var(--ink-3);
       font-size: var(--text-sm);
     }
+    /* --ink : le jeton existe. J'avais écrit --ink-1, qui n'est déclaré nulle part — la
+       déclaration devenait invalide et la couleur retombait par héritage sur celle du parent.
+       Le rendu était juste par accident, et le serait resté jusqu'à ce qu'un parent change. */
     .cyc__row--now {
       background: color-mix(in srgb, var(--dari-teal) 12%, transparent);
-      color: var(--ink-1); font-weight: 600;
+      color: var(--ink); font-weight: 600;
     }
-    .cyc__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Le nom du cycle s'écrit en entier.
+       <p>Un coach nomme ses blocs comme il les pense — « pré-spécifique : travail sous le
+       seuil » — et la ligne s'arrêtait sur « sous le Sub-T et… ». C'est justement la fin qui dit
+       ce qu'on va faire. Trois lignes suffisent aux noms les plus longs observés, et le bandeau
+       reste une bande, pas un paragraphe. */
+    .cyc__text {
+      flex: 1; min-width: 0; overflow-wrap: anywhere;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    }
     .cyc__detail { flex-shrink: 0; font-variant-numeric: tabular-nums; color: var(--ink-3); font-weight: 500; }
+    .cyc__row app-icon { flex: none; margin-top: 2px; }
   `],
 })
 export class CycleBannerComponent {

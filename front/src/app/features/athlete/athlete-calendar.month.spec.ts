@@ -86,11 +86,12 @@ describe('athlete-calendar — grille du mois', () => {
       return component.monthWeeks().flatMap((w) => w.days).find((d) => d.date === iso)!;
     }
 
-    it('porte la charge du jour : une valeur chiffrée, prévu comme réalisé', () => {
+    it('porte la charge du jour : durée et distance, prévu comme réalisé', () => {
       const chips = day('2026-08-12').chips;
 
       expect(chips.length).toBe(3);
-      // Le volume d'abord : c'est ce qu'on vient chercher dans une case de calendrier.
+      // Les deux chiffres qu'on vient chercher dans une case de calendrier.
+      expect(chips[0].sub).toBe('1h00');
       expect(chips[0].value).toBe('12 km');
       expect(chips[0].done).toBeFalse();
       // Séance clé (seuil) : la pastille porte la couleur pleine, le mois montre ses points durs.
@@ -108,20 +109,38 @@ describe('athlete-calendar — grille du mois', () => {
       const chips = day('2026-08-12').chips;
 
       expect(chips[1].value).toBe('');
+      expect(chips[1].sub).toBe('');
       expect(chips[1].icon).toBe('dumbbell');
       expect(chips.every((c) => !/^(Endu|Récu|Frac|Renfo|Fait)$/.test(c.value))).toBeTrue();
     });
 
     /** Une séance écrite en durée, sans allure de référence pour l'estimer, annonce sa durée. */
-    it('replie sur la durée quand aucun volume n’est calculable', () => {
+    it('montre la durée seule quand aucun volume n’est calculable', () => {
       component.workouts.set([
         { id: 'w2', scheduledDate: '2026-08-13', title: 'Footing', type: 'ENDURANCE',
           status: 'PLANNED', steps: [], targetDurationS: 2700 } as unknown as Workout,
       ]);
 
       const chip = day('2026-08-13').chips[0];
-      expect(chip.value).toBe('45 min');
+      expect(chip.sub).toBe('45 min');
+      expect(chip.value).toBe('');
       expect(chip.strong).toBeFalse();
+    });
+
+    /**
+     * Le cas observé en bêta : une case annonçait « 0 min » à côté d'une séance bien réelle. La
+     * durée enregistrée n'était que le résidu converti par le calcul — quelques secondes
+     * d'éducatifs. Sous le seuil d'une vraie séance, on n'écrit rien plutôt qu'un chiffre faux.
+     */
+    it('n’écrit jamais « 0 min » pour une durée résiduelle', () => {
+      component.workouts.set([
+        { id: 'w3', scheduledDate: '2026-08-14', title: 'Footing', type: 'ENDURANCE',
+          status: 'PLANNED', steps: [], targetDurationS: 20 } as unknown as Workout,
+      ]);
+
+      const chip = day('2026-08-14').chips[0];
+      expect(chip.sub).toBe('');
+      expect(chip.value).toBe('');
     });
 
     /**
