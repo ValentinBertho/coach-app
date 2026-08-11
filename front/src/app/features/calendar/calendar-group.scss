@@ -1,0 +1,56 @@
+/* Vue groupe du calendrier : une ligne par athlète × sept jours.
+ *
+ * <p>Ces règles vivaient dans la feuille du calendrier, qui approchait le plafond de 14 ko fixé
+ * pour une feuille de composant. Elles n'en sont pas retirées pour gagner des octets : la vue
+ * groupe est un autre écran — d'autres cases, d'autres gestes, un autre en-tête — qui partage le
+ * composant sans partager la grille d'un athlète. Une feuille par écran se relit.</p> */
+
+/* --- Vue groupe : une ligne par athlète × 7 jours ------------------------- */
+/* Pas de vue mois ici : au-delà de la semaine la grille devient illisible. */
+.group-grid {
+  display: flex; flex-direction: column; gap: 2px;
+  background: var(--paper); border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg); padding: var(--sp-2); overflow-x: auto;
+  /* En grille (bibliothèque ouverte), sans ça la colonne déborde au lieu de scroller. */
+  min-width: 0;
+}
+.gg-head, .gg-row { display: grid; grid-template-columns: 180px repeat(7, minmax(120px, 1fr)); gap: 2px; }
+.gg-head { position: sticky; top: 0; z-index: 1; background: var(--paper); }
+.gg-corner, .gg-day {
+  padding: var(--sp-2); font-size: var(--text-xs); font-weight: 700;
+  color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.gg-day.today { color: var(--primary); }
+/* Même repère que la grille d'un athlète : sur quinze lignes de sept colonnes, le week-end est
+   ce qui permet de savoir où l'on regarde sans compter depuis le bord. */
+.gg-day.weekend { color: var(--ink-4); }
+.gg-cell.weekend { background: color-mix(in srgb, var(--ink-4) 7%, var(--paper-sunk)); }
+.gg-athlete {
+  display: flex; align-items: center; gap: var(--sp-2); min-width: 0;
+  padding: var(--sp-2); text-decoration: none; color: var(--ink);
+  border-radius: var(--radius-sm);
+}
+.gg-athlete:hover { background: var(--paper-sunk); }
+.gg-name { font-weight: 600; font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gg-cell {
+  min-height: 64px; padding: var(--sp-1);
+  background: var(--paper-sunk); border-radius: var(--radius-sm);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.gg-cell.today { outline: 1px solid color-mix(in srgb, var(--primary) 40%, transparent); }
+.gg-chip { font-size: var(--text-xs); }
+
+/* --- Ligne « tout le groupe » : la cible de la prescription collective ----- */
+.gg-row--all { margin-bottom: var(--sp-2); }
+.gg-athlete--all { font-weight: 700; }
+.gg-all-avatar { display: inline-flex; align-items: center; justify-content: center; background: var(--primary-wash); color: var(--primary); }
+/* Cible de dépôt, pas une case de contenu : hachures discrètes, hauteur réduite — elle ne doit
+   pas peser autant qu'une ligne d'athlète. */
+.gg-cell--all {
+  min-height: 40px; align-items: center; justify-content: center;
+  background: transparent; border: 1px dashed var(--line);
+}
+.gg-cell--all .gg-all-hint { font-size: var(--text-2xs); font-weight: 700; color: var(--ink-4); text-transform: uppercase; letter-spacing: 0.04em; }
+.gg-cell--all.cdk-drop-list-dragging, .gg-cell--all:hover { border-color: var(--primary); }
+.gg-cell--all:hover .gg-all-hint { color: var(--primary); }
+.gg-cell--busy { opacity: 0.5; pointer-events: none; }

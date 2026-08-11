@@ -6,8 +6,11 @@
    contenu a un min-content large (pastille de séance à titre long) déborde de sa part et
    écrase les colonnes vides — précisément les cibles du glisser-déposer. L'en-tête, lui,
    n'ayant pas de contenu, restait régulier : les deux lignes se désalignaient. */
-.weekday-row { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(92px, 0.58fr); gap: var(--sp-2); margin-bottom: var(--sp-1); }
-.weekday-row span { font-size: var(--text-xs); color: var(--ink-3); text-transform: uppercase; padding-left: var(--sp-1); }
+.weekday-row {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(92px, 0.58fr);
+  gap: var(--sp-2); margin-bottom: var(--sp-1);
+}
+.weekday-row span { font-size: var(--text-xs); font-weight: 700; color: var(--ink-3); text-transform: uppercase; padding-left: var(--sp-1); }
 .weekday-row .wd-total { text-align: center; padding-left: 0; }
 
 .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(92px, 0.58fr); gap: var(--sp-2); transition: opacity var(--duration) var(--ease); }
@@ -74,15 +77,29 @@
 .grid.month .day-col { min-height: 120px; }
 .day-col.today { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
 .day-col.dim { opacity: 0.5; }
+/* Le week-end, en creux : assez pour ancrer la lecture des sept colonnes, pas assez pour
+   concurrencer la couleur des séances, qui reste la seule information de la grille. */
+.day-col--weekend { background: var(--canvas); }
 
-.day-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--hairline); }
+.day-head { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--hairline); }
 .day-head__date { display: flex; align-items: baseline; gap: var(--sp-2); }
 .day-name { font-size: var(--text-xs); color: var(--ink-3); text-transform: uppercase; }
 .day-num { font-weight: 700; font-family: var(--font-display); }
+/* Aujourd'hui : une pastille pleine. Le liseré de la colonne se voit mal dès qu'une colonne
+   voisine porte une séance colorée — or c'est la date qu'on cherche en ouvrant l'écran. */
+.day-col.today .day-num {
+  background: var(--primary); color: var(--paper);
+  border-radius: var(--radius-full); padding: 0 7px; min-width: 22px; text-align: center;
+}
+/* Volume du jour et drapeau de charge, poussés à droite de l'en-tête. Le premier des deux
+   présents prend la marge — quel qu'il soit, et sans laisser de trou quand l'autre manque. */
+.day-km, .day-flag { margin-left: auto; }
+.day-km + .day-flag { margin-left: var(--sp-1); }
+.day-km { font-size: var(--text-xs); font-weight: 800; color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .day-flag {
   font-size: var(--text-2xs); font-weight: 800; color: var(--warning-text);
   background: var(--warning-bg); padding: 1px var(--sp-2); border-radius: var(--radius-full);
-  white-space: nowrap;
+  white-space: nowrap; flex: none;
 }
 
 .day-body { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-2); flex: 1; }
@@ -136,8 +153,25 @@
   overflow: hidden; overflow-wrap: anywhere;
 }
 .wc-head { align-items: flex-start; }
-.w-metric { font-size: var(--text-xs); color: var(--ink-2); font-weight: 700; flex-shrink: 0; white-space: nowrap; }
+/* Le volume est ce que le coach lit en parcourant une semaine — pas le libellé de type, que
+   l'icône et la couleur portent déjà. Il passe donc devant : encre pleine, chiffres tabulaires. */
+.w-metric { font-size: var(--text-xs); color: var(--ink); font-weight: 800; flex-shrink: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .badge-dot { width: 8px; height: 8px; padding: 0; border-radius: 50%; flex-shrink: 0; }
+
+/* --- Vue mois : la même pastille, à la moitié de sa hauteur ------------------
+   Une case de mois fait 120 px : trois séances au format de la vue semaine (titre sur deux
+   lignes, libellé de type, barre de zones) débordaient, et le mois entier devenait une colonne
+   à faire défiler — l'inverse de ce qu'on lui demande. La pastille garde son icône, son titre
+   sur une ligne et son volume ; le reste attend la vue semaine. */
+.grid.month {
+  .w-title { -webkit-line-clamp: 1; }
+  .wc-type-label { display: none; }
+  app-zone-bar { display: none; }
+  .workout-card { padding: var(--sp-1) var(--sp-2); gap: 1px; }
+  .day-head { padding: var(--sp-1) var(--sp-2); }
+  .day-body { gap: var(--sp-1); padding: var(--sp-1) var(--sp-2) var(--sp-2); }
+  .add-btn { min-height: 22px; }
+}
 
 .add-btn { margin-top: auto; display: flex; align-items: center; justify-content: center; min-height: 28px; background: transparent; border: 1px dashed var(--hairline); border-radius: var(--radius-sm); color: var(--ink-3); padding: var(--sp-1); cursor: pointer; }
 .add-btn:hover { border-color: var(--primary); color: var(--primary); }
@@ -162,6 +196,29 @@
 /* Tablette : la colonne de totaux reste mais plus compacte. */
 @media (min-width: 769px) and (max-width: 1100px) {
   .weekday-row, .grid { grid-template-columns: repeat(7, minmax(0, 1fr)) minmax(76px, 0.5fr); }
+}
+
+/* En-tête des jours : collant, à partir du seuil où la coquille n'a plus de barre supérieure
+   collante (901 px — en dessous, `.topbar` occupe le haut de l'écran et les deux se
+   recouvriraient). Sur un mois de six semaines, cette ligne quittait l'écran au premier
+   défilement : on se retrouvait devant des colonnes anonymes, à compter depuis le bord pour
+   retrouver le mercredi. Le z-index reste sous celui des menus contextuels et de l'aperçu de
+   glisser-déposer, qui doivent continuer de passer par-dessus. */
+@media (min-width: 901px) {
+  .weekday-row {
+    position: sticky; top: 0; z-index: 3;
+    padding: var(--sp-2) 0 var(--sp-1); margin-bottom: 0;
+    background: var(--canvas);
+  }
+
+  /* Vue mois : le bouton « + » de chaque jour ne se montre qu'au survol de sa colonne.
+     Quarante-deux boutons pointillés répétés sur la grille pesaient plus lourd, à l'œil, que les
+     séances qu'on vient y lire. Il garde sa place (la grille ne bouge pas quand il apparaît) et
+     reste atteignable au clavier — le focus le rend visible. Réservé au-dessus de 901 px : en
+     dessous, la grille passe à une colonne et il n'y a pas de survol pour le faire revenir. */
+  .grid.month .add-btn { opacity: 0; transition: opacity var(--duration-fast) var(--ease); }
+  .grid.month .day-col:hover .add-btn,
+  .grid.month .add-btn:focus-visible { opacity: 1; }
 }
 
 /* --- Chip séance de force (DARI Lab, violet) ------------------------------ */
@@ -246,51 +303,20 @@
 .badge-dot.badge-info { background: var(--info); }
 .badge-dot.badge-neutral { background: var(--ink-4); }
 
-/* Barre de densité de volume par jour. */
+/* Barre de densité de volume par jour : elle ne porte plus de chiffre — l'en-tête le dit — et
+   ne sert plus qu'à ce qu'un chiffre ne fait pas, comparer les sept jours d'un coup d'œil. */
 .day-density {
-  display: flex; align-items: center; gap: var(--sp-2);
+  display: flex; align-items: center;
   padding: var(--sp-1) var(--sp-3) var(--sp-2);
 }
 .day-density__bar {
   height: 4px; min-width: 4px; border-radius: var(--radius-full);
   background: var(--primary); opacity: 0.55;
 }
-.day-density__val { font-size: var(--text-2xs); color: var(--ink-3); font-weight: 700; white-space: nowrap; }
-.day-density__val small { font-weight: 600; }
 
 /* Chip de force : rail coloré cohérent avec les types. */
 .strength-chip { border-left: 3px solid var(--type-color, var(--dari-violet)); }
 
-/* --- Vue groupe : une ligne par athlète × 7 jours ------------------------- */
-/* Pas de vue mois ici : au-delà de la semaine la grille devient illisible. */
-.group-grid {
-  display: flex; flex-direction: column; gap: 2px;
-  background: var(--paper); border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg); padding: var(--sp-2); overflow-x: auto;
-  /* En grille (bibliothèque ouverte), sans ça la colonne déborde au lieu de scroller. */
-  min-width: 0;
-}
-.gg-head, .gg-row { display: grid; grid-template-columns: 180px repeat(7, minmax(120px, 1fr)); gap: 2px; }
-.gg-head { position: sticky; top: 0; z-index: 1; background: var(--paper); }
-.gg-corner, .gg-day {
-  padding: var(--sp-2); font-size: var(--text-xs); font-weight: 700;
-  color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em;
-}
-.gg-day.today { color: var(--primary); }
-.gg-athlete {
-  display: flex; align-items: center; gap: var(--sp-2); min-width: 0;
-  padding: var(--sp-2); text-decoration: none; color: var(--ink);
-  border-radius: var(--radius-sm);
-}
-.gg-athlete:hover { background: var(--paper-sunk); }
-.gg-name { font-weight: 600; font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.gg-cell {
-  min-height: 64px; padding: var(--sp-1);
-  background: var(--paper-sunk); border-radius: var(--radius-sm);
-  display: flex; flex-direction: column; gap: 3px;
-}
-.gg-cell.today { outline: 1px solid color-mix(in srgb, var(--primary) 40%, transparent); }
-.gg-chip { font-size: var(--text-xs); }
 
 /* Sortie importée qu'aucune séance ne porte : l'état se voit, et le clic mène au rapprochement. */
 .activity-card--loose { border-style: dashed; }
@@ -301,20 +327,6 @@
 }
 .activity-card--loose:hover .ac-loose { color: var(--primary); }
 
-/* --- Ligne « tout le groupe » : la cible de la prescription collective ----- */
-.gg-row--all { margin-bottom: var(--sp-2); }
-.gg-athlete--all { font-weight: 700; }
-.gg-all-avatar { display: inline-flex; align-items: center; justify-content: center; background: var(--primary-wash); color: var(--primary); }
-/* Cible de dépôt, pas une case de contenu : hachures discrètes, hauteur réduite — elle ne doit
-   pas peser autant qu'une ligne d'athlète. */
-.gg-cell--all {
-  min-height: 40px; align-items: center; justify-content: center;
-  background: transparent; border: 1px dashed var(--line);
-}
-.gg-cell--all .gg-all-hint { font-size: var(--text-2xs); font-weight: 700; color: var(--ink-4); text-transform: uppercase; letter-spacing: 0.04em; }
-.gg-cell--all.cdk-drop-list-dragging, .gg-cell--all:hover { border-color: var(--primary); }
-.gg-cell--all:hover .gg-all-hint { color: var(--primary); }
-.gg-cell--busy { opacity: 0.5; pointer-events: none; }
 
 /* --- Détail d'une séance de force planifiée (panneau latéral) ------------- */
 .sd { display: flex; flex-direction: column; gap: var(--sp-4); }

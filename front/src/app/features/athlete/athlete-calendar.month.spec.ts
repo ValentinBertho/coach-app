@@ -86,18 +86,61 @@ describe('athlete-calendar — grille du mois', () => {
       return component.monthWeeks().flatMap((w) => w.days).find((d) => d.date === iso)!;
     }
 
-    it('porte la charge du jour : durée et volume, prévu comme réalisé', () => {
+    it('porte la charge du jour : une valeur chiffrée, prévu comme réalisé', () => {
       const chips = day('2026-08-12').chips;
 
       expect(chips.length).toBe(3);
-      // Format des durées du calendrier, identique côté coach : « 1h00 », « 1h15 », « 45 min ».
-      expect(chips[0].duration).toBe('1h00');
-      expect(chips[0].volume).toBe('12 km');
+      // Le volume d'abord : c'est ce qu'on vient chercher dans une case de calendrier.
+      expect(chips[0].value).toBe('12 km');
       expect(chips[0].done).toBeFalse();
-      expect(chips[1].duration).toBe('Renfo');
+      // Séance clé (seuil) : la pastille porte la couleur pleine, le mois montre ses points durs.
+      expect(chips[0].strong).toBeTrue();
       // La sortie réalisée se distingue du prescrit sans lire l'étiquette.
       expect(chips[2].done).toBeTrue();
-      expect(chips[2].volume).toBe('12.4 km');
+      expect(chips[2].value).toBe('12.4 km');
+    });
+
+    /**
+     * Le renforcement n'a pas de volume à montrer. La grille affichait « Renfo » — un mot
+     * amputé de moitié dans une case de 45 px. L'icône le dit en entier, et sans place.
+     */
+    it('ne met aucun mot tronqué dans une case', () => {
+      const chips = day('2026-08-12').chips;
+
+      expect(chips[1].value).toBe('');
+      expect(chips[1].icon).toBe('dumbbell');
+      expect(chips.every((c) => !/^(Endu|Récu|Frac|Renfo|Fait)$/.test(c.value))).toBeTrue();
+    });
+
+    /** Une séance écrite en durée, sans allure de référence pour l'estimer, annonce sa durée. */
+    it('replie sur la durée quand aucun volume n’est calculable', () => {
+      component.workouts.set([
+        { id: 'w2', scheduledDate: '2026-08-13', title: 'Footing', type: 'ENDURANCE',
+          status: 'PLANNED', steps: [], targetDurationS: 2700 } as unknown as Workout,
+      ]);
+
+      const chip = day('2026-08-13').chips[0];
+      expect(chip.value).toBe('45 min');
+      expect(chip.strong).toBeFalse();
+    });
+
+    /**
+     * La gouttière porte un seul chiffre par semaine : dès qu'une sortie est enregistrée, c'est
+     * le réalisé — la question qu'on se pose sur une semaine entamée — et il se lit dans la
+     * couleur du fait pour qu'on ne le prenne jamais pour du prévu.
+     */
+    it('totalise la semaine : le réalisé s’il existe, le prévu sinon', () => {
+      const week = () => component.monthWeeks().find((w) => w.days.some((d) => d.date === '2026-08-12'))!;
+
+      expect(week().totalKm).toBe('12');
+      expect(week().totalDone).toBeTrue();
+
+      component.activities.set([]);
+      expect(week().totalKm).toBe('12');
+      expect(week().totalDone).toBeFalse();
+
+      component.workouts.set([]);
+      expect(week().totalKm).toBeUndefined();
     });
 
     it('suit le filtre prévu / réalisé', () => {

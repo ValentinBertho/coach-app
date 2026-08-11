@@ -60,6 +60,12 @@ interface DayCell {
   label: string;
   dayNum: number;
   isToday: boolean;
+  /**
+   * Samedi ou dimanche. Un plan de course se lit autour du week-end — sortie longue, course,
+   * séance clé — et la grille ne distinguait pas les sept colonnes : compter les jours depuis le
+   * bord était le seul moyen de savoir où l'on regardait.
+   */
+  weekend: boolean;
   inMonth: boolean;
   workouts: Workout[];
   strength: ScheduledStrength[];
@@ -140,7 +146,7 @@ function mondayOf(d: Date): Date {
   ],
   host: { '(document:keydown)': 'onKeydown($event)' },
   templateUrl: './calendar.component.html',
-  styleUrls: ['./calendar.component.scss', './calendar-tools.scss'],
+  styleUrls: ['./calendar.component.scss', './calendar-group.scss', './calendar-tools.scss'],
 })
 export class CalendarComponent implements OnInit, OnDestroy {
   private readonly athleteService = inject(AthleteService);
@@ -273,6 +279,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
         label: this.dayNames[i % 7],
         dayNum: d.getDate(),
         isToday: iso === today,
+        weekend: i % 7 >= 5,
         inMonth: this.mode() === 'week' || d.getMonth() === monthRef,
         workouts,
         strength,
@@ -364,14 +371,17 @@ export class CalendarComponent implements OnInit, OnDestroy {
   readonly groupLoading = signal(false);
 
   /** Les 7 dates de la semaine affichée (en-têtes du mode groupe). */
-  readonly weekDates = computed<{ date: string; label: string; dayNum: number; isToday: boolean }[]>(() => {
+  readonly weekDates = computed<{ date: string; label: string; dayNum: number; isToday: boolean; weekend: boolean }[]>(() => {
     const today = toIso(new Date());
     const start = mondayOf(this.anchor());
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
       const iso = toIso(d);
-      return { date: iso, label: this.dayNames[i], dayNum: d.getDate(), isToday: iso === today };
+      return {
+        date: iso, label: this.dayNames[i], dayNum: d.getDate(),
+        isToday: iso === today, weekend: i >= 5,
+      };
     });
   });
 
