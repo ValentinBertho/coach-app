@@ -26,7 +26,7 @@ import { IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../.
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { MorningCheckInComponent } from './morning-check-in.component';
 import { StravaCardComponent } from './strava-card.component';
-import { PushPromptComponent } from './push-prompt.component';
+import { PushPromptComponent } from '../../shared/components/push-prompt/push-prompt.component';
 import { HelpHintComponent } from '../help/help-hint.component';
 import { CycleBannerComponent } from '../../shared/components/cycle-banner/cycle-banner.component';
 import { CalendarNote } from '../../core/models/calendar-note.model';

@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
+import { AppBadgeService } from '../../core/services/app-badge.service';
 import { AuthService } from '../../core/services/auth.service';
 import { BreadcrumbService } from '../../core/services/breadcrumb.service';
 import { CoachDashboardService } from '../../core/services/coach-dashboard.service';
@@ -40,6 +41,7 @@ export class CoachLayoutComponent implements OnInit {
   private readonly dashboard = inject(CoachDashboardService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly feedback = inject(FeedbackService);
+  private readonly badge = inject(AppBadgeService);
 
   /**
    * « Signaler un problème » : ouvre le panneau de retour, qui enregistre le message en base
@@ -66,6 +68,18 @@ export class CoachLayoutComponent implements OnInit {
 
   /** Retours d'athlètes non traités (badge de l'entrée « Retours »). */
   readonly pendingReviews = this.dashboard.pendingReviews;
+
+  /**
+   * Pastille de l'icône de l'application : la somme de ce qui attend le coach.
+   *
+   * <p>Un effet plutôt qu'un appel après chaque rafraîchissement — les deux compteurs sont déjà
+   * des signaux, et les recopier à la main quelque part finirait par oublier un chemin : un
+   * retour traité depuis « Ma journée », un fil ouvert depuis une notification. Ici, la pastille
+   * suit ce que la navigation affiche, par construction.</p>
+   */
+  private readonly badgeSync = effect(() => {
+    this.badge.set(this.unreadMessages() + this.pendingReviews());
+  });
 
   /** Fil d'Ariane de la barre supérieure : « où suis-je » quand on est dans un contexte. */
   readonly trail = this.breadcrumb.trail;
@@ -124,6 +138,9 @@ export class CoachLayoutComponent implements OnInit {
   }
 
   logout(): void {
+    // La pastille survivrait à la déconnexion : sur un téléphone partagé, elle annoncerait à la
+    // personne suivante le travail en attente de quelqu'un d'autre.
+    this.badge.clear();
     this.auth.logout();
     this.toast.info('Tu es déconnecté·e.');
     this.router.navigate(['/login']);

@@ -29,6 +29,11 @@
       <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" title="Tableau de bord">
         <app-icon name="layout-dashboard" [size]="18" /><span>Tableau de bord</span>
       </a>
+      <!-- L'écran du matin : alertes, retours, messages et séances du jour au même endroit.
+           Il est né pour le téléphone, mais il se lit aussi bien ici — d'où son entrée. -->
+      <a routerLink="/app/journee" routerLinkActive="active" title="Ma journée">
+        <app-icon name="sun" [size]="18" /><span>Ma journée</span>
+      </a>
       <!-- L'écran du matin : il était seulement atteignable par un KPI du cockpit. -->
       <a routerLink="/app/feedback" routerLinkActive="active" title="Retours à traiter">
         <app-icon name="inbox" [size]="18" /><span>Retours</span>
@@ -75,17 +80,19 @@
 
   <div class="main">
     <!-- Topbar (mobile uniquement) -->
+    <!-- Trois contrôles, pas cinq : la marque, la cloche, le tiroir. La recherche, l'aide,
+         l'activation des notifications et la déconnexion vivent dans le tiroir « Menu » —
+         cette barre doit porter l'écran, pas la gestion du compte. -->
     <header class="topbar mobile-only">
-      <a routerLink="/app" class="brand__home" aria-label="Tableau de bord">
+      <a routerLink="/app/journee" class="brand__home" aria-label="Ma journée">
         <app-logo [size]="26" [showText]="true" />
       </a>
       <div class="user">
-        <button type="button" class="btn btn-ghost btn-sm" (click)="palette.show()"
-                aria-label="Recherche globale"><app-icon name="search" [size]="18" /></button>
         <app-notification-bell />
-        <a routerLink="/app/aide" class="btn btn-ghost btn-sm" aria-label="Aide"><app-icon name="life-buoy" [size]="18" /></a>
-        <app-push-button />
-        <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Quitter</button>
+        <button type="button" class="btn btn-ghost btn-sm" [class.active]="moreOpen()"
+                (click)="toggleMore()" aria-label="Menu">
+          <app-icon name="menu" [size]="20" />
+        </button>
       </div>
     </header>
 
@@ -120,7 +127,9 @@
     </main>
   </div>
 
-  <!-- Panneau « Plus » (mobile) : nav complète groupée, hors des 4 slots de la bottom-nav -->
+  <!-- Tiroir « Menu » (mobile) : tout ce qui n'est pas un des quatre gestes du pouce.
+       Il a quitté la barre du bas — un menu n'est pas une destination — pour la barre du haut,
+       ce qui rend son quatrième emplacement à une vraie section. -->
   @if (moreOpen()) {
     <div class="more-sheet mobile-only" (click)="closeMore()">
       <nav class="more-sheet__panel" (click)="$event.stopPropagation()" aria-label="Navigation complète">
@@ -130,19 +139,11 @@
         </div>
 
         <span class="snav-group">Coaching</span>
-        <a routerLink="/app/feedback" routerLinkActive="active" (click)="closeMore()">
-          <app-icon name="inbox" [size]="18" /><span>Retours</span>
-          @if (pendingReviews() > 0) {
-            <span class="nav-badge">{{ pendingReviews() > 9 ? '9+' : pendingReviews() }}</span>
-          }
+        <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMore()">
+          <app-icon name="layout-dashboard" [size]="18" /><span>Tableau de bord</span>
         </a>
+        <a routerLink="/app/calendar" routerLinkActive="active" (click)="closeMore()"><app-icon name="calendar" [size]="18" /><span>Calendrier</span></a>
         <a routerLink="/app/groups" routerLinkActive="active" (click)="closeMore()"><app-icon name="users-round" [size]="18" /><span>Groupes</span></a>
-        <a routerLink="/app/messages" routerLinkActive="active" (click)="closeMore()">
-          <app-icon name="message-square" [size]="18" /><span>Messages</span>
-          @if (unreadMessages() > 0) {
-            <span class="nav-badge">{{ unreadMessages() > 9 ? '9+' : unreadMessages() }}</span>
-          }
-        </a>
         <a routerLink="/app/library" routerLinkActive="active" (click)="closeMore()"><app-icon name="folder-open" [size]="18" /><span>Bibliothèque</span></a>
 
         <span class="snav-group">Club</span>
@@ -150,27 +151,49 @@
         <a routerLink="/app/training-zones" routerLinkActive="active" (click)="closeMore()"><app-icon name="target" [size]="18" /><span>Mes zones</span></a>
 
         <span class="snav-group">Réglages</span>
+        <button type="button" class="snav-action" (click)="palette.show(); closeMore()"><app-icon name="search" [size]="18" /><span>Rechercher</span></button>
         <a routerLink="/app/settings" routerLinkActive="active" (click)="closeMore()"><app-icon name="settings" [size]="18" /><span>Paramètres</span></a>
         <a routerLink="/app/notifications" routerLinkActive="active" (click)="closeMore()"><app-icon name="bell" [size]="18" /><span>Notifications</span></a>
         <a routerLink="/app/aide" routerLinkActive="active" (click)="closeMore()"><app-icon name="life-buoy" [size]="18" /><span>Aide</span></a>
         <button type="button" class="snav-action" (click)="openFeedback(); closeMore()"><app-icon name="inbox" [size]="18" /><span>Signaler un problème</span></button>
+
+        <div class="more-sheet__ft">
+          <app-push-button />
+          <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Déconnexion</button>
+        </div>
       </nav>
     </div>
   }
 
-  <!-- Bottom nav (mobile) -->
+  <!-- Bottom nav (mobile) : quatre gestes, pas quatre rubriques.
+       « Ma journée » remplace le cockpit (qui n'a jamais été un écran de téléphone), et
+       Retours et Messages — les deux seules entrées à porter un badge, donc du travail en
+       attente — quittent le menu où personne n'allait les chercher. Le calendrier, lui, y
+       entre : il se lit athlète par athlète, ce qui n'est pas un geste du matin. -->
   <nav class="bottom-nav mobile-only">
-    <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-      <app-icon name="layout-dashboard" [size]="20" /><span class="bn-lb">Accueil</span>
+    <a routerLink="/app/journee" routerLinkActive="active">
+      <app-icon name="sun" [size]="20" /><span class="bn-lb">Ma journée</span>
+    </a>
+    <a routerLink="/app/feedback" routerLinkActive="active">
+      <span class="bn-ic">
+        <app-icon name="inbox" [size]="20" />
+        @if (pendingReviews() > 0) {
+          <span class="bn-badge">{{ pendingReviews() > 9 ? '9+' : pendingReviews() }}</span>
+        }
+      </span>
+      <span class="bn-lb">Retours</span>
+    </a>
+    <a routerLink="/app/messages" routerLinkActive="active">
+      <span class="bn-ic">
+        <app-icon name="message-square" [size]="20" />
+        @if (unreadMessages() > 0) {
+          <span class="bn-badge">{{ unreadMessages() > 9 ? '9+' : unreadMessages() }}</span>
+        }
+      </span>
+      <span class="bn-lb">Messages</span>
     </a>
     <a routerLink="/app/athletes" routerLinkActive="active">
       <app-icon name="users" [size]="20" /><span class="bn-lb">Athlètes</span>
     </a>
-    <a routerLink="/app/calendar" routerLinkActive="active">
-      <app-icon name="calendar" [size]="20" /><span class="bn-lb">Calendrier</span>
-    </a>
-    <button type="button" class="bn-more" [class.active]="moreOpen()" (click)="toggleMore()" aria-label="Plus">
-      <app-icon name="menu" [size]="20" /><span class="bn-lb">Plus</span>
-    </button>
   </nav>
 </div>

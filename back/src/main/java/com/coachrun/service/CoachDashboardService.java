@@ -3,6 +3,7 @@ package com.coachrun.service;
 import com.coachrun.dto.response.AthleteFormResponse;
 import com.coachrun.dto.response.CoachAlertResponse;
 import com.coachrun.dto.response.CoachDashboardResponse;
+import com.coachrun.dto.response.CoachDaySessionResponse;
 import com.coachrun.dto.response.CoachFormDashboardResponse;
 import com.coachrun.dto.response.FeedbackQueueItemResponse;
 import com.coachrun.dto.response.RaceObjectiveResponse;
@@ -133,6 +134,35 @@ public class CoachDashboardService {
                 .comparing(FeedbackQueueItemResponse::sessionDate).reversed()
                 .thenComparing(FeedbackQueueItemResponse::athleteName));
         return items;
+    }
+
+    /**
+     * La journée d'un coach : les séances de course prévues un jour donné, tous athlètes de son
+     * périmètre confondus.
+     *
+     * <p>C'est l'information que le calendrier ne sait pas donner. Il se lit athlète par athlète ;
+     * la question « qu'est-ce qui est prévu aujourd'hui, et pour qui » demandait donc d'ouvrir
+     * autant de fiches que d'athlètes suivis — impraticable sur un téléphone, et déjà pénible
+     * ailleurs.</p>
+     *
+     * <p>Course seulement : le renforcement a son propre écran, ses propres formats et son propre
+     * débrief. L'unifier ici mêlerait deux gestes de coaching différents dans une liste dont la
+     * seule promesse est de tenir sur un écran de téléphone.</p>
+     */
+    public List<CoachDaySessionResponse> day(UUID clubId, String scope, UUID coachId, LocalDate date) {
+        List<Athlete> athletes = athletesInScope(clubId, scope, coachId);
+        if (athletes.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, String> names = athletes.stream()
+                .collect(java.util.stream.Collectors.toMap(Athlete::getId, CoachDashboardService::displayName));
+        LocalDate day = date == null ? clock.today() : date;
+
+        return workoutRepository.findByAthletesAndDate(List.copyOf(names.keySet()), day).stream()
+                .map(w -> CoachDaySessionResponse.from(w, names.get(w.getAthlete().getId())))
+                .sorted(java.util.Comparator.comparing(CoachDaySessionResponse::athleteName,
+                        java.util.Comparator.nullsLast(String::compareTo)))
+                .toList();
     }
 
     /** Fenêtre par défaut de la file de retours, bornée pour rester une file de travail. */

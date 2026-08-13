@@ -1,0 +1,317 @@
+<!--
+  « Ma journée » : une file, pas un cockpit. L'ordre des sections est celui de l'urgence — ce qui
+  appelle une décision aujourd'hui d'abord, ce qui est prévu ensuite. Toutes les cibles tactiles
+  tiennent les 44 px du design system : cet écran se lit d'une main, debout.
+-->
+<section class="cd-head">
+  <div class="cd-head__id">
+    <h1 class="display-sm">Ma journée</h1>
+    <p class="subtitle">{{ scopeLabel() }}</p>
+  </div>
+
+  <!-- Le périmètre est un réglage, pas un onglet : quatre segments en permanence sur 375 px
+       coûtaient une ligne entière pour un choix qu'on fait une fois. -->
+  <div class="cd-scope">
+    <button type="button" class="btn btn-ghost btn-sm" (click)="toggleScope()"
+            [attr.aria-expanded]="scopeOpen()" aria-label="Changer de périmètre">
+      <app-icon name="users" [size]="16" /> {{ scopeLabel() }}
+      <app-icon [name]="scopeOpen() ? 'chevron-up' : 'chevron-down'" [size]="14" />
+    </button>
+    @if (scopeOpen()) {
+      <div class="cd-scope__menu">
+        @for (s of scopes; track s.value) {
+          <button type="button" [class.active]="scope() === s.value" (click)="setScope(s.value)">
+            {{ s.label }}
+            @if (scope() === s.value) { <app-icon name="check" [size]="15" /> }
+          </button>
+        }
+      </div>
+    }
+  </div>
+</section>
+
+<!-- L'installation avant les notifications : sur iPhone, la seconde dépend de la première. -->
+<app-install-prompt
+  title="Garder Darilab à portée de pouce"
+  lead="Installée sur ton écran d'accueil, l'application s'ouvre d'un tap — et c'est la seule façon de recevoir les alertes sur iPhone." />
+
+<app-push-prompt
+  title="Être prévenu tout de suite"
+  lead="Une blessure déclarée, une séance manquée, un message d'un athlète — sur ton téléphone, sans ouvrir l'application." />
+
+@if (loading()) {
+  <div class="card"><div class="skeleton" style="height: 120px;"></div></div>
+} @else {
+
+  @if (quiet()) {
+    <div class="card cd-quiet">
+      <span class="cd-quiet__ic"><app-icon name="check" [size]="20" /></span>
+      <div>
+        <strong>Rien ne t'attend ce matin</strong>
+        <p class="field-hint">
+          Aucune alerte, aucun retour en attente, aucun message non lu sur {{ scopeLabel() | lowercase }}.
+        </p>
+      </div>
+    </div>
+  }
+
+  <!-- 1. À traiter maintenant : ce qui appelle une décision aujourd'hui. -->
+  @if (alerts().length) {
+    <section class="cd-sec">
+      <header class="cd-sec__hd">
+        <h2>À traiter maintenant</h2>
+        <span class="cd-count">{{ alerts().length }}</span>
+        @if (moreAlerts()) { <a routerLink="/app" class="cd-sec__more">Tout voir</a> }
+      </header>
+      <ul class="cd-list">
+        @for (al of topAlerts(); track $index) {
+          <li class="cd-card" [class.cd-card--red]="al.severity === 'RED'"
+              [class.cd-card--orange]="al.severity === 'ORANGE'">
+            <div class="cd-card__top">
+              <strong>{{ al.athleteName }}</strong>
+              <span class="cd-chip">{{ al.title }}</span>
+            </div>
+            <p class="cd-card__detail">{{ al.detail }}</p>
+            <div class="cd-acts">
+              <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', al.athleteId]">Voir la fiche</a>
+              <a class="btn btn-primary btn-sm" [routerLink]="['/app/athletes', al.athleteId, 'messages']">
+                <app-icon name="message-square" [size]="15" /> Répondre
+              </a>
+            </div>
+          </li>
+        }
+      </ul>
+      @if (moreAlerts()) {
+        <a routerLink="/app" class="cd-more-link">
+          Et {{ moreAlerts() }} autre{{ moreAlerts() > 1 ? 's' : '' }} sur le tableau de bord
+        </a>
+      }
+    </section>
+  }
+
+  <!-- 2. Retours des sept derniers jours. La file complète, elle, a son écran. -->
+  @if (reviews().length) {
+    <section class="cd-sec">
+      <header class="cd-sec__hd">
+        <h2>Retours à traiter</h2>
+        <span class="cd-count">{{ reviews().length }}</span>
+        <a routerLink="/app/feedback" class="cd-sec__more">Tout voir</a>
+      </header>
+      <ul class="cd-list">
+        @for (it of topReviews(); track it.kind + it.sessionId) {
+          <li class="cd-card" [class.cd-card--red]="(it.pain ?? 0) >= 3 || !!it.injuries.length">
+            <div class="cd-card__top">
+              <strong>{{ it.athleteName }}</strong>
+              <span class="field-hint metric">{{ it.sessionDate | date: 'EEE d MMM' }}</span>
+            </div>
+            <span class="cd-card__title">{{ it.title }}</span>
+
+            <div class="cd-badges">
+              @if (it.rpe != null) { <span class="badge badge-neutral">RPE {{ it.rpe }}/10</span> }
+              @if (it.fatigue != null) { <span class="badge badge-neutral">Fatigue {{ it.fatigue }}/10</span> }
+              @if (it.pain != null) {
+                <span class="badge" [class.badge-danger]="it.pain >= 5"
+                      [class.badge-warning]="it.pain >= 3 && it.pain < 5"
+                      [class.badge-neutral]="it.pain < 3">Douleur {{ it.pain }}/10</span>
+              }
+            </div>
+
+            @if (it.injuries.length) {
+              <p class="cd-injuries">
+                <app-icon name="alert-triangle" [size]="14" />
+                @for (i of it.injuries; track $index) { <span>{{ injury(i) }}</span> }
+              </p>
+            }
+            @if (it.comment) { <p class="cd-comment">« {{ excerpt(it.comment) }} »</p> }
+
+            <div class="cd-acts">
+              @if (it.kind === 'COURSE') {
+                <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', it.athleteId, 'workouts', it.sessionId]">
+                  Voir la séance
+                </a>
+              } @else {
+                <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', it.athleteId, 'programme']">
+                  Voir le programme
+                </a>
+              }
+              <button type="button" class="btn btn-primary btn-sm" (click)="markReviewed(it)"
+                      [disabled]="busy().has(key(it))">
+                <app-icon name="check" [size]="15" /> Traité
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+      @if (moreReviews()) {
+        <a routerLink="/app/feedback" class="cd-more-link">
+          Et {{ moreReviews() }} retour{{ moreReviews() > 1 ? 's' : '' }} de plus dans la file
+        </a>
+      }
+    </section>
+  }
+
+  <!-- 3. Messages non lus : le fil s'ouvre d'un tap, on y répond là-bas. -->
+  @if (unread().length) {
+    <section class="cd-sec">
+      <header class="cd-sec__hd">
+        <h2>Messages</h2>
+        <span class="cd-count">{{ unread().length }}</span>
+        <a routerLink="/app/messages" class="cd-sec__more">Tout voir</a>
+      </header>
+      <ul class="cd-list cd-list--flat">
+        @for (c of topUnread(); track c.athleteId) {
+          <li>
+            <a class="cd-msg" [routerLink]="['/app/athletes', c.athleteId, 'messages']">
+              <span class="avatar avatar-sm">{{ c.firstName[0] }}{{ c.lastName[0] }}</span>
+              <span class="cd-msg__body">
+                <span class="cd-msg__top">
+                  <strong>{{ c.firstName }} {{ c.lastName }}</strong>
+                  <span class="field-hint metric">{{ c.lastMessageAt | date: 'd MMM, HH:mm' }}</span>
+                </span>
+                <span class="cd-msg__preview">{{ excerpt(c.lastMessage, 80) }}</span>
+              </span>
+              <span class="cd-msg__badge">{{ c.unreadCount > 9 ? '9+' : c.unreadCount }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+      @if (moreUnread()) {
+        <a routerLink="/app/messages" class="cd-more-link">
+          Et {{ moreUnread() }} conversation{{ moreUnread() > 1 ? 's' : '' }} non lue{{ moreUnread() > 1 ? 's' : '' }}
+        </a>
+      }
+    </section>
+  }
+
+  <!-- 4. La journée : ce qui est prévu, et les quatre gestes qu'on fait dessus. -->
+  <section class="cd-sec">
+    <header class="cd-sec__hd cd-sec__hd--day">
+      <h2>La journée</h2>
+      <div class="cd-daynav">
+        <button type="button" class="cd-arrow" (click)="shiftDay(-1)" aria-label="Jour précédent">
+          <app-icon name="chevron-left" [size]="18" />
+        </button>
+        <button type="button" class="cd-date" (click)="goToday()" [class.cd-date--today]="isToday()">
+          {{ isToday() ? "Aujourd'hui" : (date() | date: 'EEE d MMM') }}
+        </button>
+        <button type="button" class="cd-arrow" (click)="shiftDay(1)" aria-label="Jour suivant">
+          <app-icon name="chevron-right" [size]="18" />
+        </button>
+      </div>
+    </header>
+
+    @if (sessions().length === 0) {
+      <div class="card cd-empty">
+        <p class="field-hint">Aucune séance de course prévue ce jour-là sur {{ scopeLabel() | lowercase }}.</p>
+        <button type="button" class="btn btn-primary" (click)="openPlan()">
+          <app-icon name="plus" [size]="16" /> Planifier une séance
+        </button>
+      </div>
+    } @else {
+      <ul class="cd-list">
+        @for (s of sessions(); track s.workoutId) {
+          <li class="cd-card cd-sess">
+            <div class="cd-card__top">
+              <strong>{{ s.athleteName }}</strong>
+              <span class="badge"
+                    [class.badge-neutral]="s.status === 'PLANNED'"
+                    [class.badge-success]="s.status === 'COMPLETED'"
+                    [class.badge-warning]="s.status === 'PARTIAL'"
+                    [class.badge-danger]="s.status === 'MISSED'">{{ statusLabel(s.status) }}</span>
+            </div>
+            <span class="cd-card__title">{{ s.title }}</span>
+            <div class="cd-badges">
+              @if (s.type) { <span class="badge badge-neutral">{{ typeLabel(s.type) }}</span> }
+              @if (s.movedByAthlete) { <span class="badge badge-info">Déplacée par l'athlète</span> }
+              @if (s.awaitingReview) { <span class="badge badge-warning">Retour à traiter</span> }
+            </div>
+
+            <div class="cd-acts">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="open(s)">Ouvrir</button>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="toggleMenu(s)"
+                      [attr.aria-expanded]="menuFor() === s.workoutId" aria-label="Actions de la séance">
+                <app-icon name="ellipsis" [size]="16" /> Actions
+              </button>
+            </div>
+
+            @if (menuFor() === s.workoutId) {
+              <div class="cd-menu">
+                <button type="button" (click)="edit(s)">
+                  <app-icon name="pencil" [size]="16" /> Modifier la séance
+                </button>
+                <button type="button" (click)="startMove(s)">
+                  <app-icon name="calendar" [size]="16" /> Déplacer
+                </button>
+                <button type="button" class="cd-menu__danger" (click)="remove(s)">
+                  <app-icon name="trash-2" [size]="16" /> Supprimer
+                </button>
+              </div>
+            }
+
+            @if (movingId() === s.workoutId) {
+              <div class="cd-move">
+                <label class="field-hint" [attr.for]="'move-' + s.workoutId">Nouvelle date</label>
+                <input class="form-control" type="date" [id]="'move-' + s.workoutId" [(ngModel)]="moveDate" />
+                <div class="cd-acts">
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="closeMenu()">Annuler</button>
+                  <button type="button" class="btn btn-primary btn-sm" (click)="confirmMove(s)">Déplacer</button>
+                </div>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+
+      <button type="button" class="btn btn-ghost cd-plan-btn" (click)="openPlan()">
+        <app-icon name="plus" [size]="16" /> Planifier une séance
+      </button>
+    }
+  </section>
+}
+
+<!-- Feuille « planifier » : athlète, date, séance. Trois choix, dans cet ordre — c'est celui
+     dans lequel un coach y pense. -->
+@if (planOpen()) {
+  <div class="cd-sheet" (click)="closePlan()">
+    <div class="cd-sheet__panel" (click)="$event.stopPropagation()" role="dialog" aria-label="Planifier une séance">
+      <div class="cd-sheet__hd">
+        <strong>Planifier une séance</strong>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="closePlan()" aria-label="Fermer">
+          <app-icon name="x" [size]="18" />
+        </button>
+      </div>
+
+      <label class="field-hint" for="plan-athlete">Athlète</label>
+      <select class="form-control" id="plan-athlete" [(ngModel)]="planAthleteId">
+        <option value="">Choisir…</option>
+        @for (a of planAthletes(); track a.id) {
+          <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option>
+        }
+      </select>
+
+      <label class="field-hint" for="plan-date">Date</label>
+      <input class="form-control" type="date" id="plan-date" [(ngModel)]="planDate" />
+
+      <label class="field-hint" for="plan-q">Séance de la bibliothèque</label>
+      <input class="form-control" id="plan-q" type="search" placeholder="Rechercher un modèle…"
+             [(ngModel)]="planQuery" (ngModelChange)="onPlanQuery()" />
+
+      <ul class="cd-tpl">
+        @for (t of planMatches(); track t.id) {
+          <li>
+            <button type="button" (click)="planTemplate(t)" [disabled]="planning()">
+              <span>{{ t.name }}</span>
+              <app-icon name="arrow-right" [size]="15" />
+            </button>
+          </li>
+        } @empty {
+          <li class="field-hint cd-tpl__empty">Aucun modèle ne correspond.</li>
+        }
+      </ul>
+
+      <button type="button" class="btn btn-ghost cd-blank" (click)="planBlank()" [disabled]="planning()">
+        <app-icon name="pencil" [size]="15" /> Séance vierge, à construire
+      </button>
+    </div>
+  </div>
+}

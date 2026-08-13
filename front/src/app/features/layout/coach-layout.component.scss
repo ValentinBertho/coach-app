@@ -149,8 +149,16 @@
 }
 
 /* --- Bottom nav (mobile) --- */
+/* `fixed`, et non `sticky` : cette barre est un enfant de `.layout`, qui est une **rangée**
+   flex. En `sticky`, elle restait donc dans le flux et devenait une colonne posée à droite du
+   contenu — sur un iPhone de 390 px, elle en prenait 170 et laissait 220 px à tous les écrans
+   coach. C'est ce qui rendait l'espace coach illisible au téléphone bien avant le choix des
+   entrées de navigation. Sortie du flux, elle se comporte comme celle du portail athlète, qui
+   n'a jamais eu ce défaut parce qu'elle est fixed depuis le premier jour. */
 .bottom-nav {
-  position: sticky;
+  position: fixed;
+  left: 0;
+  right: 0;
   bottom: 0;
   display: none;
   background: var(--glass);
@@ -158,7 +166,7 @@
   -webkit-backdrop-filter: saturate(180%) blur(16px);
   border-top: 1px solid var(--hairline);
   padding-bottom: env(safe-area-inset-bottom);
-  z-index: 20;
+  z-index: 200;
 }
 .bottom-nav a,
 .bottom-nav .bn-more {
@@ -176,6 +184,26 @@
 .bottom-nav .bn-more { border: none; background: transparent; cursor: pointer; }
 .bottom-nav a.active,
 .bottom-nav .bn-more.active { color: var(--primary); }
+
+/* Badge posé sur l'icône, pas à côté du libellé : dans une barre à quatre colonnes, un
+   compteur en ligne pousse le texte et fait sauter l'alignement des quatre entrées. */
+.bottom-nav .bn-ic { position: relative; display: inline-flex; }
+.bottom-nav .bn-badge {
+  position: absolute; top: -5px; right: -9px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-full);
+  background: var(--energy); color: #fff;
+  font-family: var(--font-data); font-size: var(--text-2xs); font-weight: 800;
+}
+
+/* Pied du tiroir : activation des notifications et déconnexion, qui encombraient la barre
+   supérieure alors qu'on les touche une fois par mois. */
+.more-sheet__ft {
+  display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+  margin-top: var(--sp-3); padding-top: var(--sp-3);
+  border-top: 1px solid var(--hairline);
+}
 
 /* --- Panneau « Plus » mobile (nav complète) --- */
 .more-sheet {
@@ -237,7 +265,12 @@
 @media (max-width: 900px) {
   .desktop-only { display: none !important; }
   .bottom-nav { display: flex; }
-  .content { padding-block: var(--sp-5); padding-bottom: var(--sp-8); }
+  /* La barre étant hors du flux, c'est au contenu de lui laisser sa place — sinon la dernière
+     carte de chaque écran se termine dessous. */
+  .content {
+    padding-block: var(--sp-5);
+    padding-bottom: calc(var(--sp-6) + 56px + env(safe-area-inset-bottom, 0px));
+  }
 }
 @media (min-width: 901px) {
   .mobile-only { display: none !important; }

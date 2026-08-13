@@ -15,6 +15,17 @@ export class ThemeService {
   /** Thème réellement appliqué (résout `system`). */
   readonly effective = signal<'light' | 'dark'>('light');
 
+  /**
+   * L'utilisateur a-t-il <b>choisi</b> son thème, ou n'a-t-il simplement jamais rien dit ?
+   *
+   * <p>La distinction compte pour le portail athlète, dont la peau sombre est un parti pris
+   * d'immersion et non un défaut hérité du système. Tant que rien n'a été choisi, ce parti pris
+   * tient ; dès qu'un athlète exprime une préférence, c'est la sienne qui s'applique — y compris
+   * « Système ». Sans ce drapeau, ouvrir le choix aux athlètes aurait éclairci du jour au
+   * lendemain le portail de tous ceux qui n'ont rien demandé.</p>
+   */
+  readonly chosen = signal(this.hasStored());
+
   private readonly media = typeof matchMedia !== 'undefined'
     ? matchMedia('(prefers-color-scheme: dark)') : null;
 
@@ -28,6 +39,7 @@ export class ThemeService {
 
   set(pref: ThemePref): void {
     this.preference.set(pref);
+    this.chosen.set(true);
     try { localStorage.setItem(KEY, pref); } catch { /* stockage indisponible */ }
     this.apply(pref);
   }
@@ -38,6 +50,13 @@ export class ThemeService {
     const root = document.documentElement;
     if (dark) root.setAttribute('data-theme', 'dark');
     else root.removeAttribute('data-theme');
+  }
+
+  private hasStored(): boolean {
+    try {
+      const v = localStorage.getItem(KEY);
+      return v === 'light' || v === 'dark' || v === 'system';
+    } catch { return false; }
   }
 
   private readStored(): ThemePref {

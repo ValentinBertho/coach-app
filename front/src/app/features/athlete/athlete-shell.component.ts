@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { ThemeService } from '../../core/services/theme.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { AthleteTopbarComponent } from './athlete-topbar.component';
 import { DebriefPromptComponent } from './debrief-prompt.component';
@@ -15,9 +16,12 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
   imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, DebriefPromptComponent,
     AthleteTopbarComponent],
   template: `
-    <!-- Peau « night-track » : le portail athlète est toujours sombre (immersion mobile),
-         indépendamment du thème du coach. Les tokens sombres sont scopés à ce sous-arbre. -->
-    <div class="ashell" data-theme="dark">
+    <!-- Peau « night-track » : le portail athlète est sombre par défaut (immersion mobile).
+         Ce n'est plus une fatalité — un athlète qui choisit son thème dans son profil obtient
+         le sien, y compris « Système ». Tant qu'il n'a rien choisi, le parti pris tient : le
+         sous-arbre force le sombre, quel que soit le réglage de l'appareil. Dès qu'il a choisi,
+         l'attribut disparaît d'ici et c'est <html> — donc ThemeService — qui décide. -->
+    <div class="ashell" [attr.data-theme]="skin()">
       <!-- Marque, cloche et compte : dans la coquille, donc sur TOUS les écrans du portail. Cette
            barre ne vivait que dans « Aujourd'hui » : le calendrier, les progrès, l'historique
            n'avaient ni notifications ni accès au profil. -->
@@ -55,7 +59,13 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
     </div>
   `,
   styles: [`
-    .ashell { min-height: 100dvh; background: var(--canvas); }
+    /* La couleur du texte est réaffirmée, et pas seulement le fond : le thème sombre du portail
+       est scopé à ce sous-arbre, alors que la couleur du texte est posée sur l'élément body, où
+       les jetons valent encore ceux du thème clair. Tout élément qui ne redéfinit pas sa couleur
+       — un simple strong — héritait donc du noir du body sur un fond sombre : les intitulés du
+       profil (« Mon heure d'entraînement habituelle », « Notifications push ») étaient
+       illisibles. */
+    .ashell { min-height: 100dvh; background: var(--canvas); color: var(--ink); }
     .ashell__content {
       padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px));
       /* Retrait haut du portail, exposé en propriété personnalisée : chaque écran monté ici
@@ -89,4 +99,12 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
     .ashell__nav a.active .ic { filter: none; opacity: 1; }
   `],
 })
-export class AthleteShellComponent {}
+export class AthleteShellComponent {
+  private readonly theme = inject(ThemeService);
+
+  /**
+   * Peau du portail : `dark` imposé tant que l'athlète n'a pas choisi, rien ensuite — auquel cas
+   * la préférence posée sur `<html>` s'applique d'elle-même.
+   */
+  readonly skin = computed(() => (this.theme.chosen() ? null : 'dark'));
+}

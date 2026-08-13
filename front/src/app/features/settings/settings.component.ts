@@ -3,10 +3,11 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ClubDefaults, ClubService } from '../../core/services/club.service';
-import { ThemeService, type ThemePref } from '../../core/services/theme.service';
+import { ThemeService } from '../../core/services/theme.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { SegmentedControlComponent, type SegmentOption } from '../../shared/components/ui';
+import { ThemePickerComponent } from '../../shared/components/theme-picker/theme-picker.component';
 
 /**
  * Écran Paramètres — profil coach, préférences d'affichage et défauts physiologiques du club.
@@ -18,7 +19,7 @@ import { SegmentedControlComponent, type SegmentOption } from '../../shared/comp
   selector: 'app-settings',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, IconComponent, SegmentedControlComponent],
+  imports: [FormsModule, RouterLink, IconComponent, SegmentedControlComponent, ThemePickerComponent],
   template: `
     <section class="page-header">
       <div>
@@ -80,9 +81,9 @@ import { SegmentedControlComponent, type SegmentOption } from '../../shared/comp
       <!-- ===== Préférences d'affichage ===== -->
       <div class="card">
         <h2>Affichage</h2>
-        <p class="field-hint">Thème de l'interface. « Système » suit les réglages de ton appareil.</p>
-        <app-segmented-control [options]="themeOptions" [value]="theme.preference()"
-          (valueChange)="setTheme($any($event))" />
+        <!-- Même contrôle que celui du portail athlète : le réglage est le même, il n'a pas à
+             être écrit deux fois ni à diverger d'un côté ou de l'autre. -->
+        <app-theme-picker hint="Thème de l'interface. « Système » suit les réglages de ton appareil." />
 
         <h3 class="sub-h">Unité d'allure</h3>
         <p class="field-hint">
@@ -181,12 +182,6 @@ export class SettingsComponent implements OnInit {
   readonly savingDefaults = signal(false);
   readonly defaults = signal<ClubDefaults | null>(null);
 
-  readonly themeOptions: SegmentOption[] = [
-    { value: 'light', label: 'Clair' },
-    { value: 'dark', label: 'Sombre' },
-    { value: 'system', label: 'Système' },
-  ];
-
   readonly paceOptions: SegmentOption[] = [
     { value: 'PACE', label: 'min/km' },
     { value: 'SPEED', label: 'km/h' },
@@ -208,8 +203,6 @@ export class SettingsComponent implements OnInit {
     const u = this.user();
     return !!u && this.profile.email.trim().toLowerCase() !== u.email.toLowerCase();
   }
-
-  setTheme(pref: ThemePref): void { this.theme.set(pref); }
 
   setPaceUnit(value: string): void {
     this.profile.paceUnit = value as 'PACE' | 'SPEED';
