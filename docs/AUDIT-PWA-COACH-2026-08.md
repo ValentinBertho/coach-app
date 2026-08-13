@@ -301,7 +301,7 @@ var(--ink)` sur `.ashell`) referme le trou.
 | Vague | Contenu | Backend | Estimation |
 |---|---|---|---|
 | **1 — Le matin du coach dans la poche** ✅ **livrée** | Coquille mobile (4 onglets + tiroir), écran **Ma journée**, invitation installer + notifications côté coach, manifeste (`id`, `display_override`, `shortcuts` + routes `/go/*`), badge d'icône, choix du thème côté coach **et** athlète, plus les deux correctifs du §5 bis | un endpoint de lecture (`/dashboard/day`) | ~3–4 j |
-| **2 — Répondre sans ouvrir un écran de bureau** | Feuille de réponse depuis Ma journée et depuis la file, actions rapides de notification (Traité / Répondre) + idempotence + annulation, fiche athlète condensée, passe des cibles ≥ 44 px | ~0,5 j (actions sur 3 flux) | ~3 j |
+| **2 — Répondre sans ouvrir un écran de bureau** ✅ **livrée** | Feuille de réponse depuis Ma journée, actions rapides de notification (Traité / Répondre / Ouvrir) + idempotence + annulation, digest qui atterrit sur Ma journée, fiche athlète condensée, passe des cibles ≥ 44 px | actions sur 4 flux | ~3 j |
 | **3 — La semaine dans la poche** | Vue Jour du calendrier + déplacement par menu, lecture hors ligne (`dataGroups` + test de purge), endpoint agrégé si le besoin se confirme | ~1 j | ~4 j |
 
 **Vague 1 seule vaut déjà d'être livrée** : elle referme le trou le plus coûteux (le coach iPhone
@@ -325,6 +325,29 @@ S'y ajoute, hors plan initial et à la demande : **le choix du thème pour tout 
 réglage n'existait que dans les paramètres du coach ; le portail athlète était sombre, point. Il
 est désormais partagé (un seul composant) et proposé dans le profil de l'athlète — avec une
 règle de non-régression : tant qu'un athlète n'a rien choisi, son portail reste sombre.
+
+**Vague 2 — ce qui a été livré.** Le constat 2.3 (« chaque notification atterrit sur l'écran le
+plus lourd du produit ») est refermé par les deux bouts :
+
+- **Les notifications du coach portent des boutons.** Un retour d'athlète propose *Traité* et
+  *Ouvrir* ; un message et une blessure déclarée proposent *Répondre*, qui ouvre le fil avec le
+  champ de saisie déjà actif (`?reply=1`). Le digest de 7 h, lui, atterrit désormais sur
+  **Ma journée** plutôt que sur le cockpit — c'est un push du matin, lu sur un téléphone.
+- **« Traité » écrit depuis l'écran verrouillé, sans risque.** L'action vise
+  `/app/feedback?review=<type>:<athlète>:<séance>`, et l'écran d'arrivée applique trois
+  précautions : le paramètre est retiré de l'URL avant l'appel (un rechargement ne rejoue rien),
+  l'écriture est idempotente (l'accusé de lecture pose une date), et un « Annuler » de huit
+  secondes remet le retour dans la file. Vérifié de bout en bout sur données réelles : file à
+  111 → 110 après l'action, 111 après annulation.
+- **Répondre ne fait plus quitter la file.** Une feuille partagée (`app-reply-sheet`) écrit dans
+  le fil de l'athlète depuis « Ma journée » — même route d'API que la messagerie, pas un second
+  canal — avec quatre réponses toutes faites pour le bord de piste.
+- **La fiche athlète tient sur 390 px.** Métriques en deux colonnes, onglets à défilement cranté,
+  actions pleine largeur, et l'export PDF devient une feuille par le bas au lieu d'un popover de
+  280 px ancré à droite qui sortait de l'écran. Aucune fonction retirée.
+- **Passe des 44 px** sur les cibles du bandeau : le pas-à-pas entre athlètes (22 px), le
+  sélecteur de nom (33 px), les préréglages d'export. Mesuré à zéro cible sous le plancher après
+  correctif.
 
 ---
 
@@ -368,9 +391,8 @@ règle de non-régression : tant qu'un athlète n'a rien choisi, son portail res
 - **Un raccourci « planifier »** → **retenu, et élargi** : planifier, modifier, déplacer,
   supprimer, depuis la carte de la séance.
 
-Restent ouverts, pour les vagues suivantes : faut-il un endpoint agrégé pour « Ma journée »
-(quatre appels aujourd'hui), et faut-il changer les liens des notifications coach pour qu'ils
-atterrissent sur `/go/journee` plutôt que sur les écrans de bureau (§5.5, vague 2).
+Reste ouvert pour la suite : faut-il un endpoint agrégé pour « Ma journée » (quatre appels
+aujourd'hui) ? À trancher sur mesure, pas par principe.
 
 ---
 

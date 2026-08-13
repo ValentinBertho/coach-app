@@ -109,12 +109,23 @@ class NotificationServiceTest {
 
     private Workout feedbackWorkout() {
         Workout w = sampleWorkout();
+        // La séance porte un identifiant : les actions rapides de la notification le transportent.
+        w.setId(UUID.randomUUID());
         w.getAthlete().setId(UUID.randomUUID());
         Club club = new Club();
         club.setId(UUID.randomUUID());
         w.setClub(club);
         w.setStatus(WorkoutStatus.COMPLETED);
         return w;
+    }
+
+    /**
+     * Les actions rapides d'une notification, quand le test ne porte pas dessus. Les retours
+     * d'athlète et les messages en portent désormais (« Traité », « Répondre ») : la remise passe
+     * donc par la forme à cinq arguments.
+     */
+    private List<PushNotificationService.QuickAction> anyActions() {
+        return any();
     }
 
     private User coach(String email) {
@@ -169,8 +180,16 @@ class NotificationServiceTest {
 
         // Le retour d'un athlète est une notification de routine : push + centre de
         // notifications, jamais d'e-mail (c'était le flux le plus volumineux côté coach).
+        // Deux boutons l'accompagnent : le classer sans l'ouvrir, ou aller le lire.
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<PushNotificationService.QuickAction>> actions =
+                ArgumentCaptor.forClass(List.class);
         verify(pushService).sendToUser(eq(rel.getCoach().getId()), eq("Séance mise à jour"),
-                any(), contains("/app/feedback"));
+                any(), contains("/app/feedback"), actions.capture());
+        assertThat(actions.getValue()).extracting(PushNotificationService.QuickAction::id)
+                .containsExactly("traite", "ouvrir");
+        assertThat(actions.getValue().get(0).url())
+                .contains("/app/feedback?review=COURSE:" + w.getAthlete().getId() + ":" + w.getId());
         verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
         // Le head coach n'est pas sollicité quand un référent existe.
         verify(userRepository, never()).findFirstByClubIdAndRole(any(), any());
@@ -206,6 +225,59 @@ class NotificationServiceTest {
         org.assertj.core.api.Assertions.assertThat(html).doesNotContain("8/10").doesNotContain("Douleur");
         int firstMarie = html.indexOf("Marie Durand");
         org.assertj.core.api.Assertions.assertThat(html.indexOf("Marie Durand", firstMarie + 1)).isEqualTo(-1);
+    }
+
+    /**
+     * Une blessure déclarée appelle un mot : le bouton de la notification mène au fil de
+     * l'athlète, champ de saisie ouvert — et jamais à un écran qui dirait la blessure.
+     */
+    @Test
+    void injuryAlertOffersToReplyOnThatAthleteThread() {
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Athlete athlete = new Athlete();
+        athlete.setId(UUID.randomUUID());
+        athlete.setFirstName("Marie");
+        athlete.setLastName("Durand");
+        User referent = coach("referent@test.fr");
+        when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athlete.getId()))
+                .thenReturn(Optional.of(relWith(referent)));
+
+        notificationService.notifyInjuryAlert(athlete, List.of(new com.coachrun.dto.InjuryReport(
+                com.coachrun.entity.enums.InjuryKind.SPRAIN,
+                com.coachrun.entity.enums.InjuryArea.ANKLE, null, "en descente")));
+
+        ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<PushNotificationService.QuickAction>> actions =
+                ArgumentCaptor.forClass(List.class);
+        verify(pushService).sendToUser(eq(referent.getId()), eq("Blessure déclarée"),
+                body.capture(), contains("/app/athletes/" + athlete.getId()), actions.capture());
+        // Ni la nature ni la localisation : elles s'afficheraient sur un écran verrouillé.
+        assertThat(body.getValue()).doesNotContain("cheville").doesNotContain("entorse")
+                .doesNotContain("descente");
+        assertThat(actions.getValue()).singleElement()
+                .extracting(PushNotificationService.QuickAction::url).asString()
+                .endsWith("/app/athletes/" + athlete.getId() + "/messages?reply=1");
+    }
+
+    /**
+     * Le digest de 7 h atterrit sur « Ma journée », pas sur le cockpit : il est lu sur un
+     * téléphone, et il annonce exactement ce que cet écran rassemble.
+     */
+    @Test
+    void alertDigestLandsOnTheCoachDayScreen() {
+        ReflectionTestUtils.setField(notificationService, "enabled", true);
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "publisher", "Darilab");
+        User target = coach("coach@test.fr");
+
+        notificationService.notifyCoachAlertDigest(target, List.of(
+                new com.coachrun.dto.response.CoachAlertResponse(UUID.randomUUID(), "Marie Durand",
+                        "ROUTE", "RED", "PAIN", "Douleur élevée", "Douleur 8/10.")));
+
+        verify(pushService).sendToUser(eq(target.getId()), eq("Alertes à traiter"), any(),
+                eq("http://localhost:4200/app/journee"));
     }
 
     /**
@@ -255,7 +327,7 @@ class NotificationServiceTest {
         notificationService.notifyAthleteFeedback(w);
 
         verify(pushService).sendToUser(eq(head.getId()), eq("Séance mise à jour"),
-                any(), contains("/app/feedback"));
+                any(), contains("/app/feedback"), anyActions());
         verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
     }
 
@@ -365,9 +437,16 @@ class NotificationServiceTest {
         notificationService.notifyNewMessage(m);
 
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<PushNotificationService.QuickAction>> actions =
+                ArgumentCaptor.forClass(List.class);
         verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Nouveau message"),
-                body.capture(), contains("/athlete/messages"));
+                body.capture(), contains("/athlete/messages"), actions.capture());
         assertThat(body.getValue()).isEqualTo("Coach Bernard").doesNotContain("genou");
+        // Répondre en un tap : le bouton vise le fil, champ de saisie déjà actif.
+        assertThat(actions.getValue()).singleElement()
+                .extracting(PushNotificationService.QuickAction::url).asString()
+                .endsWith("/athlete/messages?reply=1");
     }
 
     /** Un message de l'athlète remonte à son coach référent, sur le fil de cet athlète. */
@@ -384,8 +463,16 @@ class NotificationServiceTest {
 
         notificationService.notifyNewMessage(message(athlete, UserRole.ATHLETE, "Marie Durand", "coucou"));
 
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<PushNotificationService.QuickAction>> actions =
+                ArgumentCaptor.forClass(List.class);
         verify(pushService).sendToUser(eq(referent.getId()), eq("Nouveau message"),
-                eq("Marie Durand"), contains("/app/athletes/" + athlete.getId() + "/messages"));
+                eq("Marie Durand"), contains("/app/athletes/" + athlete.getId() + "/messages"),
+                actions.capture());
+        // Le bouton mène au fil de CET athlète, pas à la boîte de réception.
+        assertThat(actions.getValue()).singleElement()
+                .extracting(PushNotificationService.QuickAction::url).asString()
+                .endsWith("/app/athletes/" + athlete.getId() + "/messages?reply=1");
     }
 
     /**
@@ -457,7 +544,7 @@ class NotificationServiceTest {
 
         ArgumentCaptor<String> body = ArgumentCaptor.forClass(String.class);
         verify(pushService).sendToUser(eq(referent.getId()), eq("Séance mise à jour"),
-                body.capture(), any());
+                body.capture(), any(), anyActions());
         assertThat(body.getValue()).isEqualTo("Marie — partiellement réalisée");
     }
 
@@ -494,7 +581,8 @@ class NotificationServiceTest {
 
         notificationService.notifyNewMessage(message(athlete, UserRole.COACH, "Coach", "salut"));
 
-        verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Nouveau message"), any(), any());
+        verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Nouveau message"), any(), any(),
+                anyActions());
     }
 
     /** 23 h 30 tombe dans la plage par défaut : la trace se dépose, le téléphone ne sonne pas. */
@@ -570,7 +658,7 @@ class NotificationServiceTest {
         notificationService.notifyAthleteFeedback(w);
 
         verify(pushService).sendToUser(eq(referent.getId()), eq("Séance mise à jour"),
-                any(), contains("/app/feedback"));
+                any(), contains("/app/feedback"), anyActions());
     }
 
     /** Une séance déclarée non faite aussi. */
@@ -585,7 +673,7 @@ class NotificationServiceTest {
 
         notificationService.notifyAthleteFeedback(w);
 
-        verify(pushService).sendToUser(eq(referent.getId()), any(), any(), any());
+        verify(pushService).sendToUser(eq(referent.getId()), any(), any(), any(), anyActions());
     }
 
     // ---------------------------------------------------------------------------------------

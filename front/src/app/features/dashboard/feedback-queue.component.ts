@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { Injury, injuryLabel } from '../../core/models/injury.model';
 import { CoachDashboardService, FeedbackQueueItem } from '../../core/services/coach-dashboard.service';
@@ -157,6 +157,8 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
 })
 export class FeedbackQueueComponent implements OnInit {
   private readonly dashboardService = inject(CoachDashboardService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly workoutService = inject(WorkoutService);
   private readonly strengthService = inject(StrengthService);
   private readonly toast = inject(ToastService);
@@ -205,7 +207,64 @@ export class FeedbackQueueComponent implements OnInit {
     { value: 'club', label: 'Club' },
   ];
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+    this.runNotificationAction();
+  }
+
+  /**
+   * Exécute l'action rapide d'une notification : « Traité » depuis l'écran verrouillé.
+   *
+   * <p>Le bouton du système ouvre cet écran avec le retour désigné en clair
+   * (<code>?review=COURSE:&lt;athlète&gt;:&lt;séance&gt;</code>). Trois précautions, parce qu'une
+   * écriture déclenchée par une URL n'est pas un clic dans l'application :</p>
+   * <ul>
+   *   <li><b>idempotente</b> — l'accusé de lecture pose une date ; le rejouer ne casse rien, et
+   *       le paramètre est retiré de l'URL aussitôt pour qu'un rechargement ne le relance pas ;</li>
+   *   <li><b>annulable</b> — un tap sur un écran verrouillé se fait aussi par erreur, d'où le
+   *       « Annuler » du toast, qui remet le retour dans la file ;</li>
+   *   <li><b>silencieuse sur un format inconnu</b> — un lien tronqué ne doit rien écrire.</li>
+   * </ul>
+   */
+  private runNotificationAction(): void {
+    const raw = this.route.snapshot.queryParamMap.get('review');
+    if (!raw) return;
+    // On nettoie l'URL avant même d'agir : sans ça, un rechargement de page rejouerait l'action.
+    void this.router.navigate([], {
+      relativeTo: this.route, queryParams: {}, replaceUrl: true,
+    });
+
+    const [kind, athleteId, sessionId] = raw.split(':');
+    if ((kind !== 'COURSE' && kind !== 'STRENGTH') || !athleteId || !sessionId) return;
+
+    this.setReviewed(kind, athleteId, sessionId, true).subscribe({
+      next: () => {
+        this.items.update((l) => l.filter((x) => this.key(x) !== `${kind}:${sessionId}`));
+        this.dashboardService.refreshPendingReviews().subscribe({ error: () => undefined });
+        this.toast.withAction('Retour marqué comme traité', 'Annuler', () => this.undoReview(kind, athleteId, sessionId));
+      },
+      error: () => this.toast.error("Ce retour n'a pas pu être marqué comme traité."),
+    });
+  }
+
+  /** Remet le retour dans la file, et recharge pour qu'il y réapparaisse à sa place. */
+  private undoReview(kind: 'COURSE' | 'STRENGTH', athleteId: string, sessionId: string): void {
+    this.setReviewed(kind, athleteId, sessionId, false).subscribe({
+      next: () => {
+        this.load();
+        this.dashboardService.refreshPendingReviews().subscribe({ error: () => undefined });
+        this.toast.info('Retour remis dans la file');
+      },
+      error: () => this.toast.error('Annulation impossible.'),
+    });
+  }
+
+  private setReviewed(kind: 'COURSE' | 'STRENGTH', athleteId: string, sessionId: string,
+                      reviewed: boolean): Observable<unknown> {
+    return kind === 'STRENGTH'
+      ? this.strengthService.markScheduledReviewed(athleteId, sessionId, reviewed)
+      : this.workoutService.markReviewed(athleteId, sessionId, reviewed);
+  }
 
   setScope(value: string): void {
     this.scope.set(value as Scope);

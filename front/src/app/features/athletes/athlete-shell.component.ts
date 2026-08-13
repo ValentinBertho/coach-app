@@ -265,9 +265,50 @@ const SECTION_LABELS: Record<string, string> = {
     .invite-panel { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-5); }
     .invite-url { word-break: break-all; font-size: var(--text-sm); margin: 2px 0 0; }
 
+    /* --- Fiche athlète au téléphone -------------------------------------------
+       Rien n'est retiré : tout est condensé. Le bandeau d'identité de la fiche a été dessiné
+       pour un écran large — six métriques en ligne, trois actions à droite, sept onglets — et
+       il occupait sur 390 px la moitié de la hauteur avant que la section demandée commence. */
     @media (max-width: 720px) {
       .shell-head { margin-left: calc(var(--sp-4) * -1); margin-right: calc(var(--sp-4) * -1); padding-left: var(--sp-4); padding-right: var(--sp-4); }
       .shell-actions { margin-left: 0; width: 100%; }
+      .shell-actions .btn, .export-wrap { flex: 1; }
+      .shell-actions .btn { min-height: 44px; justify-content: center; }
+
+      /* Le pas-à-pas entre athlètes tombait à ~22 px : sous le plancher tactile du design
+         system, et posé juste à côté du sélecteur de nom qu'on visait en réalité. Le nom
+         lui-même — la porte vers un autre athlète — était à 33 px. */
+      .stepper .icon-btn { min-width: 44px; min-height: 44px; justify-content: center; }
+      app-athlete-switcher ::ng-deep .sw__trigger { min-height: 44px; }
+
+      /* Métriques : deux colonnes lisibles plutôt qu'une ligne qui se replie n'importe où. */
+      .stat-strip {
+        display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2) var(--sp-4);
+      }
+      .stat-strip__item:first-child { grid-column: 1 / -1; }
+      .stat-strip__item dd { font-size: var(--text-md); }
+
+      /* Onglets : cibles confortables, défilement au doigt cran par cran. */
+      .shell-tabs {
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        margin-inline: calc(var(--sp-4) * -1);
+        padding-inline: var(--sp-4);
+      }
+      .shell-tabs::-webkit-scrollbar { display: none; }
+      .shell-tabs a { scroll-snap-align: start; min-height: 44px; display: inline-flex; align-items: center; }
+
+      /* L'export en feuille plutôt qu'en popover : ancré à droite sur 280 px de large, il
+         sortait de l'écran ou s'y collait, et ses préréglages ne se touchaient pas. */
+      .export-pop {
+        position: fixed; inset: auto 0 0 0; width: auto;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+        z-index: 300;
+      }
+      .ep-preset { min-height: 44px; }
+      .ep-dates .form-control { min-height: 44px; }
+      .ep-actions .btn { flex: 1; min-height: 44px; justify-content: center; }
     }
   `],
 })

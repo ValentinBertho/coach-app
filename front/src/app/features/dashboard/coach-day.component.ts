@@ -23,6 +23,7 @@ import { WorkoutTemplateService } from '../../core/services/workout-template.ser
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { InstallPromptComponent } from '../../shared/components/install-prompt/install-prompt.component';
 import { PushPromptComponent } from '../../shared/components/push-prompt/push-prompt.component';
+import { ReplySheetComponent, type ReplyTarget } from '../../shared/components/reply-sheet/reply-sheet.component';
 import { injuryLabel } from '../../core/models/injury.model';
 
 type Scope = 'all' | 'mine' | 'private' | 'club';
@@ -52,7 +53,7 @@ const SCOPE_KEY = 'coach-day-scope';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, DatePipe, LowerCasePipe, FormsModule, IconComponent,
-    InstallPromptComponent, PushPromptComponent],
+    InstallPromptComponent, PushPromptComponent, ReplySheetComponent],
   templateUrl: './coach-day.component.html',
   styleUrl: './coach-day.component.scss',
 })
@@ -195,6 +196,35 @@ export class CoachDayComponent implements OnInit {
 
   private release(k: string): void {
     this.busy.update((s) => { const n = new Set(s); n.delete(k); return n; });
+  }
+
+  // --- Répondre sans quitter l'écran ----------------------------------------
+  // « Répondre » menait au fil de l'athlète, donc hors de la file en cours de traitement : on
+  // perdait sa place pour écrire une phrase. La feuille écrit dans le même fil, ici.
+
+  readonly replyTo = signal<ReplyTarget | null>(null);
+
+  replyToAlert(a: CoachAlert): void {
+    this.closeMenu();
+    this.replyTo.set({ athleteId: a.athleteId, name: a.athleteName, about: a.title });
+  }
+
+  replyToReview(it: FeedbackQueueItem): void {
+    this.closeMenu();
+    this.replyTo.set({ athleteId: it.athleteId, name: it.athleteName, about: it.title });
+  }
+
+  replyToSession(s: CoachDaySession): void {
+    this.closeMenu();
+    this.replyTo.set({ athleteId: s.athleteId, name: s.athleteName, about: s.title });
+  }
+
+  /** Un message envoyé peut avoir vidé un non-lu : la section Messages se recharge. */
+  onReplySent(): void {
+    this.messages.conversations().subscribe({
+      next: (c) => this.conversations.set(c),
+      error: () => undefined,
+    });
   }
 
   // --- Actions rapides sur une séance ---------------------------------------
