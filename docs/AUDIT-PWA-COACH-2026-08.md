@@ -302,7 +302,7 @@ var(--ink)` sur `.ashell`) referme le trou.
 |---|---|---|---|
 | **1 — Le matin du coach dans la poche** ✅ **livrée** | Coquille mobile (4 onglets + tiroir), écran **Ma journée**, invitation installer + notifications côté coach, manifeste (`id`, `display_override`, `shortcuts` + routes `/go/*`), badge d'icône, choix du thème côté coach **et** athlète, plus les deux correctifs du §5 bis | un endpoint de lecture (`/dashboard/day`) | ~3–4 j |
 | **2 — Répondre sans ouvrir un écran de bureau** ✅ **livrée** | Feuille de réponse depuis Ma journée, actions rapides de notification (Traité / Répondre / Ouvrir) + idempotence + annulation, digest qui atterrit sur Ma journée, fiche athlète condensée, passe des cibles ≥ 44 px | actions sur 4 flux | ~3 j |
-| **3 — La semaine dans la poche** | Vue Jour du calendrier + déplacement par menu, lecture hors ligne (`dataGroups` + test de purge), endpoint agrégé si le besoin se confirme | ~1 j | ~4 j |
+| **3 — La semaine dans la poche** ✅ **livrée** | Vue Jour du calendrier (menu Vue, raccourci `J`, ouverture automatique sous 768 px), lecture hors ligne (`dataGroups` + fraîcheur affichée + test de purge) | aucun | ~4 j |
 
 **Vague 1 seule vaut déjà d'être livrée** : elle referme le trou le plus coûteux (le coach iPhone
 qui ne peut pas être alerté) et donne un écran d'ouverture qui a du sens.
@@ -348,6 +348,31 @@ plus lourd du produit ») est refermé par les deux bouts :
 - **Passe des 44 px** sur les cibles du bandeau : le pas-à-pas entre athlètes (22 px), le
   sélecteur de nom (33 px), les préréglages d'export. Mesuré à zéro cible sous le plancher après
   correctif.
+
+---
+
+**Vague 3 — ce qui a été livré.**
+
+- **Une vue « Jour » dans le calendrier**, greffée sur la mécanique existante plutôt qu'écrite à
+  côté : `mode` accepte un troisième état, la grille rend une colonne, la ligne des jours
+  disparaît et les séances deviennent des cartes de 48 px. Sous 768 px, le calendrier s'ouvre
+  dessus ; ailleurs elle s'atteint par le menu Vue ou la touche `J`. Le déplacement d'une séance
+  reste ce qu'il était — le menu contextuel « Déplacer vers », qui répond à l'appui long — mais
+  il vise enfin une cible qu'on peut toucher.
+- **Un défaut trouvé en la construisant** : le calcul des bandeaux de cycle lisait `days[6]`, le
+  septième jour d'une rangée. Avec une rangée d'un seul jour, l'exception remontait dans le calcul
+  des semaines, et la grille ne rendait plus <b>aucune</b> colonne — sans rien afficher d'autre
+  qu'une page vide. C'est le genre de dépendance implicite qu'une vue à sept colonnes ne révèle
+  jamais.
+- **La journée du coach se lit hors ligne.** Sept motifs d'URL du tableau de bord passent en
+  cache `freshness` (réseau d'abord, cache après 3 s, 2 h de validité) : dans le métro, le coach
+  voit sa file du matin. L'écran le **dit** — « Hors ligne — dernières données : aujourd'hui à
+  7 h 12 » — parce qu'une liste d'alertes de sept heures présentée comme l'état de midi vaut moins
+  que pas de liste. Et quand rien n'a pu être chargé, il affiche « Journée non chargée » au lieu
+  d'annoncer une journée calme qu'il n'a pas vérifiée.
+- **La purge des caches à la déconnexion devient un invariant testé.** On met désormais en cache
+  de la donnée de santé (douleur, blessures déclarées) : sur un appareil partagé, la purge n'est
+  plus un effet de bord heureux, elle est vérifiée.
 
 ---
 

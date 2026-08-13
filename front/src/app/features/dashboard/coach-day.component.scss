@@ -151,6 +151,22 @@ app-install-prompt, app-push-prompt { display: block; margin-bottom: var(--sp-3)
 }
 
 /* --- États --- */
+.cd-stale {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin: 0 0 var(--sp-3); padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
+  background: var(--warning-bg); color: var(--warning-text);
+  font-size: var(--text-sm); font-weight: 600;
+}
+.cd-failed { display: flex; align-items: flex-start; gap: var(--sp-3); flex-wrap: wrap; }
+.cd-failed__ic {
+  width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--warning-bg); color: var(--warning-text);
+}
+.cd-failed p { margin: 2px 0 0; }
+.cd-failed .btn { min-height: 44px; }
+
 .cd-quiet { display: flex; align-items: flex-start; gap: var(--sp-3); }
 .cd-quiet__ic {
   width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--radius-sm);

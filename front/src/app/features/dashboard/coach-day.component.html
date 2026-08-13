@@ -39,9 +39,37 @@
   title="Être prévenu tout de suite"
   lead="Une blessure déclarée, une séance manquée, un message d'un athlète — sur ton téléphone, sans ouvrir l'application." />
 
+<!-- Hors ligne, l'écran vit du cache du service worker : il doit dire de quand il date.
+     Une file d'alertes de 7 h présentée comme l'état de midi vaut moins que pas de file. -->
+@if (!network.online() && lastLoadedAt()) {
+  <p class="cd-stale" role="status">
+    <app-icon name="wifi-off" [size]="15" />
+    Hors ligne — dernières données : {{ freshness() }}.
+  </p>
+}
+
 @if (loading()) {
   <div class="card"><div class="skeleton" style="height: 120px;"></div></div>
 } @else {
+
+  <!-- Le chargement a échoué : on le dit, au lieu d'annoncer une journée calme qu'on n'a pas
+       vérifiée. -->
+  @if (failed()) {
+    <div class="card cd-failed">
+      <span class="cd-failed__ic"><app-icon name="alert-triangle" [size]="20" /></span>
+      <div>
+        <strong>Journée non chargée</strong>
+        <p class="field-hint">
+          @if (!network.online()) {
+            Ton téléphone est hors ligne et rien n'a encore été mis en cache pour ce périmètre.
+          } @else {
+            Le serveur n'a pas répondu.
+          }
+        </p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="load()">Réessayer</button>
+    </div>
+  }
 
   @if (quiet()) {
     <div class="card cd-quiet">
