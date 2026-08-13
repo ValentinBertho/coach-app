@@ -105,6 +105,23 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
                                       @Param("since") LocalDate since);
 
     /**
+     * Les séances d'un jour donné, pour un ensemble d'athlètes — la journée du coach.
+     *
+     * <p>Le calendrier ne sait lire qu'un athlète à la fois : « qu'est-ce qui est prévu
+     * aujourd'hui » demandait donc autant de requêtes que d'athlètes suivis. L'ordre reprend
+     * celui du calendrier (rang intra-jour, puis création) pour qu'une même journée se lise
+     * pareil des deux côtés.</p>
+     */
+    @Query("""
+            select w from Workout w
+            where w.athlete.id in :athleteIds
+              and w.scheduledDate = :date
+            order by w.orderIndex asc, w.createdAt asc
+            """)
+    List<Workout> findByAthletesAndDate(@Param("athleteIds") Collection<UUID> athleteIds,
+                                        @Param("date") LocalDate date);
+
+    /**
      * Date de la toute première séance <strong>chargée</strong> (RPE renseigné) d'un athlète.
      * Sert à savoir si son historique suffit à publier un ACWR : la fenêtre de calcul ne remonte
      * qu'à 28 jours et ne peut pas distinguer un athlète neuf d'un athlète installé.

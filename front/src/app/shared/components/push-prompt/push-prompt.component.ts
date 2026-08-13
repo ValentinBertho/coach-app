@@ -1,23 +1,25 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { PushError, PushService } from '../../core/services/push.service';
-import { ToastService } from '../../core/services/toast.service';
-import { IconComponent } from '../../shared/components/icon/icon.component';
+import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { PushError, PushService } from '../../../core/services/push.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { IconComponent } from '../icon/icon.component';
 
-/** Mémoire du refus : un athlète qui a dit non ne doit pas se le voir redemander chaque matin. */
+/** Mémoire du refus : qui a dit non ne doit pas se le voir redemander chaque matin. */
 const DISMISSED_KEY = 'darilab.push-prompt.dismissed';
 
 /**
  * Invitation à activer les notifications, posée sur l'écran ouvert chaque matin.
  *
- * <p><b>Pourquoi ici.</b> Le bouton d'activation n'existait, côté athlète, que dans Profil →
- * un écran qu'on ouvre pour changer son mot de passe, c'est-à-dire presque jamais. Tout le
- * dispositif de notifications — rappel de séance, débriefing, message du coach — reposait donc
- * sur un opt-in que sa cible ne rencontrait pas. C'est le même raisonnement qui a fait remonter
- * la carte Strava ici : l'invitation doit croiser celui qui en a besoin.</p>
+ * <p><b>Pourquoi elle existe.</b> Le bouton d'activation ne vivait que dans un écran de réglages
+ * — qu'on ouvre pour changer son mot de passe, c'est-à-dire presque jamais. Tout le dispositif de
+ * notifications reposait donc sur un opt-in que sa cible ne rencontrait pas.</p>
  *
- * <p><b>Pourquoi ce n'est pas un contrôle de plus.</b> L'en-tête de cet écran est délibérément
- * limité à deux boutons. Ceci n'en est pas un troisième : la carte disparaît dès que l'athlète
- * accepte — ou refuse —, et ne revient pas.</p>
+ * <p><b>Pourquoi elle est partagée.</b> Elle a d'abord servi l'athlète. Le coach avait exactement
+ * le même trou, en plus coûteux : ses notifications à lui portent les blessures déclarées et les
+ * séances manquées, et il n'avait qu'un bouton texte noyé dans une barre d'en-tête. Le besoin est
+ * le même, le composant aussi ; seul le texte change, d'où {@link lead}.</p>
+ *
+ * <p><b>Pourquoi ce n'est pas un contrôle de plus.</b> La carte disparaît dès qu'on accepte — ou
+ * qu'on refuse —, et ne revient pas.</p>
  */
 @Component({
   selector: 'app-push-prompt',
@@ -29,11 +31,8 @@ const DISMISSED_KEY = 'darilab.push-prompt.dismissed';
       <section class="pprompt card">
         <span class="pprompt__ic"><app-icon name="bell" [size]="18" /></span>
         <div class="pprompt__txt">
-          <strong>Être prévenu·e</strong>
-          <span class="field-hint">
-            La séance de demain, le retour de ton coach, ses messages — sur ton téléphone, sans
-            ouvrir l'application.
-          </span>
+          <strong>{{ title() }}</strong>
+          <span class="field-hint">{{ lead() }}</span>
         </div>
         <div class="pprompt__act">
           <button type="button" class="btn btn-primary btn-sm" [disabled]="busy()" (click)="enable()">
@@ -60,11 +59,19 @@ const DISMISSED_KEY = 'darilab.push-prompt.dismissed';
   `],
 })
 export class PushPromptComponent {
+  /** Titre de la carte. Par défaut celui de l'athlète, à qui elle s'adresse d'abord. */
+  readonly title = input('Être prévenu·e');
+
+  /** Ce que l'activation apporte, dans les mots de celui qui la lit. */
+  readonly lead = input(
+    "La séance de demain, le retour de ton coach, ses messages — sur ton téléphone, sans "
+    + "ouvrir l'application.");
+
   private readonly push = inject(PushService);
   private readonly toast = inject(ToastService);
 
   readonly busy = signal(false);
-  private readonly dismissed = signal(localStorage.getItem(DISMISSED_KEY) === '1');
+  private readonly dismissed = signal(read(DISMISSED_KEY));
 
   /** Rien à proposer si le navigateur ne sait pas, si c'est déjà fait, ou si on a déjà dit non. */
   visible(): boolean {
@@ -85,9 +92,13 @@ export class PushPromptComponent {
     }
   }
 
-  /** Refus mémorisé localement : le réglage reste accessible dans Profil. */
+  /** Refus mémorisé localement : le réglage reste accessible dans les paramètres. */
   dismiss(): void {
-    localStorage.setItem(DISMISSED_KEY, '1');
+    try { localStorage.setItem(DISMISSED_KEY, '1'); } catch { /* stockage indisponible */ }
     this.dismissed.set(true);
   }
+}
+
+function read(key: string): boolean {
+  try { return localStorage.getItem(key) === '1'; } catch { return false; }
 }

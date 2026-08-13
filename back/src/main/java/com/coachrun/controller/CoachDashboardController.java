@@ -84,4 +84,23 @@ public class CoachDashboardController {
             @AuthenticationPrincipal AuthPrincipal principal) {
         return dashboardService.alerts(clubId, scope, principal.userId());
     }
+
+    /**
+     * La journée du coach : les séances de course d'un jour, tous athlètes du périmètre
+     * confondus. Sert l'écran « Ma journée » du téléphone, où le calendrier — qui se lit athlète
+     * par athlète — ne répond pas à la question posée.
+     *
+     * @param date jour demandé (ISO). Absent = aujourd'hui, selon le fuseau de l'application.
+     */
+    @GetMapping("/day")
+    public java.util.List<com.coachrun.dto.response.CoachDaySessionResponse> day(
+            @PathVariable UUID clubId,
+            @RequestParam(defaultValue = "all") String scope,
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(iso =
+                    org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate date,
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return dashboardService.day(clubId, scope, principal.userId(), date);
+    }
 }

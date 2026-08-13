@@ -33,6 +33,25 @@ export interface FeedbackQueueItem {
   comment: string | null;
 }
 
+/**
+ * Une séance de course d'un jour donné, tous athlètes du périmètre confondus — la matière de
+ * l'écran « Ma journée ». Le calendrier se lit athlète par athlète : il ne répond pas à
+ * « qu'est-ce qui est prévu aujourd'hui, et pour qui ».
+ */
+export interface CoachDaySession {
+  workoutId: string;
+  athleteId: string;
+  athleteName: string;
+  title: string;
+  type: string | null;
+  status: 'PLANNED' | 'COMPLETED' | 'PARTIAL' | 'MISSED';
+  scheduledDate: string;
+  /** L'athlète a déplacé cette séance lui-même. */
+  movedByAthlete: boolean;
+  /** Un retour attend d'être traité sur cette séance. */
+  awaitingReview: boolean;
+}
+
 export type FormStatus = 'GREEN' | 'ORANGE' | 'RED' | 'STALE';
 
 export interface AthleteForm {
@@ -126,6 +145,19 @@ export class CoachDashboardService {
     return this.http.post<{ marked: number }>(
       `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard/feedback/review-all`,
       {},
+      { params },
+    );
+  }
+
+  /**
+   * Les séances de course d'un jour, tous athlètes du périmètre confondus. Course seulement :
+   * le renforcement a son propre écran et son propre débrief.
+   */
+  day(scope: 'all' | 'mine' | 'private' | 'club' = 'mine', date?: string): Observable<CoachDaySession[]> {
+    let params = new HttpParams().set('scope', scope);
+    if (date) params = params.set('date', date);
+    return this.http.get<CoachDaySession[]>(
+      `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard/day`,
       { params },
     );
   }

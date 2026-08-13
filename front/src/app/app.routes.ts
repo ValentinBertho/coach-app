@@ -71,6 +71,13 @@ export const routes: Routes = [
       import('./features/public/legal.component').then((m) => m.LegalComponent),
   },
   {
+    // Raccourcis de l'écran d'accueil (manifeste `shortcuts`). Le manifeste est unique pour les
+    // deux métiers : ces chemins neutres décident de la destination selon le rôle connecté.
+    path: 'go/:target',
+    loadComponent: () =>
+      import('./features/public/shortcut.component').then((m) => m.ShortcutComponent),
+  },
+  {
     // Living styleguide des primitives UI (dev). Cf. docs/archive/ux-redesign-blueprint.md.
     // Réservé à l'équipe : en bêta ouverte, un coach qui tombe dessus voit un écran de debug.
     path: 'dev/ui-kit',
@@ -121,6 +128,13 @@ export const routes: Routes = [
         path: '',
         loadComponent: () =>
           import('./features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
+      },
+      {
+        // « Ma journée » : l'écran du matin, pensé pour un téléphone. Le cockpit (`/app`) garde
+        // les KPI, la répartition de forme et les courses — ce sont deux lectures différentes.
+        path: 'journee',
+        loadComponent: () =>
+          import('./features/dashboard/coach-day.component').then((m) => m.CoachDayComponent),
       },
       {
         path: 'athletes',

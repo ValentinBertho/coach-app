@@ -273,17 +273,58 @@ un invariant à tester, pas un effet de bord heureux.
 
 ---
 
+## 5 bis. Deux défauts trouvés en construisant la vague 1
+
+Ils ne figuraient pas dans l'audit initial parce qu'ils ne se voient pas dans le code : il faut
+lancer l'application sur un écran de 390 px pour les rencontrer. Les deux sont corrigés.
+
+**La coquille mobile du coach était écrasée à 220 px de large.** `.bottom-nav` est un enfant de
+`.layout`, qui est une **rangée** flex. Déclarée `position: sticky`, elle restait dans le flux et
+devenait une colonne posée à droite du contenu : sur un iPhone de 390 px, elle en prenait 170 et
+n'en laissait que 220 à *tous* les écrans coach. Mesuré avant toute modification : `.main` fait
+221 px dans une fenêtre de 390. C'est-à-dire que l'espace coach n'était pas seulement « pensé
+pour le bureau » — il était **cassé** sur téléphone, et l'a été depuis l'introduction de la
+bottom-nav. La barre du portail athlète, elle, est `fixed` depuis le premier jour, ce qui explique
+que le défaut n'ait jamais sauté aux yeux : personne ne regardait l'espace coach au téléphone.
+
+**Les intitulés du portail athlète étaient illisibles en sombre.** Le thème sombre du portail est
+*scopé* au sous-arbre `.ashell`, mais la couleur du texte est posée sur `body`, où les jetons
+valent encore ceux du thème clair. Tout élément qui ne redéfinit pas sa couleur — un simple
+`<strong>` — héritait donc du noir de `body` sur un fond sombre. « Mon heure d'entraînement
+habituelle », « Notifications push », « E-mails » : noir sur anthracite. Une ligne (`color:
+var(--ink)` sur `.ashell`) referme le trou.
+
+---
+
 ## 6. Découpage en vagues
 
 | Vague | Contenu | Backend | Estimation |
 |---|---|---|---|
-| **1 — Le matin du coach dans la poche** | Coquille mobile (4 onglets + tiroir), écran **Ma journée** composé des appels existants, invitation installer + notifications côté coach, manifeste (`id`, `display_override`, `shortcuts` + routes `/go/*`), badge d'icône | **aucun** | ~3–4 j |
+| **1 — Le matin du coach dans la poche** ✅ **livrée** | Coquille mobile (4 onglets + tiroir), écran **Ma journée**, invitation installer + notifications côté coach, manifeste (`id`, `display_override`, `shortcuts` + routes `/go/*`), badge d'icône, choix du thème côté coach **et** athlète, plus les deux correctifs du §5 bis | un endpoint de lecture (`/dashboard/day`) | ~3–4 j |
 | **2 — Répondre sans ouvrir un écran de bureau** | Feuille de réponse depuis Ma journée et depuis la file, actions rapides de notification (Traité / Répondre) + idempotence + annulation, fiche athlète condensée, passe des cibles ≥ 44 px | ~0,5 j (actions sur 3 flux) | ~3 j |
 | **3 — La semaine dans la poche** | Vue Jour du calendrier + déplacement par menu, lecture hors ligne (`dataGroups` + test de purge), endpoint agrégé si le besoin se confirme | ~1 j | ~4 j |
 
 **Vague 1 seule vaut déjà d'être livrée** : elle referme le trou le plus coûteux (le coach iPhone
-qui ne peut pas être alerté) et donne un écran d'ouverture qui a du sens, sans toucher une ligne de
-backend ni un écran existant.
+qui ne peut pas être alerté) et donne un écran d'ouverture qui a du sens.
+
+**Ce qui a été livré, et ce qui a bougé par rapport au plan.** Trois arbitrages ont été tranchés
+en cours de route :
+
+1. **Le périmètre par défaut est « mes athlètes »** (§9), mémorisé entre deux ouvertures.
+2. **La force reste hors de la vue « La journée »** : course seulement. Le renforcement a son
+   propre écran, ses formats et son débrief ; les mêler dans une liste qui doit tenir sur un
+   téléphone n'aiderait personne. La file de retours, elle, continue de les unifier.
+3. **Les actions rapides sur une séance entrent en vague 1**, au lieu d'être instruites après la
+   vague 2 : ouvrir, modifier, **déplacer**, **supprimer**, et **planifier** (depuis la
+   bibliothèque ou en séance vierge). C'est ce qui a rendu nécessaire le seul ajout backend de la
+   vague — `GET /clubs/{id}/dashboard/day`, en lecture seule : le calendrier se lit athlète par
+   athlète et ne sait pas répondre à « qu'est-ce qui est prévu aujourd'hui, et pour qui ». Toutes
+   les écritures passent par les routes existantes.
+
+S'y ajoute, hors plan initial et à la demande : **le choix du thème pour tout le monde**. Le
+réglage n'existait que dans les paramètres du coach ; le portail athlète était sombre, point. Il
+est désormais partagé (un seul composant) et proposé dans le profil de l'athlète — avec une
+règle de non-régression : tant qu'un athlète n'a rien choisi, son portail reste sombre.
 
 ---
 
@@ -318,16 +359,18 @@ backend ni un écran existant.
 
 ---
 
-## 9. Ce que ce document ne tranche pas
+## 9. Ce qui restait à trancher — et ce qui a été décidé
 
-- **Le périmètre par défaut sur mobile.** Le cockpit propose quatre périmètres (tout le club, mes
-  athlètes, privés, club) ; sur téléphone, il en faut **un**, choisi par défaut. « Mes athlètes »
-  paraît le bon, mais c'est un arbitrage métier, à valider avec un coach de club multi-coachs.
-- **Le sort des séances de force sur mobile.** La file de retours les unifie déjà (`kind:
-  STRENGTH`) ; la vue Jour devra dire si elle les affiche au même rang.
-- **Un raccourci « planifier »**. Poser une séance depuis un téléphone est possible en théorie
-  (choisir un athlète, une date, un modèle de bibliothèque) mais c'est un geste de conception. À
-  instruire seulement si les coachs le réclament après la vague 2.
+- **Le périmètre par défaut sur mobile** → **« mes athlètes »**, mémorisé d'une ouverture à
+  l'autre. Les quatre périmètres restent accessibles derrière le bouton d'en-tête.
+- **Le sort des séances de force sur mobile** → **hors de la vue du jour pour l'instant**. À
+  rouvrir si des coachs de préparation physique le demandent.
+- **Un raccourci « planifier »** → **retenu, et élargi** : planifier, modifier, déplacer,
+  supprimer, depuis la carte de la séance.
+
+Restent ouverts, pour les vagues suivantes : faut-il un endpoint agrégé pour « Ma journée »
+(quatre appels aujourd'hui), et faut-il changer les liens des notifications coach pour qu'ils
+atterrissent sur `/go/journee` plutôt que sur les écrans de bureau (§5.5, vague 2).
 
 ---
 

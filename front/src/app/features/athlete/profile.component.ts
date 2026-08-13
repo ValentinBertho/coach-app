@@ -10,6 +10,7 @@ import { NotificationPreferences, NotificationService } from '../../core/service
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { InstallButtonComponent } from '../../shared/components/install-button/install-button.component';
+import { ThemePickerComponent } from '../../shared/components/theme-picker/theme-picker.component';
 import { PushButtonComponent } from '../../shared/components/push-button/push-button.component';
 import { PushTestButtonComponent } from '../../shared/components/push-test-button/push-test-button.component';
 import { DataOriginTagComponent } from '../../shared/components/physiology';
@@ -34,7 +35,7 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, FormsModule, IconComponent, DataOriginTagComponent, DatePipe, DecimalPipe,
-    InstallButtonComponent, PushButtonComponent, PushTestButtonComponent],
+    InstallButtonComponent, PushButtonComponent, PushTestButtonComponent, ThemePickerComponent],
   template: `
     <div class="shell">
       <!-- Plus de barre de marque ici : la coquille du portail en pose une, commune à tous les
@@ -124,6 +125,14 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
                  rien de ce qui arrive vraiment sur le téléphone, et le silence des jours suivants
                  ne distingue pas « rien à annoncer » de « la chaîne est cassée ». -->
             <app-push-test-button />
+          </div>
+
+          <!-- Thème : le portail est sombre par défaut — c'est un parti pris d'immersion, pas
+               une fatalité. On lit sa séance dehors en plein soleil comme le soir au lit, et le
+               coach avait ce réglage depuis toujours. -->
+          <div class="theme-row">
+            <app-theme-picker label="Thème de l'application"
+              hint="Sombre par défaut. « Système » suit les réglages de ton téléphone." />
           </div>
 
           <!-- Heure habituelle : elle ancre le rappel « Ta séance est finie ? », envoyé 2 h
@@ -425,6 +434,8 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
     .help-link { display: flex; align-items: center; gap: var(--sp-3); text-decoration: none; color: var(--ink); padding: var(--sp-3); width: 100%; text-align: left; font: inherit; cursor: pointer; }
     button.help-link { border: 1px solid var(--line); }
     .app-settings__row { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
+    .theme-row { margin-top: var(--sp-4); }
+
     .debrief-time { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-top: var(--sp-4); }
     .debrief-time label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .debrief-time__in { width: auto; min-height: 44px; flex-shrink: 0; font-variant-numeric: tabular-nums; }

@@ -1,12 +1,34 @@
 {
+  "id": "/",
   "name": "Darilab — Coaching course à pied",
   "short_name": "Darilab",
   "lang": "fr",
   "theme_color": "#3d5afe",
   "background_color": "#0e1422",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "scope": "./",
   "start_url": "./",
+  "shortcuts": [
+    {
+      "name": "Ma journée",
+      "short_name": "Journée",
+      "description": "Ce qui attend aujourd'hui : alertes, retours, messages, séances",
+      "url": "./go/journee"
+    },
+    {
+      "name": "Messages",
+      "short_name": "Messages",
+      "description": "Les conversations",
+      "url": "./go/messages"
+    },
+    {
+      "name": "Retours à traiter",
+      "short_name": "Retours",
+      "description": "Les retours de séance en attente",
+      "url": "./go/retours"
+    }
+  ],
   "icons": [
     {
       "src": "assets/icons/icon-72x72.png",
