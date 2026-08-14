@@ -6,12 +6,13 @@ import { ToastService } from '../../core/services/toast.service';
 import { authErrorMessage } from '../../core/utils/auth-error';
 import { readPendingStravaAuth } from '../../core/services/strava-pending.storage';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
+import { FocusProbeComponent } from './focus-probe.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LogoComponent],
+  imports: [ReactiveFormsModule, RouterLink, LogoComponent, FocusProbeComponent],
   templateUrl: './login.component.html',
   styleUrl: './auth.scss',
 })
