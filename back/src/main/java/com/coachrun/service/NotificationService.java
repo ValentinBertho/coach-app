@@ -147,13 +147,65 @@ public class NotificationService {
      */
     private void notifyUser(User target, String type, String title, String body, String pushBody,
                             String link, boolean push) {
+        notifyUser(target, type, title, body, pushBody, link, push, List.of());
+    }
+
+    /**
+     * Forme complète avec <b>actions rapides</b> — les boutons que le système affiche sous la
+     * notification.
+     *
+     * <p>Le dispositif existait, mais ne servait que l'athlète (le RPE du rappel de débriefing).
+     * Côté coach, chaque notification ouvrait un écran de bureau pour un geste qui tient en un
+     * tap : marquer un retour traité, répondre à un message. Les actions ne portent jamais de
+     * donnée de santé — seulement une destination.</p>
+     *
+     * <p>Deux boutons au maximum en pratique ({@code Notification.maxActions}) : au-delà, le
+     * système les tronque en silence, ce qui est pire qu'un seul bien choisi.</p>
+     */
+    private void notifyUser(User target, String type, String title, String body, String pushBody,
+                            String link, boolean push,
+                            List<PushNotificationService.QuickAction> actions) {
         if (target == null) {
             return;
         }
         record(target.getId(), type, title, body, link);
-        if (push) {
-            pushOnly(target, type, title, pushBody, link);
+        if (!push) {
+            return;
         }
+        // Sans action, on emprunte la forme simple : une notification sans bouton ne doit pas
+        // porter de tableau `actions` vide dans sa charge utile.
+        if (actions.isEmpty()) {
+            pushOnly(target, type, title, pushBody, link);
+        } else {
+            pushOnly(target, type, title, pushBody, link, actions);
+        }
+    }
+
+    /**
+     * Bouton d'action d'une notification. L'URL est <b>absolue</b> : le service worker navigue
+     * dessus tel quel, là où le lien du corps, lui, est préfixé par {@code pushOnly}.
+     */
+    private PushNotificationService.QuickAction action(String id, String title, String path) {
+        return new PushNotificationService.QuickAction(id, title, frontendUrl + path);
+    }
+
+    /**
+     * Les deux gestes d'un retour d'athlète : le classer sans l'ouvrir, ou aller le lire.
+     *
+     * <p>« Traité » vise la file avec le retour désigné en clair
+     * ({@code ?review=COURSE:<athlète>:<séance>}) : l'écran d'arrivée exécute l'accusé de lecture
+     * et propose de l'annuler. L'identifiant de l'athlète voyage avec celui de la séance parce
+     * que la route d'écriture est scopée par athlète — sans lui, il faudrait une recherche
+     * inverse pour un geste qui doit être immédiat.</p>
+     *
+     * <p>Aucune donnée de santé dans ces URL : deux identifiants et un type de séance.</p>
+     */
+    private List<PushNotificationService.QuickAction> reviewActions(String kind, UUID athleteId,
+                                                                   UUID sessionId, String openPath) {
+        return List.of(
+                action("traite", "Traité",
+                        "/app/feedback?review=" + kind + ":" + athleteId + ":" + sessionId),
+                action("ouvrir", "Ouvrir", openPath));
     }
 
     /**
@@ -395,7 +447,12 @@ public class NotificationService {
                 || recentlyNotified(target.getId(), "NEW_MESSAGE", link, MESSAGE_BURST_WINDOW)) {
             return;
         }
-        notifyUser(target, "NEW_MESSAGE", "Nouveau message", message.getSenderName(), link);
+        // « Répondre » ouvre le fil avec le champ de saisie déjà actif : répondre à un message
+        // depuis un écran verrouillé demandait sinon d'ouvrir l'app, de retrouver l'athlète, puis
+        // son onglet Messages — trois écrans pour une phrase.
+        notifyUser(target, "NEW_MESSAGE", "Nouveau message", message.getSenderName(),
+                message.getSenderName(), link, true,
+                List.of(action("repondre", "Répondre", link + "?reply=1")));
     }
 
     /**
@@ -429,7 +486,9 @@ public class NotificationService {
                 "ATHLETE_FEEDBACK", "Renforcement mis à jour",
                 fullName(athlete) + " — " + session.getTitle(),
                 athlete.getFirstName() + " — renforcement",
-                "/app/feedback", notable));
+                "/app/feedback", notable,
+                reviewActions("STRENGTH", athlete.getId(), session.getId(),
+                        "/app/athletes/" + athlete.getId() + "/programme")));
     }
 
     /**
@@ -571,7 +630,9 @@ public class NotificationService {
         coachToNotify(workout).ifPresent(c -> notifyUser(c, "ATHLETE_FEEDBACK", "Séance mise à jour",
                 fullName(athlete) + " — " + status,
                 athlete.getFirstName() + " — " + status,
-                "/app/feedback", notable));
+                "/app/feedback", notable,
+                reviewActions("COURSE", athlete.getId(), workout.getId(),
+                        "/app/athletes/" + athlete.getId() + "/workouts/" + workout.getId())));
     }
 
     /**
@@ -659,10 +720,14 @@ public class NotificationService {
                 return;
             }
             String name = fullName(athlete);
+            // Une blessure déclarée appelle un mot, pas seulement une lecture : le bouton mène
+            // droit au fil, champ de saisie ouvert.
             notifyUser(coach, "INJURY_ALERT", "Blessure déclarée",
                     name + " a déclaré une blessure sur sa séance — à regarder.",
                     name + " — blessure déclarée.",
-                    "/app/athletes/" + athlete.getId());
+                    "/app/athletes/" + athlete.getId(), true,
+                    List.of(action("repondre", "Répondre",
+                            "/app/athletes/" + athlete.getId() + "/messages?reply=1")));
         });
     }
 
@@ -787,10 +852,12 @@ public class NotificationService {
         }
         int count = perAthlete.size();
 
+        // Destination : « Ma journée », pas le cockpit. Le digest part à 7 h — il est lu sur un
+        // téléphone, et il annonce précisément ce que cet écran-là rassemble.
         notifyUser(coach, "COACH_ALERTS", "Alertes à traiter",
                 count + (count > 1 ? " athlètes nécessitent votre attention" : " athlète nécessite votre attention"),
                 count + (count > 1 ? " athlètes à surveiller" : " athlète à surveiller"),
-                "/app");
+                "/app/journee");
 
         if (coach.getEmail() == null || !coach.isNotifyEmailEnabled()) {
             return;
@@ -803,7 +870,7 @@ public class NotificationService {
         String html = "<p>Bonjour " + esc(coach.getFullName()) + ",</p>"
                 + "<p>" + count + (count > 1 ? " athlètes nécessitent" : " athlète nécessite")
                 + " votre attention :</p><ul>" + items + "</ul>"
-                + cta("Ouvrir le tableau de bord", frontendUrl + "/app");
+                + cta("Ouvrir ma journée", frontendUrl + "/app/journee");
         send(coach.getEmail(), subject, html, Audience.COACH);
     }
 

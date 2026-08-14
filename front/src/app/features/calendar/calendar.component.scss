@@ -178,6 +178,21 @@
 
 .empty-state { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); padding: var(--sp-12) var(--sp-6); }
 
+/* --- Vue « Jour » : une seule colonne, sur toute la largeur -------------------
+   Née du téléphone, elle vaut aussi au bureau quand on veut regarder une journée en détail.
+   La colonne des totaux hebdomadaires n'a rien à y faire — il n'y a pas de semaine. */
+.weekday-row.hidden { display: none; }
+.grid.day { grid-template-columns: 1fr; }
+.grid.day .day-col { min-height: 40vh; }
+.grid.day .week-total { display: none; }
+.grid.day .day-name { display: inline; }
+/* Les séances deviennent des cartes : on est sur un écran entier pour une journée, elles
+   n'ont plus à tenir dans une colonne d'un septième de large. */
+.grid.day .workout-card, .grid.day .strength-chip {
+  padding: var(--sp-2) var(--sp-3); font-size: var(--text-sm); min-height: 48px;
+}
+.grid.day .add-btn { min-height: 48px; }
+
 @media (max-width: 768px) {
   .grid, .grid.month { grid-template-columns: 1fr; }
   /* Une colonne : un bandeau calé sur des jours n'a plus de sens, il redevient une étiquette. */

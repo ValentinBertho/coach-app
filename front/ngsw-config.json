@@ -33,6 +33,34 @@
   ],
   "dataGroups": [
     {
+      "_comment": [
+        "La journée du coach, lisible hors ligne. Stratégie « freshness » : on demande toujours",
+        "le réseau d'abord et l'on ne sert le cache qu'après 3 s sans réponse — dans le métro, au",
+        "bord d'une piste sans couverture, le coach voit sa file du matin au lieu d'une page vide.",
+        "L'écran dit alors de quand datent les données.",
+        "",
+        "Ces réponses contiennent de la donnée de santé (douleur, blessures déclarées) : elles",
+        "sont donc à durée courte, et la déconnexion purge l'intégralité des caches",
+        "(AuthService.purgeCaches, couvert par un test)."
+      ],
+      "name": "coach-day",
+      "urls": [
+        "/api/clubs/*/dashboard",
+        "/api/clubs/*/dashboard/form",
+        "/api/clubs/*/dashboard/alerts",
+        "/api/clubs/*/dashboard/feedback",
+        "/api/clubs/*/dashboard/day",
+        "/api/clubs/*/messages/conversations",
+        "/api/clubs/*/athletes"
+      ],
+      "cacheConfig": {
+        "strategy": "freshness",
+        "maxSize": 40,
+        "maxAge": "2h",
+        "timeout": "3s"
+      }
+    },
+    {
       "name": "athlete-today",
       "urls": [
         "/api/me/today",

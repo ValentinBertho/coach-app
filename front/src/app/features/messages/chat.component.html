@@ -59,7 +59,7 @@
       <app-icon name="paperclip" [size]="18" />
       <input type="file" accept="image/*,application/pdf" hidden (change)="onFileSelected($event)" />
     </label>
-    <input class="form-control" [(ngModel)]="draft" name="draft" placeholder="Ton message…" autocomplete="off" />
+    <input #composer class="form-control" [(ngModel)]="draft" name="draft" placeholder="Ton message…" autocomplete="off" />
     <button type="submit" class="btn btn-primary" [disabled]="!draft.trim()">Envoyer</button>
   </form>
 </div>

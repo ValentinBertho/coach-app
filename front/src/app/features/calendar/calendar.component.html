@@ -95,6 +95,9 @@
             <div class="ctx-sep"></div>
 
             <span class="tb-dropdown__t">Période</span>
+            <button type="button" class="ctx-item" [class.on]="mode() === 'day'" (click)="setMode('day')">
+              Jour <kbd class="ctx-kbd">J</kbd>
+            </button>
             <button type="button" class="ctx-item" [class.on]="mode() === 'week'" (click)="setMode('week')">
               Semaine <kbd class="ctx-kbd">W</kbd>
             </button>
@@ -385,12 +388,13 @@
     }
 
     <div class="cal-main">
-      <div class="weekday-row">
+      <div class="weekday-row" [class.hidden]="mode() === 'day'">
         @for (d of ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']; track d) { <span>{{ d }}</span> }
         <span class="wd-total">Total</span>
       </div>
 
-      <div class="grid" [class.month]="mode() === 'month'" [class.loading]="loading()"
+      <div class="grid" [class.month]="mode() === 'month'" [class.day]="mode() === 'day'"
+           [class.loading]="loading()"
            (pointerdown)="onGridPointerDown($event)">
         @for (week of weeks(); track $index) {
         <!-- Cycles de la semaine : un bandeau par cycle, calé sur les jours qu'il couvre. Les

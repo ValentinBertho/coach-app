@@ -55,6 +55,9 @@ import { SessionStructure } from '../../core/models/course.model';
 /** Vue du calendrier : séances prévues, activités réalisées, ou les deux (façon Nolio). */
 type CalView = 'planned' | 'realized' | 'both';
 
+/** Période affichée par la grille : une journée, une semaine, ou un mois. */
+type CalMode = 'day' | 'week' | 'month';
+
 interface DayCell {
   date: string;
   label: string;
@@ -234,7 +237,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private volumeM(w: Workout): number {
     return plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace())?.distanceM ?? 0;
   }
-  readonly mode = signal<'week' | 'month'>('week');
+  /**
+   * Période affichée. « Jour » est né du téléphone : sous 768 px, la grille passe à une colonne
+   * et un mois devient une pile de quarante-deux cartes qu'on ne finit jamais de dérouler. Une
+   * journée à la fois, en revanche, se lit d'un coup d'œil et se touche sans viser.
+   */
+  readonly mode = signal<CalMode>('week');
   /** Vue prévu / réalisé / les deux (façon Nolio). */
   readonly view = signal<CalView>('both');
   readonly showPlanned = computed(() => this.view() !== 'realized');
@@ -262,7 +270,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const noteByDate = this.groupBy(this.notes().filter((n) => !isCycle(n)), (n) => n.noteDate);
     const activityByDate = this.groupBy(this.activities(), (a) => a.activityDate);
     const unavail = this.unavailabilities();
-    const count = this.mode() === 'week' ? 7 : 42;
+    const count = this.mode() === 'day' ? 1 : this.mode() === 'week' ? 7 : 42;
     const start = this.gridStart();
     const monthRef = this.anchor().getMonth();
     return Array.from({ length: count }, (_, i) => {
@@ -276,11 +284,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
       const hasKey = workouts.some((w) => TYPE_META[w.type].key);
       return {
         date: iso,
-        label: this.dayNames[i % 7],
+        label: this.mode() === 'day' ? this.dayNames[(d.getDay() + 6) % 7] : this.dayNames[i % 7],
         dayNum: d.getDate(),
         isToday: iso === today,
         weekend: i % 7 >= 5,
-        inMonth: this.mode() === 'week' || d.getMonth() === monthRef,
+        inMonth: this.mode() !== 'month' || d.getMonth() === monthRef,
         workouts,
         strength,
         objectives: objByDate.get(iso) ?? [],
@@ -586,15 +594,20 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * marque de début ou de fin pour dire qu'il se prolonge au-delà.</p>
    */
   private bandsFor(days: DayCell[]): CycleBand[] {
+    // Dernier jour de la rangée, et non le septième : la vue « Jour » n'en affiche qu'un, et
+    // `days[6]` y était indéfini — l'exception remontait dans le calcul des semaines, qui ne
+    // rendait alors plus aucune colonne.
+    const lastCol = days.length - 1;
+    if (lastCol < 0) return [];
     const first = days[0].date;
-    const last = days[6].date;
+    const last = days[lastCol].date;
     const bands: CycleBand[] = [];
     for (const note of this.notes()) {
       if (!isCycle(note)) continue;
       const end = note.endDate!;
       if (note.noteDate > last || end < first) continue;
       const startCol = note.noteDate <= first ? 0 : days.findIndex((d) => d.date === note.noteDate);
-      const endCol = end >= last ? 6 : days.findIndex((d) => d.date === end);
+      const endCol = end >= last ? lastCol : days.findIndex((d) => d.date === end);
       if (startCol < 0 || endCol < 0) continue;
       bands.push({
         note, startCol, span: endCol - startCol + 1,
@@ -632,6 +645,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   readonly periodLabel = computed(() => {
     const a = this.anchor();
+    if (this.mode() === 'day') {
+      return new Intl.DateTimeFormat('fr-FR',
+        { weekday: 'short', day: 'numeric', month: 'short' }).format(a);
+    }
     if (this.mode() === 'month') {
       return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(a);
     }
@@ -655,6 +672,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.openOnDayIfNarrow();
     // Onglet « Programme » d'un athlète : le calendrier est cadré sur lui, le sélecteur
     // d'athlète disparaît (c'est le contexte de la coquille qui dit de qui il s'agit).
     if (this.athleteId()) {
@@ -704,7 +722,23 @@ export class CalendarComponent implements OnInit, OnDestroy {
     });
   }
 
-  setMode(mode: 'week' | 'month'): void {
+  /**
+   * Au premier affichage sur un écran étroit, on ouvre sur la journée.
+   *
+   * <p>Ce n'est pas une préférence mémorisée : c'est le point de départ raisonnable là où la
+   * semaine s'empile en sept blocs. Le coach garde la main — changer de mode reste un geste, et
+   * le choix tient tant qu'il ne recharge pas.</p>
+   */
+  private openOnDayIfNarrow(): void {
+    if (typeof window !== 'undefined' && window.innerWidth <= CalendarComponent.NARROW_PX) {
+      this.mode.set('day');
+    }
+  }
+
+  /** Seuil du basculement : celui où la grille passe déjà à une colonne (cf. la feuille de style). */
+  private static readonly NARROW_PX = 768;
+
+  setMode(mode: CalMode): void {
     this.mode.set(mode);
     this.load();
   }
@@ -721,7 +755,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
   shift(step: number): void {
     const d = new Date(this.anchor());
-    if (this.mode() === 'week') d.setDate(d.getDate() + step * 7);
+    if (this.mode() === 'day') d.setDate(d.getDate() + step);
+    else if (this.mode() === 'week') d.setDate(d.getDate() + step * 7);
     else d.setMonth(d.getMonth() + step);
     this.anchor.set(d);
     this.load();
@@ -2129,6 +2164,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     if (ev.key === 'ArrowLeft') { this.shift(-1); ev.preventDefault(); }
     else if (ev.key === 'ArrowRight') { this.shift(1); ev.preventDefault(); }
     else if (key === 't') { this.goToday(); ev.preventDefault(); }
+    else if (key === 'j') { this.setMode('day'); ev.preventDefault(); }
     else if (key === 'w') { this.setMode('week'); ev.preventDefault(); }
     else if (key === 'm') { if (this.scopeMode() === 'athlete') { this.setMode('month'); ev.preventDefault(); } }
     else if (key === 'b') { this.toggleSidebar(); ev.preventDefault(); }
@@ -2153,6 +2189,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   private gridStart(): Date {
+    // La journée commence à elle-même : pas de recalage sur le lundi.
+    if (this.mode() === 'day') return new Date(this.anchor());
     if (this.mode() === 'week') return mondayOf(this.anchor());
     const first = new Date(this.anchor());
     first.setDate(1);

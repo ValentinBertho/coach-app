@@ -14,6 +14,7 @@ import {
   FeedbackQueueItem,
 } from '../../core/services/coach-dashboard.service';
 import { Conversation, MessageService } from '../../core/services/message.service';
+import { NetworkStatusService } from '../../core/services/network-status.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { CourseService } from '../../core/services/course.service';
 import { StrengthService } from '../../core/services/strength.service';
@@ -23,12 +24,16 @@ import { WorkoutTemplateService } from '../../core/services/workout-template.ser
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { InstallPromptComponent } from '../../shared/components/install-prompt/install-prompt.component';
 import { PushPromptComponent } from '../../shared/components/push-prompt/push-prompt.component';
+import { ReplySheetComponent, type ReplyTarget } from '../../shared/components/reply-sheet/reply-sheet.component';
 import { injuryLabel } from '../../core/models/injury.model';
 
 type Scope = 'all' | 'mine' | 'private' | 'club';
 
 /** Périmètre retenu entre deux ouvertures : on ne le rechoisit pas chaque matin. */
 const SCOPE_KEY = 'coach-day-scope';
+
+/** Dernier chargement réussi : sert à dater ce que le cache affiche hors ligne. */
+const STAMP_KEY = 'coach-day-loaded-at';
 
 /**
  * « Ma journée » — l'écran du matin, pensé pour un téléphone.
@@ -52,7 +57,7 @@ const SCOPE_KEY = 'coach-day-scope';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, DatePipe, LowerCasePipe, FormsModule, IconComponent,
-    InstallPromptComponent, PushPromptComponent],
+    InstallPromptComponent, PushPromptComponent, ReplySheetComponent],
   templateUrl: './coach-day.component.html',
   styleUrl: './coach-day.component.scss',
 })
@@ -67,8 +72,11 @@ export class CoachDayComponent implements OnInit {
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  readonly network = inject(NetworkStatusService);
 
   readonly loading = signal(true);
+  /** Le dernier chargement a échoué (réseau coupé, serveur muet) : on ne prétend pas que tout va bien. */
+  readonly failed = signal(false);
   readonly alerts = signal<CoachAlert[]>([]);
   readonly reviews = signal<FeedbackQueueItem[]>([]);
   readonly conversations = signal<Conversation[]>([]);
@@ -77,6 +85,16 @@ export class CoachDayComponent implements OnInit {
   /** Jour affiché par la section « La journée ». Les autres sections ne bougent pas avec lui. */
   readonly date = signal(todayIso());
   readonly isToday = computed(() => this.date() === todayIso());
+
+  /**
+   * Horodatage du dernier chargement réussi.
+   *
+   * <p>Le service worker sert la file depuis son cache quand le réseau ne répond pas en trois
+   * secondes. C'est exactement ce qu'on veut dans le métro — à condition de le <b>dire</b> : une
+   * liste d'alertes de sept heures du matin présentée comme l'état courant à midi vaut moins que
+   * pas de liste du tout.</p>
+   */
+  readonly lastLoadedAt = signal<string | null>(readStamp());
 
   readonly scope = signal<Scope>(readScope());
   readonly scopeLabel = computed(() => SCOPE_LABELS[this.scope()]);
@@ -115,8 +133,13 @@ export class CoachDayComponent implements OnInit {
     // Sept jours et non quatorze : la file complète a son écran. Ici, c'est ce qui vient
     // d'arriver — au-delà, on ne « traite » plus, on rattrape.
     this.dashboard.feedbackQueue(scope, 7).subscribe({
-      next: (f) => { this.reviews.set(f); this.loading.set(false); },
-      error: () => { this.reviews.set([]); this.loading.set(false); },
+      next: (f) => {
+        this.reviews.set(f);
+        this.loading.set(false);
+        this.failed.set(false);
+        this.stampNow();
+      },
+      error: () => { this.reviews.set([]); this.loading.set(false); this.failed.set(true); },
     });
     this.messages.conversations().subscribe({
       next: (c) => this.conversations.set(c),
@@ -195,6 +218,35 @@ export class CoachDayComponent implements OnInit {
 
   private release(k: string): void {
     this.busy.update((s) => { const n = new Set(s); n.delete(k); return n; });
+  }
+
+  // --- Répondre sans quitter l'écran ----------------------------------------
+  // « Répondre » menait au fil de l'athlète, donc hors de la file en cours de traitement : on
+  // perdait sa place pour écrire une phrase. La feuille écrit dans le même fil, ici.
+
+  readonly replyTo = signal<ReplyTarget | null>(null);
+
+  replyToAlert(a: CoachAlert): void {
+    this.closeMenu();
+    this.replyTo.set({ athleteId: a.athleteId, name: a.athleteName, about: a.title });
+  }
+
+  replyToReview(it: FeedbackQueueItem): void {
+    this.closeMenu();
+    this.replyTo.set({ athleteId: it.athleteId, name: it.athleteName, about: it.title });
+  }
+
+  replyToSession(s: CoachDaySession): void {
+    this.closeMenu();
+    this.replyTo.set({ athleteId: s.athleteId, name: s.athleteName, about: s.title });
+  }
+
+  /** Un message envoyé peut avoir vidé un non-lu : la section Messages se recharge. */
+  onReplySent(): void {
+    this.messages.conversations().subscribe({
+      next: (c) => this.conversations.set(c),
+      error: () => undefined,
+    });
   }
 
   // --- Actions rapides sur une séance ---------------------------------------
@@ -364,9 +416,33 @@ export class CoachDayComponent implements OnInit {
     return text.length > max ? text.slice(0, max).trimEnd() + '…' : text;
   }
 
-  /** « Rien de prévu » n'est pas une erreur : c'est une information, et souvent une bonne. */
+  /**
+   * « Rien de prévu » n'est pas une erreur : c'est une information, et souvent une bonne. Encore
+   * faut-il l'avoir vérifié — un chargement en échec n'autorise pas à annoncer une journée calme.
+   */
   readonly quiet = computed(() =>
-    !this.loading() && !this.alerts().length && !this.reviews().length && !this.unread().length);
+    !this.loading() && !this.failed()
+    && !this.alerts().length && !this.reviews().length && !this.unread().length);
+
+  private stampNow(): void {
+    const iso = new Date().toISOString();
+    this.lastLoadedAt.set(iso);
+    try { localStorage.setItem(STAMP_KEY, iso); } catch { /* horodatage non persisté */ }
+  }
+
+  /** « aujourd'hui à 7 h 12 », « hier à 21 h 04 », ou la date pleine au-delà. */
+  freshness(): string {
+    const iso = this.lastLoadedAt();
+    if (!iso) return '';
+    const d = new Date(iso);
+    const heure = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const jour = isoOf(d);
+    if (jour === todayIso()) return `aujourd'hui à ${heure}`;
+    const hier = new Date();
+    hier.setDate(hier.getDate() - 1);
+    if (jour === isoOf(hier)) return `hier à ${heure}`;
+    return `${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} à ${heure}`;
+  }
 }
 
 const SCOPE_LABELS: Record<Scope, string> = {
@@ -375,6 +451,10 @@ const SCOPE_LABELS: Record<Scope, string> = {
   private: 'Mes privés',
   club: 'Mes athlètes club',
 };
+
+function readStamp(): string | null {
+  try { return localStorage.getItem(STAMP_KEY); } catch { return null; }
+}
 
 function readScope(): Scope {
   try {

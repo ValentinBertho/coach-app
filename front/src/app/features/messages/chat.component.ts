@@ -4,7 +4,7 @@ import {
 } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Message } from '../../core/models/message.model';
 import { AuthService } from '../../core/services/auth.service';
 import { MessageService } from '../../core/services/message.service';
@@ -34,6 +34,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   private readonly toast = inject(ToastService);
 
   private readonly threadRef = viewChild<ElementRef<HTMLElement>>('thread');
+  private readonly composerRef = viewChild<ElementRef<HTMLInputElement>>('composer');
+  private readonly route = inject(ActivatedRoute);
 
   readonly messages = signal<Message[]>([]);
   readonly loading = signal(true);
@@ -81,6 +83,21 @@ export class ChatComponent implements OnInit, OnDestroy {
         error: () => { /* le fil reste lisible même si l'accusé échoue */ },
       });
     }
+    this.focusIfAskedTo();
+  }
+
+  /**
+   * `?reply=1` — on arrive du bouton « Répondre » d'une notification : le champ de saisie prend
+   * le focus, clavier ouvert.
+   *
+   * <p>Sans ça, l'action rapide déposait le coach devant un fil qu'il devait encore toucher pour
+   * écrire : le tap gagné sur la notification était rendu à l'arrivée. Le délai laisse au fil le
+   * temps de se peindre et de dérouler jusqu'en bas — donner le focus avant, c'est le voir sauter
+   * pendant qu'on tape.</p>
+   */
+  private focusIfAskedTo(): void {
+    if (this.route.snapshot.queryParamMap.get('reply') !== '1') return;
+    setTimeout(() => this.composerRef()?.nativeElement.focus(), 250);
   }
 
   ngOnDestroy(): void {

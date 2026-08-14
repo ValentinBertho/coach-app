@@ -57,6 +57,33 @@ describe('AuthService', () => {
       expect(localStorage.getItem(FEEDBACK_QUEUE_KEY)).toBeNull();
       expect(feedbackQueuePending()).toBe(0);
     });
+
+    /**
+     * Le service worker met désormais en cache les réponses du tableau de bord coach — dont la
+     * file de retours, qui porte douleur et blessures déclarées. Sur un appareil partagé, le
+     * compte suivant serait servi depuis ces réponses-là. La purge existait ; elle devient un
+     * invariant tenu par un test, puisqu'on s'appuie dessus pour cacher de la donnée de santé.
+     */
+    it('vide les caches du service worker (données de santé mises en cache)', async () => {
+      // `caches` n'est pas assignable (accesseur en lecture seule sur window) : on espionne
+      // l'objet réel, que le contexte sécurisé de localhost fournit.
+      const deleted: string[] = [];
+      spyOn(caches, 'keys').and.returnValue(
+        Promise.resolve(['ngsw:1:data:dynamic:coach-day', 'ngsw:1:assets']));
+      spyOn(caches, 'delete').and.callFake((key: string) => {
+        deleted.push(key);
+        return Promise.resolve(true);
+      });
+
+      service.logout();
+      http.expectOne((r) => r.url.endsWith('/auth/logout')).flush({});
+      // La purge est asynchrone et volontairement non attendue par `logout` (la déconnexion ne
+      // dépend jamais du réseau ni du stockage) : on laisse la file de microtâches se vider.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(deleted).toContain('ngsw:1:data:dynamic:coach-day');
+      expect(deleted).toContain('ngsw:1:assets');
+    });
   });
 
   it('démarre sans utilisateur quand le stockage est corrompu, au lieu de jeter', () => {

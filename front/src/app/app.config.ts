@@ -17,7 +17,7 @@ import {
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Save,
   LayoutGrid, List, PanelLeft, Menu, GripVertical, ChevronDown, ChevronUp, Type,
   LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck, Eye, Trash2, Plus, Ellipsis, Inbox, ArrowLeft, ArrowRight, ChevronLeft, RotateCcw, Square, GripHorizontal,
-  EyeOff, MapPin, LineChart, Sun,
+  EyeOff, MapPin, LineChart, Sun, WifiOff,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -35,7 +35,7 @@ const ICONS = {
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Save,
   LayoutGrid, List, PanelLeft, Menu, GripVertical, ChevronDown, ChevronUp, Type,
   LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck, Eye, Trash2, Plus, Ellipsis, Inbox, ArrowLeft, ArrowRight, ChevronLeft, RotateCcw, Square, GripHorizontal,
-  EyeOff, MapPin, LineChart, Sun,
+  EyeOff, MapPin, LineChart, Sun, WifiOff,
 };
 
 export const appConfig: ApplicationConfig = {

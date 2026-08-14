@@ -39,9 +39,37 @@
   title="Être prévenu tout de suite"
   lead="Une blessure déclarée, une séance manquée, un message d'un athlète — sur ton téléphone, sans ouvrir l'application." />
 
+<!-- Hors ligne, l'écran vit du cache du service worker : il doit dire de quand il date.
+     Une file d'alertes de 7 h présentée comme l'état de midi vaut moins que pas de file. -->
+@if (!network.online() && lastLoadedAt()) {
+  <p class="cd-stale" role="status">
+    <app-icon name="wifi-off" [size]="15" />
+    Hors ligne — dernières données : {{ freshness() }}.
+  </p>
+}
+
 @if (loading()) {
   <div class="card"><div class="skeleton" style="height: 120px;"></div></div>
 } @else {
+
+  <!-- Le chargement a échoué : on le dit, au lieu d'annoncer une journée calme qu'on n'a pas
+       vérifiée. -->
+  @if (failed()) {
+    <div class="card cd-failed">
+      <span class="cd-failed__ic"><app-icon name="alert-triangle" [size]="20" /></span>
+      <div>
+        <strong>Journée non chargée</strong>
+        <p class="field-hint">
+          @if (!network.online()) {
+            Ton téléphone est hors ligne et rien n'a encore été mis en cache pour ce périmètre.
+          } @else {
+            Le serveur n'a pas répondu.
+          }
+        </p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="load()">Réessayer</button>
+    </div>
+  }
 
   @if (quiet()) {
     <div class="card cd-quiet">
@@ -74,9 +102,9 @@
             <p class="cd-card__detail">{{ al.detail }}</p>
             <div class="cd-acts">
               <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', al.athleteId]">Voir la fiche</a>
-              <a class="btn btn-primary btn-sm" [routerLink]="['/app/athletes', al.athleteId, 'messages']">
+              <button type="button" class="btn btn-primary btn-sm" (click)="replyToAlert(al)">
                 <app-icon name="message-square" [size]="15" /> Répondre
-              </a>
+              </button>
             </div>
           </li>
         }
@@ -134,6 +162,9 @@
                   Voir le programme
                 </a>
               }
+              <button type="button" class="btn btn-ghost btn-sm" (click)="replyToReview(it)">
+                <app-icon name="message-square" [size]="15" /> Répondre
+              </button>
               <button type="button" class="btn btn-primary btn-sm" (click)="markReviewed(it)"
                       [disabled]="busy().has(key(it))">
                 <app-icon name="check" [size]="15" /> Traité
@@ -236,6 +267,9 @@
 
             @if (menuFor() === s.workoutId) {
               <div class="cd-menu">
+                <button type="button" (click)="replyToSession(s)">
+                  <app-icon name="message-square" [size]="16" /> Écrire à {{ s.athleteName }}
+                </button>
                 <button type="button" (click)="edit(s)">
                   <app-icon name="pencil" [size]="16" /> Modifier la séance
                 </button>
@@ -315,3 +349,6 @@
     </div>
   </div>
 }
+
+<!-- Répondre sans quitter la file : même fil que la messagerie, pas un second canal. -->
+<app-reply-sheet [target]="replyTo()" (closed)="replyTo.set(null)" (sent)="onReplySent()" />
