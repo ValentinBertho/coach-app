@@ -449,6 +449,76 @@ class NotificationServiceTest {
                 .endsWith("/athlete/messages?reply=1");
     }
 
+    /**
+     * Le trou constaté en bêta : un coach sans appareil abonné — un iPhone sans l'application
+     * installée, où le push système n'existe pas — n'était prévenu d'un message par
+     * <b>aucun</b> canal, alors que ses e-mails étaient activés. Aucun flux de messagerie
+     * n'appelait l'envoi d'e-mail.
+     */
+    @Test
+    void messageFallsBackToEmailWhenNoDeviceCanBeReached() {
+        ReflectionTestUtils.setField(notificationService, "enabled", true);
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "frontendUrl", "http://localhost:4200");
+        ReflectionTestUtils.setField(mailTemplate, "publisher", "Darilab");
+        Athlete athlete = new Athlete();
+        athlete.setId(UUID.randomUUID());
+        athlete.setFirstName("Marie");
+        athlete.setLastName("Durand");
+        User referent = coach("referent@test.fr");
+        referent.setFullName("Coach Bernard");
+        when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athlete.getId()))
+                .thenReturn(Optional.of(relWith(referent)));
+        // Aucun appareil joignable : c'est exactement le cas du coach sur iPhone non installé.
+        when(pushService.canReach(referent.getId())).thenReturn(false);
+
+        notificationService.notifyNewMessage(
+                message(athlete, UserRole.ATHLETE, "Marie Durand", "j'ai mal au genou depuis hier"));
+
+        ArgumentCaptor<String> html = ArgumentCaptor.forClass(String.class);
+        verify(mailClient).send(eq("referent@test.fr"), contains("Marie Durand"), html.capture(),
+                any(), any(), any());
+        // Le contenu du message ne sort jamais par e-mail : il peut parler de blessure ou de moral.
+        assertThat(html.getValue()).contains("Marie Durand").doesNotContain("genou");
+        assertThat(html.getValue()).contains("/app/athletes/" + athlete.getId() + "/messages");
+    }
+
+    /** Un téléphone qui sonne n'a pas besoin d'un second message dans la boîte mail. */
+    @Test
+    void messageDoesNotEmailWhenAPushDeviceCanBeReached() {
+        ReflectionTestUtils.setField(notificationService, "enabled", true);
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Athlete athlete = athleteWithUser();
+        User athleteUser = userFor(athlete);
+        when(pushService.canReach(athleteUser.getId())).thenReturn(true);
+
+        notificationService.notifyNewMessage(message(athlete, UserRole.COACH, "Coach", "salut"));
+
+        verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
+    }
+
+    /**
+     * Couper la famille « messages » est un choix explicite de ne pas être alerté : on n'y
+     * substitue pas un autre canal, sans quoi le réglage ne servirait à rien.
+     */
+    @Test
+    void messageDoesNotEmailWhenTheCategoryIsMuted() {
+        ReflectionTestUtils.setField(notificationService, "enabled", true);
+        ReflectionTestUtils.setField(notificationService, "frontendUrl", "http://localhost:4200");
+        Athlete athlete = new Athlete();
+        athlete.setId(UUID.randomUUID());
+        athlete.setFirstName("Marie");
+        athlete.setLastName("Durand");
+        User referent = coach("referent@test.fr");
+        referent.setMutedCategories(Set.of(NotificationCategory.MESSAGES));
+        when(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athlete.getId()))
+                .thenReturn(Optional.of(relWith(referent)));
+
+        notificationService.notifyNewMessage(message(athlete, UserRole.ATHLETE, "Marie Durand", "coucou"));
+
+        verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
+    }
+
     /** Un message de l'athlète remonte à son coach référent, sur le fil de cet athlète. */
     @Test
     void athleteMessageNotifiesReferentCoachOnThatThread() {

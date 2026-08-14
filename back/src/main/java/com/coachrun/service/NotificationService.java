@@ -66,10 +66,13 @@ import java.util.UUID;
  * qu'on ne peut pas perdre. Basculer la routine en push ramène le volume à quelques centaines
  * par mois, et gagne en réactivité au passage.</p>
  *
- * <p><strong>Repli.</strong> Tout le monde n'accepte pas les notifications système. Le rappel de
- * séance — le seul dont l'absence se remarque vraiment — retombe sur l'e-mail quand l'athlète
- * n'a aucun appareil abonné ({@link PushNotificationService#canReach}). Les autres notifications
- * de routine restent consultables dans le centre de notifications, qui est toujours actif.</p>
+ * <p><strong>Repli.</strong> Tout le monde n'accepte pas les notifications système — et sur
+ * iPhone, le push n'existe même pas hors de l'application installée. Deux flux, dont l'absence se
+ * remarque vraiment, retombent donc sur l'e-mail quand aucun appareil ne peut être joint
+ * ({@link PushNotificationService#canReach}) : le <b>rappel de séance</b> et le <b>message</b>.
+ * Le repli ne s'applique jamais à qui a coupé la famille dans ses préférences — c'est un choix
+ * explicite, pas une panne de canal. Les autres notifications de routine restent consultables
+ * dans le centre de notifications, qui est toujours actif.</p>
  */
 @Slf4j
 @Service
@@ -453,6 +456,50 @@ public class NotificationService {
         notifyUser(target, "NEW_MESSAGE", "Nouveau message", message.getSenderName(),
                 message.getSenderName(), link, true,
                 List.of(action("repondre", "Répondre", link + "?reply=1")));
+        mailFallbackForMessage(target, message.getSenderName(), link, fromAthlete);
+    }
+
+    /**
+     * Repli e-mail d'un message, <b>quand aucun push ne peut arriver</b>.
+     *
+     * <p><b>Pourquoi il a fallu l'ajouter.</b> La messagerie ne partait qu'en push et au centre de
+     * notifications. Pour qui n'a pas d'appareil abonné — un coach sur iPhone qui n'a pas installé
+     * l'application, où le push système n'existe pas —, un message n'annonçait donc
+     * <b>strictement rien</b> : il fallait ouvrir l'application pour découvrir qu'on avait reçu
+     * quelque chose. Et le réglage « recevoir les e-mails », activé, ne changeait rien : aucun
+     * flux de messagerie n'appelait l'envoi d'e-mail.</p>
+     *
+     * <p><b>Pourquoi seulement en repli.</b> C'est la règle du produit depuis l'audit des
+     * notifications : l'e-mail est réservé à ce qui ne peut pas passer ailleurs. Quelqu'un dont le
+     * téléphone sonne n'a pas besoin d'un second message dans sa boîte. S'y ajoute la contrainte
+     * de volume : le plafond du plan d'envoi est ce qui protège les mots de passe oubliés et les
+     * invitations, qu'on ne peut pas se permettre de perdre.</p>
+     *
+     * <p><b>Trois portes fermées, dans cet ordre.</b> Une famille coupée dans les préférences est
+     * un choix explicite de ne pas être alerté : on n'y substitue pas un autre canal. Un appareil
+     * joignable signifie que le push a fait son travail. Et l'e-mail refusé reste refusé.</p>
+     *
+     * <p>Le corps ne porte <b>jamais le contenu du message</b> : il peut parler de blessure, de
+     * douleur ou de moral, et un e-mail se lit sur un écran verrouillé, chez un fournisseur tiers.
+     * Un nom et un lien suffisent à faire revenir.</p>
+     */
+    private void mailFallbackForMessage(User target, String senderName, String link,
+                                        boolean toCoach) {
+        if (target.mutedCategories().contains(NotificationCategory.MESSAGES)) {
+            return;
+        }
+        if (target.isNotifyPushEnabled() && pushService.canReach(target.getId())) {
+            return;
+        }
+        if (target.getEmail() == null || !target.isNotifyEmailEnabled()) {
+            return;
+        }
+        String who = senderName == null || senderName.isBlank() ? "Quelqu'un" : senderName;
+        String html = "<p>Bonjour " + esc(target.getFullName()) + ",</p>"
+                + "<p><strong>" + esc(who) + "</strong> vous a envoyé un message sur Darilab.</p>"
+                + cta("Lire le message", frontendUrl + link);
+        send(target.getEmail(), "Nouveau message de " + who,
+                html, toCoach ? Audience.COACH : Audience.ATHLETE);
     }
 
     /**
