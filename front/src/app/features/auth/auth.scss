@@ -1,9 +1,22 @@
+/* Les écrans d'authentification sont les seuls du produit à ignorer la zone sûre — et ce sont
+   précisément ceux que l'application **installée** affiche en premier, depuis que le garde
+   d'installation ouvre sur la connexion plutôt que sur la page publique.
+
+   Sur iPhone, l'index déclare `apple-mobile-web-app-status-bar-style: black-translucent` avec
+   `viewport-fit=cover` : en mode installé, la vue web occupe tout l'écran, encoche et barre
+   d'état comprises. Une page qui ne réserve rien s'y dessine donc sous la barre système. Tous
+   les autres écrans réservent leur retrait (`.atop`, la coquille athlète, la barre coach) ;
+   ceux-ci ne l'ont jamais fait, faute d'avoir jamais été regardés en mode installé. */
 .auth-page {
   min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--sp-4);
+  padding:
+    max(var(--sp-4), env(safe-area-inset-top, 0px))
+    max(var(--sp-4), env(safe-area-inset-right, 0px))
+    max(var(--sp-4), env(safe-area-inset-bottom, 0px))
+    max(var(--sp-4), env(safe-area-inset-left, 0px));
   background-color: var(--night);
   background-image: var(--mesh);
 }
