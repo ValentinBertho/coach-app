@@ -165,3 +165,5 @@ databaseChangeLog:
       file: db/changelog/changes/080-debrief-feel-injuries.yaml
   - include:
       file: db/changelog/changes/081-activity-fatigue-pain.yaml
+  - include:
+      file: db/changelog/changes/082-mail-log.yaml

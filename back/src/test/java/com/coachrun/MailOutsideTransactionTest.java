@@ -2,6 +2,7 @@ package com.coachrun;
 
 import com.coachrun.integration.MailTemplate;
 import com.coachrun.integration.ResendMailClient;
+import com.coachrun.service.MailLogService;
 import com.coachrun.service.NotificationService;
 import com.coachrun.service.PushNotificationService;
 import com.coachrun.repository.CoachAthleteRelationRepository;
@@ -38,6 +39,8 @@ class MailOutsideTransactionTest {
     @Mock private UserRepository userRepository;
     @Mock private PushNotificationService pushService;
     @Mock private CoachAthleteRelationRepository relationRepository;
+    /** Journal des envois : le report après commit ne le concerne pas, il est simulé. */
+    @Mock private MailLogService mailLog;
     @InjectMocks private NotificationService notificationService;
 
     @AfterEach

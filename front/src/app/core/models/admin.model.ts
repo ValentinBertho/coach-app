@@ -98,3 +98,40 @@ export interface StravaWebhookState {
   callbackUrl: string;
   subscriptions: StravaSubscription[];
 }
+
+/** Consommation d'e-mails : où en est-on du plafond, et qui le consomme. */
+export interface MailStats {
+  today: number;
+  dailyQuota: number;
+  month: number;
+  monthlyQuota: number;
+  failed7d: number;
+  byDay: MailDay[];
+  byKind: MailKindVolume[];
+}
+
+export interface MailDay {
+  date: string;
+  sent: number;
+  failed: number;
+}
+
+export interface MailKindVolume {
+  kind: string;
+  label: string;
+  /** Envoi sans autre canal de secours : c'est ce qu'on ne coupe jamais pour tenir un plafond. */
+  transactional: boolean;
+  count: number;
+}
+
+/** Une ligne du journal : sert à répondre à « untel a-t-il bien reçu son lien ? ». */
+export interface MailLogEntry {
+  recipient: string;
+  subject: string;
+  kind: string;
+  label: string;
+  audience: string | null;
+  sent: boolean;
+  errorMessage: string | null;
+  sentAt: string;
+}

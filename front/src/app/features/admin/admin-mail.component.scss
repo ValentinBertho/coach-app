@@ -1,0 +1,97 @@
+/* Consommation d'e-mails. Un écran d'exploitation : il se scanne, il ne se lit pas. */
+
+.am-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+.am-kpi { display: flex; flex-direction: column; gap: var(--sp-2); }
+.am-kpi__value { font-size: var(--text-2xl, 28px); font-weight: 800; line-height: 1; }
+.am-kpi__value small { font-size: var(--text-md); font-weight: 600; color: var(--ink-3); }
+
+/* Jauge de plafond. La couleur est un état (bon / à surveiller / dépassé), jamais une identité :
+   elle est donc doublée du pourcentage écrit juste en dessous. */
+.am-meter {
+  height: 8px; border-radius: var(--radius-full);
+  background: var(--paper-sunk); overflow: hidden;
+}
+.am-meter__fill { display: block; height: 100%; border-radius: var(--radius-full); background: var(--primary); }
+.am-kpi[data-level='warn'] .am-meter__fill { background: var(--warning); }
+.am-kpi[data-level='over'] .am-meter__fill { background: var(--danger); }
+.am-kpi[data-level='warn'] .am-kpi__value { color: var(--warning-text); }
+.am-kpi[data-level='over'] .am-kpi__value { color: var(--danger-text); }
+
+/* --- Histogramme --- */
+.am-chart { margin-bottom: var(--sp-5); }
+.am-chart__hd {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-4);
+}
+.am-chart__hd h2 { margin: 0 0 2px; }
+.am-chart__hd .field-hint { margin: 0; }
+
+.am-legend {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; gap: var(--sp-3); flex-wrap: wrap;
+  font-size: var(--text-sm); color: var(--ink-2);
+}
+.am-legend li { display: inline-flex; align-items: center; gap: var(--sp-1); }
+.am-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.am-swatch--sent { background: var(--primary); }
+.am-swatch--failed { background: var(--danger); }
+.am-swatch--quota { height: 0; width: 14px; border-top: 2px dashed var(--ink-4); border-radius: 0; }
+
+/* `overflow: hidden` : le trait de plafond court sur toute la largeur et, sans découpe, il
+   débordait de la boîte pour aller barrer le sous-titre du graphique. Le viewBox réserve
+   quelques unités au-dessus des données pour qu'un plafond au niveau du pic reste visible. */
+.am-svg { width: 100%; height: 190px; display: block; overflow: hidden; }
+/* Les barres ne reçoivent pas la souris : elles sont peintes par-dessus les zones de survol
+   pleine hauteur, et sans cela elles leur voleraient l'événement — le détail du jour ne
+   s'affichait jamais quand on visait précisément une barre. */
+.am-bar { fill: var(--primary); pointer-events: none; transition: opacity var(--duration-fast) var(--ease); }
+.am-bar--failed { fill: var(--danger); }
+/* Le survol éclaircit la barre visée plutôt que d'assombrir les autres : on garde la forme
+   d'ensemble lisible pendant qu'on inspecte un jour. */
+.am-bar--on { opacity: 1; filter: brightness(1.15); }
+.am-hit { fill: transparent; cursor: crosshair; }
+.am-axis { stroke: var(--hairline); stroke-width: 1; }
+.am-quota { stroke: var(--ink-4); stroke-width: 2; stroke-dasharray: 4 4; }
+
+.am-scale { display: flex; justify-content: space-between; margin-top: var(--sp-1); }
+
+/* --- Répartition par nature --- */
+.am-kinds { margin-bottom: var(--sp-5); }
+.am-kinds h2 { margin: 0 0 2px; }
+.am-kind-list { list-style: none; margin: var(--sp-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.am-kind {
+  display: grid; grid-template-columns: minmax(150px, 1fr) 2fr auto;
+  align-items: center; gap: var(--sp-3);
+}
+.am-kind__label { display: inline-flex; align-items: center; gap: var(--sp-2); font-weight: 600; font-size: var(--text-sm); }
+.am-kind__bar { height: 10px; border-radius: var(--radius-full); background: var(--paper-sunk); overflow: hidden; }
+.am-kind__fill { display: block; height: 100%; background: var(--primary); border-radius: var(--radius-full); }
+.am-kind__count { font-weight: 700; }
+/* En étroit la barre passe sous sa ligne. Placement explicite : laissée au placement
+   automatique, la barre à cheval sur les deux colonnes repoussait le chiffre sur une
+   troisième ligne, loin du libellé qu'il chiffre. */
+@media (max-width: 640px) {
+  .am-kind { grid-template-columns: 1fr auto; }
+  .am-kind__label { grid-area: 1 / 1; }
+  .am-kind__count { grid-area: 1 / 2; }
+  .am-kind__bar { grid-area: 2 / 1 / 3 / -1; }
+}
+
+/* --- Journal --- */
+.am-log h2 { margin: 0 0 var(--sp-3); }
+.am-table-wrap { overflow-x: auto; }
+.am-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.am-table th {
+  text-align: left; padding: var(--sp-2) var(--sp-3);
+  font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--ink-3); border-bottom: 1px solid var(--hairline); white-space: nowrap;
+}
+.am-table td { padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--hairline); vertical-align: top; }
+.am-subject { color: var(--ink-2); max-width: 320px; }
+.am-row--failed td { background: var(--danger-bg); }
+.am-row--reason td { border-bottom: 1px solid var(--hairline); padding-top: 0; }

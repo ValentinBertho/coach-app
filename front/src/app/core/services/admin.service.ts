@@ -12,6 +12,8 @@ import {
   ClubAdmin,
   ClubRequest,
   InvitationAdmin,
+  MailLogEntry,
+  MailStats,
   StravaSubscription,
   StravaWebhookState,
 } from '../models/admin.model';
@@ -26,6 +28,20 @@ export class AdminService {
   // --- Dashboard / RAZ ---
   stats(): Observable<AdminStats> {
     return this.http.get<AdminStats>(`${this.base}/stats`);
+  }
+
+  /** Consommation d'e-mails : plafonds, histogramme quotidien, répartition par nature. */
+  mailStats(days = 30): Observable<MailStats> {
+    return this.http.get<MailStats>(`${this.base}/mail/stats`, {
+      params: new HttpParams().set('days', days),
+    });
+  }
+
+  /** Journal des envois, du plus récent au plus ancien. */
+  mailLog(page = 0, size = 50): Observable<PageResponse<MailLogEntry>> {
+    return this.http.get<PageResponse<MailLogEntry>>(`${this.base}/mail/log`, {
+      params: new HttpParams().set('page', page).set('size', size),
+    });
   }
   resetAvailable(): Observable<{ available: boolean }> {
     return this.http.get<{ available: boolean }>(`${this.base}/demo/reset-available`);

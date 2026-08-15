@@ -1,7 +1,11 @@
 package com.coachrun.controller;
 
 import com.coachrun.dto.response.AdminStatsResponse;
+import com.coachrun.dto.response.MailLogResponse;
+import com.coachrun.dto.response.MailStatsResponse;
+import com.coachrun.dto.response.PageResponse;
 import com.coachrun.service.AdminStatsService;
+import com.coachrun.service.MailStatsService;
 import com.coachrun.service.DemoResetService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,10 +27,35 @@ public class AdminController {
 
     private final AdminStatsService adminStatsService;
     private final DemoResetService demoResetService;
+    private final MailStatsService mailStatsService;
 
     @GetMapping("/stats")
     public AdminStatsResponse stats() {
         return adminStatsService.stats();
+    }
+
+    /**
+     * Consommation d'e-mails : plafonds du jour et du mois, histogramme quotidien, répartition par
+     * nature d'envoi, échecs récents.
+     *
+     * <p>Le plan d'envoi est plafonné et rien ne le mesurait : la seule façon d'apprendre qu'on
+     * l'avait dépassé était qu'un utilisateur signale n'avoir jamais reçu son lien de
+     * réinitialisation — l'envoi qu'on ne peut précisément pas perdre.</p>
+     *
+     * @param days profondeur de l'histogramme (30 par défaut, borné entre 7 et 90)
+     */
+    @GetMapping("/mail/stats")
+    public MailStatsResponse mailStats(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "30") int days) {
+        return mailStatsService.stats(days);
+    }
+
+    /** Journal des envois, du plus récent au plus ancien : « untel a-t-il bien reçu son lien ? ». */
+    @GetMapping("/mail/log")
+    public PageResponse<MailLogResponse> mailLog(
+            @org.springframework.data.web.PageableDefault(size = 50)
+            org.springframework.data.domain.Pageable pageable) {
+        return mailStatsService.log(pageable);
     }
 
     /** Indique si la RAZ démo est disponible (flag activé et hors prod). */

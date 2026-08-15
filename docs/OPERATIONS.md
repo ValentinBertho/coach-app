@@ -272,3 +272,28 @@ santé n'est jamais incluse dans un email.
   du club) — jamais à un coach non concerné.
 - Le **push web** (VAPID) suit le même routage ; il dépend des souscriptions navigateur (renseigner
   `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`).
+
+### 8.4 Suivre la consommation — `Admin › E-mails`
+Le produit vit sous un plafond d'envoi, et ce plafond a déjà dicté un choix de conception (le
+basculement des notifications de routine vers le push). Il n'était mesuré nulle part : un dépassement
+ne se découvrait qu'au signalement d'un lien de réinitialisation jamais reçu — trop tard, et sur
+l'envoi qu'on peut le moins se permettre de perdre.
+
+Chaque envoi est désormais consigné (`mail_log` : destinataire, sujet, nature, issue, motif d'échec).
+L'écran **`/admin/mail`**, réservé aux admins plateforme, en tire quatre lectures :
+- **les deux jauges de plafond** (jour, mois), qui passent à l'orange à 80 % et au rouge au-delà ;
+- **les échecs des 7 derniers jours** — un envoi refusé ne repart jamais tout seul ;
+- **l'histogramme sur 30 jours** et la **répartition par nature**, qui disent quoi couper si un
+  plafond menace : les envois marqués *essentiel* (vérification, mot de passe, invitations) n'ont
+  **aucun canal de secours** et ne se coupent pas ;
+- **le journal des derniers envois**, seul niveau qui réponde à « untel a-t-il bien reçu son lien ? ».
+
+Réglages :
+```bash
+MAIL_QUOTA_DAILY=100         # plafond quotidien affiché ; 0 masque la jauge
+MAIL_QUOTA_MONTHLY=3000      # plafond mensuel affiché ; 0 masque la jauge
+MAIL_LOG_RETENTION_DAYS=180  # le journal porte des adresses : il se purge. 0 désactive la purge
+```
+Le journal ne remonte qu'aux envois postérieurs à sa mise en service, et rien n'est consigné tant
+que `MAIL_ENABLED=false`. L'écriture est **hors transaction métier** : un journal en panne ne fait
+jamais échouer l'action qui a déclenché l'envoi.

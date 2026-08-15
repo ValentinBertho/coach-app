@@ -7,6 +7,7 @@ import com.coachrun.entity.Message;
 import com.coachrun.entity.Notification;
 import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
+import com.coachrun.entity.enums.MailKind;
 import com.coachrun.entity.enums.NotificationCategory;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.entity.enums.WorkoutStatus;
@@ -88,6 +89,7 @@ public class NotificationService {
     private final NotificationStreamService streamService;
     private final AlertDigestLogRepository digestLogRepository;
     private final ClockService clock;
+    private final MailLogService mailLog;
 
     @Value("${app.mail.enabled:false}")
     private boolean enabled;
@@ -499,7 +501,7 @@ public class NotificationService {
                 + "<p><strong>" + esc(who) + "</strong> vous a envoyé un message sur Darilab.</p>"
                 + cta("Lire le message", frontendUrl + link);
         send(target.getEmail(), "Nouveau message de " + who,
-                html, toCoach ? Audience.COACH : Audience.ATHLETE);
+                html, toCoach ? Audience.COACH : Audience.ATHLETE, MailKind.MESSAGE);
     }
 
     /**
@@ -918,7 +920,7 @@ public class NotificationService {
                 + "<p>" + count + (count > 1 ? " athlètes nécessitent" : " athlète nécessite")
                 + " votre attention :</p><ul>" + items + "</ul>"
                 + cta("Ouvrir ma journée", frontendUrl + "/app/journee");
-        send(coach.getEmail(), subject, html, Audience.COACH);
+        send(coach.getEmail(), subject, html, Audience.COACH, MailKind.ALERT_DIGEST);
     }
 
     /** Catégorie générique (sans détail de santé) d'une alerte, pour l'email. */
@@ -1001,7 +1003,7 @@ public class NotificationService {
                         + "<p>Rappel — demain :</p><ul>" + items + "</ul>"
                         + cta(count > 1 ? "Voir mes séances" : "Voir ma séance",
                                 frontendUrl + "/athlete/today"),
-                Audience.ATHLETE);
+                Audience.ATHLETE, MailKind.WORKOUT_REMINDER);
     }
 
     /**
@@ -1074,7 +1076,8 @@ public class NotificationService {
                 + "<p>Bienvenue sur Darilab. Confirmez votre adresse e-mail pour sécuriser votre compte.</p>"
                 + cta("Confirmer mon e-mail", url)
                 + "<p>Ce lien expire dans 7 jours.</p>";
-        send(email, "Confirmez votre adresse e-mail Darilab", html, Audience.COACH);
+        send(email, "Confirmez votre adresse e-mail Darilab", html, Audience.COACH,
+                MailKind.VERIFICATION);
     }
 
     /** Réinitialisation de mot de passe : e-mail avec le lien de redéfinition. */
@@ -1086,7 +1089,8 @@ public class NotificationService {
                 + "<p>Vous avez demandé à réinitialiser votre mot de passe Darilab.</p>"
                 + cta("Choisir un nouveau mot de passe", url)
                 + "<p>Ce lien expire dans 2 heures. Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail.</p>";
-        send(email, "Réinitialisation de votre mot de passe Darilab", html, Audience.COACH);
+        send(email, "Réinitialisation de votre mot de passe Darilab", html, Audience.COACH,
+                MailKind.PASSWORD_RESET);
     }
 
     /** Invitation d'un coach au club : e-mail avec le lien d'acceptation (création de compte). */
@@ -1100,7 +1104,7 @@ public class NotificationService {
                 + "</strong> en tant que coach sur Darilab.</p>"
                 + cta("Accepter l'invitation et créer mon mot de passe", url)
                 + "<p>Ce lien expire dans 14 jours.</p>";
-        send(email, subject, html, Audience.COACH);
+        send(email, subject, html, Audience.COACH, MailKind.COACH_INVITATION);
     }
 
     /**
@@ -1117,7 +1121,7 @@ public class NotificationService {
                 + "</strong> sur Darilab pour suivre vos séances et partager vos ressentis.</p>"
                 + cta("Activer mon espace athlète", url)
                 + "<p>Ce lien expire dans 14 jours.</p>";
-        send(email, subject, html, Audience.ATHLETE);
+        send(email, subject, html, Audience.ATHLETE, MailKind.ATHLETE_INVITATION);
     }
 
     /**
@@ -1145,7 +1149,8 @@ public class NotificationService {
                     + esc(reason) + ", du " + unavailability.getStartDate()
                     + " au " + unavailability.getEndDate() + ".</p>"
                     + cta("Ouvrir le calendrier", frontendUrl + "/app/calendar");
-            send(coach.getEmail(), athleteName + " est indisponible", html, Audience.COACH);
+            send(coach.getEmail(), athleteName + " est indisponible", html, Audience.COACH,
+                    MailKind.UNAVAILABILITY);
         });
     }
 
@@ -1187,7 +1192,7 @@ public class NotificationService {
      * Enveloppe le fragment dans le gabarit transactionnel puis envoie HTML + texte, avec
      * {@code reply_to} et {@code List-Unsubscribe}. Un échec d'envoi ne casse jamais le métier.
      */
-    private void send(String to, String subject, String bodyHtml, Audience audience) {
+    private void send(String to, String subject, String bodyHtml, Audience audience, MailKind kind) {
         if (!enabled) {
             log.info("[mail désactivé] -> {} : {}", to, subject);
             return;
@@ -1201,21 +1206,30 @@ public class NotificationService {
                     new org.springframework.transaction.support.TransactionSynchronization() {
                         @Override
                         public void afterCommit() {
-                            dispatch(to, subject, bodyHtml, audience);
+                            dispatch(to, subject, bodyHtml, audience, kind);
                         }
                     });
             return;
         }
-        dispatch(to, subject, bodyHtml, audience);
+        dispatch(to, subject, bodyHtml, audience, kind);
     }
 
-    /** Envoi effectif (hors transaction) : rendu du gabarit puis appel au client Resend. */
-    private void dispatch(String to, String subject, String bodyHtml, Audience audience) {
+    /**
+     * Envoi effectif (hors transaction) : rendu du gabarit, appel au client Resend, <b>et trace au
+     * journal</b> — dans les deux issues.
+     *
+     * <p>Le journal est ce qui rend la consommation observable : sans lui, connaître le volume
+     * demandait d'ouvrir la console du fournisseur, et un plafond atteint ne se découvrait que le
+     * jour où quelqu'un signalait n'avoir jamais reçu son lien de réinitialisation.</p>
+     */
+    private void dispatch(String to, String subject, String bodyHtml, Audience audience, MailKind kind) {
         try {
             MailTemplate.Rendered mail = mailTemplate.render(subject, bodyHtml, audience);
             mailClient.send(to, subject, mail.html(), mail.text(),
                     mailTemplate.replyTo(), mailTemplate.listUnsubscribe(audience));
+            mailLog.record(to, subject, kind, audience, null);
         } catch (RuntimeException ex) {
+            mailLog.record(to, subject, kind, audience, ex.getMessage());
             // Idempotence/robustesse : un échec d'envoi ne casse pas l'action métier. Mais il ne
             // doit plus être silencieux : un quota Resend épuisé fait échouer *tous* les envois,
             // y compris les réinitialisations de mot de passe et les invitations. Sans remontée,
