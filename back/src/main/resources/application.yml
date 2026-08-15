@@ -85,6 +85,15 @@ app:
     require-verified-email: ${REQUIRE_VERIFIED_EMAIL:${MAIL_ENABLED:false}}
   mail:
     enabled: ${MAIL_ENABLED:false}
+    # Plafonds du plan d'envoi, affichés en jauge dans l'écran d'administration. Valeurs du plan
+    # gratuit Resend — celles-là mêmes qui ont motivé le basculement des notifications de routine
+    # vers le push. Zéro masque la jauge (plan sans plafond connu).
+    quota:
+      daily: ${MAIL_QUOTA_DAILY:100}
+      monthly: ${MAIL_QUOTA_MONTHLY:3000}
+    # Le journal des envois porte des adresses : il se purge. Six mois couvrent le diagnostic
+    # d'un envoi et le contrôle d'une facture ; zéro désactive la purge.
+    log-retention-days: ${MAIL_LOG_RETENTION_DAYS:180}
     resend-api-key: ${RESEND_API_KEY:}
     from: ${MAIL_FROM:Darilab <no-reply@darilab.app>}
     # Pied de page et en-têtes du gabarit transactionnel.

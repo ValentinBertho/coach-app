@@ -16,6 +16,7 @@ import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.NotificationRepository;
 import com.coachrun.repository.UserRepository;
 import com.coachrun.service.ClockService;
+import com.coachrun.service.MailLogService;
 import com.coachrun.service.NotificationService;
 import com.coachrun.service.NotificationStreamService;
 import com.coachrun.service.PushNotificationService;
@@ -72,6 +73,9 @@ class NotificationServiceTest {
     private AlertDigestLogRepository digestLogRepository;
     @Mock
     private ClockService clock;
+    /** Journal des envois : simulé ici, il fait l'objet de ses propres tests dans {@code MailLogTest}. */
+    @Mock
+    private MailLogService mailLog;
     @InjectMocks
     private NotificationService notificationService;
 

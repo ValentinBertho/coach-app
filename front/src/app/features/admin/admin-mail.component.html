@@ -1,0 +1,182 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">E-mails</h1>
+    <p class="subtitle">
+      Consommation du plan d'envoi, et détail des derniers e-mails partis.
+    </p>
+  </div>
+</section>
+
+@if (loading()) {
+  <div class="card"><div class="skeleton" style="height: 140px;"></div></div>
+} @else {
+  @if (stats(); as s) {
+
+  <!-- Les deux plafonds d'abord : c'est la seule question qui appelle une action. -->
+  <div class="am-kpis">
+    <div class="card am-kpi" [attr.data-level]="level(s.today, s.dailyQuota)">
+      <span class="stat-label">Aujourd'hui</span>
+      <span class="am-kpi__value metric">
+        {{ s.today | number }}<small>{{ s.dailyQuota > 0 ? ' / ' + (s.dailyQuota | number) : '' }}</small>
+      </span>
+      @if (s.dailyQuota > 0) {
+        <div class="am-meter" role="img"
+             [attr.aria-label]="fill(s.today, s.dailyQuota) + ' % du plafond quotidien'">
+          <span class="am-meter__fill" [style.width.%]="fill(s.today, s.dailyQuota)"></span>
+        </div>
+        <span class="field-hint">{{ fill(s.today, s.dailyQuota) }} % du plafond quotidien</span>
+      }
+    </div>
+
+    <div class="card am-kpi" [attr.data-level]="level(s.month, s.monthlyQuota)">
+      <span class="stat-label">Ce mois-ci</span>
+      <span class="am-kpi__value metric">
+        {{ s.month | number }}<small>{{ s.monthlyQuota > 0 ? ' / ' + (s.monthlyQuota | number) : '' }}</small>
+      </span>
+      @if (s.monthlyQuota > 0) {
+        <div class="am-meter" role="img"
+             [attr.aria-label]="fill(s.month, s.monthlyQuota) + ' % du plafond mensuel'">
+          <span class="am-meter__fill" [style.width.%]="fill(s.month, s.monthlyQuota)"></span>
+        </div>
+        <span class="field-hint">{{ fill(s.month, s.monthlyQuota) }} % du plafond mensuel</span>
+      }
+    </div>
+
+    <div class="card am-kpi" [attr.data-level]="s.failed7d > 0 ? 'over' : 'ok'">
+      <span class="stat-label">Échecs (7 jours)</span>
+      <span class="am-kpi__value metric">{{ s.failed7d | number }}</span>
+      <span class="field-hint">
+        @if (s.failed7d > 0) {
+          Un envoi refusé ne repart jamais tout seul — voir le motif dans le journal.
+        } @else {
+          Tous les envois ont été acceptés.
+        }
+      </span>
+    </div>
+  </div>
+
+  <!-- Histogramme : la forme de la consommation, et le plafond en repère. -->
+  <section class="card am-chart">
+    <header class="am-chart__hd">
+      <div>
+        <h2>Volume quotidien</h2>
+        <p class="field-hint">
+          @if (hovered(); as d) {
+            <strong>{{ d.date | date: 'EEEE d MMMM' }}</strong> —
+            {{ d.sent }} envoyé{{ d.sent > 1 ? 's' : '' }}@if (d.failed) {, {{ d.failed }} en échec}
+          } @else {
+            30 derniers jours. Survole une barre pour son détail.
+          }
+        </p>
+      </div>
+      <ul class="am-legend">
+        <li><span class="am-swatch am-swatch--sent"></span> Envoyés</li>
+        <li><span class="am-swatch am-swatch--failed"></span> Échecs</li>
+        @if (quotaVisible()) { <li><span class="am-swatch am-swatch--quota"></span> Plafond</li> }
+      </ul>
+    </header>
+
+    <!-- Le dessin est décalé de 6 unités vers le haut : la barre du jour de pic touche y=0, et
+         le trait de plafond peut l'atteindre — sans cette marge, la découpe les rognerait. -->
+    <svg class="am-svg" [attr.viewBox]="'0 -6 ' + chartWidth + ' ' + (chartHeight + 14)"
+         preserveAspectRatio="none" role="img" [attr.aria-label]="chartSummary()">
+      <!-- Repère de plafond : une consommation ne se lit que par rapport à sa limite. -->
+      @if (quotaVisible()) {
+        <line class="am-quota" x1="0" [attr.y1]="quotaY()" [attr.x2]="chartWidth"
+              [attr.y2]="quotaY()" />
+      }
+      @for (b of bars(); track b.day.date) {
+        <!-- Zone de survol pleine hauteur : viser une barre de trois pixels serait un jeu. -->
+        <rect class="am-hit" [attr.x]="b.x" y="0" [attr.width]="b.width" [attr.height]="chartHeight"
+              (mouseenter)="hovered.set(b.day)" (mouseleave)="hovered.set(null)" />
+        @if (b.sentH > 0) {
+          <rect class="am-bar am-bar--sent" [attr.x]="b.x" [attr.y]="b.sentY"
+                [attr.width]="b.width" [attr.height]="b.sentH" rx="2"
+                [class.am-bar--on]="hovered()?.date === b.day.date" />
+        }
+        @if (b.failedH > 0) {
+          <rect class="am-bar am-bar--failed" [attr.x]="b.x" [attr.y]="b.failedY"
+                [attr.width]="b.width" [attr.height]="b.failedH" rx="2"
+                [class.am-bar--on]="hovered()?.date === b.day.date" />
+        }
+      }
+      <line class="am-axis" x1="0" [attr.y1]="chartHeight" [attr.x2]="chartWidth" [attr.y2]="chartHeight" />
+    </svg>
+
+    <div class="am-scale">
+      <span class="field-hint metric">{{ firstDay() | date: 'd MMM' }}</span>
+      <span class="field-hint metric">{{ lastDay() | date: 'd MMM' }}</span>
+    </div>
+  </section>
+
+  <!-- Ce qui consomme : la seule vue qui dise quoi couper si un plafond menace. -->
+  <section class="card am-kinds">
+    <h2>Ce qui consomme</h2>
+    <p class="field-hint">
+      Sur 30 jours. Les envois <strong>transactionnels</strong> n'ont aucun canal de secours :
+      ils ne se coupent pas.
+    </p>
+    @if (s.byKind.length) {
+      <ul class="am-kind-list">
+        @for (k of s.byKind; track k.kind) {
+          <li class="am-kind">
+            <span class="am-kind__label">
+              {{ k.label }}
+              @if (k.transactional) {
+                <span class="badge badge-warning" title="Sans canal de secours">essentiel</span>
+              }
+            </span>
+            <span class="am-kind__bar" aria-hidden="true">
+              <span class="am-kind__fill" [style.width.%]="share(k)"></span>
+            </span>
+            <span class="am-kind__count metric">{{ k.count | number }}</span>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="field-hint">Aucun envoi sur la période.</p>
+    }
+  </section>
+
+  <!-- Le détail : « untel a-t-il bien reçu son lien ? » -->
+  <section class="card am-log">
+    <h2>Derniers envois</h2>
+    @if (log().length) {
+      <div class="am-table-wrap">
+        <table class="am-table">
+          <thead>
+            <tr><th>Quand</th><th>Destinataire</th><th>Nature</th><th>Sujet</th><th>État</th></tr>
+          </thead>
+          <tbody>
+            @for (e of log(); track e.sentAt + e.recipient) {
+              <tr [class.am-row--failed]="!e.sent">
+                <td class="metric">{{ e.sentAt | date: 'd MMM HH:mm' }}</td>
+                <td>{{ e.recipient }}</td>
+                <td>{{ e.label }}</td>
+                <td class="am-subject">{{ e.subject }}</td>
+                <td>
+                  @if (e.sent) {
+                    <span class="badge badge-success">Envoyé</span>
+                  } @else {
+                    <span class="badge badge-danger" [title]="e.errorMessage || 'Échec'">
+                      <app-icon name="alert-triangle" [size]="13" /> Échec
+                    </span>
+                  }
+                </td>
+              </tr>
+              @if (!e.sent && e.errorMessage) {
+                <tr class="am-row--reason"><td colspan="5" class="field-hint">{{ e.errorMessage }}</td></tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <p class="field-hint">
+        Aucun envoi enregistré. Le journal ne remonte qu'aux e-mails partis depuis sa mise en
+        service — et rien n'est enregistré tant que l'envoi est désactivé.
+      </p>
+    }
+  </section>
+}
+}

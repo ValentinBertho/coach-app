@@ -454,6 +454,12 @@ export const routes: Routes = [
           import('./features/admin/admin-invitations.component').then((m) => m.AdminInvitationsComponent),
       },
       {
+        // Consommation d'e-mails : le plan d'envoi est plafonné, et rien ne le mesurait.
+        path: 'mail',
+        loadComponent: () =>
+          import('./features/admin/admin-mail.component').then((m) => m.AdminMailComponent),
+      },
+      {
         path: 'feedback',
         loadComponent: () =>
           import('./features/admin/admin-feedback.component').then((m) => m.AdminFeedbackComponent),
