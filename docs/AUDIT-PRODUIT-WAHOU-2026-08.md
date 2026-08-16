@@ -16,6 +16,50 @@ Nolio est de seconde main.
 
 ---
 
+## État de livraison — août 2026
+
+**Les dix évolutions de ce document sont livrées.** Le texte reste tel qu'il a été écrit : c'est son
+intérêt — il dit ce qu'on croyait avant de construire. Ce paragraphe dit ce qu'on a trouvé en
+construisant.
+
+### La contrainte qui a tout structuré
+
+Une seule décision a façonné l'implémentation entière : **le produit ne modifie jamais une séance
+tout seul.** Elle vient du commanditaire, sur les propositions 4.1 et 4.5, et s'est révélée être la
+bonne architecture pour les dix.
+
+Toutes les suggestions convergent vers une table unique — `athlete_proposals` — qui porte ce qui
+*serait* fait, sa raison en clair, et attend une décision humaine. `ProposalService#accept` est la
+**seule porte d'écriture** de tout ce que le produit détecte, et elle exige un utilisateur : c'est
+ce qui garantit qu'une séance porte toujours la signature de quelqu'un. On ne peut pas ajouter une
+automatisation silencieuse sans passer par là, donc sans qu'elle soit visible et refusable.
+
+Le feu vert du matin conseille et **montre** l'adaptation (« 6 × 1000 » barré, « 4 × 1000 » à côté) ;
+l'athlète peut la *demander* ; le coach seul l'applique. Une indisponibilité saisie propose ce qu'on
+fait des neuf séances qu'elle recouvre — elle n'y touche pas. Une sortie qui vaut mieux que le profil
+propose un VDOT — elle ne l'écrit pas.
+
+### Trois choses apprises en construisant
+
+| Ce qu'on a découvert | Ce qu'on en a fait |
+|---|---|
+| Une structure adaptée calculée la veille **écrase le travail du coach** s'il a retouché la séance entre-temps | La version allégée est recalculée **au moment de l'acceptation**, jamais figée à la détection |
+| Un score de conformité sans données se lit comme un échec | `scorePct` sort **nul**, jamais zéro, et l'interface se tait. Un score qui punit l'absence de mesure n'est cru qu'une fois |
+| Une proposition dépassée par la date n'est pas une proposition refusée | Statut `EXPIRED` distinct de `DISMISSED` — sinon un refus ne voudrait plus rien dire, et c'est justement lui qui empêche une suggestion de revenir |
+
+### Ce que ça a coûté, et ce que ça n'a pas coûté
+
+Six moteurs neufs, tous en logique pure et testés (51 cas unitaires) : adaptation de séance,
+conformité bloc par bloc, trajectoire, trame de plan, perspective de semaine, détection de niveau.
+**Aucun ne collecte de donnée nouvelle.** Deux migrations additives seulement : la table de
+propositions, et une colonne `result_time_s` sur la course — le trou du modèle que §3.3 signalait.
+
+Le reste est de l'assemblage : `calculatedPaces` rencontre `lapsJson`, `plannedLoadUa` rencontre la
+charge chronique, `RaceObjective` rencontre le VDOT, `ProgressionEngine` rencontre enfin la séance
+suivante. C'est ce que le diagnostic annonçait, et c'est ce qui s'est vérifié.
+
+---
+
 ## 1. Verdict produit
 
 **DARI Lab a un moteur de calcul remarquable et une interface de saisie remarquable. Il lui manque

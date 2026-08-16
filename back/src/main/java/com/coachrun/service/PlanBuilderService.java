@@ -24,7 +24,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -57,7 +56,6 @@ public class PlanBuilderService {
     private final RaceObjectiveRepository raceRepository;
     private final WorkoutRepository workoutRepository;
     private final AthleteUnavailabilityRepository unavailabilityRepository;
-    private final AthleteLoadService loadService;
     private final PlanBuilderEngine engine;
     private final ClockService clock;
 

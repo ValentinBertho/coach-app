@@ -142,7 +142,7 @@ public class ComplianceEngine {
         }
         int score = (int) Math.round(onTarget * 100.0 / assessed);
         return new SessionCompliance(score, assessed, onTarget,
-                label(score, onTarget, assessed), detail(results), results);
+                label(score), detail(results), results);
     }
 
     /** La fourchette existe-t-elle&nbsp;? Sans elle il n'y a rien à confronter. */
@@ -183,7 +183,7 @@ public class ComplianceEngine {
         return -1;
     }
 
-    private String label(int score, int onTarget, int assessed) {
+    private String label(int score) {
         String head = score >= 85 ? "Séance tenue"
                 : score >= 60 ? "Séance partiellement tenue"
                 : "Séance non tenue";
