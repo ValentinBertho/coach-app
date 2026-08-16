@@ -26,6 +26,8 @@ import { IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../.
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { MorningCheckInComponent } from './morning-check-in.component';
 import { ReadinessCardComponent } from './readiness-card.component';
+import { TrajectoryBannerComponent } from '../../shared/components/trajectory-banner/trajectory-banner.component';
+import { Proposal, Trajectory } from '../../core/models/decision.model';
 import { StravaCardComponent } from './strava-card.component';
 import { PushPromptComponent } from '../../shared/components/push-prompt/push-prompt.component';
 import { HelpHintComponent } from '../help/help-hint.component';
@@ -58,6 +60,7 @@ type State = 'loading' | 'ready' | 'error';
     OfflineBannerComponent,
     IntensityZoneBadgeComponent, WorkoutFeedbackSheetComponent,
     CoursePrescriptionViewComponent, MorningCheckInComponent, ReadinessCardComponent,
+    TrajectoryBannerComponent,
     StravaCardComponent, HelpHintComponent,
     PushPromptComponent, CycleBannerComponent,
   ],
@@ -113,6 +116,12 @@ export class TodayComponent implements OnInit {
    */
   readonly pending = signal<Workout[]>([]);
 
+  /** L'écart à mon objectif, ou rien si je n'ai pas déclaré de course. */
+  readonly trajectory = signal<Trajectory | null>(null);
+
+  /** Mes demandes en attente : ce que j'ai demandé et que mon coach n'a pas encore tranché. */
+  readonly myProposals = signal<Proposal[]>([]);
+
   /** Séances de force du jour, en carte de lancement (la saisie est en plein écran). */
   readonly strengthSessions = signal<ScheduledStrength[]>([]);
 
@@ -148,6 +157,10 @@ export class TodayComponent implements OnInit {
       error: () => this.week.set(null),
     });
     this.portal.nextRace().subscribe({ next: (r) => this.nextRace.set(r) });
+    this.portal.trajectory().subscribe({
+      next: (t) => this.trajectory.set(t),
+      error: () => this.trajectory.set(null),
+    });
     this.portal.cycles(this.todayIso, this.todayIso).subscribe({
       next: (c) => this.cycles.set(c),
       error: () => this.cycles.set([]),
@@ -183,6 +196,10 @@ export class TodayComponent implements OnInit {
     this.portal.pendingFeedback(7).subscribe({
       next: (list) => this.pending.set(list),
       error: () => this.pending.set([]),
+    });
+    this.portal.myProposals().subscribe({
+      next: (p) => this.myProposals.set(p),
+      error: () => this.myProposals.set([]),
     });
   }
 

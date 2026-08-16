@@ -103,6 +103,15 @@
             <!-- Réalisé en grand, prévu entre parenthèses juste dessous : comparer 16,5 km à
                  18,3 km ne doit pas demander de faire l'aller-retour entre deux cartes. -->
             <app-session-stats [realized]="realized()!" [planned]="plannedStats()" />
+
+            <!-- Séance tenue ? — la question que le coach pose aujourd'hui par message. Les
+                 fourchettes prescrites et les tours de la montre étaient déjà en base, côte à
+                 côte, sans jamais se rencontrer. -->
+            @if (compliance(); as c) {
+              @if (c.scorePct !== null) {
+                <app-compliance-verdict [data]="c" />
+              }
+            }
           </section>
 
           <!-- Comment la séance s'est passée : ce que ni les moyennes ni les tours ne disent. -->

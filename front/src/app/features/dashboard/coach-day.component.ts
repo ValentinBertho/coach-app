@@ -133,6 +133,35 @@ export class CoachDayComponent implements OnInit {
     this.load();
   }
 
+  /** Athlète dont on cherche des créneaux de rattrapage — un seul à la fois. */
+  readonly catchingUp = signal<string | null>(null);
+
+  /**
+   * Cherche où replacer les séances manquées de cet athlète.
+   *
+   * <p>Ne déplace rien : le serveur fabrique des propositions, qui viennent s'ajouter à la file
+   * « à décider » juste au-dessus. Le coach garde la main sur chaque report — c'est son plan.</p>
+   */
+  catchUp(alert: CoachAlert): void {
+    if (this.catchingUp()) return;
+    this.catchingUp.set(alert.athleteId);
+    this.decisions.catchUp(alert.athleteId).subscribe({
+      next: (created) => {
+        this.catchingUp.set(null);
+        if (created.length === 0) {
+          this.toast.info('Aucun créneau libre cette semaine, ou la charge ne le permet pas.');
+          return;
+        }
+        this.toast.success(`${created.length} report(s) à valider.`);
+        this.loadProposals();
+      },
+      error: () => {
+        this.catchingUp.set(null);
+        this.toast.error('Recherche impossible.');
+      },
+    });
+  }
+
   /** Les propositions en attente sur le périmètre courant. */
   loadProposals(): void {
     this.decisions.proposals(this.scope()).subscribe({

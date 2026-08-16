@@ -11,6 +11,9 @@ import { AcwrIndicatorComponent, DataOriginTagComponent, type DataOrigin } from 
 import { LoadExplainerComponent } from '../../shared/components/load-explainer/load-explainer.component';
 import { HelpHintComponent } from '../help/help-hint.component';
 import { MetricCardComponent } from '../../shared/components/ui';
+import { TrajectoryBannerComponent } from '../../shared/components/trajectory-banner/trajectory-banner.component';
+import { AthleteTimelineComponent } from '../../shared/components/athlete-timeline/athlete-timeline.component';
+import { Timeline, Trajectory } from '../../core/models/decision.model';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 const SOURCE_ORIGIN: Record<string, DataOrigin> = {
@@ -31,6 +34,7 @@ const SOURCE_LABEL: Record<string, string> = {
   imports: [
     SkeletonComponent, IconComponent, RouterLink, DatePipe, DecimalPipe, DataOriginTagComponent,
     AcwrIndicatorComponent, MetricCardComponent, LoadExplainerComponent, HelpHintComponent,
+    TrajectoryBannerComponent, AthleteTimelineComponent,
   ],
   template: `
     <div class="prog">
@@ -71,6 +75,10 @@ const SOURCE_LABEL: Record<string, string> = {
           <app-icon name="chevron-right" [size]="18" />
         </a>
       </nav>
+
+      <!-- Ma trajectoire : la seule ligne de cet écran qui dise où je vais, et pas seulement
+           où j'en suis. -->
+      <app-trajectory-banner [data]="trajectory()" />
 
       <!-- Mon volume (analytics) -->
       @if (analytics(); as a) {
@@ -265,6 +273,9 @@ const SOURCE_LABEL: Record<string, string> = {
           </article>
         }
       }
+      <!-- Mon fil : tests, records, courses, coupures. Six mois de suivi rassemblés, là où
+           l'athlète venait déjà voir s'il progresse. -->
+      <app-athlete-timeline [data]="timeline()" />
     </div>
   `,
   styles: [`
@@ -476,7 +487,20 @@ export class AthleteProgressComponent implements OnInit {
     return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`;
   }
 
+  /** L'écart à mon objectif. Nulle si je n'ai pas déclaré de course. */
+  readonly trajectory = signal<Trajectory | null>(null);
+  /** Mon fil : tests, records, courses, coupures. */
+  readonly timeline = signal<Timeline | null>(null);
+
   ngOnInit(): void {
+    this.portal.trajectory().subscribe({
+      next: (t) => this.trajectory.set(t),
+      error: () => this.trajectory.set(null),
+    });
+    this.portal.timeline().subscribe({
+      next: (t) => this.timeline.set(t),
+      error: () => this.timeline.set(null),
+    });
     this.portal.load().subscribe({ next: (l) => this.load.set(l), error: () => this.load.set(null) });
     this.portal.analytics(8).subscribe({ next: (a) => this.analytics.set(a), error: () => this.analytics.set(null) });
     this.portal.performances().subscribe({ next: (p) => this.performances.set(p), error: () => this.performances.set(null) });

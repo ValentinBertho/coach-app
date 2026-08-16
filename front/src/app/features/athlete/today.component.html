@@ -19,10 +19,30 @@
          et l'état de forme existe dès le matin — au moment où le coach adapte la journée. -->
     <app-morning-check-in (saved)="readinessCard()?.load()" />
 
+    <!-- Ma trajectoire : l'écart à mon objectif, en minutes. C'est ce qui relie la séance du
+         jour au but de la saison — et ce qui donne une raison de rouvrir l'application. -->
+    <app-trajectory-banner [data]="trajectory()" />
+
     <!-- Le feu vert du matin : ce que le produit conseille de faire de la séance du jour, compte
          tenu de ce qui vient d'être déclaré. Il ne modifie rien — il propose, et c'est le coach
          qui tranche. Silencieux quand tout va bien. -->
     <app-readiness-card (requested)="loadPending()" />
+
+    <!-- Ce que j'ai demandé à mon coach, et qui attend sa réponse. Sans cette liste, une demande
+         partie le matin disparaissait de l'écran et laissait l'athlète sans nouvelles. -->
+    @if (myProposals().length) {
+      <section class="pend card">
+        <strong class="pend__t">En attente de ton coach</strong>
+        <ul class="pend__l">
+          @for (p of myProposals(); track p.id) {
+            <li class="pend__i">
+              <span class="pend__title">{{ p.title }}</span>
+              @if (p.reason) { <span class="pend__why">{{ p.reason }}</span> }
+            </li>
+          }
+        </ul>
+      </section>
+    }
 
     <!-- Notifications : l'opt-in ne vivait que dans Profil, écran qu'on n'ouvre presque jamais.
          Tout le dispositif — rappel de séance, débriefing, message du coach — reposait donc sur

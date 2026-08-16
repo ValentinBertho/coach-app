@@ -27,6 +27,9 @@ import { TrainingZoneService } from '../../core/services/training-zone.service';
 import { Activity } from '../../core/models/activity.model';
 import { ActivityService } from '../../core/services/activity.service';
 import { PaceReferenceService } from '../../core/services/pace-reference.service';
+import { ComplianceVerdictComponent } from '../../shared/components/compliance-verdict/compliance-verdict.component';
+import { Compliance } from '../../core/models/decision.model';
+import { DecisionService } from '../../core/services/decision.service';
 import { plannedVolume } from '../../core/utils/planned-volume';
 import { formatBlockVolume } from '../../core/utils/prescription-format';
 import { ActivityChartComponent } from '../../shared/components/activity-chart/activity-chart.component';
@@ -61,7 +64,7 @@ type State = 'loading' | 'ready' | 'error';
     IconComponent, RouterLink, FormsModule, DatePipe, IntensityZoneBadgeComponent,
     DataOriginTagComponent, StickyActionBarComponent, CoursePrescriptionViewComponent,
     SessionStatsComponent, ActivityChartComponent, ActivityLapsComponent,
-    ActivityRouteMapComponent, FeedbackRecapComponent,
+    ActivityRouteMapComponent, FeedbackRecapComponent, ComplianceVerdictComponent,
   ],
   templateUrl: './workout-detail.component.html',
   styleUrl: './workout-detail.component.scss',
@@ -72,6 +75,7 @@ export class WorkoutDetailComponent implements OnInit {
   private readonly activityService = inject(ActivityService);
   private readonly paceReference = inject(PaceReferenceService);
   private readonly toast = inject(ToastService);
+  private readonly decisions = inject(DecisionService);
 
   /** Allure d'endurance de l'athlète, seule base admise pour estimer un volume écrit en durée. */
   readonly referencePace = signal<number | null>(null);
@@ -80,6 +84,13 @@ export class WorkoutDetailComponent implements OnInit {
 
   /** Activité réalisée rapprochée de la séance (vue « réalisé » façon Nolio). */
   readonly activity = signal<Activity | null>(null);
+
+  /**
+   * « Séance tenue ? ». Nulle tant qu'il n'y a rien à confronter — pas de sortie rattachée, ou
+   * pas de fourchette prescrite. Le composant se tait alors, plutôt que d'afficher un zéro qui
+   * accuserait l'athlète d'une absence de données.
+   */
+  readonly compliance = signal<Compliance | null>(null);
 
   /** Chiffres mesurés de la sortie rapprochée, tels que le bandeau partagé les attend. */
   readonly realized = computed<RealizedStats | null>(() => {
@@ -292,6 +303,10 @@ export class WorkoutDetailComponent implements OnInit {
     // Les zones lues sont celles de l'échelle appliquée à CET athlète (modèle de zones).
     this.zoneService.list({ athleteId: this.athleteId() })
       .subscribe({ next: (z) => this.zones.set(z), error: () => this.zones.set([]) });
+    this.decisions.compliance(this.athleteId(), this.workoutId()).subscribe({
+      next: (c) => this.compliance.set(c),
+      error: () => this.compliance.set(null),
+    });
     this.activityService.forWorkout(this.athleteId(), this.workoutId()).subscribe({
       next: (a) => this.activity.set(a),
       error: () => this.activity.set(null),

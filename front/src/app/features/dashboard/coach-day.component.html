@@ -109,7 +109,16 @@
                    inventaire de problèmes. Le geste dépend du type d'alerte (douleur → la séance
                    de demain, charge → la semaine, silence → la conversation). -->
               @if (al.action; as act) {
-                <a class="btn btn-primary btn-sm" [routerLink]="act.link">{{ act.label }}</a>
+                @if (act.code === 'RESCHEDULE_WEEK') {
+                  <!-- Replanifier ne déplace rien : cela fabrique des propositions de report,
+                       que le coach accepte ou refuse une à une juste au-dessus. -->
+                  <button type="button" class="btn btn-primary btn-sm"
+                          [disabled]="catchingUp() === al.athleteId" (click)="catchUp(al)">
+                    {{ catchingUp() === al.athleteId ? 'Recherche…' : act.label }}
+                  </button>
+                } @else {
+                  <a class="btn btn-primary btn-sm" [routerLink]="act.link">{{ act.label }}</a>
+                }
               }
               <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', al.athleteId]">Voir la fiche</a>
               <button type="button" class="btn btn-ghost btn-sm" (click)="replyToAlert(al)">
