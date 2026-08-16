@@ -55,8 +55,96 @@
           }
         </dl>
 
-        <button type="button" class="btn btn-ghost btn-sm obj-del" (click)="remove(r)">Supprimer</button>
+        <!-- Le geste fondateur du métier : partir de la date de course, pas de « la semaine
+             prochaine ». L'aperçu n'écrit rien ; la pose est un second geste, explicite. -->
+        <div class="obj-actions">
+          @if (r.status === 'UPCOMING' && r.daysUntil > 6) {
+            <button type="button" class="btn btn-primary btn-sm" (click)="openPlan(r)">
+              Construire le plan
+            </button>
+          }
+          @if (r.status === 'UPCOMING' && r.daysUntil <= 0) {
+            <button type="button" class="btn btn-accent btn-sm" (click)="openResult(r)">
+              Saisir le chrono
+            </button>
+          }
+          <button type="button" class="btn btn-ghost btn-sm" (click)="remove(r)">Supprimer</button>
+        </div>
       </article>
     }
   </div>
 }
+
+<!-- Trame du plan : aperçu semaine par semaine avant toute écriture. Le coach voit les phases,
+     l'affûtage calé sur la date et les semaines que ses indisponibilités laissent vides. -->
+<app-side-panel [(open)]="planOpen" [title]="'Plan jusqu’à ' + (planRace()?.name ?? 'la course')">
+  @if (planPreview(); as p) {
+    <div class="plan">
+      <p class="plan__summary">{{ p.summary }}</p>
+      @if (p.warning) { <p class="plan__warn">{{ p.warning }}</p> }
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Volume au sommet</label>
+          <select class="form-control" [ngModel]="peakFactor()" (ngModelChange)="setPeak($event)">
+            <option [ngValue]="1.1">+10 %</option>
+            <option [ngValue]="1.2">+20 %</option>
+            <option [ngValue]="1.3">+30 %</option>
+            <option [ngValue]="1.5">+50 %</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Affûtage</label>
+          <select class="form-control" [ngModel]="taperWeeks()" (ngModelChange)="setTaper($event)">
+            <option [ngValue]="1">1 semaine</option>
+            <option [ngValue]="2">2 semaines</option>
+            <option [ngValue]="3">3 semaines</option>
+          </select>
+        </div>
+      </div>
+
+      <ol class="plan__weeks">
+        @for (w of p.weeks; track w.index) {
+          <li class="plan__week" [class.plan__week--skip]="w.skipped"
+              [class]="'plan__week--' + w.phase.toLowerCase()">
+            <span class="plan__idx metric">S{{ w.index }}</span>
+            <span class="plan__label">{{ w.label }}</span>
+            <span class="plan__bar" [style.width.%]="barWidth(w)"></span>
+            <span class="plan__factor metric">{{ w.skipped ? '—' : factorLabel(w) }}</span>
+          </li>
+        }
+      </ol>
+
+      <div class="plan__actions">
+        <button type="button" class="btn btn-accent" [disabled]="planBusy() || p.sourceSessions === 0"
+                (click)="applyPlan()">
+          {{ planBusy() ? 'Pose en cours…' : 'Poser dans le calendrier' }}
+        </button>
+        <button type="button" class="btn btn-ghost" (click)="planOpen.set(false)">Annuler</button>
+      </div>
+      <p class="field-hint">
+        Chaque séance reste éditable ensuite : la trame pose la structure, tu gardes le contenu.
+      </p>
+    </div>
+  } @else {
+    <app-skeleton shape="list" [rows]="6" />
+  }
+</app-side-panel>
+
+<!-- Le chrono réalisé : sur une distance de référence, il devient une performance — donc un
+     nouveau VDOT, de nouvelles allures, de nouvelles zones. -->
+<app-side-panel [(open)]="resultOpen" title="Chrono réalisé">
+  <div class="form-group">
+    <label>Temps</label>
+    <input class="form-control" [(ngModel)]="resultTime" placeholder="hh:mm:ss" inputmode="numeric" />
+    <span class="field-hint">
+      Sur une distance de référence, ce chrono met à jour le VDOT, les allures et les zones.
+    </span>
+  </div>
+  <div class="plan__actions">
+    <button type="button" class="btn btn-accent" [disabled]="resultBusy()" (click)="saveResult()">
+      {{ resultBusy() ? 'Enregistrement…' : 'Enregistrer' }}
+    </button>
+    <button type="button" class="btn btn-ghost" (click)="resultOpen.set(false)">Annuler</button>
+  </div>
+</app-side-panel>

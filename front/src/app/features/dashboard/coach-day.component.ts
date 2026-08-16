@@ -26,6 +26,9 @@ import { InstallPromptComponent } from '../../shared/components/install-prompt/i
 import { PushPromptComponent } from '../../shared/components/push-prompt/push-prompt.component';
 import { ReplySheetComponent, type ReplyTarget } from '../../shared/components/reply-sheet/reply-sheet.component';
 import { injuryLabel } from '../../core/models/injury.model';
+import { Proposal } from '../../core/models/decision.model';
+import { DecisionService } from '../../core/services/decision.service';
+import { ProposalListComponent } from '../../shared/components/proposal-list/proposal-list.component';
 
 type Scope = 'all' | 'mine' | 'private' | 'club';
 
@@ -57,7 +60,7 @@ const STAMP_KEY = 'coach-day-loaded-at';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, DatePipe, LowerCasePipe, FormsModule, IconComponent,
-    InstallPromptComponent, PushPromptComponent, ReplySheetComponent],
+    InstallPromptComponent, PushPromptComponent, ReplySheetComponent, ProposalListComponent],
   templateUrl: './coach-day.component.html',
   styleUrl: './coach-day.component.scss',
 })
@@ -73,6 +76,7 @@ export class CoachDayComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   readonly network = inject(NetworkStatusService);
+  private readonly decisions = inject(DecisionService);
 
   readonly loading = signal(true);
   /** Le dernier chargement a échoué (réseau coupé, serveur muet) : on ne prétend pas que tout va bien. */
@@ -81,6 +85,12 @@ export class CoachDayComponent implements OnInit {
   readonly reviews = signal<FeedbackQueueItem[]>([]);
   readonly conversations = signal<Conversation[]>([]);
   readonly sessions = signal<CoachDaySession[]>([]);
+
+  /**
+   * Les propositions du produit — demandes d'athlètes et suggestions détectées. Elles se
+   * referment en un tap, là où une alerte demande un jugement : d'où leur place, en tête.
+   */
+  readonly proposals = signal<Proposal[]>([]);
 
   /** Jour affiché par la section « La journée ». Les autres sections ne bougent pas avec lui. */
   readonly date = signal(todayIso());
@@ -123,6 +133,25 @@ export class CoachDayComponent implements OnInit {
     this.load();
   }
 
+  /** Les propositions en attente sur le périmètre courant. */
+  loadProposals(): void {
+    this.decisions.proposals(this.scope()).subscribe({
+      next: (p) => this.proposals.set(p),
+      error: () => this.proposals.set([]),
+    });
+  }
+
+  /**
+   * Après une décision : on recharge tout, pas seulement la file.
+   *
+   * <p>Accepter une proposition modifie une séance — celle du jour, souvent — et parfois le
+   * profil de l'athlète. Ne rafraîchir que la liste laisserait à l'écran une journée qui ne
+   * correspond plus à ce qui vient d'être décidé.</p>
+   */
+  onProposalDecided(): void {
+    this.load();
+  }
+
   load(): void {
     this.loading.set(true);
     const scope = this.scope();
@@ -145,6 +174,7 @@ export class CoachDayComponent implements OnInit {
       next: (c) => this.conversations.set(c),
       error: () => this.conversations.set([]),
     });
+    this.loadProposals();
     this.loadDay();
   }
 

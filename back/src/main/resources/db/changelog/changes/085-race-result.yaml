@@ -1,0 +1,22 @@
+# ============================================================================
+# 085 — Le chrono de la course.
+#   RaceObjective portait une date, une distance et un chrono visé. Le lendemain
+#   de la course, l'objectif basculait « passé » et ce qui s'était réellement
+#   produit n'était enregistré nulle part — alors qu'une course est la meilleure
+#   mesure de niveau qu'un athlète produise dans l'année.
+#
+#   Additif, nullable : rien de l'historique n'est touché, et une course dont
+#   personne n'a saisi le résultat reste exactement ce qu'elle était.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 085-race-objective-result-time
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: race_objectives
+            columns:
+              - column:
+                  name: result_time_s
+                  type: INTEGER
+                  remarks: "Chrono réalisé (s). Devient une performance de référence quand la distance est standard."

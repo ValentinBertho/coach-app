@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, output, signal } from '@angular/core';
 import { AthletePortalService, DailyCheckIn } from '../../core/services/athlete-portal.service';
 import { CelebrationService } from '../../core/services/celebration.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -161,6 +161,12 @@ export class MorningCheckInComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly celebration = inject(CelebrationService);
 
+  /**
+   * Émis quand le check-in est enregistré : c'est la déclaration du matin qui décide du conseil
+   * du jour, et le feu vert doit se recalculer sur elle, pas sur celle d'hier.
+   */
+  readonly saved_ = output<void>({ alias: 'saved' });
+
   protected readonly sliders = SLIDERS;
 
   protected readonly sleep = signal<number | null>(null);
@@ -212,6 +218,7 @@ export class MorningCheckInComponent implements OnInit {
         next: (c) => {
           this.saving.set(false);
           this.apply(c);
+          this.saved_.emit();
           this.celebration.celebrate({ title: 'Check-in enregistré', emoji: '☀️' });
         },
         error: () => {

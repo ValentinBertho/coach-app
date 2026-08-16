@@ -8,12 +8,15 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { RaceService } from '../../core/services/race.service';
 import { ToastService } from '../../core/services/toast.service';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
+import { SidePanelComponent } from '../../shared/components/side-panel/side-panel.component';
+import { DecisionService } from '../../core/services/decision.service';
+import { PlanPreview, PlanWeek } from '../../core/models/decision.model';
 
 @Component({
   selector: 'app-race-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, FormsModule, RouterLink, DatePipe],
+  imports: [SkeletonComponent, FormsModule, RouterLink, DatePipe, SidePanelComponent],
   templateUrl: './race-list.component.html',
   styleUrl: './race-list.component.scss',
 })
@@ -22,6 +25,7 @@ export class RaceListComponent implements OnInit {
   private readonly raceService = inject(RaceService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
+  private readonly decisions = inject(DecisionService);
 
   readonly races = signal<RaceObjective[]>([]);
   readonly loading = signal(true);
@@ -35,6 +39,120 @@ export class RaceListComponent implements OnInit {
     targetTime: '',
     priority: 'B' as 'A' | 'B' | 'C',
   };
+
+  // --- Le plan qui part de la course ---------------------------------------
+  //
+  // Deux gestes, jamais un seul : l'aperçu ne touche à rien, la pose est explicite. Poser douze
+  // semaines de séances dans le calendrier de quelqu'un est trop lourd pour être un effet de bord.
+
+  readonly planOpen = signal(false);
+  readonly planRace = signal<RaceObjective | null>(null);
+  readonly planPreview = signal<PlanPreview | null>(null);
+  readonly planBusy = signal(false);
+  readonly peakFactor = signal(1.3);
+  readonly taperWeeks = signal(2);
+
+  openPlan(race: RaceObjective): void {
+    this.planRace.set(race);
+    this.planPreview.set(null);
+    this.planOpen.set(true);
+    this.refreshPreview();
+  }
+
+  setPeak(value: number): void {
+    this.peakFactor.set(value);
+    this.refreshPreview();
+  }
+
+  setTaper(value: number): void {
+    this.taperWeeks.set(value);
+    this.refreshPreview();
+  }
+
+  private refreshPreview(): void {
+    const race = this.planRace();
+    if (!race) return;
+    this.decisions
+      .planPreview(this.athleteId(), race.id, {
+        peakFactor: this.peakFactor(),
+        taperWeeks: this.taperWeeks(),
+      })
+      .subscribe({
+        next: (p) => this.planPreview.set(p),
+        error: () => {
+          this.planPreview.set(null);
+          this.toast.error('Aperçu impossible pour cette course.');
+        },
+      });
+  }
+
+  applyPlan(): void {
+    const race = this.planRace();
+    if (!race || this.planBusy()) return;
+    this.planBusy.set(true);
+    this.decisions
+      .planApply(this.athleteId(), race.id, {
+        peakFactor: this.peakFactor(),
+        taperWeeks: this.taperWeeks(),
+      })
+      .subscribe({
+        next: (p) => {
+          this.planBusy.set(false);
+          this.planOpen.set(false);
+          this.toast.success(
+            `${p.createdSessions} séance(s) posée(s)` +
+              (p.skippedWeeks ? `, ${p.skippedWeeks} semaine(s) laissée(s) vide(s)` : ''));
+        },
+        error: () => {
+          this.planBusy.set(false);
+          this.toast.error('La semaine de référence est vide : construis-la d\'abord.');
+        },
+      });
+  }
+
+  /** Barre proportionnelle au volume, plafonnée pour rester lisible sur un panneau étroit. */
+  barWidth(w: PlanWeek): number {
+    return w.skipped ? 0 : Math.min(100, Math.round((w.volumeFactor / 1.6) * 100));
+  }
+
+  factorLabel(w: PlanWeek): string {
+    const pct = Math.round((w.volumeFactor - 1) * 100);
+    return pct === 0 ? 'ref' : (pct > 0 ? '+' : '') + pct + ' %';
+  }
+
+  // --- Le chrono réalisé ----------------------------------------------------
+
+  readonly resultOpen = signal(false);
+  readonly resultBusy = signal(false);
+  resultTime = '';
+
+  openResult(race: RaceObjective): void {
+    this.planRace.set(race);
+    this.resultTime = '';
+    this.resultOpen.set(true);
+  }
+
+  saveResult(): void {
+    const race = this.planRace();
+    const seconds = this.parseTime(this.resultTime);
+    if (!race || !seconds) {
+      this.toast.warning('Indique un chrono au format hh:mm:ss.');
+      return;
+    }
+    this.resultBusy.set(true);
+    this.decisions.recordRaceResult(this.athleteId(), race.id, seconds).subscribe({
+      next: () => {
+        this.resultBusy.set(false);
+        this.resultOpen.set(false);
+        this.toast.success('Chrono enregistré — VDOT, allures et zones mis à jour.');
+        this.load();
+      },
+      error: () => {
+        this.resultBusy.set(false);
+        this.toast.error('Enregistrement impossible.');
+      },
+    });
+  }
 
   ngOnInit(): void {
     this.load();

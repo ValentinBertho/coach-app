@@ -1,6 +1,10 @@
 @if (athlete(); as a) {
   <!-- Onglet « Résumé » de la coquille athlète : l'identité, les métriques de référence et la
        barre d'onglets sont peintes par AthleteShellComponent et restent à l'écran. -->
+  <!-- La trajectoire vers l'objectif, en tête : c'est la question à laquelle tout le reste de
+       la fiche sert de réponse. Silencieuse quand l'athlète n'a pas de course déclarée. -->
+  <app-trajectory-banner [data]="trajectory()" />
+
   <app-physio-panel [athleteId]="a.id" />
 
   <!-- Indisponibilités (blessures / absences) : visibles d'emblée sur le résumé. -->
@@ -103,6 +107,12 @@
     </div>
     <button type="button" class="btn btn-danger btn-sm" (click)="archive()">Archiver</button>
   </div>
+
+  <!-- Le fil : six mois de suivi rassemblés. Tests, records, courses, blessures déclarées au
+       débrief et coupures existaient tous, sur six écrans différents — aucun ne racontait
+       l'histoire. -->
+  <app-athlete-timeline [data]="timeline()" />
 } @else if (loading()) {
   <div class="card"><app-skeleton shape="card" [rows]="2" /></div>
+
 }

@@ -75,6 +75,20 @@ export interface CoachFormDashboard {
 
 export type AlertSeverity = 'RED' | 'ORANGE';
 
+/**
+ * Le geste que l'alerte appelle, attaché à la ligne qui le justifie.
+ *
+ * L'écran du matin listait des problèmes ; chaque ligne demandait d'ouvrir un autre écran pour
+ * agir. Sur un téléphone, ce détour est le parcours entier — c'est pourquoi la file se lisait
+ * sans jamais se traiter.
+ */
+export interface SuggestedAction {
+  /** REVIEW_TOMORROW | RESCHEDULE_WEEK | REVIEW_LOAD | MESSAGE | OPEN_ATHLETE */
+  code: string;
+  label: string;
+  link: string;
+}
+
 export interface CoachAlert {
   athleteId: string;
   athleteName: string;
@@ -83,6 +97,8 @@ export interface CoachAlert {
   type: string;
   title: string;
   detail: string;
+  /** Nulle quand l'alerte n'appelle que de la lecture. */
+  action: SuggestedAction | null;
 }
 
 @Injectable({ providedIn: 'root' })

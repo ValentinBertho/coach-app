@@ -58,6 +58,12 @@ public class AthletePortalController {
     private final com.coachrun.service.LactateTestService lactateTestService;
     private final com.coachrun.service.TrainingPlanService trainingPlanService;
     private final com.coachrun.service.StravaService stravaService;
+    private final com.coachrun.service.ProposalService proposalService;
+    private final com.coachrun.service.ReadinessService readinessService;
+    private final com.coachrun.service.ComplianceService complianceService;
+    private final com.coachrun.service.TrajectoryService trajectoryService;
+    private final com.coachrun.service.WeekOutlookService weekOutlookService;
+    private final com.coachrun.service.AthleteTimelineService timelineService;
     private final com.coachrun.service.DailyCheckInService checkInService;
     private final com.coachrun.service.ClockService clock;
     private final com.coachrun.service.FeedbackStreakService streakService;
@@ -630,5 +636,71 @@ public class AthletePortalController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteAccount(@AuthenticationPrincipal AuthPrincipal principal) {
         gdprService.deleteAthleteData(principal.athleteId());
+    }
+
+    // --- Ce que le produit conclut, pour moi ---------------------------------
+
+    /**
+     * Le feu vert du matin : ce que le produit conseille de faire de ma séance du jour.
+     *
+     * <p>Lecture pure. Rien n'est modifié ici, et rien ne le sera sans que je le demande
+     * explicitement — puis que mon coach l'accepte.</p>
+     */
+    @GetMapping("/readiness")
+    public com.coachrun.dto.response.ReadinessResponse readiness(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return readinessService.forAthlete(principal.athleteId());
+    }
+
+    /**
+     * Je demande l'adaptation conseillée. Cela crée une <b>demande</b> adressée à mon coach ;
+     * ma séance ne change pas tant qu'il ne l'a pas acceptée.
+     */
+    @PostMapping("/readiness/request")
+    public com.coachrun.dto.response.ReadinessResponse requestAdaptation(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam(required = false) com.coachrun.engine.SessionAdaptationEngine.Advice advice) {
+        return readinessService.request(principal.athleteId(), advice);
+    }
+
+    /** Les demandes et suggestions me concernant, encore en attente de décision. */
+    @GetMapping("/proposals")
+    public List<com.coachrun.dto.response.ProposalResponse> myProposals(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return proposalService.pendingForAthlete(principal.athleteId());
+    }
+
+    /** « Séance tenue ? » — le verdict d'une de mes séances, bloc par bloc. */
+    @GetMapping("/workouts/{workoutId}/compliance")
+    public com.coachrun.dto.response.ComplianceResponse compliance(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID workoutId) {
+        return complianceService.forAthlete(principal.athleteId(), workoutId);
+    }
+
+    /** Ma trajectoire vers ma prochaine course (204 si je n'ai pas d'objectif). */
+    @GetMapping("/trajectory")
+    public org.springframework.http.ResponseEntity<com.coachrun.dto.response.TrajectoryResponse> trajectory(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        var t = trajectoryService.forAthlete(principal.athleteId());
+        return t == null
+                ? org.springframework.http.ResponseEntity.noContent().build()
+                : org.springframework.http.ResponseEntity.ok(t);
+    }
+
+    /** Ma semaine : chargée, normale, ou de décharge. */
+    @GetMapping("/week-outlook")
+    public com.coachrun.dto.response.WeekOutlookResponse weekOutlook(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate week) {
+        return weekOutlookService.forMyWeek(principal.athleteId(), week);
+    }
+
+    /** Mon fil : tests, records, courses, coupures. */
+    @GetMapping("/timeline")
+    public com.coachrun.dto.response.TimelineResponse timeline(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return timelineService.forAthlete(principal.athleteId(), from, to);
     }
 }

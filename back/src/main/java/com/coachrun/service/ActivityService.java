@@ -37,6 +37,12 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class ActivityService {
 
+    /**
+     * Détection de niveau après import, injectée <b>paresseusement</b> : elle relit les tours par
+     * ce service, et une injection directe fermerait le cycle de dépendances au démarrage.
+     */
+    private final org.springframework.beans.factory.ObjectProvider<PhysioDetectionService> physioDetection;
+
     private final ActivityRepository activityRepository;
     private final AthleteRepository athleteRepository;
     private final WorkoutRepository workoutRepository;
@@ -129,6 +135,7 @@ public class ActivityService {
 
         autoMatch(athleteId, activity);
         activity = activityRepository.save(activity);
+        detectPhysio(activity);
         log.info("Activité importée {} (athlète={}, statut={})", activity.getId(), athleteId, activity.getStatus());
         return toResponse(activity);
     }
@@ -638,6 +645,7 @@ public class ActivityService {
         activity.setStatus(ActivityStatus.IMPORTED);
         autoMatch(athleteId, activity);
         activity = activityRepository.save(activity);
+        detectPhysio(activity);
         log.info("Sortie libre enregistrée {} (athlète={})", activity.getId(), athleteId);
         return toResponse(activity);
     }
@@ -697,6 +705,7 @@ public class ActivityService {
         applyLaps(activity, parsed.laps());
         autoMatch(athleteId, activity);
         activity = activityRepository.save(activity);
+        detectPhysio(activity);
         log.info("Activité importée par fichier {} ({} pts)", activity.getId(), parsed.route().size());
         return toResponse(activity);
     }
@@ -821,6 +830,26 @@ public class ActivityService {
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
         link(activity, workout);
         return toResponse(activity);
+    }
+
+
+    /**
+     * Regarde si la sortie qui vient d'arriver dit quelque chose du niveau de l'athlète.
+     *
+     * <p>Elle ne met rien à jour : elle dépose au plus une proposition, que le coach validera ou
+     * non. Et un échec de détection ne fait jamais échouer l'import — une sortie qui n'entre pas en
+     * base parce qu'un calcul de VDOT a levé une exception serait un très mauvais échange.</p>
+     */
+    private void detectPhysio(Activity activity) {
+        try {
+            PhysioDetectionService detector = physioDetection.getIfAvailable();
+            if (detector != null) {
+                detector.inspect(activity);
+            }
+        } catch (RuntimeException e) {
+            log.warn("Détection de niveau impossible sur l'activité {} : {}",
+                    activity.getId(), e.getMessage());
+        }
     }
 
     private void autoMatch(UUID athleteId, Activity activity) {

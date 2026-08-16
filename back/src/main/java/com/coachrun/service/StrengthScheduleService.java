@@ -15,6 +15,7 @@ import com.coachrun.repository.ScheduledStrengthSessionRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -28,10 +29,17 @@ import java.util.UUID;
  * Calendrier de force : assignation d'une séance de bibliothèque à un athlète (snapshot figé +
  * charges calculées + champs adaptatifs), vues coach/athlète, déplacement et retour de séance.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class StrengthScheduleService {
+
+    /**
+     * La progression de force, injectée paresseusement : elle relit la séance close par ce service
+     * même. Sans elle, la suggestion « +2,5 kg » restait un affichage sur une séance passée.
+     */
+    private final org.springframework.beans.factory.ObjectProvider<StrengthProgressionService> progression;
 
     private final ScheduledStrengthSessionRepository scheduledRepository;
     private final AthleteRepository athleteRepository;
@@ -170,6 +178,82 @@ public class StrengthScheduleService {
         return ScheduledStrengthResponse.from(ss);
     }
 
+    /**
+     * Décale la charge d'<b>un</b> exercice d'une séance déjà planifiée, en kilos.
+     *
+     * <h2>Pourquoi cette méthode existe</h2>
+     *
+     * <p>{@link com.coachrun.engine.ProgressionEngine} sait depuis toujours dire « toutes les
+     * séries réussies, RIR au-dessus de la cible, aucune douleur : +2,5 kg ». Cette suggestion
+     * s'affichait dans l'écran d'une séance <b>passée</b> et n'avait aucun effet : pour l'appliquer,
+     * le coach rouvrait la bibliothèque et retapait la charge. Elle était donc calculée, puis
+     * perdue.</p>
+     *
+     * <p>Le décalage porte sur la séance planifiée, pas sur la séance de bibliothèque : c'est
+     * l'athlète qui progresse, pas le modèle. Et il ne s'applique qu'aux prescriptions exprimées en
+     * kilos — pour une prescription en %RM, la charge suit déjà le 1RM, et la bonne correction est
+     * un test, pas un décalage.</p>
+     *
+     * @param deltaKg décalage signé, en kilos (peut être négatif : une régression est une décision
+     *                de progression comme une autre)
+     */
+    @Transactional
+    public ScheduledStrengthResponse shiftExerciseCharge(UUID clubId, UUID athleteId, UUID scheduledId,
+                                                         UUID exerciseId, double deltaKg) {
+        ScheduledStrengthSession ss = require(clubId, athleteId, scheduledId);
+        if (ss.isCompleted()) {
+            throw new com.coachrun.exception.ConflictException(
+                    "Cette séance est déjà faite : sa charge ne se modifie plus.");
+        }
+        StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class);
+        if (snapshot == null) {
+            throw new NotFoundException("Cette séance n'a pas de prescription.");
+        }
+        StrengthStructure shifted = shiftCharge(snapshot, exerciseId, deltaKg);
+        CalculatedStrengthResponse calc = strengthSessionService.previewForAthlete(clubId, athleteId, shifted);
+
+        ss.setSessionSnapshot(writeJson(shifted));
+        ss.setCalculatedCharges(writeJson(calc));
+        notificationService.notifyStrengthChanged(ss.getAthlete(), ss.getTitle(), ss.getScheduledDate(), false);
+        return ScheduledStrengthResponse.from(ss, summarize(calc));
+    }
+
+    /** Applique le décalage aux deux bornes de la fourchette de l'exercice visé, et à lui seul. */
+    private StrengthStructure shiftCharge(StrengthStructure structure, UUID exerciseId, double deltaKg) {
+        return new StrengthStructure(structure.blocks().stream()
+                .map(b -> new com.coachrun.dto.strength.StrengthBlock(
+                        b.id(), b.blockType(), b.format(), b.durationSec(), b.rounds(),
+                        b.workSec(), b.restSec(),
+                        b.exercises().stream()
+                                .map(ex -> exerciseId.equals(ex.exerciseId()) ? shiftItem(ex, deltaKg) : ex)
+                                .toList()))
+                .toList());
+    }
+
+    private com.coachrun.dto.strength.StrengthExerciseItem shiftItem(
+            com.coachrun.dto.strength.StrengthExerciseItem ex, double deltaKg) {
+        var p = ex.prescription();
+        if (p == null || p.chargeKgMin() == null) {
+            // Prescription en %RM ou sans charge : rien à décaler ici, et inventer une charge en
+            // kilos par-dessus un %RM ferait diverger la séance de son référentiel.
+            return ex;
+        }
+        var shifted = new com.coachrun.dto.strength.StrengthPrescription(
+                p.chargeRefType(),
+                floorAt(p.chargeKgMin() + deltaKg), floorAt(p.chargeKgMax() == null ? null : p.chargeKgMax() + deltaKg),
+                p.chargePctRmMin(), p.chargePctRmMax(),
+                p.effortRefType(), p.rpeMin(), p.rpeMax(), p.rirMin(), p.rirMax(),
+                p.sets(), p.repsFixed(), p.repsMin(), p.repsMax(), p.durationSec(),
+                p.plyoContacts(), p.tempo(), p.restSecMin(), p.restSecMax(), p.maxPainAllowed());
+        return new com.coachrun.dto.strength.StrengthExerciseItem(
+                ex.exerciseId(), ex.exerciseName(), ex.setType(), shifted, ex.setConfig(), ex.coachNotes());
+    }
+
+    /** Une charge ne descend pas sous zéro — une régression trop forte devient « à vide ». */
+    private Double floorAt(Double kg) {
+        return kg == null ? null : Math.max(0d, Math.round(kg * 10d) / 10d);
+    }
+
     /** Déprogramme une séance de force du calendrier de l'athlète. */
     @Transactional
     public void delete(UUID clubId, UUID athleteId, UUID scheduledId) {
@@ -244,7 +328,29 @@ public class StrengthScheduleService {
         ss.setSessionComment(req.comment());
         notificationService.notifyStrengthFeedback(ss);
         notificationService.notifyPainAlert(ss.getAthlete(), ss.getSessionPain());
+        proposeProgression(ss);
         return ScheduledStrengthResponse.from(ss);
+    }
+
+    /**
+     * Transforme les suggestions de progression de cette séance en propositions sur la suivante.
+     *
+     * <p>Aucune charge n'est modifiée ici : la proposition attend la validation du coach. Et un
+     * échec de calcul ne doit jamais faire échouer le débrief de l'athlète — il a fait sa séance,
+     * son retour doit être enregistré quoi qu'il arrive.</p>
+     */
+    private void proposeProgression(ScheduledStrengthSession ss) {
+        if (!ss.isCompleted()) {
+            return;
+        }
+        try {
+            StrengthProgressionService service = progression.getIfAvailable();
+            if (service != null) {
+                service.proposeAfter(ss);
+            }
+        } catch (RuntimeException e) {
+            log.warn("Progression de force impossible après la séance {} : {}", ss.getId(), e.getMessage());
+        }
     }
 
     // --- Helpers --------------------------------------------------------------

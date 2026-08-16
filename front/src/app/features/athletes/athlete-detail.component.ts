@@ -10,6 +10,10 @@ import { AthleteService } from '../../core/services/athlete.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PhysioPanelComponent } from './physio-panel.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
+import { AthleteTimelineComponent } from '../../shared/components/athlete-timeline/athlete-timeline.component';
+import { TrajectoryBannerComponent } from '../../shared/components/trajectory-banner/trajectory-banner.component';
+import { Timeline, Trajectory } from '../../core/models/decision.model';
+import { DecisionService } from '../../core/services/decision.service';
 
 /**
  * Onglet « Résumé » de la coquille athlète : profil physiologique, indisponibilités, antécédents,
@@ -20,7 +24,8 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
   selector: 'app-athlete-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, IconComponent, FormsModule, DatePipe, PhysioPanelComponent],
+  imports: [SkeletonComponent, IconComponent, FormsModule, DatePipe, PhysioPanelComponent,
+    TrajectoryBannerComponent, AthleteTimelineComponent],
   templateUrl: './athlete-detail.component.html',
   styleUrl: './athletes.scss',
 })
@@ -28,6 +33,12 @@ export class AthleteDetailComponent implements OnInit {
   readonly athleteId = input.required<string>();
 
   private readonly athleteService = inject(AthleteService);
+  private readonly decisions = inject(DecisionService);
+
+  /** L'écart à l'objectif, et sa cause. Nulle quand aucune course n'est déclarée. */
+  readonly trajectory = signal<Trajectory | null>(null);
+  /** Six mois de suivi rassemblés. */
+  readonly timeline = signal<Timeline | null>(null);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
@@ -57,6 +68,16 @@ export class AthleteDetailComponent implements OnInit {
   readonly strava = signal<StravaStatus | null>(null);
 
   ngOnInit(): void {
+    // Ni l'une ni l'autre n'est bloquante : une fiche doit s'afficher même sans objectif déclaré
+    // et même si la frise échoue. Ce sont des lectures d'appoint, pas le contenu de l'écran.
+    this.decisions.trajectory(this.athleteId()).subscribe({
+      next: (t) => this.trajectory.set(t),
+      error: () => this.trajectory.set(null),
+    });
+    this.decisions.timeline(this.athleteId()).subscribe({
+      next: (t) => this.timeline.set(t),
+      error: () => this.timeline.set(null),
+    });
     this.athleteService.stravaStatus(this.athleteId()).subscribe((s) => this.strava.set(s));
     this.athleteService.get(this.athleteId()).subscribe({
       next: (a) => {

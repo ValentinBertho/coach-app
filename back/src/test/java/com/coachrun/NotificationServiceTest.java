@@ -208,11 +208,11 @@ class NotificationServiceTest {
         UUID a1 = UUID.randomUUID();
         UUID a2 = UUID.randomUUID();
         java.util.List<com.coachrun.dto.response.CoachAlertResponse> alerts = java.util.List.of(
-                new com.coachrun.dto.response.CoachAlertResponse(a1, "Marie Durand", "ROUTE",
+                com.coachrun.dto.response.CoachAlertResponse.of(a1, "Marie Durand", "ROUTE",
                         "RED", "PAIN", "Douleur élevée", "Douleur 8/10 au dernier retour."),
-                new com.coachrun.dto.response.CoachAlertResponse(a1, "Marie Durand", "ROUTE",
+                com.coachrun.dto.response.CoachAlertResponse.of(a1, "Marie Durand", "ROUTE",
                         "ORANGE", "ACWR_HIGH", "Charge en hausse", "ACWR 1.4."),
-                new com.coachrun.dto.response.CoachAlertResponse(a2, "Paul Roy", "TRAIL",
+                com.coachrun.dto.response.CoachAlertResponse.of(a2, "Paul Roy", "TRAIL",
                         "ORANGE", "MISSED", "2 séances manquées", "Sur les 14 derniers jours."));
 
         notificationService.notifyCoachAlertDigest(coach("coach@test.fr"), alerts);
@@ -277,7 +277,7 @@ class NotificationServiceTest {
         User target = coach("coach@test.fr");
 
         notificationService.notifyCoachAlertDigest(target, List.of(
-                new com.coachrun.dto.response.CoachAlertResponse(UUID.randomUUID(), "Marie Durand",
+                com.coachrun.dto.response.CoachAlertResponse.of(UUID.randomUUID(), "Marie Durand",
                         "ROUTE", "RED", "PAIN", "Douleur élevée", "Douleur 8/10.")));
 
         verify(pushService).sendToUser(eq(target.getId()), eq("Alertes à traiter"), any(),

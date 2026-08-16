@@ -25,6 +25,7 @@ import { OfflineBannerComponent } from '../../shared/components/offline-banner/o
 import { IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { MorningCheckInComponent } from './morning-check-in.component';
+import { ReadinessCardComponent } from './readiness-card.component';
 import { StravaCardComponent } from './strava-card.component';
 import { PushPromptComponent } from '../../shared/components/push-prompt/push-prompt.component';
 import { HelpHintComponent } from '../help/help-hint.component';
@@ -56,7 +57,8 @@ type State = 'loading' | 'ready' | 'error';
   imports: [DecimalPipe, IconComponent, RouterLink,
     OfflineBannerComponent,
     IntensityZoneBadgeComponent, WorkoutFeedbackSheetComponent,
-    CoursePrescriptionViewComponent, MorningCheckInComponent, StravaCardComponent, HelpHintComponent,
+    CoursePrescriptionViewComponent, MorningCheckInComponent, ReadinessCardComponent,
+    StravaCardComponent, HelpHintComponent,
     PushPromptComponent, CycleBannerComponent,
   ],
   templateUrl: './today.component.html',
@@ -85,6 +87,12 @@ export class TodayComponent implements OnInit {
 
   /** Feuille de ressenti partagée : « Aujourd'hui », l'agenda et l'historique ouvrent la même. */
   private readonly feedbackSheet = viewChild(WorkoutFeedbackSheetComponent);
+
+  /**
+   * Le feu vert du matin, rechargé dès que le check-in est enregistré : c'est précisément la
+   * déclaration qui vient d'être faite qui change le conseil.
+   */
+  readonly readinessCard = viewChild(ReadinessCardComponent);
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
   readonly stepLabels = STEP_TYPE_LABELS;

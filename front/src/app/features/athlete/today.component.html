@@ -17,7 +17,12 @@
     <!-- Check-in matinal : la forme du coach se mettait à jour seulement APRÈS la séance,
          d'où les « aucun retour récent » permanents. Trois curseurs, moins de dix secondes,
          et l'état de forme existe dès le matin — au moment où le coach adapte la journée. -->
-    <app-morning-check-in />
+    <app-morning-check-in (saved)="readinessCard()?.load()" />
+
+    <!-- Le feu vert du matin : ce que le produit conseille de faire de la séance du jour, compte
+         tenu de ce qui vient d'être déclaré. Il ne modifie rien — il propose, et c'est le coach
+         qui tranche. Silencieux quand tout va bien. -->
+    <app-readiness-card (requested)="loadPending()" />
 
     <!-- Notifications : l'opt-in ne vivait que dans Profil, écran qu'on n'ouvre presque jamais.
          Tout le dispositif — rappel de séance, débriefing, message du coach — reposait donc sur
