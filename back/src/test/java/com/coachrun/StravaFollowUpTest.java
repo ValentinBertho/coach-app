@@ -17,6 +17,7 @@ import org.springframework.web.context.WebApplicationContext;
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -177,7 +178,15 @@ class StravaFollowUpTest {
                 .andExpect(status().isOk());
 
         // RPE 6 × 60 min = 360 UA.
-        assertThat(acuteLoad()).isEqualTo(before + 360.0);
+        //
+        // Comparaison à la tolérance, et non à l'identique : la charge renvoyée par l'API est
+        // arrondie au centième, tandis que « before + 360.0 » est une addition de doubles côté
+        // test — 1876,47 + 360,0 vaut 2236,4700000000003 en binaire. L'égalité stricte ne tenait
+        // donc que les jours où l'addition tombait juste, et le jeu de démonstration étant
+        // engendré par rapport à la date du jour, la valeur de « before » change chaque jour :
+        // le test échouait selon le calendrier. Ce qu'on vérifie ici est un delta de charge,
+        // pas la représentation binaire d'un flottant.
+        assertThat(acuteLoad()).isCloseTo(before + 360.0, within(0.01));
     }
 
     /** Une sortie déjà rattachée pèse par sa séance : elle ne doit pas compter deux fois. */

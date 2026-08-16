@@ -190,7 +190,7 @@ class ClubStarterKitTest {
                         .content("{\"email\":\"" + email + "\",\"password\":\"password123\","
                                 + "\"fullName\":\"Coach Neuf\",\"clubName\":\"Club Neuf "
                                 + UUID.randomUUID() + "\",\"termsAccepted\":true}"))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         UUID clubId = UUID.fromString(
                 objectMapper.readTree(body).get("user").get("clubId").asText());
         createdClubs.add(clubId);
