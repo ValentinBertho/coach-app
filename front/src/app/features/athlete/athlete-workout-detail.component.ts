@@ -151,6 +151,15 @@ const SOURCE_LABELS: Record<string, string> = {
               }
             </section>
 
+            <!-- Le « vu 👏 ». Effacé quand le coach a aussi écrit : un commentaire vaut mieux
+                 qu'un applaudissement, et afficher les deux ferait passer l'un pour un doublon. -->
+            @if (w.coachAcknowledgedAt && !w.coachComment) {
+              <section class="card wd-ack">
+                <p class="wd-ack__txt">👏 Ton coach a vu ta séance</p>
+                <span class="field-hint metric">{{ w.coachAcknowledgedAt | date: 'd MMM, HH:mm' }}</span>
+              </section>
+            }
+
             @if (w.coachComment) {
               <section class="card wd-coach">
                 <div class="wd-block-hd">
@@ -256,6 +265,13 @@ const SOURCE_LABELS: Record<string, string> = {
 
     .wd-coach { border-left: 3px solid var(--primary); }
     .wd-quote { margin: 0; color: var(--ink); font-style: italic; }
+    /* Plus léger que le mot du coach : c'est une attention, pas une consigne. */
+    .wd-ack {
+      border-left: 3px solid var(--primary);
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: var(--sp-3); flex-wrap: wrap;
+    }
+    .wd-ack__txt { margin: 0; font-weight: 700; color: var(--primary); }
 
     .empty { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
   `],

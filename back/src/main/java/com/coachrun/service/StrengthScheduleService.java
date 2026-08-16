@@ -147,6 +147,29 @@ public class StrengthScheduleService {
         return ScheduledStrengthResponse.from(ss);
     }
 
+    /**
+     * Le « vu 👏 » du coach sur un débrief de renforcement — même geste que sur une séance de
+     * course, et pour la même raison : la file du coach est unifiée, la reconnaissance doit
+     * l'être aussi.
+     *
+     * <p>Idempotent quant à la notification : seule la première fois se dit à l'athlète.</p>
+     */
+    @Transactional
+    public ScheduledStrengthResponse acknowledge(UUID clubId, UUID athleteId, UUID scheduledId) {
+        ScheduledStrengthSession ss = require(clubId, athleteId, scheduledId);
+        boolean first = ss.getCoachAcknowledgedAt() == null;
+        Instant now = Instant.now();
+        ss.setCoachAcknowledgedAt(now);
+        if (ss.getCoachReviewedAt() == null) {
+            ss.setCoachReviewedAt(now);
+        }
+        if (first) {
+            notificationService.notifyCoachAcknowledgement(ss.getAthlete(), ss.getTitle(),
+                    "/athlete/strength");
+        }
+        return ScheduledStrengthResponse.from(ss);
+    }
+
     /** Déprogramme une séance de force du calendrier de l'athlète. */
     @Transactional
     public void delete(UUID clubId, UUID athleteId, UUID scheduledId) {

@@ -115,6 +115,18 @@ public class Workout extends BaseEntity {
     private java.time.Instant coachReviewedAt;
 
     /**
+     * Le « vu 👏 » du coach : une reconnaissance <b>adressée à l'athlète</b>, distincte de
+     * {@link #coachReviewedAt}.
+     *
+     * <p>La distinction n'est pas cosmétique. « Traité » est une date que le coach pose pour vider
+     * sa propre file, et que l'athlète ne voit jamais ; le « vu » est la seule de ces deux dates
+     * qui lui revienne. Les confondre reviendrait à notifier l'athlète chaque fois qu'un coach
+     * fait le ménage dans sa file — c'est-à-dire à transformer une attention en bruit.</p>
+     */
+    @Column(name = "coach_acknowledged_at")
+    private java.time.Instant coachAcknowledgedAt;
+
+    /**
      * Retour du coach sur la séance réalisée, visible par l'athlète. Distinct de {@code notes}
      * (consigne posée AVANT la séance) et de {@code athleteComment} (ressenti déclaré).
      */

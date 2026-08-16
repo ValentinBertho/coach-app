@@ -22,7 +22,9 @@ public record ScheduledStrengthResponse(
          * « 4 exercices · Squat 72–78 kg »). Renseigné à la planification seulement : le CdC §8
          * demande que le coach voie les charges obtenues, pas juste « séance planifiée ».
          */
-        String chargeSummary
+        String chargeSummary,
+        /** Date du « vu 👏 » du coach sur le débrief ; null tant qu'il n'a pas eu lieu. */
+        java.time.Instant coachAcknowledgedAt
 ) {
 
     public static ScheduledStrengthResponse from(ScheduledStrengthSession s) {
@@ -33,6 +35,7 @@ public record ScheduledStrengthResponse(
         return new ScheduledStrengthResponse(
                 s.getId(), s.getAthlete().getId(), s.getSourceSessionId(), s.getTitle(),
                 s.getScheduledDate(), s.getOriginalDate(), s.isMovedByAthlete(), s.isCompleted(),
-                s.getSessionFatigue(), s.getSessionPain(), chargeSummary);
+                s.getSessionFatigue(), s.getSessionPain(), chargeSummary,
+                s.getCoachAcknowledgedAt());
     }
 }

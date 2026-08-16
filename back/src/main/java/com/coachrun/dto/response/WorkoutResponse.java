@@ -33,6 +33,12 @@ public record WorkoutResponse(
         /** Retour du coach sur la séance réalisée (visible par l'athlète). */
         String coachComment,
         java.time.Instant coachCommentAt,
+        /**
+         * Date du « vu 👏 » du coach ; null tant qu'il n'a pas eu lieu. Exposée à l'athlète —
+         * c'est tout l'objet du geste : une reconnaissance qui reste sur la séance, là où une
+         * notification est passée et oubliée.
+         */
+        java.time.Instant coachAcknowledgedAt,
         boolean movedByAthlete,
         LocalDate originalDate,
         UUID sourceTemplateId,
@@ -62,6 +68,7 @@ public record WorkoutResponse(
                 w.getAthleteComment(),
                 w.getCoachComment(),
                 w.getCoachCommentAt(),
+                w.getCoachAcknowledgedAt(),
                 w.isMovedByAthlete(),
                 w.getOriginalDate(),
                 w.getSourceTemplateId(),

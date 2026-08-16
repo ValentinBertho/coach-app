@@ -664,6 +664,26 @@ public class NotificationService {
     }
 
     /**
+     * Le « vu 👏 » du coach sur une séance → notifie l'athlète, <b>in-app + push, sans e-mail</b>.
+     *
+     * <p>C'est le plus petit message du produit, et il comble le trou le plus visible de sa boucle
+     * d'usage : l'athlète renseignait son ressenti, et n'entendait jamais rien en retour. Le
+     * commentaire écrit existait, mais quinze retours demandent quinze phrases — donc personne ne
+     * les écrit, et le silence devient la réponse par défaut.</p>
+     *
+     * <p>Pas d'e-mail : une reconnaissance qui arrive trois heures plus tard dans une boîte de
+     * réception n'est plus une reconnaissance, et le plan d'envoi se garde pour ce qui n'a pas
+     * d'autre canal.</p>
+     *
+     * @param sessionTitle intitulé de la séance — jamais le ressenti déclaré, qui peut porter une
+     *                     douleur et n'a rien à faire dans le corps d'une notification système.
+     */
+    public void notifyCoachAcknowledgement(Athlete athlete, String sessionTitle, String link) {
+        notifyUser(athleteUser(athlete), "COACH_ACK", "Ton coach a vu ta séance 👏",
+                sessionTitle, link);
+    }
+
+    /**
      * Retour d'un athlète → notifie son coach <strong>référent</strong> (repli : head coach),
      * <strong>in-app + push, sans e-mail</strong>.
      *
@@ -921,6 +941,98 @@ public class NotificationService {
                 + " votre attention :</p><ul>" + items + "</ul>"
                 + cta("Ouvrir ma journée", frontendUrl + "/app/journee");
         send(coach.getEmail(), subject, html, Audience.COACH, MailKind.ALERT_DIGEST);
+    }
+
+    /**
+     * Bilan de la semaine de l'athlète, le dimanche soir → <b>in-app + push, sans e-mail</b>.
+     *
+     * <p>Le premier message du produit qui ne réclame rien. Tout le reste est événementiel — une
+     * séance déposée, un rappel, une alerte — et demande donc quelque chose à celui qui le reçoit.
+     * Celui-ci ne demande rien : il raconte. C'est aussi le seul qu'on ait envie de montrer à
+     * quelqu'un, ce qui n'est pas un détail pour un produit qui se diffuse par le bouche-à-oreille
+     * entre coureurs.</p>
+     *
+     * <p>Pas d'e-mail : l'athlète a l'application dans la poche, et un bilan hebdomadaire envoyé à
+     * toute une cohorte est exactement le genre de volume que le plan d'envoi ne peut pas
+     * absorber — au détriment, le jour venu, d'un lien de réinitialisation.</p>
+     */
+    public boolean notifyAthleteWeeklyRecap(Athlete athlete, WeeklyRecapService.AthleteRecap recap) {
+        User user = athleteUser(athlete);
+        // Un athlète sans compte — le coach saisit ses retours pour lui — n'a nulle part où lire
+        // un bilan. On le dit à l'appelant plutôt que de le compter comme envoyé : un journal qui
+        // annonce quarante bilans là où douze sont partis trompe le jour où l'on cherche pourquoi.
+        if (user == null || recap.isEmpty()) {
+            return false;
+        }
+        StringBuilder body = new StringBuilder();
+        if (recap.km() > 0) {
+            body.append(formatKm(recap.km())).append(" km");
+        }
+        if (recap.planned() > 0) {
+            if (!body.isEmpty()) {
+                body.append(" · ");
+            }
+            body.append(recap.done()).append(" séance").append(recap.done() > 1 ? "s" : "")
+                    .append(" sur ").append(recap.planned());
+        }
+        String trend = switch (recap.feelTrend()) {
+            case 1 -> " · sensations en hausse";
+            case -1 -> " · sensations en baisse";
+            default -> "";
+        };
+        notifyUser(user, "WEEKLY_RECAP", "Ta semaine", body + trend, "/athlete/progress");
+        return true;
+    }
+
+    /**
+     * Bilan de la semaine du coach, le lundi matin → in-app + push, <b>et e-mail</b>.
+     *
+     * <p>L'e-mail est justifié ici et pas côté athlète : un coach lit ses lundis matin dans sa
+     * boîte, le volume est d'un envoi par coach et par semaine — quelques dizaines par mois pour
+     * toute la cohorte, contre plusieurs milliers si l'on écrivait à chaque athlète.</p>
+     *
+     * <p>Aucun nom d'athlète, aucun détail : le bilan donne des nombres et un lien. Ce qui appelle
+     * une décision se lit dans l'application, où le contexte existe.</p>
+     */
+    public void notifyCoachWeeklyRecap(User coach, WeeklyRecapService.CoachRecap recap) {
+        if (coach == null || recap.isEmpty()) {
+            return;
+        }
+        String body = recap.completionPct() + " % de séances réalisées"
+                + (recap.toWatch() > 0
+                        ? " · " + recap.toWatch() + " à surveiller" : "")
+                + (recap.upcomingRaces() > 0
+                        ? " · " + recap.upcomingRaces() + " course"
+                                + (recap.upcomingRaces() > 1 ? "s" : "") + " en vue" : "");
+        notifyUser(coach, "WEEKLY_RECAP", "Ta semaine de club", body, "/app/journee");
+
+        if (coach.getEmail() == null || !coach.isNotifyEmailEnabled()) {
+            return;
+        }
+        StringBuilder items = new StringBuilder()
+                .append("<li><strong>").append(recap.completionPct()).append(" %</strong> de séances réalisées (")
+                .append(recap.done()).append(" sur ").append(recap.planned()).append(")</li>")
+                .append("<li><strong>").append(recap.athletes()).append("</strong> athlète")
+                .append(recap.athletes() > 1 ? "s suivis" : " suivi").append("</li>");
+        if (recap.toWatch() > 0) {
+            items.append("<li><strong>").append(recap.toWatch()).append("</strong> athlète")
+                    .append(recap.toWatch() > 1 ? "s à surveiller" : " à surveiller").append("</li>");
+        }
+        if (recap.upcomingRaces() > 0) {
+            items.append("<li><strong>").append(recap.upcomingRaces()).append("</strong> course")
+                    .append(recap.upcomingRaces() > 1 ? "s" : "").append(" dans les 15 jours</li>");
+        }
+        String html = "<p>Bonjour " + esc(coach.getFullName()) + ",</p>"
+                + "<p>Voici la semaine qui vient de s'écouler :</p><ul>" + items + "</ul>"
+                + cta("Ouvrir ma journée", frontendUrl + "/app/journee");
+        send(coach.getEmail(), "Ta semaine sur Darilab", html, Audience.COACH, MailKind.WEEKLY_RECAP);
+    }
+
+    /** « 42 » plutôt que « 42.0 », « 42,5 » quand la décimale dit quelque chose. */
+    private static String formatKm(double km) {
+        return km == Math.rint(km)
+                ? String.valueOf((long) km)
+                : String.format(java.util.Locale.FRENCH, "%.1f", km);
     }
 
     /** Catégorie générique (sans détail de santé) d'une alerte, pour l'email. */

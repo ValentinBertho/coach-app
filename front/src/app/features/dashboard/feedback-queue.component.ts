@@ -111,8 +111,19 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
                     Voir le programme
                   </a>
                 }
-                <button type="button" class="btn btn-primary btn-sm" (click)="markReviewed(it)" [disabled]="busy().has(key(it))">
-                  <app-icon name="check" [size]="15" /> Marquer comme traité
+                <!-- Le « vu 👏 » est l'action principale, et « traité » passe en retrait. C'est
+                     l'inverse de l'ordre précédent, et c'est délibéré : les deux vident la file,
+                     mais un seul dit quelque chose à l'athlète. Quand deux gestes coûtent le même
+                     clic, celui par défaut doit être celui qui referme la boucle. -->
+                <button type="button" class="btn btn-primary btn-sm" (click)="acknowledge(it)"
+                        [disabled]="busy().has(key(it))"
+                        title="Traite le retour et prévient l'athlète que tu l'as vu">
+                  Vu 👏
+                </button>
+                <button type="button" class="btn btn-ghost btn-sm" (click)="markReviewed(it)"
+                        [disabled]="busy().has(key(it))"
+                        title="Traite le retour sans rien envoyer à l'athlète">
+                  <app-icon name="check" [size]="15" /> Traité
                 </button>
               </div>
             </li>
@@ -306,19 +317,39 @@ export class FeedbackQueueComponent implements OnInit {
   }
 
   markReviewed(it: FeedbackQueueItem): void {
+    this.resolve(it,
+      it.kind === 'STRENGTH'
+        ? this.strengthService.markScheduledReviewed(it.athleteId, it.sessionId)
+        : this.workoutService.markReviewed(it.athleteId, it.sessionId),
+      'Retour marqué comme traité');
+  }
+
+  /**
+   * Le « vu 👏 » : traite le retour et le fait savoir à l'athlète.
+   *
+   * Le trou que ça comble : l'athlète renseignait son ressenti et n'entendait jamais rien en
+   * retour. Le commentaire écrit existait, mais quinze retours demandent quinze phrases — donc
+   * personne ne les écrit, et le silence devient la réponse par défaut.
+   */
+  acknowledge(it: FeedbackQueueItem): void {
+    this.resolve(it,
+      it.kind === 'STRENGTH'
+        ? this.strengthService.acknowledgeScheduled(it.athleteId, it.sessionId)
+        : this.workoutService.acknowledge(it.athleteId, it.sessionId),
+      `${it.athleteName.split(' ')[0]} a été prévenu 👏`);
+  }
+
+  /** Sort une ligne de la file une fois l'appel réussi, et la laisse en place s'il échoue. */
+  private resolve(it: FeedbackQueueItem, call: Observable<unknown>, message: string): void {
     const k = this.key(it);
     if (this.busy().has(k)) return;
     this.busy.update((s) => new Set(s).add(k));
-
-    const call: Observable<unknown> = it.kind === 'STRENGTH'
-      ? this.strengthService.markScheduledReviewed(it.athleteId, it.sessionId)
-      : this.workoutService.markReviewed(it.athleteId, it.sessionId);
 
     call.subscribe({
       next: () => {
         this.items.update((l) => l.filter((x) => this.key(x) !== k));
         this.busy.update((s) => { const n = new Set(s); n.delete(k); return n; });
-        this.toast.success('Retour marqué comme traité');
+        this.toast.success(message);
       },
       error: () => {
         this.busy.update((s) => { const n = new Set(s); n.delete(k); return n; });

@@ -133,6 +133,15 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
     Optional<LocalDate> findFirstLoadedSessionDate(@Param("athleteId") UUID athleteId);
 
     // --- Suivi de plan (séances liées via plan_id) ---
+    /**
+     * Les séances d'un ensemble d'athlètes sur une plage de dates — le bilan de la semaine.
+     *
+     * <p>Une requête plutôt qu'une boucle par athlète : le bilan du coach couvre tout un club, et
+     * une requête par athlète ferait vingt allers-retours pour un message hebdomadaire.</p>
+     */
+    List<Workout> findByAthleteIdInAndScheduledDateBetween(Collection<UUID> athleteIds,
+                                                           LocalDate from, LocalDate to);
+
     long countByPlanIdAndAthleteId(UUID planId, UUID athleteId);
 
     long countByPlanIdAndAthleteIdAndStatus(UUID planId, UUID athleteId, WorkoutStatus status);

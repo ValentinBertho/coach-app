@@ -31,4 +31,8 @@ public interface RaceObjectiveRepository extends JpaRepository<RaceObjective, UU
 
     /** Courses tombant un jour donné, tous clubs confondus (rappels J-7 et J-1). */
     List<RaceObjective> findByStatusAndRaceDate(RaceObjectiveStatus status, LocalDate raceDate);
+
+    /** Les courses d'un ensemble d'athlètes dans une fenêtre — « 3 courses dans les 15 jours ». */
+    List<RaceObjective> findByAthleteIdInAndRaceDateBetween(java.util.Collection<UUID> athleteIds,
+                                                            LocalDate from, LocalDate to);
 }

@@ -183,6 +183,12 @@ export class StrengthService {
       `${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}/reviewed`, null, { params });
   }
 
+  /** Le « vu 👏 » sur un débrief de renforcement — même geste que sur une séance de course. */
+  acknowledgeScheduled(athleteId: string, scheduledId: string): Observable<ScheduledStrength> {
+    return this.http.post<ScheduledStrength>(
+      `${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}/acknowledge`, null);
+  }
+
   /** Déprogramme une séance de force du calendrier de l'athlète. */
   deleteScheduled(athleteId: string, scheduledId: string): Observable<void> {
     return this.http.delete<void>(`${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}`);

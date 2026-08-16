@@ -231,6 +231,34 @@ public class WorkoutService {
     }
 
     /**
+     * Le « vu 👏 » du coach : sort le retour de la file <b>et</b> le fait savoir à l'athlète.
+     *
+     * <p>Deux gestes en un, parce qu'ils n'en font qu'un pour le coach : reconnaître un retour,
+     * c'est l'avoir traité. La réciproque est fausse — « traité » reste disponible et silencieux,
+     * pour les retours qu'on classe sans avoir rien à en dire.</p>
+     *
+     * <p><b>Une seule fois.</b> Ré-applaudir la même séance ne renotifie pas : la date d'accusé
+     * fait foi. Sans cette garde, un double clic — ou le rejeu de l'action rapide d'une
+     * notification — enverrait deux félicitations pour une séance, ce qui les décrédibilise
+     * toutes les deux.</p>
+     */
+    @Transactional
+    public WorkoutResponse acknowledge(UUID clubId, UUID workoutId) {
+        Workout workout = require(clubId, workoutId);
+        boolean first = workout.getCoachAcknowledgedAt() == null;
+        java.time.Instant now = java.time.Instant.now();
+        workout.setCoachAcknowledgedAt(now);
+        if (workout.getCoachReviewedAt() == null) {
+            workout.setCoachReviewedAt(now);
+        }
+        if (first) {
+            notificationService.notifyCoachAcknowledgement(workout.getAthlete(), workout.getTitle(),
+                    "/athlete/history");
+        }
+        return WorkoutResponse.from(workout);
+    }
+
+    /**
      * Duplique une semaine de séances course vers une autre semaine (planification en cycles) :
      * recopie chaque séance en conservant son décalage de jour, le contenu et la prescription figée,
      * en statut {@code PLANNED} et sans retour. Ne notifie pas (édition en cours côté coach).

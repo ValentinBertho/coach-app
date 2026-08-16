@@ -69,6 +69,13 @@ interface MonthGroup {
                   @if (w.athleteComment) {
                     <p class="row-cmt"><app-icon name="message-square" [size]="13" /> {{ w.athleteComment }}</p>
                   }
+                  <!-- Le « vu 👏 » du coach. Il reste sur la séance, là où la notification est
+                       passée et oubliée : c'est tout l'objet du geste. Masqué quand le coach a
+                       aussi écrit — un commentaire vaut mieux qu'un applaudissement, et afficher
+                       les deux ferait passer l'un pour un doublon de l'autre. -->
+                  @if (w.coachAcknowledgedAt && !w.coachComment) {
+                    <p class="row-ack">👏 Ton coach a vu ta séance</p>
+                  }
                   <!-- Retour du coach sur cette séance : distinct du ressenti déclaré. -->
                   @if (w.coachComment) {
                     <p class="row-coach">
@@ -106,6 +113,10 @@ interface MonthGroup {
       display: flex; gap: var(--sp-2); align-items: flex-start; margin: var(--sp-2) 0 0;
       padding: var(--sp-2); border-radius: var(--radius-sm);
       background: var(--primary-wash); color: var(--ink); font-size: var(--text-sm);
+    }
+    /* Plus discret que le commentaire du coach : c'est une attention, pas une consigne. */
+    .row-ack {
+      margin: var(--sp-2) 0 0; font-size: var(--text-sm); font-weight: 600; color: var(--primary);
     }
     .month { display: flex; flex-direction: column; gap: var(--sp-2); }
     .month-h { font-size: var(--text-md); color: var(--ink-3); text-transform: capitalize; margin: var(--sp-2) 0 0; }

@@ -64,6 +64,16 @@ export class WorkoutService {
     return this.http.patch<Workout>(`${this.base(athleteId)}/${workoutId}/reviewed`, null, { params });
   }
 
+  /**
+   * Le « vu 👏 » : traite le retour <b>et</b> le fait savoir à l'athlète.
+   *
+   * Distinct de `markReviewed`, qui reste l'accusé silencieux — celui qu'on pose pour vider sa
+   * propre file quand il n'y a rien à dire.
+   */
+  acknowledge(athleteId: string, workoutId: string): Observable<Workout> {
+    return this.http.post<Workout>(`${this.base(athleteId)}/${workoutId}/acknowledge`, null);
+  }
+
   /** Duplique une séance vers une date (glisser + Alt, ou menu contextuel). Renvoie la copie. */
   copy(athleteId: string, workoutId: string, scheduledDate: string): Observable<Workout> {
     return this.http.post<Workout>(`${this.base(athleteId)}/${workoutId}/copy`, { scheduledDate });

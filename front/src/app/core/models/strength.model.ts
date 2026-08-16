@@ -189,6 +189,8 @@ export interface ScheduledStrength {
   sessionPain: number | null;
   /** Résumé des charges calculées, renseigné à la planification (CdC §8). */
   chargeSummary?: string | null;
+  /** Date du « vu 👏 » du coach sur le débrief ; null tant qu'il n'a pas eu lieu. */
+  coachAcknowledgedAt?: string | null;
 }
 
 export interface CycleWeek {

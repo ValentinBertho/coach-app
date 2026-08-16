@@ -77,6 +77,14 @@ public class StrengthScheduleController {
         return scheduleService.markFeedbackReviewed(clubId, athleteId, scheduledId, reviewed);
     }
 
+    /** Le « vu 👏 » : traite le débrief de force <b>et</b> le fait savoir à l'athlète. */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canComment(authentication, #athleteId)")
+    @PostMapping("/scheduled/{scheduledId}/acknowledge")
+    public ScheduledStrengthResponse acknowledge(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                                 @PathVariable UUID scheduledId) {
+        return scheduleService.acknowledge(clubId, athleteId, scheduledId);
+    }
+
     /** Déprogrammation d'une séance de force depuis le calendrier coach. */
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/scheduled/{scheduledId}")
