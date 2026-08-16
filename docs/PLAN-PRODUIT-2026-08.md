@@ -38,6 +38,28 @@ aujourd'hui corrigés : l'athlète peut déclarer une séance non faite avec son
 
 ---
 
+## État de livraison (août 2026)
+
+Trois points de ce plan sont **livrés**. Le document reste tel qu'il a été écrit — c'est son
+intérêt : il dit ce qu'on croyait avant de construire. Ce paragraphe dit ce qu'on a trouvé en
+construisant.
+
+| Point | État | Ce qu'on a appris en le faisant |
+|---|---|---|
+| §1.3 — le coach arrive dans une maison vide | ✅ Livré | **Le diagnostic était partiellement faux.** Les zones d'intensité étaient déjà provisionnées paresseusement (`TrainingZoneSeedService`, appelé à la première lecture) : le moteur physiologique n'a jamais été muet. Ce qui manquait vraiment, c'étaient les catégories, les séances types et les éducatifs — désormais posés à la création du club (6 catégories, 6 éducatifs, 11 séances prescrites par zone), après le commit de l'inscription pour qu'un jeu de départ en panne ne puisse pas empêcher d'ouvrir un compte |
+| §2.1 — le « vu 👏 » du coach | ✅ Livré | Le geste a demandé une **seconde date**, distincte de « traité ». « Traité » est une date que le coach pose pour vider sa file et que l'athlète ne voit pas ; les confondre aurait notifié l'athlète chaque fois qu'un coach fait le ménage. Le « vu » est devenu l'action principale de la file, « traité » passant en retrait : quand deux gestes coûtent le même clic, celui par défaut doit être celui qui referme la boucle |
+| §2.2 — le bilan de la semaine | ✅ Livré | Deux rendez-vous (dimanche 18 h pour l'athlète, lundi 7 h 30 pour le coach — une demi-heure après le digest, deux notifications simultanées se lisant comme une seule). Trois décisions de calcul faisaient la différence entre un bilan juste et un bilan vexant : une séance écourtée compte comme réalisée, les kilomètres viennent des activités et jamais des cibles, et une semaine vide ne produit aucun message — « 0 séance sur 0 » n'est pas un bilan, c'est un reproche |
+
+**Reste ouvert** : §1.1 (heure et lieu), §1.2 (le club comme collectif), §1.4 (plan depuis
+l'objectif), §1.5 (facturation), §1.6 (poids et FC de repos), et les agréments §2.3 à §2.6.
+
+Un audit complémentaire — [`AUDIT-COACH-INDEPENDANT-2026-08`](./AUDIT-COACH-INDEPENDANT-2026-08.md)
+— reprend la question sous l'angle des configurations de coaching : il conclut que le mélange
+privé / club est déjà supporté nativement, et que le seul blocage réel est le coach membre de
+plusieurs clubs.
+
+---
+
 ## 0. Le fil directeur
 
 Trois manques structurels expliquent la plupart des irritants du quotidien. Ils ne se voient pas

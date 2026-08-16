@@ -130,6 +130,19 @@ public class WorkoutController {
         return workoutService.markFeedbackReviewed(clubId, workoutId, reviewed);
     }
 
+    /**
+     * Le « vu 👏 » : traite le retour <b>et</b> le fait savoir à l'athlète.
+     *
+     * <p>Distinct de {@code /reviewed}, qui reste l'accusé silencieux. Même autorisation : qui
+     * peut commenter une séance peut la reconnaître.</p>
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canComment(authentication, #athleteId)")
+    @PostMapping("/{workoutId}/acknowledge")
+    public WorkoutResponse acknowledge(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                       @PathVariable UUID workoutId) {
+        return workoutService.acknowledge(clubId, workoutId);
+    }
+
     /** Réordonne les séances d'un même jour (glisser-déposer intra-jour). */
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PatchMapping("/reorder")

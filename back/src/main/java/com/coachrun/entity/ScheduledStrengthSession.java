@@ -88,4 +88,11 @@ public class ScheduledStrengthSession extends BaseEntity {
     /** Retour traité par le coach (file « retours à traiter »). Null = pas encore vu. */
     @Column(name = "coach_reviewed_at")
     private Instant coachReviewedAt;
+
+    /**
+     * Le « vu 👏 » du coach — une reconnaissance adressée à l'athlète, là où
+     * {@link #coachReviewedAt} n'est qu'une date de ménage dans la file du coach.
+     */
+    @Column(name = "coach_acknowledged_at")
+    private Instant coachAcknowledgedAt;
 }

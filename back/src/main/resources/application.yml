@@ -110,6 +110,13 @@ app:
     cron: ${REMINDERS_CRON:0 0 21 * * *}
   alerts:
     digest-cron: ${ALERTS_DIGEST_CRON:0 0 7 * * *}
+  recap:
+    # Les deux bilans hebdomadaires. Dimanche soir pour l'athlète : sa semaine vient de finir, il
+    # n'a rien à décider, il regarde. Lundi matin pour le coach : c'est un point de départ, et il
+    # tombe une demi-heure après le digest d'alertes — deux notifications simultanées se lisent
+    # comme une seule, et c'est toujours la seconde qu'on perd.
+    athlete-cron: ${RECAP_ATHLETE_CRON:0 0 18 * * SUN}
+    coach-cron: ${RECAP_COACH_CRON:0 30 7 * * MON}
   debrief:
     # Rappel « Ta séance est finie ? », 2 h après l'heure habituelle de séance de l'athlète.
     # Passe toutes les heures et ne retient que les athlètes dont le créneau tombe maintenant.

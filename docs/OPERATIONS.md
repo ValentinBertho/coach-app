@@ -273,7 +273,24 @@ santé n'est jamais incluse dans un email.
 - Le **push web** (VAPID) suit le même routage ; il dépend des souscriptions navigateur (renseigner
   `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`).
 
-### 8.4 Suivre la consommation — `Admin › E-mails`
+### 8.4 Les deux bilans hebdomadaires
+Deux rendez-vous périodiques s'ajoutent au digest quotidien de 7 h :
+
+```bash
+RECAP_ATHLETE_CRON="0 0 18 * * SUN"   # bilan de l'athlète, dimanche 18 h — push + in-app, sans e-mail
+RECAP_COACH_CRON="0 30 7 * * MON"     # bilan du coach, lundi 7 h 30 — push + in-app + e-mail
+```
+
+Le bilan de l'athlète **ne part jamais par e-mail** : un bilan hebdomadaire adressé à toute une
+cohorte est exactement le volume que le plan d'envoi ne peut pas absorber, au détriment le jour
+venu d'un lien de réinitialisation. Celui du coach part par e-mail — un envoi par coach et par
+semaine, soit quelques dizaines par mois, et c'est là que se lit un lundi matin. Il apparaît au
+tableau de bord des e-mails sous la nature **« Bilan hebdomadaire »**.
+
+Une semaine sans rien ne produit aucun message : ni séance prévue, ni kilomètre couru, rien à
+raconter. Aucun nom d'athlète ni aucune donnée de santé n'entre dans ces envois.
+
+### 8.5 Suivre la consommation — `Admin › E-mails`
 Le produit vit sous un plafond d'envoi, et ce plafond a déjà dicté un choix de conception (le
 basculement des notifications de routine vers le push). Il n'était mesuré nulle part : un dépassement
 ne se découvrait qu'au signalement d'un lien de réinitialisation jamais reçu — trop tard, et sur

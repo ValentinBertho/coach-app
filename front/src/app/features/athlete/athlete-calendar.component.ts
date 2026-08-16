@@ -16,13 +16,14 @@ import { formatBlockSets, formatBlockVolume } from '../../core/utils/prescriptio
 import { DataOriginTagComponent, IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
 import { BottomSheetComponent, SegmentedControlComponent } from '../../shared/components/ui';
 import {
-  AthleteMonthGridComponent, type MonthChip, type MonthDay, type MonthWeek,
+  AthleteMonthGridComponent, type MonthChip, type MonthDay, type MonthRace, type MonthWeek,
 } from './athlete-month-grid.component';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { HelpHintComponent } from '../help/help-hint.component';
 import { CycleBannerComponent } from '../../shared/components/cycle-banner/cycle-banner.component';
 import { CalendarNote } from '../../core/models/calendar-note.model';
 import { CalculatedBlockEntry, courseBlockTypeLabel, CourseBlock, WorkoutPrescription } from '../../core/models/course.model';
+import { RaceObjective } from '../../core/models/race.model';
 
 interface DayRow {
   date: string;
@@ -32,6 +33,8 @@ interface DayRow {
   workouts: Workout[];
   strength: ScheduledStrength[];
   activities: Activity[];
+  /** Courses visées ce jour-là : l'échéance, pas une séance de plus. */
+  races: RaceObjective[];
   unavailability: Unavailability | null;
   /** Le jour porte-t-il quelque chose une fois le filtre appliqué ? */
   empty: boolean;
@@ -151,8 +154,22 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
           </div>
 
           <div class="day-items">
+            <!-- La course avant tout le reste : elle n'est pas une séance du jour, elle est ce
+                 vers quoi la séance du jour travaille. D'où une forme différente — bandeau plein,
+                 orange d'énergie, drapeau — que rien d'autre dans l'agenda ne porte. -->
+            @for (r of day.races; track r.id) {
+              <a class="race" [class.race--past]="r.status !== 'UPCOMING'"
+                 [routerLink]="['/athlete/races']">
+                <span class="race-l">
+                  <app-icon name="flag" [size]="15" />
+                  <span class="race-name">{{ r.name }}</span>
+                  <span class="race-prio">{{ r.priority }}</span>
+                </span>
+                <span class="race-r metric">{{ raceSub(r) }}</span>
+              </a>
+            }
             @for (w of day.workouts; track w.id) {
-              <div class="ses ses--run">
+              <div class="ses ses--run" [style.--type-c]="typeColor(w)">
                 <button type="button" class="ses-body" (click)="openDetail(w)">
                   <span class="ses-main">
                     <span class="ses-title">{{ typeLabels[w.type] }} · {{ w.title }}</span>
@@ -208,8 +225,18 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
           @if (d.unavailability; as u) {
             <p class="dsheet-off"><app-icon [name]="reasonIcon[u.reason]" [size]="14" /> Indisponibilité déclarée</p>
           }
+          @for (r of d.races; track r.id) {
+            <a class="race" [class.race--past]="r.status !== 'UPCOMING'" [routerLink]="['/athlete/races']">
+              <span class="race-l">
+                <app-icon name="flag" [size]="15" />
+                <span class="race-name">{{ r.name }}</span>
+                <span class="race-prio">{{ r.priority }}</span>
+              </span>
+              <span class="race-r metric">{{ raceSub(r) }}</span>
+            </a>
+          }
           @for (w of d.workouts; track w.id) {
-            <div class="ses ses--run">
+            <div class="ses ses--run" [style.--type-c]="typeColor(w)">
               <button type="button" class="ses-body" (click)="openDetail(w)">
                 <span class="ses-main">
                   <span class="ses-title">{{ typeLabels[w.type] }} · {{ w.title }}</span>
@@ -446,8 +473,48 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
       background: var(--paper); cursor: pointer;
     }
     .ses:active { transform: scale(0.99); }
+    /* Le rail portait une seule couleur pour toutes les séances de course : ouvrir sa semaine ne
+       disait donc rien de sa forme — cinq barres identiques, qu'il fallait lire une à une pour
+       savoir laquelle était dure. Il porte maintenant la couleur du type, qui est déjà l'échelle
+       d'intensité du produit (récupération → zone 1, endurance → 2, tempo → 3, seuil → 4,
+       fractionné → 5). Aucune deuxième échelle n'est inventée : c'est la même que celle des
+       pastilles de zone et de la grille du mois.
+
+       La couleur ne porte jamais seule : le type reste écrit en toutes lettres sur la carte. */
     .ses--run { --type-c: var(--dari-teal); }
+    /* Un voile de la couleur du type, à peine perceptible sur une carte isolée mais suffisant
+       pour que la semaine se lise en descendant la colonne. 6 % : au-delà, le texte perd du
+       contraste sur les zones chaudes. */
+    .ses--run { background: color-mix(in srgb, var(--type-c) 6%, var(--paper)); }
     .ses--strength { --type-c: var(--dari-violet); }
+
+    /* --- La course. Une forme à elle, que rien d'autre ne porte. ---
+       Elle n'est pas une séance de plus : elle est ce vers quoi les séances travaillent. Si elle
+       ressemblait à une carte de séance avec une autre couleur, elle se lirait comme une séance
+       — d'où l'aplat plein, le drapeau et la lettre de priorité, tous trois absents ailleurs. */
+    .race {
+      display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+      width: 100%; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius);
+      background: var(--energy); color: #fff; text-decoration: none;
+      font-weight: 700; font-size: var(--text-sm);
+    }
+    .race-l { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+    .race-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* La priorité écrite, pas seulement colorée : une course A ne se prépare pas comme une C, et
+       la distinction doit survivre à un écran en plein soleil comme à une vision des couleurs
+       différente. */
+    .race-prio {
+      flex: none; padding: 0 6px; border-radius: var(--radius-full);
+      background: rgba(255, 255, 255, 0.25); font-size: var(--text-xs); font-weight: 800;
+    }
+    .race-r { flex: none; opacity: 0.9; font-size: var(--text-xs); }
+    /* Une course passée reste au calendrier — elle explique la semaine qui l'entoure — mais elle
+       cesse d'être une échéance : elle rend son aplat. */
+    .race--past {
+      background: transparent; color: var(--energy);
+      box-shadow: inset 0 0 0 1px var(--energy);
+    }
+    .race--past .race-prio { background: color-mix(in srgb, var(--energy) 15%, transparent); }
     /* Le réalisé se distingue du prescrit à la couleur du rail, sans avoir à lire l'étiquette. */
     .ses--done { --type-c: var(--success, var(--dari-teal)); text-decoration: none; color: inherit; }
     .ses-facts { display: flex; flex-wrap: wrap; gap: var(--sp-2); color: var(--ink-3); font-size: var(--text-sm); }
@@ -527,6 +594,14 @@ export class AthleteCalendarComponent implements OnInit {
   readonly strength = signal<ScheduledStrength[]>([]);
   readonly activities = signal<Activity[]>([]);
   readonly unavailabilities = signal<Unavailability[]>([]);
+  /**
+   * Les courses visées. Elles n'apparaissaient nulle part dans le calendrier : l'athlète voyait
+   * ses séances sans jamais voir vers quoi elles allaient, alors que c'est la date qui donne son
+   * sens à tout le reste — trois semaines de côtes ne se lisent pas pareil à six semaines d'un
+   * marathon. Chargées une fois, non bornées : elles sont peu nombreuses et on feuillette
+   * volontiers les mois à venir jusqu'à la prochaine.
+   */
+  readonly races = signal<RaceObjective[]>([]);
   /** Cycles du coach couvrant la plage affichée (périodes seulement, jamais ses notes du jour). */
   readonly cycles = signal<CalendarNote[]>([]);
   /** Plage effectivement chargée : le bandeau des cycles n'en montre pas d'autres. */
@@ -588,6 +663,7 @@ export class AthleteCalendarComponent implements OnInit {
     const ss = this.strength();
     const acts = this.activities();
     const un = this.unavailabilities();
+    const rcs = this.races();
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
@@ -595,6 +671,9 @@ export class AthleteCalendarComponent implements OnInit {
       const workouts = showPlanned ? ws.filter((w) => w.scheduledDate === iso) : [];
       const strength = showPlanned ? ss.filter((s) => s.scheduledDate === iso) : [];
       const activities = showDone ? acts.filter((a) => a.activityDate === iso) : [];
+      // Les courses ne suivent pas le filtre prévu/réalisé : une échéance reste une échéance,
+      // qu'on regarde son programme ou ce qu'on a couru.
+      const races = rcs.filter((r) => r.raceDate === iso);
       return {
         date: iso,
         weekday: this.weekdays[i],
@@ -603,8 +682,10 @@ export class AthleteCalendarComponent implements OnInit {
         workouts,
         strength,
         activities,
+        races,
         unavailability: un.find((u) => iso >= u.startDate && iso <= u.endDate) ?? null,
-        empty: workouts.length === 0 && strength.length === 0 && activities.length === 0,
+        empty: workouts.length === 0 && strength.length === 0 && activities.length === 0
+            && races.length === 0,
       };
     });
   });
@@ -647,6 +728,7 @@ export class AthleteCalendarComponent implements OnInit {
           isToday: iso === today,
           inMonth: cursor.getMonth() === monthRef,
           unavailable: this.unavailabilities().some((u) => iso >= u.startDate && iso <= u.endDate),
+          races: this.racesFor(iso),
           chips: this.chipsFor(iso, showPlanned, showDone),
         });
         cursor.setDate(cursor.getDate() + 1);
@@ -692,6 +774,22 @@ export class AthleteCalendarComponent implements OnInit {
   /** Mètres → kilomètres entiers : la gouttière fait 26 px, une décimale n'y tient pas. */
   private km(meters: number): string {
     return String(Math.round(meters / 1000));
+  }
+
+  /**
+   * Courses d'un jour, prêtes pour la grille du mois.
+   *
+   * <p>Hors du filtre prévu/réalisé : une échéance reste une échéance qu'on regarde son programme
+   * ou ce qu'on a couru. C'est même en vue « réalisé » qu'elle explique le mieux la semaine
+   * qu'on relit.</p>
+   */
+  private racesFor(iso: string): MonthRace[] {
+    return this.races().filter((r) => r.raceDate === iso).map((r) => ({
+      name: r.name,
+      priority: r.priority,
+      past: r.status !== 'UPCOMING',
+      title: `${r.name} — objectif ${r.priority}`,
+    }));
   }
 
   /** Pastilles d'un jour : séances prescrites, renforcement, puis sorties réellement faites. */
@@ -770,6 +868,10 @@ export class AthleteCalendarComponent implements OnInit {
       next: (p) => this.referencePace.set(p),
       error: () => this.referencePace.set(null),
     });
+    this.portal.races().subscribe({
+      next: (r) => this.races.set(r),
+      error: () => this.races.set([]),
+    });
   }
 
   load(): void {
@@ -793,6 +895,35 @@ export class AthleteCalendarComponent implements OnInit {
   }
 
   setView(view: string): void { this.view.set(view as AgendaView); }
+
+  /**
+   * Couleur d'une séance : celle de son type, qui est déjà l'échelle d'intensité du produit.
+   *
+   * Inventer une seconde échelle « intensité » aurait donné deux vocabulaires de couleur dans le
+   * même écran — celui des pastilles de zone et le nouveau — pour dire la même chose.
+   */
+  typeColor(w: Workout): string {
+    return WORKOUT_TYPE_META[w.type].color;
+  }
+
+  /**
+   * Le second membre du bandeau de course : la distance, et le compte à rebours tant qu'il a un
+   * sens. « dans 3 jours » est l'information qu'un coureur cherche en ouvrant son calendrier ;
+   * passé le jour J, elle devient du bruit et disparaît.
+   */
+  raceSub(r: RaceObjective): string {
+    const bits: string[] = [];
+    if (r.distanceM) {
+      const km = r.distanceM / 1000;
+      bits.push(`${km === Math.round(km) ? km : km.toFixed(1)} km`);
+    }
+    if (r.status === 'UPCOMING' && r.daysUntil > 0) {
+      bits.push(r.daysUntil === 1 ? 'demain' : `dans ${r.daysUntil} j`);
+    } else if (r.status === 'UPCOMING' && r.daysUntil === 0) {
+      bits.push("aujourd'hui");
+    }
+    return bits.join(' · ');
+  }
 
   /** Allure réelle d'une sortie, celle déjà calculée côté serveur si elle existe. */
   actPace(a: Activity): string | null {
@@ -852,8 +983,11 @@ export class AthleteCalendarComponent implements OnInit {
       workouts,
       strength,
       activities,
+      // Hors filtre prévu/réalisé, comme dans la vue hebdomadaire.
+      races: this.races().filter((r) => r.raceDate === iso),
       unavailability: this.unavailabilities().find((u) => iso >= u.startDate && iso <= u.endDate) ?? null,
-      empty: workouts.length === 0 && strength.length === 0 && activities.length === 0,
+      empty: workouts.length === 0 && strength.length === 0 && activities.length === 0
+          && this.races().every((r) => r.raceDate !== iso),
     };
   }
 

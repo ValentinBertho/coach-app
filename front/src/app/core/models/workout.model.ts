@@ -56,6 +56,13 @@ export interface Workout {
   coachComment: string | null;
   coachCommentAt: string | null;
   /**
+   * Date du « vu 👏 » du coach ; null tant qu'il n'a pas eu lieu.
+   *
+   * Elle reste sur la séance, là où la notification est passée et oubliée : c'est tout l'objet du
+   * geste — que l'athlète retrouve la trace qu'on a regardé ce qu'il avait écrit.
+   */
+  coachAcknowledgedAt: string | null;
+  /**
    * L'athlète a déplacé cette séance lui-même. Renvoyé par l'API depuis toujours, mais absent du
    * modèle : le coach n'avait donc aucun signal, ni notification, quand sa semaine était
    * réorganisée.

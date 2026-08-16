@@ -52,6 +52,7 @@ public class AuthService {
     private final com.coachrun.security.LoginAttemptTracker loginAttempts;
     private final NotificationService notificationService;
     private final PushNotificationService pushNotificationService;
+    private final ClubStarterKitService starterKitService;
 
     private static final java.security.SecureRandom RESET_RANDOM = new java.security.SecureRandom();
 
@@ -107,10 +108,49 @@ public class AuthService {
         owner.setActive(true);
         clubMemberRepository.save(owner);
 
+        installStarterKit(club.getId());
         notificationService.notifyEmailVerification(user.getEmail(), user.getFullName(),
                 frontendUrl + "/verify-email/" + user.getVerifyToken());
         log.info("Nouveau coach inscrit (club={}, e-mail à vérifier)", club.getId());
         return toAuthResponse(user);
+    }
+
+    /**
+     * Pose le jeu de départ du club — <b>après le commit, et sans jamais faire échouer
+     * l'inscription</b>.
+     *
+     * <p>Deux raisons de ne pas l'inclure dans la transaction d'inscription. La première est de
+     * principe : créer un compte est l'opération la moins remplaçable du produit, et une
+     * bibliothèque d'exemple est un agrément — un défaut dans dix modèles de séance ne doit pas
+     * empêcher un coach d'ouvrir un compte. La seconde est pratique : le jeu de départ écrit une
+     * trentaine de lignes, ce qui rallongerait d'autant une transaction tenue pendant que le
+     * visiteur attend sa réponse.</p>
+     *
+     * <p>Conséquence assumée : sur l'échec, le coach arrive dans une bibliothèque vide — l'état
+     * d'avant. Il est journalisé et remonté à Sentry, et le jeu reste installable après coup
+     * puisqu'il est idempotent.</p>
+     */
+    private void installStarterKit(UUID clubId) {
+        Runnable install = () -> {
+            try {
+                starterKitService.install(clubId);
+            } catch (RuntimeException ex) {
+                log.error("Jeu de départ non installé pour le club {} — l'inscription reste valide",
+                        clubId, ex);
+                io.sentry.Sentry.captureException(ex);
+            }
+        };
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            install.run();
+                        }
+                    });
+            return;
+        }
+        install.run();
     }
 
     /** Confirme l'adresse e-mail à partir du jeton de vérification (lien d'inscription). */

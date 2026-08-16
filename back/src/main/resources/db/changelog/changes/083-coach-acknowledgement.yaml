@@ -1,0 +1,39 @@
+# ============================================================================
+# 083 — Le « vu 👏 » du coach.
+#   La seule réponse possible à un retour d'athlète était un commentaire écrit.
+#   Traiter quinze retours en écrivant quinze phrases, personne ne le fait : donc
+#   l'athlète renseignait son ressenti et n'entendait jamais rien en retour, alors
+#   que tout le reste du produit (célébration, série, accusé de réception) est
+#   construit pour lui donner envie de le remplir.
+#
+#   « Marquer comme traité » ne comble pas ce trou : c'est une date que le coach
+#   pose pour vider sa propre file, et que l'athlète ne voit pas. D'où une seconde
+#   date, distincte : celle d'une reconnaissance qui, elle, lui est adressée.
+#
+#   Additif : deux colonnes nullables, aucune donnée existante touchée. Nulle sur
+#   tout l'historique — ce qui est exact : personne n'a encore applaudi.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 083-workout-coach-acknowledged-at
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workouts
+            columns:
+              - column:
+                  name: coach_acknowledged_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: "Date du « vu 👏 » du coach sur le retour de l'athlète."
+
+  - changeSet:
+      id: 083-strength-coach-acknowledged-at
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: scheduled_strength_sessions
+            columns:
+              - column:
+                  name: coach_acknowledged_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: "Date du « vu 👏 » du coach sur le débrief de renforcement."

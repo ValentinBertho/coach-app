@@ -30,6 +30,22 @@ export interface MonthChip {
   title: string;
 }
 
+/**
+ * Une course visée ce jour-là.
+ *
+ * <p>Ce n'est pas une pastille de plus : une course est la <b>destination</b>, pas une étape. Elle
+ * prend donc toute la largeur de la case, en haut, avant les séances — un mois se lit d'abord par
+ * ses échéances, et c'est la seule chose qu'on cherche en feuilletant vers l'avant.</p>
+ */
+export interface MonthRace {
+  name: string;
+  /** A, B ou C : le poids de l'objectif, écrit et non seulement coloré. */
+  priority: string;
+  /** Course déjà courue : elle reste au calendrier, mais cesse d'être une échéance. */
+  past: boolean;
+  title: string;
+}
+
 export interface MonthDay {
   date: string;
   dayNum: number;
@@ -37,6 +53,8 @@ export interface MonthDay {
   /** Faux pour les jours de débordement du mois voisin. */
   inMonth: boolean;
   chips: MonthChip[];
+  /** Courses visées ce jour-là — au-dessus des séances, jamais mêlées à elles. */
+  races: MonthRace[];
   unavailable: boolean;
 }
 
@@ -97,11 +115,21 @@ export interface MonthWeek {
             <button type="button" class="cell"
                     [class.cell--out]="!day.inMonth"
                     [class.cell--today]="day.isToday"
-                    [class.cell--empty]="day.chips.length === 0"
+                    [class.cell--race]="day.races.length > 0"
+                    [class.cell--empty]="day.chips.length === 0 && day.races.length === 0"
                     [attr.aria-label]="ariaFor(day)"
                     (click)="dayPicked.emit(day.date)">
               <span class="cell-n">{{ day.dayNum }}</span>
               @if (day.unavailable) { <span class="cell-off"><app-icon name="ban" [size]="11" /></span> }
+              <!-- La course d'abord, en bandeau plein largeur : c'est ce qu'on cherche quand on
+                   feuillette les mois à venir, et une pastille de plus l'aurait noyée dans les
+                   séances. -->
+              @for (r of day.races; track $index) {
+                <span class="race" [class.race--past]="r.past" [title]="r.title">
+                  <app-icon name="flag" [size]="10" />
+                  <span class="race-p">{{ r.priority }}</span>
+                </span>
+              }
               <span class="cell-items">
                 @for (c of day.chips.slice(0, 2); track $index) {
                   <span class="chip" [class.chip--done]="c.done" [class.chip--strong]="c.strong"
@@ -161,6 +189,27 @@ export interface MonthWeek {
     .cell--out { opacity: 0.45; }
     .cell--empty { background: var(--canvas); }
     .cell--today { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+
+    /* Le bandeau de course. Il emprunte l'orange d'énergie du produit, réservé partout ailleurs à
+       la compétition : dans un mois de séances en verts et jaunes, il est le seul point chaud, et
+       il se repère sans être lu. La lettre de priorité le double, pour qui ne distingue pas la
+       couleur — et parce qu'une course A ne se prépare pas comme une course C. */
+    .race {
+      display: flex; align-items: center; justify-content: center; gap: 2px;
+      background: var(--energy); color: #fff;
+      border-radius: var(--radius-sm); padding: 1px 2px; line-height: 1;
+      font-size: var(--text-2xs); font-weight: 800;
+    }
+    /* Une course passée reste au calendrier — elle explique la semaine qui l'entoure — mais elle
+       n'est plus une échéance : elle perd son aplat. */
+    .race--past { background: transparent; color: var(--energy); box-shadow: inset 0 0 0 1px var(--energy); }
+    .race-p { font-variant-numeric: tabular-nums; }
+    /* La case entière se signale, pas seulement son bandeau. On feuillette un mois pour trouver
+       « c'est quand, ma course » : un liseré de 1 px sur un bandeau de 10 px de haut oblige à
+       balayer la grille case par case, alors que le contour se voit à un mètre. */
+    .cell--race { border-color: var(--energy); }
+    /* Aujourd'hui garde la priorité : c'est le repère de navigation, la course est l'échéance. */
+    .cell--today.cell--race { border-color: var(--primary); }
     .cell-n {
       font-size: var(--text-2xs); font-weight: 700; color: var(--ink-3);
       text-align: center; line-height: 1.2; font-variant-numeric: tabular-nums;
@@ -242,9 +291,8 @@ export class AthleteMonthGridComponent {
   ariaFor(day: MonthDay): string {
     const date = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
       .format(new Date(day.date + 'T00:00:00'));
-    if (day.chips.length === 0) {
-      return `${date} — rien de prévu`;
-    }
-    return `${date} — ${day.chips.map((c) => c.title).join(', ')}`;
+    // La course en tête : c'est l'échéance, elle passe avant l'inventaire de la journée.
+    const parts = [...day.races.map((r) => r.title), ...day.chips.map((c) => c.title)];
+    return parts.length === 0 ? `${date} — rien de prévu` : `${date} — ${parts.join(', ')}`;
   }
 }

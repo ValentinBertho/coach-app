@@ -38,6 +38,12 @@ public enum MailKind {
     /** Indisponibilité déclarée par un athlète. Routine. */
     UNAVAILABILITY(false),
 
+    /**
+     * Bilan hebdomadaire du coach, le lundi matin. Routine — un envoi par coach et par semaine,
+     * soit le poste le plus prévisible du plan d'envoi.
+     */
+    WEEKLY_RECAP(false),
+
     /** Envoi non classé — ne devrait pas apparaître ; sa présence signale un oubli de classement. */
     OTHER(false);
 
@@ -63,6 +69,7 @@ public enum MailKind {
             case WORKOUT_REMINDER -> "Rappel de séance";
             case MESSAGE -> "Message";
             case UNAVAILABILITY -> "Indisponibilité";
+            case WEEKLY_RECAP -> "Bilan hebdomadaire";
             case OTHER -> "Non classé";
         };
     }
