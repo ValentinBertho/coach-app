@@ -66,10 +66,14 @@ public class RecoveryService {
      * il ne reste aucun jour libre dans la semaine, ou la charge ne le permet pas. Une proposition
      * qui ne tient pas debout coûte plus cher que pas de proposition.</p>
      *
+     * @param askedByAthlete vrai quand c'est l'athlète qui vient de déclarer la séance non faite.
+     *                       La distinction n'est pas cosmétique : une demande d'athlète attend une
+     *                       réponse du jour même et passe devant dans la file, là où un report
+     *                       cherché par le coach lui-même n'attend rien de personne.
      * @return la proposition créée, ou {@code null}
      */
     @Transactional
-    public AthleteProposal proposeCatchUp(Workout missed) {
+    public AthleteProposal proposeCatchUp(Workout missed, boolean askedByAthlete) {
         if (missed.getType() == WorkoutType.REST) {
             return null;
         }
@@ -94,7 +98,7 @@ public class RecoveryService {
                 missed.getId(), slot,
                 missed.getTitle() + " — décaler au " + dayLabel(slot),
                 reason, Map.of("date", slot.toString()),
-                "catchup:" + missed.getId(), true);
+                "catchup:" + missed.getId(), askedByAthlete);
         if (p != null) {
             log.info("Rattrapage proposé pour la séance {} au {}", missed.getId(), slot);
         }
@@ -177,7 +181,9 @@ public class RecoveryService {
             if (w.getStatus() != WorkoutStatus.PLANNED && w.getStatus() != WorkoutStatus.MISSED) {
                 continue;
             }
-            AthleteProposal p = proposeCatchUp(w);
+            // Cherché par le coach : ce n'est pas une demande de l'athlète, et la file ne doit
+            // pas le faire croire.
+            AthleteProposal p = proposeCatchUp(w, false);
             if (p != null) {
                 out.add(ProposalResponse.from(p, null));
             }

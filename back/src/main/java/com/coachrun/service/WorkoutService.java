@@ -180,7 +180,7 @@ public class WorkoutService {
         try {
             RecoveryService service = recovery.getIfAvailable();
             if (service != null) {
-                service.proposeCatchUp(workout);
+                service.proposeCatchUp(workout, true);
             }
         } catch (RuntimeException e) {
             log.warn("Rattrapage impossible pour la séance {} : {}", workout.getId(), e.getMessage());
