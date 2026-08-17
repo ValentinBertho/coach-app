@@ -3,7 +3,7 @@
 > Checklist opérationnelle à dérouler dans l'ordre. Chaque phase est autonome :
 > si tu t'arrêtes en cours de route, l'application reste dans un état cohérent.
 >
-> Contexte : audit complet dans [`AUDIT-BETA-READINESS-2026-07.md`](./AUDIT-BETA-READINESS-2026-07.md).
+> Contexte et arbitrages : [`PLAN-CONFORMITE-BETA-2026-08.md`](./PLAN-CONFORMITE-BETA-2026-08.md).
 > Détails techniques : [`OPERATIONS.md`](./OPERATIONS.md) · [`DEPLOIEMENT.md`](./DEPLOIEMENT.md).
 
 ## État au démarrage du runbook

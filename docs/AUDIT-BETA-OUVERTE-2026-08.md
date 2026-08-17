@@ -8,9 +8,10 @@
 > cahier des charges.
 >
 > **Périmètre** : uniquement ce que les audits existants ne disent pas, ou disent à tort.
-> `AUDIT-BETA-OUVERTE-2026-07`, `AUDIT-BETA-READINESS-2026-07`, `AUDIT-RC-2026-07` et
-> `AUDIT-TECHNIQUE-2026-08` ne sont pas répétés — ils sont **vérifiés**, et contredits quand
-> le code ne les suit pas.
+> `AUDIT-TECHNIQUE-2026-08` n'est pas répété — il est **vérifié**, et contredit quand le code ne
+> le suit pas. Les trois audits de juillet auxquels ce passage se confrontait
+> (`AUDIT-BETA-OUVERTE-2026-07`, `AUDIT-BETA-READINESS-2026-07`, `AUDIT-RC-2026-07`) ont été
+> retirés du dépôt une fois clos ; leur texte reste dans l'historique git.
 
 ---
 

@@ -1,8 +1,11 @@
 # Documentation DARI Lab — index
 
-> **À lire en premier si vous arrivez sur le dépôt, humain ou agent.** Ce dossier mélangeait des
-> documents vivants, des audits datés et des spécifications d'une stack qui n'a jamais été
-> retenue. Ce tableau dit lequel fait foi, et sur quoi.
+> **À lire en premier si vous arrivez sur le dépôt, humain ou agent.** Ce tableau dit quel document
+> fait foi, et sur quoi.
+>
+> **Règle de ce dossier** : un audit clos est **retiré**, pas conservé. L'historique git garde son
+> texte ; le laisser ici ferait croire qu'il décrit encore l'état du produit. C'est l'erreur que cet
+> index a lui-même commise pendant plusieurs semaines (cf. la note en fin de page).
 
 ---
 
@@ -18,6 +21,14 @@
 | [`OPERATIONS.md`](./OPERATIONS.md) | L'**exploitation** : Sentry, sauvegardes, Actuator, CI | À chaque changement de procédure |
 | [`BETA-LAUNCH-RUNBOOK.md`](./BETA-LAUNCH-RUNBOOK.md) | La **checklist de mise en service** de la bêta, pas à pas | Pendant la mise en service |
 
+## Plans — ce qu'on a décidé de faire, et dans quel ordre
+
+| Document | Angle | État |
+|---|---|---|
+| [`PLAN-CONFORMITE-BETA-2026-08.md`](./PLAN-CONFORMITE-BETA-2026-08.md) | **Document de pilotage avant ouverture.** Synthèse des audits en plan d'action : vagues, check-lists légale/RGPD et opérationnelle, ce qu'on livre sciemment imparfait | 🟡 Les items de **code** des vagues 0 et 1 sont livrés. Restent cinq points qui ne sont pas du développement : identité civile de l'éditeur, sauvegardes **testées**, compte administrateur en production, DSN Sentry, relecture juridique |
+| [`PLAN-EVOLUTION-2026-08.md`](./PLAN-EVOLUTION-2026-08.md) | **Post-bêta, vu du marché** : construit sur le tableau public de demandes de Nolio (~60 demandes votées) | 🔵 Plan. Sa vague 1 est en grande partie couverte par la couche de décision (détection physio, score de réalisation, prédiction de performance) |
+| [`PLAN-PRODUIT-2026-08.md`](./PLAN-PRODUIT-2026-08.md) | **Post-bêta, vu du modèle de domaine** : ce que la structure actuelle empêche ou rend pénible | 🟡 Livrés : jeu de départ à l'inscription (§1.3), « vu 👏 » du coach (§2.1), bilan hebdomadaire (§2.2), plan depuis l'objectif (§1.4). Ouverts : l'heure et le lieu d'une séance (§1.1), le club comme collectif (§1.2), la facturation (§1.5), poids et FC de repos (§1.6) |
+
 ## Audits — datés, donc à lire avec leur date
 
 Un audit n'est pas une spécification : il photographie un état à une date. Le plus récent prime
@@ -25,54 +36,60 @@ sur les précédents quand ils se contredisent.
 
 | Document | Angle | État |
 |---|---|---|
-| [`PLAN-CONFORMITE-BETA-2026-08.md`](./PLAN-CONFORMITE-BETA-2026-08.md) | **Document de pilotage.** Synthèse des audits en plan d'action : 4 vagues, check-lists légale/RGPD et opérationnelle, ce qu'on livre sciemment imparfait, points non instruits | 🟡 GO conditionnel — ≈ 12,5 j avant ouverture |
-| [`PLAN-EVOLUTION-2026-08.md`](./PLAN-EVOLUTION-2026-08.md) | **Plan d'évolution post-bêta**, construit sur le tableau public de demandes de Nolio (~60 demandes votées) : 5 vagues, l'avance déjà livrée à défendre, l'arbitrage multi-sport, ce qu'on écarte | 🔵 Plan — subordonné à la vague 0 (bloquants des audits d'août) |
-| [`PLAN-PRODUIT-2026-08.md`](./PLAN-PRODUIT-2026-08.md) | **Ce qui manque pour que l'usage soit agréable.** Part du modèle de domaine et non du marché (complémentaire de `PLAN-EVOLUTION`) : la séance n'a ni heure ni lieu, le club n'existe pas comme collectif, un coach qui s'inscrit arrive dans un club vide. Puis les petits gestes (le « vu » du coach, le bilan hebdomadaire, la météo) et un plan en 4 vagues | 🟡 Plan — trois points livrés (jeu de départ à l'inscription §1.3, « vu 👏 » du coach §2.1, bilan hebdomadaire §2.2) ; le reste ouvert, et §5 liste les questions à poser aux coachs |
-| [`AUDIT-COACH-INDEPENDANT-2026-08.md`](./AUDIT-COACH-INDEPENDANT-2026-08.md) | **Le produit est-il prêt pour tous les coachs ?** Athlètes privés et athlètes de club : déjà supporté nativement (relation à club nullable, case à la création, périmètres filtrables, étanchéité testée). Le coach indépendant travaille, mais on lui parle de « club » partout. Le seul vrai blocage : un coach membre de deux clubs n'en verra jamais qu'un — le modèle multi-club est complet, l'interface ne l'utilise pas | 🟡 Audit — §6 donne l'ordre des trois chantiers ; le sélecteur de club est le seul qui débloque une configuration aujourd'hui impossible |
-| [`AUDIT-PWA-COACH-2026-08.md`](./AUDIT-PWA-COACH-2026-08.md) | **PWA mobile côté coach** : ce qui existe (socle PWA et web push complets), les dix trous du parcours mobile — le coach ne croise jamais l'invitation à installer, donc pas de push sur iPhone ; chaque notification atterrit sur un écran de bureau ; aucune donnée coach en cache. Puis une cible en trois vagues (écran « Ma journée », actions rapides, vue Jour) | 🟢 Les trois vagues livrées : coquille mobile réparée, écran « Ma journée », notifications actionnables, vue Jour du calendrier, lecture hors ligne, thème au choix pour tous |
-| [`AUDIT-FONCTIONNEL-2026-08.md`](./AUDIT-FONCTIONNEL-2026-08.md) | Audit **métier** : trois mésocycles déroulés côté responsable de club, coach assistant et athlète. RPE prescrit faux sans test lactate, forme périmée, blessure ignorée par les alertes, charge calculée sur la durée prescrite | 🔴 5 bloquants + 10 points gênants, aucun correctif appliqué |
-| [`AUDIT-BETA-OUVERTE-2026-08.md`](./AUDIT-BETA-OUVERTE-2026-08.md) | Second passage de bêta ouverte, builds exécutés : consentement santé branché sur un seul service, retrait incomplet, correctifs d'août appliqués à moitié (plafond SSE, plafond e-mail), autorisations club | 🔴 4 points à traiter avant d'ouvrir + 2 actions d'exploitation. ⚠️ Contredit l'audit technique d'août §3.1 et §3.2 |
-| [`AUDIT-TECHNIQUE-2026-08.md`](./AUDIT-TECHNIQUE-2026-08.md) | Ce que les audits de juillet n'ont pas vu : chemin push devenu chemin chaud, consentement santé traité comme une case et non comme un état, back-office inatteignable faute d'administrateur, gestion d'erreurs | 🔵 Correctifs livrés. Restent 3 actions d'exploitation : compte admin, test de restauration, identité de l'éditeur |
-| [`AUDIT-BETA-OUVERTE-2026-07.md`](./AUDIT-BETA-OUVERTE-2026-07.md) | Parcours coach et athlète face à une bêta ouverte : complétude, ergonomie, design, accessibilité, réglages, politique de notification | 🔵 Correctifs bloquants livrés — voir son plan d'exécution pour le reste |
-| [`AUDIT-BETA-READINESS-2026-07.md`](./AUDIT-BETA-READINESS-2026-07.md) | **Exploitation** : infra, sauvegardes, monitoring, sécurité, RGPD | 🔵 En cours — suivre le runbook. ⚠️ Son §5 sous-estimait le volume d'e-mails (corrigé par l'audit de bêta ouverte §6.1) et son §4 annonce un TTL de jeton de 900 s, en réalité 3600 (cf. audit technique §1) |
-| [`AUDIT-RC-2026-07.md`](./AUDIT-RC-2026-07.md) | **Code** : les lots 1 à 8 livrés avant la bêta | ✅ Lots 1-8 livrés. Lot 9 (comparaison répétition par répétition) après la bêta |
-| [`archive/audit-produit-dari-lab.md`](./archive/audit-produit-dari-lab.md) | Produit et logique métier, écran par écran | 🟡 Historique — largement traité depuis |
-| [`archive/audit-ui-ux-dari-lab.md`](./archive/audit-ui-ux-dari-lab.md) | UI / UX / design, écran par écran | 🟡 Historique — son §8 tient le suivi d'exécution |
+| [`AUDIT-PRODUIT-WAHOU-2026-08.md`](./AUDIT-PRODUIT-WAHOU-2026-08.md) | **Produit / UX / métier.** Treize moteurs tournaient sans jamais conclure : la boucle prescription → réalisation → retour → analyse → **adaptation** s'arrêtait à « analyse ». Dix évolutions, et la contrainte qui les gouverne — le produit ne modifie jamais une séance tout seul | 🟢 Les dix sont livrées. Son en-tête dit ce qu'on a appris en les construisant |
+| [`AUDIT-COACH-INDEPENDANT-2026-08.md`](./AUDIT-COACH-INDEPENDANT-2026-08.md) | **Le produit est-il prêt pour tous les coachs ?** Le mélange privé / club est déjà supporté nativement ; on parle de « club » partout à un coach qui n'en a pas | 🟡 Ouvert. Le seul vrai blocage reste le coach membre de deux clubs : le modèle multi-club est complet, l'interface ne l'utilise pas |
+| [`AUDIT-PWA-COACH-2026-08.md`](./AUDIT-PWA-COACH-2026-08.md) | **PWA mobile côté coach** : le coach ne croisait jamais l'invitation à installer, donc pas de push sur iPhone ; chaque notification atterrissait sur un écran de bureau | 🟢 Les trois vagues livrées : coquille mobile, écran « Ma journée », notifications actionnables, vue Jour, lecture hors ligne |
+| [`AUDIT-FONCTIONNEL-2026-08.md`](./AUDIT-FONCTIONNEL-2026-08.md) | Audit **métier** : trois mésocycles déroulés côté responsable de club, coach assistant et athlète | 🟢 Les 5 bloquants sont livrés (RPE dérivé de la prescription, forme périmée `STALE`, indisponibilité qui éteint les alertes, charge sur la durée réelle, motif de séance non faite). G5 — la validation au seul volume — est levée par le score de réalisation bloc par bloc |
+| [`AUDIT-BETA-OUVERTE-2026-08.md`](./AUDIT-BETA-OUVERTE-2026-08.md) | Second passage de bêta ouverte, builds exécutés : consentement santé, retrait de consentement, plafonds SSE et e-mail, autorisations club | 🔵 Correctifs livrés. Restent les actions d'exploitation, suivies par `PLAN-CONFORMITE-BETA` |
+| [`AUDIT-TECHNIQUE-2026-08.md`](./AUDIT-TECHNIQUE-2026-08.md) | Ce que les audits de juillet n'avaient pas vu : chemin push devenu chemin chaud, consentement santé traité comme une case et non comme un état, back-office inatteignable | 🔵 Correctifs livrés. Restent trois actions d'exploitation |
 
 ## Analyses de marché — datées, elles aussi
 
 | Document | Angle | État |
 |---|---|---|
-| [`ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md`](./ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md) | **Concurrence** : comparaison à Nolio (fonctionnalités, UX, UI, ergonomie), verdict de concurrence, maturité estimée, feuille de route priorisée en 4 vagues | 🟡 Août 2026. ⚠️ Le volet Nolio repose sur de la recherche web, **pas sur une prise en main** — `nolio.io` est inaccessible depuis l'environnement d'analyse. À revalider par un essai réel |
+| [`ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md`](./ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md) | **Concurrence** : comparaison à Nolio (fonctionnalités, UX, UI, ergonomie), verdict, maturité estimée, feuille de route | 🟡 Août 2026. ⚠️ Le volet Nolio repose sur de la recherche web, **pas sur une prise en main** — `nolio.io` est inaccessible depuis l'environnement d'analyse. À revalider par un essai réel |
+| [`DEMANDES-API-GARMIN-COROS.md`](./DEMANDES-API-GARMIN-COROS.md) | Les deux dossiers d'accès aux API de montres, et ce qu'ils exigent | 🔴 Contrainte externe : le programme développeur **Garmin est fermé** (ni liste d'attente ni date) ; **COROS est ouvert**, c'est la seule porte praticable |
 
 ## Archive — historique, plus maintenu
 
-`archive/` contient ce qui a servi à construire l'application et qu'on garde pour la traçabilité,
-**sans le tenir à jour**. Ne vous en servez pas comme référence de l'état actuel.
+`archive/` garde ce qui est encore **cité** ailleurs, ou ce qui documente une décision qu'on
+pourrait vouloir rejouer. Ne vous en servez pas comme référence de l'état actuel.
 
 | Document | Pourquoi il est là |
 |---|---|
-| [`archive/ux-redesign-blueprint.md`](./archive/ux-redesign-blueprint.md) | La cible UX d'origine. Largement livrée ; quelques composants la citent encore en commentaire |
-| [`archive/PLAN-IMPLEMENTATION.md`](./archive/PLAN-IMPLEMENTATION.md) | Le plan de portage du cahier des charges DARI Lab sur le socle Angular/Spring. Exécuté |
-| [`archive/DARI Lab Cahier des Charges.md`](./archive/DARI%20Lab%20Cahier%20des%20Charges.md) | Cahier des charges d'origine. **Sa partie fonctionnelle reste une bonne source ; sa partie technique décrit Next.js + Supabase et ne s'applique pas** |
-| [`archive/DARI Lab Training Architecture.md`](./archive/DARI%20Lab%20Training%20Architecture.md) | Architecture d'origine (42 tables SQL, moteurs de calcul, parcours). Même réserve : le schéma a été porté sur Liquibase/JPA, pas repris tel quel |
+| [`archive/ux-redesign-blueprint.md`](./archive/ux-redesign-blueprint.md) | La cible UX d'origine. Largement livrée, mais **six composants la citent encore en commentaire** : la retirer rendrait ces renvois muets |
+| [`archive/audit-produit-dari-lab.md`](./archive/audit-produit-dari-lab.md) | Audit produit de juillet, écran par écran. Historique — largement traité depuis |
+| [`archive/audit-ui-ux-dari-lab.md`](./archive/audit-ui-ux-dari-lab.md) | Audit UI / UX de juillet. Son §8 tient le suivi d'exécution |
 | [`archive/dari-lab-wireframes.html`](./archive/dari-lab-wireframes.html) | Les 18 wireframes d'origine. Tous les écrans existent aujourd'hui |
 
 ---
 
-## Ce qui a été supprimé, et pourquoi
+## Ce qui a été retiré, et pourquoi
 
-Deux documents décrivaient les **contrats d'une stack jamais retenue** (Supabase : enveloppes
-`{ data, error }`, policies RLS, types TypeScript miroir du schéma SQL). Ils induisaient en erreur
-quiconque — humain ou agent — les lisait comme la référence d'API du projet, alors que
+**Des spécifications d'une stack jamais retenue.** Elles décrivaient Next.js + Supabase —
+enveloppes `{ data, error }`, policies RLS, types TypeScript miroirs du schéma SQL — alors que
 l'application expose une API REST Spring Boot et applique ses autorisations dans les services
-(`ClubAccessValidator` / `AthleteAccessValidator`), pas en RLS Postgres.
+(`ClubAccessValidator` / `AthleteAccessValidator`). Elles induisaient en erreur quiconque, humain
+ou agent, les lisait comme la référence du projet.
 
-- `Darilab/DARI Lab API et RLS.md`
-- `Darilab/dari-types.ts`
+- `Darilab/DARI Lab API et RLS.md` · `Darilab/dari-types.ts`
+- `archive/DARI Lab Cahier des Charges.md` · `archive/DARI Lab Training Architecture.md`
+- `archive/PLAN-IMPLEMENTATION.md` — le plan de portage vers Angular/Spring, exécuté. C'est lui qui
+  traçait la décision de ne pas suivre les documents ci-dessus (§0, décisions D2 à D4)
 
-La décision de ne pas les suivre était déjà tracée dans `archive/PLAN-IMPLEMENTATION.md` §0
-(décisions D2, D3, D4) ; les fichiers, eux, étaient restés.
+**Des audits clos.** Leurs constats sont livrés, et leur contenu vit désormais dans le code et
+dans les documents de pilotage ci-dessus.
+
+- `AUDIT-RC-2026-07.md` — lots 1 à 8 livrés avant la bêta ; le lot 9, la comparaison répétition par
+  répétition, est livré depuis (score de réalisation bloc par bloc)
+- `AUDIT-BETA-OUVERTE-2026-07.md` — remplacé par le second passage d'août
+- `AUDIT-BETA-READINESS-2026-07.md` — son reliquat vivant est tenu par `PLAN-CONFORMITE-BETA` et
+  `BETA-LAUNCH-RUNBOOK` ; il portait par ailleurs deux chiffres faux (volume d'e-mails, TTL de jeton)
+- `AUDIT-NOTIFICATIONS-2026-08.md` et `PLAN-NOTIFICATIONS-2026-08.md` — les lots sont en place :
+  une notification unique par plan attribué, heures calmes et catégories muettes, purge des
+  abonnements caducs, bilan hebdomadaire et série de retours
+
+Tout cela reste lisible dans l'historique git : `git log --diff-filter=D -- docs/`.
 
 ---
 

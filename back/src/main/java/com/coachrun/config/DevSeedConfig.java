@@ -10,7 +10,9 @@ import org.springframework.stereotype.Component;
 
 /**
  * Au démarrage (profil dev + app.seed.enabled), charge le jeu de données de démo
- * via {@link DemoSeedService} (idempotent). Voir docs/DEMO.md pour les comptes.
+ * via {@link DemoSeedService} (idempotent). Les comptes sont listés dans le README à la section
+ * « Comptes de démonstration » (ce renvoi pointait vers un fichier de documentation qui n'a
+ * jamais existé).
  */
 @Slf4j
 @Component

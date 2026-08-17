@@ -3,7 +3,7 @@
 > ⚠️ **Document historique — juillet 2026, non maintenu.** Photographie de l'état du produit à
 > cette date. La majorité de ses constats a été traitée depuis (palette Cmd+K, boîte de réception,
 > fusion des bibliothèques, duplication de modèle, file de retours, Paramètres réels…).
-> **Pour l'état actuel, lire [`../AUDIT-BETA-OUVERTE-2026-07.md`](../AUDIT-BETA-OUVERTE-2026-07.md).**
+> **Pour l'état actuel, lire [`../AUDIT-BETA-OUVERTE-2026-08.md`](../AUDIT-BETA-OUVERTE-2026-08.md).**
 
 > Audit réalisé du point de vue coach utilisateur / Product Manager / UX Designer.
 > Périmètre : fonctionnalités, logique métier, ergonomie, cohérence — pas le code.
@@ -13,7 +13,7 @@
 
 ## 0. Écarts documentation ↔ application
 
-- 🐛 Deux cahiers des charges contradictoires coexistent : `docs/Darilab/DARI Lab Cahier des Charges.md` décrit une stack **Next.js 14 + Supabase** ; l'app réelle est **Angular + Spring Boot** (conforme à `docs/Cahier-des-charges.md`). Le CdC Darilab reste la référence *fonctionnelle*, mais sa partie technique est obsolète → à nettoyer pour éviter d'induire en erreur (humains comme agents).
+- ✅ *(traité)* Deux cahiers des charges contradictoires coexistaient : celui d'origine décrivait une stack **Next.js 14 + Supabase** quand l'app réelle est **Angular + Spring Boot**. Il a été retiré du dépôt pour cette raison même — `docs/Cahier-des-charges.md` fait seul foi.
 - ✅ Le cœur fonctionnel Darilab est bien implémenté : VDOT, LT1/LT2 (Dmax modifié), VC + D', domaines d'intensité, prescription en fourchettes, sRPE Foster unifié course+force, Nuzzo par défaut, forme = fatigue+douleur (jamais RPE), athlète qui déplace sans modifier. Les invariants métier sont respectés.
 - ⚠️ Manques vs CdC Darilab : fiche exercice riche (matériel, niveau, contre-indications, progression/régression, image), types de série avancés réellement configurables (drop set, cluster, myo-reps, iso : le sélecteur existe mais sans panneau de config `set_config`), `required_fields` adaptatifs par niveau d'athlète, cycles force avec progression de charge % hebdo, EMOM minute par minute, Garmin (Strava seul), push de séance vers la montre, groupes d'athlètes M2M avec couleur/icône (un seul groupe par athlète aujourd'hui).
 - ⚠️ Le toast au drop d'une séance devait afficher « les charges calculées pour cet athlète » (CdC §8) ; il affiche seulement « X planifiée le… ».

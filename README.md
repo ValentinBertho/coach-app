@@ -257,8 +257,9 @@ cd front && npm run build
 - **CORS** restreint à une allowlist · **rate-limiting** par fenêtre fixe.
 - **Anti-IDOR** : toute route club passe par `@clubAccessValidator` (privé / club / permissions).
 
-> Voir l'audit de préparation à la bêta (infra, sécurité, RGPD, exploitation) dans
-> [`docs/AUDIT-BETA-READINESS-2026-07.md`](./docs/AUDIT-BETA-READINESS-2026-07.md).
+> Exploitation (Sentry, sauvegardes, uptime) : [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) et
+> [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md). Ce qui reste à lever avant
+> d'ouvrir : [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md).
 
 ---
 
@@ -303,8 +304,8 @@ Procédure pas-à-pas (ordre de déploiement, variables, CORS, redirect URIs) :
 ## Limites connues & pistes d'amélioration
 
 Transparence sur ce qui reste à durcir (détail et priorisation dans
-[`docs/AUDIT-BETA-READINESS-2026-07.md`](./docs/AUDIT-BETA-READINESS-2026-07.md) pour
-l'exploitation, [`docs/AUDIT-BETA-OUVERTE-2026-07.md`](./docs/AUDIT-BETA-OUVERTE-2026-07.md) pour
+[`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md) pour
+l'exploitation, [`docs/AUDIT-BETA-OUVERTE-2026-08.md`](./docs/AUDIT-BETA-OUVERTE-2026-08.md) pour
 le produit et les parcours) :
 
 - **Tests sur PG réel** : les assertions tournent sur H2 (mode PostgreSQL) ; **Testcontainers**
@@ -337,10 +338,13 @@ le produit et les parcours) :
 | [`docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md`](./docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md) | **analyse concurrentielle Nolio** : fonctionnalités, UX, UI, ergonomie, verdict, maturité, feuille de route |
 | [`docs/AUDIT-FONCTIONNEL-2026-08.md`](./docs/AUDIT-FONCTIONNEL-2026-08.md) | audit métier : parcours coach/athlète sur un mésocycle réel (prescription, charge, alertes, blessure, force) |
 | [`docs/AUDIT-BETA-OUVERTE-2026-08.md`](./docs/AUDIT-BETA-OUVERTE-2026-08.md) | audit de bêta ouverte : second passage (builds exécutés, consentement santé, autorisations club, plafonds SSE et e-mail) |
-| [`docs/AUDIT-BETA-OUVERTE-2026-07.md`](./docs/AUDIT-BETA-OUVERTE-2026-07.md) | audit de bêta ouverte : parcours coach/athlète, ergonomie, accessibilité, notifications |
-| [`docs/AUDIT-BETA-READINESS-2026-07.md`](./docs/AUDIT-BETA-READINESS-2026-07.md) | audit de préparation à la bêta (infra, sécurité, RGPD, exploitation) |
-| [`docs/AUDIT-RC-2026-07.md`](./docs/AUDIT-RC-2026-07.md) | audit code de la release candidate (lots 1 à 8, livrés) |
-| [`docs/archive/`](./docs/archive/) | historique non maintenu : CDC DARI Lab d'origine, architecture, blueprint UX, wireframes, audits antérieurs |
+| [`docs/AUDIT-PRODUIT-WAHOU-2026-08.md`](./docs/AUDIT-PRODUIT-WAHOU-2026-08.md) | **audit produit / UX / métier** : les dix évolutions de la couche de décision, et la contrainte qui les gouverne — rien n'est appliqué sans validation humaine |
+| [`docs/AUDIT-TECHNIQUE-2026-08.md`](./docs/AUDIT-TECHNIQUE-2026-08.md) | audit technique : chemin push, consentement santé, gestion d'erreurs |
+| [`docs/AUDIT-PWA-COACH-2026-08.md`](./docs/AUDIT-PWA-COACH-2026-08.md) | audit PWA mobile côté coach (les trois vagues sont livrées) |
+| [`docs/AUDIT-COACH-INDEPENDANT-2026-08.md`](./docs/AUDIT-COACH-INDEPENDANT-2026-08.md) | audit du coach indépendant : athlètes privés, multi-club |
+| [`docs/PLAN-EVOLUTION-2026-08.md`](./docs/PLAN-EVOLUTION-2026-08.md) · [`docs/PLAN-PRODUIT-2026-08.md`](./docs/PLAN-PRODUIT-2026-08.md) | plans d'évolution : ce que le marché réclame, et ce que le modèle de domaine empêche |
+| [`docs/DEMANDES-API-GARMIN-COROS.md`](./docs/DEMANDES-API-GARMIN-COROS.md) | dossiers d'accès aux API montres (Garmin fermé, COROS ouvert) |
+| [`docs/archive/`](./docs/archive/) | historique non maintenu : blueprint UX (encore cité par des composants), wireframes, deux audits de juillet |
 
 > **Aide utilisateur intégrée** : chaque espace dispose d'un **centre d'aide** adapté à son profil
 > (athlète `/athlete/help`, coach `/app/aide`, admin `/admin/aide`), avec **recherche globale**
