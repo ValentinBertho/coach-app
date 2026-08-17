@@ -19,6 +19,8 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 import { PlannedStats, RealizedStats, SessionStatsComponent } from '../../shared/components/session-stats/session-stats.component';
 import { TimeInZoneBarComponent } from '../../shared/components/time-in-zone-bar/time-in-zone-bar.component';
 import { BottomSheetComponent } from '../../shared/components/ui';
+import { ComplianceVerdictComponent } from '../../shared/components/compliance-verdict/compliance-verdict.component';
+import { Compliance } from '../../core/models/decision.model';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 
 type State = 'loading' | 'ready' | 'error';
@@ -55,6 +57,7 @@ const SOURCE_LABELS: Record<string, string> = {
     DatePipe, RouterLink, IconComponent, SessionStatsComponent, ActivityChartComponent,
     ActivityLapsComponent, ActivityRouteMapComponent, TimeInZoneBarComponent,
     FeedbackRecapComponent, CoursePrescriptionViewComponent, WorkoutFeedbackSheetComponent,
+    ComplianceVerdictComponent,
     BottomSheetComponent,
   ],
   template: `
@@ -118,6 +121,16 @@ const SOURCE_LABELS: Record<string, string> = {
                   <a routerLink="/athlete/activities" class="btn btn-ghost btn-sm">Mes activités</a>
                 </div>
               </section>
+            }
+
+            <!-- 1 bis. Séance tenue ? — le verdict, avant la courbe. Une phrase se lit ; une
+                 courbe se déchiffre, et personne ne déchiffre en rentrant de courir. -->
+            @if (compliance(); as c) {
+              @if (c.scorePct !== null) {
+                <section class="wd-compliance">
+                  <app-compliance-verdict [data]="c" />
+                </section>
+              }
             }
 
             <!-- 2. Comment ça s'est passé. -->
@@ -293,6 +306,13 @@ export class AthleteWorkoutDetailComponent implements OnInit {
   readonly activity = signal<Activity | null>(null);
   readonly prescription = signal<WorkoutPrescription | null>(null);
 
+  /**
+   * « Séance tenue ? » — le verdict bloc par bloc. Nul tant qu'aucune sortie n'est rattachée ou
+   * qu'aucune fourchette n'était prescrite : dans ces cas-là, il n'y a rien à juger, et le
+   * composant se tait plutôt que d'afficher un zéro.
+   */
+  readonly compliance = signal<Compliance | null>(null);
+
   readonly statusLabels = STATUS_LABELS;
   readonly statusBadge = STATUS_BADGE;
   readonly typeLabels = WORKOUT_TYPE_LABELS;
@@ -371,6 +391,10 @@ export class AthleteWorkoutDetailComponent implements OnInit {
     this.portal.workoutPrescription(id).subscribe({
       next: (p) => this.prescription.set(p),
       error: () => this.prescription.set(null),
+    });
+    this.portal.compliance(id).subscribe({
+      next: (c) => this.compliance.set(c),
+      error: () => this.compliance.set(null),
     });
     this.paceReference.mine().subscribe({
       next: (p) => this.referencePace.set(p),

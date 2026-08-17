@@ -270,6 +270,15 @@ public class CoachDashboardService {
      * les athlètes privés. C'est volontaire — la supervision passe par le back-office
      * d'administration, pas par une vue de coach.</p>
      */
+    /**
+     * Même périmètre, exposé pour les écrans qui s'y adossent — la file de propositions notamment.
+     * Passer par la même méthode garantit qu'une proposition ne peut pas concerner un athlète que
+     * le coach n'a pas le droit de voir, exactement comme la jauge de forme et les alertes.
+     */
+    public List<Athlete> athletesInScopeFor(UUID clubId, String scope, UUID coachId) {
+        return athletesInScope(clubId, scope, coachId);
+    }
+
     private List<Athlete> athletesInScope(UUID clubId, String scope, UUID coachId) {
         if (scope == null || scope.isBlank() || "all".equalsIgnoreCase(scope)) {
             List<Athlete> all = athleteRepository.findByClubIdOrderByLastNameAsc(clubId);
@@ -425,6 +434,37 @@ public class CoachDashboardService {
 
     private CoachAlertResponse alert(Athlete a, String name, String discipline,
                                      String severity, String type, String title, String detail) {
-        return new CoachAlertResponse(a.getId(), name, discipline, severity, type, title, detail);
+        return new CoachAlertResponse(a.getId(), name, discipline, severity, type, title, detail,
+                suggestedAction(a, type));
+    }
+
+    /**
+     * Le geste que l'alerte appelle, attaché à la ligne qui le justifie.
+     *
+     * <p>L'écran du matin listait quatre inventaires : chaque ligne disait le problème et laissait
+     * le coach chercher l'écran où le traiter. Sur un téléphone, ce détour est le parcours entier —
+     * c'est pourquoi la file se lisait sans jamais se traiter.</p>
+     *
+     * <p>La correspondance est volontairement étroite : une douleur mène à la séance de demain
+     * (celle qu'on peut encore changer), une charge trop haute mène à la semaine, un silence mène à
+     * la conversation. Une alerte sans geste évident n'en reçoit pas — un bouton qui ne sert à rien
+     * coûte plus cher que pas de bouton.</p>
+     */
+    private CoachAlertResponse.SuggestedAction suggestedAction(Athlete a, String type) {
+        String athlete = "/app/athletes/" + a.getId();
+        return switch (type) {
+            case "PAIN" -> new CoachAlertResponse.SuggestedAction(
+                    "REVIEW_TOMORROW", "Voir sa séance de demain", athlete + "/programme");
+            case "ACWR_HIGH", "MONOTONY" -> new CoachAlertResponse.SuggestedAction(
+                    "REVIEW_LOAD", "Revoir sa semaine", athlete + "/programme");
+            case "MISSED" -> new CoachAlertResponse.SuggestedAction(
+                    "RESCHEDULE_WEEK", "Replanifier", athlete + "/programme");
+            case "SILENCE" -> new CoachAlertResponse.SuggestedAction(
+                    "MESSAGE", "Lui écrire", athlete + "/messages?reply=1");
+            case "ACWR_LOW" -> new CoachAlertResponse.SuggestedAction(
+                    "REVIEW_LOAD", "Voir sa charge", athlete + "/load");
+            default -> a == null ? null : new CoachAlertResponse.SuggestedAction(
+                    "OPEN_ATHLETE", "Ouvrir la fiche", athlete);
+        };
     }
 }

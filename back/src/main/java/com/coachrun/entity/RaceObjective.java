@@ -48,6 +48,20 @@ public class RaceObjective extends BaseEntity {
     @Column(name = "priority", nullable = false, length = 1)
     private RacePriority priority = RacePriority.B;
 
+    /**
+     * Chrono réellement réalisé, une fois la course courue.
+     *
+     * <p>Il manquait, et c'était le trou le plus coûteux du modèle : le lendemain d'une course,
+     * l'objectif basculait « passé » et ce qui s'était produit n'était enregistré nulle part. Une
+     * course est pourtant la meilleure mesure de niveau qu'un athlète produise dans l'année.</p>
+     *
+     * <p>Ce champ ne vit pas seul : quand la distance correspond à une distance de référence, le
+     * chrono est aussi enregistré comme performance, ce qui recalcule le VDOT, les allures et les
+     * zones (cf. {@code TrajectoryService#recordResult}).</p>
+     */
+    @Column(name = "result_time_s")
+    private Integer resultTimeS;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 16)
     private RaceObjectiveStatus status = RaceObjectiveStatus.UPCOMING;

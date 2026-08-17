@@ -400,3 +400,31 @@
   display: inline-flex; align-items: center; gap: 2px;
   font-size: var(--text-xs); font-weight: 600; color: var(--ink-3);
 }
+
+
+/* ── La semaine en une phrase ────────────────────────────────────────────────
+   Posée à côté du volume, dans la barre d'outils : c'est là que le coach regarde
+   pendant qu'il pose ses séances, et c'est le seul moment où le chiffre sert
+   encore à quelque chose. Le lundi suivant, il ne sert plus à rien. */
+.week-say {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius-full);
+  border: 1px solid currentColor;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 34ch;
+
+  &--calm   { color: var(--ink-3); }
+  &--normal { color: var(--success); }
+  &--watch  { color: var(--warning); }
+  &--high   { color: var(--danger); }
+}
+
+@media (max-width: 900px) {
+  /* Sur un écran étroit, la barre d'outils compte déjà trop d'éléments : la phrase
+     y deviendrait un fragment illisible, et le calendrier se lit alors jour par jour. */
+  .week-say { display: none; }
+}

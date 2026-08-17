@@ -49,6 +49,17 @@
 
     @if (mode() === 'week' && scopeMode() === 'athlete') {
       <span class="volume metric">{{ weeklyVolumeKm() }} km</span>
+      <!-- La semaine en une phrase : la charge prévue confrontée à l'habituel de l'athlète,
+           pendant qu'on la construit. L'ACWR alertait jusqu'ici le lundi suivant, sur une
+           semaine déjà courue. -->
+      @if (weekOutlook(); as o) {
+        @if (o.sentence) {
+          <span class="week-say" [class]="'week-say--' + o.level.toLowerCase()"
+                [title]="'Charge prévue confrontée à la charge habituelle de l’athlète'">
+            {{ o.sentence }}
+          </span>
+        }
+      }
     }
   </div>
 

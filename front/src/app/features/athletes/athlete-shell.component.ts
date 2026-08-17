@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, effect, inject, input, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { filter } from 'rxjs';
+import { Observable, filter } from 'rxjs';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { ATHLETE_LEVEL_LABELS, Athlete, AthleteLevel, AthleteStatus, AthleteSummary } from '../../core/models/athlete.model';
@@ -128,8 +128,12 @@ const SECTION_LABELS: Record<string, string> = {
                   </div>
                   <div class="ep-actions">
                     <button type="button" class="btn btn-ghost btn-sm" (click)="exportOpen.set(false)">Annuler</button>
+                    <button type="button" class="btn btn-ghost btn-sm" (click)="exportReport()"
+                            [disabled]="exporting()" title="Ce qui a eu lieu : volume, charge, faits marquants">
+                      Bilan
+                    </button>
                     <button type="button" class="btn btn-primary btn-sm" (click)="exportProgram()" [disabled]="exporting()">
-                      Exporter
+                      Programme
                     </button>
                   </div>
                 </div>
@@ -509,6 +513,14 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
+  /**
+   * Télécharge le bilan de la période : ce qui a <b>eu lieu</b>, là où le programme dit ce qui
+   * était prévu. Deux documents, deux usages — l'un se remet avant, l'autre après.
+   */
+  exportReport(): void {
+    this.download('bilan', (from, to) => this.athleteService.exportReport(this.athleteId(), from, to));
+  }
+
   /** Télécharge le programme PDF sur la période choisie. */
   exportProgram(): void {
     const from = this.exportFrom;
@@ -517,18 +529,32 @@ export class AthleteShellComponent implements OnInit, OnDestroy {
       this.toast.warning('Période invalide : la date de fin doit suivre la date de début.');
       return;
     }
+    this.download('programme', (f, t) => this.athleteService.exportProgram(this.athleteId(), f, t));
+  }
+
+  /**
+   * Le téléchargement lui-même, partagé par les deux exports : même validation de période, même
+   * nommage de fichier, même gestion d'erreur. Deux copies auraient divergé au premier correctif.
+   */
+  private download(kind: string, call: (from: string, to: string) => Observable<Blob>): void {
+    const from = this.exportFrom;
+    const to = this.exportTo;
+    if (!from || !to || to < from) {
+      this.toast.warning('Période invalide : la date de fin doit suivre la date de début.');
+      return;
+    }
     this.exporting.set(true);
-    this.athleteService.exportProgram(this.athleteId(), from, to).subscribe({
+    call(from, to).subscribe({
       next: (blob) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `programme-${from}-${to}.pdf`;
+        a.download = `${kind}-${from}-${to}.pdf`;
         a.click();
         URL.revokeObjectURL(url);
         this.exporting.set(false);
         this.exportOpen.set(false);
-        this.toast.success('Programme exporté (PDF)');
+        this.toast.success(`${kind === 'bilan' ? 'Bilan' : 'Programme'} exporté (PDF)`);
       },
       error: () => { this.exporting.set(false); this.toast.error('Export impossible.'); },
     });

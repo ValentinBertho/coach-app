@@ -96,3 +96,19 @@
 .week__l { font-size: var(--text-sm); color: var(--ink-3); }
 .week__bar { height: 8px; border-radius: var(--radius-full); background: var(--paper-sunk); overflow: hidden; }
 .week__fill { display: block; height: 100%; border-radius: var(--radius-full); background: var(--accent); }
+
+/* ── Mes demandes en attente ──────────────────────────────────────────────────
+   Une demande partie le matin disparaissait de l'écran : l'athlète ne savait plus
+   s'il avait cliqué, ni ce que son coach en avait fait. Deux lignes suffisent à
+   refermer la boucle — et à rappeler que c'est le coach qui décide. */
+.pend {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  border-left: 3px solid var(--primary);
+}
+.pend__t { color: var(--ink); font-size: var(--text-sm); }
+.pend__l { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.pend__i { display: flex; flex-direction: column; gap: 1px; }
+.pend__title { font-size: var(--text-sm); color: var(--ink-2); }
+.pend__why { font-size: var(--text-xs); color: var(--ink-3); }

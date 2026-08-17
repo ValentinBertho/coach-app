@@ -1,0 +1,110 @@
+# ============================================================================
+# 084 — Les propositions.
+#   Le produit sait beaucoup de choses : qu'une fatigue à 8 rend le fractionné du
+#   jour déraisonnable, qu'une sortie vaut un VDOT supérieur au profil, qu'un
+#   exercice réussi à RIR 3 appelle 2,5 kg de plus. Jusqu'ici, tout cela mourait
+#   en notification — ou pire, aurait pu s'appliquer tout seul.
+#
+#   Cette table est la seule porte d'écriture des suggestions du produit. Rien
+#   n'est appliqué sans qu'un humain ait tapé dessus, et la décision est tracée
+#   (qui, quand). Une automatisation silencieuse ne peut pas être ajoutée sans
+#   passer par ici, donc sans être visible et refusable.
+#
+#   `dedupe_key` joue le rôle d'`alert_digest_log` pour les alertes : sans elle,
+#   une suggestion ignorée revient tous les matins et fait ignorer les autres.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 084-create-athlete-proposals
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: athlete_proposals
+            remarks: "Propositions du produit en attente d'une décision humaine."
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column:
+                  name: type
+                  type: VARCHAR(32)
+                  constraints: { nullable: false }
+                  remarks: "SESSION_LIGHTEN | SESSION_EASY | SESSION_MOVE | SESSION_DROP | PHYSIO_UPDATE | STRENGTH_LOAD"
+              - column:
+                  name: status
+                  type: VARCHAR(16)
+                  defaultValue: PENDING
+                  constraints: { nullable: false }
+                  remarks: "PENDING | ACCEPTED | DISMISSED | EXPIRED"
+              - column:
+                  name: target_id
+                  type: UUID
+                  remarks: "Séance visée, ou nul quand la proposition porte sur l'athlète."
+              - column: { name: title, type: VARCHAR(200), constraints: { nullable: false } }
+              - column:
+                  name: reason
+                  type: VARCHAR(500)
+                  remarks: "Le chiffre qui a déclenché la proposition, en clair."
+              - column: { name: payload_json, type: TEXT }
+              - column:
+                  name: requested_by_athlete
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }
+              - column: { name: target_date, type: DATE }
+              - column: { name: decided_by, type: UUID }
+              - column: { name: decided_at, type: TIMESTAMP WITH TIME ZONE }
+              - column:
+                  name: dedupe_key
+                  type: VARCHAR(200)
+                  constraints: { nullable: false }
+                  remarks: "Empreinte du déclencheur : la même cause ne se propose pas deux fois."
+
+  - changeSet:
+      id: 084-athlete-proposals-fks
+      author: coachrun
+      changes:
+        - addForeignKeyConstraint:
+            constraintName: fk_athlete_proposals_club
+            baseTableName: athlete_proposals
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_athlete_proposals_athlete
+            baseTableName: athlete_proposals
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_athlete_proposals_decided_by
+            baseTableName: athlete_proposals
+            baseColumnNames: decided_by
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL
+
+  - changeSet:
+      id: 084-athlete-proposals-indexes
+      author: coachrun
+      changes:
+        # La file du coach lit « toutes les propositions en attente de ces athlètes » :
+        # c'est cette requête-là qui tourne à chaque ouverture de « Ma journée ».
+        - createIndex:
+            indexName: idx_proposals_athlete_status
+            tableName: athlete_proposals
+            columns:
+              - column: { name: athlete_id }
+              - column: { name: status }
+        # Le dédoublonnage est vérifié avant chaque détection, athlète par athlète.
+        - createIndex:
+            indexName: idx_proposals_dedupe
+            tableName: athlete_proposals
+            columns:
+              - column: { name: athlete_id }
+              - column: { name: dedupe_key }

@@ -45,6 +45,15 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class WorkoutService {
 
+    /**
+     * Le rattrapage et les propositions, injectés paresseusement : ils lisent le calendrier par ce
+     * service même. Une séance déclarée non faite laissait jusqu'ici la semaine trouée sans que
+     * rien ne soit proposé, et une séance supprimée laissait derrière elle des propositions qui la
+     * visaient encore.
+     */
+    private final org.springframework.beans.factory.ObjectProvider<RecoveryService> recovery;
+    private final org.springframework.beans.factory.ObjectProvider<ProposalService> proposals;
+
     private final WorkoutRepository workoutRepository;
     private final AthleteRepository athleteRepository;
     private final NotificationService notificationService;
@@ -160,6 +169,36 @@ public class WorkoutService {
      * <p>Les étapes en font partie : passer 6 × 400 m à 8 × 400 m ne touche ni la date ni le
      * titre, et c'est pourtant le changement que l'athlète a le plus besoin de connaître.</p>
      */
+
+    /**
+     * Une séance déclarée non faite : propose une date de report, s'il en existe une qui tienne.
+     *
+     * <p>Rien n'est déplacé — la proposition attend une décision. Et un échec n'invalide jamais le
+     * retour de l'athlète : il a déclaré quelque chose, sa déclaration doit être enregistrée.</p>
+     */
+    private void proposeCatchUp(Workout workout) {
+        try {
+            RecoveryService service = recovery.getIfAvailable();
+            if (service != null) {
+                service.proposeCatchUp(workout, true);
+            }
+        } catch (RuntimeException e) {
+            log.warn("Rattrapage impossible pour la séance {} : {}", workout.getId(), e.getMessage());
+        }
+    }
+
+    /** Une séance supprimée emporte les propositions qui la visaient : elles n'ont plus d'objet. */
+    private void expireProposalsFor(java.util.UUID workoutId) {
+        try {
+            ProposalService service = proposals.getIfAvailable();
+            if (service != null) {
+                service.expireForTarget(workoutId);
+            }
+        } catch (RuntimeException e) {
+            log.warn("Propositions non périmées pour la séance {} : {}", workoutId, e.getMessage());
+        }
+    }
+
     private static String signature(Workout w) {
         StringBuilder sb = new StringBuilder()
                 .append(w.getScheduledDate()).append('|').append(w.getType()).append('|')
@@ -473,6 +512,7 @@ public class WorkoutService {
                 && !workout.getScheduledDate().isBefore(clock.today())) {
             notificationService.notifyWorkoutCancelled(workout);
         }
+        expireProposalsFor(workout.getId());
         workoutRepository.delete(workout);
     }
 
@@ -571,6 +611,9 @@ public class WorkoutService {
         // avec 4/10 le manquait) : la déclaration elle-même vaut alerte.
         notificationService.notifyInjuryAlert(workout.getAthlete(),
                 com.coachrun.util.InjuryCodec.read(workout.getInjuriesJson()));
+        if (workout.getStatus() == WorkoutStatus.MISSED) {
+            proposeCatchUp(workout);
+        }
         return WorkoutResponse.from(workout);
     }
 

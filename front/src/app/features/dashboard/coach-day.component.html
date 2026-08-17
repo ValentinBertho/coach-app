@@ -84,6 +84,10 @@
   }
 
   <!-- 1. À traiter maintenant : ce qui appelle une décision aujourd'hui. -->
+  <!-- Les propositions du produit : demandes d'athlètes et suggestions détectées. Placées avant
+       les alertes parce qu'elles se referment en un tap, là où une alerte demande un jugement. -->
+  <app-proposal-list [proposals]="proposals()" (decided)="onProposalDecided()" />
+
   @if (alerts().length) {
     <section class="cd-sec">
       <header class="cd-sec__hd">
@@ -101,8 +105,23 @@
             </div>
             <p class="cd-card__detail">{{ al.detail }}</p>
             <div class="cd-acts">
+              <!-- L'action que l'alerte appelle, exécutable d'ici : une file de décisions, pas un
+                   inventaire de problèmes. Le geste dépend du type d'alerte (douleur → la séance
+                   de demain, charge → la semaine, silence → la conversation). -->
+              @if (al.action; as act) {
+                @if (act.code === 'RESCHEDULE_WEEK') {
+                  <!-- Replanifier ne déplace rien : cela fabrique des propositions de report,
+                       que le coach accepte ou refuse une à une juste au-dessus. -->
+                  <button type="button" class="btn btn-primary btn-sm"
+                          [disabled]="catchingUp() === al.athleteId" (click)="catchUp(al)">
+                    {{ catchingUp() === al.athleteId ? 'Recherche…' : act.label }}
+                  </button>
+                } @else {
+                  <a class="btn btn-primary btn-sm" [routerLink]="act.link">{{ act.label }}</a>
+                }
+              }
               <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', al.athleteId]">Voir la fiche</a>
-              <button type="button" class="btn btn-primary btn-sm" (click)="replyToAlert(al)">
+              <button type="button" class="btn btn-ghost btn-sm" (click)="replyToAlert(al)">
                 <app-icon name="message-square" [size]="15" /> Répondre
               </button>
             </div>

@@ -36,6 +36,8 @@ import { RunDrill } from '../../core/models/run-drill.model';
 import { RunDrillService } from '../../core/services/run-drill.service';
 import { CalendarNote, isCycle } from '../../core/models/calendar-note.model';
 import { CalendarNoteService } from '../../core/services/calendar-note.service';
+import { WeekOutlook } from '../../core/models/decision.model';
+import { DecisionService } from '../../core/services/decision.service';
 import { SessionCategory } from '../../core/models/session-category.model';
 import { SessionCategoryService } from '../../core/services/session-category.service';
 import { SessionLibraryPanelComponent } from '../../shared/components/session-library-panel/session-library-panel.component';
@@ -180,6 +182,17 @@ export class CalendarComponent implements OnInit, OnDestroy {
   // --- Sélection multiple, presse-papier, annulation ----------------------------------------
   // Le calendrier passait de « lecture » à « production » une séance à la fois. Ces trois états
   // en font un plan de travail : on désigne un lot, on agit dessus, on revient en arrière.
+
+  private readonly decisions = inject(DecisionService);
+
+  /**
+   * Ce que la semaine affichée fera à l'athlète, dit pendant qu'on la construit.
+   *
+   * <p>La charge prévue de chaque séance était déjà calculée et déjà additionnée ici ; elle
+   * n'était simplement jamais confrontée à la charge habituelle de l'athlète. L'ACWR alertait
+   * donc le lundi suivant, sur une semaine qu'il avait déjà courue.</p>
+   */
+  readonly weekOutlook = signal<WeekOutlook | null>(null);
 
   readonly selection = new CalendarSelection();
   /** Séances copiées (Cmd+C) : on garde la référence, pas une copie de l'objet. */
@@ -782,7 +795,24 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.noteService.list(this.selectedAthleteId, from, to).subscribe({
       next: (n) => this.notes.set(n), error: () => this.notes.set([]),
     });
+    this.loadWeekOutlook(from);
     this.reloadStrength();
+  }
+
+  /**
+   * La phrase de la semaine. Uniquement en vue « semaine » : sur un mois, « +34 % » ne
+   * désignerait aucune semaine en particulier, et un chiffre qui ne désigne rien vaut moins
+   * que pas de chiffre.
+   */
+  private loadWeekOutlook(from: string): void {
+    if (this.mode() !== 'week' || !this.selectedAthleteId) {
+      this.weekOutlook.set(null);
+      return;
+    }
+    this.decisions.weekOutlook(this.selectedAthleteId, from).subscribe({
+      next: (o) => this.weekOutlook.set(o),
+      error: () => this.weekOutlook.set(null),
+    });
   }
 
   reloadStrength(): void {

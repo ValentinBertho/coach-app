@@ -15,6 +15,9 @@ import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
 import { Injury } from '../models/injury.model';
 import { MissedReason, Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
 import { StravaStatus } from '../models/strava.model';
+import {
+  Advice, Compliance, Proposal, Readiness, Timeline, Trajectory, WeekOutlook,
+} from '../models/decision.model';
 import { E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthPrescriptionView, StrengthResultEntry } from '../models/strength.model';
 
 // Le type vit désormais dans le modèle force (partagé coach/athlète) ; ré-export pour les
@@ -416,6 +419,55 @@ export class AthletePortalService {
   /** Je redonne mon consentement : la collecte reprend, l'effacé ne revient pas. */
   grantHealthConsent(): Observable<void> {
     return this.http.post<void>(`${this.base}/consent/grant`, {});
+  }
+
+  // --- Ce que le produit conclut, pour moi ----------------------------------
+
+  /**
+   * Le feu vert du matin : ce que le produit conseille de faire de ma séance du jour.
+   * Lecture pure — rien ne change tant que je ne demande rien.
+   */
+  readiness(): Observable<Readiness> {
+    return this.http.get<Readiness>(`${this.base}/readiness`);
+  }
+
+  /**
+   * Je demande l'adaptation conseillée. Cela crée une demande adressée à mon coach : ma séance
+   * ne bouge pas tant qu'il ne l'a pas acceptée.
+   */
+  requestAdaptation(advice: Advice): Observable<Readiness> {
+    const params = new HttpParams().set('advice', advice);
+    return this.http.post<Readiness>(`${this.base}/readiness/request`, {}, { params });
+  }
+
+  /** Les demandes et suggestions me concernant, encore en attente. */
+  myProposals(): Observable<Proposal[]> {
+    return this.http.get<Proposal[]>(`${this.base}/proposals`);
+  }
+
+  /** « Séance tenue ? » — le verdict d'une de mes séances. */
+  compliance(workoutId: string): Observable<Compliance> {
+    return this.http.get<Compliance>(`${this.base}/workouts/${workoutId}/compliance`);
+  }
+
+  /** Ma trajectoire vers ma prochaine course (nulle si je n'ai pas d'objectif). */
+  trajectory(): Observable<Trajectory | null> {
+    return this.http.get<Trajectory | null>(`${this.base}/trajectory`);
+  }
+
+  /** Ma semaine : chargée, normale, ou de décharge. */
+  weekOutlook(week?: string): Observable<WeekOutlook> {
+    let params = new HttpParams();
+    if (week) params = params.set('week', week);
+    return this.http.get<WeekOutlook>(`${this.base}/week-outlook`, { params });
+  }
+
+  /** Mon fil : tests, records, courses, coupures. */
+  timeline(from?: string, to?: string): Observable<Timeline> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http.get<Timeline>(`${this.base}/timeline`, { params });
   }
 }
 

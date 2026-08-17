@@ -45,6 +45,17 @@ export class AthleteService {
     return this.http.get(`${this.base()}/${id}/program/export.pdf`, { params, responseType: 'blob' });
   }
 
+  /**
+   * Bilan d'une période : volume, charge, répartition d'intensité, faits marquants.
+   *
+   * Le pendant de l'export de programme — celui-ci dit ce qui était prévu, celui-là ce qui a eu
+   * lieu. C'est le document qui fait exister le travail du coach auprès de son athlète.
+   */
+  exportReport(id: string, from: string, to: string): Observable<Blob> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get(`${this.base()}/${id}/program/report.pdf`, { params, responseType: 'blob' });
+  }
+
   // --- Strava ---
   stravaStatus(id: string): Observable<StravaStatus> {
     return this.http.get<StravaStatus>(`${this.base()}/${id}/strava`);

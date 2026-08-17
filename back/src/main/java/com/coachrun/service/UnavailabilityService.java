@@ -9,6 +9,7 @@ import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.AthleteUnavailabilityRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,10 +19,18 @@ import java.util.List;
 import java.util.UUID;
 
 /** Indisponibilités d'un athlète (CRUD scopé club) + lecture côté athlète. */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class UnavailabilityService {
+
+    /**
+     * Le rattrapage, injecté paresseusement : il lit le calendrier et la charge, et n'est sollicité
+     * qu'à la déclaration d'une période. Une indisponibilité saisie laissait jusqu'ici neuf séances
+     * dans le calendrier, qui devenaient neuf séances manquées puis autant d'alertes.
+     */
+    private final org.springframework.beans.factory.ObjectProvider<RecoveryService> recovery;
 
     private final AthleteUnavailabilityRepository repository;
     private final AthleteRepository athleteRepository;
@@ -64,7 +73,29 @@ public class UnavailabilityService {
         u.setClub(athlete.getClub());
         u.setAthlete(athlete);
         apply(u, req);
-        return UnavailabilityResponse.from(repository.save(u));
+        AthleteUnavailability saved = repository.save(u);
+        proposeForCoveredSessions(clubId, saved);
+        return UnavailabilityResponse.from(saved);
+    }
+
+    /**
+     * Propose ce qu'on fait des séances que la période recouvre — sans y toucher.
+     *
+     * <p>C'est la moitié manquante du geste : déclarer une coupure, c'est décider qu'on ne
+     * s'entraînera pas, et le calendrier devrait le refléter. Il ne le fait pas tout seul pour
+     * autant : le coach voit la liste et tranche. Un échec ici ne doit jamais empêcher
+     * l'enregistrement de la période elle-même.</p>
+     */
+    private void proposeForCoveredSessions(UUID clubId, AthleteUnavailability u) {
+        try {
+            RecoveryService service = recovery.getIfAvailable();
+            if (service != null) {
+                service.proposeForUnavailability(clubId, u);
+            }
+        } catch (RuntimeException e) {
+            log.warn("Propositions de rattrapage impossibles pour l'indisponibilité {} : {}",
+                    u.getId(), e.getMessage());
+        }
     }
 
     /**
@@ -87,8 +118,10 @@ public class UnavailabilityService {
             u.setReason(com.coachrun.entity.enums.UnavailabilityReason.OTHER);
             u.setNotes(null);
         }
-        UnavailabilityResponse saved = UnavailabilityResponse.from(repository.save(u));
+        AthleteUnavailability persisted = repository.save(u);
+        UnavailabilityResponse saved = UnavailabilityResponse.from(persisted);
         notificationService.notifyAthleteUnavailability(athlete, u);
+        proposeForCoveredSessions(athlete.getClub().getId(), persisted);
         return saved;
     }
 

@@ -750,6 +750,31 @@ public class NotificationService {
      * lendemain matin par un second canal, et elle revient d'elle-même après le délai de rappel
      * si la situation dure.</p>
      */
+    /**
+     * Un athlète demande quelque chose au sujet de sa séance du jour — un allègement, un report.
+     *
+     * <p>Une demande n'est pas une alerte : elle attend une réponse, et elle attend celle du jour
+     * même. Elle porte donc jusqu'au coach référent sans passer par le digest du lendemain, et
+     * elle mène droit à la file de propositions, où il tranche en un tap.</p>
+     *
+     * <p>Le corps ne dit ni la douleur ni la fatigue chiffrées : elles s'afficheraient sur un
+     * écran verrouillé, et ce sont des données de l'article 9. Le motif complet attend le coach
+     * dans l'application, où il est déjà autorisé à le lire.</p>
+     */
+    public void notifyAthleteProposalRequest(Athlete athlete, String title, String reason) {
+        if (athlete == null) {
+            return;
+        }
+        UUID clubId = athlete.getClub() != null ? athlete.getClub().getId() : null;
+        referentCoach(athlete.getId(), clubId).ifPresent(coach -> {
+            String name = fullName(athlete);
+            notifyUser(coach, "ATHLETE_REQUEST", "Demande d'adaptation",
+                    name + " demande une adaptation de sa séance du jour.",
+                    name + " — demande d'adaptation.",
+                    "/app/journee");
+        });
+    }
+
     public void notifyPainAlert(Athlete athlete, Integer pain) {
         if (athlete == null || pain == null || pain < PAIN_SEVERE) {
             return;

@@ -22,6 +22,7 @@ import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-f
 import { HelpHintComponent } from '../help/help-hint.component';
 import { CycleBannerComponent } from '../../shared/components/cycle-banner/cycle-banner.component';
 import { CalendarNote } from '../../core/models/calendar-note.model';
+import { WeekOutlook } from '../../core/models/decision.model';
 import { CalculatedBlockEntry, courseBlockTypeLabel, CourseBlock, WorkoutPrescription } from '../../core/models/course.model';
 import { RaceObjective } from '../../core/models/race.model';
 
@@ -123,6 +124,14 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
          phase elles faisaient partie. Trois semaines de côtes se lisent autrement quand on sait
          qu'elles forment un bloc, et quand il finit. -->
     <app-cycle-banner [cycles]="cycles()" [today]="todayIso" [from]="rangeFrom()" [to]="rangeTo()" />
+
+    <!-- Ce que la semaine affichée demande, dit avant de la vivre. Traduit pour l'athlète : il
+         n'a pas à savoir ce qu'est un ACWR pour comprendre « semaine chargée ». -->
+    @if (mode() === 'week' && weekWord(); as word) {
+      <p class="week-word" [class]="'week-word--' + (weekOutlook()?.level ?? 'normal').toLowerCase()">
+        {{ word }}
+      </p>
+    }
 
     @if (mode() === 'month') {
       <main class="month">
@@ -410,6 +419,22 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     <app-workout-feedback-sheet (saved)="onFeedbackSaved($event)" />
   `,
   styles: [`
+    /* Le mot de la semaine : une phrase, jamais un ratio. L'athlète n'a pas à connaître
+       l'ACWR pour savoir que sa semaine est chargée. */
+    .week-word {
+      margin: 0 0 var(--sp-3);
+      padding: var(--sp-2) var(--sp-3);
+      border-radius: var(--radius-sm);
+      border-left: 3px solid currentColor;
+      font-size: var(--text-sm);
+      font-weight: 600;
+      background: rgba(255, 255, 255, .04);
+    }
+    .week-word--high  { color: var(--dari-red, #ef4444); }
+    .week-word--watch { color: var(--dari-yellow, #fbbf24); }
+    .week-word--calm  { color: var(--dari-teal, #2dd4bf); }
+    .week-word--normal { color: inherit; }
+
     :host { display: block; }
     /* Le titre et la navigation de semaine passaient derrière l'heure et l'encoche en PWA :
        le retrait haut suit la safe-area exposée par la coquille athlète. */
@@ -604,6 +629,27 @@ export class AthleteCalendarComponent implements OnInit {
   readonly races = signal<RaceObjective[]>([]);
   /** Cycles du coach couvrant la plage affichée (périodes seulement, jamais ses notes du jour). */
   readonly cycles = signal<CalendarNote[]>([]);
+
+  /**
+   * Ce que la semaine affichée demande, comparé à l'habitude de l'athlète.
+   *
+   * <p>Le même calcul que côté coach, dit autrement : l'athlète n'a pas à savoir ce qu'est un
+   * ACWR pour comprendre qu'une semaine est chargée. On lui donne le mot, pas le ratio.</p>
+   */
+  readonly weekOutlook = signal<WeekOutlook | null>(null);
+
+  /** Le mot de la semaine, ou rien à dire. */
+  readonly weekWord = computed(() => {
+    const o = this.weekOutlook();
+    if (!o || o.plannedLoadUa <= 0) return null;
+    switch (o.level) {
+      case 'HIGH': return 'Semaine chargée — soigne ton sommeil et tes récupérations.';
+      case 'WATCH': return 'Semaine exigeante.';
+      case 'CALM': return o.deltaPct !== null && o.deltaPct <= -25
+        ? 'Semaine de décharge — c’est voulu, profites-en.' : null;
+      default: return null;
+    }
+  });
   /** Plage effectivement chargée : le bandeau des cycles n'en montre pas d'autres. */
   readonly rangeFrom = signal<string | null>(null);
   readonly rangeTo = signal<string | null>(null);
@@ -889,6 +935,16 @@ export class AthleteCalendarComponent implements OnInit {
     this.rangeFrom.set(from);
     this.rangeTo.set(to);
     this.portal.cycles(from, to).subscribe({ next: (c) => this.cycles.set(c), error: () => this.cycles.set([]) });
+    // Le mot de la semaine n'a de sens qu'en vue semaine : sur un mois, il ne désignerait
+    // aucune semaine en particulier.
+    if (this.mode() === 'week') {
+      this.portal.weekOutlook(from).subscribe({
+        next: (o) => this.weekOutlook.set(o),
+        error: () => this.weekOutlook.set(null),
+      });
+    } else {
+      this.weekOutlook.set(null);
+    }
     this.portal.workouts(from, to).subscribe({ next: (w) => this.workouts.set(w), error: () => this.workouts.set([]) });
     this.portal.ppScheduled(from, to).subscribe({ next: (s) => this.strength.set(s), error: () => this.strength.set([]) });
     this.portal.unavailabilities().subscribe({ next: (u) => this.unavailabilities.set(u), error: () => this.unavailabilities.set([]) });

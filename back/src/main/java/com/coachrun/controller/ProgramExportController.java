@@ -26,6 +26,7 @@ import java.util.UUID;
 public class ProgramExportController {
 
     private final ProgramPdfService programPdfService;
+    private final com.coachrun.service.PeriodReportPdfService periodReportPdfService;
 
     @GetMapping(value = "/export.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> exportPdf(
@@ -35,6 +36,25 @@ public class ProgramExportController {
         byte[] pdf = programPdfService.generate(clubId, athleteId, from, to);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"programme.pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
+
+    /**
+     * Bilan d'une période : volume, charge, répartition d'intensité et faits marquants.
+     *
+     * <p>Le pendant de l'export de programme : celui-ci dit ce qui était prévu, celui-là ce qui a
+     * eu lieu. C'est le document que le coach remet en fin de cycle — et celui qui fait exister son
+     * travail auprès de l'athlète qui le paie.</p>
+     */
+    @GetMapping(value = "/report.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> exportReport(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        byte[] pdf = periodReportPdfService.generate(clubId, athleteId, from, to);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"bilan.pdf\"")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdf);
     }
