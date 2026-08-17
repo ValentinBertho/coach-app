@@ -2,7 +2,7 @@
 
 > ⚠️ **Document historique — juillet 2026, non maintenu.** Son §8 « Suivi d'exécution » indique ce
 > qui a été livré. Les points encore ouverts y restent valables, mais l'état de référence est
-> désormais [`../AUDIT-BETA-OUVERTE-2026-07.md`](../AUDIT-BETA-OUVERTE-2026-07.md).
+> désormais [`../AUDIT-BETA-OUVERTE-2026-08.md`](../AUDIT-BETA-OUVERTE-2026-08.md).
 
 > Regard *Lead Product Designer / Head of UX*, pas revue de code.
 > Périmètre : l'intégralité des écrans coach (laptop-first), athlète (mobile-first), admin et public.

@@ -8,9 +8,9 @@
 > L'application n'a pas été relancée — c'est délibéré, l'audit de juillet l'a fait, et ce qui
 > suit ne se voit pas à l'écran.
 >
-> **Périmètre** : ce qui a bougé depuis `AUDIT-BETA-OUVERTE-2026-07.md` et
-> `AUDIT-BETA-READINESS-2026-07.md`, et ce qui manque encore. Les constats déjà tracés par ces
-> deux documents ne sont pas répétés.
+> **Périmètre** : ce qui a bougé depuis les deux audits de juillet — bêta ouverte et préparation
+> à la bêta — et ce qui manque encore. Les constats déjà tracés par ces deux documents ne sont pas
+> répétés ; ils ont été retirés du dépôt une fois clos, et leur texte reste dans l'historique git.
 
 > **État au 3 août 2026 — lot de correctifs livré.** Tout ce qui est marqué ✅ ci-dessous est
 > implémenté et couvert par des tests. Trois points restent à la main de l'exploitant (variables

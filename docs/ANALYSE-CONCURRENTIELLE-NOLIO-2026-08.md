@@ -479,7 +479,8 @@ physique dans le même outil que la course.**
 
 **Analyse du dépôt** : `README.md`, `docs/Cahier-des-charges.md`, `docs/Design.md`,
 `docs/AUDIT-FONCTIONNEL-2026-08.md`, `docs/AUDIT-BETA-OUVERTE-2026-08.md`,
-`docs/AUDIT-BETA-OUVERTE-2026-07.md`, `docs/DEMANDES-API-GARMIN-COROS.md`, code front et back.
+`docs/DEMANDES-API-GARMIN-COROS.md`, l'audit de bêta ouverte de juillet (depuis retiré, cf.
+historique git), code front et back.
 
 **Nolio** (recherche web — site inaccessible depuis cet environnement) :
 [nolio.io](https://www.nolio.io/) ·
