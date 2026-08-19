@@ -40,6 +40,12 @@ export interface Workout {
   actualDurationS: number | null;
   /** Motif renseigné quand l'athlète a déclaré la séance non faite. */
   missedReason: MissedReason | null;
+  /**
+   * Effort perçu **attendu** pour la séance entière (1–10), annoncé par le coach à la création.
+   * Nul quand rien n'a été annoncé — l'interface se tait plutôt que d'afficher un zéro.
+   */
+  targetRpe: number | null;
+  /** Effort perçu **ressenti**, saisi par l'athlète. C'est l'écart entre les deux qui informe. */
   rpe: number | null;
   /** Fatigue et douleur déclarées (données de santé, absentes sans consentement actif). */
   fatigue: number | null;

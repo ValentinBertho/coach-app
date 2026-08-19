@@ -22,6 +22,12 @@ public record WorkoutResponse(
         Integer actualDurationS,
         /** Motif renseigné quand l'athlète a déclaré la séance non faite. */
         com.coachrun.entity.enums.MissedReason missedReason,
+        /**
+         * Effort perçu <b>attendu</b> pour la séance entière (1–10), annoncé par le coach.
+         * Nul quand rien n'a été annoncé : l'interface se tait plutôt que d'afficher un zéro.
+         */
+        Integer targetRpe,
+        /** Effort perçu <b>ressenti</b>, saisi par l'athlète. C'est l'écart avec le précédent qui informe. */
         Integer rpe,
         Integer fatigue,
         Integer pain,
@@ -60,6 +66,7 @@ public record WorkoutResponse(
                 w.getTargetDurationS(),
                 w.getActualDurationS(),
                 w.getMissedReason(),
+                w.getTargetRpe(),
                 w.getRpe(),
                 w.getFatigue(),
                 w.getPain(),

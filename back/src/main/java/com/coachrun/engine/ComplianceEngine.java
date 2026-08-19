@@ -41,8 +41,19 @@ public class ComplianceEngine {
             Integer durationS) {
     }
 
-    /** Un tour réellement couru. */
-    public record RealizedLap(int index, Integer distanceM, Integer durationS, Integer paceSecPerKm) {
+    /**
+     * Un tour réellement couru.
+     *
+     * <p>{@code avgHrBpm} peut manquer : montre sans ceinture, capteur perdu sur une répétition,
+     * sortie saisie à la main. Rien de ce qui suit ne doit alors s'inventer une valeur.</p>
+     */
+    public record RealizedLap(int index, Integer distanceM, Integer durationS, Integer paceSecPerKm,
+                              Integer avgHrBpm) {
+
+        /** Tour sans cardio — la forme historique, conservée pour les appelants qui n'en ont pas. */
+        public RealizedLap(int index, Integer distanceM, Integer durationS, Integer paceSecPerKm) {
+            this(index, distanceM, durationS, paceSecPerKm, null);
+        }
     }
 
     /** Verdict d'un effort. */
@@ -59,11 +70,46 @@ public class ComplianceEngine {
 
     /**
      * @param deltaSecPerKm écart signé à la fourchette (négatif = plus rapide), nul si non évalué
+     * @param actualAvgHrBpm FC moyenne du tour apparié, ou {@code null} si la montre n'en donne pas
      */
     public record EffortResult(
             String label, Verdict verdict,
             Integer targetFastSecPerKm, Integer targetSlowSecPerKm,
-            Integer actualPaceSecPerKm, Integer deltaSecPerKm) {
+            Integer actualPaceSecPerKm, Integer deltaSecPerKm,
+            Integer actualAvgHrBpm) {
+
+        /** Forme sans cardio, pour les appelants et les tests qui n'en produisent pas. */
+        public EffortResult(String label, Verdict verdict, Integer targetFastSecPerKm,
+                            Integer targetSlowSecPerKm, Integer actualPaceSecPerKm,
+                            Integer deltaSecPerKm) {
+            this(label, verdict, targetFastSecPerKm, targetSlowSecPerKm, actualPaceSecPerKm,
+                    deltaSecPerKm, null);
+        }
+    }
+
+    /**
+     * Dérive du <b>dernier</b> effort du corps de séance par rapport au <b>premier</b>.
+     *
+     * <p>C'est la lecture qu'un coach fait à voix haute devant une séance : « tes deux dernières
+     * répétitions sont au même chrono, mais dix pulsations plus haut ». Le coût d'une séance ne se
+     * lit pas dans la moyenne — il se lit dans ce qu'il a fallu payer, à la fin, pour tenir la même
+     * allure qu'au début.</p>
+     *
+     * <p>Trois nombres parce qu'ils ne disent pas la même chose : les battements donnent
+     * l'amplitude brute, le pourcentage la rend comparable d'un athlète à l'autre (dix pulsations
+     * ne pèsent pas pareil à 140 qu'à 180), et l'allure dit si la dérive a été <i>subie</i> — même
+     * allure, cœur plus haut — ou <i>compensée</i> — cœur tenu, allure lâchée. Sans l'allure, les
+     * deux cas se ressemblent.</p>
+     *
+     * @param firstLabel      libellé du premier effort comparé
+     * @param lastLabel       libellé du dernier effort comparé
+     * @param hrDeltaBpm      écart de FC, signé (positif = cœur plus haut à la fin)
+     * @param hrDeltaPct      le même écart, rapporté à la FC du premier effort
+     * @param paceDeltaSecPerKm écart d'allure, signé (positif = plus lent à la fin)
+     */
+    public record CardiacDrift(
+            String firstLabel, String lastLabel,
+            int hrDeltaBpm, double hrDeltaPct, Integer paceDeltaSecPerKm) {
     }
 
     /**
@@ -77,10 +123,11 @@ public class ComplianceEngine {
     public record SessionCompliance(
             Integer scorePct, int assessed, int onTarget,
             String verdictLabel, String detail,
-            List<EffortResult> efforts) {
+            List<EffortResult> efforts,
+            CardiacDrift drift) {
 
         public static SessionCompliance empty() {
-            return new SessionCompliance(null, 0, 0, null, null, List.of());
+            return new SessionCompliance(null, 0, 0, null, null, List.of(), null);
         }
     }
 
@@ -134,15 +181,56 @@ public class ComplianceEngine {
             }
             assessed++;
             results.add(new EffortResult(effort.label(), verdict,
-                    effort.paceFastSecPerKm(), effort.paceSlowSecPerKm(), pace, delta));
+                    effort.paceFastSecPerKm(), effort.paceSlowSecPerKm(), pace, delta,
+                    lap.avgHrBpm()));
         }
 
+        CardiacDrift drift = drift(results);
         if (assessed == 0) {
-            return new SessionCompliance(null, 0, 0, null, null, results);
+            return new SessionCompliance(null, 0, 0, null, null, results, drift);
         }
         int score = (int) Math.round(onTarget * 100.0 / assessed);
         return new SessionCompliance(score, assessed, onTarget,
-                label(score), detail(results), results);
+                label(score), detail(results), results, drift);
+    }
+
+    /**
+     * Dérive du dernier effort cardio-exploitable par rapport au premier.
+     *
+     * <p>Seuls les efforts <b>porteurs d'une FC</b> entrent dans la comparaison : un tour sans
+     * capteur n'est pas un tour à zéro pulsation. On prend le premier et le dernier de ceux-là,
+     * ce qui reste juste quand le cardio a lâché au milieu de la séance.</p>
+     *
+     * <p>Rien n'est rendu s'il n'y a qu'un seul effort mesuré — une dérive d'un bloc par rapport à
+     * lui-même vaut zéro, et afficher « 0 % » ferait croire à une séance parfaitement stable alors
+     * qu'on n'a simplement rien à comparer. Ni si la FC de départ est absurde&nbsp;: on ne divise
+     * pas par une valeur nulle pour produire un pourcentage.</p>
+     *
+     * <p>Le corps de séance seul arrive ici (cf. {@code ComplianceService.flatten}) : comparer un
+     * échauffement à une dernière répétition ne mesurerait que la différence entre trottiner et
+     * courir vite.</p>
+     */
+    private CardiacDrift drift(List<EffortResult> results) {
+        List<EffortResult> withHr = results.stream()
+                .filter(r -> r.actualAvgHrBpm() != null && r.actualAvgHrBpm() > 0)
+                .toList();
+        if (withHr.size() < 2) {
+            return null;
+        }
+        EffortResult first = withHr.get(0);
+        EffortResult last = withHr.get(withHr.size() - 1);
+
+        int hrDelta = last.actualAvgHrBpm() - first.actualAvgHrBpm();
+        double hrPct = hrDelta * 100.0 / first.actualAvgHrBpm();
+        // Arrondi au dixième : « +4,7 % » se lit, « +4,68932 % » se recopie mal et suggère une
+        // précision que ni la ceinture ni l'appariement des tours ne possèdent.
+        hrPct = Math.round(hrPct * 10.0) / 10.0;
+
+        Integer paceDelta = null;
+        if (first.actualPaceSecPerKm() != null && last.actualPaceSecPerKm() != null) {
+            paceDelta = last.actualPaceSecPerKm() - first.actualPaceSecPerKm();
+        }
+        return new CardiacDrift(first.label(), last.label(), hrDelta, hrPct, paceDelta);
     }
 
     /** La fourchette existe-t-elle&nbsp;? Sans elle il n'y a rien à confronter. */

@@ -45,6 +45,14 @@ export class WorkoutService {
     return this.http.put<Workout>(`${this.base(athleteId)}/${workoutId}`, request);
   }
 
+  /**
+   * Renomme la séance. Volontairement distinct de `update()` : le PUT complet réécrit la séance,
+   * et s'en servir pour un simple libellé exposerait la prescription figée à être écrasée.
+   */
+  rename(athleteId: string, workoutId: string, title: string): Observable<Workout> {
+    return this.http.patch<Workout>(`${this.base(athleteId)}/${workoutId}/title`, { title });
+  }
+
   updateStatus(athleteId: string, workoutId: string, status: WorkoutStatus): Observable<Workout> {
     return this.http.patch<Workout>(`${this.base(athleteId)}/${workoutId}/status`, { status });
   }

@@ -163,7 +163,8 @@ public class ComplianceService {
             return List.of();
         }
         return laps.laps().stream()
-                .map(l -> new RealizedLap(l.index(), l.distanceM(), l.durationS(), l.paceSPerKm()))
+                .map(l -> new RealizedLap(l.index(), l.distanceM(), l.durationS(), l.paceSPerKm(),
+                        l.avgHr()))
                 .toList();
     }
 

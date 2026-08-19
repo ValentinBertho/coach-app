@@ -40,8 +40,17 @@ import { IconComponent } from '../icon/icon.component';
           @if (rpe() != null) {
             <span class="fr-v metric">{{ rpe() }}<small>/10</small></span>
             <span class="fr-sub">{{ rpeWord() }}</span>
+            <!-- L'écart au RPE annoncé, quand le coach en avait posé un. C'est lui qui informe :
+                 une séance prévue à 6 et ressentie à 9 dit quelque chose que ni l'un ni l'autre
+                 des deux chiffres ne dit seul. -->
+            @if (rpeGap(); as gap) {
+              <span class="fr-gap" [class.fr-gap--over]="gap.over">{{ gap.text }}</span>
+            }
           } @else {
             <span class="fr-none">Pas de réponse</span>
+            @if (targetRpe() != null) {
+              <span class="fr-sub">Prévu {{ targetRpe() }}/10</span>
+            }
           }
         </div>
 
@@ -88,6 +97,9 @@ import { IconComponent } from '../icon/icon.component';
       display: flex; flex-direction: column; gap: 2px;
       padding: var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius);
     }
+    .fr-gap { font-size: var(--text-xs); font-weight: 700; color: var(--ink-3); }
+    /* Au-dessus du prévu : la séance a coûté plus cher qu'annoncé, c'est le cas qui alerte. */
+    .fr-gap--over { color: var(--warning); }
     .fr-lb { font-size: var(--text-sm); font-weight: 700; color: var(--ink); }
     .fr-v { font-size: var(--text-lg); font-weight: 800; color: var(--ink); }
     .fr-v small { font-size: var(--text-sm); color: var(--ink-4); font-weight: 600; }
@@ -119,10 +131,30 @@ import { IconComponent } from '../icon/icon.component';
 export class FeedbackRecapComponent {
   readonly feel = input<number | null>(null);
   readonly rpe = input<number | null>(null);
+  /** RPE annoncé par le coach à la création. Nul quand rien n'a été annoncé. */
+  readonly targetRpe = input<number | null>(null);
   readonly fatigue = input<number | null>(null);
   readonly pain = input<number | null>(null);
   readonly injuries = input<Injury[]>([]);
   readonly comment = input<string | null>(null);
+
+  /**
+   * Écart entre l'effort annoncé et l'effort ressenti.
+   *
+   * <p>Rien n'est rendu à l'identique : « prévu 7, ressenti 7 » n'apprend rien et occuperait la
+   * place d'une information. Seul l'écart parle — et c'est le sens qui compte plus que
+   * l'amplitude : au-dessus, la séance a coûté plus cher que prévu.</p>
+   */
+  readonly rpeGap = computed<{ text: string; over: boolean } | null>(() => {
+    const target = this.targetRpe();
+    const actual = this.rpe();
+    if (target == null || actual == null || target === actual) {
+      return null;
+    }
+    const delta = actual - target;
+    const sign = delta > 0 ? '+' : '−';
+    return { text: `Prévu ${target}/10 · ${sign}${Math.abs(delta)}`, over: delta > 0 };
+  });
 
   /** Rien de déclaré du tout : l'appelant s'en sert pour afficher son propre message. */
   readonly empty = computed(() =>

@@ -1,7 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
-import { Compliance, ComplianceEffort, EffortVerdict } from '../../../core/models/decision.model';
+import {
+  Compliance, ComplianceDrift, ComplianceEffort, EffortVerdict,
+} from '../../../core/models/decision.model';
 import { formatPace } from '../../../core/utils/pace';
 import { IconComponent } from '../icon/icon.component';
+
+/**
+ * En deçà, l'allure est considérée comme tenue : une montre et un GPS ne mesurent pas au dixième
+ * de seconde, et deux secondes au kilomètre entre la première et la dernière répétition ne sont
+ * pas une décision de coureur — c'est du bruit de mesure.
+ */
+const PACE_STABLE_S_PER_KM = 3;
 
 const VERDICT_CLASS: Record<EffortVerdict, string> = {
   ON_TARGET: 'ok',
@@ -53,10 +62,29 @@ const VERDICT_CLASS: Record<EffortVerdict, string> = {
                   <span class="cv__lb">{{ e.label }}</span>
                   <span class="cv__target metric">{{ range(e) }}</span>
                   <span class="cv__actual metric">{{ pace(e.actualPaceSecPerKm) }}</span>
+                  <!-- La FC du bloc, à côté de son allure : c'est le couple qui dit ce que le
+                       bloc a coûté. Absente quand la montre n'a rien enregistré — un tour sans
+                       ceinture n'est pas un tour à zéro pulsation. -->
+                  <span class="cv__hr metric">
+                    @if (e.actualAvgHrBpm !== null) {
+                      <app-icon name="heart-pulse" [size]="11" />{{ e.actualAvgHrBpm }}
+                    }
+                  </span>
                   <span class="cv__delta metric">{{ delta(e) }}</span>
                 </li>
               }
             </ul>
+
+            <!-- La dérive ferme la liste, comme une ligne de total : elle ne se lit qu'après
+                 avoir vu les blocs qu'elle compare. -->
+            @if (data()?.drift; as d) {
+              <p class="cv__drift">
+                <app-icon name="trending-up" [size]="13" />
+                <span>
+                  <strong>Dérive cardiaque</strong> — {{ driftSentence(d) }}
+                </span>
+              </p>
+            }
           }
         </div>
       }
@@ -100,9 +128,23 @@ const VERDICT_CLASS: Record<EffortVerdict, string> = {
     .cv__target { color: var(--ink-4); font-variant-numeric: tabular-nums; }
     .cv__actual { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
     .cv__delta { color: var(--rc, var(--ink-3)); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .cv__hr {
+      color: var(--ink-3); font-variant-numeric: tabular-nums;
+      display: inline-flex; align-items: center; gap: 2px;
+    }
+
+    .cv__drift {
+      display: flex; align-items: flex-start; gap: var(--sp-2);
+      margin: 0; padding: var(--sp-3) var(--sp-4);
+      border-top: 1px solid var(--hairline); background: var(--paper-sunk);
+      font-size: var(--text-sm); color: var(--ink-2);
+    }
+    .cv__drift strong { color: var(--ink); }
 
     @media (max-width: 480px) {
-      .cv__row { grid-template-columns: 10px 1fr auto; }
+      /* La fourchette prescrite saute avant la FC : elle se retrouve dans la ligne de verdict,
+         alors que la FC du bloc ne se lit nulle part ailleurs. */
+      .cv__row { grid-template-columns: 10px 1fr auto auto; }
       .cv__target { display: none; }
     }
   `],
@@ -131,6 +173,36 @@ export class ComplianceVerdictComponent {
 
   pace(secPerKm: number | null): string {
     return formatPace(secPerKm) ?? '—';
+  }
+
+  /**
+   * La dérive, en une phrase.
+   *
+   * <p>Trois nombres seraient trois nombres ; la phrase les relie et dit lequel compte. Les
+   * battements donnent l'amplitude, le pourcentage la rend comparable d'un athlète à l'autre —
+   * dix pulsations ne pèsent pas pareil à 140 qu'à 180 — et l'allure tranche entre une dérive
+   * <b>subie</b> (même allure, cœur plus haut) et une dérive <b>compensée</b> (cœur tenu, allure
+   * lâchée). C'est cette distinction qui change la lecture de la séance, pas les chiffres.</p>
+   */
+  driftSentence(d: ComplianceDrift): string {
+    const sign = d.hrDeltaBpm > 0 ? '+' : d.hrDeltaBpm < 0 ? '−' : '';
+    const hr = `${sign}${Math.abs(d.hrDeltaBpm)} bpm (${sign}${Math.abs(d.hrDeltaPct).toFixed(1).replace('.', ',')} %)`;
+    const between = `de « ${d.firstLabel} » à « ${d.lastLabel} »`;
+
+    const pace = d.paceDeltaSecPerKm;
+    if (pace === null) {
+      return `${hr} ${between}.`;
+    }
+    // Le cas qui mérite d'être nommé : l'allure n'a pas bougé, le cœur a monté. C'est la dérive
+    // subie, celle qui dit ce que la séance a réellement coûté.
+    if (Math.abs(pace) <= PACE_STABLE_S_PER_KM) {
+      return `${hr} ${between}, à allure tenue.`;
+    }
+    const paceSign = pace > 0 ? '+' : '−';
+    const paceTxt = `${paceSign}${Math.abs(pace)} s/km`;
+    return pace > 0
+      ? `${hr} ${between}, avec ${paceTxt} d'allure : la dérive est en partie compensée.`
+      : `${hr} ${between}, et ${paceTxt} d'allure — la fin a été plus rapide.`;
   }
 
   /** « +8 s » ou « −15 s » : l'écart signé, dans le sens où un coureur le lit. */

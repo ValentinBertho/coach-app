@@ -14,7 +14,7 @@
   @if (favorites().length) {
     <section class="slp-group slp-quick">
       <div class="slp-quick-hd"><app-icon name="star" [size]="13" /> Favoris</div>
-      <div class="lib-list">
+      <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
         @for (t of favorites(); track t.id) {
           <div class="lib-item course" cdkDrag [cdkDragData]="t" (click)="courseSelect.emit(t)" [title]="itemHint()">
             <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ t.name }}</span>
@@ -29,7 +29,7 @@
   @if (frequent().length) {
     <section class="slp-group slp-quick">
       <div class="slp-quick-hd"><app-icon name="trending-up" [size]="13" /> Fréquentes</div>
-      <div class="lib-list">
+      <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
         @for (t of frequent(); track t.id) {
           <div class="lib-item course" cdkDrag [cdkDragData]="t" (click)="courseSelect.emit(t)" [title]="itemHint()">
             <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ t.name }}</span>

@@ -173,6 +173,13 @@
   .add-btn { min-height: 22px; }
 }
 
+/* --- Vue « 4 semaines » -------------------------------------------------------
+   Elle emprunte la pastille compacte du mois — quatre rangées de cases pleine hauteur ne
+   tiendraient pas dans un écran — mais lui rend de la hauteur : il y a quatre rangées à loger,
+   pas six, et une case de bloc porte souvent deux séances (course le matin, prépa physique le
+   soir) qu'on veut voir sans dérouler. */
+.grid.weeks4 .day-col { min-height: 148px; }
+
 .add-btn { margin-top: auto; display: flex; align-items: center; justify-content: center; min-height: 28px; background: transparent; border: 1px dashed var(--hairline); border-radius: var(--radius-sm); color: var(--ink-3); padding: var(--sp-1); cursor: pointer; }
 .add-btn:hover { border-color: var(--primary); color: var(--primary); }
 

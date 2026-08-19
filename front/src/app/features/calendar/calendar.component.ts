@@ -51,14 +51,14 @@ import { AthleteSwitcherComponent } from '../../shared/components/athlete-switch
 import { ShortcutsOverlayComponent } from '../../shared/components/shortcuts/shortcuts-overlay.component';
 import { shortcutText } from '../../shared/components/shortcuts/shortcuts';
 import { CALENDAR_SHORTCUTS } from './calendar-shortcuts';
+import {
+  CELLS_BY_MODE, CalMode, gridStartFor, mondayOf, periodLabelFor, shiftAnchor,
+} from './calendar-period';
 import { CalendarSelection, ChipPosition, ChipRef } from './calendar-selection';
 import { SessionStructure } from '../../core/models/course.model';
 
 /** Vue du calendrier : séances prévues, activités réalisées, ou les deux (façon Nolio). */
 type CalView = 'planned' | 'realized' | 'both';
-
-/** Période affichée par la grille : une journée, une semaine, ou un mois. */
-type CalMode = 'day' | 'week' | 'month';
 
 interface DayCell {
   date: string;
@@ -131,13 +131,6 @@ const TYPE_META = WORKOUT_TYPE_META;
 
 function toIso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-function mondayOf(d: Date): Date {
-  const date = new Date(d);
-  const day = (date.getDay() + 6) % 7;
-  date.setDate(date.getDate() - day);
-  date.setHours(0, 0, 0, 0);
-  return date;
 }
 
 @Component({
@@ -283,7 +276,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const noteByDate = this.groupBy(this.notes().filter((n) => !isCycle(n)), (n) => n.noteDate);
     const activityByDate = this.groupBy(this.activities(), (a) => a.activityDate);
     const unavail = this.unavailabilities();
-    const count = this.mode() === 'day' ? 1 : this.mode() === 'week' ? 7 : 42;
+    const count = CELLS_BY_MODE[this.mode()];
     const start = this.gridStart();
     const monthRef = this.anchor().getMonth();
     return Array.from({ length: count }, (_, i) => {
@@ -423,7 +416,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
       return;
     }
     if (m === 'group') {
-      this.mode.set('week'); // pas de vue mois en groupe
+      this.mode.set('week'); // pas de grille multi-semaines en groupe (une ligne par athlète)
       if (this.groups().length === 0) {
         this.groupService.list().subscribe((g) => {
           this.groups.set(g);
@@ -656,21 +649,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   typeMeta(type: WorkoutType): TypeMeta { return TYPE_META[type]; }
 
-  readonly periodLabel = computed(() => {
-    const a = this.anchor();
-    if (this.mode() === 'day') {
-      return new Intl.DateTimeFormat('fr-FR',
-        { weekday: 'short', day: 'numeric', month: 'short' }).format(a);
-    }
-    if (this.mode() === 'month') {
-      return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(a);
-    }
-    const start = mondayOf(a);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 6);
-    const fmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
-    return `${fmt.format(start)} – ${fmt.format(end)}`;
-  });
+  readonly periodLabel = computed(() => periodLabelFor(this.mode(), this.anchor()));
 
   readonly weeklyVolumeKm = computed(() => {
     const m = this.workouts().reduce((s, w) => s + this.volumeM(w), 0);
@@ -767,11 +746,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.loadOverlays();
   }
   shift(step: number): void {
-    const d = new Date(this.anchor());
-    if (this.mode() === 'day') d.setDate(d.getDate() + step);
-    else if (this.mode() === 'week') d.setDate(d.getDate() + step * 7);
-    else d.setMonth(d.getMonth() + step);
-    this.anchor.set(d);
+    this.anchor.set(shiftAnchor(this.mode(), this.anchor(), step));
     this.load();
   }
   goToday(): void { this.anchor.set(new Date()); this.load(); }
@@ -1122,10 +1097,42 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private scheduleTemplate(t: WorkoutTemplate, athleteId: string, date: string, refresh = () => this.load()): void {
     this.courseService.schedule(athleteId, t.id, { date }).subscribe({
       next: (w) => {
-        this.toast.success(`${t.name} planifiée le ${this.fmtDate(date)}${this.chargeRecap(w)}`);
+        // Renommer est proposé, jamais imposé. Une modale à chaque dépôt aurait ralenti le
+        // geste qui fait tout l'intérêt du glisser-déposer — on planifie une semaine entière
+        // d'affilée — alors que le besoin de renommer, lui, est occasionnel : « 10 × 400 »
+        // devient « 10 × 400 spécifique semi » pour cet athlète-là, pas pour les six autres.
+        this.toast.withAction(
+          `${t.name} planifiée le ${this.fmtDate(date)}${this.chargeRecap(w)}`,
+          'Renommer',
+          () => this.promptRename(athleteId, w, refresh),
+        );
         refresh();
       },
       error: () => this.toast.error('Planification impossible.'),
+    });
+  }
+
+  /**
+   * Renomme une séance planifiée, depuis l'invite de la modale globale.
+   *
+   * <p>Le titre courant est proposé et présélectionné : le remplacer prend une frappe, l'amender
+   * prend une flèche. Renoncer ne touche à rien — la séance reste planifiée, c'est seulement son
+   * libellé qui ne change pas.</p>
+   */
+  async promptRename(athleteId: string, w: Workout, refresh = () => this.load()): Promise<void> {
+    const title = await this.confirm.prompt({
+      title: 'Renommer la séance',
+      message: `Séance du ${this.fmtDate(w.scheduledDate)}.`,
+      promptLabel: 'Nom de la séance',
+      initialValue: w.title,
+      confirmLabel: 'Renommer',
+    });
+    if (title === null || title === w.title) {
+      return;
+    }
+    this.workoutService.rename(athleteId, w.id, title).subscribe({
+      next: () => { this.toast.success(`Séance renommée « ${title} ».`); refresh(); },
+      error: () => this.toast.error('Renommage impossible.'),
     });
   }
 
@@ -2196,6 +2203,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     else if (key === 't') { this.goToday(); ev.preventDefault(); }
     else if (key === 'j') { this.setMode('day'); ev.preventDefault(); }
     else if (key === 'w') { this.setMode('week'); ev.preventDefault(); }
+    else if (key === '4') { if (this.scopeMode() === 'athlete') { this.setMode('4weeks'); ev.preventDefault(); } }
     else if (key === 'm') { if (this.scopeMode() === 'athlete') { this.setMode('month'); ev.preventDefault(); } }
     else if (key === 'b') { this.toggleSidebar(); ev.preventDefault(); }
     else if (key === 'n') {
@@ -2219,12 +2227,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   private gridStart(): Date {
-    // La journée commence à elle-même : pas de recalage sur le lundi.
-    if (this.mode() === 'day') return new Date(this.anchor());
-    if (this.mode() === 'week') return mondayOf(this.anchor());
-    const first = new Date(this.anchor());
-    first.setDate(1);
-    return mondayOf(first);
+    return gridStartFor(this.mode(), this.anchor());
   }
 
   /** Regroupe une liste par clé de date (générique). */

@@ -185,6 +185,14 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   readonly loading = signal(true);
   /** Encart d'écriture libre du coach (intention, consignes) — enregistré avec la structure. */
   readonly notes = signal('');
+  /**
+   * Effort perçu attendu pour la séance entière (1–10), ou `null` quand rien n'est annoncé.
+   *
+   * <p>Nul plutôt que zéro : « aucune annonce » et « effort nul » ne sont pas la même chose, et
+   * l'athlète ne doit pas voir « effort attendu : 0 » sur une séance dont le coach n'a
+   * simplement rien dit.</p>
+   */
+  readonly targetRpe = signal<number | null>(null);
   readonly structure = signal<SessionStructure>({ warmup: [], main: [], cooldown: [] });
   readonly calc = signal<Record<string, CalculatedBlock>>({});
   /** Cibles calculées des récupérations inter-répétitions (clé = id du bloc parent). */
@@ -481,6 +489,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
         this.title.set(s.title ?? '');
         this.categoryId.set(s.categoryId ?? '');
         this.notes.set(s.notes ?? '');
+        this.targetRpe.set(s.targetRpe ?? null);
         this.structure.set(s.structure ?? { warmup: [], main: [], cooldown: [] });
         this.loading.set(false);
       },
@@ -1051,6 +1060,19 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     this.touch();
   }
 
+  /** RPE global. Zéro vaut « pas d'annonce » — c'est aussi ce que fait le bouton « Effacer ». */
+  setTargetRpe(value: number | string): void {
+    const n = Number(value);
+    this.targetRpe.set(Number.isFinite(n) && n >= 1 && n <= 10 ? n : null);
+    this.touch();
+  }
+
+  /** « 7/10 », ou un tiret tant que rien n'est annoncé. */
+  targetRpeLabel(): string {
+    const v = this.targetRpe();
+    return v === null ? '—' : `${v}/10`;
+  }
+
   // --- Identité de la séance (nom, titre, catégorie) ------------------------
   // Sans ces champs ici, une séance dupliquée restait « … (copie) » à vie : l'éditeur était le
   // seul écran de la vie d'un modèle, et il n'en montrait pas le nom.
@@ -1076,6 +1098,8 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
       categoryId: categoryId || null,
       clearCategory: !categoryId,
       notes: this.notes(),
+      // Zéro efface côté serveur ; `null` signifierait « champ non transmis ».
+      targetRpe: this.targetRpe() ?? 0,
       structure: this.structure(),
     });
   }

@@ -1,0 +1,37 @@
+# ============================================================================
+# 086 — Le RPE global de la séance, prévu par le coach.
+#   `workouts.rpe` existe déjà : c'est le RPE RESSENTI, saisi par l'athlète
+#   après coup. Rien ne portait l'effort que le coach ATTENDAIT de la séance.
+#   Les deux sont de nature différente et ne peuvent pas partager une colonne :
+#   l'un est une consigne, l'autre une mesure, et c'est leur ÉCART qui informe.
+#
+#   `course_blocks.rpe` (dans le JSON de structure) vise un bloc, pas la séance :
+#   un 10 × 400 a des blocs à 9 et un échauffement à 3, sans que « la séance »
+#   ait un chiffre. C'est celui-là que le coach veut annoncer.
+#
+#   Deux colonnes parce que la prescription se fige à l'assignation, comme le
+#   reste : modifier le modèle plus tard ne doit pas réécrire ce qui a été
+#   annoncé à l'athlète pour une séance déjà passée.
+#
+#   Additif, nullable : une séance sans RPE annoncé reste exactement ce qu'elle
+#   était, et l'interface se tait plutôt que d'afficher un zéro.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 086-workout-template-target-rpe
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workout_templates
+            columns:
+              - column:
+                  name: target_rpe
+                  type: INTEGER
+                  remarks: "Effort perçu attendu pour la séance entière (1–10). Nul = non annoncé."
+        - addColumn:
+            tableName: workouts
+            columns:
+              - column:
+                  name: target_rpe
+                  type: INTEGER
+                  remarks: "Copie figée à l'assignation du RPE attendu. Se confronte à workouts.rpe, le ressenti."

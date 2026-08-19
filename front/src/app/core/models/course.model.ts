@@ -131,6 +131,12 @@ export interface CourseStructureResponse {
   useCount: number;
   /** Encart d'écriture libre du coach. */
   notes: string | null;
+  /**
+   * Effort perçu attendu pour la séance **entière** (1–10), annoncé par le coach. Distinct du RPE
+   * porté par chaque bloc : un 10 × 400 a des blocs à 9 et un échauffement à 3, sans que « la
+   * séance » ait un chiffre.
+   */
+  targetRpe: number | null;
   structure: SessionStructure;
 }
 

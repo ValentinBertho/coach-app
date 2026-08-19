@@ -153,7 +153,7 @@ const SOURCE_LABELS: Record<string, string> = {
                 </button>
               </div>
               @if (hasFeedback()) {
-                <app-feedback-recap [feel]="w.feel" [rpe]="w.rpe" [fatigue]="w.fatigue"
+                <app-feedback-recap [feel]="w.feel" [rpe]="w.rpe" [targetRpe]="w.targetRpe" [fatigue]="w.fatigue"
                                     [pain]="w.pain" [injuries]="w.injuries"
                                     [comment]="w.athleteComment" />
               } @else {

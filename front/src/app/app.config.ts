@@ -26,7 +26,13 @@ import { errorInterceptor } from './core/interceptors/error.interceptor';
 
 registerLocaleData(localeFr);
 
-const ICONS = {
+/**
+ * Jeu d'icônes de l'application. Exporté pour que les tests de composants puissent le fournir
+ * d'un bloc : Lucide lève dès qu'une icône rendue n'a pas de fournisseur, et un test qui doit
+ * énumérer à la main les icônes de son gabarit casse au premier ajout d'une icône — pour une
+ * raison qui n'a rien à voir avec ce qu'il vérifie.
+ */
+export const ICONS = {
   LayoutDashboard, Users, User, UsersRound, Calendar, CalendarDays, Library, GraduationCap,
   Dumbbell, Building2, RefreshCw, Settings, MessageSquare, House, TrendingUp, Footprints,
   Mountain, MountainSnow, Bike, Moon, Timer, Gauge, Flame, Zap, Wind, Target, FlaskConical, Flag,

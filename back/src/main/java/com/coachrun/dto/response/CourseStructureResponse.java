@@ -20,6 +20,8 @@ public record CourseStructureResponse(
         int useCount,
         /** Encart d'écriture libre du coach. */
         String notes,
+        /** Effort perçu attendu pour la séance entière (1–10). Nul quand rien n'est annoncé. */
+        Integer targetRpe,
         SessionStructure structure
 ) {
 
@@ -28,6 +30,7 @@ public record CourseStructureResponse(
                 t.getId(), t.getName(), t.getTitle(), t.getDiscipline(),
                 t.getCategory() == null ? null : t.getCategory().getId(),
                 t.getCategory() == null ? null : t.getCategory().getName(),
-                t.isFavorite(), t.isArchived(), t.getUseCount(), t.getNotes(), structure);
+                t.isFavorite(), t.isArchived(), t.getUseCount(), t.getNotes(), t.getTargetRpe(),
+                structure);
     }
 }

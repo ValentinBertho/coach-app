@@ -4,7 +4,7 @@ function make(over: Partial<Workout>): Workout {
   return {
     id: 'w1', athleteId: 'a1', scheduledDate: '2026-07-28', type: 'ENDURANCE',
     status: 'PLANNED', title: 'Footing', notes: null,
-    targetDistanceM: null, targetDurationS: null, actualDurationS: null, missedReason: null,
+    targetDistanceM: null, targetDurationS: null, actualDurationS: null, missedReason: null, targetRpe: null,
     rpe: null, fatigue: null, pain: null, feel: null, injuries: [], athleteComment: null,
     coachComment: null, coachCommentAt: null, coachAcknowledgedAt: null,
     movedByAthlete: false, originalDate: null,
