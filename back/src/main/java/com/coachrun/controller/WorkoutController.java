@@ -119,6 +119,18 @@ public class WorkoutController {
     }
 
     /**
+     * Renomme la séance. Le geste utile juste après avoir glissé un modèle sur le calendrier :
+     * le titre du modèle est le bon défaut, rarement le titre final pour cet athlète-là.
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PatchMapping("/{workoutId}/title")
+    public WorkoutResponse rename(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                  @PathVariable UUID workoutId,
+                                  @Valid @RequestBody com.coachrun.dto.request.WorkoutTitleRequest request) {
+        return workoutService.rename(clubId, workoutId, request.title());
+    }
+
+    /**
      * Marque le retour de l'athlète comme traité (file « retours à traiter » du tableau de bord).
      * Accusé de lecture côté coach : ne modifie ni la séance ni le retour.
      */

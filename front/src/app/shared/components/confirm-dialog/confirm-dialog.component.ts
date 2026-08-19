@@ -1,4 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, effect, inject, signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ConfirmService } from '../../../core/services/confirm.service';
 
@@ -19,6 +22,20 @@ import { ConfirmService } from '../../../core/services/confirm.service';
             champ n'apparaît que si l'appelant a demandé un mot, pour que la confirmation
             ordinaire reste en un clic.
           -->
+          <!--
+            Saisie libre : la modale sert alors d'invite (renommer une séance, par exemple).
+            Le champ est présélectionné pour que la valeur proposée se remplace d'un coup, et
+            Entrée valide — renommer se fait au clavier, sans viser un bouton.
+          -->
+          @if (p.promptLabel; as promptLabel) {
+            <div class="field">
+              <label class="field-label" for="confirm-prompt">{{ promptLabel }}</label>
+              <input id="confirm-prompt" #promptInput type="text" class="input form-control"
+                     autocomplete="off" maxlength="255"
+                     [ngModel]="typed()" (ngModelChange)="typed.set($event)"
+                     (keydown.enter)="accept()" />
+            </div>
+          }
           @if (p.requiredText; as required) {
             <div class="field">
               <label class="field-label" for="confirm-text">
@@ -59,23 +76,47 @@ import { ConfirmService } from '../../../core/services/confirm.service';
 export class ConfirmDialogComponent {
   readonly confirm = inject(ConfirmService);
 
-  /** Saisie de la confirmation à recopie, remise à zéro à chaque ouverture et fermeture. */
+  /** Saisie du champ (recopie de confirmation ou invite libre), remise à zéro à la fermeture. */
   readonly typed = signal('');
+
+  private readonly promptInput = viewChild<ElementRef<HTMLInputElement>>('promptInput');
+
+  constructor() {
+    // Ouverture d'une invite : on pré-remplit avec la valeur proposée, puis on sélectionne le
+    // texte. Sans la sélection, l'utilisateur doit effacer le nom du modèle avant d'écrire le
+    // sien — le geste rapide qu'on cherchait à offrir devient plus lent que d'ouvrir la séance.
+    effect(() => {
+      const pending = this.confirm.pending();
+      if (!pending?.promptLabel) {
+        return;
+      }
+      this.typed.set(pending.initialValue ?? '');
+      afterNextRender(() => this.promptInput()?.nativeElement.select(), { injector: this.injector });
+    });
+  }
+
+  private readonly injector = inject(Injector);
 
   /**
    * Comparaison insensible à la casse et aux espaces de bord : le clavier mobile capitalise et
    * ajoute volontiers une espace. On demande une intention, pas une dictée.
    */
   canConfirm(): boolean {
-    const required = this.confirm.pending()?.requiredText;
+    const pending = this.confirm.pending();
+    // Une invite ne se valide pas à vide : renommer une séance « rien » n'est pas une intention.
+    if (pending?.promptLabel) {
+      return this.typed().trim().length > 0;
+    }
+    const required = pending?.requiredText;
     if (!required) return true;
     return this.typed().trim().toUpperCase() === required.trim().toUpperCase();
   }
 
   accept(): void {
     if (!this.canConfirm()) return;
+    const value = this.typed();
     this.typed.set('');
-    this.confirm.answer(true);
+    this.confirm.answer(true, value);
   }
 
   cancel(): void {

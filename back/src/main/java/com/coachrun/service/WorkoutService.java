@@ -259,6 +259,30 @@ public class WorkoutService {
     }
 
     /**
+     * Renomme une séance planifiée.
+     *
+     * <p>Une séance sortie de la bibliothèque hérite du titre de son modèle. C'est le bon défaut
+     * — et c'est rarement le titre final : « 10 × 400 » devient « 10 × 400 spécifique semi » pour
+     * cet athlète-là, cette semaine-là. Renommer imposait jusqu'ici d'ouvrir la séance, alors que
+     * le besoin naît au moment même où on la pose sur le calendrier.</p>
+     *
+     * <p>Volontairement limité au titre : le {@code PUT} complet réécrit la séance entière, et
+     * s'en servir pour changer un libellé exposerait la prescription figée — snapshot et cibles
+     * calculées — à être écrasée par un client qui ne les aurait pas renvoyées.</p>
+     */
+    @Transactional
+    public WorkoutResponse rename(UUID clubId, UUID workoutId, String title) {
+        Workout workout = require(clubId, workoutId);
+        String text = title == null ? "" : title.trim();
+        if (text.isBlank()) {
+            throw new com.coachrun.exception.ApiException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST, "Le nom de la séance est obligatoire.");
+        }
+        workout.setTitle(text);
+        return WorkoutResponse.from(workout);
+    }
+
+    /**
      * Marque le retour de l'athlète comme traité (file « retours à traiter »). N'altère ni le
      * contenu de la séance ni le retour lui-même : c'est un accusé de lecture côté coach.
      */

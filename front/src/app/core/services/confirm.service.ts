@@ -15,10 +15,22 @@ export interface ConfirmRequest {
    * pour ça ; recopier un mot rend le geste délibéré sans le rendre pénible.</p>
    */
   requiredText?: string;
+  /**
+   * Libellé d'un champ de <b>saisie libre</b>. Présent, la modale devient une invite : elle
+   * résout la valeur saisie plutôt qu'un simple oui/non.
+   *
+   * <p>Distinct de {@link ConfirmRequest#requiredText}, qui exige la recopie d'un mot imposé
+   * pour armer une action destructrice. Ici on demande une valeur, pas une preuve d'intention.</p>
+   */
+  promptLabel?: string;
+  /** Valeur initiale du champ de saisie, présélectionnée pour être remplacée d'un coup. */
+  initialValue?: string;
 }
 
 interface PendingConfirm extends ConfirmRequest {
   resolve: (ok: boolean) => void;
+  /** Présent pour une saisie libre : reçoit la valeur, ou `null` si l'utilisateur renonce. */
+  resolveText?: (value: string | null) => void;
 }
 
 /**
@@ -40,11 +52,29 @@ export class ConfirmService {
     return this.ask(request);
   }
 
-  answer(ok: boolean): void {
+  /**
+   * Invite de saisie : résout la valeur saisie, ou `null` si l'utilisateur renonce.
+   *
+   * <p>Remplace le `prompt()` natif, banni au même titre que `confirm()` : il bloque le fil, ne
+   * suit pas le thème, et sur mobile installé en PWA certains navigateurs ne l'affichent pas du
+   * tout — l'action semblait alors sans effet.</p>
+   */
+  prompt(request: ConfirmRequest & { promptLabel: string }): Promise<string | null> {
+    return new Promise<string | null>((resolve) => {
+      this.pending.set({ ...request, resolve: () => undefined, resolveText: resolve });
+    });
+  }
+
+  answer(ok: boolean, value?: string): void {
     const p = this.pending();
-    if (p) {
-      p.resolve(ok);
-      this.pending.set(null);
+    if (!p) {
+      return;
     }
+    this.pending.set(null);
+    if (p.resolveText) {
+      p.resolveText(ok ? (value ?? '').trim() : null);
+      return;
+    }
+    p.resolve(ok);
   }
 }

@@ -1122,10 +1122,42 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private scheduleTemplate(t: WorkoutTemplate, athleteId: string, date: string, refresh = () => this.load()): void {
     this.courseService.schedule(athleteId, t.id, { date }).subscribe({
       next: (w) => {
-        this.toast.success(`${t.name} planifiée le ${this.fmtDate(date)}${this.chargeRecap(w)}`);
+        // Renommer est proposé, jamais imposé. Une modale à chaque dépôt aurait ralenti le
+        // geste qui fait tout l'intérêt du glisser-déposer — on planifie une semaine entière
+        // d'affilée — alors que le besoin de renommer, lui, est occasionnel : « 10 × 400 »
+        // devient « 10 × 400 spécifique semi » pour cet athlète-là, pas pour les six autres.
+        this.toast.withAction(
+          `${t.name} planifiée le ${this.fmtDate(date)}${this.chargeRecap(w)}`,
+          'Renommer',
+          () => this.promptRename(athleteId, w, refresh),
+        );
         refresh();
       },
       error: () => this.toast.error('Planification impossible.'),
+    });
+  }
+
+  /**
+   * Renomme une séance planifiée, depuis l'invite de la modale globale.
+   *
+   * <p>Le titre courant est proposé et présélectionné : le remplacer prend une frappe, l'amender
+   * prend une flèche. Renoncer ne touche à rien — la séance reste planifiée, c'est seulement son
+   * libellé qui ne change pas.</p>
+   */
+  async promptRename(athleteId: string, w: Workout, refresh = () => this.load()): Promise<void> {
+    const title = await this.confirm.prompt({
+      title: 'Renommer la séance',
+      message: `Séance du ${this.fmtDate(w.scheduledDate)}.`,
+      promptLabel: 'Nom de la séance',
+      initialValue: w.title,
+      confirmLabel: 'Renommer',
+    });
+    if (title === null || title === w.title) {
+      return;
+    }
+    this.workoutService.rename(athleteId, w.id, title).subscribe({
+      next: () => { this.toast.success(`Séance renommée « ${title} ».`); refresh(); },
+      error: () => this.toast.error('Renommage impossible.'),
     });
   }
 
