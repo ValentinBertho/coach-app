@@ -112,6 +112,9 @@
             <button type="button" class="ctx-item" [class.on]="mode() === 'week'" (click)="setMode('week')">
               Semaine <kbd class="ctx-kbd">W</kbd>
             </button>
+            <button type="button" class="ctx-item" [class.on]="mode() === '4weeks'" (click)="setMode('4weeks')">
+              4 semaines <kbd class="ctx-kbd">4</kbd>
+            </button>
             <button type="button" class="ctx-item" [class.on]="mode() === 'month'" (click)="setMode('month')">
               Mois <kbd class="ctx-kbd">M</kbd>
             </button>
@@ -404,7 +407,8 @@
         <span class="wd-total">Total</span>
       </div>
 
-      <div class="grid" [class.month]="mode() === 'month'" [class.day]="mode() === 'day'"
+      <div class="grid" [class.month]="mode() === 'month' || mode() === '4weeks'"
+           [class.weeks4]="mode() === '4weeks'" [class.day]="mode() === 'day'"
            [class.loading]="loading()"
            (pointerdown)="onGridPointerDown($event)">
         @for (week of weeks(); track $index) {
