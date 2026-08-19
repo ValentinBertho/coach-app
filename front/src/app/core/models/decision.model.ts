@@ -76,6 +76,28 @@ export interface ComplianceEffort {
   actualPaceSecPerKm: number | null;
   /** Écart signé à la fourchette : négatif = plus rapide que prescrit. */
   deltaSecPerKm: number | null;
+  /** FC moyenne du tour apparié à ce bloc. Nulle quand la montre n'en donne pas. */
+  actualAvgHrBpm: number | null;
+}
+
+/**
+ * Dérive du dernier bloc du corps de séance par rapport au premier.
+ *
+ * <p>Absente tant qu'il n'y a pas deux blocs porteurs d'une FC : sans comparaison possible,
+ * « 0 % » se lirait comme une séance parfaitement stable.</p>
+ */
+export interface ComplianceDrift {
+  firstLabel: string;
+  lastLabel: string;
+  /** Écart de FC, signé : positif = cœur plus haut à la fin. */
+  hrDeltaBpm: number;
+  /** Le même écart rapporté à la FC de départ — comparable d'un athlète à l'autre. */
+  hrDeltaPct: number;
+  /**
+   * Écart d'allure, signé (positif = plus lent à la fin). C'est lui qui dit si la dérive a été
+   * *subie* — même allure, cœur plus haut — ou *compensée* — cœur tenu, allure lâchée.
+   */
+  paceDeltaSecPerKm: number | null;
 }
 
 export interface Compliance {
@@ -87,6 +109,7 @@ export interface Compliance {
   detail: string | null;
   activityId: string | null;
   efforts: ComplianceEffort[];
+  drift: ComplianceDrift | null;
 }
 
 // --- Trajectoire -------------------------------------------------------------

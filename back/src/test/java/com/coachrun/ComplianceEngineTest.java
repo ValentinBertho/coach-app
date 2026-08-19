@@ -94,6 +94,80 @@ class ComplianceEngineTest {
 
     // --- Fixtures -------------------------------------------------------------
 
+    // --- FC par bloc et dérive cardiaque -----------------------------------------------------
+
+    /**
+     * Ce que le coach lit à voix haute devant une séance : « même chrono, dix pulsations de plus ».
+     * La dérive est <b>subie</b> — l'allure n'a pas bougé, le cœur est monté.
+     */
+    @Test
+    void reportsCardiacDriftBetweenFirstAndLastEffort() {
+        var result = engine.evaluate(prescribed(4, 1000, 200, 210), List.of(
+                lapHr(1, 1000, 205, 150), lapHr(2, 1000, 205, 156),
+                lapHr(3, 1000, 205, 160), lapHr(4, 1000, 205, 162)));
+
+        assertThat(result.efforts()).extracting("actualAvgHrBpm")
+                .containsExactly(150, 156, 160, 162);
+
+        var drift = result.drift();
+        assertThat(drift).isNotNull();
+        assertThat(drift.hrDeltaBpm()).isEqualTo(12);
+        assertThat(drift.hrDeltaPct()).isEqualTo(8.0);
+        assertThat(drift.paceDeltaSecPerKm()).isZero();
+        assertThat(drift.firstLabel()).isEqualTo("1000 m (1/4)");
+        assertThat(drift.lastLabel()).isEqualTo("1000 m (4/4)");
+    }
+
+    /** Dérive <b>compensée</b> : le cœur tient parce que l'allure a lâché. Les deux se distinguent. */
+    @Test
+    void paceDeltaTellsCompensatedDriftFromEnduredDrift() {
+        var result = engine.evaluate(prescribed(3, 1000, 200, 215), List.of(
+                lapHr(1, 1000, 202, 158), lapHr(2, 1000, 208, 159), lapHr(3, 1000, 213, 158)));
+
+        var drift = result.drift();
+        assertThat(drift.hrDeltaBpm()).isZero();
+        assertThat(drift.paceDeltaSecPerKm())
+                .as("onze secondes au kilomètre plus lent à la fin")
+                .isEqualTo(11);
+    }
+
+    /**
+     * Un tour sans capteur n'est pas un tour à zéro pulsation : on compare le premier et le
+     * dernier effort <i>mesurés</i>, ce qui reste juste quand la ceinture lâche au milieu.
+     */
+    @Test
+    void ignoresEffortsWithoutHeartRate() {
+        var result = engine.evaluate(prescribed(4, 1000, 200, 210), List.of(
+                lapHr(1, 1000, 205, 150), lapHr(2, 1000, 205, null),
+                lapHr(3, 1000, 205, null), lapHr(4, 1000, 205, 165)));
+
+        assertThat(result.drift().hrDeltaBpm()).isEqualTo(15);
+    }
+
+    /**
+     * Un seul effort mesuré ne donne aucune dérive — et surtout pas « 0 % », qui se lirait comme
+     * une séance parfaitement stable alors qu'il n'y a rien à comparer.
+     */
+    @Test
+    void noDriftWhenNothingToCompare() {
+        var oneMeasured = engine.evaluate(prescribed(2, 1000, 200, 210), List.of(
+                lapHr(1, 1000, 205, 150), lapHr(2, 1000, 205, null)));
+        assertThat(oneMeasured.drift()).isNull();
+
+        var noneMeasured = engine.evaluate(prescribed(2, 1000, 200, 210), laps(
+                lap(1, 1000, 205), lap(2, 1000, 205)));
+        assertThat(noneMeasured.drift()).isNull();
+    }
+
+    /** Le pourcentage est arrondi au dixième : la ceinture ne mesure pas au millième. */
+    @Test
+    void driftPercentageIsRoundedToOneDecimal() {
+        var result = engine.evaluate(prescribed(2, 1000, 200, 210), List.of(
+                lapHr(1, 1000, 205, 149), lapHr(2, 1000, 205, 156)));
+
+        assertThat(result.drift().hrDeltaPct()).isEqualTo(4.7); // 7 / 149 = 4,6979…
+    }
+
     private List<PrescribedEffort> prescribed(int reps, int distanceM, int fast, int slow) {
         List<PrescribedEffort> out = new ArrayList<>();
         for (int i = 1; i <= reps; i++) {
@@ -110,5 +184,11 @@ class ComplianceEngineTest {
     private RealizedLap lap(int index, int distanceM, int paceSecPerKm) {
         int durationS = (int) Math.round(distanceM / 1000.0 * paceSecPerKm);
         return new RealizedLap(index, distanceM, durationS, paceSecPerKm);
+    }
+
+    /** Le même tour, porteur d'une FC moyenne. */
+    private RealizedLap lapHr(int index, int distanceM, int paceSecPerKm, Integer avgHrBpm) {
+        int durationS = (int) Math.round(distanceM / 1000.0 * paceSecPerKm);
+        return new RealizedLap(index, distanceM, durationS, paceSecPerKm, avgHrBpm);
     }
 }
