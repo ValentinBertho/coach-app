@@ -1,9 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, signal,
+  viewChild,
+} from '@angular/core';
 import { ActivityStream, ActivityStreamPoint } from '../../../core/models/activity.model';
 import { ActivityService } from '../../../core/services/activity.service';
 import { AthletePortalService } from '../../../core/services/athlete-portal.service';
 import { formatPace } from '../../../core/utils/pace';
 import { IconComponent } from '../icon/icon.component';
+import { SelectionStats, selectionStats } from './activity-chart-selection';
 
 /** Une série tracée : son chemin SVG, ses bornes et sa couleur. */
 interface Series {
@@ -17,6 +21,13 @@ interface Tick {
   x: number;
   label: string;
 }
+
+/**
+ * Largeur minimale d'une sélection, en unités du viewBox (320 de large). En deçà, le geste est
+ * un appui, pas un brossage : c'est ce qui permet d'effacer la sélection d'un clic, et cela
+ * évite qu'un doigt hésitant n'ouvre un bandeau de moyennes portant sur quelques mètres.
+ */
+const MIN_BRUSH_X = 4;
 
 const VIEW_W = 320;
 const VIEW_H = 140;
@@ -77,8 +88,11 @@ const PAD_B = 18;
           </div>
         </div>
 
-        <svg [attr.viewBox]="'0 0 ' + viewW + ' ' + viewH" preserveAspectRatio="none"
-             role="img" [attr.aria-label]="ariaLabel()">
+        <svg #svg [attr.viewBox]="'0 0 ' + viewW + ' ' + viewH" preserveAspectRatio="none"
+             role="img" [attr.aria-label]="ariaLabel()"
+             class="ch-svg" [class.is-brushing]="brushing()"
+             (pointerdown)="onBrushStart($event)" (pointermove)="onBrushMove($event)"
+             (pointerup)="onBrushEnd($event)" (pointercancel)="onBrushEnd($event)">
           <!-- Graduations kilométriques : sans elles, un pic « vers le milieu » ne se rattache à
                aucun moment de la séance. -->
           @for (t of ticks(); track t.x) {
@@ -95,12 +109,48 @@ const PAD_B = 18;
             <path class="ch-line ch-line--hr" [attr.d]="h.path" />
           }
 
+          <!-- Portion sélectionnée : un voile plutôt qu'un cadre, pour que la courbe reste
+               lisible dessous — c'est elle qu'on regarde, la sélection ne fait que la borner. -->
+          @if (brush(); as b) {
+            <rect class="ch-brush" [attr.x]="b.x1" [attr.width]="b.x2 - b.x1"
+                  [attr.y]="padT" [attr.height]="viewH - padT - padB" />
+            <line class="ch-brush-edge" [attr.x1]="b.x1" [attr.x2]="b.x1"
+                  [attr.y1]="padT" [attr.y2]="viewH - padB" />
+            <line class="ch-brush-edge" [attr.x1]="b.x2" [attr.x2]="b.x2"
+                  [attr.y1]="padT" [attr.y2]="viewH - padB" />
+          }
+
           <!-- Bornes de l'axe FC, à gauche : une courbe sans échelle ne se compare à rien. -->
           @if (showHr() && hr(); as h) {
             <text class="ch-ax-lb" [attr.x]="4" [attr.y]="padT + 8">{{ h.max }}</text>
             <text class="ch-ax-lb" [attr.x]="4" [attr.y]="viewH - padB - 2">{{ h.min }}</text>
           }
         </svg>
+
+        <!--
+          Ce que la portion sélectionnée dit. La consigne d'usage n'apparaît que tant que rien
+          n'est sélectionné : une fois le geste connu, la répéter sous chaque graphique revient à
+          occuper la place des chiffres qu'on est venu lire.
+        -->
+        @if (stats(); as st) {
+          <div class="ch-sel">
+            <span class="ch-sel__range metric">{{ rangeLabel() }}</span>
+            <span class="ch-sel__vals metric">
+              {{ kmLabel(st.distanceM) }}<small>km</small>
+              · {{ durationLabel(st.durationS) }}
+              @if (st.paceSPerKm !== null) { · {{ paceLabel(st.paceSPerKm) }}<small>/km</small> }
+              @if (st.avgHr !== null) { · {{ st.avgHr }}<small>bpm</small> }
+            </span>
+            <button type="button" class="ch-sel__x" (click)="clearBrush()"
+                    aria-label="Effacer la sélection">
+              <app-icon name="x" [size]="14" />
+            </button>
+          </div>
+        } @else {
+          <p class="ch-hint field-hint">
+            Sélectionne une portion de la courbe pour en connaître les moyennes.
+          </p>
+        }
       </div>
     }
   `,
@@ -131,6 +181,31 @@ const PAD_B = 18;
     .ch-line--hr { stroke: var(--zone-5); }
     .ch-line--pace { stroke: var(--primary); }
 
+    /* pan-y : le brossage est horizontal, le défilement de la page reste vertical. Sans cela,
+       sur mobile, tout glissement sur le graphique ferait défiler la page au lieu de sélectionner
+       — ou, avec touch-action: none, la page deviendrait impossible à faire défiler depuis le
+       graphique. */
+    .ch-svg { touch-action: pan-y; cursor: crosshair; }
+    .ch-svg.is-brushing { cursor: col-resize; }
+    .ch-brush { fill: var(--primary); opacity: 0.14; }
+    .ch-brush-edge { stroke: var(--primary); stroke-width: 1; vector-effect: non-scaling-stroke; }
+
+    .ch-sel {
+      display: flex; align-items: center; gap: var(--sp-2);
+      padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-sm);
+      background: var(--paper-sunk); border: 1px solid var(--hairline);
+      font-size: var(--text-sm);
+    }
+    .ch-sel__range { color: var(--ink-3); flex-shrink: 0; }
+    .ch-sel__vals { color: var(--ink); font-weight: 600; flex: 1; min-width: 0; }
+    .ch-sel__vals small { font-weight: 500; color: var(--ink-3); margin-left: 1px; }
+    .ch-sel__x {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 28px; min-height: 28px; flex-shrink: 0;
+      border: none; background: transparent; color: var(--ink-3); cursor: pointer;
+    }
+    .ch-hint { margin: 0; }
+
     .ch-skel { height: 160px; border-radius: var(--radius-md); background: var(--paper-sunk); animation: ch-pulse 1.2s ease-in-out infinite; }
     @keyframes ch-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }
     .ch-empty { margin: 0; }
@@ -160,6 +235,106 @@ export class ActivityChartComponent {
   protected readonly padB = PAD_B;
 
   readonly points = computed<ActivityStreamPoint[]>(() => this.data()?.points ?? []);
+
+  private readonly svg = viewChild<ElementRef<SVGSVGElement>>('svg');
+
+  /** Bornes de la sélection, en coordonnées du viewBox. Nulles tant que rien n'est sélectionné. */
+  readonly brush = signal<{ x1: number; x2: number } | null>(null);
+  /** Un brossage est en cours : le curseur change, et le relâchement décidera de le garder. */
+  readonly brushing = signal(false);
+  private brushAnchorX: number | null = null;
+
+  /** Statistiques de la portion sélectionnée, ou `null` si la sélection ne couvre rien. */
+  readonly stats = computed<SelectionStats | null>(() => {
+    const b = this.brush();
+    if (!b) return null;
+    return selectionStats(this.points(), this.distanceAt(b.x1), this.distanceAt(b.x2));
+  });
+
+  /** « km 2,4 → 5,1 » : où l'on est dans la sortie, pas seulement combien on y a couru. */
+  protected rangeLabel(): string {
+    const b = this.brush();
+    if (!b) return '';
+    const from = this.distanceAt(b.x1) / 1000;
+    const to = this.distanceAt(b.x2) / 1000;
+    return `km ${this.km(from)} → ${this.km(to)}`;
+  }
+
+  private km(value: number): string {
+    return value.toFixed(1).replace('.', ',');
+  }
+
+  protected kmLabel(metres: number): string {
+    return this.km(metres / 1000);
+  }
+
+  protected durationLabel(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = Math.round(seconds % 60);
+    const h = Math.floor(m / 60);
+    return h > 0
+      ? `${h} h ${String(m % 60).padStart(2, '0')}`
+      : `${m}'${String(s).padStart(2, '0')}`;
+  }
+
+  // --- Brossage ------------------------------------------------------------------------------
+
+  onBrushStart(event: PointerEvent): void {
+    const x = this.viewX(event);
+    if (x === null) return;
+    this.brushAnchorX = x;
+    this.brushing.set(true);
+    this.brush.set(null);
+    (event.target as Element).setPointerCapture?.(event.pointerId);
+  }
+
+  onBrushMove(event: PointerEvent): void {
+    if (this.brushAnchorX === null) return;
+    const x = this.viewX(event);
+    if (x === null) return;
+    this.brush.set({
+      x1: Math.min(this.brushAnchorX, x),
+      x2: Math.max(this.brushAnchorX, x),
+    });
+  }
+
+  /**
+   * Fin du geste. Une sélection plus étroite que {@link MIN_BRUSH_PX} est traitée comme un
+   * simple appui : c'est ainsi qu'on efface la sélection, et cela évite qu'un clic maladroit
+   * n'ouvre un bandeau de moyennes portant sur trois mètres.
+   */
+  onBrushEnd(event: PointerEvent): void {
+    this.brushAnchorX = null;
+    this.brushing.set(false);
+    (event.target as Element).releasePointerCapture?.(event.pointerId);
+    const b = this.brush();
+    if (b && b.x2 - b.x1 < MIN_BRUSH_X) {
+      this.brush.set(null);
+    }
+  }
+
+  clearBrush(): void {
+    this.brush.set(null);
+  }
+
+  /** Abscisse de l'événement dans le repère du viewBox, ou `null` hors du tracé. */
+  private viewX(event: PointerEvent): number | null {
+    const el = this.svg()?.nativeElement;
+    if (!el) return null;
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0) return null;
+    const raw = ((event.clientX - rect.left) / rect.width) * VIEW_W;
+    // Bornée au tracé : la marge de gauche porte les étiquettes de l'axe, pas de la donnée.
+    return Math.min(VIEW_W - PAD_R, Math.max(PAD_L, raw));
+  }
+
+  /** Distance (mètres) correspondant à une abscisse du viewBox. */
+  private distanceAt(x: number): number {
+    const total = this.data()?.totalDistanceM ?? 0;
+    const width = VIEW_W - PAD_L - PAD_R;
+    if (total <= 0 || width <= 0) return 0;
+    return ((x - PAD_L) / width) * total;
+  }
 
   constructor() {
     effect(() => {
