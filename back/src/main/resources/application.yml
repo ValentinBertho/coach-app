@@ -83,6 +83,20 @@ app:
     # être vérifiée. Suit l'activation du mail — sans envoi, le lien de vérification n'arrive
     # jamais et la règle ne ferait que bloquer tout le monde.
     require-verified-email: ${REQUIRE_VERIFIED_EMAIL:${MAIL_ENABLED:false}}
+  logs:
+    # Journalisation centralisée. Sentry ne voit que les exceptions, Better Stack Uptime ne voit
+    # que la disponibilité : l'essentiel du diagnostic de cette application — topologie de proxy
+    # incohérente, file Strava saturée, cause exacte d'un refus de rafraîchissement — passe par
+    # des `log.warn` qu'aucun des deux ne recevra jamais. Et le correlationId renvoyé sur une 500
+    # ne vaut que si l'on peut le rechercher (cf. logback-spring.xml, MdcFields).
+    #
+    # Sans token, l'appender se désactive de lui-même avec un unique avertissement : rien à
+    # configurer en développement, ni pour le smoke test de CI.
+    better-stack:
+      source-token: ${BETTER_STACK_SOURCE_TOKEN:}
+      # Chaque source a SON hôte d'ingestion, souvent régional : le recopier depuis les réglages
+      # de la source. La valeur par défaut ci-dessous ne convient pas à toutes les sources.
+      ingest-url: ${BETTER_STACK_INGEST_URL:https://in.logs.betterstack.com}
   mail:
     enabled: ${MAIL_ENABLED:false}
     # Plafonds du plan d'envoi, affichés en jauge dans l'écran d'administration. Valeurs du plan

@@ -13,7 +13,7 @@
 | ✅ Domaine `darilab.app` (OVH → Vercel), HTTPS | ⬜ Variables Railway alignées sur le domaine |
 | ✅ Pages légales + consentement RGPD horodaté | ⬜ Emails (Resend) |
 | ✅ `state` OAuth Strava signé, rate limiting durci (IP de confiance, plafond authentifié) | ⬜ Sentry backend (DSN Railway) |
-| ✅ DSN Sentry **frontend** committé | ⬜ Uptime (Better Stack) |
+| ✅ DSN Sentry **frontend** committé | ⬜ Uptime (Better Stack) + journaux centralisés (4 bis) |
 | ✅ Workflow de sauvegarde chiffrée écrit | ⬜ **Test de restauration BDD** (bloquant) |
 | ✅ CI alignée sur PostgreSQL 18 (= prod) | ⬜ Clés VAPID + code d'invitation sur Railway |
 | ✅ Consentement santé : CGU athlète, retrait (art. 7-3), garde de collecte | ⬜ **Compte administrateur plateforme** (1.1 bis, bloquant) |
@@ -232,6 +232,32 @@ Le code est déjà branché des deux côtés : il ne manque que les DSN.
    grace period **6 hours** → copier l'URL générée
    → **transmettre cette URL** : elle sera ajoutée en fin de workflow de sauvegarde.
    Sans elle, un backup qui cesse de tourner passe inaperçu — le scénario le plus dangereux.
+
+### 4 bis Journaux centralisés (même compte Better Stack) · 🟠 fortement recommandé
+
+Uptime et Sentry laissent un angle mort : tout ce qui est journalisé **sans lever d'exception**.
+C'est là que vit l'essentiel du diagnostic — l'alerte de topologie de proxy (émise une seule fois
+par démarrage), la cause exacte d'un refus de rafraîchissement, la file Strava saturée. Et le
+`correlationId` renvoyé sur une 500, que le formulaire de retour bêta capte déjà, ne mène nulle
+part tant qu'on ne peut pas le **rechercher**.
+
+1. Better Stack → **Telemetry** → **Sources** → **Connect source** → plateforme **HTTP**,
+   nom `darilab-backend`
+2. Relever **le Source token** *et* **l'Ingesting host** (⚠ régional — c'est la cause n° 1 de
+   « rien n'arrive »)
+3. Railway → **Variables** :
+   ```
+   BETTER_STACK_SOURCE_TOKEN=<source token>
+   BETTER_STACK_INGEST_URL=https://<ingesting host>
+   ```
+4. Redéployer. Rien d'autre : l'appender est déjà en place, sur le profil `prod` seulement, et il
+   se désactive tout seul si le token manque.
+
+- [ ] Aucun avertissement « Missing Source token » dans les journaux Railway au démarrage
+- [ ] Une 500 provoquée volontairement se retrouve dans Better Stack **par son `correlationId`**
+- [ ] `requestId` / `method` / `path` / `userId` apparaissent comme colonnes, pas comme du texte
+
+Détail complet : [`OPERATIONS.md` §9](./OPERATIONS.md).
 
 ---
 

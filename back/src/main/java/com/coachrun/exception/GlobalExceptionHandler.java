@@ -1,7 +1,9 @@
 package com.coachrun.exception;
 
+import com.coachrun.config.LogContextFilter;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -142,6 +144,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest request) {
         String correlationId = UUID.randomUUID().toString();
+        // Le correlationId est renvoyé à l'utilisateur et capté par le formulaire de retour bêta :
+        // il n'a de valeur que si l'on peut le RECHERCHER. Dans le message, c'est du texte noyé ;
+        // en MDC, c'est un champ indexé côté Better Stack (cf. logback-spring.xml). Le nettoyage
+        // est assuré par LogContextFilter en fin de requête.
+        MDC.put(LogContextFilter.CORRELATION_ID, correlationId);
         log.error("Erreur inattendue [{}] sur {}", correlationId, request.getRequestURI(), ex);
 
         ApiError error = new ApiError(

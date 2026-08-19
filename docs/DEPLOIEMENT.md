@@ -117,6 +117,8 @@ Zone DNS (hors NS/MX/SPF gérés par OVH) :
 | `RATE_LIMIT_TRUSTED_PROXY_HOPS` | back | Relais de confiance **devant l'API** **[DÉFAUT 1]**. Le navigateur appelle l'API directement (le front est sur Vercel, l'API sur Railway — d'où le CORS) : **1** est la bonne valeur. Annoncer plus fait compter l'adresse du proxy, la même pour tout le monde, et toute la plateforme partage alors un seul compteur | `1` |
 | `REMINDERS_CRON` | back | Heure du point de programme du soir **[DÉFAUT 21 h]**, lu dans `APP_TIMEZONE` | `0 0 21 * * *` |
 | `SENTRY_DSN` | back + front | Monitoring erreurs **[OPT]** | `https://...@sentry.io/...` |
+| `BETTER_STACK_SOURCE_TOKEN` | back | Journaux centralisés **[OPT, recommandé]** — sans lui l'appender se désactive seul (un avertissement au démarrage, rien de plus). Cf. [`OPERATIONS.md` §9](./OPERATIONS.md) | source « HTTP » Better Stack |
+| `BETTER_STACK_INGEST_URL` | back | Hôte d'ingestion **de la source** **[OPT]** — ⚠ souvent régional, à recopier depuis les réglages de la source ; le défaut ne convient pas à toutes | `https://sXXXXXX.eu-nbg-2.betterstackdata.com` |
 | `apiUrl` (`environment.ts`) | front | URL de l'API | `/api` ou URL Railway |
 
 ---
