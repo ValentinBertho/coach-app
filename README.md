@@ -18,6 +18,9 @@
 - [Stack technique](#stack-technique)
 - [Démarrage rapide (Docker)](#démarrage-rapide-docker)
 - [Comptes de démonstration](#comptes-de-démonstration)
+- [Commandes Docker utiles](#commandes-docker-utiles)
+- [Base de données](#base-de-données-migrations--réinitialisation)
+- [Problèmes courants](#problèmes-courants)
 - [Développement local](#développement-local-sans-docker)
 - [Structure du dépôt](#structure-du-dépôt)
 - [Qualité, tests & CI](#qualité-tests--ci)
@@ -129,7 +132,7 @@ unitairement et **source de vérité** (recalcul à la sauvegarde, équivalent d
 |---|---|
 | **Frontend** | Angular 17 (standalone components, signals, control-flow `@if`/`@for`, OnPush), PWA, TypeScript 5.4, Leaflet (cartes) |
 | **Backend** | Spring Boot 3.2.5, Java 21, API REST (~295 endpoints), Springdoc/OpenAPI |
-| **Base de données** | PostgreSQL 18 · **Liquibase** (70 migrations versionnées) |
+| **Base de données** | PostgreSQL 18 · **Liquibase** (85 changelogs versionnés, 96 changesets) |
 | **Auth** | JWT (access tokens) + liens magiques d'invitation athlète · `@PreAuthorize` multi-tenant |
 | **Sécurité** | AES-256-GCM (données santé + jetons OAuth chiffrés au repos), CSP, CORS allowlist, rate-limiting |
 | **Intégrations** | Strava (OAuth), import FIT/GPX/TCX (décodeurs maison), e-mail Resend, Web Push (VAPID), export PDF (OpenPDF) |
@@ -140,22 +143,77 @@ unitairement et **source de vérité** (recalcul à la sauvegarde, équivalent d
 
 ## Démarrage rapide (Docker)
 
-Pré-requis : **Docker** (avec le démon démarré).
+> Trois conteneurs, une commande, **aucun fichier de configuration à créer**. Ni JDK, ni Node,
+> ni PostgreSQL à installer sur le poste : tout est construit dans les images.
+
+### 1. Prérequis
+
+| Outil | Version | Vérifier |
+|---|---|---|
+| **Docker Engine** (ou Docker Desktop) | ≥ 24, **démon démarré** | `docker version` |
+| **Docker Compose v2** (plugin `docker compose`, pas `docker-compose`) | ≥ 2.20 | `docker compose version` |
+
+Prévoir ~**4 Go de RAM** disponibles et ~**3 Go de disque** : le premier lancement compile le
+backend avec Maven et le frontend avec Angular *à l'intérieur* des images.
+
+### 2. Cloner le dépôt
 
 ```bash
-git clone <url-du-repo> && cd coach-app
-docker compose up --build
+git clone <url-du-repo>
+cd coach-app
 ```
 
-| Service | URL |
-|---|---|
-| Frontend | http://localhost:4200 |
-| API | http://localhost:8081/api |
-| Swagger UI | http://localhost:8081/api/swagger-ui.html |
-| Health | http://localhost:8081/api/actuator/health |
-| PostgreSQL | localhost:5432 (`postgres` / `postgres`) |
+### 3. Variables d'environnement : rien à créer
 
-En profil `dev`, un **jeu de données de démonstration complet** est chargé automatiquement au démarrage.
+`docker-compose.yml` porte lui-même tout ce dont la stack locale a besoin (base, secrets de
+développement, CORS, e-mail désactivé). **`.env` n'est ni requis ni lu** par la stack Docker :
+`.env.example` sert au développement **sans** Docker et au déploiement Railway/Vercel.
+
+Seuls les **ports publiés sur la machine** sont surchargeables, si l'un d'eux est déjà pris :
+
+```bash
+FRONTEND_PORT=4300 BACKEND_PORT=8082 POSTGRES_PORT=55432 docker compose up --build
+```
+
+### 4. Lancer
+
+```bash
+docker compose up --build          # au premier plan (Ctrl+C arrête la stack)
+docker compose up --build -d       # ou en arrière-plan
+```
+
+Le premier lancement prend **5 à 10 minutes** (téléchargement des images, `mvn package`,
+`npm ci` + build Angular). Les suivants démarrent en quelques secondes.
+
+L'ordre est géré par Compose, sans intervention :
+
+1. **postgres** démarre et devient *healthy* (`pg_isready`) ;
+2. **backend** attend PostgreSQL, applique les **migrations Liquibase** puis génère le
+   **jeu de données de démonstration** (profil `dev`) ; il devient *healthy* quand
+   `/api/actuator/health` répond `UP` ;
+3. **frontend** (nginx) démarre une fois le backend sain et sert le build Angular, en
+   proxifiant `/api/` vers le backend par le réseau interne `coachrun`.
+
+Le backend est prêt quand les journaux affichent :
+
+```
+[seed dev] Jeu de démo prêt — connexion : demo@coachrun.fr / password123
+Darilab 0.2.0 démarré — profil actif : dev · front : http://localhost:4200
+```
+
+### 5. Accéder à l'application
+
+| Service | URL | Remarque |
+|---|---|---|
+| **Frontend** | http://localhost:4200 | c'est **la seule URL à ouvrir** dans le navigateur |
+| API (accès direct) | http://localhost:8081/api | utile pour `curl` / Postman |
+| Ping API | http://localhost:8081/api/public/ping | → `{"status":"ok","version":"0.2.0"}` |
+| Health | http://localhost:8081/api/actuator/health | → `{"status":"UP",…}` |
+| Swagger UI | http://localhost:8081/api/swagger-ui.html | ouvert en profil `dev` |
+| PostgreSQL | `localhost:5432` (`postgres` / `postgres`, base `coachrun`) | |
+
+> Le navigateur n'appelle **jamais** le port 8081 : le front est construit avec `apiUrl = '/api'`
+> et nginx relaie vers le backend. Le port 8081 n'existe que pour vos propres appels directs.
 
 ---
 
@@ -176,23 +234,137 @@ Mot de passe commun : **`password123`**
 
 ---
 
-## Développement local (sans Docker)
+## Commandes Docker utiles
 
-### Backend (port 8080)
+Toutes se lancent **à la racine du dépôt** (là où se trouve `docker-compose.yml`).
+
 ```bash
-cd back
-# PostgreSQL local requis (ou : docker compose up postgres)
-./mvnw spring-boot:run          # profil dev, http://localhost:8080/api
+# Cycle de vie
+docker compose up --build          # construire (si besoin) puis démarrer, au premier plan
+docker compose up -d               # démarrer en arrière-plan
+docker compose stop                # arrêter les conteneurs (données conservées)
+docker compose start               # les redémarrer
+docker compose restart backend     # redémarrer un seul service
+docker compose down                # arrêter ET supprimer les conteneurs (données conservées)
+docker compose down -v             # ⚠ idem + SUPPRIME la base (volume postgres_data)
+
+# Observation
+docker compose ps                  # état et santé des trois services
+docker compose logs -f             # journaux de toute la stack
+docker compose logs -f backend     # journaux du backend seul
+docker compose top                 # processus de chaque conteneur
+
+# Reconstruction après modification du code
+docker compose up -d --build backend    # rebuild + redémarrage du backend
+docker compose build --no-cache front   # rebuild complet du front (cache ignoré)
+
+# Entrer dans un conteneur
+docker compose exec backend sh
+docker compose exec postgres psql -U postgres -d coachrun
 ```
 
-### Frontend (port 4200)
+> Les trois services s'appellent **`postgres`**, **`backend`** et **`frontend`**.
+
+---
+
+## Base de données (migrations & réinitialisation)
+
+- **Schéma** : entièrement piloté par **Liquibase** (85 fichiers de changelog, 96 changesets).
+  Aucune commande à lancer : les migrations sont appliquées **à chaque démarrage du backend**,
+  avant l'ouverture du port. `ddl-auto` est sur `none` — Hibernate ne crée jamais rien.
+- **Données de démonstration** : générées au démarrage en profil `dev` (`app.seed.enabled`),
+  de façon **idempotente** — un redémarrage ne duplique rien.
+- **Persistance** : la base vit dans le volume Docker `postgres_data`. `docker compose down`
+  la conserve, `docker compose down -v` la détruit.
+
+```bash
+# Repartir d'une base vierge (re-migrée et re-seedée au prochain démarrage)
+docker compose down -v
+docker compose up -d
+
+# Inspecter la base
+docker compose exec postgres psql -U postgres -d coachrun -c '\dt'
+docker compose exec postgres psql -U postgres -d coachrun -c 'select count(*) from databasechangelog;'
+
+# Sauvegarde / restauration ponctuelle
+docker compose exec -T postgres pg_dump -U postgres coachrun > sauvegarde.sql
+docker compose exec -T postgres psql -U postgres -d coachrun < sauvegarde.sql
+```
+
+> Un script de sauvegarde prêt à l'emploi pour l'exploitation existe par ailleurs :
+> [`ops/backup-db.sh`](./ops/backup-db.sh) (cf. [`docs/OPERATIONS.md`](./docs/OPERATIONS.md)).
+
+---
+
+## Problèmes courants
+
+| Symptôme | Cause | Solution |
+|---|---|---|
+| `Cannot connect to the Docker daemon` | Docker Desktop / le démon n'est pas démarré | démarrer Docker, puis `docker version` |
+| `bind: address already in use` sur 4200, 8081 ou 5432 | un PostgreSQL ou un serveur local occupe déjà le port (5432 est le cas le plus fréquent) | `FRONTEND_PORT=4300 BACKEND_PORT=8082 POSTGRES_PORT=55432 docker compose up -d` |
+| `dependency failed to start: container coachrun-backend is unhealthy` | le backend n'a pas démarré à temps, ou a échoué | `docker compose logs backend` — le premier lancement (migrations + seed) est le plus long ; le budget de santé est de 60 s de grâce puis 20 tentatives × 15 s |
+| Le front s'affiche mais toutes les requêtes échouent | le backend n'est pas sain | `docker compose ps` puis `docker compose logs backend` |
+| Page blanche ou ancienne version après un rebuild du front | le **service worker** de la PWA sert une version en cache | rechargement forcé (Ctrl/Cmd + Maj + R), ou onglet privé, ou DevTools → *Application* → *Service Workers* → *Unregister* |
+| Le build du front échoue en `JavaScript heap out of memory` | mémoire allouée à Docker trop faible | augmenter la RAM de Docker Desktop (Settings → Resources), ~4 Go |
+| `docker-compose: command not found` | v1 absente : le projet utilise le plugin v2 | utiliser `docker compose` (deux mots) |
+| Erreur PostgreSQL au démarrage après un changement de version d'image | volume créé par une version majeure différente | `docker compose down -v` (⚠ perte des données locales) |
+| Le build est très lent / retélécharge tout | cache Docker invalidé | ne pas utiliser `--no-cache` sans raison ; `docker compose build` réutilise les couches |
+
+---
+
+## Développement local (sans Docker)
+
+Utile pour le rechargement à chaud (`ng serve`) ou pour déboguer le backend dans un IDE.
+
+**Prérequis** : **JDK 21**, **Node 20+** (npm 10+), et un **PostgreSQL** accessible.
+
+### 1. PostgreSQL
+
+Soit la base de la stack Docker, seule :
+
+```bash
+docker compose up -d postgres      # expose localhost:5432, base coachrun
+```
+
+Soit un PostgreSQL installé sur le poste, avec une base `coachrun` accessible par
+`postgres` / `postgres` (valeurs par défaut de `application.yml`, surchargées par
+`JDBC_DATABASE_URL`, `PGUSER`, `PGPASSWORD`).
+
+### 2. Backend (port 8080)
+
+```bash
+cd back
+./mvnw spring-boot:run             # profil dev par défaut → http://localhost:8080/api
+```
+
+Vérification : `curl http://localhost:8080/api/public/ping` → `{"status":"ok","version":"0.2.0"}`.
+
+Aucun `.env` n'est nécessaire en dev : les valeurs par défaut d'`application.yml` suffisent.
+Pour personnaliser (Strava, Resend, Sentry…), copier `.env.example` et exporter les variables
+voulues dans le shell qui lance l'application.
+
+### 3. Frontend (port 4200)
+
 ```bash
 cd front
 npm install
-npm start                       # proxy vers http://localhost:8080/api
+npm start                          # ng serve + proxy /api → http://localhost:8080
 ```
 
-> ⚠️ Les ports diffèrent du mode Docker : **8080** en dev local, **8081** exposé par `docker-compose`.
+`front/proxy.conf.json` renvoie `/api` vers le backend local : le front appelle donc **8080**,
+pas 8081.
+
+> ⚠️ **Les ports diffèrent du mode Docker** : l'API est sur **8080** en local et sur **8081**
+> avec `docker compose` (le conteneur écoute toujours 8080 en interne).
+
+### Autres commandes front
+
+```bash
+npm run build                      # build de production (celui de Vercel)
+npm run build:docker               # build de production sans DSN Sentry (celui de l'image Docker)
+npm run start:pwa                  # build PWA + service worker, pour éprouver le push en local
+npm test                           # tests Karma (Chrome headless)
+```
 
 ---
 
@@ -210,7 +382,7 @@ npm start                       # proxy vers http://localhost:8080/api
 │       ├── repository/         # Spring Data JPA
 │       ├── security/           # JWT, chiffrement, CORS, rate-limit, anti-IDOR
 │       └── integration/        # Strava, Resend (clients HTTP)
-│   └── src/main/resources/db/changelog/   # 70 migrations Liquibase
+│   └── src/main/resources/db/changelog/   # 85 changelogs Liquibase (96 changesets)
 ├── front/                      # App Angular (PWA)
 │   └── src/app/
 │       ├── core/               # services, models, guards, intercepteurs
@@ -265,6 +437,10 @@ cd front && npm run build
 
 ## Variables d'environnement
 
+> **La stack Docker n'a besoin d'aucune de ces variables** : `docker-compose.yml` fournit lui-même
+> ses valeurs de développement. Cette section concerne le **déploiement** (Railway/Vercel) et le
+> développement **sans** Docker.
+
 Copier `.env.example` → `.env` (local) ou configurer dans Railway/Vercel. Clés principales :
 
 | Variable | Rôle | Prod |
@@ -284,6 +460,9 @@ Copier `.env.example` → `.env` (local) ou configurer dans Railway/Vercel. Clé
 - **Backend** : `SENTRY_DSN` + `SENTRY_ENV` (variables d'environnement). Sentry est **inactif tant que `SENTRY_DSN` est vide**.
 - **Frontend** : le DSN se renseigne dans `front/src/environments/environment.ts` (clé `sentryDsn`)
   au moment du build de prod (idéalement injecté via une variable CI), avec `appVersion` pour le suivi par release.
+  L'image Docker, elle, est construite avec `npm run build:docker`
+  (`front/src/environments/environment.docker.ts`) : même build de production, **sans DSN** — une
+  stack locale n'a rien à écrire dans le projet Sentry des utilisateurs réels.
 
 > L'intégration Strava se **désactive proprement** si les identifiants sont absents
 > (l'UI affiche « non configuré » au lieu d'échouer). Tableau complet : [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md).
