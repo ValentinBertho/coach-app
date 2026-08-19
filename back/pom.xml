@@ -26,6 +26,7 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <jjwt.version>0.12.5</jjwt.version>
         <springdoc.version>2.5.0</springdoc.version>
+        <logback-logtail.version>0.3.6</logback-logtail.version>
     </properties>
 
     <dependencies>
@@ -152,6 +153,21 @@
             <groupId>org.springframework.security</groupId>
             <artifactId>spring-security-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        <!-- Journalisation centralisée (Better Stack / Logtail).
+             Sentry remonte les exceptions, Better Stack Uptime dit si l'API répond ; ni l'un
+             ni l'autre ne voit les `log.warn` qui portent l'essentiel du diagnostic ici :
+             topologie de proxy incohérente, file Strava saturée, verrou de connexion, cause
+             exacte d'un refus de rafraîchissement. Sans journal cherchable, le correlationId
+             renvoyé sur les 500 — et capté par le formulaire de retour bêta — ne mène nulle part.
+
+             L'appender se DÉSACTIVE tout seul, avec un unique avertissement, si le token est
+             absent : dev, tests et smoke test de CI ne sont donc pas bruyants (cf. logback-spring.xml,
+             où il n'est de toute façon branché que sur le profil prod). -->
+        <dependency>
+            <groupId>com.logtail</groupId>
+            <artifactId>logback-logtail</artifactId>
+            <version>${logback-logtail.version}</version>
         </dependency>
         <!-- Export PDF (pur Java, sans dépendance native) -->
         <dependency>

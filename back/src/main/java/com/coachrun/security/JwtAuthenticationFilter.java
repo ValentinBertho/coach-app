@@ -1,5 +1,6 @@
 package com.coachrun.security;
 
+import com.coachrun.config.LogContextFilter;
 import com.coachrun.entity.enums.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -9,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -57,6 +59,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             principal, null, List.of(authority));
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+                    // Le journal sait désormais QUI a fait l'appel : l'identifiant seul, jamais
+                    // l'adresse e-mail. Le nettoyage est centralisé dans LogContextFilter, qui
+                    // enveloppe toute la chaîne — y compris celle-ci.
+                    MDC.put(LogContextFilter.USER_ID, principal.userId().toString());
                 }
             } catch (JwtException | IllegalArgumentException ex) {
                 log.debug("JWT rejeté: {}", ex.getMessage());

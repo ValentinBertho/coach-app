@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ============================================================================
+  Journalisation — console partout, Better Stack en production.
+
+  Pourquoi ce fichier existe
+  ==========================
+  Sentry dit POURQUOI ça casse (il ne voit que les exceptions) ; Better Stack Uptime dit SI
+  l'API répond (il ne voit rien d'autre). Entre les deux, tout le diagnostic de cette
+  application passe par des `log.warn` qui ne lèvent aucune exception, et que ni l'un ni
+  l'autre ne verra jamais :
+
+    · RateLimitFilter        — « X-Forwarded-For porte N relais alors que … » : l'alerte de
+                               topologie de proxy, émise UNE SEULE FOIS par démarrage. Sans
+                               journal conservé, elle est illisible par construction.
+    · AuthService.refresh    — les cinq causes distinctes d'un refus de rafraîchissement,
+                               seule façon de répondre à « je suis déconnecté sans arrêt ».
+    · LoginAttemptTracker    — « Connexion verrouillée N s après X échecs ».
+    · StravaWebhookService   — « File d'événements Strava saturée » : des activités qui
+                               n'arriveront qu'à la synchro horaire suivante.
+    · GlobalExceptionHandler — le correlationId d'une 500, renvoyé à l'utilisateur ET capté
+                               par le formulaire de retour bêta. Un identifiant qu'on ne peut
+                               pas rechercher ne sert à rien.
+
+  Les journaux de Railway ne quittent pas Railway et leur rétention est courte : un coach qui
+  signale un incident de la veille ne peut déjà plus être aidé.
+
+  Comment c'est branché
+  =====================
+  L'appender n'est déclaré que sous le profil `prod`, et il se DÉSACTIVE de lui-même — avec un
+  unique avertissement — quand le token est absent. Deux garde-fous plutôt qu'un : le smoke
+  test de CI démarre en profil `prod` sans token et ne doit ni échouer ni se remplir d'erreurs.
+
+  Le niveau racine n'est PAS fixé ici : `application-prod.yml` le pilote (`LOG_LEVEL_ROOT`),
+  et Spring Boot l'applique après ce fichier. Le poser ici ne ferait que créer un deuxième
+  endroit où chercher.
+  ============================================================================
+-->
+<configuration>
+
+    <!-- Conversion rules, motifs et couleurs standard de Spring Boot. -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <springProperty scope="context" name="appName"
+                    source="spring.application.name" defaultValue="coachrun-back"/>
+    <springProperty scope="context" name="betterStackToken"
+                    source="app.logs.better-stack.source-token" defaultValue=""/>
+    <springProperty scope="context" name="betterStackIngestUrl"
+                    source="app.logs.better-stack.ingest-url"
+                    defaultValue="https://in.logs.betterstack.com"/>
+
+    <!-- Hors production : console seule. -->
+    <springProfile name="!prod">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="prod">
+        <!--
+          Envoi par lots, sur un thread démon dédié : `append()` ne fait qu'empiler en mémoire,
+          aucune requête utilisateur n'attend le réseau. Une file pleine perd des lignes de
+          journal — jamais une requête.
+
+          `mdcFields` est ce qui transforme un mur de texte en journal interrogeable : ces
+          champs deviennent des colonnes cherchables côté Better Stack. C'est là que
+          `correlationId` prend son sens (cf. LogContextFilter et GlobalExceptionHandler).
+        -->
+        <appender name="BETTERSTACK" class="com.logtail.logback.LogtailAppender">
+            <appName>${appName}</appName>
+            <sourceToken>${betterStackToken}</sourceToken>
+            <!-- ⚠ Chaque source Better Stack a SON hôte d'ingestion (souvent régional, ex.
+                 https://sXXXXXX.eu-nbg-2.betterstackdata.com). Celui par défaut ci-dessous ne
+                 convient pas à toutes les sources : recopier celui affiché dans les réglages
+                 de la source, via BETTER_STACK_INGEST_URL. -->
+            <ingestUrl>${betterStackIngestUrl}</ingestUrl>
+            <mdcFields>requestId,correlationId,userId,method,path</mdcFields>
+            <mdcTypes>string,string,string,string,string</mdcTypes>
+            <!-- Défauts de la bibliothèque, écrits noir sur blanc parce qu'ils décident du
+                 comportement en cas d'incident : 1 000 lignes par envoi, au plus toutes les
+                 3 s, 100 000 lignes en attente au maximum. -->
+            <batchSize>1000</batchSize>
+            <batchInterval>3000</batchInterval>
+            <maxQueueSize>100000</maxQueueSize>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="BETTERSTACK"/>
+        </root>
+    </springProfile>
+
+</configuration>

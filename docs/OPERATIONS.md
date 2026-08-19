@@ -314,3 +314,108 @@ MAIL_LOG_RETENTION_DAYS=180  # le journal porte des adresses : il se purge. 0 d�
 Le journal ne remonte qu'aux envois postérieurs à sa mise en service, et rien n'est consigné tant
 que `MAIL_ENABLED=false`. L'écriture est **hors transaction métier** : un journal en panne ne fait
 jamais échouer l'action qui a déclenché l'envoi.
+
+---
+
+## 9. Journaux centralisés — Better Stack Telemetry (pas-à-pas)
+
+### 9.1 Pourquoi une troisième couche
+
+Trois outils, trois questions ; ils ne se recouvrent pas.
+
+| Outil | Répond à | Aveugle sur |
+|---|---|---|
+| **Sentry** | *pourquoi* ça casse — trace, contexte, release | tout ce qui ne lève pas d'exception ; **muet quand l'application est morte** (une instance qui ne démarre pas n'envoie rien) |
+| **Better Stack Uptime** | *est-ce que* ça répond — et le heartbeat du backup | ne dit jamais pourquoi |
+| **Better Stack Telemetry** (§ ci-dessous) | *ce qui s'est passé autour* | — |
+
+La troisième n'est pas un confort. L'essentiel du diagnostic de cette application est
+volontairement journalisé sans lever d'exception, donc **invisible pour Sentry** :
+
+- `RateLimitFilter` — « X-Forwarded-For porte N relais alors que `RATE_LIMIT_TRUSTED_PROXY_HOPS=…` » :
+  l'alerte de topologie de proxy, émise **une seule fois par démarrage**. Sans journal conservé,
+  elle est illisible par construction — et c'est elle qui signale le seau de rate limiting partagé
+  par toute la plateforme.
+- `AuthService.refresh` — les cinq causes distinctes d'un refus de rafraîchissement : la seule
+  façon de répondre à « je suis déconnecté sans arrêt ».
+- `LoginAttemptTracker` — « Connexion verrouillée N s après X échecs ».
+- `StravaWebhookService` — « File d'événements Strava saturée » : des sorties qui n'arriveront
+  qu'à la synchro horaire suivante.
+- `NotificationService` / `ResendMailClient` — échecs d'envoi.
+
+Et surtout : le **`correlationId`** renvoyé sur chaque 500 est capté par le formulaire de retour
+bêta (`/admin/feedback`). Un identifiant de corrélation qu'on ne peut pas **rechercher** ne sert
+à rien. Les journaux de Railway ne quittent pas Railway et leur rétention est courte : un coach
+qui signale un incident de la veille ne peut déjà plus être aidé.
+
+### 9.2 Créer la source
+
+1. [betterstack.com](https://betterstack.com) → **Telemetry** → **Sources** → **Connect source**
+2. Nom `darilab-backend`, plateforme **HTTP** (et non « Java » : c'est l'appender qui parle HTTP)
+3. Noter les **deux** valeurs affichées :
+   - le **Source token**
+   - l'**Ingesting host** — ⚠ souvent régional (`sXXXXXX.eu-nbg-2.betterstackdata.com`).
+     **La valeur par défaut de la bibliothèque ne convient pas à toutes les sources** : si les
+     journaux n'arrivent pas, c'est presque toujours ça.
+
+### 9.3 Brancher (Railway → Variables)
+
+```bash
+BETTER_STACK_SOURCE_TOKEN=<le source token>
+BETTER_STACK_INGEST_URL=https://<l'ingesting host de la source>
+```
+
+Redéployer. Rien d'autre à faire : l'appender est déjà déclaré
+([`logback-spring.xml`](../back/src/main/resources/logback-spring.xml)), **uniquement sous le
+profil `prod`**.
+
+> **Sans token, rien ne casse.** L'appender se désactive de lui-même avec un unique avertissement
+> (`Missing Source token for Better Stack`). C'est ce qui permet au smoke test de CI de démarrer
+> en profil `prod` sans configurer de journalisation, et au développement local de ne rien avoir
+> à poser.
+
+### 9.4 Vérifier
+
+```bash
+# 1. Au démarrage, l'absence d'avertissement « Missing Source token » suffit à dire que
+#    l'appender est actif (journaux Railway).
+# 2. Provoquer une 500 authentifiée, relever le correlationId renvoyé au client, puis
+#    le chercher dans Better Stack :
+correlationId="<celui de la réponse>"
+```
+- [ ] La recherche `correlationId=…` ramène la ligne d'erreur **et** sa trace
+- [ ] Les champs `requestId`, `method`, `path`, `userId` apparaissent comme **colonnes**, pas
+      comme du texte dans le message
+
+### 9.5 Ce qui est envoyé — et ce qui ne l'est jamais
+
+Cinq champs indexés, posés par
+[`LogContextFilter`](../back/src/main/java/com/coachrun/config/LogContextFilter.java) :
+
+| Champ | Posé par | Sert à |
+|---|---|---|
+| `requestId` | `LogContextFilter` | relier entre elles les lignes d'un même appel |
+| `method` / `path` | `LogContextFilter` | retrouver toutes les requêtes d'une route |
+| `userId` | `JwtAuthenticationFilter`, après validation du jeton | « ce coach précis, hier soir » |
+| `correlationId` | `GlobalExceptionHandler`, sur les 500 | le pont entre un retour bêta et le journal |
+
+**Jamais** : ni la chaîne de requête, ni les en-têtes, ni aucune donnée personnelle.
+`path` s'arrête avant le `?` — cette API accepte un jeton d'accès en paramètre d'URL sur les flux
+SSE et les pièces jointes (`JwtAuthenticationFilter#allowsQueryToken`), et journaliser la query
+string enverrait des **jetons de session valides** chez un tiers, pour toute la durée de
+rétention. `userId` est un UUID, jamais l'adresse e-mail — ce que le reste du code respecte déjà
+(les adresses ne sortent qu'en `DEBUG`). Un test le verrouille (`LogContextFilterTest`).
+
+### 9.6 Volume et rétention
+
+Le plan gratuit (~1 Go/mois, 3 jours de rétention) suffit à la cohorte de bêta en `INFO`. Deux
+réglages à connaître si le volume dérape :
+
+```bash
+LOG_LEVEL_APP=DEBUG   # ne JAMAIS laisser en place : les adresses e-mail sortent en DEBUG
+LOG_LEVEL_SQL=DEBUG   # de loin le plus volumineux — le temps d'une mise au point, puis retirer
+```
+
+L'envoi est **asynchrone et borné** : lots de 1 000 lignes toutes les 3 s au plus, 100 000 lignes
+en attente au maximum. Une file pleine perd des lignes de journal — jamais une requête
+utilisateur, et jamais de connexion du pool Hikari.

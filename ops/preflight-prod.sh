@@ -104,6 +104,34 @@ else
 fi
 
 echo
+echo "── Observabilité ────────────────────────────────────────────────────────"
+
+# Sentry ne voit que les exceptions ; Uptime ne voit que la disponibilité. Sans journal
+# centralisé, les avertissements qui portent le diagnostic — topologie de proxy, file Strava
+# saturée, cause d'un refus de rafraîchissement — restent dans Railway, où ils expirent. Et le
+# correlationId renvoyé sur une 500 ne mène nulle part si on ne peut pas le rechercher.
+# Avertissement et non blocage : l'application démarre parfaitement sans (l'appender se
+# désactive de lui-même), c'est le jour de l'incident que cela coûte.
+if [ -z "${BETTER_STACK_SOURCE_TOKEN:-}" ]; then
+  amber "BETTER_STACK_SOURCE_TOKEN absent : aucun journal centralisé.
+   Sentry ne verra pas les log.warn, et un correlationId de retour bêta sera introuvable."
+else
+  green "Journaux centralisés (Better Stack)."
+  # Cause n° 1 de « le token est bon mais rien n'arrive » : l'hôte d'ingestion est propre à la
+  # source, souvent régional, et le défaut de la bibliothèque ne convient pas à toutes.
+  if [ -z "${BETTER_STACK_INGEST_URL:-}" ]; then
+    amber "BETTER_STACK_INGEST_URL absente : l'hôte par défaut sera utilisé.
+   Il est propre à chaque source (souvent régional) — à recopier depuis ses réglages."
+  fi
+fi
+
+if [ -z "${SENTRY_DSN:-}" ]; then
+  amber "SENTRY_DSN absent : aucune remontée d'erreur serveur."
+else
+  green "Sentry backend."
+fi
+
+echo
 echo "── Données de démonstration ─────────────────────────────────────────────"
 
 # Le jeu de démo est idempotent et ne se recharge pas en prod : mais s'il a été créé pendant la
