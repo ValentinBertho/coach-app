@@ -360,5 +360,29 @@
   <textarea id="sess-notes" class="form-control" rows="4"
             [ngModel]="notes()" (ngModelChange)="setNotes($event)"
             placeholder="Intention de la séance, consignes, ressenti attendu, variantes…"></textarea>
+
+  <!--
+    RPE global de la séance : ce que le coach ANNONCE, à ne pas confondre avec le RPE de chaque
+    bloc (un 10 × 400 a des blocs à 9 et un échauffement à 3, sans que « la séance » ait un
+    chiffre) ni avec le RPE que l'athlète RESSENTIRA — c'est leur écart qui informe le coach.
+  -->
+  <div class="fn-rpe">
+    <label for="sess-rpe" class="fn-label">
+      Effort attendu <span class="field-hint">(RPE 1–10, sur la séance entière)</span>
+    </label>
+    <div class="fn-rpe__row">
+      <input id="sess-rpe" type="range" min="0" max="10" step="1" class="fn-rpe__slider"
+             [ngModel]="targetRpe() ?? 0" (ngModelChange)="setTargetRpe($event)"
+             [attr.aria-valuetext]="targetRpeLabel()" />
+      <span class="fn-rpe__val metric">{{ targetRpeLabel() }}</span>
+      @if (targetRpe() !== null) {
+        <button type="button" class="btn btn-ghost btn-sm" (click)="setTargetRpe(0)">Effacer</button>
+      }
+    </div>
+    <p class="field-hint fn-rpe__hint">
+      Affiché à l'athlète au moment de son retour, comme repère. Son ressenti reste le sien : il
+      n'est ni pré-rempli, ni contraint.
+    </p>
+  </div>
 </section>
 }

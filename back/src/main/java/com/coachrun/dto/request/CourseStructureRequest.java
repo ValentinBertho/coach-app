@@ -27,6 +27,16 @@ public record CourseStructureRequest(
         Boolean favorite,
         /** Encart d'écriture libre du coach (intention, consignes, ressenti attendu…). */
         String notes,
+        /**
+         * Effort perçu attendu pour la séance <b>entière</b> (1–10). Distinct du RPE porté par
+         * chaque bloc : un 10 × 400 a des blocs à 9 et un échauffement à 3, sans que « la séance »
+         * ait un chiffre.
+         *
+         * <p>{@code 0} efface l'annonce — l'éditeur auto-sauvegarde en boucle, et {@code null}
+         * signifie ici « champ absent, laisse en place », comme le reste des métadonnées.</p>
+         */
+        @jakarta.validation.constraints.Min(0) @jakarta.validation.constraints.Max(10)
+        Integer targetRpe,
         SessionStructure structure
 ) {
 }

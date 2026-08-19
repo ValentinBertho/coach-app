@@ -26,6 +26,12 @@ public record WorkoutTemplateRequest(
         @Size(max = 2048) String notes,
         @Min(0) Integer targetDistanceM,
         @Min(0) Integer targetDurationS,
+        /**
+         * Effort perçu attendu pour la séance entière. Borné 1–10 comme le ressenti de
+         * l'athlète : les deux se lisent côte à côte, sur la même échelle, ou ils ne se
+         * comparent pas.
+         */
+        @Min(1) @jakarta.validation.constraints.Max(10) Integer targetRpe,
         UUID categoryId,
         @Valid List<WorkoutStepRequest> steps) {
 

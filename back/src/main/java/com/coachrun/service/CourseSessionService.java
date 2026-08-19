@@ -73,6 +73,11 @@ public class CourseSessionService {
         if (req.notes() != null) {
             t.setNotes(req.notes().isBlank() ? null : req.notes());
         }
+        // Zéro efface, absent laisse en place : l'éditeur auto-sauvegarde et n'envoie pas
+        // toujours tous les champs (même convention que la catégorie et les notes).
+        if (req.targetRpe() != null) {
+            t.setTargetRpe(req.targetRpe() == 0 ? null : req.targetRpe());
+        }
         if (Boolean.TRUE.equals(req.clearCategory())) {
             t.setCategory(null);
         } else if (req.categoryId() != null) {
@@ -112,7 +117,7 @@ public class CourseSessionService {
         t.setLastUsedAt(Instant.now());
 
         PrescribedWorkout data = new PrescribedWorkout(
-                date, t.getType(), t.getTitle(), t.getNotes(), distance, duration,
+                date, t.getType(), t.getTitle(), t.getNotes(), distance, duration, t.getTargetRpe(),
                 t.getId(), snapshotJson, calculatedJson, plannedLoadEngine.compute(calc));
         return workoutService.createPrescribed(clubId, athleteId, data);
     }

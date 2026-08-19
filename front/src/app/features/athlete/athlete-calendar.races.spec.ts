@@ -30,7 +30,7 @@ describe('athlete-calendar — courses et intensités', () => {
     return {
       id: 'w1', athleteId: 'a1', scheduledDate: '2026-08-12', type: 'ENDURANCE',
       status: 'PLANNED', title: 'Footing', notes: null,
-      targetDistanceM: null, targetDurationS: null, actualDurationS: null, missedReason: null,
+      targetDistanceM: null, targetDurationS: null, actualDurationS: null, missedReason: null, targetRpe: null,
       rpe: null, fatigue: null, pain: null, feel: null, injuries: [], athleteComment: null,
       coachComment: null, coachCommentAt: null, coachAcknowledgedAt: null,
       movedByAthlete: false, originalDate: null,

@@ -50,6 +50,17 @@ public class WorkoutTemplate extends BaseEntity {
     @Column(name = "target_duration_s")
     private Integer targetDurationS;
 
+    /**
+     * Effort perçu attendu pour la séance <b>entière</b> (1–10), annoncé par le coach.
+     *
+     * <p>Distinct du RPE de bloc porté par la structure : un 10 × 400 a des blocs à 9 et un
+     * échauffement à 3, sans que « la séance » ait un chiffre. Et distinct du RPE de
+     * {@code Workout}, qui est le <b>ressenti</b> de l'athlète — l'un est une consigne, l'autre
+     * une mesure, et c'est leur écart qui informe.</p>
+     */
+    @Column(name = "target_rpe")
+    private Integer targetRpe;
+
     /** JSON sérialisé de la liste d'étapes (WorkoutStepRequest[]). */
     @Column(name = "steps_json", length = 8000)
     private String stepsJson;

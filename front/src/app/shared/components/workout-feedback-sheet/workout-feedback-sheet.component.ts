@@ -99,6 +99,20 @@ const SOURCE_LABELS: Record<string, string> = {
               </div>
 
               <div class="fb__card">
+                <!--
+                  Repère annoncé par le coach, quand il en a posé un. Il est affiché À CÔTÉ de
+                  l'échelle, jamais dans le curseur : le ressenti de l'athlète n'est ni
+                  pré-rempli ni contraint, sans quoi la note remontée cesserait d'être une mesure
+                  pour devenir une recopie — et c'est justement l'écart entre les deux que le
+                  coach vient lire.
+                -->
+                @if (workout()?.targetRpe; as target) {
+                  <p class="fb__target field-hint">
+                    <app-icon name="target" [size]="13" />
+                    Ton coach a prévu un effort autour de <strong>{{ target }}/10</strong>.
+                    Note ce que <em>tu</em> as ressenti — l'écart lui est utile.
+                  </p>
+                }
                 <app-rpe-scale-selector [(value)]="rpe" label="Perception de l'effort" />
               </div>
 
@@ -191,6 +205,12 @@ const SOURCE_LABELS: Record<string, string> = {
     }
     .fb__card--split { gap: var(--sp-4); }
     .fb__card-lb { font-size: var(--text-sm); color: var(--ink-2); font-weight: 700; }
+    /* Le repère du coach précède l'échelle, en retrait : il informe, il ne commande pas. */
+    .fb__target {
+      display: flex; align-items: flex-start; gap: var(--sp-1);
+      margin: 0 0 var(--sp-2);
+    }
+    .fb__target strong { color: var(--ink); }
 
     .fb__actions { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); }
     .fb__actions .btn { width: 100%; }

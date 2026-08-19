@@ -505,6 +505,7 @@ public class WorkoutService {
         workout.setNotes(data.notes());
         workout.setTargetDistanceM(data.targetDistanceM());
         workout.setTargetDurationS(data.targetDurationS());
+        workout.setTargetRpe(data.targetRpe());
         workout.setSourceTemplateId(data.sourceTemplateId());
         workout.setSessionSnapshot(data.snapshotJson());
         workout.setCalculatedPaces(data.calculatedJson());

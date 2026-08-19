@@ -35,7 +35,10 @@ export class CourseService {
     body: {
       name?: string | null; title?: string | null;
       discipline?: string | null; categoryId?: string | null; clearCategory?: boolean;
-      favorite?: boolean; notes?: string | null; structure?: SessionStructure;
+      favorite?: boolean; notes?: string | null;
+      /** 0 efface l'annonce, absent laisse la valeur en place (l'éditeur auto-sauvegarde). */
+      targetRpe?: number | null;
+      structure?: SessionStructure;
     },
   ): Observable<CourseStructureResponse> {
     return this.http.put<CourseStructureResponse>(`${this.club()}/workout-templates/${templateId}/structure`, body);

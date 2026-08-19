@@ -82,6 +82,16 @@ public class Workout extends BaseEntity {
     @Column(name = "missed_reason", length = 32)
     private com.coachrun.entity.enums.MissedReason missedReason;
 
+    /**
+     * Effort perçu <b>attendu</b> (1–10), figé à l'assignation depuis le modèle.
+     *
+     * <p>Figé, et non lu à travers le modèle : modifier la bibliothèque des mois plus tard ne
+     * doit pas réécrire ce qui avait été annoncé à l'athlète pour une séance déjà courue — le
+     * reste de la prescription suit déjà cette règle.</p>
+     */
+    @Column(name = "target_rpe")
+    private Integer targetRpe;
+
     /** Feedback athlète (ressenti d'effort 1–10 + commentaire). */
     @Column(name = "rpe")
     private Integer rpe;

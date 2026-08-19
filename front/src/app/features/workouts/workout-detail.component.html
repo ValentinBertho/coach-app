@@ -145,7 +145,7 @@
           @if (hasFeedback()) {
             <!-- Sensation, effort, fatigue, douleur, blessures et commentaire — rendus à
                  l'identique de ce que l'athlète relit sur sa propre fiche. -->
-            <app-feedback-recap [feel]="w.feel" [rpe]="w.rpe" [fatigue]="w.fatigue"
+            <app-feedback-recap [feel]="w.feel" [rpe]="w.rpe" [targetRpe]="w.targetRpe" [fatigue]="w.fatigue"
                                 [pain]="w.pain" [injuries]="w.injuries"
                                 [comment]="w.athleteComment" />
 

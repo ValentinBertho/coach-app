@@ -16,6 +16,8 @@ public record PrescribedWorkout(
         String notes,
         Integer targetDistanceM,
         Integer targetDurationS,
+        /** Effort perçu attendu pour la séance entière (1–10), annoncé par le coach. */
+        Integer targetRpe,
         UUID sourceTemplateId,
         String snapshotJson,
         String calculatedJson,
