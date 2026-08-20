@@ -104,6 +104,24 @@ export class AthletePortalService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiUrl}/me`;
 
+  /**
+   * Marque comme lu le mot du coach sur une séance. Idempotent côté serveur : la date de
+   * première lecture ne bouge plus.
+   */
+  readCoachComment(workoutId: string): Observable<Workout> {
+    return this.http.post<Workout>(`${this.base}/workouts/${workoutId}/coach-comment/read`, {});
+  }
+
+  /**
+   * Les mots du coach que je n'ai pas encore lus, le plus récent d'abord.
+   *
+   * <p>Nécessaire parce qu'un commentaire posé sur une sortie de l'avant-veille n'apparaît nulle
+   * part ailleurs : ni sur la journée du jour, ni dans le calendrier.</p>
+   */
+  unreadCoachComments(): Observable<Workout[]> {
+    return this.http.get<Workout[]>(`${this.base}/coach-comments/unread`);
+  }
+
   today(date?: string): Observable<Workout[]> {
     const params = date ? new HttpParams().set('date', date) : undefined;
     return this.http.get<Workout[]>(`${this.base}/today`, { params });

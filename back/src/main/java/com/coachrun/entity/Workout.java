@@ -146,6 +146,16 @@ public class Workout extends BaseEntity {
     @Column(name = "coach_comment_at")
     private java.time.Instant coachCommentAt;
 
+    /**
+     * Quand l'athlète a ouvert le commentaire du coach. Nul = non lu.
+     *
+     * <p>Remis à nul à chaque nouveau commentaire : un coach qui réécrit sur la même séance pose
+     * un nouveau message, pas une correction du précédent — et l'athlète doit être averti des
+     * deux.</p>
+     */
+    @Column(name = "coach_comment_read_at")
+    private java.time.Instant coachCommentReadAt;
+
     // --- Calendrier DARI Lab : déplacement athlète + snapshot figé -----------
 
     /** L'athlète a déplacé la séance (il peut déplacer, jamais modifier le contenu). */

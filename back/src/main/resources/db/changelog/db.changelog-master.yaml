@@ -175,3 +175,5 @@ databaseChangeLog:
       file: db/changelog/changes/085-race-result.yaml
   - include:
       file: db/changelog/changes/086-session-target-rpe.yaml
+  - include:
+      file: db/changelog/changes/087-coach-comment-read.yaml

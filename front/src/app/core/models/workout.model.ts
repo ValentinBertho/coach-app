@@ -60,6 +60,8 @@ export interface Workout {
   athleteComment: string | null;
   /** Retour du coach sur la séance réalisée (feedback in situ), visible par l'athlète. */
   coachComment: string | null;
+  /** Quand l'athlète a ouvert ce mot. Nul = non lu, donc encore remonté sur « Aujourd'hui ». */
+  coachCommentReadAt: string | null;
   coachCommentAt: string | null;
   /**
    * Date du « vu 👏 » du coach ; null tant qu'il n'a pas eu lieu.

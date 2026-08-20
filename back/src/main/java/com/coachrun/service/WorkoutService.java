@@ -252,10 +252,37 @@ public class WorkoutService {
         boolean isNew = text != null && !text.equals(workout.getCoachComment());
         workout.setCoachComment(text);
         workout.setCoachCommentAt(text == null ? null : java.time.Instant.now());
+        // Un commentaire réécrit est un nouveau message, pas une correction : il redevient non lu.
         if (isNew) {
+            workout.setCoachCommentReadAt(null);
             notificationService.notifyCoachComment(workout);
         }
         return WorkoutResponse.from(workout);
+    }
+
+    /**
+     * L'athlète a ouvert le mot de son coach.
+     *
+     * <p>Idempotent : la date de première lecture ne bouge plus. Sans cela, « lu il y a trois
+     * jours » redeviendrait « lu à l'instant » à chaque consultation de la fiche, et le coach
+     * n'aurait plus aucun moyen de savoir quand son message est réellement arrivé.</p>
+     */
+    @Transactional
+    public WorkoutResponse markCoachCommentRead(UUID athleteId, UUID workoutId) {
+        Workout workout = workoutRepository.findByIdAndAthleteId(workoutId, athleteId)
+                .orElseThrow(() -> new NotFoundException("Séance introuvable."));
+        if (workout.getCoachComment() != null && workout.getCoachCommentReadAt() == null) {
+            workout.setCoachCommentReadAt(java.time.Instant.now());
+        }
+        return WorkoutResponse.from(workout);
+    }
+
+    /** Les mots du coach que cet athlète n'a pas encore lus, le plus récent d'abord. */
+    @Transactional(readOnly = true)
+    public java.util.List<WorkoutResponse> unreadCoachComments(UUID athleteId) {
+        return workoutRepository.findUnreadCoachComments(athleteId).stream()
+                .map(WorkoutResponse::from)
+                .toList();
     }
 
     /**

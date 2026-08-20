@@ -69,6 +69,15 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
     @EntityGraph(attributePaths = "steps")
     Optional<Workout> findByIdAndAthleteId(UUID id, UUID athleteId);
 
+    /**
+     * Mots du coach non encore lus par l'athlète, le plus récent d'abord.
+     *
+     * <p>Ordonné sur la date du commentaire et non sur celle de la séance : ce qui compte est
+     * l'ordre dans lequel le coach a parlé, pas l'ordre dans lequel on a couru.</p>
+     */
+    @Query("select w from Workout w where w.athlete.id = :athleteId and w.coachComment is not null and w.coachCommentReadAt is null order by w.coachCommentAt desc")
+    List<Workout> findUnreadCoachComments(@Param("athleteId") UUID athleteId);
+
     @EntityGraph(attributePaths = "steps")
     List<Workout> findByAthleteIdOrderByScheduledDateAsc(UUID athleteId);
 

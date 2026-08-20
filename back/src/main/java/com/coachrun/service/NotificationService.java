@@ -658,9 +658,22 @@ public class NotificationService {
      * ni le centre de notifications ni une notification système ne sont le bon canal pour ça —
      * on renvoie vers la séance.</p>
      */
+    /**
+     * Retour écrit du coach sur une séance → notifie l'athlète, in-app + push.
+     *
+     * <p><b>Le lien mène à la séance, pas à l'historique.</b> Il pointait sur
+     * {@code /athlete/history} : la notification arrivait, l'athlète la touchait, et tombait sur
+     * une liste où rien ne distinguait la séance commentée — il devait la retrouver de mémoire.
+     * Une notification qui n'amène pas sur ce qu'elle annonce ne vaut guère mieux qu'aucune
+     * notification, et c'est exactement ce qu'un coach pilote a signalé en bêta.</p>
+     *
+     * <p>Le corps porte le titre de la séance, jamais le commentaire lui-même : il peut évoquer
+     * une douleur ou une contre-performance, et une notification s'affiche sur un écran
+     * verrouillé, à la vue de qui passe.</p>
+     */
     public void notifyCoachComment(Workout workout) {
-        notifyUser(athleteUser(workout.getAthlete()), "COACH_COMMENT", "Retour de votre coach",
-                workout.getTitle(), "/athlete/history");
+        notifyUser(athleteUser(workout.getAthlete()), "COACH_COMMENT", "Un mot de ton coach",
+                workout.getTitle(), "/athlete/workouts/" + workout.getId());
     }
 
     /**

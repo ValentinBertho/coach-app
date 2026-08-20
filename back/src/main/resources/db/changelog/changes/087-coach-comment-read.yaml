@@ -1,0 +1,27 @@
+# ============================================================================
+# 087 — Le commentaire du coach devient un message qu'on peut avoir lu.
+#   `workouts.coach_comment` portait le retour du coach, `coach_comment_at` sa
+#   date. Rien ne disait si l'athlète l'avait VU. Conséquences observées en
+#   bêta : la notification existait mais menait à une liste générique, aucun
+#   écran ne pouvait remonter « tu as un mot non lu », et l'athlète devait
+#   retourner de lui-même sur la sortie pour découvrir la question de son coach.
+#
+#   Une seule colonne suffit : la date de lecture. Nulle = non lu. Elle est
+#   remise à nul à chaque nouveau commentaire — un coach qui réécrit sur la même
+#   séance pose un nouveau message, pas une correction du précédent.
+#
+#   Additif, nullable. L'historique bascule donc en « non lu », ce qui est le
+#   bon défaut : ces commentaires n'ont effectivement jamais été présentés.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 087-workout-coach-comment-read-at
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workouts
+            columns:
+              - column:
+                  name: coach_comment_read_at
+                  type: TIMESTAMP
+                  remarks: "Quand l'athlète a ouvert le commentaire du coach. Nul = non lu."

@@ -1,4 +1,4 @@
-import { DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -56,7 +56,7 @@ type State = 'loading' | 'ready' | 'error';
   selector: 'app-today',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DecimalPipe, IconComponent, RouterLink,
+  imports: [DatePipe, DecimalPipe, IconComponent, RouterLink,
     OfflineBannerComponent,
     IntensityZoneBadgeComponent, WorkoutFeedbackSheetComponent,
     CoursePrescriptionViewComponent, MorningCheckInComponent, ReadinessCardComponent,
@@ -121,6 +121,8 @@ export class TodayComponent implements OnInit {
 
   /** Mes demandes en attente : ce que j'ai demandé et que mon coach n'a pas encore tranché. */
   readonly myProposals = signal<Proposal[]>([]);
+  /** Mots du coach non encore lus, toutes séances confondues — le plus récent d'abord. */
+  readonly unreadComments = signal<Workout[]>([]);
 
   /** Séances de force du jour, en carte de lancement (la saisie est en plein écran). */
   readonly strengthSessions = signal<ScheduledStrength[]>([]);
@@ -200,6 +202,10 @@ export class TodayComponent implements OnInit {
     this.portal.myProposals().subscribe({
       next: (p) => this.myProposals.set(p),
       error: () => this.myProposals.set([]),
+    });
+    this.portal.unreadCoachComments().subscribe({
+      next: (list) => this.unreadComments.set(list),
+      error: () => this.unreadComments.set([]),
     });
   }
 

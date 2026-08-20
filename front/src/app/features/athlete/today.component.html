@@ -28,6 +28,38 @@
          qui tranche. Silencieux quand tout va bien. -->
     <app-readiness-card (requested)="loadPending()" />
 
+    <!-- Les mots du coach que je n'ai pas encore lus.
+
+         Le manque qu'elle comble : un commentaire posé sur une sortie de l'avant-veille
+         n'apparaissait NULLE PART. Ni ici — la journée ne connaît que la séance du jour — ni
+         dans le calendrier, qui n'affiche pas les commentaires. L'athlète devait rouvrir la
+         sortie de lui-même pour découvrir qu'on lui avait parlé, ce qui suppose de savoir
+         qu'il y avait quelque chose à découvrir.
+
+         Elle disparaît d'elle-même à la lecture : c'est un rappel, pas une boîte de réception
+         de plus. -->
+    @if (unreadComments().length) {
+      <section class="coachsay card">
+        <strong class="coachsay__t">
+          <app-icon name="message-square" [size]="15" />
+          {{ unreadComments().length > 1 ? 'Ton coach t’a laissé des mots' : 'Ton coach t’a laissé un mot' }}
+        </strong>
+        <ul class="coachsay__l">
+          @for (w of unreadComments(); track w.id) {
+            <li>
+              <a class="coachsay__i" [routerLink]="['/athlete/workouts', w.id]">
+                <span class="coachsay__quote">{{ w.coachComment }}</span>
+                <span class="coachsay__meta field-hint">
+                  {{ w.title }}
+                  @if (w.coachCommentAt) { · {{ w.coachCommentAt | date: 'd MMM' }} }
+                </span>
+              </a>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
     <!-- Ce que j'ai demandé à mon coach, et qui attend sa réponse. Sans cette liste, une demande
          partie le matin disparaissait de l'écran et laissait l'athlète sans nouvelles. -->
     @if (myProposals().length) {
