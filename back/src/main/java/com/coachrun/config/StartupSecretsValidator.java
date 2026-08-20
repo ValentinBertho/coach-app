@@ -41,6 +41,8 @@ public class StartupSecretsValidator {
     private final String registrationMode;
     private final String registrationInviteCode;
     private final int trustedProxyHops;
+    private final String betterStackToken;
+    private final String betterStackIngestUrl;
 
     @SuppressWarnings("checkstyle:ParameterNumber")
     public StartupSecretsValidator(
@@ -54,7 +56,9 @@ public class StartupSecretsValidator {
             @Value("${app.vapid.private-key:}") String vapidPrivateKey,
             @Value("${app.registration.mode:open}") String registrationMode,
             @Value("${app.registration.invite-code:}") String registrationInviteCode,
-            @Value("${app.rate-limit.trusted-proxy-hops:1}") int trustedProxyHops) {
+            @Value("${app.rate-limit.trusted-proxy-hops:1}") int trustedProxyHops,
+            @Value("${app.logs.better-stack.source-token:}") String betterStackToken,
+            @Value("${app.logs.better-stack.ingest-url:}") String betterStackIngestUrl) {
         this.jwtSecret = jwtSecret;
         this.fieldEncryptionKey = fieldEncryptionKey;
         this.frontendUrl = frontendUrl;
@@ -66,6 +70,8 @@ public class StartupSecretsValidator {
         this.registrationMode = registrationMode;
         this.registrationInviteCode = registrationInviteCode;
         this.trustedProxyHops = trustedProxyHops;
+        this.betterStackToken = betterStackToken;
+        this.betterStackIngestUrl = betterStackIngestUrl;
     }
 
     @PostConstruct
@@ -122,6 +128,15 @@ public class StartupSecretsValidator {
                     + "client : un seul seau pour tous.");
         }
 
+        // Journalisation centralisée : contrôlée seulement si elle est demandée (un token posé).
+        //
+        // Sans ce garde-fou, une adresse d'ingestion mal recopiée ne se manifeste QUE par une
+        // erreur toutes les trois secondes sur le thread d'envoi, indéfiniment — l'application
+        // tourne, les journaux ne partent pas, et rien ne dit pourquoi. On préfère refuser de
+        // démarrer sur une erreur de saisie que l'exploitant vient de commettre et peut corriger
+        // en trente secondes : c'est la règle appliquée à tout le reste de ce fichier.
+        problems.addAll(betterStackProblems());
+
         // Inscription fermée sans code : plus personne ne peut créer de compte, et le message
         // d'erreur ne s'affiche qu'au premier candidat qui essaie.
         if ("invite".equalsIgnoreCase(registrationMode) && isBlank(registrationInviteCode)) {
@@ -134,6 +149,54 @@ public class StartupSecretsValidator {
                     + String.join("\n - ", problems));
         }
         log.info("Validation de la configuration de production OK.");
+    }
+
+    /**
+     * Contrôles de la journalisation centralisée. Vide tant qu'aucun token n'est posé : la
+     * journalisation est optionnelle, et son absence n'a jamais empêché l'application de servir.
+     */
+    private List<String> betterStackProblems() {
+        if (isBlank(betterStackToken)) {
+            return List.of();
+        }
+        List<String> problems = new ArrayList<>();
+
+        // Le gabarit de la documentation recopié tel quel : « <source token> ». C'est l'erreur
+        // la plus fréquente, et la seule qu'on peut nommer précisément.
+        if (looksLikePlaceholder(betterStackToken)) {
+            problems.add("BETTER_STACK_SOURCE_TOKEN contient encore le gabarit de la documentation "
+                    + "(« < » ou « > ») : y recopier le jeton affiché dans les réglages de la source.");
+        }
+        if (isBlank(betterStackIngestUrl)) {
+            problems.add("BETTER_STACK_SOURCE_TOKEN posé sans BETTER_STACK_INGEST_URL : "
+                    + "chaque source a SON hôte d'ingestion, à recopier depuis ses réglages.");
+        } else if (looksLikePlaceholder(betterStackIngestUrl)) {
+            problems.add("BETTER_STACK_INGEST_URL contient encore le gabarit de la documentation "
+                    + "(« < » ou « > ») : y recopier l'hôte d'ingestion de la source.");
+        } else if (!isAbsoluteHttpUrl(betterStackIngestUrl)) {
+            problems.add("BETTER_STACK_INGEST_URL invalide (« " + betterStackIngestUrl + " ») : "
+                    + "une URL absolue est attendue, schéma compris — "
+                    + "https://sXXXXXX.eu-nbg-2.betterstackdata.com et non l'hôte seul.");
+        }
+        return problems;
+    }
+
+    /** Le gabarit de la documentation, recopié sans être remplacé. */
+    private static boolean looksLikePlaceholder(String value) {
+        return value.contains("<") || value.contains(">");
+    }
+
+    /** URL absolue en http(s), avec un hôte : ce que l'expéditeur de journaux sait appeler. */
+    private static boolean isAbsoluteHttpUrl(String value) {
+        try {
+            java.net.URI uri = java.net.URI.create(value.trim());
+            String scheme = uri.getScheme();
+            return uri.isAbsolute()
+                    && ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))
+                    && uri.getHost() != null && !uri.getHost().isBlank();
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private static boolean isBlank(String value) {

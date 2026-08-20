@@ -70,7 +70,11 @@ class CiSmokeConfigurationTest {
                 // le smoke test, quelle que soit l'absence de la variable dans le workflow.
                 env.getOrDefault("REGISTRATION_MODE", "invite"),
                 env.getOrDefault("REGISTRATION_INVITE_CODE", ""),
-                Integer.parseInt(env.getOrDefault("RATE_LIMIT_TRUSTED_PROXY_HOPS", "2")));
+                Integer.parseInt(env.getOrDefault("RATE_LIMIT_TRUSTED_PROXY_HOPS", "2")),
+                // Journalisation centralisée : le smoke test n'en pose pas, et ne doit pas
+                // commencer à en exiger une.
+                env.getOrDefault("BETTER_STACK_SOURCE_TOKEN", ""),
+                env.getOrDefault("BETTER_STACK_INGEST_URL", ""));
 
         assertThatCode(() -> ReflectionTestUtils.invokeMethod(validator, "validate"))
                 .as("le smoke test de CI doit pouvoir démarrer : une règle ajoutée au garde-fou "

@@ -253,6 +253,15 @@ part tant qu'on ne peut pas le **rechercher**.
 4. Redéployer. Rien d'autre : l'appender est déjà en place, sur le profil `prod` seulement, et il
    se désactive tout seul si le token manque.
 
+> ⚠ **Coller les valeurs, pas les gabarits.** `<source token>` recopié avec ses chevrons, ou
+> l'hôte collé sans `https://`, font **refuser le démarrage** — volontairement : le message
+> nomme la variable et la faute. Sans ce contrôle, l'erreur ne se serait manifestée que par une
+> erreur toutes les trois secondes dans les journaux, sans que rien ne parte vers Better Stack.
+>
+> Et n'utilisez pas l'éditeur brut de Railway pour coller un bloc de deux lignes dans le champ
+> d'une seule variable : cela peut emporter les variables voisines. Si le démarrage échoue en
+> citant une variable que vous n'avez pas touchée, c'est là qu'il faut regarder.
+
 - [ ] Aucun avertissement « Missing Source token » dans les journaux Railway au démarrage
 - [ ] Une 500 provoquée volontairement se retrouve dans Better Stack **par son `correlationId`**
 - [ ] `requestId` / `method` / `path` / `userId` apparaissent comme colonnes, pas comme du texte
