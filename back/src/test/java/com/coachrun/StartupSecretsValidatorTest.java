@@ -27,13 +27,59 @@ class StartupSecretsValidatorTest {
     private StartupSecretsValidator validator(String jwt, String key, String url, boolean mailEnabled,
                                               String resendKey, String cors, String vapidPub, String vapidPriv) {
         return new StartupSecretsValidator(jwt, key, url, mailEnabled, resendKey, cors, vapidPub, vapidPriv,
-                "open", "", TRUSTED_HOPS);
+                "open", "", TRUSTED_HOPS, "", "");
     }
 
     /** Variante pour les scénarios d'inscription fermée. */
     private StartupSecretsValidator registrationValidator(String mode, String code) {
         return new StartupSecretsValidator(GOOD_JWT, GOOD_KEY, GOOD_URL, false, "", GOOD_CORS,
-                GOOD_VAPID_PUB, GOOD_VAPID_PRIV, mode, code, TRUSTED_HOPS);
+                GOOD_VAPID_PUB, GOOD_VAPID_PRIV, mode, code, TRUSTED_HOPS, "", "");
+    }
+
+    // --- Journalisation centralisée -----------------------------------------------------------
+    //
+    // Ces règles existent parce qu'une adresse d'ingestion mal recopiée ne se manifeste QUE par
+    // une erreur toutes les trois secondes sur le thread d'envoi, indéfiniment : l'application
+    // tourne, les journaux ne partent pas, et rien ne dit pourquoi. Mieux vaut refuser de
+    // démarrer sur une saisie que l'exploitant vient de faire et peut corriger en trente secondes.
+
+    private StartupSecretsValidator logsValidator(String token, String ingestUrl) {
+        return new StartupSecretsValidator(GOOD_JWT, GOOD_KEY, GOOD_URL, false, "", GOOD_CORS,
+                GOOD_VAPID_PUB, GOOD_VAPID_PRIV, "open", "", TRUSTED_HOPS, token, ingestUrl);
+    }
+
+    /** Aucun token : la journalisation est optionnelle et n'a jamais empêché de servir. */
+    @Test
+    void noLoggingTokenIsPerfectlyValid() {
+        assertThatCode(() -> run(logsValidator("", ""))).doesNotThrowAnyException();
+    }
+
+    @Test
+    void aTokenWithoutIngestUrlFailsBoot() {
+        assertThatThrownBy(() -> run(logsValidator("jeton-reel", "")))
+                .hasMessageContaining("BETTER_STACK_INGEST_URL");
+    }
+
+    /** Le gabarit de la documentation recopié tel quel — l'erreur la plus fréquente. */
+    @Test
+    void theDocumentationPlaceholderIsNamedForWhatItIs() {
+        assertThatThrownBy(() -> run(logsValidator("<source token>", "https://s1.example.com")))
+                .hasMessageContaining("gabarit de la documentation");
+        assertThatThrownBy(() -> run(logsValidator("jeton-reel", "https://<ingesting host>")))
+                .hasMessageContaining("gabarit de la documentation");
+    }
+
+    /** L'hôte seul, sans schéma : ce que produit un copier-coller depuis la console Better Stack. */
+    @Test
+    void anIngestHostWithoutSchemeFailsBoot() {
+        assertThatThrownBy(() -> run(logsValidator("jeton-reel", "s1234.eu-nbg-2.betterstackdata.com")))
+                .hasMessageContaining("URL absolue est attendue");
+    }
+
+    @Test
+    void aWellFormedLoggingConfigurationBoots() {
+        assertThatCode(() -> run(logsValidator("jeton-reel", "https://s1234.eu-nbg-2.betterstackdata.com")))
+                .doesNotThrowAnyException();
     }
 
     @Test

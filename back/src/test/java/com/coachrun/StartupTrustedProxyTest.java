@@ -29,7 +29,7 @@ class StartupTrustedProxyTest {
 
     private StartupSecretsValidator withHops(int hops) {
         return new StartupSecretsValidator(GOOD_JWT, GOOD_KEY, GOOD_URL, false, "", GOOD_CORS,
-                "pub", "priv", "open", "", hops);
+                "pub", "priv", "open", "", hops, "", "");
     }
 
     private void run(StartupSecretsValidator validator) {

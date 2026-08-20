@@ -374,6 +374,27 @@ profil `prod`**.
 > en profil `prod` sans configurer de journalisation, et au développement local de ne rien avoir
 > à poser.
 
+### 9.3 bis Si l'application refuse de démarrer
+
+**C'est voulu.** Le garde-fou de démarrage contrôle ces deux variables dès qu'un token est posé,
+parce qu'une adresse d'ingestion mal recopiée ne se manifeste autrement que par une erreur toutes
+les trois secondes sur le thread d'envoi, indéfiniment : l'application tourne, les journaux ne
+partent pas, et rien ne dit pourquoi.
+
+Le message de démarrage nomme précisément la faute. Les trois cas :
+
+| Message | Cause | Correctif |
+|---|---|---|
+| « contient encore le gabarit de la documentation » | `<source token>` recopié tel quel, avec ses chevrons | Coller la vraie valeur |
+| « posé sans `BETTER_STACK_INGEST_URL` » | Seul le token a été renseigné | Ajouter l'hôte d'ingestion |
+| « une URL absolue est attendue, schéma compris » | L'hôte collé sans `https://` | Préfixer par `https://` |
+
+> **Le piège de l'éditeur brut Railway.** Coller un bloc de deux lignes dans le champ *valeur*
+> d'une seule variable écrase la saisie et peut emporter les variables voisines. Si le démarrage
+> échoue en citant `JWT_SECRET`, `VAPID_*` ou `CORS_ORIGINS` — c'est-à-dire des variables que vous
+> n'avez pas touchées — c'est ce qui s'est produit : relisez la liste complète des variables du
+> service avant de chercher ailleurs.
+
 ### 9.4 Vérifier
 
 ```bash
@@ -419,3 +440,14 @@ LOG_LEVEL_SQL=DEBUG   # de loin le plus volumineux — le temps d'une mise au po
 L'envoi est **asynchrone et borné** : lots de 1 000 lignes toutes les 3 s au plus, 100 000 lignes
 en attente au maximum. Une file pleine perd des lignes de journal — jamais une requête
 utilisateur, et jamais de connexion du pool Hikari.
+
+**Quand Better Stack est injoignable**, l'expéditeur journalise son échec avec sa trace et
+réessaie : mesuré à ~2 à 3 erreurs par seconde tant que dure la panne. C'est bruyant, et c'est
+volontairement visible — un tuyau de journaux muet est pire qu'un tuyau bruyant. Deux garde-fous
+bornent le phénomène : le nombre de tentatives est ramené à 2 (au-delà on ne récupère rien de
+plus, on remplit seulement le journal de l'hébergeur), et le logger `com.logtail` est isolé
+(`additivity="false"`) — ses erreurs décrivent la panne du tuyau, jamais un incident du produit,
+et ne se propagent nulle part ailleurs.
+
+L'application, elle, **continue de servir normalement** : vérifié en démarrant en profil `prod`
+contre un hôte d'ingestion injoignable.

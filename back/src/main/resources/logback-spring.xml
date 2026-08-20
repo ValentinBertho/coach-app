@@ -50,6 +50,19 @@
                     source="app.logs.better-stack.ingest-url"
                     defaultValue="https://in.logs.betterstack.com"/>
 
+    <!--
+      L'expéditeur de journaux parle de LUI-MÊME, pas de l'application.
+
+      Quand Better Stack est injoignable, il journalise une erreur avec sa trace toutes les
+      trois secondes, indéfiniment. Ces lignes décrivent la panne du tuyau, jamais un incident
+      du produit : elles restent sur la console — c'est là qu'un exploitant les cherche — et ne
+      se propagent nulle part ailleurs. `additivity="false"` garantit qu'elles n'iront pas non
+      plus alimenter le lot qu'elles décrivent, ni ce qui sera branché sur la racine demain.
+    -->
+    <logger name="com.logtail" level="WARN" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+    </logger>
+
     <!-- Hors production : console seule. -->
     <springProfile name="!prod">
         <root level="INFO">
@@ -83,6 +96,14 @@
             <batchSize>1000</batchSize>
             <batchInterval>3000</batchInterval>
             <maxQueueSize>100000</maxQueueSize>
+            <!--
+              Deux tentatives au lieu de cinq. Chaque échec journalise une erreur AVEC sa trace,
+              et l'expéditeur réessaie en boucle serrée : hôte injoignable, on mesure une trentaine
+              de lignes par seconde, indéfiniment. Deux essais absorbent le hoquet réseau qui
+              justifie un réessai ; au-delà, on ne récupère rien de plus, on remplit seulement le
+              journal de l'hébergeur — celui-là même qu'on lira pour comprendre la panne.
+            -->
+            <maxRetries>2</maxRetries>
         </appender>
 
         <root level="INFO">
