@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal, viewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Activity } from '../../core/models/activity.model';
 import { WorkoutPrescription } from '../../core/models/course.model';
@@ -7,6 +8,7 @@ import {
   STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_META, Workout, needsFeedback,
 } from '../../core/models/workout.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
+import { MessageService } from '../../core/services/message.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PaceReferenceService } from '../../core/services/pace-reference.service';
 import { plannedVolume } from '../../core/utils/planned-volume';
@@ -58,7 +60,7 @@ const SOURCE_LABELS: Record<string, string> = {
     ActivityLapsComponent, ActivityRouteMapComponent, TimeInZoneBarComponent,
     FeedbackRecapComponent, CoursePrescriptionViewComponent, WorkoutFeedbackSheetComponent,
     ComplianceVerdictComponent,
-    BottomSheetComponent,
+    BottomSheetComponent, FormsModule,
   ],
   template: `
     @switch (state()) {
@@ -182,6 +184,37 @@ const SOURCE_LABELS: Record<string, string> = {
                   }
                 </div>
                 <blockquote class="wd-quote">{{ w.coachComment }}</blockquote>
+
+                <!--
+                  Répondre depuis la séance, pas depuis la messagerie. Le coach pose sa question
+                  ici — « tu te sentais facile sur les allures ? » — et exiger d'aller rouvrir un
+                  fil, retrouver de quelle sortie il parlait et recontextualiser à la main est
+                  précisément ce qui fait qu'on ne répond pas.
+
+                  La réponse part malgré tout dans le fil de messagerie, rattachée à la séance :
+                  un second canal de conversation se serait désynchronisé du premier, et le coach
+                  aurait eu deux endroits où regarder.
+                -->
+                @if (replySent()) {
+                  <p class="wd-reply-done field-hint">
+                    <app-icon name="check" [size]="14" /> Réponse envoyée à ton coach.
+                    <a routerLink="/athlete/messages">Voir la conversation</a>
+                  </p>
+                } @else {
+                  <div class="wd-reply">
+                    <label class="wd-reply__lb" for="wd-reply">Répondre</label>
+                    <textarea id="wd-reply" class="form-control" rows="2"
+                              [ngModel]="reply()" (ngModelChange)="reply.set($event)"
+                              placeholder="Ta réponse à ton coach…"></textarea>
+                    <div class="wd-reply__actions">
+                      <button type="button" class="btn btn-primary btn-sm"
+                              [disabled]="!reply().trim() || replyBusy()"
+                              (click)="sendReply()">
+                        {{ replyBusy() ? 'Envoi…' : 'Envoyer' }}
+                      </button>
+                    </div>
+                  </div>
+                }
               </section>
             }
 
@@ -278,6 +311,13 @@ const SOURCE_LABELS: Record<string, string> = {
 
     .wd-coach { border-left: 3px solid var(--primary); }
     .wd-quote { margin: 0; color: var(--ink); font-style: italic; }
+
+    /* La réponse est sous la citation, séparée d'un filet : on lit d'abord, on répond ensuite. */
+    .wd-reply { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--hairline); }
+    .wd-reply__lb { font-size: var(--text-sm); font-weight: 700; color: var(--ink-2); }
+    .wd-reply__actions { display: flex; justify-content: flex-end; }
+    .wd-reply-done { display: flex; align-items: center; gap: var(--sp-1); margin: var(--sp-3) 0 0; padding-top: var(--sp-3); border-top: 1px solid var(--hairline); }
+    .wd-reply-done a { color: var(--primary); }
     /* Plus léger que le mot du coach : c'est une attention, pas une consigne. */
     .wd-ack {
       border-left: 3px solid var(--primary);
@@ -296,6 +336,7 @@ export class AthleteWorkoutDetailComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
   private readonly paceReference = inject(PaceReferenceService);
   private readonly toast = inject(ToastService);
+  private readonly messages = inject(MessageService);
   private readonly feedbackSheet = viewChild(WorkoutFeedbackSheetComponent);
 
   /** Mon allure d'endurance, seule base admise pour estimer un volume écrit en durée. */
@@ -303,6 +344,11 @@ export class AthleteWorkoutDetailComponent implements OnInit {
 
   readonly state = signal<State>('loading');
   readonly workout = signal<Workout | null>(null);
+
+  /** Réponse en cours de saisie au mot du coach, et son état d'envoi. */
+  readonly reply = signal('');
+  readonly replyBusy = signal(false);
+  readonly replySent = signal(false);
   readonly activity = signal<Activity | null>(null);
   readonly prescription = signal<WorkoutPrescription | null>(null);
 
@@ -375,11 +421,47 @@ export class AthleteWorkoutDetailComponent implements OnInit {
 
   ngOnInit(): void { this.load(); }
 
+  /**
+   * Envoie la réponse au coach, rattachée à cette séance.
+   *
+   * <p>Elle part dans le fil de messagerie plutôt que dans un canal propre à la séance : ouvrir
+   * un second fil aurait donné au coach deux endroits où regarder, et c'est exactement ainsi
+   * qu'un message se perd.</p>
+   */
+  sendReply(): void {
+    const body = this.reply().trim();
+    if (!body || this.replyBusy()) {
+      return;
+    }
+    this.replyBusy.set(true);
+    this.messages.mySend(body, this.workoutId()).subscribe({
+      next: () => {
+        this.replyBusy.set(false);
+        this.replySent.set(true);
+        this.reply.set('');
+        this.toast.success('Réponse envoyée à ton coach.');
+      },
+      error: () => {
+        this.replyBusy.set(false);
+        this.toast.error('Envoi impossible — réessaie dans un instant.');
+      },
+    });
+  }
+
   private load(): void {
     const id = this.workoutId();
     this.state.set('loading');
     this.portal.workout(id).subscribe({
-      next: (w) => { this.workout.set(w); this.state.set('ready'); },
+      next: (w) => {
+        this.workout.set(w);
+        this.state.set('ready');
+        // Ouvrir la fiche vaut lecture : le mot cesse de remonter sur « Aujourd'hui ». L'échec
+        // est silencieux — ne pas avoir marqué un message comme lu n'est pas une panne qui
+        // mérite d'interrompre quelqu'un venu regarder sa séance.
+        if (w.coachComment && !w.coachCommentReadAt) {
+          this.portal.readCoachComment(id).subscribe({ error: () => undefined });
+        }
+      },
       error: () => this.state.set('error'),
     });
     // Les trois autres appels sont indépendants : une séance sans sortie rattachée, ou sans

@@ -112,3 +112,16 @@
 .pend__i { display: flex; flex-direction: column; gap: 1px; }
 .pend__title { font-size: var(--text-sm); color: var(--ink-2); }
 .pend__why { font-size: var(--text-xs); color: var(--ink-3); }
+
+/* Mots du coach non lus. Même famille visuelle que « En attente de ton coach » — c'est la même
+   conversation, dans l'autre sens — mais en accent chaud : ici quelqu'un attend une réponse
+   de MOI, et c'est ce qui doit accrocher l'œil. */
+.coachsay {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  border-left: 3px solid var(--accent, var(--primary));
+}
+.coachsay__t { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--ink); font-size: var(--text-sm); }
+.coachsay__l { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.coachsay__i { display: flex; flex-direction: column; gap: 1px; min-height: 44px; justify-content: center; text-decoration: none; }
+.coachsay__quote { font-size: var(--text-sm); color: var(--ink); font-style: italic; }
+.coachsay__meta { font-size: var(--text-xs); }

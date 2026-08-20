@@ -32,7 +32,7 @@ describe('athlete-calendar — courses et intensités', () => {
       status: 'PLANNED', title: 'Footing', notes: null,
       targetDistanceM: null, targetDurationS: null, actualDurationS: null, missedReason: null, targetRpe: null,
       rpe: null, fatigue: null, pain: null, feel: null, injuries: [], athleteComment: null,
-      coachComment: null, coachCommentAt: null, coachAcknowledgedAt: null,
+      coachComment: null, coachCommentAt: null, coachCommentReadAt: null, coachAcknowledgedAt: null,
       movedByAthlete: false, originalDate: null,
       plannedLoadUa: null, orderIndex: 0, steps: [], ...over,
     };

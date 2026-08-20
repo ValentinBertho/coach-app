@@ -38,6 +38,8 @@ public record WorkoutResponse(
         String athleteComment,
         /** Retour du coach sur la séance réalisée (visible par l'athlète). */
         String coachComment,
+        /** Quand l'athlète a ouvert le mot du coach. Nul = non lu, donc encore à remonter. */
+        java.time.Instant coachCommentReadAt,
         java.time.Instant coachCommentAt,
         /**
          * Date du « vu 👏 » du coach ; null tant qu'il n'a pas eu lieu. Exposée à l'athlète —
@@ -74,6 +76,7 @@ public record WorkoutResponse(
                 com.coachrun.util.InjuryCodec.read(w.getInjuriesJson()),
                 w.getAthleteComment(),
                 w.getCoachComment(),
+                w.getCoachCommentReadAt(),
                 w.getCoachCommentAt(),
                 w.getCoachAcknowledgedAt(),
                 w.isMovedByAthlete(),

@@ -61,8 +61,13 @@ export class MessageService {
   myThread(): Observable<Message[]> {
     return this.http.get<Message[]>(`${environment.apiUrl}/me/messages`);
   }
-  mySend(body: string): Observable<Message> {
-    return this.http.post<Message>(`${environment.apiUrl}/me/messages`, { body });
+  /**
+   * Envoie un message au coach. `workoutId` rattache le message à une séance — c'est ce qui
+   * permet de répondre à un mot du coach sans ouvrir un second canal parallèle : la réponse
+   * arrive dans le fil où la conversation vit déjà, mais avec le contexte de la séance.
+   */
+  mySend(body: string, workoutId?: string): Observable<Message> {
+    return this.http.post<Message>(`${environment.apiUrl}/me/messages`, { body, workoutId });
   }
 
   // --- Pièces jointes ---

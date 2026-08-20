@@ -198,6 +198,32 @@ public class AthletePortalController {
         return workoutService.getForAthlete(principal.athleteId(), workoutId);
     }
 
+    /**
+     * Marque comme lu le mot du coach sur cette séance.
+     *
+     * <p>Appelé à l'ouverture de la fiche : le commentaire cesse alors de remonter sur
+     * « Aujourd'hui ». Idempotent — la date de première lecture ne bouge plus, sinon « lu il y a
+     * trois jours » deviendrait « lu à l'instant » à chaque consultation.</p>
+     */
+    @PostMapping("/workouts/{workoutId}/coach-comment/read")
+    public WorkoutResponse readCoachComment(@AuthenticationPrincipal AuthPrincipal principal,
+                                            @PathVariable UUID workoutId) {
+        return workoutService.markCoachCommentRead(principal.athleteId(), workoutId);
+    }
+
+    /**
+     * Les mots du coach que je n'ai pas encore lus, séance la plus récente d'abord.
+     *
+     * <p>Sert la carte d'« Aujourd'hui ». Sans elle, un commentaire posé sur une sortie de
+     * l'avant-veille n'apparaissait nulle part : ni sur la journée du jour, qui ne connaît que
+     * la séance du jour, ni dans le calendrier, qui n'affiche pas les commentaires.</p>
+     */
+    @GetMapping("/coach-comments/unread")
+    public java.util.List<WorkoutResponse> unreadCoachComments(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return workoutService.unreadCoachComments(principal.athleteId());
+    }
+
     /** Ma sortie rapprochée de cette séance (vue « réalisé »), ou 204 si aucune. */
     @GetMapping("/workouts/{workoutId}/activity")
     public org.springframework.http.ResponseEntity<com.coachrun.dto.response.ActivityResponse> myWorkoutActivity(
