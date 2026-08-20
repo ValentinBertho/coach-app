@@ -37,10 +37,10 @@ public class PushController {
                           @Valid @RequestBody PushSubscribeRequest request,
                           @org.springframework.web.bind.annotation.RequestHeader(
                                   value = "User-Agent", required = false) String userAgent) {
+        // Les clés sont désormais exigées par la validation : plus de branche « peut-être nul »
+        // qui laissait passer une charge utile que la base refuse ensuite.
         pushService.subscribe(principal.userId(), request.endpoint(),
-                request.keys() != null ? request.keys().p256dh() : null,
-                request.keys() != null ? request.keys().auth() : null,
-                userAgent);
+                request.keys().p256dh(), request.keys().auth(), userAgent);
     }
 
     /**

@@ -162,14 +162,42 @@ export class PushService {
 
     try {
       await firstValueFrom(this.http.post(`${environment.apiUrl}/push/subscribe`, sub.toJSON()));
-    } catch {
+    } catch (err) {
       // L'abonnement existe côté navigateur mais le serveur ne le connaît pas : on le défait,
       // sinon l'appareil se croit abonné pour toujours et n'est jamais notifié.
       await this.swPush.unsubscribe().catch(() => undefined);
-      throw new PushError("Enregistrement impossible — réessaie dans un instant.");
+      throw new PushError(this.registrationErrorMessage(err));
     }
     this.subscribed.set(true);
     return true;
+  }
+
+  /**
+   * Pourquoi l'enregistrement de l'abonnement a échoué côté serveur.
+   *
+   * <p>« Réessaie dans un instant » était la réponse à <b>tout</b>, y compris aux refus qui ne
+   * peuvent pas aboutir en réessayant. Un abonnement dont le navigateur n'a pas fourni les clés
+   * de chiffrement, par exemple, sera refusé autant de fois qu'on insistera — inviter à
+   * recommencer, c'est faire perdre du temps en promettant que ça finira par marcher.</p>
+   *
+   * <p>On distingue donc ce qui se retente (panne réseau, serveur momentanément indisponible) de
+   * ce qui ne se retente pas (la requête elle-même est refusée), et dans le second cas on montre
+   * ce que le serveur a répondu plutôt qu'un message d'attente.</p>
+   */
+  private registrationErrorMessage(err: unknown): string {
+    const status = (err as { status?: number })?.status;
+
+    // Pas de réponse exploitable, ou panne serveur : réessayer a un sens.
+    if (!status || status === 0 || status >= 500) {
+      return 'Enregistrement impossible — réessaie dans un instant.';
+    }
+    // Refus explicite : le redire à l'identique ne changera rien.
+    const body = (err as { error?: { message?: string; fieldErrors?: Record<string, string> } })?.error;
+    const fieldError = body?.fieldErrors ? Object.values(body.fieldErrors)[0] : undefined;
+    const detail = fieldError ?? body?.message;
+    return detail
+      ? `Notifications non activées : ${detail}`
+      : "Notifications non activées — ton appareil n'a pas pu être enregistré.";
   }
 
   /**
