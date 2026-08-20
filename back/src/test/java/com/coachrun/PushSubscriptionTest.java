@@ -62,6 +62,47 @@ class PushSubscriptionTest {
         coachUserId = UUID.fromString(auth.get("user").get("id").asText());
     }
 
+    /**
+     * Un abonnement sans clés de chiffrement est refusé <b>par la validation</b>, pas par la base.
+     *
+     * <p>Le défaut signalé en bêta : le DTO acceptait {@code keys} nul alors que la colonne le
+     * refuse. La charge utile passait la validation, échouait à l'écriture, et le gestionnaire
+     * d'erreurs en faisait un <b>409 « conflit avec des données existantes »</b> — qui ne décrit
+     * rien. L'application affichait alors « Enregistrement impossible, réessaie dans un instant »,
+     * c'est-à-dire une invitation à recommencer une manœuvre qui ne peut pas aboutir : sans
+     * {@code p256dh} et {@code auth}, on ne sait pas chiffrer pour cet appareil.</p>
+     */
+    @Test
+    void aSubscriptionWithoutKeysIsRejectedWithTheFieldNamed() throws Exception {
+        String body = mvc.perform(post("/push/subscribe")
+                        .header("Authorization", coachBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"endpoint\":\"https://web.push.apple.com/sans-cles\"}"))
+                .andExpect(status().isBadRequest())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(body)
+                .as("le champ fautif est nommé, et non maquillé en conflit de données")
+                .contains("fieldErrors")
+                .contains("keys");
+        assertThat(body).doesNotContain("conflit avec des données existantes");
+    }
+
+    /** Même refus quand le bloc est présent mais vide : c'est le contenu qui manque. */
+    @Test
+    void aSubscriptionWithBlankKeysIsRejectedToo() throws Exception {
+        mvc.perform(post("/push/subscribe")
+                        .header("Authorization", coachBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"endpoint\":\"https://web.push.apple.com/cles-vides\","
+                                + "\"keys\":{\"p256dh\":\"\",\"auth\":\"\"}}"))
+                .andExpect(status().isBadRequest());
+
+        assertThat(subscriptionRepository.findByEndpoint("https://web.push.apple.com/cles-vides"))
+                .as("rien n'est écrit : un abonnement sans clés ne recevrait jamais rien")
+                .isEmpty();
+    }
+
     private JsonNode login(String email) throws Exception {
         return objectMapper.readTree(mvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
