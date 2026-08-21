@@ -142,6 +142,9 @@ public class CourseSessionService {
         t.setNotes(w.getNotes());
         t.setTargetDistanceM(w.getTargetDistanceM());
         t.setTargetDurationS(w.getTargetDurationS());
+        // L'effort annoncé fait partie de ce qu'on verse : une adaptation gardée sans son RPE
+        // reviendrait à jeter la moitié de la consigne au moment même où on la met de côté.
+        t.setTargetRpe(w.getTargetRpe());
         t.setStructureJson(writeStructure(structure));
         if (req.categoryId() != null) {
             t.setCategory(categoryRepository.findByIdAndClubId(req.categoryId(), clubId)

@@ -802,7 +802,8 @@ public class WorkoutService {
         SessionStructure snapshot = readJson(w.getSessionSnapshot(), SessionStructure.class);
         CalculatedSessionResponse calculated = readJson(w.getCalculatedPaces(), CalculatedSessionResponse.class);
         SessionStructure safe = snapshot == null ? SessionStructure.empty() : snapshot;
-        return new WorkoutPrescriptionResponse(safe, calculated, resolveDrills(safe, w.getClub().getId()));
+        return new WorkoutPrescriptionResponse(w.getTitle(), safe, calculated,
+                resolveDrills(safe, w.getClub().getId()));
     }
 
     /** Résout les éducatifs (gammes) référencés par les blocs du snapshot, scopés au club. */

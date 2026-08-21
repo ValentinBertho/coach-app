@@ -51,6 +51,22 @@
   </div>
 }
 
+<!--
+  Identité d'une séance ADAPTÉE. Le coach sort un « 4 × 1000 » de sa bibliothèque, lui ajoute
+  deux répétitions, et la séance continuait de s'appeler « 4 × 1000 » — chez lui comme chez son
+  athlète. Renommer supposait de revenir au calendrier ; le champ vit désormais là où
+  l'adaptation se fait, et suit la même auto-sauvegarde que les blocs.
+-->
+@if (isWorkout() && !loading()) {
+  <div class="card identity">
+    <div class="form-group">
+      <label for="wk-title">Nom de la séance <span class="field-hint">(vu par l'athlète)</span></label>
+      <input id="wk-title" class="form-control" [ngModel]="title()" (ngModelChange)="setTitle($event)"
+             placeholder="6 × 1000 m" maxlength="255" />
+    </div>
+  </div>
+}
+
 <!-- Versement dans la bibliothèque d'une séance construite au calendrier. -->
 @if (saveAsOpen()) {
   <div class="card save-as">

@@ -188,6 +188,8 @@ export interface CourseDrill {
 
 /** Prescription figée d'une séance planifiée : snapshot des blocs + cibles calculées. */
 export interface WorkoutPrescription {
+  /** Titre de la séance planifiée, tel que l'athlète le voit. */
+  title: string | null;
   snapshot: SessionStructure;
   calculated: CalculatedSession | null;
   /** Éducatifs référencés par les blocs, résolus (nom, vidéo). */
