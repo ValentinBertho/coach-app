@@ -1,4 +1,5 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import { switchMap, tap } from 'rxjs';
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -472,6 +473,8 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
       this.loadZoneValues(this.athleteId());
       this.workoutService.prescription(this.athleteId(), this.workoutId()).subscribe({
         next: (p) => {
+          this.title.set(p.title ?? '');
+          this.persistedTitle = this.title();
           this.structure.set(p.snapshot ?? { warmup: [], main: [], cooldown: [] });
           this.loading.set(false);
           this.recalcAll();
@@ -1085,9 +1088,26 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   setCategory(value: string): void { this.categoryId.set(value); this.touch(); }
 
   /** Écriture effective, selon le mode (modèle de bibliothèque ou séance planifiée). */
+  /**
+   * Dernier titre effectivement enregistré. L'auto-sauvegarde tourne en boucle : sans ce repère,
+   * chaque frappe dans un autre champ renverrait le même libellé au serveur.
+   */
+  private persistedTitle = '';
+
   private persist() {
     if (this.isWorkout()) {
-      return this.workoutService.updateStructure(this.athleteId(), this.workoutId(), this.structure());
+      const structure$ = this.workoutService.updateStructure(
+        this.athleteId(), this.workoutId(), this.structure());
+      const title = this.title().trim();
+      // Un titre vidé n'efface pas celui de la séance : le serveur refuse un libellé vide, et
+      // une séance sans nom ne se lit ni au calendrier ni côté athlète.
+      if (!title || title === this.persistedTitle) {
+        return structure$;
+      }
+      return structure$.pipe(
+        switchMap(() => this.workoutService.rename(this.athleteId(), this.workoutId(), title)),
+        tap(() => { this.persistedTitle = title; }),
+      );
     }
     const categoryId = this.categoryId();
     return this.course.putStructure(this.templateId(), {
@@ -1113,8 +1133,19 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   saveAsTitle = '';
   saveAsCategoryId = '';
 
+  /**
+   * Ouvre le versement en bibliothèque, pré-rempli avec le titre de la séance adaptée.
+   *
+   * <p>Il proposait « Séance du 20/08/2026 ». Or on verse en bibliothèque précisément parce qu'on
+   * vient d'adapter quelque chose qui mérite d'être gardé : le coach avait donc à retaper un nom
+   * qu'il venait d'écrire deux champs plus haut, et une date ne dit rien de ce que la séance
+   * contient — c'est le pire nom possible pour une entrée de bibliothèque qu'on cherchera par son
+   * contenu.</p>
+   */
   openSaveAs(): void {
-    this.saveAsTitle = this.saveAsTitle || 'Séance du ' + new Date().toLocaleDateString('fr-FR');
+    this.saveAsTitle = this.saveAsTitle
+      || this.title().trim()
+      || 'Séance du ' + new Date().toLocaleDateString('fr-FR');
     this.saveAsOpen.set(true);
   }
 
