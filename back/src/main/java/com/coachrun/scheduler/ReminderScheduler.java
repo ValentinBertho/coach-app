@@ -40,6 +40,8 @@ public class ReminderScheduler {
     private final WorkoutRepository workoutRepository;
     private final ScheduledStrengthSessionRepository strengthRepository;
     private final com.coachrun.repository.AthleteRepository athleteRepository;
+    private final com.coachrun.repository.RaceObjectiveRepository raceRepository;
+    private final com.coachrun.repository.ActivityRepository activityRepository;
     private final NotificationService notificationService;
     private final ClockService clock;
     /** Passage par le proxy : sans lui, {@code @Transactional} ne s'appliquerait pas (cf. plus bas). */
@@ -63,6 +65,18 @@ public class ReminderScheduler {
     @Scheduled(cron = "${app.reminders.cron:0 0 21 * * *}", zone = "${app.timezone:Europe/Paris}")
     @SchedulerLock(name = "sendTomorrowReminders", lockAtLeastFor = "PT5M", lockAtMostFor = "PT30M")
     public void sendTomorrowReminders() {
+        sweepTomorrow();
+    }
+
+    /**
+     * Le balayage lui-même, hors du verrou distribué.
+     *
+     * <p>Séparé de {@link #sendTomorrowReminders()} pour être appelable directement : le verrou
+     * est posé pour cinq minutes au minimum et vit dans sa propre transaction, si bien qu'un test
+     * qui déclencherait deux fois le point d'entrée verrait le second passage silencieusement
+     * ignoré — et conclurait à une absence de notification qui ne prouve rien.</p>
+     */
+    public void sweepTomorrow() {
         LocalDate tomorrow = clock.today().plusDays(1);
         // Groupé par athlète : deux séances demain font un rappel, pas deux notifications
         // consécutives disant la même chose. Course et renforcement entrent dans le même message.
@@ -80,11 +94,31 @@ public class ReminderScheduler {
             }
         }
 
-        List<UUID> resting = restingAthletes(tomorrow, strengthTomorrow);
-        log.info("Point de programme : {} athlète(s) avec séance, {} au repos, pour le {}",
-                byAthlete.size(), resting.size(), tomorrow);
-
+        // Une course demain prend le pas sur tout le reste : ni rappel de séance, ni annonce de
+        // repos. Ce n'est pas une journée comme les autres, et deux notifications pour la même
+        // journée se lisent comme une seule — c'est toujours la seconde qu'on perd.
         int failures = 0;
+        List<com.coachrun.entity.RaceObjective> racesTomorrow = raceRepository.findByStatusAndRaceDate(
+                com.coachrun.entity.enums.RaceObjectiveStatus.UPCOMING, tomorrow);
+        java.util.Set<UUID> racing = new java.util.HashSet<>();
+        racesTomorrow.forEach(r -> racing.add(r.getAthlete().getId()));
+        byAthlete.keySet().removeAll(racing);
+
+        List<UUID> resting = restingAthletes(tomorrow, strengthTomorrow, racing);
+        log.info("Point de programme : {} athlète(s) avec séance, {} au repos, {} en course, pour le {}",
+                byAthlete.size(), resting.size(), racesTomorrow.size(), tomorrow);
+
+        for (com.coachrun.entity.RaceObjective race : racesTomorrow) {
+            try {
+                self.getObject().announceRaceEve(race.getId());
+            } catch (RuntimeException ex) {
+                failures++;
+                log.error("Veille de course en échec pour la course {} — les autres continuent",
+                        race.getId(), ex);
+                io.sentry.Sentry.captureException(ex);
+            }
+        }
+
         for (Map.Entry<UUID, Program> entry : byAthlete.entrySet()) {
             try {
                 self.getObject().remindAthlete(entry.getKey(), entry.getValue());
@@ -130,11 +164,16 @@ public class ReminderScheduler {
      * d'une séance au calendrier, jamais sur l'envoi d'un rappel.</p>
      */
     private List<UUID> restingAthletes(LocalDate tomorrow,
-                                       List<ScheduledStrengthSession> strengthTomorrow) {
+                                       List<ScheduledStrengthSession> strengthTomorrow,
+                                       java.util.Set<UUID> racing) {
         LocalDate today = clock.today();
         java.util.Set<UUID> busy = new java.util.HashSet<>(
                 workoutRepository.findAthleteIdsWithWorkoutOn(tomorrow));
         strengthTomorrow.forEach(s -> busy.add(s.getAthlete().getId()));
+        // Une course n'est pas une séance au calendrier : sans cette ligne, l'athlète qui court
+        // demain tombait dans le lot du repos et s'entendait annoncer « rien de prévu » la veille
+        // de sa course. C'est le défaut qui a fait naître tout ce bloc.
+        busy.addAll(racing);
 
         return workoutRepository
                 .findAthleteIdsWithWorkoutsBetween(today.minusDays(LIVE_PROGRAM_DAYS),
@@ -169,6 +208,38 @@ public class ReminderScheduler {
     static final class Program {
         final List<UUID> runIds = new ArrayList<>();
         final List<UUID> strengthIds = new ArrayList<>();
+    }
+
+    /** Fenêtre de préparation résumée la veille d'une course : trois mois de travail. */
+    private static final int PREP_WEEKS = 12;
+
+    /**
+     * Veille de course, dans sa propre transaction comme les autres annonces.
+     *
+     * <p>La préparation est comptée sur les sorties <b>réellement courues</b>, pas sur les séances
+     * prescrites : la veille d'une course, ce qui rassure est ce qu'on a fait, pas ce qu'on
+     * aurait dû faire.</p>
+     */
+    @Transactional
+    public void announceRaceEve(UUID raceId) {
+        raceRepository.findById(raceId).ifPresent(race -> {
+            com.coachrun.entity.Athlete athlete = race.getAthlete();
+            if (athlete.getStatus() != com.coachrun.entity.enums.AthleteStatus.ACTIVE) {
+                return;
+            }
+            notificationService.notifyRaceEve(athlete, race, prepOf(athlete.getId()));
+        });
+    }
+
+    /** Ce que l'athlète a couru sur la fenêtre de préparation, en sorties et en kilomètres. */
+    private NotificationService.RacePrep prepOf(UUID athleteId) {
+        LocalDate today = clock.today();
+        var activities = activityRepository.findByAthleteIdAndActivityDateBetween(
+                athleteId, today.minusWeeks(PREP_WEEKS), today);
+        int metres = activities.stream()
+                .mapToInt(a -> a.getDistanceM() == null ? 0 : a.getDistanceM())
+                .sum();
+        return new NotificationService.RacePrep(PREP_WEEKS, activities.size(), metres / 1000);
     }
 
     /**
