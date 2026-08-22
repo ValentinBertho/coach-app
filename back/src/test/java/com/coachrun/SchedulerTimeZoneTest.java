@@ -53,6 +53,8 @@ class SchedulerTimeZoneTest {
     @Mock private WorkoutRepository workoutRepository;
     @Mock private com.coachrun.repository.AthleteRepository athleteRepository;
     @Mock private ScheduledStrengthSessionRepository strengthRepository;
+    @Mock private com.coachrun.repository.RaceObjectiveRepository raceRepository;
+    @Mock private com.coachrun.repository.ActivityRepository activityRepository;
     @Mock private UserRepository userRepository;
     @Mock private NotificationService notificationService;
 
@@ -89,8 +91,8 @@ class SchedulerTimeZoneTest {
     private ReminderScheduler reminderScheduler(ClockService clock) {
         ReminderScheduler[] holder = new ReminderScheduler[1];
         ReminderScheduler scheduler = new ReminderScheduler(
-                workoutRepository, strengthRepository, athleteRepository, notificationService, clock,
-                selfProvider(() -> holder[0]));
+                workoutRepository, strengthRepository, athleteRepository, raceRepository,
+                activityRepository, notificationService, clock, selfProvider(() -> holder[0]));
         holder[0] = scheduler;
         return scheduler;
     }

@@ -43,7 +43,8 @@ public enum NotificationCategory {
                  "ACTIVITY_IMPORTED", "PERSONAL_RECORD" -> PROGRAMME;
             // Le bilan hebdomadaire est le seul message qui ne demande rien : il raconte. Il se
             // règle donc avec les rappels — le rendez-vous périodique — et non avec le suivi.
-            case "WORKOUT_REMINDER", "SESSION_DEBRIEF", "RACE_REMINDER", "WEEKLY_RECAP" -> RAPPELS;
+            case "WORKOUT_REMINDER", "SESSION_DEBRIEF", "RACE_REMINDER", "RACE_EVE",
+                 "WEEKLY_RECAP" -> RAPPELS;
             // Le « vu » du coach est un mot adressé à l'athlète, pas un signal de suivi : il se
             // règle avec les messages, sans quoi couper les alertes de suivi couperait aussi la
             // seule reconnaissance que l'athlète reçoit de son coach.

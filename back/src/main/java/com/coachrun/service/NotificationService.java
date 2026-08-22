@@ -1157,6 +1157,93 @@ public class NotificationService {
     }
 
     /**
+     * Préparation résumée en trois nombres, pour la veille d'une course.
+     *
+     * @param weeks    semaines observées
+     * @param sessions sorties effectivement courues sur la période
+     * @param km       kilomètres parcourus, arrondis
+     */
+    public record RacePrep(int weeks, int sessions, int km) {
+
+        /** Rien à raconter : compte neuf, ou aucune sortie importée sur la période. */
+        public boolean isEmpty() {
+            return sessions <= 0 || km <= 0;
+        }
+    }
+
+    /**
+     * Veille de course.
+     *
+     * <p><b>Le défaut qu'elle remplace.</b> Le point de programme du soir ne regardait que les
+     * séances : la veille d'une course, un athlète recevait « Repos demain — rien de prévu ».
+     * Littéralement faux le seul soir de l'année où ça compte, et démoralisant à proportion.</p>
+     *
+     * <p><b>Pourquoi ce contenu-là.</b> Un encouragement générique — « bonne course ! » — n'a
+     * aucune valeur : n'importe quelle application sait l'écrire, et l'athlète le sait. Ce que
+     * DARI Lab est seul à pouvoir dire, c'est ce qu'il a <b>déjà fait</b> : le nombre de sorties
+     * et de kilomètres accumulés pendant sa préparation. La veille d'une course, on ne gagne plus
+     * rien à s'entraîner ; le seul message utile est que le travail est derrière soi.</p>
+     *
+     * <p><b>Le ton suit la priorité de la course.</b> Un objectif A n'est pas un dossard du
+     * dimanche, et annoncer « c'est LE jour » pour une course C que l'athlète court en
+     * préparation sonnerait faux — ce qui est le meilleur moyen de faire ignorer les suivantes.</p>
+     *
+     * <p>Corps long au centre de notifications, corps court en push : l'écran verrouillé tronque,
+     * et c'est le nom de la course qui doit survivre à la troncature.</p>
+     */
+    public void notifyRaceEve(Athlete athlete, com.coachrun.entity.RaceObjective race, RacePrep prep) {
+        User athleteUser = athleteUser(athlete);
+        if (athleteUser == null) {
+            return;
+        }
+        String title = switch (race.getPriority()) {
+            case A -> "Demain, c\u2019est le jour \uD83C\uDFC1";
+            case B -> "Demain, tu as un dossard \uD83C\uDFC1";
+            default -> "Demain, tu cours \uD83C\uDFC1";
+        };
+
+        StringBuilder facts = new StringBuilder(race.getName());
+        if (race.getDistanceM() != null && race.getDistanceM() > 0) {
+            facts.append(" \u00b7 ").append(kmLabel(race.getDistanceM()));
+        }
+        if (race.getTargetTimeS() != null && race.getTargetTimeS() > 0) {
+            facts.append(" \u00b7 objectif ").append(clockLabel(race.getTargetTimeS()));
+        }
+
+        // La phrase de préparation est la seule qui appartienne à cet athlète-là. Sans données,
+        // on se tait plutôt que d'inventer un encouragement interchangeable.
+        String earned = prep.isEmpty()
+                ? "Le travail est fait. Dors bien."
+                : prep.weeks() + " semaines, " + prep.sessions() + " sorties, " + prep.km()
+                        + " km. Tout est d\u00e9j\u00e0 dans les jambes.";
+
+        // Le lien porte l'identifiant de la course, et pas seulement l'écran des courses :
+        // l'anti-rafale déduplique sur le couple (type, lien), si bien qu'un lien commun à
+        // toutes les courses ferait masquer la seconde par la première. L'écran ignore ce
+        // paramètre — il ne sert qu'à désigner le sujet.
+        notifyUser(athleteUser, "RACE_EVE", title,
+                facts + ". " + earned,
+                facts.toString(),
+                "/athlete/races?race=" + race.getId());
+    }
+
+    /** « 15 km », « 21,1 km » — sans décimale inutile. */
+    private static String kmLabel(int distanceM) {
+        double km = distanceM / 1000.0;
+        return km == Math.floor(km)
+                ? ((int) km) + " km"
+                : String.format(java.util.Locale.FRANCE, "%.1f km", km);
+    }
+
+    /** « 1 h 05 » ou « 42 min » — le chrono tel qu'un coureur l'annonce. */
+    private static String clockLabel(int seconds) {
+        int minutes = seconds / 60;
+        return minutes >= 60
+                ? String.format(java.util.Locale.FRANCE, "%d h %02d", minutes / 60, minutes % 60)
+                : minutes + " min";
+    }
+
+    /**
      * Point de programme du soir quand <b>rien</b> n'est prévu le lendemain : « Repos demain ».
      *
      * <p>Le rappel du soir ne parlait qu'aux athlètes ayant une séance : ceux qui n'avaient rien
