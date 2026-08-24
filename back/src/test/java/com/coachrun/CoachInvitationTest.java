@@ -113,4 +113,71 @@ class CoachInvitationTest {
         // Le lien d'invitation n'est plus valide.
         mvc.perform(get("/public/coach-invitations/{t}", token)).andExpect(status().isNotFound());
     }
+
+    /**
+     * Renvoyer l'invitation : le cas le plus banal du club — l'e-mail s'est perdu, ou le lien a
+     * expiré au bout de quatorze jours.
+     *
+     * <p>Le club n'avait alors aucune issue : l'adresse existant déjà, « Ajouter / inviter »
+     * répondait « ce coach est déjà membre », et rien ne permettait de renvoyer le message. Il
+     * fallait retirer le coach pour le réinviter.</p>
+     */
+    @Test
+    void theInvitationCanBeSentAgain() throws Exception {
+        String firstToken = tokenOf(invite("perdu@darilab.app", "Coach Perdu"));
+
+        JsonNode again = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/members/{coach}/resend-invite", clubId, coachIdOf("Coach Perdu"))
+                                .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        String secondToken = tokenOf(again);
+        assertThat(secondToken).as("un nouveau lien, donc un nouveau délai").isNotEqualTo(firstToken);
+
+        // Le lien précédent ne doit plus ouvrir de porte : il traîne peut-être dans une boîte.
+        mvc.perform(get("/public/coach-invitations/{t}", firstToken)).andExpect(status().isNotFound());
+        mvc.perform(get("/public/coach-invitations/{t}", secondToken)).andExpect(status().isOk());
+    }
+
+    /** Un coach déjà actif ne se réinvite pas : il se connecte, ou refait son mot de passe. */
+    @Test
+    void resendingToAnAlreadyActiveCoachIsRefused() throws Exception {
+        String token = tokenOf(invite("actif@darilab.app", "Coach Actif"));
+        mvc.perform(post("/public/coach-invitations/{t}/accept", token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"password\":\"password123\",\"termsAccepted\":true}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/clubs/{c}/members/{coach}/resend-invite", clubId, coachIdOf("Coach Actif"))
+                        .header("Authorization", bearer))
+                .andExpect(status().isConflict());
+    }
+
+    // --- Utilitaires --------------------------------------------------------------------------
+
+    private JsonNode invite(String email, String fullName) throws Exception {
+        return objectMapper.readTree(mvc.perform(post("/clubs/{c}/members", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(java.util.Map.of(
+                                "email", email, "role", "COACH_ASSISTANT", "fullName", fullName))))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+    }
+
+    /** Le jeton porté par le lien d'invitation. */
+    private String tokenOf(JsonNode inviteResponse) {
+        String url = inviteResponse.get("inviteUrl").asText();
+        return url.substring(url.lastIndexOf('/') + 1);
+    }
+
+    private String coachIdOf(String fullName) throws Exception {
+        JsonNode members = objectMapper.readTree(mvc.perform(get("/clubs/{c}/members", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        for (JsonNode m : members) {
+            if (fullName.equals(m.get("name").asText())) {
+                return m.get("coachId").asText();
+            }
+        }
+        throw new AssertionError("Coach absent du club : " + fullName);
+    }
 }

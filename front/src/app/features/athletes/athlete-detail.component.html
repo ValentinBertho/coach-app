@@ -58,7 +58,7 @@
     <button type="button" class="admin-toggle" (click)="showAdmin.set(!showAdmin())">
       <app-icon [name]="showAdmin() ? 'chevron-down' : 'chevron-right'" [size]="16" />
       <span>Rattachements &amp; réglages</span>
-      <span class="admin-hint field-hint">Coachs · Clubs · Strava</span>
+      <span class="admin-hint field-hint">Coachs · Clubs · Accès · Strava</span>
     </button>
     @if (showAdmin()) {
       <div class="admin-grid">
@@ -96,6 +96,14 @@
             }
           </div>
         }
+      </div>
+
+      <!-- Accès & permissions : la question se pose devant la fiche, elle se règle devant la
+           fiche. Même composant que l'écran Club — deux copies auraient divergé au premier
+           correctif. -->
+      <div class="admin-item admin-access">
+        <h3>Accès &amp; permissions</h3>
+        <app-athlete-access-panel [athleteId]="a.id" />
       </div>
     }
   </section>

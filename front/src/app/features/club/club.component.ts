@@ -3,13 +3,8 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { AthleteService } from '../../core/services/athlete.service';
 import { AuthService } from '../../core/services/auth.service';
-import {
-  AthleteAccess,
-  ClubMember,
-  ClubRole,
-  ClubService,
-  PermissionLevel,
-} from '../../core/services/club.service';
+import { ClubMember, ClubRole, ClubService } from '../../core/services/club.service';
+import { AthleteAccessPanelComponent } from '../../shared/components/athlete-access/athlete-access-panel.component';
 import { ToastService } from '../../core/services/toast.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
@@ -23,7 +18,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
   selector: 'app-club',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, IconComponent, FormsModule],
+  imports: [SkeletonComponent, IconComponent, FormsModule, AthleteAccessPanelComponent],
   templateUrl: './club.component.html',
   styleUrl: './club.component.scss',
 })
@@ -44,10 +39,6 @@ export class ClubComponent implements OnInit {
   readonly loadingMembers = signal(true);
   readonly athleteList = signal<AthleteSummary[]>([]);
   readonly selectedAthlete = signal('');
-  readonly access = signal<AthleteAccess | null>(null);
-
-  readonly levels: PermissionLevel[] = ['READ', 'COMMENT', 'WRITE'];
-  readonly levelLabels: Record<PermissionLevel, string> = { READ: 'Lecture', COMMENT: 'Commentaire', WRITE: 'Écriture' };
   readonly roleLabels: Record<string, string> = {
     OWNER: 'Owner', COACH_PRINCIPAL: 'Coach principal', COACH_ASSISTANT: 'Coach assistant',
   };
@@ -59,6 +50,8 @@ export class ClubComponent implements OnInit {
   readonly addableRoles: ClubRole[] = ['COACH_PRINCIPAL', 'COACH_ASSISTANT'];
   readonly addingCoach = signal(false);
   readonly lastInviteUrl = signal<string | null>(null);
+  /** Coach dont l'invitation est en cours de renvoi (un seul à la fois). */
+  readonly resending = signal<string | null>(null);
 
   ngOnInit(): void {
     this.clubService.members().subscribe({
@@ -96,6 +89,28 @@ export class ClubComponent implements OnInit {
     });
   }
 
+  /**
+   * Renvoie l'invitation d'un coach resté « en attente ». L'e-mail se perd, le lien expire au bout
+   * de quatorze jours, et il n'existait aucun moyen de le renvoyer : l'adresse étant déjà connue,
+   * « Ajouter / inviter » répondait « déjà membre du club ».
+   */
+  resendInvite(m: ClubMember): void {
+    if (this.resending()) return;
+    this.resending.set(m.coachId);
+    this.lastInviteUrl.set(null);
+    this.clubService.resendInvite(m.coachId).subscribe({
+      next: (r) => {
+        this.resending.set(null);
+        this.lastInviteUrl.set(r.inviteUrl);
+        this.toast.success(`Invitation renvoyée à ${r.name}`);
+      },
+      error: (e) => {
+        this.resending.set(null);
+        this.toast.warning(e?.error?.message ?? 'Renvoi impossible.');
+      },
+    });
+  }
+
   removeMember(m: ClubMember): void {
     if (m.clubRole === 'OWNER') return;
     this.clubService.removeCoach(m.coachId).subscribe({
@@ -109,41 +124,5 @@ export class ClubComponent implements OnInit {
 
   onAthleteChange(id: string): void {
     this.selectedAthlete.set(id);
-    this.access.set(null);
-    if (id) this.clubService.access(id).subscribe((a) => this.access.set(a));
-  }
-
-  toggleOwnership(): void {
-    const id = this.selectedAthlete();
-    const a = this.access();
-    if (!id || !a) return;
-    const next = a.ownership === 'CLUB' ? 'PRIVATE' : 'CLUB';
-    this.clubService.setOwnership(id, next).subscribe({
-      next: (res) => { this.access.set(res); this.toast.success(`Athlète ${next === 'CLUB' ? 'rattaché au club' : 'passé en privé'}`); },
-      error: () => this.toast.warning('Impossible : des permissions actives existent.'),
-    });
-  }
-
-  grant(coachId: string, level: PermissionLevel): void {
-    const id = this.selectedAthlete();
-    if (!id) return;
-    this.clubService.grant(id, coachId, level).subscribe({
-      next: (res) => { this.access.set(res); this.toast.success('Permission accordée'); },
-      error: () => this.toast.warning('Athlète privé : permission impossible.'),
-    });
-  }
-
-  revoke(coachId: string): void {
-    const id = this.selectedAthlete();
-    if (!id) return;
-    this.clubService.revoke(id, coachId).subscribe((res) => { this.access.set(res); this.toast.info('Permission retirée.'); });
-  }
-
-  permFor(coachId: string): PermissionLevel | null {
-    return this.access()?.permissions.find((p) => p.coachId === coachId)?.permission ?? null;
-  }
-
-  isReferent(coachId: string): boolean {
-    return this.access()?.referentCoachId === coachId;
   }
 }

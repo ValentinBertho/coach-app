@@ -70,6 +70,19 @@ public class ClubController {
     }
 
     /**
+     * Renvoie l'invitation d'un coach qui ne l'a pas encore acceptée (nouveau lien, nouveau délai).
+     *
+     * <p>Mêmes gardes que l'invitation initiale : c'est le même e-mail vers le même tiers.</p>
+     */
+    @PostMapping("/members/{coachId}/resend-invite")
+    @PreAuthorize("@clubRoleValidator.isOwner(authentication, #clubId)"
+            + " and @emailVerificationValidator.isVerified(authentication)")
+    public com.coachrun.dto.response.CoachInviteResponse resendInvite(
+            @PathVariable UUID clubId, @PathVariable UUID coachId) {
+        return clubService.resendInvite(clubId, coachId);
+    }
+
+    /**
      * Retire un coach du club (le propriétaire ne peut pas être retiré).
      *
      * <p>Réservé au propriétaire : le seul contrôle était l'appartenance au club, donc un
