@@ -90,6 +90,11 @@ public class NotificationService {
     private final AlertDigestLogRepository digestLogRepository;
     private final ClockService clock;
     private final MailLogService mailLog;
+    /**
+     * Composition des fils de discussion. La messagerie décidait ici de qui prévenir en devinant
+     * d'après le rôle de l'expéditeur ; c'est au fil de le dire.
+     */
+    private final ConversationService conversations;
 
     @Value("${app.mail.enabled:false}")
     private boolean enabled;
@@ -434,31 +439,44 @@ public class NotificationService {
      * que respectent déjà tous les autres déclencheurs.</p>
      */
     public void notifyNewMessage(Message message) {
-        Athlete athlete = message.getAthlete();
-        if (athlete == null) {
+        com.coachrun.entity.Conversation conversation = message.getConversation();
+        if (conversation == null) {
             return;
         }
-        boolean fromAthlete = message.getSenderRole() == UserRole.ATHLETE;
-        String link = fromAthlete
-                ? "/app/athletes/" + athlete.getId() + "/messages"
-                : "/athlete/messages";
-        User target = fromAthlete
-                ? referentCoach(athlete.getId(),
-                        athlete.getClub() == null ? null : athlete.getClub().getId()).orElse(null)
-                : athleteUser(athlete);
+        // Le destinataire n'est plus déduit du rôle de l'expéditeur — ce qui, à plusieurs coachs,
+        // faisait aboutir chaque question au seul référent — mais de la composition du fil.
+        for (User target : conversations.participantsToNotify(conversation, message.getSenderUserId())) {
+            String link = linkToConversation(target, conversation);
+            if (recentlyNotified(target.getId(), "NEW_MESSAGE", link, MESSAGE_BURST_WINDOW)) {
+                continue;
+            }
+            // « Répondre » ouvre le fil avec le champ de saisie déjà actif : répondre depuis un
+            // écran verrouillé demandait sinon trois écrans pour une phrase.
+            notifyUser(target, "NEW_MESSAGE", titleFor(conversation), message.getSenderName(),
+                    message.getSenderName(), link, true,
+                    List.of(action("repondre", "Répondre", link + "&reply=1")));
+            mailFallbackForMessage(target, message.getSenderName(), link,
+                    target.getRole() != UserRole.ATHLETE);
+        }
+    }
 
-        // Un coach qui gère son propre dossier d'athlète ne s'écrit pas à lui-même.
-        if (target == null || target.getId().equals(message.getSenderUserId())
-                || recentlyNotified(target.getId(), "NEW_MESSAGE", link, MESSAGE_BURST_WINDOW)) {
-            return;
-        }
-        // « Répondre » ouvre le fil avec le champ de saisie déjà actif : répondre à un message
-        // depuis un écran verrouillé demandait sinon d'ouvrir l'app, de retrouver l'athlète, puis
-        // son onglet Messages — trois écrans pour une phrase.
-        notifyUser(target, "NEW_MESSAGE", "Nouveau message", message.getSenderName(),
-                message.getSenderName(), link, true,
-                List.of(action("repondre", "Répondre", link + "?reply=1")));
-        mailFallbackForMessage(target, message.getSenderName(), link, fromAthlete);
+    /**
+     * Le lien mène au FIL, jamais à un écran générique : c'est le paramètre {@code c} qui
+     * l'ouvre. Il dépend du rôle de la personne prévenue, pas de celui de l'expéditeur.
+     */
+    private String linkToConversation(User target, com.coachrun.entity.Conversation conversation) {
+        String base = target.getRole() == UserRole.ATHLETE ? "/athlete/messages" : "/app/messages";
+        return base + "?c=" + conversation.getId();
+    }
+
+    /** Un message de groupe se distingue d'un message privé dès le titre de la notification. */
+    private String titleFor(com.coachrun.entity.Conversation conversation) {
+        return switch (conversation.getKind()) {
+            case GROUP -> conversation.getGroup() == null
+                    ? "Message de groupe" : "Groupe " + conversation.getGroup().getName();
+            case CLUB -> "Annonce du club";
+            default -> "Nouveau message";
+        };
     }
 
     /**

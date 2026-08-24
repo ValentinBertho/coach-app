@@ -5,8 +5,19 @@
 <div class="card" style="margin-bottom: var(--sp-5)">
   <div class="form-row">
     <div class="form-group"><label>Nouveau groupe</label><input class="form-control" [(ngModel)]="newName" placeholder="Marathon, Débutants…" (keyup.enter)="create()" /></div>
+    <div class="form-group">
+      <label>Visibilité</label>
+      <select class="form-control" [(ngModel)]="newVisibility">
+        <option value="CLUB">Club — tous les coachs</option>
+        <option value="PRIVATE">Privé — moi et mes invités</option>
+      </select>
+    </div>
     <div class="form-group" style="justify-content:flex-end"><button type="button" class="btn btn-primary" (click)="create()">+ Créer</button></div>
   </div>
+  <p class="field-hint">
+    Un groupe privé n'est visible que de son créateur et des coachs qu'il y convie. La visibilité
+    des <strong>athlètes</strong>, elle, ne change pas : elle reste réglée fiche par fiche.
+  </p>
 </div>
 
 @if (loading()) {
@@ -19,15 +30,48 @@
 } @else {
   <div class="card table-wrap">
     <table class="data-table">
-      <thead><tr><th>Nom</th><th>Athlètes</th><th></th></tr></thead>
+      <thead><tr><th>Nom</th><th>Athlètes</th><th>Visibilité</th><th></th></tr></thead>
       <tbody>
         @for (g of groups(); track g.id) {
           <tr>
-            <td><input class="form-control" [(ngModel)]="g.name" (blur)="rename(g)" /></td>
+            <td><input class="form-control" [(ngModel)]="g.name" (blur)="save(g)" [disabled]="!g.canManage" /></td>
             <td><span class="metric">{{ g.athleteCount }}</span></td>
+            <td>
+              @if (g.canManage) {
+                <button type="button" class="btn btn-ghost btn-sm" (click)="toggleVisibility(g)"
+                        [title]="g.visibility === 'PRIVATE' ? 'Rendre visible de tout le club' : 'Réserver ce groupe'">
+                  @if (g.visibility === 'PRIVATE') { 🔒 Privé } @else { Club }
+                </button>
+                @if (g.visibility === 'PRIVATE') {
+                  <button type="button" class="btn btn-ghost btn-sm"
+                          (click)="sharingId.set(sharingId() === g.id ? null : g.id)">
+                    Inviter ({{ g.invitedCoachIds.length }})
+                  </button>
+                }
+              } @else {
+                <span class="badge badge-neutral">{{ g.visibility === 'PRIVATE' ? 'Privé' : 'Club' }}</span>
+              }
+              @if (sharingId() === g.id) {
+                <ul class="invite-list">
+                  @for (m of invitable(g); track m.coachId) {
+                    <li>
+                      <label>
+                        <input type="checkbox" [checked]="g.invitedCoachIds.includes(m.coachId)"
+                               (change)="toggleInvited(g, m.coachId)" />
+                        {{ m.name }}
+                      </label>
+                    </li>
+                  } @empty {
+                    <li class="field-hint">Aucun autre coach dans le club.</li>
+                  }
+                </ul>
+              }
+            </td>
             <td class="table-actions">
               <a class="btn btn-ghost btn-sm" [routerLink]="['/app/groups', g.id, 'analytics']">Analytics</a>
-              <button type="button" class="btn btn-danger btn-sm" (click)="remove(g)">Suppr.</button>
+              @if (g.canManage) {
+                <button type="button" class="btn btn-danger btn-sm" (click)="remove(g)">Suppr.</button>
+              }
             </td>
           </tr>
         }
@@ -35,3 +79,8 @@
     </table>
   </div>
 }
+
+<style>
+  .invite-list { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .invite-list label { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); cursor: pointer; }
+</style>

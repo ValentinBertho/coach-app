@@ -230,7 +230,9 @@ class NotificationCenterTest {
         JsonNode latest = latestNotification();
         assertThat(latest.get("type").asText()).isEqualTo("NEW_MESSAGE");
         assertThat(latest.get("body").asText()).doesNotContain("genou");
-        assertThat(latest.get("link").asText()).isEqualTo("/athlete/messages");
+        // Le lien mène au FIL et non à l'écran : un athlète en a désormais plusieurs — un par
+        // coach, plus son groupe et le club — et « Messages » ne dirait pas lequel s'est animé.
+        assertThat(latest.get("link").asText()).startsWith("/athlete/messages?c=");
 
         // Anti-rafale : le deuxième message de la salve ne resonne pas.
         mvc.perform(post("/clubs/{c}/athletes/{a}/messages", clubId, athleteId)

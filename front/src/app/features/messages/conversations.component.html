@@ -1,0 +1,128 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">Messages</h1>
+    <p class="subtitle">Tes conversations : athlètes, coachs, groupes et annonces du club.</p>
+  </div>
+  <button type="button" class="btn btn-primary" (click)="openPicker()">
+    <app-icon name="pencil" [size]="15" /> Nouveau message
+  </button>
+</section>
+
+<div class="msg-layout">
+  <!-- Liste des fils -->
+  <aside class="card msg-list" [class.msg-list--collapsed]="openId() && messages().length">
+    @if (loading()) {
+      <app-skeleton shape="card" [rows]="3" />
+    } @else if (list().length === 0) {
+      <p class="field-hint empty">Aucune conversation pour l'instant.</p>
+    } @else {
+      <ul>
+        @for (c of list(); track c.id) {
+          <li>
+            <button type="button" class="row" [class.row--active]="c.id === openId()"
+                    [class.row--unread]="c.unreadCount > 0" (click)="select(c.id)">
+              <span class="row__icon"><app-icon [name]="kindIcons[c.kind]" [size]="16" /></span>
+              <span class="row__body">
+                <span class="row__top">
+                  <strong>{{ c.title }}</strong>
+                  @if (c.lastMessageAt) {
+                    <span class="field-hint metric">{{ c.lastMessageAt | date: 'd MMM, HH:mm' }}</span>
+                  }
+                </span>
+                <span class="row__preview">
+                  @if (c.lastSenderName) { <span class="row__who">{{ c.lastSenderName }} :</span> }
+                  {{ excerpt(c.lastMessage) }}
+                </span>
+              </span>
+              @if (c.unreadCount > 0) {
+                <span class="row__badge">{{ c.unreadCount > 9 ? '9+' : c.unreadCount }}</span>
+              }
+            </button>
+          </li>
+        }
+      </ul>
+    }
+  </aside>
+
+  <!-- Fil ouvert -->
+  <section class="card msg-thread">
+    @if (current(); as c) {
+      <header class="thread-head">
+        <button type="button" class="icon-btn back" (click)="openId.set(null)" aria-label="Retour">
+          <app-icon name="arrow-left" [size]="18" />
+        </button>
+        <div>
+          <strong>{{ c.title }}</strong>
+          @if (c.subtitle) { <span class="field-hint"> · {{ c.subtitle }}</span> }
+        </div>
+      </header>
+
+      <div class="thread" #thread>
+        @if (loadingThread()) {
+          <app-skeleton shape="card" [rows]="3" />
+        } @else if (messages().length === 0) {
+          <p class="field-hint empty">
+            @if (c.kind === 'CLUB') {
+              Les annonces du club apparaîtront ici.
+            } @else {
+              Rien encore. Écris le premier message.
+            }
+          </p>
+        }
+        @for (m of messages(); track m.id) {
+          <div class="bubble-row" [class.bubble-row--mine]="mine(m)">
+            <div class="bubble" [class.bubble--mine]="mine(m)">
+              @if (showsAuthor() && !mine(m)) { <span class="bubble__who">{{ m.senderName }}</span> }
+              <span class="bubble__body">{{ m.body }}</span>
+              <span class="bubble__at">{{ m.createdAt | date: 'HH:mm' }}</span>
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (canPost()) {
+        <form class="composer" (ngSubmit)="send()">
+          <input class="form-control" name="draft" [(ngModel)]="draft" autocomplete="off"
+                 [placeholder]="c.kind === 'CLUB' ? 'Annonce au club…' : 'Ton message…'" />
+          <button type="submit" class="btn btn-primary" [disabled]="!draft.trim() || sending()">
+            Envoyer
+          </button>
+        </form>
+      } @else {
+        <p class="field-hint read-only">
+          <app-icon name="lock" [size]="14" />
+          Les annonces du club sont écrites par les coachs. Pour réagir, écris à ton coach.
+        </p>
+      }
+    } @else if (!loading()) {
+      <p class="field-hint empty">Choisis une conversation, ou commence-en une.</p>
+    }
+  </section>
+</div>
+
+<!-- Sélecteur de destinataire -->
+@if (pickerOpen()) {
+  <div class="picker-backdrop" (click)="pickerOpen.set(false)">
+    <div class="picker card" role="dialog" aria-label="Nouveau message" (click)="$event.stopPropagation()">
+      <h2>Nouveau message</h2>
+      <input class="form-control" placeholder="Rechercher un coach ou un athlète…"
+             [ngModel]="search" (ngModelChange)="onSearch($event)" name="search" autocomplete="off" />
+      <ul class="picker__list">
+        @for (r of filteredRecipients(); track r.kind + r.id) {
+          <li>
+            <button type="button" class="picker__row" (click)="startWith(r)">
+              <app-icon [name]="r.kind === 'COACH' ? 'users' : 'user'" [size]="16" />
+              <span>
+                <strong>{{ r.name }}</strong>
+                @if (r.subtitle) { <span class="field-hint"> · {{ r.subtitle }}</span> }
+              </span>
+            </button>
+          </li>
+        } @empty {
+          <li class="field-hint empty">Personne à qui écrire pour l'instant.</li>
+        }
+      </ul>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="pickerOpen.set(false)">Fermer</button>
+    </div>
+  </div>
+}

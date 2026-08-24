@@ -209,13 +209,15 @@
         <a routerLink="/app/messages" class="cd-sec__more">Tout voir</a>
       </header>
       <ul class="cd-list cd-list--flat">
-        @for (c of topUnread(); track c.athleteId) {
+        @for (c of topUnread(); track c.id) {
           <li>
-            <a class="cd-msg" [routerLink]="['/app/athletes', c.athleteId, 'messages']">
-              <span class="avatar avatar-sm">{{ c.firstName[0] }}{{ c.lastName[0] }}</span>
+            <!-- Le lien porte le FIL : un athlète peut en avoir plusieurs, et le message non lu
+                 n'est pas forcément celui du binôme de ce coach. -->
+            <a class="cd-msg" [routerLink]="['/app/messages']" [queryParams]="{ c: c.id }">
+              <span class="avatar avatar-sm">{{ initials(c.title) }}</span>
               <span class="cd-msg__body">
                 <span class="cd-msg__top">
-                  <strong>{{ c.firstName }} {{ c.lastName }}</strong>
+                  <strong>{{ c.title }}</strong>
                   <span class="field-hint metric">{{ c.lastMessageAt | date: 'd MMM, HH:mm' }}</span>
                 </span>
                 <span class="cd-msg__preview">{{ excerpt(c.lastMessage, 80) }}</span>

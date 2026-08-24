@@ -177,3 +177,7 @@ databaseChangeLog:
       file: db/changelog/changes/086-session-target-rpe.yaml
   - include:
       file: db/changelog/changes/087-coach-comment-read.yaml
+  - include:
+      file: db/changelog/changes/088-conversations.yaml
+  - include:
+      file: db/changelog/changes/089-group-visibility.yaml

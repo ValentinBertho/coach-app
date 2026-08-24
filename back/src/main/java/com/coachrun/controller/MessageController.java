@@ -22,7 +22,14 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
-/** Messagerie côté coach (fil d'un athlète). Scoping tenant. */
+/**
+ * Messagerie côté coach, depuis la fiche d'un athlète.
+ *
+ * <p>Ces routes existent depuis l'origine et restent le chemin le plus court — « ouvrir le fil de
+ * cet athlète-là ». Elles désignent désormais le fil du <b>binôme</b> : le coach qui appelle et
+ * l'athlète, et personne d'autre. La messagerie complète (fils entre coachs, groupe, club) vit
+ * sous {@code /me/conversations}.</p>
+ */
 @RestController
 @RequestMapping("/clubs/{clubId}/athletes/{athleteId}/messages")
 @RequiredArgsConstructor
@@ -31,25 +38,30 @@ public class MessageController {
 
     private final MessageService messageService;
     private final MessageStreamService streamService;
+    private final com.coachrun.service.ConversationService conversationService;
 
     @GetMapping
     public List<MessageResponse> thread(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                        @AuthenticationPrincipal AuthPrincipal principal,
                                         @org.springframework.web.bind.annotation.RequestParam(
                                                 defaultValue = "100") int limit) {
-        return messageService.coachThread(clubId, athleteId, limit);
+        return messageService.coachThread(clubId, athleteId, principal, limit);
     }
 
     /** Accusé de lecture : le coach a ouvert le fil, ses non-lus repassent à zéro. */
     @PostMapping("/read")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void markRead(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
-        messageService.markThreadRead(clubId, athleteId);
+    public void markRead(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                         @AuthenticationPrincipal AuthPrincipal principal) {
+        messageService.markThreadRead(athleteId, principal);
     }
 
-    /** Flux temps réel (SSE) des nouveaux messages du fil de l'athlète. */
+    /** Flux temps réel (SSE) des nouveaux messages du fil de ce binôme. */
     @GetMapping("/stream")
-    public SseEmitter stream(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
-        return streamService.subscribe(athleteId);
+    public SseEmitter stream(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                             @AuthenticationPrincipal AuthPrincipal principal) {
+        return streamService.subscribe(
+                conversationService.athleteCoach(athleteId, principal.userId()).getId());
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canComment(authentication, #athleteId)")

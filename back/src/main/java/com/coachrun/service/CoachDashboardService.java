@@ -255,7 +255,8 @@ public class CoachDashboardService {
     }
 
     /**
-     * Athlètes d'un périmètre : all = tout le club ; mine/private/club = via les relations du coach.
+     * Athlètes d'un périmètre : all = tout le club (ce que je peux voir) ; club = les athlètes du
+     * club sur lesquels j'ai l'écriture ; private = mes athlètes privés ; mine = les deux.
      *
      * <p><b>« Tout le club » n'est pas « tous les athlètes du club ».</b> Ce chemin renvoyait la
      * table entière sans passer par
@@ -291,18 +292,54 @@ public class CoachDashboardService {
                     .filter(a -> accessValidator.effectiveLevel(coachId, a.getId()).isPresent())
                     .toList();
         }
-        return relationRepository.findByCoachIdAndActiveTrue(coachId).stream()
-                .filter(rel -> switch (scope.toLowerCase()) {
-                    case "private" -> rel.getClub() == null;
-                    case "club" -> rel.getClub() != null;
-                    default -> true;            // "mine" = privés + club
-                })
-                .map(CoachAthleteRelation::getAthlete)
-                .filter(a -> a.getClub() != null && clubId.equals(a.getClub().getId()))
-                .distinct()
+        // Les athlètes privés du coach : lui seul les voit, et il en est le référent par
+        // construction. Ils ne peuvent venir que de ses relations.
+        java.util.LinkedHashMap<UUID, Athlete> mine = new java.util.LinkedHashMap<>();
+        if (!"club".equalsIgnoreCase(scope)) {
+            relationRepository.findByCoachIdAndActiveTrue(coachId).stream()
+                    .filter(rel -> rel.getClub() == null)
+                    .map(CoachAthleteRelation::getAthlete)
+                    .filter(a -> a.getClub() != null && clubId.equals(a.getClub().getId()))
+                    .forEach(a -> mine.put(a.getId(), a));
+        }
+
+        // Ses athlètes CLUB : ceux sur lesquels il peut agir, et non les seuls qu'il a créés.
+        //
+        // Le périmètre ne regardait que les relations coach↔athlète. Un coach principal qui
+        // n'avait créé personne — le cas d'un club dont le propriétaire a saisi les athlètes —
+        // ouvrait donc « Mes athlètes » sur une liste vide, alors qu'il a l'écriture sur tout le
+        // club. Écrire à quelqu'un, ce n'est pas la même chose que le suivre : c'est l'écriture
+        // qui définit « les miens », pas la propriété de la fiche.
+        if (!"private".equalsIgnoreCase(scope)) {
+            for (Athlete a : athleteRepository.findByClubIdOrderByLastNameAsc(clubId)) {
+                if (canWrite(coachId, a.getId()) && !isPrivateAthlete(a.getId())) {
+                    mine.put(a.getId(), a);
+                }
+            }
+        }
+
+        return mine.values().stream()
                 .sorted(java.util.Comparator.comparing(Athlete::getLastName,
                         java.util.Comparator.nullsLast(String::compareTo)))
                 .toList();
+    }
+
+    /** Le coach peut-il prescrire à cet athlète ? (même règle que les {@code @PreAuthorize}) */
+    private boolean canWrite(UUID coachId, UUID athleteId) {
+        return accessValidator.effectiveLevel(coachId, athleteId)
+                .map(l -> l.atLeast(com.coachrun.entity.enums.PermissionLevel.WRITE))
+                .orElse(false);
+    }
+
+    /**
+     * L'athlète est-il <b>privé</b> ? Sa relation référente porte le rattachement : sans club,
+     * il n'appartient qu'à son référent. Séparer les deux listes est ce qui permet à « Privés »
+     * et « Club » de rester deux périmètres distincts.
+     */
+    private boolean isPrivateAthlete(UUID athleteId) {
+        return relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athleteId)
+                .map(CoachAthleteRelation::isPrivate)
+                .orElse(false);
     }
 
     /**

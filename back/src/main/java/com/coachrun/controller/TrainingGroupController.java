@@ -38,8 +38,9 @@ public class TrainingGroupController {
     private final com.coachrun.service.GroupAnalyticsService groupAnalyticsService;
 
     @GetMapping
-    public List<TrainingGroupResponse> list(@PathVariable UUID clubId) {
-        return groupService.list(clubId);
+    public List<TrainingGroupResponse> list(@PathVariable UUID clubId,
+                                            @AuthenticationPrincipal AuthPrincipal principal) {
+        return groupService.list(clubId, principal.userId());
     }
 
     /**
@@ -63,7 +64,10 @@ public class TrainingGroupController {
     @GetMapping("/{id}/analytics")
     public com.coachrun.dto.response.GroupAnalyticsResponse analytics(
             @PathVariable UUID clubId, @PathVariable UUID id,
-            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "8") int weeks) {
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "8") int weeks,
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        // Un groupe privé n'existe pas pour les autres coachs, ici comme dans la liste.
+        groupService.requireVisible(clubId, id, principal.userId());
         return groupAnalyticsService.compute(clubId, id, weeks);
     }
 
@@ -87,24 +91,29 @@ public class TrainingGroupController {
     public GroupApplyResponse generateMesocycle(@PathVariable UUID clubId, @PathVariable UUID id,
                                                 @Valid @RequestBody GenerateMesocycleRequest request,
                                                 @AuthenticationPrincipal AuthPrincipal principal) {
+        groupService.requireVisible(clubId, id, principal.userId());
         return workoutService.generateMesocycleForGroup(clubId, id, request, principal.userId());
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public TrainingGroupResponse create(@PathVariable UUID clubId, @Valid @RequestBody TrainingGroupRequest request) {
-        return groupService.create(clubId, request);
+    public TrainingGroupResponse create(@PathVariable UUID clubId,
+                                        @Valid @RequestBody TrainingGroupRequest request,
+                                        @AuthenticationPrincipal AuthPrincipal principal) {
+        return groupService.create(clubId, principal.userId(), request);
     }
 
     @PutMapping("/{id}")
     public TrainingGroupResponse update(@PathVariable UUID clubId, @PathVariable UUID id,
-                                        @Valid @RequestBody TrainingGroupRequest request) {
-        return groupService.update(clubId, id, request);
+                                        @Valid @RequestBody TrainingGroupRequest request,
+                                        @AuthenticationPrincipal AuthPrincipal principal) {
+        return groupService.update(clubId, id, principal.userId(), request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable UUID clubId, @PathVariable UUID id) {
-        groupService.delete(clubId, id);
+    public void delete(@PathVariable UUID clubId, @PathVariable UUID id,
+                       @AuthenticationPrincipal AuthPrincipal principal) {
+        groupService.delete(clubId, id, principal.userId());
     }
 }

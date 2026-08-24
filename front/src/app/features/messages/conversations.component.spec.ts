@@ -1,0 +1,93 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { importProvidersFrom } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { LucideAngularModule } from 'lucide-angular';
+import { ICONS } from '../../app.config';
+import { ConversationSummary } from '../../core/services/conversation.service';
+import { ConversationsComponent } from './conversations.component';
+
+/**
+ * La messagerie vue de l'écran.
+ *
+ * <p>Deux invariants s'y jouent. Le fil du club est un canal d'annonces : un athlète le lit et n'y
+ * écrit pas — le serveur le refuse, mais offrir un champ de saisie qui échoue serait une promesse
+ * fausse. Et « Nouveau message » ne propose que des destinataires que le serveur accepte : la
+ * liste est calculée là-bas, jamais déduite d'une liste d'athlètes côté client.</p>
+ */
+describe('messagerie', () => {
+  let fixture: ComponentFixture<ConversationsComponent>;
+  let host: HTMLElement;
+  let http: HttpTestingController;
+
+  const clubThread: ConversationSummary = {
+    id: 'c-club', kind: 'CLUB', title: 'AC Test', subtitle: 'Annonces du club',
+    athleteId: null, groupId: null, lastMessage: 'Sortie dimanche', lastSenderName: 'Coach',
+    lastMessageAt: '2026-08-24T09:00:00Z', unreadCount: 0, canPost: false,
+  };
+  const coachThread: ConversationSummary = {
+    ...clubThread, id: 'c-coach', kind: 'ATHLETE_COACH', title: 'Marie Coach',
+    subtitle: 'Coach', lastMessage: 'Bien joué', unreadCount: 2, canPost: true,
+  };
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      imports: [ConversationsComponent],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        importProvidersFrom(LucideAngularModule.pick(ICONS)),
+      ],
+    });
+    http = TestBed.inject(HttpTestingController);
+    fixture = TestBed.createComponent(ConversationsComponent);
+    fixture.detectChanges();
+  });
+
+  /** Sert la boîte de réception, puis le fil que le composant ouvre tout seul. */
+  function serveInbox(list: ConversationSummary[], openedId: string): void {
+    http.expectOne((r) => r.url.endsWith('/me/conversations') && r.method === 'GET').flush(list);
+    http.expectOne((r) => r.url.endsWith(`/${openedId}/messages`)).flush([]);
+    http.expectOne((r) => r.url.endsWith(`/${openedId}/read`)).flush(null);
+    http.match((r) => r.url.endsWith('/unread-count')).forEach((r) => r.flush({ count: 0 }));
+    fixture.detectChanges();
+    host = fixture.nativeElement as HTMLElement;
+  }
+
+  it("n'offre pas de champ de saisie sur un fil en lecture seule", () => {
+    serveInbox([clubThread], 'c-club');
+
+    expect(host.querySelector('.composer'))
+      .withContext('un champ qui échouerait à l’envoi est une promesse fausse')
+      .toBeNull();
+    expect(host.textContent).toContain('écrites par les coachs');
+  });
+
+  it('ouvre le fil non lu en priorité et le marque lu', () => {
+    // Deux fils, dont un avec des non-lus : c'est celui-là qu'on veut voir en arrivant.
+    http.expectOne((r) => r.url.endsWith('/me/conversations') && r.method === 'GET')
+      .flush([clubThread, coachThread]);
+    http.expectOne((r) => r.url.endsWith('/c-coach/messages')).flush([]);
+    http.expectOne((r) => r.url.endsWith('/c-coach/read')).flush(null);
+    http.match((r) => r.url.endsWith('/unread-count')).forEach((r) => r.flush({ count: 0 }));
+    fixture.detectChanges();
+    host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('.row--active')?.textContent).toContain('Marie Coach');
+    expect(host.querySelector('.row__badge')).withContext('la pastille retombe à l’ouverture').toBeNull();
+  });
+
+  it('propose les destinataires que le serveur autorise', () => {
+    serveInbox([coachThread], 'c-coach');
+
+    fixture.componentInstance.openPicker();
+    http.expectOne((r) => r.url.endsWith('/recipients')).flush([
+      { kind: 'COACH', id: 'u-1', name: 'Marie Coach', subtitle: 'Coach principal' },
+    ]);
+    fixture.detectChanges();
+
+    expect(host.querySelector('.picker')?.textContent).toContain('Marie Coach');
+  });
+});

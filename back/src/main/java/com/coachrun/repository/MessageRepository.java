@@ -45,6 +45,27 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
             """)
     List<Object[]> countUnreadByAthlete(@Param("clubId") UUID clubId, @Param("senderRole") UserRole senderRole);
 
+    // --- Fils de conversation -------------------------------------------------------------
+
+    /** Fil borné, les plus récents d'abord. */
+    List<Message> findByConversationIdOrderByCreatedAtDesc(
+            UUID conversationId, org.springframework.data.domain.Pageable pageable);
+
+    Optional<Message> findFirstByConversationIdOrderByCreatedAtDesc(UUID conversationId);
+
+    /** Non-lus d'un fil pour une personne : ce qui est arrivé après son dernier passage. */
+    @Query("""
+            select count(m) from Message m
+            where m.conversation.id = :conversationId
+              and m.senderUserId <> :userId
+              and (:since is null or m.createdAt > :since)
+            """)
+    long countUnread(@Param("conversationId") UUID conversationId,
+                     @Param("userId") UUID userId, @Param("since") Instant since);
+
+    /** Messages sans fil : le backfill des échanges antérieurs au modèle de conversations. */
+    List<Message> findByConversationIsNull();
+
     /** Marque le fil comme lu (accusé de lecture à l'ouverture de la conversation). */
     @Modifying
     @Query("""

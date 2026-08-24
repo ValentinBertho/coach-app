@@ -1,12 +1,10 @@
 package com.coachrun.service;
 
 import com.coachrun.dto.request.MessageRequest;
-import com.coachrun.dto.response.ConversationResponse;
 import com.coachrun.dto.response.MessageResponse;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Message;
 import com.coachrun.entity.User;
-import com.coachrun.entity.enums.UserRole;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.MessageRepository;
@@ -17,11 +15,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-/** Messagerie coach ↔ athlète (fil par athlète). */
+/**
+ * Messagerie : écriture des messages, pièces jointes et quota.
+ *
+ * <p>Le <b>cloisonnement</b>, lui, appartient à {@link ConversationService} : ce service ne décide
+ * jamais qui lit quoi, il écrit dans le fil qu'on lui désigne.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -43,123 +45,133 @@ public class MessageService {
     }
 
     private final AthleteAccessValidator accessValidator;
+    private final ConversationService conversationService;
+    private final com.coachrun.repository.CoachAthleteRelationRepository relationRepository;
 
     // --- Côté coach (scopé club) ---
     /**
-     * Fil du coach, borné aux {@code limit} messages les plus récents (rendus dans l'ordre
-     * chronologique). Le fil entier était chargé à chaque ouverture : sans borne, une conversation
-     * qui dure une saison finit par transporter des centaines de messages à chaque affichage.
+     * Fil de CE coach avec cet athlète, borné aux {@code limit} messages les plus récents (rendus
+     * dans l'ordre chronologique). Le fil entier était chargé à chaque ouverture : sans borne, une
+     * conversation qui dure une saison finit par transporter des centaines de messages.
+     *
+     * <p>En écriture malgré son nom : la première ouverture crée le fil du binôme, et une
+     * transaction en lecture seule le laisserait en mémoire sans jamais l'écrire.</p>
      */
-    public List<MessageResponse> coachThread(UUID clubId, UUID athleteId, int limit) {
-        var page = messageRepository.findByClubIdAndAthleteIdOrderByCreatedAtDesc(
-                clubId, athleteId, org.springframework.data.domain.PageRequest.of(0, threadLimit(limit)));
-        return reversed(page);
+    @Transactional
+    public List<MessageResponse> coachThread(UUID clubId, UUID athleteId, AuthPrincipal principal, int limit) {
+        var conversation = conversationService.athleteCoach(athleteId, principal.userId());
+        return conversationService.messages(principal, conversation.getId(), limit);
     }
 
     @Transactional
     public MessageResponse coachSend(UUID clubId, UUID athleteId, AuthPrincipal principal, MessageRequest request) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
-        return MessageResponse.from(persist(athlete, principal, request));
+        return MessageResponse.from(persist(athlete,
+                conversationService.athleteCoach(athleteId, principal.userId()), principal, request));
     }
 
-    // --- Boîte de réception coach (agrégat tous athlètes) ---
-
     /**
-     * Conversations du coach : un fil par athlète de son périmètre ayant au moins un message,
-     * trié du plus récent au plus ancien, avec le compteur de non-lus.
+     * Écrire dans un fil, quelle qu'en soit la nature.
      *
-     * <p>Le périmètre est réévalué athlète par athlète : un coach ne voit jamais une
-     * conversation d'un athlète auquel il n'a pas accès.</p>
+     * <p>Le contrôle d'accès est fait une fois, ici, par le service des conversations : un fil en
+     * lecture seule — celui du club pour un athlète — refuse l'écriture, et un fil auquel on ne
+     * participe pas reste « introuvable ».</p>
      */
-    public List<ConversationResponse> conversations(UUID clubId, UUID coachId) {
-        List<ConversationResponse> out = new ArrayList<>();
-        for (Athlete a : athleteRepository.findByClubIdOrderByLastNameAsc(clubId)) {
-            if (accessValidator.effectiveLevel(coachId, a.getId()).isEmpty()) {
-                continue;
-            }
-            Message last = messageRepository
-                    .findFirstByClubIdAndAthleteIdOrderByCreatedAtDesc(clubId, a.getId())
-                    .orElse(null);
-            if (last == null) {
-                continue;
-            }
-            long unread = messageRepository
-                    .countByClubIdAndAthleteIdAndSenderRoleAndCoachReadAtIsNull(clubId, a.getId(), UserRole.ATHLETE);
-            out.add(new ConversationResponse(
-                    a.getId(), a.getFirstName(), a.getLastName(),
-                    last.getBody(), last.getSenderRole().name(), last.getCreatedAt(), unread));
-        }
-        out.sort(java.util.Comparator.comparing(ConversationResponse::lastMessageAt).reversed());
-        return out;
+    @Transactional
+    public MessageResponse postToConversation(AuthPrincipal principal, UUID conversationId,
+                                              MessageRequest request) {
+        com.coachrun.entity.Conversation conversation =
+                conversationService.requireWritable(principal, conversationId);
+        User sender = userRepository.findById(principal.userId())
+                .orElseThrow(() -> new NotFoundException("Expéditeur introuvable."));
+
+        Message m = new Message();
+        m.setClub(conversation.getClub());
+        m.setAthlete(conversation.getAthlete());
+        m.setConversation(conversation);
+        m.setSenderUserId(sender.getId());
+        m.setSenderRole(sender.getRole());
+        m.setSenderName(sender.getFullName());
+        m.setBody(request.body());
+        // Une séance ne se rattache qu'à un fil qui parle d'un athlète : ailleurs, le lien
+        // ouvrirait une séance que ses lecteurs n'ont pas le droit de voir.
+        m.setWorkoutId(conversation.getAthlete() == null ? null : request.workoutId());
+        Message saved = messageRepository.save(m);
+        conversation.setLastMessageAt(saved.getCreatedAt());
+        deliver(conversation, saved);
+        return MessageResponse.from(saved);
     }
 
     /**
-     * Total de messages non lus du coach, tous athlètes confondus (badge de la navigation).
-     * Une seule requête agrégée : le badge se rafraîchit à chaque changement d'écran, il ne
-     * peut pas parcourir tout le club fil par fil.
+     * Accusé de lecture : le coach a ouvert le fil de ce binôme.
+     *
+     * <p>« Lu » n'est plus un attribut du message — il ne voulait déjà plus rien dire dès qu'un
+     * second coach lisait le même tas — mais du couple (fil, personne).</p>
      */
-    public long unreadCount(UUID clubId, UUID coachId) {
-        long total = 0;
-        for (Object[] row : messageRepository.countUnreadByAthlete(clubId, UserRole.ATHLETE)) {
-            UUID athleteId = (UUID) row[0];
-            if (accessValidator.effectiveLevel(coachId, athleteId).isPresent()) {
-                total += (Long) row[1];
-            }
-        }
-        return total;
-    }
-
-    /** Accusé de lecture : le coach a ouvert le fil de cet athlète. */
     @Transactional
-    public void markThreadRead(UUID clubId, UUID athleteId) {
-        messageRepository.markThreadRead(clubId, athleteId, UserRole.ATHLETE, java.time.Instant.now());
+    public void markThreadRead(UUID athleteId, AuthPrincipal principal) {
+        var conversation = conversationService.athleteCoach(athleteId, principal.userId());
+        conversationService.markRead(principal, conversation.getId());
     }
 
     // --- Côté athlète (scopé athleteId du principal) ---
     /** Fil de l'athlète, même bornage que le fil du coach. */
-    public List<MessageResponse> athleteThread(UUID athleteId, int limit) {
-        var page = messageRepository.findByAthleteIdOrderByCreatedAtDesc(
-                athleteId, org.springframework.data.domain.PageRequest.of(0, threadLimit(limit)));
-        return reversed(page);
+    public List<MessageResponse> athleteThread(AuthPrincipal principal, int limit) {
+        return conversationService.defaultAthleteConversation(principal.athleteId())
+                .map(c -> conversationService.messages(principal, c.getId(), limit))
+                .orElseGet(List::of);
     }
 
     /** Profondeur par défaut d'un fil : de quoi couvrir plusieurs semaines d'échanges. */
     public static final int DEFAULT_THREAD_LIMIT = 100;
 
-    private static int threadLimit(int requested) {
+    static int threadLimit(int requested) {
         return Math.max(1, Math.min(requested <= 0 ? DEFAULT_THREAD_LIMIT : requested, 500));
-    }
-
-    /** Les plus récents d'abord en base, du plus ancien au plus récent à l'affichage. */
-    private static List<MessageResponse> reversed(List<com.coachrun.entity.Message> page) {
-        List<MessageResponse> out = new java.util.ArrayList<>(page.size());
-        for (int i = page.size() - 1; i >= 0; i--) {
-            out.add(MessageResponse.from(page.get(i)));
-        }
-        return out;
     }
 
     @Transactional
     public MessageResponse athleteSend(UUID athleteId, AuthPrincipal principal, MessageRequest request) {
         Athlete athlete = athleteRepository.findById(athleteId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
-        return MessageResponse.from(persist(athlete, principal, request));
+        return MessageResponse.from(persist(athlete, athleteDefaultConversation(athlete), principal, request));
     }
 
-    private Message persist(Athlete athlete, AuthPrincipal principal, MessageRequest request) {
+    /**
+     * Le fil qu'ouvre un athlète depuis son espace : celui qu'il a le plus récemment utilisé, et à
+     * défaut celui de son coach référent.
+     *
+     * <p>Un athlète n'a pas à choisir un destinataire pour répondre à son coach. S'il veut écrire à
+     * un autre, il passe par « Nouveau message », qui ouvre explicitement le fil de ce binôme.</p>
+     */
+    private com.coachrun.entity.Conversation athleteDefaultConversation(Athlete athlete) {
+        return conversationService.defaultAthleteConversation(athlete.getId())
+                .orElseGet(() -> conversationService.athleteCoach(athlete.getId(),
+                        referentCoachId(athlete)));
+    }
+
+    private UUID referentCoachId(Athlete athlete) {
+        return relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athlete.getId())
+                .map(r -> r.getCoach().getId())
+                .orElseThrow(() -> new NotFoundException("Aucun coach référent pour cet athlète."));
+    }
+
+    Message persist(Athlete athlete, com.coachrun.entity.Conversation conversation,
+                    AuthPrincipal principal, MessageRequest request) {
         User sender = userRepository.findById(principal.userId())
                 .orElseThrow(() -> new NotFoundException("Expéditeur introuvable."));
         Message m = new Message();
         m.setClub(athlete.getClub());
         m.setAthlete(athlete);
+        m.setConversation(conversation);
         m.setSenderUserId(sender.getId());
         m.setSenderRole(sender.getRole());
         m.setSenderName(sender.getFullName());
         m.setBody(request.body());
         m.setWorkoutId(request.workoutId());
         Message saved = messageRepository.save(m);
-        deliver(athlete, saved);
+        conversation.setLastMessageAt(saved.getCreatedAt());
+        deliver(conversation, saved);
         return saved;
     }
 
@@ -170,8 +182,10 @@ public class MessageService {
      * l'écran ouvert — c'est-à-dire ceux qui n'ont besoin de rien. Un athlète qui posait une
      * question le soir n'apprenait la réponse de son coach qu'en rouvrant l'application.</p>
      */
-    private void deliver(Athlete athlete, Message saved) {
-        streamService.broadcast(athlete.getId(), MessageResponse.from(saved));
+    private void deliver(com.coachrun.entity.Conversation conversation, Message saved) {
+        // Le flux temps réel est indexé par FIL et non plus par athlète : deux coachs qui suivent
+        // le même athlète ne doivent pas voir passer les messages de l'autre.
+        streamService.broadcast(conversation.getId(), MessageResponse.from(saved));
         notificationService.notifyNewMessage(saved);
     }
 
@@ -185,7 +199,8 @@ public class MessageService {
                                                    String body, org.springframework.web.multipart.MultipartFile file) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
-        return MessageResponse.from(persistWithAttachment(athlete, principal, body, file));
+        return MessageResponse.from(persistWithAttachment(athlete,
+                conversationService.athleteCoach(athleteId, principal.userId()), principal, body, file));
     }
 
     @Transactional
@@ -193,11 +208,13 @@ public class MessageService {
                                                      String body, org.springframework.web.multipart.MultipartFile file) {
         Athlete athlete = athleteRepository.findById(athleteId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
-        return MessageResponse.from(persistWithAttachment(athlete, principal, body, file));
+        return MessageResponse.from(persistWithAttachment(athlete, athleteDefaultConversation(athlete),
+                principal, body, file));
     }
 
-    private Message persistWithAttachment(Athlete athlete, AuthPrincipal principal, String body,
-                                          org.springframework.web.multipart.MultipartFile file) {
+    Message persistWithAttachment(Athlete athlete, com.coachrun.entity.Conversation conversation,
+                                  AuthPrincipal principal, String body,
+                                  org.springframework.web.multipart.MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new com.coachrun.exception.ApiException(
                     org.springframework.http.HttpStatus.BAD_REQUEST, "Fichier manquant.");
@@ -228,6 +245,7 @@ public class MessageService {
         Message m = new Message();
         m.setClub(athlete.getClub());
         m.setAthlete(athlete);
+        m.setConversation(conversation);
         m.setSenderUserId(sender.getId());
         m.setSenderRole(sender.getRole());
         m.setSenderName(sender.getFullName());
@@ -236,7 +254,8 @@ public class MessageService {
         m.setAttachmentFilename(att.getFilename());
         m.setAttachmentContentType(att.getContentType());
         Message saved = messageRepository.save(m);
-        deliver(athlete, saved);
+        conversation.setLastMessageAt(saved.getCreatedAt());
+        deliver(conversation, saved);
         return saved;
     }
 

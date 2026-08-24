@@ -43,9 +43,18 @@ public class TrainingGroupService {
     private final CourseSessionService courseSessionService;
     private final StrengthScheduleService strengthScheduleService;
 
-    public List<TrainingGroupResponse> list(UUID clubId) {
+    /**
+     * Les groupes que ce coach voit.
+     *
+     * <p>Un groupe privé n'apparaît qu'à son créateur et aux coachs qu'il y a conviés. La
+     * visibilité des <b>athlètes</b>, elle, ne change pas : elle reste portée par la relation
+     * référente et les permissions — un athlète peut d'ailleurs appartenir à plusieurs groupes,
+     * et deux mécanismes superposés deviendraient inexplicables.</p>
+     */
+    public List<TrainingGroupResponse> list(UUID clubId, UUID coachId) {
         return groupRepository.findByClubIdOrderByNameAsc(clubId).stream()
-                .map(g -> TrainingGroupResponse.of(g, athleteRepository.countByGroupId(g.getId())))
+                .filter(g -> g.isVisibleTo(coachId))
+                .map(g -> TrainingGroupResponse.of(g, athleteRepository.countByGroupId(g.getId()), coachId))
                 .toList();
     }
 
@@ -56,7 +65,7 @@ public class TrainingGroupService {
      */
     public GroupCalendarResponse calendar(UUID clubId, UUID groupId, UUID coachId,
                                           LocalDate from, LocalDate to) {
-        TrainingGroup group = require(clubId, groupId);
+        TrainingGroup group = requireVisible(clubId, groupId, coachId);
         List<GroupCalendarResponse.AthleteRow> rows = new ArrayList<>();
 
         for (Athlete a : athleteRepository.findActiveByGroup(groupId, clubId, AthleteStatus.ACTIVE)) {
@@ -104,7 +113,7 @@ public class TrainingGroupService {
             throw new com.coachrun.exception.ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
                     "Précise une séance course ou une séance de prépa physique, pas les deux.");
         }
-        require(clubId, groupId);
+        requireVisible(clubId, groupId, coachId);
         int applied = 0;
         int skipped = 0;
         int created = 0;
@@ -128,27 +137,57 @@ public class TrainingGroupService {
     }
 
     @Transactional
-    public TrainingGroupResponse create(UUID clubId, TrainingGroupRequest request) {
+    public TrainingGroupResponse create(UUID clubId, UUID coachId, TrainingGroupRequest request) {
         TrainingGroup g = new TrainingGroup();
         g.setClub(clubRepository.getReferenceById(clubId));
         g.setName(request.name());
-        return TrainingGroupResponse.of(groupRepository.save(g), 0);
+        g.setOwnerCoachId(coachId);
+        g.setVisibility(request.visibilityOrDefault());
+        g.getInvitedCoachIds().addAll(invited(request));
+        return TrainingGroupResponse.of(groupRepository.save(g), 0, coachId);
     }
 
     @Transactional
-    public TrainingGroupResponse update(UUID clubId, UUID id, TrainingGroupRequest request) {
-        TrainingGroup g = require(clubId, id);
+    public TrainingGroupResponse update(UUID clubId, UUID id, UUID coachId, TrainingGroupRequest request) {
+        TrainingGroup g = requireVisible(clubId, id, coachId);
+        // Refermer un groupe ouvert, ou l'ouvrir, revient à décider qui le voit : cela appartient
+        // à son créateur. Un groupe hérité, sans créateur connu, reste modifiable par le club.
+        if (g.getOwnerCoachId() != null && !g.getOwnerCoachId().equals(coachId)) {
+            throw new com.coachrun.exception.ConflictException(
+                    "Seul le créateur du groupe peut en modifier la visibilité.");
+        }
         g.setName(request.name());
-        return TrainingGroupResponse.of(g, athleteRepository.countByGroupId(id));
+        g.setVisibility(request.visibilityOrDefault());
+        g.getInvitedCoachIds().clear();
+        g.getInvitedCoachIds().addAll(invited(request));
+        return TrainingGroupResponse.of(g, athleteRepository.countByGroupId(id), coachId);
+    }
+
+    private static java.util.Set<UUID> invited(TrainingGroupRequest request) {
+        return request.invitedCoachIds() == null
+                ? java.util.Set.of()
+                : new java.util.LinkedHashSet<>(request.invitedCoachIds());
     }
 
     @Transactional
-    public void delete(UUID clubId, UUID id) {
-        groupRepository.delete(require(clubId, id));
+    public void delete(UUID clubId, UUID id, UUID coachId) {
+        groupRepository.delete(requireVisible(clubId, id, coachId));
     }
 
     private TrainingGroup require(UUID clubId, UUID id) {
         return groupRepository.findByIdAndClubId(id, clubId)
                 .orElseThrow(() -> new NotFoundException("Groupe introuvable."));
+    }
+
+    /**
+     * Le groupe, s'il est visible de ce coach. Sinon il n'existe pas pour lui — « introuvable »
+     * plutôt qu'« interdit », un 403 confirmerait l'existence d'un groupe privé.
+     */
+    public TrainingGroup requireVisible(UUID clubId, UUID id, UUID coachId) {
+        TrainingGroup g = require(clubId, id);
+        if (!g.isVisibleTo(coachId)) {
+            throw new NotFoundException("Groupe introuvable.");
+        }
+        return g;
     }
 }

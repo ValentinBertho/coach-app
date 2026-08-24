@@ -5,17 +5,6 @@ import { environment } from '../../../environments/environment';
 import { Message } from '../models/message.model';
 import { AuthService } from './auth.service';
 
-/** Une conversation de la boîte de réception coach (agrégat tous athlètes confondus). */
-export interface Conversation {
-  athleteId: string;
-  firstName: string;
-  lastName: string;
-  lastMessage: string;
-  lastSenderRole: 'COACH' | 'ATHLETE' | string;
-  lastMessageAt: string;
-  unreadCount: number;
-}
-
 /** Messagerie : fil coach (scopé club/athlète) et fil athlète (/me/messages). */
 @Injectable({ providedIn: 'root' })
 export class MessageService {
@@ -25,13 +14,11 @@ export class MessageService {
   /** Total de non-lus coach, partagé (badge de la navigation latérale). */
   readonly unread = signal(0);
 
-  // --- Boîte de réception coach ---
-  conversations(): Observable<Conversation[]> {
-    return this.http
-      .get<Conversation[]>(`${environment.apiUrl}/clubs/${this.auth.clubId()}/messages/conversations`)
-      .pipe(tap((list) => this.unread.set(list.reduce((n, c) => n + c.unreadCount, 0))));
-  }
-
+  /**
+   * Total de non-lus, tous fils confondus. La boîte de réception elle-même vit dans
+   * {@link ConversationService} : ce service ne connaît plus que le fil d'un binôme, ouvert
+   * depuis la fiche d'un athlète.
+   */
   refreshUnread(): Observable<number> {
     return this.http
       .get<{ count: number }>(`${environment.apiUrl}/clubs/${this.auth.clubId()}/messages/unread-count`)

@@ -1,0 +1,70 @@
+# ============================================================================
+# 089 — Groupes privés.
+#
+#   Un groupe était visible de tous les coachs du club. Le responsable d'un club
+#   pilote y tenait un groupe « privé » — dont le nom était le seul rempart.
+#
+#   `visibility` distingue donc deux natures : CLUB (tous les coachs du club) et
+#   PRIVATE (son créateur et les coachs qu'il y invite). La confidentialité des
+#   ATHLÈTES, elle, ne change pas d'un iota : elle reste portée par la relation
+#   référente et les permissions. Deux mécanismes qui se superposeraient
+#   deviendraient vite impossibles à expliquer — et un athlète appartient
+#   éventuellement à plusieurs groupes.
+#
+#   `owner_coach_id` est nul pour les groupes existants : sans créateur connu, un
+#   groupe reste de club, ce qui préserve exactement ce qui était visible hier.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 089-group-visibility
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: training_groups
+            columns:
+              - column:
+                  name: visibility
+                  type: VARCHAR(16)
+                  defaultValue: CLUB
+                  constraints: { nullable: false }
+                  remarks: "CLUB | PRIVATE"
+              - column:
+                  name: owner_coach_id
+                  type: UUID
+                  remarks: "Créateur du groupe : seul, avec ses invités, à voir un groupe privé."
+        - addForeignKeyConstraint:
+            constraintName: fk_training_groups_owner
+            baseTableName: training_groups
+            baseColumnNames: owner_coach_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL
+
+  - changeSet:
+      id: 089-group-coaches
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: training_group_coaches
+            remarks: "Coachs conviés à un groupe privé (le créateur n'y figure pas : il est propriétaire)."
+            columns:
+              - column: { name: group_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: coach_user_id, type: UUID, constraints: { nullable: false } }
+        - addPrimaryKey:
+            constraintName: pk_training_group_coaches
+            tableName: training_group_coaches
+            columnNames: group_id, coach_user_id
+        - addForeignKeyConstraint:
+            constraintName: fk_group_coaches_group
+            baseTableName: training_group_coaches
+            baseColumnNames: group_id
+            referencedTableName: training_groups
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_group_coaches_coach
+            baseTableName: training_group_coaches
+            baseColumnNames: coach_user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
