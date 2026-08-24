@@ -1,0 +1,182 @@
+# ============================================================================
+# 088 — Les conversations.
+#
+#   Jusqu'ici la messagerie n'avait pas de fil : elle avait un ATHLÈTE. Tous les
+#   messages le concernant vivaient dans le même tas, que n'importe quel coach
+#   ayant accès à lui pouvait lire. Un responsable de club l'a découvert en
+#   voyant les échanges du propriétaire avec ses athlètes.
+#
+#   Une conversation devient donc une entité à part entière, avec quatre formes :
+#
+#     ATHLETE_COACH — un fil par BINÔME athlète↔coach. Deux coachs qui suivent le
+#                     même athlète ont deux fils distincts, et ne se lisent pas.
+#     COACH_COACH   — deux coachs du même club.
+#     GROUP         — le fil d'un groupe d'entraînement.
+#     CLUB          — l'annonce du club.
+#
+#   `dedup_key` porte l'identité du fil (« AC:athlète:coach », « CC:a:b », « G:id »,
+#   « C:id ») sous une contrainte d'unicité. C'est ce qui rend « ouvrir la
+#   conversation avec X » idempotent : deux clients qui cliquent en même temps
+#   n'ouvrent pas deux fils. Un index unique multi-colonnes ne le ferait pas —
+#   ses NULL sont toujours distincts, et trois formes sur quatre en portent.
+#
+#   Les accusés de lecture quittent `messages` : « lu » n'est plus un attribut du
+#   message (le coach l'a-t-il lu ? lequel ?) mais du couple (fil, personne).
+#   `messages.coach_read_at` reste en place, inutilisé, le temps de vérifier la
+#   reprise en production.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 088-create-conversations
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: conversations
+            remarks: "Fil de discussion : binôme athlète↔coach, coach↔coach, groupe ou club."
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column:
+                  name: kind
+                  type: VARCHAR(16)
+                  constraints: { nullable: false }
+                  remarks: "ATHLETE_COACH | COACH_COACH | GROUP | CLUB"
+              - column:
+                  name: athlete_id
+                  type: UUID
+                  remarks: "ATHLETE_COACH : l'athlète du binôme."
+              - column:
+                  name: coach_user_id
+                  type: UUID
+                  remarks: "ATHLETE_COACH : le coach du binôme."
+              - column:
+                  name: peer_a_user_id
+                  type: UUID
+                  remarks: "COACH_COACH : le plus petit des deux identifiants (ordre stable)."
+              - column: { name: peer_b_user_id, type: UUID }
+              - column: { name: group_id, type: UUID }
+              - column:
+                  name: dedup_key
+                  type: VARCHAR(120)
+                  constraints: { nullable: false, unique: true, uniqueConstraintName: ux_conversations_dedup }
+                  remarks: "Identité du fil : ouvrir une conversation deux fois n'en crée qu'une."
+              - column:
+                  name: last_message_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: "Dénormalisé : la boîte de réception trie là-dessus sans lire les messages."
+
+  - changeSet:
+      id: 088-conversations-fks
+      author: coachrun
+      changes:
+        - addForeignKeyConstraint:
+            constraintName: fk_conversations_club
+            baseTableName: conversations
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_conversations_athlete
+            baseTableName: conversations
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_conversations_group
+            baseTableName: conversations
+            baseColumnNames: group_id
+            referencedTableName: training_groups
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+  - changeSet:
+      id: 088-conversations-indexes
+      author: coachrun
+      changes:
+        # La boîte de réception d'un coach part de ses fils de binôme.
+        - createIndex:
+            indexName: idx_conversations_coach
+            tableName: conversations
+            columns:
+              - column: { name: coach_user_id }
+        - createIndex:
+            indexName: idx_conversations_athlete
+            tableName: conversations
+            columns:
+              - column: { name: athlete_id }
+        - createIndex:
+            indexName: idx_conversations_club_kind
+            tableName: conversations
+            columns:
+              - column: { name: club_id }
+              - column: { name: kind }
+
+  - changeSet:
+      id: 088-conversation-reads
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: conversation_reads
+            remarks: "Où en est CETTE personne dans CE fil. « Lu » n'est pas un attribut du message."
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: conversation_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: last_read_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_conversation_reads_conversation
+            baseTableName: conversation_reads
+            baseColumnNames: conversation_id
+            referencedTableName: conversations
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            constraintName: ux_conversation_reads
+            tableName: conversation_reads
+            columnNames: conversation_id, user_id
+
+  - changeSet:
+      id: 088-messages-athlete-optional
+      author: coachrun
+      comment: >
+        Un message n'a plus forcément d'athlète : le fil d'un groupe, celui du club et celui de
+        deux coachs n'en désignent aucun. L'athlète reste porté quand il donne son contexte à
+        l'échange — la séance commentée, l'écran vers lequel mène la notification.
+      changes:
+        - dropNotNullConstraint:
+            tableName: messages
+            columnName: athlete_id
+            columnDataType: UUID
+
+  - changeSet:
+      id: 088-messages-conversation
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: messages
+            columns:
+              - column:
+                  name: conversation_id
+                  type: UUID
+                  remarks: "Fil porteur. Nul le temps du backfill des messages antérieurs."
+        - addForeignKeyConstraint:
+            constraintName: fk_messages_conversation
+            baseTableName: messages
+            baseColumnNames: conversation_id
+            referencedTableName: conversations
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_messages_conversation
+            tableName: messages
+            columns:
+              - column: { name: conversation_id }
+              - column: { name: created_at }

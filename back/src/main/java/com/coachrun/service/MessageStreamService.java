@@ -14,8 +14,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Diffusion temps réel des messages via Server-Sent Events (cf. DARI Lab — messagerie).
- * Les abonnés (coach et athlète) sont regroupés par fil de conversation (athleteId) ; un
- * message persisté est poussé à tous les émetteurs ouverts de ce fil.
+ * Les abonnés sont regroupés par <b>conversation</b> ; un message persisté est poussé à tous les
+ * émetteurs ouverts de ce fil-là.
+ *
+ * <p>La clé était l'athlète. Deux coachs suivant le même athlète recevaient donc en direct les
+ * messages de l'autre, quand bien même le fil ne leur était pas destiné.</p>
  */
 @Slf4j
 @Service
@@ -32,18 +35,18 @@ public class MessageStreamService {
      * authentifié de 300 requêtes par minute — de quoi empiler des centaines d'émetteurs retenus
      * une demi-heure chacun.</p>
      *
-     * <p>La clé est le fil, pas l'utilisateur : l'athlète et ses coachs le partagent. Douze couvre
-     * donc un athlète sur deux appareils et plusieurs coachs regardant la même conversation.</p>
+     * <p>La clé est le fil, pas l'utilisateur : ses participants le partagent. Douze couvre donc un
+     * athlète sur deux appareils et plusieurs personnes regardant le même fil de groupe.</p>
      */
     private static final int MAX_STREAMS_PER_THREAD = 12;
 
     private final Map<UUID, List<SseEmitter>> emitters = new ConcurrentHashMap<>();
 
-    /** Ouvre un flux SSE pour le fil d'un athlète, en fermant le plus ancien au-delà du plafond. */
-    public SseEmitter subscribe(UUID athleteId) {
+    /** Ouvre un flux SSE pour un fil, en fermant le plus ancien au-delà du plafond. */
+    public SseEmitter subscribe(UUID conversationId) {
         SseEmitter emitter = new SseEmitter(TIMEOUT_MS);
         List<SseEmitter> threadEmitters =
-                emitters.computeIfAbsent(athleteId, k -> new CopyOnWriteArrayList<>());
+                emitters.computeIfAbsent(conversationId, k -> new CopyOnWriteArrayList<>());
         // Le plus ancien cède la place : un onglet fermé sans que le serveur en soit informé ne
         // doit pas condamner les suivants.
         while (threadEmitters.size() >= MAX_STREAMS_PER_THREAD) {
@@ -60,21 +63,21 @@ public class MessageStreamService {
         }
         threadEmitters.add(emitter);
 
-        emitter.onCompletion(() -> remove(athleteId, emitter));
-        emitter.onTimeout(() -> remove(athleteId, emitter));
-        emitter.onError(e -> remove(athleteId, emitter));
+        emitter.onCompletion(() -> remove(conversationId, emitter));
+        emitter.onTimeout(() -> remove(conversationId, emitter));
+        emitter.onError(e -> remove(conversationId, emitter));
 
         try {
             emitter.send(SseEmitter.event().name("connected").data("ok"));
         } catch (IOException e) {
-            remove(athleteId, emitter);
+            remove(conversationId, emitter);
         }
         return emitter;
     }
 
     /** Pousse un message à tous les abonnés du fil. */
-    public void broadcast(UUID athleteId, MessageResponse message) {
-        List<SseEmitter> list = emitters.get(athleteId);
+    public void broadcast(UUID conversationId, MessageResponse message) {
+        List<SseEmitter> list = emitters.get(conversationId);
         if (list == null) {
             return;
         }
@@ -82,17 +85,17 @@ public class MessageStreamService {
             try {
                 emitter.send(SseEmitter.event().name("message").data(message));
             } catch (IOException | IllegalStateException e) {
-                remove(athleteId, emitter);
+                remove(conversationId, emitter);
             }
         }
     }
 
-    private void remove(UUID athleteId, SseEmitter emitter) {
-        List<SseEmitter> list = emitters.get(athleteId);
+    private void remove(UUID conversationId, SseEmitter emitter) {
+        List<SseEmitter> list = emitters.get(conversationId);
         if (list != null) {
             list.remove(emitter);
             if (list.isEmpty()) {
-                emitters.remove(athleteId);
+                emitters.remove(conversationId);
             }
         }
     }

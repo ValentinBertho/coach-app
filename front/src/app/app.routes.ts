@@ -157,10 +157,11 @@ export const routes: Routes = [
           import('./features/calendar/calendar.component').then((m) => m.CalendarComponent),
       },
       {
-        // Boîte de réception coach : conversations agrégées, tous athlètes confondus.
+        // Messagerie : fils de binôme, entre coachs, de groupe et du club. Même écran que côté
+        // athlète — le serveur rend les fils auxquels on participe, quel que soit le rôle.
         path: 'messages',
         loadComponent: () =>
-          import('./features/messages/message-inbox.component').then((m) => m.MessageInboxComponent),
+          import('./features/messages/conversations.component').then((m) => m.ConversationsComponent),
       },
       {
         // File « retours à traiter » : destination du KPI du cockpit.
@@ -405,9 +406,10 @@ export const routes: Routes = [
           import('./features/athlete/profile.component').then((m) => m.AthleteProfileComponent),
       },
       {
+        // L'athlète a désormais plusieurs fils : un par coach, plus son groupe et le club.
         path: 'messages',
         loadComponent: () =>
-          import('./features/messages/chat.component').then((m) => m.ChatComponent),
+          import('./features/messages/conversations.component').then((m) => m.ConversationsComponent),
       },
       {
         path: 'help',

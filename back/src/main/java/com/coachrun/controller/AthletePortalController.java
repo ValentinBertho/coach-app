@@ -45,6 +45,7 @@ public class AthletePortalController {
     private final com.coachrun.service.RaceObjectiveService raceService;
     private final com.coachrun.service.MessageService messageService;
     private final com.coachrun.service.MessageStreamService messageStreamService;
+    private final com.coachrun.service.ConversationService conversationService;
     private final com.coachrun.service.StrengthScheduleService strengthScheduleService;
     private final com.coachrun.service.StrengthResultService strengthResultService;
     private final com.coachrun.service.ProgressionService progressionService;
@@ -518,7 +519,7 @@ public class AthletePortalController {
     public java.util.List<com.coachrun.dto.response.MessageResponse> messages(
             @AuthenticationPrincipal AuthPrincipal principal,
             @RequestParam(defaultValue = "100") int limit) {
-        return messageService.athleteThread(principal.athleteId(), limit);
+        return messageService.athleteThread(principal, limit);
     }
 
     @PostMapping("/messages")
@@ -529,11 +530,20 @@ public class AthletePortalController {
         return messageService.athleteSend(principal.athleteId(), principal, request);
     }
 
-    /** Flux temps réel (SSE) des nouveaux messages pour l'athlète. */
+    /**
+     * Flux temps réel (SSE) du fil courant de l'athlète.
+     *
+     * <p>Le flux est indexé par <b>conversation</b> depuis le cloisonnement de la messagerie : sans
+     * cette résolution, cette route écouterait une clé sur laquelle plus personne ne diffuse — un
+     * flux ouvert, silencieux, et impossible à distinguer d'un fil calme. L'écran de messagerie,
+     * lui, s'abonne explicitement au fil qu'il affiche.</p>
+     */
     @GetMapping("/messages/stream")
     public org.springframework.web.servlet.mvc.method.annotation.SseEmitter messageStream(
             @AuthenticationPrincipal AuthPrincipal principal) {
-        return messageStreamService.subscribe(principal.athleteId());
+        return conversationService.defaultAthleteConversation(principal.athleteId())
+                .map(c -> messageStreamService.subscribe(c.getId()))
+                .orElseGet(() -> messageStreamService.subscribe(principal.athleteId()));
     }
 
     /** Envoi d'un message avec pièce jointe (image/PDF). */

@@ -13,7 +13,7 @@ import {
   CoachDaySession,
   FeedbackQueueItem,
 } from '../../core/services/coach-dashboard.service';
-import { Conversation, MessageService } from '../../core/services/message.service';
+import { ConversationService, ConversationSummary } from '../../core/services/conversation.service';
 import { NetworkStatusService } from '../../core/services/network-status.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { CourseService } from '../../core/services/course.service';
@@ -66,7 +66,7 @@ const STAMP_KEY = 'coach-day-loaded-at';
 })
 export class CoachDayComponent implements OnInit {
   private readonly dashboard = inject(CoachDashboardService);
-  private readonly messages = inject(MessageService);
+  private readonly messages = inject(ConversationService);
   private readonly workouts = inject(WorkoutService);
   private readonly courses = inject(CourseService);
   private readonly templates = inject(WorkoutTemplateService);
@@ -83,7 +83,7 @@ export class CoachDayComponent implements OnInit {
   readonly failed = signal(false);
   readonly alerts = signal<CoachAlert[]>([]);
   readonly reviews = signal<FeedbackQueueItem[]>([]);
-  readonly conversations = signal<Conversation[]>([]);
+  readonly conversations = signal<ConversationSummary[]>([]);
   readonly sessions = signal<CoachDaySession[]>([]);
 
   /**
@@ -199,7 +199,7 @@ export class CoachDayComponent implements OnInit {
       },
       error: () => { this.reviews.set([]); this.loading.set(false); this.failed.set(true); },
     });
-    this.messages.conversations().subscribe({
+    this.messages.inbox().subscribe({
       next: (c) => this.conversations.set(c),
       error: () => this.conversations.set([]),
     });
@@ -302,7 +302,7 @@ export class CoachDayComponent implements OnInit {
 
   /** Un message envoyé peut avoir vidé un non-lu : la section Messages se recharge. */
   onReplySent(): void {
-    this.messages.conversations().subscribe({
+    this.messages.inbox().subscribe({
       next: (c) => this.conversations.set(c),
       error: () => undefined,
     });
@@ -471,8 +471,14 @@ export class CoachDayComponent implements OnInit {
   }
 
   /** Extrait d'un commentaire : la ligne reste lisible, le détail est derrière le lien. */
-  excerpt(text: string, max = 110): string {
+  excerpt(text: string | null, max = 110): string {
+    if (!text) return '';
     return text.length > max ? text.slice(0, max).trimEnd() + '…' : text;
+  }
+
+  /** Initiales d'un fil : le titre peut être un nom, un groupe ou le club. */
+  initials(title: string): string {
+    return title.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   }
 
   /**

@@ -3,6 +3,7 @@ package com.coachrun;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Club;
 import com.coachrun.entity.CoachAthleteRelation;
+import com.coachrun.service.ConversationService;
 import com.coachrun.entity.Message;
 import com.coachrun.entity.User;
 import com.coachrun.entity.Workout;
@@ -76,6 +77,13 @@ class NotificationServiceTest {
     /** Journal des envois : simulé ici, il fait l'objet de ses propres tests dans {@code MailLogTest}. */
     @Mock
     private MailLogService mailLog;
+    /**
+     * Composition des fils : c'est elle qui dit désormais qui prévenir. Le service devinait le
+     * destinataire d'après le rôle de l'expéditeur, ce qui faisait aboutir chaque question au seul
+     * coach référent quand plusieurs coachs suivaient l'athlète.
+     */
+    @Mock
+    private ConversationService conversations;
     @InjectMocks
     private NotificationService notificationService;
 
@@ -447,10 +455,12 @@ class NotificationServiceTest {
         verify(pushService).sendToUser(eq(athleteUser.getId()), eq("Nouveau message"),
                 body.capture(), contains("/athlete/messages"), actions.capture());
         assertThat(body.getValue()).isEqualTo("Coach Bernard").doesNotContain("genou");
-        // Répondre en un tap : le bouton vise le fil, champ de saisie déjà actif.
+        // Répondre en un tap : le bouton vise LE FIL — un athlète en a désormais plusieurs (un par
+        // coach, plus son groupe et le club), et « Messages » ne dirait pas lequel s'est animé.
         assertThat(actions.getValue()).singleElement()
                 .extracting(PushNotificationService.QuickAction::url).asString()
-                .endsWith("/athlete/messages?reply=1");
+                .contains("/athlete/messages?c=")
+                .endsWith("&reply=1");
     }
 
     /**
@@ -484,7 +494,7 @@ class NotificationServiceTest {
                 any(), any(), any());
         // Le contenu du message ne sort jamais par e-mail : il peut parler de blessure ou de moral.
         assertThat(html.getValue()).contains("Marie Durand").doesNotContain("genou");
-        assertThat(html.getValue()).contains("/app/athletes/" + athlete.getId() + "/messages");
+        assertThat(html.getValue()).contains("/app/messages?c=");
     }
 
     /** Un téléphone qui sonne n'a pas besoin d'un second message dans la boîte mail. */
@@ -541,12 +551,12 @@ class NotificationServiceTest {
         ArgumentCaptor<List<PushNotificationService.QuickAction>> actions =
                 ArgumentCaptor.forClass(List.class);
         verify(pushService).sendToUser(eq(referent.getId()), eq("Nouveau message"),
-                eq("Marie Durand"), contains("/app/athletes/" + athlete.getId() + "/messages"),
-                actions.capture());
-        // Le bouton mène au fil de CET athlète, pas à la boîte de réception.
+                eq("Marie Durand"), contains("/app/messages?c="), actions.capture());
+        // Le bouton mène au FIL, et non à la boîte de réception : c'est ce fil-là qui s'est animé.
         assertThat(actions.getValue()).singleElement()
                 .extracting(PushNotificationService.QuickAction::url).asString()
-                .endsWith("/app/athletes/" + athlete.getId() + "/messages?reply=1");
+                .contains("/app/messages?c=")
+                .endsWith("&reply=1");
     }
 
     /**
@@ -830,12 +840,27 @@ class NotificationServiceTest {
     }
 
     /** Rattache un compte utilisateur à l'athlète et le renvoie. */
+    /**
+     * Le compte de l'athlète.
+     *
+     * <p>Son rôle est posé : il décide de l'écran vers lequel mène la notification (l'espace
+     * athlète, pas le cockpit coach). Le lien se déduisait auparavant du rôle de l'<b>expéditeur</b>,
+     * ce qui ne veut plus rien dire dans un fil de groupe où les deux écrivent.</p>
+     */
     private User userFor(Athlete athlete) {
         User u = coach("athlete@test.fr");
+        u.setRole(UserRole.ATHLETE);
         when(userRepository.findByAthleteId(athlete.getId())).thenReturn(Optional.of(u));
         return u;
     }
 
+    /**
+     * Un message dans le fil du binôme athlète↔coach, avec ses participants.
+     *
+     * <p>Le destinataire n'est plus déduit du rôle de l'expéditeur : on déclare qui participe au
+     * fil, et le service prévient tout le monde sauf l'auteur — exactement ce qui se passe dans un
+     * fil de groupe.</p>
+     */
     private Message message(Athlete athlete, UserRole senderRole, String senderName, String body) {
         Message m = new Message();
         m.setAthlete(athlete);
@@ -843,6 +868,26 @@ class NotificationServiceTest {
         m.setSenderName(senderName);
         m.setSenderUserId(UUID.randomUUID());
         m.setBody(body);
+
+        com.coachrun.entity.Conversation conversation = new com.coachrun.entity.Conversation();
+        conversation.setKind(com.coachrun.entity.enums.ConversationKind.ATHLETE_COACH);
+        conversation.setAthlete(athlete);
+        ReflectionTestUtils.setField(conversation, "id", UUID.randomUUID());
+        m.setConversation(conversation);
+
+        // Le destinataire est l'autre bout du fil : l'athlète quand le coach écrit, et le coach
+        // référent dans l'autre sens — ce que les tests posent déjà par leurs fixtures.
+        lenient().when(conversations.participantsToNotify(eq(conversation), any()))
+                .thenAnswer(invocation -> recipientsOf(athlete, senderRole));
         return m;
+    }
+
+    /** L'autre bout du fil, tel que les fixtures du test l'ont déclaré. */
+    private List<User> recipientsOf(Athlete athlete, UserRole senderRole) {
+        User target = senderRole == UserRole.ATHLETE
+                ? relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athlete.getId())
+                        .map(CoachAthleteRelation::getCoach).orElse(null)
+                : userRepository.findByAthleteId(athlete.getId()).orElse(null);
+        return target == null ? List.of() : List.of(target);
     }
 }

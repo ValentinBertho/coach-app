@@ -1,8 +1,8 @@
 package com.coachrun.controller;
 
-import com.coachrun.dto.response.ConversationResponse;
+import com.coachrun.dto.response.ConversationSummaryResponse;
 import com.coachrun.security.AuthPrincipal;
-import com.coachrun.service.MessageService;
+import com.coachrun.service.ConversationService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -30,18 +30,18 @@ import java.util.UUID;
 @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId)")
 public class CoachInboxController {
 
-    private final MessageService messageService;
+    private final ConversationService conversations;
 
     @GetMapping("/conversations")
-    public List<ConversationResponse> conversations(@PathVariable UUID clubId,
-                                                    @AuthenticationPrincipal AuthPrincipal principal) {
-        return messageService.conversations(clubId, principal.userId());
+    public List<ConversationSummaryResponse> conversations(@PathVariable UUID clubId,
+                                                           @AuthenticationPrincipal AuthPrincipal principal) {
+        return conversations.inbox(principal);
     }
 
     /** Total de non-lus, tous athlètes confondus (badge de la navigation coach). */
     @GetMapping("/unread-count")
     public Map<String, Long> unreadCount(@PathVariable UUID clubId,
                                          @AuthenticationPrincipal AuthPrincipal principal) {
-        return Map.of("count", messageService.unreadCount(clubId, principal.userId()));
+        return Map.of("count", conversations.unreadCount(principal));
     }
 }

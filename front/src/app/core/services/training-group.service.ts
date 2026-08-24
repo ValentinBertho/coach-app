@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ScheduledStrength } from '../models/strength.model';
-import { TrainingGroup } from '../models/training-group.model';
+import { GroupVisibility, TrainingGroup } from '../models/training-group.model';
 import { Workout } from '../models/workout.model';
 import { AuthService } from './auth.service';
 
@@ -19,11 +19,17 @@ export class TrainingGroupService {
   list(): Observable<TrainingGroup[]> {
     return this.http.get<TrainingGroup[]>(this.base());
   }
-  create(name: string): Observable<TrainingGroup> {
-    return this.http.post<TrainingGroup>(this.base(), { name });
+  create(name: string, visibility: GroupVisibility = 'CLUB'): Observable<TrainingGroup> {
+    return this.http.post<TrainingGroup>(this.base(), { name, visibility });
   }
-  rename(id: string, name: string): Observable<TrainingGroup> {
-    return this.http.put<TrainingGroup>(`${this.base()}/${id}`, { name });
+
+  /**
+   * Renomme le groupe et fixe sa visibilité. Les deux voyagent ensemble : le serveur reçoit
+   * l'état voulu du groupe, et non une suite d'ordres partiels dont l'ordre compterait.
+   */
+  save(id: string, name: string, visibility: GroupVisibility,
+       invitedCoachIds: string[] = []): Observable<TrainingGroup> {
+    return this.http.put<TrainingGroup>(`${this.base()}/${id}`, { name, visibility, invitedCoachIds });
   }
   delete(id: string): Observable<void> {
     return this.http.delete<void>(`${this.base()}/${id}`);

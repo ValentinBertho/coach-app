@@ -16,8 +16,12 @@ import lombok.Setter;
 import java.util.UUID;
 
 /**
- * Message d'une conversation coach ↔ athlète (fil par athlète). {@code workoutId}
- * optionnel pour rattacher un commentaire à une séance précise.
+ * Message d'un fil de discussion. {@code workoutId} optionnel pour rattacher un commentaire à une
+ * séance précise.
+ *
+ * <p>{@code athlete} reste porté par le message : c'est lui qui donne son contexte à un échange
+ * (la séance commentée, l'écran vers lequel mène la notification). Il ne dit plus <b>qui</b> lit —
+ * cela, c'est l'affaire de {@link Conversation}.</p>
  */
 @Getter
 @Setter
@@ -30,9 +34,21 @@ public class Message extends BaseEntity {
     @JoinColumn(name = "club_id", nullable = false)
     private Club club;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "athlete_id", nullable = false)
+    /**
+     * L'athlète dont il est question, quand il y en a un : le fil d'un groupe, celui du club et
+     * celui de deux coachs n'en désignent aucun.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "athlete_id")
     private Athlete athlete;
+
+    /**
+     * Fil porteur. Nullable en base le temps que le backfill rattache les échanges antérieurs au
+     * modèle de conversations ; tout message écrit depuis en porte un.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "conversation_id")
+    private Conversation conversation;
 
     @Column(name = "sender_user_id", nullable = false)
     private UUID senderUserId;
