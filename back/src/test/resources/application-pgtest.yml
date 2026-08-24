@@ -1,0 +1,38 @@
+# ============================================================================
+# Profil pgtest — le profil `test`, mais sur un VRAI PostgreSQL.
+#
+# H2 en mode PostgreSQL ne reproduit pas tout : il accepte notamment des
+# paramètres nuls là où PostgreSQL exige de connaître leur type. Une messagerie
+# verte en H2 renvoyait ainsi 500 en production, sur la requête des non-lus.
+#
+# Usage : démarrer un PostgreSQL local puis
+#   mvn test -Dtest=… -Dspring.profiles.active=pgtest \
+#            -Dspring.datasource.url=jdbc:postgresql://127.0.0.1:5440/darilab
+# ============================================================================
+spring:
+  datasource:
+    url: ${PGTEST_URL:jdbc:postgresql://127.0.0.1:5440/darilab}
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+app:
+  storage:
+    club-quota-mb: 1
+  rate-limit:
+    enabled: false
+  debrief:
+    enabled: false
+  security:
+    require-verified-email: true
+    jwt:
+      secret: test-secret-for-pg-context-only-min-512-bits-aaaaaaaaaaaaaaaaaaaa
+    field-encryption-key: "0000000000000000000000000000000000000000000000000000000000000000"
+  cors:
+    origins: http://localhost:4200
+  strava:
+    webhook-verify-token: jeton-de-test
