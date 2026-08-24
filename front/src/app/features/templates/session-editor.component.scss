@@ -162,3 +162,14 @@
 .cdk-drag-preview { box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18)); border-radius: var(--radius); background: var(--paper); }
 .cdk-drag-placeholder { opacity: 0.4; border: 1px dashed var(--primary); border-radius: var(--radius); }
 .cdk-drag-animating { transition: transform 180ms cubic-bezier(0, 0, 0.2, 1); }
+
+/* Portée de l'édition : modèle partagé, ou séance d'un athlète. Les deux écrans étaient
+   indiscernables, et la confusion se payait chez tous les athlètes à la fois. */
+.scope-note {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  margin: var(--sp-2) 0 0; padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+}
+.scope-note--template { background: var(--warning-wash, #fef3c7); color: var(--warning-text, #92400e); }
+.scope-note--athlete { background: var(--primary-wash); color: var(--primary); }

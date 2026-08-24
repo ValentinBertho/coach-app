@@ -53,15 +53,20 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
 
     Optional<Message> findFirstByConversationIdOrderByCreatedAtDesc(UUID conversationId);
 
-    /** Non-lus d'un fil pour une personne : ce qui est arrivé après son dernier passage. */
-    @Query("""
-            select count(m) from Message m
-            where m.conversation.id = :conversationId
-              and m.senderUserId <> :userId
-              and (:since is null or m.createdAt > :since)
-            """)
-    long countUnread(@Param("conversationId") UUID conversationId,
-                     @Param("userId") UUID userId, @Param("since") Instant since);
+    /**
+     * Non-lus d'un fil pour une personne : ce qui est arrivé après son dernier passage.
+     *
+     * <p>Deux méthodes plutôt qu'un {@code (:since is null or …)} : PostgreSQL refuse un paramètre
+     * dont il ne peut pas déduire le type (« could not determine data type of parameter »), et un
+     * fil jamais ouvert n'a justement pas de date de dernière lecture. H2 — sur lequel tourne la
+     * suite — l'acceptait sans broncher : la messagerie était verte en test et renvoyait 500 en
+     * production, sur l'écran entier.</p>
+     */
+    long countByConversationIdAndSenderUserIdNot(UUID conversationId, UUID senderUserId);
+
+    /** Idem, borné à ce qui est arrivé depuis le dernier passage. */
+    long countByConversationIdAndSenderUserIdNotAndCreatedAtAfter(
+            UUID conversationId, UUID senderUserId, Instant since);
 
     /** Messages sans fil : le backfill des échanges antérieurs au modèle de conversations. */
     List<Message> findByConversationIsNull();

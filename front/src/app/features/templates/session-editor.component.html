@@ -6,6 +6,26 @@
       <a routerLink="/app/library/course" [queryParams]="libraryQueryParams()" class="back-link">← Bibliothèque</a>
     }
     <h1 class="display-sm">{{ name() || 'Éditeur de séance' }}</h1>
+    <!--
+      Ce qu'on est en train de modifier, écrit noir sur blanc.
+
+      Les deux modes se ressemblaient à l'écran : mêmes blocs, même éditeur, un unique lien de
+      retour pour les distinguer. Un coach y écrivait un mot destiné à un athlète — « attention au
+      départ » — en croyant adapter sa séance, alors qu'il annotait le MODÈLE : le mot reparaissait
+      ensuite chez tous ceux à qui la séance était prescrite.
+    -->
+    @if (isWorkout()) {
+      <p class="scope-note scope-note--athlete">
+        <app-icon name="user" [size]="14" />
+        Séance d'<strong>un athlète</strong> — blocs, allures et notes ne concernent que lui.
+      </p>
+    } @else {
+      <p class="scope-note scope-note--template">
+        <app-icon name="library" [size]="14" />
+        <strong>Modèle de bibliothèque</strong> — ce que vous écrivez ici suivra la séance chez
+        <strong>chaque</strong> athlète à qui vous la prescrirez ensuite.
+      </p>
+    }
     <p class="subtitle">Un bloc = <strong>volume + zone</strong>. La cible (allure · FC · RPE) est lue depuis la fiche athlète.</p>
   </div>
   <div class="header-actions">

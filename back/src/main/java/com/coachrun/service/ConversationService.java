@@ -365,11 +365,15 @@ public class ConversationService {
                 canPost(principal, c));
     }
 
+    /** Ce qui est arrivé dans ce fil depuis le dernier passage de cette personne, sans compter le sien. */
     private long unreadFor(UUID userId, Conversation c) {
         Instant since = readRepository.findByConversationIdAndUserId(c.getId(), userId)
                 .map(ConversationRead::getLastReadAt)
                 .orElse(null);
-        return messageRepository.countUnread(c.getId(), userId, since);
+        return since == null
+                ? messageRepository.countByConversationIdAndSenderUserIdNot(c.getId(), userId)
+                : messageRepository.countByConversationIdAndSenderUserIdNotAndCreatedAtAfter(
+                        c.getId(), userId, since);
     }
 
     // --- Lire et écrire ------------------------------------------------------------------------
