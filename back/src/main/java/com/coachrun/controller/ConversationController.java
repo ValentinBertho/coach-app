@@ -4,7 +4,6 @@ import com.coachrun.dto.request.MessageRequest;
 import com.coachrun.dto.response.ConversationSummaryResponse;
 import com.coachrun.dto.response.MessageResponse;
 import com.coachrun.dto.response.RecipientResponse;
-import com.coachrun.entity.Conversation;
 import com.coachrun.security.AuthPrincipal;
 import com.coachrun.service.ConversationService;
 import com.coachrun.service.MessageService;
@@ -70,17 +69,7 @@ public class ConversationController {
     @PostMapping("/open")
     public ConversationSummaryResponse open(@AuthenticationPrincipal AuthPrincipal principal,
                                             @Valid @RequestBody com.coachrun.dto.request.OpenConversationRequest request) {
-        Conversation conversation = switch (request.kind()) {
-            case "GROUP" -> conversations.group(request.targetId());
-            case "CLUB" -> conversations.club(request.targetId());
-            default -> conversations.open(principal, request.kind(), request.targetId());
-        };
-        // Relu par la boîte de réception : c'est elle qui sait dire le titre et les droits, et un
-        // fil de groupe ouvert par un identifiant deviné n'y apparaîtrait pas.
-        return conversations.inbox(principal).stream()
-                .filter(c -> c.id().equals(conversation.getId()))
-                .findFirst()
-                .orElseThrow(() -> new com.coachrun.exception.NotFoundException("Conversation introuvable."));
+        return conversations.openFor(principal, request.kind(), request.targetId());
     }
 
     @GetMapping("/{conversationId}/messages")

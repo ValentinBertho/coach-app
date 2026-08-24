@@ -65,6 +65,34 @@ class ConversationOnPostgresTest {
                 .andExpect(status().isOk());
     }
 
+    /**
+     * Le geste de « Nouveau message », sur le moteur de production : ouvrir un fil qui n'existe
+     * pas encore, puis le lire.
+     */
+    @Test
+    void openingABrandNewConversationWorks() throws Exception {
+        String athleteBearer = bearer(DemoSeedService.ATHLETE_EMAIL);
+        JsonNode recipients = objectMapper.readTree(
+                mvc.perform(get("/me/conversations/recipients").header("Authorization", athleteBearer))
+                        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        org.assertj.core.api.Assertions.assertThat(recipients.size())
+                .as("l'athlete de demonstration a au moins un coach a qui ecrire")
+                .isGreaterThan(0);
+        JsonNode target = recipients.get(0);
+
+        String body = mvc.perform(post("/me/conversations/open")
+                        .header("Authorization", athleteBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(java.util.Map.of(
+                                "kind", target.get("kind").asText(),
+                                "targetId", target.get("id").asText()))))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        mvc.perform(get("/me/conversations/{id}/messages", objectMapper.readTree(body).get("id").asText())
+                        .header("Authorization", athleteBearer))
+                .andExpect(status().isOk());
+    }
+
     private String bearer(String email) throws Exception {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
