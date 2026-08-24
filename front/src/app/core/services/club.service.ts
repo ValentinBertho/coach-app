@@ -56,6 +56,14 @@ export class ClubService {
     return this.http.post<CoachInviteResult>(`${this.club()}/members`, { email, role, fullName });
   }
 
+  /**
+   * Renvoie l'invitation d'un coach qui ne l'a pas encore acceptée : nouveau lien, nouveau délai.
+   * Le lien précédent est invalidé du même coup.
+   */
+  resendInvite(coachId: string): Observable<CoachInviteResult> {
+    return this.http.post<CoachInviteResult>(`${this.club()}/members/${coachId}/resend-invite`, {});
+  }
+
   /** Retire un coach du club. */
   removeCoach(coachId: string): Observable<void> {
     return this.http.delete<void>(`${this.club()}/members/${coachId}`);

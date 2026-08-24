@@ -117,15 +117,39 @@ public class AthleteAccessValidator {
             level = PermissionLevel.max(level, permission.getPermission());
         }
 
-        // 4. Athlète club : lecture par défaut pour tout coach ayant accès au club. Un athlète
-        //    « club » est partagé au sein du club (la confidentialité passe par le statut privé) ;
-        //    l'écriture reste réservée au référent / coach assigné / permission explicite.
+        // 4. Athlète club : accès par défaut de tout coach ayant accès au club. Un athlète
+        //    « club » est partagé au sein du club — la confidentialité passe par le statut privé,
+        //    qui reste étanche y compris au propriétaire (traité plus haut).
+        //
+        //    Le niveau dépend du rôle club. Le propriétaire et le coach principal écrivent
+        //    d'emblée sur tout le club : ils n'obtenaient que la lecture, si bien que le coach
+        //    principal ne pouvait pas prescrire à un athlète du club sans se faire accorder une
+        //    permission athlète par athlète — sur son propre club. L'assistant, lui, garde la
+        //    lecture : c'est la définition même de son rôle, et l'écriture s'obtient par une
+        //    permission explicite ou par la relation référente.
         UUID clubId = referent.getClub().getId();
         if (hasClubAccess(coachId, clubId)) {
-            level = PermissionLevel.max(level, PermissionLevel.READ);
+            level = PermissionLevel.max(level, clubDefaultLevel(coachId, clubId));
         }
 
         return Optional.ofNullable(level);
+    }
+
+    /**
+     * Niveau accordé d'office à un coach sur les athlètes <b>club</b>, selon son rôle au club :
+     * écriture pour le propriétaire et le coach principal, lecture pour les autres.
+     *
+     * <p>Un coach ayant accès au club sans y être membre déclaré (club additionnel, données
+     * antérieures) retombe sur la lecture : le rôle club est ce qui distingue, et à défaut de
+     * rôle on ne suppose pas le plus fort.</p>
+     */
+    private PermissionLevel clubDefaultLevel(UUID coachId, UUID clubId) {
+        ClubRole role = clubMemberRepository.findByClubIdAndCoachIdAndActiveTrue(clubId, coachId)
+                .map(ClubMember::getClubRole)
+                .orElse(null);
+        return (role == ClubRole.OWNER || role == ClubRole.COACH_PRINCIPAL)
+                ? PermissionLevel.WRITE
+                : PermissionLevel.READ;
     }
 
     /** Le coach a-t-il accès au club (club principal ou club additionnel) ? */

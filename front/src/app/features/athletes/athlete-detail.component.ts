@@ -14,6 +14,7 @@ import { AthleteTimelineComponent } from '../../shared/components/athlete-timeli
 import { TrajectoryBannerComponent } from '../../shared/components/trajectory-banner/trajectory-banner.component';
 import { Timeline, Trajectory } from '../../core/models/decision.model';
 import { DecisionService } from '../../core/services/decision.service';
+import { AthleteAccessPanelComponent } from '../../shared/components/athlete-access/athlete-access-panel.component';
 
 /**
  * Onglet « Résumé » de la coquille athlète : profil physiologique, indisponibilités, antécédents,
@@ -25,7 +26,7 @@ import { DecisionService } from '../../core/services/decision.service';
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SkeletonComponent, IconComponent, FormsModule, DatePipe, PhysioPanelComponent,
-    TrajectoryBannerComponent, AthleteTimelineComponent],
+    TrajectoryBannerComponent, AthleteTimelineComponent, AthleteAccessPanelComponent],
   templateUrl: './athlete-detail.component.html',
   styleUrl: './athletes.scss',
 })

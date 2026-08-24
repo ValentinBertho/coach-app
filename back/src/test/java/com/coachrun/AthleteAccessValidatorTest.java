@@ -35,7 +35,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Couvre les règles d'accès gradué coach↔athlète (équivalent applicatif des policies RLS DARI Lab) :
- * référent, permission explicite, lecture par défaut owner/principal, et étanchéité des athlètes privés.
+ * référent, permission explicite, écriture par défaut owner/principal sur les athlètes club,
+ * lecture pour les autres membres, et étanchéité des athlètes privés.
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -54,6 +55,7 @@ class AthleteAccessValidatorTest {
     private Club otherClub;
     private User referentCoach;
     private User ownerCoach;
+    private User principalCoach;
     private User assistantCoach;
     private User outsiderCoach;
     private Athlete clubAthlete;
@@ -67,12 +69,16 @@ class AthleteAccessValidatorTest {
 
         referentCoach = userRepository.save(newCoach("referent-" + suffix + "@t.io"));
         ownerCoach = userRepository.save(newCoach("owner-" + suffix + "@t.io"));
+        // Coach principal SANS relation référente : c'est le rôle club qu'on éprouve ici, et non
+        // l'accès du référent, qui a toujours été complet.
+        principalCoach = userRepository.save(newCoach("principal-" + suffix + "@t.io"));
         assistantCoach = userRepository.save(newCoach("assistant-" + suffix + "@t.io"));
         // outsiderCoach : coach d'un AUTRE club (aucun accès tenant à ce club).
         outsiderCoach = userRepository.save(newCoachInClub("outsider-" + suffix + "@t.io", otherClub));
 
         clubMemberRepository.save(member(ownerCoach, ClubRole.OWNER));
         clubMemberRepository.save(member(referentCoach, ClubRole.COACH_PRINCIPAL));
+        clubMemberRepository.save(member(principalCoach, ClubRole.COACH_PRINCIPAL));
         clubMemberRepository.save(member(assistantCoach, ClubRole.COACH_ASSISTANT));
         // outsiderCoach : volontairement non membre du club.
 
@@ -96,12 +102,38 @@ class AthleteAccessValidatorTest {
                 .contains(PermissionLevel.WRITE);
     }
 
+    /**
+     * Propriétaire et coach principal écrivent d'office sur les athlètes du club.
+     *
+     * <p>Ils n'obtenaient que la lecture : le coach principal ne pouvait pas prescrire à un
+     * athlète de son propre club sans qu'on lui accorde une permission, athlète par athlète.</p>
+     */
     @Test
-    void ownerGetsReadByDefaultOnClubAthleteButNeverOnPrivate() {
+    void ownerAndPrincipalWriteOnClubAthletesByDefault() {
         assertThat(validator.effectiveLevel(ownerCoach.getId(), clubAthlete.getId()))
-                .contains(PermissionLevel.READ);
-        // Athlète privé : invisible même pour l'Owner.
+                .contains(PermissionLevel.WRITE);
+        assertThat(validator.effectiveLevel(principalCoach.getId(), clubAthlete.getId()))
+                .contains(PermissionLevel.WRITE);
+    }
+
+    /** Le privé reste le privé : ni le propriétaire ni le coach principal n'y entrent. */
+    @Test
+    void thePrivateAthleteStaysOutOfReachOfTheWholeClub() {
         assertThat(validator.effectiveLevel(ownerCoach.getId(), privateAthlete.getId())).isEmpty();
+        assertThat(validator.effectiveLevel(principalCoach.getId(), privateAthlete.getId())).isEmpty();
+    }
+
+    /** L'assistant, lui, garde la lecture : c'est la définition de son rôle. */
+    @Test
+    void theAssistantKeepsReadByDefault() {
+        // La permission COMMENT posée en fixture le porterait plus haut : on interroge un
+        // assistant sans permission, sur le même athlète club.
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        User plainAssistant = userRepository.save(newCoach("plain-" + suffix + "@t.io"));
+        clubMemberRepository.save(member(plainAssistant, ClubRole.COACH_ASSISTANT));
+
+        assertThat(validator.effectiveLevel(plainAssistant.getId(), clubAthlete.getId()))
+                .contains(PermissionLevel.READ);
     }
 
     @Test
@@ -139,8 +171,8 @@ class AthleteAccessValidatorTest {
         assertThat(validator.canWrite(assistant, clubAthlete.getId())).isFalse();
 
         Authentication owner = auth(ownerCoach);
-        assertThat(validator.canRead(owner, clubAthlete.getId())).isTrue();
-        assertThat(validator.canComment(owner, clubAthlete.getId())).isFalse();
+        assertThat(validator.canWrite(owner, clubAthlete.getId())).isTrue();
+        assertThat(validator.canRead(owner, privateAthlete.getId())).isFalse();
     }
 
     @Test

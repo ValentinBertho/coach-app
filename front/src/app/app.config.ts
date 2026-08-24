@@ -6,6 +6,7 @@ import * as Sentry from '@sentry/angular-ivy';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { environment } from '../environments/environment';
 import { provideRouter, withComponentInputBinding, withRouterConfig } from '@angular/router';
+import { provideAthleteContextReuse } from './core/routing/athlete-context-reuse.strategy';
 import { provideServiceWorker } from '@angular/service-worker';
 import {
   LucideAngularModule,
@@ -17,7 +18,7 @@ import {
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Save,
   LayoutGrid, List, PanelLeft, Menu, GripVertical, ChevronDown, ChevronUp, Type,
   LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck, Eye, Trash2, Plus, Ellipsis, Inbox, ArrowLeft, ArrowRight, ChevronLeft, RotateCcw, Square, GripHorizontal,
-  EyeOff, MapPin, LineChart, Sun, WifiOff,
+  EyeOff, MapPin, LineChart, Sun, WifiOff, Mail,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -41,7 +42,7 @@ export const ICONS = {
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Save,
   LayoutGrid, List, PanelLeft, Menu, GripVertical, ChevronDown, ChevronUp, Type,
   LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck, Eye, Trash2, Plus, Ellipsis, Inbox, ArrowLeft, ArrowRight, ChevronLeft, RotateCcw, Square, GripHorizontal,
-  EyeOff, MapPin, LineChart, Sun, WifiOff,
+  EyeOff, MapPin, LineChart, Sun, WifiOff, Mail,
 };
 
 export const appConfig: ApplicationConfig = {
@@ -61,6 +62,10 @@ export const appConfig: ApplicationConfig = {
       withComponentInputBinding(),
       withRouterConfig({ paramsInheritanceStrategy: 'always' }),
     ),
+    // ... et comme elles n'ont que cet héritage pour savoir de qui elles parlent, elles sont
+    // recréées quand il change : sans cela, changer d'athlète depuis le bandeau renommait
+    // l'en-tête et laissait dessous le programme du précédent.
+    provideAthleteContextReuse(),
     provideHttpClient(withInterceptors([authInterceptor, errorInterceptor])),
     // Enregistrement piloté par l'environnement, et non par `isDevMode()` : c'est la présence du
     // fichier `ngsw-worker.js` dans le build qui décide, pas le mode d'exécution. `ng serve` ne le

@@ -21,6 +21,14 @@
             </td>
             <td><span class="badge" [class.badge-info]="m.clubRole === 'OWNER'" [class.badge-neutral]="m.clubRole !== 'OWNER'">{{ roleLabels[m.clubRole] }}</span></td>
             <td class="row-end">
+              @if (m.pending) {
+                <button type="button" class="btn btn-ghost btn-sm" (click)="resendInvite(m)"
+                        [disabled]="resending() === m.coachId"
+                        title="Renvoyer l'e-mail d'invitation (nouveau lien, valable 14 jours)">
+                  <app-icon name="mail" [size]="14" />
+                  {{ resending() === m.coachId ? 'Envoi…' : "Renvoyer l'invitation" }}
+                </button>
+              }
               @if (m.clubRole !== 'OWNER') {
                 <button type="button" class="btn btn-ghost btn-sm" (click)="removeMember(m)" title="Retirer du club">
                   <app-icon name="x" [size]="14" /> Retirer
@@ -63,54 +71,8 @@
     </select>
   </div>
 
-  @if (access(); as acc) {
-    <div class="ownership">
-      <span>Statut :</span>
-      @if (acc.ownership === 'CLUB') {
-        <span class="badge badge-success"><app-icon name="building-2" [size]="13" /> Club</span>
-      } @else {
-        <span class="badge" style="background:#ede9fe;color:#6d28d9"><app-icon name="lock" [size]="13" /> Privé</span>
-      }
-      <button type="button" class="btn btn-ghost btn-sm" (click)="toggleOwnership()">
-        Passer en {{ acc.ownership === 'CLUB' ? 'privé' : 'club' }}
-      </button>
-      @if (acc.referentName) { <span class="field-hint">Référent : {{ acc.referentName }}</span> }
-    </div>
-
-    <table class="data-table perm-table">
-      <thead><tr><th>Coach</th><th>Accès actuel</th><th>Accorder</th></tr></thead>
-      <tbody>
-        @for (m of members(); track m.coachId) {
-          <tr>
-            <td>{{ m.name }} @if (isReferent(m.coachId)) { <span class="badge badge-info">Référent</span> }</td>
-            <td>
-              @if (isReferent(m.coachId)) {
-                <span class="badge badge-success">Écriture (référent)</span>
-              } @else {
-                @if (permFor(m.coachId); as p) {
-                  <span class="badge badge-info">{{ levelLabels[p] }}</span>
-                  <button type="button" class="chip-x" (click)="revoke(m.coachId)" title="Retirer" aria-label="Retirer"><app-icon name="x" [size]="13" /></button>
-                }
-                @if (!permFor(m.coachId)) {
-                  <span class="field-hint">—</span>
-                }
-              }
-            </td>
-            <td>
-              @if (!isReferent(m.coachId) && acc.ownership === 'CLUB') {
-                <div class="grant-btns">
-                  @for (l of levels; track l) {
-                    <button type="button" class="btn btn-ghost btn-sm" (click)="grant(m.coachId, l)">{{ levelLabels[l] }}</button>
-                  }
-                </div>
-              } @else if (acc.ownership === 'PRIVATE') {
-                <span class="field-hint">Athlète privé</span>
-              }
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+  @if (selectedAthlete(); as id) {
+    <app-athlete-access-panel [athleteId]="id" />
   }
 </div>
 

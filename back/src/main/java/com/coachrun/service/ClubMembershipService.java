@@ -118,6 +118,40 @@ public class ClubMembershipService {
         return new CoachInviteResponse(coach.getId(), coach.getFullName(), effectiveRole, invited, inviteUrl);
     }
 
+    /**
+     * Renvoie l'invitation d'un coach qui ne l'a jamais acceptée : nouveau jeton, nouveau délai,
+     * nouvel e-mail.
+     *
+     * <p><b>Pourquoi.</b> Un e-mail d'invitation se perd — indésirables, adresse mal orthographiée,
+     * coach qui l'archive et l'oublie. Le lien, lui, expire au bout de quatorze jours. Le club
+     * n'avait alors aucune issue : l'adresse existe déjà, donc « Ajouter / inviter » répond « ce
+     * coach est déjà membre du club », et rien nulle part ne renvoyait le message. Il fallait
+     * retirer le coach pour le réinviter — ce qui, pour un coach déjà actif, lui aurait fait
+     * perdre ses accès.</p>
+     *
+     * <p>Le jeton précédent est remplacé, donc invalidé : un lien qui traîne dans une boîte ne
+     * doit pas rester une seconde porte d'entrée.</p>
+     */
+    @Transactional
+    public CoachInviteResponse resendInvite(UUID clubId, UUID coachId) {
+        ClubMember member = memberRepository.findByClubIdAndCoachIdAndActiveTrue(clubId, coachId)
+                .orElseThrow(() -> new NotFoundException("Membre introuvable."));
+        User coach = member.getCoach();
+        if (coach.getStatus() != UserStatus.INVITED) {
+            throw new ConflictException("Ce coach a déjà activé son compte : "
+                    + "il peut se connecter, ou demander un nouveau mot de passe.");
+        }
+
+        String token = newToken();
+        coach.setInviteToken(token);
+        coach.setInviteExpiresAt(Instant.now().plus(INVITE_VALIDITY_DAYS, ChronoUnit.DAYS));
+        String inviteUrl = frontendUrl + "/coach-invitation/" + token;
+        notificationService.notifyCoachInvitation(
+                coach.getEmail(), coach.getFullName(), member.getClub().getName(), inviteUrl);
+        return new CoachInviteResponse(coach.getId(), coach.getFullName(), member.getClubRole(),
+                true, inviteUrl);
+    }
+
     private String newToken() {
         byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);

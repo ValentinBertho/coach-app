@@ -18,8 +18,15 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
   styleUrl: './athletes.scss',
 })
 export class AthleteFormComponent implements OnInit {
-  /** Lié au paramètre de route :id (édition) ; absent en création. */
-  readonly id = input<string>();
+  /**
+   * Athlète à modifier, lié au paramètre de route `:athleteId` ; absent en création.
+   *
+   * <p>Cette entrée s'appelait `id`. La route, elle, déclare `:athleteId` : la liaison d'entrées
+   * de route n'avait rien à poser, et le formulaire — qui déduit son mode de la présence de cet
+   * identifiant — s'ouvrait sur « Nouvel athlète » depuis le bouton « Modifier » d'une fiche.
+   * Enregistrer y aurait créé un doublon.</p>
+   */
+  readonly athleteId = input<string>();
 
   private readonly fb = inject(FormBuilder);
   private readonly athleteService = inject(AthleteService);
@@ -32,7 +39,7 @@ export class AthleteFormComponent implements OnInit {
   readonly groups = signal<TrainingGroup[]>([]);
 
   get isEdit(): boolean {
-    return !!this.id();
+    return !!this.athleteId();
   }
 
   readonly form = this.fb.group({
@@ -53,7 +60,7 @@ export class AthleteFormComponent implements OnInit {
 
   ngOnInit(): void {
     this.groupService.list().subscribe((g) => this.groups.set(g));
-    const id = this.id();
+    const id = this.athleteId();
     if (id) {
       this.loading.set(true);
       this.athleteService.get(id).subscribe({
@@ -76,7 +83,7 @@ export class AthleteFormComponent implements OnInit {
     }
     this.submitting.set(true);
     const payload = this.toRequest();
-    const id = this.id();
+    const id = this.athleteId();
     const call = id ? this.athleteService.update(id, payload) : this.athleteService.create(payload);
 
     call.subscribe({
