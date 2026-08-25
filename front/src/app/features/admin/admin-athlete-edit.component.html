@@ -1,51 +1,114 @@
+<nav class="aae-crumbs">
+  <a routerLink="/admin/athletes"><app-icon name="arrow-left" [size]="14" /> Athlètes</a>
+</nav>
+
 <section class="page-header">
-  <div><h1 class="display-sm">Éditer l'athlète</h1></div>
-  <a routerLink="/admin/athletes" class="btn btn-ghost">Retour</a>
+  <div>
+    <h1 class="display-sm">{{ athleteName() || 'Éditer l’athlète' }}</h1>
+    @if (clubName()) { <p class="subtitle">{{ clubName() }}</p> }
+  </div>
 </section>
 
 @if (loading()) {
   <div class="card"><app-skeleton shape="text" [rows]="6" /></div>
+} @else if (failed()) {
+  <div class="card alert alert-danger aae-error">
+    <div>
+      <strong>Cet athlète n'a pas pu être chargé.</strong>
+      <p class="field-hint">Il a peut-être été supprimé depuis l'ouverture de la liste.</p>
+    </div>
+    <a class="btn btn-ghost btn-sm" routerLink="/admin/athletes">Retour à la liste</a>
+  </div>
 } @else {
   <form class="card" [formGroup]="form" (ngSubmit)="submit()">
     <div class="form-row">
-      <div class="form-group"><label>Prénom *</label><input class="form-control" formControlName="firstName" /></div>
-      <div class="form-group"><label>Nom *</label><input class="form-control" formControlName="lastName" /></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Email</label><input class="form-control" formControlName="email" /></div>
       <div class="form-group">
-        <label>Statut</label>
-        <select class="form-control" formControlName="status">
-          <option value="ACTIVE">ACTIVE</option>
-          <option value="PAUSED">PAUSED</option>
-          <option value="ARCHIVED">ARCHIVED</option>
-        </select>
+        <label for="ae-first">Prénom *</label>
+        <input id="ae-first" class="form-control" formControlName="firstName" />
+      </div>
+      <div class="form-group">
+        <label for="ae-last">Nom *</label>
+        <input id="ae-last" class="form-control" formControlName="lastName" />
       </div>
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Sexe</label>
-        <select class="form-control" formControlName="sex">
+        <label for="ae-email">E-mail</label>
+        <input id="ae-email" class="form-control" formControlName="email" />
+      </div>
+      <div class="form-group">
+        <label for="ae-birth">Date de naissance</label>
+        <input id="ae-birth" type="date" class="form-control" formControlName="birthDate" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="ae-status">Statut</label>
+        <select id="ae-status" class="form-control" formControlName="status">
+          @for (s of statuses; track s) { <option [value]="s">{{ statusLabels[s] }}</option> }
+        </select>
+        <span class="field-hint">
+          « Archivé » retire l'athlète des listes du coach sans rien détruire — c'est l'alternative
+          sûre à la suppression.
+        </span>
+      </div>
+      <div class="form-group">
+        <label for="ae-sex">Sexe</label>
+        <select id="ae-sex" class="form-control" formControlName="sex">
           <option value="">—</option><option value="FEMALE">Femme</option>
           <option value="MALE">Homme</option><option value="OTHER">Autre</option>
         </select>
       </div>
+    </div>
+    <div class="form-group">
+      <label for="ae-level">Niveau</label>
+      <select id="ae-level" class="form-control" formControlName="level">
+        <option value="">—</option><option value="BEGINNER">Débutant</option>
+        <option value="INTERMEDIATE">Intermédiaire</option><option value="ADVANCED">Avancé</option>
+        <option value="ELITE">Élite</option>
+      </select>
+    </div>
+
+    <!-- Données de santé : chiffrées au repos, et modifiables ici. Le dire au moment du geste
+         vaut mieux qu'une mention dans une politique que personne ne relit. -->
+    <div class="alert alert-info aae-health">
+      <app-icon name="heart-pulse" [size]="16" />
+      <p>
+        Les valeurs ci-dessous sont des <strong>données de santé</strong> : chiffrées au repos,
+        elles appartiennent à l'athlète. Les modifier fausse ses zones d'entraînement et ses
+        allures cibles. Chaque enregistrement est consigné au journal d'audit —
+        <strong>sans les valeurs</strong>.
+      </p>
+    </div>
+
+    <div class="form-row-3">
       <div class="form-group">
-        <label>Niveau</label>
-        <select class="form-control" formControlName="level">
-          <option value="">—</option><option value="BEGINNER">Débutant</option>
-          <option value="INTERMEDIATE">Intermédiaire</option><option value="ADVANCED">Avancé</option>
-          <option value="ELITE">Élite</option>
-        </select>
+        <label for="ae-hrmax">FC max</label>
+        <input id="ae-hrmax" type="number" class="form-control" formControlName="hrMax" />
+      </div>
+      <div class="form-group">
+        <label for="ae-hrrest">FC repos</label>
+        <input id="ae-hrrest" type="number" class="form-control" formControlName="hrRest" />
+      </div>
+      <div class="form-group">
+        <label for="ae-vma">VMA</label>
+        <input id="ae-vma" type="number" step="0.1" class="form-control" formControlName="vma" />
       </div>
     </div>
-    <div class="form-row-3">
-      <div class="form-group"><label>FC max</label><input type="number" class="form-control" formControlName="hrMax" /></div>
-      <div class="form-group"><label>FC repos</label><input type="number" class="form-control" formControlName="hrRest" /></div>
-      <div class="form-group"><label>VMA</label><input type="number" step="0.1" class="form-control" formControlName="vma" /></div>
+    <div class="form-group">
+      <label for="ae-weight">Poids (kg)</label>
+      <input id="ae-weight" type="number" step="0.1" class="form-control" formControlName="weightKg" />
     </div>
-    <div class="form-group"><label>Poids (kg)</label><input type="number" step="0.1" class="form-control" formControlName="weightKg" /></div>
-    <div class="form-group"><label>Notes médicales </label><textarea rows="2" class="form-control" formControlName="medicalNotes"></textarea></div>
-    <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">Enregistrer</button>
+    <div class="form-group">
+      <label for="ae-notes">Notes médicales</label>
+      <textarea id="ae-notes" rows="2" class="form-control" formControlName="medicalNotes"></textarea>
+    </div>
+
+    <div class="aae-actions">
+      <a class="btn btn-ghost" routerLink="/admin/athletes">Annuler</a>
+      <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
+        {{ submitting() ? 'Enregistrement…' : 'Enregistrer' }}
+      </button>
+    </div>
   </form>
 }

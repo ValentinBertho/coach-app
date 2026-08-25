@@ -1,77 +1,156 @@
 <section class="page-header">
-  <div><h1 class="display-sm">Utilisateurs</h1><p class="subtitle">Comptes, rôles et statuts.</p></div>
+  <div>
+    <h1 class="display-sm">Utilisateurs</h1>
+    <p class="subtitle">Comptes, rôles, statuts et activité.</p>
+  </div>
+  <button type="button" class="btn btn-primary btn-sm" (click)="creating.set(!creating())">
+    <app-icon name="plus" [size]="15" /> Nouveau compte
+  </button>
 </section>
 
-<div class="card" style="margin-bottom: var(--sp-5)">
-  <h2 style="margin-top:0;font-size:var(--text-lg)">Créer un utilisateur</h2>
-  <div class="form-row-3">
-    <div class="form-group"><label>Email</label><input class="form-control" [(ngModel)]="draft.email" /></div>
-    <div class="form-group"><label>Nom complet</label><input class="form-control" [(ngModel)]="draft.fullName" /></div>
-    <div class="form-group"><label>Mot de passe</label><input type="password" class="form-control" [(ngModel)]="draft.password" /></div>
-    <div class="form-group">
-      <label>Rôle</label>
-      <select class="form-control" [(ngModel)]="draft.role">
-        @for (r of roles; track r) { <option [value]="r">{{ roleLabels[r] }}</option> }
-      </select>
+@if (creating()) {
+  <div class="card al-create">
+    <div class="al-create__hd">
+      <h2>Créer un compte</h2>
+      <button type="button" class="btn btn-ghost btn-sm" (click)="creating.set(false)"
+              aria-label="Fermer"><app-icon name="x" [size]="16" /></button>
     </div>
-    @if (needsClub(draft.role)) {
+    <div class="form-row-3 al-create__form">
+      <div class="form-group"><label for="nu-email">E-mail</label>
+        <input id="nu-email" class="form-control" type="email" [(ngModel)]="draft.email" /></div>
+      <div class="form-group"><label for="nu-name">Nom complet</label>
+        <input id="nu-name" class="form-control" [(ngModel)]="draft.fullName" /></div>
+      <div class="form-group"><label for="nu-pwd">Mot de passe initial</label>
+        <input id="nu-pwd" type="password" class="form-control" [(ngModel)]="draft.password" />
+        <span class="field-hint">8 caractères minimum. À faire changer dès la première connexion.</span>
+      </div>
       <div class="form-group">
-        <label>Club</label>
-        <select class="form-control" [(ngModel)]="draft.clubId">
-          <option value="">—</option>
-          @for (c of clubs(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+        <label for="nu-role">Rôle</label>
+        <select id="nu-role" class="form-control" [(ngModel)]="draft.role">
+          @for (r of roles; track r) { <option [value]="r">{{ roleLabels[r] }}</option> }
         </select>
       </div>
-    }
-    <div class="form-group" style="justify-content:flex-end">
-      <button type="button" class="btn btn-primary" (click)="create()">+ Créer</button>
+      @if (needsClub(draft.role)) {
+        <div class="form-group">
+          <label for="nu-club">Club</label>
+          <select id="nu-club" class="form-control" [(ngModel)]="draft.clubId">
+            <option value="">—</option>
+            @for (c of clubs(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+          </select>
+        </div>
+      }
+      <div class="form-group" style="justify-content:flex-end">
+        <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="create()">
+          {{ saving() ? 'Création…' : 'Créer le compte' }}
+        </button>
+      </div>
     </div>
   </div>
-</div>
+}
 
-<div class="search-bar">
-  <select class="form-control" style="max-width:200px" [(ngModel)]="filterRole" (ngModelChange)="load()">
+<div class="al-filters">
+  <select class="form-control" [(ngModel)]="filterRole" (ngModelChange)="onFilterChange()"
+          aria-label="Filtrer par rôle">
     <option value="">Tous les rôles</option>
     @for (r of roles; track r) { <option [value]="r">{{ roleLabels[r] }}</option> }
   </select>
-  <input type="search" class="form-control" placeholder="Rechercher (email, nom)…" [(ngModel)]="search" (ngModelChange)="onSearchChange()" />
+  <select class="form-control" [(ngModel)]="filterStatus" (ngModelChange)="onFilterChange()"
+          aria-label="Filtrer par statut">
+    <option value="">Tous les statuts</option>
+    @for (s of statuses; track s) { <option [value]="s">{{ statusLabels[s] }}</option> }
+  </select>
+  <select class="form-control" [(ngModel)]="filterClub" (ngModelChange)="onFilterChange()"
+          aria-label="Filtrer par club">
+    <option value="">Tous les clubs</option>
+    @for (c of clubs(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+  </select>
+  <select class="form-control" [(ngModel)]="filterVerified" (ngModelChange)="onFilterChange()"
+          aria-label="Filtrer par vérification d'adresse">
+    <option value="">Vérifiée ou non</option>
+    <option value="false">Adresse non vérifiée</option>
+    <option value="true">Adresse vérifiée</option>
+  </select>
+  <input type="search" class="form-control al-search" placeholder="Nom ou e-mail…"
+         [(ngModel)]="search" (ngModelChange)="onSearchChange()" aria-label="Rechercher" />
+  @if (hasFilters) {
+    <button type="button" class="btn btn-ghost btn-sm" (click)="resetFilters()">Réinitialiser</button>
+  }
+  <span class="al-count metric">{{ total() }} compte{{ total() > 1 ? 's' : '' }}</span>
 </div>
 
 @if (loading()) {
-  <div class="card table-wrap"><app-skeleton shape="table" [rows]="6" [columns]="5" /></div>
+  <div class="card table-wrap"><app-skeleton shape="table" [rows]="8" [columns]="6" /></div>
+} @else if (failed()) {
+  <div class="card alert alert-danger al-error">
+    <div>
+      <strong>La liste n'a pas pu être chargée.</strong>
+      <p class="field-hint">Un tableau vide se lirait « aucun compte » : rien n'est affiché.</p>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" (click)="load()">Réessayer</button>
+  </div>
+} @else if (users().length === 0) {
+  <div class="card">
+    <app-empty-state icon="users"
+      [title]="hasFilters ? 'Aucun compte pour ces filtres' : 'Aucun compte'"
+      [hint]="hasFilters
+        ? 'Élargis la recherche ou réinitialise les filtres.'
+        : 'Les comptes coach se créent aussi par inscription depuis l’application.'">
+      @if (hasFilters) {
+        <button type="button" class="btn btn-ghost" (click)="resetFilters()">Réinitialiser les filtres</button>
+      }
+    </app-empty-state>
+  </div>
 } @else {
   <div class="card table-wrap">
     <table class="data-table">
-      <thead><tr><th>Email</th><th>Nom</th><th>Rôle</th><th>Statut</th><th>Club</th><th></th></tr></thead>
+      <thead>
+        <tr>
+          <th>Compte</th><th>Rôle</th><th>Statut</th><th>Club</th>
+          <th>Dernière visite</th><th></th>
+        </tr>
+      </thead>
       <tbody>
         @for (u of users(); track u.id) {
           <tr>
-            <td>{{ u.email }}</td>
-            <td><input class="form-control" [(ngModel)]="u.fullName" /></td>
             <td>
-              <select class="form-control" [(ngModel)]="u.role">
-                @for (r of roles; track r) { <option [value]="r">{{ roleLabels[r] }}</option> }
-              </select>
+              <span class="al-name">
+                <a [routerLink]="['/admin/users', u.id]">{{ u.fullName || '—' }}</a>
+                <span class="al-sub">{{ u.email }}</span>
+              </span>
+            </td>
+            <td class="al-nowrap">{{ roleLabels[u.role] }}</td>
+            <td>
+              <span class="al-flags">
+                <span class="badge" [class]="statusBadge(u.status)">{{ statusLabels[u.status] }}</span>
+                <!-- L'adresse non vérifiée est le blocage n° 1 des nouveaux coachs : elle doit
+                     se voir depuis la liste, pas seulement depuis la fiche. -->
+                @if (u.emailVerified === false) {
+                  <span class="badge badge-warning" title="L’e-mail de confirmation n’a jamais été suivi">
+                    non vérifiée
+                  </span>
+                }
+              </span>
             </td>
             <td>
-              <select class="form-control" [(ngModel)]="u.status">
-                @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
-              </select>
-            </td>
-            <td>{{ u.clubName || '—' }}</td>
-            <td class="table-actions">
-              <button type="button" class="btn btn-ghost btn-sm" (click)="save(u)">Enregistrer</button>
-              <!-- Voir l'application comme cet utilisateur : la plupart des défauts remontés en
-                   bêta se décrivent par un écran, et ne se reproduisent que depuis son compte. -->
-              @if (canImpersonate(u)) {
-                <button type="button" class="btn btn-ghost btn-sm" (click)="impersonate(u)"
-                        [disabled]="impersonating()">Voir en tant que</button>
+              {{ u.clubName || '—' }}
+              @if (u.additionalClubs?.length) {
+                <span class="al-sub"> +{{ u.additionalClubs?.length }}</span>
               }
-              <button type="button" class="btn btn-danger btn-sm" (click)="remove(u)">Suppr.</button>
+            </td>
+            <td class="al-nowrap">
+              @if (u.lastSeenAt) {
+                <span class="metric">{{ u.lastSeenAt | date: 'd MMM HH:mm' }}</span>
+              } @else {
+                <span class="al-muted">jamais</span>
+              }
+            </td>
+            <td class="table-actions">
+              <a class="btn btn-ghost btn-sm" [routerLink]="['/admin/users', u.id]">
+                Ouvrir <app-icon name="arrow-right" [size]="14" />
+              </a>
             </td>
           </tr>
         }
-        @if (users().length === 0) { <tr><td colspan="6">Aucun utilisateur.</td></tr> }
       </tbody>
     </table>
   </div>

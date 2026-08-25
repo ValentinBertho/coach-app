@@ -1,0 +1,65 @@
+# ============================================================================
+# 090 — Journal des actions d'administration.
+#   Rien en base ne disait qui avait supprimé un compte, changé un rôle, suspendu
+#   un club ou emprunté l'identité d'un utilisateur. La seule trace existante était
+#   une ligne WARN dans les logs applicatifs pour l'impersonation — c'est-à-dire
+#   rien de consultable depuis le produit, et rien du tout pour les six autres
+#   gestes destructeurs du back-office.
+#
+#   Ce que la table porte : l'acteur (identifiant ET e-mail recopié, pour que la
+#   trace survive à la suppression de son propre compte), l'action, la cible, un
+#   résumé lisible, l'adresse d'appel et le navigateur.
+#   Ce qu'elle ne porte pas : aucune donnée de santé, aucun mot de passe, aucun
+#   jeton — le résumé est composé par le code, jamais par la saisie utilisateur.
+#
+#   Additif : nouvelle table, aucune donnée existante touchée.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 090-admin-audit-log
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: admin_audit_log
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+
+              # Référence volontairement sans clé étrangère : une trace d'audit ne
+              # doit pas disparaître — ni empêcher — la suppression de son acteur.
+              - column: { name: actor_user_id, type: UUID }
+              - column: { name: actor_email, type: VARCHAR(255) }
+              - column: { name: actor_name, type: VARCHAR(255) }
+
+              - column: { name: action, type: VARCHAR(48), constraints: { nullable: false } }
+              - column: { name: target_type, type: VARCHAR(32), constraints: { nullable: false } }
+              - column: { name: target_id, type: UUID }
+              # Libellé recopié : « le club Foulées du Lac » reste lisible après suppression.
+              - column: { name: target_label, type: VARCHAR(255) }
+
+              - column: { name: summary, type: VARCHAR(1000) }
+              - column: { name: ip_address, type: VARCHAR(64) }
+              - column: { name: user_agent, type: VARCHAR(255) }
+              - column: { name: occurred_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+
+        # L'écran lit toujours du plus récent au plus ancien, éventuellement filtré.
+        - createIndex:
+            tableName: admin_audit_log
+            indexName: idx_admin_audit_occurred_at
+            columns:
+              - column: { name: occurred_at, descending: true }
+        - createIndex:
+            tableName: admin_audit_log
+            indexName: idx_admin_audit_target
+            columns:
+              - column: { name: target_id }
+        - createIndex:
+            tableName: admin_audit_log
+            indexName: idx_admin_audit_actor
+            columns:
+              - column: { name: actor_user_id }

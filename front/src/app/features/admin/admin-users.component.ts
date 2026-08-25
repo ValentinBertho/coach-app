@@ -1,42 +1,76 @@
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
-import { AdminUser, ClubAdmin, ROLE_LABELS, UserStatus } from '../../core/models/admin.model';
+import {
+  AdminUser,
+  ClubAdmin,
+  ROLE_LABELS,
+  USER_STATUS_LABELS,
+  UserStatus,
+  userStatusBadge,
+} from '../../core/models/admin.model';
 import { UserRole } from '../../core/models/user.model';
 import { AdminService } from '../../core/services/admin.service';
-import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
-import { AuthService } from '../../core/services/auth.service';
-import { Router } from '@angular/router';
+import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { PaginatorComponent } from '../../shared/components/paginator/paginator.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
+/**
+ * Liste des comptes.
+ *
+ * <p><b>Ce qui a changé.</b> Chaque ligne était un mini-formulaire : trois champs éditables et un
+ * bouton « Enregistrer » par compte, sans jamais montrer si l'adresse était vérifiée ni quand la
+ * personne s'était connectée. On modifiait à l'aveugle, dans un tableau, ce qui est précisément
+ * le geste qu'il faut faire en connaissance de cause. La liste <i>liste</i> désormais, et la
+ * fiche (<code>/admin/users/:id</code>) porte les modifications et les actions de support.</p>
+ *
+ * <p>Le filtre par statut existait côté serveur depuis toujours et n'était jamais envoyé : la
+ * liste déroulante affichée à l'écran ne filtrait rien.</p>
+ */
 @Component({
   selector: 'app-admin-users',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, FormsModule, PaginatorComponent],
+  imports: [
+    SkeletonComponent, FormsModule, PaginatorComponent, RouterLink, IconComponent,
+    EmptyStateComponent, DatePipe,
+  ],
   templateUrl: './admin-users.component.html',
+  styleUrl: './admin-list.scss',
 })
 export class AdminUsersComponent implements OnInit {
   private readonly admin = inject(AdminService);
-  private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
-  private readonly auth = inject(AuthService);
+  private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly searchInput$ = new Subject<void>();
 
   readonly roleLabels = ROLE_LABELS;
+  readonly statusLabels = USER_STATUS_LABELS;
+  readonly statusBadge = userStatusBadge;
   readonly roles: UserRole[] = ['PLATFORM_ADMIN', 'HEAD_COACH', 'COACH', 'ATHLETE'];
-  readonly statuses: UserStatus[] = ['ACTIVE', 'SUSPENDED', 'INVITED'];
+  readonly statuses: UserStatus[] = ['ACTIVE', 'INVITED', 'SUSPENDED'];
 
   readonly users = signal<AdminUser[]>([]);
   readonly clubs = signal<ClubAdmin[]>([]);
   readonly loading = signal(true);
+  readonly failed = signal(false);
   readonly page = signal(0);
   readonly totalPages = signal(1);
+  readonly total = signal(0);
+  readonly creating = signal(false);
+  readonly saving = signal(false);
+
   search = '';
   filterRole: UserRole | '' = '';
+  filterStatus: UserStatus | '' = '';
+  filterClub = '';
+  /** '' = indifférent, 'false' = comptes bloqués sur leur e-mail de confirmation. */
+  filterVerified: '' | 'true' | 'false' = '';
 
   draft = { email: '', password: '', fullName: '', role: 'COACH' as UserRole, clubId: '' };
 
@@ -45,12 +79,43 @@ export class AdminUsersComponent implements OnInit {
       this.page.set(0);
       this.load();
     });
-    this.admin.clubs(undefined, 0).subscribe((p) => this.clubs.set(p.content));
+
+    // Les signaux du pilotage et la recherche globale arrivent ici avec un filtre déjà posé.
+    const qp = this.route.snapshot.queryParamMap;
+    this.search = qp.get('q') ?? '';
+    this.filterRole = (qp.get('role') as UserRole) ?? '';
+    this.filterStatus = (qp.get('status') as UserStatus) ?? '';
+    this.filterVerified = (qp.get('verified') as '' | 'true' | 'false') ?? '';
+
+    // Taille explicite : le sélecteur ne chargeait que la première page, si bien qu'au-delà de
+    // 20 clubs le filtre devenait faux — les suivants étaient introuvables dans la liste.
+    this.admin.clubs(undefined, 0, undefined, 200).subscribe({
+      next: (p) => this.clubs.set(p.content),
+      error: () => this.clubs.set([]),
+    });
     this.load();
   }
 
   onSearchChange(): void {
     this.searchInput$.next();
+  }
+
+  onFilterChange(): void {
+    this.page.set(0);
+    this.load();
+  }
+
+  resetFilters(): void {
+    this.search = '';
+    this.filterRole = '';
+    this.filterStatus = '';
+    this.filterClub = '';
+    this.filterVerified = '';
+    this.onFilterChange();
+  }
+
+  get hasFilters(): boolean {
+    return !!(this.search || this.filterRole || this.filterStatus || this.filterClub || this.filterVerified);
   }
 
   goToPage(p: number): void {
@@ -60,14 +125,29 @@ export class AdminUsersComponent implements OnInit {
 
   load(): void {
     this.loading.set(true);
-    this.admin.users({ role: this.filterRole || undefined, q: this.search || undefined, page: this.page() }).subscribe({
-      next: (p) => {
-        this.users.set(p.content);
-        this.totalPages.set(p.totalPages);
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false),
-    });
+    this.failed.set(false);
+    this.admin
+      .users({
+        role: this.filterRole || undefined,
+        status: this.filterStatus || undefined,
+        clubId: this.filterClub || undefined,
+        verified: this.filterVerified === '' ? undefined : this.filterVerified === 'true',
+        q: this.search || undefined,
+        page: this.page(),
+      })
+      .subscribe({
+        next: (p) => {
+          this.users.set(p.content);
+          this.totalPages.set(p.totalPages);
+          this.total.set(p.totalElements);
+          this.loading.set(false);
+        },
+        error: () => {
+          // Un tableau vide se lit « aucun compte » : on distingue explicitement l'échec.
+          this.failed.set(true);
+          this.loading.set(false);
+        },
+      });
   }
 
   needsClub(role: UserRole): boolean {
@@ -80,73 +160,28 @@ export class AdminUsersComponent implements OnInit {
       this.toast.warning('Email, mot de passe et nom sont requis.');
       return;
     }
+    if (this.needsClub(d.role) && !d.clubId) {
+      this.toast.warning('Un coach doit être rattaché à un club.');
+      return;
+    }
+    this.saving.set(true);
     this.admin
       .createUser({
         email: d.email,
         password: d.password,
         fullName: d.fullName,
         role: d.role,
-        clubId: this.needsClub(d.role) ? d.clubId || null : null,
+        clubId: this.needsClub(d.role) ? d.clubId : null,
       })
-      .subscribe(() => {
-        this.toast.success('Utilisateur créé.');
-        this.draft = { email: '', password: '', fullName: '', role: 'COACH', clubId: '' };
-        this.load();
+      .subscribe({
+        next: (u) => {
+          this.toast.success('Compte créé.');
+          this.draft = { email: '', password: '', fullName: '', role: 'COACH', clubId: '' };
+          this.creating.set(false);
+          this.saving.set(false);
+          void this.router.navigate(['/admin/users', u.id]);
+        },
+        error: () => this.saving.set(false),
       });
-  }
-
-  save(u: AdminUser): void {
-    this.admin
-      .updateUser(u.id, { fullName: u.fullName, role: u.role, status: u.status, clubId: u.clubId })
-      .subscribe(() => this.toast.success('Utilisateur mis à jour.'));
-  }
-
-  /** Session d'impersonation en cours d'ouverture (évite le double clic). */
-  readonly impersonating = signal(false);
-
-  /**
-   * Un compte d'administration ne s'emprunte pas : l'impersonation sert à voir l'application comme
-   * un coach ou un athlète, pas à agir sous l'identité d'un pair. Le serveur le refuse aussi — ce
-   * test n'est là que pour ne pas proposer un bouton qui échouera.
-   */
-  canImpersonate(u: AdminUser): boolean {
-    return u.role !== 'PLATFORM_ADMIN';
-  }
-
-  async impersonate(u: AdminUser): Promise<void> {
-    const ok = await this.confirm.ask({
-      title: `Voir l'application en tant que ${u.fullName || u.email} ?`,
-      message: 'Ta session reste ouverte et te sera rendue. Tout ce que tu feras pendant ce temps '
-        + "sera enregistré au nom de cette personne, sans distinction : c'est un outil de lecture.",
-      confirmLabel: 'Voir en tant que',
-    });
-    if (!ok || this.impersonating()) { return; }
-
-    this.impersonating.set(true);
-    this.admin.impersonate(u.id).subscribe({
-      next: (res) => {
-        this.impersonating.set(false);
-        this.auth.startImpersonation(res);
-        void this.router.navigateByUrl(this.auth.homeRoute());
-      },
-      error: () => {
-        this.impersonating.set(false);
-        // Le message du serveur est déjà affiché par l'intercepteur : il nomme la raison du refus.
-      },
-    });
-  }
-
-  async remove(u: AdminUser): Promise<void> {
-    const ok = await this.confirm.ask({
-      title: 'Supprimer l’utilisateur',
-      message: `Supprimer le compte ${u.email} ?`,
-      confirmLabel: 'Supprimer',
-      danger: true,
-    });
-    if (!ok) return;
-    this.admin.deleteUser(u.id).subscribe(() => {
-      this.toast.success('Utilisateur supprimé.');
-      this.load();
-    });
   }
 }

@@ -52,4 +52,6 @@ public interface PushSubscriptionRepository extends JpaRepository<PushSubscripti
     int markUsed(@org.springframework.data.repository.query.Param("endpoint") String endpoint,
                  @org.springframework.data.repository.query.Param("now") java.time.Instant now,
                  @org.springframework.data.repository.query.Param("staleBefore") java.time.Instant staleBefore);
+
+    long countByUserId(UUID userId);
 }

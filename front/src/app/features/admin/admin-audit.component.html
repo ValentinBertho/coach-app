@@ -1,0 +1,97 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">Journal d'audit</h1>
+    <p class="subtitle">Qui a fait quoi, quand, et sur quelle ressource.</p>
+  </div>
+</section>
+
+<div class="al-filters">
+  <select class="form-control" [(ngModel)]="filterAction" (ngModelChange)="onFilterChange()"
+          aria-label="Filtrer par action">
+    <option value="">Toutes les actions</option>
+    @for (a of actions(); track a.value) { <option [value]="a.value">{{ a.label }}</option> }
+  </select>
+  <select class="form-control" [(ngModel)]="filterTarget" (ngModelChange)="onFilterChange()"
+          aria-label="Filtrer par type de ressource">
+    <option value="">Toutes les ressources</option>
+    @for (t of targetTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
+  </select>
+  <select class="form-control" [(ngModel)]="filterDays" (ngModelChange)="onFilterChange()"
+          aria-label="Profondeur">
+    <option [value]="7">7 derniers jours</option>
+    <option [value]="30">30 derniers jours</option>
+    <option [value]="90">90 derniers jours</option>
+    <option [value]="365">1 an</option>
+    <option [value]="0">Depuis le début</option>
+  </select>
+  <input type="search" class="form-control al-search" placeholder="Auteur, cible, détail…"
+         [(ngModel)]="search" (ngModelChange)="onSearchChange()" aria-label="Rechercher" />
+  @if (hasFilters) {
+    <button type="button" class="btn btn-ghost btn-sm" (click)="resetFilters()">Réinitialiser</button>
+  }
+  <span class="al-count metric">{{ total() }} entrée{{ total() > 1 ? 's' : '' }}</span>
+</div>
+
+@if (targetId) {
+  <div class="card alert alert-info aa-scope">
+    <span>Journal filtré sur une seule ressource.</span>
+    <button type="button" class="btn btn-ghost btn-sm" (click)="targetId = ''; onFilterChange()">
+      Voir tout le journal
+    </button>
+  </div>
+}
+
+@if (loading()) {
+  <div class="card table-wrap"><app-skeleton shape="table" [rows]="10" [columns]="5" /></div>
+} @else if (failed()) {
+  <div class="card alert alert-danger al-error">
+    <div>
+      <strong>Le journal n'a pas pu être chargé.</strong>
+      <p class="field-hint">Un tableau vide se lirait « aucune action » : rien n'est affiché.</p>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" (click)="load()">Réessayer</button>
+  </div>
+} @else if (entries().length === 0) {
+  <div class="card">
+    <app-empty-state icon="shield-check"
+      [title]="hasFilters ? 'Aucune entrée pour ces filtres' : 'Aucune action enregistrée'"
+      hint="Le journal ne remonte qu'aux actions effectuées depuis sa mise en service.">
+      @if (hasFilters) {
+        <button type="button" class="btn btn-ghost" (click)="resetFilters()">Réinitialiser les filtres</button>
+      }
+    </app-empty-state>
+  </div>
+} @else {
+  <div class="card table-wrap">
+    <table class="data-table">
+      <thead>
+        <tr><th>Quand</th><th>Auteur</th><th>Action</th><th>Cible</th><th>Détail</th><th>Origine</th></tr>
+      </thead>
+      <tbody>
+        @for (e of entries(); track e.id) {
+          <tr [class.aa-row--sensitive]="e.sensitive">
+            <td class="aa-nowrap metric">{{ e.occurredAt | date: 'd MMM y, HH:mm' }}</td>
+            <td>{{ e.actorEmail || 'système' }}</td>
+            <td>
+              <span class="aa-action">
+                {{ e.actionLabel }}
+                @if (e.sensitive) { <span class="badge badge-warning">sensible</span> }
+              </span>
+            </td>
+            <td>
+              @if (targetRoute(e); as r) {
+                <a [routerLink]="r">{{ e.targetLabel || e.targetTypeLabel }}</a>
+              } @else {
+                {{ e.targetLabel || e.targetTypeLabel }}
+              }
+              <span class="aa-sub">{{ e.targetTypeLabel }}</span>
+            </td>
+            <td class="aa-detail">{{ e.summary || '—' }}</td>
+            <td class="aa-nowrap"><span class="aa-sub metric">{{ e.ipAddress || '—' }}</span></td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <app-paginator [page]="page()" [totalPages]="totalPages()" (pageChange)="goToPage($event)" />
+}

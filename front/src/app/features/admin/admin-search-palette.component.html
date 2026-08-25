@@ -1,0 +1,62 @@
+<div class="asp-overlay" (click)="close()" role="presentation">
+  <div class="asp" role="dialog" aria-modal="true" aria-label="Recherche globale"
+       (click)="$event.stopPropagation()">
+    <div class="asp__field">
+      <app-icon name="search" [size]="18" />
+      <input #input type="search" class="asp__input" autocomplete="off" spellcheck="false"
+             placeholder="Nom, e-mail, club…"
+             [ngModel]="query()" (ngModelChange)="onInput($event)" (keydown)="onKeydown($event)" />
+      @if (loading()) { <span class="asp__spinner" aria-label="Recherche en cours"></span> }
+      <button type="button" class="btn btn-ghost btn-sm" (click)="close()" aria-label="Fermer">Échap</button>
+    </div>
+
+    <div class="asp__body">
+      @if (query().trim().length < 2) {
+        <p class="asp__hint">
+          Deux caractères suffisent. La recherche couvre les comptes, les clubs et les athlètes —
+          par nom, adresse e-mail ou identifiant de club.
+        </p>
+      } @else if (empty()) {
+        <p class="asp__hint">Aucun résultat pour « {{ query().trim() }} ».</p>
+      } @else {
+        @for (s of sections(); track s.key) {
+          <section class="asp__section">
+            <header class="asp__section-hd">
+              <app-icon [name]="s.icon" [size]="14" />
+              <span>{{ s.label }}</span>
+              <span class="asp__count metric">{{ s.total }}</span>
+            </header>
+            <ul class="asp__list">
+              @for (hit of s.hits; track hit.id) {
+                <li>
+                  <button type="button" class="asp__hit" [class.asp__hit--on]="indexOf(hit) === cursor()"
+                          (click)="open(hit)" (mouseenter)="cursor.set(indexOf(hit))">
+                    <span class="asp__hit-main">
+                      <strong>{{ hit.title }}</strong>
+                      @if (hit.subtitle) { <span class="asp__hit-sub">{{ hit.subtitle }}</span> }
+                    </span>
+                    @if (hit.badge) {
+                      <span class="badge badge-neutral">{{ badgeLabel(s.key, hit.badge) }}</span>
+                    }
+                  </button>
+                </li>
+              }
+            </ul>
+            @if (s.total > s.hits.length) {
+              <button type="button" class="asp__more" (click)="openList(s.moreRoute)">
+                Voir les {{ s.total }} résultats dans « {{ s.label }} »
+                <app-icon name="arrow-right" [size]="14" />
+              </button>
+            }
+          </section>
+        }
+      }
+    </div>
+
+    <footer class="asp__foot">
+      <span><kbd>↑</kbd><kbd>↓</kbd> naviguer</span>
+      <span><kbd>Entrée</kbd> ouvrir</span>
+      <span><kbd>Échap</kbd> fermer</span>
+    </footer>
+  </div>
+</div>

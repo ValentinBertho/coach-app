@@ -1,0 +1,251 @@
+@if (loading()) {
+  <div class="card"><app-skeleton shape="table" [rows]="6" [columns]="3" /></div>
+} @else if (failed()) {
+  <div class="card alert alert-danger aud-error">
+    <div>
+      <strong>Ce compte n'a pas pu être chargé.</strong>
+      <p class="field-hint">Il a peut-être été supprimé depuis l'ouverture de la liste.</p>
+    </div>
+    <a class="btn btn-ghost btn-sm" routerLink="/admin/users">Retour à la liste</a>
+  </div>
+} @else {
+  @if (user(); as u) {
+
+  <nav class="aud-crumbs">
+    <a routerLink="/admin/users"><app-icon name="arrow-left" [size]="14" /> Utilisateurs</a>
+  </nav>
+
+  <section class="page-header aud-head">
+    <div>
+      <h1 class="display-sm">{{ u.fullName || u.email }}</h1>
+      <p class="subtitle">{{ u.email }}</p>
+      <div class="aud-badges">
+        <span class="badge badge-neutral">{{ roleLabels[u.role] }}</span>
+        <span class="badge" [class]="statusBadge(u.status)">{{ statusLabels[u.status] }}</span>
+        @if (!u.emailVerified) {
+          <span class="badge badge-warning">Adresse non vérifiée</span>
+        }
+        @if (!u.hasPassword) {
+          <span class="badge badge-info" title="Compte sans mot de passe : accès par lien magique">
+            Lien magique
+          </span>
+        }
+        @if (u.invitePending) { <span class="badge badge-info">Invitation en attente</span> }
+      </div>
+    </div>
+  </section>
+
+  <div class="aud-grid">
+    <!-- Colonne principale : ce qu'on lit, puis ce qu'on modifie. -->
+    <div class="aud-main">
+
+      <section class="card">
+        <h2 class="aud-h2">Repères</h2>
+        <dl class="aud-kv">
+          <div><dt>Compte créé le</dt><dd>{{ u.createdAt | date: 'd MMMM y' }}</dd></div>
+          <div>
+            <dt>Dernière connexion</dt>
+            <dd>
+              @if (u.lastLoginAt) { {{ u.lastLoginAt | date: 'd MMM y, HH:mm' }} }
+              @else { <span class="aud-muted">jamais</span> }
+            </dd>
+          </div>
+          <div>
+            <dt>Dernière visite</dt>
+            <dd>
+              @if (u.lastSeenAt) { {{ u.lastSeenAt | date: 'd MMM y, HH:mm' }} }
+              @else { <span class="aud-muted">jamais</span> }
+            </dd>
+          </div>
+          <div>
+            <dt>CGU acceptées</dt>
+            <dd>
+              @if (u.termsAcceptedAt) { {{ u.termsAcceptedAt | date: 'd MMM y' }} }
+              @else { <span class="aud-muted">non enregistré</span> }
+            </dd>
+          </div>
+          <div>
+            <dt>Mot de passe changé</dt>
+            <dd>
+              @if (u.passwordChangedAt) { {{ u.passwordChangedAt | date: 'd MMM y' }} }
+              @else { <span class="aud-muted">jamais</span> }
+            </dd>
+          </div>
+          <div>
+            <dt>Sessions fermées le</dt>
+            <dd>
+              @if (u.sessionsInvalidatedAt) { {{ u.sessionsInvalidatedAt | date: 'd MMM y, HH:mm' }} }
+              @else { <span class="aud-muted">jamais</span> }
+            </dd>
+          </div>
+          <div><dt>Appareils abonnés au push</dt><dd class="metric">{{ u.pushSubscriptions }}</dd></div>
+          @if (u.role === 'COACH' || u.role === 'HEAD_COACH') {
+            <div><dt>Athlètes suivis</dt><dd class="metric">{{ u.coachedAthletes }}</dd></div>
+          }
+          @if (u.athleteId) {
+            <div>
+              <dt>Profil athlète</dt>
+              <dd><a [routerLink]="['/admin/athletes', u.athleteId, 'edit']">Ouvrir la fiche</a></dd>
+            </div>
+          }
+        </dl>
+      </section>
+
+      <section class="card">
+        <h2 class="aud-h2">Identité & rattachement</h2>
+        <div class="form-row-3">
+          <div class="form-group">
+            <label for="ud-name">Nom complet</label>
+            <input id="ud-name" class="form-control" [(ngModel)]="draft.fullName" />
+          </div>
+          <div class="form-group">
+            <label for="ud-role">Rôle</label>
+            <select id="ud-role" class="form-control" [(ngModel)]="draft.role" [disabled]="isSelf()">
+              @for (r of roles; track r) { <option [value]="r">{{ roleLabels[r] }}</option> }
+            </select>
+            @if (isSelf()) {
+              <span class="field-hint">
+                Ton propre rôle ne se change pas d'ici : personne ne pourrait te le rendre.
+              </span>
+            }
+          </div>
+          <div class="form-group">
+            <label for="ud-club">Club principal</label>
+            <select id="ud-club" class="form-control" [(ngModel)]="draft.clubId">
+              <option value="">—</option>
+              @for (c of clubs(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+            </select>
+            @if (needsClub(draft.role) && !draft.clubId) {
+              <span class="field-hint">Un coach doit être rattaché à un club.</span>
+            }
+          </div>
+        </div>
+        <div class="aud-actions">
+          <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="save()">
+            {{ busy() ? 'Enregistrement…' : 'Enregistrer' }}
+          </button>
+        </div>
+      </section>
+
+      <!-- Multi-club : les routes existaient côté serveur, sans aucun écran pour les appeler.
+           Rattacher un coach à un second club se faisait donc directement en base. -->
+      @if (u.role === 'COACH' || u.role === 'HEAD_COACH') {
+        <section class="card">
+          <h2 class="aud-h2">Clubs additionnels</h2>
+          <p class="field-hint">
+            En plus du club principal. Un coach rattaché ici voit et encadre les athlètes de ce club.
+          </p>
+          @if (u.additionalClubs.length) {
+            <ul class="aud-chips">
+              @for (c of u.additionalClubs; track c.id) {
+                <li class="aud-chip">
+                  <a [routerLink]="['/admin/clubs', c.id]">{{ c.name }}</a>
+                  <button type="button" class="aud-chip__x" [disabled]="busy()"
+                          (click)="removeClub(c.id, c.name)" [attr.aria-label]="'Détacher ' + c.name">
+                    <app-icon name="x" [size]="13" />
+                  </button>
+                </li>
+              }
+            </ul>
+          } @else {
+            <p class="field-hint aud-muted">Aucun club additionnel.</p>
+          }
+          @if (clubsAvailable().length) {
+            <div class="aud-inline">
+              <select class="form-control" [(ngModel)]="clubToAdd" aria-label="Club à rattacher">
+                <option value="">Choisir un club…</option>
+                @for (c of clubsAvailable(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+              </select>
+              <button type="button" class="btn btn-ghost" [disabled]="!clubToAdd || busy()"
+                      (click)="addClub()">Rattacher</button>
+            </div>
+          }
+        </section>
+      }
+
+      <!-- Historique : c'est ce qui répond à « qui a fait ça, et quand ? ». -->
+      <section class="card">
+        <h2 class="aud-h2">Historique d'administration</h2>
+        @if (u.history.length) {
+          <ul class="aud-timeline">
+            @for (h of u.history; track h.id) {
+              <li [class.aud-timeline--sensitive]="h.sensitive">
+                <span class="aud-timeline__when metric">{{ h.occurredAt | date: 'd MMM y, HH:mm' }}</span>
+                <span class="aud-timeline__what">
+                  <strong>{{ h.actionLabel }}</strong>
+                  @if (h.summary) { <span class="field-hint">{{ h.summary }}</span> }
+                  <span class="field-hint aud-muted">par {{ h.actorEmail || 'système' }}</span>
+                </span>
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="field-hint">
+            Aucune action d'administration sur ce compte. Le journal ne remonte qu'à sa mise en
+            service.
+          </p>
+        }
+      </section>
+    </div>
+
+    <!-- Colonne d'actions : ce qu'on vient faire ici. -->
+    <aside class="aud-side">
+      <section class="card">
+        <h2 class="aud-h2">Support</h2>
+        <div class="aud-buttons">
+          @if (!u.emailVerified && u.realEmail) {
+            <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="resendVerification()">
+              <app-icon name="mail" [size]="15" /> Renvoyer la vérification
+            </button>
+          }
+          @if (u.realEmail && u.hasPassword) {
+            <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="sendPasswordReset()">
+              <app-icon name="lock" [size]="15" /> Envoyer un lien de mot de passe
+            </button>
+          }
+          <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="revokeSessions()">
+            <app-icon name="rotate-ccw" [size]="15" /> Fermer toutes les sessions
+          </button>
+          @if (canImpersonate()) {
+            <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="impersonate()">
+              <app-icon name="eye" [size]="15" /> Voir en tant que
+            </button>
+          }
+        </div>
+        @if (!u.realEmail) {
+          <p class="field-hint">
+            Ce compte n'a pas d'adresse réelle (athlète créé par lien magique) : aucun e-mail ne
+            peut lui parvenir. Passe par sa fiche athlète pour lui renvoyer une invitation.
+          </p>
+        }
+      </section>
+
+      <section class="card aud-danger">
+        <h2 class="aud-h2">Zone sensible</h2>
+        <div class="aud-buttons">
+          @if (u.status === 'SUSPENDED') {
+            <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="reactivate()">
+              <app-icon name="check" [size]="15" /> Réactiver le compte
+            </button>
+          } @else {
+            <button type="button" class="btn btn-danger" [disabled]="busy() || isSelf()" (click)="suspend()">
+              <app-icon name="ban" [size]="15" /> Suspendre
+            </button>
+          }
+          <button type="button" class="btn btn-danger" [disabled]="busy() || isSelf()" (click)="remove()">
+            <app-icon name="trash-2" [size]="15" /> Supprimer définitivement
+          </button>
+        </div>
+        <p class="field-hint">
+          @if (isSelf()) {
+            Ces actions ne s'appliquent pas à ton propre compte : personne ne pourrait te le rendre.
+          } @else {
+            La suspension ferme l'accès et les sessions ouvertes sans rien détruire. La suppression
+            efface l'historique d'entraînement, qui ne se reconstitue pas.
+          }
+        </p>
+      </section>
+    </aside>
+  </div>
+  }
+}

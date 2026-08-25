@@ -65,4 +65,19 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
      */
     @Query("select a.matchedWorkoutId from Activity a where a.matchedWorkoutId in :workoutIds")
     List<UUID> findMatchedWorkoutIdsIn(@Param("workoutIds") Collection<UUID> workoutIds);
+
+    // --- Administration (cross-club) ---
+    long countByActivityDateAfter(java.time.LocalDate date);
+
+    long countByClubIdAndActivityDateAfter(UUID clubId, java.time.LocalDate date);
+
+    long countByClubId(UUID clubId);
+
+    /** Dernière sortie enregistrée dans un club : dit d'un coup d'œil s'il est encore vivant. */
+    @Query("select max(a.activityDate) from Activity a where a.club.id = :clubId")
+    java.util.Optional<java.time.LocalDate> findLastActivityDate(@Param("clubId") UUID clubId);
+
+    @Query("select max(a.activityDate) from Activity a where a.athlete.id = :athleteId")
+    java.util.Optional<java.time.LocalDate> findLastActivityDateForAthlete(
+            @Param("athleteId") UUID athleteId);
 }

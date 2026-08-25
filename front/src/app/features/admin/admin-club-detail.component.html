@@ -1,0 +1,155 @@
+@if (loading()) {
+  <div class="card"><app-skeleton shape="table" [rows]="6" [columns]="3" /></div>
+} @else if (failed()) {
+  <div class="card alert alert-danger acd-error">
+    <div>
+      <strong>Ce club n'a pas pu être chargé.</strong>
+      <p class="field-hint">Il a peut-être été supprimé depuis l'ouverture de la liste.</p>
+    </div>
+    <a class="btn btn-ghost btn-sm" routerLink="/admin/clubs">Retour à la liste</a>
+  </div>
+} @else {
+  @if (club(); as c) {
+
+  <nav class="acd-crumbs">
+    <a routerLink="/admin/clubs"><app-icon name="arrow-left" [size]="14" /> Clubs</a>
+  </nav>
+
+  <section class="page-header">
+    <div>
+      <h1 class="display-sm">{{ c.name }}</h1>
+      <p class="subtitle metric">{{ c.slug }}</p>
+      <div class="acd-badges">
+        <span class="badge" [class]="statusBadge(c.status)">{{ statusLabels[c.status] }}</span>
+        <span class="badge badge-neutral">Créé le {{ c.createdAt | date: 'd MMM y' }}</span>
+        @if (c.lastActivityDate) {
+          <span class="badge badge-neutral">
+            Dernière sortie le {{ c.lastActivityDate | date: 'd MMM y' }}
+          </span>
+        } @else {
+          <span class="badge badge-warning">Aucune sortie enregistrée</span>
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- La photographie du club : c'est elle qui dit s'il est vivant, et ce qu'une suppression
+       emporterait. -->
+  <div class="acd-tiles">
+    <div class="card acd-tile">
+      <span class="stat-label">Coachs</span>
+      <span class="metric acd-tile__value">{{ c.coaches }}</span>
+    </div>
+    <a class="card acd-tile" routerLink="/admin/athletes" [queryParams]="{ clubId: c.id }">
+      <span class="stat-label">Athlètes</span>
+      <span class="metric acd-tile__value">{{ c.athletes }}</span>
+      <span class="field-hint">
+        {{ c.athletesActive }} actifs
+        @if (c.athletesPaused) { · {{ c.athletesPaused }} en pause }
+        @if (c.athletesArchived) { · {{ c.athletesArchived }} archivés }
+      </span>
+    </a>
+    <div class="card acd-tile">
+      <span class="stat-label">Invitations en attente</span>
+      <span class="metric acd-tile__value">{{ c.pendingInvitations }}</span>
+    </div>
+    <div class="card acd-tile">
+      <span class="stat-label">Séances prescrites</span>
+      <span class="metric acd-tile__value">{{ c.workouts }}</span>
+    </div>
+    <div class="card acd-tile">
+      <span class="stat-label">Sorties importées</span>
+      <span class="metric acd-tile__value">{{ c.activities }}</span>
+      <span class="field-hint">{{ c.activities30d }} sur les 30 derniers jours.</span>
+    </div>
+    <div class="card acd-tile">
+      <span class="stat-label">Montres connectées</span>
+      <span class="metric acd-tile__value">{{ c.deviceConnections }}</span>
+      <span class="field-hint">Comptes Strava reliés par les athlètes du club.</span>
+    </div>
+  </div>
+
+  <div class="acd-grid">
+    <div class="acd-main">
+      <section class="card">
+        <h2 class="acd-h2">Encadrement</h2>
+        @if (c.members.length) {
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Coach</th><th>Rôle</th><th>Rattachement</th><th>Statut</th><th>Vu</th></tr></thead>
+              <tbody>
+                @for (m of c.members; track m.id) {
+                  <tr>
+                    <td>
+                      <span class="acd-name">
+                        <a [routerLink]="['/admin/users', m.id]">{{ m.fullName }}</a>
+                        <span class="acd-sub">{{ m.email }}</span>
+                      </span>
+                    </td>
+                    <td>{{ m.roleLabel }}</td>
+                    <td>{{ m.primaryClub ? 'Club principal' : 'Club additionnel' }}</td>
+                    <td>
+                      <span class="badge" [class]="memberStatusBadge(m.status)">
+                        {{ memberStatusLabels[m.status] }}
+                      </span>
+                    </td>
+                    <td class="acd-nowrap">
+                      @if (m.lastSeenAt) {
+                        <span class="metric">{{ m.lastSeenAt | date: 'd MMM' }}</span>
+                      } @else { <span class="acd-muted">jamais</span> }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="field-hint">
+            Aucun coach rattaché : personne ne peut prescrire de séance dans ce club. Rattache un
+            compte depuis sa fiche, section « Clubs additionnels ».
+          </p>
+        }
+      </section>
+    </div>
+
+    <aside class="acd-side">
+      <section class="card">
+        <h2 class="acd-h2">Réglages</h2>
+        <div class="form-group">
+          <label for="cd-name">Nom</label>
+          <input id="cd-name" class="form-control" [(ngModel)]="draft.name" />
+        </div>
+        <div class="form-group">
+          <label for="cd-status">Statut</label>
+          <select id="cd-status" class="form-control" [(ngModel)]="draft.status">
+            @for (s of statuses; track s) { <option [value]="s">{{ statusLabels[s] }}</option> }
+          </select>
+        </div>
+        <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="save()">
+          {{ busy() ? 'Enregistrement…' : 'Enregistrer' }}
+        </button>
+      </section>
+
+      <section class="card acd-danger">
+        <h2 class="acd-h2">Zone sensible</h2>
+        <div class="acd-buttons">
+          <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="toggleStatus()">
+            @if (c.status === 'ACTIVE') {
+              <app-icon name="ban" [size]="15" /> Suspendre le club
+            } @else {
+              <app-icon name="check" [size]="15" /> Réactiver le club
+            }
+          </button>
+          <button type="button" class="btn btn-danger" [disabled]="busy()" (click)="remove()">
+            <app-icon name="trash-2" [size]="15" /> Supprimer le club
+          </button>
+        </div>
+        <p class="field-hint">
+          La suppression emporte {{ c.coaches }} compte(s) coach, {{ c.athletes }} athlète(s),
+          {{ c.workouts }} séance(s) et {{ c.activities }} sortie(s). Irréversible.
+        </p>
+      </section>
+    </aside>
+  </div>
+  }
+}

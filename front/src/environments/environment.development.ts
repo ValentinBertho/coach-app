@@ -9,5 +9,5 @@ export const environment = {
   // les notifications push en local, passer par `npm run start:pwa` (cf. environment.pwa.ts).
   serviceWorker: false,
   sentryDsn: '',
-  appVersion: '0.2.0-dev',
+  appVersion: '0.3.0-dev',
 };

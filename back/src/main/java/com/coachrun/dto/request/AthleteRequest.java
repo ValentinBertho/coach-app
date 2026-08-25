@@ -31,5 +31,14 @@ public record AthleteRequest(
         @Size(max = 2048) String medicalNotes,
         java.util.UUID groupId,
         /** À la création : athlète privé (coaching hors club, invisible des autres coachs). */
-        Boolean privateAthlete) {
+        Boolean privateAthlete,
+        /**
+         * Statut du profil. <b>Champ ajouté</b>, facultatif : {@code null} laisse le statut
+         * inchangé, ce qui est le comportement de tous les appelants antérieurs.
+         *
+         * <p>Seule l'administration l'applique ({@code AdminAthleteService}). Côté coach, le
+         * passage en archive garde sa route dédiée ({@code AthleteService#archive}) — un statut
+         * modifiable par un enregistrement de formulaire y serait un archivage accidentel.</p>
+         */
+        com.coachrun.entity.enums.AthleteStatus status) {
 }

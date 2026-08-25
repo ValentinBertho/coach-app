@@ -1,33 +1,67 @@
-<div class="layout">
-  <header class="topbar">
-    <div class="brand">
+<div class="alay">
+  <header class="alay__top">
+    <button type="button" class="alay__burger btn btn-ghost btn-sm" (click)="toggleMenu()"
+            [attr.aria-expanded]="menuOpen()" aria-label="Ouvrir la navigation">
+      <app-icon name="menu" [size]="20" />
+    </button>
+
+    <div class="alay__brand">
       <!-- Le logo ramène à l'accueil de l'espace, comme partout ailleurs dans le produit. -->
-      <a routerLink="/admin" class="brand__home" aria-label="Accueil administration">
-        <app-logo [size]="28" [showText]="false" />
-        <span class="logo">Darilab</span>
+      <a routerLink="/admin" class="alay__home" aria-label="Accueil administration">
+        <app-logo [size]="26" [showText]="false" />
+        <span class="alay__wordmark">Darilab</span>
       </a>
       <span class="badge badge-danger">Admin</span>
     </div>
-    <nav class="nav">
-      <a routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Dashboard</a>
-      <a routerLink="/admin/clubs" routerLinkActive="active">Clubs</a>
-      <a routerLink="/admin/users" routerLinkActive="active">Utilisateurs</a>
-      <a routerLink="/admin/athletes" routerLinkActive="active">Athlètes</a>
-      <a routerLink="/admin/invitations" routerLinkActive="active">Invitations</a>
-      <a routerLink="/admin/feedback" routerLinkActive="active">Retours</a>
-      <a routerLink="/admin/mail" routerLinkActive="active">E-mails</a>
-      <a routerLink="/admin/aide" routerLinkActive="active">Aide</a>
-    </nav>
-    <div class="user">
-      <button type="button" class="btn btn-ghost btn-sm" (click)="help.openSearch()" aria-label="Rechercher dans l'aide"><app-icon name="search" [size]="18" /></button>
-      <span class="user-name">{{ user()?.fullName }}</span>
+
+    <!-- La recherche est au centre de l'en-tête parce qu'elle est le point d'entrée réel :
+         un ticket de support commence par une adresse e-mail, pas par un onglet. -->
+    <button type="button" class="alay__search" (click)="openSearch()">
+      <app-icon name="search" [size]="16" />
+      <span>Rechercher un compte, un club, un athlète…</span>
+      <kbd>⌘K</kbd>
+    </button>
+
+    <div class="alay__user">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="help.openSearch()"
+              aria-label="Rechercher dans l'aide"><app-icon name="life-buoy" [size]="18" /></button>
+      <span class="alay__user-name">{{ user()?.fullName }}</span>
       <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Déconnexion</button>
     </div>
   </header>
 
   <app-offline-banner />
 
-  <main class="content container-wide">
-    <router-outlet />
-  </main>
+  <div class="alay__body">
+    <nav class="alay__nav" [class.alay__nav--open]="menuOpen()" aria-label="Navigation administration">
+      @for (g of groups; track g.label) {
+        <div class="alay__group">
+          <p class="alay__group-label">{{ g.label }}</p>
+          @for (l of g.links; track l.path) {
+            <a [routerLink]="l.path" routerLinkActive="alay__link--on"
+               [routerLinkActiveOptions]="{ exact: !!l.exact }"
+               class="alay__link" (click)="menuOpen.set(false)">
+              <app-icon [name]="l.icon" [size]="17" />
+              <span>{{ l.label }}</span>
+            </a>
+          }
+        </div>
+      }
+      <div class="alay__group alay__group--foot">
+        <a routerLink="/admin/aide" routerLinkActive="alay__link--on" class="alay__link"
+           (click)="menuOpen.set(false)">
+          <app-icon name="circle-help" [size]="17" />
+          <span>Aide</span>
+        </a>
+      </div>
+    </nav>
+
+    <main class="alay__content">
+      <router-outlet />
+    </main>
+  </div>
 </div>
+
+@if (searchOpen()) {
+  <app-admin-search-palette (closed)="searchOpen.set(false)" />
+}

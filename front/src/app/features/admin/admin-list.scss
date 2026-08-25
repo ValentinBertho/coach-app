@@ -1,0 +1,68 @@
+/* ============================================================================
+ * Styles partagés des listes d'administration (comptes, clubs, athlètes,
+ * invitations, journal). Une seule feuille : cinq écrans qui se ressemblent
+ * doivent se ressembler vraiment, et cinq copies d'une même barre de filtres
+ * finissent toujours par diverger.
+ * ========================================================================== */
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+/* --- Barre de filtres --- */
+.al-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  margin-bottom: var(--sp-4);
+}
+.al-filters .form-control { max-width: 190px; }
+.al-filters .al-search { flex: 1; min-width: 200px; max-width: 340px; }
+.al-count {
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* --- Panneau de création repliable ---
+   Le formulaire occupait le haut de l'écran en permanence alors qu'on crée un
+   compte une fois par semaine et qu'on consulte la liste dix fois par jour. */
+.al-create { margin-bottom: var(--sp-5); }
+.al-create__hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.al-create__hd h2 { margin: 0; font-size: var(--text-lg); font-family: var(--font-display); }
+.al-create__form { margin-top: var(--sp-4); }
+
+/* --- Tableau --- */
+.al-name { display: flex; flex-direction: column; gap: 2px; }
+.al-name strong { color: var(--ink); }
+.al-name a { color: var(--primary); text-decoration: none; font-weight: 600; }
+.al-name a:hover { text-decoration: underline; }
+.al-sub { color: var(--ink-3); font-size: var(--text-sm); }
+.al-muted { color: var(--ink-4); }
+.al-nowrap { white-space: nowrap; }
+
+.al-flags { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
+
+/* --- États --- */
+.al-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+@media (max-width: 768px) {
+  .al-filters .form-control { max-width: none; flex: 1 1 140px; }
+  .al-count { margin-left: 0; width: 100%; }
+}
