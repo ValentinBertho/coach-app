@@ -7,6 +7,7 @@ import { WorkoutPrescription } from '../models/course.model';
 import { Unavailability, UnavailabilityRequest } from '../models/unavailability.model';
 import { CalendarNote } from '../models/calendar-note.model';
 import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
+import { AthleteZoneSheet } from '../models/athlete-zone-sheet.model';
 import {
   Activity, ActivityLaps, ActivityStream, ActivityUpdate, LapKind, TimeInZone, WeekSummary,
 } from '../models/activity.model';
@@ -276,6 +277,11 @@ export class AthletePortalService {
   /** Mes allures d'entraînement (VDOT). */
   vdot(): Observable<Vdot> {
     return this.http.get<Vdot>(`${this.base}/vdot`);
+  }
+
+  /** Mes zones d'entraînement : l'échelle complète, allures et FC, avec la règle de chaque bande. */
+  zones(): Observable<AthleteZoneSheet[]> {
+    return this.http.get<AthleteZoneSheet[]>(`${this.base}/zones`);
   }
   /** Ma charge d'entraînement (ACWR, ATL/CTL, monotonie). */
   load(): Observable<Load> {
