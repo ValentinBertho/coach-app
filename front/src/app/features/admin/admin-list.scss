@@ -21,7 +21,8 @@
   align-items: center;
   margin-bottom: var(--sp-4);
 }
-.al-filters .form-control { max-width: 190px; }
+/* 210px : « Toutes les ressources » et « Adresse non vérifiée » tiennent sans être tronqués. */
+.al-filters .form-control { max-width: 210px; }
 .al-filters .al-search { flex: 1; min-width: 200px; max-width: 340px; }
 .al-count {
   margin-left: auto;
@@ -54,6 +55,20 @@
 
 .al-flags { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
 
+/* --- Cellule d'actions ---
+   `.table-actions` porte `display: flex` ; posé sur un <td>, il sort la cellule
+   du modèle de tableau : elle se dessine hors de la grille des colonnes, avec sa
+   propre bordure, et le survol de la ligne s'arrête avant elle. On rend la
+   cellule à sa nature et on met la disposition sur son contenu — même intention
+   visuelle (actions alignées à droite), sans l'artefact. */
+.data-table td.table-actions {
+  display: table-cell;
+  text-align: right;
+  white-space: nowrap;
+}
+.data-table td.table-actions > * { vertical-align: middle; }
+.data-table td.table-actions > * + * { margin-left: var(--sp-2); }
+
 /* --- États --- */
 .al-error {
   display: flex;
@@ -66,3 +81,8 @@
   .al-filters .form-control { max-width: none; flex: 1 1 140px; }
   .al-count { margin-left: 0; width: 100%; }
 }
+
+/* Action destructrice d'une ligne : lisible comme telle, sans transformer la colonne
+   d'actions en mur rouge. La gravité est portée par la confirmation à recopie. */
+.al-danger { color: var(--danger-text); }
+.al-danger:hover { background: var(--danger-bg); color: var(--danger-text); }

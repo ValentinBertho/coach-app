@@ -59,7 +59,11 @@
   gap: var(--sp-5);
   position: sticky;
   top: 62px;
-  align-self: start;
+  align-self: stretch;
+  /* `align-self: start` laissait la colonne s'arrêter à son dernier lien : sur une page
+     longue, la barre flottait au-dessus du fond, sans bord bas. Elle occupe désormais au
+     moins la hauteur de la fenêtre, et « Aide » retombe bien en pied de colonne. */
+  min-height: calc(100dvh - 62px);
   max-height: calc(100dvh - 62px);
   overflow-y: auto;
 }

@@ -62,7 +62,7 @@
             <td>
               <a [routerLink]="['/admin/clubs', a.clubId]">{{ a.clubName }}</a>
             </td>
-            <td>{{ a.level || '—' }}</td>
+            <td>{{ a.level ? levelLabels[a.level] : '—' }}</td>
             <td>
               <span class="al-flags">
                 <span class="badge"
@@ -96,7 +96,7 @@
                         (click)="resendInvitation(a)">Renvoyer</button>
               }
               <a class="btn btn-ghost btn-sm" [routerLink]="['/admin/athletes', a.id, 'edit']">Éditer</a>
-              <button type="button" class="btn btn-danger btn-sm" (click)="remove(a)">Suppr.</button>
+              <button type="button" class="btn btn-ghost btn-sm al-danger" (click)="remove(a)">Supprimer</button>
             </td>
           </tr>
         }

@@ -55,8 +55,12 @@ export class AdminPlatformComponent implements OnInit {
     return s.state === 'ON' ? 'badge-success' : s.state === 'PARTIAL' ? 'badge-warning' : 'badge-neutral';
   }
 
+  /**
+   * Le serveur nomme lui-même l'état de chaque réglage. Le repli couvre un front encore en
+   * cache face à une réponse plus ancienne — le champ a été ajouté, pas substitué.
+   */
   stateLabel(s: PlatformSetting): string {
-    return s.state === 'ON' ? 'Actif' : s.state === 'PARTIAL' ? 'Incomplet' : 'Inactif';
+    return s.stateLabel ?? (s.state === 'ON' ? 'Actif' : s.state === 'PARTIAL' ? 'Incomplet' : 'Inactif');
   }
 
   registrationLabel(mode: string): string {

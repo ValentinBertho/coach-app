@@ -29,13 +29,19 @@ public record AdminPlatformResponse(
     /**
      * Un réglage, réduit à ce qui est diffusable.
      *
-     * @param key    identifiant stable
-     * @param label  libellé affiché
-     * @param state  {@code ON} / {@code OFF} / {@code PARTIAL}
-     * @param detail ce que cet état implique concrètement
-     * @param source variable d'environnement à modifier, à titre indicatif (jamais sa valeur)
+     * <p>{@code stateLabel} accompagne {@code state} parce que « actif / inactif » ne convient pas
+     * à tous les réglages : une inscription <i>libre</i> n'est pas une inscription <i>inactive</i>.
+     * L'état porte la couleur de la pastille, le libellé porte le sens.</p>
+     *
+     * @param key        identifiant stable
+     * @param label      libellé affiché
+     * @param state      {@code ON} / {@code OFF} / {@code PARTIAL} — sert à la couleur
+     * @param stateLabel ce que cet état s'appelle, en français
+     * @param detail     ce que cet état implique concrètement
+     * @param source     variable d'environnement à modifier, à titre indicatif (jamais sa valeur)
      */
-    public record Setting(String key, String label, String state, String detail, String source) {
+    public record Setting(String key, String label, String state, String stateLabel,
+                          String detail, String source) {
         public static final String ON = "ON";
         public static final String OFF = "OFF";
         public static final String PARTIAL = "PARTIAL";

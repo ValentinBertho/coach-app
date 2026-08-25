@@ -136,17 +136,6 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
             """)
     long countExpiredInvitations(@Param("now") java.time.Instant now);
 
-    /**
-     * Athlètes actifs sans aucun coach rattaché. Personne ne leur prescrit rien : ils sont dans
-     * la plateforme sans y être suivis, et rien nulle part ne le signalait.
-     */
-    @Query("""
-            select count(a) from Athlete a
-            where a.status = com.coachrun.entity.enums.AthleteStatus.ACTIVE
-              and a.coaches is empty
-            """)
-    long countActiveWithoutCoach();
-
     /** Recherche libre bornée, pour la recherche globale du back-office. */
     @Query("""
             select a from Athlete a

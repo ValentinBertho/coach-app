@@ -3,7 +3,12 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
-import { AdminAthlete, ATHLETE_STATUS_LABELS, ClubAdmin } from '../../core/models/admin.model';
+import {
+  AdminAthlete,
+  ATHLETE_LEVEL_LABELS,
+  ATHLETE_STATUS_LABELS,
+  ClubAdmin,
+} from '../../core/models/admin.model';
 import { AthleteStatus } from '../../core/models/athlete.model';
 import { AdminService } from '../../core/services/admin.service';
 import { ConfirmService } from '../../core/services/confirm.service';
@@ -50,6 +55,7 @@ export class AdminAthletesComponent implements OnInit {
 
   readonly statuses: AthleteStatus[] = ['ACTIVE', 'PAUSED', 'ARCHIVED'];
   readonly statusLabels = ATHLETE_STATUS_LABELS;
+  readonly levelLabels = ATHLETE_LEVEL_LABELS;
 
   search = '';
   filterClub = '';

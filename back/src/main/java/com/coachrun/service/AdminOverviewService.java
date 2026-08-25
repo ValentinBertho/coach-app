@@ -14,6 +14,7 @@ import com.coachrun.repository.ActivityRepository;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.BetaFeedbackRepository;
 import com.coachrun.repository.ClubRepository;
+import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.DeviceConnectionRepository;
 import com.coachrun.repository.MailLogRepository;
 import com.coachrun.repository.PushSubscriptionRepository;
@@ -64,6 +65,7 @@ public class AdminOverviewService {
     private final ClubRepository clubRepository;
     private final UserRepository userRepository;
     private final AthleteRepository athleteRepository;
+    private final CoachAthleteRelationRepository relationRepository;
     private final WorkoutRepository workoutRepository;
     private final ActivityRepository activityRepository;
     private final MailLogRepository mailLogRepository;
@@ -212,7 +214,7 @@ public class AdminOverviewService {
                     "Voir les clubs", "/admin/clubs", clubsWithoutCoach));
         }
 
-        long athletesWithoutCoach = athleteRepository.countActiveWithoutCoach();
+        long athletesWithoutCoach = relationRepository.countActiveAthletesWithoutAnyCoach();
         if (athletesWithoutCoach > 0) {
             out.add(AdminSignalResponse.of("athletes-without-coach", AdminSignalResponse.INFO,
                     athletesWithoutCoach + " athlète" + plural(athletesWithoutCoach)

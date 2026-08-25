@@ -12,6 +12,7 @@ import com.coachrun.entity.enums.AdminAuditTarget;
 import com.coachrun.entity.enums.AthleteStatus;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
+import com.coachrun.repository.CoachAthleteRelationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,6 +40,7 @@ public class AdminAthleteService {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private final AthleteRepository athleteRepository;
+    private final CoachAthleteRelationRepository relationRepository;
     private final NotificationService notificationService;
     private final AdminAuditService audit;
 
@@ -47,8 +49,24 @@ public class AdminAthleteService {
 
     public PageResponse<AdminAthleteResponse> list(UUID clubId, AthleteStatus status, String q, Pageable pageable) {
         String query = StringUtils.hasText(q) ? q.trim() : "";
-        return PageResponse.from(athleteRepository.searchAdmin(clubId, status, query, pageable),
-                AdminAthleteResponse::from);
+        var page = athleteRepository.searchAdmin(clubId, status, query, pageable);
+        // Un comptage groupé pour toute la page : lire la collection de chaque athlète coûterait
+        // une requête par ligne, et compterait de surcroît la mauvaise table.
+        java.util.Map<UUID, Integer> coachCounts = coachCounts(
+                page.getContent().stream().map(Athlete::getId).toList());
+        return PageResponse.from(page,
+                a -> AdminAthleteResponse.from(a, coachCounts.getOrDefault(a.getId(), 0)));
+    }
+
+    private java.util.Map<UUID, Integer> coachCounts(java.util.List<UUID> athleteIds) {
+        if (athleteIds.isEmpty()) {
+            return java.util.Map.of();
+        }
+        java.util.Map<UUID, Integer> counts = new java.util.HashMap<>();
+        for (Object[] row : relationRepository.countActiveByAthleteIds(athleteIds)) {
+            counts.put((UUID) row[0], ((Number) row[1]).intValue());
+        }
+        return counts;
     }
 
     public AthleteResponse get(UUID id) {

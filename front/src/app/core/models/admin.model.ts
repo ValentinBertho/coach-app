@@ -306,7 +306,13 @@ export type PlatformSettingState = 'ON' | 'OFF' | 'PARTIAL';
 export interface PlatformSetting {
   key: string;
   label: string;
+  /** Porte la couleur de la pastille ; le sens est dans `stateLabel`. */
   state: PlatformSettingState;
+  /**
+   * Ce que cet état s'appelle. Distinct de `state` parce que « actif / inactif » ne convient pas
+   * à tous les réglages : une inscription *libre* n'est pas une inscription *inactive*.
+   */
+  stateLabel?: string;
   detail: string;
   /** Variable d'environnement concernée — jamais sa valeur. */
   source: string;
@@ -344,6 +350,13 @@ export const USER_STATUS_LABELS: Record<UserStatus, string> = {
 export const CLUB_STATUS_LABELS: Record<ClubStatus, string> = {
   ACTIVE: 'Actif',
   SUSPENDED: 'Suspendu',
+};
+
+export const ATHLETE_LEVEL_LABELS: Record<AthleteLevel, string> = {
+  BEGINNER: 'Débutant',
+  INTERMEDIATE: 'Intermédiaire',
+  ADVANCED: 'Avancé',
+  ELITE: 'Élite',
 };
 
 export const ATHLETE_STATUS_LABELS: Record<AthleteStatus, string> = {

@@ -88,28 +88,32 @@ public class AdminPlatformService {
         boolean stravaConfigured = stravaClient.isConfigured();
         boolean webhookReady = StringUtils.hasText(stravaCallbackUrl)
                 && StringUtils.hasText(stravaVerifyToken);
+        boolean mailReady = mailEnabled && StringUtils.hasText(resendApiKey);
+        boolean inviteOnly = "invite".equalsIgnoreCase(registrationMode);
+        boolean inviteCodeSet = StringUtils.hasText(registrationInviteCode);
 
         return List.of(
                 new Setting("mail", "Envoi d'e-mails",
-                        mailEnabled && StringUtils.hasText(resendApiKey) ? Setting.ON
-                                : mailEnabled ? Setting.PARTIAL : Setting.OFF,
-                        mailEnabled && StringUtils.hasText(resendApiKey)
+                        mailReady ? Setting.ON : mailEnabled ? Setting.PARTIAL : Setting.OFF,
+                        mailReady ? "Actif" : mailEnabled ? "Sans fournisseur" : "Désactivé",
+                        mailReady
                                 ? "Invitations, vérifications et réinitialisations partent normalement."
                                 : mailEnabled
                                 ? "Envoi activé mais aucune clé de fournisseur : rien ne part."
-                                : "Désactivé : aucun e-mail ne quitte cette instance.",
+                                : "Aucun e-mail ne quitte cette instance.",
                         "MAIL_ENABLED / RESEND_API_KEY"),
 
                 new Setting("strava", "Application Strava",
                         stravaConfigured ? Setting.ON : Setting.OFF,
+                        stravaConfigured ? "Configurée" : "Non configurée",
                         stravaConfigured
                                 ? "Les athlètes peuvent connecter leur compte Strava."
-                                : "Non configurée : aucune connexion de montre possible.",
+                                : "Aucune connexion de montre possible.",
                         "STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET"),
 
                 new Setting("strava-webhook", "Webhook Strava",
-                        !stravaConfigured ? Setting.OFF
-                                : webhookReady ? Setting.ON : Setting.PARTIAL,
+                        !stravaConfigured ? Setting.OFF : webhookReady ? Setting.ON : Setting.PARTIAL,
+                        !stravaConfigured ? "Sans objet" : webhookReady ? "Configuré" : "Non configuré",
                         !stravaConfigured
                                 ? "Sans application Strava configurée, l'abonnement n'a pas d'objet."
                                 : webhookReady
@@ -120,42 +124,47 @@ public class AdminPlatformService {
 
                 new Setting("push", "Notifications push",
                         vapidKeys.isConfigured() ? Setting.ON : Setting.OFF,
+                        vapidKeys.isConfigured() ? "Identité posée" : "Sans identité",
                         vapidKeys.isConfigured()
-                                ? "Identité VAPID posée : les appareils peuvent s'abonner."
+                                ? "Les appareils peuvent s'abonner."
                                 : "Sans identité VAPID, le push est inerte — le navigateur n'a "
                                 + "même pas de clé publique à présenter.",
                         "VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY"),
 
+                // « Libre » n'est pas « inactif » : l'inscription fonctionne, elle n'est
+                // simplement pas restreinte. D'où un libellé propre à ce réglage.
                 new Setting("registration", "Inscription",
-                        "invite".equalsIgnoreCase(registrationMode)
-                                ? (StringUtils.hasText(registrationInviteCode) ? Setting.ON : Setting.PARTIAL)
-                                : Setting.OFF,
-                        "invite".equalsIgnoreCase(registrationMode)
-                                ? (StringUtils.hasText(registrationInviteCode)
+                        inviteOnly ? (inviteCodeSet ? Setting.ON : Setting.OFF) : Setting.PARTIAL,
+                        inviteOnly ? (inviteCodeSet ? "Sur code" : "Fermée par erreur") : "Libre",
+                        inviteOnly
+                                ? (inviteCodeSet
                                 ? "Cohorte fermée : un code est exigé à l'inscription."
                                 : "Mode « invite » sans code configuré : plus personne ne peut s'inscrire.")
-                                : "Inscription libre : n'importe qui peut créer un club sur cette instance.",
+                                : "N'importe qui peut créer un club sur cette instance.",
                         "REGISTRATION_MODE / REGISTRATION_INVITE_CODE"),
 
                 new Setting("debrief", "Rappels de débriefing",
                         debriefEnabled ? Setting.ON : Setting.OFF,
+                        debriefEnabled ? "Actifs" : "Désactivés",
                         debriefEnabled
                                 ? "« Ta séance est finie ? », 2 h après l'heure habituelle."
-                                : "Désactivés sur cette instance.",
+                                : "Aucun rappel de débriefing sur cette instance.",
                         "DEBRIEF_REMINDERS_ENABLED"),
 
                 new Setting("sentry", "Remontée d'erreurs",
                         StringUtils.hasText(sentryDsn) ? Setting.ON : Setting.OFF,
+                        StringUtils.hasText(sentryDsn) ? "Active" : "Absente",
                         StringUtils.hasText(sentryDsn)
                                 ? "Les erreurs serveur sont remontées avec leur identifiant de corrélation."
-                                : "Aucune remontée : un incident ne se voit que dans les journaux.",
+                                : "Un incident ne se voit que dans les journaux.",
                         "SENTRY_DSN"),
 
                 new Setting("demo-reset", "Réinitialisation démo",
-                        demoResetEnabled ? Setting.ON : Setting.OFF,
+                        demoResetEnabled ? Setting.PARTIAL : Setting.OFF,
+                        demoResetEnabled ? "Disponible" : "Interdite",
                         demoResetEnabled
-                                ? "Disponible : efface TOUTES les données au profit du jeu de démonstration."
-                                : "Interdite sur cette instance — c'est le réglage attendu en production.",
+                                ? "Efface TOUTES les données au profit du jeu de démonstration."
+                                : "C'est le réglage attendu en production.",
                         "DEMO_RESET_ENABLED"));
     }
 }
