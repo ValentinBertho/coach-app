@@ -69,11 +69,110 @@
 }
 .picker__row:hover { background: var(--paper-sunk); }
 
-/* Au téléphone : une seule colonne à la fois — la liste, puis le fil ouvert. */
+/* ============================================================================
+   Au téléphone : une messagerie, pas une page web
+
+   Ce qui n'allait pas. L'écran était pensé pour deux colonnes et se contentait, sous
+   860 px, d'empiler ses cartes : le fil poussait la page vers le bas au lieu de défiler
+   pour lui-même, la zone de saisie finissait sous la barre d'onglets — donc hors de
+   portée — et l'en-tête de page occupait le tiers de l'écran pendant qu'on lisait une
+   conversation. S'ajoutait le pire : arriver sur « Messages » ouvrait d'office un fil,
+   si bien que la liste ne s'était jamais montrée.
+
+   Le parti pris. Une seule chose à l'écran à la fois : la liste, puis le fil en plein
+   écran — au-dessus de la barre d'onglets, comme toute application de messagerie. Le
+   fil défile SEUL (`overflow` sur la zone des messages, hauteur bornée par le conteneur),
+   la saisie reste posée au bas, au-dessus de l'encoche.
+   ============================================================================ */
 @media (max-width: 860px) {
-  .msg-layout { grid-template-columns: 1fr; }
-  .msg-list--collapsed { display: none; }
+  .msg-layout { grid-template-columns: 1fr; gap: 0; }
+
+  /* --- Liste : c'est l'écran d'accueil, et il doit respirer ---
+     Le sous-titre et le panneau d'invite du bureau prenaient à eux deux la moitié de l'écran
+     avant la première conversation. Le premier explique ce que la liste montre déjà ; le second
+     invite à choisir dans un panneau qui n'existe pas sur une seule colonne. */
+  .page-header { flex-direction: column; align-items: stretch; gap: var(--sp-3); }
+  .page-header .subtitle { display: none; }
+  .new-msg { width: 100%; min-height: 44px; justify-content: center; }
+  .row { padding: var(--sp-3) var(--sp-4); min-height: 64px; }
+  .row__preview { font-size: var(--text-sm); }
+
+  /* Tant qu'aucun fil n'est ouvert, il n'y a pas de second panneau à remplir. */
+  :host(:not(.thread-open)) .msg-thread { display: none; }
+
+  /* --- Fil ouvert : plein écran, au-dessus de la coquille ---------------------
+     `fixed` plutôt qu'un calcul de hauteur : la coquille athlète et la coquille coach
+     n'ont ni la même barre supérieure ni la même barre d'onglets, et un écran de
+     messagerie n'a pas à connaître la géométrie de celle qui l'accueille. Masquer les
+     deux barres le temps d'une conversation est par ailleurs ce que fait n'importe
+     quelle messagerie : on lit un fil, on ne navigue pas. */
+  :host(.thread-open) .page-header,
+  :host(.thread-open) .msg-list { display: none; }
+
+  :host(.thread-open) .msg-thread {
+    position: fixed;
+    inset: 0;
+    z-index: 250;
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    min-height: 0;
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+    /* Le geste de défilement ne se propage pas à la page qui reste derrière. */
+    overscroll-behavior: none;
+  }
+
+  /* En-tête du fil : il absorbe l'encoche, puisqu'il remplace la barre supérieure. */
+  :host(.thread-open) .thread-head {
+    padding: calc(var(--sp-3) + env(safe-area-inset-top, 0px)) var(--sp-3) var(--sp-3);
+    background: var(--paper);
+    flex-shrink: 0;
+  }
+
+  /* La zone des messages est le SEUL élément qui défile. `min-height: 0` est ce qui le
+     permet : sans lui, un enfant flexible refuse de se comprimer sous sa hauteur de
+     contenu, et c'est la page entière qui repart en défilement. */
+  :host(.thread-open) .thread {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  /* Une conversation courte se lit en bas de l'écran, près du pouce et du champ de saisie —
+     pas suspendue en haut d'un grand vide. `margin-top: auto` sur le premier message plutôt
+     que `justify-content: flex-end` sur le conteneur : ce dernier rend inatteignable le haut
+     du contenu dès que le fil déborde. */
+  :host(.thread-open) .thread > .bubble-row:first-of-type { margin-top: auto; }
+
+  /* Saisie posée au bas, au-dessus de l'encoche — jamais sous la barre d'onglets. */
+  :host(.thread-open) .composer,
+  :host(.thread-open) .read-only {
+    flex-shrink: 0;
+    padding: var(--sp-3) var(--sp-4) calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+    background: var(--paper);
+  }
+  .composer .form-control { min-height: 44px; }
+  .composer .btn { min-height: 44px; padding-inline: var(--sp-3); }
+  .composer__label { display: none; }
+
+  .bubble { max-width: 84%; }
   .thread-head .back { display: inline-flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
-  .thread { max-height: none; }
-  .composer .btn { min-height: 44px; }
 }
+
+/* Au-delà, les deux panneaux cohabitent : le retour n'a plus lieu d'être, et la flèche
+   d'envoi laisse la place au mot. */
+@media (min-width: 861px) {
+  .thread-head .back { display: none; }
+  .composer .btn app-icon { display: none; }
+}
+
+.thread-head__icon { color: var(--ink-3); display: inline-flex; }
+.thread-head__id { display: flex; flex-direction: column; min-width: 0; }
+.thread-head__id strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

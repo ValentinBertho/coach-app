@@ -3,7 +3,7 @@
     <h1 class="display-sm">Messages</h1>
     <p class="subtitle">Tes conversations : athlètes, coachs, groupes et annonces du club.</p>
   </div>
-  <button type="button" class="btn btn-primary" (click)="openPicker()">
+  <button type="button" class="btn btn-primary new-msg" (click)="openPicker()">
     <app-icon name="pencil" [size]="15" /> Nouveau message
   </button>
 </section>
@@ -48,12 +48,13 @@
   <section class="card msg-thread">
     @if (current(); as c) {
       <header class="thread-head">
-        <button type="button" class="icon-btn back" (click)="openId.set(null)" aria-label="Retour">
+        <button type="button" class="icon-btn back" (click)="closeThread()" aria-label="Retour aux conversations">
           <app-icon name="arrow-left" [size]="18" />
         </button>
-        <div>
+        <span class="thread-head__icon"><app-icon [name]="kindIcons[c.kind]" [size]="16" /></span>
+        <div class="thread-head__id">
           <strong>{{ c.title }}</strong>
-          @if (c.subtitle) { <span class="field-hint"> · {{ c.subtitle }}</span> }
+          @if (c.subtitle) { <span class="field-hint">{{ c.subtitle }}</span> }
         </div>
       </header>
 
@@ -83,9 +84,12 @@
       @if (canPost()) {
         <form class="composer" (ngSubmit)="send()">
           <input class="form-control" name="draft" [(ngModel)]="draft" autocomplete="off"
+                 enterkeyhint="send" autocapitalize="sentences"
                  [placeholder]="c.kind === 'CLUB' ? 'Annonce au club…' : 'Ton message…'" />
-          <button type="submit" class="btn btn-primary" [disabled]="!draft.trim() || sending()">
-            Envoyer
+          <button type="submit" class="btn btn-primary" [disabled]="!draft.trim() || sending()"
+                  aria-label="Envoyer">
+            <app-icon name="arrow-right" [size]="18" />
+            <span class="composer__label">Envoyer</span>
           </button>
         </form>
       } @else {

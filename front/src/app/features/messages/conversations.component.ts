@@ -41,6 +41,10 @@ const KIND_ICONS: Record<ConversationKind, string> = {
   imports: [FormsModule, DatePipe, IconComponent, SkeletonComponent],
   templateUrl: './conversations.component.html',
   styleUrl: './conversations.component.scss',
+  // Un fil ouvert change la nature de l'écran au téléphone : il passe en plein écran. La classe
+  // est portée par l'hôte pour que la feuille de style le sache sans qu'aucun enfant n'ait à
+  // connaître la géométrie de la coquille.
+  host: { '[class.thread-open]': 'openId() !== null' },
 })
 export class ConversationsComponent implements OnInit, OnDestroy {
   private readonly conversations = inject(ConversationService);
@@ -84,6 +88,18 @@ export class ConversationsComponent implements OnInit, OnDestroy {
 
   private stream?: EventSource;
 
+  /**
+   * Écran étroit : la liste et le fil n'y tiennent pas côte à côte.
+   *
+   * <p>Ce n'est pas qu'une affaire de largeur. Sur deux colonnes, ouvrir d'office la conversation
+   * la plus chaude remplit un panneau qui serait vide ; au téléphone, cela escamotait la liste —
+   * l'athlète arrivait sur « Messages » et tombait à l'intérieur d'un fil, sans jamais voir qu'il
+   * en avait d'autres.</p>
+   */
+  private isNarrow(): boolean {
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches;
+  }
+
   constructor() {
     // Le fil colle au bas à chaque arrivée : une conversation se lit par la fin.
     effect(() => {
@@ -110,9 +126,12 @@ export class ConversationsComponent implements OnInit, OnDestroy {
       next: (list) => {
         this.list.set(list);
         this.loading.set(false);
-        const target = openId && list.some((c) => c.id === openId)
-          ? openId
-          : list.find((c) => c.unreadCount > 0)?.id ?? list[0]?.id ?? null;
+        // Un fil explicitement demandé (notification, lien partagé) s'ouvre toujours. Sinon, on
+        // n'ouvre d'office que sur deux colonnes, là où le panneau resterait vide.
+        const asked = openId && list.some((c) => c.id === openId) ? openId : null;
+        const target = asked ?? (this.isNarrow()
+          ? null
+          : list.find((c) => c.unreadCount > 0)?.id ?? list[0]?.id ?? null);
         if (target) {
           this.select(target);
         }
@@ -157,6 +176,19 @@ export class ConversationsComponent implements OnInit, OnDestroy {
       error: () => {},
     });
     this.stream = this.conversations.stream(id, (m) => this.append(m));
+  }
+
+  /**
+   * Referme le fil et revient à la liste.
+   *
+   * <p>Le paramètre d'URL part avec : sans cela, un rafraîchissement rouvrait la conversation
+   * qu'on venait justement de quitter.</p>
+   */
+  closeThread(): void {
+    this.stream?.close();
+    this.openId.set(null);
+    this.messages.set([]);
+    this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
   }
 
   private append(m: Message): void {
