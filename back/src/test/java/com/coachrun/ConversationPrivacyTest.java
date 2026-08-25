@@ -129,6 +129,48 @@ class ConversationPrivacyTest {
                 .containsOnly("COACH");
     }
 
+    /**
+     * Ouvrir une conversation qui n'existe pas encore : le geste même de « Nouveau message ».
+     *
+     * <p>La réponse était relue dans la boîte de réception — laquelle masque volontairement les
+     * fils de binôme vides, sans quoi un coach de club en verrait cent, tous identiques. Un fil
+     * qu'on venait de créer n'y figurait donc pas, et « Nouveau message » répondait « Ressource
+     * introuvable » à tous les coups. Seuls les fils déjà entamés s'ouvraient.</p>
+     */
+    @Test
+    void aBrandNewConversationOpens() throws Exception {
+        String coachId = secondCoachId();
+
+        String body = mvc.perform(post("/me/conversations/open")
+                        .header("Authorization", athleteBearer())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "kind", "COACH", "targetId", coachId))))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+
+        JsonNode conversation = objectMapper.readTree(body);
+        assertThat(conversation.get("id").asText()).as("le fil ouvert doit etre utilisable").isNotEmpty();
+        assertThat(conversation.get("canPost").asBoolean()).isTrue();
+
+        // Et il s'ouvre vraiment : l'identifiant rendu désigne un fil qu'on peut lire.
+        mvc.perform(get("/me/conversations/{id}/messages", conversation.get("id").asText())
+                        .header("Authorization", athleteBearer()))
+                .andExpect(status().isOk());
+    }
+
+    /** Le coach y répond depuis son côté, sur le même fil. */
+    @Test
+    void theCoachCanOpenABrandNewConversationToo() throws Exception {
+        String other = secondCoachBearer();
+
+        mvc.perform(post("/me/conversations/open")
+                        .header("Authorization", other)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "kind", "ATHLETE", "targetId", athleteId))))
+                .andExpect(status().isOk());
+    }
+
     /** Un destinataire non proposé n'ouvre pas de fil, même en devinant son identifiant. */
     @Test
     void anUnofferedRecipientCannotBeReached() throws Exception {
@@ -201,6 +243,20 @@ class ConversationPrivacyTest {
                                 .content("{\"password\":\"password123\",\"termsAccepted\":true}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         return "Bearer " + session.get("accessToken").asText();
+    }
+
+    /** Identifiant du second coach, tel que le club le liste. */
+    private String secondCoachId() throws Exception {
+        secondCoachBearer();
+        JsonNode members = objectMapper.readTree(mvc.perform(get("/clubs/{c}/members", clubId)
+                        .header("Authorization", ownerBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        for (JsonNode m : members) {
+            if ("Second Coach".equals(m.get("name").asText())) {
+                return m.get("coachId").asText();
+            }
+        }
+        throw new AssertionError("Second coach absent du club.");
     }
 
     private void sendAsCoach(String bearer, String body) throws Exception {

@@ -323,6 +323,21 @@ public class ConversationService {
         return List.copyOf(clubs.keySet());
     }
 
+    /**
+     * Le résumé d'un fil, pour qui y participe.
+     *
+     * <p>Rendu tel quel par l'ouverture d'une conversation. Le relire dans la boîte de réception
+     * ne marchait pas : elle masque volontairement les fils de binôme vides — sans quoi un coach
+     * de club en verrait cent, tous identiques — donc un fil qu'on venait de créer n'y figurait
+     * pas, et « Nouveau message » répondait « introuvable » à tous les coups.</p>
+     */
+    public ConversationSummaryResponse summaryOf(AuthPrincipal principal, UUID conversationId) {
+        Conversation conversation = requireReadable(principal, conversationId);
+        return summary(principal, conversation,
+                messageRepository.findFirstByConversationIdOrderByCreatedAtDesc(conversationId)
+                        .orElse(null));
+    }
+
     private ConversationSummaryResponse summary(AuthPrincipal principal, Conversation c, Message last) {
         String title;
         String subtitle = null;
@@ -480,6 +495,44 @@ public class ConversationService {
      * <p>La liste des destinataires est revérifiée : un identifiant deviné dans la requête ne doit
      * pas ouvrir un fil que l'écran n'aurait pas proposé.</p>
      */
+    /**
+     * Ouvre — ou retrouve — le fil désigné, quelle qu'en soit la nature, et le rend prêt à
+     * l'emploi.
+     *
+     * <p>Les droits sont vérifiés <b>avant</b> toute création : un groupe privé qu'on ne voit pas
+     * ne doit pas laisser de fil derrière la tentative.</p>
+     */
+    @Transactional
+    public ConversationSummaryResponse openFor(AuthPrincipal principal, String kind, UUID targetId) {
+        Conversation conversation = switch (kind) {
+            case "GROUP" -> {
+                requireGroupAccess(principal, targetId);
+                yield group(targetId);
+            }
+            case "CLUB" -> {
+                if (!inClub(principal, targetId)) {
+                    throw new NotFoundException("Club introuvable.");
+                }
+                yield club(targetId);
+            }
+            default -> open(principal, kind, targetId);
+        };
+        return summaryOf(principal, conversation.getId());
+    }
+
+    /** Ce groupe existe-t-il pour cette personne ? Un groupe privé n'existe pas pour les autres. */
+    private void requireGroupAccess(AuthPrincipal principal, UUID groupId) {
+        TrainingGroup group = groupRepository.findById(groupId)
+                .orElseThrow(() -> new NotFoundException("Groupe introuvable."));
+        boolean allowed = principal.role() == UserRole.ATHLETE
+                ? athleteBelongsToGroup(principal.athleteId(), groupId)
+                : isClubMember(principal, group.getClub().getId())
+                        && group.isVisibleTo(principal.userId());
+        if (!allowed) {
+            throw new NotFoundException("Groupe introuvable.");
+        }
+    }
+
     @Transactional
     public Conversation open(AuthPrincipal principal, String kind, UUID targetId) {
         boolean allowed = recipients(principal).stream()
