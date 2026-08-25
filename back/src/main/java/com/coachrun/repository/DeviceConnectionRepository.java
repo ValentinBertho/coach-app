@@ -44,4 +44,10 @@ public interface DeviceConnectionRepository extends JpaRepository<DeviceConnecti
         UUID getAthleteId();
         UUID getClubId();
     }
+
+    long countByProvider(DeviceProvider provider);
+
+    /** Connexions d'appareil d'un club : « la synchro Strava est-elle en place ici ? ». */
+    @Query("select count(c) from DeviceConnection c where c.athlete.club.id = :clubId")
+    long countByClub(@Param("clubId") UUID clubId);
 }

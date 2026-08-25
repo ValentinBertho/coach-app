@@ -1,0 +1,13 @@
+.aa-scope {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.aa-nowrap { white-space: nowrap; }
+.aa-sub { display: block; color: var(--ink-3); font-size: var(--text-xs); }
+.aa-action { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.aa-detail { color: var(--ink-2); font-size: var(--text-sm); max-width: 38ch; }
+.aa-row--sensitive td:first-child { box-shadow: inset 3px 0 0 var(--warning); }

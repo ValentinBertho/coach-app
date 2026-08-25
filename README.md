@@ -22,6 +22,7 @@
 - [Structure du dépôt](#structure-du-dépôt)
 - [Qualité, tests & CI](#qualité-tests--ci)
 - [Sécurité & RGPD](#sécurité--rgpd)
+- [Back-office d'administration](#back-office-dadministration)
 - [Variables d'environnement](#variables-denvironnement)
 - [Déploiement](#déploiement)
 - [Limites connues & pistes](#limites-connues--pistes-damélioration)
@@ -256,12 +257,69 @@ cd front && npm run build
 - **En-têtes** : Content-Security-Policy, `frame-options: deny`, `object-src 'none'`.
 - **CORS** restreint à une allowlist · **rate-limiting** par fenêtre fixe.
 - **Anti-IDOR** : toute route club passe par `@clubAccessValidator` (privé / club / permissions).
+- **Traçabilité de l'administration** : toute mutation `/admin/**` est consignée dans
+  `admin_audit_log` (acteur, action, cible, adresse d'appel), impersonation comprise — sans
+  aucune donnée de santé ni secret dans le résumé. Consultable sur `/admin/audit`.
 
 > Exploitation (Sentry, sauvegardes, uptime) : [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) et
 > [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md). Ce qui reste à lever avant
 > d'ouvrir : [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md).
 
 ---
+
+## Back-office d'administration
+
+`/admin`, réservé au rôle `PLATFORM_ADMIN` (garde front `adminGuard`, `@PreAuthorize` de classe sur
+tous les contrôleurs `/admin/**`). Pensé comme un **centre de pilotage** : comprendre l'état de la
+plateforme, retrouver n'importe quelle ressource, aider un utilisateur et diagnostiquer un incident
+**sans ouvrir psql**.
+
+| Zone | Route | Ce qu'on y fait |
+|---|---|---|
+| **Pilotage** | `/admin` | Anomalies actionnables d'abord (plafond d'e-mails, comptes bloqués sur leur vérification, invitations expirées, clubs sans coach), puis photographie, usage réel, intégrations et dernières actions d'administration. |
+| **Utilisateurs** | `/admin/users`, `/admin/users/:id` | Recherche et filtres (rôle, statut, club, vérification). La fiche porte l'identité, les clubs rattachés, l'activité, les appareils, l'historique — et les actions de support. |
+| **Clubs** | `/admin/clubs`, `/admin/clubs/:id` | Composition, activité, connexions de montres, et **aperçu d'impact** avant une suppression en cascade. |
+| **Athlètes & invitations** | `/admin/athletes`, `/admin/invitations` | Filtres par club et statut, athlètes sans coach, invitations expirées, **renvoi** et copie du lien. |
+| **Supervision** | `/admin/mail`, `/admin/feedback`, `/admin/platform` | Consommation du plan d'envoi, retours bêta, et configuration réelle de l'instance. |
+| **Audit** | `/admin/audit` | Qui a fait quoi, quand, sur quelle ressource. Lecture seule. |
+
+**Recherche globale** — <kbd>Ctrl/⌘ K</kbd> (ou `/`) depuis n'importe quel écran d'administration :
+comptes, clubs et athlètes en une saisie, par nom ou adresse e-mail.
+
+### Actions de support disponibles
+
+Toutes confirmées, toutes journalisées. Aucune ne demande d'accès à la base.
+
+| Geste | Effet |
+|---|---|
+| Renvoyer la vérification d'adresse | Nouveau lien de confirmation — le blocage n° 1 des nouveaux coachs. |
+| Envoyer un lien de mot de passe | Lien valable 2 h à l'adresse du compte. **L'administrateur ne choisit ni ne voit le mot de passe.** |
+| Fermer toutes les sessions | Déconnecte tous les appareils sans suspendre le compte. |
+| Suspendre / réactiver | La suspension **ferme aussi les sessions ouvertes** (elle ne bloquait auparavant que la prochaine connexion). |
+| Rattacher / détacher un club | Pilote le modèle multi-club des coachs. |
+| Renvoyer une invitation athlète | Régénère le lien (14 j) et l'envoie ; le lien est aussi rendu à l'écran pour un athlète sans adresse connue. |
+| Voir en tant que | Session au nom d'un coach ou d'un athlète, sans rafraîchissement, jamais sur un compte d'administration. |
+
+### Journal d'audit (`admin_audit_log`)
+
+Toute mutation d'administration y laisse une trace : acteur (identifiant **et** e-mail recopié, pour
+survivre à la suppression de son propre compte), action, cible, résumé, adresse d'appel.
+**Aucune donnée de santé, aucun mot de passe, aucun jeton** n'y transite — le résumé est composé par
+le code, jamais recopié d'une saisie libre. Les modifications de profil athlète sont consignées
+« dont des données physiologiques » **sans les valeurs**.
+
+> ⚠️ **Rétention à trancher.** Contrairement au journal d'e-mails (purgé à 180 jours), le journal
+> d'audit n'a **pas** de purge automatique : il porte des adresses e-mail et des adresses IP, donc
+> des données personnelles. Un journal de sécurité se conserve plutôt longtemps, mais la durée doit
+> être décidée puis appliquée — voir `docs/AUDIT-ADMIN-2026-08.md` §3 (P2).
+
+### Garde-fous
+
+- Un administrateur ne peut **ni changer son propre rôle, ni se suspendre, ni se supprimer** :
+  aucun chemin du produit ne permettrait de le rétablir.
+- Le **dernier administrateur actif** ne peut être ni suspendu ni supprimé.
+- La suppression d'un compte ou d'un club exige de **recopier un mot** et affiche ce qu'elle détruit.
+- `/admin/platform` rapporte qu'un secret **est posé**, jamais sa valeur.
 
 ## Variables d'environnement
 

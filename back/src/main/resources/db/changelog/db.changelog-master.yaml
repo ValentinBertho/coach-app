@@ -181,3 +181,7 @@ databaseChangeLog:
       file: db/changelog/changes/088-conversations.yaml
   - include:
       file: db/changelog/changes/089-group-visibility.yaml
+  - include:
+      file: db/changelog/changes/090-admin-audit-log.yaml
+  - include:
+      file: db/changelog/changes/091-user-activity-tracking.yaml

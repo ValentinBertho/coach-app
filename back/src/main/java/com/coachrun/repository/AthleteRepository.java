@@ -88,12 +88,17 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
     java.util.List<Athlete> findByClubIdOrderByLastNameAsc(UUID clubId);
 
     // --- Admin (cross-club) ---
+    /**
+     * L'adresse entre dans la recherche : un ticket de support arrive presque toujours avec une
+     * adresse e-mail, jamais avec l'orthographe exacte du nom.
+     */
     @Query("""
             select a from Athlete a
             where (:clubId is null or a.club.id = :clubId)
               and (:status is null or a.status = :status)
               and (lower(a.firstName) like lower(concat('%', :q, '%'))
-                   or lower(a.lastName) like lower(concat('%', :q, '%')))
+                   or lower(a.lastName) like lower(concat('%', :q, '%'))
+                   or lower(coalesce(a.email, '')) like lower(concat('%', :q, '%')))
             """)
     Page<Athlete> searchAdmin(@Param("clubId") UUID clubId,
                               @Param("status") AthleteStatus status,
@@ -107,4 +112,43 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
     long countByClubIdAndStatus(UUID clubId, AthleteStatus status);
 
     long countByClubIdAndInviteTokenIsNotNull(UUID clubId);
+
+    long countByStatus(AthleteStatus status);
+
+    long countByCreatedAtAfter(java.time.Instant since);
+
+    /** Invitations athlète encore valides mais qui expirent bientôt : signal du pilotage. */
+    @Query("""
+            select count(a) from Athlete a
+            where a.inviteToken is not null
+              and a.inviteExpiresAt is not null
+              and a.inviteExpiresAt between :now and :horizon
+            """)
+    long countInvitationsExpiringBefore(@Param("now") java.time.Instant now,
+                                        @Param("horizon") java.time.Instant horizon);
+
+    /** Invitations déjà périmées : elles ne mènent plus nulle part et doivent être renvoyées. */
+    @Query("""
+            select count(a) from Athlete a
+            where a.inviteToken is not null
+              and a.inviteExpiresAt is not null
+              and a.inviteExpiresAt < :now
+            """)
+    long countExpiredInvitations(@Param("now") java.time.Instant now);
+
+    /** Recherche libre bornée, pour la recherche globale du back-office. */
+    @Query("""
+            select a from Athlete a
+            where lower(a.firstName) like lower(concat('%', :q, '%'))
+               or lower(a.lastName) like lower(concat('%', :q, '%'))
+               or lower(coalesce(a.email, '')) like lower(concat('%', :q, '%'))
+            order by a.lastName, a.firstName
+            """)
+    java.util.List<Athlete> quickSearch(@Param("q") String q, Pageable pageable);
+
+    long countByClubId(UUID clubId);
+
+    /** Athlètes suivis par un coach : « combien de personnes ce compte encadre-t-il ? ». */
+    @Query("select count(a) from Athlete a join a.coaches c where c.id = :coachId")
+    long countByCoachId(@Param("coachId") UUID coachId);
 }

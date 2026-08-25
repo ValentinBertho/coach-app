@@ -157,4 +157,13 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
 
     /** Suppression propre : retire les séances d'un plan encore planifiées (préserve l'historique réalisé). */
     void deleteByPlanIdAndAthleteIdAndStatus(UUID planId, UUID athleteId, WorkoutStatus status);
+
+    // --- Administration (cross-club) ---
+    long countByScheduledDateBetween(LocalDate from, LocalDate to);
+
+    long countByStatusAndScheduledDateBetween(WorkoutStatus status, LocalDate from, LocalDate to);
+
+    long countByClubIdAndScheduledDateBetween(UUID clubId, LocalDate from, LocalDate to);
+
+    long countByClubId(UUID clubId);
 }

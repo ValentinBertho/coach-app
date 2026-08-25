@@ -1,7 +1,9 @@
 package com.coachrun.controller;
 
+import com.coachrun.entity.enums.AdminAuditAction;
 import com.coachrun.exception.ApiException;
 import com.coachrun.integration.StravaClient;
+import com.coachrun.service.AdminAuditService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +38,7 @@ import java.util.Map;
 public class AdminStravaWebhookController {
 
     private final StravaClient stravaClient;
+    private final AdminAuditService adminAuditService;
 
     /** Adresse publique que Strava appellera : celle de cette instance, terminée par /public/strava/webhook. */
     @Value("${app.strava.webhook-callback-url:}")
@@ -70,7 +73,13 @@ public class AdminStravaWebhookController {
                     "Renseigner STRAVA_WEBHOOK_CALLBACK_URL et STRAVA_WEBHOOK_VERIFY_TOKEN, "
                             + "puis redéployer, avant de créer l'abonnement.");
         }
-        return relay(() -> stravaClient.createWebhookSubscription(callbackUrl, verifyToken));
+        StravaClient.WebhookSubscription created =
+                relay(() -> stravaClient.createWebhookSubscription(callbackUrl, verifyToken));
+        // L'abonnement est unique par application Strava : le poser depuis une instance le retire
+        // de fait à toutes les autres. Le journal dit laquelle, et quand.
+        adminAuditService.recordPlatform(AdminAuditAction.STRAVA_WEBHOOK_CREATED,
+                "Abonnement " + created.id() + " vers " + callbackUrl);
+        return created;
     }
 
     /** Retire l'abonnement : les activités ne remonteront plus que par la synchro planifiée. */
@@ -80,6 +89,9 @@ public class AdminStravaWebhookController {
             stravaClient.deleteWebhookSubscription(subscriptionId);
             return null;
         });
+        adminAuditService.recordPlatform(AdminAuditAction.STRAVA_WEBHOOK_DELETED,
+                "Abonnement " + subscriptionId
+                        + " retiré — les activités ne remontent plus que par la passe horaire.");
         return Map.of("deleted", true);
     }
 

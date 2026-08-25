@@ -13,7 +13,7 @@
 
     <groupId>com.coachrun</groupId>
     <artifactId>coachrun-back</artifactId>
-    <version>0.2.0</version>
+    <version>0.3.0</version>
     <name>coachrun-back</name>
     <description>CoachRun — API de coaching course à pied</description>
 

@@ -1,0 +1,14 @@
+.ai-alert { margin-bottom: var(--sp-4); }
+
+.ai-row--expired td:first-child { box-shadow: inset 3px 0 0 var(--danger); }
+
+.ai-row--link td { background: var(--paper-sunk); }
+.ai-link { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.ai-link code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+  color: var(--ink-2);
+}

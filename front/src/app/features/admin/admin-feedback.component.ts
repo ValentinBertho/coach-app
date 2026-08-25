@@ -63,6 +63,15 @@ const KIND_BADGES: Record<FeedbackKind, string> = {
 
     @if (loading()) {
       <p class="field-hint">Chargement…</p>
+    } @else if (failed()) {
+      <!-- Une liste vidée par une erreur se lisait « aucun retour » : on nomme l'échec. -->
+      <div class="card alert alert-danger fb-error">
+        <div>
+          <strong>Les retours n'ont pas pu être chargés.</strong>
+          <p class="field-hint">Rien n'est affiché : un écran vide ferait croire à zéro retour.</p>
+        </div>
+        <button type="button" class="btn btn-primary btn-sm" (click)="reload()">Réessayer</button>
+      </div>
     } @else if (items().length === 0) {
       <div class="card empty">
         <app-icon name="inbox" [size]="28" />
@@ -100,6 +109,7 @@ const KIND_BADGES: Record<FeedbackKind, string> = {
   styles: [`
     .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-5); }
     .filters { display: flex; gap: var(--sp-2); }
+    .fb-error { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); }
     .empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); padding: var(--sp-7); color: var(--ink-3); text-align: center; }
     .empty p { margin: 0; }
     .fb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
@@ -108,7 +118,7 @@ const KIND_BADGES: Record<FeedbackKind, string> = {
     .fb__who { font-weight: 600; color: var(--ink); }
     .fb__when { color: var(--ink-3); font-size: var(--text-sm); margin-right: auto; }
     .fb__msg { margin: 0 0 var(--sp-3); white-space: pre-wrap; color: var(--ink); }
-    .fb__ctx { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); margin: 0; padding-top: var(--sp-3); border-top: 1px solid var(--line); }
+    .fb__ctx { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); margin: 0; padding-top: var(--sp-3); border-top: 1px solid var(--hairline); }
     .fb__ctx div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
     .fb__ctx dt { color: var(--ink-3); font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
     .fb__ctx dd { margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
@@ -127,6 +137,7 @@ export class AdminFeedbackComponent implements OnInit {
 
   readonly items = signal<BetaFeedback[]>([]);
   readonly loading = signal(true);
+  readonly failed = signal(false);
   /** « À traiter » par défaut : c'est la question qu'on se pose en ouvrant l'écran. */
   readonly filter = signal<FeedbackStatus | 'ALL'>('NEW');
 
@@ -145,13 +156,19 @@ export class AdminFeedbackComponent implements OnInit {
     this.load();
   }
 
+  /** Rechargement depuis l'état d'erreur. */
+  reload(): void {
+    this.load();
+  }
+
   private load(): void {
     this.loading.set(true);
+    this.failed.set(false);
     const f = this.filter();
     const url = f === 'ALL' ? this.base : `${this.base}?status=${f}`;
     this.http.get<Page<BetaFeedback>>(url).subscribe({
       next: (p) => { this.items.set(p.content ?? []); this.loading.set(false); },
-      error: () => { this.items.set([]); this.loading.set(false); },
+      error: () => { this.items.set([]); this.failed.set(true); this.loading.set(false); },
     });
   }
 

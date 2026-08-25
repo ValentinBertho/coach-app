@@ -223,4 +223,23 @@ public class User extends BaseEntity {
      */
     @Column(name = "sessions_invalidated_at")
     private java.time.Instant sessionsInvalidatedAt;
+
+    /**
+     * Dernière connexion par mot de passe. {@code null} pour un compte qui ne s'est jamais
+     * connecté — un athlète invité qui n'a pas suivi son lien, par exemple, ce que le back-office
+     * affiche « jamais connecté » plutôt que d'inventer une date.
+     */
+    @Column(name = "last_login_at")
+    private java.time.Instant lastLoginAt;
+
+    /**
+     * Dernière requête authentifiée, à un quart d'heure près (cf. {@code UserActivityTracker}).
+     *
+     * <p>Distincte de {@link #lastLoginAt} : une session PWA reste ouverte des semaines sans
+     * nouvelle connexion, si bien que la date de connexion seule faisait passer pour inactifs les
+     * comptes les plus assidus. C'est cette colonne, et elle seule, qui répond à « combien
+     * d'utilisateurs actifs cette semaine ».</p>
+     */
+    @Column(name = "last_seen_at")
+    private java.time.Instant lastSeenAt;
 }

@@ -255,6 +255,7 @@ public class AuthService {
         return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         // Verrou par compte : le rate limiting par IP n'arrête pas un attaquant qui répartit ses
         // essais sur plusieurs adresses pour forcer un compte précis.
@@ -277,6 +278,11 @@ public class AuthService {
             throw new UnauthorizedException("Ce compte est suspendu.");
         }
         loginAttempts.recordSuccess(request.email());
+        // Dernière connexion : sans elle, le back-office ne pouvait pas distinguer un compte
+        // abandonné d'un compte en cours d'usage avant de proposer de le supprimer. Écriture par
+        // suivi d'entité — d'où le @Transactional sur cette méthode, la classe étant en lecture
+        // seule (un appel interne ne repasserait pas par le proxy, donc rien ne serait écrit).
+        user.setLastLoginAt(java.time.Instant.now());
         return toAuthResponse(user);
     }
 

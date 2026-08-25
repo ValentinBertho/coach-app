@@ -1,8 +1,10 @@
 package com.coachrun.controller;
 
 import com.coachrun.dto.request.ClubRequest;
+import com.coachrun.dto.response.AdminClubDetailResponse;
 import com.coachrun.dto.response.ClubResponse;
 import com.coachrun.dto.response.PageResponse;
+import com.coachrun.entity.enums.ClubStatus;
 import com.coachrun.service.AdminClubService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -35,13 +37,23 @@ public class AdminClubController {
 
     @GetMapping
     public PageResponse<ClubResponse> list(@RequestParam(required = false) String q,
+                                           @RequestParam(required = false) ClubStatus status,
                                            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
-        return adminClubService.list(q, pageable);
+        return adminClubService.list(q, status, pageable);
     }
 
     @GetMapping("/{id}")
     public ClubResponse get(@PathVariable UUID id) {
         return adminClubService.get(id);
+    }
+
+    /**
+     * Fiche club : composition, activité, connexions d'appareils, et l'aperçu d'impact qu'on veut
+     * lire avant de confirmer une suppression en cascade.
+     */
+    @GetMapping("/{id}/detail")
+    public AdminClubDetailResponse detail(@PathVariable UUID id) {
+        return adminClubService.detail(id);
     }
 
     @PostMapping

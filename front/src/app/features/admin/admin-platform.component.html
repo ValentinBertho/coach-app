@@ -1,0 +1,87 @@
+<section class="page-header">
+  <div>
+    <h1 class="display-sm">Configuration</h1>
+    <p class="subtitle">Ce qui est réellement actif sur cette instance.</p>
+  </div>
+  <button type="button" class="btn btn-ghost btn-sm" (click)="load()" [disabled]="loading()">
+    <app-icon name="refresh-cw" [size]="15" /> Actualiser
+  </button>
+</section>
+
+@if (loading()) {
+  <div class="card"><app-skeleton shape="table" [rows]="6" [columns]="3" /></div>
+} @else if (failed()) {
+  <div class="card alert alert-danger apf-error">
+    <div>
+      <strong>La configuration n'a pas pu être lue.</strong>
+      <p class="field-hint">Rien n'est affiché : un réglage supposé actif est pire qu'un inconnu.</p>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" (click)="load()">Réessayer</button>
+  </div>
+} @else {
+  @if (platform(); as p) {
+
+  <div class="apf-idents">
+    <div class="card apf-ident">
+      <span class="stat-label">Environnement</span>
+      <strong class="metric">{{ p.environment }}</strong>
+    </div>
+    <div class="card apf-ident">
+      <span class="stat-label">Version</span>
+      <strong class="metric">{{ p.version }}</strong>
+    </div>
+    <div class="card apf-ident">
+      <span class="stat-label">Fuseau applicatif</span>
+      <strong class="metric">{{ p.timezone }}</strong>
+    </div>
+    <div class="card apf-ident">
+      <span class="stat-label">Inscription</span>
+      <strong>{{ registrationLabel(p.registrationMode) }}</strong>
+    </div>
+  </div>
+
+  <section class="card apf-block">
+    <h2 class="apf-h2">Fonctionnalités & intégrations</h2>
+    <p class="field-hint apf-note">
+      Aucune valeur de secret n'est affichée ici, ni renvoyée par le serveur : on rapporte qu'un
+      réglage est posé, jamais ce qu'il contient. La variable nommée dit seulement où agir.
+    </p>
+    <ul class="apf-settings">
+      @for (s of p.settings; track s.key) {
+        <li class="apf-setting">
+          <div class="apf-setting__hd">
+            <strong>{{ s.label }}</strong>
+            <span class="badge" [class]="badge(s)">{{ stateLabel(s) }}</span>
+          </div>
+          <p class="field-hint">{{ s.detail }}</p>
+          <code class="apf-source">{{ s.source }}</code>
+        </li>
+      }
+    </ul>
+  </section>
+
+  <section class="card apf-block">
+    <h2 class="apf-h2">Plan d'envoi d'e-mails</h2>
+    <dl class="apf-kv">
+      <div>
+        <dt>Plafond quotidien</dt>
+        <dd class="metric">{{ p.mailDailyQuota ? (p.mailDailyQuota | number) : 'sans plafond connu' }}</dd>
+      </div>
+      <div>
+        <dt>Plafond mensuel</dt>
+        <dd class="metric">{{ p.mailMonthlyQuota ? (p.mailMonthlyQuota | number) : 'sans plafond connu' }}</dd>
+      </div>
+      <div>
+        <dt>Rétention du journal</dt>
+        <dd class="metric">
+          {{ p.mailLogRetentionDays ? p.mailLogRetentionDays + ' jours' : 'sans purge' }}
+        </dd>
+      </div>
+      <div><dt>Adresse du front</dt><dd class="apf-url">{{ p.frontendUrl }}</dd></div>
+    </dl>
+    <a class="btn btn-ghost btn-sm" routerLink="/admin/mail">
+      Voir la consommation <app-icon name="arrow-right" [size]="14" />
+    </a>
+  </section>
+  }
+}

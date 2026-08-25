@@ -17,5 +17,5 @@ export const environment = {
   // Tenue à jour avec back/pom.xml et front/package.json à chaque déploiement notable.
   // Sentry s'en sert comme `release` : figée, elle rend indécidable un « ça marchait hier »,
   // puisque tous les événements portent alors la même version.
-  appVersion: '0.2.0',
+  appVersion: '0.3.0',
 };

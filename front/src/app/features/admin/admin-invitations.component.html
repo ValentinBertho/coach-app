@@ -1,27 +1,93 @@
 <section class="page-header">
-  <div><h1 class="display-sm">Invitations en attente</h1><p class="subtitle">Athlètes invités non encore connectés.</p></div>
+  <div>
+    <h1 class="display-sm">Invitations</h1>
+    <p class="subtitle">Athlètes invités qui ne se sont pas encore connectés.</p>
+  </div>
 </section>
 
+@if (expiredCount() > 0) {
+  <div class="card alert alert-danger ai-alert">
+    <div>
+      <strong>{{ expiredCount() }} invitation(s) expirée(s)</strong>
+      <p class="field-hint">
+        Leur lien ne mène plus nulle part. Un renvoi en produit un nouveau, valable 14 jours.
+      </p>
+    </div>
+  </div>
+}
+
+<div class="al-filters">
+  <span class="al-count metric">{{ total() }} invitation{{ total() > 1 ? 's' : '' }} en attente</span>
+</div>
+
 @if (loading()) {
-  <div class="card table-wrap"><app-skeleton shape="table" [rows]="4" [columns]="4" /></div>
+  <div class="card table-wrap"><app-skeleton shape="table" [rows]="5" [columns]="4" /></div>
+} @else if (failed()) {
+  <div class="card alert alert-danger al-error">
+    <div>
+      <strong>La liste n'a pas pu être chargée.</strong>
+      <p class="field-hint">Un tableau vide se lirait « aucune invitation » : rien n'est affiché.</p>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" (click)="load()">Réessayer</button>
+  </div>
 } @else if (invitations().length === 0) {
-  <div class="card empty-state"><h2>Aucune invitation en attente</h2></div>
+  <div class="card">
+    <app-empty-state icon="mail" title="Aucune invitation en attente"
+      hint="Tous les athlètes invités ont rejoint leur espace." />
+  </div>
 } @else {
   <div class="card table-wrap">
     <table class="data-table">
-      <thead><tr><th>Athlète</th><th>Club</th><th>Expire le</th><th></th></tr></thead>
+      <thead><tr><th>Athlète</th><th>Destinataire</th><th>Club</th><th>Expire</th><th></th></tr></thead>
       <tbody>
         @for (inv of invitations(); track inv.athleteId) {
-          <tr>
-            <td>{{ inv.firstName }} {{ inv.lastName }}</td>
+          <tr [class.ai-row--expired]="expired(inv)">
+            <td>
+              <span class="al-name">
+                <a [routerLink]="['/admin/athletes', inv.athleteId, 'edit']">
+                  {{ inv.firstName }} {{ inv.lastName }}
+                </a>
+              </span>
+            </td>
+            <td>
+              @if (inv.email) { {{ inv.email }} }
+              @else {
+                <span class="al-muted" title="Aucun e-mail ne peut partir : le lien se transmet à la main">
+                  aucune adresse
+                </span>
+              }
+            </td>
             <td>{{ inv.clubName }}</td>
-            <td>{{ inv.expiresAt | date: 'dd/MM/yyyy' }}</td>
+            <td class="al-nowrap">
+              @if (expired(inv)) {
+                <span class="badge badge-danger">expirée</span>
+              } @else {
+                <span class="metric">{{ inv.expiresAt | date: 'd MMM y' }}</span>
+              }
+            </td>
             <td class="table-actions">
-              <button type="button" class="btn btn-danger btn-sm" (click)="revoke(inv)">Révoquer</button>
+              <button type="button" class="btn btn-ghost btn-sm" [disabled]="busy()"
+                      (click)="resend(inv)">Renvoyer</button>
+              <button type="button" class="btn btn-ghost btn-sm al-danger" (click)="revoke(inv)">Révoquer</button>
             </td>
           </tr>
+          <!-- Le lien reste affiché après régénération : c'est le seul canal possible pour un
+               athlète sans adresse connue, et le secours quand l'e-mail n'arrive pas. -->
+          @if (lastLink()?.athleteId === inv.athleteId) {
+            <tr class="ai-row--link">
+              <td colspan="5">
+                <div class="ai-link">
+                  <code>{{ lastLink()?.url }}</code>
+                  <button type="button" class="btn btn-ghost btn-sm" (click)="copy(lastLink()!.url)">
+                    <app-icon name="copy" [size]="14" /> Copier
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
         }
       </tbody>
     </table>
   </div>
+  <app-paginator [page]="page()" [totalPages]="totalPages()" (pageChange)="goToPage($event)" />
 }
