@@ -253,7 +253,15 @@ const SECTION_LABELS: Record<string, string> = {
     .stat-strip { display: flex; flex-wrap: wrap; gap: var(--sp-5); margin: 0; }
     .stat-strip__item { display: flex; flex-direction: column; }
     .stat-strip__item dt { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); }
-    .stat-strip__item dd { margin: 0; font-size: var(--text-lg); font-weight: 700; }
+    /* La valeur, son unité et son étiquette d'origine tiennent sur une ligne QUI PEUT SE
+       REPLIER : sans le repli, l'étiquette « mesuré » d'un seuil chevauchait le « km/h » sur
+       390 px de large. */
+    .stat-strip__item dd {
+      margin: 0; font-size: var(--text-lg); font-weight: 700;
+      display: flex; align-items: baseline; flex-wrap: wrap; gap: 3px;
+      min-width: 0;
+    }
+    .stat-strip__item dd app-data-origin-tag { flex-shrink: 0; }
     .stat-strip__item small { font-size: var(--text-xs); color: var(--ink-3); margin-left: 3px; font-weight: 500; }
 
     /* Barre d'onglets : elle ne disparaît plus quand on change de section. */
