@@ -32,9 +32,13 @@ import java.util.UUID;
  * cherche. Le contexte est déjà la source d'autorité de {@code @PreAuthorize} ; c'est la même
  * source qu'on interroge ici.</p>
  *
- * <p><b>Une trace ne fait jamais échouer le geste qu'elle décrit.</b> Toute erreur d'écriture est
- * avalée et journalisée : un journal indisponible dégrade la traçabilité, il ne doit pas empêcher
- * un administrateur de suspendre un compte compromis.</p>
+ * <p><b>La trace et le geste vont ensemble.</b> L'écriture rejoint la transaction de l'appelant
+ * ({@code REQUIRED}) : si la mutation échoue, la trace disparaît avec elle — un journal qui
+ * annoncerait des suppressions qui n'ont pas eu lieu serait pire qu'aucun journal. À l'inverse,
+ * une erreur propre à l'écriture du journal est avalée et signalée en {@code ERROR} plutôt que
+ * remontée : perdre une trace vaut mieux qu'empêcher un administrateur de suspendre un compte
+ * compromis. La réserve à connaître : si l'échec vient de la base elle-même, la transaction est
+ * déjà marquée pour annulation et le geste échouera de toute façon au commit.</p>
  *
  * <p><b>Rien de sensible dans le résumé.</b> Les appelants composent des phrases à partir de
  * noms, rôles et statuts. Aucune note médicale, aucune valeur physiologique, aucun jeton, aucun

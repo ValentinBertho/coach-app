@@ -308,6 +308,11 @@ survivre à la suppression de son propre compte), action, cible, résumé, adres
 le code, jamais recopié d'une saisie libre. Les modifications de profil athlète sont consignées
 « dont des données physiologiques » **sans les valeurs**.
 
+> ⚠️ **Rétention à trancher.** Contrairement au journal d'e-mails (purgé à 180 jours), le journal
+> d'audit n'a **pas** de purge automatique : il porte des adresses e-mail et des adresses IP, donc
+> des données personnelles. Un journal de sécurité se conserve plutôt longtemps, mais la durée doit
+> être décidée puis appliquée — voir `docs/AUDIT-ADMIN-2026-08.md` §3 (P2).
+
 ### Garde-fous
 
 - Un administrateur ne peut **ni changer son propre rôle, ni se suspendre, ni se supprimer** :

@@ -100,8 +100,10 @@ export class AdminLayoutComponent implements OnInit {
       return;
     }
     const target = event.target as HTMLElement | null;
+    // SELECT compris : les listes déroulantes réagissent aux touches pour sauter à une option,
+    // et détourner « / » y ferait surgir la palette au milieu d'un choix de filtre.
     const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA'
-      || target?.isContentEditable === true;
+      || target?.tagName === 'SELECT' || target?.isContentEditable === true;
     if (event.key === '/' && !typing && !this.searchOpen()) {
       event.preventDefault();
       this.openSearch();
