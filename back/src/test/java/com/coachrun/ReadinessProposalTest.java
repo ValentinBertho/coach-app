@@ -69,6 +69,14 @@ class ReadinessProposalTest {
 
     @Test
     void aFreshAthleteGetsNoAdvice() throws Exception {
+        // Un footing, posé explicitement. Le test lisait la séance que le jeu de démonstration
+        // place ce jour-là — donc, un jour sur deux, un fractionné. Or la charge déclenche un
+        // allègement SANS fatigue déclarée dès que la séance du jour est intense : le test
+        // passait ou échouait selon la date d'exécution, sans que rien n'ait changé dans le
+        // produit. Ce qu'il veut éprouver — rien de déclaré, donc rien à conseiller — n'a pas
+        // besoin d'une séance intense.
+        seedEasyTodaySession();
+
         JsonNode r = readiness();
         // Sans fatigue ni douleur déclarées, il n'y a rien à conseiller — et surtout rien à
         // proposer. Le silence est la réponse par défaut.

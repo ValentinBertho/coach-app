@@ -91,7 +91,11 @@
 @if (saveAsOpen()) {
   <div class="card save-as">
     <h2>Enregistrer comme modèle</h2>
-    <p class="field-hint">La structure ci-dessous est recopiée dans la bibliothèque ; la séance de l'athlète n'est pas modifiée.</p>
+    <p class="field-hint">
+      La structure ci-dessous est recopiée dans la bibliothèque ; la séance de l'athlète n'est pas
+      modifiée. Les <strong>consignes écrites pour lui</strong> restent sur sa séance et ne sont pas
+      versées : un modèle resservira à d'autres.
+    </p>
     <div class="save-as-row">
       <input class="form-control" [(ngModel)]="saveAsTitle" placeholder="Nom du modèle" maxlength="255" />
       <select class="form-control" [(ngModel)]="saveAsCategoryId">
@@ -362,9 +366,11 @@
                 }
               </div>
             }
-            <!-- Commentaire libre du coach sur ce bloc (ex. « 1'13-1'14, plus vite si ok »). -->
+            <!-- Commentaire libre du coach sur ce bloc (ex. « 1'13-1'14, plus vite si ok »).
+                 Le libellé dit à qui il s'adresse : le même champ écrit tantôt pour une personne,
+                 tantôt pour tout le club, et rien ne le distinguait. -->
             <input class="form-control block-note" [(ngModel)]="b.note" (ngModelChange)="touch()"
-                   placeholder="Commentaire sur ce bloc (optionnel)" />
+                   [title]="noteScopeLabel()" [placeholder]="noteScopeLabel()" />
           </div>
         }
       </article>

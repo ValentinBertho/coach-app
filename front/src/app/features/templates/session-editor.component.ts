@@ -218,6 +218,25 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     return a ? `${a.firstName} ${a.lastName}` : '';
   });
 
+  /** Athlète dont on adapte la séance (mode séance uniquement). */
+  private readonly workoutAthleteName = signal('');
+
+  /**
+   * Ce que devient un mot écrit sur un bloc, dit à l'endroit où on l'écrit.
+   *
+   * <p>Le champ s'intitulait « Commentaire sur ce bloc (optionnel) » dans les deux modes. Un coach
+   * y écrivait « allure 3'47-3'42 » — un chiffre calculé pour l'athlète qu'il avait sous les yeux
+   * dans l'aperçu — sans que rien ne dise que, sur un modèle, ce mot suivrait la séance chez tous
+   * les autres.</p>
+   */
+  readonly noteScopeLabel = computed(() => {
+    if (this.isWorkout()) {
+      const who = this.workoutAthleteName();
+      return who ? `Consigne pour ${who} — lui seul la verra` : 'Consigne pour cet athlète seul';
+    }
+    return 'Consigne du modèle — vue par tous les athlètes à qui il sera prescrit';
+  });
+
   toggleDetails(id: string): void {
     this.detailsOpen.update((s) => {
       const next = new Set(s);
@@ -471,6 +490,12 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
       this.calcAthleteId.set(this.athleteId());
       this.loadProfile(this.athleteId());
       this.loadZoneValues(this.athleteId());
+      // Le nom sert à nommer la portée du champ de consigne : « pour Chloé », et pas « pour
+      // l'athlète ». C'est ce qui distingue, à l'écran, un mot personnel d'une consigne de modèle.
+      this.athletes.get(this.athleteId()).subscribe({
+        next: (a) => this.workoutAthleteName.set(`${a.firstName} ${a.lastName}`),
+        error: () => this.workoutAthleteName.set(''),
+      });
       this.workoutService.prescription(this.athleteId(), this.workoutId()).subscribe({
         next: (p) => {
           this.title.set(p.title ?? '');

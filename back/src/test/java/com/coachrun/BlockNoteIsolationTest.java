@@ -108,6 +108,52 @@ class BlockNoteIsolationTest {
                 .isNull();
     }
 
+    /**
+     * Le chemin par lequel un mot personnel fuit vraiment : le versement en bibliothèque.
+     *
+     * <p>Un coach adapte la séance d'un athlète, y écrit « allure 3'47-3'42 » — un chiffre calculé
+     * pour LUI — puis verse l'adaptation dans la bibliothèque pour la resservir. La consigne
+     * partait avec, et reparaissait ensuite chez tous ceux à qui le modèle était prescrit.</p>
+     */
+    @Test
+    void theNotesWrittenForOneAthleteDoNotTravelToTheLibrary() throws Exception {
+        String templateId = templateWithBlock();
+        String workoutA = schedule(templateId, athleteA);
+        adaptWithNote(athleteA, workoutA, "allure 3'47-3'42");
+
+        JsonNode created = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/workouts/{w}/save-as-template", clubId, athleteA, workoutA)
+                                .header("Authorization", bearer)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(Map.of(
+                                        "name", "6 x 400 verse", "title", "6 x 400 verse"))))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+
+        JsonNode note = created.get("structure").get("main").get(0).get("note");
+        assertThat(note == null || note.isNull() ? null : note.asText())
+                .as("une consigne ecrite pour un athlete n'a rien a faire dans un modele partage")
+                .isNull();
+        // Le reste de l'adaptation, lui, est bien versé : c'est tout l'intérêt du geste.
+        assertThat(created.get("structure").get("main").get(0).get("reps").asInt()).isEqualTo(6);
+    }
+
+    /** Et la séance de l'athlète, elle, garde son mot : il n'a pas été déplacé, il est resté. */
+    @Test
+    void theAthleteKeepsHisOwnNoteAfterVersioning() throws Exception {
+        String templateId = templateWithBlock();
+        String workoutA = schedule(templateId, athleteA);
+        adaptWithNote(athleteA, workoutA, "allure 3'47-3'42");
+
+        mvc.perform(post("/clubs/{c}/athletes/{a}/workouts/{w}/save-as-template", clubId, athleteA, workoutA)
+                        .header("Authorization", bearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "6 x 400 bis", "title", "6 x 400 bis"))))
+                .andExpect(status().isCreated());
+
+        assertThat(noteOf(athleteA, workoutA)).isEqualTo("allure 3'47-3'42");
+    }
+
     // --- Utilitaires ---------------------------------------------------------------------------
 
     private JsonNode login(String email) throws Exception {

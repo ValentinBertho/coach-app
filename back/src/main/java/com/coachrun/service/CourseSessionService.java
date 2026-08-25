@@ -132,14 +132,14 @@ public class CourseSessionService {
                                                          com.coachrun.dto.request.SaveAsTemplateRequest req) {
         com.coachrun.entity.Workout w = workoutRepository.findByIdAndClubId(workoutId, clubId)
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
-        SessionStructure structure = readStructure(w.getSessionSnapshot());
+        // Le modèle reçoit la STRUCTURE de l'adaptation, pas ce qui n'appartenait qu'à l'athlète.
+        SessionStructure structure = withoutAthleteNotes(readStructure(w.getSessionSnapshot()));
 
         WorkoutTemplate t = new WorkoutTemplate();
         t.setClub(w.getClub());
         t.setName(req.name());
         t.setTitle(req.title());
         t.setType(w.getType());
-        t.setNotes(w.getNotes());
         t.setTargetDistanceM(w.getTargetDistanceM());
         t.setTargetDurationS(w.getTargetDurationS());
         // L'effort annoncé fait partie de ce qu'on verse : une adaptation gardée sans son RPE
@@ -151,6 +151,46 @@ public class CourseSessionService {
                     .orElseThrow(() -> new NotFoundException("Catégorie introuvable.")));
         }
         return CourseStructureResponse.of(templateRepository.save(t), structure);
+    }
+
+    /**
+     * La même séance, débarrassée des consignes écrites pour un athlète.
+     *
+     * <p><b>Le défaut.</b> Un coach adapte la séance de quelqu'un, y écrit « allure 3'47-3'42 » —
+     * un chiffre calculé pour LUI — puis verse l'adaptation en bibliothèque pour la resservir. La
+     * consigne partait avec, et reparaissait ensuite chez chaque athlète à qui le modèle était
+     * prescrit. Un mot destiné à une personne devenait une instruction de club.</p>
+     *
+     * <p><b>Le parti pris.</b> On verse la structure — répétitions, distances, allures en
+     * fourchettes, récupérations, RPE : tout ce qui fait la séance — et on laisse les mots. Une
+     * consigne écrite pendant qu'on adapte pour quelqu'un parle de cette personne-là ; celle qui
+     * vaut pour tous s'écrit dans le modèle, où l'éditeur annonce désormais sa portée. Le
+     * contraire — verser les mots et espérer que le coach les relise — est précisément ce qui
+     * vient d'échouer.</p>
+     *
+     * <p>La séance de l'athlète, elle, n'est pas touchée : rien n'est déplacé, seule la copie est
+     * allégée.</p>
+     */
+    private SessionStructure withoutAthleteNotes(SessionStructure s) {
+        if (s == null) {
+            return SessionStructure.empty();
+        }
+        return new SessionStructure(
+                stripNotes(s.warmup()), stripNotes(s.main()), stripNotes(s.cooldown()));
+    }
+
+    private java.util.List<com.coachrun.dto.session.CourseBlock> stripNotes(
+            java.util.List<com.coachrun.dto.session.CourseBlock> blocks) {
+        if (blocks == null) {
+            return java.util.List.of();
+        }
+        return blocks.stream()
+                .map(b -> new com.coachrun.dto.session.CourseBlock(
+                        b.id(), b.type(), b.reps(), b.distanceM(), b.durationS(),
+                        b.prescription(), b.recovery(), b.rpe(),
+                        null,
+                        b.drillIds(), b.sets(), b.setRecovery()))
+                .toList();
     }
 
     private String writeJson(Object value) {
