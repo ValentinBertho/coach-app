@@ -70,6 +70,9 @@ public class AthletePortalController {
     private final com.coachrun.service.FeedbackStreakService streakService;
     private final com.coachrun.service.TimeInZoneService timeInZoneService;
     private final com.coachrun.service.AthleteZoneValueService zoneValueService;
+    private final com.coachrun.service.StrengthTestService strengthTestService;
+    private final com.coachrun.service.ProgramPdfService programPdfService;
+    private final com.coachrun.service.PeriodReportPdfService periodReportPdfService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -300,6 +303,66 @@ public class AthletePortalController {
     public com.coachrun.dto.response.PhysioProfileResponse myPhysio(
             @AuthenticationPrincipal AuthPrincipal principal) {
         return physioService.getProfileForAthlete(principal.athleteId());
+    }
+
+    /**
+     * Mes tests de force : la mesure, pas seulement le 1RM qu'elle produit.
+     *
+     * <p>L'athlète lisait son 1RM et sa courbe, jamais les tests dont ils sortent — date,
+     * protocole, charge et répétitions réellement soulevées. C'est pourtant sa performance.</p>
+     */
+    @GetMapping("/pp/tests")
+    public java.util.List<com.coachrun.dto.response.StrengthTestResponse> myStrengthTests(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) UUID exerciseId) {
+        return strengthTestService.listForAthlete(principal.athleteId(), exerciseId);
+    }
+
+    /**
+     * Mon programme en PDF.
+     *
+     * <p>Le document existait, mais seul le coach pouvait le sortir : l'athlète en déplacement, ou
+     * qui veut son plan sur papier au bord de la piste, devait le lui réclamer.</p>
+     */
+    @GetMapping(value = "/program/export.pdf",
+            produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
+    public org.springframework.http.ResponseEntity<byte[]> myProgramPdf(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return pdf(programPdfService.generateForAthlete(principal.athleteId(), from, to),
+                "programme.pdf");
+    }
+
+    /** Mon bilan de période en PDF : volume, charge, intensité, faits marquants. */
+    @GetMapping(value = "/program/report.pdf",
+            produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
+    public org.springframework.http.ResponseEntity<byte[]> myReportPdf(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return pdf(periodReportPdfService.generateForAthlete(principal.athleteId(), from, to),
+                "bilan.pdf");
+    }
+
+    private org.springframework.http.ResponseEntity<byte[]> pdf(byte[] body, String filename) {
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + filename + "\"")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(body);
     }
 
     /**

@@ -14,6 +14,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,12 +28,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * L'athlète lit ses propres zones d'entraînement.
+ * Ce que l'athlète peut lire de ses propres données.
  *
- * <p>Il voyait l'allure prescrite d'<b>une</b> séance, jamais l'échelle dont elle sort : la table
- * qui dit à quelle allure et à quelle fréquence cardiaque chacune de ses zones se court. C'est la
- * donnée qu'on relit avant de partir courir, et c'était la seule de sa fiche qu'il ne pouvait pas
- * atteindre.</p>
+ * <p>Le portail exposait l'essentiel du quotidien mais laissait trois choses du côté coach
+ * seulement : l'échelle de zones, les tests de force, et les deux documents PDF (programme,
+ * bilan). Rien de tout cela n'est une donnée de club — ce sont ses allures, ses mesures et son
+ * plan.</p>
+ *
+ * <p>Le gros morceau reste les zones : il voyait l'allure prescrite d'<b>une</b> séance, jamais
+ * l'échelle dont elle sort — la table qui dit à quelle allure et à quelle fréquence cardiaque
+ * chacune de ses zones se court. C'est la donnée qu'on relit avant de partir courir.</p>
  *
  * <p>Ce que ces tests protègent : que les deux écrans montrent <b>le même tableau</b>. Une échelle
  * qui diverge entre coach et athlète ne serait pas une gêne d'affichage — ils ne parleraient plus
@@ -40,7 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-class AthleteZonesVisibilityTest {
+class AthleteOwnDataAccessTest {
 
     @Autowired private WebApplicationContext context;
     @Autowired private DemoSeedService demoSeedService;
@@ -166,6 +172,53 @@ class AthleteZonesVisibilityTest {
     void theEndpointIsScopedToTheSignedInAthlete() throws Exception {
         mvc.perform(get("/me/zones").header("Authorization", coachBearer))
                 .andExpect(status().is4xxClientError());
+    }
+
+    /**
+     * Ses tests de force, et pas seulement le 1RM qu'ils produisent.
+     *
+     * <p>Il voyait le résultat sans jamais voir la mesure : date, protocole, charge et répétitions
+     * réellement soulevées. C'est sa performance.</p>
+     */
+    @Test
+    void theAthleteReadsHisOwnStrengthTests() throws Exception {
+        JsonNode mine = objectMapper.readTree(mvc.perform(get("/me/pp/tests")
+                        .header("Authorization", athleteBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode coachSide = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/{a}/pp/tests", clubId, athleteId)
+                                .header("Authorization", coachBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        assertThat(mine.isArray()).isTrue();
+        assertThat(mine.size())
+                .as("l'athlete doit lire exactement les tests que son coach voit")
+                .isEqualTo(coachSide.size());
+    }
+
+    /**
+     * Son programme et son bilan, en PDF, sans avoir à les réclamer.
+     *
+     * <p>Les deux documents existaient ; seul le coach pouvait les sortir. On vérifie qu'un vrai
+     * PDF sort — un octet-à-octet exact serait fragile, mais un corps vide ou une page HTML
+     * d'erreur ne passerait pas.</p>
+     */
+    @Test
+    void theAthleteCanDownloadHisProgramAndReport() throws Exception {
+        byte[] programme = mvc.perform(get("/me/program/export.pdf")
+                        .header("Authorization", athleteBearer)
+                        .param("from", LocalDate.now().minusWeeks(4).toString())
+                        .param("to", LocalDate.now().plusWeeks(4).toString()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+
+        byte[] bilan = mvc.perform(get("/me/program/report.pdf")
+                        .header("Authorization", athleteBearer)
+                        .param("from", LocalDate.now().minusWeeks(8).toString())
+                        .param("to", LocalDate.now().toString()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
+
+        assertThat(new String(programme, 0, 4, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF");
+        assertThat(new String(bilan, 0, 4, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF");
     }
 
     // --- Utilitaires ---------------------------------------------------------------------------

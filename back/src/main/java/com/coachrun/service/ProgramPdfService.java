@@ -51,6 +51,21 @@ public class ProgramPdfService {
     private record Item(LocalDate date, String kind, String title, String detail) {
     }
 
+    /**
+     * Mon programme — variante athlète-scopée (portail {@code /me}).
+     *
+     * <p>Le document existait déjà, mais seul le coach pouvait le sortir. L'athlète qui part en
+     * déplacement, ou qui veut son plan sur papier au bord de la piste, n'avait aucun moyen de
+     * l'obtenir sans le lui demander. Le club se déduit de l'athlète : il n'a pas à le connaître,
+     * et surtout pas à le fournir.</p>
+     */
+    public byte[] generateForAthlete(UUID athleteId, LocalDate from, LocalDate to) {
+        UUID clubId = athleteRepository.findById(athleteId)
+                .map(a -> a.getClub().getId())
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        return generate(clubId, athleteId, from, to);
+    }
+
     public byte[] generate(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));

@@ -2,7 +2,9 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { E1rmHistory, MyOneRm } from '../../core/models/strength.model';
+import {
+  E1rmHistory, MyOneRm, StrengthTest, StrengthTestProtocol, STRENGTH_TEST_PROTOCOL_LABELS,
+} from '../../core/models/strength.model';
 import { Load, StrengthLoadPoint } from '../../core/models/lactate.model';
 import { Performance } from '../../core/models/physio.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
@@ -15,6 +17,9 @@ import { TrajectoryBannerComponent } from '../../shared/components/trajectory-ba
 import { AthleteTimelineComponent } from '../../shared/components/athlete-timeline/athlete-timeline.component';
 import { Timeline, Trajectory } from '../../core/models/decision.model';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
+import { ToastService } from '../../core/services/toast.service';
+import { Observable } from 'rxjs';
+import { toIsoDate } from '../../core/utils/iso-date';
 
 const SOURCE_ORIGIN: Record<string, DataOrigin> = {
   tested: 'mesure', estimated: 'calcule', manual: 'saisi',
@@ -79,6 +84,29 @@ const SOURCE_LABEL: Record<string, string> = {
           <app-icon name="chevron-right" [size]="18" />
         </a>
       </nav>
+
+      <!-- Mes documents. Ils existaient déjà, mais seul le coach pouvait les sortir : l'athlète
+           qui part en déplacement, ou qui veut son plan sur papier au bord de la piste, devait
+           les lui réclamer. Périodes fixes plutôt qu'un sélecteur de dates : sur un téléphone,
+           « les 4 semaines qui viennent » est le besoin réel, et un double calendrier ne
+           l'améliorerait pas. -->
+      <section class="sect">
+        <h2 class="sect-h">Mes documents</h2>
+        <div class="docs">
+          <button type="button" class="btn btn-ghost docs-b" [disabled]="downloading()"
+                  (click)="downloadProgram()">
+            <app-icon name="file-text" [size]="18" />
+            <span>Mon programme<small>4 semaines à venir</small></span>
+            <app-icon name="download" [size]="18" />
+          </button>
+          <button type="button" class="btn btn-ghost docs-b" [disabled]="downloading()"
+                  (click)="downloadReport()">
+            <app-icon name="line-chart" [size]="18" />
+            <span>Mon bilan<small>8 dernières semaines</small></span>
+            <app-icon name="download" [size]="18" />
+          </button>
+        </div>
+      </section>
 
       <!-- Ma trajectoire : la seule ligne de cet écran qui dise où je vais, et pas seulement
            où j'en suis. -->
@@ -270,6 +298,24 @@ const SOURCE_LABEL: Record<string, string> = {
                     <li class="field-hint">Aucun historique pour cet exercice.</li>
                   }
                 </ul>
+
+                <!-- Les tests eux-mêmes : l'historique ci-dessus est fait d'estimations tirées
+                     des séances, un test est une mesure posée un jour donné. Les confondre
+                     reviendrait à lire une estimation comme un record. -->
+                @if (testsOf(p.exerciseId); as tests) {
+                  @if (tests.length) {
+                    <ul class="hist tests">
+                      <li class="tests-h field-hint">Tests mesurés</li>
+                      @for (t of tests; track t.id) {
+                        <li>
+                          <span class="hist-date metric">{{ t.testDate | date: 'dd/MM/yy' }}</span>
+                          <span class="hist-e metric">{{ t.computedE1rmKg | number: '1.0-1' }} kg</span>
+                          <span class="hist-detail field-hint">{{ protocolLabel(t.protocol) }}</span>
+                        </li>
+                      }
+                    </ul>
+                  }
+                }
               } @else {
                 <app-skeleton shape="text" [rows]="3" />
               }
@@ -288,6 +334,12 @@ const SOURCE_LABEL: Record<string, string> = {
     .prog-top h1 { margin: 0; }
     .subtitle { color: var(--ink-3); margin: var(--sp-1) 0 0; }
     .empty { text-align: center; }
+    .docs { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .docs-b { display: flex; align-items: center; justify-content: flex-start; gap: var(--sp-3); min-height: 56px; width: 100%; text-align: left; }
+    .docs-b span { display: flex; flex-direction: column; flex: 1; min-width: 0; font-weight: 700; }
+    .docs-b small { font-weight: 500; color: var(--ink-3); }
+    .tests { margin-top: var(--sp-2); }
+    .tests-h { display: block; font-weight: 700; }
 
     .ex { padding: 0; overflow: hidden; }
     .ex-hd {
@@ -382,8 +434,12 @@ const SOURCE_LABEL: Record<string, string> = {
 })
 export class AthleteProgressComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
+  private readonly toast = inject(ToastService);
 
   readonly profiles = signal<MyOneRm[]>([]);
+  /** Mes tests de force, tous exercices confondus — répartis à l'affichage. */
+  readonly strengthTests = signal<StrengthTest[]>([]);
+  readonly downloading = signal(false);
   readonly loading = signal(true);
   readonly expanded = signal<string | null>(null);
   readonly history = signal<Record<string, E1rmHistory[]>>({});
@@ -513,6 +569,10 @@ export class AthleteProgressComponent implements OnInit {
       next: (p) => { this.profiles.set(p); this.loading.set(false); },
       error: () => this.loading.set(false),
     });
+    this.portal.strengthTests().subscribe({
+      next: (t) => this.strengthTests.set(t),
+      error: () => this.strengthTests.set([]),
+    });
   }
 
   toggle(exerciseId: string): void {
@@ -528,6 +588,55 @@ export class AthleteProgressComponent implements OnInit {
 
   origin(source: string): DataOrigin { return SOURCE_ORIGIN[source] ?? 'calcule'; }
   sourceLabel(source: string): string { return SOURCE_LABEL[source] ?? source; }
+
+  /**
+   * Les tests mesurés de cet exercice, du plus récent au plus ancien.
+   *
+   * <p>À ne pas confondre avec l'historique e1RM juste au-dessus : celui-ci est fait d'estimations
+   * tirées des séances, un test est une mesure posée un jour donné, sous un protocole nommé. Les
+   * mélanger reviendrait à lire une estimation comme un record.</p>
+   */
+  testsOf(exerciseId: string): StrengthTest[] {
+    return this.strengthTests().filter((t) => t.exerciseId === exerciseId);
+  }
+
+  protocolLabel(p: StrengthTestProtocol): string {
+    return STRENGTH_TEST_PROTOCOL_LABELS[p] ?? p;
+  }
+
+  /** Mon programme : la période qui sert, c'est celle qui vient. */
+  downloadProgram(): void {
+    const from = toIsoDate(new Date());
+    const to = toIsoDate(new Date(Date.now() + 28 * 864e5));
+    this.download('programme', from, to, this.portal.programPdf(from, to));
+  }
+
+  /** Mon bilan : celle qui vient de passer. */
+  downloadReport(): void {
+    const from = toIsoDate(new Date(Date.now() - 56 * 864e5));
+    const to = toIsoDate(new Date());
+    this.download('bilan', from, to, this.portal.reportPdf(from, to));
+  }
+
+  private download(kind: string, from: string, to: string, call: Observable<Blob>): void {
+    this.downloading.set(true);
+    call.subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${kind}-${from}-${to}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        this.downloading.set(false);
+        this.toast.success(`${kind === 'bilan' ? 'Bilan' : 'Programme'} téléchargé (PDF)`);
+      },
+      error: () => {
+        this.downloading.set(false);
+        this.toast.error('Téléchargement impossible.');
+      },
+    });
+  }
 
   /** Sparkline de l'évolution e1RM (points ordonnés croissants par le backend). */
   spark(h: E1rmHistory[]): { points: string; delta: number } {
