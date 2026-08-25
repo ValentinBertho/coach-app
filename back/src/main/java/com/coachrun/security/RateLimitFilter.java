@@ -39,6 +39,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
     public static final String LOGIN_BUCKET = "auth-login";
     /** Bucket fourre-tout des routes authentifiées, compté par porteur de jeton. */
     public static final String AUTHENTICATED_BUCKET = "api-authenticated";
+    /**
+     * Bucket des canaux de présence : flux temps réel et compteurs de non-lus.
+     *
+     * <p>Ils ont leur propre plafond, et c'est tout l'objet. Partagé avec les requêtes ordinaires,
+     * il faisait de la navigation soutenue un motif de blocage : mesuré sur l'application réelle,
+     * le calendrier coûte 19 appels et « Ma journée » 10, si bien qu'une vingtaine d'écrans dans
+     * la minute suffisait à récolter des 429 et à perdre son flux de notifications. Dispensés de
+     * tout plafond, ils rouvriraient en revanche la porte aux reconnexions {@code EventSource} en
+     * boucle que provoque un proxy coupant mal les connexions longues. Un compteur à part freine
+     * la boucle sans pénaliser le travail.</p>
+     */
+    public static final String LIVE_BUCKET = "api-live";
     /** Bucket des routes qui déclenchent un envoi d'e-mail, compté à l'heure. */
     public static final String EMAIL_BUCKET = "api-email";
     /** Bucket des routes <b>anonymes</b> qui déclenchent un envoi d'e-mail, compté à l'heure par IP. */
@@ -63,6 +75,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final FixedWindowRateLimiter loginLimiter;
     private final FixedWindowRateLimiter refreshLimiter;
     private final FixedWindowRateLimiter authenticatedLimiter;
+    private final FixedWindowRateLimiter liveLimiter;
     private final FixedWindowRateLimiter emailLimiter;
     private final FixedWindowRateLimiter anonymousEmailLimiter;
     private final int trustedProxyHops;
@@ -73,6 +86,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                            @Value("${app.rate-limit.login-max-requests:5}") int loginMaxRequests,
                            @Value("${app.rate-limit.refresh-max-requests:60}") int refreshMaxRequests,
                            @Value("${app.rate-limit.authenticated-max-requests:300}") int authenticatedMax,
+                           @Value("${app.rate-limit.live-max-requests:120}") int liveMax,
                            @Value("${app.rate-limit.email-max-requests:3}") int emailMax,
                            @Value("${app.rate-limit.email-window-seconds:3600}") int emailWindowSeconds,
                            @Value("${app.rate-limit.anonymous-email-max-requests:5}") int anonymousEmailMax,
@@ -87,6 +101,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // Plafond global : large (une navigation soutenue reste très en dessous), mais il existe.
         this.authenticatedLimiter =
                 new FixedWindowRateLimiter(authenticatedMax, Duration.ofSeconds(windowSeconds));
+        // Canaux de présence : plafond propre, plus large que la navigation ordinaire — ils sont
+        // rejoués à chaque écran — mais borné, pour que la reconnexion en boucle reste freinée.
+        this.liveLimiter = new FixedWindowRateLimiter(liveMax, Duration.ofSeconds(windowSeconds));
         // Envois d'e-mail : quelques-uns par heure suffisent à tout usage légitime (on renvoie une
         // vérification parce qu'elle n'est pas arrivée, pas trois cents fois par minute).
         this.emailLimiter =
@@ -175,6 +192,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return uri.endsWith("/auth/register") || uri.endsWith("/public/password-reset");
     }
 
+    /**
+     * Flux temps réel et compteurs de présence, qui relèvent du plafond {@link #LIVE_BUCKET}.
+     *
+     * <p>Un flux SSE est une requête unique tenue ouverte une demi-heure ; le compteur de non-lus
+     * est rejoué à chaque changement d'écran. Ni l'un ni l'autre ne décrit une intention de
+     * l'utilisateur : les compter avec le reste revenait à plafonner la navigation elle-même.</p>
+     */
+    private boolean isLiveChannel(String uri) {
+        return uri.endsWith("/stream") || uri.endsWith("/unread-count");
+    }
+
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
@@ -208,6 +236,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
             String bearerKey = bearerKey(request);
             key = (bearerKey != null ? bearerKey : clientIp(request)) + ":" + EMAIL_BUCKET;
             applicable = emailLimiter;
+        } else if (isLiveChannel(request.getRequestURI())) {
+            // Flux temps réel et compteurs : leur propre plafond (cf. LIVE_BUCKET).
+            String liveKey = bearerKey(request);
+            key = (liveKey != null ? liveKey : clientIp(request)) + ":" + LIVE_BUCKET;
+            applicable = liveLimiter;
         } else {
             // Route non listée : plafond global par porteur de jeton. Les requêtes anonymes hors
             // buckets (actuator, pages publiques) ne sont pas comptées ici.

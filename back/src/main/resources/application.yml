@@ -190,6 +190,11 @@ app:
     # Plafond des routes authentifiées (messages, pièces jointes, import GPX), par porteur de
     # jeton : large pour ne pas gêner une navigation soutenue, mais il existe.
     authenticated-max-requests: ${RATE_LIMIT_AUTHENTICATED_MAX:300}
+    # Canaux de présence (flux temps réel, compteurs de non-lus), par porteur de jeton. Ils sont
+    # rejoués à chaque changement d'écran : comptés avec le reste, ils faisaient de la navigation
+    # soutenue un motif de blocage. Ils gardent leur propre frein — un EventSource que le proxy
+    # fait rouvrir en boucle doit rester borné.
+    live-max-requests: ${RATE_LIMIT_LIVE_MAX:120}
     # Nombre de relais de confiance devant l'API — la topologie des appels API, pas celle du site.
     # Sert à lire la bonne adresse dans X-Forwarded-For : le client contrôle le début de la
     # chaîne, seuls les derniers éléments sont écrits par des proxys de confiance.
