@@ -81,6 +81,27 @@ describe('athlete-zones — mon échelle de travail', () => {
     expect(component.valued(z).map((m) => m.code)).toEqual(['PACE']);
   });
 
+  it('ne dit la règle qu’une fois quand toutes les métriques partagent la même', () => {
+    const z = zone({
+      metrics: [metric(), metric({ metricTypeId: 'm-kmh', code: 'SPEED', name: 'Vitesse', unit: 'KMH', format: 'DEC1', valueMin: 12.4, valueMax: 13.1 })],
+    });
+    expect(component.sharedRule(z)).toBe('88–92 % · Seuil lactique (LT2)');
+  });
+
+  it('redescend la règle au niveau de la ligne dès que les métriques divergent', () => {
+    const z = zone({
+      metrics: [
+        metric(),
+        metric({ metricTypeId: 'm-hr', code: 'HR', name: 'FC', unit: 'BPM', format: 'INT', valueMin: 148, valueMax: 162, anchor: 'FCMAX', lowPct: 80, highPct: 90 }),
+      ],
+    });
+    expect(component.sharedRule(z)).toBeNull();
+  });
+
+  it('ne hisse rien pour une zone à une seule métrique', () => {
+    expect(component.sharedRule(zone())).toBeNull();
+  });
+
   it('ne rappelle que les ancres dont l’échelle se sert', () => {
     component.zones.set([zone()]);
     component.physio.set(physio);

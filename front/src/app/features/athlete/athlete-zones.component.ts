@@ -70,6 +70,7 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
             <header class="zone-hd">
               <h2 class="zone-n">{{ z.name }}</h2>
               @if (z.description) { <p class="zone-d field-hint">{{ z.description }}</p> }
+              @if (sharedRule(z); as r) { <p class="zone-r field-hint">{{ r }}</p> }
             </header>
 
             @if (valued(z).length) {
@@ -85,7 +86,9 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
                       }
                     </dt>
                     <dd class="metric">{{ range(m) }}</dd>
-                    @if (rule(m); as r) { <p class="m-rule field-hint">{{ r }}</p> }
+                    @if (!sharedRule(z)) {
+                      @if (rule(m); as r) { <p class="m-rule field-hint">{{ r }}</p> }
+                    }
                   </div>
                 }
               </dl>
@@ -128,6 +131,7 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
     .zone-hd { padding: var(--sp-3) var(--sp-4) 0; }
     .zone-n { margin: 0; font-size: var(--text-lg); }
     .zone-d { margin: 2px 0 0; }
+    .zone-r { margin: 2px 0 0; }
     .zone-empty { padding: var(--sp-2) var(--sp-4) var(--sp-3); margin: 0; }
 
     .mlist { margin: 0; padding: var(--sp-2) var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -196,6 +200,21 @@ export class AthleteZonesComponent implements OnInit {
    */
   valued(z: AthleteZoneSheet): AthleteZoneMetric[] {
     return z.metrics.filter((m) => m.valueMin != null || m.valueMax != null);
+  }
+
+  /**
+   * La règle, quand elle est la même pour toutes les métriques de la zone.
+   *
+   * <p>C'est le cas courant : une zone décrite en allure ET en vitesse expose deux fois « 93–97 %
+   * du seuil ». Répétée sous chaque ligne, la mention double la hauteur de chaque carte pour ne
+   * rien dire de plus — sur une échelle de seize zones, cela fait un écran de scroll gagné sans
+   * rien retirer. Elle remonte donc en tête de carte, et ne redescend au niveau de la ligne que
+   * lorsque les métriques divergent réellement.</p>
+   */
+  sharedRule(z: AthleteZoneSheet): string | null {
+    const rules = this.valued(z).map((m) => this.rule(m));
+    if (rules.length < 2 || rules.some((r) => r == null)) return null;
+    return rules.every((r) => r === rules[0]) ? rules[0] : null;
   }
 
   range(m: AthleteZoneMetric): string {
