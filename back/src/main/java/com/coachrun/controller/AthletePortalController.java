@@ -514,6 +514,46 @@ public class AthletePortalController {
                 .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
     }
 
+    /**
+     * Notes du calendrier visibles par l'athlète : les cycles, les mots que son coach lui a
+     * adressés, et les siens.
+     */
+    @GetMapping("/calendar-notes")
+    public java.util.List<com.coachrun.dto.response.CalendarNoteResponse> calendarNotes(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return calendarNoteService.listForAthlete(principal.athleteId(), from, to);
+    }
+
+    /**
+     * L'athlète pose un mot sur une journée : « je finis tard mardi », « piste fermée jeudi ».
+     *
+     * <p>Ce n'est ni une séance ni une indisponibilité — c'est le fait simple qu'on signale, et
+     * qui n'avait jusqu'ici aucun endroit où s'écrire.</p>
+     */
+    @PostMapping("/calendar-notes")
+    @ResponseStatus(HttpStatus.CREATED)
+    public com.coachrun.dto.response.CalendarNoteResponse addCalendarNote(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody com.coachrun.dto.request.CalendarNoteRequest request) {
+        return calendarNoteService.createByAthlete(principal.athleteId(), principal.userId(), request);
+    }
+
+    /** Retirer SON mot — pas celui du coach. */
+    @org.springframework.web.bind.annotation.DeleteMapping("/calendar-notes/{noteId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteCalendarNote(@AuthenticationPrincipal AuthPrincipal principal,
+                                   @PathVariable UUID noteId) {
+        calendarNoteService.deleteByAthlete(principal.athleteId(), noteId, principal.userId());
+    }
+
     /** Messagerie : fil de discussion avec le coach. */
     @GetMapping("/messages")
     public java.util.List<com.coachrun.dto.response.MessageResponse> messages(

@@ -12,12 +12,21 @@ export interface CalendarNote {
   /** Dernier jour couvert (inclus), ou `null` pour une note d'un seul jour. */
   endDate?: string | null;
   text: string;
+  /**
+   * Lisible par l'autre partie. Faux = carnet de travail du coach — c'est la valeur de toutes
+   * les notes écrites avant que le partage n'existe, et le défaut à la saisie.
+   */
+  shared?: boolean;
+  /** Qui l'a écrite. Dans un calendrier à deux voix, cela fait partie du message. */
+  authorRole?: 'COACH' | 'ATHLETE';
+  authorName?: string | null;
 }
 
 export interface CalendarNoteRequest {
   noteDate: string;
   endDate?: string | null;
   text: string;
+  shared?: boolean;
 }
 
 /** La note couvre-t-elle une période (donc : est-ce un cycle) ? */

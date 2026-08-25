@@ -5,6 +5,8 @@ import {
 } from '../../core/models/workout.model';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
+import { CalendarNoteService } from '../../core/services/calendar-note.service';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Activity } from '../../core/models/activity.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
@@ -37,6 +39,8 @@ interface DayRow {
   /** Courses visées ce jour-là : l'échéance, pas une séance de plus. */
   races: RaceObjective[];
   unavailability: Unavailability | null;
+  /** Mots posés sur la journée : ceux du coach qui me sont adressés, et les miens. */
+  notes: CalendarNote[];
   /** Le jour porte-t-il quelque chose une fois le filtre appliqué ? */
   empty: boolean;
 }
@@ -82,7 +86,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
   imports: [
     IconComponent, IntensityZoneBadgeComponent, DataOriginTagComponent, BottomSheetComponent,
     SegmentedControlComponent, WorkoutFeedbackSheetComponent, HelpHintComponent, RouterLink,
-    AthleteMonthGridComponent, CycleBannerComponent,
+    AthleteMonthGridComponent, CycleBannerComponent, FormsModule,
   ],
   template: `
     <header class="cal-top">
@@ -151,6 +155,11 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
             @if (day.isToday) { <span class="day-now">aujourd'hui</span> }
             @if (day.unavailability; as u) {
               <span class="day-unavail"><app-icon [name]="reasonIcon[u.reason]" [size]="12" /> indispo</span>
+            }
+            @if (day.notes.length) {
+              <span class="day-note" [title]="day.notes[0].text">
+                <app-icon name="pin" [size]="12" /> {{ day.notes.length > 1 ? day.notes.length + ' mots' : 'note' }}
+              </span>
             }
             <!-- À droite : le total du jour — la semaine se lit alors en descendant la colonne
                  des chiffres, sans additionner les séances de tête — ou le mot « repos », qui
@@ -233,6 +242,41 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
         <div class="dsheet">
           @if (d.unavailability; as u) {
             <p class="dsheet-off"><app-icon [name]="reasonIcon[u.reason]" [size]="14" /> Indisponibilité déclarée</p>
+          }
+
+          <!-- Les mots de la journée. Ni une séance ni une indisponibilité : le fait simple
+               qu'on signale, dans un sens comme dans l'autre. -->
+          @for (n of d.notes; track n.id) {
+            <div class="dnote" [class.dnote--mine]="n.authorRole === 'ATHLETE'">
+              <app-icon name="pin" [size]="14" />
+              <span class="dnote-txt">{{ n.text }}</span>
+              <span class="dnote-who field-hint">
+                {{ n.authorRole === 'ATHLETE' ? 'moi' : (n.authorName || 'coach') }}
+              </span>
+              @if (n.authorRole === 'ATHLETE') {
+                <button type="button" class="icon-btn" (click)="removeNote(n)" aria-label="Retirer ma note">
+                  <app-icon name="x" [size]="14" />
+                </button>
+              }
+            </div>
+          }
+
+          @if (noteOpen()) {
+            <div class="dnote-form">
+              <textarea class="form-control" rows="2" [(ngModel)]="noteDraft" maxlength="500"
+                        placeholder="Un mot pour ton coach — « je finis tard, je décale d'une heure »"></textarea>
+              <div class="dnote-actions">
+                <button type="button" class="btn btn-ghost btn-sm" (click)="noteOpen.set(false)">Annuler</button>
+                <button type="button" class="btn btn-primary btn-sm"
+                        [disabled]="!noteDraft.trim() || savingNote()" (click)="addNote(d.date)">
+                  {{ savingNote() ? 'Envoi…' : 'Laisser le mot' }}
+                </button>
+              </div>
+            </div>
+          } @else {
+            <button type="button" class="btn btn-ghost btn-sm dnote-open" (click)="noteOpen.set(true)">
+              <app-icon name="pin" [size]="14" /> Laisser un mot sur cette journée
+            </button>
           }
           @for (r of d.races; track r.id) {
             <a class="race" [class.race--past]="r.status !== 'UPCOMING'" [routerLink]="['/athlete/races']">
@@ -456,6 +500,25 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     .month-hint { text-align: center; margin: 0; }
 
     .dsheet { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+    /* Le mot posé sur une journée : lisible d'un coup d'œil, jamais confondu avec une séance. */
+    .dnote {
+      display: flex; align-items: center; gap: var(--sp-2);
+      padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-md);
+      background: var(--paper-sunk); border-left: 3px solid var(--ink-4);
+    }
+    .dnote--mine { border-left-color: var(--primary); }
+    .dnote-txt { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .dnote-who { white-space: nowrap; }
+    .dnote-form { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .dnote-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); }
+    .dnote-actions .btn, .dnote-open { min-height: 44px; }
+    .dnote-open { align-self: flex-start; }
+    /* Pastille de la case : elle avertit, elle n'empêche rien — comme l'indisponibilité. */
+    .day-note {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: var(--text-2xs); font-weight: 700; color: var(--ink-3);
+    }
     .dsheet-off { display: flex; align-items: center; gap: var(--sp-2); margin: 0; color: var(--ink-3); font-size: var(--text-sm); }
     .dsheet-empty { margin: 0; text-align: center; }
     .dsheet-add {
@@ -605,6 +668,7 @@ export class AthleteCalendarComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
   private readonly paceReference = inject(PaceReferenceService);
   private readonly toast = inject(ToastService);
+  private readonly noteService = inject(CalendarNoteService);
 
   /** Mon allure d'endurance, seule base admise pour estimer un volume écrit en durée. */
   readonly referencePace = signal<number | null>(null);
@@ -619,6 +683,11 @@ export class AthleteCalendarComponent implements OnInit {
   readonly strength = signal<ScheduledStrength[]>([]);
   readonly activities = signal<Activity[]>([]);
   readonly unavailabilities = signal<Unavailability[]>([]);
+  /** Mots posés sur les journées : ceux que le coach m'adresse, et les miens. */
+  readonly notes = signal<CalendarNote[]>([]);
+  readonly noteOpen = signal(false);
+  readonly savingNote = signal(false);
+  noteDraft = '';
   /**
    * Les courses visées. Elles n'apparaissaient nulle part dans le calendrier : l'athlète voyait
    * ses séances sans jamais voir vers quoi elles allaient, alors que c'est la date qui donne son
@@ -730,6 +799,7 @@ export class AthleteCalendarComponent implements OnInit {
         activities,
         races,
         unavailability: un.find((u) => iso >= u.startDate && iso <= u.endDate) ?? null,
+        notes: this.notesOn(iso),
         empty: workouts.length === 0 && strength.length === 0 && activities.length === 0
             && races.length === 0,
       };
@@ -948,6 +1018,7 @@ export class AthleteCalendarComponent implements OnInit {
     this.portal.workouts(from, to).subscribe({ next: (w) => this.workouts.set(w), error: () => this.workouts.set([]) });
     this.portal.ppScheduled(from, to).subscribe({ next: (s) => this.strength.set(s), error: () => this.strength.set([]) });
     this.portal.unavailabilities().subscribe({ next: (u) => this.unavailabilities.set(u), error: () => this.unavailabilities.set([]) });
+    this.loadNotes();
   }
 
   setView(view: string): void { this.view.set(view as AgendaView); }
@@ -1021,6 +1092,9 @@ export class AthleteCalendarComponent implements OnInit {
 
   openDay(iso: string): void {
     this.daySelected.set(this.rowFor(iso));
+    // Le brouillon de mot appartient à la journée qu'on quitte, pas à celle qu'on ouvre.
+    this.noteOpen.set(false);
+    this.noteDraft = '';
     this.dayOpen.set(true);
   }
 
@@ -1042,9 +1116,71 @@ export class AthleteCalendarComponent implements OnInit {
       // Hors filtre prévu/réalisé, comme dans la vue hebdomadaire.
       races: this.races().filter((r) => r.raceDate === iso),
       unavailability: this.unavailabilities().find((u) => iso >= u.startDate && iso <= u.endDate) ?? null,
+      notes: this.notesOn(iso),
       empty: workouts.length === 0 && strength.length === 0 && activities.length === 0
           && this.races().every((r) => r.raceDate !== iso),
     };
+  }
+
+  /**
+   * Mots couvrant ce jour. Un cycle du coach couvre une période : il vaut pour chacun de ses
+   * jours, comme le bandeau qu'il affiche côté coach.
+   */
+  private notesOn(iso: string): CalendarNote[] {
+    return this.notes().filter((n) => iso >= n.noteDate && iso <= (n.endDate ?? n.noteDate));
+  }
+
+  /** Fenêtre large : le calendrier navigue de mois en mois sans redemander à chaque pas. */
+  private loadNotes(): void {
+    const from = toIso(new Date(Date.now() - 120 * 864e5));
+    const to = toIso(new Date(Date.now() + 200 * 864e5));
+    this.noteService.mine(from, to).subscribe({
+      next: (n) => this.notes.set(n),
+      error: () => this.notes.set([]),
+    });
+  }
+
+  /** L'athlète laisse un mot sur une journée. Il part visible : c'est tout son objet. */
+  addNote(date: string): void {
+    const text = this.noteDraft.trim();
+    if (!text || this.savingNote()) return;
+    this.savingNote.set(true);
+    this.noteService.addMine({ noteDate: date, text }).subscribe({
+      next: (created) => {
+        this.notes.update((list) => [...list, created]);
+        this.refreshOpenDay();
+        this.noteDraft = '';
+        this.noteOpen.set(false);
+        this.savingNote.set(false);
+        this.toast.success('Ton coach le verra sur cette journée.');
+      },
+      error: () => {
+        this.savingNote.set(false);
+        this.toast.error('Mot non enregistré.');
+      },
+    });
+  }
+
+  /**
+   * La feuille du jour tient une copie figée de la journée, prise à l'ouverture — elle ne suit
+   * donc pas les signaux. Après avoir posé ou retiré un mot, on la reprend, sinon l'athlète
+   * referme et rouvre pour voir ce qu'il vient d'écrire.
+   */
+  private refreshOpenDay(): void {
+    const open = this.daySelected();
+    if (open) this.daySelected.set(this.rowFor(open.date));
+  }
+
+  /** Retirer SON mot : celui du coach n'appartient pas à l'athlète. */
+  removeNote(note: CalendarNote): void {
+    this.noteService.deleteMine(note.id).subscribe({
+      next: () => {
+        this.notes.update((list) => list.filter((n) => n.id !== note.id));
+        this.refreshOpenDay();
+        this.toast.info('Mot retiré.');
+      },
+      error: () => this.toast.error('Retrait impossible.'),
+    });
   }
 
   openMove(kind: 'run' | 'strength', id: string, title: string, date: string): void {

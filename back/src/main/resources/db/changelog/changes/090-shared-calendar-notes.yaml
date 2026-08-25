@@ -1,0 +1,50 @@
+# ============================================================================
+# 090 — La note de calendrier devient un mot qu'on s'adresse.
+#
+#   Elle n'existait que dans un sens : le coach écrivait, l'athlète ne voyait
+#   rien — sauf les CYCLES, qui décrivent le bloc en cours et lui étaient déjà
+#   remontés. Or ce qui manquait n'est ni une séance ni une indisponibilité :
+#   c'est le fait simple qu'on signale. « Piste fermée jeudi », « je finis tard
+#   mardi, je décale d'une heure ». Trop léger pour une indispo, trop utile pour
+#   un message qui se perd dans un fil.
+#
+#   Trois colonnes, et une règle qui ne se devine pas :
+#
+#     · `shared` décide de ce que l'athlète voit. Il vaut FAUX pour toutes les
+#       notes existantes — elles ont été écrites dans un carnet que leur auteur
+#       croyait privé (« relancer sur le sommeil », « surveiller ce genou »), et
+#       les exposer d'un bloc parce qu'on ajoute une colonne serait exactement
+#       la rupture de confiance qu'on cherche à éviter ailleurs.
+#     · `author_user_id` / `author_role` : dans un calendrier à deux voix, « qui
+#       l'a écrit » fait partie du message. Nuls pour l'existant : ces notes-là
+#       sont du coach par construction.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 090-shared-calendar-notes
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: calendar_notes
+            columns:
+              - column:
+                  name: shared
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }
+                  remarks: "Vrai = lisible par l'autre partie. Faux pour tout l'existant."
+              - column:
+                  name: author_user_id
+                  type: UUID
+                  remarks: "Auteur. Nul pour les notes antérieures, écrites par le coach."
+              - column:
+                  name: author_role
+                  type: VARCHAR(16)
+                  remarks: "COACH | ATHLETE — ce qui décide de l'étiquette affichée."
+        - addForeignKeyConstraint:
+            constraintName: fk_calendar_notes_author
+            baseTableName: calendar_notes
+            baseColumnNames: author_user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL

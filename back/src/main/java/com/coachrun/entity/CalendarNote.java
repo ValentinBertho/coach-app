@@ -45,4 +45,39 @@ public class CalendarNote extends BaseEntity {
 
     @Column(name = "text", nullable = false, length = 500)
     private String text;
+
+    /**
+     * Lisible par l'autre partie ?
+     *
+     * <p>Faux par défaut, et faux pour toute note antérieure : les notes d'un jour sont le carnet
+     * de travail du coach — « relancer sur le sommeil », « surveiller ce genou » — écrites en le
+     * croyant privé. Une note qu'un athlète écrit, elle, n'a de sens que partagée : c'est un mot
+     * qu'il adresse.</p>
+     */
+    @Column(name = "shared", nullable = false)
+    private boolean shared;
+
+    /** Auteur de la note. Nul pour les notes antérieures, qui sont du coach par construction. */
+    @Column(name = "author_user_id")
+    private java.util.UUID authorUserId;
+
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    @Column(name = "author_role", length = 16)
+    private com.coachrun.entity.enums.UserRole authorRole;
+
+    /** Un cycle couvre une période ; une note d'un jour n'en couvre qu'un. */
+    public boolean isCycle() {
+        return endDate != null && endDate.isAfter(noteDate);
+    }
+
+    /**
+     * Cette note est-elle visible de l'athlète ?
+     *
+     * <p>Les cycles l'ont toujours été — ils décrivent sa préparation. Le reste ne l'est que si
+     * le coach l'a explicitement adressé, ou si c'est l'athlète lui-même qui l'a écrit.</p>
+     */
+    public boolean isVisibleToAthlete() {
+        return shared || isCycle()
+                || authorRole == com.coachrun.entity.enums.UserRole.ATHLETE;
+    }
 }

@@ -985,11 +985,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
   /** Saisie de note inline dans le picker (remplace l'ancien window.prompt). */
   readonly noteOpen = signal(false);
   noteText = '';
+  /** Une note d'un jour reste privée sauf décision explicite : c'est le contrat existant. */
+  noteShared = false;
   /** Fin de période : renseignée, la note devient un cycle affiché en bandeau. */
   noteEnd = '';
   toggleNote(): void {
     this.noteOpen.update((v) => !v);
-    if (!this.noteOpen()) { this.noteText = ''; this.noteEnd = ''; }
+    if (!this.noteOpen()) { this.noteText = ''; this.noteEnd = ''; this.noteShared = false; }
   }
 
   /** Drop d'un éducatif : crée une courte séance technique avec la gamme attachée à l'échauffement. */
@@ -1019,7 +1021,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
     // moyen d'écrire « bloc spécifique » sur cinq semaines sans le répéter cinq fois.
     const endDate = this.noteEnd || null;
     if (endDate && endDate < date) { this.toast.error('La fin du cycle précède son début.'); return; }
-    this.noteService.create(this.selectedAthleteId, { noteDate: date, endDate, text }).subscribe({
+    this.noteService.create(this.selectedAthleteId,
+      { noteDate: date, endDate, text, shared: this.noteShared }).subscribe({
       next: () => {
         this.closePicker();
         this.toast.success(endDate ? 'Cycle ajouté' : 'Note ajoutée');

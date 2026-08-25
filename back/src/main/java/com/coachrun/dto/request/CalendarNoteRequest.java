@@ -13,12 +13,18 @@ import java.time.LocalDate;
  * @param noteDate premier jour couvert
  * @param endDate  dernier jour couvert (inclus), ou {@code null} pour une note d'un seul jour
  * @param text     texte libre
+ * @param shared   vrai si l'autre partie doit la lire
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record CalendarNoteRequest(
         @NotNull LocalDate noteDate,
         LocalDate endDate,
-        @NotBlank @Size(max = 500) String text) {
+        @NotBlank @Size(max = 500) String text,
+        /**
+         * Lisible par l'athlète ? Absent = non, ce qui préserve le carnet de travail du coach :
+         * une note d'un jour reste privée sauf décision contraire, explicite, à la saisie.
+         */
+        Boolean shared) {
 
     /** Une fin antérieure au début ne décrit aucune période : elle est refusée, pas corrigée. */
     public boolean hasValidRange() {

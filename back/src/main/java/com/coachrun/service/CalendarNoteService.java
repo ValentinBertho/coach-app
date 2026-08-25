@@ -23,16 +23,71 @@ public class CalendarNoteService {
 
     private final CalendarNoteRepository noteRepository;
     private final AthleteRepository athleteRepository;
+    private final com.coachrun.repository.UserRepository userRepository;
 
     public List<CalendarNoteResponse> list(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         return noteRepository.findOverlapping(clubId, athleteId, from, to)
-                .stream().map(CalendarNoteResponse::from).toList();
+                .stream().map(n -> CalendarNoteResponse.from(n, authorName(n))).toList();
     }
 
-    /** Variante athlète-scopée (portail /me) : l'athlète lit ses propres notes. */
+    /** Nom de l'auteur, quand la note en porte un — les notes antérieures n'en ont pas. */
+    private String authorName(CalendarNote note) {
+        return note.getAuthorUserId() == null ? null
+                : userRepository.findById(note.getAuthorUserId())
+                        .map(com.coachrun.entity.User::getFullName).orElse(null);
+    }
+
+    /**
+     * Ce que l'athlète voit sur son calendrier : les cycles, les notes que le coach lui a
+     * <b>adressées</b>, et les siennes.
+     *
+     * <p>Pas le reste. Une note d'un jour non partagée est le carnet de travail du coach —
+     * « relancer sur le sommeil », « surveiller ce genou » — écrite en le croyant privé. Ouvrir
+     * l'écriture à l'athlète ne change rien à cela : c'est le drapeau de partage qui décide, pas
+     * la table.</p>
+     */
     public List<CalendarNoteResponse> listForAthlete(UUID athleteId, LocalDate from, LocalDate to) {
-        return noteRepository.findOverlappingForAthlete(athleteId, from, to)
-                .stream().map(CalendarNoteResponse::from).toList();
+        return noteRepository.findOverlappingForAthlete(athleteId, from, to).stream()
+                .filter(CalendarNote::isVisibleToAthlete)
+                .map(n -> CalendarNoteResponse.from(n, authorName(n)))
+                .toList();
+    }
+
+    /**
+     * L'athlète pose un mot sur son calendrier.
+     *
+     * <p>Toujours partagé : une note qu'un athlète écrit n'a de sens que lue par son coach —
+     * « je finis tard mardi », « piste fermée jeudi ». Toujours d'un jour, aussi : décrire un
+     * bloc d'entraînement est le travail du coach, et un athlète qui poserait un cycle
+     * brouillerait la lecture de sa propre préparation.</p>
+     */
+    @Transactional
+    public CalendarNoteResponse createByAthlete(UUID athleteId, UUID authorUserId, CalendarNoteRequest req) {
+        Athlete athlete = athleteRepository.findById(athleteId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        CalendarNote note = new CalendarNote();
+        note.setClub(athlete.getClub());
+        note.setAthlete(athlete);
+        note.setNoteDate(req.noteDate());
+        note.setEndDate(null);
+        note.setText(req.text());
+        note.setShared(true);
+        note.setAuthorUserId(authorUserId);
+        note.setAuthorRole(com.coachrun.entity.enums.UserRole.ATHLETE);
+        return CalendarNoteResponse.from(noteRepository.save(note), null);
+    }
+
+    /**
+     * Suppression par l'athlète, bornée à <b>ses</b> notes : effacer le mot de son coach n'est pas
+     * la même chose que retirer le sien.
+     */
+    @Transactional
+    public void deleteByAthlete(UUID athleteId, UUID noteId, UUID authorUserId) {
+        CalendarNote note = noteRepository.findById(noteId)
+                .filter(n -> n.getAthlete().getId().equals(athleteId))
+                .filter(n -> authorUserId.equals(n.getAuthorUserId()))
+                .orElseThrow(() -> new NotFoundException("Note introuvable."));
+        noteRepository.delete(note);
     }
 
     /**
@@ -56,7 +111,8 @@ public class CalendarNoteService {
     }
 
     @Transactional
-    public CalendarNoteResponse create(UUID clubId, UUID athleteId, CalendarNoteRequest req) {
+    public CalendarNoteResponse create(UUID clubId, UUID athleteId, UUID authorUserId,
+                                       CalendarNoteRequest req) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
         CalendarNote note = new CalendarNote();
@@ -65,7 +121,10 @@ public class CalendarNoteService {
         note.setNoteDate(req.noteDate());
         note.setEndDate(endDateOf(req));
         note.setText(req.text());
-        return CalendarNoteResponse.from(noteRepository.save(note));
+        note.setShared(Boolean.TRUE.equals(req.shared()));
+        note.setAuthorUserId(authorUserId);
+        note.setAuthorRole(com.coachrun.entity.enums.UserRole.COACH);
+        return CalendarNoteResponse.from(noteRepository.save(note), null);
     }
 
     @Transactional
@@ -74,7 +133,10 @@ public class CalendarNoteService {
         note.setNoteDate(req.noteDate());
         note.setEndDate(endDateOf(req));
         note.setText(req.text());
-        return CalendarNoteResponse.from(note);
+        if (req.shared() != null) {
+            note.setShared(req.shared());
+        }
+        return CalendarNoteResponse.from(note, authorName(note));
     }
 
     @Transactional

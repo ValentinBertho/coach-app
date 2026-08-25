@@ -802,6 +802,13 @@
             <span class="field-hint">Jusqu'au (facultatif — en fait un cycle)</span>
             <input type="date" class="form-control" [(ngModel)]="noteEnd" [min]="date" />
           </label>
+          <!-- Le partage est un choix explicite : une note d'un jour reste le carnet de travail
+               du coach tant qu'il ne l'adresse pas. Un cycle, lui, a toujours été lu par
+               l'athlète — il décrit sa préparation. -->
+          <label class="picker__note-share">
+            <input type="checkbox" [(ngModel)]="noteShared" />
+            <span>Visible par l'athlète <span class="field-hint">— pour l'avertir d'un fait simple</span></span>
+          </label>
           <div class="picker__note-actions">
             <button type="button" class="btn btn-ghost btn-sm" (click)="toggleNote()">Annuler</button>
             <button type="button" class="btn btn-primary btn-sm" [disabled]="!noteText.trim()" (click)="addNote()">
