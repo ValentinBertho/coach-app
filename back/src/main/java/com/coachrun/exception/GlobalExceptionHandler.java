@@ -127,6 +127,27 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * URL inconnue : 404, pas 500.
+     *
+     * <p>Faute de gestionnaire, une adresse mal orthographiée tombait dans le filet à
+     * {@code Exception} : le client recevait « Une erreur interne est survenue », et chaque appel
+     * sur une route inexistante écrivait une stacktrace de niveau ERROR avec un identifiant de
+     * corrélation — du bruit qui ressemble à une panne dans les journaux, et un message qui
+     * envoie chercher un incident là où il n'y a qu'une URL fausse. On l'a constaté en appelant
+     * un point d'entrée depuis un serveur qui ne l'avait pas encore.</p>
+     *
+     * <p>Pas de journal ici : une 404 est une réponse normale, pas un incident.</p>
+     */
+    @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResource(
+            org.springframework.web.servlet.resource.NoResourceFoundException ex,
+            HttpServletRequest request) {
+        ApiError error = ApiError.of(HttpStatus.NOT_FOUND.value(),
+                "Ressource introuvable.", request.getRequestURI());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    /**
      * Violation de contrainte en base (unicité, clé étrangère). C'est un conflit métier — deux
      * coachs qui créent la même ressource en même temps, une suppression qui laisserait une
      * référence pendante — et non une panne : 409 plutôt que 500, sans exposer le détail SQL.

@@ -221,6 +221,20 @@ class AthleteOwnDataAccessTest {
         assertThat(new String(bilan, 0, 4, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF");
     }
 
+    /**
+     * Une URL inconnue répond 404, pas 500.
+     *
+     * <p>Constaté en appelant {@code /me/program/export.pdf} depuis un serveur qui ne l'avait pas
+     * encore : le client recevait « Une erreur interne est survenue » et le journal une stacktrace
+     * de niveau ERROR. Une adresse fausse n'est pas une panne — et faire passer l'une pour l'autre
+     * envoie chercher un incident qui n'existe pas.</p>
+     */
+    @Test
+    void anUnknownRouteAnswersNotFound() throws Exception {
+        mvc.perform(get("/me/cette-route-nexiste-pas").header("Authorization", athleteBearer))
+                .andExpect(status().isNotFound());
+    }
+
     // --- Utilitaires ---------------------------------------------------------------------------
 
     private JsonNode athleteZones() throws Exception {
