@@ -69,6 +69,7 @@ public class AthletePortalController {
     private final com.coachrun.service.ClockService clock;
     private final com.coachrun.service.FeedbackStreakService streakService;
     private final com.coachrun.service.TimeInZoneService timeInZoneService;
+    private final com.coachrun.service.AthleteZoneValueService zoneValueService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -299,6 +300,20 @@ public class AthletePortalController {
     public com.coachrun.dto.response.PhysioProfileResponse myPhysio(
             @AuthenticationPrincipal AuthPrincipal principal) {
         return physioService.getProfileForAthlete(principal.athleteId());
+    }
+
+    /**
+     * Mes zones d'entraînement : la table complète — nom, couleur, fourchette d'allure et de FC,
+     * et la règle dont chaque fourchette sort.
+     *
+     * <p>C'est la donnée que l'athlète relit avant de partir courir, et la seule de sa fiche qu'il
+     * ne pouvait pas atteindre : il lisait l'allure prescrite d'une séance, jamais l'échelle
+     * derrière. Lecture seule — les zones restent réglées par le coach.</p>
+     */
+    @GetMapping("/zones")
+    public java.util.List<com.coachrun.dto.response.AthleteZoneSheetResponse> myZones(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return zoneValueService.sheetForAthlete(principal.athleteId());
     }
 
     /** Mes allures d'entraînement (VDOT). */
