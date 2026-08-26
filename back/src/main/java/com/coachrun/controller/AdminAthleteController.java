@@ -2,6 +2,7 @@ package com.coachrun.controller;
 
 import com.coachrun.dto.request.AthleteRequest;
 import com.coachrun.dto.response.AdminAthleteResponse;
+import com.coachrun.dto.response.AdminInvitationLinkResponse;
 import com.coachrun.dto.response.AthleteResponse;
 import com.coachrun.dto.response.InvitationAdminResponse;
 import com.coachrun.dto.response.PageResponse;
@@ -69,5 +70,18 @@ public class AdminAthleteController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void revoke(@PathVariable UUID athleteId) {
         adminAthleteService.revokeInvitation(athleteId);
+    }
+
+    /**
+     * Régénère et renvoie l'invitation. Seule la révocation existait : une invitation expirée
+     * n'avait d'autre issue que de supprimer l'athlète et de le recréer — donc d'effacer son
+     * historique — ou de passer par le compte d'un coach du club.
+     *
+     * <p>Le lien est rendu dans la réponse : l'e-mail peut ne jamais arriver, et un athlète peut
+     * n'avoir aucune adresse connue.</p>
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/invitations/{athleteId}/resend")
+    public AdminInvitationLinkResponse resend(@PathVariable UUID athleteId) {
+        return adminAthleteService.resendInvitation(athleteId);
     }
 }

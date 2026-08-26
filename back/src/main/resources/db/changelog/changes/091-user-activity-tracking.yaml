@@ -1,0 +1,32 @@
+# ============================================================================
+# 091 — Dernière connexion et dernière activité d'un compte.
+#   « Combien d'utilisateurs actifs ? » et « à quand remonte sa dernière visite ? »
+#   étaient structurellement sans réponse : User ne portait aucune date d'usage.
+#   L'administration ne pouvait donc ni mesurer l'adoption, ni distinguer un compte
+#   abandonné d'un compte en cours d'utilisation avant de le supprimer.
+#
+#   last_login_at : posé à la connexion par mot de passe.
+#   last_seen_at  : posé par le filtre JWT, au plus une fois par quart d'heure et
+#                   par compte (cf. UserActivityTracker) — mesurer l'usage ne doit
+#                   pas coûter une écriture par requête.
+#
+#   Additif et nullable : les comptes existants restent à NULL, ce que les écrans
+#   affichent « jamais vu » plutôt que d'inventer une date.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 091-user-activity-tracking
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column: { name: last_login_at, type: TIMESTAMP WITH TIME ZONE }
+              - column: { name: last_seen_at, type: TIMESTAMP WITH TIME ZONE }
+
+        # Le tableau de bord compte les comptes vus depuis 24 h / 7 j / 30 j.
+        - createIndex:
+            tableName: users
+            indexName: idx_users_last_seen_at
+            columns:
+              - column: { name: last_seen_at, descending: true }

@@ -39,6 +39,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final TokenBlacklist tokenBlacklist;
     private final TokenFreshnessValidator tokenFreshness;
+    private final UserActivityTracker activityTracker;
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
@@ -63,6 +64,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     // l'adresse e-mail. Le nettoyage est centralisé dans LogContextFilter, qui
                     // enveloppe toute la chaîne — y compris celle-ci.
                     MDC.put(LogContextFilter.USER_ID, principal.userId().toString());
+                    // Dernière activité du compte : au plus une écriture par quart d'heure
+                    // (cf. UserActivityTracker). Sans elle, « utilisateurs actifs » et
+                    // « à quand remonte sa dernière visite ? » restent sans réponse.
+                    activityTracker.touch(principal.userId());
                 }
             } catch (JwtException | IllegalArgumentException ex) {
                 log.debug("JWT rejeté: {}", ex.getMessage());

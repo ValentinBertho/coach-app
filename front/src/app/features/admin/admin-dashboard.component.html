@@ -1,68 +1,249 @@
 <section class="page-header">
   <div>
-    <h1 class="display-sm">Administration</h1>
-    <p class="subtitle">Vue d'ensemble de la plateforme.</p>
+    <h1 class="display-sm">Pilotage</h1>
+    <p class="subtitle">L'état de la plateforme, et ce qui demande une décision.</p>
   </div>
+  <button type="button" class="btn btn-ghost btn-sm" (click)="load()" [disabled]="loading()">
+    <app-icon name="refresh-cw" [size]="15" /> Actualiser
+  </button>
 </section>
 
-@if (stats(); as s) {
-  <div class="stats-grid">
-    <div class="card stat-card"><span class="stat-label">Clubs</span><span class="metric stat-value">{{ s.clubs }}</span></div>
-    <div class="card stat-card"><span class="stat-label">Responsables</span><span class="metric stat-value">{{ s.headCoaches }}</span></div>
-    <div class="card stat-card"><span class="stat-label">Coachs</span><span class="metric stat-value">{{ s.coaches }}</span></div>
-    <div class="card stat-card"><span class="stat-label">Athlètes</span><span class="metric stat-value">{{ s.athletes }}</span></div>
-    <div class="card stat-card"><span class="stat-label">Invitations en attente</span><span class="metric stat-value">{{ s.pendingInvitations }}</span></div>
-    <div class="card stat-card"><span class="stat-label">Séances</span><span class="metric stat-value">{{ s.workouts }}</span></div>
-    <div class="card stat-card"><span class="stat-label">Activités</span><span class="metric stat-value">{{ s.activities }}</span></div>
-  </div>
-}
-
-<!--
-  Webhook Strava : sans abonnement, les activités remontent quand même — au rythme de la passe
-  horaire. Avec, en quelques secondes. Un seul abonnement par application Strava, d'où le geste
-  explicite depuis l'environnement qui doit recevoir le flux.
--->
-@if (strava(); as sw) {
-  <div class="card danger-zone">
+@if (loading()) {
+  <div class="card"><app-skeleton shape="table" [rows]="4" [columns]="4" /></div>
+} @else if (failed()) {
+  <div class="card alert alert-danger ad-error">
     <div>
-      <strong>Synchronisation Strava en direct</strong>
-      @if (sw.subscriptions.length) {
-        <p class="field-hint">
-          Actif — Strava pousse les activités vers {{ sw.subscriptions[0].callbackUrl }}
-        </p>
-      } @else if (!sw.configured) {
-        <p class="field-hint">
-          Non configuré : poser <code>STRAVA_WEBHOOK_CALLBACK_URL</code> et
-          <code>STRAVA_WEBHOOK_VERIFY_TOKEN</code>, puis redéployer. En attendant, les activités
-          remontent par la synchronisation horaire.
-        </p>
-      } @else {
-        <p class="field-hint">
-          Inactif — les activités remontent à l'heure. Strava validera
-          {{ sw.callbackUrl }} dès la création : l'instance doit être joignable depuis l'extérieur.
-        </p>
+      <strong>Le tableau de bord n'a pas pu être chargé.</strong>
+      <p class="field-hint">
+        Les chiffres ci-dessous seraient faux : rien n'est affiché plutôt qu'un zéro trompeur.
+      </p>
+    </div>
+    <button type="button" class="btn btn-primary btn-sm" (click)="load()">Réessayer</button>
+  </div>
+} @else {
+  @if (overview(); as o) {
+
+  <!-- 1. Ce qui ne va pas. Un signal ne s'affiche que s'il appelle une action. -->
+  <section class="ad-block">
+    <h2 class="ad-h2">À traiter</h2>
+    @if (hasSignals()) {
+      <ul class="ad-signals">
+        @for (s of o.signals; track s.key) {
+          <li class="card ad-signal" [attr.data-sev]="s.severity">
+            <span class="ad-signal__icon"><app-icon [name]="signalIcon(s)" [size]="18" /></span>
+            <div class="ad-signal__body">
+              <strong>{{ s.title }}</strong>
+              <p class="field-hint">{{ s.detail }}</p>
+            </div>
+            @if (s.actionRoute && s.actionLabel) {
+              <a class="btn btn-ghost btn-sm" [routerLink]="signalPath(s)"
+                 [queryParams]="signalParams(s)">
+                {{ s.actionLabel }} <app-icon name="arrow-right" [size]="14" />
+              </a>
+            }
+          </li>
+        }
+      </ul>
+    } @else {
+      <div class="card ad-clear">
+        <app-icon name="check" [size]="18" />
+        <div>
+          <strong>Rien à signaler.</strong>
+          <p class="field-hint">
+            Plafonds d'envoi sous contrôle, aucun compte bloqué sur sa vérification, aucune
+            invitation périmée, tous les clubs encadrés.
+          </p>
+        </div>
+      </div>
+    }
+  </section>
+
+  <!-- 2. La photographie. Chaque tuile mène à sa liste filtrée. -->
+  <section class="ad-block">
+    <h2 class="ad-h2">Plateforme</h2>
+    <div class="ad-tiles">
+      <a class="card ad-tile" routerLink="/admin/clubs">
+        <span class="stat-label">Clubs</span>
+        <span class="metric ad-tile__value">{{ o.counts.clubs | number }}</span>
+        <span class="field-hint">
+          {{ o.counts.clubsActive | number }} actifs
+          @if (o.counts.clubsSuspended) { · {{ o.counts.clubsSuspended | number }} suspendus }
+        </span>
+      </a>
+      <a class="card ad-tile" routerLink="/admin/users">
+        <span class="stat-label">Comptes</span>
+        <span class="metric ad-tile__value">{{ o.counts.users | number }}</span>
+        <span class="field-hint">
+          {{ o.counts.headCoaches | number }} responsables · {{ o.counts.coaches | number }} coachs
+          · {{ o.counts.athleteAccounts | number }} athlètes
+        </span>
+      </a>
+      <a class="card ad-tile" routerLink="/admin/athletes">
+        <span class="stat-label">Athlètes</span>
+        <span class="metric ad-tile__value">{{ o.counts.athletes | number }}</span>
+        <span class="field-hint">
+          {{ o.counts.athletesActive | number }} actifs
+          @if (o.counts.athletesPaused) { · {{ o.counts.athletesPaused | number }} en pause }
+          @if (o.counts.athletesArchived) { · {{ o.counts.athletesArchived | number }} archivés }
+        </span>
+      </a>
+      <a class="card ad-tile" routerLink="/admin/invitations">
+        <span class="stat-label">Invitations en attente</span>
+        <span class="metric ad-tile__value">{{ o.counts.pendingInvitations | number }}</span>
+        <span class="field-hint">Athlètes invités qui ne se sont pas encore connectés.</span>
+      </a>
+      <div class="card ad-tile ad-tile--static">
+        <span class="stat-label">Séances prescrites</span>
+        <span class="metric ad-tile__value">{{ o.counts.workouts | number }}</span>
+        <span class="field-hint">{{ o.counts.activities | number }} sorties importées.</span>
+      </div>
+      <a class="card ad-tile" routerLink="/admin/users" [queryParams]="{ status: 'SUSPENDED' }">
+        <span class="stat-label">Comptes suspendus</span>
+        <span class="metric ad-tile__value">{{ o.counts.usersSuspended | number }}</span>
+        <span class="field-hint">
+          {{ o.counts.usersUnverified | number }} adresse(s) non vérifiée(s).
+        </span>
+      </a>
+    </div>
+  </section>
+
+  <!-- 3. L'usage réel. « Vu » s'appuie sur la dernière requête authentifiée, pas sur la
+       dernière connexion : une session PWA reste ouverte des semaines. -->
+  <section class="ad-block ad-two">
+    <div class="card">
+      <h2 class="ad-h2">Activité</h2>
+      <dl class="ad-kv">
+        <div><dt>Comptes vus (24 h)</dt><dd class="metric">{{ o.engagement.activeUsers24h | number }}</dd></div>
+        <div><dt>Comptes vus (7 jours)</dt><dd class="metric">{{ o.engagement.activeUsers7d | number }}</dd></div>
+        <div><dt>Comptes vus (30 jours)</dt><dd class="metric">{{ o.engagement.activeUsers30d | number }}</dd></div>
+        <div><dt>Sorties importées (7 j)</dt><dd class="metric">{{ o.engagement.activities7d | number }}</dd></div>
+        <div>
+          <dt>Séances de la semaine</dt>
+          <dd class="metric">
+            {{ o.engagement.workoutsCompleted7d | number }} / {{ o.engagement.workoutsPlanned7d | number }}
+          </dd>
+        </div>
+        <div><dt>Actions d'administration (7 j)</dt><dd class="metric">{{ o.engagement.adminActions7d | number }}</dd></div>
+      </dl>
+      <p class="field-hint ad-note">
+        « Vu » compte les comptes ayant réellement ouvert l'application, à un quart d'heure près —
+        pas seulement ceux qui se sont reconnectés.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2 class="ad-h2">Croissance</h2>
+      <dl class="ad-kv">
+        <div><dt>Nouveaux comptes (7 jours)</dt><dd class="metric">{{ o.growth.newUsers7d | number }}</dd></div>
+        <div><dt>Nouveaux comptes (30 jours)</dt><dd class="metric">{{ o.growth.newUsers30d | number }}</dd></div>
+        <div><dt>Nouveaux clubs (30 jours)</dt><dd class="metric">{{ o.growth.newClubs30d | number }}</dd></div>
+        <div><dt>Nouveaux athlètes (30 jours)</dt><dd class="metric">{{ o.growth.newAthletes30d | number }}</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- 4. Les canaux : état déduit de la configuration, sans appel sortant. -->
+  <section class="ad-block">
+    <h2 class="ad-h2">Intégrations & canaux</h2>
+    <div class="ad-integrations">
+      @for (i of o.integrations; track i.key) {
+        <div class="card ad-integration">
+          <header>
+            <strong>{{ i.label }}</strong>
+            <span class="badge" [class]="integrationBadge(i.status)">
+              {{ i.status === 'OK' ? 'Actif' : i.status === 'WARNING' ? 'Partiel' : 'Inactif' }}
+            </span>
+          </header>
+          <span class="metric ad-integration__count">{{ i.count | number }}</span>
+          <p class="field-hint">{{ i.detail }}</p>
+        </div>
       }
     </div>
-    @if (sw.subscriptions.length) {
-      <button type="button" class="btn btn-danger" [disabled]="stravaBusy()"
-              (click)="deleteStravaWebhook(sw.subscriptions[0].id)">Retirer</button>
-    } @else {
-      <button type="button" class="btn btn-primary" [disabled]="stravaBusy() || !sw.configured"
-              (click)="createStravaWebhook()">
-        {{ stravaBusy() ? 'Création…' : 'Activer' }}
-      </button>
-    }
-  </div>
-}
+  </section>
 
-@if (resetAvailable()) {
-  <div class="card danger-zone">
-    <div>
-      <strong>Réinitialiser la démo</strong>
-      <p class="field-hint">Efface toutes les données et recharge le jeu de démonstration.</p>
+  <!-- 5. Le journal : qui a fait quoi, tout de suite lisible. -->
+  <section class="ad-block">
+    <header class="ad-block__hd">
+      <h2 class="ad-h2">Dernières actions d'administration</h2>
+      <a class="btn btn-ghost btn-sm" routerLink="/admin/audit">
+        Tout le journal <app-icon name="arrow-right" [size]="14" />
+      </a>
+    </header>
+    @if (o.recentActions.length) {
+      <div class="card table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Quand</th><th>Auteur</th><th>Action</th><th>Cible</th></tr></thead>
+          <tbody>
+            @for (a of o.recentActions; track a.id) {
+              <tr [class.ad-row--sensitive]="a.sensitive">
+                <td class="metric">{{ a.occurredAt | date: 'd MMM HH:mm' }}</td>
+                <td>{{ a.actorEmail || '—' }}</td>
+                <td>
+                  {{ a.actionLabel }}
+                  @if (a.sensitive) { <span class="badge badge-warning">sensible</span> }
+                </td>
+                <td>{{ a.targetLabel || a.targetTypeLabel }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="card"><p class="field-hint">Aucune action enregistrée pour l'instant.</p></div>
+    }
+  </section>
+
+  <!--
+    Webhook Strava : sans abonnement, les activités remontent quand même — au rythme de la passe
+    horaire. Avec, en quelques secondes. Un seul abonnement par application Strava, d'où le geste
+    explicite depuis l'environnement qui doit recevoir le flux.
+  -->
+  @if (strava(); as sw) {
+    <div class="card danger-zone">
+      <div>
+        <strong>Synchronisation Strava en direct</strong>
+        @if (sw.subscriptions.length) {
+          <p class="field-hint">
+            Actif — Strava pousse les activités vers {{ sw.subscriptions[0].callbackUrl }}
+          </p>
+        } @else if (!sw.configured) {
+          <p class="field-hint">
+            Non configuré : poser <code>STRAVA_WEBHOOK_CALLBACK_URL</code> et
+            <code>STRAVA_WEBHOOK_VERIFY_TOKEN</code>, puis redéployer. En attendant, les activités
+            remontent par la synchronisation horaire.
+          </p>
+        } @else {
+          <p class="field-hint">
+            Inactif — les activités remontent à l'heure. Strava validera
+            {{ sw.callbackUrl }} dès la création : l'instance doit être joignable depuis l'extérieur.
+          </p>
+        }
+      </div>
+      @if (sw.subscriptions.length) {
+        <button type="button" class="btn btn-danger" [disabled]="stravaBusy()"
+                (click)="deleteStravaWebhook(sw.subscriptions[0].id)">Retirer</button>
+      } @else {
+        <button type="button" class="btn btn-primary" [disabled]="stravaBusy() || !sw.configured"
+                (click)="createStravaWebhook()">
+          {{ stravaBusy() ? 'Création…' : 'Activer' }}
+        </button>
+      }
     </div>
-    <button type="button" class="btn btn-danger" [disabled]="resetting()" (click)="resetDemo()">
-      {{ resetting() ? 'Réinitialisation…' : 'Réinitialiser la démo' }}
-    </button>
-  </div>
+  }
+
+  @if (resetAvailable()) {
+    <div class="card danger-zone">
+      <div>
+        <strong>Réinitialiser la démo</strong>
+        <p class="field-hint">
+          Efface toutes les données de cette instance et recharge le jeu de démonstration.
+          Irréversible : la confirmation demande de recopier un mot.
+        </p>
+      </div>
+      <button type="button" class="btn btn-danger" [disabled]="resetting()" (click)="resetDemo()">
+        {{ resetting() ? 'Réinitialisation…' : 'Réinitialiser la démo' }}
+      </button>
+    </div>
+  }
+  }
 }

@@ -53,6 +53,9 @@ public interface PushSubscriptionRepository extends JpaRepository<PushSubscripti
                  @org.springframework.data.repository.query.Param("now") java.time.Instant now,
                  @org.springframework.data.repository.query.Param("staleBefore") java.time.Instant staleBefore);
 
+    /** Nombre d'appareils enregistrés — fiche utilisateur du back-office. */
+    long countByUserId(UUID userId);
+
     /**
      * Abonnements de cette personne dont on a une raison de croire qu'ils fonctionnent : ceux qui
      * ont déjà accepté une remise, et ceux qui viennent d'être créés — on leur laisse le bénéfice

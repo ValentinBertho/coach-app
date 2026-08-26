@@ -1,0 +1,122 @@
+.asp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--bg-overlay);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: clamp(var(--sp-6), 10vh, var(--sp-16)) var(--sp-4) var(--sp-4);
+  backdrop-filter: blur(3px);
+}
+
+.asp {
+  width: min(680px, 100%);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: min(70vh, 620px);
+  overflow: hidden;
+}
+
+.asp__field {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--hairline);
+  color: var(--ink-3);
+}
+.asp__input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--text-lg);
+  color: var(--ink);
+  outline: none;
+  min-width: 0;
+}
+.asp__input::placeholder { color: var(--ink-4); }
+
+.asp__spinner {
+  width: 14px; height: 14px;
+  border: 2px solid var(--primary-light);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: asp-spin 700ms linear infinite;
+}
+@keyframes asp-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .asp__spinner { animation-duration: 2s; } }
+
+.asp__body { overflow-y: auto; padding: var(--sp-2) 0; }
+.asp__hint { color: var(--ink-3); font-size: var(--text-sm); padding: var(--sp-6); margin: 0; line-height: 1.5; }
+
+.asp__section + .asp__section { border-top: 1px solid var(--hairline); }
+.asp__section-hd {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4) var(--sp-1);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.asp__count { margin-left: auto; color: var(--ink-4); letter-spacing: 0; }
+
+.asp__list { list-style: none; margin: 0; padding: 0; }
+.asp__hit {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  min-height: 44px;
+  color: var(--ink);
+}
+.asp__hit--on { background: var(--primary-wash); }
+.asp__hit-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.asp__hit-sub {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.asp__more {
+  display: flex; align-items: center; gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-4) var(--sp-3);
+  background: transparent; border: 0; cursor: pointer;
+  color: var(--primary); font-size: var(--text-sm); font-weight: 600;
+}
+
+.asp__foot {
+  display: flex; gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-4);
+  border-top: 1px solid var(--hairline);
+  background: var(--paper-sunk);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+.asp__foot kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  background: var(--paper);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  margin-right: 3px;
+}
+
+@media (max-width: 640px) {
+  .asp-overlay { padding: var(--sp-2); }
+  .asp { max-height: 90vh; }
+  .asp__foot { display: none; }
+}

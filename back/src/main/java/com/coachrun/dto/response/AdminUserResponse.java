@@ -9,6 +9,14 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Ligne de la liste des comptes.
+ *
+ * <p>Les quatre derniers champs ont été <b>ajoutés</b> (jamais substitués) : l'état de
+ * vérification et la dernière visite sont ce qu'on regarde en premier sur un ticket de support, et
+ * le tableau n'en disait rien. Champs additionnels donc optionnels côté TypeScript — des PWA
+ * tournent encore sur la version précédente du front (cf. Claude.md §4 bis).</p>
+ */
 public record AdminUserResponse(
         UUID id,
         String email,
@@ -19,7 +27,11 @@ public record AdminUserResponse(
         String clubName,
         UUID athleteId,
         List<RefResponse> additionalClubs,
-        Instant createdAt) {
+        Instant createdAt,
+        boolean emailVerified,
+        Instant lastSeenAt,
+        Instant lastLoginAt,
+        boolean invitePending) {
 
     public static AdminUserResponse from(User u) {
         List<RefResponse> additionalClubs = u.getAdditionalClubs().stream()
@@ -32,6 +44,10 @@ public record AdminUserResponse(
                 u.getClub() != null ? u.getClub().getName() : null,
                 u.getAthlete() != null ? u.getAthlete().getId() : null,
                 additionalClubs,
-                u.getCreatedAt());
+                u.getCreatedAt(),
+                u.isEmailVerified(),
+                u.getLastSeenAt(),
+                u.getLastLoginAt(),
+                u.getInviteToken() != null);
     }
 }

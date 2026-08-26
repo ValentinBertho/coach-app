@@ -71,6 +71,11 @@ export interface AthleteRequest {
   medicalNotes?: string | null;
   groupId?: string | null;
   privateAthlete?: boolean;
+  /**
+   * Statut du profil. Facultatif : omis, le statut reste inchangé. Seule l'administration
+   * l'envoie — côté coach, l'archivage garde sa route dédiée.
+   */
+  status?: AthleteStatus | null;
 }
 
 export interface AthleteInvitation {

@@ -441,9 +441,22 @@ export const routes: Routes = [
           import('./features/admin/admin-clubs.component').then((m) => m.AdminClubsComponent),
       },
       {
+        // Fiche club : composition, activité, et aperçu d'impact avant une suppression en cascade.
+        path: 'clubs/:id',
+        loadComponent: () =>
+          import('./features/admin/admin-club-detail.component').then((m) => m.AdminClubDetailComponent),
+      },
+      {
         path: 'users',
         loadComponent: () =>
           import('./features/admin/admin-users.component').then((m) => m.AdminUsersComponent),
+      },
+      {
+        // Fiche compte : la liste ne fait plus que lister, la fiche porte les modifications et
+        // les gestes de support (vérification, mot de passe, sessions, multi-club).
+        path: 'users/:id',
+        loadComponent: () =>
+          import('./features/admin/admin-user-detail.component').then((m) => m.AdminUserDetailComponent),
       },
       {
         path: 'athletes',
@@ -470,6 +483,19 @@ export const routes: Routes = [
         path: 'feedback',
         loadComponent: () =>
           import('./features/admin/admin-feedback.component').then((m) => m.AdminFeedbackComponent),
+      },
+      {
+        // Configuration de l'instance, en lecture seule : « est-ce configuré ici ? » n'avait
+        // d'autre réponse que la console d'hébergement.
+        path: 'platform',
+        loadComponent: () =>
+          import('./features/admin/admin-platform.component').then((m) => m.AdminPlatformComponent),
+      },
+      {
+        // Journal d'audit : qui a fait quoi, quand, sur quelle ressource.
+        path: 'audit',
+        loadComponent: () =>
+          import('./features/admin/admin-audit.component').then((m) => m.AdminAuditComponent),
       },
       {
         path: 'aide',
