@@ -43,8 +43,10 @@ public class CalendarNoteController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public CalendarNoteResponse create(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                       @org.springframework.security.core.annotation.AuthenticationPrincipal
+                                       com.coachrun.security.AuthPrincipal principal,
                                        @Valid @RequestBody CalendarNoteRequest request) {
-        return noteService.create(clubId, athleteId, request);
+        return noteService.create(clubId, athleteId, principal.userId(), request);
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")

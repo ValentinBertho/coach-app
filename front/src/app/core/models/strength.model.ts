@@ -243,6 +243,18 @@ export interface Progression {
 
 export type StrengthTestProtocol = 'TRUE_1RM' | 'REP_TEST_3_5' | 'AMRAP_TEST' | 'ISO_MVC';
 
+/**
+ * Libellés FR des protocoles de test. Partagés : l'écran de force du coach et le suivi de
+ * l'athlète doivent nommer un test de la même façon — « AMRAP » ici et « Test AMRAP » là serait
+ * deux noms pour la même mesure.
+ */
+export const STRENGTH_TEST_PROTOCOL_LABELS: Record<StrengthTestProtocol, string> = {
+  TRUE_1RM: '1RM direct (1 rép. max)',
+  REP_TEST_3_5: "Test 3–5 reps (à l'échec)",
+  AMRAP_TEST: 'AMRAP (reps max à charge fixe)',
+  ISO_MVC: 'Isométrie max (MVC)',
+};
+
 export interface StrengthTest {
   id: string;
   exerciseId: string;

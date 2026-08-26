@@ -41,7 +41,7 @@ class RateLimitFilterTest {
 
     /** Filtre de test : plafonds serrés pour que le dépassement tienne en quelques requêtes. */
     private RateLimitFilter filter(int general, int refresh, int trustedHops) {
-        return new RateLimitFilter(general, 60, 5, refresh, 300, 3, 3600, 5, trustedHops);
+        return new RateLimitFilter(general, 60, 5, refresh, 300, 120, 3, 3600, 5, trustedHops);
     }
 
     private int call(RateLimitFilter filter, String uri, String forwardedFor) throws Exception {

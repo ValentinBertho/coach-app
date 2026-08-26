@@ -15,6 +15,7 @@ import { ZoneSetService } from '../../core/services/zone-set.service';
 import { PhysioService } from '../../core/services/physio.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
+import { formatMetricRange, formatMetricValue } from '../../core/utils/metric-format';
 
 interface EditState {
   key: string;
@@ -407,36 +408,11 @@ export class AthleteZonesComponent implements OnInit {
   }
 
   formatPair(m: MetricType, v: AthleteZoneValue): string {
-    if (v.valueMin == null && v.valueMax == null) return '—';
-    const lo = this.fmt(m, v.valueMin);
-    const hi = this.fmt(m, v.valueMax);
-    const body = lo === hi ? lo : `${lo} – ${hi}`;
-    return `${body}${this.suffix(m)}`;
+    return formatMetricRange(m, v.valueMin, v.valueMax);
   }
 
   private fmt(m: MetricType, v: number | null): string {
-    if (v == null) return '—';
-    if (m.unit === 'S_PER_KM' || m.format === 'MMSS') return this.secToMmss(v);
-    if (m.format === 'DEC1') return (Math.round(v * 10) / 10).toString().replace('.', ',');
-    return Math.round(v).toString();
-  }
-
-  private suffix(m: MetricType): string {
-    switch (m.unit) {
-      case 'S_PER_KM': return '/km';
-      case 'BPM': return ' bpm';
-      case 'KMH': return ' km/h';
-      case 'PCT': return ' %';
-      case 'W': return ' W';
-      default: return '';
-    }
-  }
-
-  private secToMmss(sec: number): string {
-    const s = Math.round(sec);
-    const m = Math.floor(s / 60);
-    const r = s % 60;
-    return `${m}:${r.toString().padStart(2, '0')}`;
+    return formatMetricValue(m, v);
   }
 
   private parse(m: MetricType, raw: string): number | null {

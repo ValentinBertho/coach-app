@@ -185,3 +185,11 @@ databaseChangeLog:
       file: db/changelog/changes/090-admin-audit-log.yaml
   - include:
       file: db/changelog/changes/091-user-activity-tracking.yaml
+  # Deux fichiers portent le préfixe 090 : celui-ci est né sur une branche pendant que
+  # 090-admin-audit-log partait sur main. On ne le renumérote pas. Liquibase identifie un
+  # changeset par son id ET son chemin de fichier : le renommer en 092 en ferait un inconnu
+  # pour toute base l'ayant déjà appliqué, qui rejouerait un ALTER TABLE sur une colonne
+  # existante et refuserait de démarrer. Le numéro n'est qu'une convention de nommage —
+  # c'est l'ordre des inclusions ci-dessous qui décide de l'exécution, et il est explicite.
+  - include:
+      file: db/changelog/changes/090-shared-calendar-notes.yaml

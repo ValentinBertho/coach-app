@@ -215,6 +215,11 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
             } @else {
               <p class="field-hint">Ton profil sera renseigné par ton coach après tes premiers tests.</p>
             }
+            <!-- Ces valeurs ancrent l'échelle de zones : c'est ici qu'on la cherche, donc ici que
+                 le lien doit se trouver. -->
+            <a routerLink="/athlete/zones" class="phys-zones">
+              Voir mes zones d'entraînement <app-icon name="chevron-right" [size]="16" />
+            </a>
           </section>
         }
 
@@ -430,6 +435,7 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
     .shell { min-height: 100dvh; background: var(--canvas); }
     .wrap { max-width: 560px; margin-inline: auto; padding: var(--sp-5) var(--sp-4) var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-4); }
     .subtitle { color: var(--ink-3); margin: 0; }
+    .phys-zones { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-weight: 700; }
     /* « Signaler un problème » ouvre un panneau : c'est un bouton, rendu comme la carte-lien voisine. */
     .help-link { display: flex; align-items: center; gap: var(--sp-3); text-decoration: none; color: var(--ink); padding: var(--sp-3); width: 100%; text-align: left; font: inherit; cursor: pointer; }
     button.help-link { border: 1px solid var(--line); }

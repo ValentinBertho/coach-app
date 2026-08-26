@@ -31,6 +31,8 @@ class RateLimitEmailAndStreamTest {
     private static final int LOGIN_MAX = 5;
     private static final int AUTH_MAX = 4;
     private static final int EMAIL_MAX = 2;
+    /** Plafond propre aux canaux de présence (flux temps réel, compteurs de non-lus). */
+    private static final int LIVE_MAX = 6;
     /** Plafond horaire des routes anonymes qui envoient un e-mail (inscription, mot de passe oublié). */
     private static final int ANON_EMAIL_MAX = 2;
 
@@ -38,7 +40,8 @@ class RateLimitEmailAndStreamTest {
     private static final String TOKEN = "aaa.bbbbbbbb.ccc";
 
     private RateLimitFilter filter() {
-        return new RateLimitFilter(MAX, 60, LOGIN_MAX, 60, AUTH_MAX, EMAIL_MAX, 3600, ANON_EMAIL_MAX, 2);
+        return new RateLimitFilter(MAX, 60, LOGIN_MAX, 60, AUTH_MAX, LIVE_MAX, EMAIL_MAX, 3600,
+                ANON_EMAIL_MAX, 2);
     }
 
     private int call(RateLimitFilter filter, MockHttpServletRequest request) {
@@ -55,10 +58,15 @@ class RateLimitEmailAndStreamTest {
         return request;
     }
 
+    /**
+     * La reconnexion en boucle reste freinée — sur le plafond des canaux de présence, désormais
+     * distinct de celui des requêtes ordinaires. Le frein existe pour une raison observée : un
+     * proxy qui coupe mal les connexions longues fait rouvrir {@code EventSource} indéfiniment.
+     */
     @Test
     void sseStreamCarryingTokenInQueryIsCounted() {
         RateLimitFilter filter = filter();
-        for (int i = 0; i < AUTH_MAX; i++) {
+        for (int i = 0; i < LIVE_MAX; i++) {
             assertThat(call(filter, streamRequest()))
                     .as("reconnexion n°%d dans le plafond", i + 1)
                     .isEqualTo(200);
@@ -172,6 +180,48 @@ class RateLimitEmailAndStreamTest {
 
     private MockHttpServletRequest patchMeRequest(String method) {
         MockHttpServletRequest request = new MockHttpServletRequest(method, "/api/auth/me");
+        request.addHeader("Authorization", "Bearer " + TOKEN);
+        request.setRemoteAddr("203.0.113.9");
+        return request;
+    }
+
+    /**
+     * Les canaux de présence ne consomment plus le plafond de la navigation.
+     *
+     * <p>Mesuré sur l'application réelle : le calendrier coûte 19 appels, « Ma journée » 10. Une
+     * vingtaine d'écrans dans la minute épuisait le plafond authentifié — un coach qui enchaîne
+     * ses athlètes un lundi matin perdait son flux de notifications et récoltait des « trop de
+     * requêtes », sans rien avoir fait d'anormal.</p>
+     */
+    @Test
+    void lesCanauxDePresenceNeConsommentPasLePlafondDeNavigation() {
+        RateLimitFilter filter = filter();
+        for (int i = 0; i < AUTH_MAX; i++) {
+            assertThat(call(filter, authenticated("/api/me/today"))).isEqualTo(200);
+        }
+        assertThat(call(filter, authenticated("/api/me/today")))
+                .as("le plafond authentifié doit bien exister")
+                .isEqualTo(429);
+
+        assertThat(call(filter, streamRequest())).isEqualTo(200);
+        assertThat(call(filter, authenticated("/api/notifications/unread-count"))).isEqualTo(200);
+    }
+
+    /** Et l'inverse : cent compteurs ne ferment pas la porte à une requête de travail. */
+    @Test
+    void centAppelsDePresenceNeFermentPasLaPorte() {
+        RateLimitFilter filter = filter();
+        for (int i = 0; i < 100; i++) {
+            call(filter, authenticated("/api/notifications/unread-count"));
+        }
+        assertThat(call(filter, authenticated("/api/me/today")))
+                .as("une requête ordinaire doit encore passer")
+                .isEqualTo(200);
+    }
+
+    /** Requête authentifiée ordinaire, même porteur de jeton. */
+    private MockHttpServletRequest authenticated(String uri) {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", uri);
         request.addHeader("Authorization", "Bearer " + TOKEN);
         request.setRemoteAddr("203.0.113.9");
         return request;

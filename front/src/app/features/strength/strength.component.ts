@@ -29,6 +29,7 @@ import {
   StrengthSession,
   StrengthTest,
   StrengthTestProtocol,
+  STRENGTH_TEST_PROTOCOL_LABELS,
 } from '../../core/models/strength.model';
 
 type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
@@ -124,12 +125,9 @@ export class StrengthComponent implements OnInit {
   // Tests directs (4 protocoles)
   readonly tests = signal<StrengthTest[]>([]);
   newTest = { exerciseId: '', protocol: 'TRUE_1RM' as StrengthTestProtocol, weightKg: 100, reps: 1, durationSec: 5 };
-  readonly protocols: { value: StrengthTestProtocol; label: string }[] = [
-    { value: 'TRUE_1RM', label: '1RM direct (1 rép. max)' },
-    { value: 'REP_TEST_3_5', label: 'Test 3–5 reps (à l\'échec)' },
-    { value: 'AMRAP_TEST', label: 'AMRAP (reps max à charge fixe)' },
-    { value: 'ISO_MVC', label: 'Isométrie max (MVC)' },
-  ];
+  readonly protocols: { value: StrengthTestProtocol; label: string }[] =
+    (Object.keys(STRENGTH_TEST_PROTOCOL_LABELS) as StrengthTestProtocol[])
+      .map((value) => ({ value, label: STRENGTH_TEST_PROTOCOL_LABELS[value] }));
 
   // Suivi
   readonly athleteList = signal<AthleteSummary[]>([]);

@@ -54,6 +54,20 @@ public class StrengthTestService {
         return tests.stream().map(StrengthTestResponse::from).toList();
     }
 
+    /**
+     * Mes tests de force — variante athlète-scopée (portail {@code /me}, lecture seule).
+     *
+     * <p>Le 1RM et son historique lui étaient déjà accessibles, mais pas les tests qui les
+     * produisent : il voyait le résultat sans jamais voir la mesure — la date, le protocole, la
+     * charge et les répétitions réellement soulevées. C'est pourtant sa performance.</p>
+     */
+    public List<StrengthTestResponse> listForAthlete(UUID athleteId, UUID exerciseId) {
+        List<StrengthTest> tests = exerciseId != null
+                ? testRepository.findByAthleteIdAndExerciseIdOrderByTestDateDesc(athleteId, exerciseId)
+                : testRepository.findByAthleteIdOrderByTestDateDesc(athleteId);
+        return tests.stream().map(StrengthTestResponse::from).toList();
+    }
+
     @Transactional
     public StrengthTestResponse record(UUID clubId, UUID athleteId, StrengthTestRequest req) {
         Athlete athlete = requireAthlete(clubId, athleteId);

@@ -7,6 +7,7 @@ import { WorkoutPrescription } from '../models/course.model';
 import { Unavailability, UnavailabilityRequest } from '../models/unavailability.model';
 import { CalendarNote } from '../models/calendar-note.model';
 import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
+import { AthleteZoneSheet } from '../models/athlete-zone-sheet.model';
 import {
   Activity, ActivityLaps, ActivityStream, ActivityUpdate, LapKind, TimeInZone, WeekSummary,
 } from '../models/activity.model';
@@ -18,7 +19,7 @@ import { StravaStatus } from '../models/strava.model';
 import {
   Advice, Compliance, Proposal, Readiness, Timeline, Trajectory, WeekOutlook,
 } from '../models/decision.model';
-import { E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthPrescriptionView, StrengthResultEntry } from '../models/strength.model';
+import { E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthPrescriptionView, StrengthResultEntry, StrengthTest } from '../models/strength.model';
 
 // Le type vit désormais dans le modèle force (partagé coach/athlète) ; ré-export pour les
 // consommateurs historiques qui l'importent depuis ce service.
@@ -276,6 +277,28 @@ export class AthletePortalService {
   /** Mes allures d'entraînement (VDOT). */
   vdot(): Observable<Vdot> {
     return this.http.get<Vdot>(`${this.base}/vdot`);
+  }
+
+  /** Mes zones d'entraînement : l'échelle complète, allures et FC, avec la règle de chaque bande. */
+  zones(): Observable<AthleteZoneSheet[]> {
+    return this.http.get<AthleteZoneSheet[]>(`${this.base}/zones`);
+  }
+
+  /** Mes tests de force : la mesure elle-même, pas seulement le 1RM qu'elle produit. */
+  strengthTests(): Observable<StrengthTest[]> {
+    return this.http.get<StrengthTest[]>(`${this.base}/pp/tests`);
+  }
+
+  /** Mon programme en PDF, sur une période. */
+  programPdf(from: string, to: string): Observable<Blob> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get(`${this.base}/program/export.pdf`, { params, responseType: 'blob' });
+  }
+
+  /** Mon bilan de période en PDF : ce qui a eu lieu, là où le programme dit ce qui était prévu. */
+  reportPdf(from: string, to: string): Observable<Blob> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get(`${this.base}/program/report.pdf`, { params, responseType: 'blob' });
   }
   /** Ma charge d'entraînement (ACWR, ATL/CTL, monotonie). */
   load(): Observable<Load> {

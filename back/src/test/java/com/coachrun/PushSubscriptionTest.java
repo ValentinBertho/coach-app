@@ -48,6 +48,7 @@ class PushSubscriptionTest {
     @Autowired private PushSubscriptionRepository subscriptionRepository;
     @Autowired private PushNotificationService pushService;
     @Autowired private GdprService gdprService;
+    @jakarta.persistence.PersistenceContext private jakarta.persistence.EntityManager entityManager;
 
     private MockMvc mvc;
     private String coachBearer;
@@ -319,5 +320,77 @@ class PushSubscriptionTest {
         gdprService.deleteAthleteData(athleteId);
 
         assertThat(subscriptionRepository.findByUserId(athleteUserId)).isEmpty();
+    }
+
+    /**
+     * Un abonnement mort ne doit plus faire taire l'e-mail.
+     *
+     * <p>« Cette personne est-elle joignable en push ? » répondait « oui » dès qu'une ligne
+     * d'abonnement existait. Or une application désinstallée ou un téléphone changé ne se
+     * signalent qu'à la remise suivante : elle échoue, l'abonnement est supprimé — mais le
+     * message ayant servi à le découvrir n'aura alerté par AUCUN canal, le repli e-mail ayant
+     * été écarté au motif qu'un appareil existait.</p>
+     */
+    @Test
+    void aSubscriptionThatNeverWorkedIsNotCountedAsReachable() {
+        vieillir(abonnement(null), java.time.Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS));
+
+        assertThat(joignables())
+                .as("un abonnement qui n'a jamais rien accepté n'est pas un appareil joignable")
+                .isZero();
+    }
+
+    /** Celui qui a déjà reçu quelque chose, lui, compte : le push a fait son travail. */
+    @Test
+    void aSubscriptionThatHasDeliveredIsReachable() {
+        vieillir(abonnement(java.time.Instant.now().minus(2, java.time.temporal.ChronoUnit.DAYS)),
+                java.time.Instant.now().minus(30, java.time.temporal.ChronoUnit.DAYS));
+
+        assertThat(joignables()).isPositive();
+    }
+
+    /** Et l'abonnement tout neuf garde le bénéfice du doute, le temps qu'une remise passe. */
+    @Test
+    void aBrandNewSubscriptionKeepsTheBenefitOfTheDoubt() {
+        abonnement(null);
+
+        assertThat(joignables()).isPositive();
+    }
+
+    private com.coachrun.entity.PushSubscription abonnement(java.time.Instant dernierSucces) {
+        com.coachrun.entity.PushSubscription sub = new com.coachrun.entity.PushSubscription();
+        sub.setUserId(coachUserId);
+        sub.setEndpoint("https://push.example/" + UUID.randomUUID());
+        sub.setP256dh("BNc-cle-publique");
+        sub.setAuth("secret");
+        sub.setLastSuccessAt(dernierSucces);
+        return subscriptionRepository.saveAndFlush(sub);
+    }
+
+    /**
+     * Abonnements de ce coach jugés joignables — la règle qui décide du repli e-mail.
+     *
+     * <p>Interrogée au dépôt et non via {@code canReach}, qui y ajoute « le push est-il configuré
+     * sur ce serveur ? ». Le profil de test n'a pas de clés VAPID : passer par lui répondrait
+     * toujours « non », y compris pour un appareil en parfait état — le test serait vert sans
+     * rien éprouver.</p>
+     */
+    private long joignables() {
+        return subscriptionRepository.countLikelyReachable(coachUserId,
+                java.time.Instant.now().minus(7, java.time.temporal.ChronoUnit.DAYS));
+    }
+
+    /**
+     * Vieillit un abonnement : {@code createdAt} est posé par l'audit JPA, donc inaccessible au
+     * modèle. On le réécrit en SQL, seule façon d'éprouver une règle qui parle de durées.
+     */
+    private void vieillir(com.coachrun.entity.PushSubscription sub, java.time.Instant quand) {
+        entityManager.createNativeQuery(
+                        "update push_subscriptions set created_at = :quand where id = :id")
+                .setParameter("quand", quand)
+                .setParameter("id", sub.getId())
+                .executeUpdate();
+        entityManager.flush();
+        entityManager.clear();
     }
 }

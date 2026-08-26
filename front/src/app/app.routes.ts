@@ -381,6 +381,11 @@ export const routes: Routes = [
             .then((m) => m.AthleteWorkoutDetailComponent),
       },
       {
+        path: 'zones',
+        loadComponent: () =>
+          import('./features/athlete/athlete-zones.component').then((m) => m.AthleteZonesComponent),
+      },
+      {
         path: 'lactate',
         loadComponent: () =>
           import('./features/athlete/athlete-lactate.component').then((m) => m.AthleteLactateComponent),

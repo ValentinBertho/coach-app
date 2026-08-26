@@ -67,6 +67,20 @@ public class PeriodReportPdfService {
     private final AnalyticsService analyticsService;
     private final AthleteLoadService loadService;
 
+    /**
+     * Mon bilan de période — variante athlète-scopée (portail {@code /me}).
+     *
+     * <p>C'est le document qui dit ce qui a eu lieu : volume, charge, répartition d'intensité,
+     * faits marquants. Il faisait exister le travail du coach auprès de l'athlète — encore
+     * fallait-il que l'athlète puisse le lire sans le réclamer.</p>
+     */
+    public byte[] generateForAthlete(UUID athleteId, LocalDate from, LocalDate to) {
+        UUID clubId = athleteRepository.findById(athleteId)
+                .map(a -> a.getClub().getId())
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        return generate(clubId, athleteId, from, to);
+    }
+
     public byte[] generate(UUID clubId, UUID athleteId, LocalDate from, LocalDate to) {
         Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));

@@ -150,6 +150,18 @@ const DISTANCES: { value: string; label: string }[] = [
     .derived-item { display: inline-flex; align-items: baseline; gap: var(--sp-1); background: var(--paper-sunk); border-radius: var(--radius-full); padding: 2px var(--sp-2); }
     .di-k { font-size: var(--text-xs); color: var(--ink-3); }
     .di-v { font-weight: 700; font-size: var(--text-sm); }
+
+    /* Au téléphone, la ligne d'un record ne tenait pas : distance (120 px minimum) + chrono
+       (84 px) + date + pastille VDOT + deux boutons font 451 px sur un écran de 390, et c'est
+       toute la fiche athlète qui se mettait à défiler latéralement — onglets compris. Mesuré :
+       61 px de débordement. La distance prend donc sa propre ligne, le reste suit dessous, et
+       les deux boutons passent au plancher tactile du produit. */
+    @media (max-width: 560px) {
+      .rec-row { flex-wrap: wrap; gap: var(--sp-2); }
+      .rr-dist { flex: 1 1 100%; min-width: 0; }
+      .rr-time { min-width: 0; }
+      .icon-btn { min-width: 40px; min-height: 40px; justify-content: center; align-items: center; }
+    }
     .empty-hint { color: var(--ink-3); font-size: var(--text-sm); }
   `],
 })

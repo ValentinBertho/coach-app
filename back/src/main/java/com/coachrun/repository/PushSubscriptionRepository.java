@@ -53,5 +53,24 @@ public interface PushSubscriptionRepository extends JpaRepository<PushSubscripti
                  @org.springframework.data.repository.query.Param("now") java.time.Instant now,
                  @org.springframework.data.repository.query.Param("staleBefore") java.time.Instant staleBefore);
 
+    /** Nombre d'appareils enregistrés — fiche utilisateur du back-office. */
     long countByUserId(UUID userId);
+
+    /**
+     * Abonnements de cette personne dont on a une raison de croire qu'ils fonctionnent : ceux qui
+     * ont déjà accepté une remise, et ceux qui viennent d'être créés — on leur laisse le bénéfice
+     * du doute le temps qu'une première notification passe.
+     *
+     * <p>Sert à décider du repli e-mail. Compter tout abonnement <b>existant</b> comme joignable
+     * revenait à faire taire l'e-mail à cause d'un appareil mort : application désinstallée,
+     * permission révoquée ou téléphone changé ne se signalent qu'à la remise suivante, qui échoue
+     * — et le message ayant servi à le découvrir n'aura alerté par aucun canal.</p>
+     */
+    @org.springframework.data.jpa.repository.Query("""
+            select count(s) from PushSubscription s
+            where s.userId = :userId
+              and (s.lastSuccessAt is not null or s.createdAt > :graceStart)
+            """)
+    long countLikelyReachable(@org.springframework.data.repository.query.Param("userId") java.util.UUID userId,
+                              @org.springframework.data.repository.query.Param("graceStart") java.time.Instant graceStart);
 }

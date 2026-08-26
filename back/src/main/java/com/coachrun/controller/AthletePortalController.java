@@ -69,6 +69,10 @@ public class AthletePortalController {
     private final com.coachrun.service.ClockService clock;
     private final com.coachrun.service.FeedbackStreakService streakService;
     private final com.coachrun.service.TimeInZoneService timeInZoneService;
+    private final com.coachrun.service.AthleteZoneValueService zoneValueService;
+    private final com.coachrun.service.StrengthTestService strengthTestService;
+    private final com.coachrun.service.ProgramPdfService programPdfService;
+    private final com.coachrun.service.PeriodReportPdfService periodReportPdfService;
 
     @GetMapping
     public UserResponse profile(@AuthenticationPrincipal AuthPrincipal principal) {
@@ -301,6 +305,80 @@ public class AthletePortalController {
         return physioService.getProfileForAthlete(principal.athleteId());
     }
 
+    /**
+     * Mes tests de force : la mesure, pas seulement le 1RM qu'elle produit.
+     *
+     * <p>L'athlète lisait son 1RM et sa courbe, jamais les tests dont ils sortent — date,
+     * protocole, charge et répétitions réellement soulevées. C'est pourtant sa performance.</p>
+     */
+    @GetMapping("/pp/tests")
+    public java.util.List<com.coachrun.dto.response.StrengthTestResponse> myStrengthTests(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) UUID exerciseId) {
+        return strengthTestService.listForAthlete(principal.athleteId(), exerciseId);
+    }
+
+    /**
+     * Mon programme en PDF.
+     *
+     * <p>Le document existait, mais seul le coach pouvait le sortir : l'athlète en déplacement, ou
+     * qui veut son plan sur papier au bord de la piste, devait le lui réclamer.</p>
+     */
+    @GetMapping(value = "/program/export.pdf",
+            produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
+    public org.springframework.http.ResponseEntity<byte[]> myProgramPdf(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return pdf(programPdfService.generateForAthlete(principal.athleteId(), from, to),
+                "programme.pdf");
+    }
+
+    /** Mon bilan de période en PDF : volume, charge, intensité, faits marquants. */
+    @GetMapping(value = "/program/report.pdf",
+            produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
+    public org.springframework.http.ResponseEntity<byte[]> myReportPdf(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return pdf(periodReportPdfService.generateForAthlete(principal.athleteId(), from, to),
+                "bilan.pdf");
+    }
+
+    private org.springframework.http.ResponseEntity<byte[]> pdf(byte[] body, String filename) {
+        return org.springframework.http.ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + filename + "\"")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(body);
+    }
+
+    /**
+     * Mes zones d'entraînement : la table complète — nom, couleur, fourchette d'allure et de FC,
+     * et la règle dont chaque fourchette sort.
+     *
+     * <p>C'est la donnée que l'athlète relit avant de partir courir, et la seule de sa fiche qu'il
+     * ne pouvait pas atteindre : il lisait l'allure prescrite d'une séance, jamais l'échelle
+     * derrière. Lecture seule — les zones restent réglées par le coach.</p>
+     */
+    @GetMapping("/zones")
+    public java.util.List<com.coachrun.dto.response.AthleteZoneSheetResponse> myZones(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return zoneValueService.sheetForAthlete(principal.athleteId());
+    }
+
     /** Mes allures d'entraînement (VDOT). */
     @GetMapping("/vdot")
     public com.coachrun.dto.response.VdotResponse myVdot(
@@ -512,6 +590,46 @@ public class AthletePortalController {
         return raceService.nextRace(principal.athleteId())
                 .map(org.springframework.http.ResponseEntity::ok)
                 .orElseGet(() -> org.springframework.http.ResponseEntity.noContent().build());
+    }
+
+    /**
+     * Notes du calendrier visibles par l'athlète : les cycles, les mots que son coach lui a
+     * adressés, et les siens.
+     */
+    @GetMapping("/calendar-notes")
+    public java.util.List<com.coachrun.dto.response.CalendarNoteResponse> calendarNotes(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate from,
+            @org.springframework.web.bind.annotation.RequestParam
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate to) {
+        return calendarNoteService.listForAthlete(principal.athleteId(), from, to);
+    }
+
+    /**
+     * L'athlète pose un mot sur une journée : « je finis tard mardi », « piste fermée jeudi ».
+     *
+     * <p>Ce n'est ni une séance ni une indisponibilité — c'est le fait simple qu'on signale, et
+     * qui n'avait jusqu'ici aucun endroit où s'écrire.</p>
+     */
+    @PostMapping("/calendar-notes")
+    @ResponseStatus(HttpStatus.CREATED)
+    public com.coachrun.dto.response.CalendarNoteResponse addCalendarNote(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @Valid @RequestBody com.coachrun.dto.request.CalendarNoteRequest request) {
+        return calendarNoteService.createByAthlete(principal.athleteId(), principal.userId(), request);
+    }
+
+    /** Retirer SON mot — pas celui du coach. */
+    @org.springframework.web.bind.annotation.DeleteMapping("/calendar-notes/{noteId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteCalendarNote(@AuthenticationPrincipal AuthPrincipal principal,
+                                   @PathVariable UUID noteId) {
+        calendarNoteService.deleteByAthlete(principal.athleteId(), noteId, principal.userId());
     }
 
     /** Messagerie : fil de discussion avec le coach. */

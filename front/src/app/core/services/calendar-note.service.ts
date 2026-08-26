@@ -29,4 +29,20 @@ export class CalendarNoteService {
   delete(athleteId: string, noteId: string): Observable<void> {
     return this.http.delete<void>(`${this.base(athleteId)}/${noteId}`);
   }
+
+  // --- Côté athlète : il lit ce qui lui est adressé, et pose ses propres mots -----------------
+
+  /** Notes visibles par l'athlète : les cycles, ce que son coach lui adresse, et les siennes. */
+  mine(from: string, to: string): Observable<CalendarNote[]> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<CalendarNote[]>(`${environment.apiUrl}/me/calendar-notes`, { params });
+  }
+
+  addMine(body: CalendarNoteRequest): Observable<CalendarNote> {
+    return this.http.post<CalendarNote>(`${environment.apiUrl}/me/calendar-notes`, body);
+  }
+
+  deleteMine(noteId: string): Observable<void> {
+    return this.http.delete<void>(`${environment.apiUrl}/me/calendar-notes/${noteId}`);
+  }
 }

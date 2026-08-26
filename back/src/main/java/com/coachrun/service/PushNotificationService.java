@@ -163,8 +163,26 @@ public class PushNotificationService {
      * dont le seul appareil a désinstallé la PWA reste « joignable » et perd son repli e-mail.
      * C'est {@link #dropSubscription(String)} qui rend ce test honnête.</p>
      */
+    /**
+     * Délai laissé à un abonnement neuf pour faire ses preuves. Au-delà, un abonnement qui n'a
+     * jamais accepté la moindre remise n'est plus un appareil joignable : c'est un vestige.
+     */
+    private static final java.time.Duration REACHABILITY_GRACE = java.time.Duration.ofDays(7);
+
+    /**
+     * Peut-on raisonnablement compter sur le push pour joindre cette personne ?
+     *
+     * <p>La question n'est pas « existe-t-il un abonnement ? » mais « en existe-t-il un qui
+     * réponde ? ». C'est cette réponse qui décide du repli e-mail : la prendre au premier sens
+     * faisait taire l'e-mail à cause d'un appareil mort — application désinstallée, permission
+     * révoquée, téléphone changé. Ces abonnements-là ne se signalent qu'à la remise suivante, qui
+     * échoue et les supprime ; mais le message ayant servi à le découvrir n'aura alerté par aucun
+     * canal. Un coach pilote l'a signalé ainsi : « je n'avais pas reçu d'alerte mail ».</p>
+     */
     public boolean canReach(UUID userId) {
-        return isEnabled() && userId != null && !repository.findByUserId(userId).isEmpty();
+        return isEnabled() && userId != null
+                && repository.countLikelyReachable(
+                        userId, java.time.Instant.now().minus(REACHABILITY_GRACE)) > 0;
     }
 
     @Transactional

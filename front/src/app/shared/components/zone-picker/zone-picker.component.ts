@@ -3,6 +3,7 @@ import { IconComponent } from '../icon/icon.component';
 import { MetricType } from '../../../core/models/metric-type.model';
 import { AthleteZoneValue } from '../../../core/models/athlete-zone-value.model';
 import { TrainingZone, ZONE_ANCHOR_LABELS } from '../../../core/models/training-zone.model';
+import { formatMetricRange } from '../../../core/utils/metric-format';
 
 /** Cible pré-calculée d'une zone pour l'athlète courant (lue depuis ses valeurs). */
 interface ZoneHint {
@@ -143,32 +144,7 @@ export class ZonePickerComponent {
   private targetLabel(zoneId: string, m: MetricType): string | null {
     const v = this.valueMap().get(`${zoneId}:${m.id}`);
     if (!v || (v.valueMin == null && v.valueMax == null)) return null;
-    const lo = this.fmt(m, v.valueMin);
-    const hi = this.fmt(m, v.valueMax);
-    const body = lo === hi ? lo : `${lo}–${hi}`;
-    return `${body}${this.suffix(m)}`;
+    return formatMetricRange(m, v.valueMin, v.valueMax, '–');
   }
 
-  private fmt(m: MetricType, v: number | null): string {
-    if (v == null) return '—';
-    if (m.unit === 'S_PER_KM' || m.format === 'MMSS') return this.secToMmss(v);
-    if (m.format === 'DEC1') return (Math.round(v * 10) / 10).toString().replace('.', ',');
-    return Math.round(v).toString();
-  }
-
-  private suffix(m: MetricType): string {
-    switch (m.unit) {
-      case 'S_PER_KM': return '/km';
-      case 'BPM': return ' bpm';
-      case 'KMH': return ' km/h';
-      case 'PCT': return ' %';
-      case 'W': return ' W';
-      default: return '';
-    }
-  }
-
-  private secToMmss(sec: number): string {
-    const s = Math.round(sec);
-    return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
-  }
 }
