@@ -8,6 +8,7 @@ import { Unavailability, UnavailabilityRequest } from '../models/unavailability.
 import { CalendarNote } from '../models/calendar-note.model';
 import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
 import { AthleteZoneSheet } from '../models/athlete-zone-sheet.model';
+import { ActivityExclusion } from '../models/activity.model';
 import {
   Activity, ActivityLaps, ActivityStream, ActivityUpdate, LapKind, TimeInZone, WeekSummary,
 } from '../models/activity.model';
@@ -378,8 +379,25 @@ export class AthletePortalService {
     return this.http.patch<Activity>(`${this.base}/activities/${activityId}`, body);
   }
   /** Je supprime une de mes sorties (doublon, erreur de saisie). */
-  deleteActivity(activityId: string): Observable<void> {
-    return this.http.delete<void>(`${this.base}/activities/${activityId}`);
+  /**
+   * Supprime une de mes sorties.
+   *
+   * @param neverImportAgain la sortie ne doit plus jamais revenir. Sans cela, supprimer une
+   *                         sortie synchronisée ne dure que jusqu'à la synchro suivante.
+   */
+  deleteActivity(activityId: string, neverImportAgain = false): Observable<void> {
+    const params = new HttpParams().set('neverImportAgain', String(neverImportAgain));
+    return this.http.delete<void>(`${this.base}/activities/${activityId}`, { params });
+  }
+
+  /** Mes sorties masquées : celles que la synchro ne rapporte plus. */
+  excludedActivities(): Observable<ActivityExclusion[]> {
+    return this.http.get<ActivityExclusion[]>(`${this.base}/activity-exclusions`);
+  }
+
+  /** Je reviens sur ma décision : cette sortie pourra de nouveau être importée. */
+  unmaskActivity(exclusionId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/activity-exclusions/${exclusionId}`);
   }
   /** Mes performances / records par distance. */
   performances(): Observable<Performance[]> {

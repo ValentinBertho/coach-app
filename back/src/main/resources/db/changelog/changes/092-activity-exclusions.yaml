@@ -1,0 +1,62 @@
+# ============================================================================
+# 092 — « Ne plus jamais importer cette sortie. »
+#
+#   Supprimer une sortie synchronisée ne suffisait pas : la synchro suivante la
+#   rapportait. L'athlète effaçait, Strava renvoyait, il effaçait encore — sans
+#   moyen de dire que c'était définitif. Les sorties concernées sont pourtant
+#   celles qu'on ne veut pas voir : le trajet domicile-travail à vélo enregistré
+#   par erreur, la course d'un proche partie du même téléphone, le doublon d'une
+#   montre et d'une application qui enregistrent la même sortie.
+#
+#   Une pierre tombale, donc : (athlète, source, identifiant externe). L'import
+#   la consulte et passe son chemin.
+#
+#   Pourquoi une table plutôt qu'un drapeau `hidden` sur la sortie elle-même ?
+#   Parce que l'athlète veut la voir DISPARAÎTRE. Une ligne conservée et masquée
+#   ressortirait tôt ou tard dans un calcul de charge, un export, un bilan — et
+#   surtout, elle continuerait de peser dans une base qu'on ne relit jamais. Ici
+#   la sortie est bien supprimée ; il ne reste que la clé qui permet de la
+#   reconnaître si elle se représente.
+#
+#   L'identifiant externe seul serait ambigu : deux fournisseurs peuvent employer
+#   la même valeur. La clé porte donc la source.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 092-activity-exclusions
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: activity_exclusions
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: source, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: external_id, type: VARCHAR(128), constraints: { nullable: false } }
+
+              # Recopiés à la suppression : sans eux, l'écran « sorties masquées » n'aurait
+              # qu'un identifiant Strava à montrer — soit rien de reconnaissable pour
+              # décider d'annuler le masquage. La sortie, elle, n'existe plus.
+              - column: { name: title, type: VARCHAR(255) }
+              - column: { name: activity_date, type: DATE }
+
+        - addForeignKeyConstraint:
+            constraintName: fk_activity_exclusions_athlete
+            baseTableName: activity_exclusions
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+
+        # Unicité : masquer deux fois la même sortie est le même geste, pas deux.
+        - addUniqueConstraint:
+            constraintName: uk_activity_exclusion
+            tableName: activity_exclusions
+            columnNames: athlete_id, source, external_id

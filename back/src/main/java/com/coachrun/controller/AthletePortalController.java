@@ -466,8 +466,31 @@ public class AthletePortalController {
     @DeleteMapping("/activities/{activityId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteMyActivity(@AuthenticationPrincipal AuthPrincipal principal,
-                                 @PathVariable UUID activityId) {
-        activityService.deleteForAthlete(principal.athleteId(), activityId);
+                                 @PathVariable UUID activityId,
+                                 @org.springframework.web.bind.annotation.RequestParam(defaultValue = "false")
+                                 boolean neverImportAgain) {
+        activityService.deleteForAthlete(principal.athleteId(), activityId, neverImportAgain);
+    }
+
+    /**
+     * Mes sorties masquées : celles que j'ai écartées pour de bon et que la synchro ne rapporte
+     * plus.
+     *
+     * <p>Sans cet écran, un masquage coché par erreur serait sans recours — la sortie ne
+     * reviendrait plus et rien ne dirait pourquoi.</p>
+     */
+    @GetMapping("/activity-exclusions")
+    public java.util.List<com.coachrun.dto.response.ActivityExclusionResponse> myExcludedActivities(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return activityService.listExclusions(principal.athleteId());
+    }
+
+    /** Je reviens sur ma décision : cette sortie pourra de nouveau être importée. */
+    @DeleteMapping("/activity-exclusions/{exclusionId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void unmaskActivity(@AuthenticationPrincipal AuthPrincipal principal,
+                               @PathVariable UUID exclusionId) {
+        activityService.removeExclusion(principal.athleteId(), exclusionId);
     }
 
     /**
