@@ -3,6 +3,30 @@ import { Injury } from './injury.model';
 export type ActivitySource = 'MANUAL' | 'FILE' | 'STRAVA' | 'GARMIN' | 'COROS';
 export type ActivityStatus = 'IMPORTED' | 'MATCHED' | 'UNMATCHED';
 
+/**
+ * Sources dont une sortie peut <b>revenir toute seule</b> : elles se synchronisent. Une saisie
+ * manuelle ou un fichier déposé à la main ne reviennent que si quelqu'un les redépose — proposer
+ * « ne plus jamais importer » là-dessus n'aurait rien à empêcher.
+ */
+const SYNCED_SOURCES: ReadonlySet<ActivitySource> = new Set<ActivitySource>(['STRAVA', 'GARMIN', 'COROS']);
+
+export function isSyncedSource(source: ActivitySource | null | undefined): boolean {
+  return source != null && SYNCED_SOURCES.has(source);
+}
+
+/**
+ * Une sortie écartée pour de bon : la synchro ne la rapporte plus.
+ *
+ * <p>Le titre et la date sont ceux recopiés à la suppression — la sortie n'existe plus, et sans
+ * eux l'écran n'aurait qu'un identifiant à proposer à qui voudrait annuler le masquage.</p>
+ */
+export interface ActivityExclusion {
+  id: string;
+  source: ActivitySource;
+  title: string | null;
+  activityDate: string | null;
+}
+
 export interface Activity {
   id: string;
   athleteId: string;

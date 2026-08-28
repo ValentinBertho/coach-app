@@ -47,6 +47,19 @@ import { ConfirmService } from '../../../core/services/confirm.service';
                      [attr.aria-label]="'Écris ' + required + ' pour confirmer'" />
             </div>
           }
+          <!--
+            Case facultative : une décision qui accompagne l'action sans la conditionner. Le
+            bouton reste « Supprimer » ; la case ajoute « et ne plus jamais l'importer ».
+          -->
+          @if (p.optionLabel; as optionLabel) {
+            <label class="opt">
+              <input type="checkbox" [ngModel]="optionChecked()" (ngModelChange)="optionChecked.set($event)" />
+              <span>
+                {{ optionLabel }}
+                @if (p.optionHint; as hint) { <small>{{ hint }}</small> }
+              </span>
+            </label>
+          }
           <div class="actions">
             <button type="button" class="btn btn-ghost" (click)="cancel()">Annuler</button>
             <button type="button" class="btn" [class.btn-danger]="p.danger" [class.btn-primary]="!p.danger"
@@ -68,6 +81,11 @@ import { ConfirmService } from '../../../core/services/confirm.service';
     }
     .dialog { max-width: 440px; width: 100%; animation: slideInUp var(--duration) var(--ease); }
     .dialog h2 { margin: 0 0 var(--sp-2); }
+    /* Zone de frappe confortable : la case se coche au pouce, sur toute la ligne. */
+    .opt { display: flex; align-items: flex-start; gap: var(--sp-2); margin-top: var(--sp-3); min-height: 44px; cursor: pointer; }
+    .opt input { margin-top: 3px; flex: none; }
+    .opt span { display: flex; flex-direction: column; }
+    .opt small { color: var(--ink-3); }
     .dialog p { color: var(--ink-2); margin: 0 0 var(--sp-5); }
     .field { display: flex; flex-direction: column; gap: var(--sp-1); margin: 0 0 var(--sp-5); }
     .actions { display: flex; justify-content: flex-end; gap: var(--sp-3); }
@@ -78,6 +96,7 @@ export class ConfirmDialogComponent {
 
   /** Saisie du champ (recopie de confirmation ou invite libre), remise à zéro à la fermeture. */
   readonly typed = signal('');
+  readonly optionChecked = signal(false);
 
   private readonly promptInput = viewChild<ElementRef<HTMLInputElement>>('promptInput');
 
@@ -115,12 +134,19 @@ export class ConfirmDialogComponent {
   accept(): void {
     if (!this.canConfirm()) return;
     const value = this.typed();
-    this.typed.set('');
-    this.confirm.answer(true, value);
+    const option = this.optionChecked();
+    this.reset();
+    this.confirm.answer(true, value, option);
   }
 
   cancel(): void {
-    this.typed.set('');
+    this.reset();
     this.confirm.answer(false);
+  }
+
+  /** La case ne survit pas à la modale : cochée une fois, elle ne doit pas l'être à la suivante. */
+  private reset(): void {
+    this.typed.set('');
+    this.optionChecked.set(false);
   }
 }

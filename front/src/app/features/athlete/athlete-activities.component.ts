@@ -17,7 +17,7 @@ import { InjuryPickerComponent } from '../../shared/components/injury-picker/inj
 import { PainFatigueSelectorComponent } from '../../shared/components/physiology';
 import { Injury } from '../../core/models/injury.model';
 import {
-  ACTIVITY_STATUS_BADGE, ACTIVITY_STATUS_LABELS, Activity,
+  ACTIVITY_STATUS_BADGE, ACTIVITY_STATUS_LABELS, Activity, isSyncedSource,
 } from '../../core/models/activity.model';
 import { formatPace, paceFrom } from '../../core/utils/pace';
 import { ActivityLapsComponent } from '../../shared/components/activity-laps/activity-laps.component';
@@ -526,25 +526,49 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Suppression d'une sortie, avec l'option qui la rend définitive.
+   *
+   * <p>La case n'apparaît que pour une source qui se synchronise : une saisie manuelle ou un
+   * fichier déposé à la main ne reviennent que si on les redépose, et proposer « ne plus jamais
+   * importer » là-dessus promettrait d'empêcher quelque chose qui n'arrive pas.</p>
+   */
   async removeActivity(a: Activity): Promise<void> {
-    const ok = await this.confirm.ask({
-      title: 'Supprimer cette sortie ?',
-      message: a.matchedWorkoutId
-        ? 'Elle est rattachée à une séance : la séance redeviendra « à faire ».'
-        : 'Cette sortie sera définitivement retirée de ton historique.',
-      confirmLabel: 'Supprimer',
-      danger: true,
-    });
-    if (!ok) { return; }
+    const message = a.matchedWorkoutId
+      ? 'Elle est rattachée à une séance : la séance redeviendra « à faire ».'
+      : 'Cette sortie sera définitivement retirée de ton historique.';
+
+    let confirmed: boolean;
+    let neverAgain = false;
+    if (isSyncedSource(a.source)) {
+      const answer = await this.confirm.askWithOption({
+        title: 'Supprimer cette sortie ?',
+        message,
+        confirmLabel: 'Supprimer',
+        danger: true,
+        optionLabel: 'Ne plus jamais importer cette sortie',
+        optionHint: 'Sans cela, la prochaine synchronisation la rapportera.',
+      });
+      confirmed = answer.confirmed;
+      neverAgain = answer.option;
+    } else {
+      confirmed = await this.confirm.ask({
+        title: 'Supprimer cette sortie ?',
+        message,
+        confirmLabel: 'Supprimer',
+        danger: true,
+      });
+    }
+    if (!confirmed) { return; }
     this.editBusy.set(true);
-    this.portal.deleteActivity(a.id).subscribe({
+    this.portal.deleteActivity(a.id, neverAgain).subscribe({
       next: () => {
         this.editBusy.set(false);
         this.editOpen.set(false);
         this.destroyMap();
         this.selected.set(null);
         this.activities.set(this.activities().filter((x) => x.id !== a.id));
-        this.toast.info('Sortie supprimée');
+        this.toast.info(neverAgain ? 'Sortie supprimée — elle ne sera plus importée' : 'Sortie supprimée');
       },
       error: () => { this.editBusy.set(false); this.toast.error('Suppression impossible.'); },
     });
