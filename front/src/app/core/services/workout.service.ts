@@ -92,6 +92,17 @@ export class WorkoutService {
     return this.http.patch<void>(`${this.base(athleteId)}/reorder`, { date, orderedIds });
   }
 
+  /**
+   * Retire l'ordre d'une journée : ses séances redeviennent à faire dans n'importe quel ordre.
+   *
+   * <p>Le pendant de `reorder` : sans lui, un ordre posé par erreur s'afficherait indéfiniment à
+   * l'athlète comme une consigne.</p>
+   */
+  clearOrder(athleteId: string, date: string): Observable<void> {
+    const params = new HttpParams().set('date', date);
+    return this.http.delete<void>(`${this.base(athleteId)}/order`, { params });
+  }
+
   delete(athleteId: string, workoutId: string): Observable<void> {
     return this.http.delete<void>(`${this.base(athleteId)}/${workoutId}`);
   }

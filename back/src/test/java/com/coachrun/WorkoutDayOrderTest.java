@@ -159,14 +159,46 @@ class WorkoutDayOrderTest {
                 .containsOnly(0);
     }
 
+    /**
+     * L'écran « Aujourd'hui » aussi : c'est là qu'une double séance se lit le matin même, et il
+     * triait par date de création — donc dans l'ordre où le coach avait tapé les séances, qui n'a
+     * aucune raison d'être celui où il veut les voir courues.
+     */
+    @Test
+    void todayScreenFollowsTheCoachOrder() throws Exception {
+        LocalDate aujourdhui = LocalDate.now();
+        String matin = createWorkoutOn(aujourdhui, "Footing matin").get("id").asText();
+        String soir = createWorkoutOn(aujourdhui, "Cotes soir").get("id").asText();
+
+        mvc.perform(patch("/clubs/{c}/athletes/{a}/workouts/reorder", clubId, athleteId)
+                        .header("Authorization", coachBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "date", aujourdhui.toString(), "orderedIds", List.of(soir, matin)))))
+                .andExpect(status().isNoContent());
+
+        JsonNode today = objectMapper.readTree(mvc.perform(get("/me/today")
+                        .header("Authorization", athleteBearer)
+                        .param("date", aujourdhui.toString()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        assertThat(titlesOf(today))
+                .as("la journee du jour se lit dans l'ordre voulu par le coach")
+                .containsExactly("Cotes soir", "Footing matin");
+    }
+
     // --- Utilitaires ---------------------------------------------------------------------------
 
     private JsonNode createWorkout(String title) throws Exception {
+        return createWorkoutOn(JOUR, title);
+    }
+
+    private JsonNode createWorkoutOn(LocalDate date, String title) throws Exception {
         return objectMapper.readTree(mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
                         .header("Authorization", coachBearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "scheduledDate", JOUR.toString(),
+                                "scheduledDate", date.toString(),
                                 "type", "ENDURANCE",
                                 "title", title))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());

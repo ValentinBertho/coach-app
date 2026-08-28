@@ -677,7 +677,8 @@ public class WorkoutService {
     // ----- Portail athlète (scoping par athleteId du principal) -----
 
     public List<WorkoutResponse> todayForAthlete(UUID athleteId, LocalDate date) {
-        return workoutRepository.findByAthleteIdAndScheduledDateOrderByCreatedAtAsc(athleteId, date)
+        return workoutRepository
+                .findByAthleteIdAndScheduledDateOrderByOrderIndexAscCreatedAtAsc(athleteId, date)
                 .stream().map(WorkoutResponse::from).toList();
     }
 

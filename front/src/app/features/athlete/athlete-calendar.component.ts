@@ -190,7 +190,12 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
               <div class="ses ses--run" [style.--type-c]="typeColor(w)">
                 <button type="button" class="ses-body" (click)="openDetail(w)">
                   <span class="ses-main">
-                    <span class="ses-title">{{ typeLabels[w.type] }} · {{ w.title }}</span>
+                    <span class="ses-title">
+                      <!-- Le rang n'apparaît que si le coach a ordonné la journée : sans décision
+                           de sa part, numéroter afficherait une consigne que personne n'a donnée. -->
+                      @if (orderRank(w); as rank) { <span class="ses-rank">{{ rank }}</span> }
+                      {{ typeLabels[w.type] }} · {{ w.title }}
+                    </span>
                     @if (volumeLabel(w); as km) { <span class="ses-km metric">{{ km }}</span> }
                     <!-- Sans ce repère, rien n'indique qu'une séance passée attend encore un ressenti. -->
                     @if (isLate(w)) { <span class="ses-todo">à noter</span> }
@@ -244,6 +249,14 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
             <p class="dsheet-off"><app-icon [name]="reasonIcon[u.reason]" [size]="14" /> Indisponibilité déclarée</p>
           }
 
+          <!-- Dire une fois ce que les numéros veulent dire : un chiffre seul devant un titre
+               pourrait aussi bien être un nombre de séries ou une semaine de bloc. -->
+          @if (dayIsOrdered(d.date)) {
+            <p class="dsheet-order field-hint">
+              <app-icon name="list" [size]="14" /> Ton coach a précisé l'ordre : suis les numéros.
+            </p>
+          }
+
           <!-- Les mots de la journée. Ni une séance ni une indisponibilité : le fait simple
                qu'on signale, dans un sens comme dans l'autre. -->
           @for (n of d.notes; track n.id) {
@@ -292,7 +305,10 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
             <div class="ses ses--run" [style.--type-c]="typeColor(w)">
               <button type="button" class="ses-body" (click)="openDetail(w)">
                 <span class="ses-main">
-                  <span class="ses-title">{{ typeLabels[w.type] }} · {{ w.title }}</span>
+                  <span class="ses-title">
+                    @if (orderRank(w); as rank) { <span class="ses-rank">{{ rank }}</span> }
+                    {{ typeLabels[w.type] }} · {{ w.title }}
+                  </span>
                   @if (volumeLabel(w); as km) { <span class="ses-km metric">{{ km }}</span> }
                   @if (isLate(w)) { <span class="ses-todo">à noter</span> }
                 </span>
@@ -500,6 +516,15 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     .month-hint { text-align: center; margin: 0; }
 
     .dsheet { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .dsheet-order { display: flex; align-items: center; gap: var(--sp-2); margin: 0; }
+    /* Le rang se lit avant le titre : c'est ce qu'on cherche sur une journée à deux séances. */
+    .ses-rank {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 18px; height: 18px; padding: 0 4px; margin-right: 4px;
+      border-radius: var(--radius-full);
+      background: var(--type-c, var(--ink-3)); color: var(--paper);
+      font-size: var(--text-2xs); font-weight: 800; font-variant-numeric: tabular-nums;
+    }
 
     /* Le mot posé sur une journée : lisible d'un coup d'œil, jamais confondu avec une séance. */
     .dnote {
@@ -1120,6 +1145,21 @@ export class AthleteCalendarComponent implements OnInit {
       empty: workouts.length === 0 && strength.length === 0 && activities.length === 0
           && this.races().every((r) => r.raceDate !== iso),
     };
+  }
+
+  /**
+   * Cette journée porte-t-elle un ordre voulu par le coach ?
+   *
+   * <p>Même convention que le serveur : une journée est ordonnée dès qu'une de ses séances porte
+   * un {@code orderIndex} non nul. Toutes à zéro = aucune décision, donc aucun numéro affiché.</p>
+   */
+  dayIsOrdered(iso: string): boolean {
+    return this.workouts().some((w) => w.scheduledDate === iso && (w.orderIndex ?? 0) > 0);
+  }
+
+  /** Rang de la séance dans sa journée (1, 2, 3…), ou `null` si la journée n'est pas ordonnée. */
+  orderRank(w: Workout): number | null {
+    return this.dayIsOrdered(w.scheduledDate) ? (w.orderIndex ?? 0) + 1 : null;
   }
 
   /**

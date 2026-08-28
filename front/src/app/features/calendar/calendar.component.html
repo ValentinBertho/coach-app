@@ -494,6 +494,12 @@
               (pointermove)="onChipPointerMove($event)"
               (pointerup)="onChipPointerUp()" (pointercancel)="onChipPointerUp()">
               <span class="wc-head">
+                <!-- Le rang ne s'affiche que si la journée porte un ordre voulu : numéroter deux
+                     séances posées sans intention afficherait une consigne que personne n'a
+                     donnée. -->
+                @if (orderRank(w); as rank) {
+                  <span class="wc-rank" [title]="'Séance ' + rank + ' de la journée'">{{ rank }}</span>
+                }
                 <app-icon class="wc-type" [name]="typeMeta(w.type).icon" [size]="13" />
                 <span class="w-title">{{ w.title }}</span>
                 <span class="badge badge-dot" [class]="statusBadge[w.status]" [title]="statusLabels[w.status]"></span>
@@ -657,6 +663,19 @@
     <button type="button" class="ctx-item" (click)="ctxNoteHere()">
       <app-icon name="file-text" [size]="14" /> Ajouter une note
     </button>
+    <!-- L'ordre ne se propose qu'à partir de deux séances : une seule n'a pas d'ordre. -->
+    @if (dayWorkoutCount(m.date) > 1) {
+      <div class="ctx-sep"></div>
+      @if (orderedDates().has(m.date)) {
+        <button type="button" class="ctx-item" (click)="ctxClearDayOrder()">
+          <app-icon name="list" [size]="14" /> Retirer l'ordre des séances
+        </button>
+      } @else {
+        <button type="button" class="ctx-item" (click)="ctxOrderDay()">
+          <app-icon name="list" [size]="14" /> Numéroter les séances du jour
+        </button>
+      }
+    }
   </div>
 }
 

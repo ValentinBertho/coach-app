@@ -84,6 +84,16 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
     @EntityGraph(attributePaths = "steps")
     List<Workout> findByAthleteIdAndScheduledDateOrderByCreatedAtAsc(UUID athleteId, LocalDate date);
 
+    /**
+     * Les séances du jour, dans l'ordre voulu par le coach.
+     *
+     * <p>{@code createdAt} départage les journées sans ordre — deux séances posées sans intention
+     * s'affichent alors dans l'ordre où elles ont été créées, comme avant.</p>
+     */
+    @EntityGraph(attributePaths = "steps")
+    List<Workout> findByAthleteIdAndScheduledDateOrderByOrderIndexAscCreatedAtAsc(
+            UUID athleteId, LocalDate date);
+
     @EntityGraph(attributePaths = "steps")
     Optional<Workout> findByIdAndAthleteId(UUID id, UUID athleteId);
 

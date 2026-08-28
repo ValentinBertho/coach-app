@@ -176,6 +176,12 @@
             <div class="hero__head">
               <span class="badge" [class]="statusBadge[w.status]">{{ statusLabels[w.status] }}</span>
               <span class="hero__type">{{ typeLabels[w.type] }}</span>
+              <!-- Journée à deux séances : dire laquelle vient d'abord, mais seulement si le coach
+                   l'a demandé. Le libellé est écrit en toutes lettres ici — c'est la carte qu'on
+                   lit le matin, sans le contexte du calendrier pour interpréter un chiffre nu. -->
+              @if (orderRank(w); as rank) {
+                <span class="hero__rank">{{ rank }}<sup>{{ rank === 1 ? 're' : 'e' }}</sup> séance</span>
+              }
             </div>
 
             <h2 class="hero__title">{{ w.title }}</h2>
