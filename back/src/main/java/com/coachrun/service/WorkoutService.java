@@ -74,8 +74,12 @@ public class WorkoutService {
     }
 
     /**
-     * Réordonne les séances d'un même jour (glisser-déposer intra-jour) : {@code orderIndex} suit
-     * la position dans {@code orderedIds}. Les séances du jour non listées sont poussées à la fin.
+     * Réordonne les séances d'un même jour : {@code orderIndex} suit la position dans
+     * {@code orderedIds}. Les séances du jour non listées sont poussées à la fin.
+     *
+     * <p>C'est le geste par lequel une journée <b>acquiert</b> un ordre. Voir
+     * {@link #dayIsOrdered(java.util.List)} pour la convention qui distingue une journée
+     * ordonnée d'une journée qui ne l'est pas.</p>
      */
     @Transactional
     public void reorder(UUID clubId, UUID athleteId, LocalDate date, List<UUID> orderedIds) {
@@ -84,6 +88,59 @@ public class WorkoutService {
             int idx = orderedIds.indexOf(w.getId());
             w.setOrderIndex(idx >= 0 ? idx : orderedIds.size());
         }
+    }
+
+    /**
+     * Le coach retire l'ordre d'une journée : ses séances redeviennent à faire dans n'importe
+     * quel ordre.
+     *
+     * <p>Indispensable au « rien d'obligatoire » : sans ce geste, une journée ordonnée une fois
+     * le resterait pour toujours, et un ordre posé par erreur s'afficherait indéfiniment à
+     * l'athlète comme une consigne.</p>
+     */
+    @Transactional
+    public void clearOrder(UUID clubId, UUID athleteId, LocalDate date) {
+        workoutRepository.findByClubIdAndAthleteIdAndScheduledDate(clubId, athleteId, date)
+                .forEach(w -> w.setOrderIndex(0));
+    }
+
+    /**
+     * Cette journée porte-t-elle un ordre voulu ?
+     *
+     * <p>Convention, et elle mérite d'être écrite : une journée est ordonnée dès qu'une de ses
+     * séances porte un {@code orderIndex} non nul. Toutes à zéro = aucune décision prise, ce qui
+     * est l'état de toutes les journées existantes et de toute journée où le coach n'a rien
+     * demandé — l'ordre reste donc facultatif, sans colonne supplémentaire ni reprise de données.</p>
+     *
+     * <p>Le prix de cette convention est un invariant à tenir : une séance qui arrive dans une
+     * journée ne doit jamais y apporter un ordre par accident. C'est le rôle de
+     * {@link #placeInDay}, appelée sur tous les chemins qui posent une séance sur une date.</p>
+     */
+    private boolean dayIsOrdered(List<Workout> dayWorkouts) {
+        return dayWorkouts.stream().anyMatch(w -> w.getOrderIndex() > 0);
+    }
+
+    /**
+     * Range une séance dans sa journée d'arrivée.
+     *
+     * <p>À la suite si la journée porte déjà un ordre — une séance ajoutée à une journée ordonnée
+     * se court en dernier, faute d'indication contraire. Sans ordre sinon : poser une deuxième
+     * séance sur une journée libre n'est pas une décision d'ordre, et lui en faire porter une
+     * afficherait à l'athlète une consigne que personne n'a donnée.</p>
+     *
+     * <p>Vaut aussi pour un déplacement : sans cela une séance quittant la troisième place d'une
+     * journée ordonnée emporterait son 2 sur une journée vide, qui se serait mise à afficher un
+     * ordre toute seule.</p>
+     */
+    private void placeInDay(Workout workout, UUID athleteId, LocalDate date) {
+        // La séance n'a pas encore d'identifiant sur les chemins de création : elle ne peut alors
+        // pas figurer dans la journée, et il n'y a rien à exclure.
+        List<Workout> day = workoutRepository.findByAthleteIdAndScheduledDate(athleteId, date).stream()
+                .filter(w -> workout.getId() == null || !workout.getId().equals(w.getId()))
+                .toList();
+        workout.setOrderIndex(dayIsOrdered(day)
+                ? day.stream().mapToInt(Workout::getOrderIndex).max().orElse(0) + 1
+                : 0);
     }
 
     public WorkoutResponse get(UUID clubId, UUID workoutId) {
@@ -123,6 +180,7 @@ public class WorkoutService {
         workout.setStatus(WorkoutStatus.PLANNED);
         workout.setPlanId(planId);
         apply(workout, request);
+        placeInDay(workout, athleteId, workout.getScheduledDate());
 
         workout = workoutRepository.save(workout);
         log.info("Séance créée {} (athlète={}, plan={})", workout.getId(), athleteId, planId);
@@ -154,6 +212,9 @@ public class WorkoutService {
         LocalDate previousDate = workout.getScheduledDate();
 
         apply(workout, request);
+        if (!previousDate.equals(workout.getScheduledDate())) {
+            placeInDay(workout, workout.getAthlete().getId(), workout.getScheduledDate());
+        }
 
         if (wasPlanned && !before.equals(signature(workout))) {
             notificationService.notifyWorkoutChanged(
@@ -234,7 +295,11 @@ public class WorkoutService {
         Workout workout = require(clubId, workoutId);
         boolean moved = workout.getStatus() == WorkoutStatus.PLANNED
                 && !date.equals(workout.getScheduledDate());
+        boolean dayChanged = !date.equals(workout.getScheduledDate());
         workout.setScheduledDate(date);
+        if (dayChanged) {
+            placeInDay(workout, workout.getAthlete().getId(), date);
+        }
         if (moved) {
             notificationService.notifyWorkoutChanged(workout, true);
         }
@@ -476,6 +541,10 @@ public class WorkoutService {
             copy.setAthlete(w.getAthlete());
             copy.setStatus(WorkoutStatus.PLANNED);
             copy.setScheduledDate(targetWeekStart.plusDays(offset));
+            // L'ordre voulu fait partie de ce qu'on recopie : une semaine dont le mardi était
+            // ordonné doit l'être aussi dans sa copie. Recopier l'indice préserve les deux états
+            // — ordonné comme libre — sans avoir à les distinguer ici.
+            copy.setOrderIndex(w.getOrderIndex());
             copy.setType(w.getType());
             copy.setTitle(w.getTitle());
             copy.setNotes(w.getNotes());
@@ -527,6 +596,7 @@ public class WorkoutService {
         workout.setAthlete(athlete);
         workout.setStatus(WorkoutStatus.PLANNED);
         workout.setScheduledDate(data.date());
+        placeInDay(workout, athleteId, data.date());
         workout.setType(data.type());
         workout.setTitle(data.title());
         workout.setNotes(data.notes());
@@ -580,6 +650,7 @@ public class WorkoutService {
         copy.setAthlete(w.getAthlete());
         copy.setStatus(WorkoutStatus.PLANNED);
         copy.setScheduledDate(date);
+        placeInDay(copy, w.getAthlete().getId(), date);
         copy.setType(w.getType());
         copy.setTitle(w.getTitle());
         copy.setNotes(w.getNotes());
@@ -606,13 +677,14 @@ public class WorkoutService {
     // ----- Portail athlète (scoping par athleteId du principal) -----
 
     public List<WorkoutResponse> todayForAthlete(UUID athleteId, LocalDate date) {
-        return workoutRepository.findByAthleteIdAndScheduledDateOrderByCreatedAtAsc(athleteId, date)
+        return workoutRepository
+                .findByAthleteIdAndScheduledDateOrderByOrderIndexAscCreatedAtAsc(athleteId, date)
                 .stream().map(WorkoutResponse::from).toList();
     }
 
     public List<WorkoutResponse> athleteCalendar(UUID athleteId, LocalDate from, LocalDate to) {
         return workoutRepository
-                .findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(athleteId, from, to)
+                .findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAscOrderIndexAsc(athleteId, from, to)
                 .stream().map(WorkoutResponse::from).toList();
     }
 
@@ -722,6 +794,7 @@ public class WorkoutService {
             workout.setOriginalDate(workout.getScheduledDate());
         }
         workout.setScheduledDate(date);
+        placeInDay(workout, athleteId, date);
         workout.setMovedByAthlete(true);
         return WorkoutResponse.from(workout);
     }

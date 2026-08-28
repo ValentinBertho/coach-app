@@ -55,6 +55,12 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
 
     List<Workout> findByClubIdAndAthleteIdAndScheduledDate(UUID clubId, UUID athleteId, LocalDate date);
 
+    /**
+     * Les séances d'une journée, quel que soit le club — l'athlète déplace ses séances sans
+     * connaître de club, et l'ordre d'une journée se lit à l'échelle de l'athlète.
+     */
+    List<Workout> findByAthleteIdAndScheduledDate(UUID athleteId, LocalDate date);
+
     @EntityGraph(attributePaths = "steps")
     Optional<Workout> findByIdAndClubId(UUID id, UUID clubId);
 
@@ -63,8 +69,30 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
     List<Workout> findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
             UUID athleteId, LocalDate from, LocalDate to);
 
+    /**
+     * Le calendrier de l'athlète, dans l'ordre que son coach a voulu.
+     *
+     * <p>Variante explicitement ordonnée de la précédente, plutôt qu'un tri ajouté à celle-ci :
+     * ses autres appelants (récupération, série de retours, rapprochement d'activités) lisent des
+     * séances sans se soucier de leur ordre au sein d'une journée, et leur imposer un tri de plus
+     * n'aurait servi qu'à masquer l'endroit où cet ordre compte vraiment.</p>
+     */
+    @EntityGraph(attributePaths = "steps")
+    List<Workout> findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAscOrderIndexAsc(
+            UUID athleteId, LocalDate from, LocalDate to);
+
     @EntityGraph(attributePaths = "steps")
     List<Workout> findByAthleteIdAndScheduledDateOrderByCreatedAtAsc(UUID athleteId, LocalDate date);
+
+    /**
+     * Les séances du jour, dans l'ordre voulu par le coach.
+     *
+     * <p>{@code createdAt} départage les journées sans ordre — deux séances posées sans intention
+     * s'affichent alors dans l'ordre où elles ont été créées, comme avant.</p>
+     */
+    @EntityGraph(attributePaths = "steps")
+    List<Workout> findByAthleteIdAndScheduledDateOrderByOrderIndexAscCreatedAtAsc(
+            UUID athleteId, LocalDate date);
 
     @EntityGraph(attributePaths = "steps")
     Optional<Workout> findByIdAndAthleteId(UUID id, UUID athleteId);

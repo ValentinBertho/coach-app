@@ -130,6 +130,15 @@
 .day-col--ranged { background: color-mix(in srgb, var(--accent-2) 8%, var(--paper)); border-color: var(--accent-2); }
 .workout-card--key { border-left-width: 4px; }
 .wc-head { display: flex; align-items: center; gap: var(--sp-1); }
+/* Rang dans la journée : un chiffre, pas un mot. Il doit se lire avant le titre — c'est l'ordre
+   qu'on cherche quand on regarde une journée à deux séances — sans prendre la place d'un libellé. */
+.wc-rank {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px; padding: 0 3px;
+  border-radius: var(--radius-full);
+  background: var(--type-color, var(--ink-3)); color: var(--paper);
+  font-size: var(--text-2xs); font-weight: 800; font-variant-numeric: tabular-nums;
+}
 .wc-type { font-size: var(--text-xs); line-height: 1; }
 /* Sous ~130 px de colonne — le cas dès que le panneau bibliothèque est ouvert — le libellé de
    type et la distance ne tiennent plus côte à côte : « RÉCUPÉRATION » se réduisait à « R… ».

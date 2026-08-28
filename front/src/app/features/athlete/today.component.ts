@@ -222,6 +222,18 @@ export class TodayComponent implements OnInit {
     this.router.navigate(['/athlete/session', session.id]);
   }
 
+  /**
+   * Rang de la séance dans la journée, ou `null` si le coach n'a pas ordonné la journée.
+   *
+   * <p>Même convention que le serveur et le calendrier : une journée est ordonnée dès qu'une de
+   * ses séances porte un {@code orderIndex} non nul. Sans décision du coach, aucun numéro — un
+   * ordre inventé se lirait comme une consigne.</p>
+   */
+  orderRank(w: Workout): number | null {
+    const ordered = this.workouts().some((x) => (x.orderIndex ?? 0) > 0);
+    return ordered ? (w.orderIndex ?? 0) + 1 : null;
+  }
+
   load(): void {
     this.state.set('loading');
     this.portal.today().subscribe({

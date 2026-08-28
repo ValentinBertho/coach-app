@@ -1294,6 +1294,68 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.moveWorkout(w, targetDate);
   }
 
+  /**
+   * Les journées qui portent un ordre voulu.
+   *
+   * <p>Convention partagée avec le serveur : une journée est ordonnée dès qu'une de ses séances
+   * porte un {@code orderIndex} non nul. Toutes à zéro = le coach n'a rien demandé, et on
+   * n'affiche alors aucun numéro — un ordre inventé se lirait comme une consigne.</p>
+   */
+  readonly orderedDates = computed(() => {
+    const dates = new Set<string>();
+    for (const w of this.workouts()) {
+      if ((w.orderIndex ?? 0) > 0) dates.add(w.scheduledDate);
+    }
+    return dates;
+  });
+
+  /** Rang de la séance dans sa journée (1, 2, 3…), ou `null` si la journée n'est pas ordonnée. */
+  orderRank(w: Workout): number | null {
+    return this.orderedDates().has(w.scheduledDate) ? (w.orderIndex ?? 0) + 1 : null;
+  }
+
+  /** Nombre de séances course posées ce jour-là — l'ordre ne se propose qu'à partir de deux. */
+  dayWorkoutCount(date: string): number {
+    return this.workouts().filter((w) => w.scheduledDate === date).length;
+  }
+
+  /**
+   * Numérote les séances de la journée dans l'ordre où elles sont déjà affichées.
+   *
+   * <p>Le glisser-déposer intra-jour donnait déjà un ordre, mais seulement à qui savait qu'il
+   * existait — et il ne se voyait nulle part une fois relâché. Ce geste-ci nomme la chose et la
+   * rend atteignable sans glisser.</p>
+   */
+  ctxOrderDay(): void {
+    const date = this.dayMenu()?.date;
+    this.closeDayMenu();
+    if (!date) return;
+    const ids = this.workouts()
+      .filter((w) => w.scheduledDate === date)
+      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
+      .map((w) => w.id);
+    if (ids.length < 2) return;
+    this.workouts.update((l) =>
+      l.map((w) => (w.scheduledDate === date ? { ...w, orderIndex: ids.indexOf(w.id) } : w)));
+    this.workoutService.reorder(this.selectedAthleteId, date, ids).subscribe({
+      next: () => this.toast.success('Ordre défini — ton athlète le verra'),
+      error: () => { this.toast.error('Ordre impossible à définir.'); this.load(); },
+    });
+  }
+
+  /** Retire l'ordre : les séances du jour redeviennent à faire dans n'importe quel ordre. */
+  ctxClearDayOrder(): void {
+    const date = this.dayMenu()?.date;
+    this.closeDayMenu();
+    if (!date) return;
+    this.workouts.update((l) =>
+      l.map((w) => (w.scheduledDate === date ? { ...w, orderIndex: 0 } : w)));
+    this.workoutService.clearOrder(this.selectedAthleteId, date).subscribe({
+      next: () => this.toast.info('Ordre retiré'),
+      error: () => { this.toast.error('Retrait impossible.'); this.load(); },
+    });
+  }
+
   /** Réordonne les séances d'un jour (glisser intra-jour) : mise à jour optimiste des orderIndex. */
   private reorderWithinDay(date: string, from: number, to: number): void {
     if (from === to) return;
