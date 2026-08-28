@@ -138,7 +138,7 @@ public class StravaService {
             // Les flux détaillés coûtent un appel par activité (quota Strava : 100 req / 15 min).
             // On écarte donc les activités déjà connues AVANT d'aller les chercher : sur une
             // synchro horaire, la quasi-totalité de la page renvoyée est déjà en base.
-            if (activityService.alreadyImported(athleteId, ActivitySource.STRAVA, String.valueOf(a.id()))) {
+            if (activityService.alreadyKnown(athleteId, ActivitySource.STRAVA, String.valueOf(a.id()))) {
                 continue;
             }
             try {

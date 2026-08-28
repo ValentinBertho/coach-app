@@ -1,10 +1,12 @@
 package com.coachrun.service;
 
 import com.coachrun.dto.request.ActivityImportRequest;
+import com.coachrun.dto.response.ActivityExclusionResponse;
 import com.coachrun.dto.response.ActivityLapsResponse;
 import com.coachrun.dto.response.ActivityResponse;
 import com.coachrun.dto.response.FeedbackPromptResponse;
 import com.coachrun.entity.Activity;
+import com.coachrun.entity.ActivityExclusion;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.enums.ActivitySource;
@@ -12,6 +14,7 @@ import com.coachrun.entity.enums.ActivityStatus;
 import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.NotFoundException;
+import com.coachrun.repository.ActivityExclusionRepository;
 import com.coachrun.repository.ActivityRepository;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.WorkoutRepository;
@@ -44,6 +47,7 @@ public class ActivityService {
     private final org.springframework.beans.factory.ObjectProvider<PhysioDetectionService> physioDetection;
 
     private final ActivityRepository activityRepository;
+    private final ActivityExclusionRepository exclusionRepository;
     private final AthleteRepository athleteRepository;
     private final WorkoutRepository workoutRepository;
     private final MatchingService matchingService;
@@ -115,6 +119,13 @@ public class ActivityService {
         if (request.externalId() != null
                 && activityRepository.existsByAthleteIdAndSourceAndExternalId(athleteId, source, request.externalId())) {
             throw new ConflictException("Cette activité a déjà été importée.");
+        }
+        // Écartée pour de bon par l'athlète. Le refus vaut pour TOUS les chemins d'import — la
+        // synchro planifiée, le webhook Strava, et l'import manuel : c'est le seul endroit où une
+        // activité entre, donc le seul où la décision tient sans avoir à être répétée.
+        if (request.externalId() != null
+                && exclusionRepository.existsByAthleteIdAndSourceAndExternalId(athleteId, source, request.externalId())) {
+            throw new ConflictException("Cette sortie a été retirée de Darilab : elle n'est plus importée.");
         }
         rejectIfDuplicate(athleteId, request.activityDate(), request.distanceM(), request.durationS(),
                 Boolean.TRUE.equals(request.confirmDuplicate()));
@@ -210,12 +221,19 @@ public class ActivityService {
     }
 
     /**
-     * L'activité externe est-elle déjà en base ? Permet à une synchro de l'écarter <em>avant</em>
-     * d'aller chercher ses détails, quand la source facture chaque appel (quota Strava).
+     * Faut-il passer cette activité externe sans même la télécharger ?
+     *
+     * <p>Deux raisons de le faire, et une seule conséquence : elle est déjà en base, ou l'athlète
+     * l'a écartée pour de bon. Le test se fait <em>avant</em> d'aller chercher les détails, quand
+     * la source facture chaque appel (quota Strava) — une sortie masquée serait sinon retéléchargée
+     * à chaque synchro pour être refusée à l'arrivée.</p>
      */
-    public boolean alreadyImported(UUID athleteId, ActivitySource source, String externalId) {
-        return externalId != null
-                && activityRepository.existsByAthleteIdAndSourceAndExternalId(athleteId, source, externalId);
+    public boolean alreadyKnown(UUID athleteId, ActivitySource source, String externalId) {
+        if (externalId == null) {
+            return false;
+        }
+        return activityRepository.existsByAthleteIdAndSourceAndExternalId(athleteId, source, externalId)
+                || exclusionRepository.existsByAthleteIdAndSourceAndExternalId(athleteId, source, externalId);
     }
 
     /**
@@ -486,13 +504,76 @@ public class ActivityService {
      * L'athlète supprime une de ses sorties (doublon, erreur de saisie, sortie de quelqu'un
      * d'autre importée par erreur). La séance rapprochée, s'il y en avait une, redevient à faire :
      * plus rien n'atteste qu'elle a été réalisée.
+     *
+     * @param neverImportAgain la sortie ne doit plus jamais revenir. Sans cela, supprimer une
+     *                         sortie synchronisée ne dure que jusqu'à la synchro suivante, qui la
+     *                         rapporte — l'athlète efface, Strava renvoie, il efface encore.
      */
     @Transactional
-    public void deleteForAthlete(UUID athleteId, UUID activityId) {
+    public void deleteForAthlete(UUID athleteId, UUID activityId, boolean neverImportAgain) {
         Activity a = ownedByAthlete(athleteId, activityId);
+        if (neverImportAgain) {
+            excludeFromFutureImports(a);
+        }
         detachWorkout(a);
         activityRepository.delete(a);
-        log.info("Sortie supprimée {} par l'athlète {}", activityId, athleteId);
+        log.info("Sortie supprimée {} par l'athlète {}{}", activityId, athleteId,
+                neverImportAgain ? " (ne sera plus importée)" : "");
+    }
+
+    /**
+     * Pose la pierre tombale qui empêchera le retour de cette sortie.
+     *
+     * <p>Sans identifiant externe, il n'y a rien à empêcher : une saisie manuelle ou un fichier
+     * déposé à la main ne reviennent que si quelqu'un les redépose. Demander « ne plus jamais
+     * importer » n'a alors pas d'objet, et inventer une clé pour honorer la case cochée créerait
+     * une exclusion que rien ne consultera jamais.</p>
+     *
+     * <p>Le titre et la date sont recopiés : la sortie va disparaître, et l'écran des sorties
+     * masquées doit pouvoir la nommer à quelqu'un qui voudrait revenir sur sa décision.</p>
+     */
+    private void excludeFromFutureImports(Activity a) {
+        if (a.getExternalId() == null) {
+            return;
+        }
+        if (exclusionRepository.existsByAthleteIdAndSourceAndExternalId(
+                a.getAthlete().getId(), a.getSource(), a.getExternalId())) {
+            return;
+        }
+        ActivityExclusion exclusion = new ActivityExclusion();
+        exclusion.setAthlete(a.getAthlete());
+        exclusion.setSource(a.getSource());
+        exclusion.setExternalId(a.getExternalId());
+        exclusion.setTitle(a.getTitle());
+        exclusion.setActivityDate(a.getActivityDate());
+        exclusionRepository.save(exclusion);
+    }
+
+    /**
+     * Les sorties que cet athlète a écartées pour de bon.
+     *
+     * <p>Un masquage définitif sans moyen de le relire serait un piège : coché par erreur, il
+     * retirerait une sortie sans qu'aucun écran ne dise pourquoi elle ne revient pas.</p>
+     */
+    public List<ActivityExclusionResponse> listExclusions(UUID athleteId) {
+        return exclusionRepository.findByAthleteIdOrderByCreatedAtDesc(athleteId).stream()
+                .map(ActivityExclusionResponse::from)
+                .toList();
+    }
+
+    /**
+     * L'athlète revient sur sa décision : la sortie pourra de nouveau être importée.
+     *
+     * <p>Elle ne réapparaît pas pour autant sur-le-champ — elle a été supprimée, et c'est la
+     * prochaine synchronisation qui la rapportera. Encore faut-il qu'elle entre dans la fenêtre
+     * que la synchro relit ; passé ce délai, il reste l'import manuel.</p>
+     */
+    @Transactional
+    public void removeExclusion(UUID athleteId, UUID exclusionId) {
+        ActivityExclusion exclusion = exclusionRepository.findByIdAndAthleteId(exclusionId, athleteId)
+                .orElseThrow(() -> new NotFoundException("Sortie masquée introuvable."));
+        exclusionRepository.delete(exclusion);
+        log.info("Masquage levé {} par l'athlète {}", exclusionId, athleteId);
     }
 
     /** Rend sa séance à l'état « à faire » et détache l'activité. */
