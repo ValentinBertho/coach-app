@@ -164,6 +164,23 @@ public class WorkoutController {
         workoutService.reorder(clubId, athleteId, request.date(), request.orderedIds());
     }
 
+    /**
+     * Retire l'ordre d'une journée : ses séances redeviennent à faire dans n'importe quel ordre.
+     *
+     * <p>Le pendant indispensable de {@code /reorder} : sans lui, une journée ordonnée une fois le
+     * resterait pour toujours, et un ordre posé par erreur s'afficherait indéfiniment à l'athlète
+     * comme une consigne.</p>
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @DeleteMapping("/order")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void clearOrder(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                           @RequestParam @org.springframework.format.annotation.DateTimeFormat(
+                                   iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+                           java.time.LocalDate date) {
+        workoutService.clearOrder(clubId, athleteId, date);
+    }
+
     /** Duplique la séance vers une date (glisser + Alt, ou menu contextuel). */
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/{workoutId}/copy")
