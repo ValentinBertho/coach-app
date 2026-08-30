@@ -440,7 +440,7 @@ export class TrainingZonesComponent implements OnInit {
     requestAnimationFrame(() => requestAnimationFrame(() => {
       document.querySelector(`[data-zone="${id}"]`)?.scrollIntoView({ block: 'center' });
     }));
-    setTimeout(() => this.highlighted.set(null), 2600);
+    setTimeout(() => this.highlighted.set(null), 4000);
   }
 
   onSetChange(id: string): void {
