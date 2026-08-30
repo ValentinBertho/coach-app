@@ -121,7 +121,19 @@ interface EditState {
                   <span class="zc-top">
                     <span class="dot" [style.background]="z.color || 'var(--ink-3)'"></span> {{ z.name }}
                   </span>
-                  @if (zoneRuleHint(z); as rule) { <span class="zc-rule">{{ rule }}</span> }
+                  @if (zoneRuleHint(z); as rule) {
+                    <!-- La règle appartient au club. On mène donc à l'écran des zones, sur CETTE
+                         zone — plutôt que d'offrir ici un champ qui, au milieu de réglages propres
+                         à un athlète, laisserait croire qu'on n'ajuste que lui. Le tableau
+                         ci-contre, lui, ajuste bien cet athlète-là : c'est la distinction qu'il ne
+                         faut pas brouiller. -->
+                    <a class="zc-rule zc-rule--link"
+                       [routerLink]="['/app/training-zones']"
+                       [queryParams]="{ zone: z.id, set: appliedSetId() || null }"
+                       title="Régler les % de cette zone — vaut pour tout le club">
+                      {{ rule }} <app-icon name="settings" [size]="12" />
+                    </a>
+                  }
                 </th>
                 @for (m of displayedColumns(); track m.id) {
                   <td>
@@ -190,6 +202,8 @@ interface EditState {
     .legend { display: flex; align-items: center; gap: var(--sp-4); font-size: var(--text-sm); color: var(--ink-3); padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-3); }
     .legend span { display: inline-flex; align-items: center; gap: var(--sp-1); }
     .legend-hint { margin-left: auto; font-style: italic; }
+    .zc-rule--link { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+    .zc-rule--link:hover { text-decoration: underline; }
 
     .table-wrap { overflow-x: auto; padding: 0; }
     table.zv { border-collapse: collapse; width: 100%; min-width: 480px; }
