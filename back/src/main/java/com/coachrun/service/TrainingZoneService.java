@@ -123,6 +123,38 @@ public class TrainingZoneService {
     }
 
     /**
+     * Règle les deux pourcentages d'une zone, sur toutes ses unités à la fois.
+     *
+     * <p>Un seul geste du coach, donc une seule transaction et une seule resynchronisation. Le
+     * client faisait une requête par métrique : chacune resynchronisait le club, et deux
+     * resynchronisations concurrentes se disputaient les mêmes lignes de valeurs — verrou
+     * optimiste, et l'écran renvoyait une erreur pour un réglage qui avait pourtant du sens.</p>
+     *
+     * <p>Les métriques touchées sont celles qui partagent l'ancre de la règle de référence, et
+     * elles seules : la fréquence cardiaque s'ancre sur la FC max avec ses propres pourcentages,
+     * lui appliquer ceux de l'allure serait faux.</p>
+     */
+    @Transactional
+    public TrainingZoneResponse setPercentages(UUID clubId, UUID zoneId,
+                                               com.coachrun.dto.request.ZonePercentagesRequest req) {
+        TrainingZone z = require(clubId, zoneId);
+        ZoneMetric reference = z.getMetrics().stream()
+                .filter(m -> m.getAnchor() != null && m.getLowPct() != null && m.getHighPct() != null)
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("Cette zone n'a pas de règle de calcul."));
+
+        for (ZoneMetric zm : z.getMetrics()) {
+            if (zm.getAnchor() == reference.getAnchor()
+                    && java.util.Objects.equals(zm.getHighAnchor(), reference.getHighAnchor())) {
+                zm.setLowPct(req.lowPct());
+                zm.setHighPct(req.highPct());
+            }
+        }
+        resyncAthletes(clubId, "réglage de la zone « " + z.getName() + " »");
+        return TrainingZoneResponse.from(z);
+    }
+
+    /**
      * Répercute un changement de règle sur les valeurs des athlètes.
      *
      * <p>Sans cela, changer « 88–92 % » en « 90–94 % » ne changeait <b>rien</b> à ce qui est

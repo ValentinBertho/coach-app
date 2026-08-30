@@ -96,4 +96,18 @@ public class TrainingZoneController {
                                         @Valid @RequestBody com.coachrun.dto.request.ZoneRuleRequest request) {
         return zoneService.setRule(clubId, id, metricId, request);
     }
+
+    /**
+     * Règle les deux pourcentages d'une zone — un geste, une requête.
+     *
+     * <p>Le client les posait métrique par métrique : autant de requêtes que d'unités, donc autant
+     * de resynchronisations concurrentes sur les mêmes lignes de valeurs. Le verrou optimiste
+     * faisait échouer le réglage.</p>
+     */
+    @PutMapping("/{id}/percentages")
+    public TrainingZoneResponse setPercentages(@PathVariable UUID clubId, @PathVariable UUID id,
+                                               @Valid @RequestBody
+                                               com.coachrun.dto.request.ZonePercentagesRequest request) {
+        return zoneService.setPercentages(clubId, id, request);
+    }
 }

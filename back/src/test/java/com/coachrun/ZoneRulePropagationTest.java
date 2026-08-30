@@ -95,6 +95,40 @@ class ZoneRulePropagationTest {
                 .isEqualTo(320.0);
     }
 
+    /**
+     * Le réglage des deux pourcentages tient en une requête, et touche toutes les unités du seuil.
+     *
+     * <p>Le client les posait métrique par métrique : chaque requête resynchronisait le club, et
+     * deux resynchronisations concurrentes se disputaient les mêmes lignes de valeurs — verrou
+     * optimiste, et un 500 pour un réglage qui avait pourtant du sens. Constaté sur l'application
+     * réelle.</p>
+     */
+    @Test
+    void bothPercentagesAreSetInOneRequestAcrossEveryUnitOfTheThreshold() throws Exception {
+        JsonNode target = firstRuledZoneMetric();
+        String zoneId = target.get("zoneId").asText();
+
+        JsonNode updated = objectMapper.readTree(mvc.perform(
+                        put("/clubs/{c}/training-zones/{z}/percentages", clubId, zoneId)
+                                .header("Authorization", coachBearer)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"lowPct\":71,\"highPct\":79}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        String anchor = target.get("anchor").asText();
+        int touched = 0;
+        for (JsonNode r : updated.get("rules")) {
+            if (anchor.equals(r.path("anchor").asText(null))) {
+                assertThat(r.get("lowPct").asDouble()).isEqualTo(71.0);
+                assertThat(r.get("highPct").asDouble()).isEqualTo(79.0);
+                touched++;
+            }
+        }
+        assertThat(touched)
+                .as("toutes les unites ancrees sur ce seuil doivent porter le meme pourcentage")
+                .isGreaterThan(0);
+    }
+
     // --- Utilitaires ---------------------------------------------------------------------------
 
     /** Première (zone, métrique) portant une règle complète, et de quoi la rejouer. */

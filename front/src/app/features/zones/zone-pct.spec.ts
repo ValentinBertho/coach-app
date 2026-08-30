@@ -65,34 +65,18 @@ describe('zones — réglage des %', () => {
     expect(b?.refLabel).toBe('LT1 → LT2');
   });
 
-  it('applique le % à toutes les unités de la même définition', () => {
+  it('ne fait qu’une requête, en gardant l’autre borne', () => {
     const z = zone([rule({ metricTypeId: PACE }), rule({ metricTypeId: SPEED })]);
     component.zones.set([z]);
 
     component.savePct(z, 'high', '99');
 
-    // Allure ET vitesse : même seuil, même ancre, donc même pourcentage. N'en corriger qu'une les
-    // ferait diverger sans que rien ne le signale.
-    const reqs = http.match((r) => r.url.includes('/training-zones/z1/metrics/'));
-    expect(reqs.length).toBe(2);
-    expect(reqs.map((r) => r.request.body.highPct)).toEqual([99, 99]);
-    reqs.forEach((r) => r.flush(z));
-  });
-
-  it('laisse tranquille une métrique ancrée ailleurs', () => {
-    const z = zone([
-      rule({ metricTypeId: PACE }),
-      rule({ metricTypeId: HR, anchor: 'FCMAX', lowPct: 80, highPct: 90 }),
-    ]);
-    component.zones.set([z]);
-
-    component.savePct(z, 'low', '95');
-
-    // La FC s'ancre sur la FC max avec ses propres pourcentages : lui appliquer ceux de l'allure
-    // serait faux.
-    const reqs = http.match((r) => r.url.includes('/training-zones/z1/metrics/'));
+    // Une seule : c'est le serveur qui sait quelles unités partagent l'ancre. Une requête par
+    // métrique déclenchait autant de resynchronisations concurrentes, et le réglage échouait sur
+    // un verrou optimiste.
+    const reqs = http.match((r) => r.url.includes('/training-zones/z1/percentages'));
     expect(reqs.length).toBe(1);
-    expect(reqs[0].request.url).toContain(PACE);
+    expect(reqs[0].request.body).toEqual({ lowPct: 93, highPct: 99 });
     reqs[0].flush(z);
   });
 
