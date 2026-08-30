@@ -972,6 +972,29 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     });
   }
 
+  /**
+   * Le coach règle les % d'une zone depuis le sélecteur, sans quitter sa séance.
+   *
+   * <p>C'est là qu'on s'aperçoit qu'un seuil est deux points trop haut — en lisant l'allure qu'on
+   * s'apprête à prescrire — pas dans l'écran des zones. Le serveur répercute sur les valeurs des
+   * athlètes ; on relit donc les cibles concrètes, sans quoi le sélecteur continuerait d'afficher
+   * l'ancienne allure sous la nouvelle règle.</p>
+   */
+  onZonePct(change: { zoneId: string; lowPct: number; highPct: number }): void {
+    const zone = this.zones().find((z) => z.id === change.zoneId);
+    if (!zone) return;
+    this.zoneService.setPercentages(zone, change.lowPct, change.highPct).subscribe({
+      next: (updated) => {
+        this.zones.update((list) => list.map((z) => (z.id === updated.id ? updated : z)));
+        const athleteId = this.calcAthleteId();
+        if (athleteId) this.loadZoneValues(athleteId);
+        this.recalcAll();
+        this.toast.success('Zone « ' + zone.name + ' » réglée — les allures suivent.');
+      },
+      error: () => this.toast.error('Réglage impossible.'),
+    });
+  }
+
   /** Charge les valeurs de zones de l'athlète (cibles concrètes affichées dans le sélecteur). */
   private loadZoneValues(athleteId: string): void {
     this.zoneValueService.list(athleteId).subscribe({

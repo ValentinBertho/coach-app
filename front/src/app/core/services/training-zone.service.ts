@@ -1,8 +1,9 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin, map, throwError } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
+  referenceRule,
   TrainingZone,
   TrainingZoneRequest,
   ZoneMetricsRequest,
@@ -47,5 +48,33 @@ export class TrainingZoneService {
   }
   setRule(id: string, metricId: string, body: ZoneRuleRequest): Observable<TrainingZone> {
     return this.http.put<TrainingZone>(`${this.base()}/${id}/metrics/${metricId}/rule`, body);
+  }
+
+  /**
+   * Règle les deux pourcentages d'une zone.
+   *
+   * <p>Une zone est <b>une</b> définition physiologique exprimée en plusieurs unités : l'allure et
+   * la vitesse d'un même seuil valent le même pourcentage de la même ancre. N'en corriger qu'une
+   * les ferait diverger sans que rien ne le signale — le changement porte donc sur toutes les
+   * métriques partageant l'ancre de référence. Et sur elles seules : la fréquence cardiaque
+   * s'ancre sur la FC max avec ses propres pourcentages, lui appliquer ceux de l'allure serait
+   * faux.</p>
+   *
+   * <p>Le serveur répercute ensuite sur les valeurs des athlètes ; l'appelant n'a qu'à relire.</p>
+   *
+   * @returns la zone mise à jour, une fois toutes les métriques écrites.
+   */
+  setPercentages(zone: TrainingZone, lowPct: number, highPct: number): Observable<TrainingZone> {
+    const reference = referenceRule(zone);
+    if (!reference) return throwError(() => new Error('Zone sans règle de calcul.'));
+
+    const shared = (zone.rules ?? []).filter(
+      (r) => r.anchor === reference.anchor && (r.highAnchor ?? null) === (reference.highAnchor ?? null));
+
+    return forkJoin(
+      shared.map((r) => this.setRule(zone.id, r.metricTypeId, {
+        anchor: r.anchor, highAnchor: r.highAnchor, lowPct, highPct, model: r.model ?? 'CUSTOM',
+      })),
+    ).pipe(map((zones) => zones[zones.length - 1]));
   }
 }

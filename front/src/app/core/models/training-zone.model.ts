@@ -30,6 +30,16 @@ export interface ZoneRule {
   model: ZoneModel | null;
 }
 
+/**
+ * Règle de référence d'une zone : celle de l'allure si la zone en porte une, sinon la première
+ * règle complète. C'est elle qui fixe l'ancre à laquelle les autres unités de la même définition
+ * se rattachent.
+ */
+export function referenceRule(zone: TrainingZone): ZoneRule | null {
+  const complete = (zone.rules ?? []).filter((r) => r.anchor && r.lowPct != null && r.highPct != null);
+  return complete[0] ?? null;
+}
+
 export interface TrainingZone {
   id: string;
   name: string;

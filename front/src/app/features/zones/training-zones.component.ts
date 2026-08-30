@@ -658,29 +658,18 @@ export class TrainingZonesComponent implements OnInit {
     const value = Number(String(raw).replace(',', '.'));
     if (!Number.isFinite(value) || value < 0) { this.toast.error('Pourcentage invalide.'); return; }
 
-    const reference = this.paceRule(z);
-    if (!reference) return;
-    const sameAnchor = (z.rules ?? []).filter(
-      (r) => r.anchor === reference.anchor && (r.highAnchor ?? null) === (reference.highAnchor ?? null));
+    const bounds = this.paceBounds(z);
+    if (!bounds) return;
+    const low = edge === 'low' ? value : bounds.low;
+    const high = edge === 'high' ? value : bounds.high;
 
-    const patch: Partial<ZoneRuleRequest> = edge === 'low' ? { lowPct: value } : { highPct: value };
-    let pending = sameAnchor.length;
-    for (const r of sameAnchor) {
-      const body: ZoneRuleRequest = {
-        anchor: r.anchor, highAnchor: r.highAnchor,
-        lowPct: patch.lowPct !== undefined ? patch.lowPct : r.lowPct,
-        highPct: patch.highPct !== undefined ? patch.highPct : r.highPct,
-        model: r.model ?? 'CUSTOM',
-      };
-      this.zoneService.setRule(z.id, r.metricTypeId, body).subscribe({
-        next: (updated) => {
-          this.zones.update((list) => list.map((x) => (x.id === z.id ? updated : x)));
-          // Un seul message pour un seul geste, même si la zone porte trois métriques.
-          if (--pending === 0) this.toast.success('Zone « ' + z.name + ' » mise à jour.');
-        },
-        error: () => { this.toast.error("Mise à jour impossible."); this.loadZones(); },
-      });
-    }
+    this.zoneService.setPercentages(z, low, high).subscribe({
+      next: (updated) => {
+        this.zones.update((list) => list.map((x) => (x.id === z.id ? updated : x)));
+        this.toast.success('Zone « ' + z.name + ' » mise à jour.');
+      },
+      error: () => { this.toast.error('Mise à jour impossible.'); this.loadZones(); },
+    });
   }
 
   /**

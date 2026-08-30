@@ -12,6 +12,7 @@ import com.coachrun.repository.ClubRepository;
 import com.coachrun.repository.MetricTypeRepository;
 import com.coachrun.repository.TrainingZoneRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
  * La liste provisionne paresseusement le jeu standard si le club n'a encore aucune zone
  * ({@link TrainingZoneSeedService}) — pas de page blanche. Cf. AUDIT-COACH-ZONES-METRIQUES §3.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -36,6 +38,8 @@ public class TrainingZoneService {
     private final ClubRepository clubRepository;
     private final TrainingZoneSeedService seedService;
     private final ZoneSetService zoneSetService;
+    private final ZoneValueSyncService valueSyncService;
+    private final com.coachrun.repository.AthleteRepository athleteRepository;
 
     /**
      * Liste ordonnée des zones d'un modèle ({@code setId} null = jeu par défaut du club) ; seed du
@@ -114,7 +118,33 @@ public class TrainingZoneService {
         zm.setLowPct(req.lowPct());
         zm.setHighPct(req.highPct());
         zm.setModel(req.model() != null ? req.model() : com.coachrun.entity.enums.ZoneModel.CUSTOM);
+        resyncAthletes(clubId, "règle de la zone « " + z.getName() + " »");
         return TrainingZoneResponse.from(z);
+    }
+
+    /**
+     * Répercute un changement de règle sur les valeurs des athlètes.
+     *
+     * <p>Sans cela, changer « 88–92 % » en « 90–94 % » ne changeait <b>rien</b> à ce qui est
+     * prescrit : la règle bougeait, les allures et fréquences cardiaques déjà calculées restaient
+     * en place jusqu'à ce que quelqu'un pense à ouvrir la fiche de chaque athlète et à cliquer
+     * « Resynchroniser ». Le coach modifiait le pourcentage, sa séance continuait d'annoncer
+     * l'ancienne allure, et rien ne disait pourquoi.</p>
+     *
+     * <p>La resynchronisation ne touche que les valeurs AUTO non verrouillées : un ajustement posé
+     * à la main sur un athlète survit au changement d'échelle — c'était le sens du verrou.</p>
+     *
+     * <p>Tout le club, et non le seul athlète regardé : l'échelle est celle du club, la changer
+     * pour un seul laisserait les autres sur des valeurs devenues fausses. Le coût est celui d'un
+     * geste rare et délibéré, pas d'un chemin chaud.</p>
+     */
+    private void resyncAthletes(UUID clubId, String cause) {
+        int touched = 0;
+        for (com.coachrun.entity.Athlete a : athleteRepository.findByClubIdOrderByLastNameAsc(clubId)) {
+            touched += valueSyncService.resync(clubId, a.getId());
+        }
+        log.info("Zones resynchronisées après {} : {} valeur(s) mise(s) à jour (club={})",
+                cause, touched, clubId);
     }
 
     /** Remplace les métriques portées par la zone (dans l'ordre fourni). */
