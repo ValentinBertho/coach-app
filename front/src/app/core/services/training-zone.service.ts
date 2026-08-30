@@ -48,4 +48,19 @@ export class TrainingZoneService {
   setRule(id: string, metricId: string, body: ZoneRuleRequest): Observable<TrainingZone> {
     return this.http.put<TrainingZone>(`${this.base()}/${id}/metrics/${metricId}/rule`, body);
   }
+
+  /**
+   * Règle les deux pourcentages d'une zone.
+   *
+   * <p>Une seule requête, et c'est délibéré. Une zone est <b>une</b> définition physiologique
+   * exprimée en plusieurs unités ; les poser métrique par métrique lançait autant de requêtes que
+   * d'unités, chacune resynchronisant le club — deux resynchronisations concurrentes se
+   * disputaient les mêmes lignes et le réglage échouait sur un verrou optimiste. Le serveur sait
+   * quelles unités partagent l'ancre : c'est à lui de le faire, en une fois.</p>
+   *
+   * <p>Il répercute aussi sur les valeurs des athlètes ; l'appelant n'a qu'à relire.</p>
+   */
+  setPercentages(zone: TrainingZone, lowPct: number, highPct: number): Observable<TrainingZone> {
+    return this.http.put<TrainingZone>(`${this.base()}/${zone.id}/percentages`, { lowPct, highPct });
+  }
 }

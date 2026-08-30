@@ -1,5 +1,5 @@
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -106,7 +106,8 @@ import { ToastService } from '../../core/services/toast.service';
         </div>
         <div cdkDropList (cdkDropListDropped)="drop($event)">
           @for (z of displayedZones(); track z.id) {
-            <div class="zrow" cdkDrag [cdkDragData]="z">
+            <div class="zrow" [class.zrow--target]="highlighted() === z.id" [attr.data-zone]="z.id"
+                 cdkDrag [cdkDragData]="z">
               <span class="zt-order metric">{{ globalRank(z) }}</span>
               <button type="button" class="drag-handle" cdkDragHandle aria-label="Réordonner">
                 <app-icon name="grip-vertical" [size]="16" />
@@ -273,6 +274,10 @@ import { ToastService } from '../../core/services/toast.service';
 
     .zrow { border-bottom: 1px solid var(--hairline); background: var(--paper); position: relative; }
     .zrow:last-child { border-bottom: none; }
+    /* « C'est cette ligne-là » : on arrive d'une fiche athlète pour régler une zone précise. Le
+       halo s'efface — il désigne, il ne sélectionne pas. */
+    .zrow--target { background: color-mix(in srgb, var(--dari-teal) 10%, var(--paper));
+      box-shadow: inset 3px 0 0 var(--dari-teal); transition: background var(--duration) var(--ease); }
     .zrow.cdk-drag-preview { box-shadow: var(--shadow-lg); border-radius: var(--radius-md); }
     .zrow.cdk-drag-placeholder { opacity: 0.4; }
     .zt-order.metric { text-align: center; font-weight: 800; color: var(--ink-3); }
@@ -382,6 +387,20 @@ export class TrainingZonesComponent implements OnInit {
   readonly setBusy = signal(false);
   readonly activeSet = computed(() => this.sets().find((s) => s.id === this.activeSetId()) ?? null);
 
+  /**
+   * Zone à mettre en évidence à l'arrivée, et son modèle.
+   *
+   * <p>On y arrive depuis la fiche d'un athlète, avec l'intention de régler CETTE zone-là. Ouvrir
+   * l'écran sur le jeu par défaut et laisser chercher dans seize lignes reviendrait à perdre en
+   * route ce que le lien portait — d'autant que l'athlète peut travailler sur un autre modèle,
+   * où la zone visée n'apparaîtrait même pas.</p>
+   */
+  readonly zone = input<string | undefined>();
+  readonly set = input<string | undefined>();
+
+  /** Ligne signalée à l'arrivée ; le halo s'efface, la sélection ne doit pas devenir un état. */
+  readonly highlighted = signal<string | null>(null);
+
   ngOnInit(): void {
     forkJoin({
       sets: this.setService.list(),
@@ -390,7 +409,9 @@ export class TrainingZonesComponent implements OnInit {
       next: ({ sets, metrics }) => {
         this.metrics.set(metrics);
         this.sets.set(sets);
-        this.activeSetId.set((sets.find((s) => s.isDefault) ?? sets[0])?.id ?? '');
+        // Le modèle demandé prime : c'est celui de l'athlète d'où l'on vient.
+        const wanted = this.set() && sets.some((s) => s.id === this.set()) ? this.set()! : null;
+        this.activeSetId.set(wanted ?? (sets.find((s) => s.isDefault) ?? sets[0])?.id ?? '');
         this.loadZones();
       },
       error: () => this.loading.set(false),
@@ -400,9 +421,26 @@ export class TrainingZonesComponent implements OnInit {
   private loadZones(): void {
     this.loading.set(true);
     this.zoneService.list({ setId: this.activeSetId() }).subscribe({
-      next: (zones) => { this.zones.set(zones); this.loading.set(false); },
+      next: (zones) => { this.zones.set(zones); this.loading.set(false); this.revealRequestedZone(); },
       error: () => this.loading.set(false),
     });
+  }
+
+  /**
+   * Amène sous les yeux la zone qu'on venait régler, et la signale brièvement.
+   *
+   * <p>Deux trames : la première laisse Angular poser les lignes, la seconde laisse le navigateur
+   * les disposer — défiler avant, c'est défiler vers un élément sans hauteur. Le halo s'efface
+   * ensuite : il dit « c'est ici », il ne sélectionne rien.</p>
+   */
+  private revealRequestedZone(): void {
+    const id = this.zone();
+    if (!id || !this.zones().some((z) => z.id === id)) return;
+    this.highlighted.set(id);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.querySelector(`[data-zone="${id}"]`)?.scrollIntoView({ block: 'center' });
+    }));
+    setTimeout(() => this.highlighted.set(null), 4000);
   }
 
   onSetChange(id: string): void {
@@ -658,29 +696,18 @@ export class TrainingZonesComponent implements OnInit {
     const value = Number(String(raw).replace(',', '.'));
     if (!Number.isFinite(value) || value < 0) { this.toast.error('Pourcentage invalide.'); return; }
 
-    const reference = this.paceRule(z);
-    if (!reference) return;
-    const sameAnchor = (z.rules ?? []).filter(
-      (r) => r.anchor === reference.anchor && (r.highAnchor ?? null) === (reference.highAnchor ?? null));
+    const bounds = this.paceBounds(z);
+    if (!bounds) return;
+    const low = edge === 'low' ? value : bounds.low;
+    const high = edge === 'high' ? value : bounds.high;
 
-    const patch: Partial<ZoneRuleRequest> = edge === 'low' ? { lowPct: value } : { highPct: value };
-    let pending = sameAnchor.length;
-    for (const r of sameAnchor) {
-      const body: ZoneRuleRequest = {
-        anchor: r.anchor, highAnchor: r.highAnchor,
-        lowPct: patch.lowPct !== undefined ? patch.lowPct : r.lowPct,
-        highPct: patch.highPct !== undefined ? patch.highPct : r.highPct,
-        model: r.model ?? 'CUSTOM',
-      };
-      this.zoneService.setRule(z.id, r.metricTypeId, body).subscribe({
-        next: (updated) => {
-          this.zones.update((list) => list.map((x) => (x.id === z.id ? updated : x)));
-          // Un seul message pour un seul geste, même si la zone porte trois métriques.
-          if (--pending === 0) this.toast.success('Zone « ' + z.name + ' » mise à jour.');
-        },
-        error: () => { this.toast.error("Mise à jour impossible."); this.loadZones(); },
-      });
-    }
+    this.zoneService.setPercentages(z, low, high).subscribe({
+      next: (updated) => {
+        this.zones.update((list) => list.map((x) => (x.id === z.id ? updated : x)));
+        this.toast.success('Zone « ' + z.name + ' » mise à jour.');
+      },
+      error: () => { this.toast.error('Mise à jour impossible.'); this.loadZones(); },
+    });
   }
 
   /**

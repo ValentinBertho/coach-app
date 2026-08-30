@@ -209,7 +209,8 @@
             } @else {
               <app-zone-picker class="block-zone" [dense]="true"
                 [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
-                [selectedId]="b.prescription.zoneId" (zoneChange)="onBlockZone(b, $event)" />
+                [selectedId]="b.prescription.zoneId" (zoneChange)="onBlockZone(b, $event)"
+                (pctChange)="onZonePct($event)" />
               <button type="button" class="pct-switch" (click)="switchToPct(b)"
                       title="Prescrire une allure sur mesure (% de VC, LT1/LT2, allure de course)">%</button>
             }
@@ -315,7 +316,8 @@
                 } @else {
                   <app-zone-picker class="block-zone" [dense]="true"
                     [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
-                    [selectedId]="r.prescription.zoneId" (zoneChange)="setRecZone(b, $event)" />
+                    [selectedId]="r.prescription.zoneId" (zoneChange)="setRecZone(b, $event)"
+                (pctChange)="onZonePct($event)" />
                   <button type="button" class="pct-switch" (click)="switchRecToPct(b)"
                           title="Prescrire la récup à la main (% de LT1, VC, allure de course)">%</button>
                 }
@@ -348,7 +350,8 @@
                 @if (b.prescription.hrZoneId) {
                   <app-zone-picker [dense]="true"
                     [zones]="cardioZones()" [metrics]="metrics()" [values]="zoneValues()"
-                    [selectedId]="b.prescription.hrZoneId" (zoneChange)="setBlockHrZone(b, $event)" />
+                    [selectedId]="b.prescription.hrZoneId" (zoneChange)="setBlockHrZone(b, $event)"
+                (pctChange)="onZonePct($event)" />
                   <button type="button" class="icon-btn danger" (click)="setBlockHrZone(b, null)"
                           title="Retirer la cible FC"><app-icon name="x" [size]="15" /></button>
                 } @else {
