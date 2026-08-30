@@ -79,8 +79,8 @@ interface ZoneHint {
                   <!-- La portée doit être dite : l'échelle appartient au club. Un coach qui croit
                        ajuster SA séance déplacerait les allures de tous ses athlètes. -->
                   <p class="zp-tune-warn">
-                    Vaut pour tout le club : les allures et FC de tous tes athlètes se recalculent.
-                    Un ajustement verrouillé sur un athlète est conservé.
+                    Vaut pour <strong>tout le club</strong> : les allures de tous tes athlètes se
+                    recalculent. Les valeurs verrouillées sont conservées.
                   </p>
                   <div class="zp-tune-actions">
                     <button type="button" class="btn btn-ghost btn-sm" (click)="closeTune()">Annuler</button>
@@ -107,7 +107,7 @@ interface ZoneHint {
     .zp-trigger app-icon { color: var(--ink-3); margin-left: auto; }
 
     .zp-backdrop { position: fixed; inset: 0; z-index: 40; }
-    .zp-menu { position: absolute; z-index: 41; top: calc(100% + 4px); left: 0; min-width: 260px; max-width: 340px; max-height: 320px; overflow-y: auto; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: var(--sp-1); }
+    .zp-menu { position: absolute; z-index: 41; top: calc(100% + 4px); left: 0; min-width: 260px; max-width: 340px; max-height: 420px; overflow-y: auto; background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: var(--sp-1); }
     .zp-opt { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--sp-2); width: 100%; background: none; border: none; cursor: pointer; padding: var(--sp-2); border-radius: var(--radius-sm); color: var(--ink-1); font: inherit; text-align: left; }
     .zp-opt:hover { background: var(--paper-sunk); }
     .zp-opt.sel { background: color-mix(in srgb, var(--dari-teal) 12%, transparent); }
@@ -122,9 +122,9 @@ interface ZoneHint {
     .zp-tune-box { padding: var(--sp-2) var(--sp-3) var(--sp-3); display: flex; flex-direction: column;
       gap: var(--sp-2); background: var(--paper-sunk); border-radius: var(--radius-sm); }
     .zp-tune-row { display: flex; align-items: center; gap: 6px; }
-    .zp-tune-row .mini { width: 62px; text-align: right; }
+    .zp-tune-row .mini { width: 76px; text-align: right; padding-inline: 8px; }
     .zp-tune-dash, .zp-tune-unit { color: var(--ink-3); font-weight: 700; white-space: nowrap; }
-    .zp-tune-warn { margin: 0; font-size: var(--text-2xs); color: var(--ink-3); }
+    .zp-tune-warn { margin: 0; font-size: var(--text-2xs); color: var(--ink-3); line-height: 1.35; }
     .zp-tune-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); }
     .zp-opt-name { font-weight: 700; font-size: var(--text-sm); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .zp-opt .zp-rule { grid-column: 2; justify-self: end; }
@@ -156,7 +156,18 @@ export class ZonePickerComponent {
   close(): void { this.open.set(false); this.tuneId.set(null); }
   pick(id: string): void { this.zoneChange.emit(id); this.close(); }
 
-  openTune(zoneId: string): void { this.tuneId.update((v) => (v === zoneId ? null : zoneId)); }
+  openTune(zoneId: string): void {
+    this.tuneId.update((v) => (v === zoneId ? null : zoneId));
+    // Le menu défile : ouvert en bas de liste, l'encart — et surtout son avertissement de portée —
+    // resterait sous la ligne de flottaison.
+    if (this.tuneId()) {
+      // Deux trames : la première laisse Angular insérer l'encart, la seconde laisse le navigateur
+      // le disposer. Défiler avant, c'est défiler vers un élément qui n'a pas encore de hauteur.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        document.querySelector('.zp-tune-warn')?.scrollIntoView({ block: 'nearest' });
+      }));
+    }
+  }
   closeTune(): void { this.tuneId.set(null); }
 
   /** Les deux pourcentages de la règle de référence, avec l'ancre à rappeler. */
