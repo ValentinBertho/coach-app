@@ -111,7 +111,11 @@ export class ConfirmDialogComponent {
       }
       this.typed.set(pending.initialValue ?? '');
       afterNextRender(() => this.promptInput()?.nativeElement.select(), { injector: this.injector });
-    });
+      // allowSignalWrites : l'effet écrit `typed`, ce qu'Angular refuse par défaut. Sans lui il
+      // lève NG0600 et sort AVANT le pré-remplissage — l'invite s'ouvrait donc vide, en silence,
+      // alors qu'elle promettait un nom déjà écrit. L'écriture est ici le but de l'effet, pas un
+      // effet de bord : on répond à l'ouverture d'une invite en y posant sa valeur initiale.
+    }, { allowSignalWrites: true });
   }
 
   private readonly injector = inject(Injector);
