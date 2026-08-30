@@ -248,7 +248,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * et un mois devient une pile de quarante-deux cartes qu'on ne finit jamais de dérouler. Une
    * journée à la fois, en revanche, se lit d'un coup d'œil et se touche sans viser.
    */
-  readonly mode = signal<CalMode>('week');
+  /**
+   * Vue courante, restaurée du choix précédent.
+   *
+   * <p>Elle était figée à « semaine » à chaque ouverture. Un coach qui travaille au mois — pour
+   * poser un bloc, pour relire une charge — repassait donc par le sélecteur à chaque visite, et
+   * finissait par croire que la semaine était la seule vue possible.</p>
+   */
+  readonly mode = signal<CalMode>(CalendarComponent.savedMode());
   /** Vue prévu / réalisé / les deux (façon Nolio). */
   readonly view = signal<CalView>('both');
   readonly showPlanned = computed(() => this.view() !== 'realized');
@@ -732,7 +739,29 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   setMode(mode: CalMode): void {
     this.mode.set(mode);
+    CalendarComponent.rememberMode(mode);
     this.load();
+  }
+
+  /**
+   * Dernière vue choisie, ou « semaine » à défaut.
+   *
+   * <p>Lue avant toute injection : le signal est initialisé à la construction du composant. Le
+   * mode « groupe » impose sa propre vue plus loin — mémoriser reste sans effet là-bas.</p>
+   */
+  private static savedMode(): CalMode {
+    try {
+      const saved = localStorage.getItem(CalendarComponent.MODE_KEY);
+      return saved === 'day' || saved === 'week' || saved === '4weeks' || saved === 'month'
+        ? saved
+        : 'week';
+    } catch {
+      return 'week';           // navigation privée, stockage refusé : la vue par défaut suffit
+    }
+  }
+
+  private static rememberMode(mode: CalMode): void {
+    try { localStorage.setItem(CalendarComponent.MODE_KEY, mode); } catch { /* stockage refusé */ }
   }
   /**
    * Changement d'athlète : la sélection et la pile d'annulation portent sur ce qui est affiché.
@@ -945,6 +974,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * Préférence mémorisée entre sessions (comme la nav latérale).
    */
   private static readonly LIB_KEY = 'coach-cal-lib-open';
+  private static readonly MODE_KEY = 'coach-cal-mode';
   readonly sidebarOpen = signal(this.readLibPref());
 
   private readLibPref(): boolean {
@@ -1996,6 +2026,37 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.closeContextMenu();
     this.router.navigate(['/app/athletes', m.workout.athleteId, 'workouts', m.workout.id, 'structure']);
   }
+  /**
+   * Verse la séance visée dans la bibliothèque, depuis le calendrier.
+   *
+   * <p>Le geste existait déjà — mais dans l'éditeur de structure, derrière un menu nommé
+   * « Adapter la structure ». Un coach qui vient d'improviser une séance sur le calendrier et
+   * veut la garder n'a aucune raison de deviner qu'il faut d'abord aller l'adapter. Ici il la
+   * nomme et c'est fini : pas de navigation, pas d'écran intermédiaire.</p>
+   *
+   * <p>Sans catégorie : la ranger demanderait un second choix au moment où l'on veut seulement
+   * ne pas perdre son travail. La bibliothèque permet de la classer ensuite.</p>
+   */
+  async ctxSaveToLibrary(): Promise<void> {
+    const m = this.ctxMenu(); if (!m) return;
+    this.closeContextMenu();
+    const w = m.workout;
+    const title = await this.confirm.prompt({
+      title: 'Enregistrer dans la bibliothèque',
+      message: 'La structure est recopiée comme nouveau modèle ; la séance de l\'athlète n\'est pas '
+        + 'modifiée. Les consignes écrites pour lui restent sur sa séance — un modèle resservira à '
+        + 'd\'autres.',
+      promptLabel: 'Nom du modèle',
+      initialValue: w.title ?? '',
+      confirmLabel: 'Ajouter à la bibliothèque',
+    });
+    if (!title) return;
+    this.courseService.saveWorkoutAsTemplate(w.athleteId, w.id, { title }).subscribe({
+      next: () => this.toast.success('« ' + title + ' » ajoutée à ta bibliothèque'),
+      error: () => this.toast.error('Enregistrement impossible.'),
+    });
+  }
+
   ctxMoveTo(date: string): void {
     const m = this.ctxMenu(); if (!m) return;
     this.closeContextMenu();

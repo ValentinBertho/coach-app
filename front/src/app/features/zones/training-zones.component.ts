@@ -144,8 +144,25 @@ import { ToastService } from '../../core/services/toast.service';
                 <!-- La règle se lit en liste : « 90 – 100 % LT1 », « 100 % LT1 → 93 % LT2 ». C'est
                      l'échelle entière qui devient lisible d'un coup d'œil, du footing au 800 m. -->
                 <span class="zcell zcell--rule">
-                  @if (paceRuleLabel(z); as lbl) {
-                    <span class="rule-read metric">{{ lbl }}</span>
+                  @if (paceBounds(z); as b) {
+                    <!-- Les deux pourcentages se règlent ici même. C'est le geste courant — décaler
+                         un seuil de deux points — et il demandait jusqu'ici d'ouvrir l'engrenage,
+                         de passer le paragraphe sur les métriques, puis d'éditer bornes et
+                         références. Les références restent là-bas : elles disent CE QU'ON MESURE,
+                         le pourcentage n'est que le cran auquel on le règle.
+                         (change) et non (ngModelChange) : on enregistre au relâchement, pas à
+                         chaque frappe — sinon « 92 » part en trois requêtes dont deux fausses. -->
+                    <span class="rule-edit">
+                      <input type="number" class="form-control mini" [ngModel]="b.low" min="0" max="200"
+                             (change)="savePct(z, 'low', $any($event.target).value)"
+                             [title]="'Borne basse, en % de ' + b.lowRef" aria-label="Pourcentage de la borne basse" />
+                      <span class="rule-unit">–</span>
+                      <input type="number" class="form-control mini" [ngModel]="b.high" min="0" max="200"
+                             (change)="savePct(z, 'high', $any($event.target).value)"
+                             [title]="'Borne haute, en % de ' + b.highRef" aria-label="Pourcentage de la borne haute" />
+                      <span class="rule-unit">%</span>
+                      <span class="rule-ref field-hint">{{ b.refLabel }}</span>
+                    </span>
                     @if (gapWith(z); as gap) {
                       <span class="rule-warn" [title]="gap.detail">
                         <app-icon name="alert-triangle" [size]="13" /> {{ gap.label }}
@@ -292,6 +309,11 @@ import { ToastService } from '../../core/services/toast.service';
     /* Règle lue en liste + alerte de chaîne rompue. */
     .zcell--rule { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
     .rule-read { font-size: var(--text-sm); color: var(--ink-2); white-space: nowrap; }
+    /* Réglage en ligne des deux pourcentages. Champs courts et collés à leur unité : ce sont deux
+       crans à tourner, pas un formulaire. */
+    .rule-edit { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+    .rule-edit .mini { width: 56px; padding-inline: 6px; text-align: right; }
+    .rule-ref { white-space: nowrap; }
     .rule-warn {
       display: inline-flex; align-items: center; gap: 3px;
       font-size: var(--text-xs); color: var(--warning); font-weight: 700; cursor: help;
@@ -603,6 +625,62 @@ export class TrainingZonesComponent implements OnInit {
     return lowRef === highRef
       ? `${r.lowPct} – ${r.highPct} % ${lowRef}`
       : `${r.lowPct} % ${lowRef} → ${r.highPct} % ${highRef}`;
+  }
+
+  /**
+   * Les deux pourcentages de la règle d'allure, avec de quoi les étiqueter.
+   *
+   * <p>{@code refLabel} rappelle la référence — « LT1 », ou « LT1 → LT2 » pour la zone qui enjambe
+   * la frontière : sans elle, deux nombres nus ne diraient pas de quoi ils sont le pourcentage.</p>
+   */
+  paceBounds(z: TrainingZone): { low: number; high: number; lowRef: string; highRef: string; refLabel: string } | null {
+    const r = this.paceRule(z);
+    if (!r || r.lowPct == null || r.highPct == null || !r.anchor) return null;
+    const lowRef = this.shortAnchor(r.anchor);
+    const highRef = this.shortAnchor(r.highAnchor ?? r.anchor);
+    return {
+      low: r.lowPct, high: r.highPct, lowRef, highRef,
+      refLabel: lowRef === highRef ? lowRef : `${lowRef} → ${highRef}`,
+    };
+  }
+
+  /**
+   * Change un pourcentage depuis la ligne de la zone.
+   *
+   * <p>Appliqué à <b>toutes les métriques de la zone qui partagent la même référence</b>, et à
+   * elles seules. Une zone est une définition physiologique unique exprimée en plusieurs unités :
+   * l'allure et la vitesse d'un même seuil valent le même pourcentage de la même ancre, et n'en
+   * corriger qu'une les ferait diverger sans que rien ne le signale. La fréquence cardiaque, elle,
+   * s'ancre ailleurs — sur la FC max — avec ses propres pourcentages : lui appliquer ceux de
+   * l'allure serait faux.</p>
+   */
+  savePct(z: TrainingZone, edge: 'low' | 'high', raw: string): void {
+    const value = Number(String(raw).replace(',', '.'));
+    if (!Number.isFinite(value) || value < 0) { this.toast.error('Pourcentage invalide.'); return; }
+
+    const reference = this.paceRule(z);
+    if (!reference) return;
+    const sameAnchor = (z.rules ?? []).filter(
+      (r) => r.anchor === reference.anchor && (r.highAnchor ?? null) === (reference.highAnchor ?? null));
+
+    const patch: Partial<ZoneRuleRequest> = edge === 'low' ? { lowPct: value } : { highPct: value };
+    let pending = sameAnchor.length;
+    for (const r of sameAnchor) {
+      const body: ZoneRuleRequest = {
+        anchor: r.anchor, highAnchor: r.highAnchor,
+        lowPct: patch.lowPct !== undefined ? patch.lowPct : r.lowPct,
+        highPct: patch.highPct !== undefined ? patch.highPct : r.highPct,
+        model: r.model ?? 'CUSTOM',
+      };
+      this.zoneService.setRule(z.id, r.metricTypeId, body).subscribe({
+        next: (updated) => {
+          this.zones.update((list) => list.map((x) => (x.id === z.id ? updated : x)));
+          // Un seul message pour un seul geste, même si la zone porte trois métriques.
+          if (--pending === 0) this.toast.success('Zone « ' + z.name + ' » mise à jour.');
+        },
+        error: () => { this.toast.error("Mise à jour impossible."); this.loadZones(); },
+      });
+    }
   }
 
   /**
