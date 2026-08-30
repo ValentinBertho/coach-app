@@ -163,10 +163,18 @@
 
 <!-- ===================== SÉANCES ===================== -->
 @if (tab() === 'sessions') {
+  <!-- Le bouton était toujours actif alors que createSession() sortait en silence sur un nom
+       vide : on cliquait, rien ne se passait, et rien ne disait pourquoi. Un bouton qui ne fera
+       rien doit le montrer. Entrée valide aussi — on vient de taper le nom, la main y est. -->
   <div class="search-bar">
-    <input class="form-control" placeholder="Nom de la nouvelle séance…" [(ngModel)]="newSessionName" />
-    <button type="button" class="btn btn-primary" (click)="createSession()">+ Séance</button>
+    <input class="form-control" placeholder="Nom de la nouvelle séance…" [(ngModel)]="newSessionName"
+           (keydown.enter)="createSession()" />
+    <button type="button" class="btn btn-primary" [disabled]="!newSessionName.trim()"
+            (click)="createSession()">+ Séance</button>
   </div>
+  @if (!newSessionName.trim() && sessions().length === 0) {
+    <p class="empty-hint">Donne un nom à ta séance pour la créer, puis compose-la avec tes exercices.</p>
+  }
   @if (loadingSes()) {
     <div class="card"><app-skeleton shape="list" [rows]="4" /></div>
   } @else {

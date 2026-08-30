@@ -622,6 +622,9 @@
     <span class="ctx-title">{{ m.workout.title }}</span>
     <button type="button" class="ctx-item" (click)="ctxOpen()"><app-icon name="footprints" [size]="14" /> Ouvrir la séance</button>
     <button type="button" class="ctx-item" (click)="ctxAdapt()"><app-icon name="pencil" [size]="14" /> Adapter la structure</button>
+    <button type="button" class="ctx-item" (click)="ctxSaveToLibrary()">
+      <app-icon name="library" [size]="14" /> Enregistrer dans la bibliothèque
+    </button>
     <div class="ctx-sep"></div>
     <!-- Chaque entrée affiche son raccourci : le menu est le seul endroit où l'on découvre
          le clavier sans avoir à chercher. -->
