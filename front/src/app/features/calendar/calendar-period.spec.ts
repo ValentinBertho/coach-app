@@ -1,101 +1,52 @@
-import {
-  CELLS_BY_MODE, CalMode, gridStartFor, mondayOf, periodLabelFor, shiftAnchor,
-} from './calendar-period';
+import { CELLS_BY_MODE, gridStartFor, groupWeekLabel, mondayOf, periodLabelFor, shiftAnchor } from './calendar-period';
 
-/** Un mercredi, choisi exprès : le lundi et le premier du mois tombent ailleurs. */
-const WEDNESDAY = new Date(2026, 6, 15); // mercredi 15 juillet 2026
-const MONDAY_OF_IT = new Date(2026, 6, 13);
+/**
+ * Le calendrier coach n'affiche plus qu'une période : quatre semaines glissantes.
+ *
+ * <p>Jour, semaine et mois ont été retirés — un coach programme sur un bloc, pas sur une journée
+ * ni sur une grille civile. Ce que la semaine portait de spécifique (dupliquer, générer un
+ * mésocycle) vit dans le menu de la colonne de totaux, qui désigne <b>une</b> semaine précise.</p>
+ */
+describe('calendar-period — quatre semaines, et rien d’autre', () => {
+  // Mercredi 15 juillet 2026 ; son lundi est le 13.
+  const WEDNESDAY = new Date(2026, 6, 15);
+  const MONDAY = new Date(2026, 6, 13);
 
-/** Dernier jour couvert par la grille, cases comprises. */
-function lastDay(mode: CalMode, anchor: Date): Date {
-  const d = gridStartFor(mode, anchor);
-  d.setDate(d.getDate() + CELLS_BY_MODE[mode] - 1);
-  return d;
-}
-
-describe('Période du calendrier', () => {
-  it('quatre semaines couvrent 28 jours, du lundi au dimanche', () => {
+  it('n’offre plus qu’une période', () => {
+    expect(Object.keys(CELLS_BY_MODE)).toEqual(['4weeks']);
     expect(CELLS_BY_MODE['4weeks']).toBe(28);
-
-    const start = gridStartFor('4weeks', WEDNESDAY);
-    expect(start.getTime()).withContext('démarre au lundi de la semaine ancrée')
-      .toBe(MONDAY_OF_IT.getTime());
-
-    const end = lastDay('4weeks', WEDNESDAY);
-    expect(end.getDay()).withContext('finit un dimanche').toBe(0);
-    expect(end.getDate()).toBe(9); // dimanche 9 août 2026
   });
 
-  /**
-   * Le point qui distingue « 4 semaines » d'un mois : la grille est <b>glissante</b>. Un mois se
-   * recale sur le premier du mois et déborde sur les deux mois voisins ; ici les quatre rangées
-   * sont exactement les quatre semaines à comparer.
-   */
-  it('la grille 4 semaines glisse, là où le mois se recale sur le 1er', () => {
-    expect(gridStartFor('4weeks', WEDNESDAY).getTime())
-      .withContext('glissante : lundi de la semaine ancrée')
-      .toBe(MONDAY_OF_IT.getTime());
-
-    // Juillet 2026 commence un mercredi : la grille du mois démarre donc en juin.
-    const monthStart = gridStartFor('month', WEDNESDAY);
-    expect(monthStart.getMonth()).withContext('le mois déborde sur le mois précédent').toBe(5);
-    expect(monthStart.getDay()).withContext('et commence tout de même un lundi').toBe(1);
+  it('la fenêtre commence au lundi de la date ancrée, jamais au premier du mois', () => {
+    // C'est ce qui rend les quatre totaux hebdomadaires comparables d'une navigation à l'autre,
+    // et ce qui permet à « la phrase de la semaine » d'y désigner la première semaine affichée.
+    expect(gridStartFor('4weeks', WEDNESDAY).getTime()).toBe(MONDAY.getTime());
+    expect(gridStartFor('4weeks', WEDNESDAY).getDay()).toBe(1);
   });
 
-  it('chaque mode part d’un lundi, sauf la journée qui commence à elle-même', () => {
-    for (const mode of ['week', '4weeks', 'month'] as CalMode[]) {
-      expect(gridStartFor(mode, WEDNESDAY).getDay())
-        .withContext(`mode ${mode}`).toBe(1);
-    }
-    expect(gridStartFor('day', WEDNESDAY).getTime()).toBe(new Date(2026, 6, 15).getTime());
-  });
-
-  /**
-   * Un pas de navigation vaut la période affichée. À un pas d'une semaine, la fenêtre de quatre
-   * semaines se recouvrirait aux trois quarts et le repère du bloc serait perdu.
-   */
-  it('une flèche fait avancer d’exactement ce qui est affiché', () => {
+  it('un pas avance de ce qui est affiché, sans recouvrement', () => {
     const next = shiftAnchor('4weeks', WEDNESDAY, 1);
+    const lastDay = new Date(gridStartFor('4weeks', WEDNESDAY));
+    lastDay.setDate(lastDay.getDate() + 27);
     expect(gridStartFor('4weeks', next).getTime())
       .withContext('la fenêtre suivante commence là où la précédente finissait')
-      .toBe(lastDay('4weeks', WEDNESDAY).getTime() + 24 * 3600 * 1000);
+      .toBe(lastDay.getTime() + 24 * 3600 * 1000);
 
     // Et le retour en arrière ramène exactement à la fenêtre de départ.
-    const back = shiftAnchor('4weeks', next, -1);
-    expect(gridStartFor('4weeks', back).getTime()).toBe(MONDAY_OF_IT.getTime());
+    expect(gridStartFor('4weeks', shiftAnchor('4weeks', next, -1)).getTime()).toBe(MONDAY.getTime());
   });
 
-  it('les autres modes gardent leur pas', () => {
-    expect(shiftAnchor('day', WEDNESDAY, 1).getDate()).toBe(16);
-    expect(shiftAnchor('month', WEDNESDAY, 1).getMonth()).toBe(7);
-  });
-
-  it('le libellé annonce la plage réellement couverte', () => {
+  it('le libellé annonce les 28 jours réellement couverts', () => {
     expect(periodLabelFor('4weeks', WEDNESDAY)).toBe('13 juil. – 9 août');
-    expect(periodLabelFor('month', WEDNESDAY)).toBe('juillet 2026');
+  });
+
+  it('la grille groupe garde son libellé de sept jours', () => {
+    // Sa disposition (une ligne par athlète × 7 jours) n'est pas une période du sélecteur :
+    // sans libellé propre, l'en-tête annoncerait quatre semaines au-dessus d'une seule.
+    expect(groupWeekLabel(WEDNESDAY)).toBe('13 juil. – 19 juil.');
   });
 
   it('mondayOf normalise à minuit, pour que deux dates du même jour soient égales', () => {
-    const withTime = new Date(2026, 6, 15, 23, 47, 12);
-    expect(mondayOf(withTime).getTime()).toBe(MONDAY_OF_IT.getTime());
-  });
-});
-
-/**
- * La vue « semaine » a été retirée du sélecteur du coach.
- *
- * <p>Elle montrait trop peu pour construire un bloc. Ce qu'elle portait de spécifique — dupliquer
- * une semaine, en générer un mésocycle — vit dans le menu de la colonne de totaux, qui désigne
- * <b>une</b> semaine au lieu de « celle qui est affichée ».</p>
- */
-describe('calendar-period — périodes offertes', () => {
-  it('n’offre plus que jour, 4 semaines et mois', () => {
-    expect(Object.keys(CELLS_BY_MODE).sort()).toEqual(['4weeks', 'day', 'month']);
-  });
-
-  it('la fenêtre de 4 semaines commence toujours un lundi', () => {
-    // C'est ce qui permet à « la phrase de la semaine » d'y désigner la première semaine affichée.
-    const mardi = new Date(2026, 6, 14);
-    expect(gridStartFor('4weeks', mardi).getDay()).toBe(1);
+    expect(mondayOf(new Date(2026, 6, 15, 23, 47, 12)).getTime()).toBe(MONDAY.getTime());
   });
 });

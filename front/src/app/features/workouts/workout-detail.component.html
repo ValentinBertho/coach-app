@@ -213,6 +213,12 @@
         <div slot="info">{{ statusLabels[w.status] }}</div>
         <a [routerLink]="['/app/athletes', athleteId(), 'workouts', workoutId(), 'structure']"
            class="btn btn-ghost btn-sm"><app-icon name="pencil" [size]="15" /> Adapter</a>
+        <!-- On décide de garder une séance en la posant, mais aussi en la relisant : le geste
+             doit exister ici, sans repasser par « Adapter » pour y trouver le bouton. -->
+        <button type="button" class="btn btn-ghost btn-sm" (click)="saveToLibrary()"
+                title="Verser cette séance dans la bibliothèque">
+          <app-icon name="library" [size]="15" /> Enregistrer comme modèle
+        </button>
         @if (w.status !== 'COMPLETED') {
           <button type="button" class="btn btn-ghost btn-sm" (click)="setStatus('MISSED')">Manquée</button>
           <button type="button" class="btn btn-accent btn-sm" (click)="setStatus('COMPLETED')">Réalisée <app-icon name="check" [size]="15" /></button>
