@@ -1,36 +1,26 @@
 /**
  * Arithmétique de la période affichée par le calendrier — extraite du composant pour être
  * éprouvable seule, comme {@link ./calendar-selection} et {@link ./calendar-shortcuts}.
- *
- * <p>Trois règles y vivent ensemble parce qu'elles doivent s'accorder : où commence la grille,
- * combien de cases elle contient, et de combien une flèche la fait avancer. Réparties dans le
- * composant, elles avaient déjà chacune leur `if` sur le mode — et il suffisait d'en oublier un
- * pour obtenir une grille qui n'avance pas de ce qu'elle affiche.</p>
  */
 
 /**
- * Période affichée par la grille : une journée, une semaine, quatre semaines, ou un mois.
+ * La grille du coach affiche quatre semaines, et rien d'autre.
  *
- * <p>« 4 semaines » n'est pas un mois raccourci : c'est la maille du <b>bloc d'entraînement</b>.
- * Le mois est une grille civile — il commence un mardi, déborde sur deux mois voisins et compte
- * cinq ou six rangées selon le hasard du calendrier ; on ne peut pas y comparer une semaine à
- * la précédente. Quatre semaines glissantes partent toujours du lundi affiché et alignent
- * exactement les quatre totaux hebdomadaires qu'un coach veut confronter : trois de charge, une
- * d'assimilation.</p>
- */
-/**
- * Périodes affichables du calendrier coach.
+ * <p>Le sélecteur de période a été retiré : jour, semaine et mois ont disparu au profit de la
+ * seule maille qui serve à programmer. « 4 semaines » n'est pas un mois raccourci — le mois est
+ * une grille civile qui commence un mardi, déborde sur deux mois voisins et compte cinq ou six
+ * rangées selon le hasard du calendrier ; on n'y compare pas une semaine à la précédente. Quatre
+ * semaines glissantes partent toujours du lundi affiché et alignent exactement les quatre totaux
+ * hebdomadaires qu'un coach veut confronter : trois de charge, une d'assimilation.</p>
  *
- * <p>La semaine seule a été retirée : elle montrait trop peu pour construire un bloc, et un coach
- * qui programme raisonne sur plusieurs semaines. Ce qu'elle portait de spécifique — dupliquer une
- * semaine, en générer un mésocycle — vit maintenant dans le menu de la colonne de totaux, qui
- * désigne <b>une</b> semaine précise au lieu de « celle qui est affichée ». La vue groupe garde
- * ses sept jours : c'est une disposition à elle, pas une période de ce sélecteur.</p>
+ * <p>Le type subsiste, réduit à une valeur, plutôt que d'être supprimé : il nomme la maille dans
+ * les signatures et laisse la porte ouverte si une autre période devait revenir. La vue groupe,
+ * elle, montre sept jours — c'est une disposition à elle, pas une période d'ici.</p>
  */
-export type CalMode = 'day' | '4weeks' | 'month';
+export type CalMode = '4weeks';
 
-/** Nombre de cases rendues par période. Une seule table, pour que rien ne se contredise. */
-export const CELLS_BY_MODE: Record<CalMode, number> = { day: 1, '4weeks': 28, month: 42 };
+/** Nombre de cases rendues. Quatre semaines pleines, du lundi au dimanche. */
+export const CELLS_BY_MODE: Record<CalMode, number> = { '4weeks': 28 };
 
 /** Lundi de la semaine contenant `d` (semaine ISO : la semaine commence le lundi). */
 export function mondayOf(d: Date): Date {
@@ -42,24 +32,13 @@ export function mondayOf(d: Date): Date {
 }
 
 /**
- * Première case de la grille.
+ * Première case de la grille : le lundi de la date ancrée.
  *
- * <p>Semaine et quatre semaines sont <b>glissantes</b> : elles partent du lundi de la date
- * ancrée. Seul le mois se recale sur le premier du mois, parce que c'est une grille civile — et
- * la journée ne se recale pas du tout, elle commence à elle-même.</p>
+ * <p>La fenêtre est <b>glissante</b>, jamais recalée sur un premier du mois : c'est ce qui permet
+ * aux quatre totaux hebdomadaires de rester comparables d'une navigation à l'autre.</p>
  */
-export function gridStartFor(mode: CalMode, anchor: Date): Date {
-  if (mode === 'day') {
-    const d = new Date(anchor);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }
-  if (mode === '4weeks') {
-    return mondayOf(anchor);
-  }
-  const first = new Date(anchor);
-  first.setDate(1);
-  return mondayOf(first);
+export function gridStartFor(_mode: CalMode, anchor: Date): Date {
+  return mondayOf(anchor);
 }
 
 /**
@@ -69,23 +48,14 @@ export function gridStartFor(mode: CalMode, anchor: Date): Date {
  * semaine ferait défiler une fenêtre qui se recouvre aux trois quarts, et on perdrait le repère
  * du bloc — c'est justement ce qu'on vient regarder.</p>
  */
-export function shiftAnchor(mode: CalMode, anchor: Date, step: number): Date {
+export function shiftAnchor(_mode: CalMode, anchor: Date, step: number): Date {
   const d = new Date(anchor);
-  if (mode === 'day') d.setDate(d.getDate() + step);
-  else if (mode === '4weeks') d.setDate(d.getDate() + step * 28);
-  else d.setMonth(d.getMonth() + step);
+  d.setDate(d.getDate() + step * 28);
   return d;
 }
 
-/** Libellé de la période, tel qu'affiché dans la barre d'outils. */
+/** Plage annoncée dans l'en-tête : « 13 juil. – 9 août ». */
 export function periodLabelFor(mode: CalMode, anchor: Date): string {
-  if (mode === 'day') {
-    return new Intl.DateTimeFormat('fr-FR',
-      { weekday: 'short', day: 'numeric', month: 'short' }).format(anchor);
-  }
-  if (mode === 'month') {
-    return new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric' }).format(anchor);
-  }
   const start = mondayOf(anchor);
   const end = new Date(start);
   // La dernière case, pas la première du lendemain : quatre semaines couvrent 28 jours, du
@@ -99,8 +69,8 @@ export function periodLabelFor(mode: CalMode, anchor: Date): string {
  * Libellé des sept jours affichés par la <b>grille groupe</b>.
  *
  * <p>Cette grille montre une ligne par athlète sur une semaine : c'est sa disposition, pas une
- * période du sélecteur — la semaine a été retirée de celui-ci. Elle a donc besoin de son propre
- * libellé, sans quoi l'en-tête annoncerait quatre semaines au-dessus de sept colonnes.</p>
+ * période du sélecteur. Elle a donc son propre libellé, sans quoi l'en-tête annoncerait quatre
+ * semaines au-dessus de sept colonnes.</p>
  */
 export function groupWeekLabel(anchor: Date): string {
   const start = mondayOf(anchor);

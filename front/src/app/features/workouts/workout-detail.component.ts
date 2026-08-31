@@ -14,6 +14,7 @@ import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
+import { SaveToLibraryService } from '../../core/services/save-to-library.service';
 import {
   DataOriginTagComponent,
   IntensityZoneBadgeComponent,
@@ -80,6 +81,7 @@ export class WorkoutDetailComponent implements OnInit {
   /** Allure d'endurance de l'athlète, seule base admise pour estimer un volume écrit en durée. */
   readonly referencePace = signal<number | null>(null);
   private readonly confirm = inject(ConfirmService);
+  private readonly library = inject(SaveToLibraryService);
   private readonly router = inject(Router);
 
   /** Activité réalisée rapprochée de la séance (vue « réalisé » façon Nolio). */
@@ -134,6 +136,20 @@ export class WorkoutDetailComponent implements OnInit {
 
   /** Zones du club (id → nom/couleur), pour la répartition du temps par zone. */
   readonly zones = signal<TrainingZone[]>([]);
+  /**
+   * Verse cette séance dans la bibliothèque, depuis sa fiche.
+   *
+   * <p>On décide de garder une séance à deux moments : en la posant sur le calendrier, et en la
+   * relisant. Le geste existait au premier, pas au second — il fallait repasser par « Adapter »
+   * pour trouver le bouton, alors qu'on vient justement de constater ici que la séance mérite
+   * d'être resservie.</p>
+   */
+  async saveToLibrary(): Promise<void> {
+    const w = this.workout();
+    if (!w) return;
+    await this.library.promptAndSave({ id: w.id, athleteId: this.athleteId(), title: w.title });
+  }
+
   private readonly zoneById = computed(() => {
     const map = new Map<string, TrainingZone>();
     for (const z of this.zones()) map.set(z.id, z);

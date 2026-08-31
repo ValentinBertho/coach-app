@@ -11,6 +11,7 @@ import {
 } from '../../core/models/workout.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { CourseService } from '../../core/services/course.service';
+import { SaveToLibraryService } from '../../core/services/save-to-library.service';
 import { StrengthService } from '../../core/services/strength.service';
 import { ScheduledStrength, StrengthPrescriptionView, StrengthSession } from '../../core/models/strength.model';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
@@ -151,6 +152,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private readonly workoutService = inject(WorkoutService);
   private readonly strengthService = inject(StrengthService);
   private readonly courseService = inject(CourseService);
+  private readonly library = inject(SaveToLibraryService);
   private readonly templateService = inject(WorkoutTemplateService);
   private readonly mesoTemplateService = inject(MesocycleTemplateService);
   private readonly groupService = inject(TrainingGroupService);
@@ -249,13 +251,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * journée à la fois, en revanche, se lit d'un coup d'œil et se touche sans viser.
    */
   /**
-   * Vue courante, restaurée du choix précédent.
-   *
-   * <p>Elle était figée à « semaine » à chaque ouverture. Un coach qui travaille au mois — pour
-   * poser un bloc, pour relire une charge — repassait donc par le sélecteur à chaque visite, et
-   * finissait par croire que la semaine était la seule vue possible.</p>
+   * Période affichée. Une seule désormais — quatre semaines — mais gardée en signal : la grille,
+   * les totaux et la navigation la lisent, et un jour où une autre maille reviendrait, ils n'ont
+   * pas à changer.
    */
-  readonly mode = signal<CalMode>(CalendarComponent.savedMode());
+  readonly mode = signal<CalMode>('4weeks');
   /** Vue prévu / réalisé / les deux (façon Nolio). */
   readonly view = signal<CalView>('both');
   readonly showPlanned = computed(() => this.view() !== 'realized');
@@ -285,7 +285,6 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const unavail = this.unavailabilities();
     const count = CELLS_BY_MODE[this.mode()];
     const start = this.gridStart();
-    const monthRef = this.anchor().getMonth();
     return Array.from({ length: count }, (_, i) => {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
@@ -297,11 +296,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
       const hasKey = workouts.some((w) => TYPE_META[w.type].key);
       return {
         date: iso,
-        label: this.mode() === 'day' ? this.dayNames[(d.getDay() + 6) % 7] : this.dayNames[i % 7],
+        label: this.dayNames[i % 7],
         dayNum: d.getDate(),
         isToday: iso === today,
         weekend: i % 7 >= 5,
-        inMonth: this.mode() !== 'month' || d.getMonth() === monthRef,
+        // Plus de vue « mois » : la fenêtre glissante n'a pas de jours « hors période » à griser.
+        inMonth: true,
         workouts,
         strength,
         objectives: objByDate.get(iso) ?? [],
@@ -681,7 +681,6 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.openOnDayIfNarrow();
     // Onglet « Programme » d'un athlète : le calendrier est cadré sur lui, le sélecteur
     // d'athlète disparaît (c'est le contexte de la coquille qui dit de qui il s'agit).
     if (this.athleteId()) {
@@ -731,53 +730,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     });
   }
 
-  /**
-   * Au premier affichage sur un écran étroit, on ouvre sur la journée.
-   *
-   * <p>Ce n'est pas une préférence mémorisée : c'est le point de départ raisonnable là où la
-   * semaine s'empile en sept blocs. Le coach garde la main — changer de mode reste un geste, et
-   * le choix tient tant qu'il ne recharge pas.</p>
-   */
-  private openOnDayIfNarrow(): void {
-    if (typeof window !== 'undefined' && window.innerWidth <= CalendarComponent.NARROW_PX) {
-      this.mode.set('day');
-    }
-  }
 
-  /** Seuil du basculement : celui où la grille passe déjà à une colonne (cf. la feuille de style). */
-  private static readonly NARROW_PX = 768;
-
-  setMode(mode: CalMode): void {
-    this.mode.set(mode);
-    CalendarComponent.rememberMode(mode);
-    this.load();
-  }
-
-  /**
-   * Dernière vue choisie, ou « semaine » à défaut.
-   *
-   * <p>Lue avant toute injection : le signal est initialisé à la construction du composant. Le
-   * mode « groupe » impose sa propre vue plus loin — mémoriser reste sans effet là-bas.</p>
-   */
-  private static savedMode(): CalMode {
-    try {
-      const saved = localStorage.getItem(CalendarComponent.MODE_KEY);
-      if (saved === 'day' || saved === '4weeks' || saved === 'month') {
-        return saved;
-      }
-      // Préférence devenue invalide — « week » chez les coachs qui l'avaient choisie avant son
-      // retrait. On la réécrit plutôt que de l'ignorer en silence : laissée en place, elle
-      // ressusciterait le jour où une période porterait de nouveau ce nom.
-      CalendarComponent.rememberMode('4weeks');
-      return '4weeks';
-    } catch {
-      return '4weeks';         // navigation privée, stockage refusé : la vue par défaut suffit
-    }
-  }
-
-  private static rememberMode(mode: CalMode): void {
-    try { localStorage.setItem(CalendarComponent.MODE_KEY, mode); } catch { /* stockage refusé */ }
-  }
   /**
    * Changement d'athlète : la sélection et la pile d'annulation portent sur ce qui est affiché.
    * Annuler chez quelqu'un qu'on ne regarde plus produirait un effet invisible.
@@ -824,14 +777,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
   /**
    * La phrase de la semaine, sur la <b>première semaine affichée</b>.
    *
-   * <p>Elle était réservée à la vue semaine, où « +34 % » ne pouvait désigner qu'elle. En quatre
-   * semaines, la fenêtre commence toujours un lundi : la phrase porte sur cette semaine-là, et
-   * l'en-tête le dit. Sur un mois, la fenêtre commence avant le 1er et déborde après : aucune
-   * semaine n'y est « celle qu'on construit », donc pas de phrase — un chiffre qui ne désigne
-   * rien vaut moins que pas de chiffre.</p>
+   * <p>Elle était réservée à la vue semaine, où « +34 % » ne pouvait désigner qu'elle. La fenêtre
+   * de quatre semaines commençant toujours un lundi, la phrase porte sur sa première semaine —
+   * celle qu'on est en train de construire.</p>
    */
   private loadWeekOutlook(from: string): void {
-    if (this.mode() !== '4weeks' || !this.selectedAthleteId) {
+    if (!this.selectedAthleteId) {
       this.weekOutlook.set(null);
       return;
     }
@@ -1019,7 +970,6 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * Préférence mémorisée entre sessions (comme la nav latérale).
    */
   private static readonly LIB_KEY = 'coach-cal-lib-open';
-  private static readonly MODE_KEY = 'coach-cal-mode';
   readonly sidebarOpen = signal(this.readLibPref());
 
   private readLibPref(): boolean {
@@ -2085,21 +2035,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   async ctxSaveToLibrary(): Promise<void> {
     const m = this.ctxMenu(); if (!m) return;
     this.closeContextMenu();
-    const w = m.workout;
-    const title = await this.confirm.prompt({
-      title: 'Enregistrer dans la bibliothèque',
-      message: 'La structure est recopiée comme nouveau modèle ; la séance de l\'athlète n\'est pas '
-        + 'modifiée. Les consignes écrites pour lui restent sur sa séance — un modèle resservira à '
-        + 'd\'autres.',
-      promptLabel: 'Nom du modèle',
-      initialValue: w.title ?? '',
-      confirmLabel: 'Ajouter à la bibliothèque',
-    });
-    if (!title) return;
-    this.courseService.saveWorkoutAsTemplate(w.athleteId, w.id, { title }).subscribe({
-      next: () => this.toast.success('« ' + title + ' » ajoutée à ta bibliothèque'),
-      error: () => this.toast.error('Enregistrement impossible.'),
-    });
+    await this.library.promptAndSave(m.workout);
   }
 
   ctxMoveTo(date: string): void {
@@ -2372,9 +2308,6 @@ export class CalendarComponent implements OnInit, OnDestroy {
     if (ev.key === 'ArrowLeft') { this.shift(-1); ev.preventDefault(); }
     else if (ev.key === 'ArrowRight') { this.shift(1); ev.preventDefault(); }
     else if (key === 't') { this.goToday(); ev.preventDefault(); }
-    else if (key === 'j') { this.setMode('day'); ev.preventDefault(); }
-    else if (key === '4') { if (this.scopeMode() === 'athlete') { this.setMode('4weeks'); ev.preventDefault(); } }
-    else if (key === 'm') { if (this.scopeMode() === 'athlete') { this.setMode('month'); ev.preventDefault(); } }
     else if (key === 'b') { this.toggleSidebar(); ev.preventDefault(); }
     else if (key === 'n') {
       const date = this.hoveredDate();
