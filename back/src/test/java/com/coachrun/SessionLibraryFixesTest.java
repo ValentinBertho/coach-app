@@ -114,9 +114,21 @@ class SessionLibraryFixesTest {
         assertThat(detached.get("categoryId").isNull()).isTrue();
     }
 
-    /** Une séance construite au calendrier se verse dans la bibliothèque avec sa structure. */
+    /**
+     * Une séance construite au calendrier se verse dans la bibliothèque avec sa structure, et
+     * atterrit dans la catégorie choisie au moment de l'enregistrer.
+     *
+     * <p>Le rangement se demande dans la même modale que le nom : versé sans catégorie, un modèle
+     * se perd au milieu des autres, et le reclasser suppose de l'avoir d'abord retrouvé.</p>
+     */
     @Test
     void workoutSavedAsTemplate() throws Exception {
+        String categoryId = json(mvc.perform(post("/clubs/{c}/session-categories", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"VMA\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
         String workoutId = json(mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
                         .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"scheduledDate\":\"2026-09-01\",\"type\":\"ENDURANCE\","
@@ -133,11 +145,12 @@ class SessionLibraryFixesTest {
         JsonNode template = json(mvc.perform(
                         post("/clubs/{c}/athletes/{a}/workouts/{w}/save-as-template", clubId, athleteId, workoutId)
                                 .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"title\":\"6x1000 m\"}"))
+                                .content("{\"title\":\"6x1000 m\",\"categoryId\":\"" + categoryId + "\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
 
         assertThat(template.get("name").asText()).isEqualTo("6x1000 m");
         assertThat(template.get("structure").get("main")).hasSize(1);
+        assertThat(template.get("categoryId").asText()).isEqualTo(categoryId);
 
         // Le modèle est bien dans la bibliothèque du club.
         JsonNode library = json(mvc.perform(get("/clubs/{c}/workout-templates?size=200", clubId)
