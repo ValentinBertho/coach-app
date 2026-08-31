@@ -94,3 +94,18 @@ export function periodLabelFor(mode: CalMode, anchor: Date): string {
   const fmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
   return `${fmt.format(start)} – ${fmt.format(end)}`;
 }
+
+/**
+ * Libellé des sept jours affichés par la <b>grille groupe</b>.
+ *
+ * <p>Cette grille montre une ligne par athlète sur une semaine : c'est sa disposition, pas une
+ * période du sélecteur — la semaine a été retirée de celui-ci. Elle a donc besoin de son propre
+ * libellé, sans quoi l'en-tête annoncerait quatre semaines au-dessus de sept colonnes.</p>
+ */
+export function groupWeekLabel(anchor: Date): string {
+  const start = mondayOf(anchor);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const fmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
+  return `${fmt.format(start)} – ${fmt.format(end)}`;
+}

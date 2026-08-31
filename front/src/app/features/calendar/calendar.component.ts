@@ -52,7 +52,7 @@ import { ShortcutsOverlayComponent } from '../../shared/components/shortcuts/sho
 import { shortcutText } from '../../shared/components/shortcuts/shortcuts';
 import { CALENDAR_SHORTCUTS } from './calendar-shortcuts';
 import {
-  CELLS_BY_MODE, CalMode, gridStartFor, mondayOf, periodLabelFor, shiftAnchor,
+  CELLS_BY_MODE, CalMode, gridStartFor, groupWeekLabel, mondayOf, periodLabelFor, shiftAnchor,
 } from './calendar-period';
 import { CalendarSelection, ChipPosition, ChipRef } from './calendar-selection';
 import { SessionStructure } from '../../core/models/course.model';
@@ -658,7 +658,15 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   typeMeta(type: WorkoutType): TypeMeta { return TYPE_META[type]; }
 
-  readonly periodLabel = computed(() => periodLabelFor(this.mode(), this.anchor()));
+  /**
+   * Plage annoncée dans l'en-tête.
+   *
+   * <p>La grille groupe montre sept jours quel que soit le mode : elle a son libellé propre, sinon
+   * l'en-tête annoncerait quatre semaines au-dessus d'une seule.</p>
+   */
+  readonly periodLabel = computed(() => this.scopeMode() === 'group'
+    ? groupWeekLabel(this.anchor())
+    : periodLabelFor(this.mode(), this.anchor()));
 
   readonly weeklyVolumeKm = computed(() => {
     const m = this.workouts().reduce((s, w) => s + this.volumeM(w), 0);
@@ -754,9 +762,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private static savedMode(): CalMode {
     try {
       const saved = localStorage.getItem(CalendarComponent.MODE_KEY);
-      return saved === 'day' || saved === '4weeks' || saved === 'month'
-        ? saved
-        : '4weeks';
+      if (saved === 'day' || saved === '4weeks' || saved === 'month') {
+        return saved;
+      }
+      // Préférence devenue invalide — « week » chez les coachs qui l'avaient choisie avant son
+      // retrait. On la réécrit plutôt que de l'ignorer en silence : laissée en place, elle
+      // ressusciterait le jour où une période porterait de nouveau ce nom.
+      CalendarComponent.rememberMode('4weeks');
+      return '4weeks';
     } catch {
       return '4weeks';         // navigation privée, stockage refusé : la vue par défaut suffit
     }
@@ -777,7 +790,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.loadOverlays();
   }
   shift(step: number): void {
-    this.anchor.set(shiftAnchor(this.mode(), this.anchor(), step));
+    // Un pas vaut ce qui est affiché : sept jours en groupe, la période choisie sinon.
+    this.anchor.set(this.scopeMode() === 'group'
+      ? new Date(this.anchor().getTime() + step * 7 * 864e5)
+      : shiftAnchor(this.mode(), this.anchor(), step));
     this.load();
   }
   goToday(): void { this.anchor.set(new Date()); this.load(); }
