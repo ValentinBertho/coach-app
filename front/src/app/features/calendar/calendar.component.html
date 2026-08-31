@@ -47,7 +47,7 @@
     </div>
     <button type="button" class="btn btn-ghost btn-sm" (click)="goToday()" title="Revenir à aujourd'hui (T)">Aujourd'hui</button>
 
-    @if (mode() === 'week' && scopeMode() === 'athlete') {
+    @if (mode() === '4weeks' && scopeMode() === 'athlete') {
       <span class="volume metric">{{ weeklyVolumeKm() }} km</span>
       <!-- La semaine en une phrase : la charge prévue confrontée à l'habituel de l'athlète,
            pendant qu'on la construit. L'ACWR alertait jusqu'ici le lundi suivant, sur une
@@ -109,9 +109,6 @@
             <button type="button" class="ctx-item" [class.on]="mode() === 'day'" (click)="setMode('day')">
               Jour <kbd class="ctx-kbd">J</kbd>
             </button>
-            <button type="button" class="ctx-item" [class.on]="mode() === 'week'" (click)="setMode('week')">
-              Semaine <kbd class="ctx-kbd">W</kbd>
-            </button>
             <button type="button" class="ctx-item" [class.on]="mode() === '4weeks'" (click)="setMode('4weeks')">
               4 semaines <kbd class="ctx-kbd">4</kbd>
             </button>
@@ -138,14 +135,9 @@
         @if (actionsMenuOpen()) {
           <div class="ctx-backdrop" (click)="actionsMenuOpen.set(false)"></div>
           <div class="tb-dropdown" role="menu">
-            <button type="button" class="ctx-item" (click)="duplicateWeek()"
-                    [disabled]="mode() !== 'week' || workouts().length === 0">
-              <app-icon name="copy" [size]="14" /> Dupliquer la semaine
-            </button>
-            <button type="button" class="ctx-item" (click)="toggleMeso(); actionsMenuOpen.set(false)"
-                    [disabled]="mode() !== 'week' || workouts().length === 0">
-              <app-icon name="trending-up" [size]="14" /> Générer un mésocycle
-            </button>
+            <!-- Dupliquer une semaine et en générer un mésocycle sont passés dans le menu de
+                 la colonne de totaux : ils portent sur UNE semaine, qu'on y désigne au clic droit,
+                 au lieu de « celle qui est affichée » — notion disparue avec la vue semaine. -->
             <div class="ctx-sep"></div>
             <button type="button" class="ctx-item" (click)="selectAll(); actionsMenuOpen.set(false)">
               Tout sélectionner <kbd class="ctx-kbd">{{ keys('mod','A') }}</kbd>
@@ -211,7 +203,7 @@
   </div>
 }
 
-@if (showMeso() && mode() === 'week') {
+@if (showMeso()) {
   <section class="card meso-panel">
     <h2>Générer un mésocycle</h2>
     <p class="field-hint">À partir de la semaine affichée (semaine type), génère les semaines suivantes avec une montée de charge progressive et des décharges.</p>
@@ -437,7 +429,9 @@
            (mouseenter)="onDayEnter(day.date)" (mouseleave)="onDayLeave(day.date)">
         <header class="day-head">
           <div class="day-head__date">
-            @if (mode() === 'week') { <span class="day-name">{{ day.label }}</span> }
+            <!-- Le nom du jour dans la case : seulement en vue « jour », où la ligne d'en-tête
+                 des jours est masquée. Ailleurs elle le porte déjà, une fois pour la grille. -->
+            @if (mode() === 'day') { <span class="day-name">{{ day.label }}</span> }
             <span class="day-num">{{ day.dayNum }}</span>
           </div>
           <!-- Le volume du jour se lit là où on lit sa date. Il n'existait qu'au pied de la
@@ -785,6 +779,10 @@
     </button>
     <button type="button" class="ctx-item" (click)="ctxShiftWeek(1)">
       <app-icon name="arrow-right" [size]="14" /> Décaler d'un jour plus tard
+    </button>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item" (click)="ctxGenerateMeso()">
+      <app-icon name="refresh-cw" [size]="14" /> Générer un mésocycle depuis cette semaine
     </button>
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item danger" (click)="ctxClearWeek()">

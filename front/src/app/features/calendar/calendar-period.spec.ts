@@ -67,18 +67,35 @@ describe('Période du calendrier', () => {
 
   it('les autres modes gardent leur pas', () => {
     expect(shiftAnchor('day', WEDNESDAY, 1).getDate()).toBe(16);
-    expect(shiftAnchor('week', WEDNESDAY, 1).getDate()).toBe(22);
     expect(shiftAnchor('month', WEDNESDAY, 1).getMonth()).toBe(7);
   });
 
   it('le libellé annonce la plage réellement couverte', () => {
     expect(periodLabelFor('4weeks', WEDNESDAY)).toBe('13 juil. – 9 août');
-    expect(periodLabelFor('week', WEDNESDAY)).toBe('13 juil. – 19 juil.');
     expect(periodLabelFor('month', WEDNESDAY)).toBe('juillet 2026');
   });
 
   it('mondayOf normalise à minuit, pour que deux dates du même jour soient égales', () => {
     const withTime = new Date(2026, 6, 15, 23, 47, 12);
     expect(mondayOf(withTime).getTime()).toBe(MONDAY_OF_IT.getTime());
+  });
+});
+
+/**
+ * La vue « semaine » a été retirée du sélecteur du coach.
+ *
+ * <p>Elle montrait trop peu pour construire un bloc. Ce qu'elle portait de spécifique — dupliquer
+ * une semaine, en générer un mésocycle — vit dans le menu de la colonne de totaux, qui désigne
+ * <b>une</b> semaine au lieu de « celle qui est affichée ».</p>
+ */
+describe('calendar-period — périodes offertes', () => {
+  it('n’offre plus que jour, 4 semaines et mois', () => {
+    expect(Object.keys(CELLS_BY_MODE).sort()).toEqual(['4weeks', 'day', 'month']);
+  });
+
+  it('la fenêtre de 4 semaines commence toujours un lundi', () => {
+    // C'est ce qui permet à « la phrase de la semaine » d'y désigner la première semaine affichée.
+    const mardi = new Date(2026, 6, 14);
+    expect(gridStartFor('4weeks', mardi).getDay()).toBe(1);
   });
 });

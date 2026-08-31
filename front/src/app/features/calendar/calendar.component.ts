@@ -423,7 +423,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
       return;
     }
     if (m === 'group') {
-      this.mode.set('week'); // pas de grille multi-semaines en groupe (une ligne par athlète)
+      // La grille groupe a sa propre disposition (une ligne par athlète × 7 jours) et ne lit pas
+      // mode() : on se contente de garder une période valide pour le retour en mode athlète.
+      this.mode.set('4weeks');
       if (this.groups().length === 0) {
         this.groupService.list().subscribe((g) => {
           this.groups.set(g);
@@ -752,11 +754,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private static savedMode(): CalMode {
     try {
       const saved = localStorage.getItem(CalendarComponent.MODE_KEY);
-      return saved === 'day' || saved === 'week' || saved === '4weeks' || saved === 'month'
+      return saved === 'day' || saved === '4weeks' || saved === 'month'
         ? saved
-        : 'week';
+        : '4weeks';
     } catch {
-      return 'week';           // navigation privée, stockage refusé : la vue par défaut suffit
+      return '4weeks';         // navigation privée, stockage refusé : la vue par défaut suffit
     }
   }
 
@@ -804,12 +806,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * La phrase de la semaine. Uniquement en vue « semaine » : sur un mois, « +34 % » ne
-   * désignerait aucune semaine en particulier, et un chiffre qui ne désigne rien vaut moins
-   * que pas de chiffre.
+   * La phrase de la semaine, sur la <b>première semaine affichée</b>.
+   *
+   * <p>Elle était réservée à la vue semaine, où « +34 % » ne pouvait désigner qu'elle. En quatre
+   * semaines, la fenêtre commence toujours un lundi : la phrase porte sur cette semaine-là, et
+   * l'en-tête le dit. Sur un mois, la fenêtre commence avant le 1er et déborde après : aucune
+   * semaine n'y est « celle qu'on construit », donc pas de phrase — un chiffre qui ne désigne
+   * rien vaut moins que pas de chiffre.</p>
    */
   private loadWeekOutlook(from: string): void {
-    if (this.mode() !== 'week' || !this.selectedAthleteId) {
+    if (this.mode() !== '4weeks' || !this.selectedAthleteId) {
       this.weekOutlook.set(null);
       return;
     }
@@ -832,6 +838,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   // Périodisation assistée (mésocycle progressif).
   readonly showMeso = signal(false);
+  /**
+   * Semaine de départ du mésocycle, désignée par le menu de la colonne de totaux.
+   *
+   * <p>Le panneau partait auparavant de « la semaine affichée » — une notion qui n'existe plus
+   * depuis qu'on regarde quatre semaines à la fois, et qui était déjà implicite. On désigne
+   * maintenant la semaine, et l'en-tête du panneau la nomme.</p>
+   */
+  readonly mesoSource = signal<Date | null>(null);
   mesoWeeks = 4;
   mesoIncrease = 10;
   mesoDeloadEvery = 4;
@@ -846,6 +860,21 @@ export class CalendarComponent implements OnInit, OnDestroy {
   mesoGroupId = '';
   mesoSaveName = '';
   readonly mesoSaving = signal(false);
+
+  /** Ouvre le panneau mésocycle sur une semaine précise (menu de la colonne de totaux). */
+  ctxGenerateMeso(): void {
+    const start = this.weekMenu()?.start;
+    this.closeWeekMenu();
+    if (!start) return;
+    this.mesoSource.set(new Date(start + 'T00:00:00'));
+    this.showMeso.set(false);
+    this.toggleMeso();
+  }
+
+  /** Libellé de la semaine de départ, affiché en tête du panneau. */
+  mesoSourceLabel(): string {
+    return this.fmtDate(toIso(mondayOf(this.mesoSource() ?? this.anchor())));
+  }
 
   toggleMeso(): void {
     this.showMeso.update((v) => !v);
@@ -895,8 +924,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Génère un mésocycle à partir de la semaine affichée (= semaine type), pour l'athlète ou le groupe. */
   generateMeso(): void {
-    if (this.mode() !== 'week' || this.mesoBusy()) return;
-    const sourceStart = mondayOf(this.anchor());
+    if (this.mesoBusy()) return;
+    const sourceStart = mondayOf(this.mesoSource() ?? this.anchor());
     const firstStart = new Date(sourceStart);
     firstStart.setDate(firstStart.getDate() + 7); // le mésocycle démarre la semaine suivante
     const params: MesocycleParams = {
@@ -949,7 +978,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * seule façon de l'annuler.
    */
   async duplicateWeek(): Promise<void> {
-    if (!this.selectedAthleteId || this.mode() !== 'week' || !this.requireWrite()) return;
+    if (!this.selectedAthleteId || !this.requireWrite()) return;
     this.actionsMenuOpen.set(false);
     const source = toIso(mondayOf(this.anchor()));
     await this.duplicateWeekTo(source, this.shiftDate(source, 7));
@@ -2328,7 +2357,6 @@ export class CalendarComponent implements OnInit, OnDestroy {
     else if (ev.key === 'ArrowRight') { this.shift(1); ev.preventDefault(); }
     else if (key === 't') { this.goToday(); ev.preventDefault(); }
     else if (key === 'j') { this.setMode('day'); ev.preventDefault(); }
-    else if (key === 'w') { this.setMode('week'); ev.preventDefault(); }
     else if (key === '4') { if (this.scopeMode() === 'athlete') { this.setMode('4weeks'); ev.preventDefault(); } }
     else if (key === 'm') { if (this.scopeMode() === 'athlete') { this.setMode('month'); ev.preventDefault(); } }
     else if (key === 'b') { this.toggleSidebar(); ev.preventDefault(); }
