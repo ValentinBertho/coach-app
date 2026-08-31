@@ -35,6 +35,32 @@ export interface ConfirmRequest {
   optionLabel?: string;
   /** Précision affichée sous la case, quand sa portée ne tient pas dans son libellé. */
   optionHint?: string;
+  /**
+   * Libellé d'une <b>liste déroulante</b> facultative, posée sous le champ de saisie.
+   *
+   * <p>Pour un classement qui accompagne la saisie sans la conditionner : on nomme un modèle, et
+   * on peut au passage le ranger. La liste reste ignorable — son premier choix est vide — parce
+   * qu'obliger à classer au moment où l'on veut seulement garder son travail ferait renoncer.</p>
+   */
+  selectLabel?: string;
+  /** Choix proposés par la liste. Vide ou absent : la liste n'est pas rendue du tout. */
+  selectOptions?: ConfirmChoice[];
+  /** Choix présélectionné. Absent : le choix vide. */
+  selectInitial?: string | null;
+  /** Libellé du choix vide, en tête de liste (défaut : « Aucun »). */
+  selectEmptyLabel?: string;
+}
+
+/** Une entrée de la liste déroulante d'une modale. */
+export interface ConfirmChoice {
+  value: string;
+  label: string;
+}
+
+/** Réponse d'une invite à liste : le texte saisi, et le choix retenu (`null` = aucun). */
+export interface ConfirmTextAndChoice {
+  text: string;
+  choice: string | null;
 }
 
 /** Réponse d'une confirmation à option : l'accord, et l'état de la case. */
@@ -49,6 +75,8 @@ interface PendingConfirm extends ConfirmRequest {
   resolveOption?: (answer: ConfirmWithOption) => void;
   /** Présent pour une saisie libre : reçoit la valeur, ou `null` si l'utilisateur renonce. */
   resolveText?: (value: string | null) => void;
+  /** Présent pour une invite à liste : reçoit texte et choix, ou `null` si l'utilisateur renonce. */
+  resolveTextAndChoice?: (answer: ConfirmTextAndChoice | null) => void;
 }
 
 /**
@@ -94,7 +122,22 @@ export class ConfirmService {
     });
   }
 
-  answer(ok: boolean, value?: string, option = false): void {
+  /**
+   * Invite de saisie doublée d'un classement : résout le texte <i>et</i> le choix retenu.
+   *
+   * <p>Une seule modale plutôt que deux questions enchaînées : nommer et ranger relèvent de la
+   * même décision, et un second dialogue après validation donnerait l'impression que le premier
+   * n'avait pas abouti.</p>
+   */
+  promptWithChoice(
+    request: ConfirmRequest & { promptLabel: string; selectLabel: string; selectOptions: ConfirmChoice[] },
+  ): Promise<ConfirmTextAndChoice | null> {
+    return new Promise<ConfirmTextAndChoice | null>((resolve) => {
+      this.pending.set({ ...request, resolve: () => undefined, resolveTextAndChoice: resolve });
+    });
+  }
+
+  answer(ok: boolean, value?: string, option = false, choice: string | null = null): void {
     const p = this.pending();
     if (!p) {
       return;
@@ -102,6 +145,10 @@ export class ConfirmService {
     this.pending.set(null);
     if (p.resolveOption) {
       p.resolveOption({ confirmed: ok, option: ok && option });
+      return;
+    }
+    if (p.resolveTextAndChoice) {
+      p.resolveTextAndChoice(ok ? { text: (value ?? '').trim(), choice: choice || null } : null);
       return;
     }
     if (p.resolveText) {

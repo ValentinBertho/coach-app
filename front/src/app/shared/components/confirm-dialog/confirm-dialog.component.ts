@@ -36,6 +36,22 @@ import { ConfirmService } from '../../../core/services/confirm.service';
                      (keydown.enter)="accept()" />
             </div>
           }
+          <!--
+            Liste facultative : elle range ce qu'on vient de nommer. Le choix vide est en tête et
+            présélectionné — classer reste offert, jamais exigé.
+          -->
+          @if (p.selectOptions?.length && p.selectLabel) {
+            <div class="field">
+              <label class="field-label" for="confirm-select">{{ p.selectLabel }}</label>
+              <select id="confirm-select" class="input form-control"
+                      [ngModel]="chosen()" (ngModelChange)="chosen.set($event)">
+                <option value="">{{ p.selectEmptyLabel || 'Aucun' }}</option>
+                @for (opt of p.selectOptions; track opt.value) {
+                  <option [value]="opt.value">{{ opt.label }}</option>
+                }
+              </select>
+            </div>
+          }
           @if (p.requiredText; as required) {
             <div class="field">
               <label class="field-label" for="confirm-text">
@@ -97,6 +113,8 @@ export class ConfirmDialogComponent {
   /** Saisie du champ (recopie de confirmation ou invite libre), remise à zéro à la fermeture. */
   readonly typed = signal('');
   readonly optionChecked = signal(false);
+  /** Choix de la liste déroulante ; `''` = aucun. */
+  readonly chosen = signal('');
 
   private readonly promptInput = viewChild<ElementRef<HTMLInputElement>>('promptInput');
 
@@ -110,6 +128,7 @@ export class ConfirmDialogComponent {
         return;
       }
       this.typed.set(pending.initialValue ?? '');
+      this.chosen.set(pending.selectInitial ?? '');
       afterNextRender(() => this.promptInput()?.nativeElement.select(), { injector: this.injector });
       // allowSignalWrites : l'effet écrit `typed`, ce qu'Angular refuse par défaut. Sans lui il
       // lève NG0600 et sort AVANT le pré-remplissage — l'invite s'ouvrait donc vide, en silence,
@@ -139,8 +158,9 @@ export class ConfirmDialogComponent {
     if (!this.canConfirm()) return;
     const value = this.typed();
     const option = this.optionChecked();
+    const choice = this.chosen();
     this.reset();
-    this.confirm.answer(true, value, option);
+    this.confirm.answer(true, value, option, choice || null);
   }
 
   cancel(): void {
@@ -152,5 +172,6 @@ export class ConfirmDialogComponent {
   private reset(): void {
     this.typed.set('');
     this.optionChecked.set(false);
+    this.chosen.set('');
   }
 }

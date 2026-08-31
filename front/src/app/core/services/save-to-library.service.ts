@@ -1,6 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { ConfirmService } from './confirm.service';
+import { firstValueFrom } from 'rxjs';
+import { categoryOptions } from '../models/session-category.model';
+import { ConfirmChoice, ConfirmService } from './confirm.service';
 import { CourseService } from './course.service';
+import { SessionCategoryService } from './session-category.service';
 import { ToastService } from './toast.service';
 
 /**
@@ -12,26 +15,30 @@ import { ToastService } from './toast.service';
  * formulation ou de gestion d'erreur, et l'un des deux chemins aurait fini par mentir sur ce qu'il
  * fait.</p>
  *
- * <p>L'éditeur de structure garde son propre panneau : il propose en plus une catégorie de
- * rangement et enregistre la structure en cours avant de la verser. C'est un geste plus riche,
- * pas le même.</p>
+ * <p>L'éditeur de structure garde son propre panneau : il enregistre la structure en cours avant
+ * de la verser. C'est un geste plus riche, pas le même.</p>
  */
 @Injectable({ providedIn: 'root' })
 export class SaveToLibraryService {
   private readonly confirm = inject(ConfirmService);
   private readonly courseService = inject(CourseService);
+  private readonly categories = inject(SessionCategoryService);
   private readonly toast = inject(ToastService);
 
   /**
-   * Demande un nom, puis verse la séance comme nouveau modèle.
+   * Demande un nom — et, si le club en a défini, une catégorie de rangement — puis verse la séance
+   * comme nouveau modèle.
    *
-   * <p>Sans catégorie : la ranger demanderait un second choix au moment où l'on veut seulement ne
-   * pas perdre son travail. La bibliothèque permet de la classer ensuite.</p>
+   * <p>La catégorie reste facultative : le choix vide est présélectionné. Une bibliothèque se
+   * range quand elle grossit, pas au moment où l'on veut seulement ne pas perdre son travail ;
+   * mais la reclasser plus tard suppose de la retrouver, alors on offre le rangement tout de
+   * suite, sans l'exiger.</p>
    *
    * @returns le nom retenu si le modèle a été créé, `null` si l'utilisateur a renoncé.
    */
   async promptAndSave(workout: { id: string; athleteId: string; title: string | null }): Promise<string | null> {
-    const title = await this.confirm.prompt({
+    const choices = await this.loadChoices();
+    const common = {
       title: 'Enregistrer dans la bibliothèque',
       message: "La structure est recopiée comme nouveau modèle ; la séance de l'athlète n'est pas "
         + 'modifiée. Les consignes écrites pour lui restent sur sa séance — un modèle resservira à '
@@ -39,11 +46,23 @@ export class SaveToLibraryService {
       promptLabel: 'Nom du modèle',
       initialValue: workout.title ?? '',
       confirmLabel: 'Ajouter à la bibliothèque',
-    });
-    if (!title) return null;
+    };
 
+    // Sans catégorie définie dans le club, la liste n'aurait qu'un choix vide : on la tait plutôt
+    // que d'ajouter un champ qui ne décide de rien.
+    const answer = choices.length
+      ? await this.confirm.promptWithChoice({
+        ...common,
+        selectLabel: 'Catégorie (facultatif)',
+        selectOptions: choices,
+        selectEmptyLabel: 'Sans catégorie',
+      })
+      : await this.confirm.prompt(common).then((text) => (text ? { text, choice: null } : null));
+    if (!answer?.text) return null;
+
+    const { text: title, choice: categoryId } = answer;
     return new Promise<string | null>((resolve) => {
-      this.courseService.saveWorkoutAsTemplate(workout.athleteId, workout.id, { title }).subscribe({
+      this.courseService.saveWorkoutAsTemplate(workout.athleteId, workout.id, { title, categoryId }).subscribe({
         next: () => {
           this.toast.success('« ' + title + ' » ajoutée à ta bibliothèque');
           resolve(title);
@@ -54,5 +73,20 @@ export class SaveToLibraryService {
         },
       });
     });
+  }
+
+  /**
+   * Catégories du domaine course, aplaties pour un menu déroulant.
+   *
+   * <p>Un échec de chargement ne bloque pas l'enregistrement : on retombe sur l'invite simple.
+   * Perdre le rangement est un moindre mal ; perdre la séance qu'on voulait garder, non.</p>
+   */
+  private async loadChoices(): Promise<ConfirmChoice[]> {
+    try {
+      const list = await firstValueFrom(this.categories.list('COURSE'));
+      return categoryOptions(list).map((o) => ({ value: o.category.id, label: o.label }));
+    } catch {
+      return [];
+    }
   }
 }
