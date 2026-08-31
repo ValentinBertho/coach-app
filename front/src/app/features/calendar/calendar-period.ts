@@ -18,10 +18,19 @@
  * exactement les quatre totaux hebdomadaires qu'un coach veut confronter : trois de charge, une
  * d'assimilation.</p>
  */
-export type CalMode = 'day' | 'week' | '4weeks' | 'month';
+/**
+ * Périodes affichables du calendrier coach.
+ *
+ * <p>La semaine seule a été retirée : elle montrait trop peu pour construire un bloc, et un coach
+ * qui programme raisonne sur plusieurs semaines. Ce qu'elle portait de spécifique — dupliquer une
+ * semaine, en générer un mésocycle — vit maintenant dans le menu de la colonne de totaux, qui
+ * désigne <b>une</b> semaine précise au lieu de « celle qui est affichée ». La vue groupe garde
+ * ses sept jours : c'est une disposition à elle, pas une période de ce sélecteur.</p>
+ */
+export type CalMode = 'day' | '4weeks' | 'month';
 
 /** Nombre de cases rendues par période. Une seule table, pour que rien ne se contredise. */
-export const CELLS_BY_MODE: Record<CalMode, number> = { day: 1, week: 7, '4weeks': 28, month: 42 };
+export const CELLS_BY_MODE: Record<CalMode, number> = { day: 1, '4weeks': 28, month: 42 };
 
 /** Lundi de la semaine contenant `d` (semaine ISO : la semaine commence le lundi). */
 export function mondayOf(d: Date): Date {
@@ -45,7 +54,7 @@ export function gridStartFor(mode: CalMode, anchor: Date): Date {
     d.setHours(0, 0, 0, 0);
     return d;
   }
-  if (mode === 'week' || mode === '4weeks') {
+  if (mode === '4weeks') {
     return mondayOf(anchor);
   }
   const first = new Date(anchor);
@@ -63,7 +72,6 @@ export function gridStartFor(mode: CalMode, anchor: Date): Date {
 export function shiftAnchor(mode: CalMode, anchor: Date, step: number): Date {
   const d = new Date(anchor);
   if (mode === 'day') d.setDate(d.getDate() + step);
-  else if (mode === 'week') d.setDate(d.getDate() + step * 7);
   else if (mode === '4weeks') d.setDate(d.getDate() + step * 28);
   else d.setMonth(d.getMonth() + step);
   return d;
@@ -83,6 +91,21 @@ export function periodLabelFor(mode: CalMode, anchor: Date): string {
   // La dernière case, pas la première du lendemain : quatre semaines couvrent 28 jours, du
   // lundi au dimanche inclus.
   end.setDate(start.getDate() + CELLS_BY_MODE[mode] - 1);
+  const fmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
+  return `${fmt.format(start)} – ${fmt.format(end)}`;
+}
+
+/**
+ * Libellé des sept jours affichés par la <b>grille groupe</b>.
+ *
+ * <p>Cette grille montre une ligne par athlète sur une semaine : c'est sa disposition, pas une
+ * période du sélecteur — la semaine a été retirée de celui-ci. Elle a donc besoin de son propre
+ * libellé, sans quoi l'en-tête annoncerait quatre semaines au-dessus de sept colonnes.</p>
+ */
+export function groupWeekLabel(anchor: Date): string {
+  const start = mondayOf(anchor);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
   const fmt = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
   return `${fmt.format(start)} – ${fmt.format(end)}`;
 }
