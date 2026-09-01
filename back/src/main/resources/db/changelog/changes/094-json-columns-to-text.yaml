@@ -1,0 +1,57 @@
+# ============================================================================
+# 094 — Les colonnes JSON passent de VARCHAR(20000) à TEXT.
+#
+#   Prescrire une séance depuis un modèle un peu fourni échouait en production :
+#     ERROR: value too long for type character varying(20000)   [SQLSTATE 22001]
+#   La séance n'était pas créée, et le coach ne voyait qu'une erreur générique.
+#
+#   Ces sept colonnes portent des structures sérialisées — blocs, répétitions,
+#   allures calculées, charges — dont la taille dépend de ce que le coach
+#   compose. Il n'existe aucune borne juste : 20 000 caractères tenaient tant
+#   que les séances restaient simples, et cèdent dès qu'elles ne le sont plus.
+#   Doubler la borne ne ferait que déplacer la panne.
+#
+#   TEXT est déjà l'usage du projet pour ce cas (cf. 032-run-drills et le
+#   payload_json de 084-athlete-proposals), sur H2 comme sur PostgreSQL.
+#
+#   Élargissement pur : aucune donnée existante n'est touchée ni tronquée, et
+#   PostgreSQL fait la conversion sans réécrire la table.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 094-json-columns-to-text
+      author: coachrun
+      changes:
+        # Séance prescrite : c'est le chemin qui cassait en production.
+        - modifyDataType:
+            tableName: workouts
+            columnName: session_snapshot
+            newDataType: TEXT
+        - modifyDataType:
+            tableName: workouts
+            columnName: calculated_paces
+            newDataType: TEXT
+
+        # Bibliothèque de séances : la source des prescriptions ci-dessus.
+        - modifyDataType:
+            tableName: workout_templates
+            columnName: structure_json
+            newDataType: TEXT
+
+        # Renforcement : même modèle, même plafond, même panne à venir.
+        - modifyDataType:
+            tableName: strength_sessions
+            columnName: structure_json
+            newDataType: TEXT
+        - modifyDataType:
+            tableName: strength_cycles
+            columnName: structure_json
+            newDataType: TEXT
+        - modifyDataType:
+            tableName: scheduled_strength_sessions
+            columnName: session_snapshot
+            newDataType: TEXT
+        - modifyDataType:
+            tableName: scheduled_strength_sessions
+            columnName: calculated_charges
+            newDataType: TEXT

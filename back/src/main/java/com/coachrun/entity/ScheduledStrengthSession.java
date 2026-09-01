@@ -46,11 +46,11 @@ public class ScheduledStrengthSession extends BaseEntity {
     private String title;
 
     /** Copie figée de la structure (blocs + exercices prescrits) au moment de l'assignation. */
-    @Column(name = "session_snapshot", length = 20000)
+    @Column(name = "session_snapshot", columnDefinition = "text")
     private String sessionSnapshot;
 
     /** Charges calculées pour cet athlète au moment de l'assignation (JSON). */
-    @Column(name = "calculated_charges", length = 20000)
+    @Column(name = "calculated_charges", columnDefinition = "text")
     private String calculatedCharges;
 
     /** Champs demandés à l'athlète (adaptatif selon le niveau), JSON. */

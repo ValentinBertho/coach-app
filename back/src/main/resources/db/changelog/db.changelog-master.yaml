@@ -197,3 +197,5 @@ databaseChangeLog:
       file: db/changelog/changes/092-activity-exclusions.yaml
   - include:
       file: db/changelog/changes/093-club-creation-requests.yaml
+  - include:
+      file: db/changelog/changes/094-json-columns-to-text.yaml

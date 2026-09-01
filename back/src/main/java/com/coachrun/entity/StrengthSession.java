@@ -46,6 +46,6 @@ public class StrengthSession extends BaseEntity {
     private Instant lastUsedAt;
 
     /** JSON sérialisé de la structure DARI Lab (blocs + exercices prescrits). */
-    @Column(name = "structure_json", length = 20000)
+    @Column(name = "structure_json", columnDefinition = "text")
     private String structureJson;
 }

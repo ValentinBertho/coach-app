@@ -88,6 +88,6 @@ public class WorkoutTemplate extends BaseEntity {
     private Instant lastUsedAt;
 
     /** JSON sérialisé de la structure DARI Lab (échauffement/corps/retour, blocs en fourchettes). */
-    @Column(name = "structure_json", length = 20000)
+    @Column(name = "structure_json", columnDefinition = "text")
     private String structureJson;
 }
