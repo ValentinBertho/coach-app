@@ -182,8 +182,15 @@ class WorkoutDayOrderTest {
                         .param("date", aujourdhui.toString()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
 
+        // Filtré sur les deux séances que ce test a posées, et non « exactement ces deux-là » :
+        // le jeu de démo garnit lui-même les trois dernières semaines, aujourd'hui compris, et
+        // la nature de la séance du jour dépend du jour de la semaine (week[d % 7]). L'assertion
+        // exacte passait donc le vendredi — jour de repos du jeu — et échouait les autres jours,
+        // pour une raison qui n'a rien à voir avec ce qu'elle vérifie. Ce qui est en jeu ici est
+        // l'ORDRE RELATIF des deux séances, pas le contenu de la journée.
         assertThat(titlesOf(today))
                 .as("la journee du jour se lit dans l'ordre voulu par le coach")
+                .filteredOn(List.of("Cotes soir", "Footing matin")::contains)
                 .containsExactly("Cotes soir", "Footing matin");
     }
 
