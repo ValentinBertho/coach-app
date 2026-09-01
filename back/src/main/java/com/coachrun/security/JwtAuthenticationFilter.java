@@ -36,6 +36,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
+    /**
+     * Ce filtre doit aussi s'exécuter sur le <b>dispatch asynchrone</b>.
+     *
+     * <h2>Le bruit que cela supprime</h2>
+     *
+     * <p>{@link OncePerRequestFilter} saute par défaut les dispatchs asynchrones. Or un flux SSE
+     * — le badge de notifications, la messagerie temps réel — se termine précisément par un
+     * dispatch asynchrone : Spring MVC repasse la requête dans la chaîne de filtres pour la
+     * clore. Sans ce filtre, le contexte de sécurité y est vide ; le filtre d'autorisation de
+     * Spring Security, lui, s'exécute bien, refuse la requête, et tente d'écrire un 401 sur une
+     * réponse <b>déjà committée</b> (les en-têtes SSE et le premier événement sont partis depuis
+     * longtemps).</p>
+     *
+     * <p>Le résultat était trois lignes ERROR par fermeture de flux — « Unable to handle the
+     * Spring Security Exception because the response is already committed », puis
+     * « Exception Processing ErrorPage » — sans qu'aucun utilisateur ne voie quoi que ce soit :
+     * {@code EventSource} rouvre tout seul. Derrière un proxy qui coupe les connexions longues
+     * (le cas en production), cela fait des milliers de fausses erreurs par jour et par onglet,
+     * qui noient les vraies dans Sentry comme dans les journaux centralisés.</p>
+     *
+     * <p>Rejouer le filtre sur ce dispatch est sans effet de bord : il relit le même jeton dans
+     * la même requête et repose le même principal. Le contexte est alors trouvé, l'autorisation
+     * passe, et la requête se termine comme elle le devrait — en silence.</p>
+     */
+    @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
+
     private final JwtService jwtService;
     private final TokenBlacklist tokenBlacklist;
     private final TokenFreshnessValidator tokenFreshness;
