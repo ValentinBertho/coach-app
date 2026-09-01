@@ -52,6 +52,20 @@ jobs:
       - name: Build & test (Liquibase sur H2)
         run: mvn -B -ntp clean verify
 
+      # H2 en mode PostgreSQL n'est pas PostgreSQL. Il accepte notamment un paramètre dont le type
+      # ne peut pas être déduit — « (:since is null or …) » avec un Instant — là où PostgreSQL
+      # refuse la requête entière (SQLSTATE 42P18). Ce défaut a déjà coûté deux écrans partis en
+      # 500 en production, la messagerie puis le journal d'audit, avec une suite entièrement verte
+      # les deux fois.
+      #
+      # Le conteneur PostgreSQL est déjà là pour le smoke test ci-dessous : les tests portant le
+      # profil `pgtest` s'y rejouent pour quelques secondes de plus.
+      - name: Tests sur PostgreSQL réel (profil pgtest)
+        run: >-
+          mvn -B -ntp test -Dpgtest=true
+          -DPGTEST_URL=jdbc:postgresql://localhost:5432/coachrun
+          -Dtest='*OnPostgresTest' -DfailIfNoTests=false
+
       # Le profil prod active StartupSecretsValidator, qui refuse de démarrer sur une
       # configuration incomplète. Les valeurs ci-dessous sont donc contraintes : `FRONTEND_URL` et
       # `CORS_ORIGINS` ne peuvent pas pointer sur localhost (des liens d'invitation en localhost
