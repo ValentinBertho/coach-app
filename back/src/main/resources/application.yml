@@ -173,15 +173,17 @@ app:
     # modifié, la rotation du mot de passe se fait depuis l'application.
     email: ${PLATFORM_ADMIN_EMAIL:}
     password: ${PLATFORM_ADMIN_PASSWORD:}
-  demo:
-    reset:
-      enabled: ${DEMO_RESET_ENABLED:false}   # RAZ démo : interdit par défaut (jamais en prod)
   registration:
-    # « invite » : /auth/register exige un code d'invitation (cohorte fermée de la bêta).
-    # « open »   : inscription libre. Le profil prod force « invite » (application-prod.yml).
+    # Comment on entre sur la plateforme. Trois régimes :
+    #   open    : /auth/register est libre — n'importe qui crée son club.
+    #   invite  : /auth/register exige un code partagé (cohorte fermée).
+    #   request : /auth/register est fermée ; le candidat dépose une DEMANDE que l'administrateur
+    #             valide depuis /admin/club-requests, et c'est la validation qui ouvre le club.
+    # Le profil prod retient « request » (cf. application-prod.yml). Une valeur non reconnue fait
+    # refuser le démarrage en production : une faute de frappe ne doit pas rouvrir la porte.
     mode: ${REGISTRATION_MODE:open}
-    # Code partagé de la cohorte. En mode invite, un code vide bloquerait toute inscription :
-    # le garde-fou de démarrage le refuse en production.
+    # Code partagé de la cohorte, exigé par le seul mode « invite ». Un code vide y bloquerait
+    # toute inscription : le garde-fou de démarrage le refuse en production.
     invite-code: ${REGISTRATION_INVITE_CODE:}
   rate-limit:
     enabled: ${RATE_LIMIT_ENABLED:true}

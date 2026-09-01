@@ -78,3 +78,15 @@
 
   a { color: var(--ink-1); }
 }
+
+/* Formulaire de demande de création de club : deux champs facultatifs, et un écran d'attente
+   pendant qu'on lit le régime d'inscription du serveur. */
+.reg-optional {
+  color: var(--ink-3);
+  font-weight: 400;
+}
+
+.reg-loading {
+  text-align: center;
+  padding: var(--sp-6) 0;
+}

@@ -1,5 +1,6 @@
 package com.coachrun;
 
+import com.coachrun.config.StartupConfigurationException;
 import com.coachrun.config.StartupSecretsValidator;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -23,17 +24,20 @@ class StartupSecretsValidatorTest {
     private static final String GOOD_VAPID_PRIV = "private-key";
     /** Topologie réelle de production : client → Vercel → Railway. */
     private static final int TRUSTED_HOPS = 2;
+    /** Préfixe de contexte réel de l'API : il fait partie de l'adresse du webhook Strava. */
+    private static final String CONTEXT_PATH = "/api";
 
     private StartupSecretsValidator validator(String jwt, String key, String url, boolean mailEnabled,
                                               String resendKey, String cors, String vapidPub, String vapidPriv) {
         return new StartupSecretsValidator(jwt, key, url, mailEnabled, resendKey, cors, vapidPub, vapidPriv,
-                "open", "", TRUSTED_HOPS, "", "");
+                "open", "", TRUSTED_HOPS, "", "", "", "", CONTEXT_PATH);
     }
 
     /** Variante pour les scénarios d'inscription fermée. */
     private StartupSecretsValidator registrationValidator(String mode, String code) {
         return new StartupSecretsValidator(GOOD_JWT, GOOD_KEY, GOOD_URL, false, "", GOOD_CORS,
-                GOOD_VAPID_PUB, GOOD_VAPID_PRIV, mode, code, TRUSTED_HOPS, "", "");
+                GOOD_VAPID_PUB, GOOD_VAPID_PRIV, mode, code, TRUSTED_HOPS, "", "", "", "",
+                CONTEXT_PATH);
     }
 
     // --- Journalisation centralisée -----------------------------------------------------------
@@ -45,7 +49,8 @@ class StartupSecretsValidatorTest {
 
     private StartupSecretsValidator logsValidator(String token, String ingestUrl) {
         return new StartupSecretsValidator(GOOD_JWT, GOOD_KEY, GOOD_URL, false, "", GOOD_CORS,
-                GOOD_VAPID_PUB, GOOD_VAPID_PRIV, "open", "", TRUSTED_HOPS, token, ingestUrl);
+                GOOD_VAPID_PUB, GOOD_VAPID_PRIV, "open", "", TRUSTED_HOPS, token, ingestUrl,
+                "", "", CONTEXT_PATH);
     }
 
     /** Aucun token : la journalisation est optionnelle et n'a jamais empêché de servir. */
@@ -85,7 +90,7 @@ class StartupSecretsValidatorTest {
     @Test
     void inviteModeWithoutCodeFailsBoot() {
         assertThatThrownBy(() -> run(registrationValidator("invite", "")))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(StartupConfigurationException.class)
                 .hasMessageContaining("REGISTRATION_INVITE_CODE");
     }
 
@@ -93,6 +98,26 @@ class StartupSecretsValidatorTest {
     void inviteModeWithCodeBoots() {
         assertThatCode(() -> run(registrationValidator("invite", "BETA-2026")))
                 .doesNotThrowAnyException();
+    }
+
+    /** Le régime de la bêta ouverte : aucun code à poser, tout passe par l'arbitrage. */
+    @Test
+    void requestModeNeedsNoInviteCode() {
+        assertThatCode(() -> run(registrationValidator("request", "")))
+                .doesNotThrowAnyException();
+    }
+
+    /**
+     * Une valeur mal orthographiée doit faire échouer le démarrage, et non retomber en silence
+     * sur le régime le plus ouvert : « REGISTRATION_MODE=requests » ne doit pas ouvrir la
+     * création de club à tout venant.
+     */
+    @Test
+    void anUnknownRegistrationModeFailsBoot() {
+        assertThatThrownBy(() -> run(registrationValidator("requests", "")))
+                .isInstanceOf(StartupConfigurationException.class)
+                .hasMessageContaining("REGISTRATION_MODE")
+                .hasMessageContaining("open, invite, request");
     }
 
     private void run(StartupSecretsValidator validator) {
@@ -109,7 +134,7 @@ class StartupSecretsValidatorTest {
     void frontendUrlLeftOnLocalhostFailsBoot() {
         assertThatThrownBy(() -> run(validator(GOOD_JWT, GOOD_KEY, "http://localhost:4200", false, "",
                 GOOD_CORS, GOOD_VAPID_PUB, GOOD_VAPID_PRIV)))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(StartupConfigurationException.class)
                 .hasMessageContaining("FRONTEND_URL");
     }
 
@@ -117,7 +142,7 @@ class StartupSecretsValidatorTest {
     void mailEnabledWithoutApiKeyFailsBoot() {
         assertThatThrownBy(() -> run(validator(GOOD_JWT, GOOD_KEY, GOOD_URL, true, "",
                 GOOD_CORS, GOOD_VAPID_PUB, GOOD_VAPID_PRIV)))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(StartupConfigurationException.class)
                 .hasMessageContaining("RESEND_API_KEY");
     }
 
@@ -125,7 +150,7 @@ class StartupSecretsValidatorTest {
     void corsAllowingLocalhostFailsBoot() {
         assertThatThrownBy(() -> run(validator(GOOD_JWT, GOOD_KEY, GOOD_URL, false, "",
                 "https://www.darilab.app,http://localhost:4200", GOOD_VAPID_PUB, GOOD_VAPID_PRIV)))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(StartupConfigurationException.class)
                 .hasMessageContaining("CORS_ORIGINS");
     }
 
@@ -133,7 +158,7 @@ class StartupSecretsValidatorTest {
     void missingVapidKeysFailBoot() {
         assertThatThrownBy(() -> run(validator(GOOD_JWT, GOOD_KEY, GOOD_URL, false, "",
                 GOOD_CORS, "", "")))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(StartupConfigurationException.class)
                 .hasMessageContaining("VAPID");
     }
 
@@ -142,7 +167,7 @@ class StartupSecretsValidatorTest {
     void allProblemsAreReportedAtOnce() {
         assertThatThrownBy(() -> run(validator("dev-secret", "zzz", "http://localhost:4200", true, "",
                 "http://localhost:4200", "", "")))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(StartupConfigurationException.class)
                 .hasMessageContaining("JWT_SECRET")
                 .hasMessageContaining("FIELD_ENCRYPTION_KEY")
                 .hasMessageContaining("FRONTEND_URL")

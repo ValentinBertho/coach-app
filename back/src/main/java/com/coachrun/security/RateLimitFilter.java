@@ -126,6 +126,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (uri.endsWith("/auth/register")) {
             return "auth-register";
         }
+        // Dépôt d'une demande de création de club : écriture en base ET accusé de réception par
+        // e-mail, sans aucun jeton. Sans bucket propre, la route retombait sur le plafond général
+        // et une seule adresse pouvait remplir la file d'arbitrage.
+        if (uri.endsWith("/public/club-requests")) {
+            return "club-request";
+        }
         if (uri.endsWith("/auth/refresh")) {
             return REFRESH_BUCKET;
         }
@@ -181,6 +187,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * invitation, {@code /auth/register} est fermée et le risque dort ; <b>ouvrir la bêta consiste
      * précisément à l'ouvrir</b>.</p>
      *
+     * <p>Le dépôt d'une demande de création de club relève du même plafond : il déclenche un
+     * accusé de réception, et c'est le formulaire le plus exposé de la plateforme — le seul
+     * ouvert à un visiteur anonyme dans le régime « sur demande ».</p>
+     *
      * <p>La correspondance est volontairement exacte sur la réinitialisation : les variantes
      * porteuses d'un jeton ({@code GET} de validation du lien, {@code POST} d'application du
      * nouveau mot de passe) n'envoient rien et ne doivent pas consommer ce quota.</p>
@@ -189,7 +199,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (uri == null || !"POST".equalsIgnoreCase(method)) {
             return false;
         }
-        return uri.endsWith("/auth/register") || uri.endsWith("/public/password-reset");
+        return uri.endsWith("/auth/register")
+                || uri.endsWith("/public/password-reset")
+                || uri.endsWith("/public/club-requests");
     }
 
     /**

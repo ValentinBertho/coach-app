@@ -101,14 +101,6 @@ export class AdminService {
     });
   }
 
-  // --- RAZ démo ---
-  resetAvailable(): Observable<{ available: boolean }> {
-    return this.http.get<{ available: boolean }>(`${this.base}/demo/reset-available`);
-  }
-  reset(): Observable<{ status: string; message: string }> {
-    return this.http.post<{ status: string; message: string }>(`${this.base}/demo/reset`, {});
-  }
-
   // --- Webhook Strava ---
   // Un abonnement par application Strava, posé une fois par environnement : il n'a rien à faire
   // dans un démarrage automatique (prod et préprod se voleraient le flux), d'où ces trois appels.

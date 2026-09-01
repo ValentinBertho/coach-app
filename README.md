@@ -173,7 +173,12 @@ Mot de passe commun : **`password123`**
 
 > Le jeu de démo est **déterministe** (graine fixe) : profils physio, tests lactate, séances course
 > et force structurées, cycles, tests 1RM, charge, objectifs et indisponibilités. Il est produit par
-> `DemoSeedService` (profil `dev`, `app.seed.enabled`) et réinitialisable via `DemoResetService`.
+> `DemoSeedService`, en **profil `dev` uniquement** (`app.seed.enabled`).
+>
+> La réinitialisation depuis le back-office a été **retirée** : elle effaçait toutes les données de
+> l'instance et n'avait pour garde-fou qu'un profil actif. Une plateforme qui accueille de vrais
+> clubs n'a pas besoin d'un bouton qui les efface — pour repartir de zéro en local, on recrée la
+> base (`docker compose down -v`).
 
 ---
 
@@ -334,7 +339,8 @@ Copier `.env.example` → `.env` (local) ou configurer dans Railway/Vercel. Clé
 | `MAIL_ENABLED`, `RESEND_API_KEY`, `MAIL_FROM` | notifications e-mail | optionnel |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | notifications push | optionnel |
 | `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REDIRECT_URI` | intégration Strava | optionnel |
-| `DEMO_RESET_ENABLED` | autorise la RAZ démo (jamais en prod) | défaut `false` |
+| `REGISTRATION_MODE` | `request` (demande validée), `invite` (code partagé) ou `open` (libre) | défaut `request` en prod |
+| `REGISTRATION_INVITE_CODE` | code de la cohorte | requis si `invite` |
 | `SENTRY_DSN` | DSN Sentry **backend** (remontée d'erreurs) — no-op si vide | optionnel |
 | `SENTRY_ENV` | environnement Sentry backend (`production` / `staging`…) | défaut `dev` |
 

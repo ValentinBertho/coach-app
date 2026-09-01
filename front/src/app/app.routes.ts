@@ -474,6 +474,15 @@ export const routes: Routes = [
           import('./features/admin/admin-invitations.component').then((m) => m.AdminInvitationsComponent),
       },
       {
+        // Demandes de création de club : en régime « sur demande », c'est le seul endroit d'où
+        // un nouveau club peut naître.
+        path: 'club-requests',
+        loadComponent: () =>
+          import('./features/admin/admin-club-requests.component').then(
+            (m) => m.AdminClubRequestsComponent,
+          ),
+      },
+      {
         // Consommation d'e-mails : le plan d'envoi est plafonné, et rien ne le mesurait.
         path: 'mail',
         loadComponent: () =>

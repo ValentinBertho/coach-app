@@ -72,12 +72,42 @@ else
   green "Clés VAPID présentes."
 fi
 
-# Le profil prod force REGISTRATION_MODE=invite : sans code, plus personne ne s'inscrit.
-mode="${REGISTRATION_MODE:-invite}"
-if [ "${mode}" = "invite" ] && [ -z "${REGISTRATION_INVITE_CODE:-}" ]; then
-  red "REGISTRATION_MODE=invite sans REGISTRATION_INVITE_CODE : aucune inscription possible."
+# Le profil prod retient REGISTRATION_MODE=request. Deux façons de se fermer sur soi-même :
+# « invite » sans code n'accepte plus personne, et une valeur inconnue ne correspond à aucun
+# régime — l'application refuse alors de démarrer plutôt que de retomber sur le plus ouvert.
+mode="${REGISTRATION_MODE:-request}"
+case "${mode}" in
+  request)
+    green "Inscription : sur demande validée (arbitrage depuis /admin/club-requests)."
+    ;;
+  open)
+    amber "REGISTRATION_MODE=open : n'importe qui peut créer un club sur cette instance."
+    ;;
+  invite)
+    if [ -z "${REGISTRATION_INVITE_CODE:-}" ]; then
+      red "REGISTRATION_MODE=invite sans REGISTRATION_INVITE_CODE : aucune inscription possible."
+    else
+      green "Inscription : sur code d'invitation."
+    fi
+    ;;
+  *)
+    red "REGISTRATION_MODE=« ${mode} » inconnu (attendu : open, invite ou request).
+   Le démarrage en profil prod échouera : une faute de frappe ne doit pas rouvrir la porte."
+    ;;
+esac
+
+# Sans administrateur de plateforme, /admin est inatteignable — donc aucune demande de club ne
+# peut être arbitrée, et personne ne peut plus entrer en régime « request ».
+if [ -z "${PLATFORM_ADMIN_EMAIL:-}" ] || [ -z "${PLATFORM_ADMIN_PASSWORD:-}" ]; then
+  if [ "${mode}" = "request" ]; then
+    red "PLATFORM_ADMIN_EMAIL / PLATFORM_ADMIN_PASSWORD absents alors que l'inscription est sur
+   demande : personne ne pourra valider une demande de club, donc personne ne pourra entrer."
+  else
+    amber "PLATFORM_ADMIN_EMAIL / PLATFORM_ADMIN_PASSWORD absents : /admin sera inatteignable
+   (ni révocation d'invitation, ni suppression de compte, ni réponse RGPD)."
+  fi
 else
-  green "Inscription : mode ${mode}."
+  green "Administrateur de plateforme configuré."
 fi
 
 # Mail activé sans clé : chaque envoi échoue pendant que l'interface annonce « envoyé ».
@@ -101,6 +131,35 @@ elif [ "${hops}" -gt 1 ]; then
    valeur trop grande met tous les utilisateurs dans le même seau de rate limiting."
 else
   green "RATE_LIMIT_TRUSTED_PROXY_HOPS=${hops}."
+fi
+
+echo
+echo "── Webhook Strava ───────────────────────────────────────────────────────"
+
+# L'API est servie derrière le préfixe « /api » (server.servlet.context-path). L'adresse de rappel
+# doit donc s'y terminer. Sans le préfixe, elle renvoie une 404 : Strava la valide par un GET
+# immédiat, ne la trouve pas, et refuse l'abonnement avec un « callback url not verifiable » qui
+# ne dit pas ce qu'il a appelé. La documentation donnait la variante SANS préfixe.
+# Avertissement et non blocage : un webhook mal réglé n'empêche pas de servir, les activités
+# remontent simplement au rythme de la passe horaire.
+webhook_path="/api/public/strava/webhook"
+if [ -z "${STRAVA_WEBHOOK_CALLBACK_URL:-}" ]; then
+  amber "STRAVA_WEBHOOK_CALLBACK_URL absente : les activités remonteront à l'heure, pas en direct."
+else
+  case "${STRAVA_WEBHOOK_CALLBACK_URL}" in
+    https://*"${webhook_path}")
+      green "URL de rappel Strava bien formée."
+      ;;
+    *)
+      amber "STRAVA_WEBHOOK_CALLBACK_URL=${STRAVA_WEBHOOK_CALLBACK_URL}
+   Attendu : une adresse https se terminant par « ${webhook_path} » — préfixe de contexte de
+   l'API compris. Sans lui, Strava refusera l'abonnement (« callback url not verifiable »)."
+      ;;
+  esac
+  if [ -z "${STRAVA_WEBHOOK_VERIFY_TOKEN:-}" ]; then
+    red "STRAVA_WEBHOOK_CALLBACK_URL posée sans STRAVA_WEBHOOK_VERIFY_TOKEN :
+   aucune validation d'abonnement ne sera acceptée."
+  fi
 fi
 
 echo

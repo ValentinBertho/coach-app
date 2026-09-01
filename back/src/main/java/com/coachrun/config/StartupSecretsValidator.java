@@ -1,5 +1,7 @@
 package com.coachrun.config;
 
+import com.coachrun.controller.StravaWebhookPaths;
+import com.coachrun.entity.enums.RegistrationMode;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,6 +45,9 @@ public class StartupSecretsValidator {
     private final int trustedProxyHops;
     private final String betterStackToken;
     private final String betterStackIngestUrl;
+    private final String stravaCallbackUrl;
+    private final String stravaWebhookVerifyToken;
+    private final String contextPath;
 
     @SuppressWarnings("checkstyle:ParameterNumber")
     public StartupSecretsValidator(
@@ -58,7 +63,10 @@ public class StartupSecretsValidator {
             @Value("${app.registration.invite-code:}") String registrationInviteCode,
             @Value("${app.rate-limit.trusted-proxy-hops:1}") int trustedProxyHops,
             @Value("${app.logs.better-stack.source-token:}") String betterStackToken,
-            @Value("${app.logs.better-stack.ingest-url:}") String betterStackIngestUrl) {
+            @Value("${app.logs.better-stack.ingest-url:}") String betterStackIngestUrl,
+            @Value("${app.strava.webhook-callback-url:}") String stravaCallbackUrl,
+            @Value("${app.strava.webhook-verify-token:}") String stravaWebhookVerifyToken,
+            @Value("${server.servlet.context-path:}") String contextPath) {
         this.jwtSecret = jwtSecret;
         this.fieldEncryptionKey = fieldEncryptionKey;
         this.frontendUrl = frontendUrl;
@@ -72,6 +80,9 @@ public class StartupSecretsValidator {
         this.trustedProxyHops = trustedProxyHops;
         this.betterStackToken = betterStackToken;
         this.betterStackIngestUrl = betterStackIngestUrl;
+        this.stravaCallbackUrl = stravaCallbackUrl;
+        this.stravaWebhookVerifyToken = stravaWebhookVerifyToken;
+        this.contextPath = contextPath;
     }
 
     @PostConstruct
@@ -137,18 +148,72 @@ public class StartupSecretsValidator {
         // en trente secondes : c'est la règle appliquée à tout le reste de ce fichier.
         problems.addAll(betterStackProblems());
 
-        // Inscription fermée sans code : plus personne ne peut créer de compte, et le message
-        // d'erreur ne s'affiche qu'au premier candidat qui essaie.
-        if ("invite".equalsIgnoreCase(registrationMode) && isBlank(registrationInviteCode)) {
-            problems.add("REGISTRATION_MODE=invite sans REGISTRATION_INVITE_CODE : "
-                    + "aucune inscription ne serait possible.");
-        }
+        problems.addAll(registrationProblems());
 
         if (!problems.isEmpty()) {
-            throw new IllegalStateException("Configuration de production incomplète :\n - "
-                    + String.join("\n - ", problems));
+            // Type dédié : c'est lui qui permet à StartupConfigurationFailureAnalyzer d'écrire
+            // la liste en clair au lieu d'une trace de deux cents lignes.
+            throw new StartupConfigurationException(problems);
         }
+        warnings().forEach(w -> log.warn("[configuration] {}", w));
         log.info("Validation de la configuration de production OK.");
+    }
+
+    /**
+     * Contrôles du mode d'inscription.
+     *
+     * <p>Trois modes existent, et deux d'entre eux se referment sur eux-mêmes s'ils sont mal
+     * posés : {@code invite} sans code n'accepte plus personne, et une valeur inconnue (une
+     * faute de frappe, {@code REGISTRATION_MODE=requests}) retomberait silencieusement sur le
+     * comportement le plus ouvert. Un mode d'inscription mal orthographié ne doit pas ouvrir la
+     * création de club à tout venant : on refuse de démarrer.</p>
+     */
+    private List<String> registrationProblems() {
+        RegistrationMode mode = RegistrationMode.parse(registrationMode);
+        if (mode == null) {
+            return List.of("REGISTRATION_MODE=« " + registrationMode + " » inconnu. "
+                    + "Valeurs acceptées : " + RegistrationMode.accepted()
+                    + ". Une valeur non reconnue rouvrirait l'inscription à tout venant.");
+        }
+        // Inscription fermée sans code : plus personne ne peut créer de compte, et le message
+        // d'erreur ne s'affiche qu'au premier candidat qui essaie.
+        if (mode == RegistrationMode.INVITE && isBlank(registrationInviteCode)) {
+            return List.of("REGISTRATION_MODE=invite sans REGISTRATION_INVITE_CODE : "
+                    + "aucune inscription ne serait possible.");
+        }
+        return List.of();
+    }
+
+    /**
+     * Réglages douteux qui n'empêchent pas de servir : journalisés, jamais bloquants.
+     *
+     * <p>La distinction est délibérée. Refuser de démarrer coûte un déploiement raté et un retour
+     * arrière ; cela ne se justifie que lorsque l'application <b>servirait mal en silence</b>. Une
+     * URL de rappel Strava mal formée, elle, ne casse rien tant qu'on ne crée pas l'abonnement —
+     * et à ce moment-là, le contrôle est fait sur place, avec l'adresse exacte à recopier.</p>
+     */
+    private List<String> warnings() {
+        List<String> warnings = new ArrayList<>();
+        if (!isBlank(stravaCallbackUrl) && !stravaCallbackUrl.trim().endsWith(webhookPath())) {
+            warnings.add("STRAVA_WEBHOOK_CALLBACK_URL (« " + stravaCallbackUrl + " ») ne se termine "
+                    + "pas par « " + webhookPath() + " ». L'API est servie derrière le préfixe « "
+                    + contextPath + " » : Strava validerait l'adresse sur une page inexistante et "
+                    + "refuserait l'abonnement (« callback url not verifiable »).");
+        }
+        if (!isBlank(stravaCallbackUrl) && isBlank(stravaWebhookVerifyToken)) {
+            warnings.add("STRAVA_WEBHOOK_CALLBACK_URL posée sans STRAVA_WEBHOOK_VERIFY_TOKEN : "
+                    + "aucune validation d'abonnement ne sera acceptée.");
+        }
+        return warnings;
+    }
+
+    /** Chemin réel du webhook, préfixe de contexte compris. */
+    private String webhookPath() {
+        String prefix = contextPath == null ? "" : contextPath.trim();
+        if (prefix.endsWith("/")) {
+            prefix = prefix.substring(0, prefix.length() - 1);
+        }
+        return prefix + StravaWebhookPaths.PATH;
     }
 
     /**

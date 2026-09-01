@@ -1379,6 +1379,75 @@ public class NotificationService {
         send(email, subject, html, Audience.ATHLETE, MailKind.ATHLETE_INVITATION);
     }
 
+    /** Vrai si l'instance envoie réellement des e-mails (cf. {@code MAIL_ENABLED}). */
+    public boolean isMailEnabled() {
+        return enabled;
+    }
+
+    /**
+     * Accusé de réception d'une demande de création de club.
+     *
+     * <p>Il ne dit rien de la décision, et c'est délibéré : sans ce message, le candidat reste
+     * devant un formulaire qui s'est vidé, sans savoir si sa demande est partie. C'est le moment
+     * où l'on perd les gens.</p>
+     */
+    public void notifyClubRequestReceived(String email, String fullName, String clubName) {
+        if (email == null) {
+            return;
+        }
+        String html = "<p>Bonjour " + esc(fullName) + ",</p>"
+                + "<p>Nous avons bien reçu votre demande de création du club <strong>"
+                + esc(clubName) + "</strong> sur Darilab.</p>"
+                + "<p>Chaque demande est étudiée à la main : c'est ce qui nous permet de garder "
+                + "la plateforme saine pendant la bêta. Vous recevrez un e-mail dès qu'elle aura "
+                + "été examinée — inutile de la renvoyer entre-temps.</p>";
+        send(email, "Votre demande de club Darilab est bien enregistrée", html, Audience.COACH,
+                MailKind.CLUB_REQUEST);
+    }
+
+    /**
+     * Demande validée : le club et le compte existent, il reste à poser un mot de passe.
+     *
+     * <p>Le lien vaut activation. C'est lui, et non une case cochée à l'inscription, qui prouve
+     * que le demandeur est bien le titulaire de l'adresse déposée.</p>
+     */
+    public void notifyClubRequestApproved(String email, String fullName, String clubName,
+                                          String activationUrl) {
+        if (email == null) {
+            return;
+        }
+        String html = "<p>Bonjour " + esc(fullName) + ",</p>"
+                + "<p>Votre club <strong>" + esc(clubName) + "</strong> est ouvert sur Darilab. "
+                + "Il ne reste qu'à choisir votre mot de passe pour y entrer.</p>"
+                + cta("Choisir mon mot de passe et ouvrir mon club", activationUrl)
+                + "<p>Ce lien expire dans 7 jours. Passé ce délai, « mot de passe oublié » depuis "
+                + "la page de connexion en renverra un nouveau.</p>";
+        send(email, "Votre club Darilab est ouvert", html, Audience.COACH, MailKind.CLUB_REQUEST);
+    }
+
+    /**
+     * Demande refusée, avec son motif quand il y en a un.
+     *
+     * <p>Le motif est recopié tel quel depuis le back-office : c'est un texte écrit par un
+     * administrateur pour être lu par le demandeur. Sans lui, le message se réduit à une porte
+     * close, et le candidat redépose la même demande la semaine suivante.</p>
+     */
+    public void notifyClubRequestRejected(String email, String fullName, String clubName,
+                                          String reason) {
+        if (email == null) {
+            return;
+        }
+        String html = "<p>Bonjour " + esc(fullName) + ",</p>"
+                + "<p>Votre demande de création du club <strong>" + esc(clubName)
+                + "</strong> n'a pas été retenue.</p>"
+                + (reason == null || reason.isBlank()
+                ? ""
+                : "<p><strong>Motif :</strong> " + esc(reason) + "</p>")
+                + "<p>Si cette décision vous paraît tenir à un malentendu, répondez à cet e-mail : "
+                + "nous réexaminerons votre demande.</p>";
+        send(email, "Votre demande de club Darilab", html, Audience.COACH, MailKind.CLUB_REQUEST);
+    }
+
     /**
      * L'athlète déclare une indisponibilité → notifie son coach référent (in-app + push + email).
      * Le motif est une catégorie fermée (blessure, maladie, vacances, personnel) : ce n'est pas

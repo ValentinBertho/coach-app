@@ -63,7 +63,23 @@ export class AdminPlatformComponent implements OnInit {
     return s.stateLabel ?? (s.state === 'ON' ? 'Actif' : s.state === 'PARTIAL' ? 'Incomplet' : 'Inactif');
   }
 
+  /**
+   * Le régime d'inscription, en français.
+   *
+   * <p>Une valeur inconnue est nommée comme telle plutôt que rangée dans « Libre » : c'est
+   * précisément le cas où l'instance ne fait pas ce qu'on croit — le serveur se replie alors sur
+   * le régime le plus fermé, et l'écran doit le dire.</p>
+   */
   registrationLabel(mode: string): string {
-    return mode?.toLowerCase() === 'invite' ? 'Sur code d’invitation' : 'Libre';
+    switch (mode?.toLowerCase()) {
+      case 'invite':
+        return 'Sur code d’invitation';
+      case 'request':
+        return 'Sur demande validée';
+      case 'open':
+        return 'Libre';
+      default:
+        return `Valeur inconnue (« ${mode} »)`;
+    }
   }
 }

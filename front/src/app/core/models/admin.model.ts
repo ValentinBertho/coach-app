@@ -392,6 +392,15 @@ export interface StravaSubscription {
 export interface StravaWebhookState {
   configured: boolean;
   callbackUrl: string;
+  /**
+   * Chemin réellement servi par l'API, préfixe de contexte compris (`/api/public/strava/webhook`).
+   * Affiché parce que c'est l'oubli qui coûtait le plus cher : l'adresse recopiée sans `/api`
+   * renvoie une 404, et Strava refuse l'abonnement sur un « callback url not verifiable » qui
+   * ne dit pas ce qu'il a appelé.
+   */
+  expectedPath: string;
+  /** Ce qui empêche l'adresse posée de fonctionner, ou `null` si elle est plausible. */
+  callbackUrlProblem: string | null;
   subscriptions: StravaSubscription[];
 }
 

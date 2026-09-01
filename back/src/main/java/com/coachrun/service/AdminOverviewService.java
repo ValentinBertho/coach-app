@@ -4,6 +4,7 @@ import com.coachrun.dto.response.AdminIntegrationResponse;
 import com.coachrun.dto.response.AdminOverviewResponse;
 import com.coachrun.dto.response.AdminSignalResponse;
 import com.coachrun.entity.enums.AthleteStatus;
+import com.coachrun.entity.enums.ClubRequestStatus;
 import com.coachrun.entity.enums.ClubStatus;
 import com.coachrun.entity.enums.DeviceProvider;
 import com.coachrun.entity.enums.FeedbackStatus;
@@ -13,6 +14,7 @@ import com.coachrun.integration.StravaClient;
 import com.coachrun.repository.ActivityRepository;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.BetaFeedbackRepository;
+import com.coachrun.repository.ClubCreationRequestRepository;
 import com.coachrun.repository.ClubRepository;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.DeviceConnectionRepository;
@@ -63,6 +65,7 @@ public class AdminOverviewService {
     private static final int MAIL_CRITICAL_PCT = 90;
 
     private final ClubRepository clubRepository;
+    private final ClubCreationRequestRepository clubRequestRepository;
     private final UserRepository userRepository;
     private final AthleteRepository athleteRepository;
     private final CoachAthleteRelationRepository relationRepository;
@@ -222,6 +225,21 @@ public class AdminOverviewService {
                     "Ils sont dans la plateforme sans y être suivis : personne ne reçoit leurs "
                             + "retours ni ne leur planifie de séance.",
                     "Voir les athlètes", "/admin/athletes", athletesWithoutCoach));
+        }
+
+        // --- Demandes de création de club : personne d'autre ne peut ouvrir la porte. ---
+        //
+        // En tête des files de travail, et non parmi les « à savoir » : de l'autre côté, un coach
+        // attend d'entrer, et il n'a aucun autre moyen de le faire. Une demande oubliée trois
+        // jours est un club qui ne s'ouvrira jamais — le candidat aura renoncé.
+        long pendingClubRequests = clubRequestRepository.countByStatus(ClubRequestStatus.PENDING);
+        if (pendingClubRequests > 0) {
+            out.add(AdminSignalResponse.of("club-requests-pending", AdminSignalResponse.WARNING,
+                    pendingClubRequests + " demande" + plural(pendingClubRequests)
+                            + " de création de club à étudier",
+                    "Tant qu'elles ne sont pas arbitrées, ces coachs n'ont aucun moyen d'entrer : "
+                            + "la validation ouvre le club et leur envoie leur lien d'accès.",
+                    "Étudier les demandes", "/admin/club-requests", pendingClubRequests));
         }
 
         // --- Retours bêta en attente : la file de travail du support. ---

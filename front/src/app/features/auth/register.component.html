@@ -1,80 +1,187 @@
 <main class="auth-page">
-  <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
-    <header class="auth-head">
-      <app-logo [size]="44" [showText]="false" />
-      <h1 class="display-sm">Créer ton club</h1>
-      <p class="field-hint">Quelques secondes pour démarrer le coaching.</p>
-    </header>
+  @if (mode() === null) {
+    <!-- Le régime n'est pas encore connu : on ne montre aucun formulaire plutôt qu'un formulaire
+         qui pourrait être le mauvais. Le candidat le remplirait pour rien. -->
+    <div class="card auth-card">
+      <p class="field-hint reg-loading">Chargement…</p>
+    </div>
+  } @else if (submitted()) {
+    <!-- Demande déposée : un formulaire qui se vide sans un mot est le moment où l'on perd les
+         gens. On dit ce qui vient de se passer, et ce qui va suivre. -->
+    <div class="card auth-card">
+      <header class="auth-head">
+        <app-logo [size]="44" [showText]="false" />
+        <h1 class="display-sm">Demande envoyée</h1>
+      </header>
+      <p class="field-hint">
+        Nous avons bien reçu votre demande pour <strong>{{ submittedClubName() }}</strong>.
+        Chaque demande est étudiée à la main : vous recevrez un e-mail à
+        <strong>{{ submittedEmail() }}</strong> dès qu'elle aura été examinée.
+      </p>
+      <p class="field-hint">
+        Inutile de la renvoyer entre-temps — elle est déjà dans la file.
+      </p>
+      <a class="btn btn-primary btn-lg" routerLink="/login">Retour à la connexion</a>
+    </div>
+  } @else if (mode() === 'REQUEST') {
+    <form class="card auth-card" [formGroup]="requestForm" (ngSubmit)="submitRequest()">
+      <header class="auth-head">
+        <app-logo [size]="44" [showText]="false" />
+        <h1 class="display-sm">Créer mon club</h1>
+        <p class="field-hint">
+          La bêta est ouverte, et chaque club est validé à la main. Dites-nous qui vous êtes :
+          nous revenons vers vous par e-mail.
+        </p>
+      </header>
 
-    <div class="form-group">
-      <label for="fullName">Ton nom</label>
-      <input id="fullName" type="text" class="form-control" formControlName="fullName"
-             autocomplete="name" placeholder="Jean Dupont" />
-      @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
-        <span class="error-message">Nom requis.</span>
+      <div class="form-group">
+        <label for="req-fullName">Votre nom</label>
+        <input id="req-fullName" type="text" class="form-control" formControlName="fullName"
+               autocomplete="name" placeholder="Jean Dupont" />
+        @if (requestForm.controls.fullName.touched && requestForm.controls.fullName.invalid) {
+          <span class="error-message">Nom requis.</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="req-clubName">Nom du club</label>
+        <input id="req-clubName" type="text" class="form-control" formControlName="clubName"
+               placeholder="Running Club Lyon" />
+        @if (requestForm.controls.clubName.touched && requestForm.controls.clubName.invalid) {
+          <span class="error-message">Nom du club requis.</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="req-email">Email</label>
+        <input id="req-email" type="email" class="form-control" formControlName="email"
+               autocomplete="email" placeholder="vous@club.fr" />
+        <span class="field-hint">C'est à cette adresse que partira la réponse.</span>
+        @if (requestForm.controls.email.touched && requestForm.controls.email.invalid) {
+          <span class="error-message">Email valide requis.</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="req-phone">Téléphone <span class="reg-optional">(facultatif)</span></label>
+        <input id="req-phone" type="tel" class="form-control" formControlName="phone"
+               autocomplete="tel" placeholder="06 12 34 56 78" />
+      </div>
+
+      <div class="form-group">
+        <label for="req-message">Votre structure <span class="reg-optional">(facultatif)</span></label>
+        <textarea id="req-message" class="form-control" formControlName="message" rows="4"
+                  placeholder="Combien d'athlètes suivez-vous ? Quelles disciplines ?"></textarea>
+        <span class="field-hint">Deux lignes suffisent — c'est ce qui nous permet de répondre vite.</span>
+      </div>
+
+      <div class="form-group">
+        <label class="consent-check">
+          <input type="checkbox" formControlName="termsAccepted" />
+          <span>
+            J'accepte les <a routerLink="/legal/cgu" target="_blank">conditions d'utilisation</a>
+            et la <a routerLink="/legal/confidentialite" target="_blank">politique de confidentialité</a>.
+          </span>
+        </label>
+        @if (requestForm.controls.termsAccepted.touched && requestForm.controls.termsAccepted.invalid) {
+          <span class="error-message">L'acceptation des conditions est requise.</span>
+        }
+      </div>
+
+      @if (errorMessage(); as message) {
+        <p class="auth-error" role="alert">{{ message }}</p>
       }
-    </div>
 
-    <div class="form-group">
-      <label for="clubName">Nom du club</label>
-      <input id="clubName" type="text" class="form-control" formControlName="clubName"
-             placeholder="Running Club Lyon" />
-      @if (form.controls.clubName.touched && form.controls.clubName.invalid) {
-        <span class="error-message">Nom du club requis.</span>
+      <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
+        {{ submitting() ? 'Envoi…' : 'Envoyer ma demande' }}
+      </button>
+
+      <p class="auth-switch">
+        Déjà inscrit ? <a routerLink="/login">Se connecter</a>
+      </p>
+    </form>
+  } @else {
+    <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
+      <header class="auth-head">
+        <app-logo [size]="44" [showText]="false" />
+        <h1 class="display-sm">Créer ton club</h1>
+        <p class="field-hint">Quelques secondes pour démarrer le coaching.</p>
+      </header>
+
+      <div class="form-group">
+        <label for="fullName">Ton nom</label>
+        <input id="fullName" type="text" class="form-control" formControlName="fullName"
+               autocomplete="name" placeholder="Jean Dupont" />
+        @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
+          <span class="error-message">Nom requis.</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="clubName">Nom du club</label>
+        <input id="clubName" type="text" class="form-control" formControlName="clubName"
+               placeholder="Running Club Lyon" />
+        @if (form.controls.clubName.touched && form.controls.clubName.invalid) {
+          <span class="error-message">Nom du club requis.</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input id="email" type="email" class="form-control" formControlName="email"
+               autocomplete="email" placeholder="vous@club.fr" />
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <span class="error-message">Email valide requis.</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="password">Mot de passe</label>
+        <input id="password" type="password" class="form-control" formControlName="password"
+               autocomplete="new-password" placeholder="8 caractères minimum" />
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <span class="error-message">8 caractères minimum.</span>
+        }
+      </div>
+
+      <!-- Le champ n'apparaît que si le serveur exige un code : ailleurs, il n'était qu'une
+           question de plus à laquelle le candidat ne savait pas répondre. -->
+      @if (mode() === 'INVITE') {
+        <div class="form-group">
+          <label for="invitationCode">Code d'invitation</label>
+          <input id="invitationCode" type="text" class="form-control" formControlName="invitationCode"
+                 autocomplete="off" placeholder="Reçu par e-mail" />
+          <span class="field-hint">La bêta est ouverte sur invitation : utilisez le code reçu par e-mail.</span>
+          @if (form.controls.invitationCode.touched && form.controls.invitationCode.invalid) {
+            <span class="error-message">Code requis.</span>
+          }
+        </div>
       }
-    </div>
 
-    <div class="form-group">
-      <label for="email">Email</label>
-      <input id="email" type="email" class="form-control" formControlName="email"
-             autocomplete="email" placeholder="vous@club.fr" />
-      @if (form.controls.email.touched && form.controls.email.invalid) {
-        <span class="error-message">Email valide requis.</span>
+      <div class="form-group">
+        <label class="consent-check">
+          <input type="checkbox" formControlName="termsAccepted" />
+          <span>
+            J'accepte les <a routerLink="/legal/cgu" target="_blank">conditions d'utilisation</a>
+            et la <a routerLink="/legal/confidentialite" target="_blank">politique de confidentialité</a>.
+          </span>
+        </label>
+        @if (form.controls.termsAccepted.touched && form.controls.termsAccepted.invalid) {
+          <span class="error-message">L'acceptation des conditions est requise.</span>
+        }
+      </div>
+
+      @if (errorMessage(); as message) {
+        <p class="auth-error" role="alert">{{ message }}</p>
       }
-    </div>
 
-    <div class="form-group">
-      <label for="password">Mot de passe</label>
-      <input id="password" type="password" class="form-control" formControlName="password"
-             autocomplete="new-password" placeholder="8 caractères minimum" />
-      @if (form.controls.password.touched && form.controls.password.invalid) {
-        <span class="error-message">8 caractères minimum.</span>
-      }
-    </div>
+      <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
+        {{ submitting() ? 'Création…' : 'Créer mon club' }}
+      </button>
 
-    <!-- Bêta sur invitation : le serveur refuse l'inscription sans code quand le mode « invite »
-         est actif. Le champ reste facultatif côté formulaire — c'est le serveur qui tranche, et
-         son message explique précisément ce qui manque. -->
-    <div class="form-group">
-      <label for="invitationCode">Code d'invitation</label>
-      <input id="invitationCode" type="text" class="form-control" formControlName="invitationCode"
-             autocomplete="off" placeholder="Reçu par e-mail" />
-      <span class="field-hint">La bêta est ouverte sur invitation. Laisse vide si tu n'as pas de code.</span>
-    </div>
-
-    <div class="form-group">
-      <label class="consent-check">
-        <input type="checkbox" formControlName="termsAccepted" />
-        <span>
-          J'accepte les <a routerLink="/legal/cgu" target="_blank">conditions d'utilisation</a>
-          et la <a routerLink="/legal/confidentialite" target="_blank">politique de confidentialité</a>.
-        </span>
-      </label>
-      @if (form.controls.termsAccepted.touched && form.controls.termsAccepted.invalid) {
-        <span class="error-message">L'acceptation des conditions est requise.</span>
-      }
-    </div>
-
-    @if (errorMessage(); as message) {
-      <p class="auth-error" role="alert">{{ message }}</p>
-    }
-
-    <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
-      {{ submitting() ? 'Création…' : 'Créer mon club' }}
-    </button>
-
-    <p class="auth-switch">
-      Déjà inscrit ? <a routerLink="/login">Se connecter</a>
-    </p>
-  </form>
+      <p class="auth-switch">
+        Déjà inscrit ? <a routerLink="/login">Se connecter</a>
+      </p>
+    </form>
+  }
 </main>

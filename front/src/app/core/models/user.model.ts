@@ -32,6 +32,31 @@ export interface RegisterRequest {
   invitationCode?: string;
 }
 
+/**
+ * Comment on entre sur cette instance, tel que le serveur le déclare.
+ *
+ * - `OPEN` — le formulaire crée le club immédiatement.
+ * - `INVITE` — il faut un code partagé, distribué par e-mail.
+ * - `REQUEST` — le formulaire dépose une demande ; un administrateur la valide, et c'est la
+ *   validation qui ouvre le club. C'est le régime de la bêta ouverte.
+ */
+export type RegistrationMode = 'OPEN' | 'INVITE' | 'REQUEST';
+
+export interface RegistrationModeInfo {
+  mode: RegistrationMode;
+  label: string;
+}
+
+/** Dépôt d'une demande de création de club. Aucun mot de passe : rien n'est créé au dépôt. */
+export interface ClubCreationRequestSubmission {
+  email: string;
+  fullName: string;
+  clubName: string;
+  phone?: string;
+  message?: string;
+  termsAccepted: boolean;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;

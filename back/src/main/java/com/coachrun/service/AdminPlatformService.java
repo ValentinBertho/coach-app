@@ -3,6 +3,7 @@ package com.coachrun.service;
 import com.coachrun.config.VapidKeys;
 import com.coachrun.dto.response.AdminPlatformResponse;
 import com.coachrun.dto.response.AdminPlatformResponse.Setting;
+import com.coachrun.entity.enums.RegistrationMode;
 import com.coachrun.integration.StravaClient;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,9 +62,6 @@ public class AdminPlatformService {
     @Value("${app.strava.webhook-verify-token:}")
     private String stravaVerifyToken;
 
-    @Value("${app.demo.reset.enabled:false}")
-    private boolean demoResetEnabled;
-
     @Value("${app.debrief.enabled:true}")
     private boolean debriefEnabled;
 
@@ -84,13 +82,51 @@ public class AdminPlatformService {
                 settings());
     }
 
+    /**
+     * Le régime d'inscription, dit tel qu'il se comporte réellement.
+     *
+     * <p>« Libre » n'est pas « inactif » : l'inscription fonctionne, elle n'est simplement pas
+     * restreinte — d'où un libellé propre à ce réglage plutôt qu'un booléen. Les deux états
+     * rouges sont ceux où l'instance ne fait pas ce qu'on croit : un mode {@code invite} sans
+     * code n'accepte plus personne, et une valeur mal orthographiée ne correspond à aucun
+     * régime.</p>
+     */
+    private Setting registrationSetting() {
+        RegistrationMode mode = RegistrationMode.parse(registrationMode);
+        if (mode == null) {
+            return new Setting("registration", "Inscription", Setting.OFF,
+                    "Valeur inconnue",
+                    "REGISTRATION_MODE=« " + registrationMode + " » ne correspond à aucun régime "
+                            + "(" + RegistrationMode.accepted() + "). L'application se replie sur "
+                            + "le plus fermé : les demandes de club.",
+                    "REGISTRATION_MODE");
+        }
+        boolean inviteCodeSet = StringUtils.hasText(registrationInviteCode);
+        return switch (mode) {
+            case OPEN -> new Setting("registration", "Inscription", Setting.PARTIAL,
+                    "Libre",
+                    "N'importe qui peut créer un club sur cette instance.",
+                    "REGISTRATION_MODE / REGISTRATION_INVITE_CODE");
+            case INVITE -> new Setting("registration", "Inscription",
+                    inviteCodeSet ? Setting.ON : Setting.OFF,
+                    inviteCodeSet ? "Sur code" : "Fermée par erreur",
+                    inviteCodeSet
+                            ? "Cohorte fermée : un code est exigé à l'inscription."
+                            : "Mode « invite » sans code configuré : plus personne ne peut s'inscrire.",
+                    "REGISTRATION_MODE / REGISTRATION_INVITE_CODE");
+            case REQUEST -> new Setting("registration", "Inscription", Setting.ON,
+                    "Sur demande validée",
+                    "Le formulaire est ouvert à tous, mais il dépose une demande : rien n'est "
+                            + "créé avant validation depuis « Demandes de club ».",
+                    "REGISTRATION_MODE");
+        };
+    }
+
     private List<Setting> settings() {
         boolean stravaConfigured = stravaClient.isConfigured();
         boolean webhookReady = StringUtils.hasText(stravaCallbackUrl)
                 && StringUtils.hasText(stravaVerifyToken);
         boolean mailReady = mailEnabled && StringUtils.hasText(resendApiKey);
-        boolean inviteOnly = "invite".equalsIgnoreCase(registrationMode);
-        boolean inviteCodeSet = StringUtils.hasText(registrationInviteCode);
 
         return List.of(
                 new Setting("mail", "Envoi d'e-mails",
@@ -131,17 +167,7 @@ public class AdminPlatformService {
                                 + "même pas de clé publique à présenter.",
                         "VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY"),
 
-                // « Libre » n'est pas « inactif » : l'inscription fonctionne, elle n'est
-                // simplement pas restreinte. D'où un libellé propre à ce réglage.
-                new Setting("registration", "Inscription",
-                        inviteOnly ? (inviteCodeSet ? Setting.ON : Setting.OFF) : Setting.PARTIAL,
-                        inviteOnly ? (inviteCodeSet ? "Sur code" : "Fermée par erreur") : "Libre",
-                        inviteOnly
-                                ? (inviteCodeSet
-                                ? "Cohorte fermée : un code est exigé à l'inscription."
-                                : "Mode « invite » sans code configuré : plus personne ne peut s'inscrire.")
-                                : "N'importe qui peut créer un club sur cette instance.",
-                        "REGISTRATION_MODE / REGISTRATION_INVITE_CODE"),
+                registrationSetting(),
 
                 new Setting("debrief", "Rappels de débriefing",
                         debriefEnabled ? Setting.ON : Setting.OFF,
@@ -157,14 +183,6 @@ public class AdminPlatformService {
                         StringUtils.hasText(sentryDsn)
                                 ? "Les erreurs serveur sont remontées avec leur identifiant de corrélation."
                                 : "Un incident ne se voit que dans les journaux.",
-                        "SENTRY_DSN"),
-
-                new Setting("demo-reset", "Réinitialisation démo",
-                        demoResetEnabled ? Setting.PARTIAL : Setting.OFF,
-                        demoResetEnabled ? "Disponible" : "Interdite",
-                        demoResetEnabled
-                                ? "Efface TOUTES les données au profit du jeu de démonstration."
-                                : "C'est le réglage attendu en production.",
-                        "DEMO_RESET_ENABLED"));
+                        "SENTRY_DSN"));
     }
 }
