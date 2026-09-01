@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -222,34 +223,61 @@ class AdminBackOfficeTest {
         assertThat(userRepository.existsById(admin.getId())).isTrue();
     }
 
+    /**
+     * Le dernier administrateur actif ne peut être ni suspendu ni supprimé.
+     *
+     * <p><b>Ce test emprunte l'état de toute la base, et doit le rendre.</b> La classe n'est pas
+     * transactionnelle : ce qu'elle écrit est commité pour de bon dans la base H2 partagée par
+     * les 137 classes de la suite. Or il faut, le temps de l'assertion, n'avoir qu'un seul
+     * administrateur actif — donc suspendre tous les autres, y compris
+     * {@code admin@coachrun.fr} du jeu de démo dès lors qu'une classe non transactionnelle l'a
+     * commité auparavant.</p>
+     *
+     * <p>Sans la remise en état ci-dessous, cette suspension survivait au test et empoisonnait
+     * toute classe ultérieure se connectant comme administrateur de démo : {@code MailLogTest}
+     * prenait quatre 401 « Ce compte est suspendu » dans son {@code setUp}, à des centaines de
+     * lignes de journal de la cause. Le défaut ne se voyait que dans l'ordre d'exécution de la
+     * CI, jamais en local.</p>
+     */
     @Test
     void theLastActiveAdminCannotBeRemoved() throws Exception {
         MockMvc mvc = mockMvc();
         // Base de test partagée : on la ramène volontairement à un seul administrateur actif,
         // qui est exactement la situation que la garde doit protéger.
-        userRepository.findAll().stream()
+        List<UUID> borrowed = userRepository.findAll().stream()
                 .filter(u -> u.getRole() == UserRole.PLATFORM_ADMIN && u.getStatus() == UserStatus.ACTIVE)
-                .forEach(u -> {
+                .map(u -> {
                     u.setStatus(UserStatus.SUSPENDED);
                     userRepository.save(u);
-                });
+                    return u.getId();
+                })
+                .toList();
 
-        User last = newAdmin();
-        // L'acteur est un administrateur suspendu : il conserve le rôle porté par son jeton mais
-        // ne compte pas parmi les administrateurs actifs, ce qui isole le cas testé.
-        User caller = newAdmin();
-        caller.setStatus(UserStatus.SUSPENDED);
-        userRepository.save(caller);
-        String token = tokenOf(caller);
+        try {
+            User last = newAdmin();
+            // L'acteur est un administrateur suspendu : il conserve le rôle porté par son jeton mais
+            // ne compte pas parmi les administrateurs actifs, ce qui isole le cas testé.
+            User caller = newAdmin();
+            caller.setStatus(UserStatus.SUSPENDED);
+            userRepository.save(caller);
+            String token = tokenOf(caller);
 
-        mvc.perform(post("/admin/users/" + last.getId() + "/suspend")
-                        .header("Authorization", "Bearer " + token))
-                .andExpect(status().isConflict());
-        mvc.perform(delete("/admin/users/" + last.getId()).header("Authorization", "Bearer " + token))
-                .andExpect(status().isConflict());
+            mvc.perform(post("/admin/users/" + last.getId() + "/suspend")
+                            .header("Authorization", "Bearer " + token))
+                    .andExpect(status().isConflict());
+            mvc.perform(delete("/admin/users/" + last.getId()).header("Authorization", "Bearer " + token))
+                    .andExpect(status().isConflict());
 
-        assertThat(userRepository.findById(last.getId()).orElseThrow().getStatus())
-                .isEqualTo(UserStatus.ACTIVE);
+            assertThat(userRepository.findById(last.getId()).orElseThrow().getStatus())
+                    .isEqualTo(UserStatus.ACTIVE);
+        } finally {
+            // Rendu même sur échec : un test qui casse ne doit pas en faire tomber cinq autres
+            // pour une raison sans rapport avec ce qu'ils vérifient.
+            userRepository.findAllById(borrowed).forEach(u -> {
+                u.setStatus(UserStatus.ACTIVE);
+                userRepository.save(u);
+            });
+        }
     }
 
     @Test
