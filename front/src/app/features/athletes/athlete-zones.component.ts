@@ -6,13 +6,14 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 import { MetricType } from '../../core/models/metric-type.model';
 import { TrainingZone, ZoneAnchor, ZONE_ANCHOR_LABELS } from '../../core/models/training-zone.model';
 import { AthleteZoneValue } from '../../core/models/athlete-zone-value.model';
-import { PhysioProfile } from '../../core/models/physio.model';
+import { Performance, PhysioProfile, Vdot } from '../../core/models/physio.model';
 import { MetricTypeService } from '../../core/services/metric-type.service';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
 import { AthleteZoneValueService } from '../../core/services/athlete-zone-value.service';
 import { ZoneSet } from '../../core/models/zone-set.model';
 import { ZoneSetService } from '../../core/services/zone-set.service';
 import { PhysioService } from '../../core/services/physio.service';
+import { VdotPacesPanelComponent } from '../../shared/components/vdot-paces/vdot-paces-panel.component';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { formatMetricRange, formatMetricValue } from '../../core/utils/metric-format';
@@ -31,7 +32,7 @@ interface EditState {
   selector: 'app-athlete-zones',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, FormsModule, RouterLink],
+  imports: [IconComponent, FormsModule, RouterLink, VdotPacesPanelComponent],
   template: `
     <section class="page-header">
       <div>
@@ -78,6 +79,17 @@ interface EditState {
           <a class="refs-edit" [routerLink]="['/app/athletes', athleteId(), 'tests']">Modifier →</a>
         </div>
       }
+
+      <!--
+        Records et allures qui en découlent. Placés ici, juste au-dessus des zones, parce que
+        c'est la question qu'on se pose en les lisant : d'où sortent ces bornes ? Elles sont
+        ancrées sur ces allures, et un nouveau chrono les resynchronise.
+        La saisie reste sur l'écran des tests — un seul endroit où corriger un record.
+      -->
+      <app-vdot-paces-panel
+        [vdot]="vdot()"
+        [performances]="performances()"
+        [manageLink]="['/app/athletes', athleteId(), 'tests']" />
 
       <!-- Échelles par métrique (façon Nolio) : chaque onglet isole l'échelle d'une métrique. -->
       <div class="scale-tabs" role="tablist">
@@ -237,6 +249,10 @@ export class AthleteZonesComponent implements OnInit {
   private readonly valueService = inject(AthleteZoneValueService);
   private readonly setService = inject(ZoneSetService);
   private readonly physio = inject(PhysioService);
+
+  /** VDOT et allures d'équivalence : ce qui ancre les zones affichées plus bas. */
+  readonly vdot = signal<Vdot | null>(null);
+  readonly performances = signal<Performance[] | null>(null);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);
 
@@ -315,6 +331,16 @@ export class AthleteZonesComponent implements OnInit {
 
   ngOnInit(): void {
     this.reload();
+    // Échecs volontairement silencieux : le panneau se replie sur son état vide, et l'écran des
+    // zones — l'objet de la page — reste utilisable si le profil physio ne répond pas.
+    this.physio.vdot(this.athleteId()).subscribe({
+      next: (v) => this.vdot.set(v),
+      error: () => this.vdot.set(null),
+    });
+    this.physio.performances(this.athleteId()).subscribe({
+      next: (p) => this.performances.set(p),
+      error: () => this.performances.set(null),
+    });
     this.physio.profile(this.athleteId()).subscribe({
       next: (p) => this.physioProfile.set(p),
       error: () => this.physioProfile.set(null),

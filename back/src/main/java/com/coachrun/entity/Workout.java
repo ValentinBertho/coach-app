@@ -175,11 +175,11 @@ public class Workout extends BaseEntity {
     private UUID planId;
 
     /** Copie figée de la prescription (SessionStructure JSON) au moment de l'assignation. */
-    @Column(name = "session_snapshot", length = 20000)
+    @Column(name = "session_snapshot", columnDefinition = "text")
     private String sessionSnapshot;
 
     /** Allures/cibles calculées pour cet athlète au moment de l'assignation (JSON). */
-    @Column(name = "calculated_paces", length = 20000)
+    @Column(name = "calculated_paces", columnDefinition = "text")
     private String calculatedPaces;
 
     /**

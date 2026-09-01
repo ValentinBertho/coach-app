@@ -38,6 +38,6 @@ public class StrengthCycle extends BaseEntity {
     private String description;
 
     /** JSON : { "weeks": [ { "week": 1, "sessionIds": [...], "chargePctAdjustment": 0 } ] }. */
-    @Column(name = "structure_json", length = 20000)
+    @Column(name = "structure_json", columnDefinition = "text")
     private String structureJson;
 }

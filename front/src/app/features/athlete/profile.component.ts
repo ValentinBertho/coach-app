@@ -18,6 +18,7 @@ import { PhysioProfile, Performance, Vdot } from '../../core/models/physio.model
 import { LactateTest } from '../../core/models/lactate.model';
 import { RaceObjective } from '../../core/models/race.model';
 import { supportMailto as supportLink } from '../../shared/components/support-link';
+import { VdotPacesPanelComponent } from '../../shared/components/vdot-paces/vdot-paces-panel.component';
 import {
   Unavailability, UnavailabilityReason, UnavailabilityRequest,
 } from '../../core/models/unavailability.model';
@@ -35,7 +36,8 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, FormsModule, IconComponent, DataOriginTagComponent, DatePipe, DecimalPipe,
-    InstallButtonComponent, PushButtonComponent, PushTestButtonComponent, ThemePickerComponent],
+    InstallButtonComponent, PushButtonComponent, PushTestButtonComponent, ThemePickerComponent,
+    VdotPacesPanelComponent],
   template: `
     <div class="shell">
       <!-- Plus de barre de marque ici : la coquille du portail en pose une, commune à tous les
@@ -268,28 +270,18 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
           </section>
         }
 
-        <!-- Mes allures d'entraînement (VDOT) -->
-        @if (vdot(); as v) {
-          @if (v.paces.length > 0) {
-            <section class="card">
-              <div class="card-hd">
-                <h2>Mes allures d'entraînement</h2>
-                <app-data-origin-tag origin="calcule" label="Calculé" />
-              </div>
-              <ul class="paces">
-                @for (pace of v.paces; track pace.distance) {
-                  <li>
-                    <span class="pace-d">{{ pace.distance }}</span>
-                    <span class="pace-p metric">{{ pace.paceLabel }}<small> /km</small></span>
-                    @if (pace.speedKmh != null) {
-                      <span class="pace-s field-hint">{{ pace.speedKmh | number: '1.1-1' }} km/h</span>
-                    }
-                  </li>
-                }
-              </ul>
-            </section>
-          }
-        }
+        <!--
+          Mes records et les allures qui en découlent. Même panneau que la fiche du coach : deux
+          lectures de la même table finiraient par diverger, et l'athlète comme son coach doivent
+          pouvoir parler des mêmes chiffres. La liste montrait auparavant les seules allures
+          d'équivalence, sous les codes bruts du serveur (« 5km », « semi »), sans les chronos qui
+          les produisent ni les allures d'entraînement.
+        -->
+        <app-vdot-paces-panel
+          heading="Mes records & allures"
+          [vdot]="vdot()"
+          [performances]="performances()"
+          [manageLink]="['/athlete/performances']" />
 
         <!-- Mes objectifs -->
         @if (races(); as rs) {
