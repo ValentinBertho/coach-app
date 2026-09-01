@@ -1,5 +1,6 @@
 package com.coachrun;
 
+import com.coachrun.config.StartupConfigurationException;
 import com.coachrun.config.StartupSecretsValidator;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -29,7 +30,7 @@ class StartupTrustedProxyTest {
 
     private StartupSecretsValidator withHops(int hops) {
         return new StartupSecretsValidator(GOOD_JWT, GOOD_KEY, GOOD_URL, false, "", GOOD_CORS,
-                "pub", "priv", "open", "", hops, "", "");
+                "pub", "priv", "open", "", hops, "", "", "", "", "/api");
     }
 
     private void run(StartupSecretsValidator validator) {
@@ -40,7 +41,7 @@ class StartupTrustedProxyTest {
     @Test
     void zeroHopsIsRefused() {
         assertThatThrownBy(() -> run(withHops(0)))
-                .isInstanceOf(IllegalStateException.class)
+                .isInstanceOf(StartupConfigurationException.class)
                 .hasMessageContaining("RATE_LIMIT_TRUSTED_PROXY_HOPS");
     }
 

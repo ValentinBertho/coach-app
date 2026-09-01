@@ -8,20 +8,17 @@ import com.coachrun.dto.request.RegisterRequest;
 import com.coachrun.dto.response.AuthResponse;
 import com.coachrun.dto.response.UserResponse;
 import com.coachrun.entity.Athlete;
-import com.coachrun.entity.Club;
 import com.coachrun.entity.User;
 import com.coachrun.entity.enums.AthleteStatus;
-import com.coachrun.entity.enums.ClubStatus;
+import com.coachrun.entity.enums.RegistrationMode;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.entity.enums.UserStatus;
 import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.exception.UnauthorizedException;
 import com.coachrun.repository.AthleteRepository;
-import com.coachrun.repository.ClubRepository;
 import com.coachrun.repository.UserRepository;
 import com.coachrun.security.JwtService;
-import com.coachrun.util.SlugUtil;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,9 +39,7 @@ import java.util.UUID;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final ClubRepository clubRepository;
     private final AthleteRepository athleteRepository;
-    private final com.coachrun.repository.ClubMemberRepository clubMemberRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final com.coachrun.security.TokenBlacklist tokenBlacklist;
@@ -52,7 +47,7 @@ public class AuthService {
     private final com.coachrun.security.LoginAttemptTracker loginAttempts;
     private final NotificationService notificationService;
     private final PushNotificationService pushNotificationService;
-    private final ClubStarterKitService starterKitService;
+    private final ClubProvisioningService clubProvisioningService;
 
     private static final java.security.SecureRandom RESET_RANDOM = new java.security.SecureRandom();
 
@@ -68,89 +63,36 @@ public class AuthService {
     private String registrationInviteCode;
 
     /**
-     * Inscription libre ou sur code, selon {@code app.registration.mode}. Le runbook prévoit une
-     * bêta sur cohorte fermée, mais {@code /auth/register} était public et n'exigeait que
-     * l'unicité de l'e-mail : n'importe qui pouvait créer un club sur l'instance de production.
+     * Inscription directe, quand le régime de la plateforme l'autorise.
+     *
+     * <p>Trois régimes existent (cf. {@link RegistrationMode}) et cette méthode n'en sert que
+     * deux. En mode {@code request}, l'inscription directe n'existe plus : le candidat dépose une
+     * demande que l'administrateur arbitre, et c'est la validation qui ouvre le club. La route
+     * reste servie pour rendre ce refus explicite — un 404 laisserait croire à une panne, et le
+     * front, lui, montre directement le bon formulaire.</p>
      */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        requireDirectRegistrationAllowed();
         requireValidInvitation(request.invitationCode());
         if (userRepository.existsByEmailIgnoreCase(request.email())) {
             throw new ConflictException("Un compte existe déjà avec cet email.");
         }
 
-        Club club = new Club();
-        club.setName(request.clubName());
-        club.setSlug(uniqueSlug(request.clubName()));
-        club.setStatus(ClubStatus.ACTIVE);
-        club = clubRepository.save(club);
-
-        User user = new User();
-        user.setEmail(request.email().toLowerCase());
-        user.setPasswordHash(passwordEncoder.encode(request.password()));
-        user.setFullName(request.fullName());
-        user.setRole(UserRole.HEAD_COACH);
-        user.setStatus(UserStatus.ACTIVE);
-        user.setClub(club);
-        // E-mail à vérifier : on n'enferme pas le coach hors de son espace, mais on l'invite à confirmer.
-        user.setEmailVerified(false);
+        User user = clubProvisioningService.openClub(
+                request.clubName(), request.fullName(), request.email(),
+                passwordEncoder.encode(request.password()),
+                // E-mail à vérifier : on n'enferme pas le coach hors de son espace, mais on
+                // l'invite à confirmer.
+                false);
         user.setVerifyToken(randomToken());
         user.setVerifyExpiresAt(java.time.Instant.now().plus(7, java.time.temporal.ChronoUnit.DAYS));
-        // Preuve de consentement RGPD (termsAccepted est garanti true par la validation).
-        user.setTermsAcceptedAt(java.time.Instant.now());
-        user = userRepository.save(user);
 
-        // Le créateur du club en est le propriétaire (membership multi-coach).
-        com.coachrun.entity.ClubMember owner = new com.coachrun.entity.ClubMember();
-        owner.setClub(club);
-        owner.setCoach(user);
-        owner.setClubRole(com.coachrun.entity.enums.ClubRole.OWNER);
-        owner.setActive(true);
-        clubMemberRepository.save(owner);
-
-        installStarterKit(club.getId());
         notificationService.notifyEmailVerification(user.getEmail(), user.getFullName(),
                 frontendUrl + "/verify-email/" + user.getVerifyToken());
-        log.info("Nouveau coach inscrit (club={}, e-mail à vérifier)", club.getId());
+        log.info("Nouveau coach inscrit (club={}, e-mail à vérifier)",
+                user.getClub() != null ? user.getClub().getId() : null);
         return toAuthResponse(user);
-    }
-
-    /**
-     * Pose le jeu de départ du club — <b>après le commit, et sans jamais faire échouer
-     * l'inscription</b>.
-     *
-     * <p>Deux raisons de ne pas l'inclure dans la transaction d'inscription. La première est de
-     * principe : créer un compte est l'opération la moins remplaçable du produit, et une
-     * bibliothèque d'exemple est un agrément — un défaut dans dix modèles de séance ne doit pas
-     * empêcher un coach d'ouvrir un compte. La seconde est pratique : le jeu de départ écrit une
-     * trentaine de lignes, ce qui rallongerait d'autant une transaction tenue pendant que le
-     * visiteur attend sa réponse.</p>
-     *
-     * <p>Conséquence assumée : sur l'échec, le coach arrive dans une bibliothèque vide — l'état
-     * d'avant. Il est journalisé et remonté à Sentry, et le jeu reste installable après coup
-     * puisqu'il est idempotent.</p>
-     */
-    private void installStarterKit(UUID clubId) {
-        Runnable install = () -> {
-            try {
-                starterKitService.install(clubId);
-            } catch (RuntimeException ex) {
-                log.error("Jeu de départ non installé pour le club {} — l'inscription reste valide",
-                        clubId, ex);
-                io.sentry.Sentry.captureException(ex);
-            }
-        };
-        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
-            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-                    new org.springframework.transaction.support.TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            install.run();
-                        }
-                    });
-            return;
-        }
-        install.run();
     }
 
     /** Confirme l'adresse e-mail à partir du jeton de vérification (lien d'inscription). */
@@ -227,12 +169,44 @@ public class AuthService {
     }
 
     /**
+     * Le régime d'inscription actif.
+     *
+     * <p>Une valeur non reconnue vaut {@link RegistrationMode#REQUEST}, le plus fermé des trois :
+     * une faute de frappe dans une variable d'environnement ne doit pas ouvrir la création de
+     * club à tout venant. Le garde-fou de démarrage refuse d'ailleurs de booter en production sur
+     * une valeur inconnue — ce repli couvre les autres profils.</p>
+     */
+    private RegistrationMode mode() {
+        RegistrationMode parsed = RegistrationMode.parse(registrationMode);
+        if (parsed == null) {
+            log.warn("REGISTRATION_MODE=« {} » non reconnu : repli sur « request ».", registrationMode);
+            return RegistrationMode.REQUEST;
+        }
+        return parsed;
+    }
+
+    /**
+     * Refuse l'inscription directe quand la plateforme fonctionne sur demandes validées.
+     *
+     * <p>Le message nomme le chemin à suivre. Un « accès refusé » nu laisserait le candidat
+     * conclure que son compte est bloqué, alors qu'il n'en a simplement pas encore.</p>
+     */
+    private void requireDirectRegistrationAllowed() {
+        if (mode() == RegistrationMode.REQUEST) {
+            throw new com.coachrun.exception.ForbiddenException(
+                    "La création de club passe par une demande validée par l'équipe. "
+                            + "Remplissez le formulaire « Créer mon club » : vous recevrez un "
+                            + "e-mail dès que votre demande sera étudiée.");
+        }
+    }
+
+    /**
      * Vérifie le code d'invitation quand l'inscription est fermée. Message explicite : « accès
      * refusé » laisserait le coach invité penser que son compte est bloqué, alors qu'il s'est
      * seulement trompé de code.
      */
     private void requireValidInvitation(String submitted) {
-        if (!"invite".equalsIgnoreCase(registrationMode)) {
+        if (mode() != RegistrationMode.INVITE) {
             return;
         }
         if (!org.springframework.util.StringUtils.hasText(registrationInviteCode)) {
@@ -509,13 +483,4 @@ public class AuthService {
                 UserResponse.from(user));
     }
 
-    private String uniqueSlug(String clubName) {
-        String base = SlugUtil.slugify(clubName);
-        String slug = base;
-        int i = 1;
-        while (clubRepository.existsBySlug(slug)) {
-            slug = base + "-" + (++i);
-        }
-        return slug;
-    }
 }

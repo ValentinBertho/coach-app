@@ -15,7 +15,7 @@
 | ✅ `state` OAuth Strava signé, rate limiting durci (IP de confiance, plafond authentifié) | ⬜ Sentry backend (DSN Railway) |
 | ✅ DSN Sentry **frontend** committé | ⬜ Uptime (Better Stack) + journaux centralisés (4 bis) |
 | ✅ Workflow de sauvegarde chiffrée écrit | ⬜ **Test de restauration BDD** (bloquant) |
-| ✅ CI alignée sur PostgreSQL 18 (= prod) | ⬜ Clés VAPID + code d'invitation sur Railway |
+| ✅ CI alignée sur PostgreSQL 18 (= prod) | ⬜ Clés VAPID + administrateur de plateforme sur Railway |
 | ✅ Consentement santé : CGU athlète, retrait (art. 7-3), garde de collecte | ⬜ **Compte administrateur plateforme** (1.1 bis, bloquant) |
 | ✅ Push hors transaction, borné, abonnements morts purgés | ⬜ **Identité de l'éditeur** dans `LEGAL_OWNER` (bloquant) |
 | ✅ Canal de retour en base + écran `/admin/feedback` | |
@@ -102,23 +102,32 @@ VAPID_SUBJECT=mailto:contact@darilab.app
 > place et couverts par `PushSubscriptionTest`. Il ne manque que **la paire de clés ci-dessus** et
 > la vérification sur un vrai téléphone — un push ne se teste pas en CI.
 
-### 1.3 Fermer l'inscription (cohorte sur invitation) · 🔴 BLOQUANT
-Le runbook prévoit une cohorte de 5 à 8 coachs, mais `/auth/register` est public : sans ce
-réglage, n'importe qui peut créer un club sur l'instance de production — avec les données de
-santé que cela implique.
+### 1.3 Contrôler l'inscription (bêta ouverte, sur demande validée)
+`/auth/register` était public : sans réglage, n'importe qui peut créer un club sur l'instance de
+production — avec les données de santé que cela implique.
 
-Railway → **Variables** :
-```
-REGISTRATION_MODE=invite
-REGISTRATION_INVITE_CODE=<code partagé de la cohorte>
-```
-> `invite` est déjà la valeur par défaut du profil `prod` ; il reste à **poser le code**, sans
-> lequel le backend refuse de démarrer (aucune inscription ne serait possible).
-> Le jour de l'ouverture publique : `REGISTRATION_MODE=open`.
+Le profil `prod` retient désormais **`REGISTRATION_MODE=request`**, et il n'y a **rien à poser** :
+c'est la valeur par défaut, et elle n'exige aucun code.
 
-- [ ] Inscription sans code → message « Code d'invitation invalide… », pas de compte créé
-- [ ] Inscription avec le code → club créé
-- [ ] Le code est transmis aux coachs invités avec le lien d'inscription
+En régime `request`, le formulaire « Créer mon club » reste ouvert à tous mais dépose une
+**demande** ; l'administrateur l'arbitre depuis **`/admin/club-requests`**, et la validation crée
+le club, le compte du coach et son lien d'accès. C'est ce qui permet d'accueillir des dizaines de
+candidats sans distribuer un code à la main ni laisser la porte ouverte.
+
+> Le code partagé (`REGISTRATION_MODE=invite` + `REGISTRATION_INVITE_CODE`) reste disponible pour
+> une cohorte fermée de 5 à 8 coachs qu'on connaît. Il se transfère, se colle dans un message et
+> ne dit jamais qui s'en est servi : au-delà d'une poignée de coachs, préférer `request`.
+> Le jour de l'ouverture publique sans filtre : `REGISTRATION_MODE=open`.
+
+⚠ **Prérequis du régime `request`** : `PLATFORM_ADMIN_EMAIL` / `PLATFORM_ADMIN_PASSWORD` doivent
+être posés (§ 1.2 du runbook). Sans compte d'administration, aucune demande ne peut être
+arbitrée — donc plus personne ne peut entrer. `./ops/preflight-prod.sh` le signale en rouge.
+
+- [ ] `/register` affiche le formulaire de **demande** (pas de champ mot de passe)
+- [ ] Le dépôt renvoie un accusé de réception, et **aucun compte n'est créé**
+- [ ] `/admin/club-requests` liste la demande ; **Valider** ouvre le club et rend le lien d'accès
+- [ ] Le lien d'accès permet de choisir un mot de passe et d'entrer dans le club
+- [ ] **Refuser** avec un motif → le motif part au demandeur, aucun compte créé
 
 ### 1.4 Strava
 [developers.strava.com](https://developers.strava.com) → ton application →

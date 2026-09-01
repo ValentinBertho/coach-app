@@ -212,10 +212,20 @@
             <code>STRAVA_WEBHOOK_VERIFY_TOKEN</code>, puis redéployer. En attendant, les activités
             remontent par la synchronisation horaire.
           </p>
+        } @else if (sw.callbackUrlProblem) {
+          <!-- L'adresse est posée mais ne peut pas marcher. On le dit AVANT le bouton : sinon
+               Strava répond « callback url not verifiable », sans dire ce qu'il a appelé. -->
+          <p class="field-hint adash-bad">{{ sw.callbackUrlProblem }}</p>
         } @else {
           <p class="field-hint">
             Inactif — les activités remontent à l'heure. Strava validera
             {{ sw.callbackUrl }} dès la création : l'instance doit être joignable depuis l'extérieur.
+          </p>
+        }
+        @if (!sw.subscriptions.length) {
+          <p class="field-hint">
+            L'adresse doit se terminer par <code>{{ sw.expectedPath }}</code> — préfixe de contexte
+            de l'API compris.
           </p>
         }
       </div>
@@ -223,26 +233,12 @@
         <button type="button" class="btn btn-danger" [disabled]="stravaBusy()"
                 (click)="deleteStravaWebhook(sw.subscriptions[0].id)">Retirer</button>
       } @else {
-        <button type="button" class="btn btn-primary" [disabled]="stravaBusy() || !sw.configured"
+        <button type="button" class="btn btn-primary"
+                [disabled]="stravaBusy() || !sw.configured || !!sw.callbackUrlProblem"
                 (click)="createStravaWebhook()">
           {{ stravaBusy() ? 'Création…' : 'Activer' }}
         </button>
       }
-    </div>
-  }
-
-  @if (resetAvailable()) {
-    <div class="card danger-zone">
-      <div>
-        <strong>Réinitialiser la démo</strong>
-        <p class="field-hint">
-          Efface toutes les données de cette instance et recharge le jeu de démonstration.
-          Irréversible : la confirmation demande de recopier un mot.
-        </p>
-      </div>
-      <button type="button" class="btn btn-danger" [disabled]="resetting()" (click)="resetDemo()">
-        {{ resetting() ? 'Réinitialisation…' : 'Réinitialiser la démo' }}
-      </button>
     </div>
   }
   }

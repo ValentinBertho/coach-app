@@ -90,11 +90,13 @@ class AdminAccessTest {
     }
 
     @Test
-    void resetIsForbiddenWhenDisabled() throws Exception {
-        // En profil test, app.demo.reset.enabled est false par défaut → 403 même pour l'admin.
+    void demoResetRouteNoLongerExists() throws Exception {
+        // La RAZ démo a été retirée : elle effaçait toutes les données de l'instance, et son seul
+        // garde-fou était un profil actif. En bêta ouverte, cette route n'a plus de raison d'être
+        // — on vérifie qu'elle a bien disparu, et pas seulement qu'elle refuse.
         MockMvc mvc = mockMvc();
         String token = adminToken();
         mvc.perform(post("/admin/demo/reset").header("Authorization", "Bearer " + token))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isNotFound());
     }
 }

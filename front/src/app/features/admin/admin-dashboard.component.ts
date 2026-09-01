@@ -37,9 +37,6 @@ export class AdminDashboardComponent implements OnInit {
   readonly loading = signal(true);
   readonly failed = signal(false);
 
-  readonly resetAvailable = signal(false);
-  readonly resetting = signal(false);
-
   /** État du webhook Strava ; `null` tant qu'on n'a pas pu interroger Strava. */
   readonly strava = signal<StravaWebhookState | null>(null);
   readonly stravaBusy = signal(false);
@@ -49,10 +46,6 @@ export class AdminDashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
-    this.admin.resetAvailable().subscribe({
-      next: (r) => this.resetAvailable.set(r.available),
-      error: () => this.resetAvailable.set(false),
-    });
     this.loadStrava();
   }
 
@@ -144,28 +137,6 @@ export class AdminDashboardComponent implements OnInit {
         this.load();
       },
       error: () => this.stravaBusy.set(false),
-    });
-  }
-
-  async resetDemo(): Promise<void> {
-    const ok = await this.confirm.askForText({
-      title: 'Réinitialiser la démo',
-      message:
-        'Cette action efface TOUTES les données de cette instance — comptes, clubs, athlètes, '
-        + 'séances, historiques — et recharge le jeu de démonstration. Elle est irréversible.',
-      confirmLabel: 'Tout réinitialiser',
-      danger: true,
-      requiredText: 'REINITIALISER',
-    });
-    if (!ok) return;
-
-    this.resetting.set(true);
-    this.admin.reset().subscribe({
-      next: () => {
-        this.toast.success('Démo réinitialisée. Rechargement…');
-        setTimeout(() => window.location.reload(), 900);
-      },
-      error: () => this.resetting.set(false),
     });
   }
 }

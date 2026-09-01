@@ -26,6 +26,12 @@ public enum MailKind {
     /** Invitation d'un athlète. Transactionnel. */
     ATHLETE_INVITATION(true),
 
+    /**
+     * Suite donnée à une demande de création de club : accusé de réception, validation (qui porte
+     * le lien d'activation) ou refus. Transactionnel — la validation est le seul moyen d'entrer.
+     */
+    CLUB_REQUEST(true),
+
     /** Digest d'alertes du coach, une fois par jour à 7 h. Routine. */
     ALERT_DIGEST(false),
 
@@ -65,6 +71,7 @@ public enum MailKind {
             case PASSWORD_RESET -> "Mot de passe oublié";
             case COACH_INVITATION -> "Invitation coach";
             case ATHLETE_INVITATION -> "Invitation athlète";
+            case CLUB_REQUEST -> "Demande de club";
             case ALERT_DIGEST -> "Digest d'alertes";
             case WORKOUT_REMINDER -> "Rappel de séance";
             case MESSAGE -> "Message";

@@ -1,0 +1,75 @@
+# ============================================================================
+# 093 — Demandes de création de club.
+#
+#   La bêta s'ouvre : plus de dix athlètes et leurs coachs arrivent, et les deux
+#   régimes d'inscription existants ne conviennent ni l'un ni l'autre. « open »
+#   laissait n'importe qui — robot compris — repartir avec un club et un compte
+#   propriétaire sur la seule unicité de l'adresse. « invite » fermait la porte
+#   derrière un code partagé, qui se transfère, ne dit jamais qui s'en est servi,
+#   et doit être redistribué à la main à chaque nouveau coach.
+#
+#   Cette table porte le troisième régime : le formulaire reste ouvert à tous,
+#   mais il dépose une DEMANDE. Rien n'est créé avant qu'un administrateur ne
+#   tranche depuis le back-office ; la validation crée le club et le compte du
+#   coach, et la ligne garde leurs identifiants.
+#
+#   Ce qu'elle ne porte pas : aucun mot de passe (il est choisi par le coach au
+#   premier lien reçu), aucune donnée de santé.
+#
+#   Additif : nouvelle table, aucune donnée existante touchée.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 093-club-creation-requests
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: club_creation_request
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints: { primaryKey: true, nullable: false }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+
+              - column: { name: club_name, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: full_name, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: email, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: phone, type: VARCHAR(40) }
+              - column: { name: message, type: VARCHAR(2000) }
+
+              - column: { name: status, type: VARCHAR(16), defaultValue: PENDING, constraints: { nullable: false } }
+              - column: { name: terms_accepted_at, type: TIMESTAMP WITH TIME ZONE }
+
+              # De quoi reconnaître une salve venue d'un même point. Jamais affiché au demandeur.
+              - column: { name: ip_address, type: VARCHAR(64) }
+              - column: { name: user_agent, type: VARCHAR(512) }
+
+              # Arbitrage. Références volontairement SANS clé étrangère : la décision doit
+              # survivre à la suppression du compte qui l'a prise — et ne jamais l'empêcher.
+              - column: { name: reviewed_at, type: TIMESTAMP WITH TIME ZONE }
+              - column: { name: reviewed_by_user_id, type: UUID }
+              - column: { name: reviewed_by_email, type: VARCHAR(255) }
+              - column: { name: review_note, type: VARCHAR(1000) }
+
+              # Ce que la validation a créé : la seule trace reliant un club à la décision qui
+              # l'a autorisé. Sans clé étrangère, pour la même raison que ci-dessus.
+              - column: { name: created_club_id, type: UUID }
+              - column: { name: created_user_id, type: UUID }
+
+        # L'écran ouvre sur « en attente », du plus ancien arbitrage au plus récent dépôt.
+        - createIndex:
+            tableName: club_creation_request
+            indexName: idx_club_request_status
+            columns:
+              - column: { name: status }
+              - column: { name: created_at, descending: true }
+
+        # « Cette adresse a-t-elle déjà une demande en attente ? », posée à chaque dépôt.
+        - createIndex:
+            tableName: club_creation_request
+            indexName: idx_club_request_email
+            columns:
+              - column: { name: email }

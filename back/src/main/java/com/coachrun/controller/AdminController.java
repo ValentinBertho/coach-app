@@ -7,25 +7,19 @@ import com.coachrun.dto.response.AdminStatsResponse;
 import com.coachrun.dto.response.MailLogResponse;
 import com.coachrun.dto.response.MailStatsResponse;
 import com.coachrun.dto.response.PageResponse;
-import com.coachrun.entity.enums.AdminAuditAction;
-import com.coachrun.service.AdminAuditService;
 import com.coachrun.service.AdminOverviewService;
 import com.coachrun.service.AdminPlatformService;
 import com.coachrun.service.AdminSearchService;
 import com.coachrun.service.AdminStatsService;
 import com.coachrun.service.MailStatsService;
-import com.coachrun.service.DemoResetService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
 
 @Tag(name = "Admin — Pilotage, recherche & configuration")
 @RestController
@@ -38,8 +32,6 @@ public class AdminController {
     private final AdminOverviewService adminOverviewService;
     private final AdminSearchService adminSearchService;
     private final AdminPlatformService adminPlatformService;
-    private final AdminAuditService adminAuditService;
-    private final DemoResetService demoResetService;
     private final MailStatsService mailStatsService;
 
     /**
@@ -98,23 +90,5 @@ public class AdminController {
             @org.springframework.data.web.PageableDefault(size = 50)
             org.springframework.data.domain.Pageable pageable) {
         return mailStatsService.log(pageable);
-    }
-
-    /** Indique si la RAZ démo est disponible (flag activé et hors prod). */
-    @GetMapping("/demo/reset-available")
-    public Map<String, Boolean> resetAvailable() {
-        return Map.of("available", demoResetService.isAvailable());
-    }
-
-    /** RAZ démo : purge + recharge le jeu de démo. Garde-fous dans le service. */
-    @PostMapping("/demo/reset")
-    public ResponseEntity<Map<String, String>> reset() {
-        demoResetService.reset();
-        // Consigné APRÈS la purge, délibérément : la RAZ vide les tables, et une trace écrite
-        // avant serait emportée avec le reste — c'est-à-dire la seule qu'on voudrait retrouver.
-        adminAuditService.recordPlatform(AdminAuditAction.DEMO_RESET,
-                "Toutes les données ont été effacées au profit du jeu de démonstration.");
-        return ResponseEntity.ok(Map.of("status", "ok",
-                "message", "Données réinitialisées avec le jeu de démo."));
     }
 }

@@ -23,9 +23,6 @@ logging:
 app:
   seed:
     enabled: true   # jeu de données de démo au démarrage
-  demo:
-    reset:
-      enabled: true # RAZ démo autorisée en dev
   vapid:
     # Sans clés, le push est inerte : le navigateur ne peut même pas s'abonner, faute de clé
     # publique de serveur. En local, on en fabrique donc une paire au premier démarrage, conservée

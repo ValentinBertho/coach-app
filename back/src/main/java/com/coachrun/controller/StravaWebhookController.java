@@ -31,7 +31,7 @@ import java.util.Map;
 @Slf4j
 @Tag(name = "Sync — Strava (webhook)")
 @RestController
-@RequestMapping("/public/strava/webhook")
+@RequestMapping(StravaWebhookPaths.PATH)
 @RequiredArgsConstructor
 public class StravaWebhookController {
 

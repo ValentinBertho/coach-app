@@ -64,6 +64,9 @@ export class AdminLayoutComponent implements OnInit {
         { path: '/admin/clubs', label: 'Clubs', icon: 'building-2' },
         { path: '/admin/athletes', label: 'Athlètes', icon: 'footprints' },
         { path: '/admin/invitations', label: 'Invitations', icon: 'mail' },
+        // Placé dans « Gestion » et non dans « Supervision » : ce n'est pas une chose qu'on
+        // regarde, c'est une file qu'on traite — de l'autre côté, un coach attend d'entrer.
+        { path: '/admin/club-requests', label: 'Demandes de club', icon: 'door-open' },
       ],
     },
     {

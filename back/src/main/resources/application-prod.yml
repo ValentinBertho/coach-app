@@ -32,7 +32,16 @@ app:
   seed:
     enabled: false
   registration:
-    # Bêta sur invitation : le runbook prévoit une cohorte de 5 à 8 coachs, mais /auth/register
-    # était public et n'exigeait que l'unicité de l'e-mail — n'importe qui pouvait créer un club.
-    # Passer à « open » le jour de l'ouverture publique.
-    mode: ${REGISTRATION_MODE:invite}
+    # Bêta ouverte, sur demande validée.
+    #
+    # Les deux régimes précédents échouaient pour des raisons opposées. « open » laissait
+    # n'importe qui — robot compris — repartir avec un club et un compte propriétaire sur la seule
+    # unicité de l'adresse. « invite » fermait la porte derrière un code partagé : il fallait le
+    # distribuer à la main à chaque nouveau coach, il se transfère, et il ne dit jamais qui s'en
+    # est servi. Avec dix nouveaux athlètes et leurs coachs qui arrivent, ni l'un ni l'autre ne
+    # tient.
+    #
+    # « request » garde le formulaire ouvert à tous, mais il dépose une DEMANDE : rien n'est créé
+    # avant qu'un administrateur ne tranche depuis /admin/club-requests, et la validation ouvre le
+    # club et le compte en un geste. Les deux autres valeurs restent disponibles.
+    mode: ${REGISTRATION_MODE:request}

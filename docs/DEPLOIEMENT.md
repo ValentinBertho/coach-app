@@ -24,6 +24,107 @@ Zone DNS (hors NS/MX/SPF gérés par OVH) :
 
 ---
 
+## 0. Bascule en production, pas à pas
+
+> Cette section existe parce que la bascule échouait toujours de la même façon : on posait
+> `SPRING_PROFILES_ACTIVE=prod`, l'application refusait de démarrer, et le journal de l'hébergeur
+> affichait une trace de deux cents lignes dont la seule phrase utile — la liste des variables
+> manquantes — était noyée au milieu. Le garde-fou disait juste ; il n'était pas lisible.
+>
+> Depuis, **l'échec de démarrage en profil `prod` s'affiche en clair**, en dernier bloc du
+> journal, sous la forme d'une liste numérotée des réglages à poser (`FailureAnalyzer`). Et le
+> script ci-dessous permet de répondre **avant** de pousser.
+
+### Étape 1 — répondre avant de pousser
+
+```bash
+# depuis un shell où les variables de production sont chargées
+./ops/preflight-prod.sh
+```
+
+Le script rejoue, hors de l'application, les contrôles du démarrage — plus ceux qu'elle ne peut
+pas faire (comptes de démonstration restés en base, cohérence de la topologie de proxy). Sortie
+`0` = le démarrage en profil `prod` passera. Sur un hébergeur qui redéploie à chaud, chaque secret
+oublié coûte sinon un déploiement raté et un retour arrière.
+
+### Étape 2 — générer les secrets
+
+```bash
+openssl rand -base64 48                # JWT_SECRET           (≥ 512 bits)
+openssl rand -hex 32                   # FIELD_ENCRYPTION_KEY (64 hex)
+openssl rand -hex 16                   # STRAVA_WEBHOOK_VERIFY_TOKEN
+npx web-push generate-vapid-keys       # VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY
+```
+
+⚠ **Les clés VAPID ne se régénèrent pas.** Un abonnement de navigateur est lié à la clé publique
+avec laquelle il a été créé : changer la paire coupe le push de **tous** les athlètes, sans un
+message. On les génère une fois, et on les garde.
+
+### Étape 3 — les variables qui font refuser le démarrage
+
+Ce sont les seules bloquantes. Tout le reste est optionnel et n'empêche jamais de servir.
+
+| Variable | Pourquoi elle est exigée |
+|---|---|
+| `JWT_SECRET` | ≥ 512 bits, et jamais une valeur commençant par `dev-` |
+| `FIELD_ENCRYPTION_KEY` | 64 hex, et jamais la clé nulle de développement |
+| `FRONTEND_URL` | restée sur `localhost`, les liens d'invitation et de réinitialisation n'ouvrent rien |
+| `CORS_ORIGINS` | une origine de développement ne doit pas parler à la production |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | sans elles le push est inerte — et « séance planifiée » comme « commentaire du coach » n'ont **aucun repli e-mail** |
+| `RESEND_API_KEY` | seulement si `MAIL_ENABLED=true` : sinon chaque envoi échoue pendant que l'interface annonce « envoyé » |
+| `RATE_LIMIT_TRUSTED_PROXY_HOPS` | ≥ 1. Le navigateur appelle l'API directement : **1** est la bonne valeur |
+| `REGISTRATION_MODE` | doit valoir `request`, `invite` ou `open`. Une valeur non reconnue fait refuser le démarrage — une faute de frappe ne doit pas rouvrir la création de club |
+| `REGISTRATION_INVITE_CODE` | seulement si `REGISTRATION_MODE=invite` : sans code, plus personne ne peut s'inscrire |
+| `BETTER_STACK_*` | contrôlées **seulement si un token est posé** (cf. § 3) |
+
+`PLATFORM_ADMIN_EMAIL` / `PLATFORM_ADMIN_PASSWORD` n'empêchent pas le démarrage mais sont à poser
+au premier déploiement : sans eux, `/admin` est inatteignable — ni arbitrage des demandes de club,
+ni révocation d'invitation, ni suppression de compte. Le compte est créé au premier démarrage en
+profil `prod` puis **jamais modifié** ; la rotation du mot de passe se fait depuis l'application.
+
+### Étape 4 — poser le profil et déployer
+
+```bash
+SPRING_PROFILES_ACTIVE=prod
+```
+
+Si le démarrage échoue, le journal se termine désormais par un bloc de ce genre — c'est ce qu'il
+faut lire, et rien d'autre :
+
+```
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Le profil « prod » est actif, mais la configuration est incomplète.
+…
+Il manque 2 réglage(s) :
+  1. VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY manquantes : …
+  2. CORS_ORIGINS manquant ou contenant localhost : …
+
+Action:
+
+Poser les variables d'environnement ci-dessus, puis redéployer.
+…
+```
+
+### Étape 5 — vérifier ce qui tourne réellement
+
+- `GET /api/actuator/health` → `{"status":"UP"}`
+- Back-office → **Configuration** (`/admin/platform`) : chaque réglage y est dit *posé* ou non,
+  avec le nom de la variable en cause. Aucune valeur de secret n'y est jamais affichée.
+- Back-office → **Tableau de bord** : les anomalies actionnables (plafond d'e-mails, comptes
+  bloqués, demandes de club en attente) y remontent en premier.
+
+### Étape 6 — activer le webhook Strava
+
+Le webhook n'a aucun effet sur le démarrage : il se pose après, une fois l'instance joignable.
+Voir § 6 — et surtout, **l'adresse contient le préfixe `/api`**.
+
+---
+
 ## 1. Railway — backend (Docker) + PostgreSQL
 
 1. **Créer un projet** Railway → *New Project*.
@@ -106,14 +207,14 @@ Zone DNS (hors NS/MX/SPF gérés par OVH) :
 | `RESEND_API_KEY` | back | Clé API Resend **[OPT]** | `re_...` |
 | `MAIL_FROM` | back | Adresse expéditrice vérifiée **[OPT]** | `Darilab <no-reply@darilab.app>` |
 | `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` | back | App Strava **[OPT — Intégrations]** | console Strava |
-| `STRAVA_WEBHOOK_CALLBACK_URL` / `STRAVA_WEBHOOK_VERIFY_TOKEN` | back | Remontée immédiate des activités **[OPT]** — sans elles, la synchro reste horaire (cf. § Synchronisation Strava) | `https://api.darilab.app/public/strava/webhook`, `openssl rand -hex 16` |
+| `STRAVA_WEBHOOK_CALLBACK_URL` / `STRAVA_WEBHOOK_VERIFY_TOKEN` | back | Remontée immédiate des activités **[OPT]** — sans elles, la synchro reste horaire (cf. § Synchronisation Strava). ⚠ L'adresse **contient le préfixe `/api`** : l'API est servie derrière `server.servlet.context-path` | `https://api.darilab.app/api/public/strava/webhook`, `openssl rand -hex 16` |
 | `GARMIN_*` / `COROS_*` | back | OAuth Garmin / Coros **[OPT]** | — |
 | `STORAGE_TYPE` | back | `local` ou `s3` **[DÉFAUT local]** | `s3` |
 | `S3_ENDPOINT` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_PUBLIC_URL` | back | Stockage FIT/GPX **[OPT]** | R2 / S3 |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | back | Push WebPush **[PROD-REQUIS]** — « séance planifiée » et « commentaire du coach » partent en push **sans repli e-mail** : sans clés, ces notifications ne partent nulle part, et aucun appareil ne peut même s'abonner. En local, une paire est fabriquée automatiquement (cf. § Notifications push) | `npx web-push generate-vapid-keys` |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | back | Paiements **[OPT — Billing]** | console Stripe |
-| `REGISTRATION_MODE` | back | `invite` (code exigé) ou `open` **[PROD-REQUIS — défaut `invite` en prod]** | `invite` |
-| `REGISTRATION_INVITE_CODE` | back | Code partagé de la cohorte **[REQUIS si mode=invite]** | `BETA-2026-XXXX` |
+| `REGISTRATION_MODE` | back | `request` (demande validée par un admin), `invite` (code partagé) ou `open` (libre) **[défaut `request` en prod]**. Une valeur non reconnue fait **refuser le démarrage** — une faute de frappe ne doit pas rouvrir la porte | `request` |
+| `REGISTRATION_INVITE_CODE` | back | Code partagé de la cohorte **[REQUIS uniquement si mode=invite]** | `BETA-2026-XXXX` |
 | `RATE_LIMIT_TRUSTED_PROXY_HOPS` | back | Relais de confiance **devant l'API** **[DÉFAUT 1]**. Le navigateur appelle l'API directement (le front est sur Vercel, l'API sur Railway — d'où le CORS) : **1** est la bonne valeur. Annoncer plus fait compter l'adresse du proxy, la même pour tout le monde, et toute la plateforme partage alors un seul compteur | `1` |
 | `REMINDERS_CRON` | back | Heure du point de programme du soir **[DÉFAUT 21 h]**, lu dans `APP_TIMEZONE` | `0 0 21 * * *` |
 | `SENTRY_DSN` | back + front | Monitoring erreurs **[OPT]** | `https://...@sentry.io/...` |
@@ -203,10 +304,21 @@ Strava n'accepte **qu'un seul abonnement par application**, avec une seule URL d
 chaque instance créait le sien au démarrage, production et préproduction se voleraient le flux à
 tour de rôle. L'abonnement se pose donc à la main, depuis l'environnement qui doit le recevoir.
 
+> ⚠ **L'adresse contient `/api`.** L'API est servie derrière un préfixe de contexte
+> (`server.servlet.context-path: /api`) : le webhook est donc à
+> `https://api.darilab.app/api/public/strava/webhook`, et non à `.../public/strava/webhook`.
+> C'est l'erreur qui coûte le plus cher ici, parce qu'elle est muette : l'adresse sans préfixe
+> renvoie une 404, Strava la valide par un GET immédiat, ne la trouve pas, et refuse l'abonnement
+> sur un « callback url not verifiable » qui ne dit pas ce qu'il a appelé. La documentation et
+> `.env.example` donnaient jusqu'ici la variante sans préfixe.
+>
+> Le back-office contrôle désormais la forme de l'adresse **avant** d'appeler Strava, et l'écran
+> « Tableau de bord » affiche le chemin attendu sous le bouton « Activer ».
+
 1. Poser les deux variables sur l'instance, et **la redéployer** :
 
    ```bash
-   STRAVA_WEBHOOK_CALLBACK_URL=https://api.darilab.app/public/strava/webhook
+   STRAVA_WEBHOOK_CALLBACK_URL=https://api.darilab.app/api/public/strava/webhook
    STRAVA_WEBHOOK_VERIFY_TOKEN=$(openssl rand -hex 16)   # secret partagé avec Strava
    ```
 
@@ -214,14 +326,20 @@ tour de rôle. L'abonnement se pose donc à la main, depuis l'environnement qui 
    qui suit la demande, et un 404 fait échouer la création :
 
    ```bash
-   curl "https://api.darilab.app/public/strava/webhook?hub.mode=subscribe&hub.challenge=test&hub.verify_token=<le-jeton>"
+   curl "https://api.darilab.app/api/public/strava/webhook?hub.mode=subscribe&hub.challenge=test&hub.verify_token=<le-jeton>"
    # attendu : {"hub.challenge":"test"}
    ```
 
-3. Créer l'abonnement, connecté en `PLATFORM_ADMIN` :
+   Une réponse vide ou une page d'erreur = mauvaise adresse (préfixe `/api` oublié, le plus
+   souvent). Un `403` = le jeton passé ne correspond pas à `STRAVA_WEBHOOK_VERIFY_TOKEN`, ou
+   l'instance n'a pas été redéployée depuis que la variable a été posée.
+
+3. Créer l'abonnement, connecté en `PLATFORM_ADMIN` — depuis l'écran d'administration
+   (« Tableau de bord » → *Synchronisation Strava en direct* → **Activer**), ou en ligne de
+   commande :
 
    ```bash
-   curl -X POST https://api.darilab.app/admin/strava/webhook -H "Authorization: Bearer <jeton-admin>"
+   curl -X POST https://api.darilab.app/api/admin/strava/webhook -H "Authorization: Bearer <jeton-admin>"
    ```
 
    `GET` sur la même adresse montre l'abonnement en place ; `DELETE /{id}` le retire.
@@ -240,3 +358,58 @@ d'abord).
 - **Il ne réimporte pas en boucle.** Une même sortie génère plusieurs événements (création, puis
   renommage) ; ils se coalescent en une seule synchronisation, le quota Strava étant de 100
   requêtes par quart d'heure pour toute l'application.
+
+---
+
+## 7. Inscription — le régime « sur demande »
+
+En profil `prod`, `REGISTRATION_MODE` vaut **`request`** : c'est le régime de la bêta ouverte.
+
+### Pourquoi ce régime
+
+Les deux autres échouent pour des raisons opposées :
+
+- **`open`** — `/auth/register` créait un club et un compte propriétaire sur la seule unicité de
+  l'adresse. N'importe qui, robot compris, repartait avec un espace complet ; et chaque tentative
+  consommait le quota d'envoi d'e-mails, partagé avec les réinitialisations de mot de passe.
+- **`invite`** — un code partagé ferme la porte, mais il faut le distribuer à la main à chaque
+  nouveau coach, il se transfère, se colle dans un message, et ne dit jamais qui s'en est servi.
+  Tenable pour cinq coachs qu'on connaît ; plus au-delà.
+
+En **`request`**, le formulaire « Créer mon club » reste ouvert à tous, mais il dépose une
+**demande** : rien n'est créé avant décision.
+
+### Le parcours, des deux côtés
+
+**Côté candidat** — `/register` affiche un formulaire sans mot de passe (nom, club, e-mail,
+téléphone et message facultatifs, acceptation des CGU). Au dépôt, il reçoit un accusé de
+réception par e-mail et l'écran lui rappelle l'adresse qu'il a saisie — c'est ce qui permet de
+repérer une faute de frappe avant d'attendre une réponse qui n'arriverait jamais.
+
+**Côté administrateur** — back-office → **Demandes de club** (`/admin/club-requests`) :
+
+| Geste | Ce qu'il fait |
+|---|---|
+| **Valider** | Crée le club, le compte `HEAD_COACH`, le rattachement `OWNER` et la bibliothèque de départ, puis envoie au coach un lien pour choisir son mot de passe (valable 7 jours). Le lien est **aussi affiché à l'écran** : si l'envoi d'e-mails est éteint ou que l'adresse rebondit, c'est le seul moyen de débloquer le coach qu'on vient d'accepter. |
+| **Refuser** | Demande un motif, qui part au demandeur. La demande reste en base : un refus se relit, et se conteste. |
+
+Les deux gestes sont consignés au **journal d'audit** (`CLUB_REQUEST_APPROVED` /
+`CLUB_REQUEST_REJECTED`), et les demandes en attente remontent en anomalie sur le tableau de bord
+d'administration — parce que de l'autre côté, un coach attend d'entrer et n'a aucun autre moyen
+de le faire.
+
+> Le mot de passe n'est **jamais** transmis. Le compte créé reçoit un secret aléatoire que
+> personne ne connaît ; le coach pose le sien via le lien reçu à l'adresse déposée. Ce lien fait
+> donc deux choses : il ouvre le compte, et il prouve que le demandeur est bien titulaire de
+> cette adresse — c'est pourquoi aucun second e-mail de vérification n'est envoyé.
+
+### Rouvrir ou refermer
+
+```bash
+REGISTRATION_MODE=open      # inscription libre (ouverture publique)
+REGISTRATION_MODE=invite    # cohorte fermée — exige REGISTRATION_INVITE_CODE
+REGISTRATION_MODE=request   # bêta ouverte, sur demande validée (défaut prod)
+```
+
+Un redéploiement suffit ; la page d'inscription lit le régime actif au chargement et affiche le
+formulaire correspondant.

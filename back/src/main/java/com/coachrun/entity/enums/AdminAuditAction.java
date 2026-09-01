@@ -36,9 +36,21 @@ public enum AdminAuditAction {
     INVITATION_REVOKED("Invitation révoquée"),
     INVITATION_RESENT("Invitation renvoyée"),
 
+    // --- Demandes de création de club ---
+    CLUB_REQUEST_APPROVED("Demande de club validée"),
+    CLUB_REQUEST_REJECTED("Demande de club refusée"),
+
     // --- Plateforme ---
     STRAVA_WEBHOOK_CREATED("Abonnement Strava créé"),
     STRAVA_WEBHOOK_DELETED("Abonnement Strava retiré"),
+
+    /**
+     * @deprecated La réinitialisation démo a été retirée à l'ouverture de la bêta : elle effaçait
+     *     toutes les données de l'instance, et son seul garde-fou était un profil actif. La valeur
+     *     reste déclarée parce que des lignes du journal la portent — en retirer une ferait
+     *     échouer la relecture de l'historique.
+     */
+    @Deprecated
     DEMO_RESET("Réinitialisation du jeu de démonstration");
 
     private final String label;
@@ -56,7 +68,7 @@ public enum AdminAuditAction {
     public boolean sensitive() {
         return switch (this) {
             case USER_DELETED, CLUB_DELETED, ATHLETE_DELETED, USER_ROLE_CHANGED,
-                 USER_IMPERSONATED, USER_SUSPENDED, DEMO_RESET -> true;
+                 USER_IMPERSONATED, USER_SUSPENDED, CLUB_REQUEST_APPROVED, DEMO_RESET -> true;
             default -> false;
         };
     }

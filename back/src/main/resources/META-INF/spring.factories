@@ -1,0 +1,4 @@
+# Analyseurs d'échec de démarrage. Chargés avant le contexte applicatif — ce ne sont donc pas
+# des beans, et c'est la seule façon de les déclarer.
+org.springframework.boot.diagnostics.FailureAnalyzer=\
+com.coachrun.config.StartupConfigurationFailureAnalyzer

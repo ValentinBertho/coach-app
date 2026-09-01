@@ -47,6 +47,13 @@ public class AdminStravaWebhookController {
     @Value("${app.strava.webhook-verify-token:}")
     private String verifyToken;
 
+    /**
+     * Préfixe de contexte du serveur ({@code /api}). Il fait partie de l'adresse publique du
+     * webhook, et c'est précisément ce qu'on oublie en recopiant la variable.
+     */
+    @Value("${server.servlet.context-path:}")
+    private String contextPath;
+
     /** L'abonnement en place, s'il y en a un, et l'adresse vers laquelle il pointe réellement. */
     @GetMapping
     public Map<String, Object> view() {
@@ -56,10 +63,17 @@ public class AdminStravaWebhookController {
         List<StravaClient.WebhookSubscription> subs = stravaClient.isConfigured()
                 ? relay(stravaClient::viewWebhookSubscriptions)
                 : List.of();
-        return Map.of(
-                "configured", configured && stravaClient.isConfigured(),
-                "callbackUrl", callbackUrl,
-                "subscriptions", subs);
+        // « callbackUrlProblem » est renseigné quand l'adresse posée ne peut pas fonctionner :
+        // l'écran l'affiche AVANT le bouton « Activer », plutôt que de laisser l'exploitant
+        // découvrir « callback url not verifiable » sans savoir ce que Strava a appelé.
+        String problem = callbackUrlProblem();
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("configured", configured && stravaClient.isConfigured());
+        body.put("callbackUrl", callbackUrl);
+        body.put("expectedPath", StravaWebhookPaths.fullPath(contextPath));
+        body.put("callbackUrlProblem", problem);
+        body.put("subscriptions", subs);
+        return body;
     }
 
     /**
@@ -72,6 +86,12 @@ public class AdminStravaWebhookController {
             throw new ApiException(HttpStatus.CONFLICT,
                     "Renseigner STRAVA_WEBHOOK_CALLBACK_URL et STRAVA_WEBHOOK_VERIFY_TOKEN, "
                             + "puis redéployer, avant de créer l'abonnement.");
+        }
+        // Contrôlé ICI, avant de partir chez Strava : son refus est « callback url not
+        // verifiable », qui ne dit ni quelle adresse a été appelée, ni pourquoi elle a échoué.
+        String problem = callbackUrlProblem();
+        if (problem != null) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, problem);
         }
         StravaClient.WebhookSubscription created =
                 relay(() -> stravaClient.createWebhookSubscription(callbackUrl, verifyToken));
@@ -93,6 +113,62 @@ public class AdminStravaWebhookController {
                 "Abonnement " + subscriptionId
                         + " retiré — les activités ne remontent plus que par la passe horaire.");
         return Map.of("deleted", true);
+    }
+
+    /**
+     * Ce qui empêche l'adresse posée de fonctionner, ou {@code null} si elle est plausible.
+     *
+     * <h2>L'erreur que ce contrôle attrape</h2>
+     *
+     * <p>L'API est servie derrière le préfixe {@code /api} ({@code server.servlet.context-path}).
+     * L'adresse du webhook est donc {@code https://api.exemple.app/api/public/strava/webhook} —
+     * or la documentation et {@code .env.example} donnaient la variante <b>sans</b> ce préfixe.
+     * Posée telle quelle, l'adresse renvoie une 404 : Strava la valide par un GET immédiat, ne
+     * la trouve pas, et refuse l'abonnement avec « callback url not verifiable ». Rien, dans ce
+     * message, ne désigne le préfixe manquant.</p>
+     *
+     * <p>Strava exige par ailleurs une adresse publique en clair : ni {@code localhost}, ni une
+     * adresse privée, qu'il ne pourrait pas joindre depuis l'extérieur.</p>
+     */
+    private String callbackUrlProblem() {
+        if (callbackUrl.isBlank()) {
+            return null; // absence traitée à part, avec son propre message
+        }
+        String expectedPath = StravaWebhookPaths.fullPath(contextPath);
+        java.net.URI uri;
+        try {
+            uri = java.net.URI.create(callbackUrl.trim());
+        } catch (IllegalArgumentException ex) {
+            return "STRAVA_WEBHOOK_CALLBACK_URL n'est pas une URL valide : « " + callbackUrl + " ».";
+        }
+        String scheme = uri.getScheme();
+        String host = uri.getHost();
+        if (host == null || scheme == null || !scheme.equalsIgnoreCase("https")) {
+            return "STRAVA_WEBHOOK_CALLBACK_URL doit être une adresse https publique complète "
+                    + "(« https://api.mon-domaine.app" + expectedPath + " »), et non « "
+                    + callbackUrl + " ».";
+        }
+        if (host.equalsIgnoreCase("localhost") || host.startsWith("127.")
+                || host.startsWith("192.168.") || host.startsWith("10.")) {
+            return "STRAVA_WEBHOOK_CALLBACK_URL pointe sur une adresse privée (« " + host
+                    + " ») : Strava valide l'adresse depuis l'extérieur et ne peut pas l'atteindre.";
+        }
+        String path = uri.getPath() == null ? "" : uri.getPath();
+        if (path.endsWith("/")) {
+            path = path.substring(0, path.length() - 1);
+        }
+        if (!expectedPath.equals(path)) {
+            return "STRAVA_WEBHOOK_CALLBACK_URL se termine par « " + (path.isEmpty() ? "/" : path)
+                    + " » au lieu de « " + expectedPath + " ». L'API est servie derrière le "
+                    + "préfixe « " + contextPath + " » : sans lui, Strava valide l'adresse sur "
+                    + "une page inexistante et refuse l'abonnement (« callback url not "
+                    + "verifiable »). Adresse attendue : "
+                    + StravaWebhookPaths.expectedCallbackUrl(
+                            scheme + "://" + host + (uri.getPort() > 0 ? ":" + uri.getPort() : ""),
+                            contextPath)
+                    + " — puis redéployer.";
+        }
+        return null;
     }
 
     /**

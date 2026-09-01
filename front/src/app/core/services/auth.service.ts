@@ -5,9 +5,11 @@ import { environment } from '../../../environments/environment';
 import { clearFeedbackQueue } from './feedback-queue.storage';
 import {
   AuthResponse,
+  ClubCreationRequestSubmission,
   LoginRequest,
   PaceUnit,
   RegisterRequest,
+  RegistrationModeInfo,
   User,
 } from '../models/user.model';
 
@@ -169,6 +171,25 @@ export class AuthService {
     return this.http
       .post<AuthResponse>(`${this.base}/register`, request)
       .pipe(tap((res) => this.applySession(res)));
+  }
+
+  /**
+   * Le régime d'inscription de l'instance, lu avant d'afficher le formulaire.
+   *
+   * <p>Sans lui, la page d'inscription montrait toujours le formulaire complet : le candidat
+   * choisissait un mot de passe, cochait les conditions, et découvrait le régime réel au moment
+   * du refus — pour un compte qui n'allait pas exister.</p>
+   */
+  registrationMode(): Observable<RegistrationModeInfo> {
+    return this.http.get<RegistrationModeInfo>(`${environment.apiUrl}/public/registration-mode`);
+  }
+
+  /**
+   * Dépôt d'une demande de création de club. N'ouvre aucune session : rien n'est créé tant qu'un
+   * administrateur n'a pas validé.
+   */
+  submitClubRequest(request: ClubCreationRequestSubmission): Observable<void> {
+    return this.http.post<void>(`${environment.apiUrl}/public/club-requests`, request);
   }
 
   login(request: LoginRequest): Observable<AuthResponse> {

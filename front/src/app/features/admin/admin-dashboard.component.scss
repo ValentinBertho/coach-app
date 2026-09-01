@@ -69,6 +69,9 @@ a.ad-tile:hover { border-color: var(--primary-light); box-shadow: var(--shadow-s
 
 .ad-row--sensitive td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
 
+/* Réglage posé mais inopérant : à distinguer d'un réglage simplement absent. */
+.adash-bad { color: var(--danger); }
+
 @media (max-width: 640px) {
   .page-header { flex-direction: column; }
   .ad-signal { flex-wrap: wrap; }

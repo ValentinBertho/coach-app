@@ -195,3 +195,5 @@ databaseChangeLog:
       file: db/changelog/changes/090-shared-calendar-notes.yaml
   - include:
       file: db/changelog/changes/092-activity-exclusions.yaml
+  - include:
+      file: db/changelog/changes/093-club-creation-requests.yaml
