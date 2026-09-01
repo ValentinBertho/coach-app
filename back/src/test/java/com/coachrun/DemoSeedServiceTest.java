@@ -27,8 +27,20 @@ class DemoSeedServiceTest {
     @Autowired
     private UserRepository userRepository;
 
+    /**
+     * Semer deux fois ne duplique rien.
+     *
+     * <p>La purge d'entrée n'est pas un détail : elle rend le test indépendant de l'ordre
+     * d'exécution. {@code seed()} court-circuite dès que {@code admin@coachrun.fr} existe, et
+     * deux classes de la suite — {@code ConversationPersistenceTest} et
+     * {@code ConversationOnPostgresTest} — ne sont volontairement pas transactionnelles et
+     * <b>commitent</b> le jeu de démo dans la base H2 partagée. Passer après elles faisait donc
+     * rendre {@code false} au premier appel, et l'assertion tombait sur un défaut qui n'existait
+     * pas. La classe étant transactionnelle, cette purge est annulée à la fin du test.</p>
+     */
     @Test
     void seedIsIdempotent() {
+        demoSeedService.purge();
         assertThat(demoSeedService.seed()).isTrue();
         long clubsAfterFirst = clubRepository.count();
         assertThat(clubsAfterFirst).isGreaterThanOrEqualTo(3);
