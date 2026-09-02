@@ -2,6 +2,7 @@ package com.coachrun.exception;
 
 import com.coachrun.config.LogContextFilter;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
@@ -9,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -162,8 +164,43 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
+    /**
+     * Fin de vie d'une connexion longue : le flux temps réel a atteint son délai.
+     *
+     * <p><b>Ce n'est pas une erreur serveur.</b> Les flux SSE — badge de notifications, messagerie
+     * — sont ouverts une demi-heure puis expirent ; le navigateur en rouvre un aussitôt. Sans ce
+     * gestionnaire, l'expiration tombait dans {@link #handleUnexpected}, qui la journalisait en
+     * ERROR avec un identifiant de corrélation et tentait d'écrire un corps JSON sur une réponse
+     * déjà partie — ce qui échouait à son tour (« Failure in @ExceptionHandler »). Deux lignes
+     * d'alerte à chaque expiration, pour un événement parfaitement normal, remontées à Sentry et
+     * aux journaux centralisés où elles noient les vraies.</p>
+     *
+     * <p>Journalisé en DEBUG : l'information n'a d'intérêt que lorsqu'on enquête précisément sur
+     * les flux. Le 503 n'est posé que si la réponse n'est pas encore partie — sur un flux établi,
+     * elle l'est toujours, et il n'y a plus rien à écrire.</p>
+     */
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public void handleAsyncTimeout(HttpServletRequest request, HttpServletResponse response) {
+        if (!response.isCommitted()) {
+            response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+        }
+        log.debug("Flux expiré sur {} — le client rouvrira.", request.getRequestURI());
+    }
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest request) {
+    public ResponseEntity<ApiError> handleUnexpected(Exception ex, HttpServletRequest request,
+                                                     HttpServletResponse response) {
+        // Réponse déjà envoyée : aucun corps ne peut plus être écrit, et tenter de le faire
+        // produit une seconde erreur qui masque la première. Le cas se présente sur tout ce qui
+        // diffuse — flux SSE, téléchargement de pièce jointe, export — où l'échec survient après
+        // les premiers octets. On trace sans identifiant de corrélation : il est destiné à être
+        // affiché à l'utilisateur, or il ne le verra jamais.
+        if (response.isCommitted()) {
+            log.warn("Erreur après envoi de la réponse sur {} : {}",
+                    request.getRequestURI(), ex.toString());
+            return null;
+        }
+
         String correlationId = UUID.randomUUID().toString();
         // Le correlationId est renvoyé à l'utilisateur et capté par le formulaire de retour bêta :
         // il n'a de valeur que si l'on peut le RECHERCHER. Dans le message, c'est du texte noyé ;
