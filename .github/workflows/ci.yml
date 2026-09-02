@@ -60,10 +60,19 @@ jobs:
       #
       # Le conteneur PostgreSQL est déjà là pour le smoke test ci-dessous : les tests portant le
       # profil `pgtest` s'y rejouent pour quelques secondes de plus.
+      #
+      # ⚠ Sur une base À PART, et non sur « coachrun ». Ces tests chargent le jeu de démo, dont
+      # plusieurs champs sont chiffrés — avec la clé du profil de test. Le smoke test, lui, démarre
+      # ensuite avec SA clé : sur la même base, il tombait au démarrage en tentant de déchiffrer
+      # ces lignes (AEADBadTagException: Tag mismatch), et l'échec désignait le chiffrement alors
+      # que la faute était de partager la base.
+      - name: Base dédiée aux tests PostgreSQL
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE pgtest;'
+
       - name: Tests sur PostgreSQL réel (profil pgtest)
         run: >-
           mvn -B -ntp test -Dpgtest=true
-          -DPGTEST_URL=jdbc:postgresql://localhost:5432/coachrun
+          -DPGTEST_URL=jdbc:postgresql://localhost:5432/pgtest
           -Dtest='*OnPostgresTest' -DfailIfNoTests=false
 
       # Le profil prod active StartupSecretsValidator, qui refuse de démarrer sur une
