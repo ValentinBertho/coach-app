@@ -42,6 +42,29 @@ class OutboundResilienceTest {
         assertTimeouts(requestFactoryOf(ReflectionTestUtils.getField(client, "api")));
     }
 
+    /**
+     * La lecture d'une page d'activités a son propre délai, plus long que le défaut.
+     *
+     * <p>Les deux appels Strava n'ont rien de comparable : l'échange de jeton rend trois champs,
+     * une page d'activités en rend cent complètes. Avec le délai commun de 10 s, la passe horaire
+     * expirait en production athlète après athlète, à dix secondes pile — et le filet de
+     * rattrapage ne rattrapait plus rien.</p>
+     *
+     * <p>L'assertion tient les deux bouts : plus long que l'échange de jeton, et toujours borné
+     * par le plafond que {@link #assertTimeouts} impose à tout appel sortant. Ramener les deux au
+     * même délai, dans un sens ou dans l'autre, casse ce test.</p>
+     */
+    @Test
+    void stravaActivityReadsGetALongerDeadlineThanTokenExchange() {
+        StravaClient client = new StravaClient("id", "secret", "https://www.darilab.app/app/strava/callback");
+        int oauthRead = readMillis(requestFactoryOf(ReflectionTestUtils.getField(client, "oauth")), "readTimeout");
+        int apiRead = readMillis(requestFactoryOf(ReflectionTestUtils.getField(client, "api")), "readTimeout");
+
+        assertThat(apiRead)
+                .as("une page de cent activités ne se lit pas dans le délai d'un échange de jeton")
+                .isGreaterThan(oauthRead);
+    }
+
     /** Le planificateur dispose de plusieurs threads : un job lent n'en bloque plus quatre autres. */
     @Test
     void schedulerPoolIsSized() {
