@@ -247,6 +247,13 @@ Athlète (mobile PWA) / Coach (web)
 3. **Scoring de correspondance** (type, distance, durée) → rapprochement automatique si confiance suffisante.
 4. Sinon : activité marquée **« non rattachée »** → rapprochement manuel par l'athlète/coach.
 5. Calcul des **écarts** (distance, temps, allure) et mise à jour du statut de la séance.
+6. **Renommage des titres générés par Strava.** Strava nomme lui-même toute sortie que son auteur
+   n'a pas nommée (« Morning Run », « Sortie à vélo l'après-midi ») : ces titres ne portent aucune
+   information, et remplissent le calendrier de lignes indiscernables. À l'import — une seule fois,
+   jamais à la resynchronisation — un tel titre est remplacé par celui de la séance rapprochée, ou
+   à défaut par un titre descriptif (« Course à pied — 10,2 km »). La reconnaissance est **exacte**
+   sur la chaîne entière : un titre écrit par un athlète n'est jamais touché, et rien n'est réécrit
+   côté Strava.
 
 ---
 

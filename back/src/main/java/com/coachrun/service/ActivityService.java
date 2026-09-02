@@ -18,6 +18,7 @@ import com.coachrun.repository.ActivityExclusionRepository;
 import com.coachrun.repository.ActivityRepository;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.WorkoutRepository;
+import com.coachrun.util.StravaAutoName;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -145,10 +146,53 @@ public class ActivityService {
         applyExtras(activity, extras);
 
         autoMatch(athleteId, activity);
+        renameIfStravaAutoName(activity);
         activity = activityRepository.save(activity);
         detectPhysio(activity);
         log.info("Activité importée {} (athlète={}, statut={})", activity.getId(), athleteId, activity.getStatus());
         return toResponse(activity);
+    }
+
+    /**
+     * Remplace le nom que Strava a composé faute de mieux — « Morning Run » — par un nom qui dit
+     * quelque chose.
+     *
+     * <p><b>Pourquoi.</b> Strava nomme lui-même toute sortie que son auteur n'a pas nommée. Ces
+     * titres ne portent aucune information : le sport et le moment sont déjà des colonnes. Sur le
+     * calendrier d'un coach qui suit dix athlètes, ils produisent des semaines de lignes
+     * indiscernables, et le nom de la séance prescrite en face — qui, lui, dit quelque chose —
+     * n'apparaît nulle part.</p>
+     *
+     * <p><b>Ce qu'on écrit à la place.</b> Si la sortie a été rapprochée d'une séance, on adopte le
+     * titre de cette séance : c'est le nom que le coach a donné à ce qu'il demandait, et la sortie
+     * est précisément cela. Sinon, on compose un titre à partir des seules données de la sortie
+     * (« Course à pied — 10,2 km ») : plus pauvre, mais reconnaissable dans une liste.</p>
+     *
+     * <p><b>La limite, et elle est absolue.</b> On ne renomme que ce que Strava a nommé, reconnu
+     * par correspondance exacte (voir {@link StravaAutoName}) : un nom écrit par un athlète n'est
+     * jamais touché. Et ce passage n'a lieu qu'<b>à l'import</b>, une seule fois — une sortie déjà
+     * connue est écartée bien plus haut dans cette méthode, donc une resynchronisation ne peut pas
+     * revenir écraser un titre corrigé entre-temps.</p>
+     *
+     * <p>Le renommage est purement local : rien n'est réécrit sur Strava, où le nom appartient au
+     * compte de l'athlète.</p>
+     */
+    private void renameIfStravaAutoName(Activity activity) {
+        if (activity.getSource() != ActivitySource.STRAVA) {
+            return;
+        }
+        Optional<String> sport = StravaAutoName.sportOf(activity.getTitle());
+        if (sport.isEmpty()) {
+            return;
+        }
+        String replacement = Optional.ofNullable(activity.getMatchedWorkoutId())
+                .flatMap(workoutRepository::findById)
+                .map(Workout::getTitle)
+                .filter(t -> !t.isBlank())
+                .orElseGet(() -> StravaAutoName.descriptiveTitle(
+                        sport.get(), activity.getDistanceM(), activity.getDurationS()));
+        log.debug("Sortie Strava renommée « {} » → « {} »", activity.getTitle(), replacement);
+        activity.setTitle(replacement);
     }
 
     /** Écart toléré sur la distance et la durée avant de considérer deux sorties identiques. */
