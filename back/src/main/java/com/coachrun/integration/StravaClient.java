@@ -40,8 +40,13 @@ public class StravaClient {
         this.redirectUri = redirectUri;
         // Timeouts explicites : l'import Strava tourne dans un job planifié, une connexion qui
         // pend y retiendrait un thread du pool pour toujours.
+        //
+        // Deux délais distincts, parce que les deux appels n'ont rien de comparable : l'échange
+        // de jeton rend trois champs, une page d'activités en rend cent complètes. Le second
+        // dépassait les 10 s du défaut en production, athlète après athlète.
         this.oauth = RestClient.builder().baseUrl(OAUTH_BASE).requestFactory(HttpClients.timeouts()).build();
-        this.api = RestClient.builder().baseUrl(API_BASE).requestFactory(HttpClients.timeouts()).build();
+        this.api = RestClient.builder().baseUrl(API_BASE)
+                .requestFactory(HttpClients.stravaApiTimeouts()).build();
     }
 
     public boolean isConfigured() {
