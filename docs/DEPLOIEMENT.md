@@ -181,7 +181,26 @@ Voir § 6 — et surtout, **l'adresse contient le préfixe `/api`**.
      export const environment = { production: true, apiUrl: 'https://coachrun-back.up.railway.app/api' };
      ```
      et s'assurer que `CORS_ORIGINS` (Railway) contient l'URL Vercel.
-4. Le `front/vercel.json` fourni contient déjà le **fallback SPA** (`/(.*) → /index.html`).
+4. Le `front/vercel.json` fourni contient déjà le **fallback SPA**.
+
+   > ⚠ **Ce fallback exclut les fichiers d'assets, et ce n'est pas cosmétique.** Écrit
+   > naïvement (`/(.*) → /index.html`), il répond `index.html` à *toute* URL — y compris à un
+   > `chunk-XXXX.js` qui n'existe plus. Or tous les écrans sont chargés en différé : après un
+   > déploiement, un onglet resté ouvert demande les fichiers de l'ancienne version, reçoit du
+   > HTML à la place du JavaScript attendu, et **Angular annule la navigation sans rien
+   > afficher**. Le coach clique sur une séance, rien ne se passe, aucun message. Constaté en
+   > production :
+   >
+   > ```
+   > Failed to load module script: Expected a JavaScript-or-Wasm module script but the server
+   > responded with a MIME type of "text/html".
+   > ```
+   >
+   > La règle livrée laisse donc un vrai **404** sur les extensions d'assets (`js`, `css`,
+   > `map`, images, polices…) et ne sert `index.html` que pour les routes applicatives. Côté
+   > application, `StaleChunkErrorHandler` rattrape le cas et recharge la page à la place de
+   > l'utilisateur — les deux se complètent, aucun ne remplace l'autre.
+
 5. **Déployer** → `https://<ton-app>.vercel.app`.
 6. **Boucler le CORS** : reporter l'URL Vercel dans `CORS_ORIGINS` et `FRONTEND_URL` côté Railway,
    puis redéployer le backend.

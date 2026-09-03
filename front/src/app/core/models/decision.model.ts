@@ -219,7 +219,7 @@ export const TIMELINE_ICONS: Record<TimelineKind, string> = {
   TEST: 'activity',
   RECORD: 'timer',
   RACE: 'flag',
-  INJURY: 'triangle-alert',
+  INJURY: 'alert-triangle',
   UNAVAILABILITY: 'calendar-off',
   STRENGTH_TEST: 'dumbbell',
 };
