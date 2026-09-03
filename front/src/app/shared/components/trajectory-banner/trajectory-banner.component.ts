@@ -60,7 +60,7 @@ const OUTLOOK_LABEL: Record<Outlook, string> = {
         @if (t.detail) { <p class="tb__detail">{{ t.detail }}</p> }
         @if (t.loadNote) {
           <p class="tb__load">
-            <app-icon name="triangle-alert" [size]="15" />
+            <app-icon name="alert-triangle" [size]="15" />
             <span>{{ t.loadNote }}</span>
           </p>
         }
