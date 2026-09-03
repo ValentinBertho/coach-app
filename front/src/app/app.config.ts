@@ -22,6 +22,7 @@ import {
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
+import { StaleChunkErrorHandler } from './core/errors/stale-chunk.error-handler';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { errorInterceptor } from './core/interceptors/error.interceptor';
 
@@ -48,10 +49,24 @@ export const ICONS = {
 export const appConfig: ApplicationConfig = {
   providers: [
     { provide: LOCALE_ID, useValue: 'fr-FR' },
-    // Sentry : remonte les erreurs non gérées (actif si DSN configuré).
-    ...(environment.sentryDsn
-      ? [{ provide: ErrorHandler, useValue: Sentry.createErrorHandler({ showDialog: false }) }]
-      : []),
+    // Un seul gestionnaire d'erreurs, en deux temps.
+    //
+    // Devant : l'écran chargé en différé dont le fichier a disparu du serveur — le cas d'un
+    // onglet resté ouvert pendant un déploiement. Angular annule alors la navigation SANS RIEN
+    // AFFICHER : le coach clique sur une séance, et rien ne se passe. On recharge à sa place
+    // (cf. StaleChunkErrorHandler).
+    //
+    // Derrière : Sentry, qui remonte tout le reste (actif si un DSN est configuré). Le
+    // chaînage est explicite plutôt que par `skipSelf` : les deux vivent dans le même
+    // injecteur, et `skipSelf` sauterait justement celui qu'on veut garder en aval.
+    {
+      provide: ErrorHandler,
+      useFactory: () => new StaleChunkErrorHandler(
+        environment.sentryDsn
+          ? Sentry.createErrorHandler({ showDialog: false })
+          : new ErrorHandler(),
+      ),
+    },
     importProvidersFrom(LucideAngularModule.pick(ICONS)),
     provideAnimationsAsync(),
     // « always » : les routes enfants héritent des paramètres du parent, donc les
