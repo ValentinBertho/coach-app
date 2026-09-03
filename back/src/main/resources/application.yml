@@ -30,9 +30,14 @@ spring:
     scheduling:
       # Cinq jobs planifiés (import Strava horaire, rappel 18 h, digest 7 h, débriefing horaire,
       # purge des jetons révoqués). Avec le pool par défaut d'UN thread, un import Strava lent
-      # décale tous les autres, e-mails compris. Quatre threads : chaque job garde son créneau.
+      # décale tous les autres, e-mails compris. Un thread par job : chacun garde son créneau.
+      #
+      # Deux places de plus depuis les battements de cœur SSE : ils passent toutes les vingt
+      # secondes et écrivent sur des sockets clientes, dont certaines ne lisent plus. Les laisser
+      # partager le pool des jobs métier ferait décaler un envoi d'e-mails pour une connexion
+      # morte.
       pool:
-        size: 4
+        size: 6
       thread-name-prefix: darilab-sched-
 
 server:
@@ -74,6 +79,14 @@ app:
   timezone: ${APP_TIMEZONE:Europe/Paris}
   cors:
     origins: ${CORS_ORIGINS:http://localhost:4200}
+  sse:
+    # Battement de cœur des flux temps réel (badge de notifications, messagerie). Un flux
+    # silencieux ne se distingue pas d'un flux mort : le relais de production coupait toutes les
+    # 150 secondes, et le navigateur rouvrait — 600 reconnexions par jour et par onglet, chacune
+    # laissant quatre ERROR dans les journaux. Un commentaire SSE toutes les 20 s suffit à
+    # occuper la connexion ; il reste invisible côté navigateur.
+    # Seule contrainte : rester nettement sous le délai d'inactivité du relais.
+    heartbeat-ms: ${SSE_HEARTBEAT_MS:20000}
   security:
     jwt:
       secret: ${JWT_SECRET:dev-local-secret-change-in-production-min-256-bits-long!!}

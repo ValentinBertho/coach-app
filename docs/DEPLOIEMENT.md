@@ -200,6 +200,7 @@ Voir § 6 — et surtout, **l'adresse contient le préfixe `/api`**.
 | `PGUSER` / `PGPASSWORD` | back | Identifiants DB **[PROD-REQUIS]** | fournis par Railway |
 | `JWT_SECRET` | back | Secret JWT ≥512 bits **[PROD-REQUIS]** | `openssl rand -base64 48` |
 | `JWT_ACCESS_TTL` | back | Durée de l'access token (s) **[DÉFAUT 900]** | `900` |
+| `SSE_HEARTBEAT_MS` | back | Battement des flux temps réel **[DÉFAUT 20000]**. Sans lui, le relais coupe les connexions inactives (mesuré à 150 s) et le navigateur rouvre en boucle. Ne le baisser que si le relais coupe plus tôt — cf. [`OPERATIONS.md` §9.7](./OPERATIONS.md) | `20000` |
 | `FIELD_ENCRYPTION_KEY` | back | Clé AES-256, 64 hex **[PROD-REQUIS]** | `openssl rand -hex 32` |
 | `FRONTEND_URL` | back | URL du front (liens emails) **[PROD-REQUIS]** | `https://www.darilab.app` |
 | `CORS_ORIGINS` | back | Origines autorisées (CSV) **[PROD-REQUIS]** | `https://www.darilab.app,https://darilab.app` |

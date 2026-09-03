@@ -2,6 +2,7 @@ package com.coachrun.service;
 
 import com.coachrun.dto.response.MessageResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -75,6 +76,34 @@ public class MessageStreamService {
         return emitter;
     }
 
+    /**
+     * Maintient les flux ouverts en écrivant un commentaire SSE à intervalle régulier.
+     *
+     * <p>Même mécanisme que pour le compteur de notifications, et même raison : un fil silencieux
+     * n'écrit rien, et le relais qui coupe les connexions inactives ne distingue pas « rien à
+     * dire » de « mort ». Il coupait à 150 secondes, avec une régularité d'horloge ; le client
+     * rouvrait, et la boucle recommençait. Le commentaire {@code :hb} occupe la connexion sans
+     * rien remonter au navigateur — {@code EventSource} ne le passe à aucun écouteur.</p>
+     */
+    @Scheduled(fixedRateString = "${app.sse.heartbeat-ms:20000}")
+    public void heartbeat() {
+        emitters.forEach((conversationId, list) -> {
+            for (SseEmitter emitter : list) {
+                try {
+                    emitter.send(SseEmitter.event().comment("hb"));
+                } catch (IOException | RuntimeException e) {
+                    // Client parti sans que le serveur en soit informé : le battement le révèle.
+                    drop(conversationId, emitter, e);
+                }
+            }
+        });
+    }
+
+    /** Nombre de flux actuellement ouverts, tous fils confondus (diagnostic). */
+    public int openStreams() {
+        return emitters.values().stream().mapToInt(List::size).sum();
+    }
+
     /** Pousse un message à tous les abonnés du fil. */
     public void broadcast(UUID conversationId, MessageResponse message) {
         List<SseEmitter> list = emitters.get(conversationId);
@@ -85,8 +114,25 @@ public class MessageStreamService {
             try {
                 emitter.send(SseEmitter.event().name("message").data(message));
             } catch (IOException | IllegalStateException e) {
-                remove(conversationId, emitter);
+                drop(conversationId, emitter, e);
             }
+        }
+    }
+
+    /**
+     * Retire un émetteur devenu inutilisable, <b>et clôt la requête asynchrone qui le porte</b>.
+     *
+     * <p>Le retirer de la table ne suffisait pas : côté conteneur, la requête restait ouverte
+     * jusqu'au délai de l'émetteur — une demi-heure à occuper une connexion pour un client parti
+     * depuis longtemps. Le battement détecte le départ en vingt secondes ; autant rendre la place
+     * tout de suite.</p>
+     */
+    private void drop(UUID conversationId, SseEmitter emitter, Throwable cause) {
+        remove(conversationId, emitter);
+        try {
+            emitter.completeWithError(cause);
+        } catch (RuntimeException ignored) {
+            // Déjà clos par le conteneur : rien à faire.
         }
     }
 

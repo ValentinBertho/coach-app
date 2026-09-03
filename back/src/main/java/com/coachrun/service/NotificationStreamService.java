@@ -1,6 +1,7 @@
 package com.coachrun.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -69,6 +70,45 @@ public class NotificationStreamService {
         return emitter;
     }
 
+    /**
+     * Maintient les flux ouverts en écrivant un commentaire SSE à intervalle régulier.
+     *
+     * <h2>Ce que cela corrige</h2>
+     *
+     * <p>Un flux de notifications n'écrit rien entre deux notifications — soit, en usage réel,
+     * pendant des heures. Un relais qui coupe les connexions inactives ne peut pas faire la
+     * différence entre « rien à dire » et « mort » : il coupait à <b>150 secondes</b>, avec une
+     * régularité d'horloge (relevé en production : une coupure toutes les 152 à 154 s, sans
+     * exception). {@code EventSource} rouvrait deux secondes plus tard, et la boucle recommençait
+     * — de l'ordre de six cents reconnexions par jour et par onglet, chacune laissant sa trace
+     * dans les journaux.</p>
+     *
+     * <p>Le délai serveur (trente minutes) n'y était pour rien, ni le client : la coupure venait
+     * du silence. Un commentaire toutes les vingt secondes suffit à l'occuper.</p>
+     *
+     * <p>Le commentaire — {@code :hb} — est invisible côté navigateur : {@code EventSource} ne le
+     * remonte à aucun écouteur. Rien à changer dans le front.</p>
+     */
+    @Scheduled(fixedRateString = "${app.sse.heartbeat-ms:20000}")
+    public void heartbeat() {
+        emitters.forEach((userId, list) -> {
+            for (SseEmitter emitter : list) {
+                try {
+                    emitter.send(SseEmitter.event().comment("hb"));
+                } catch (IOException | RuntimeException e) {
+                    // Client parti sans que le serveur en soit informé : c'est justement ce que
+                    // le battement révèle.
+                    drop(userId, emitter, e);
+                }
+            }
+        });
+    }
+
+    /** Nombre de flux actuellement ouverts, tous utilisateurs confondus (diagnostic). */
+    public int openStreams() {
+        return emitters.values().stream().mapToInt(List::size).sum();
+    }
+
     /** Pousse le nombre de non-lues à tous les flux ouverts de l'utilisateur. */
     public void publishUnread(UUID userId, long unread) {
         List<SseEmitter> list = emitters.get(userId);
@@ -79,8 +119,25 @@ public class NotificationStreamService {
             try {
                 emitter.send(SseEmitter.event().name("unread").data(unread));
             } catch (IOException | IllegalStateException e) {
-                remove(userId, emitter);
+                drop(userId, emitter, e);
             }
+        }
+    }
+
+    /**
+     * Retire un émetteur devenu inutilisable, <b>et clôt la requête asynchrone qui le porte</b>.
+     *
+     * <p>Le retirer de la table ne suffisait pas : côté conteneur, la requête restait ouverte
+     * jusqu'au délai de l'émetteur — une demi-heure à occuper une connexion pour un client parti
+     * depuis longtemps. Le battement détecte le départ en vingt secondes ; autant rendre la place
+     * tout de suite.</p>
+     */
+    private void drop(UUID userId, SseEmitter emitter, Throwable cause) {
+        remove(userId, emitter);
+        try {
+            emitter.completeWithError(cause);
+        } catch (RuntimeException ignored) {
+            // Déjà clos par le conteneur : rien à faire.
         }
     }
 
