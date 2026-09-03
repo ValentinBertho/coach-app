@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -736,6 +737,19 @@ public class AthletePortalController {
     @PostMapping("/strava/import")
     public java.util.Map<String, Integer> stravaImport(@AuthenticationPrincipal AuthPrincipal principal) {
         return java.util.Map.of("imported", stravaService.importForAthlete(principal.athleteId()));
+    }
+
+    /**
+     * J'accepte — ou je retire — le renommage de mes sorties sur mon propre compte Strava.
+     *
+     * <p>Décision de l'athlète seul : c'est son compte, son fil, ses abonnés. Le coach ne dispose
+     * d'aucun équivalent, et c'est voulu.</p>
+     */
+    @PutMapping("/strava/rename-on-strava")
+    public com.coachrun.dto.response.StravaStatusResponse stravaRenameOnStrava(
+            @AuthenticationPrincipal AuthPrincipal principal, @RequestBody java.util.Map<String, Boolean> body) {
+        return stravaService.setRenameOnStrava(principal.athleteId(),
+                Boolean.TRUE.equals(body.get("enabled")));
     }
 
     /** Je déconnecte mon compte Strava. */

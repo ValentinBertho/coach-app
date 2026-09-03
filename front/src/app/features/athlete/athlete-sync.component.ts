@@ -60,6 +60,53 @@ import { ActivityExclusion } from '../../core/models/activity.model';
             }
           </div>
         }
+
+        <!-- Écrire dans le compte Strava de l'athlète est d'une autre nature que lire : son fil
+             est visible de ses abonnés, et nous ne gardons pas le nom d'origine. D'où un
+             interrupteur, décoché par défaut, et un texte qui dit ce qui va se passer chez lui
+             plutôt que ce que fait la fonctionnalité. -->
+        @if (st.configured && st.connected) {
+          <section class="card">
+            <h2>Nom des sorties</h2>
+            <p class="field-hint">
+              Strava nomme lui-même les sorties que tu ne nommes pas : « Morning Run », « Sortie à
+              vélo l'après-midi ». Dans Darilab, ces titres-là sont remplacés par le nom de ta
+              séance — ou par la distance quand il n'y en a pas. Tes propres titres ne sont jamais
+              touchés.
+            </p>
+            <div class="chan">
+              <label class="chan__row">
+                <span class="chan__txt">
+                  <strong>Renommer aussi sur Strava</strong>
+                  <span class="field-hint">
+                    Le nouveau nom est écrit sur ton compte Strava, où tes abonnés le voient. Nous
+                    ne gardons pas le nom d'origine : c'est sans retour de notre côté.
+                  </span>
+                </span>
+                <span class="switch">
+                  <input type="checkbox" [checked]="st.renameOnStrava" [disabled]="busy()"
+                         (change)="setRenameOnStrava($event)"
+                         aria-label="Renommer aussi mes sorties sur Strava" />
+                  <span class="switch__track" aria-hidden="true"></span>
+                </span>
+              </label>
+            </div>
+            @if (st.renameOnStrava && !st.canRenameOnStrava) {
+              <p class="field-hint warn">
+                Strava ne nous a pas donné l'autorisation d'écrire sur ton compte — c'est le cas si
+                tu l'as connecté avant cette option. Reconnecte-le et accepte la permission
+                « modifier tes activités » : rien ne sera renommé chez toi d'ici là.
+                <button type="button" class="btn btn-ghost btn-sm" (click)="connect()">Reconnecter Strava</button>
+              </p>
+            }
+            @if (st.renameOnStrava && st.canRenameOnStrava) {
+              <p class="field-hint">
+                Actif pour les prochaines sorties. Désactiver arrête les suivantes, mais ne remet
+                pas les anciens noms.
+              </p>
+            }
+          </section>
+        }
         }
       }
 
@@ -131,6 +178,28 @@ import { ActivityExclusion } from '../../core/models/activity.model';
     .mrow-id { display: flex; flex-direction: column; flex: 1; min-width: 0; }
     .mrow-id strong { color: var(--ink); overflow-wrap: anywhere; }
     .mrow .btn { min-height: 44px; flex: none; }
+    .card h2 { margin: 0 0 var(--sp-2); font-size: var(--text-lg); }
+    .chan { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-3); }
+    .chan__row { display: flex; align-items: flex-start; gap: var(--sp-3); cursor: pointer; }
+    .chan__txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+    .chan__txt strong { color: var(--ink); }
+    .switch { position: relative; flex-shrink: 0; width: 52px; height: 44px; }
+    .switch input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+    .switch__track {
+      position: absolute; top: 11px; left: 0; width: 52px; height: 30px;
+      border-radius: var(--radius-full); background: var(--paper-sunk);
+      border: 1px solid var(--hairline); transition: background var(--duration) var(--ease);
+    }
+    .switch__track::after {
+      content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+      border-radius: var(--radius-full); background: var(--paper);
+      box-shadow: var(--shadow-sm); transition: transform var(--duration) var(--ease);
+    }
+    .switch input:checked + .switch__track { background: var(--primary); border-color: var(--primary); }
+    .switch input:checked + .switch__track::after { transform: translateX(22px); }
+    .switch input:focus-visible + .switch__track { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .switch input:disabled + .switch__track { opacity: .5; }
+    .warn { color: var(--warning-text, var(--ink-2)); display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); margin-top: var(--sp-2); }
   `],
 })
 export class AthleteSyncComponent implements OnInit {
@@ -176,6 +245,28 @@ export class AthleteSyncComponent implements OnInit {
     this.portal.excludedActivities().subscribe({
       next: (e) => this.excluded.set(e),
       error: () => this.excluded.set([]),
+    });
+  }
+
+  /**
+   * L'athlète accepte — ou retire — le renommage sur son compte Strava.
+   *
+   * <p>En cas d'échec, on remet l'interrupteur dans l'état que le serveur connaît plutôt que dans
+   * celui que le clic a affiché : sur une préférence qui autorise une écriture chez quelqu'un,
+   * un interrupteur qui ment est pire que pas d'interrupteur du tout.</p>
+   */
+  setRenameOnStrava(event: Event): void {
+    const enabled = (event.target as HTMLInputElement).checked;
+    this.busy.set(true);
+    this.portal.stravaSetRenameOnStrava(enabled).subscribe({
+      next: (s) => {
+        this.status.set(s);
+        this.busy.set(false);
+        this.toast.success(enabled
+          ? 'Tes sorties seront aussi renommées sur Strava.'
+          : 'Darilab ne renommera plus rien sur Strava.');
+      },
+      error: () => { this.busy.set(false); this.toast.error('Action impossible.'); this.load(); },
     });
   }
 

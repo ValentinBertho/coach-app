@@ -1,6 +1,7 @@
 package com.coachrun.service;
 
 import com.coachrun.dto.request.ActivityImportRequest;
+import com.coachrun.dto.response.ActivityResponse;
 import com.coachrun.dto.response.StravaStatusResponse;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.DeviceConnection;
@@ -39,12 +40,25 @@ public class StravaService {
 
     private static final DeviceProvider PROVIDER = DeviceProvider.STRAVA;
     /**
+     * Le scope d'écriture, demandé à la connexion mais <b>jamais exigé</b>.
+     *
+     * <p>Strava présente ses permissions à la case à cocher : un athlète peut accorder la lecture
+     * et refuser l'écriture, et sa synchronisation fonctionne alors exactement comme avant. Nous le
+     * demandons quand même à tous, parce que le scope ne s'ajoute pas après coup — sans lui dans la
+     * demande initiale, activer le renommage plus tard obligerait à tout redemander.</p>
+     *
+     * <p>Le scope réellement accordé est celui que Strava renvoie avec le jeton, et c'est lui seul
+     * qui fait foi côté écriture : voir {@link #canWriteToStrava(DeviceConnection)}.</p>
+     */
+    private static final String WRITE_SCOPE = "activity:write";
+
+    /**
      * {@code activity:read_all} et non {@code activity:read} : ce dernier ne remonte que les
      * activités <em>publiques</em>. Or les athlètes suivis par un coach gardent très souvent
      * leurs sorties en « privé » ou « abonnés uniquement » — avec le scope restreint, elles ne
      * se synchronisent jamais et l'intégration paraît cassée.
      */
-    private static final String SCOPE = "activity:read_all";
+    private static final String SCOPE = "activity:read_all," + WRITE_SCOPE;
     /** Échantillonnage des flux, aligné sur {@code GpxParser} : au-delà, la courbe n'y gagne rien. */
     private static final int STREAM_MAX_POINTS = 400;
     /** Fenêtre d'import par défaut au premier import : 30 jours. */
@@ -64,7 +78,9 @@ public class StravaService {
                 client.isConfigured(),
                 conn != null,
                 conn != null ? conn.getProviderAthleteId() : null,
-                conn != null ? conn.getLastImportEpoch() : null);
+                conn != null ? conn.getLastImportEpoch() : null,
+                conn != null && conn.isRenameOnProvider(),
+                conn != null && canWriteToStrava(conn));
     }
 
     /** URL d'autorisation Strava (l'athleteId transite par le paramètre state, signé anti-CSRF). */
@@ -142,10 +158,13 @@ public class StravaService {
                 continue;
             }
             try {
-                activityService.importActivity(clubId, athleteId, toImportRequest(a),
-                        extras(a, accessToken));
+                ActivityResponse saved = activityService.importActivity(clubId, athleteId,
+                        toImportRequest(a), extras(a, accessToken));
                 imported++;
-                summaries.add(new ImportedActivity(a.name(),
+                mirrorRenameToStrava(conn, accessToken, a, saved.title());
+                // Le titre retenu, pas celui de Strava : quand « Morning Run » a été remplacé par
+                // le nom de la séance, c'est ce nom-là que l'athlète doit lire dans son e-mail.
+                summaries.add(new ImportedActivity(saved.title(),
                         a.movingTime(),
                         a.distance() == null ? null : (int) Math.round(a.distance())));
             } catch (ConflictException dup) {
@@ -161,6 +180,50 @@ public class StravaService {
         // en remonte parfois plusieurs d'un coup après un week-end sans réseau.
         notificationService.notifyActivitiesImported(conn.getAthlete(), summaries);
         return imported;
+    }
+
+    /**
+     * Répercute sur Strava le titre que Darilab vient de retenir — si, et seulement si, tout
+     * concorde.
+     *
+     * <p>Le renommage local (voir {@code ActivityService}) ne touche que les noms que Strava a
+     * composés lui-même, et il ne touche que notre base : le fil Strava de l'athlète garde son
+     * « Morning Run ». Cette méthode ferme la boucle, sous trois conditions cumulatives :</p>
+     *
+     * <ol>
+     *   <li><b>Le titre a effectivement changé.</b> On compare au nom reçu de Strava : s'il est
+     *       resté tel quel, c'est que l'athlète l'avait nommée lui-même, et il n'y a rien à
+     *       corriger chez lui.</li>
+     *   <li><b>L'athlète l'a demandé</b>, case cochée, jamais par défaut.</li>
+     *   <li><b>Strava nous a accordé l'écriture.</b> Le consentement dans Darilab ne vaut pas
+     *       autorisation chez Strava : seul le scope renvoyé avec le jeton en décide.</li>
+     * </ol>
+     *
+     * <p>L'échec est sans conséquence et le reste : le titre juste est déjà en base, Strava n'en
+     * est que le reflet. Une écriture refusée n'interrompt ni cet import ni les suivants.</p>
+     */
+    private void mirrorRenameToStrava(DeviceConnection conn, String accessToken,
+                                      StravaActivity a, String savedTitle) {
+        if (savedTitle == null || savedTitle.equals(a.name())
+                || !conn.isRenameOnProvider() || !canWriteToStrava(conn)) {
+            return;
+        }
+        if (client.renameActivity(accessToken, a.id(), savedTitle)) {
+            log.info("Sortie {} renommée sur Strava : « {} » → « {} »", a.id(), a.name(), savedTitle);
+        }
+    }
+
+    /**
+     * Le jeton de cette connexion porte-t-il {@code activity:write} ?
+     *
+     * <p>Question distincte du consentement : un athlète peut cocher la case dans Darilab et avoir
+     * refusé — ou n'avoir jamais eu à accorder — l'écriture chez Strava, s'il s'est connecté avant
+     * que nous ne demandions ce scope. Il lui faut alors se reconnecter, un scope ne s'ajoutant
+     * pas à un jeton existant.</p>
+     */
+    private boolean canWriteToStrava(DeviceConnection conn) {
+        String granted = conn.getScope();
+        return granted != null && List.of(granted.split("[,\\s]+")).contains(WRITE_SCOPE);
     }
 
     /** Résumé d'une sortie tout juste importée, pour la notification. */
@@ -231,6 +294,24 @@ public class StravaService {
 
     public StravaStatusResponse statusForAthlete(UUID athleteId) {
         return status(clubIdOf(athleteId), athleteId);
+    }
+
+    /**
+     * L'athlète accepte — ou retire — le renommage de ses sorties sur son propre compte Strava.
+     *
+     * <p>Décocher n'annule rien de ce qui a déjà été écrit là-bas : nous ne gardons pas les noms
+     * d'origine, et republier un nom que nous aurions deviné serait pire que de ne rien faire.
+     * L'effet est uniquement sur les sorties à venir, et l'écran doit le dire.</p>
+     */
+    @Transactional
+    public StravaStatusResponse setRenameOnStrava(UUID athleteId, boolean enabled) {
+        UUID clubId = clubIdOf(athleteId);
+        DeviceConnection conn = connectionRepository.findByAthleteIdAndProvider(athleteId, PROVIDER)
+                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "Compte Strava non connecté."));
+        conn.setRenameOnProvider(enabled);
+        connectionRepository.save(conn);
+        log.info("Renommage sur Strava {} pour l'athlète {}", enabled ? "activé" : "désactivé", athleteId);
+        return status(clubId, athleteId);
     }
 
     public String authorizeUrlForAthlete(UUID athleteId) {

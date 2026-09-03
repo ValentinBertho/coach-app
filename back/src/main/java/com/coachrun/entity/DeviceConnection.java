@@ -57,4 +57,15 @@ public class DeviceConnection extends BaseEntity {
 
     @Column(name = "last_import_epoch")
     private Long lastImportEpoch;
+
+    /**
+     * L'athlète accepte que Darilab renomme ses sorties <b>sur Strava</b>, et pas seulement ici.
+     *
+     * <p>Faux par défaut, et volontairement : écrire dans le fil Strava de quelqu'un est visible de
+     * ses abonnés et sans retour possible de notre côté (nous ne gardons pas le nom d'origine).
+     * Ce drapeau ne suffit d'ailleurs pas à lui seul — il faut encore que {@link #scope} porte
+     * {@code activity:write}, que Strava n'accorde qu'à une autorisation explicite.</p>
+     */
+    @Column(name = "rename_on_provider", nullable = false)
+    private boolean renameOnProvider = false;
 }

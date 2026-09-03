@@ -184,6 +184,43 @@ public class StravaClient {
         return all;
     }
 
+    /**
+     * Renomme une activité <b>sur Strava</b> ({@code PUT /activities/{id}}).
+     *
+     * <p>C'est le seul appel de tout ce client qui <b>écrit</b>, et il n'écrit pas chez nous : il
+     * modifie le compte personnel de l'athlète, dont le fil est visible de ses abonnés. Deux
+     * conditions le gouvernent en amont, dans {@code StravaService} : le consentement explicite de
+     * l'athlète, et le scope {@code activity:write} effectivement accordé par Strava.</p>
+     *
+     * <p><b>Aucun échec n'est propagé.</b> Le titre correct est déjà en base : Strava est le miroir,
+     * pas la source. Un jeton sans le scope, un quota atteint, une activité supprimée entre-temps —
+     * rien de tout cela ne doit interrompre une synchronisation ni faire échouer un import.</p>
+     *
+     * @return vrai si Strava a accepté le nouveau nom
+     */
+    public boolean renameActivity(String accessToken, long activityId, String name) {
+        try {
+            api.put()
+                    .uri(uri -> uri.path("/activities/{id}").build(activityId))
+                    .header("Authorization", "Bearer " + accessToken)
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(java.util.Map.of("name", name))
+                    .retrieve().toBodilessEntity();
+            return true;
+        } catch (HttpClientErrorException.TooManyRequests ex) {
+            log.warn("Quota Strava atteint : l'activité {} n'a pas été renommée sur Strava", activityId);
+            return false;
+        } catch (HttpClientErrorException.Unauthorized | HttpClientErrorException.Forbidden ex) {
+            // Le plus souvent : jeton sans activity:write, l'athlète n'ayant pas réautorisé.
+            log.warn("Écriture refusée par Strava sur l'activité {} — scope activity:write absent "
+                    + "ou révoqué ({})", activityId, ex.getStatusCode());
+            return false;
+        } catch (RestClientException ex) {
+            log.warn("Renommage Strava impossible pour l'activité {} : {}", activityId, ex.getMessage());
+            return false;
+        }
+    }
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record TokenResponse(
             @JsonProperty("access_token") String accessToken,
