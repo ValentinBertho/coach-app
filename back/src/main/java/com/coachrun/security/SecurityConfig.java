@@ -1,5 +1,6 @@
 package com.coachrun.security;
 
+import jakarta.servlet.DispatcherType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -57,6 +58,28 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
+                        // Dispatchs internes au conteneur, qu'aucun client ne peut émettre : la
+                        // requête a déjà passé l'autorisation sur son dispatch REQUEST.
+                        //
+                        // ASYNC — un flux SSE se termine par un dispatch asynchrone, sur une
+                        // réponse committée depuis longtemps (en-têtes et premier événement
+                        // partis). Réautoriser là ne protège rien, et échoue dès que le jeton
+                        // porté en paramètre a cessé d'être valable entre-temps — il l'est
+                        // quinze minutes en production (JWT_ACCESS_TTL) pour un flux qui peut
+                        // durer une demi-heure, et une déconnexion ou un changement de mot de
+                        // passe le périment plus tôt encore. Le refus se solde alors par un 401
+                        // impossible à écrire — « Unable to handle the Spring Security Exception
+                        // because the response is already committed » — puis par la page
+                        // d'erreur qui échoue à son tour. Trois ERROR par fermeture de flux,
+                        // sans que personne ne voie rien.
+                        //
+                        // ERROR — le forward vers /error part du conteneur, hors contexte de
+                        // sécurité ; le refuser empilait une seconde erreur sur la première,
+                        // qu'elle masquait.
+                        //
+                        // Un appel direct à /error reste authentifié : il arrive en dispatch
+                        // REQUEST, que ce matcher ne couvre pas.
+                        .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .anyRequest().authenticated())

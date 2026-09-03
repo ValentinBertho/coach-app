@@ -451,3 +451,42 @@ et ne se propagent nulle part ailleurs.
 
 L'application, elle, **continue de servir normalement** : vérifié en démarrant en profil `prod`
 contre un hôte d'ingestion injoignable.
+
+### 9.7 Flux SSE — le battement de cœur, et le bruit qu'il évite
+
+Le badge de notifications et la messagerie temps réel tiennent des connexions ouvertes
+(`text/event-stream`). Entre deux notifications, elles n'écrivent rien — des heures durant, en
+usage réel. Un relais qui coupe les connexions inactives ne peut pas distinguer « rien à dire »
+de « mort » : la production coupait **toutes les 150 secondes**, avec une régularité d'horloge
+(152 à 154 s, sans exception). `EventSource` rouvrait deux secondes plus tard, et la boucle
+recommençait — de l'ordre de 600 reconnexions par jour et par onglet.
+
+Chaque fermeture laissait quatre lignes `ERROR` que personne ne pouvait relier à un incident :
+
+```
+Servlet.service() for servlet [dispatcherServlet] threw exception
+… [Unable to handle the Spring Security Exception because the response is already committed.]
+Exception Processing [ErrorPage[errorCode=0, location=/error]]
+```
+
+**Deux réglages y répondent, et ils ne se remplacent pas :**
+
+- **Le battement** — un commentaire SSE (`:hb`) toutes les 20 s occupe la connexion, et le relais
+  ne la coupe plus. C'est la cause. Réglable par `app.sse.heartbeat-ms` ; le descendre en dessous
+  du délai du relais est la seule contrainte. Le commentaire est invisible côté navigateur :
+  `EventSource` ne le remonte à aucun écouteur, rien à changer dans le front.
+- **`dispatcherTypeMatchers(ASYNC, ERROR).permitAll()`**
+  ([`SecurityConfig`](../back/src/main/java/com/coachrun/security/SecurityConfig.java)) — un flux
+  se ferme par un dispatch asynchrone, sur une réponse committée depuis son premier événement. Y
+  refuser l'accès produit un 401 impossible à écrire : ce sont les lignes ci-dessus. Le refus
+  survient dès que le jeton porté en paramètre a cessé d'être valable pendant que le flux courait
+  — `JWT_ACCESS_TTL` vaut 900 s pour un flux qui peut durer une demi-heure, et une déconnexion le
+  périme plus tôt encore.
+
+Le premier supprime les fermetures, le second les rend silencieuses quand elles arrivent quand
+même (déconnexion, rotation de jeton, redéploiement). Verrouillés par
+`AsyncDispatchAuthorizationTest`, `NotificationStreamServiceTest` et `MessageStreamServiceTest`.
+
+> **Multi-instance.** Les émetteurs vivent en mémoire, par instance : à plusieurs répliques, le
+> badge ne se met à jour que si le client retombe sur celle qui a écrit (cf. `SchedulerLockConfig`).
+> Le battement n'y change rien.
