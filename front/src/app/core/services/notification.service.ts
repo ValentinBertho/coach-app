@@ -49,10 +49,16 @@ export class NotificationService {
   constructor() {
     // Flux SSE temps réel piloté par l'état d'authentification (connexion ↔ déconnexion).
     // Une rotation du jeton rouvre le flux : cf. `connect`.
+    //
+    // `allowSignalWrites` parce que la déconnexion remet le badge à zéro, et qu'Angular refuse
+    // par défaut d'écrire dans un signal depuis un effet. Sans ce drapeau, la déconnexion levait
+    // NG0600 au moment précis du `unread.set(0)` : le flux était bien fermé — le nettoyage le
+    // précède — mais le compteur restait figé. Le badge de la cloche affichait donc encore les
+    // non-lues du compte précédent à qui se connectait ensuite sur le même onglet.
     effect(() => {
       const token = this.auth.token();
       if (token) { this.connect(token); } else { this.disconnect(); }
-    });
+    }, { allowSignalWrites: true });
   }
 
   /**
