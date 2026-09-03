@@ -1,0 +1,35 @@
+# ============================================================================
+# 095 — Consentement au renommage des sorties SUR Strava.
+#
+#   Darilab remplace déjà, à l'import, les titres que Strava compose lui-même
+#   (« Morning Run ») par le nom de la séance prescrite. Ce renommage est
+#   purement local : le fil Strava de l'athlète, lui, garde son « Morning Run ».
+#
+#   Ce drapeau ouvre la seconde moitié : répercuter le nouveau titre sur Strava.
+#   C'est une écriture sur le compte personnel de l'athlète, visible de ses
+#   abonnés, et dont nous ne gardons pas le nom d'origine — donc irréversible de
+#   notre côté. Elle ne peut pas être implicite : d'où une colonne, portée par la
+#   connexion et non par l'athlète (la préférence n'a aucun sens sans connexion,
+#   et une déconnexion doit reprendre le consentement avec elle).
+#
+#   Le défaut est faux, et il l'est pour tout le monde : personne n'hérite d'une
+#   écriture qu'il n'a pas demandée. Le drapeau ne suffit d'ailleurs pas — encore
+#   faut-il que le jeton porte le scope activity:write, que Strava n'accorde qu'à
+#   une (ré)autorisation explicite.
+#
+#   Additif : colonne nouvelle avec défaut, aucune ligne existante modifiée.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 095-strava-rename-optin
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: device_connections
+            columns:
+              - column:
+                  name: rename_on_provider
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

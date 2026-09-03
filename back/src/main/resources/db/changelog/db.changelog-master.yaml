@@ -199,3 +199,5 @@ databaseChangeLog:
       file: db/changelog/changes/093-club-creation-requests.yaml
   - include:
       file: db/changelog/changes/094-json-columns-to-text.yaml
+  - include:
+      file: db/changelog/changes/095-strava-rename-optin.yaml

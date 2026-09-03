@@ -338,6 +338,10 @@ export class AthletePortalService {
   stravaDisconnect(): Observable<void> {
     return this.http.delete<void>(`${this.base}/strava`);
   }
+  /** J'accepte — ou je retire — le renommage de mes sorties sur mon propre compte Strava. */
+  stravaSetRenameOnStrava(enabled: boolean): Observable<StravaStatus> {
+    return this.http.put<StravaStatus>(`${this.base}/strava/rename-on-strava`, { enabled });
+  }
 
   // --- Phase 2 « Mon histoire » (lecture seule) ---
   /** Mes analytics (volume hebdo prévu/réalisé, zones, adhérence). */

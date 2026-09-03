@@ -359,6 +359,30 @@ d'abord).
   renommage) ; ils se coalescent en une seule synchronisation, le quota Strava étant de 100
   requêtes par quart d'heure pour toute l'application.
 
+### Le seul appel qui écrit chez l'athlète
+
+Darilab remplace, à l'import, les titres que Strava compose lui-même (« Morning Run ») par le nom
+de la séance rapprochée, ou par un titre descriptif. **Ce renommage est local par défaut.**
+
+Un athlète peut demander qu'il se répercute sur son propre compte Strava (Profil →
+Synchronisation) — c'est alors la seule écriture de toute l'intégration. Trois conditions
+cumulatives, et il suffit qu'une seule manque pour que rien ne parte :
+
+1. le titre a effectivement été remplacé (un nom écrit par l'athlète ne l'est jamais) ;
+2. l'athlète a coché la case, jamais activée par défaut ;
+3. Strava a réellement accordé le scope `activity:write`.
+
+**Conséquence opérationnelle :** l'application demande désormais `activity:read_all,activity:write`
+à la connexion. Strava présente ses permissions à la case à cocher — un athlète peut accorder la
+lecture et refuser l'écriture, et sa synchronisation fonctionne exactement comme avant. En
+revanche, **un scope ne s'ajoute pas à un jeton existant** : les athlètes connectés avant cette
+version doivent se reconnecter pour que l'option puisse fonctionner. L'écran le leur dit, et rien
+n'est écrit chez eux d'ici là.
+
+Aucune configuration serveur n'est requise : pas de variable d'environnement, rien à changer dans
+la console Strava. Une écriture refusée (quota, jeton révoqué) est journalisée et sans suite — le
+titre juste est déjà en base, Strava n'en est que le reflet.
+
 ---
 
 ## 7. Inscription — le régime « sur demande »

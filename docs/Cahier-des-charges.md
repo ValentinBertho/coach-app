@@ -252,8 +252,13 @@ Athlète (mobile PWA) / Coach (web)
    information, et remplissent le calendrier de lignes indiscernables. À l'import — une seule fois,
    jamais à la resynchronisation — un tel titre est remplacé par celui de la séance rapprochée, ou
    à défaut par un titre descriptif (« Course à pied — 10,2 km »). La reconnaissance est **exacte**
-   sur la chaîne entière : un titre écrit par un athlète n'est jamais touché, et rien n'est réécrit
-   côté Strava.
+   sur la chaîne entière : un titre écrit par un athlète n'est jamais touché.
+7. **Répercussion facultative sur Strava.** Le renommage est local par défaut. L'athlète peut
+   demander qu'il s'écrive aussi sur son compte Strava (Profil → Synchronisation) : c'est son
+   compte, son fil, sa décision — le coach n'a pas d'équivalent. Trois conditions cumulatives
+   gouvernent chaque écriture : un titre effectivement remplacé, le consentement enregistré, et le
+   scope `activity:write` réellement accordé par Strava. Un échec (quota, jeton révoqué) est sans
+   conséquence : le titre juste est déjà en base, Strava n'en est que le reflet.
 
 ---
 
