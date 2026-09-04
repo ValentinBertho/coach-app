@@ -476,6 +476,18 @@ public class AuthService {
                 .orElseThrow(() -> new UnauthorizedException("Session invalide."));
     }
 
+    /**
+     * Les jetons d'un compte qui vient d'être créé ailleurs.
+     *
+     * <p>Exposé pour l'inscription libre d'un athlète, qui crée son compte dans son propre service
+     * — le sien n'ouvre ni club ni fiche, et n'a donc rien à faire ici — mais doit rendre une
+     * session comme n'importe quelle inscription. Fabriquer les jetons en double aurait fini par
+     * produire deux durées de vie différentes.</p>
+     */
+    public AuthResponse tokensFor(User user) {
+        return toAuthResponse(user);
+    }
+
     private AuthResponse toAuthResponse(User user) {
         return new AuthResponse(
                 jwtService.generateAccessToken(user),

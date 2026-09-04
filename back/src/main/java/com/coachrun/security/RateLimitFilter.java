@@ -231,7 +231,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         return uri.endsWith("/auth/register")
                 || uri.endsWith("/public/password-reset")
-                || uri.endsWith("/public/club-requests");
+                || uri.endsWith("/public/club-requests")
+                // L'inscription libre d'un athlète : ouverte à tout visiteur et suivie d'un
+                // e-mail de vérification. Sans ce plafond, une seule adresse IP pourrait vider
+                // le quota d'envoi quotidien — et il porte aussi les réinitialisations de mot de
+                // passe et les invitations, précisément les envois qu'on ne peut pas perdre.
+                || uri.endsWith("/public/athlete-registration");
     }
 
     /**

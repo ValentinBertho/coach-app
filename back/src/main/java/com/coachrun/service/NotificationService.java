@@ -1388,6 +1388,67 @@ public class NotificationService {
         return enabled;
     }
 
+    // ================================================================================
+    // Mise en relation (hub) — les quatre moments où quelqu'un attend une réponse.
+    //
+    // Notification in-app seulement, sans e-mail : ces événements sont fréquents dans une place de
+    // marché active, et le quota d'envoi de la bêta porte déjà les vérifications d'adresse, les
+    // réinitialisations et les invitations — ceux qu'on ne peut pas perdre. L'e-mail viendra quand
+    // le plan d'envoi le permettra.
+    // ================================================================================
+
+    /** Une demande vient d'arriver : c'est ce qui fait ouvrir la file au coach. */
+    public void notifyCoachingRequestReceived(User coach, String athleteName) {
+        if (coach == null) {
+            return;
+        }
+        notifyUser(coach, "COACHING_REQUEST",
+                "Nouvelle demande de coaching",
+                athleteName + " aimerait que vous le coachiez.",
+                "/app/demandes");
+    }
+
+    /** Le coach a posé sa question : sans notification, l'athlète ne saurait pas qu'on l'attend. */
+    public void notifyCoachingRequestQuestion(User athleteUser, String coachName) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_REQUEST",
+                "Une question sur votre demande",
+                coachName + " vous demande une précision avant de décider.",
+                "/athlete/demandes");
+    }
+
+    /**
+     * Demande acceptée. C'est la notification la plus importante du hub : elle annonce que
+     * l'athlète a un coach, et que son espace vient de changer de nature.
+     */
+    public void notifyCoachingRequestAccepted(User athleteUser, String coachName) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_REQUEST",
+                "Votre demande est acceptée",
+                coachName + " vous suit désormais. Votre espace d'entraînement est ouvert.",
+                "/athlete/calendar");
+    }
+
+    /**
+     * Demande refusée, avec son motif s'il y en a un.
+     *
+     * <p>Le motif est repris tel quel : un refus sans un mot est une porte close, et l'athlète
+     * redemande la semaine suivante sans savoir ce qui n'allait pas.</p>
+     */
+    public void notifyCoachingRequestDeclined(User athleteUser, String coachName, String reason) {
+        if (athleteUser == null) {
+            return;
+        }
+        String body = coachName + " n'a pas retenu votre demande."
+                + (reason == null || reason.isBlank() ? "" : " Motif : " + reason);
+        notifyUser(athleteUser, "COACHING_REQUEST", "Réponse à votre demande", body,
+                "/athlete/demandes");
+    }
+
     /**
      * Accusé de réception d'une demande de création de club.
      *

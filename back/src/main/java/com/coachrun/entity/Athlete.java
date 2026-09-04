@@ -48,6 +48,19 @@ public class Athlete extends BaseEntity {
     private TrainingGroup group;
 
     /**
+     * La personne derrière cette fiche, quand elle a un compte autoporté.
+     *
+     * <p>{@code null} pour toutes les fiches créées par un coach — c'est-à-dire la totalité de
+     * l'existant, et le cas normal d'un athlète qui n'utilise pas l'application. Renseigné quand la
+     * fiche naît de l'acceptation d'une demande de coaching : c'est ce lien qui permettra, plus
+     * tard, de faire remonter la physiologie au compte et de cesser de dupliquer les dossiers d'un
+     * athlète suivi par deux coachs.</p>
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "athlete_account_id")
+    private AthleteAccount account;
+
+    /**
      * Coachs rattachés à l'athlète (en plus de l'accès implicite des coachs du club).
      * Ouverture many-to-many : un athlète peut être suivi par plusieurs coachs.
      */

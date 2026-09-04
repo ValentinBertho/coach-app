@@ -209,3 +209,7 @@ databaseChangeLog:
       file: db/changelog/changes/098-coach-profiles.yaml
   - include:
       file: db/changelog/changes/099-coach-photos.yaml
+  - include:
+      file: db/changelog/changes/100-athlete-accounts.yaml
+  - include:
+      file: db/changelog/changes/101-coaching-requests.yaml

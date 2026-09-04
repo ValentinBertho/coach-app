@@ -1,0 +1,127 @@
+# ============================================================================
+# 101 — La demande de coaching : le geste qui relie un athlète à un coach.
+#
+#   C'est la charnière du hub. Jusqu'ici la plateforme savait tout faire APRÈS
+#   la mise en relation et rien avant : l'annuaire donne à voir, cette table
+#   donne à faire.
+#
+#   Ce n'est PAS une athlete_proposals. Celle-ci ne porte que des ajustements
+#   d'entraînement (alléger une séance, décaler, corriger une valeur physio),
+#   chacun adossé à une branche de son dispatcher. Mélanger les deux aurait mis
+#   dans la même file « alléger la séance de mardi » et « Marie voudrait que
+#   vous la coachiez ». Le patron repris est celui de club_creation_request.
+#
+#   offer_label et offer_amount_cents DOUBLENT la clé étrangère vers l'offre,
+#   et c'est voulu : le coach peut changer sa grille six mois plus tard, et
+#   l'accord passé doit rester lisible tel qu'il a été conclu.
+#
+#   L'index unique partiel sur (athlete, coach) limité aux demandes PENDING est
+#   la garde contre l'insistance : sans lui, un athlète pressé remplit la file
+#   d'un coach de trente lignes identiques, et cette file devient inutilisable
+#   donc ignorée. Partiel, parce qu'un athlète refusé doit pouvoir redemander
+#   plus tard — une relation qui a mal commencé n'est pas une relation
+#   impossible.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 101-coaching-requests
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: coaching_requests
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: athlete_account_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: coach_user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: status, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: message, type: VARCHAR(2000) }
+              - column:
+                  name: coach_question
+                  type: VARCHAR(1000)
+                  remarks: "L'unique question du coach : il n'y a pas de messagerie avant l'accord."
+              - column: { name: athlete_answer, type: VARCHAR(1000) }
+              - column: { name: offer_id, type: UUID }
+              - column:
+                  name: offer_label
+                  type: VARCHAR(120)
+                  remarks: "Recopié : le tarif convenu ne bouge pas quand la grille change."
+              - column: { name: offer_amount_cents, type: INT }
+              - column: { name: decided_at, type: TIMESTAMP WITH TIME ZONE }
+              - column: { name: decline_reason, type: VARCHAR(1000) }
+              - column:
+                  name: expires_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints: { nullable: false }
+                  remarks: "14 jours, aligné sur l'invitation athlète. Sans réponse n'est pas un refus."
+              - column: { name: created_athlete_id, type: UUID }
+              - column: { name: created_relation_id, type: UUID }
+              - column: { name: ip_address, type: VARCHAR(64) }
+              - column: { name: user_agent, type: VARCHAR(512) }
+
+        - addForeignKeyConstraint:
+            constraintName: fk_coaching_requests_account
+            baseTableName: coaching_requests
+            baseColumnNames: athlete_account_id
+            referencedTableName: athlete_accounts
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: fk_coaching_requests_coach
+            baseTableName: coaching_requests
+            baseColumnNames: coach_user_id
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: fk_coaching_requests_offer
+            baseTableName: coaching_requests
+            baseColumnNames: offer_id
+            referencedTableName: coach_offers
+            referencedColumnNames: id
+
+        # Les deux files de l'application : « mes demandes » côté athlète, « à traiter » côté coach.
+        - createIndex:
+            indexName: idx_coaching_requests_account
+            tableName: coaching_requests
+            columns:
+              - column: { name: athlete_account_id }
+              - column: { name: status }
+        - createIndex:
+            indexName: idx_coaching_requests_coach
+            tableName: coaching_requests
+            columns:
+              - column: { name: coach_user_id }
+              - column: { name: status }
+        # La péremption balaie sur cette colonne.
+        - createIndex:
+            indexName: idx_coaching_requests_expiry
+            tableName: coaching_requests
+            columns:
+              - column: { name: expires_at }
+
+  # ------------------------------------------------------------------------
+  # Index unique PARTIEL : une seule demande EN ATTENTE par couple, tout en
+  # laissant redemander après un refus — une relation qui a mal commencé n'est
+  # pas une relation impossible.
+  #
+  # Réservé à PostgreSQL : H2, même en mode compatibilité, refuse la clause
+  # WHERE d'un index. Conséquence à connaître : en test, la protection repose
+  # sur la seule garde applicative (CoachingRequestService, existsBy…Status),
+  # qui couvre le cas normal ; l'index, lui, ferme en plus la fenêtre de course
+  # entre deux requêtes simultanées, et il n'est vérifié qu'en production.
+  # Le jour où les tests passeront sur Testcontainers (cf. « Limites connues »
+  # du README), il sera couvert comme le reste.
+  # ------------------------------------------------------------------------
+  - changeSet:
+      id: 101-coaching-requests-unique-pending
+      author: coachrun
+      dbms: postgresql
+      changes:
+        - sql:
+            splitStatements: false
+            sql: >
+              CREATE UNIQUE INDEX ux_coaching_requests_pending
+              ON coaching_requests (athlete_account_id, coach_user_id)
+              WHERE status = 'PENDING'
+            rollback: DROP INDEX ux_coaching_requests_pending

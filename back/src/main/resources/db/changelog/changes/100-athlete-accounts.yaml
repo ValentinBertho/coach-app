@@ -1,0 +1,94 @@
+# ============================================================================
+# 100 — Le compte athlète autoporté.
+#
+#   Jusqu'ici un athlète n'existait que parce qu'un coach l'avait saisi :
+#   la table `athletes` est la FICHE DE SUIVI qu'un coach tient sur quelqu'un,
+#   et son club_id est non nullable. Le hub renverse l'ordre — l'athlète arrive
+#   en premier, sans coach et sans club.
+#
+#   Rendre athletes.club_id nullable pour l'accueillir aurait touché la moitié
+#   des requêtes de la plateforme, qui scopent toutes par club. On prend l'autre
+#   chemin : une table d'identité à part. La fiche reste ce qu'elle était et se
+#   crée à l'acceptation d'une demande de coaching.
+#
+#   AUCUNE DONNÉE DE SANTÉ ici. Seuils, tests et notes médicales restent sur
+#   `athletes`, chiffrés au repos et gardés par le consentement. L'objet public
+#   de l'athlète n'a pas à devenir un lieu de transit pour l'article 9.
+#
+#   athletes.athlete_account_id est ajoutée NULLABLE, et le reste : les
+#   athlètes créés par un coach — la totalité de l'existant — n'ont pas de
+#   compte autoporté, et n'ont pas à en avoir un. La colonne relie les fiches à
+#   leur personne quand cette personne existe, et laisse ouverte la remontée
+#   ultérieure de la physiologie au compte.
+#
+#   birth_date est non nullable : c'est la seule donnée qui permette
+#   d'appliquer la règle des 16 ans, et une inscription qui l'esquive rendrait
+#   la règle décorative.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 100-athlete-accounts
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: athlete_accounts
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints: { nullable: false, unique: true, uniqueConstraintName: ux_athlete_accounts_user }
+              - column: { name: first_name, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: last_name, type: VARCHAR(120), constraints: { nullable: false } }
+              - column:
+                  name: birth_date
+                  type: date
+                  constraints: { nullable: false }
+                  remarks: "Contrôle des 16 ans à l'inscription libre."
+              - column: { name: sex, type: VARCHAR(16) }
+              - column: { name: discipline, type: VARCHAR(16) }
+              - column: { name: level, type: VARCHAR(16) }
+              - column: { name: city, type: VARCHAR(120) }
+              - column: { name: country, type: VARCHAR(2) }
+              - column:
+                  name: goal
+                  type: VARCHAR(1000)
+                  remarks: "En toutes lettres : c'est ce qu'un coach lit en premier d'une demande."
+              - column: { name: looking_for_coach, type: boolean, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: terms_accepted_at, type: TIMESTAMP WITH TIME ZONE }
+              - column:
+                  name: health_data_consent_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: "Recopié sur la fiche à l'acceptation : sans lui, la première mesure serait refusée."
+        - addForeignKeyConstraint:
+            constraintName: fk_athlete_accounts_user
+            baseTableName: athlete_accounts
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+
+  - changeSet:
+      id: 100-athlete-account-link
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: athletes
+            columns:
+              - column:
+                  name: athlete_account_id
+                  type: UUID
+                  remarks: "La personne derrière la fiche, quand elle a un compte. Nullable et le reste."
+        - addForeignKeyConstraint:
+            constraintName: fk_athletes_account
+            baseTableName: athletes
+            baseColumnNames: athlete_account_id
+            referencedTableName: athlete_accounts
+            referencedColumnNames: id
+        - createIndex:
+            indexName: idx_athletes_account
+            tableName: athletes
+            columns:
+              - column: { name: athlete_account_id }
