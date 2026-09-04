@@ -36,6 +36,12 @@ pourrait craindre : §3.1 et §3.2 proposent de les contourner proprement plutô
 
 **Un défaut de sécurité, trouvé en chemin et indépendant du hub, est à corriger avant lui** : §2.5.
 
+> **Les dix décisions produit de cet audit ont été tranchées le 4 septembre 2026** — duplication de
+> fiche acceptée, rôle unique conservé, validation manuelle des coachs, diplômes déclaratifs sans
+> garantie, pas de messagerie avant acceptation, tarifs affichés sans paiement, pas d'avis, 16 ans
+> minimum, historique attaché au coach, ouverture à 10 coachs publiés. Le détail et leurs
+> conséquences sur le plan sont au **§8**.
+
 ---
 
 ## 1. Méthode et limites
@@ -235,6 +241,10 @@ obligatoire au lieu d'agréable.
 
 Dix questions. Pour chacune : les options réelles, ce qu'elles coûtent, et ce que je recommande.
 
+> **Les dix ont été tranchées le 4 septembre 2026, dans le sens de chaque recommandation.** Ce
+> §3 garde le raisonnement — il dit *pourquoi* chaque arbitrage a été rendu, et ce qu'il coûte ;
+> le **§8** en donne le relevé et les conséquences sur le plan.
+
 ### 3.1 Qui est l'athlète ? — la décision la plus structurante
 
 `Athlete.club` est `NOT NULL`, et le hub a besoin d'un athlète qui existe sans coach.
@@ -299,10 +309,12 @@ proposition de `AUDIT-COACH-INDEPENDANT` §2, et le hub la rend nécessaire.
 est déjà en régime `REQUEST` pour les clubs : on prolonge une pratique établie plutôt que d'en
 inventer une.
 
-**Les diplômes : déclaratifs, et dits comme tels.** Le coach déclare ses certifications, joint un
-justificatif que l'administrateur regarde, et la fiche affiche « certifications vérifiées par
-l'équipe » **ou** « déclarées par le coach » — jamais un badge ambigu. Se porter garant d'un diplôme
-qu'on n'a pas contrôlé auprès de l'organisme émetteur est un engagement qu'on ne veut pas prendre.
+**Les diplômes : déclaratifs, et dits comme tels.** *(Tranché — décision 4, §8 : la plateforme ne
+se porte pas garante.)* Le coach déclare ses certifications et joint un justificatif que
+l'administrateur regarde au moment de valider la fiche ; l'affichage porte **une seule mention,
+« certifications déclarées par le coach »**, sans badge « vérifié » ni double statut. Se porter
+garant d'un diplôme qu'on n'a pas contrôlé auprès de l'organisme émetteur est un engagement qu'on ne
+veut pas prendre — et un badge ambigu est pire que pas de badge du tout.
 
 ### 3.5 L'annuaire est-il public, et quel est le classement par défaut ?
 
@@ -440,8 +452,10 @@ l'article 9 ne doit pas entrer dans l'objet public.
 | `reviewed_at`, `reviewed_by_user_id`, `review_note` | Copie de `ClubCreationRequest` |
 | `published_at`, `median_response_hours` | Les signaux factuels du §3.8 |
 
-**`coach_certifications`** — libellé, organisme, année, `attachment_id`, `verified` (booléen posé par
-l'administrateur seul). L'affichage distingue vérifié et déclaré (§3.4).
+**`coach_certifications`** — libellé, organisme, année, `attachment_id`. **Pas de colonne
+`verified`** : la décision 4 (§8) écarte toute garantie de la plateforme, et une colonne qui
+existerait « au cas où » finirait par être affichée. Le justificatif sert à l'administrateur au
+moment de valider la fiche, pas à décerner un label.
 
 **`coach_offers`** — `coach_profile_id`, `name`, `amount_cents`, `currency`, `periodicity`,
 `description`, `active`. Affichage seul au lancement (§3.7).
@@ -528,8 +542,7 @@ C'est la charnière du produit, et elle doit être atomique. Dans une seule tran
 `POST /clubs/{clubId}/athletes/{athleteId}/end-relation`
 
 **Administrateur** : `GET /admin/coach-profiles?status=PENDING` ·
-`POST /admin/coach-profiles/{id}/approve|reject|suspend` · `POST /admin/certifications/{id}/verify` ·
-`GET /admin/hub/stats`. Toutes tracées dans `AdminAuditLog`, en ajoutant les valeurs
+`POST /admin/coach-profiles/{id}/approve|reject|suspend` · `GET /admin/hub/stats`. Toutes tracées dans `AdminAuditLog`, en ajoutant les valeurs
 `AdminAuditTarget.COACH_PROFILE` et `COACHING_REQUEST`.
 
 **Et une dette existante à solder au passage** : `GET /me/clubs` + le sélecteur de club réclamés par
@@ -653,7 +666,7 @@ données et se paierait en migration.
 | Risque | P. | Impact | Parade |
 |---|---|---|---|
 | **La duplication de fiche** (§3.1) devient bloquante plus vite que prévu — « course + prépa physique chez deux coachs » | Moyenne | Élevé | `athlete_account_id` posé dès le lot 1 laisse la porte ouverte à la remontée de la physiologie au compte. Surveiller le nombre d'athlètes ayant ≥ 2 fiches |
-| **L'annuaire vide au lancement** : un athlète qui arrive sur douze coachs repart | Élevée | Élevé | Ne pas ouvrir l'inscription athlète avant un seuil de coachs publiés (30 ?). Le lot 2 avant le lot 1 dans le calendrier public, même si le code est prêt |
+| **L'annuaire vide au lancement** : un athlète qui arrive sur dix coachs et filtre par discipline repart | Élevée | Élevé | Seuil arrêté à **10 coachs publiés et actifs** (décision 10, §8), assorti de facettes qui ne peuvent pas rendre le vide et d'un repli explicite. Le lot 2 avant le lot 1 dans le calendrier public, même si le code est prêt |
 | **La désintermédiation** : coach et athlète s'échangent leurs coordonnées et quittent la plateforme | Élevée | Moyen (élevé si commission un jour) | Ne pas s'y opposer tant qu'il n'y a pas d'encaissement — c'est un combat coûteux et perdu d'avance. En faire un critère de décision du §3.7 |
 | **Charge de modération** sous-estimée (profils, demandes, litiges) | Moyenne | Moyen | Validation manuelle du lot 2 = découverte précoce du volume réel. Reporter les avis (§3.8) |
 | **Requalification en intermédiaire** avec obligations d'information | Moyenne | Élevé | Avis juridique **avant** le lot 4. CGU distinguant explicitement mise en relation et prestation de coaching |
@@ -664,39 +677,72 @@ données et se paierait en migration.
 
 ---
 
-## 8. Ce que cet audit n'a pas tranché
+## 8. Les décisions prises
 
-Ces questions relèvent d'une décision produit, pas d'une lecture de code. Elles sont écrites pour
-qu'on puisse y répondre par oui ou par non.
+Les dix questions ouvertes de cet audit ont été tranchées par le porteur du produit le
+**4 septembre 2026**. Elles sont désormais des décisions, pas des options : les lots du §6 se
+construisent dessus.
 
-1. **Accepte-t-on la duplication de fiche** (un athlète suivi par deux coachs = deux dossiers), en
-   échange d'un chantier trois à quatre fois plus court ? — *§3.1. C'est la seule décision
-   irréversible du document.*
-2. **Un coach peut-il rester incapable d'être athlète** sur la plateforme au lancement ? — *§3.2*
-3. **Valide-t-on chaque profil coach à la main**, avec la charge quotidienne que cela implique ? —
-   *§3.4*
-4. **Se porte-t-on garant des diplômes**, ou affiche-t-on « déclaré par le coach » ? — *§3.4*
-5. **Accepte-t-on qu'il n'y ait aucun échange libre avant acceptation** (une question, une réponse,
-   dans la demande) ? — *§3.6*
-6. **Les tarifs sont-ils affichés dès le lancement**, sans possibilité de payer sur la plateforme ? —
-   *§3.7*
-7. **Lance-t-on sans aucun avis** ? — *§3.8*
-8. **Bloque-t-on l'inscription libre en dessous de 16 ans** ? — *§3.9*
-9. **La fiche et l'historique restent-ils chez le coach** après la fin de la relation, l'athlète ne
-   gardant que son compte et ses droits RGPD ? — *§3.10*
-10. **Attend-on un seuil de coachs publiés avant d'ouvrir l'inscription athlète au public** — et si
-    oui, lequel ? — *§7*
+| # | Question | Décision | Où elle s'applique |
+|---|---|---|---|
+| 1 | Duplication de fiche (un athlète × deux coachs = deux dossiers) ? | **Acceptée en V1**, pour réduire fortement la complexité | §3.1 — `AthleteAccount` séparé de `Athlete` |
+| 2 | Un coach doit-il pouvoir être athlète ? | **Non au lancement** | §3.2 — rôle unique conservé |
+| 3 | Validation des profils coachs | **Manuelle pendant la bêta** | §3.4 — patron `ClubCreationRequest` |
+| 4 | Garantie des diplômes | **Non.** « Déclaré par le coach », sans garantie de la plateforme | §3.4 — pas de badge « vérifié » en V1 |
+| 5 | Échanges avant acceptation | **Aucune messagerie libre.** Une question, une réponse, dans la demande | §3.6 — `ConversationService` intact |
+| 6 | Tarifs | **Visibles dès le lancement, aucun paiement sur la plateforme en V1** | §3.7 — `CoachOffer` + instantané sur la relation |
+| 7 | Avis | **Aucun au lancement**, ajoutés après les premières expériences réelles | §3.8 — signaux factuels seuls |
+| 8 | Âge minimum à l'inscription libre | **16 ans**, en dur | §3.9 — contrôle sur `birth_date` |
+| 9 | Historique après la fin de relation | **Reste attaché au coach**, droits RGPD de l'athlète préservés | §3.10 — `GdprService` inchangé |
+| 10 | Seuil avant ouverture publique aux athlètes | **10 coachs publiés et actifs** | §7 — ouverture en deux temps |
 
-Et trois questions qu'il faudrait poser à de vrais coachs et à de vrais athlètes avant le lot 4,
-parce que leurs réponses changeraient l'ordre du §6 :
+### Ce que ces décisions changent dans le plan
 
-- Un coach indépendant accepterait-il de publier ses tarifs ? (Beaucoup ne le font pas.)
-- Un athlète choisit-il un coach sur un annuaire, ou sur une recommandation ? (Si c'est la seconde,
-  le lot 7 — partage et référencement — vaut plus que le lot 3.)
-- Combien de demandes par semaine un coach accepte-t-il de traiter avant que la file devienne une
-  corvée ?
+**La décision 4 simplifie le lot 2.** Sans garantie de la plateforme, la colonne `verified` de
+`coach_certifications` et le geste de vérification en back-office disparaissent de la V1 : le coach
+déclare, joint un justificatif que l'administrateur regarde au moment de valider la fiche, et
+l'affichage porte une mention unique — « certifications déclarées par le coach ». Un badge en moins
+à concevoir, et un engagement en moins à tenir.
+
+**La décision 6 rend `CoachOffer` obligatoire dès le lot 2**, pas seulement souhaitable : le tarif
+est un critère de filtre de l'annuaire (lot 3), donc il doit exister avant lui. L'instantané de
+l'offre sur `coaching_requests` (`offer_label`, `offer_amount_cents`) reste indispensable — c'est
+lui qui protège l'accord passé d'un changement de grille ultérieur.
+
+**La décision 10 impose une ouverture en deux temps**, et c'est le seul point où l'arbitrage mérite
+une précaution. Dix coachs, c'est peu pour un annuaire filtrable : croisé avec discipline, langue,
+zone et distanciel, un athlète tombera souvent sur zéro résultat, ce qui est la pire première
+impression possible. Deux garde-fous, à prévoir dans le lot 3 :
+
+- **des filtres qui ne peuvent pas rendre le vide** : chaque facette affiche son nombre de coachs et
+  se désactive si elle rendrait zéro résultat (`GET /public/coach-facets` sert déjà à ça) ;
+- **un repli explicite** : quand une recherche ne rend rien, l'annuaire montre tous les coachs
+  ouverts aux nouveaux athlètes en disant pourquoi, plutôt qu'une liste vide.
+
+Avec ces deux garde-fous, dix coachs suffisent à ouvrir. Sans eux, trente n'y suffiraient pas.
+
+**La décision 2 confirme la précaution du §3.2** : `coach_profiles` est une table clé sur `user_id`,
+jamais des colonnes ajoutées à `users`. Le jour où un compte porte deux casquettes, on ajoute une
+ligne au lieu de déplacer des colonnes en production.
+
+### Ce qui reste ouvert, et qui n'est pas de mon ressort
+
+Trois questions à poser à de vrais coachs et à de vrais athlètes avant le lot 4 — leurs réponses
+changeraient l'ordre du §6, pas les décisions ci-dessus :
+
+- Un coach indépendant accepte-t-il de publier ses tarifs ? La décision 6 les rend visibles ;
+  reste à savoir si les coachs joueront le jeu, ou rempliront des montants factices.
+- Un athlète choisit-il son coach sur un annuaire, ou sur une recommandation ? Si c'est la seconde,
+  le lot 7 (partage, référencement) vaut plus que le lot 3.
+- Combien de demandes par semaine un coach traite-t-il avant que la file devienne une corvée ?
+  C'est ce qui calibre les plafonds anti-spam du §4.4.
+
+Et une action qui ne relève pas du développement : **la relecture juridique avant le lot 4** (§7),
+que les décisions 4, 6 et 9 rendent plus simple sans la rendre facultative.
 
 ---
 
 *Audit rédigé en septembre 2026 sur la branche `claude/audit-coach-athlete-hub-am5hao`. Chaque
-affirmation renvoie au fichier et à la ligne qui la fondent ; aucun code n'a été modifié.*
+affirmation renvoie au fichier et à la ligne qui la fondent ; aucun code n'a été modifié. Les dix
+décisions du §8 ont été arrêtées le 4 septembre 2026 : le plan du §6 est validé, le lot 0 est
+prêt à démarrer.*
