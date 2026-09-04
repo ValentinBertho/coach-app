@@ -87,6 +87,24 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
 
     java.util.List<Athlete> findByClubIdOrderByLastNameAsc(UUID clubId);
 
+    /**
+     * Les athlètes d'un club, <b>club additionnel compris</b>.
+     *
+     * <p>Contrepartie de {@link #findByIdAndClubMembership} et de la recherche paginée, qui
+     * acceptent toutes deux le rattachement additionnel. {@code findByClubIdOrderByLastNameAsc}, lui,
+     * ne regarde que le club principal — si bien qu'un athlète rattaché à un second club apparaissait
+     * dans la <b>liste</b> de ce club mais pas dans son <b>tableau de bord</b>, ni dans ses alertes,
+     * ni dans son bilan hebdomadaire. Le défaut dormait tant que rien ne permettait de créer cette
+     * situation depuis l'interface ; le sélecteur de club la rend atteignable.</p>
+     */
+    @Query("""
+            select distinct a from Athlete a
+            left join a.additionalClubs ac
+            where a.club.id = :clubId or ac.id = :clubId
+            order by a.lastName asc
+            """)
+    java.util.List<Athlete> findByClubMembershipOrderByLastNameAsc(@Param("clubId") UUID clubId);
+
     // --- Admin (cross-club) ---
     /**
      * L'adresse entre dans la recherche : un ticket de support arrive presque toujours avec une

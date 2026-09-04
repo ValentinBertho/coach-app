@@ -22,9 +22,21 @@ const USER_KEY = 'darilab.user';
  * non un drapeau : la session empruntée écrit par-dessus les clés normales, il faut donc que la
  * sienne survive ailleurs — sinon « revenir à mon compte » n'aurait rien à restaurer.
  */
+/** Espace de travail actif d'un coach multi-club, mémorisé par navigateur. */
+const ACTIVE_CLUB_KEY = 'darilab.activeClubId';
+
 const IMP_ACCESS_KEY = 'darilab.impersonator.accessToken';
 const IMP_REFRESH_KEY = 'darilab.impersonator.refreshToken';
 const IMP_USER_KEY = 'darilab.impersonator.user';
+
+/** L'espace actif mémorisé, ou null. Un stockage refusé n'est pas une erreur. */
+function readStoredActiveClub(): string | null {
+  try {
+    return localStorage.getItem(ACTIVE_CLUB_KEY);
+  } catch {
+    return null;
+  }
+}
 
 function readStoredUser(key: string = USER_KEY): User | null {
   const raw = localStorage.getItem(key);
@@ -58,6 +70,14 @@ export class AuthService {
 
   readonly token = signal<string | null>(localStorage.getItem(ACCESS_KEY));
   readonly currentUser = signal<User | null>(readStoredUser());
+
+  /**
+   * L'espace explicitement choisi, ou {@code null} tant qu'aucun choix n'a été fait.
+   *
+   * <p>Mémorisé par navigateur : un coach qui travaille dans deux clubs ne veut pas rechoisir à
+   * chaque ouverture. Effacé à la déconnexion, comme le reste de la session.</p>
+   */
+  readonly activeClubId = signal<string | null>(readStoredActiveClub());
   readonly isAuthenticated = computed(() => this.token() !== null);
 
   /**
@@ -139,8 +159,41 @@ export class AuthService {
   }
 
   /** Identifiant du club courant (scoping tenant des appels API). */
+  /**
+   * L'espace de travail <b>actif</b> du coach.
+   *
+   * <p>Une quarantaine d'appels lisent cette méthode pour composer leurs adresses `/clubs/{id}/…`.
+   * Le sélecteur multi-espace se branche donc ici, et nulle part ailleurs : changer d'espace change
+   * ce que cette méthode rend, et toute l'application suit sans qu'un seul appelant bouge.
+   * L'alternative — passer l'espace actif en paramètre partout — aurait demandé de toucher ces
+   * quarante endroits, et d'en oublier.</p>
+   *
+   * <p>Repli sur le club principal : c'est le comportement d'avant, et celui de l'immense majorité
+   * des coachs, qui n'ont qu'un espace.</p>
+   */
   clubId(): string | null {
-    return this.currentUser()?.clubId ?? null;
+    return this.activeClubId() ?? this.currentUser()?.clubId ?? null;
+  }
+
+  /**
+   * Change d'espace de travail.
+   *
+   * <p>Aucune vérification côté client : c'est le serveur qui décide de ce à quoi ce coach a accès,
+   * et il refuse déjà tout club dont il n'est pas membre. Choisir un espace interdit ne donnerait
+   * qu'une suite de 403 — pas un accès.</p>
+   */
+  setActiveClub(clubId: string | null): void {
+    this.activeClubId.set(clubId);
+    try {
+      if (clubId) {
+        localStorage.setItem(ACTIVE_CLUB_KEY, clubId);
+      } else {
+        localStorage.removeItem(ACTIVE_CLUB_KEY);
+      }
+    } catch {
+      // Navigation privée, stockage refusé : l'espace reste actif pour la session, il n'est
+      // simplement pas mémorisé. Ce n'est pas une raison d'échouer.
+    }
   }
 
   /**
@@ -363,6 +416,7 @@ export class AuthService {
     clearFeedbackQueue();
     this.token.set(null);
     this.currentUser.set(null);
+    this.setActiveClub(null);
     void this.purgeCaches();
   }
 

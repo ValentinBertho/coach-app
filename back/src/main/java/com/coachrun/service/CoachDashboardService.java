@@ -282,7 +282,11 @@ public class CoachDashboardService {
 
     private List<Athlete> athletesInScope(UUID clubId, String scope, UUID coachId) {
         if (scope == null || scope.isBlank() || "all".equalsIgnoreCase(scope)) {
-            List<Athlete> all = athleteRepository.findByClubIdOrderByLastNameAsc(clubId);
+            // Rattachement additionnel compris : la liste des athlètes et la recherche l'acceptent
+            // depuis toujours, pas ce périmètre-ci. Un athlète rattaché à un second club figurait
+            // donc dans la liste de ce club sans jamais apparaître dans son tableau de bord, ses
+            // alertes ni son bilan hebdomadaire.
+            List<Athlete> all = athleteRepository.findByClubMembershipOrderByLastNameAsc(clubId);
             if (coachId == null) {
                 // Balayage serveur (digest quotidien) : pas de coach demandeur, donc rien à
                 // filtrer. Le digest réachemine ensuite chaque alerte vers le coach référent.
@@ -311,7 +315,7 @@ public class CoachDashboardService {
         // club. Écrire à quelqu'un, ce n'est pas la même chose que le suivre : c'est l'écriture
         // qui définit « les miens », pas la propriété de la fiche.
         if (!"private".equalsIgnoreCase(scope)) {
-            for (Athlete a : athleteRepository.findByClubIdOrderByLastNameAsc(clubId)) {
+            for (Athlete a : athleteRepository.findByClubMembershipOrderByLastNameAsc(clubId)) {
                 if (canWrite(coachId, a.getId()) && !isPrivateAthlete(a.getId())) {
                     mine.put(a.getId(), a);
                 }

@@ -701,7 +701,7 @@ Huit lots. Les quatre premiers font un hub qui fonctionne ; les quatre suivants 
 | **4 — La mise en relation** ✅ | `coaching_requests` (migration 101), les deux files, l'acceptation transactionnelle (§4.2), les notifications. **La fin de relation côté écran reste à faire** — son socle est livré au lot 0 | **L** | 1, 2, 0 |
 | — | *↑ **Ici, le hub est utilisable de bout en bout.** ↑* | | |
 | **5 — Le vocabulaire indépendant** ✅ | Question à l'inscription (les deux régimes), drapeau `solo_practice` (migration 097) levé automatiquement à l'arrivée d'un second coach, navigation, périmètres, bilan hebdo, back-office | **S** | — |
-| **6 — Le multi-espace** | `GET /me/clubs`, sélecteur de club, correction `athletesInScope` (dette `AUDIT-COACH-INDEPENDANT` §4/§4 bis) | **M** | — |
+| **6 — Le multi-espace** ✅ | `GET /me/clubs`, sélecteur d'espace dans l'en-tête (branché sur `AuthService.clubId()`, donc sans toucher aux ~40 appelants), et correction du périmètre qui ignorait les clubs additionnels — tableau de bord, alertes et bilan hebdomadaire | **M** | — |
 | **7 — Acquisition et confiance** | Prerender SEO des fiches, signaux factuels (délai de réponse, taux de réponse), signalement | **M** | 3 |
 | **8 — Avis, puis tarification** | Avis réservés aux relations terminées ≥ N semaines ; encaissement à décider séparément | **L** | 4, et du recul d'usage |
 

@@ -287,3 +287,29 @@
   font-size: var(--text-sm); font-weight: 600;
 }
 .verify-banner span { display: inline-flex; align-items: center; gap: var(--sp-2); }
+
+/* Sélecteur d'espace de travail — visible seulement à partir de deux espaces.
+
+   Il prend la place du badge de club : afficher les deux reviendrait à écrire deux fois le même
+   nom, dont une fois sans pouvoir en changer. Un <select> natif plutôt qu'un menu maison : c'est
+   la liste la plus courte du produit (deux ou trois entrées), et le natif est accessible au
+   clavier et au lecteur d'écran sans qu'on ait rien à écrire. */
+.club-switch {
+  display: inline-flex;
+  align-items: center;
+}
+
+.club-switch__select {
+  max-width: 220px;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover { border-color: var(--primary-light); }
+  &:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+}

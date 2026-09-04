@@ -4,6 +4,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 import { AppBadgeService } from '../../core/services/app-badge.service';
 import { AuthService } from '../../core/services/auth.service';
+import { MyClub, MyClubsService } from '../../core/services/my-clubs.service';
 import { BreadcrumbService } from '../../core/services/breadcrumb.service';
 import { CoachDashboardService } from '../../core/services/coach-dashboard.service';
 import { CommandPaletteService } from '../../core/services/command-palette.service';
@@ -31,7 +32,9 @@ import { supportMailto as supportLink } from '../../shared/components/support-li
   styleUrl: './coach-layout.component.scss',
 })
 export class CoachLayoutComponent implements OnInit {
-  private readonly auth = inject(AuthService);
+  /** Public : le gabarit lit l'espace actif pour présélectionner le sélecteur. */
+  readonly auth = inject(AuthService);
+  private readonly clubs = inject(MyClubsService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   readonly help = inject(HelpService);
@@ -102,6 +105,22 @@ export class CoachLayoutComponent implements OnInit {
    * badge répéterait alors, à deux centimètres, le nom déjà affiché dans l'en-tête. Un club, ou
    * un indépendant exerçant sous un nom d'activité, gardent le leur — c'est leur enseigne.</p>
    */
+  /**
+   * Les espaces de travail du coach.
+   *
+   * <p>Vide tant que le serveur n'a pas répondu, et souvent d'un seul élément : l'immense majorité
+   * des coachs n'ont qu'un espace, et ne doivent jamais voir de sélecteur.</p>
+   */
+  readonly myClubs = signal<MyClub[]>([]);
+
+  /** Le sélecteur n'apparaît qu'à partir de deux espaces. Un choix unique n'est pas un choix. */
+  readonly showClubSwitcher = computed(() => this.myClubs().length > 1);
+
+  readonly activeClubName = computed(() => {
+    const active = this.auth.clubId();
+    return this.myClubs().find((c) => c.id === active)?.name ?? this.user()?.clubName ?? null;
+  });
+
   readonly workspaceBadge = computed(() => {
     const u = this.user();
     if (!u?.clubName) return null;
@@ -128,7 +147,25 @@ export class CoachLayoutComponent implements OnInit {
   toggleMore(): void { this.moreOpen.update((v) => !v); }
   closeMore(): void { this.moreOpen.set(false); }
 
+  /**
+   * Bascule d'espace.
+   *
+   * <p>Rechargement complet plutôt qu'un rafraîchissement à la main : chaque écran a chargé ses
+   * données pour l'espace précédent — athlètes, calendrier, bibliothèque, zones — et les
+   * réconcilier un par un demanderait de connaître, ici, ce que chacun a en mémoire. Un changement
+   * d'espace est rare et délibéré ; une seconde d'attente y est acceptable, un écran à moitié
+   * rafraîchi ne l'est pas.</p>
+   */
+  switchClub(clubId: string): void {
+    if (clubId === this.auth.clubId()) {
+      return;
+    }
+    this.auth.setActiveClub(clubId);
+    window.location.assign('/app');
+  }
+
   ngOnInit(): void {
+    this.clubs.myClubs().subscribe({ next: (list) => this.myClubs.set(list) });
     if (!this.auth.currentUser()) {
       this.auth.loadCurrentUser().subscribe({ error: () => this.logout() });
     }

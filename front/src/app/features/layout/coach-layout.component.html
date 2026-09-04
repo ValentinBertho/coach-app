@@ -20,9 +20,22 @@
             [attr.aria-label]="navCollapsed() ? 'Déplier le menu' : 'Replier le menu'">
       <app-icon [name]="navCollapsed() ? 'chevrons-right' : 'chevrons-left'" [size]="16" />
     </button>
-    <!-- Pour un indépendant sans nom d'activité, l'espace porte son propre nom : le badge
-         répéterait alors le nom affiché juste à côté. On ne l'affiche que s'il dit autre chose. -->
-    @if (workspaceBadge() && !navCollapsed()) {
+    <!-- Le sélecteur d'espace n'apparaît qu'à partir de deux : un choix unique n'est pas un choix,
+         et l'immense majorité des coachs n'ont qu'un espace. Il remplace alors le badge, qui
+         afficherait le même nom sans permettre d'en changer. -->
+    @if (showClubSwitcher() && !navCollapsed()) {
+      <label class="club-switch">
+        <!-- aria-label plutôt qu'un libellé masqué : le design system n'a pas d'utilitaire
+             `sr-only`, et en inventer un ici pour un seul usage ferait diverger deux façons de
+             cacher du texte aux yeux mais pas aux lecteurs d'écran. -->
+        <select class="club-switch__select" aria-label="Espace de travail" [value]="auth.clubId()"
+                (change)="switchClub($any($event.target).value)">
+          @for (c of myClubs(); track c.id) {
+            <option [value]="c.id">{{ c.name }} — {{ c.roleLabel }}</option>
+          }
+        </select>
+      </label>
+    } @else if (workspaceBadge() && !navCollapsed()) {
       <span class="badge badge-neutral club-badge">{{ workspaceBadge() }}</span>
     }
 
