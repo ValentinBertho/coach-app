@@ -1,0 +1,52 @@
+# ============================================================================
+# 096 — La fin d'une relation coach ↔ athlète.
+#
+#   coach_athlete_relations.active existait depuis l'origine, et rien ne le
+#   mettait jamais à false : clore une relation n'était pas implémenté. Le
+#   faire naïvement n'aurait d'ailleurs rien retiré — AthleteAccessValidator
+#   retombait, faute de relation référente active, sur l'accès club, qui rend
+#   l'écriture au coach propriétaire du club portant la fiche. Autrement dit :
+#   le coach dont on venait de clore la relation la récupérait par la porte
+#   d'à côté. La garde applicative est corrigée dans le même lot.
+#
+#   Ces trois colonnes disent ce que le booléen ne sait pas dire : quand la
+#   relation s'est terminée, qui y a mis fin, et pourquoi. « Depuis quand ce
+#   coach n'a-t-il plus accès à cet athlète ? » est la question qu'on pose
+#   après coup, et un booléen n'y répond pas.
+#
+#   Additif : trois colonnes nullables. Aucune ligne existante n'est modifiée,
+#   et une relation en cours les garde à NULL, ce qui est exactement son état.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 096-coach-athlete-relation-end
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: coach_athlete_relations
+            columns:
+              - column:
+                  name: ended_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: "Date de fin ; NULL tant que la relation court."
+              - column:
+                  name: ended_by_user_id
+                  type: UUID
+                  remarks: "Auteur de la clôture (coach, athlète ou administrateur)."
+              - column:
+                  name: end_reason
+                  type: VARCHAR(500)
+                  remarks: "Motif facultatif, jamais publié à l'autre partie."
+
+  # Les relations closes se lisent par athlète (« qui l'a suivi ? ») et par coach
+  # (« qui ai-je suivi ? »). L'index existant ne porte que sur les relations actives.
+  - changeSet:
+      id: 096-coach-athlete-relation-end-index
+      author: coachrun
+      changes:
+        - createIndex:
+            indexName: idx_coach_athlete_relations_ended
+            tableName: coach_athlete_relations
+            columns:
+              - column:
+                  name: ended_at

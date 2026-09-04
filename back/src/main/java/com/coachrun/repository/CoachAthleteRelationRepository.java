@@ -14,12 +14,42 @@ public interface CoachAthleteRelationRepository extends JpaRepository<CoachAthle
     /** Relation active d'un coach donné sur un athlète donné (référent ou non). */
     Optional<CoachAthleteRelation> findByCoachIdAndAthleteIdAndActiveTrue(UUID coachId, UUID athleteId);
 
-    /** Identifiants des athlètes ayant déjà une relation référente active (pour le backfill). */
-    @Query("select r.athlete.id from CoachAthleteRelation r where r.referent = true and r.active = true")
-    Set<UUID> findAthleteIdsWithActiveReferent();
+    /**
+     * Identifiants des athlètes ayant <b>déjà eu</b> une relation référente — active ou close.
+     *
+     * <p>C'est la clé d'idempotence du backfill multi-coach, et elle ne filtre volontairement pas
+     * sur {@code active}. Elle l'a fait, et c'était un piège : le backfill s'exécutant à chaque
+     * démarrage, un athlète dont la relation venait d'être close réapparaissait « sans référent »
+     * au déploiement suivant. Selon qui était le coach détaché, la suite était mauvaise de deux
+     * façons — et la première est la pire :</p>
+     * <ul>
+     *   <li>si c'était le <b>head coach du club</b> — le cas nominal d'un coach indépendant, dont
+     *       le club porte la fiche de tous ses athlètes — le backfill réinsérait la même paire
+     *       (coach, athlète) et violait {@code uq_coach_athlete}. Comme il s'exécute dans un
+     *       {@code ApplicationRunner}, l'exception <b>empêchait l'application de démarrer</b> ;</li>
+     *   <li>sinon, la relation était recréée au profit du head coach, à qui l'on rendait en
+     *       silence un accès que personne ne lui avait accordé.</li>
+     * </ul>
+     * <p>Dans les deux cas, la révocation tenait jusqu'au redémarrage suivant : elle marchait
+     * quand on la testait, et se défaisait au déploiement.</p>
+     */
+    @Query("select r.athlete.id from CoachAthleteRelation r where r.referent = true")
+    Set<UUID> findAthleteIdsWithAnyReferent();
 
     /** Relation référente active de l'athlète : porte le rattachement privé/club. */
     Optional<CoachAthleteRelation> findByAthleteIdAndReferentTrueAndActiveTrue(UUID athleteId);
+
+    /**
+     * L'athlète a-t-il <b>déjà eu</b> un coach référent, la relation fût-elle close ?
+     *
+     * <p>Sans filtre sur {@code active}, et c'est tout l'objet : cette question sépare deux
+     * situations que {@code AthleteAccessValidator} confondait. Un athlète antérieur au modèle
+     * multi-coach n'a jamais eu de relation référente et doit rester joignable par les coachs de
+     * son club (repli historique) ; un athlète dont la relation a été close ne doit plus l'être
+     * par le coach qu'on vient d'en détacher. Les deux se présentaient jusqu'ici de la même
+     * façon — aucune relation référente active — et le repli rendait l'écriture aux deux.</p>
+     */
+    boolean existsByAthleteIdAndReferentTrue(UUID athleteId);
 
     List<CoachAthleteRelation> findByAthleteIdAndActiveTrue(UUID athleteId);
 

@@ -25,10 +25,19 @@ import java.util.UUID;
 
 /**
  * Backfill idempotent du modèle multi-coach : garantit que chaque athlète possède une relation
- * référent active (rattachée à son club, référent = head coach du club). Sans elle, le durcissement
+ * référent (rattachée à son club, référent = head coach du club). Sans elle, le durcissement
  * d'accès ({@code AthleteAccessValidator}) retomberait sur le fallback club-level pour les données
- * antérieures. S'exécute une fois au démarrage et ne touche que les athlètes sans référent
- * (les athlètes créés depuis le câblage ou par le démo en ont déjà un).
+ * antérieures. S'exécute à chaque démarrage et ne touche que les athlètes qui n'ont
+ * <b>jamais</b> eu de référent (ceux créés depuis le câblage ou par le démo en ont déjà un).
+ *
+ * <p><b>« Jamais eu », et non « n'en a pas d'actif ».</b> La nuance décide de la correction d'une
+ * révocation, et elle décide aussi du démarrage. Ce backfill s'exécutant à chaque démarrage,
+ * prendre pour clé l'existence d'un référent <em>actif</em> revenait à retraiter tout athlète dont
+ * la relation venait d'être close. Quand le coach détaché était le head coach du club — le cas
+ * nominal d'un indépendant — la réinsertion de la même paire (coach, athlète) violait
+ * {@code uq_coach_athlete}, et l'exception levée dans un {@link ApplicationRunner} empêchait
+ * l'application de démarrer. Quand il ne l'était pas, la relation était recréée au profit du head
+ * coach, à qui l'on rendait en silence un accès que personne ne lui avait donné.</p>
  */
 @Slf4j
 @Component
@@ -47,7 +56,7 @@ public class MultiCoachBackfill implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         ensureClubOwners();
 
-        Set<UUID> withReferent = relationRepository.findAthleteIdsWithActiveReferent();
+        Set<UUID> withReferent = relationRepository.findAthleteIdsWithAnyReferent();
         int created = 0;
         for (Athlete athlete : athleteRepository.findAll()) {
             if (withReferent.contains(athlete.getId()) || athlete.getClub() == null) {

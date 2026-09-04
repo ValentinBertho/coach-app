@@ -201,3 +201,5 @@ databaseChangeLog:
       file: db/changelog/changes/094-json-columns-to-text.yaml
   - include:
       file: db/changelog/changes/095-strava-rename-optin.yaml
+  - include:
+      file: db/changelog/changes/096-coach-athlete-relation-end.yaml

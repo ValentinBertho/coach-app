@@ -26,7 +26,7 @@ côté athlète, la vitrine côté coach, et le geste qui les relie**.
 | Acceptation ⇒ relation de travail | 🟡 La moitié est là | `CoachAthleteRelation` existe, mais sans statut ni cycle de vie |
 | Travailler ensemble une fois liés | ✅ **Complet** | Rien à faire : c'est le produit actuel |
 | Échanger avant la relation | 🔴 Bloqué | `Conversation.club` et `Message.club` sont `NOT NULL` |
-| Mettre fin à une relation | 🔴 **Pire que manquant** | La désactiver **élève** l'accès du coach au lieu de le couper (§2.5) |
+| Mettre fin à une relation | 🟡 Le socle est posé | La désactiver élevait l'accès au lieu de le couper (§2.5) et cassait le démarrage (§2.5 bis) — **corrigé, lot 0** ; le geste utilisateur reste à écrire (lot 4) |
 | Facturer / encaisser | 🔴 Absent | Aucune entité ; à ne pas mettre au lancement (§3.7) |
 | Avis et réputation | 🔴 Absent | À ne pas mettre au lancement (§3.8) |
 
@@ -34,7 +34,8 @@ côté athlète, la vitrine côté coach, et le geste qui les relie**.
 unique** par utilisateur (`User.java:42-44`). Aucun des deux n'exige la migration destructive qu'on
 pourrait craindre : §3.1 et §3.2 proposent de les contourner proprement plutôt que de les casser.
 
-**Un défaut de sécurité, trouvé en chemin et indépendant du hub, est à corriger avant lui** : §2.5.
+**Deux défauts, trouvés en chemin et indépendants du hub, étaient à corriger avant lui** : §2.5 et
+§2.5 bis. C'est fait — c'était le lot 0.
 
 > **Les dix décisions produit de cet audit ont été tranchées le 4 septembre 2026** — duplication de
 > fiche acceptée, rôle unique conservé, validation manuelle des coachs, diplômes déclaratifs sans
@@ -215,9 +216,42 @@ Dans le hub, où l'espace de travail du coach indépendant *est* le club de tous
 le cas nominal — la fin de relation serait purement décorative.
 
 **Correction.** Distinguer « aucune relation référente n'a jamais existé » (legacy → repli légitime)
-de « la relation référente a été close » (→ refus). Concrètement : ne déclencher `clubLevelFallback`
-que si `relationRepository.existsByAthleteId(athleteId)` est faux, et faire porter à la relation une
-date de fin explicite plutôt qu'un simple booléen (§4.1). *Effort : S. À faire avant tout le reste.*
+de « la relation référente a été close » (→ refus) : ne déclencher `clubLevelFallback` que si
+`existsByAthleteIdAndReferentTrue` est faux, et faire porter à la relation une date de fin explicite
+plutôt qu'un simple booléen (§4.1). *Effort : S. À faire avant tout le reste.*
+
+> ✅ **Livré** — lot 0, `AthleteAccessValidator.java`, migration 096, cinq tests de non-régression.
+> La correction a été validée en reproduisant d'abord le défaut : sans elle,
+> `EndedRelationRevokesAccessTest` échoue en `403 attendu, 200 obtenu`.
+
+### 2.5 bis Le même défaut, en pire, au démarrage de l'application
+
+Trouvé en écrivant le correctif ci-dessus, et il en est la conséquence directe.
+
+`MultiCoachBackfill` est un `ApplicationRunner` : il s'exécute **à chaque démarrage** et attribue une
+relation référente à tout athlète qui n'en a pas. Sa clé d'idempotence était l'existence d'un
+référent **actif** (`findAthleteIdsWithActiveReferent`, `MultiCoachBackfill.java:50`). Un athlète
+dont la relation venait d'être close y réapparaissait donc comme « sans référent », et le backfill
+la lui recréait — au head coach de son club. Deux issues, selon qui était le coach détaché :
+
+- **s'il était le head coach du club** — le cas nominal d'un coach indépendant, dont le club porte
+  la fiche de tous ses athlètes — la réinsertion de la même paire `(coach, athlète)` violait la
+  contrainte `uq_coach_athlete`. L'exception, levée dans un `ApplicationRunner`, **empêchait
+  l'application de démarrer** ;
+- **sinon**, la relation était recréée au profit du head coach, à qui l'on rendait en silence un
+  accès que personne ne lui avait accordé.
+
+Dans les deux cas, la révocation tenait jusqu'au redémarrage suivant : elle marchait quand on la
+testait, et se défaisait au déploiement. C'est la pire forme de défaut, et il n'aurait été visible
+qu'une fois la fin de relation livrée (lot 4) — c'est-à-dire trop tard.
+
+**Correction.** La clé d'idempotence devient « a **déjà eu** un référent, actif ou clos »
+(`findAthleteIdsWithAnyReferent`). Le backfill continue de réparer les athlètes antérieurs au modèle
+multi-coach, et cesse de retraiter ceux dont la relation a été close.
+
+> ✅ **Livré** — lot 0, `MultiCoachBackfill.java` + `CoachAthleteRelationRepository.java`, avec les
+> deux tests qui verrouillent les deux sens (ne pas ressusciter une relation close, continuer à
+> réparer un athlète qui n'a jamais eu de référent).
 
 ### 2.6 Ce qui n'existe nulle part
 
@@ -490,9 +524,9 @@ n'a **jamais** eu de relation référente. Une relation close doit refuser, pas 
 ```java
 // AthleteAccessValidator, remplacement de la ligne 97
 if (referent == null) {
-    return relationRepository.existsByAthleteId(athleteId)
-            ? Optional.empty()              // relation close ⇒ refus
-            : clubLevelFallback(coachId, athleteId);  // legacy ⇒ repli
+    return relationRepository.existsByAthleteIdAndReferentTrue(athleteId)
+            ? Optional.empty()                        // relation close ⇒ refus
+            : clubLevelFallback(coachId, athleteId);  // jamais de référent ⇒ repli
 }
 ```
 
@@ -633,7 +667,7 @@ Huit lots. Les quatre premiers font un hub qui fonctionne ; les quatre suivants 
 
 | Lot | Contenu | Effort | Dépend de |
 |---|---|---|---|
-| **0 — Solder la dette d'accès** | Correction de `clubLevelFallback` (§2.5) + `ended_at` sur la relation + `EndedRelationRevokesAccessTest` | **S** | — |
+| **0 — Solder la dette d'accès** ✅ | Correction de `clubLevelFallback` (§2.5) **et** de la clé d'idempotence du backfill (§2.5 bis) ; `ended_at` / `ended_by_user_id` / `end_reason` sur la relation (migration 096) ; `EndedRelationRevokesAccessTest`, 5 cas | **S** | — |
 | **1 — Le compte athlète autoporté** | `athlete_accounts`, inscription libre, vérification d'e-mail, contrôle des 16 ans, `athletes.athlete_account_id`, écran « pas encore de coach » | **M** | 0 |
 | **2 — La vitrine coach** | `coach_profiles`, `coach_certifications`, `coach_offers`, éditeur de profil, validation en back-office | **M** | — (parallélisable avec 1) |
 | **3 — L'annuaire** | `GET /public/coaches` + filtres + facettes, écrans annuaire et fiche, bucket de rate limiting | **M** | 2 |
@@ -644,8 +678,9 @@ Huit lots. Les quatre premiers font un hub qui fonctionne ; les quatre suivants 
 | **7 — Acquisition et confiance** | Prerender SEO des fiches, signaux factuels (délai de réponse, taux de réponse), signalement | **M** | 3 |
 | **8 — Avis, puis tarification** | Avis réservés aux relations terminées ≥ N semaines ; encaissement à décider séparément | **L** | 4, et du recul d'usage |
 
-**Le lot 0 se livre seul et tout de suite** : il corrige un défaut du produit actuel, il ne dépend
-de rien, et tous les autres s'appuient dessus.
+**Le lot 0 s'est livré seul et en premier** : il corrige deux défauts du produit actuel (§2.5 et
+§2.5 bis), il ne dépendait de rien, et tous les autres s'appuient dessus. Écrire la fin de relation
+sans lui aurait produit une révocation décorative — puis un démarrage impossible.
 
 **Ordre recommandé si une seule personne développe** : 0 → 5 → 1 → 2 → 3 → 4 → 6 → 7 → 8. Le lot 5
 remonte parce qu'il coûte deux jours, qu'il améliore le produit d'aujourd'hui, et qu'il évite
@@ -743,6 +778,7 @@ que les décisions 4, 6 et 9 rendent plus simple sans la rendre facultative.
 ---
 
 *Audit rédigé en septembre 2026 sur la branche `claude/audit-coach-athlete-hub-am5hao`. Chaque
-affirmation renvoie au fichier et à la ligne qui la fondent ; aucun code n'a été modifié. Les dix
-décisions du §8 ont été arrêtées le 4 septembre 2026 : le plan du §6 est validé, le lot 0 est
-prêt à démarrer.*
+affirmation renvoie au fichier et à la ligne qui la fondent. Les dix décisions du §8 ont été
+arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Le lot 0 est livré** — il est le seul
+code écrit à ce jour, et il corrige deux défauts du produit actuel (§2.5, §2.5 bis). Les lots 1 à 8
+restent à écrire.*
