@@ -1,0 +1,214 @@
+# ============================================================================
+# 098 — La vitrine du coach.
+#
+#   Premier lot du hub qui crée des données plutôt que d'en corriger : jusqu'ici
+#   la plateforme savait tout faire APRÈS la mise en relation, et rien avant.
+#   Un athlète ne pouvait pas savoir qu'un coach existait.
+#
+#   Trois tables et quatre tables de jointure, toutes nouvelles : rien n'est
+#   modifié de l'existant, et une instance qui ne publie aucune fiche se
+#   comporte exactement comme avant.
+#
+#   Deux choix qui se lisent mal dans le DDL et se paieraient cher plus tard :
+#
+#   - coach_profiles est une table à part, et non des colonnes sur users. Un
+#     compte n'a qu'un rôle aujourd'hui ; le jour où un coach pourra aussi être
+#     athlète, une table séparée accueille une ligne de plus là où des colonnes
+#     auraient demandé une migration sur la table des comptes, en production.
+#
+#   - coach_certifications n'a PAS de colonne « vérifié ». La plateforme ne se
+#     porte pas garante d'un diplôme qu'elle n'a pas contrôlé auprès de
+#     l'organisme émetteur. Une colonne posée « au cas où » finirait affichée.
+#
+#   Le slug est unique et posé une fois : une adresse partagée ou mise en favori
+#   doit continuer de répondre même si le coach change de nom.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 098-create-coach-profiles
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: coach_profiles
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column:
+                  name: user_id
+                  type: UUID
+                  constraints: { nullable: false, unique: true, uniqueConstraintName: ux_coach_profiles_user }
+              - column: { name: status, type: VARCHAR(16), constraints: { nullable: false } }
+              - column:
+                  name: slug
+                  type: VARCHAR(140)
+                  constraints: { nullable: false, unique: true, uniqueConstraintName: ux_coach_profiles_slug }
+                  remarks: "Posé une fois : une adresse partagée doit continuer de répondre."
+              - column: { name: headline, type: VARCHAR(140) }
+              - column: { name: bio, type: VARCHAR(4000) }
+              - column: { name: city, type: VARCHAR(120) }
+              - column: { name: country, type: VARCHAR(2) }
+              - column: { name: latitude, type: "DECIMAL(9,6)" }
+              - column: { name: longitude, type: "DECIMAL(9,6)" }
+              - column: { name: remote, type: boolean, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: in_person, type: boolean, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: experience_years, type: INT }
+              - column: { name: capacity_max, type: INT }
+              - column: { name: submitted_at, type: TIMESTAMP WITH TIME ZONE }
+              - column: { name: published_at, type: TIMESTAMP WITH TIME ZONE }
+              - column: { name: reviewed_at, type: TIMESTAMP WITH TIME ZONE }
+              - column: { name: reviewed_by_user_id, type: UUID }
+              - column: { name: review_note, type: VARCHAR(1000) }
+              - column:
+                  name: median_response_hours
+                  type: INT
+                  remarks: "Calculé, jamais saisi : signal factuel tenant lieu d'avis au lancement."
+
+        - addForeignKeyConstraint:
+            constraintName: fk_coach_profiles_user
+            baseTableName: coach_profiles
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+
+        # L'annuaire ne rend que les fiches visibles : c'est le filtre de chaque requête publique.
+        - createIndex:
+            indexName: idx_coach_profiles_status
+            tableName: coach_profiles
+            columns:
+              - column: { name: status }
+
+  - changeSet:
+      id: 098-coach-profile-facets
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: coach_profile_disciplines
+            columns:
+              - column: { name: coach_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: discipline, type: VARCHAR(16), constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_cp_disciplines_profile
+            baseTableName: coach_profile_disciplines
+            baseColumnNames: coach_profile_id
+            referencedTableName: coach_profiles
+            referencedColumnNames: id
+        - createIndex:
+            indexName: idx_cp_disciplines_profile
+            tableName: coach_profile_disciplines
+            columns:
+              - column: { name: coach_profile_id }
+
+        - createTable:
+            tableName: coach_profile_specialties
+            columns:
+              - column: { name: coach_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: specialty, type: VARCHAR(32), constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_cp_specialties_profile
+            baseTableName: coach_profile_specialties
+            baseColumnNames: coach_profile_id
+            referencedTableName: coach_profiles
+            referencedColumnNames: id
+        - createIndex:
+            indexName: idx_cp_specialties_profile
+            tableName: coach_profile_specialties
+            columns:
+              - column: { name: coach_profile_id }
+
+        - createTable:
+            tableName: coach_profile_levels
+            columns:
+              - column: { name: coach_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: athlete_level, type: VARCHAR(16), constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_cp_levels_profile
+            baseTableName: coach_profile_levels
+            baseColumnNames: coach_profile_id
+            referencedTableName: coach_profiles
+            referencedColumnNames: id
+        - createIndex:
+            indexName: idx_cp_levels_profile
+            tableName: coach_profile_levels
+            columns:
+              - column: { name: coach_profile_id }
+
+        - createTable:
+            tableName: coach_profile_languages
+            columns:
+              - column: { name: coach_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: language, type: VARCHAR(2), constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_cp_languages_profile
+            baseTableName: coach_profile_languages
+            baseColumnNames: coach_profile_id
+            referencedTableName: coach_profiles
+            referencedColumnNames: id
+        - createIndex:
+            indexName: idx_cp_languages_profile
+            tableName: coach_profile_languages
+            columns:
+              - column: { name: coach_profile_id }
+
+  - changeSet:
+      id: 098-coach-certifications
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: coach_certifications
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: coach_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: label, type: VARCHAR(200), constraints: { nullable: false } }
+              - column: { name: organisation, type: VARCHAR(200) }
+              - column: { name: obtained_year, type: INT }
+        - addForeignKeyConstraint:
+            constraintName: fk_coach_certifications_profile
+            baseTableName: coach_certifications
+            baseColumnNames: coach_profile_id
+            referencedTableName: coach_profiles
+            referencedColumnNames: id
+        - createIndex:
+            indexName: idx_coach_certifications_profile
+            tableName: coach_certifications
+            columns:
+              - column: { name: coach_profile_id }
+
+  - changeSet:
+      id: 098-coach-offers
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: coach_offers
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: coach_profile_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: name, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: description, type: VARCHAR(1000) }
+              - column:
+                  name: amount_cents
+                  type: INT
+                  constraints: { nullable: false }
+                  remarks: "En centimes, entier : un flottant sur de la monnaie finit par afficher 89,99999 €."
+              - column: { name: currency, type: VARCHAR(3), defaultValue: "EUR", constraints: { nullable: false } }
+              - column: { name: periodicity, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: active, type: boolean, defaultValueBoolean: true, constraints: { nullable: false } }
+              - column: { name: position, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_coach_offers_profile
+            baseTableName: coach_offers
+            baseColumnNames: coach_profile_id
+            referencedTableName: coach_profiles
+            referencedColumnNames: id
+        - createIndex:
+            indexName: idx_coach_offers_profile
+            tableName: coach_offers
+            columns:
+              - column: { name: coach_profile_id }
