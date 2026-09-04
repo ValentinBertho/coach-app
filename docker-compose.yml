@@ -20,7 +20,13 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      # PostgreSQL 18+ range les données dans un sous-répertoire versionné
+      # (/var/lib/postgresql/18/docker) pour rendre « pg_upgrade --link » possible sans
+      # franchir de point de montage. Monter le volume sur l'ancien chemin
+      # /var/lib/postgresql/data fait donc échouer le démarrage : l'entrypoint refuse de
+      # laisser un montage inutilisé, où les données seraient perdues sans bruit.
+      # Voir https://github.com/docker-library/postgres/pull/1259
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
