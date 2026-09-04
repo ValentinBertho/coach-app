@@ -102,7 +102,12 @@ class MultiClubWorkspaceTest {
      */
     @Test
     void anAthleteAttachedToASecondClubAppearsInItsDashboardToo() throws Exception {
-        var club = clubRepository.findAll().stream().findFirst().orElseThrow();
+        // Le club du head coach, nommément — et non `findAll().findFirst()`, qui passait en
+        // isolation et échouait dans la suite complète : le jeu démo crée plusieurs clubs et
+        // `findAll` ne garantit aucun ordre, si bien qu'on tombait une fois sur deux sur un club
+        // sans athlète. Un test qui dépend de l'ordre des lignes ne teste rien de façon fiable.
+        var owner = userRepository.findByEmailIgnoreCase(DemoSeedService.HEAD_COACH_EMAIL).orElseThrow();
+        var club = clubRepository.findById(owner.getClub().getId()).orElseThrow();
         var second = new com.coachrun.entity.Club();
         second.setName("Club secondaire");
         second.setSlug("club-secondaire-test");
@@ -110,12 +115,13 @@ class MultiClubWorkspaceTest {
         second = clubRepository.saveAndFlush(second);
 
         // Un athlète du club principal est rattaché au second en club ADDITIONNEL.
-        var athlete = athleteRepository.findByClubIdOrderByLastNameAsc(club.getId()).get(0);
+        var athletes = athleteRepository.findByClubIdOrderByLastNameAsc(club.getId());
+        assertThat(athletes).as("le club du head coach porte bien des athlètes").isNotEmpty();
+        var athlete = athletes.get(0);
         athlete.getAdditionalClubs().add(second);
         athleteRepository.saveAndFlush(athlete);
 
         // Le propriétaire rejoint ce second club, ce qui lui en donne l'accès.
-        var owner = userRepository.findByEmailIgnoreCase(DemoSeedService.HEAD_COACH_EMAIL).orElseThrow();
         owner.getAdditionalClubs().add(second);
         userRepository.saveAndFlush(owner);
 

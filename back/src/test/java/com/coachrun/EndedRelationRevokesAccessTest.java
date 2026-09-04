@@ -71,11 +71,17 @@ class EndedRelationRevokesAccessTest {
 
     /**
      * Le cas nominal du coach indépendant : il est à la fois propriétaire du club qui porte la
-     * fiche et coach référent de l'athlète. Clore la relation doit lui retirer l'accès — sans le
-     * correctif, l'accès club le lui rendait intégralement.
+     * fiche et coach référent de l'athlète. Clore la relation doit lui retirer <b>l'écriture</b> —
+     * sans le correctif, l'accès club la lui rendait intégralement.
+     *
+     * <p><b>Il garde la lecture</b>, et c'est une décision prise en écrivant la fin de relation,
+     * pas un reste du défaut. Retirer les deux rendait la fiche illisible par tout le monde :
+     * l'athlète détaché est reparti vers l'annuaire, son ancien coach était forclos, et
+     * l'historique que la décision 9 attache au coach était conservé <em>pour personne</em>. Il
+     * l'a écrit, il peut le relire ; il ne prescrit plus à quelqu'un qu'il ne suit plus.</p>
      */
     @Test
-    void endedReferentRelationRevokesAccessEvenForTheClubOwner() throws Exception {
+    void endedReferentRelationRevokesWritingButNotReadingForTheClubOwner() throws Exception {
         // Avant : le référent lit son athlète.
         mvc.perform(get("/clubs/{c}/athletes/{a}", clubId, demoAthleteId)
                         .header("Authorization", ownerBearer))
@@ -88,14 +94,32 @@ class EndedRelationRevokesAccessTest {
         assertThat(referent.getEndedAt()).isNotNull();
         assertThat(referent.getEndedByUserId()).isNotNull();
 
-        // Après : plus aucun accès, ni en lecture…
+        // Après : il relit encore la fiche qu'il a tenue…
         mvc.perform(get("/clubs/{c}/athletes/{a}", clubId, demoAthleteId)
                         .header("Authorization", ownerBearer))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
 
-        // … ni en écriture.
+        // … mais il n'écrit plus. C'est ici que se joue le correctif : avant lui, l'accès club
+        // rendait l'écriture au propriétaire dès la relation close.
         mvc.perform(post("/clubs/{c}/athletes/{a}/invitation", clubId, demoAthleteId)
                         .header("Authorization", ownerBearer))
+                .andExpect(status().isForbidden());
+    }
+
+    /**
+     * L'autre moitié de la règle, et celle qui la rend sûre : la lecture conservée est celle de
+     * <b>l'ancien référent</b>, pas celle du club.
+     *
+     * <p>Sans cette borne, « l'ex-coach garde la lecture » deviendrait « tout coach du club lit un
+     * athlète que plus personne ne suit » — exactement l'élévation d'accès que ce fichier
+     * existe pour interdire.</p>
+     */
+    @Test
+    void aCoachWhoNeverFollowedTheAthleteGetsNothingAfterTheEnd() throws Exception {
+        endReferentRelation();
+
+        mvc.perform(get("/clubs/{c}/athletes/{a}", clubId, demoAthleteId)
+                        .header("Authorization", assistantBearer))
                 .andExpect(status().isForbidden());
     }
 
@@ -158,7 +182,10 @@ class EndedRelationRevokesAccessTest {
                 .as("le backfill ne recrée pas de référent pour une relation close")
                 .isEmpty();
 
-        mvc.perform(get("/clubs/{c}/athletes/{a}", clubId, demoAthleteId)
+        // Le head coach relit la fiche qu'il a tenue — mais parce qu'il en était le référent, et
+        // non parce que le backfill lui aurait rendu une relation active. C'est cette dernière que
+        // l'assertion ci-dessus interdit, et c'est elle qui rendait l'écriture.
+        mvc.perform(post("/clubs/{c}/athletes/{a}/invitation", clubId, demoAthleteId)
                         .header("Authorization", ownerBearer))
                 .andExpect(status().isForbidden());
     }
