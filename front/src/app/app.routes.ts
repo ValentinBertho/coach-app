@@ -231,6 +231,13 @@ export const routes: Routes = [
           import('./features/club/club.component').then((m) => m.ClubComponent),
       },
       {
+        // La vitrine du coach : ce qu'un athlète lit avant de le choisir. Sous /app et non dans
+        // les paramètres — ce n'est pas un réglage, c'est une page qu'on écrit.
+        path: 'vitrine',
+        loadComponent: () =>
+          import('./features/vitrine/coach-profile.component').then((m) => m.CoachProfileComponent),
+      },
+      {
         path: 'training-zones',
         loadComponent: () =>
           import('./features/zones/training-zones.component').then((m) => m.TrainingZonesComponent),
@@ -472,6 +479,15 @@ export const routes: Routes = [
         path: 'invitations',
         loadComponent: () =>
           import('./features/admin/admin-invitations.component').then((m) => m.AdminInvitationsComponent),
+      },
+      {
+        // La file des fiches coachs, à côté de celle des demandes de club : même geste — regarder,
+        // décider, motiver — et l'équipe n'a pas deux écrans à apprendre.
+        path: 'coach-profiles',
+        loadComponent: () =>
+          import('./features/admin/admin-coach-profiles.component').then(
+            (m) => m.AdminCoachProfilesComponent,
+          ),
       },
       {
         // Demandes de création de club : en régime « sur demande », c'est le seul endroit d'où

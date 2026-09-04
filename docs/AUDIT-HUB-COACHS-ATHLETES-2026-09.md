@@ -20,7 +20,7 @@ côté athlète, la vitrine côté coach, et le geste qui les relie**.
 |---|---|---|
 | Un athlète crée son compte seul | 🔴 **Impossible** | Aucun parcours : un compte `ATHLETE` ne naît que d'une invitation de coach (`AuthService:302`) |
 | Un coach s'inscrit sans club | 🟡 Possible, mais mal dit | `clubName` est `@NotBlank` (`RegisterRequest:21`) ; le club implicite existe déjà |
-| Profil coach public (spécialités, tarifs, diplômes) | 🔴 **N'existe pas** | Aucune entité, aucune colonne |
+| Profil coach public (spécialités, tarifs, diplômes) | ✅ **Livré** (lot 2) | `coach_profiles`, `coach_offers`, `coach_certifications` + validation en back-office |
 | Annuaire / recherche de coachs | 🔴 **N'existe pas** | Aucun endpoint, aucun écran |
 | Demande de coaching (athlète → coach) | 🔴 **N'existe pas** | `AthleteProposal` ne sert **pas** à ça (cf. §2.4) |
 | Acceptation ⇒ relation de travail | 🟡 La moitié est là | `CoachAthleteRelation` existe, mais sans statut ni cycle de vie |
@@ -501,6 +501,16 @@ l'article 9 ne doit pas entrer dans l'objet public.
 existerait « au cas où » finirait par être affichée. Le justificatif sert à l'administrateur au
 moment de valider la fiche, pas à décerner un label.
 
+> ✅ **Livré — lot 2.** Migration 098 : `coach_profiles` (+ quatre tables de facettes),
+> `coach_certifications`, `coach_offers`. API coach sous `/me/coach-profile`, arbitrage sous
+> `/admin/coach-profiles`. Écrans : éditeur `/app/vitrine`, file `/admin/coach-profiles`.
+> Vérifié par `CoachProfileLifecycleTest` (8 cas) et `coach-profile.component.spec` (5 cas).
+>
+> **Deux arbitrages pris en écrivant**, à relire : une fiche **publiée se modifie sans repasser
+> par la file** (la porte d'entrée est le garde-fou, la suspension le recours) ; une fiche
+> **en attente est gelée** (sinon l'administrateur validerait un texte changé entre-temps).
+> **La photo reste à faire** dans ce lot : elle demande un envoi de fichier et un service public.
+
 **`coach_offers`** — `coach_profile_id`, `name`, `amount_cents`, `currency`, `periodicity`,
 `description`, `active`. Affichage seul au lancement (§3.7).
 
@@ -679,7 +689,7 @@ Huit lots. Les quatre premiers font un hub qui fonctionne ; les quatre suivants 
 |---|---|---|---|
 | **0 — Solder la dette d'accès** ✅ | Correction de `clubLevelFallback` (§2.5) **et** de la clé d'idempotence du backfill (§2.5 bis) ; `ended_at` / `ended_by_user_id` / `end_reason` sur la relation (migration 096) ; `EndedRelationRevokesAccessTest`, 5 cas | **S** | — |
 | **1 — Le compte athlète autoporté** | `athlete_accounts`, inscription libre, vérification d'e-mail, contrôle des 16 ans, `athletes.athlete_account_id`, écran « pas encore de coach » | **M** | 0 |
-| **2 — La vitrine coach** | `coach_profiles`, `coach_certifications`, `coach_offers`, éditeur de profil, validation en back-office | **M** | — (parallélisable avec 1) |
+| **2 — La vitrine coach** ✅ | `coach_profiles`, `coach_certifications` (sans `verified`), `coach_offers` (migration 098) ; cycle `DRAFT → PENDING → PUBLISHED ⇄ CLOSED` ; éditeur `/app/vitrine` ; file de validation `/admin/coach-profiles`. **Reste la photo.** | **M** | — |
 | **3 — L'annuaire** | `GET /public/coaches` + filtres + facettes, écrans annuaire et fiche, bucket de rate limiting | **M** | 2 |
 | **4 — La mise en relation** | `coaching_requests`, les deux files, l'acceptation transactionnelle (§4.2), la fin de relation, les notifications | **L** | 1, 2, 0 |
 | — | *↑ **Ici, le hub est utilisable de bout en bout.** ↑* | | |
@@ -792,6 +802,7 @@ que les décisions 4, 6 et 9 rendent plus simple sans la rendre facultative.
 
 *Audit rédigé en septembre 2026 sur la branche `claude/audit-coach-athlete-hub-am5hao`. Chaque
 affirmation renvoie au fichier et à la ligne qui la fondent. Les dix décisions du §8 ont été
-arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Les lots 0 et 5 sont livrés** — le
+arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Les lots 0, 5 et 2 sont livrés** — le
 premier corrige deux défauts du produit actuel (§2.5, §2.5 bis), le second ouvre le vocabulaire aux
-coachs indépendants (§2.7). Le lot 2 est le suivant.*
+coachs indépendants (§2.7), le troisième pose la vitrine du coach (§4.1). Reste la photo du lot 2,
+puis le lot 3 : l'annuaire.*
