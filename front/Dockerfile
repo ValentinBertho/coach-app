@@ -10,7 +10,10 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
-RUN npm run build
+# Build de production (optimisation, hachage, service worker) SANS le DSN Sentry de production :
+# une stack locale n'a rien à écrire dans le projet d'erreurs des utilisateurs réels.
+# Cf. front/src/environments/environment.docker.ts.
+RUN npm run build:docker
 
 # --- Stage 2 : runtime (nginx) ---------------------------------------------
 FROM nginx:1.27-alpine AS runtime
