@@ -118,9 +118,10 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
               <strong>Je n'arrive pas à me connecter.</strong> Utilisez « Mot de passe oublié » sur
               l'écran de connexion : un lien de réinitialisation vous est envoyé par e-mail.
               Pensez à regarder dans vos indésirables.<br />
-              <strong>Comment obtenir un compte athlète ?</strong> Les comptes athlètes sont créés
-              sur <strong>invitation d'un coach</strong>. Si vous n'avez pas reçu votre invitation,
-              demandez à votre coach de la renvoyer.<br />
+              <strong>Comment obtenir un compte athlète ?</strong> Deux chemins : votre coach vous
+              <strong>invite</strong> (demandez-lui de renvoyer l'invitation si elle s'est perdue),
+              ou vous <strong>créez votre compte vous-même</strong> et cherchez un coach dans
+              l'annuaire. L'inscription directe est réservée aux 16 ans et plus.<br />
               <strong>Comment récupérer ou supprimer mes données ?</strong> Depuis votre profil
               dans l'application : <em>exporter mes données</em> et <em>supprimer mon compte</em>.
               Pour toute autre demande, écrivez-nous.<br />
@@ -184,6 +185,10 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
               physique) mettant en relation des coachs et leurs athlètes. Les présentes CGU
               régissent l'utilisation du Service, édité par {{ owner.name }}.
             </p>
+            <p class="muted">
+              <em>Ces conditions sont en cours de relecture juridique : elles décrivent fidèlement
+              le fonctionnement du Service, mais leur rédaction n'est pas définitive.</em>
+            </p>
 
             <h2>2. Version bêta</h2>
             <p>
@@ -199,7 +204,8 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
             <p>
               L'inscription requiert une adresse email valide. Vous êtes responsable de la
               confidentialité de vos identifiants et des actions réalisées depuis votre compte.
-              Les comptes athlètes sont créés sur invitation d'un coach.
+              Un compte athlète s'obtient soit sur invitation d'un coach, soit par inscription
+              directe — celle-ci étant réservée aux personnes de <strong>16 ans et plus</strong>.
             </p>
 
             <h2>4. Rôle et responsabilité du coach</h2>
@@ -209,6 +215,39 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
               saisir que des données pertinentes pour l'entraînement et à respecter la
               confidentialité des données de ses athlètes.
             </p>
+
+            <h2>4 bis. Mise en relation et annuaire</h2>
+            <p>
+              Le Service publie un <strong>annuaire de coachs</strong> et permet à un athlète de
+              leur adresser une demande d'accompagnement. Ce que cela signifie, et ce que cela ne
+              signifie pas :
+            </p>
+            <ul>
+              <li>
+                <strong>La relation d'accompagnement se noue entre l'athlète et le coach</strong>,
+                qui exerce en professionnel indépendant. L'éditeur n'est pas partie à cette
+                relation : il n'en fixe ni le contenu, ni le prix, ni la durée.
+              </li>
+              <li>
+                <strong>Aucun paiement ne transite par le Service.</strong> Les tarifs affichés sont
+                déclarés par le coach à titre indicatif ; leur règlement se fait directement entre
+                l'athlète et lui, hors du Service.
+              </li>
+              <li>
+                <strong>Les diplômes et certifications affichés sont déclarés par le coach.</strong>
+                L'éditeur ne les vérifie pas auprès des organismes qui les délivrent et ne s'en
+                porte pas garant.
+              </li>
+              <li>
+                <strong>Le coach reste libre d'accepter ou de refuser</strong> toute demande, sans
+                avoir à se justifier.
+              </li>
+              <li>
+                <strong>Chacune des deux parties peut mettre fin à l'accompagnement</strong> à tout
+                moment, sans préavis. L'athlète cesse alors d'être suivi et peut solliciter un autre
+                coach ; le coach conserve, en lecture seule, le dossier d'entraînement qu'il a tenu.
+              </li>
+            </ul>
 
             <h2>5. Avertissement santé</h2>
             <p>
@@ -256,9 +295,19 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
               référence, retours de séance (RPE, commentaires).<br />
               <strong>Données de santé (article 9 RGPD)</strong> : mesures de lactate, niveaux de
               douleur et de fatigue, indisponibilités (blessure, maladie). Elles ne sont
-              collectées qu'avec le <strong>consentement explicite de l'athlète</strong>,
-              recueilli à l'acceptation de son invitation, et sont
-              <strong>chiffrées au repos (AES-256)</strong>.<br />
+              collectées qu'avec le <strong>consentement explicite de l'athlète</strong> —
+              recueilli à l'acceptation de son invitation, ou lors de son inscription directe — et
+              sont <strong>chiffrées au repos (AES-256)</strong>.<br />
+              <strong>Profil public d'un coach</strong> : si vous êtes coach et que vous publiez une
+              fiche dans l'annuaire, les informations que vous y placez (nom, présentation,
+              spécialités, ville, tarifs, diplômes déclarés, photo) sont
+              <strong>publiquement accessibles</strong>, y compris hors connexion. Votre adresse
+              e-mail et votre téléphone n'en font jamais partie. Les photos sont ré-encodées à
+              l'envoi, ce qui supprime leurs métadonnées — dont la localisation de la prise de vue.<br />
+              <strong>Demande de coaching</strong> : si vous sollicitez un coach, il reçoit votre
+              prénom, votre nom, votre âge en années, votre discipline, votre niveau, votre ville,
+              votre objectif et votre message. <strong>Il ne reçoit aucune coordonnée</strong> tant
+              qu'il n'a pas accepté votre demande.<br />
               <strong>Données d'appareils connectés</strong> : si vous connectez volontairement
               votre compte Strava, les activités sportives associées sont importées ; les jetons
               d'accès sont chiffrés au repos.<br />
@@ -281,7 +330,19 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
             <h2>4. Destinataires et sous-traitants</h2>
             <p>
               Vos données sont accessibles à votre coach (pour un athlète) dans la limite de ses
-              permissions, et aux sous-traitants techniques suivants :
+              permissions, et aux sous-traitants techniques listés ci-dessous.
+            </p>
+            <p>
+              <strong>Le coach que vous choisissez.</strong> Lorsque vous sollicitez un coach depuis
+              l'annuaire et qu'il accepte, il devient destinataire de vos données d'entraînement et
+              — avec votre consentement — de vos données de santé. Vous pouvez mettre fin à cet
+              accompagnement à tout moment : il cesse alors de pouvoir écrire dans votre suivi.
+              <strong>Il conserve en lecture le dossier d'entraînement qu'il a tenu</strong>, dont
+              il est l'auteur ; pour en demander l'effacement, écrivez-nous.
+            </p>
+            <p class="muted">
+              <em>Ce point, ainsi que la durée de conservation de ce dossier après la fin de
+              l'accompagnement, font partie des éléments en cours de relecture juridique.</em>
             </p>
             <ul>
               <li><strong>Railway</strong> — hébergement de l'application et de la base de
