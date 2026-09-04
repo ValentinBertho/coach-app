@@ -2,6 +2,12 @@
 # CoachRun — stack locale complète (Docker Desktop).
 #   docker compose up --build
 #   Front : http://localhost:4200   ·   API : http://localhost:8081/api
+#
+# Aucun fichier .env n'est requis : tout ce dont la stack a besoin est ci-dessous.
+# Les ports PUBLIÉS sur la machine hôte sont néanmoins surchargeables, car un PostgreSQL
+# ou un serveur déjà installé sur le poste occupe souvent 5432 ou 4200 — le conteneur, lui,
+# écoute toujours sur le même port interne :
+#   FRONTEND_PORT=4300 BACKEND_PORT=8082 POSTGRES_PORT=55432 docker compose up
 # ============================================================================
 services:
   postgres:
@@ -12,7 +18,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -45,14 +51,22 @@ services:
       JWT_SECRET: dev-local-secret-change-in-production-min-512-bits-long-padding-aaaa
       FIELD_ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000"
       MAIL_ENABLED: "false"
-      CORS_ORIGINS: http://localhost:4200
+      # Suivent le port publié du front : sinon, surcharger FRONTEND_PORT casserait l'allowlist
+      # CORS et les liens d'invitation.
+      CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-4200}
+      FRONTEND_URL: http://localhost:${FRONTEND_PORT:-4200}
     ports:
-      - "8081:8080"
+      - "${BACKEND_PORT:-8081}:8080"
     healthcheck:
+      # Budget de démarrage : 60 s de grâce, puis 20 × 15 s. Le premier lancement applique
+      # ~96 changesets Liquibase PUIS génère le jeu de démo ; sur un poste modeste, les
+      # 10 tentatives d'origine (soit 3 min 30 en tout) laissaient le conteneur être déclaré
+      # « unhealthy » alors qu'il démarrait normalement — et le front, qui l'attend, ne partait
+      # jamais.
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/actuator/health || exit 1"]
       interval: 15s
       timeout: 5s
-      retries: 10
+      retries: 20
       start_period: 60s
     networks: [coachrun]
 
@@ -65,7 +79,7 @@ services:
       backend:
         condition: service_healthy
     ports:
-      - "4200:80"
+      - "${FRONTEND_PORT:-4200}:80"
     networks: [coachrun]
 
 volumes:
