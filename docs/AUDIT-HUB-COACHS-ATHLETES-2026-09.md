@@ -717,6 +717,17 @@ n'y accédait plus non plus. L'historique aurait donc été conservé **pour per
 morte. L'ancien coach référent garde désormais la **lecture** de la fiche qu'il a tenue, jamais
 l'écriture : il l'a écrite, il peut la relire, il ne prescrit plus à quelqu'un qu'il ne suit plus.
 
+La borne compte autant que la règle : c'est la lecture de **l'ancien référent**, pas celle du club.
+Sans elle, « l'ex-coach garde la lecture » deviendrait « tout coach du club lit un athlète que
+personne ne suit » — l'élévation d'accès même que le lot 0 corrige. Les deux moitiés sont fixées par
+`EndedRelationRevokesAccessTest`.
+
+*Note de méthode, parce qu'elle a coûté quelque chose.* Ce changement de contrat a été décidé ici
+mais les tests du lot 0, qui attendaient un refus sec en lecture, n'ont pas été repris dans le même
+geste — et aucune suite complète n'a été passée après ce commit. Deux cas sont donc restés rouges
+sur la branche jusqu'à ce que la suite du lot 7 les révèle. Un lot qui change une règle d'accès
+n'est pas fini tant que la suite entière n'est pas repassée.
+
 **Deux points du §3.10 restent volontairement non faits**, et il vaut mieux les nommer que les
 laisser croire livrés :
 - **la déprogrammation des séances futures** — sans objet en pratique, l'athlète détaché ne voyant
