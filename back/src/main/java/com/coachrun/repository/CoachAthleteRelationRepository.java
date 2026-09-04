@@ -51,6 +51,16 @@ public interface CoachAthleteRelationRepository extends JpaRepository<CoachAthle
      */
     boolean existsByAthleteIdAndReferentTrue(UUID athleteId);
 
+    /**
+     * La relation référente de ce coach sur cet athlète, close ou non.
+     *
+     * <p>Sert à reconnaître l'<b>ancien</b> coach d'un athlète : celui qui a tenu la fiche garde le
+     * droit de la relire, jamais celui de l'écrire. Sans cette question, une relation close rendait
+     * la fiche illisible <em>par tout le monde</em> — l'athlète étant parti et le coach forclos —
+     * c'est-à-dire de la donnée morte, gardée pour personne.</p>
+     */
+    Optional<CoachAthleteRelation> findByCoachIdAndAthleteIdAndReferentTrue(UUID coachId, UUID athleteId);
+
     List<CoachAthleteRelation> findByAthleteIdAndActiveTrue(UUID athleteId);
 
     List<CoachAthleteRelation> findByCoachIdAndActiveTrue(UUID coachId);

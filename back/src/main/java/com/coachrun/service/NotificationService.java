@@ -1397,6 +1397,29 @@ public class NotificationService {
     // le plan d'envoi le permettra.
     // ================================================================================
 
+    /**
+     * Un coaching vient de prendre fin.
+     *
+     * <p>Le motif n'est transmis que s'il a été écrit : personne n'est tenu de se justifier pour
+     * partir. Le message ne dramatise pas et ne prend pas parti — c'est une fin de collaboration,
+     * pas un incident.</p>
+     *
+     * @param byAthlete vrai quand c'est l'athlète qui a mis fin à la relation
+     */
+    public void notifyCoachingEnded(User target, String otherName, boolean byAthlete, String reason) {
+        if (target == null) {
+            return;
+        }
+        String body = byAthlete
+                ? otherName + " a mis fin à votre collaboration."
+                : otherName + " a mis fin à votre collaboration. Vous pouvez chercher un autre coach.";
+        if (reason != null && !reason.isBlank()) {
+            body = body + " Motif : " + reason;
+        }
+        notifyUser(target, "COACHING_ENDED", "Fin de collaboration", body,
+                byAthlete ? "/app/athletes" : "/coachs");
+    }
+
     /** Une demande vient d'arriver : c'est ce qui fait ouvrir la file au coach. */
     public void notifyCoachingRequestReceived(User coach, String athleteName) {
         if (coach == null) {

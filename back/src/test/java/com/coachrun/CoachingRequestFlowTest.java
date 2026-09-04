@@ -236,7 +236,116 @@ class CoachingRequestFlowTest {
         assertThat(body).as("le refus nomme le chemin qui reste ouvert").contains("inviter");
     }
 
+    /**
+     * La sortie, côté athlète. Rien n'est détruit : il redevient un compte sans coach, libre de
+     * repartir dans l'annuaire, et sa fiche reste chez celui qui l'a tenue.
+     */
+    @Test
+    void anAthleteCanLeaveTheirCoachAndGoBackToTheDirectory() throws Exception {
+        String athlete = registerAthlete("nina@exemple.fr");
+        acceptRequestFrom(athlete);
+
+        mvc.perform(post("/me/coach/end").header("Authorization", athlete)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .content("{\"note\":\"Je change de discipline.\"}"))
+                .andExpect(status().isNoContent());
+
+        JsonNode me = json(mvc.perform(get("/me").header("Authorization", athlete)));
+        assertThat(me.get("athleteId").isNull()).as("plus de fiche courante").isTrue();
+        assertThat(me.get("clubId").isNull()).as("il a quitté l'espace du coach").isTrue();
+    }
+
+    /** La même sortie, à l'initiative du coach. Les deux parties peuvent partir. */
+    @Test
+    void aCoachCanEndTheCoachingToo() throws Exception {
+        String athlete = registerAthlete("nina@exemple.fr");
+        acceptRequestFrom(athlete);
+        String clubId = json(mvc.perform(get("/me").header("Authorization", athlete)))
+                .get("clubId").asText();
+        String athleteId = json(mvc.perform(get("/me").header("Authorization", athlete)))
+                .get("athleteId").asText();
+
+        mvc.perform(post("/clubs/{c}/athletes/{a}/end-relation", clubId, athleteId)
+                        .header("Authorization", coachBearer))
+                .andExpect(status().isNoContent());
+
+        assertThat(json(mvc.perform(get("/me").header("Authorization", athlete)))
+                .get("athleteId").isNull()).isTrue();
+    }
+
+    /**
+     * Ce que la fin d'une relation laisse à l'ancien coach : la LECTURE, jamais l'écriture.
+     *
+     * <p>Sans cette nuance, clore une relation rendait la fiche illisible par tout le monde —
+     * l'athlète reparti, le coach forclos — soit un historique d'entraînement conservé pour
+     * personne. Or c'est lui qui l'a écrit. Prescrire, en revanche, n'a plus de sens : on ne pose
+     * pas de séance à quelqu'un qu'on ne suit plus.</p>
+     */
+    @Test
+    void theFormerCoachKeepsReadAccessButLosesWrite() throws Exception {
+        String athlete = registerAthlete("nina@exemple.fr");
+        acceptRequestFrom(athlete);
+        String clubId = json(mvc.perform(get("/me").header("Authorization", athlete)))
+                .get("clubId").asText();
+        String athleteId = json(mvc.perform(get("/me").header("Authorization", athlete)))
+                .get("athleteId").asText();
+
+        mvc.perform(post("/me/coach/end").header("Authorization", athlete))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(get("/clubs/{c}/athletes/{a}", clubId, athleteId)
+                        .header("Authorization", coachBearer))
+                .andExpect(status().isOk());
+
+        // L'invitation est une action d'écriture : elle doit être refusée.
+        mvc.perform(post("/clubs/{c}/athletes/{a}/invitation", clubId, athleteId)
+                        .header("Authorization", coachBearer))
+                .andExpect(status().isForbidden());
+    }
+
+    /** Un coach qui n'a jamais suivi cet athlète ne récupère rien à la fin de la relation. */
+    @Test
+    void anotherCoachGainsNothingWhenARelationEnds() throws Exception {
+        String athlete = registerAthlete("nina@exemple.fr");
+        acceptRequestFrom(athlete);
+        String clubId = json(mvc.perform(get("/me").header("Authorization", athlete)))
+                .get("clubId").asText();
+        String athleteId = json(mvc.perform(get("/me").header("Authorization", athlete)))
+                .get("athleteId").asText();
+
+        mvc.perform(post("/me/coach/end").header("Authorization", athlete))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(get("/clubs/{c}/athletes/{a}", clubId, athleteId)
+                        .header("Authorization", bearer(DemoSeedService.COACH_EMAIL)))
+                .andExpect(status().isForbidden());
+    }
+
+    /** Parti, l'athlète peut solliciter à nouveau : sortir ne doit pas fermer la porte. */
+    @Test
+    void leavingLetsTheAthleteAskAgain() throws Exception {
+        String athlete = registerAthlete("nina@exemple.fr");
+        acceptRequestFrom(athlete);
+        mvc.perform(post("/me/coach/end").header("Authorization", athlete))
+                .andExpect(status().isNoContent());
+
+        mvc.perform(post("/me/coaching-requests").header("Authorization", athlete)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .content(requestBody()))
+                .andExpect(status().isCreated());
+    }
+
     // ------------------------------------------------------------------ utilitaires
+
+    /** Envoie une demande et la fait accepter : le point de départ des tests de sortie. */
+    private void acceptRequestFrom(String athleteBearer) throws Exception {
+        String requestId = submitRequest(athleteBearer);
+        mvc.perform(post("/me/received-requests/{id}/accept", requestId)
+                .header("Authorization", coachBearer)).andExpect(status().isOk());
+    }
+
 
     private String submitRequest(String athleteBearer) throws Exception {
         return json(mvc.perform(post("/me/coaching-requests").header("Authorization", athleteBearer)

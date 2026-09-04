@@ -28,6 +28,8 @@ export interface CoachingRequest {
   createdAt: string;
   decidedAt: string | null;
   expiresAt: string;
+  /** La fiche créée à l'acceptation ; c'est par elle que le coach agit sur la relation. */
+  createdAthleteId: string | null;
 }
 
 export interface AthleteRegistration {
@@ -95,6 +97,22 @@ export class CoachingRequestService {
 
   withdraw(id: string): Observable<CoachingRequest> {
     return this.http.delete<CoachingRequest>(`${this.base}/me/coaching-requests/${id}`);
+  }
+
+  /**
+   * L'athlète met fin à son coaching.
+   *
+   * Rien n'est détruit : sa fiche reste chez son coach, qui la garde en lecture. Lui redevient un
+   * compte sans coach, libre de repartir dans l'annuaire.
+   */
+  endMyCoaching(note: string | null): Observable<void> {
+    return this.http.post<void>(`${this.base}/me/coach/end`, { note });
+  }
+
+  /** Le coach met fin au coaching d'un de ses athlètes. */
+  endCoachingWith(clubId: string, athleteId: string, note: string | null): Observable<void> {
+    return this.http.post<void>(
+      `${this.base}/clubs/${clubId}/athletes/${athleteId}/end-relation`, { note });
   }
 
   // --- Côté coach ---

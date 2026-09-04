@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CoachingRequest, CoachingRequestService } from '../../core/services/coaching-request.service';
+import { AuthService } from '../../core/services/auth.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -102,6 +103,30 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
         </ul>
       }
 
+      @if (accepted().length) {
+        <!-- Les athlètes venus du hub, et la porte de sortie. Elle est ici plutôt que sur la fiche
+             athlète parce que c'est l'écran de la RELATION : c'est là qu'elle a commencé, c'est là
+             qu'on y met fin. -->
+        <h2 class="cr-section">Athlètes venus de l'annuaire</h2>
+        <ul class="cr-list">
+          @for (r of accepted(); track r.id) {
+            <li class="card cr">
+              <div class="cr__head">
+                <strong class="cr__name">{{ r.athleteName }}</strong>
+                <span class="badge badge-success">Suivi</span>
+                @if (r.decidedAt) {
+                  <span class="cr__when">depuis le {{ r.decidedAt | date: 'dd/MM/yyyy' }}</span>
+                }
+              </div>
+              <div class="cr__actions">
+                <button type="button" class="btn btn-ghost btn-sm" [disabled]="busy() === r.id"
+                        (click)="endCoaching(r)">Mettre fin au coaching</button>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+
       @if (settled().length) {
         <h2 class="cr-section">Historique</h2>
         <ul class="cr-list">
@@ -147,6 +172,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 export class CoachRequestsComponent implements OnInit {
   private readonly service = inject(CoachingRequestService);
   private readonly confirm = inject(ConfirmService);
+  private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
 
   readonly requests = signal<CoachingRequest[]>([]);
@@ -154,7 +180,10 @@ export class CoachRequestsComponent implements OnInit {
   readonly busy = signal<string | null>(null);
 
   readonly pending = computed(() => this.requests().filter((r) => r.status === 'PENDING'));
-  readonly settled = computed(() => this.requests().filter((r) => r.status !== 'PENDING'));
+  readonly accepted = computed(() => this.requests().filter((r) => r.status === 'ACCEPTED'));
+  /** L'historique, sans les relations en cours : elles ont leur propre section, avec sa sortie. */
+  readonly settled = computed(() =>
+    this.requests().filter((r) => r.status !== 'PENDING' && r.status !== 'ACCEPTED'));
 
   ngOnInit(): void {
     this.load();
@@ -208,6 +237,44 @@ export class CoachRequestsComponent implements OnInit {
       return;
     }
     this.act(r, this.service.ask(r.id, note.trim()), 'Question envoyée');
+  }
+
+  /**
+   * Le coach met fin au coaching.
+   *
+   * <p>La confirmation dit ce qui reste — la fiche, en lecture — parce que c'est exactement la
+   * question qu'un coach se pose : « est-ce que je perds son historique ? ». Non.</p>
+   */
+  async endCoaching(r: CoachingRequest): Promise<void> {
+    const clubId = this.auth.clubId();
+    if (!clubId) {
+      return;
+    }
+    const note = await this.confirm.prompt({
+      title: `Mettre fin au coaching de ${r.athleteName} ?`,
+      message: 'Vous ne pourrez plus lui prescrire de séances, et il redeviendra libre de chercher '
+        + 'un autre coach. Sa fiche et son historique restent chez vous, en lecture.',
+      confirmLabel: 'Mettre fin',
+      promptLabel: 'Motif (facultatif)',
+    });
+    if (note === null) {
+      return;
+    }
+    if (!r.createdAthleteId) {
+      return;
+    }
+    this.busy.set(r.id);
+    this.service.endCoachingWith(clubId, r.createdAthleteId, note.trim() || null).subscribe({
+      next: () => {
+        this.busy.set(null);
+        this.toast.success('Collaboration terminée');
+        this.load();
+      },
+      error: (err) => {
+        this.busy.set(null);
+        this.toast.error(err?.error?.message ?? "La collaboration n'a pas pu être terminée");
+      },
+    });
   }
 
   private act(r: CoachingRequest, call: import('rxjs').Observable<CoachingRequest>, success: string): void {

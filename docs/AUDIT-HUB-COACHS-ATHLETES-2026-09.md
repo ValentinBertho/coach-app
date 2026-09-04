@@ -26,7 +26,7 @@ côté athlète, la vitrine côté coach, et le geste qui les relie**.
 | Acceptation ⇒ relation de travail | ✅ **Livré** (lot 4) | Transaction atomique : fiche, relation privée, consentement reporté |
 | Travailler ensemble une fois liés | ✅ **Complet** | Rien à faire : c'est le produit actuel |
 | Échanger avant la relation | ✅ **Tranché** (décision 5) | Une question, une réponse, portées par la demande — `ConversationService` reste intact |
-| Mettre fin à une relation | 🟡 **Socle livré, geste manquant** | La révocation fonctionne (lot 0, §2.5 et §2.5 bis). **Aucun écran ne l'expose** : ni le coach ni l'athlète ne peuvent clore une relation. C'est le seul manque du parcours nominal — cf. §6, reliquat |
+| Mettre fin à une relation | ✅ **Livré** | Des deux côtés, sans préavis ni motif obligatoire. L'ancien coach garde la **lecture** de la fiche qu'il a tenue, jamais l'écriture |
 | Facturer / encaisser | 🔴 Absent | Aucune entité ; à ne pas mettre au lancement (§3.7) |
 | Avis et réputation | 🔴 Absent | À ne pas mettre au lancement (§3.8) |
 
@@ -705,20 +705,26 @@ Huit lots. Les quatre premiers font un hub qui fonctionne ; les quatre suivants 
 | **7 — Acquisition et confiance** | Prerender SEO des fiches, signaux factuels (délai de réponse, taux de réponse), signalement | **M** | 3 |
 | **8 — Avis, puis tarification** | Avis réservés aux relations terminées ≥ N semaines ; encaissement à décider séparément | **L** | 4, et du recul d'usage |
 
-### Le reliquat, nommé pour ne pas se perdre
+### La sortie, livrée — et la question qu'elle a soulevée
 
-Un point du §3.10 n'a **pas** été livré et ne l'est par aucun lot marqué ✅ : **la fin de relation
-n'a pas d'écran**. Son socle serveur existe et fonctionne depuis le lot 0 — clore une relation
-retire réellement l'accès, et y survit au redémarrage — mais aucun geste ne l'expose. Ni le coach
-ni l'athlète ne peuvent aujourd'hui mettre fin à un coaching depuis l'application.
+`POST /me/coach/end` côté athlète, `POST /clubs/{c}/athletes/{a}/end-relation` côté coach. Sans
+préavis ni motif obligatoire : exiger une justification pour partir la demanderait à celui-là même
+dont on veut se détacher.
 
-Ce qu'il reste à écrire, et qui tient dans un lot **S** : deux endpoints
-(`POST /me/relations/{id}/end` côté athlète, `POST /clubs/{c}/athletes/{a}/end-relation` côté
-coach), la déprogrammation des séances futures, le passage du fil en lecture seule, et deux
-boutons. Le §3.10 en fixe déjà les règles.
+**Une tension est apparue en l'écrivant, et il a fallu trancher.** La décision 9 laisse l'historique
+attaché au coach ; or clore la relation lui retirait *tout* accès à la fiche, et l'athlète, détaché,
+n'y accédait plus non plus. L'historique aurait donc été conservé **pour personne** — de la donnée
+morte. L'ancien coach référent garde désormais la **lecture** de la fiche qu'il a tenue, jamais
+l'écriture : il l'a écrite, il peut la relire, il ne prescrit plus à quelqu'un qu'il ne suit plus.
 
-**À faire avant l'ouverture publique**, pas après : une place de marché où l'on entre sans pouvoir
-sortir est un piège, et c'est le genre de reproche qu'on ne rattrape pas.
+**Deux points du §3.10 restent volontairement non faits**, et il vaut mieux les nommer que les
+laisser croire livrés :
+- **la déprogrammation des séances futures** — sans objet en pratique, l'athlète détaché ne voyant
+  plus aucun calendrier ; elle redeviendrait nécessaire le jour où une relation se clôturerait sans
+  détacher le compte ;
+- **le fil de discussion en lecture seule** — il devient inaccessible aux deux parties plutôt que
+  lisible, l'appartenance dont `ConversationService` déduit ses droits ayant disparu. Le rendre
+  consultable après coup demanderait de revoir ces règles, ce qui dépasse un lot S.
 
 **Le lot 0 s'est livré seul et en premier** : il corrige deux défauts du produit actuel (§2.5 et
 §2.5 bis), il ne dépendait de rien, et tous les autres s'appuient dessus. Écrire la fin de relation

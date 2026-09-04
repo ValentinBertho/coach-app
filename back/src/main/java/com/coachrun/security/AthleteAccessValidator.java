@@ -44,6 +44,11 @@ import java.util.UUID;
  * coach indépendant, dont le club porte la fiche de tous ses athlètes, la fin de relation n'aurait
  * ainsi rien retiré du tout. Les deux cas se distinguent par l'existence d'une relation référente,
  * active ou close ({@code existsByAthleteIdAndReferentTrue}).</p>
+ *
+ * <p><b>Après une relation close, l'ancien coach garde la lecture.</b> Il a écrit cet historique,
+ * la décision produit le lui laisse attaché, et le lui retirer aurait fait de la fiche une donnée
+ * morte : l'athlète repart vers l'annuaire, et plus personne ne pourrait l'ouvrir. L'écriture, en
+ * revanche, est bien perdue — on ne prescrit pas à quelqu'un qu'on ne suit plus.</p>
  */
 @Component("athleteAccessValidator")
 public class AthleteAccessValidator {
@@ -111,9 +116,20 @@ public class AthleteAccessValidator {
         //
         // C'est l'existence d'une relation référente — active ou close — qui les sépare.
         if (referent == null) {
-            return relationRepository.existsByAthleteIdAndReferentTrue(athleteId)
-                    ? Optional.empty()                          // relation close ⇒ refus
-                    : clubLevelFallback(coachId, athleteId);    // jamais de référent ⇒ repli
+            if (!relationRepository.existsByAthleteIdAndReferentTrue(athleteId)) {
+                return clubLevelFallback(coachId, athleteId);   // jamais de référent ⇒ repli
+            }
+            // La relation a été close. Le coach qui n'a jamais suivi cet athlète ne voit rien ;
+            // celui qui l'a suivi garde la LECTURE de la fiche qu'il a tenue.
+            //
+            // Sans cette nuance, clore une relation rendait la fiche illisible par tout le monde —
+            // l'athlète étant reparti vers l'annuaire et son ancien coach forclos — soit un
+            // historique d'entraînement conservé pour personne. Or c'est lui qui l'a écrit, et
+            // c'est à lui qu'il reste attaché. L'écriture, elle, est bien perdue : on ne prescrit
+            // pas à quelqu'un qu'on ne suit plus.
+            return relationRepository.findByCoachIdAndAthleteIdAndReferentTrue(coachId, athleteId)
+                    .map(closed -> PermissionLevel.READ)
+                    .or(Optional::empty);
         }
 
         // Un athlète privé n'est jamais partagé : aucun accès hors référent.

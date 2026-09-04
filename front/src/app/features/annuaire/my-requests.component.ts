@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AuthService } from '../../core/services/auth.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { CoachingRequest, CoachingRequestService } from '../../core/services/coaching-request.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -30,6 +31,22 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
       </div>
       <a routerLink="/coachs" class="btn btn-secondary btn-sm">Trouver un coach</a>
     </header>
+
+    <!-- La sortie. Placée ici parce que c'est l'écran où l'athlète gère sa relation, et parce
+         qu'une porte de sortie qu'on ne trouve pas n'est pas une porte de sortie. -->
+    @if (hasCoach()) {
+      <section class="card mr-current">
+        <div>
+          <strong>Vous êtes suivi par un coach.</strong>
+          <p class="field-hint">
+            Si vous mettez fin à votre collaboration, votre historique reste chez lui et vous
+            redevenez libre de chercher quelqu'un d'autre. Rien n'est supprimé.
+          </p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" [disabled]="busy() === 'end'"
+                (click)="endCoaching()">Mettre fin au coaching</button>
+      </section>
+    }
 
     @if (loading()) {
       <p class="mr-loading">Chargement…</p>
@@ -101,6 +118,9 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
   styles: [`
     .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-5); }
     .mr-loading { color: var(--ink-3); padding: var(--sp-6) 0; }
+    .mr-current { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-4); margin-bottom: var(--sp-4); flex-wrap: wrap; }
+    .mr-current > div { flex: 1; min-width: 240px; }
+    .mr-current p { margin: var(--sp-1) 0 0; }
     .mr-empty { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-5); flex-wrap: wrap; }
     .mr-empty > div { flex: 1; min-width: 200px; }
     .mr-empty p { margin: var(--sp-1) 0 0; }
@@ -121,11 +141,15 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 export class MyRequestsComponent implements OnInit {
   private readonly service = inject(CoachingRequestService);
   private readonly confirm = inject(ConfirmService);
+  private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
 
   readonly requests = signal<CoachingRequest[]>([]);
   readonly loading = signal(true);
   readonly busy = signal<string | null>(null);
+
+  /** L'athlète a un coach dès lors qu'il a une fiche : elle naît de l'acceptation. */
+  readonly hasCoach = computed(() => !!this.auth.currentUser()?.athleteId);
 
   ngOnInit(): void {
     this.load();
@@ -133,6 +157,40 @@ export class MyRequestsComponent implements OnInit {
 
   badge(status: CoachingRequest['status']): string {
     return this.service.badge(status);
+  }
+
+  /**
+   * Met fin au coaching.
+   *
+   * <p>Le motif est facultatif : exiger une justification pour partir la demanderait à celui-là
+   * même dont on veut se détacher. La confirmation dit ce qui reste — l'historique chez le coach —
+   * parce que c'est la question qu'on se pose au moment de cliquer.</p>
+   */
+  async endCoaching(): Promise<void> {
+    const note = await this.confirm.prompt({
+      title: 'Mettre fin à votre coaching ?',
+      message: 'Votre coach n\'aura plus accès à votre suivi et ne pourra plus vous prescrire de '
+        + 'séances. Votre historique reste chez lui ; vous pourrez chercher un autre coach.',
+      confirmLabel: 'Mettre fin',
+      promptLabel: 'Motif (facultatif)',
+    });
+    if (note === null) {
+      return;
+    }
+    this.busy.set('end');
+    this.service.endMyCoaching(note.trim() || null).subscribe({
+      next: () => {
+        this.busy.set(null);
+        this.toast.success('Collaboration terminée');
+        // Le rôle n'a pas changé, mais la fiche a disparu : sans rechargement du profil, la
+        // navigation continuerait de proposer un calendrier qui n'existe plus.
+        this.auth.loadCurrentUser().subscribe({ complete: () => this.load() });
+      },
+      error: (err) => {
+        this.busy.set(null);
+        this.toast.error(err?.error?.message ?? "La collaboration n'a pas pu être terminée");
+      },
+    });
   }
 
   async answer(r: CoachingRequest): Promise<void> {

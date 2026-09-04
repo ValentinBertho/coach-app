@@ -48,7 +48,15 @@ public record CoachingRequestResponse(
         String declineReason,
         Instant createdAt,
         Instant decidedAt,
-        Instant expiresAt) {
+        Instant expiresAt,
+        /**
+         * La fiche créée à l'acceptation, {@code null} avant.
+         *
+         * <p>C'est par elle que le coach agit sur la relation — y mettre fin, notamment. Sans ce
+         * champ, l'écran des demandes connaîtrait l'athlète mais pas le dossier, et devrait aller
+         * le chercher ailleurs pour un geste qui part pourtant d'ici.</p>
+         */
+        UUID createdAthleteId) {
 
     public static CoachingRequestResponse of(CoachingRequest r, String coachSlug) {
         AthleteAccount a = r.getAthleteAccount();
@@ -72,7 +80,8 @@ public record CoachingRequestResponse(
                 r.getDeclineReason(),
                 r.getCreatedAt(),
                 r.getDecidedAt(),
-                r.getExpiresAt());
+                r.getExpiresAt(),
+                r.getCreatedAthleteId());
     }
 
     private static Integer age(LocalDate birthDate) {
