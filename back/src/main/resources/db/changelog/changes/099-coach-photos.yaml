@@ -1,0 +1,51 @@
+# ============================================================================
+# 099 — La photo d'une fiche coach.
+#
+#   Table à part, et non une colonne binaire sur coach_profiles : l'annuaire
+#   lira bientôt vingt fiches d'un coup pour n'afficher que des vignettes par
+#   URL. Une colonne binaire aurait ramené vingt images en mémoire à chaque
+#   page de résultats.
+#
+#   Une photo par fiche : la contrainte d'unicité sur coach_profile_id dit la
+#   règle plutôt que de la confier au code. Remplacer une photo supprime la
+#   ligne et en insère une autre — l'identifiant change donc, et c'est voulu :
+#   c'est lui qui compose l'URL publique, si bien qu'aucun cache n'a à être
+#   invalidé.
+#
+#   Ce qui est stocké n'est jamais le fichier reçu : le service le décode, le
+#   réduit à 512 pixels de côté et le ré-encode en JPEG. Les métadonnées EXIF
+#   disparaissent au passage — une photo de téléphone porte les coordonnées GPS
+#   de l'endroit où elle a été prise, souvent le domicile, et l'annuaire est
+#   public.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 099-coach-photos
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: coach_photos
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column:
+                  name: coach_profile_id
+                  type: UUID
+                  constraints: { nullable: false, unique: true, uniqueConstraintName: ux_coach_photos_profile }
+                  remarks: "Une photo par fiche : la règle est dans le schéma, pas dans le code."
+              - column: { name: content_type, type: VARCHAR(64), constraints: { nullable: false } }
+              - column: { name: width, type: INT, constraints: { nullable: false } }
+              - column: { name: height, type: INT, constraints: { nullable: false } }
+              - column:
+                  name: data
+                  type: bytea
+                  constraints: { nullable: false }
+                  remarks: "JPEG ré-encodé, 512 px de côté au plus. Jamais le fichier reçu."
+        - addForeignKeyConstraint:
+            constraintName: fk_coach_photos_profile
+            baseTableName: coach_photos
+            baseColumnNames: coach_profile_id
+            referencedTableName: coach_profiles
+            referencedColumnNames: id

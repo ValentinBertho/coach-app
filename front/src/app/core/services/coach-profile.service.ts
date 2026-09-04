@@ -52,6 +52,13 @@ export interface CoachProfile {
   /** Motif d'un refus, écrit par un administrateur pour être lu par le coach. */
   reviewNote: string | null;
   medianResponseHours: number | null;
+  /**
+   * Chemin de la photo servi par l'API (`/public/coach-photos/…`), ou nul.
+   *
+   * Un chemin et non une adresse absolue : l'API n'a pas à connaître le domaine sous lequel elle
+   * est servie. `photoSrc()` le compose.
+   */
+  photoUrl: string | null;
   certifications: CoachCertification[];
   offers: CoachOffer[];
   /** Ce qui manque pour soumettre. Vide = la fiche est prête. */
@@ -139,6 +146,27 @@ export class CoachProfileService {
 
   updateOffer(id: string, body: OfferForm): Observable<CoachOffer> {
     return this.http.put<CoachOffer>(`${this.base}/offers/${id}`, body);
+  }
+
+  /**
+   * Remplace la photo.
+   *
+   * Le serveur ne garde jamais le fichier envoyé : il le décode, le réduit et le ré-encode en
+   * JPEG — ce qui efface au passage les métadonnées EXIF, coordonnées GPS comprises.
+   */
+  uploadPhoto(file: File): Observable<CoachProfile> {
+    const form = new FormData();
+    form.append('file', file);
+    return this.http.post<CoachProfile>(`${this.base}/photo`, form);
+  }
+
+  deletePhoto(): Observable<CoachProfile> {
+    return this.http.delete<CoachProfile>(`${this.base}/photo`);
+  }
+
+  /** L'adresse complète d'une photo, à partir du chemin rendu par l'API. */
+  photoSrc(photoUrl: string | null): string | null {
+    return photoUrl ? `${environment.apiUrl}${photoUrl}` : null;
   }
 
   /** Retire la formule de la fiche : le serveur la désactive, il ne la supprime pas. */

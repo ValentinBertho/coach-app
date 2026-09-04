@@ -81,6 +81,39 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
         </div>
       }
 
+      <section class="card cp-block cp-photo">
+        <div class="cp-photo__preview">
+          @if (photoSrc(); as src) {
+            <img [src]="src" alt="Votre photo de profil" />
+          } @else {
+            <span class="cp-photo__empty" aria-hidden="true">
+              <app-icon name="user" [size]="32" />
+            </span>
+          }
+        </div>
+        <div class="cp-photo__side">
+          <h2 class="cp-block__title">Votre photo</h2>
+          <p class="field-hint">
+            C'est la première chose qu'un athlète voit. JPEG ou PNG, 5 Mo au plus — elle sera
+            réduite et ré-encodée : les données de votre appareil, y compris le lieu de la prise
+            de vue, ne sont pas conservées.
+          </p>
+          @if (!frozen()) {
+            <div class="cp-photo__actions">
+              <label class="btn btn-secondary btn-sm">
+                {{ uploading() ? 'Envoi…' : (profile()?.photoUrl ? 'Changer' : 'Ajouter une photo') }}
+                <input type="file" accept="image/jpeg,image/png,image/webp"
+                       (change)="onPhotoPicked($event)" [disabled]="uploading()" hidden />
+              </label>
+              @if (profile()?.photoUrl) {
+                <button type="button" class="btn btn-ghost btn-sm" [disabled]="uploading()"
+                        (click)="removePhoto()">Retirer</button>
+              }
+            </div>
+          }
+        </div>
+      </section>
+
       <form class="card cp-form" [formGroup]="form" (ngSubmit)="save()">
         <fieldset [disabled]="frozen()">
           <div class="form-group">
@@ -327,6 +360,14 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
     .cp-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
     @media (max-width: 640px) { .cp-row { grid-template-columns: 1fr; } }
     .cp-block { padding: var(--sp-5); margin-bottom: var(--sp-4); }
+    .cp-photo { display: flex; gap: var(--sp-5); align-items: flex-start; }
+    @media (max-width: 560px) { .cp-photo { flex-direction: column; } }
+    .cp-photo__preview { flex: 0 0 auto; width: 128px; height: 128px; border-radius: var(--radius-lg); overflow: hidden; background: var(--paper-sunk); display: flex; align-items: center; justify-content: center; }
+    .cp-photo__preview img { width: 100%; height: 100%; object-fit: cover; }
+    .cp-photo__empty { color: var(--ink-4); }
+    .cp-photo__side { flex: 1; min-width: 0; }
+    .cp-photo__actions { display: flex; gap: var(--sp-2); margin-top: var(--sp-3); flex-wrap: wrap; }
+    .cp-photo__actions label { cursor: pointer; }
     .cp-block__title { font-size: var(--text-lg); margin: 0 0 var(--sp-1); }
     .cp-list { list-style: none; margin: var(--sp-4) 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
     .cp-item { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius); }
@@ -352,6 +393,10 @@ export class CoachProfileComponent implements OnInit {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly busy = signal(false);
+  readonly uploading = signal(false);
+
+  /** L'adresse de la photo courante, composée par le service à partir du chemin de l'API. */
+  readonly photoSrc = computed(() => this.service.photoSrc(this.profile()?.photoUrl ?? null));
 
   /** Une fiche en validation est gelée côté serveur : l'écran le montre plutôt que d'échouer. */
   readonly frozen = computed(() => {
@@ -549,6 +594,58 @@ export class CoachProfileComponent implements OnInit {
     this.service.deleteCertification(id).subscribe({
       next: () => this.reload(false),
       error: () => this.toast.error("Le diplôme n'a pas pu être retiré"),
+    });
+  }
+
+  /**
+   * Envoie la photo choisie.
+   *
+   * <p>Le champ est vidé après coup : sans cela, rechoisir le même fichier — après un recadrage,
+   * par exemple — ne déclencherait aucun événement, le navigateur considérant que la valeur n'a
+   * pas changé.</p>
+   */
+  onPhotoPicked(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) {
+      return;
+    }
+    this.uploading.set(true);
+    this.service.uploadPhoto(file).subscribe({
+      next: (p) => {
+        this.apply(p);
+        this.uploading.set(false);
+        this.toast.success('Photo enregistrée');
+      },
+      error: (err) => {
+        this.uploading.set(false);
+        // Le serveur explique pourquoi il refuse (format, poids, dimensions) : c'est ce message
+        // qui dit quoi faire, là où « échec de l'envoi » laisserait chercher.
+        this.toast.error(err?.error?.message ?? "La photo n'a pas pu être envoyée");
+      },
+    });
+  }
+
+  async removePhoto(): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Retirer votre photo ?',
+      message: 'Votre fiche affichera un portrait vide tant que vous n\'en aurez pas remis une.',
+      confirmLabel: 'Retirer',
+    });
+    if (!ok) {
+      return;
+    }
+    this.uploading.set(true);
+    this.service.deletePhoto().subscribe({
+      next: (p) => {
+        this.apply(p);
+        this.uploading.set(false);
+      },
+      error: () => {
+        this.uploading.set(false);
+        this.toast.error("La photo n'a pas pu être retirée");
+      },
     });
   }
 

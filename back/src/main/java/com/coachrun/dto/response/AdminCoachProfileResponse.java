@@ -34,11 +34,14 @@ public record AdminCoachProfileResponse(
         Instant reviewedAt,
         String reviewedByEmail,
         String reviewNote,
+        /** Une fiche se valide aussi sur sa photo : l'écran d'arbitrage doit la montrer. */
+        String photoUrl,
         List<CoachCertificationResponse> certifications,
         List<CoachOfferResponse> offers) {
 
     public static AdminCoachProfileResponse of(CoachProfile p,
                                                String reviewedByEmail,
+                                               String photoUrl,
                                                List<CoachCertificationResponse> certifications,
                                                List<CoachOfferResponse> offers) {
         return new AdminCoachProfileResponse(
@@ -58,6 +61,7 @@ public record AdminCoachProfileResponse(
                 p.getReviewedAt(),
                 reviewedByEmail,
                 p.getReviewNote(),
+                photoUrl,
                 certifications,
                 offers);
     }

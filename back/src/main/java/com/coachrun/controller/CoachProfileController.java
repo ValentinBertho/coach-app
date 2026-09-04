@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -72,6 +74,26 @@ public class CoachProfileController {
     public CoachProfileResponse setAccepting(@AuthenticationPrincipal AuthPrincipal principal,
                                              @RequestParam boolean accepting) {
         return service.setAcceptingAthletes(principal.userId(), accepting);
+    }
+
+    // --- Photo ---
+
+    /**
+     * Remplace la photo de la fiche.
+     *
+     * <p>Le serveur ne conserve jamais le fichier reçu : il le décode, le réduit et le ré-encode
+     * en JPEG. Les métadonnées EXIF — coordonnées GPS du domicile comprises — disparaissent au
+     * passage, ce qui n'est pas un détail pour une image destinée à un annuaire public.</p>
+     */
+    @PostMapping(value = "/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public CoachProfileResponse uploadPhoto(@AuthenticationPrincipal AuthPrincipal principal,
+                                            @RequestParam("file") MultipartFile file) {
+        return service.replacePhoto(principal.userId(), file);
+    }
+
+    @DeleteMapping("/photo")
+    public CoachProfileResponse deletePhoto(@AuthenticationPrincipal AuthPrincipal principal) {
+        return service.deletePhoto(principal.userId());
     }
 
     // --- Certifications : déclaratives, jamais certifiées par la plateforme ---

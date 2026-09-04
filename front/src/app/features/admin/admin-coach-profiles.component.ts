@@ -40,6 +40,8 @@ interface AdminCoachProfile {
   reviewedAt: string | null;
   reviewedByEmail: string | null;
   reviewNote: string | null;
+  /** Chemin servi par l'API ; une fiche se valide aussi sur sa photo. */
+  photoUrl: string | null;
   certifications: Certification[];
   offers: Offer[];
 }
@@ -103,6 +105,9 @@ const STATUS_BADGES: Record<CoachProfileStatus, string> = {
         @for (p of items(); track p.id) {
           <li class="card acp">
             <div class="acp__head">
+              @if (photoSrc(p); as src) {
+                <img class="acp__photo" [src]="src" [alt]="'Photo de ' + p.coachName" />
+              }
               <strong class="acp__name">{{ p.coachName }}</strong>
               <span class="badge" [class]="badges[p.status]">{{ p.statusLabel }}</span>
               @if (p.submittedAt) {
@@ -192,6 +197,7 @@ const STATUS_BADGES: Record<CoachProfileStatus, string> = {
     .acp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
     .acp { padding: var(--sp-4); }
     .acp__head { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-3); }
+    .acp__photo { width: 44px; height: 44px; border-radius: var(--radius-full); object-fit: cover; background: var(--paper-sunk); }
     .acp__name { font-size: var(--text-lg); color: var(--ink); }
     .acp__when { color: var(--ink-3); font-size: var(--text-sm); margin-left: auto; }
     .acp__who { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); margin: 0 0 var(--sp-3); }
@@ -232,6 +238,11 @@ export class AdminCoachProfilesComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
+  }
+
+  /** L'API rend un chemin ; le domaine se compose ici. */
+  photoSrc(p: AdminCoachProfile): string | null {
+    return p.photoUrl ? `${environment.apiUrl}${p.photoUrl}` : null;
   }
 
   setFilter(value: CoachProfileStatus | 'ALL'): void {

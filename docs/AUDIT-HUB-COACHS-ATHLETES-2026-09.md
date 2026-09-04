@@ -509,7 +509,14 @@ moment de valider la fiche, pas à décerner un label.
 > **Deux arbitrages pris en écrivant**, à relire : une fiche **publiée se modifie sans repasser
 > par la file** (la porte d'entrée est le garde-fou, la suspension le recours) ; une fiche
 > **en attente est gelée** (sinon l'administrateur validerait un texte changé entre-temps).
-> **La photo reste à faire** dans ce lot : elle demande un envoi de fichier et un service public.
+>
+> **La photo est livrée** (migration 099, table `coach_photos`). Le serveur ne conserve jamais le
+> fichier reçu : il le décode, le réduit à 512 px de côté et le ré-encode en JPEG. Ce n'est pas
+> cosmétique — une photo prise au téléphone porte les coordonnées GPS du lieu de la prise de vue,
+> souvent le domicile, et l'annuaire est public : la republier telle quelle aurait diffusé
+> l'adresse du coach sans le lui dire. Le ré-encodage règle du même geste le fichier qui prétend
+> être une image, et le poids servi à chaque vignette. Les dimensions sont lues dans l'en-tête
+> **avant** décodage : une image de 2 Mo peut se déplier en plusieurs Go de bitmap.
 
 **`coach_offers`** — `coach_profile_id`, `name`, `amount_cents`, `currency`, `periodicity`,
 `description`, `active`. Affichage seul au lancement (§3.7).
@@ -689,7 +696,7 @@ Huit lots. Les quatre premiers font un hub qui fonctionne ; les quatre suivants 
 |---|---|---|---|
 | **0 — Solder la dette d'accès** ✅ | Correction de `clubLevelFallback` (§2.5) **et** de la clé d'idempotence du backfill (§2.5 bis) ; `ended_at` / `ended_by_user_id` / `end_reason` sur la relation (migration 096) ; `EndedRelationRevokesAccessTest`, 5 cas | **S** | — |
 | **1 — Le compte athlète autoporté** | `athlete_accounts`, inscription libre, vérification d'e-mail, contrôle des 16 ans, `athletes.athlete_account_id`, écran « pas encore de coach » | **M** | 0 |
-| **2 — La vitrine coach** ✅ | `coach_profiles`, `coach_certifications` (sans `verified`), `coach_offers` (migration 098) ; cycle `DRAFT → PENDING → PUBLISHED ⇄ CLOSED` ; éditeur `/app/vitrine` ; file de validation `/admin/coach-profiles`. **Reste la photo.** | **M** | — |
+| **2 — La vitrine coach** ✅ | `coach_profiles`, `coach_certifications` (sans `verified`), `coach_offers` (migration 098), `coach_photos` (099, ré-encodage qui efface l'EXIF) ; cycle `DRAFT → PENDING → PUBLISHED ⇄ CLOSED` ; éditeur `/app/vitrine` ; file de validation `/admin/coach-profiles` | **M** | — |
 | **3 — L'annuaire** | `GET /public/coaches` + filtres + facettes, écrans annuaire et fiche, bucket de rate limiting | **M** | 2 |
 | **4 — La mise en relation** | `coaching_requests`, les deux files, l'acceptation transactionnelle (§4.2), la fin de relation, les notifications | **L** | 1, 2, 0 |
 | — | *↑ **Ici, le hub est utilisable de bout en bout.** ↑* | | |
@@ -804,5 +811,5 @@ que les décisions 4, 6 et 9 rendent plus simple sans la rendre facultative.
 affirmation renvoie au fichier et à la ligne qui la fondent. Les dix décisions du §8 ont été
 arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Les lots 0, 5 et 2 sont livrés** — le
 premier corrige deux défauts du produit actuel (§2.5, §2.5 bis), le second ouvre le vocabulaire aux
-coachs indépendants (§2.7), le troisième pose la vitrine du coach (§4.1). Reste la photo du lot 2,
-puis le lot 3 : l'annuaire.*
+coachs indépendants (§2.7), le troisième pose la vitrine du coach (§4.1), photo comprise. Le lot 3
+— l'annuaire — est le suivant.*

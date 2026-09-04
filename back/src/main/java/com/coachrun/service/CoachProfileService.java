@@ -19,6 +19,7 @@ import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.CoachCertificationRepository;
 import com.coachrun.repository.CoachOfferRepository;
+import com.coachrun.repository.CoachPhotoRepository;
 import com.coachrun.repository.CoachProfileRepository;
 import com.coachrun.repository.UserRepository;
 import com.coachrun.security.AuthPrincipal;
@@ -72,6 +73,8 @@ public class CoachProfileService {
     private final CoachProfileRepository profileRepository;
     private final CoachCertificationRepository certificationRepository;
     private final CoachOfferRepository offerRepository;
+    private final CoachPhotoRepository photoRepository;
+    private final CoachPhotoService photoService;
     private final UserRepository userRepository;
 
     // ---------------------------------------------------------------- côté coach
@@ -159,6 +162,30 @@ public class CoachProfileService {
                     "Cette bascule ne concerne qu'une fiche publiée.");
         }
         profile.setStatus(accepting ? CoachProfileStatus.PUBLISHED : CoachProfileStatus.CLOSED);
+        return render(profile);
+    }
+
+    // ---------------------------------------------------------------- photo
+
+    /**
+     * Remplace la photo de la fiche.
+     *
+     * <p>Passe par {@code requireEditable} comme le reste : une fiche en cours de validation est
+     * gelée, photo comprise — sinon l'administrateur validerait un visage et en publierait un
+     * autre.</p>
+     */
+    @Transactional
+    public CoachProfileResponse replacePhoto(UUID coachId,
+                                             org.springframework.web.multipart.MultipartFile file) {
+        CoachProfile profile = requireEditable(coachId);
+        photoService.replace(profile, file);
+        return render(profile);
+    }
+
+    @Transactional
+    public CoachProfileResponse deletePhoto(UUID coachId) {
+        CoachProfile profile = requireEditable(coachId);
+        photoService.delete(profile);
         return render(profile);
     }
 
@@ -383,13 +410,25 @@ public class CoachProfileService {
     }
 
     private CoachProfileResponse render(CoachProfile p) {
-        return CoachProfileResponse.of(p, certifications(p), offers(p), missing(p));
+        return CoachProfileResponse.of(p, photoUrl(p), certifications(p), offers(p), missing(p));
+    }
+
+    /**
+     * L'adresse publique de la photo, ou {@code null}.
+     *
+     * <p>Seul l'identifiant est lu, jamais les octets : cette méthode est appelée à chaque lecture
+     * de fiche, et l'annuaire en lira vingt par page.</p>
+     */
+    private String photoUrl(CoachProfile p) {
+        return photoRepository.findIdByProfileId(p.getId())
+                .map(id -> "/public/coach-photos/" + id)
+                .orElse(null);
     }
 
     private AdminCoachProfileResponse renderForAdmin(CoachProfile p) {
         String reviewedBy = p.getReviewedByUserId() == null ? null
                 : userRepository.findById(p.getReviewedByUserId()).map(User::getEmail).orElse(null);
-        return AdminCoachProfileResponse.of(p, reviewedBy, certifications(p), offers(p));
+        return AdminCoachProfileResponse.of(p, reviewedBy, photoUrl(p), certifications(p), offers(p));
     }
 
     private List<CoachCertificationResponse> certifications(CoachProfile p) {

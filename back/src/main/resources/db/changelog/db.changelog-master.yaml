@@ -207,3 +207,5 @@ databaseChangeLog:
       file: db/changelog/changes/097-club-solo-practice.yaml
   - include:
       file: db/changelog/changes/098-coach-profiles.yaml
+  - include:
+      file: db/changelog/changes/099-coach-photos.yaml

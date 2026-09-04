@@ -43,6 +43,7 @@ describe('vitrine — l’éditeur montre l’état réel de la fiche', () => {
     reviewedAt: null,
     reviewNote: null,
     medianResponseHours: null,
+    photoUrl: null,
     certifications: [],
     offers: [],
     missing: [],
@@ -115,6 +116,24 @@ describe('vitrine — l’éditeur montre l’état réel de la fiche', () => {
   it('met le motif du renvoi en tête', () => {
     const host = start({ status: 'DRAFT', reviewNote: 'Merci de préciser vos tarifs.' });
     expect(host.textContent).toContain('Merci de préciser vos tarifs.');
+  });
+
+  /**
+   * La photo est la première chose qu'un athlète voit, et le premier endroit où l'on peut publier
+   * sans le vouloir : le serveur ré-encode l'image, et l'écran doit le dire avant l'envoi, pas
+   * après.
+   */
+  it('annonce que les données de l’appareil ne sont pas conservées', () => {
+    const host = start({});
+    expect(host.textContent).toContain('le lieu de la prise');
+  });
+
+  /** Sans photo, l'écran propose d'en ajouter une ; avec, il propose de la changer. */
+  it('propose de retirer la photo seulement quand il y en a une', () => {
+    const withoutPhoto = start({ photoUrl: null });
+    expect(Array.from(withoutPhoto.querySelectorAll('button')).some((b) => b.textContent?.trim() === 'Retirer'))
+      .toBeFalse();
+    expect(withoutPhoto.textContent).toContain('Ajouter une photo');
   });
 
   /** Publiée, la fiche n'est plus à soumettre : elle s'ouvre ou se ferme aux demandes. */

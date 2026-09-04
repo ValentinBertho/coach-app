@@ -45,12 +45,21 @@ public record CoachProfileResponse(
         /** Motif d'un refus, écrit par un administrateur pour être lu par le coach. */
         String reviewNote,
         Integer medianResponseHours,
+        /**
+         * Adresse de la photo, ou {@code null}. Une <b>URL</b>, jamais des octets : la fiche se lit
+         * vingt fois par page d'annuaire, et l'image ne s'affiche qu'une.
+         *
+         * <p>Elle change à chaque remplacement — l'identifiant de la photo en fait partie — si bien
+         * qu'aucun cache n'a à être invalidé.</p>
+         */
+        String photoUrl,
         List<CoachCertificationResponse> certifications,
         List<CoachOfferResponse> offers,
         /** Ce qui manque pour soumettre. Vide = la fiche est prête. */
         List<String> missing) {
 
     public static CoachProfileResponse of(CoachProfile p,
+                                          String photoUrl,
                                           List<CoachCertificationResponse> certifications,
                                           List<CoachOfferResponse> offers,
                                           List<String> missing) {
@@ -79,6 +88,7 @@ public record CoachProfileResponse(
                 p.getReviewedAt(),
                 p.getReviewNote(),
                 p.getMedianResponseHours(),
+                photoUrl,
                 certifications,
                 offers,
                 missing);
