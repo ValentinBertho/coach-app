@@ -589,18 +589,22 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
         if (!c?.computable) continue;
         if (c.estimatedDurationS) { durationS += c.estimatedDurationS; hasAny = true; }
         if (c.estimatedDistanceM) { distanceM += c.estimatedDistanceM; hasAny = true; }
-        // Récup entre répétitions : (reps - 1) × la récup, et autant de fois qu'il y a de séries.
+        // Récupérations du bloc : une par répétition, la dernière comprise. « 10 × 20 s récup
+        // 1'15 » en compte dix, pas neuf : la descente après la dixième côte se court aussi, et
+        // le total la doit à l'athlète. Entre deux séries, c'est la récup de série qui remplace
+        // celle de la répétition — elle ne s'y ajoute pas.
         const sets = this.setCount(b);
         const rc = recCalc[b.id];
-        const inter = (b.reps && b.reps > 1 ? b.reps - 1 : 0) * sets;
-        if (rc?.computable && inter) {
+        const setRecoveries = sets > 1 && b.setRecovery?.durationS ? sets - 1 : 0;
+        const inter = (b.reps && b.reps > 1 ? b.reps : 1) * sets - setRecoveries;
+        if (rc?.computable && inter > 0) {
           if (rc.estimatedDurationS) durationS += rc.estimatedDurationS * inter;
           if (rc.estimatedDistanceM) distanceM += rc.estimatedDistanceM * inter;
         }
         // Récup entre séries : (séries - 1). Elle n'a pas de cible calculée — c'est un temps,
         // pris tel quel, comme le fait le serveur pour le total de la séance.
-        if (sets > 1 && b.setRecovery?.durationS) {
-          durationS += b.setRecovery.durationS * (sets - 1);
+        if (setRecoveries) {
+          durationS += b.setRecovery!.durationS! * setRecoveries;
         }
       }
     }

@@ -169,9 +169,30 @@ class CourseSessionLibraryTest {
         JsonNode calc = calculated(templateId);
         assertThat(calc.get("main").get(0).get("calc").get("estimatedDistanceM").asInt()).isEqualTo(12000);
 
-        // Récupérations : 2 séries × 5 intervalles × 90 s, plus 1 récup entre séries de 300 s.
+        // Récupérations : une par répétition, la dernière comprise — soit 12, dont celle qui
+        // sépare les deux séries est remplacée par la récup de série. 11 × 90 s + 1 × 300 s.
         int running = calc.get("main").get(0).get("calc").get("estimatedDurationS").asInt();
-        assertThat(calc.get("totalDurationS").asInt() - running).isEqualTo(2 * 5 * 90 + 300);
+        assertThat(calc.get("totalDurationS").asInt() - running).isEqualTo(11 * 90 + 300);
+    }
+
+    /**
+     * La dernière répétition garde sa récupération : « 10 × 20 s côtes, récup 1'15 » en compte
+     * dix, pas neuf.
+     *
+     * <p>Le compte s'arrêtait à la neuvième : la séance repartait avec 1'15 de moins que ce que
+     * l'athlète allait courir, et l'écart grandissait à chaque bloc fractionné de la séance.
+     * Une côte se termine pourtant en haut — la descente est due, y compris après la dixième.</p>
+     */
+    @Test
+    void lastRepetitionKeepsItsRecovery() throws Exception {
+        String templateId = templateWithMain("""
+              {"type":"intervals","reps":10,"durationS":20,
+               "prescription":{"ref":"PCT_PACE_5KM","minPct":98,"maxPct":103},
+               "recovery":{"type":"jog","durationS":75}}""");
+
+        JsonNode calc = calculated(templateId);
+        int running = calc.get("main").get(0).get("calc").get("estimatedDurationS").asInt();
+        assertThat(calc.get("totalDurationS").asInt() - running).isEqualTo(10 * 75);
     }
 
     /** Une séance écrite avant les séries n'en porte aucune, et ne doit pas bouger d'un mètre. */
@@ -185,7 +206,7 @@ class CourseSessionLibraryTest {
         JsonNode calc = calculated(templateId);
         assertThat(calc.get("main").get(0).get("calc").get("estimatedDistanceM").asInt()).isEqualTo(6000);
         int running = calc.get("main").get(0).get("calc").get("estimatedDurationS").asInt();
-        assertThat(calc.get("totalDurationS").asInt() - running).isEqualTo(5 * 90);
+        assertThat(calc.get("totalDurationS").asInt() - running).isEqualTo(6 * 90);
     }
 
     /** Modèle à un seul bloc de corps de séance, pour les cas de calcul ci-dessus. */

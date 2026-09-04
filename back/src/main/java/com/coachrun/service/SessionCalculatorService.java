@@ -173,8 +173,17 @@ public class SessionCalculatorService {
     }
 
     /**
-     * Temps de récupération d'un bloc, séries comprises : {@code sets × (reps-1)} récupérations
-     * entre répétitions, plus {@code sets-1} récupérations entre séries.
+     * Temps de récupération d'un bloc, séries comprises : {@code sets × reps} récupérations en
+     * tout, dont {@code sets-1} sont la récupération entre séries et le reste celle entre
+     * répétitions.
+     *
+     * <p><b>Chaque répétition est suivie de sa récupération, la dernière comprise.</b> Le compte
+     * s'arrêtait à {@code reps-1} : « 10 × 20 s côtes, récup 1'15 » ne portait que 9 récupérations,
+     * et la séance repartait avec 1'15 de moins que ce que l'athlète allait courir. Une côte se
+     * termine pourtant en haut : la descente est due, y compris après la dixième — c'est elle qui
+     * ramène au calme avant la suite. Entre deux séries, c'est la récup de série qui remplace
+     * celle de la répétition (elle ne s'y ajoute pas) : « 2 × (6 × 1000 m) r90 s R5' » vaut donc
+     * 11 × 90 s + 1 × 5 min, et non 12 × 90 s + 5 min.</p>
      *
      * <p>Un bloc doublé double aussi ses récupérations : les compter une seule fois sous-estimerait
      * la durée d'un fractionné de plusieurs séries — soit précisément la séance que les séries
@@ -182,12 +191,12 @@ public class SessionCalculatorService {
      */
     private int recoveryDurationS(CourseBlock block) {
         int sets = block.setCount();
-        int total = 0;
+        boolean hasSetRecovery = sets > 1 && block.setRecovery() != null
+                && block.setRecovery().durationS() != null;
+        int setRecoveries = hasSetRecovery ? sets - 1 : 0;
+        int total = hasSetRecovery ? block.setRecovery().durationS() * setRecoveries : 0;
         if (block.recovery() != null && block.recovery().durationS() != null) {
-            total += block.recovery().durationS() * (block.repCount() - 1) * sets;
-        }
-        if (sets > 1 && block.setRecovery() != null && block.setRecovery().durationS() != null) {
-            total += block.setRecovery().durationS() * (sets - 1);
+            total += block.recovery().durationS() * (block.repCount() * sets - setRecoveries);
         }
         return total;
     }
