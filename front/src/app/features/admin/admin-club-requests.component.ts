@@ -11,6 +11,8 @@ type ClubRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 interface ClubCreationRequest {
   id: string;
   clubName: string;
+  /** Le candidat exerce en indépendant : la validation ouvrira un espace solo, pas un club. */
+  soloPractice?: boolean;
   fullName: string;
   email: string;
   phone: string | null;
@@ -116,7 +118,7 @@ const STATUS_BADGES: Record<ClubRequestStatus, string> = {
       <div class="card empty">
         <app-icon name="inbox" [size]="28" />
         <p><strong>Aucune demande {{ filter() === 'PENDING' ? 'en attente' : '' }}.</strong></p>
-        <p class="field-hint">Les demandes déposées depuis la page « Créer mon club » arrivent ici.</p>
+        <p class="field-hint">Les demandes déposées depuis la page d'inscription — club ou coach indépendant — arrivent ici.</p>
       </div>
     } @else {
       <ul class="acr-list">
@@ -124,6 +126,11 @@ const STATUS_BADGES: Record<ClubRequestStatus, string> = {
           <li class="card acr">
             <div class="acr__head">
               <strong class="acr__club">{{ r.clubName }}</strong>
+              <!-- Un club se vérifie, un indépendant se juge sur la personne : sans ce repère,
+                   « Les Foulées » et « Marie Dupont » arrivaient dans la file à l'identique. -->
+              @if (r.soloPractice) {
+                <span class="badge badge-info">Indépendant</span>
+              }
               <span class="badge" [class]="statusBadges[r.status]">{{ statusLabels[r.status] }}</span>
               <span class="acr__when">{{ r.createdAt | date: 'dd/MM/yyyy HH:mm' }}</span>
             </div>

@@ -26,7 +26,15 @@ public record ClubCreationRequestResponse(
         String reviewedByEmail,
         String reviewNote,
         UUID createdClubId,
-        UUID createdUserId) {
+        UUID createdUserId,
+        /**
+         * Le candidat exerce en indépendant : la validation ouvrira un espace solo, pas un club.
+         *
+         * <p>Affiché dans la file : l'administrateur arbitre autrement selon les cas — un club se
+         * vérifie (existe-t-il, le demandeur en est-il responsable ?), un indépendant se juge sur
+         * la personne. Sans ce champ, « Les Foulées » et « Marie Dupont » se ressemblaient.</p>
+         */
+        boolean soloPractice) {
 
     public static ClubCreationRequestResponse from(ClubCreationRequest r) {
         return new ClubCreationRequestResponse(
@@ -42,6 +50,7 @@ public record ClubCreationRequestResponse(
                 r.getReviewedByEmail(),
                 r.getReviewNote(),
                 r.getCreatedClubId(),
-                r.getCreatedUserId());
+                r.getCreatedUserId(),
+                r.isSoloPractice());
     }
 }

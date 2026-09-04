@@ -203,3 +203,5 @@ databaseChangeLog:
       file: db/changelog/changes/095-strava-rename-optin.yaml
   - include:
       file: db/changelog/changes/096-coach-athlete-relation-end.yaml
+  - include:
+      file: db/changelog/changes/097-club-solo-practice.yaml

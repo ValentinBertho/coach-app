@@ -19,7 +19,14 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
  *
  * <p>En régime « sur demande » — celui de la bêta ouverte — le formulaire ne crée rien : il
  * dépose une demande qu'un administrateur valide. Il ne demande donc pas de mot de passe, mais il
- * demande de quoi décider : qui, quel club, et deux lignes sur la structure.</p>
+ * demande de quoi décider : qui, quelle structure, et deux lignes dessus.</p>
+ *
+ * <p><b>La première question est « comment coachez-vous ».</b> L'écran s'intitulait « Créer mon
+ * club » et exigeait un nom de club, avec « Running Club Lyon » en exemple. La plateforme s'adresse
+ * pourtant autant aux indépendants qu'aux clubs : la moitié de la cible butait donc sur le premier
+ * champ, contrainte d'inventer une organisation qui n'existe pas — et ce nom la suivait ensuite
+ * partout, puisque c'est lui qui s'affiche. En indépendant, le champ devient « Nom de votre
+ * activité », facultatif : à défaut, l'espace prend le nom du coach.</p>
  */
 @Component({
   selector: 'app-register',
@@ -41,6 +48,12 @@ export class RegisterComponent implements OnInit {
 
   /** `null` tant que le serveur n'a pas répondu : on n'affiche aucun formulaire d'ici là. */
   readonly mode = signal<RegistrationMode | null>(null);
+
+  /**
+   * Comment le candidat coache. Porté hors des deux formulaires : la question précède le choix du
+   * régime, et sa réponse pilote les libellés des deux.
+   */
+  readonly solo = signal(false);
 
   /** Vrai une fois la demande déposée : l'écran devient un accusé de réception. */
   readonly submitted = signal(false);
@@ -84,6 +97,25 @@ export class RegisterComponent implements OnInit {
     });
   }
 
+  /**
+   * Bascule club ↔ indépendant, et avec elle l'obligation de nommer la structure.
+   *
+   * <p>Le validateur suit le mode plutôt que d'être posé une fois pour toutes : un indépendant
+   * n'a rien à nommer, un club doit l'être. Le champ n'est pas vidé — quelqu'un qui hésite entre
+   * les deux modes ne doit pas perdre ce qu'il vient de taper.</p>
+   */
+  setPractice(solo: boolean): void {
+    this.solo.set(solo);
+    for (const control of [this.form.controls.clubName, this.requestForm.controls.clubName]) {
+      if (solo) {
+        control.removeValidators(Validators.required);
+      } else {
+        control.addValidators(Validators.required);
+      }
+      control.updateValueAndValidity();
+    }
+  }
+
   submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
@@ -91,9 +123,10 @@ export class RegisterComponent implements OnInit {
     }
     this.submitting.set(true);
     this.errorMessage.set(null);
-    this.auth.register(this.form.getRawValue()).subscribe({
+    this.auth.register({ ...this.form.getRawValue(), soloPractice: this.solo() }).subscribe({
       next: () => {
-        this.toast.success('Club créé, bienvenue sur Darilab');
+        this.toast.success(this.solo() ? 'Espace créé, bienvenue sur Darilab'
+                                       : 'Club créé, bienvenue sur Darilab');
         this.router.navigate(['/app']);
       },
       error: (err) => {
@@ -110,7 +143,7 @@ export class RegisterComponent implements OnInit {
     }
     this.submitting.set(true);
     this.errorMessage.set(null);
-    const value = this.requestForm.getRawValue();
+    const value = { ...this.requestForm.getRawValue(), soloPractice: this.solo() };
     this.auth.submitClubRequest(value).subscribe({
       next: () => {
         // Retenus avant de basculer l'écran : l'accusé de réception les rappelle, et c'est ce

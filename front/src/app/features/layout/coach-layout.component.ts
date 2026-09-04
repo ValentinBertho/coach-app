@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
@@ -86,6 +86,27 @@ export class CoachLayoutComponent implements OnInit {
 
   readonly user = this.auth.currentUser;
   readonly resending = signal(false);
+
+  /**
+   * L'espace est celui d'un coach indépendant : on cesse de lui parler de « club ».
+   *
+   * <p>Faux quand le serveur ne renvoie pas encore le champ (client servi par un service worker
+   * antérieur) : on retombe alors sur la navigation d'avant, ce qui est démodé et non cassé.</p>
+   */
+  readonly solo = computed(() => this.user()?.soloPractice === true);
+
+  /**
+   * Le nom à afficher en badge, ou vide s'il n'apprend rien.
+   *
+   * <p>Un indépendant qui n'a pas nommé son activité voit son espace prendre son propre nom : le
+   * badge répéterait alors, à deux centimètres, le nom déjà affiché dans l'en-tête. Un club, ou
+   * un indépendant exerçant sous un nom d'activité, gardent le leur — c'est leur enseigne.</p>
+   */
+  readonly workspaceBadge = computed(() => {
+    const u = this.user();
+    if (!u?.clubName) return null;
+    return this.solo() && u.clubName === u.fullName ? null : u.clubName;
+  });
 
   /** Nav latérale repliée en rail d'icônes — préférence mémorisée entre sessions. */
   private static readonly NAV_KEY = 'coach-nav-collapsed';

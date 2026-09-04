@@ -262,12 +262,22 @@ n'est pas une adaptation à faire : c'est un module à écrire.
 
 ### 2.7 Le vocabulaire, et son ampleur mesurée
 
-« Club » apparaît **931 fois dans 113 fichiers** du front. À l'inscription, l'écran s'intitule
-« Créer ton club » et exige « Nom du club » avec `vous@club.fr` en exemple
-(`register.component.html:107, 121-125, 132`). Pour un coach indépendant du hub, chacun de ces mots
-décrit une organisation qui n'existe pas. `AUDIT-COACH-INDEPENDANT` §2 proposait déjà la parade —
-une question à l'inscription et un drapeau sur `Club` — et elle reste la bonne ; le hub la rend
-obligatoire au lieu d'agréable.
+« Club » apparaissait **931 fois dans 113 fichiers** du front. À l'inscription, l'écran s'intitulait
+« Créer ton club » et exigeait « Nom du club » avec `vous@club.fr` en exemple. Pour un coach
+indépendant du hub, chacun de ces mots décrit une organisation qui n'existe pas.
+`AUDIT-COACH-INDEPENDANT` §2 proposait déjà la parade — une question à l'inscription et un drapeau
+sur `Club` — et elle restait la bonne ; le hub la rendait obligatoire au lieu d'agréable.
+
+> ✅ **Livré** — lot 5, migration 097 (`clubs.solo_practice`, `club_creation_request.solo_practice`).
+> L'inscription pose la question d'abord (« En club / En indépendant ») dans les deux régimes,
+> direct et sur demande ; le nom devient facultatif pour un indépendant et l'espace prend alors le
+> sien. L'entrée « Club » disparaît de sa navigation, le badge d'en-tête cesse de répéter son nom,
+> les périmètres se réduisent à « Mes athlètes », le bilan hebdomadaire s'intitule « Ta semaine »,
+> et la file du back-office distingue les deux types de demande.
+>
+> Le drapeau **ne porte aucun droit** : le club reste le tenant. Et il se **lève tout seul** quand
+> un second coach rejoint l'espace (`ClubMembershipService`) — un indépendant qui grandit
+> retrouve le vocabulaire et les périmètres du multi-coach, cas que la plateforme sait servir.
 
 ---
 
@@ -673,7 +683,7 @@ Huit lots. Les quatre premiers font un hub qui fonctionne ; les quatre suivants 
 | **3 — L'annuaire** | `GET /public/coaches` + filtres + facettes, écrans annuaire et fiche, bucket de rate limiting | **M** | 2 |
 | **4 — La mise en relation** | `coaching_requests`, les deux files, l'acceptation transactionnelle (§4.2), la fin de relation, les notifications | **L** | 1, 2, 0 |
 | — | *↑ **Ici, le hub est utilisable de bout en bout.** ↑* | | |
-| **5 — Le vocabulaire indépendant** | Question à l'inscription, drapeau sur `Club`, passe de libellés | **S** | — |
+| **5 — Le vocabulaire indépendant** ✅ | Question à l'inscription (les deux régimes), drapeau `solo_practice` (migration 097) levé automatiquement à l'arrivée d'un second coach, navigation, périmètres, bilan hebdo, back-office | **S** | — |
 | **6 — Le multi-espace** | `GET /me/clubs`, sélecteur de club, correction `athletesInScope` (dette `AUDIT-COACH-INDEPENDANT` §4/§4 bis) | **M** | — |
 | **7 — Acquisition et confiance** | Prerender SEO des fiches, signaux factuels (délai de réponse, taux de réponse), signalement | **M** | 3 |
 | **8 — Avis, puis tarification** | Avis réservés aux relations terminées ≥ N semaines ; encaissement à décider séparément | **L** | 4, et du recul d'usage |
@@ -682,7 +692,10 @@ Huit lots. Les quatre premiers font un hub qui fonctionne ; les quatre suivants 
 §2.5 bis), il ne dépendait de rien, et tous les autres s'appuient dessus. Écrire la fin de relation
 sans lui aurait produit une révocation décorative — puis un démarrage impossible.
 
-**Ordre recommandé si une seule personne développe** : 0 → 5 → 1 → 2 → 3 → 4 → 6 → 7 → 8. Le lot 5
+**Ordre retenu** : 0 → 5 → **2 → 3 → 1** → 4 → 6 → 7 → 8. La décision 10 (§8) inverse les lots 1
+et 2 par rapport à l'ordre initial : s'il faut dix coachs publiés avant d'ouvrir aux athlètes, la
+vitrine et l'annuaire doivent exister et être remplis avant que l'inscription athlète ne serve à
+quelque chose. Le lot 5
 remonte parce qu'il coûte deux jours, qu'il améliore le produit d'aujourd'hui, et qu'il évite
 d'écrire les nouveaux écrans avec le vocabulaire qu'on s'apprête à changer.
 
@@ -779,6 +792,6 @@ que les décisions 4, 6 et 9 rendent plus simple sans la rendre facultative.
 
 *Audit rédigé en septembre 2026 sur la branche `claude/audit-coach-athlete-hub-am5hao`. Chaque
 affirmation renvoie au fichier et à la ligne qui la fondent. Les dix décisions du §8 ont été
-arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Le lot 0 est livré** — il est le seul
-code écrit à ce jour, et il corrige deux défauts du produit actuel (§2.5, §2.5 bis). Les lots 1 à 8
-restent à écrire.*
+arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Les lots 0 et 5 sont livrés** — le
+premier corrige deux défauts du produit actuel (§2.5, §2.5 bis), le second ouvre le vocabulaire aux
+coachs indépendants (§2.7). Le lot 2 est le suivant.*

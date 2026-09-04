@@ -22,6 +22,7 @@ import com.coachrun.repository.ClubRepository;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +39,7 @@ import java.util.UUID;
  * Gestion multi-coach DARI Lab : membres du club, statut privé/club d'un athlète et permissions
  * graduées accordées aux coachs non référents. Applique les règles du cahier des charges (§4).
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -114,6 +116,17 @@ public class ClubMembershipService {
         }
         member.setActive(true);
         memberRepository.save(member);
+
+        // Un espace qui accueille un second coach n'est plus une pratique individuelle : le
+        // vocabulaire « club » redevient juste, et les périmètres (mes athlètes / privés / club)
+        // reprennent un sens. Sans cela, un indépendant qui grandit serait resté enfermé dans une
+        // interface qui suppose qu'il est seul — cas que la plateforme sait pourtant servir.
+        // Bascule à sens unique et volontairement : on ne redevient pas solo en retirant un coach,
+        // parce que les athlètes créés entre-temps portent, eux, un rattachement de club.
+        if (club.isSoloPractice()) {
+            club.setSoloPractice(false);
+            log.info("Espace {} : second coach rattaché, le mode indépendant est levé", clubId);
+        }
 
         return new CoachInviteResponse(coach.getId(), coach.getFullName(), effectiveRole, invited, inviteUrl);
     }

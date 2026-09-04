@@ -84,14 +84,15 @@ public class AuthService {
                 passwordEncoder.encode(request.password()),
                 // E-mail à vérifier : on n'enferme pas le coach hors de son espace, mais on
                 // l'invite à confirmer.
-                false);
+                false,
+                request.soloPractice());
         user.setVerifyToken(randomToken());
         user.setVerifyExpiresAt(java.time.Instant.now().plus(7, java.time.temporal.ChronoUnit.DAYS));
 
         notificationService.notifyEmailVerification(user.getEmail(), user.getFullName(),
                 frontendUrl + "/verify-email/" + user.getVerifyToken());
-        log.info("Nouveau coach inscrit (club={}, e-mail à vérifier)",
-                user.getClub() != null ? user.getClub().getId() : null);
+        log.info("Nouveau coach inscrit (espace={}, indépendant={}, e-mail à vérifier)",
+                user.getClub() != null ? user.getClub().getId() : null, request.soloPractice());
         return toAuthResponse(user);
     }
 

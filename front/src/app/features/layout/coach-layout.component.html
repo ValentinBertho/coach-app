@@ -20,8 +20,10 @@
             [attr.aria-label]="navCollapsed() ? 'Déplier le menu' : 'Replier le menu'">
       <app-icon [name]="navCollapsed() ? 'chevrons-right' : 'chevrons-left'" [size]="16" />
     </button>
-    @if (user()?.clubName && !navCollapsed()) {
-      <span class="badge badge-neutral club-badge">{{ user()?.clubName }}</span>
+    <!-- Pour un indépendant sans nom d'activité, l'espace porte son propre nom : le badge
+         répéterait alors le nom affiché juste à côté. On ne l'affiche que s'il dit autre chose. -->
+    @if (workspaceBadge() && !navCollapsed()) {
+      <span class="badge badge-neutral club-badge">{{ workspaceBadge() }}</span>
     }
 
     <nav class="snav">
@@ -53,7 +55,11 @@
       <a routerLink="/app/library" routerLinkActive="active" title="Bibliothèque (course, prépa physique, éducatifs)"><app-icon name="folder-open" [size]="18" /><span>Bibliothèque</span></a>
 
       <span class="snav-group">Club</span>
-      <a routerLink="/app/club" routerLinkActive="active" title="Club"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
+      <!-- Un indépendant n'a pas de club : l'écran ne contiendrait que lui-même. Il réapparaît
+           dès qu'un second coach rejoint l'espace (le serveur lève alors le mode indépendant). -->
+      @if (!solo()) {
+        <a routerLink="/app/club" routerLinkActive="active" title="Club"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
+      }
       <a routerLink="/app/training-zones" routerLinkActive="active" title="Mes zones d'intensité"><app-icon name="target" [size]="18" /><span>Mes zones</span></a>
 
       <span class="snav-group">Réglages</span>
@@ -147,7 +153,9 @@
         <a routerLink="/app/library" routerLinkActive="active" (click)="closeMore()"><app-icon name="folder-open" [size]="18" /><span>Bibliothèque</span></a>
 
         <span class="snav-group">Club</span>
-        <a routerLink="/app/club" routerLinkActive="active" (click)="closeMore()"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
+        @if (!solo()) {
+          <a routerLink="/app/club" routerLinkActive="active" (click)="closeMore()"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
+        }
         <a routerLink="/app/training-zones" routerLinkActive="active" (click)="closeMore()"><app-icon name="target" [size]="18" /><span>Mes zones</span></a>
 
         <span class="snav-group">Réglages</span>

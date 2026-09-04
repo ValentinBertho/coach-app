@@ -12,6 +12,13 @@ export interface User {
   emailVerified?: boolean;
   /** Unité d'affichage des allures préférée : PACE = min/km, SPEED = km/h. */
   paceUnit?: PaceUnit;
+  /**
+   * L'espace est celui d'un coach indépendant : l'interface cesse de parler de « club ».
+   *
+   * Optionnel à dessein : un client encore servi par un service worker antérieur ne reçoit pas ce
+   * champ, et retombe alors sur le vocabulaire « club » d'avant — démodé, jamais cassé.
+   */
+  soloPractice?: boolean;
 }
 
 export interface AuthResponse {
@@ -25,7 +32,10 @@ export interface RegisterRequest {
   email: string;
   password: string;
   fullName: string;
-  clubName: string;
+  /** Nom de la structure ; facultatif quand le coach exerce en indépendant. */
+  clubName?: string;
+  /** Le coach exerce seul : pas de club à nommer, et on ne lui en parlera pas. */
+  soloPractice: boolean;
   /** Acceptation des CGU / politique de confidentialité (requise, horodatée côté serveur). */
   termsAccepted: boolean;
   /** Code de la cohorte, exigé seulement quand le serveur est en mode d'inscription « invite ». */
@@ -51,7 +61,10 @@ export interface RegistrationModeInfo {
 export interface ClubCreationRequestSubmission {
   email: string;
   fullName: string;
-  clubName: string;
+  /** Nom de la structure ; facultatif quand le candidat exerce en indépendant. */
+  clubName?: string;
+  /** Le candidat exerce seul : la validation ouvrira un espace solo. */
+  soloPractice: boolean;
   phone?: string;
   message?: string;
   termsAccepted: boolean;

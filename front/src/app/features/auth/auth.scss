@@ -90,3 +90,73 @@
   text-align: center;
   padding: var(--sp-6) 0;
 }
+
+/* Comment le coach exerce — la première question de l'écran d'inscription.
+
+   Deux cartes plutôt qu'un menu déroulant : le choix décide du vocabulaire de toute
+   l'application, il mérite d'être lu, pas déplié. Chaque option porte une ligne d'explication,
+   parce que « en club » et « en indépendant » ne recouvrent pas les mêmes évidences selon qui
+   lit. Le mode reste modifiable tant que le formulaire n'est pas envoyé. */
+.practice-choice {
+  gap: var(--sp-2);
+}
+
+.practice-legend {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: var(--sp-2);
+}
+
+.practice-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+
+  /* Sous 380px, deux cartes côte à côte deviennent deux colonnes de mots coupés. */
+  @media (max-width: 380px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.practice-option {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+  text-align: left;
+  padding: var(--sp-3);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius);
+  background: var(--paper);
+  cursor: pointer;
+  /* 44px minimum : cible tactile, et l'inscription se fait souvent au téléphone. */
+  min-height: 44px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  strong {
+    font-size: var(--text-md);
+    color: var(--ink-1);
+  }
+
+  span {
+    font-size: var(--text-xs);
+    color: var(--ink-3);
+    line-height: 1.3;
+  }
+
+  &:hover { border-color: var(--primary-light); }
+
+  &.selected {
+    border-color: var(--primary);
+    background: var(--primary-wash);
+
+    strong { color: var(--primary); }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+}

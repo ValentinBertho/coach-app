@@ -1,6 +1,7 @@
 package com.coachrun;
 
 import com.coachrun.dto.request.RegisterRequest;
+import com.coachrun.exception.ApiException;
 import com.coachrun.exception.ForbiddenException;
 import com.coachrun.service.AuthService;
 import org.junit.jupiter.api.AfterEach;
@@ -62,7 +63,14 @@ class RegistrationModeTest {
     }
 
     private RegisterRequest request(String email, String invitationCode) {
-        return new RegisterRequest(email, "password123", "Coach Test", "Club Test", true, invitationCode);
+        return new RegisterRequest(email, "password123", "Coach Test", "Club Test",
+                false, true, invitationCode);
+    }
+
+    /** Inscription d'un coach indépendant : ni club ni nom d'activité. */
+    private RegisterRequest soloRequest(String email, String workspaceName) {
+        return new RegisterRequest(email, "password123", "Marie Dupont", workspaceName,
+                true, true, null);
     }
 
     @Test
@@ -98,6 +106,61 @@ class RegistrationModeTest {
         var response = authService.register(request("invite@darilab.app", " BETA-2026 "));
 
         assertThat(response.accessToken()).isNotEmpty();
+    }
+
+    /**
+     * Un coach indépendant s'inscrit sans nommer quoi que ce soit, et son espace prend son nom.
+     *
+     * <p>Le champ était {@code @NotBlank} : il fallait inventer un club, ou y mettre son propre
+     * nom — et ce nom le suivait ensuite partout. La moitié de la cible annoncée butait donc sur
+     * le premier champ du premier écran.</p>
+     */
+    @Test
+    void independentCoachRegistersWithoutNamingAnything() {
+        mode("open", "");
+
+        var response = authService.register(soloRequest("solo@darilab.app", null));
+
+        assertThat(response.accessToken()).isNotEmpty();
+        assertThat(response.user().clubName()).isEqualTo("Marie Dupont");
+        assertThat(response.user().soloPractice()).isTrue();
+    }
+
+    /** Un indépendant qui exerce sous un nom d'activité garde le sien : le champ reste offert. */
+    @Test
+    void independentCoachMayStillNameTheirPractice() {
+        mode("open", "");
+
+        var response = authService.register(soloRequest("atelier@darilab.app", "Atelier Foulée"));
+
+        assertThat(response.user().clubName()).isEqualTo("Atelier Foulée");
+        assertThat(response.user().soloPractice()).isTrue();
+    }
+
+    /**
+     * Le nom reste exigé pour un club. Desserrer la validation du DTO ne devait pas ouvrir la
+     * porte à des clubs anonymes : la règle dépend d'un autre champ, elle vit donc dans le service.
+     */
+    @Test
+    void clubRegistrationStillRequiresAName() {
+        mode("open", "");
+
+        assertThatThrownBy(() -> authService.register(
+                new RegisterRequest("sans.nom@darilab.app", "password123", "Jean Dupont", null,
+                        false, true, null)))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("nom du club est requis");
+    }
+
+    /** Un coach de club garde son vocabulaire : le drapeau ne s'active pas tout seul. */
+    @Test
+    void clubRegistrationIsNotSoloPractice() {
+        mode("open", "");
+
+        var response = authService.register(request("club@darilab.app", null));
+
+        assertThat(response.user().clubName()).isEqualTo("Club Test");
+        assertThat(response.user().soloPractice()).isFalse();
     }
 
     /** Mode fermé sans code configuré : erreur d'exploitation, message distinct. */

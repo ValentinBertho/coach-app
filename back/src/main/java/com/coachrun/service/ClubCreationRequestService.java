@@ -112,7 +112,13 @@ public class ClubCreationRequestService {
         ClubCreationRequest request = new ClubCreationRequest();
         request.setEmail(email);
         request.setFullName(submission.fullName().trim());
-        request.setClubName(submission.clubName().trim());
+        // Résolu au dépôt, pas à la validation : un indépendant qui ne nomme pas son activité voit
+        // son espace prendre son propre nom, et un candidat « club » qui a oublié le nom l'apprend
+        // tout de suite — plutôt que l'administrateur, des jours plus tard, sur une demande
+        // impossible à valider.
+        request.setSoloPractice(submission.soloPractice());
+        request.setClubName(ClubProvisioningService.workspaceName(
+                submission.clubName(), submission.fullName(), submission.soloPractice()));
         request.setPhone(blankToNull(submission.phone()));
         request.setMessage(blankToNull(submission.message()));
         request.setStatus(ClubRequestStatus.PENDING);
@@ -122,7 +128,7 @@ public class ClubCreationRequestService {
         repository.save(request);
 
         notificationService.notifyClubRequestReceived(email, request.getFullName(),
-                request.getClubName());
+                request.getClubName(), request.isSoloPractice());
 
         // Journalisé sans le message : il est libre, et peut porter ce que le candidat veut y
         // écrire. Il se lit dans le back-office, pas dans des journaux dont la rétention n'est
@@ -178,7 +184,10 @@ public class ClubCreationRequestService {
                 // Le lien d'activation part à l'adresse déposée : l'ouvrir prouve qu'elle
                 // appartient bien au demandeur. Un second e-mail de vérification n'apprendrait
                 // rien de plus et retarderait l'entrée.
-                true);
+                true,
+                // L'espace ouvert est celui que le candidat a demandé : club ou pratique
+                // individuelle. Le redéduire ici reviendrait à en décider à sa place.
+                request.isSoloPractice());
 
         String activationToken = randomToken();
         coach.setResetToken(activationToken);
@@ -193,7 +202,7 @@ public class ClubCreationRequestService {
 
         String activationUrl = frontendUrl + "/reset-password/" + activationToken;
         notificationService.notifyClubRequestApproved(request.getEmail(), request.getFullName(),
-                request.getClubName(), activationUrl);
+                request.getClubName(), activationUrl, request.isSoloPractice());
 
         auditService.record(AdminAuditAction.CLUB_REQUEST_APPROVED, AdminAuditTarget.CLUB,
                 request.getCreatedClubId(), request.getClubName(),
@@ -220,7 +229,7 @@ public class ClubCreationRequestService {
         applyActor(request, actor);
 
         notificationService.notifyClubRequestRejected(request.getEmail(), request.getFullName(),
-                request.getClubName(), note);
+                request.getClubName(), note, request.isSoloPractice());
 
         auditService.record(AdminAuditAction.CLUB_REQUEST_REJECTED, AdminAuditTarget.PLATFORM,
                 request.getId(), request.getClubName(),

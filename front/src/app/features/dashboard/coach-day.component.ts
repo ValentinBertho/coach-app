@@ -6,6 +6,7 @@ import { Observable } from 'rxjs';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import { WORKOUT_TYPE_LABELS, WorkoutType } from '../../core/models/workout.model';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
+import { AuthService } from '../../core/services/auth.service';
 import { AthleteService } from '../../core/services/athlete.service';
 import {
   CoachAlert,
@@ -65,6 +66,7 @@ const STAMP_KEY = 'coach-day-loaded-at';
   styleUrl: './coach-day.component.scss',
 })
 export class CoachDayComponent implements OnInit {
+  private readonly auth = inject(AuthService);
   private readonly dashboard = inject(CoachDashboardService);
   private readonly messages = inject(ConversationService);
   private readonly workouts = inject(WorkoutService);
@@ -107,7 +109,8 @@ export class CoachDayComponent implements OnInit {
   readonly lastLoadedAt = signal<string | null>(readStamp());
 
   readonly scope = signal<Scope>(readScope());
-  readonly scopeLabel = computed(() => SCOPE_LABELS[this.scope()]);
+  readonly scopeLabel = computed(() =>
+    (this.auth.soloPractice() ? SOLO_SCOPE_LABELS : SCOPE_LABELS)[this.scope()]);
 
   /** Fils avec des non-lus, les plus récents d'abord — le reste vit dans la boîte de réception. */
   readonly unread = computed(() => this.conversations().filter((c) => c.unreadCount > 0));
@@ -515,6 +518,17 @@ const SCOPE_LABELS: Record<Scope, string> = {
   all: 'Tout le club',
   private: 'Mes privés',
   club: 'Mes athlètes club',
+};
+
+/**
+ * Chez un coach indépendant, « tout le club » désigne ses athlètes et rien d'autre : les trois
+ * autres périmètres n'ont pas d'objet, et le mot décrit une organisation qui n'existe pas.
+ */
+const SOLO_SCOPE_LABELS: Record<Scope, string> = {
+  mine: 'Mes athlètes',
+  all: 'Mes athlètes',
+  private: 'Mes athlètes',
+  club: 'Mes athlètes',
 };
 
 function readStamp(): string | null {

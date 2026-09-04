@@ -32,6 +32,19 @@ public class Club extends BaseEntity {
     private ClubStatus status = ClubStatus.ACTIVE;
 
     /**
+     * Vrai quand cet espace est celui d'un <b>coach indépendant</b>, et non d'un club.
+     *
+     * <p>Ne porte aucun droit : le club reste le tenant, avec ses membres, ses zones et sa
+     * bibliothèque. Il décide seulement du <b>vocabulaire</b>. La plateforme s'adresse aux coachs
+     * indépendants autant qu'aux clubs, mais leur parlait à tous de « club » — nom de club
+     * obligatoire à l'inscription, entrée « Club » dans la navigation, périmètre « Tout le club »,
+     * bilan « Ta semaine de club ». Pour un indépendant, ces mots décrivent une organisation qui
+     * n'existe pas, et c'est la première chose qu'il lit du produit.</p>
+     */
+    @Column(name = "solo_practice", nullable = false)
+    private boolean soloPractice = false;
+
+    /**
      * Bornes des domaines d'intensité par défaut, appliquées aux NOUVEAUX athlètes du club.
      * Les athlètes existants gardent les leurs : un réglage de défaut ne réécrit jamais
      * rétroactivement des valeurs déjà personnalisées.

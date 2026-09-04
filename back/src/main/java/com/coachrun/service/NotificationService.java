@@ -1060,7 +1060,11 @@ public class NotificationService {
                 + (recap.upcomingRaces() > 0
                         ? " · " + recap.upcomingRaces() + " course"
                                 + (recap.upcomingRaces() > 1 ? "s" : "") + " en vue" : "");
-        notifyUser(coach, "WEEKLY_RECAP", "Ta semaine de club", body, "/app/journee");
+        // « de club » n'a de sens que pour un coach qui en a un : pour un indépendant, le bilan
+        // porte sur ses athlètes, et le mot décrit une organisation qui n'existe pas.
+        String title = coach.getClub() != null && coach.getClub().isSoloPractice()
+                ? "Ta semaine" : "Ta semaine de club";
+        notifyUser(coach, "WEEKLY_RECAP", title, body, "/app/journee");
 
         if (coach.getEmail() == null || !coach.isNotifyEmailEnabled()) {
             return;
@@ -1391,18 +1395,24 @@ public class NotificationService {
      * devant un formulaire qui s'est vidé, sans savoir si sa demande est partie. C'est le moment
      * où l'on perd les gens.</p>
      */
-    public void notifyClubRequestReceived(String email, String fullName, String clubName) {
+    public void notifyClubRequestReceived(String email, String fullName, String clubName,
+                                          boolean soloPractice) {
         if (email == null) {
             return;
         }
+        // Le premier message que reçoit un coach indépendant ne doit pas lui parler d'un club
+        // qu'il n'a pas : c'est ce que le lot « vocabulaire indépendant » corrige à l'écran, et
+        // l'e-mail part du même formulaire.
+        String what = soloPractice ? "d'ouverture de votre espace" : "de création du club";
         String html = "<p>Bonjour " + esc(fullName) + ",</p>"
-                + "<p>Nous avons bien reçu votre demande de création du club <strong>"
+                + "<p>Nous avons bien reçu votre demande " + what + " <strong>"
                 + esc(clubName) + "</strong> sur Darilab.</p>"
                 + "<p>Chaque demande est étudiée à la main : c'est ce qui nous permet de garder "
                 + "la plateforme saine pendant la bêta. Vous recevrez un e-mail dès qu'elle aura "
                 + "été examinée — inutile de la renvoyer entre-temps.</p>";
-        send(email, "Votre demande de club Darilab est bien enregistrée", html, Audience.COACH,
-                MailKind.CLUB_REQUEST);
+        send(email, soloPractice ? "Votre demande Darilab est bien enregistrée"
+                                 : "Votre demande de club Darilab est bien enregistrée",
+                html, Audience.COACH, MailKind.CLUB_REQUEST);
     }
 
     /**
@@ -1412,17 +1422,20 @@ public class NotificationService {
      * que le demandeur est bien le titulaire de l'adresse déposée.</p>
      */
     public void notifyClubRequestApproved(String email, String fullName, String clubName,
-                                          String activationUrl) {
+                                          String activationUrl, boolean soloPractice) {
         if (email == null) {
             return;
         }
+        String what = soloPractice ? "Votre espace" : "Votre club";
         String html = "<p>Bonjour " + esc(fullName) + ",</p>"
-                + "<p>Votre club <strong>" + esc(clubName) + "</strong> est ouvert sur Darilab. "
+                + "<p>" + what + " <strong>" + esc(clubName) + "</strong> est ouvert sur Darilab. "
                 + "Il ne reste qu'à choisir votre mot de passe pour y entrer.</p>"
-                + cta("Choisir mon mot de passe et ouvrir mon club", activationUrl)
+                + cta(soloPractice ? "Choisir mon mot de passe et ouvrir mon espace"
+                                   : "Choisir mon mot de passe et ouvrir mon club", activationUrl)
                 + "<p>Ce lien expire dans 7 jours. Passé ce délai, « mot de passe oublié » depuis "
                 + "la page de connexion en renverra un nouveau.</p>";
-        send(email, "Votre club Darilab est ouvert", html, Audience.COACH, MailKind.CLUB_REQUEST);
+        send(email, soloPractice ? "Votre espace Darilab est ouvert" : "Votre club Darilab est ouvert",
+                html, Audience.COACH, MailKind.CLUB_REQUEST);
     }
 
     /**
@@ -1433,19 +1446,21 @@ public class NotificationService {
      * close, et le candidat redépose la même demande la semaine suivante.</p>
      */
     public void notifyClubRequestRejected(String email, String fullName, String clubName,
-                                          String reason) {
+                                          String reason, boolean soloPractice) {
         if (email == null) {
             return;
         }
+        String what = soloPractice ? "d'ouverture de votre espace" : "de création du club";
         String html = "<p>Bonjour " + esc(fullName) + ",</p>"
-                + "<p>Votre demande de création du club <strong>" + esc(clubName)
+                + "<p>Votre demande " + what + " <strong>" + esc(clubName)
                 + "</strong> n'a pas été retenue.</p>"
                 + (reason == null || reason.isBlank()
                 ? ""
                 : "<p><strong>Motif :</strong> " + esc(reason) + "</p>")
                 + "<p>Si cette décision vous paraît tenir à un malentendu, répondez à cet e-mail : "
                 + "nous réexaminerons votre demande.</p>";
-        send(email, "Votre demande de club Darilab", html, Audience.COACH, MailKind.CLUB_REQUEST);
+        send(email, soloPractice ? "Votre demande Darilab" : "Votre demande de club Darilab",
+                html, Audience.COACH, MailKind.CLUB_REQUEST);
     }
 
     /**

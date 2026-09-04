@@ -82,12 +82,25 @@ export class DashboardComponent implements OnInit {
 
   // --- Périmètre (scope) ---
   readonly scope = signal<Scope>('all');
-  readonly scopeOptions: SegmentOption[] = [
-    { value: 'all', label: 'Tout le club' },
-    { value: 'mine', label: 'Mes athlètes' },
-    { value: 'private', label: 'Privés' },
-    { value: 'club', label: 'Club' },
-  ];
+  /**
+   * Périmètres proposés. Un indépendant n'en a qu'un : ses athlètes.
+   *
+   * <p>« Tout le club », « Privés » et « Club » opposent des ensembles qui n'existent que lorsque
+   * plusieurs coachs se partagent un espace. Seuls, ils décrivaient à un coach indépendant une
+   * organisation imaginaire, et trois des quatre options rendaient la même liste.</p>
+   */
+  readonly scopeOptions = computed<SegmentOption[]>(() =>
+    this.auth.soloPractice()
+      ? [{ value: 'all', label: 'Mes athlètes' }]
+      : [
+          { value: 'all', label: 'Tout le club' },
+          { value: 'mine', label: 'Mes athlètes' },
+          { value: 'private', label: 'Privés' },
+          { value: 'club', label: 'Club' },
+        ]);
+
+  /** Un seul périmètre possible : le sélecteur n'aurait rien à sélectionner. */
+  readonly showScope = computed(() => this.scopeOptions().length > 1);
 
   ngOnInit(): void {
     this.load();

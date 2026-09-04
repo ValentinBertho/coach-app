@@ -71,6 +71,14 @@ public class ClubCreationRequest extends BaseEntity {
     @Column(name = "status", nullable = false, length = 16)
     private ClubRequestStatus status = ClubRequestStatus.PENDING;
 
+    /**
+     * Le candidat s'est déclaré <b>indépendant</b> : la validation ouvrira un espace solo, dont on
+     * ne lui parlera jamais comme d'un club. Porté par la demande et non déduit à la validation :
+     * c'est le candidat qui sait comment il exerce, pas l'administrateur qui arbitre.
+     */
+    @Column(name = "solo_practice", nullable = false)
+    private boolean soloPractice = false;
+
     /** Preuve de consentement RGPD, posée au dépôt (la case est obligatoire au formulaire). */
     @Column(name = "terms_accepted_at")
     private Instant termsAcceptedAt;

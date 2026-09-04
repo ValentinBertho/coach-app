@@ -95,6 +95,57 @@ describe('inscription — le formulaire suit le régime du serveur', () => {
   });
 
   /**
+   * La première question de l'écran. Elle décide du vocabulaire de toute l'application, et surtout
+   * elle lève l'obligation d'inventer un club : le champ était requis, avec « Running Club Lyon »
+   * en exemple, pour une cible dont la moitié coache en indépendant.
+   */
+  it('laisse choisir entre club et indépendant, et le nom devient facultatif', () => {
+    const host = start('OPEN');
+    const options = host.querySelectorAll('.practice-option');
+    expect(options.length).withContext('les deux façons de coacher sont proposées').toBe(2);
+
+    // Par défaut, on est en club : le nom reste exigé.
+    expect(fixture.componentInstance.form.controls.clubName.hasValidator).toBeDefined();
+    fixture.componentInstance.form.controls.clubName.setValue('');
+    expect(fixture.componentInstance.form.controls.clubName.valid)
+      .withContext('un club doit être nommé')
+      .toBeFalse();
+
+    (options[1] as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.form.controls.clubName.valid)
+      .withContext('un indépendant n’a pas de club à nommer')
+      .toBeTrue();
+    expect(text(host))
+      .withContext('dire ce qui se passe si le champ reste vide')
+      .toContain('ton espace prendra le tien');
+  });
+
+  /** Le choix part au serveur : sans lui, l'espace créé serait un club comme les autres. */
+  it('envoie le mode indépendant à l’inscription', () => {
+    const host = start('OPEN');
+    (host.querySelectorAll('.practice-option')[1] as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    (host.querySelector('#fullName') as HTMLInputElement).value = 'Marie Dupont';
+    (host.querySelector('#fullName') as HTMLInputElement).dispatchEvent(new Event('input'));
+    (host.querySelector('#email') as HTMLInputElement).value = 'marie@exemple.fr';
+    (host.querySelector('#email') as HTMLInputElement).dispatchEvent(new Event('input'));
+    (host.querySelector('#password') as HTMLInputElement).value = 'password123';
+    (host.querySelector('#password') as HTMLInputElement).dispatchEvent(new Event('input'));
+    (host.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
+    fixture.detectChanges();
+
+    (host.querySelector('form') as HTMLFormElement).dispatchEvent(new Event('submit'));
+
+    const req = http.expectOne((r) => r.url.includes('/auth/register'));
+    expect(req.request.body.soloPractice).toBeTrue();
+    expect(req.request.body.clubName).withContext('rien n’a été inventé').toBe('');
+    req.flush({ accessToken: 't', refreshToken: 'r', expiresIn: 900, user: {} });
+  });
+
+  /**
    * L'API injoignable ne doit pas laisser la page vide : le serveur reste de toute façon le seul
    * arbitre de ce qu'il accepte.
    */

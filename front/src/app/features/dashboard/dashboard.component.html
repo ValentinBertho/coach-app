@@ -4,7 +4,9 @@
     <p class="subtitle">{{ firstRun() ? 'Bienvenue sur Darilab' : 'Cockpit coach' }}</p>
   </div>
   @if (!firstRun()) {
-    <app-segmented-control [options]="scopeOptions" [value]="scope()" (valueChange)="setScope($event)" [ariaLabel]="'Périmètre'" />
+    @if (showScope()) {
+          <app-segmented-control [options]="scopeOptions()" [value]="scope()" (valueChange)="setScope($event)" [ariaLabel]="'Périmètre'" />
+        }
   }
 </section>
 

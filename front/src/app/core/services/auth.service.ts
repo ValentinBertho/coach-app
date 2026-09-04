@@ -144,6 +144,16 @@ export class AuthService {
   }
 
   /**
+   * L'espace courant est-il celui d'un coach indépendant ?
+   *
+   * <p>Décide du vocabulaire, jamais des droits. Absent de la réponse d'un serveur antérieur, il
+   * vaut faux : on retombe sur le vocabulaire « club », qui est le comportement d'avant.</p>
+   */
+  soloPractice(): boolean {
+    return this.currentUser()?.soloPractice === true;
+  }
+
+  /**
    * Écran d'accueil du rôle courant — **source unique** de cette correspondance.
    *
    * <p>Elle était recopiée dans la page de connexion et la 404, et absente partout ailleurs :

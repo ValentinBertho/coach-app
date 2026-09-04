@@ -1,0 +1,51 @@
+# ============================================================================
+# 097 — Le club est un espace de travail, pas toujours un club.
+#
+#   La plateforme vise « les coachs indépendants et les clubs » (Claude.md §1),
+#   mais l'inscription n'offre qu'un seul chemin : « Créer mon club », avec un
+#   nom de club obligatoire et « Running Club Lyon » en exemple. Un coach
+#   indépendant doit donc inventer une organisation qui n'existe pas, et ce nom
+#   le suit partout — badge d'en-tête, périmètres « Tout le club », entrée
+#   « Club » dans la navigation, bilan « Ta semaine de club ».
+#
+#   Le modèle, lui, n'a pas besoin de changer : le club implicite reste le
+#   tenant, et c'est très bien. Ce drapeau dit seulement s'il faut le NOMMER
+#   comme un club. Il porte de l'affichage, pas des droits.
+#
+#   La demande de création le porte aussi : en régime « request » — celui de la
+#   bêta — c'est la validation par un administrateur qui ouvre l'espace, et
+#   elle doit ouvrir celui que le candidat a demandé.
+#
+#   Additif : deux colonnes avec défaut. Les clubs existants restent des clubs,
+#   ce qui est exactement leur état.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 097-club-solo-practice
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: clubs
+            columns:
+              - column:
+                  name: solo_practice
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+                  remarks: "Vrai = espace d'un coach indépendant : on ne lui parle jamais de « club »."
+
+  - changeSet:
+      id: 097-club-request-solo-practice
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: club_creation_request
+            columns:
+              - column:
+                  name: solo_practice
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+                  remarks: "Le candidat s'est déclaré indépendant : la validation ouvrira un espace solo."
