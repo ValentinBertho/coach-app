@@ -21,7 +21,7 @@ côté athlète, la vitrine côté coach, et le geste qui les relie**.
 | Un athlète crée son compte seul | 🔴 **Impossible** | Aucun parcours : un compte `ATHLETE` ne naît que d'une invitation de coach (`AuthService:302`) |
 | Un coach s'inscrit sans club | 🟡 Possible, mais mal dit | `clubName` est `@NotBlank` (`RegisterRequest:21`) ; le club implicite existe déjà |
 | Profil coach public (spécialités, tarifs, diplômes) | ✅ **Livré** (lot 2) | `coach_profiles`, `coach_offers`, `coach_certifications` + validation en back-office |
-| Annuaire / recherche de coachs | 🔴 **N'existe pas** | Aucun endpoint, aucun écran |
+| Annuaire / recherche de coachs | ✅ **Livré** (lot 3) | `/public/coaches`, facettes comptées, repli anti-cul-de-sac, fiche publique `/coachs/{slug}` |
 | Demande de coaching (athlète → coach) | 🔴 **N'existe pas** | `AthleteProposal` ne sert **pas** à ça (cf. §2.4) |
 | Acceptation ⇒ relation de travail | 🟡 La moitié est là | `CoachAthleteRelation` existe, mais sans statut ni cycle de vie |
 | Travailler ensemble une fois liés | ✅ **Complet** | Rien à faire : c'est le produit actuel |
@@ -697,7 +697,7 @@ Huit lots. Les quatre premiers font un hub qui fonctionne ; les quatre suivants 
 | **0 — Solder la dette d'accès** ✅ | Correction de `clubLevelFallback` (§2.5) **et** de la clé d'idempotence du backfill (§2.5 bis) ; `ended_at` / `ended_by_user_id` / `end_reason` sur la relation (migration 096) ; `EndedRelationRevokesAccessTest`, 5 cas | **S** | — |
 | **1 — Le compte athlète autoporté** | `athlete_accounts`, inscription libre, vérification d'e-mail, contrôle des 16 ans, `athletes.athlete_account_id`, écran « pas encore de coach » | **M** | 0 |
 | **2 — La vitrine coach** ✅ | `coach_profiles`, `coach_certifications` (sans `verified`), `coach_offers` (migration 098), `coach_photos` (099, ré-encodage qui efface l'EXIF) ; cycle `DRAFT → PENDING → PUBLISHED ⇄ CLOSED` ; éditeur `/app/vitrine` ; file de validation `/admin/coach-profiles` | **M** | — |
-| **3 — L'annuaire** | `GET /public/coaches` + filtres + facettes, écrans annuaire et fiche, bucket de rate limiting | **M** | 2 |
+| **3 — L'annuaire** ✅ | `GET /public/coaches`, `/public/coach-facets` (comptes à zéro compris), `/public/coach-suggestions` (repli), `/public/coaches/{slug}` ; écrans `/coachs` et `/coachs/{slug}` ; bucket `public-directory` (photos exclues) | **M** | 2 |
 | **4 — La mise en relation** | `coaching_requests`, les deux files, l'acceptation transactionnelle (§4.2), la fin de relation, les notifications | **L** | 1, 2, 0 |
 | — | *↑ **Ici, le hub est utilisable de bout en bout.** ↑* | | |
 | **5 — Le vocabulaire indépendant** ✅ | Question à l'inscription (les deux régimes), drapeau `solo_practice` (migration 097) levé automatiquement à l'arrivée d'un second coach, navigation, périmètres, bilan hebdo, back-office | **S** | — |
@@ -786,6 +786,18 @@ impression possible. Deux garde-fous, à prévoir dans le lot 3 :
 
 Avec ces deux garde-fous, dix coachs suffisent à ouvrir. Sans eux, trente n'y suffiraient pas.
 
+> ✅ **Livré — lot 3.** Les deux garde-fous sont en place et testés. Les facettes sont rendues
+> **en entier, comptes à zéro compris** : l'écran grise plutôt que de masquer, une facette qui
+> disparaît laissant croire qu'elle n'existe pas. Le repli est une **route distincte**
+> (`/public/coach-suggestions`), appelée sciemment : glissé dans les résultats, il ferait croire
+> que le filtre a fonctionné. L'écran dit d'abord que la recherche n'a rien donné, puis ce qu'il
+> propose à la place.
+>
+> **Un troisième point, non prévu et pourtant décisif** : l'ordre par défaut. Ni note ni
+> ancienneté — trier par date d'arrivée aurait donné l'annuaire aux cinq premiers inscrits pour
+> toujours. Ceux qui acceptent des athlètes d'abord, puis un mélange à graine quotidienne : stable
+> dans la journée, il tourne le lendemain.
+
 **La décision 2 confirme la précaution du §3.2** : `coach_profiles` est une table clé sur `user_id`,
 jamais des colonnes ajoutées à `users`. Le jour où un compte porte deux casquettes, on ajoute une
 ligne au lieu de déplacer des colonnes en production.
@@ -809,7 +821,8 @@ que les décisions 4, 6 et 9 rendent plus simple sans la rendre facultative.
 
 *Audit rédigé en septembre 2026 sur la branche `claude/audit-coach-athlete-hub-am5hao`. Chaque
 affirmation renvoie au fichier et à la ligne qui la fondent. Les dix décisions du §8 ont été
-arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Les lots 0, 5 et 2 sont livrés** — le
+arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Les lots 0, 5, 2 et 3 sont livrés** — le
 premier corrige deux défauts du produit actuel (§2.5, §2.5 bis), le second ouvre le vocabulaire aux
-coachs indépendants (§2.7), le troisième pose la vitrine du coach (§4.1), photo comprise. Le lot 3
-— l'annuaire — est le suivant.*
+coachs indépendants (§2.7), le troisième pose la vitrine du coach (§4.1), photo comprise, et le
+quatrième l'annuaire public (§3.5, §4.3). Le lot 1 — le compte athlète autoporté — est le suivant,
+puis le lot 4, la mise en relation.*

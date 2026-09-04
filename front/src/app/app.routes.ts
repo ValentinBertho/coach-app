@@ -55,6 +55,18 @@ export const routes: Routes = [
       import('./features/public/coach-invitation.component').then((m) => m.CoachInvitationComponent),
   },
   {
+    // L'annuaire public. Sans garde : c'est la vitrine, et demander un compte pour la voir
+    // reviendrait à en demander un pour savoir s'il y a une raison d'en créer un.
+    path: 'coachs',
+    loadComponent: () =>
+      import('./features/annuaire/coach-directory.component').then((m) => m.CoachDirectoryComponent),
+  },
+  {
+    path: 'coachs/:slug',
+    loadComponent: () =>
+      import('./features/annuaire/coach-detail.component').then((m) => m.CoachDetailComponent),
+  },
+  {
     // Pages légales publiques : confidentialite | mentions-legales | cgu.
     path: 'legal/:page',
     loadComponent: () =>
