@@ -70,6 +70,9 @@ export class AdminLayoutComponent implements OnInit {
         // Juste après les demandes de club : c'est la même file du matin, sur l'autre
         // porte d'entrée de la plateforme.
         { path: '/admin/coach-profiles', label: 'Fiches coachs', icon: 'star' },
+        // Dans « Gestion » avec les deux files précédentes, et non dans « Supervision » : un
+        // signalement n'est pas un indicateur qu'on consulte, c'est un dossier qui attend.
+        { path: '/admin/coach-reports', label: 'Signalements', icon: 'flag' },
       ],
     },
     {

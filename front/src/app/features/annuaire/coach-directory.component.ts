@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Meta, Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import {
   CoachDirectoryService,
@@ -218,6 +219,8 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
 })
 export class CoachDirectoryComponent implements OnInit {
   private readonly service = inject(CoachDirectoryService);
+  private readonly title = inject(Title);
+  private readonly meta = inject(Meta);
 
   readonly facets = signal<CoachFacets | null>(null);
   readonly results = signal<CoachSummary[]>([]);
@@ -235,6 +238,14 @@ export class CoachDirectoryComponent implements OnInit {
     Object.values(this.filters()).some((v) => v !== null && v !== undefined && v !== ''));
 
   ngOnInit(): void {
+    // Cf. la note de la fiche coach : ces balises servent les robots qui exécutent le JavaScript,
+    // pas les aperçus de partage. Elles ne remplacent pas un pré-rendu.
+    this.title.setTitle('Trouver un coach de course à pied — Darilab');
+    this.meta.updateTag({
+      name: 'description',
+      content: 'Des coachs de course à pied et de préparation physique, avec leurs spécialités et '
+        + "leurs tarifs. Vous choisissez, vous demandez ; c'est le coach qui accepte.",
+    });
     this.service.facets().subscribe({ next: (f) => this.facets.set(f) });
     this.load();
   }

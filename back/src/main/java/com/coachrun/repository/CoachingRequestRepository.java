@@ -41,6 +41,43 @@ public interface CoachingRequestRepository extends JpaRepository<CoachingRequest
     long countByCoachIdAndStatus(UUID coachId, CoachingRequestStatus status);
 
     /**
+     * Les demandes <b>tranchées</b> d'un coach, pour mesurer sa réactivité.
+     *
+     * <p>Acceptées et refusées seulement : un retrait par l'athlète ou une expiration ne disent
+     * rien du coach — la première n'est pas de son fait, la seconde est justement l'absence de
+     * réponse qu'on mesure ailleurs.</p>
+     */
+    @Query("""
+            select r from CoachingRequest r
+             where r.coach.id = :coachId
+               and r.decidedAt is not null
+               and r.status in (com.coachrun.entity.enums.CoachingRequestStatus.ACCEPTED,
+                                com.coachrun.entity.enums.CoachingRequestStatus.DECLINED)
+            """)
+    List<CoachingRequest> findDecidedByCoach(@Param("coachId") UUID coachId);
+
+    /**
+     * Le dénominateur du taux de réponse : les demandes closes <b>que le coach pouvait trancher</b>.
+     *
+     * <p>Les expirations comptent — c'est tout l'intérêt, un silence doit peser quelque part. Les
+     * retraits, non : l'athlète a repris sa demande, et rien ne dit que le coach n'allait pas
+     * répondre. Les compter aurait fait baisser le taux d'un coach pour un geste qui n'est pas le
+     * sien, sur une vitrine publique.</p>
+     */
+    @Query("""
+            select count(r) from CoachingRequest r
+             where r.coach.id = :coachId
+               and r.status in (com.coachrun.entity.enums.CoachingRequestStatus.ACCEPTED,
+                                com.coachrun.entity.enums.CoachingRequestStatus.DECLINED,
+                                com.coachrun.entity.enums.CoachingRequestStatus.EXPIRED)
+            """)
+    long countAnswerableByCoach(@Param("coachId") UUID coachId);
+
+    /** Les coachs ayant reçu au moins une demande : le balayage nocturne n'a pas à tous les lire. */
+    @Query("select distinct r.coach.id from CoachingRequest r")
+    List<UUID> findCoachIdsWithRequests();
+
+    /**
      * Périme les demandes que personne n'a tranchées dans le délai.
      *
      * <p>Une écriture en masse plutôt qu'un statut calculé à la lecture : l'état doit être le même

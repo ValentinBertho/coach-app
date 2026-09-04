@@ -523,6 +523,16 @@ export const routes: Routes = [
           ),
       },
       {
+        // La file des signalements. Séparée de celle des fiches, et pas par commodité : clore un
+        // signalement ne retire pas une fiche, et deux écrans distincts empêchent le geste de tri
+        // de glisser vers la sanction.
+        path: 'coach-reports',
+        loadComponent: () =>
+          import('./features/admin/admin-coach-reports.component').then(
+            (m) => m.AdminCoachReportsComponent,
+          ),
+      },
+      {
         // Demandes de création de club : en régime « sur demande », c'est le seul endroit d'où
         // un nouveau club peut naître.
         path: 'club-requests',

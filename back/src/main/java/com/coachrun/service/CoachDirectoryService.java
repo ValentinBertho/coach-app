@@ -79,6 +79,7 @@ public class CoachDirectoryService {
     private final CoachOfferRepository offerRepository;
     private final CoachCertificationRepository certificationRepository;
     private final CoachPhotoRepository photoRepository;
+    private final CoachResponsivenessService responsiveness;
 
     /**
      * Cherche dans l'annuaire.
@@ -129,6 +130,10 @@ public class CoachDirectoryService {
                 // inscrit sans l'avoir voulu.
                 .orElseThrow(() -> new NotFoundException("Cette fiche n'existe pas ou n'est plus publiée."));
         return PublicCoachDetailResponse.of(p, photoUrl(p),
+                // Calculé ici et pas dans la liste : deux requêtes par coach affiché coûteraient
+                // vingt-quatre requêtes pour une page de résultats, au service d'un chiffre qu'on
+                // ne lit qu'en ouvrant la fiche.
+                responsiveness.responseRatePercent(p.getCoach().getId()),
                 certificationRepository.findByProfileIdOrderByObtainedYearDesc(p.getId())
                         .stream().map(CoachCertificationResponse::from).toList(),
                 activeOffers(p.getId()).stream().map(CoachOfferResponse::from).toList());

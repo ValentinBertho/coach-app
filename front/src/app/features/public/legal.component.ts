@@ -247,6 +247,12 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
                 moment, sans préavis. L'athlète cesse alors d'être suivi et peut solliciter un autre
                 coach ; le coach conserve, en lecture seule, le dossier d'entraînement qu'il a tenu.
               </li>
+              <li>
+                <strong>Toute fiche peut être signalée</strong>, y compris par une personne qui n'a
+                pas de compte, depuis la fiche elle-même. Chaque signalement est examiné par
+                l'éditeur, qui peut retirer une fiche de l'annuaire. Aucun signalement n'entraîne de
+                retrait automatique, et le signalant ne reçoit pas de réponse individuelle.
+              </li>
             </ul>
 
             <h2>5. Avertissement santé</h2>

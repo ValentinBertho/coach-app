@@ -1,0 +1,88 @@
+# ============================================================================
+# 102 — Le signalement d'une fiche coach.
+#
+#   C'est la contrepartie de la décision 4. Les diplômes sont affichés comme
+#   « déclarés par le coach », sans vérification : la plateforme a donc renoncé
+#   à garantir, et il lui reste l'obligation d'écouter. Un annuaire qui publie
+#   des affirmations non vérifiées sans offrir de les contester ne fait pas la
+#   moitié du travail, il fait le pire tiers — il donne l'autorité de la
+#   publication sans le recours qui la rend supportable.
+#
+#   reporter_user_id est NULLABLE, et c'est le point délicat. Exiger un compte
+#   pour signaler écarterait précisément ceux qui ont le plus de raisons de le
+#   faire : un confrère qui reconnaît un diplôme qu'il sait faux, quelqu'un qui
+#   a vécu une mauvaise expérience et ne veut pas se rattacher à la plateforme.
+#   La contrepartie de cette ouverture est ailleurs — un seau de limitation
+#   dédié, et l'adresse IP conservée comme sur les autres dépôts anonymes du
+#   produit (demande de création de club, demande de coaching).
+#
+#   Pas de contrainte d'unicité : dix personnes signalant la même fiche pour la
+#   même raison est une INFORMATION, pas un doublon à écraser.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 102-coach-profile-reports
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: coach_profile_reports
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: profile_id, type: UUID, constraints: { nullable: false } }
+              - column:
+                  name: reporter_user_id
+                  type: UUID
+                  remarks: "Nullable : on accepte le signalement anonyme, cf. l'en-tête."
+              - column: { name: reason, type: VARCHAR(32), constraints: { nullable: false } }
+              - column: { name: details, type: VARCHAR(2000) }
+              - column: { name: status, type: VARCHAR(16), constraints: { nullable: false } }
+              - column:
+                  name: handled_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  remarks: "Horodatage de la décision d'un administrateur."
+              - column: { name: handled_by_user_id, type: UUID }
+              - column:
+                  name: moderator_note
+                  type: VARCHAR(2000)
+                  remarks: "Ce que l'administrateur a constaté. Jamais renvoyé au signalant."
+              - column: { name: ip_address, type: VARCHAR(64) }
+              - column: { name: user_agent, type: VARCHAR(512) }
+
+        - addForeignKeyConstraint:
+            constraintName: fk_coach_profile_reports_profile
+            baseTableName: coach_profile_reports
+            baseColumnNames: profile_id
+            referencedTableName: coach_profiles
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: fk_coach_profile_reports_reporter
+            baseTableName: coach_profile_reports
+            baseColumnNames: reporter_user_id
+            referencedTableName: users
+            referencedColumnNames: id
+        - addForeignKeyConstraint:
+            constraintName: fk_coach_profile_reports_handler
+            baseTableName: coach_profile_reports
+            baseColumnNames: handled_by_user_id
+            referencedTableName: users
+            referencedColumnNames: id
+
+        # La file de modération se lit par statut, du plus ancien au plus récent :
+        # un signalement qui attend depuis trois jours passe avant celui d'hier.
+        - createIndex:
+            indexName: idx_coach_profile_reports_status
+            tableName: coach_profile_reports
+            columns:
+              - column: { name: status }
+              - column: { name: created_at }
+        # Combien de fois cette fiche a-t-elle été signalée : la question que se
+        # pose l'administrateur avant toute autre.
+        - createIndex:
+            indexName: idx_coach_profile_reports_profile
+            tableName: coach_profile_reports
+            columns:
+              - column: { name: profile_id }
+              - column: { name: status }

@@ -36,7 +36,16 @@ public record PublicCoachDetailResponse(
         Integer experienceYears,
         Integer capacityMax,
         String photoUrl,
+        /** Délai médian de réponse, en heures. {@code null} si l'échantillon est trop mince. */
         Integer medianResponseHours,
+        /**
+         * Part des demandes auxquelles ce coach a répondu, en pourcentage.
+         *
+         * <p>C'est ici que pèse le silence : une demande laissée expirer compte au dénominateur et
+         * pas au numérateur. Un coach qui répond vite mais laisse filer une demande sur deux le
+         * montre — ce qu'un délai médian seul cacherait.</p>
+         */
+        Integer responseRatePercent,
         boolean acceptingAthletes,
         List<CoachCertificationResponse> certifications,
         /** Toujours vrai : les diplômes sont déclaratifs, et l'écran doit le dire. */
@@ -45,6 +54,7 @@ public record PublicCoachDetailResponse(
 
     public static PublicCoachDetailResponse of(CoachProfile p,
                                                String photoUrl,
+                                               Integer responseRatePercent,
                                                List<CoachCertificationResponse> certifications,
                                                List<CoachOfferResponse> offers) {
         return new PublicCoachDetailResponse(
@@ -65,6 +75,7 @@ public record PublicCoachDetailResponse(
                 p.getCapacityMax(),
                 photoUrl,
                 p.getMedianResponseHours(),
+                responseRatePercent,
                 p.getStatus().acceptsRequests(),
                 certifications,
                 true,

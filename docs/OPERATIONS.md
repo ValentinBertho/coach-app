@@ -240,6 +240,38 @@ Retrait via `DELETE …/members/{coachId}` (l'`OWNER` est protégé). Les permis
 
 ---
 
+## 7 bis. Les trois files du matin
+
+Depuis l'ouverture du hub, l'exploitation quotidienne tient dans trois écrans d'administration.
+Aucun n'est automatisable, et c'est délibéré : chacun décide de la place d'une personne réelle sur
+la plateforme.
+
+| Écran | Ce qui y arrive | Ce qu'on y fait |
+|---|---|---|
+| `Admin › Demandes de club` | Un coach demande à créer son espace | Ouvrir, ou refuser avec un motif |
+| `Admin › Fiches coachs` | Une fiche soumise à publication | Publier, ou renvoyer avec ce qu'il faut corriger |
+| `Admin › Signalements` | Une fiche contestée par un visiteur | Clore avec ou sans suite ; suspendre reste un geste séparé |
+
+**Les signalements demandent trois précautions.**
+
+1. **Clore n'est pas sanctionner.** Le bouton qui retire une fiche de l'annuaire vit sur
+   `Admin › Fiches coachs`, pas ici. Retirer une fiche puis clore le signalement fait deux gestes,
+   dans cet ordre.
+2. **Un signalement anonyme est recevable, et se pèse comme tel.** L'écran dit lequel l'est. Il ne
+   faut pas confondre « anonyme » et « sans valeur » : sur un diplôme inexact, celui qui sait est
+   souvent un confrère qui n'a aucune raison d'avoir un compte.
+3. **Le nombre de signalements ouverts sur la même fiche est affiché sur chaque ligne.** C'est le
+   seul chiffre qui compte pour prioriser — un signalement isolé et le cinquième sur le même coach
+   ne se lisent pas de la même façon. Aucun seuil ne déclenche quoi que ce soit automatiquement.
+
+Le coach signalé **n'est pas notifié**. Le contacter, s'il y a lieu, fait partie de l'arbitrage ;
+c'est un geste humain, hors application.
+
+Plafonds côté serveur, pour que la file reste lisible : trois signalements par adresse IP et par
+fiche, dix par adresse et par jour (`CoachReportService`).
+
+---
+
 ## 8. Emails & notifications (Resend) — pas-à-pas
 
 Le canal email est **déjà branché** (client Resend, `NotificationService`, schedulers) ; il est

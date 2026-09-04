@@ -213,3 +213,5 @@ databaseChangeLog:
       file: db/changelog/changes/100-athlete-accounts.yaml
   - include:
       file: db/changelog/changes/101-coaching-requests.yaml
+  - include:
+      file: db/changelog/changes/102-coach-profile-reports.yaml

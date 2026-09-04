@@ -702,7 +702,7 @@ Huit lots. Les quatre premiers font un hub qui fonctionne ; les quatre suivants 
 | — | *↑ **Ici, le hub est utilisable de bout en bout.** ↑* | | |
 | **5 — Le vocabulaire indépendant** ✅ | Question à l'inscription (les deux régimes), drapeau `solo_practice` (migration 097) levé automatiquement à l'arrivée d'un second coach, navigation, périmètres, bilan hebdo, back-office | **S** | — |
 | **6 — Le multi-espace** ✅ | `GET /me/clubs`, sélecteur d'espace dans l'en-tête (branché sur `AuthService.clubId()`, donc sans toucher aux ~40 appelants), et correction du périmètre qui ignorait les clubs additionnels — tableau de bord, alertes et bilan hebdomadaire | **M** | — |
-| **7 — Acquisition et confiance** | Prerender SEO des fiches, signaux factuels (délai de réponse, taux de réponse), signalement | **M** | 3 |
+| **7 — Acquisition et confiance** ✅ | Signaux factuels mesurés (délai médian de réponse, taux de réponse), signalement d'une fiche (migration 102) et sa file d'arbitrage, balises de partage sur `/coachs` et `/coachs/{slug}`. **Le pré-rendu reste à faire** — il relève de l'infrastructure, cf. ci-dessous | **M** | 3 |
 | **8 — Avis, puis tarification** | Avis réservés aux relations terminées ≥ N semaines ; encaissement à décider séparément | **L** | 4, et du recul d'usage |
 
 ### La sortie, livrée — et la question qu'elle a soulevée
@@ -725,6 +725,64 @@ laisser croire livrés :
 - **le fil de discussion en lecture seule** — il devient inaccessible aux deux parties plutôt que
   lisible, l'appartenance dont `ConversationService` déduit ses droits ayant disparu. Le rendre
   consultable après coup demanderait de revoir ces règles, ce qui dépasse un lot S.
+
+### Les signaux du lot 7, et pourquoi ce ne sont pas des avis
+
+La décision 7 reporte les avis, pour une raison qui tient : avec quelques dizaines de coachs, une
+note est statistiquement muette et socialement violente. Restait à donner à l'athlète **quelque
+chose** pour choisir. Le délai de réponse a trois qualités qu'une note n'a pas — il est factuel,
+il n'est pas manipulable, et il répond à la question qu'on se pose vraiment en sollicitant un
+inconnu : « est-ce que cette personne va me répondre ? »
+
+Trois règles le rendent honnête, et chacune est testée :
+
+- **la médiane, pas la moyenne.** Un coach qui répond en deux heures et part trois semaines en
+  stage a une moyenne catastrophique et une médiane juste ;
+- **rien en dessous de trois demandes tranchées.** Un coach qui a répondu une fois en dix minutes
+  n'est pas « très réactif » : il a eu une demande ;
+- **le silence pèse sur le taux, jamais sur le délai.** Compter une expiration comme un délai de
+  quatorze jours ferait passer une absence de réponse pour de la lenteur. Un **retrait** par
+  l'athlète, lui, ne compte nulle part : rien ne dit que le coach n'allait pas répondre, et le
+  faire baisser pour un geste qui n'est pas le sien serait une accusation gratuite sur une page
+  publique.
+
+Le taux n'apparaît que sur la fiche, pas dans la liste : deux requêtes par coach affiché
+coûteraient vingt-quatre requêtes pour une page de résultats, au service d'un chiffre qu'on ne lit
+qu'en ouvrant la fiche. Le calcul lui-même est nocturne (`CoachResponsivenessScheduler`) — c'est
+une donnée d'affichage, et la recalculer dans la transaction d'acceptation ferait payer au geste le
+plus important du produit le coût d'une statistique.
+
+### Le signalement : la contrepartie de la décision 4
+
+La décision 4 affiche les diplômes comme *déclarés par le coach*, sans vérification. La plateforme
+a donc renoncé à garantir ; il lui reste l'obligation d'écouter. Publier des affirmations
+invérifiées **sans offrir de les contester** donnerait l'autorité de la publication sans le recours
+qui la rend supportable.
+
+Trois choix méritent d'être écrits, parce qu'ils pourraient sembler être des oublis :
+
+- **le signalement est ouvert aux visiteurs sans compte.** Exiger une inscription écarterait
+  précisément ceux qui savent quelque chose : le confrère qui reconnaît un diplôme faux, l'ancien
+  athlète parti sans se retourner. La contrepartie est ailleurs — seau de limitation propre,
+  adresse IP conservée, trois signalements au maximum par adresse et par fiche, dix par jour ;
+- **aucun seuil ne dépublie une fiche.** Un dispositif qui suspend au troisième signalement se
+  retourne le jour où trois personnes s'accordent pour nuire à un concurrent. La suspension reste
+  un geste d'administrateur, sur l'écran des fiches ; clore un signalement n'y touche pas, et les
+  deux files sont séparées pour que le geste de tri ne glisse pas vers la sanction ;
+- **le coach signalé n'est pas notifié.** Il identifierait sans peine qui l'a signalé — souvent
+  l'un de ses trois athlètes — avant qu'un humain ait établi si le reproche tenait.
+
+### Le SEO : une moitié livrée, l'autre reste une décision d'infrastructure
+
+Les balises de titre, description et Open Graph sont posées sur l'annuaire et sur chaque fiche.
+Elles servent les robots qui exécutent le JavaScript. Elles **ne servent pas** les aperçus de
+partage — messageries, Slack, là où circulent réellement les recommandations de coach — qui ne
+l'exécutent pas et verront la page d'accueil générique.
+
+Autrement dit : ceci est une moitié, et il vaut mieux l'écrire que la laisser croire entière.
+L'autre est un pré-rendu des fiches à la compilation, qui relève de la chaîne de build et non d'un
+composant. Poser ces balises coûte peu et servira le jour où ce pré-rendu existera ; le risque
+« absence de SEO » du §7 reste donc ouvert.
 
 **Le lot 0 s'est livré seul et en premier** : il corrige deux défauts du produit actuel (§2.5 et
 §2.5 bis), il ne dépendait de rien, et tous les autres s'appuient dessus. Écrire la fin de relation
@@ -754,11 +812,11 @@ données et se paierait en migration.
 | **La duplication de fiche** (§3.1) devient bloquante plus vite que prévu — « course + prépa physique chez deux coachs » | Moyenne | Élevé | `athlete_account_id` posé dès le lot 1 laisse la porte ouverte à la remontée de la physiologie au compte. Surveiller le nombre d'athlètes ayant ≥ 2 fiches |
 | **L'annuaire vide au lancement** : un athlète qui arrive sur dix coachs et filtre par discipline repart | Élevée | Élevé | Seuil arrêté à **10 coachs publiés et actifs** (décision 10, §8), assorti de facettes qui ne peuvent pas rendre le vide et d'un repli explicite. Le lot 2 avant le lot 1 dans le calendrier public, même si le code est prêt |
 | **La désintermédiation** : coach et athlète s'échangent leurs coordonnées et quittent la plateforme | Élevée | Moyen (élevé si commission un jour) | Ne pas s'y opposer tant qu'il n'y a pas d'encaissement — c'est un combat coûteux et perdu d'avance. En faire un critère de décision du §3.7 |
-| **Charge de modération** sous-estimée (profils, demandes, litiges) | Moyenne | Moyen | Validation manuelle du lot 2 = découverte précoce du volume réel. Reporter les avis (§3.8) |
+| **Charge de modération** sous-estimée (profils, demandes, litiges) | Moyenne | Moyen | Validation manuelle du lot 2 = découverte précoce du volume réel. Reporter les avis (§3.8). File de signalements livrée au lot 7, avec plafonds par adresse pour qu'elle reste lisible |
 | **Requalification en intermédiaire** avec obligations d'information | Moyenne | Élevé | Avis juridique **avant** le lot 4. CGU distinguant explicitement mise en relation et prestation de coaching |
 | **Données de santé chez un coach inconnu de la plateforme** | Moyenne | Élevé | Consentement explicite au moment de l'acceptation, pas à l'inscription ; le coach est nommé dans le texte du consentement |
 | **Un coach du hub abuse de son espace** (crée des fiches sur des tiers) | Faible | Moyen | Rien de nouveau : c'est déjà le cas aujourd'hui. Le back-office le voit |
-| **Absence de SEO** rend l'annuaire invisible | Élevée | Moyen | Assumé au lancement, lot 7. Ne pas fonder l'acquisition dessus d'ici là |
+| **Absence de SEO** rend l'annuaire invisible | Élevée | Moyen | Balises posées au lot 7 ; **le pré-rendu reste à faire** et sans lui les aperçus de partage montrent la page d'accueil. Ne pas fonder l'acquisition dessus d'ici là |
 | **`/public/**` ouvert en bloc** : une future route publique expose plus que prévu | Faible | Élevé | Revue explicite de chaque ajout sous `/public` ; tests de non-exposition (§4.4) |
 
 ---
@@ -842,12 +900,13 @@ que les décisions 4, 6 et 9 rendent plus simple sans la rendre facultative.
 
 *Audit rédigé en septembre 2026 sur la branche `claude/audit-coach-athlete-hub-am5hao`. Chaque
 affirmation renvoie au fichier et à la ligne qui la fondent. Les dix décisions du §8 ont été
-arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Les lots 0, 5, 2, 3, 1 et 4 sont
+arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Les lots 0, 5, 2, 3, 1, 4, 6 et 7 sont
 livrés** — la boucle du hub est fermée : un athlète s'inscrit seul, cherche, demande, le coach
 accepte, et ils travaillent. Le
 premier corrige deux défauts du produit actuel (§2.5, §2.5 bis), le second ouvre le vocabulaire aux
 coachs indépendants (§2.7), le troisième pose la vitrine du coach (§4.1), photo comprise, le
 quatrième l'annuaire public (§3.5, §4.3), et les deux derniers le compte athlète autoporté (§3.1)
-et la mise en relation (§4.2). **Restent les lots 6, 7 et 8** — multi-espace, acquisition et
-confiance, avis puis tarification — ainsi que la fin de relation côté écran, dont le socle serveur
-est livré depuis le lot 0.*
+et la mise en relation (§4.2). La fin de relation est livrée des deux côtés, le lot 6 ouvre le
+multi-espace, et le lot 7 donne à l'athlète de quoi choisir — des signaux mesurés — et de quoi
+contester — le signalement. **Reste le lot 8** (avis, puis tarification), que la décision 7 subordonne
+à de vraies expériences terminées, et **le pré-rendu des fiches**, qui relève de l'infrastructure.*

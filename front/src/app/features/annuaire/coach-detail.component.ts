@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Meta, Title } from '@angular/platform-browser';
 import { AuthService } from '../../core/services/auth.service';
 import { CoachingRequestService } from '../../core/services/coaching-request.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
-import { CoachDetail, CoachDirectoryService } from '../../core/services/coach-directory.service';
+import { CoachDetail, CoachDirectoryService, REPORT_REASONS } from '../../core/services/coach-directory.service';
 import { CoachOffer } from '../../core/services/coach-profile.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
@@ -17,9 +18,10 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
  * plateforme <b>ne garantit pas</b>. Les diplômes sont déclaratifs, et la page l'écrit à côté
  * d'eux plutôt que dans des conditions générales que personne n'ouvre.</p>
  *
- * <p>Le bouton de demande n'existe pas encore : la mise en relation est le lot suivant. Plutôt
- * qu'un bouton qui ne fait rien, la page annonce ce qui arrive — un écran honnête vaut mieux
- * qu'une promesse muette.</p>
+ * <p>Deux gestes y vivent, et leur poids visuel n'est pas le même. Demander un coaching est
+ * l'action de la page ; signaler la fiche est un recours, discret et en bas — un bouton
+ * « signaler » mis en évidence à côté d'un nom jette un soupçon sur tous ceux qui n'ont rien
+ * fait.</p>
  */
 @Component({
   selector: 'app-coach-detail',
@@ -60,6 +62,20 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
               </p>
               @if (!c.acceptingAthletes) {
                 <p class="badge badge-neutral">Ne prend plus de nouveaux athlètes</p>
+              }
+
+              <!-- Les signaux factuels, qui tiennent lieu d'avis tant qu'il n'y en a pas. Mesurés,
+                   non déclarés, et absents tant que l'échantillon ne les fonde pas : mieux vaut ne
+                   rien dire qu'annoncer « très réactif » sur une seule demande. -->
+              @if (c.medianResponseHours !== null || c.responseRatePercent !== null) {
+                <p class="cd__signals">
+                  @if (c.medianResponseHours !== null) {
+                    <span>Répond en {{ responseDelay(c.medianResponseHours) }}</span>
+                  }
+                  @if (c.responseRatePercent !== null) {
+                    <span>{{ c.responseRatePercent }} % de demandes traitées</span>
+                  }
+                </p>
               }
             </div>
           </section>
@@ -143,6 +159,47 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
               {{ sending() ? 'Envoi…' : 'Demander à être coaché' }}
             </button>
           </section>
+
+          <!-- Discret, et en bas : c'est un recours, pas une invitation. Un bouton « signaler »
+               mis en évidence à côté du nom d'un coach jette un soupçon sur tous ceux qui n'ont
+               rien fait. -->
+          <details class="cd__report" [open]="reportOpen()">
+            <summary (click)="reportOpen.set(!reportOpen())">
+              Signaler cette fiche
+            </summary>
+            @if (reported()) {
+              <p class="field-hint cd__reported">
+                <app-icon name="info" [size]="14" />
+                Signalement transmis. Il sera lu par l'équipe ; vous ne recevrez pas de réponse
+                individuelle.
+              </p>
+            } @else {
+              <p class="field-hint">
+                Les diplômes affichés ici sont déclarés par le coach et ne sont pas vérifiés par la
+                plateforme. Si quelque chose vous paraît inexact ou déplacé, dites-le.
+              </p>
+              <div class="form-group">
+                <label for="report-reason">Motif</label>
+                <select id="report-reason" class="form-control" [value]="reportReason()"
+                        (change)="reportReason.set($any($event.target).value)">
+                  @for (r of reasons; track r.value) {
+                    <option [value]="r.value">{{ r.label }}</option>
+                  }
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="report-details">Ce que vous avez constaté</label>
+                <textarea id="report-details" class="form-control" rows="3" [value]="reportDetails()"
+                          (input)="reportDetails.set($any($event.target).value)"
+                          [placeholder]="detailsPlaceholder"></textarea>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm"
+                      [disabled]="reporting() || reportDetails().trim().length < 20"
+                      (click)="submitReport(c)">
+                {{ reporting() ? 'Envoi…' : 'Envoyer le signalement' }}
+              </button>
+            }
+          </details>
         </article>
       } @else if (loading()) {
         <p class="cd__loading">Chargement…</p>
@@ -171,6 +228,7 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
     .cd__ident h1 { margin: 0 0 var(--sp-1); }
     .cd__headline { margin: 0 0 var(--sp-2); color: var(--ink-2); font-style: italic; }
     .cd__meta { margin: 0 0 var(--sp-2); color: var(--ink-3); font-size: var(--text-sm); }
+    .cd__signals { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); margin: var(--sp-2) 0 0; font-size: var(--text-sm); color: var(--ink-2); }
     .cd__block { padding: var(--sp-5); margin-bottom: var(--sp-4); }
     .cd__title { font-size: var(--text-lg); margin: 0 0 var(--sp-3); }
     .cd__bio { margin: 0; white-space: pre-wrap; color: var(--ink-2); }
@@ -183,6 +241,10 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
     .cd__declared { display: flex; align-items: flex-start; gap: var(--sp-2); }
     .cd__cta { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-5); flex-wrap: wrap; }
     .cd__cta p { margin: var(--sp-1) 0 0; max-width: 48ch; }
+    .cd__report { margin-top: var(--sp-6); padding: var(--sp-4); border: 1px solid var(--hairline); border-radius: var(--radius); }
+    .cd__report summary { cursor: pointer; color: var(--ink-3); font-size: var(--text-sm); }
+    .cd__report .form-group { margin-top: var(--sp-3); }
+    .cd__reported { display: flex; align-items: flex-start; gap: var(--sp-2); margin-top: var(--sp-3); }
     .cd__empty { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-5); flex-wrap: wrap; }
     .cd__empty > div { flex: 1; min-width: 220px; }
   `],
@@ -195,10 +257,22 @@ export class CoachDetailComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
+  private readonly title = inject(Title);
+  private readonly meta = inject(Meta);
 
   readonly coach = signal<CoachDetail | null>(null);
   readonly loading = signal(true);
   readonly sending = signal(false);
+
+  readonly reasons = REPORT_REASONS;
+  /** Hors du gabarit : une apostrophe dans une interpolation Angular casse la compilation. */
+  readonly detailsPlaceholder =
+    'Quelques phrases suffisent, mais elles sont nécessaires : sans détail, un signalement ne peut pas être traité.';
+  readonly reportOpen = signal(false);
+  readonly reportReason = signal(REPORT_REASONS[0].value);
+  readonly reportDetails = signal('');
+  readonly reporting = signal(false);
+  readonly reported = signal(false);
 
   ngOnInit(): void {
     const slug = this.route.snapshot.paramMap.get('slug');
@@ -210,6 +284,7 @@ export class CoachDetailComponent implements OnInit {
       next: (c) => {
         this.coach.set(c);
         this.loading.set(false);
+        this.describe(c);
       },
       error: () => this.loading.set(false),
     });
@@ -259,8 +334,84 @@ export class CoachDetailComponent implements OnInit {
     });
   }
 
+  /**
+   * Renseigne titre, description et Open Graph de la page.
+   *
+   * <p><b>Ce que ça fait, et ce que ça ne fait pas.</b> Le produit est une application Angular sans
+   * rendu serveur : ces balises sont posées <em>après</em> le chargement du script. Les robots
+   * modernes exécutent le JavaScript et les liront ; les aperçus de partage — messageries, Slack,
+   * là où circulent réellement les recommandations de coach — ne l'exécutent pas et verront la
+   * page d'accueil générique.</p>
+   *
+   * <p>Autrement dit : ceci est une moitié. L'autre est un pré-rendu des fiches à la compilation,
+   * qui relève de l'infrastructure et non d'un composant. Poser ces balises coûte peu et servira
+   * dès qu'un pré-rendu existera.</p>
+   */
+  private describe(c: CoachDetail): void {
+    const specialties = c.specialtyLabels.slice(0, 2).join(', ');
+    const title = `${c.name} — coach ${specialties || 'course à pied'}`;
+    const description = c.headline
+      ?? `${c.name} accompagne des coureurs${c.city ? ` à ${c.city}` : ''}. Ses spécialités, ses `
+        + 'tarifs, et comment lui demander de vous coacher.';
+    this.title.setTitle(title);
+    this.meta.updateTag({ name: 'description', content: description });
+    this.meta.updateTag({ property: 'og:description', content: description });
+    this.meta.updateTag({ property: 'og:title', content: title });
+    this.meta.updateTag({ property: 'og:type', content: 'profile' });
+    const photo = this.photo();
+    if (photo) {
+      this.meta.updateTag({ property: 'og:image', content: photo });
+    }
+  }
+
+  /**
+   * Envoie un signalement.
+   *
+   * <p>Aucune connexion n'est demandée : celui qui reconnaît un diplôme faux n'a pas de raison
+   * d'avoir un compte, et l'exiger reviendrait à n'écouter que les clients.</p>
+   *
+   * <p>Le formulaire disparaît après l'envoi, et le message ne promet pas de réponse : l'arbitrage
+   * d'un signalement porte sur une personne nommée, et ce qu'il établit n'appartient pas à celui
+   * qui a signalé.</p>
+   */
+  submitReport(c: CoachDetail): void {
+    const details = this.reportDetails().trim();
+    if (details.length < 20) {
+      return;
+    }
+    this.reporting.set(true);
+    this.service.report(c.slug, this.reportReason(), details).subscribe({
+      next: () => {
+        this.reporting.set(false);
+        this.reported.set(true);
+        this.reportDetails.set('');
+      },
+      error: (err) => {
+        this.reporting.set(false);
+        this.toast.error(err?.error?.message ?? "Le signalement n'a pas pu être envoyé");
+      },
+    });
+  }
+
   photo(): string | null {
     return this.service.photoSrc(this.coach()?.photoUrl ?? null);
+  }
+
+  /**
+   * Le délai de réponse, dit comme on le dirait à voix haute.
+   *
+   * <p>« Répond en 36 h » se comprend moins vite que « en moins de deux jours ». Et la formulation
+   * reste prudente — c'est une médiane observée, pas un engagement du coach.</p>
+   */
+  responseDelay(hours: number): string {
+    if (hours <= 1) {
+      return "moins d'une heure";
+    }
+    if (hours < 24) {
+      return `moins de ${hours} h`;
+    }
+    const days = Math.ceil(hours / 24);
+    return days === 1 ? "moins d'un jour" : `moins de ${days} jours`;
   }
 
   price(o: CoachOffer): string {

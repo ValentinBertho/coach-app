@@ -122,6 +122,14 @@ responsabilité, et ce qu'il faut afficher sur chaque fiche.
 
 *Élément de contexte : aucun paiement ne transite, aucun classement payant, aucune commission.*
 
+*Élément ajouté depuis la rédaction de ce dossier : un **dispositif de signalement** existe désormais
+sur chaque fiche, ouvert aux visiteurs sans compte, avec une file d'arbitrage humaine et la
+possibilité de retirer une fiche de l'annuaire. Rien n'est automatique. Je l'ai construit comme la
+contrepartie de l'absence de vérification des diplômes ; **je ne sais pas s'il satisfait un régime
+de notification au sens de la LCEN**, ni s'il en déclenche les obligations formelles (accusé de
+réception, délais, information de la personne visée). C'est précisément ce que cette question
+demande de trancher.*
+
 ### 3.2 🔴 Les CGU doivent-elles séparer deux contrats ?
 
 Aujourd'hui un seul texte régit tout. Or il y a désormais **deux relations distinctes** : celle
@@ -202,6 +210,16 @@ implicite (le coach l'ajoute lui-même à sa fiche publique). Faut-il le rendre 
 - une section décrit la mise en relation, ce que la plateforme fait et ce qu'elle ne fait pas ;
 - l'absence de vérification des diplômes et l'absence de paiement sont écrites noir sur blanc ;
 - la politique de confidentialité mentionne le coach comme destinataire et l'annuaire public.
+
+**Fait depuis, au lot 7** :
+
+- un **signalement de fiche** ouvert à tous, y compris sans compte, avec sa file d'arbitrage ;
+  aucun seuil ne retire une fiche automatiquement, et le coach signalé n'est pas notifié tant que
+  rien n'est établi ;
+- une clause des CGU (§4 bis) qui le décrit et annonce qu'aucune réponse individuelle n'est faite
+  au signalant.
+
+Ce dispositif est un choix de produit, pas une réponse juridique : voir la note ajoutée en 3.1.
 
 **Ces textes sont provisoires.** Ils sont écrits par un développeur pour cesser d'être faux, pas par
 un juriste pour être opposables. Ils portent une mention le disant, et ils sont à remplacer.

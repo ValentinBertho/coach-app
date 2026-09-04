@@ -26,6 +26,14 @@ export interface CoachSummary {
 
 export interface CoachDetail extends CoachSummary {
   bio: string | null;
+  /**
+   * Part des demandes auxquelles ce coach a répondu, en pourcentage.
+   *
+   * C'est ici que pèse le silence : une demande laissée expirer compte au dénominateur et pas au
+   * numérateur. Nul tant que l'échantillon est trop mince — un chiffre sur une seule demande
+   * serait une promesse que rien ne fonde.
+   */
+  responseRatePercent: number | null;
   levels: string[];
   country: string | null;
   capacityMax: number | null;
@@ -34,6 +42,16 @@ export interface CoachDetail extends CoachSummary {
   certificationsDeclared: boolean;
   offers: CoachOffer[];
 }
+
+/** Les motifs de signalement, alignés sur `CoachReportReason` côté serveur. */
+export const REPORT_REASONS: ReadonlyArray<{ value: string; label: string }> = [
+  { value: 'FALSE_CREDENTIALS', label: 'Diplôme ou certification inexacte' },
+  { value: 'IMPERSONATION', label: "Usurpation d'identité" },
+  { value: 'INAPPROPRIATE_CONTENT', label: 'Contenu inapproprié' },
+  { value: 'SPAM', label: 'Publicité ou spam' },
+  { value: 'DANGEROUS_ADVICE', label: 'Conseils dangereux' },
+  { value: 'OTHER', label: 'Autre' },
+];
 
 export interface FacetValue {
   value: string;
@@ -106,6 +124,21 @@ export class CoachDirectoryService {
 
   bySlug(slug: string): Observable<CoachDetail> {
     return this.http.get<CoachDetail>(`${this.base}/public/coaches/${slug}`);
+  }
+
+  /**
+   * Signale une fiche.
+   *
+   * <p>Aucun jeton n'est exigé, et c'est délibéré côté serveur : demander un compte écarterait le
+   * confrère qui reconnaît un diplôme faux et l'ancien athlète parti sans se retourner — ceux qui
+   * savent quelque chose. Le serveur lit néanmoins le principal s'il existe.</p>
+   *
+   * <p>Réponse vide : elle ne renvoie pas l'objet créé, pour ne pas donner au signalant de quoi
+   * suivre un arbitrage qui contient des éléments sur le coach.</p>
+   */
+  report(slug: string, reason: string, details: string): Observable<void> {
+    return this.http.post<void>(
+      `${this.base}/public/coaches/${slug}/report`, { reason, details });
   }
 
   photoSrc(photoUrl: string | null): string | null {

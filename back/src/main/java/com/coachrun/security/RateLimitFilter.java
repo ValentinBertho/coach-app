@@ -169,6 +169,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (uri.endsWith("/api/feedback")) {
             return "beta-feedback";
         }
+        // Le signalement d'une fiche : écriture de texte libre en base par un visiteur anonyme.
+        // Testé AVANT l'annuaire, qui l'attraperait sinon — et le plafond de l'annuaire est calibré
+        // pour de la lecture (90/min), soit très au-dessus de ce qu'on veut concéder à un dépôt.
+        // Il retombe donc sur le seuil général, comme la demande de création de club ; le reste de
+        // la protection est applicative (CoachReportService, plafonds par fiche et par jour).
+        if (uri.contains("/public/coaches") && uri.endsWith("/report")) {
+            return "coach-report";
+        }
         // L'annuaire public : la seule route de lecture ouverte à un visiteur anonyme, donc la
         // seule qu'on puisse aspirer.
         //
