@@ -39,9 +39,27 @@ describe('gardes de rôle', () => {
   afterEach(() => localStorage.clear());
 
   /** Pose une session sans passer par le réseau : les gardes ne lisent que ces deux signaux. */
+  /**
+   * Connecte un utilisateur du rôle donné.
+   *
+   * <p>Un athlète est <b>suivi par défaut</b> — il a une fiche. C'était implicite avant le hub, où
+   * un compte athlète ne naissait que d'une invitation sur une fiche existante ; ça ne l'est plus,
+   * et l'écrire évite de tester par accident le cas de l'athlète sans coach.</p>
+   */
   function signIn(role: User['role']): void {
     auth.token.set('jeton-de-test');
-    auth.currentUser.set({ id: 'u1', email: 'x@y.z', fullName: 'Test', role } as User);
+    auth.currentUser.set({
+      id: 'u1', email: 'x@y.z', fullName: 'Test', role,
+      athleteId: role === 'ATHLETE' ? 'a1' : null,
+    } as User);
+  }
+
+  /** Un athlète inscrit de lui-même, que personne ne suit encore : pas de fiche. */
+  function signInAthleteWithoutCoach(): void {
+    auth.token.set('jeton-de-test');
+    auth.currentUser.set({
+      id: 'u1', email: 'x@y.z', fullName: 'Test', role: 'ATHLETE', athleteId: null,
+    } as User);
   }
 
   function redirectOf(result: unknown): string {
@@ -77,6 +95,16 @@ describe('gardes de rôle', () => {
 
     it('renvoie un visiteur non connecté vers la connexion', () => {
       expect(redirectOf(run(coachGuard))).toBe('/login');
+    });
+
+    /**
+     * Un athlète venu du hub n'a pas de fiche tant qu'aucun coach ne l'a accepté : le calendrier
+     * n'aurait rien à lui montrer et échouerait côté serveur. On l'envoie là où il a quelque chose
+     * à faire.
+     */
+    it('renvoie un athlète sans coach vers l’annuaire, pas vers un calendrier vide', () => {
+      signInAthleteWithoutCoach();
+      expect(redirectOf(run(coachGuard))).toBe('/coachs');
     });
   });
 

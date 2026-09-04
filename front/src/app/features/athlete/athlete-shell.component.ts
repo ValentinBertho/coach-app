@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { AuthService } from '../../core/services/auth.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { AthleteTopbarComponent } from './athlete-topbar.component';
@@ -42,19 +43,32 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
            en lançant l'application, un athlète veut d'abord voir la forme de son mois — ce qui
            l'attend, ce qu'il a fait. « Aujourd'hui » reste juste à côté : c'est l'écran de la
            journée en cours (check-in, séance, ressenti), pas celui de la vue d'ensemble. -->
+      <!-- Un athlète venu du hub n'a pas encore de coach, donc pas de fiche : calendrier,
+           « Aujourd'hui », progrès et messages n'ont rien à lui montrer et échoueraient côté
+           serveur. On lui propose ce qui a un sens à ce moment-là — chercher, et suivre ses
+           demandes — et la navigation complète apparaît le jour où un coach l'accepte. -->
       <nav class="ashell__nav" aria-label="Navigation athlète">
-        <a routerLink="/athlete/calendar" routerLinkActive="active">
-          <app-icon name="calendar-days" [size]="22" /><span class="lb">Calendrier</span>
-        </a>
-        <a routerLink="/athlete/today" routerLinkActive="active">
-          <app-icon name="house" [size]="22" /><span class="lb">Aujourd'hui</span>
-        </a>
-        <a routerLink="/athlete/progress" routerLinkActive="active">
-          <app-icon name="trending-up" [size]="22" /><span class="lb">Progrès</span>
-        </a>
-        <a routerLink="/athlete/messages" routerLinkActive="active">
-          <app-icon name="message-square" [size]="22" /><span class="lb">Messages</span>
-        </a>
+        @if (hasCoach()) {
+          <a routerLink="/athlete/calendar" routerLinkActive="active">
+            <app-icon name="calendar-days" [size]="22" /><span class="lb">Calendrier</span>
+          </a>
+          <a routerLink="/athlete/today" routerLinkActive="active">
+            <app-icon name="house" [size]="22" /><span class="lb">Aujourd'hui</span>
+          </a>
+          <a routerLink="/athlete/progress" routerLinkActive="active">
+            <app-icon name="trending-up" [size]="22" /><span class="lb">Progrès</span>
+          </a>
+          <a routerLink="/athlete/messages" routerLinkActive="active">
+            <app-icon name="message-square" [size]="22" /><span class="lb">Messages</span>
+          </a>
+        } @else {
+          <a routerLink="/coachs" routerLinkActive="active">
+            <app-icon name="search" [size]="22" /><span class="lb">Trouver un coach</span>
+          </a>
+          <a routerLink="/athlete/demandes" routerLinkActive="active">
+            <app-icon name="inbox" [size]="22" /><span class="lb">Mes demandes</span>
+          </a>
+        }
       </nav>
     </div>
   `,
@@ -101,6 +115,17 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
 })
 export class AthleteShellComponent {
   private readonly theme = inject(ThemeService);
+  private readonly auth = inject(AuthService);
+
+  /**
+   * L'athlète a-t-il un coach ?
+   *
+   * <p>Déduit de l'existence de sa <b>fiche</b> : elle naît de l'acceptation d'une demande, et
+   * c'est elle que toute la surface d'entraînement suppose. Sans elle, calendrier, séance du jour,
+   * progrès et messagerie n'ont rien à montrer et échoueraient côté serveur — mieux vaut ne pas
+   * les proposer que les proposer cassés.</p>
+   */
+  readonly hasCoach = computed(() => !!this.auth.currentUser()?.athleteId);
 
   /**
    * Peau du portail : `dark` imposé tant que l'athlète n'a pas choisi, rien ensuite — auquel cas

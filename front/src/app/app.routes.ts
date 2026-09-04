@@ -55,6 +55,13 @@ export const routes: Routes = [
       import('./features/public/coach-invitation.component').then((m) => m.CoachInvitationComponent),
   },
   {
+    // L'inscription libre d'un athlète. Publique, et distincte de /register qui ouvre un espace
+    // de coach : ce sont deux métiers, deux formulaires et deux consentements.
+    path: 'inscription-athlete',
+    loadComponent: () =>
+      import('./features/annuaire/athlete-signup.component').then((m) => m.AthleteSignupComponent),
+  },
+  {
     // L'annuaire public. Sans garde : c'est la vitrine, et demander un compte pour la voir
     // reviendrait à en demander un pour savoir s'il y a une raison d'en créer un.
     path: 'coachs',
@@ -243,6 +250,13 @@ export const routes: Routes = [
           import('./features/club/club.component').then((m) => m.ClubComponent),
       },
       {
+        // Les demandes reçues : la contrepartie de la vitrine. Sans cet écran, publier une fiche
+        // ferait arriver des demandes que personne ne verrait.
+        path: 'demandes',
+        loadComponent: () =>
+          import('./features/vitrine/coach-requests.component').then((m) => m.CoachRequestsComponent),
+      },
+      {
         // La vitrine du coach : ce qu'un athlète lit avant de le choisir. Sous /app et non dans
         // les paramètres — ce n'est pas un réglage, c'est une page qu'on écrit.
         path: 'vitrine',
@@ -423,6 +437,13 @@ export const routes: Routes = [
         path: 'performances',
         loadComponent: () =>
           import('./features/athlete/athlete-performances.component').then((m) => m.AthletePerformancesComponent),
+      },
+      {
+        // « Mes demandes » : où en est chaque sollicitation, et ce qu'on attend de l'athlète —
+        // il peut y avoir une question sans réponse, et c'est alors lui qui bloque.
+        path: 'demandes',
+        loadComponent: () =>
+          import('./features/annuaire/my-requests.component').then((m) => m.MyRequestsComponent),
       },
       {
         path: 'profile',

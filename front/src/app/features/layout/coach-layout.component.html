@@ -60,6 +60,7 @@
       @if (!solo()) {
         <a routerLink="/app/club" routerLinkActive="active" title="Club"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
       }
+      <a routerLink="/app/demandes" routerLinkActive="active" title="Demandes de coaching"><app-icon name="inbox" [size]="18" /><span>Demandes</span></a>
       <a routerLink="/app/vitrine" routerLinkActive="active" title="Ma fiche publique"><app-icon name="star" [size]="18" /><span>Ma fiche</span></a>
       <a routerLink="/app/training-zones" routerLinkActive="active" title="Mes zones d'intensité"><app-icon name="target" [size]="18" /><span>Mes zones</span></a>
 
@@ -157,6 +158,7 @@
         @if (!solo()) {
           <a routerLink="/app/club" routerLinkActive="active" (click)="closeMore()"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
         }
+        <a routerLink="/app/demandes" routerLinkActive="active" (click)="closeMore()"><app-icon name="inbox" [size]="18" /><span>Demandes</span></a>
         <a routerLink="/app/vitrine" routerLinkActive="active" (click)="closeMore()"><app-icon name="star" [size]="18" /><span>Ma fiche</span></a>
         <a routerLink="/app/training-zones" routerLinkActive="active" (click)="closeMore()"><app-icon name="target" [size]="18" /><span>Mes zones</span></a>
 

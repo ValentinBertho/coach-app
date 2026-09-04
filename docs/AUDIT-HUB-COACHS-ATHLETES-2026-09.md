@@ -18,14 +18,14 @@ côté athlète, la vitrine côté coach, et le geste qui les relie**.
 
 | Brique du hub | État | Où ça coince |
 |---|---|---|
-| Un athlète crée son compte seul | 🔴 **Impossible** | Aucun parcours : un compte `ATHLETE` ne naît que d'une invitation de coach (`AuthService:302`) |
+| Un athlète crée son compte seul | ✅ **Livré** (lot 1) | `athlete_accounts` (migration 100), `/inscription-athlete`, âge minimum 16 ans |
 | Un coach s'inscrit sans club | 🟡 Possible, mais mal dit | `clubName` est `@NotBlank` (`RegisterRequest:21`) ; le club implicite existe déjà |
 | Profil coach public (spécialités, tarifs, diplômes) | ✅ **Livré** (lot 2) | `coach_profiles`, `coach_offers`, `coach_certifications` + validation en back-office |
 | Annuaire / recherche de coachs | ✅ **Livré** (lot 3) | `/public/coaches`, facettes comptées, repli anti-cul-de-sac, fiche publique `/coachs/{slug}` |
-| Demande de coaching (athlète → coach) | 🔴 **N'existe pas** | `AthleteProposal` ne sert **pas** à ça (cf. §2.4) |
-| Acceptation ⇒ relation de travail | 🟡 La moitié est là | `CoachAthleteRelation` existe, mais sans statut ni cycle de vie |
+| Demande de coaching (athlète → coach) | ✅ **Livré** (lot 4) | `coaching_requests` (migration 101), une question / une réponse, aucune coordonnée avant accord |
+| Acceptation ⇒ relation de travail | ✅ **Livré** (lot 4) | Transaction atomique : fiche, relation privée, consentement reporté |
 | Travailler ensemble une fois liés | ✅ **Complet** | Rien à faire : c'est le produit actuel |
-| Échanger avant la relation | 🔴 Bloqué | `Conversation.club` et `Message.club` sont `NOT NULL` |
+| Échanger avant la relation | ✅ **Tranché** (décision 5) | Une question, une réponse, portées par la demande — `ConversationService` reste intact |
 | Mettre fin à une relation | 🟡 Le socle est posé | La désactiver élevait l'accès au lieu de le couper (§2.5) et cassait le démarrage (§2.5 bis) — **corrigé, lot 0** ; le geste utilisateur reste à écrire (lot 4) |
 | Facturer / encaisser | 🔴 Absent | Aucune entité ; à ne pas mettre au lancement (§3.7) |
 | Avis et réputation | 🔴 Absent | À ne pas mettre au lancement (§3.8) |
@@ -695,10 +695,10 @@ Huit lots. Les quatre premiers font un hub qui fonctionne ; les quatre suivants 
 | Lot | Contenu | Effort | Dépend de |
 |---|---|---|---|
 | **0 — Solder la dette d'accès** ✅ | Correction de `clubLevelFallback` (§2.5) **et** de la clé d'idempotence du backfill (§2.5 bis) ; `ended_at` / `ended_by_user_id` / `end_reason` sur la relation (migration 096) ; `EndedRelationRevokesAccessTest`, 5 cas | **S** | — |
-| **1 — Le compte athlète autoporté** | `athlete_accounts`, inscription libre, vérification d'e-mail, contrôle des 16 ans, `athletes.athlete_account_id`, écran « pas encore de coach » | **M** | 0 |
+| **1 — Le compte athlète autoporté** ✅ | `athlete_accounts` (migration 100), `/public/athlete-registration`, contrôle des 16 ans, `athletes.athlete_account_id`, navigation réduite tant qu'aucun coach n'a accepté | **M** | 0 |
 | **2 — La vitrine coach** ✅ | `coach_profiles`, `coach_certifications` (sans `verified`), `coach_offers` (migration 098), `coach_photos` (099, ré-encodage qui efface l'EXIF) ; cycle `DRAFT → PENDING → PUBLISHED ⇄ CLOSED` ; éditeur `/app/vitrine` ; file de validation `/admin/coach-profiles` | **M** | — |
 | **3 — L'annuaire** ✅ | `GET /public/coaches`, `/public/coach-facets` (comptes à zéro compris), `/public/coach-suggestions` (repli), `/public/coaches/{slug}` ; écrans `/coachs` et `/coachs/{slug}` ; bucket `public-directory` (photos exclues) | **M** | 2 |
-| **4 — La mise en relation** | `coaching_requests`, les deux files, l'acceptation transactionnelle (§4.2), la fin de relation, les notifications | **L** | 1, 2, 0 |
+| **4 — La mise en relation** ✅ | `coaching_requests` (migration 101), les deux files, l'acceptation transactionnelle (§4.2), les notifications. **La fin de relation côté écran reste à faire** — son socle est livré au lot 0 | **L** | 1, 2, 0 |
 | — | *↑ **Ici, le hub est utilisable de bout en bout.** ↑* | | |
 | **5 — Le vocabulaire indépendant** ✅ | Question à l'inscription (les deux régimes), drapeau `solo_practice` (migration 097) levé automatiquement à l'arrivée d'un second coach, navigation, périmètres, bilan hebdo, back-office | **S** | — |
 | **6 — Le multi-espace** | `GET /me/clubs`, sélecteur de club, correction `athletesInScope` (dette `AUDIT-COACH-INDEPENDANT` §4/§4 bis) | **M** | — |
@@ -821,8 +821,12 @@ que les décisions 4, 6 et 9 rendent plus simple sans la rendre facultative.
 
 *Audit rédigé en septembre 2026 sur la branche `claude/audit-coach-athlete-hub-am5hao`. Chaque
 affirmation renvoie au fichier et à la ligne qui la fondent. Les dix décisions du §8 ont été
-arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Les lots 0, 5, 2 et 3 sont livrés** — le
+arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Les lots 0, 5, 2, 3, 1 et 4 sont
+livrés** — la boucle du hub est fermée : un athlète s'inscrit seul, cherche, demande, le coach
+accepte, et ils travaillent. Le
 premier corrige deux défauts du produit actuel (§2.5, §2.5 bis), le second ouvre le vocabulaire aux
-coachs indépendants (§2.7), le troisième pose la vitrine du coach (§4.1), photo comprise, et le
-quatrième l'annuaire public (§3.5, §4.3). Le lot 1 — le compte athlète autoporté — est le suivant,
-puis le lot 4, la mise en relation.*
+coachs indépendants (§2.7), le troisième pose la vitrine du coach (§4.1), photo comprise, le
+quatrième l'annuaire public (§3.5, §4.3), et les deux derniers le compte athlète autoporté (§3.1)
+et la mise en relation (§4.2). **Restent les lots 6, 7 et 8** — multi-espace, acquisition et
+confiance, avis puis tarification — ainsi que la fin de relation côté écran, dont le socle serveur
+est livré depuis le lot 0.*

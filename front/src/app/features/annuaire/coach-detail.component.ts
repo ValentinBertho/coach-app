@@ -1,5 +1,9 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { AuthService } from '../../core/services/auth.service';
+import { CoachingRequestService } from '../../core/services/coaching-request.service';
+import { ConfirmService } from '../../core/services/confirm.service';
+import { ToastService } from '../../core/services/toast.service';
 import { CoachDetail, CoachDirectoryService } from '../../core/services/coach-directory.service';
 import { CoachOffer } from '../../core/services/coach-profile.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -125,11 +129,19 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
             <div>
               <strong>Demander à être coaché</strong>
               <p class="field-hint">
-                La mise en relation ouvre très bientôt. Vous pourrez alors envoyer une demande à
-                {{ c.name }}, qui l'accepte ou la refuse.
+                @if (!c.acceptingAthletes) {
+                  {{ c.name }} ne prend pas de nouveaux athlètes en ce moment.
+                } @else {
+                  Vous envoyez une demande ; {{ c.name }} l'accepte ou la refuse. Rien n'est engagé
+                  tant qu'il n'a pas répondu.
+                }
               </p>
             </div>
-            <button type="button" class="btn btn-primary" disabled>Bientôt disponible</button>
+            <button type="button" class="btn btn-primary"
+                    [disabled]="!c.acceptingAthletes || sending()"
+                    (click)="requestCoaching(c)">
+              {{ sending() ? 'Envoi…' : 'Demander à être coaché' }}
+            </button>
           </section>
         </article>
       } @else if (loading()) {
@@ -177,10 +189,16 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
 })
 export class CoachDetailComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly service = inject(CoachDirectoryService);
+  private readonly requests = inject(CoachingRequestService);
+  private readonly auth = inject(AuthService);
+  private readonly confirm = inject(ConfirmService);
+  private readonly toast = inject(ToastService);
 
   readonly coach = signal<CoachDetail | null>(null);
   readonly loading = signal(true);
+  readonly sending = signal(false);
 
   ngOnInit(): void {
     const slug = this.route.snapshot.paramMap.get('slug');
@@ -194,6 +212,50 @@ export class CoachDetailComponent implements OnInit {
         this.loading.set(false);
       },
       error: () => this.loading.set(false),
+    });
+  }
+
+  /**
+   * Envoie une demande à ce coach.
+   *
+   * <p>Un visiteur non connecté est renvoyé vers l'inscription athlète en gardant l'adresse de la
+   * fiche : le faire s'inscrire puis le laisser chercher à nouveau le coach qu'il venait de
+   * choisir est le meilleur moyen de le perdre en route.</p>
+   */
+  async requestCoaching(c: CoachDetail): Promise<void> {
+    if (!this.auth.isAuthenticated()) {
+      this.router.navigate(['/inscription-athlete'], { queryParams: { coach: c.slug } });
+      return;
+    }
+    if (this.auth.currentUser()?.role !== 'ATHLETE') {
+      this.toast.error('Seul un compte athlète peut demander un coaching.');
+      return;
+    }
+
+    const message = await this.confirm.prompt({
+      title: `Demander à ${c.name} de vous coacher`,
+      message: 'Dites-lui votre objectif et votre contexte : c\'est sur ce mot qu\'il décidera.',
+      confirmLabel: 'Envoyer ma demande',
+      promptLabel: 'Votre message',
+    });
+    if (message === null || message.trim().length < 20) {
+      if (message !== null) {
+        this.toast.error('Quelques lignes au moins : une demande sans contexte ne peut être que refusée.');
+      }
+      return;
+    }
+
+    this.sending.set(true);
+    this.requests.submit(c.slug, message.trim()).subscribe({
+      next: () => {
+        this.sending.set(false);
+        this.toast.success('Demande envoyée — vous serez prévenu de sa réponse');
+        this.router.navigate(['/athlete/demandes']);
+      },
+      error: (err) => {
+        this.sending.set(false);
+        this.toast.error(err?.error?.message ?? "La demande n'a pas pu être envoyée");
+      },
     });
   }
 

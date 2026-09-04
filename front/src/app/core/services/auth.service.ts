@@ -164,7 +164,10 @@ export class AuthService {
   homeRoute(): string {
     switch (this.currentUser()?.role) {
       case 'PLATFORM_ADMIN': return '/admin';
-      case 'ATHLETE': return '/athlete/calendar';
+      // Un athlète venu du hub n'a pas encore de fiche : le calendrier n'aurait rien à lui
+      // montrer et échouerait côté serveur. On l'envoie là où il a quelque chose à faire —
+      // chercher un coach — jusqu'à ce qu'une demande soit acceptée.
+      case 'ATHLETE': return this.currentUser()?.athleteId ? '/athlete/calendar' : '/coachs';
       case 'COACH':
       case 'HEAD_COACH': return '/app';
       default: return '/login';

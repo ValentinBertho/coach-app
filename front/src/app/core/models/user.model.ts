@@ -9,6 +9,14 @@ export interface User {
   role: UserRole;
   clubId: string | null;
   clubName: string | null;
+  /**
+   * La fiche de suivi de cet athlète, quand elle existe.
+   *
+   * Le serveur l'envoyait déjà ; le modèle ne le déclarait pas. Il devient nécessaire avec le
+   * hub : un athlète inscrit de lui-même n'a PAS de fiche tant qu'aucun coach ne l'a accepté, et
+   * c'est ce champ qui distingue « pas encore de coach » de « athlète suivi ».
+   */
+  athleteId?: string | null;
   emailVerified?: boolean;
   /** Unité d'affichage des allures préférée : PACE = min/km, SPEED = km/h. */
   paceUnit?: PaceUnit;

@@ -1,0 +1,112 @@
+<main class="auth-page">
+  <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
+    <header class="auth-head">
+      <app-logo [size]="44" [showText]="false" />
+      <h1 class="display-sm">Créer mon compte athlète</h1>
+      <p class="field-hint">
+        Vous n'avez pas besoin d'un coach pour commencer : créez votre compte, parcourez
+        l'annuaire, et demandez à celui qui vous convient de vous suivre.
+      </p>
+    </header>
+
+    <div class="form-group">
+      <label for="firstName">Prénom</label>
+      <input id="firstName" type="text" class="form-control" formControlName="firstName"
+             autocomplete="given-name" placeholder="Nina" />
+      @if (form.controls.firstName.touched && form.controls.firstName.invalid) {
+        <span class="error-message">Prénom requis.</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="lastName">Nom</label>
+      <input id="lastName" type="text" class="form-control" formControlName="lastName"
+             autocomplete="family-name" placeholder="Roy" />
+      @if (form.controls.lastName.touched && form.controls.lastName.invalid) {
+        <span class="error-message">Nom requis.</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="birthDate">Date de naissance</label>
+      <input id="birthDate" type="date" class="form-control" formControlName="birthDate" />
+      <!-- Dit avant la saisie plutôt qu'après le refus : un adolescent et son parent doivent
+           savoir tout de suite quel chemin leur reste. -->
+      <span class="field-hint">
+        L'inscription directe est réservée aux 16 ans et plus. En dessous, c'est votre club ou
+        votre coach qui crée votre accès.
+      </span>
+      @if (form.controls.birthDate.touched && form.controls.birthDate.invalid) {
+        <span class="error-message">Date de naissance requise.</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input id="email" type="email" class="form-control" formControlName="email"
+             autocomplete="email" placeholder="vous@exemple.fr" />
+      @if (form.controls.email.touched && form.controls.email.invalid) {
+        <span class="error-message">Email valide requis.</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="password">Mot de passe</label>
+      <input id="password" type="password" class="form-control" formControlName="password"
+             autocomplete="new-password" placeholder="8 caractères minimum" />
+      @if (form.controls.password.touched && form.controls.password.invalid) {
+        <span class="error-message">8 caractères minimum.</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label for="goal">Votre objectif <span class="reg-optional">(facultatif)</span></label>
+      <textarea id="goal" class="form-control" formControlName="goal" rows="3"
+                placeholder="Finir mon premier marathon au printemps, je reviens d'une blessure…"></textarea>
+      <span class="field-hint">C'est la première chose qu'un coach lira de vous.</span>
+    </div>
+
+    <!-- Deux consentements distincts : l'un régit l'usage du service, l'autre autorise le
+         traitement de données de santé. Les fondre priverait le second de sa clarté. -->
+    <div class="form-group">
+      <label class="consent-check">
+        <input type="checkbox" formControlName="termsAccepted" />
+        <span>
+          J'accepte les <a routerLink="/legal/cgu" target="_blank">conditions d'utilisation</a>
+          et la <a routerLink="/legal/confidentialite" target="_blank">politique de confidentialité</a>.
+        </span>
+      </label>
+      @if (form.controls.termsAccepted.touched && form.controls.termsAccepted.invalid) {
+        <span class="error-message">L'acceptation des conditions est requise.</span>
+      }
+    </div>
+
+    <div class="form-group">
+      <label class="consent-check">
+        <input type="checkbox" formControlName="healthDataConsent" />
+        <span>
+          J'autorise le traitement de mes <strong>données de santé</strong> (ressenti, douleurs,
+          fatigue, mesures physiologiques) par le coach que je choisirai.
+        </span>
+      </label>
+      <span class="field-hint">
+        Vous pouvez le retirer à tout moment depuis votre compte ; la collecte s'arrête alors.
+      </span>
+      @if (form.controls.healthDataConsent.touched && form.controls.healthDataConsent.invalid) {
+        <span class="error-message">Ce consentement est requis pour être suivi par un coach.</span>
+      }
+    </div>
+
+    @if (errorMessage(); as message) {
+      <p class="auth-error" role="alert">{{ message }}</p>
+    }
+
+    <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
+      {{ submitting() ? 'Création…' : 'Créer mon compte' }}
+    </button>
+
+    <p class="auth-switch">
+      Déjà inscrit ? <a routerLink="/login">Se connecter</a>
+    </p>
+  </form>
+</main>
