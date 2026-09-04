@@ -168,9 +168,17 @@ export class WorkoutDetailComponent implements OnInit {
     const acc = (entries: CalculatedBlockEntry[]) => {
       for (const e of entries) {
         add(e.block.prescription?.zoneId, e.calc?.estimatedDurationS);
-        const reps = e.block.reps && e.block.reps > 1 ? e.block.reps - 1 : 0;
-        if (reps && e.recoveryCalc?.estimatedDurationS) {
+        // Une récupération par répétition, la dernière comprise, et autant de fois qu'il y a de
+        // séries ; entre deux séries, la récup de série remplace celle de la répétition. Compter
+        // (reps - 1) laissait la dernière descente hors de la répartition par zone.
+        const sets = e.block.sets && e.block.sets > 1 ? Math.floor(e.block.sets) : 1;
+        const setRecoveries = sets > 1 && e.block.setRecovery?.durationS ? sets - 1 : 0;
+        const reps = (e.block.reps && e.block.reps > 1 ? e.block.reps : 1) * sets - setRecoveries;
+        if (reps > 0 && e.recoveryCalc?.estimatedDurationS) {
           add(e.block.recovery?.prescription?.zoneId, e.recoveryCalc.estimatedDurationS * reps);
+        }
+        if (setRecoveries) {
+          add(e.block.setRecovery?.prescription?.zoneId, e.block.setRecovery!.durationS! * setRecoveries);
         }
       }
     };
