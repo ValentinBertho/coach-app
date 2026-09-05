@@ -78,6 +78,7 @@ public class AdminOverviewService {
     private final AdminAuditService auditService;
     private final ClockService clock;
     private final StravaClient stravaClient;
+    private final ModerationQueueService moderation;
 
     @Value("${app.mail.enabled:false}")
     private boolean mailEnabled;
@@ -240,6 +241,42 @@ public class AdminOverviewService {
                     "Tant qu'elles ne sont pas arbitrées, ces coachs n'ont aucun moyen d'entrer : "
                             + "la validation ouvre le club et leur envoie leur lien d'accès.",
                     "Étudier les demandes", "/admin/club-requests", pendingClubRequests));
+        }
+
+        // --- Fiches coachs à valider : l'autre porte d'entrée de la plateforme. ---
+        //
+        // Même raisonnement que ci-dessus, et même conséquence : une fiche laissée en attente est
+        // un coach qui n'apparaît dans aucun annuaire, donc invisible des athlètes.
+        // Un seul relevé des files pour les deux signaux qui suivent : il fait trois comptes en
+        // base, et les demander deux fois pour afficher un tableau de bord serait payer le double
+        // d'une information qui ne bouge pas entre les deux lignes.
+        var queues = moderation.summary();
+        long pendingProfiles = queues.pendingCoachProfiles();
+        if (pendingProfiles > 0) {
+            out.add(AdminSignalResponse.of("coach-profiles-pending", AdminSignalResponse.WARNING,
+                    pendingProfiles + " fiche" + plural(pendingProfiles) + " coach à valider",
+                    "Tant qu'elle n'est pas publiée, la fiche n'existe pour aucun athlète : "
+                            + "ni la recherche ni son adresse directe ne la rendent.",
+                    "Étudier les fiches", "/admin/coach-profiles", pendingProfiles));
+        }
+
+        // --- Signalements ouverts : la contrepartie de diplômes publiés sans vérification. ---
+        //
+        // CRITIQUE au-delà de deux jours, et pas par emphase : c'est le seul de ces signaux où
+        // l'attente laisse EN LIGNE quelque chose que quelqu'un conteste. Les autres files font
+        // patienter ; celle-ci publie.
+        long openReports = queues.openReports();
+        if (openReports > 0) {
+            Long age = queues.oldestReportAgeDays();
+            boolean stale = age != null && age >= 2;
+            out.add(AdminSignalResponse.of("coach-reports-open",
+                    stale ? AdminSignalResponse.CRITICAL : AdminSignalResponse.WARNING,
+                    openReports + " signalement" + plural(openReports) + " à traiter"
+                            + (stale ? " — le plus ancien depuis " + age + " jours" : ""),
+                    "La plateforme ne vérifie pas les diplômes qu'elle publie ; elle lit ce qu'on "
+                            + "lui rapporte. Une fiche contestée reste en ligne tant que personne "
+                            + "ne l'a regardée.",
+                    "Ouvrir les signalements", "/admin/coach-reports", openReports));
         }
 
         // --- Retours bêta en attente : la file de travail du support. ---

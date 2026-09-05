@@ -110,12 +110,6 @@ public class CoachReportService {
                 reportRepository.countByProfileIdAndStatus(profile.getId(), CoachReportStatus.OPEN));
     }
 
-    /** Le compte des signalements en attente, pour la pastille du back-office. */
-    @Transactional(readOnly = true)
-    public long countOpen() {
-        return reportRepository.countByStatus(CoachReportStatus.OPEN);
-    }
-
     /** La file d'arbitrage, du plus ancien au plus récent. */
     @Transactional(readOnly = true)
     public List<CoachReportResponse> queue(CoachReportStatus status) {

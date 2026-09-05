@@ -159,8 +159,37 @@ public class DemoSeedService {
         log.warn("[RAZ démo] Données purgées et jeu de démo rechargé.");
     }
 
+    /**
+     * Vide la base de démonstration.
+     *
+     * <h2>Le défaut que les tables du hub ont révélé</h2>
+     *
+     * <p>Cette méthode n'avait pas suivi les lots 1, 2, 4 et 7 : `coach_profiles`,
+     * `athlete_accounts`, `coaching_requests` et `coach_profile_reports` référencent `users` sans
+     * suppression en cascade, si bien que `delete from users` butait sur une contrainte
+     * d'intégrité. <b>La remise à zéro de la démonstration échouait</b> dès qu'un coach avait une
+     * fiche — en production comme en test.</p>
+     *
+     * <p>L'ordre ci-dessous n'est donc pas décoratif, il suit le graphe des clés étrangères :
+     * les enfants avant les parents, et `athletes.athlete_account_id` détaché avant que les
+     * comptes athlètes ne disparaissent, puisque les fiches sont supprimées plus bas.</p>
+     */
     @Transactional
     public void purge() {
+        // Le hub, des feuilles vers la racine. En SQL plutôt qu'en dépôts : sept injections de
+        // plus dans un constructeur qui en compte déjà trente, pour une opération de maintenance
+        // dont l'ORDRE est précisément ce qu'il faut pouvoir lire d'un coup d'œil.
+        jdbcTemplate.update("delete from coach_profile_reports");
+        jdbcTemplate.update("delete from coaching_requests");
+        jdbcTemplate.update("delete from coach_photos");
+        jdbcTemplate.update("delete from coach_certifications");
+        jdbcTemplate.update("delete from coach_offers");
+        jdbcTemplate.update("delete from coach_profiles");   // facettes supprimées par cascade FK
+        // Les fiches d'athlètes ne partent qu'en fin de purge : on détache d'abord le lien vers
+        // le compte, sans quoi la suppression des comptes buterait dessus.
+        jdbcTemplate.update("update athletes set athlete_account_id = null");
+        jdbcTemplate.update("delete from athlete_accounts");
+
         pushSubscriptionRepository.deleteAllInBatch();
         messageRepository.deleteAllInBatch();
         activityRepository.deleteAllInBatch();

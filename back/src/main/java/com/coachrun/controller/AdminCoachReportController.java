@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -40,12 +39,6 @@ public class AdminCoachReportController {
     @GetMapping
     public List<CoachReportResponse> list(@RequestParam(required = false) CoachReportStatus status) {
         return service.queue(status);
-    }
-
-    /** Compteur de la pastille « signalements à traiter ». */
-    @GetMapping("/count")
-    public Map<String, Long> count() {
-        return Map.of("count", service.countOpen());
     }
 
     /** Suite donnée : la fiche a été corrigée ou suspendue. */
