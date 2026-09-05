@@ -215,6 +215,9 @@ Darilab 0.2.0 démarré — profil actif : dev · front : http://localhost:4200
 > Le navigateur n'appelle **jamais** le port 8081 : le front est construit avec `apiUrl = '/api'`
 > et nginx relaie vers le backend. Le port 8081 n'existe que pour vos propres appels directs.
 
+> 🐞 **Poser des points d'arrêt** (dans le conteneur, ou depuis IntelliJ / VS Code) :
+> [`docs/DEBUG.md`](./docs/DEBUG.md).
+
 ---
 
 ## Comptes de démonstration
@@ -511,6 +514,7 @@ le produit et les parcours) :
 | [`docs/Design.md`](./docs/Design.md) | design system (tokens, composants, états) |
 | [`docs/Claude.md`](./docs/Claude.md) | conventions de code (IA & humains) |
 | [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md) | déploiement Railway/Vercel + variables |
+| [`docs/DEBUG.md`](./docs/DEBUG.md) | **mémo de débogage : points d'arrêt en Docker, IntelliJ et VS Code, journaux, correlationId** |
 | [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | **exploitation : Sentry, sauvegardes BDD, Actuator, CI (pas-à-pas)** |
 | [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md) | **runbook de mise en service : Resend, Sentry, uptime, backups (pas-à-pas)** |
 | [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md) | **plan de mise en conformité** : vagues 0 à 3, check-lists légale/RGPD et opérationnelle, recommandation GO/NO-GO |
