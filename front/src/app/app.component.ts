@@ -1,4 +1,5 @@
-import { Component, DestroyRef, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { PLATFORM_ID, Component, DestroyRef, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AuthService } from './core/services/auth.service';
 import { FeedbackQueueService } from './core/services/feedback-queue.service';
@@ -58,6 +59,16 @@ export class AppComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
+    // Ces quatre amorçages sont des gestes de navigateur, et aucun n'a de sens au pré-rendu des
+    // fiches coachs, fabriquées dans Node à la compilation : il n'y a là ni onglet à réveiller,
+    // ni service worker à mettre à jour, ni appareil à abonner aux notifications.
+    //
+    // `keepSessionAlive` est le plus important à écarter : il rafraîchit un jeton
+    // d'authentification. Le laisser tourner ferait partir, depuis la machine qui compile, des
+    // requêtes de session vers l'API — pour un fichier statique qui sera servi à tout le monde.
+    if (!isPlatformBrowser(inject(PLATFORM_ID))) {
+      return;
+    }
     this.theme.init();
     this.update.init();
     this.push.init();

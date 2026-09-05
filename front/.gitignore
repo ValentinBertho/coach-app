@@ -40,3 +40,7 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Liste des adresses à pré-rendre : régénérée à chaque build par scripts/collect-prerender-routes.mjs
+# (elle contient les slugs des coachs publiés au moment de la compilation, donc elle bouge sans arrêt).
+prerender-routes.txt

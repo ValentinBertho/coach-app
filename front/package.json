@@ -4,12 +4,13 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve --proxy-config proxy.conf.json",
-    "build": "ng build",
-    "build:docker": "ng build --configuration production,docker",
+    "build": "npm run prerender:routes && ng build",
+    "build:docker": "npm run prerender:routes && ng build --configuration production,docker",
     "watch": "ng build --watch --configuration development",
     "test": "ng test --watch=false --browsers=ChromeHeadlessNoSandbox",
     "build:pwa": "ng build --configuration pwa",
-    "start:pwa": "ng build --configuration pwa && npx --yes http-server dist/front/browser -p 4200 -c-1 --proxy http://localhost:4200?"
+    "start:pwa": "ng build --configuration pwa && npx --yes http-server dist/front/browser -p 4200 -c-1 --proxy http://localhost:4200?",
+    "prerender:routes": "node scripts/collect-prerender-routes.mjs prerender-routes.txt"
   },
   "private": true,
   "dependencies": {
@@ -21,8 +22,10 @@
     "@angular/forms": "^17.3.0",
     "@angular/platform-browser": "^17.3.0",
     "@angular/platform-browser-dynamic": "^17.3.0",
+    "@angular/platform-server": "^17.3.12",
     "@angular/router": "^17.3.0",
     "@angular/service-worker": "^17.3.0",
+    "@angular/ssr": "^17.3.17",
     "@sentry/angular-ivy": "^7.120.4",
     "leaflet": "^1.9.4",
     "lucide-angular": "^0.396.0",

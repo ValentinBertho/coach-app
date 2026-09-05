@@ -272,6 +272,71 @@ fiche, dix par adresse et par jour (`CoachReportService`).
 
 ---
 
+## 7 ter. Le pré-rendu des fiches coachs
+
+### Le problème qu'il résout
+
+L'application se construit dans le navigateur : `/coachs/marie-dupont` servait un `index.html`
+vide, que le JavaScript remplissait ensuite. Un navigateur exécute ce JavaScript ; **les robots
+d'aperçu de lien n'en font rien**. WhatsApp, Slack, LinkedIn et iMessage lisent le HTML brut et
+s'arrêtent là — ils affichaient donc le titre générique de la page d'accueil sous le lien d'un
+coach. À dix coachs, le bouche-à-oreille est le seul canal d'acquisition, et c'était celui-là qui
+était cassé.
+
+Le pré-rendu fabrique **à la compilation** un vrai fichier HTML par page, déjà rempli.
+
+### Ce qu'il faut savoir pour exploiter
+
+**Une variable d'environnement, et c'est tout** — à définir sur Vercel (et sur toute autre chaîne
+de compilation) :
+
+```
+PRERENDER_API_ORIGIN = https://coach-app-production-5674.up.railway.app
+```
+
+C'est une **origine** : protocole et hôte, **sans `/api`**. Le `/api` est ajouté par
+l'application ; l'inclure produit `…/api/api/…`, qui répond 404 et fait retomber les fiches sur le
+titre générique — sans casser la compilation, donc en silence. C'est le piège de ce dispositif.
+
+**Sans cette variable, la compilation réussit quand même** : seules les pages statiques (accueil,
+annuaire, mentions légales, support) sont pré-rendues, et le script l'écrit en clair dans la
+sortie. C'est délibéré — sans cette clémence, une API en maintenance empêcherait de déployer une
+correction de style sur le site.
+
+### La limite, à surveiller
+
+Ces fichiers sont **figés à la compilation**. Un coach qui publie sa fiche après le déploiement
+n'est pas pré-rendu : sa page fonctionne normalement dans un navigateur, mais l'aperçu d'un lien
+partagé restera générique **jusqu'au déploiement suivant**.
+
+- À dix coachs : tenable, on redéploie de temps en temps.
+- Bien avant cent : il faudra déclencher un redéploiement automatique quand un administrateur
+  publie une fiche (Vercel Deploy Hook appelé depuis `CoachProfileService.approve`).
+
+### Le service worker n'y touche pas, et c'est voulu
+
+`ngsw-config.json` ne préchargeait que `/index.html`, nommément — pas un motif `/**/*.html`. Les
+fichiers pré-rendus des fiches ne sont donc **pas** mis en cache, et aucun visiteur ne peut se voir
+servir une fiche périmée par le service worker.
+
+Un utilisateur qui a déjà installé la PWA reçoit, lui, la coquille `/index.html` depuis son cache
+et l'application se construit dans son navigateur comme avant : même page à l'arrivée. Le
+pré-rendu sert les robots d'aperçu et la première visite — exactement ceux qui n'ont pas de cache.
+Élargir le préchargement à `/**/*.html` casserait cette propriété : à ne pas faire.
+
+### Vérifier que ça marche
+
+Après un déploiement, la commande suivante doit renvoyer le nom du coach et non « Darilab » :
+
+```bash
+curl -s https://www.darilab.app/coachs/<slug> | grep -o '<title>[^<]*</title>'
+```
+
+Le même contrôle passe par les débogueurs d'aperçu de Facebook, LinkedIn ou Slack, qui montrent ce
+que verra réellement quelqu'un à qui l'on partage le lien.
+
+---
+
 ## 8. Emails & notifications (Resend) — pas-à-pas
 
 Le canal email est **déjà branché** (client Resend, `NotificationService`, schedulers) ; il est

@@ -783,17 +783,36 @@ Trois choix méritent d'être écrits, parce qu'ils pourraient sembler être des
 - **le coach signalé n'est pas notifié.** Il identifierait sans peine qui l'a signalé — souvent
   l'un de ses trois athlètes — avant qu'un humain ait établi si le reproche tenait.
 
-### Le SEO : une moitié livrée, l'autre reste une décision d'infrastructure
+### Le SEO : les deux moitiés, désormais
 
 Les balises de titre, description et Open Graph sont posées sur l'annuaire et sur chaque fiche.
-Elles servent les robots qui exécutent le JavaScript. Elles **ne servent pas** les aperçus de
-partage — messageries, Slack, là où circulent réellement les recommandations de coach — qui ne
-l'exécutent pas et verront la page d'accueil générique.
+Seules, elles ne servaient que les robots qui exécutent le JavaScript — pas les aperçus de partage
+des messageries, c'est-à-dire là où circulent réellement les recommandations de coach.
 
-Autrement dit : ceci est une moitié, et il vaut mieux l'écrire que la laisser croire entière.
-L'autre est un pré-rendu des fiches à la compilation, qui relève de la chaîne de build et non d'un
-composant. Poser ces balises coûte peu et servira le jour où ce pré-rendu existera ; le risque
-« absence de SEO » du §7 reste donc ouvert.
+**Le pré-rendu ferme cette moitié manquante.** À la compilation, un vrai fichier HTML est fabriqué
+par page publique et par fiche publiée : `/coachs/marie-dupont/index.html` porte le nom du coach,
+son accroche, sa ville et ses signaux de réactivité avant qu'aucun script ne s'exécute.
+
+Trois choses ont dû être réglées pour y arriver, et elles disent quelque chose du produit :
+
+- **`AuthService`, `NetworkStatusService`, `PwaInstallService`, `ThemeService` et l'amorçage
+  d'`AppComponent`** touchaient `window`, `document`, `navigator` ou `localStorage` sans garde.
+  Chacun est désormais explicite sur le fait qu'il est un geste de navigateur. Le plus important à
+  écarter était le rafraîchissement de jeton au démarrage : le laisser tourner aurait envoyé des
+  requêtes de session depuis la machine de compilation, pour produire un fichier servi à tout le
+  monde ;
+- **le gestionnaire d'erreurs Sentry** lève dans Node (il lit `ErrorEvent`) et masquait derrière
+  sa propre panne l'erreur qu'il tentait de rapporter. Il est cantonné au navigateur — une
+  compilation n'a rien à écrire dans le journal d'incidents des utilisateurs réels ;
+- **`environment.apiUrl` vaut `/api`**, une adresse relative que Node ne sait pas résoudre. Un
+  intercepteur la rend absolue au pré-rendu seulement. Écrire l'adresse de Railway dans le paquet
+  du navigateur aurait contourné le proxy Vercel *et* violé la politique de sécurité de contenu.
+
+**Ce qui reste ouvert, et qu'il faut surveiller.** Les fichiers sont figés à la compilation : un
+coach qui publie après le déploiement garde un aperçu générique jusqu'au suivant. Tenable à dix
+coachs, à reprendre bien avant cent — par un redéploiement déclenché à la validation d'une fiche.
+La compilation ne dépend pas de l'API pour autant : si elle ne répond pas, seules les pages
+statiques sont pré-rendues et le script le dit bruyamment, plutôt que d'empêcher de déployer.
 
 **Le lot 0 s'est livré seul et en premier** : il corrige deux défauts du produit actuel (§2.5 et
 §2.5 bis), il ne dépendait de rien, et tous les autres s'appuient dessus. Écrire la fin de relation
@@ -827,7 +846,7 @@ données et se paierait en migration.
 | **Requalification en intermédiaire** avec obligations d'information | Moyenne | Élevé | Avis juridique **avant** le lot 4. CGU distinguant explicitement mise en relation et prestation de coaching |
 | **Données de santé chez un coach inconnu de la plateforme** | Moyenne | Élevé | Consentement explicite au moment de l'acceptation, pas à l'inscription ; le coach est nommé dans le texte du consentement |
 | **Un coach du hub abuse de son espace** (crée des fiches sur des tiers) | Faible | Moyen | Rien de nouveau : c'est déjà le cas aujourd'hui. Le back-office le voit |
-| **Absence de SEO** rend l'annuaire invisible | Élevée | Moyen | Balises posées au lot 7 ; **le pré-rendu reste à faire** et sans lui les aperçus de partage montrent la page d'accueil. Ne pas fonder l'acquisition dessus d'ici là |
+| **Absence de SEO** rend l'annuaire invisible | Moyenne | Moyen | Balises **et** pré-rendu livrés au lot 7 : un lien de fiche partagé affiche le coach. Reste le décalage entre publication d'une fiche et déploiement suivant, à automatiser avant cent coachs |
 | **`/public/**` ouvert en bloc** : une future route publique expose plus que prévu | Faible | Élevé | Revue explicite de chaque ajout sous `/public` ; tests de non-exposition (§4.4) |
 
 ---
@@ -912,12 +931,13 @@ que les décisions 4, 6 et 9 rendent plus simple sans la rendre facultative.
 *Audit rédigé en septembre 2026 sur la branche `claude/audit-coach-athlete-hub-am5hao`. Chaque
 affirmation renvoie au fichier et à la ligne qui la fondent. Les dix décisions du §8 ont été
 arrêtées le 4 septembre 2026 ; le plan du §6 est validé. **Les lots 0, 5, 2, 3, 1, 4, 6 et 7 sont
-livrés** — la boucle du hub est fermée : un athlète s'inscrit seul, cherche, demande, le coach
+livrés, pré-rendu des fiches compris** — la boucle du hub est fermée : un athlète s'inscrit seul, cherche, demande, le coach
 accepte, et ils travaillent. Le
 premier corrige deux défauts du produit actuel (§2.5, §2.5 bis), le second ouvre le vocabulaire aux
 coachs indépendants (§2.7), le troisième pose la vitrine du coach (§4.1), photo comprise, le
 quatrième l'annuaire public (§3.5, §4.3), et les deux derniers le compte athlète autoporté (§3.1)
 et la mise en relation (§4.2). La fin de relation est livrée des deux côtés, le lot 6 ouvre le
 multi-espace, et le lot 7 donne à l'athlète de quoi choisir — des signaux mesurés — et de quoi
-contester — le signalement. **Reste le lot 8** (avis, puis tarification), que la décision 7 subordonne
-à de vraies expériences terminées, et **le pré-rendu des fiches**, qui relève de l'infrastructure.*
+contester — le signalement, désormais servi en HTML pré-rendu pour que les liens partagés montrent
+le coach. **Reste le lot 8** (avis, puis tarification), que la décision 7 subordonne à de vraies
+expériences terminées.*
