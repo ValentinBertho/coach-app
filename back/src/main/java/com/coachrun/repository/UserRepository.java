@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -58,6 +59,15 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findFirstByClubIdAndRole(UUID clubId, UserRole role);
 
     long countByRole(UserRole role);
+
+    /**
+     * Les administrateurs plateforme actifs — les destinataires du digest de modération.
+     *
+     * <p>Par rôle plutôt que par une adresse de configuration : `PLATFORM_ADMIN_EMAIL` ne sert
+     * qu'à créer le premier compte au démarrage, et le jour où l'équipe compte deux
+     * administrateurs, le second doit recevoir la file du matin sans qu'on redéploie.</p>
+     */
+    List<User> findByRoleAndStatus(UserRole role, UserStatus status);
 
     @Query("""
             select distinct u from User u

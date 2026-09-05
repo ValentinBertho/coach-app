@@ -30,6 +30,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -997,6 +998,95 @@ public class NotificationService {
                 + " votre attention :</p><ul>" + items + "</ul>"
                 + cta("Ouvrir ma journée", frontendUrl + "/app/journee");
         send(coach.getEmail(), subject, html, Audience.COACH, MailKind.ALERT_DIGEST);
+    }
+
+    /**
+     * Les files d'arbitrage qui attendent l'équipe, une fois par jour.
+     *
+     * <h2>Le silence que cet envoi rompt</h2>
+     *
+     * <p>Les trois files du back-office étaient <b>passives</b> : rien ne disait qu'elles
+     * contenaient du travail. L'unique e-mail parti sur une demande de club est un accusé de
+     * réception <em>au demandeur</em>. Un coach inscrit vendredi soir attendait donc qu'on pense à
+     * regarder — et, depuis le lot 7, une fiche accusée de porter un faux diplôme restait publiée
+     * pendant ce temps.</p>
+     *
+     * <h2>Pourquoi un digest et non un envoi par événement</h2>
+     *
+     * <p>Le signalement est ouvert aux visiteurs sans compte : un e-mail par signalement se
+     * déclencherait donc sur commande. Le plan d'envoi est à cent messages par jour et il porte
+     * aussi les réinitialisations de mot de passe et les invitations — c'est-à-dire les envois
+     * qu'on ne peut pas perdre. Un message quotidien est borné par construction.</p>
+     *
+     * <p>L'âge du plus ancien signalement est dit dans l'objet quand il dépasse deux jours. C'est
+     * le seul chiffre qui distingue une file qui tourne d'une file qui dérape, et le mettre dans
+     * l'objet le fait lire sans ouvrir.</p>
+     */
+    public void notifyModerationQueue(User admin, ModerationQueueService.ModerationSummary summary) {
+        if (admin == null || summary == null || !summary.hasWork()) {
+            return;
+        }
+
+        List<String> parts = new ArrayList<>();
+        if (summary.pendingClubRequests() > 0) {
+            parts.add(plural(summary.pendingClubRequests(), "demande de club", "demandes de club"));
+        }
+        if (summary.pendingCoachProfiles() > 0) {
+            parts.add(plural(summary.pendingCoachProfiles(), "fiche coach", "fiches coachs"));
+        }
+        if (summary.openReports() > 0) {
+            parts.add(plural(summary.openReports(), "signalement", "signalements"));
+        }
+        String what = String.join(", ", parts);
+
+        notifyUser(admin, "MODERATION_QUEUE", "Files à traiter", what, what, "/admin/coach-profiles");
+
+        if (admin.getEmail() == null || !admin.isNotifyEmailEnabled()) {
+            return;
+        }
+
+        Long age = summary.oldestReportAgeDays();
+        boolean stale = age != null && age >= 2;
+        String subject = stale
+                // L'urgence dans l'objet : un signalement qui dort est le seul de ces trois cas
+                // qui laisse en ligne quelque chose que quelqu'un conteste.
+                ? "Signalement en attente depuis " + plural(age, "jour", "jours") + " — Darilab"
+                : what + " à traiter sur Darilab";
+
+        StringBuilder items = new StringBuilder();
+        if (summary.pendingClubRequests() > 0) {
+            items.append(queueLine(summary.pendingClubRequests(), "demande de club",
+                    "demandes de club", "/admin/club-requests"));
+        }
+        if (summary.pendingCoachProfiles() > 0) {
+            items.append(queueLine(summary.pendingCoachProfiles(), "fiche coach à valider",
+                    "fiches coachs à valider", "/admin/coach-profiles"));
+        }
+        if (summary.openReports() > 0) {
+            items.append(queueLine(summary.openReports(), "signalement",
+                    "signalements", "/admin/coach-reports"));
+        }
+
+        String html = "<p>Bonjour,</p><p>Ce qui attend un arbitrage ce matin :</p><ul>"
+                + items + "</ul>"
+                + (stale
+                        ? "<p><strong>Le plus ancien signalement attend depuis "
+                                + plural(age, "jour", "jours")
+                                + ".</strong> Une fiche contestée reste publiée tant qu'elle n'a pas"
+                                + " été regardée.</p>"
+                        : "")
+                + cta("Ouvrir le back-office", frontendUrl + "/admin/coach-profiles");
+        send(admin.getEmail(), subject, html, Audience.ADMIN, MailKind.MODERATION_DIGEST);
+    }
+
+    /** « 1 signalement » / « 3 signalements » — le compte et son mot, accordés. */
+    private static String plural(long count, String singular, String plural) {
+        return count + " " + (count > 1 ? plural : singular);
+    }
+
+    private String queueLine(long count, String singular, String plural, String path) {
+        return "<li><a href=\"" + frontendUrl + path + "\">"
+                + esc(plural(count, singular, plural)) + "</a></li>";
     }
 
     /**

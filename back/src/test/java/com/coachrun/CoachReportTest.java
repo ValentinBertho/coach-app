@@ -68,13 +68,11 @@ class CoachReportTest {
                 "Ce coach affiche un BEES 2 ; je suis formateur dans ce diplôme et il n'y figure pas.")
                 .andExpect(status().isNoContent());
 
-        JsonNode queue = json(mvc.perform(get("/admin/coach-reports")
-                .header("Authorization", adminBearer)).andExpect(status().isOk()));
-        assertThat(queue).hasSize(1);
-        assertThat(queue.get(0).get("fromKnownUser").asBoolean())
+        JsonNode mine = findByDetails("je suis formateur dans ce diplôme");
+        assertThat(mine.get("fromKnownUser").asBoolean())
                 .as("déposé sans jeton : le signalement est anonyme")
                 .isFalse();
-        assertThat(queue.get(0).get("status").asText()).isEqualTo("OPEN");
+        assertThat(mine.get("status").asText()).isEqualTo("OPEN");
     }
 
     /** Une case cochée sans explication ne se traite pas : le texte est obligatoire. */
@@ -122,9 +120,9 @@ class CoachReportTest {
                 "Cette fiche reprend mon nom et mes résultats de compétition, je suis le coach concerné.")
                 .andExpect(status().isNoContent());
 
-        JsonNode queue = json(mvc.perform(get("/admin/coach-reports")
-                .header("Authorization", adminBearer)).andExpect(status().isOk()));
-        assertThat(queue.get(0).get("fromKnownUser").asBoolean()).isTrue();
+        assertThat(findByDetails("je suis le coach concerné").get("fromKnownUser").asBoolean())
+                .as("déposé avec un jeton : l'administrateur doit voir la différence")
+                .isTrue();
     }
 
     /**
@@ -138,8 +136,9 @@ class CoachReportTest {
         report(null, "DANGEROUS_ADVICE",
                 "Conseils de perte de poids qui me semblent relever du médecin, pas du coach.")
                 .andExpect(status().isNoContent());
-        String reportId = json(mvc.perform(get("/admin/coach-reports")
-                .header("Authorization", adminBearer))).get(0).get("id").asText();
+        JsonNode mine = findByDetails("relever du médecin");
+        String reportId = mine.get("id").asText();
+        long openOnProfileBefore = mine.get("openReportsOnProfile").asLong();
 
         JsonNode handled = json(mvc.perform(post("/admin/coach-reports/{id}/dismiss", reportId)
                 .header("Authorization", adminBearer)
@@ -148,14 +147,21 @@ class CoachReportTest {
                 .content("{\"note\":\"Vérifié avec le coach, rien à corriger.\"}"))
                 .andExpect(status().isOk()));
         assertThat(handled.get("status").asText()).isEqualTo(CoachReportStatus.DISMISSED.name());
+        // Un décrément, et non « zéro » : le compteur porte sur la FICHE, et d'autres cas de cette
+        // classe laissent des signalements ouverts sur la même fiche de démonstration. Exiger zéro
+        // revenait à exiger d'être le seul à avoir signalé — ce que la production ne garantit
+        // jamais, et ce qui faisait dépendre le test de l'ordre de passage des autres.
         assertThat(handled.get("openReportsOnProfile").asLong())
-                .as("clos, il ne pèse plus sur le compteur de la fiche")
-                .isZero();
+                .as("clos, il cesse de peser sur le compteur de sa fiche")
+                .isEqualTo(openOnProfileBefore - 1);
 
-        assertThat(json(mvc.perform(get("/admin/coach-reports")
-                .header("Authorization", adminBearer))))
-                .as("la file par défaut ne montre que ce qui reste à faire")
-                .isEmpty();
+        JsonNode stillOpen = json(mvc.perform(get("/admin/coach-reports")
+                .header("Authorization", adminBearer)));
+        for (JsonNode row : stillOpen) {
+            assertThat(row.get("details").asText())
+                    .as("la file par défaut ne montre que ce qui reste à faire")
+                    .doesNotContain("relever du médecin");
+        }
     }
 
     /** La file d'arbitrage n'est pas publique, et pas davantage ouverte au premier coach venu. */
@@ -177,6 +183,25 @@ class CoachReportTest {
     }
 
     // ---------------------------------------------------------------- outillage
+
+    /**
+     * Retrouve dans la file le signalement portant ce texte.
+     *
+     * <p>Plutôt que de lire `queue.get(0)` en supposant la file vide. Cette classe passait seule et
+     * échouait dès qu'une autre laissait des signalements derrière elle : elle testait alors
+     * l'ordre de passage des classes de tests, pas la règle qu'elle décrit. Chercher son propre
+     * dossier vaut aussi pour la production, où la file n'est jamais vide.</p>
+     */
+    private JsonNode findByDetails(String fragment) throws Exception {
+        JsonNode queue = json(mvc.perform(get("/admin/coach-reports")
+                .header("Authorization", adminBearer)).andExpect(status().isOk()));
+        for (JsonNode row : queue) {
+            if (row.get("details").asText().contains(fragment)) {
+                return row;
+            }
+        }
+        throw new AssertionError("Signalement introuvable dans la file : « " + fragment + " »");
+    }
 
     private ResultActions report(String bearer, String reason, String details) throws Exception {
         var request = post("/public/coaches/{slug}/report", slug)
