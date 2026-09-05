@@ -62,15 +62,15 @@ class CoachDirectoryTest {
     void anUnpublishedProfileIsInvisibleToTheWorld() throws Exception {
         completeProfile();
 
-        assertThat(searchTotal()).as("un brouillon n'est pas dans l'annuaire").isZero();
+        assertThat(listedInDirectory()).as("un brouillon n'est pas dans l'annuaire").isFalse();
         mvc.perform(get("/public/coaches/{slug}", slug())).andExpect(status().isNotFound());
 
         submit();
-        assertThat(searchTotal()).as("une fiche en attente non plus").isZero();
+        assertThat(listedInDirectory()).as("une fiche en attente non plus").isFalse();
         mvc.perform(get("/public/coaches/{slug}", slug())).andExpect(status().isNotFound());
 
         publish();
-        assertThat(searchTotal()).as("publiée, elle paraît").isEqualTo(1);
+        assertThat(listedInDirectory()).as("publiée, elle paraît").isTrue();
         mvc.perform(get("/public/coaches/{slug}", slug())).andExpect(status().isOk());
     }
 
@@ -177,6 +177,27 @@ class CoachDirectoryTest {
             request = request.param(params[i], params[i + 1]);
         }
         return json(mvc.perform(request).andExpect(status().isOk())).get("totalElements").asLong();
+    }
+
+    /**
+     * La fiche de <b>ce</b> coach est-elle dans les résultats ?
+     *
+     * <p>À préférer au total quand la question porte sur la visibilité d'une fiche. L'annuaire est
+     * la seule surface du produit sans cloisonnement par club : tout coach publié par n'importe
+     * quelle autre classe de tests y figure aussi, et la suite partage une base H2 pour toute sa
+     * durée. Un total codé en dur y mesure donc l'ordre de passage des classes autant que la règle
+     * qu'il prétend décrire — c'est ce qui a cassé ce fichier le jour où une classe voisine a
+     * publié un coach.</p>
+     */
+    private boolean listedInDirectory() throws Exception {
+        JsonNode page = json(mvc.perform(get("/public/coaches").param("size", "48"))
+                .andExpect(status().isOk()));
+        for (JsonNode row : page.get("content")) {
+            if (slug().equals(row.get("slug").asText())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void publishProfile() throws Exception {

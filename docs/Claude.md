@@ -214,12 +214,25 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 ✅ Champ ajouté à une réponse d'API rendu **optionnel côté TypeScript** — des PWA tournent encore sur l'ancien front.
 ✅ Tolérer l'ancien format en relisant du JSON stocké : `@JsonIgnoreProperties`, valeur par défaut, repli explicite.
 ✅ Laisser un **geste manuel** de rattrapage quand on durcit une règle automatique.
+✅ Éprouver sur un **vrai PostgreSQL** ce que H2 ne sait pas reproduire — index partiel, paramètre
+   dont le type doit être déduit : classe suffixée `…OnPostgresTest`, `@ActiveProfiles("pgtest")`
+   et `@EnabledIfSystemProperty(named = "pgtest", matches = "true")`. La CI les rejoue à chaque
+   poussée ; sans cela, la migration annonce une garde que rien ne vérifie.
 
 ❌ `alert()` / `confirm()` natifs (sauf suppression, et encore : `ConfirmDialogService`).
 ❌ Supprimer/renommer une colonne, un champ de réponse ou un enum utilisé en base — on ajoute, on ne retire pas.
 ❌ Réécrire des données d'athlètes pour rattraper un calcul fautif : le défaut se recorrige, la donnée perdue non.
 ❌ Resserrer une validation sans vérifier ce que l'écran laisse encore saisir (l'inverse — élargir — est sûr).
 ❌ Faire dépendre un test de la date du jour ou du programme de démonstration : un échec qui varie selon le jour de la semaine fait douter du code, pas du test.
+❌ **Faire dépendre un test d'un compte global** (`totalElements`, `hasSize(1)`, « la file est vide »).
+   Vingt-six classes de tests n'ont pas `@Transactional` et **commitent** dans une base H2 partagée
+   par toute la suite : ce que l'une écrit, les suivantes le voient. Un tel test passe seul, passe
+   aujourd'hui, et casse le jour où quelqu'un ajoute une classe voisine — en accusant du code
+   intact. Il mesure l'ordre de passage des classes autant que la règle qu'il décrit.
+   ➜ Chercher **son propre** dossier (par slug, par texte), ou comparer un **écart** relevé avant
+   et après l'action. C'est aussi ce que décrit la production, où rien n'est jamais vide.
+❌ Faire dépendre un test de l'ordre des lignes rendues (`findAll().findFirst()`, `get(0)` sur une
+   requête non ordonnée) : nommer l'enregistrement voulu coûte une ligne et ne ment jamais.
 ❌ Composants `standalone: false`.
 ❌ DDL hors Liquibase / réutiliser un numéro de migration.
 ❌ `findById` non scopé → IDOR cross-club (un coach voit les athlètes d'un autre).
