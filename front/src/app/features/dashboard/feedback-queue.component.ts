@@ -66,7 +66,7 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
         </div>
         <ul class="fq">
           @for (it of items(); track it.kind + it.sessionId) {
-            <li class="fq__row" [class.fq__row--alert]="(it.pain ?? 0) >= 3 || !!it.injuries?.length">
+            <li class="fq__row" [class.fq__row--alert]="(it.pain ?? 0) >= 3 || it.injuries.length > 0">
               <span class="fq__kind" [title]="it.kind === 'STRENGTH' ? 'Renforcement' : 'Course'">
                 <app-icon [name]="it.kind === 'STRENGTH' ? 'dumbbell' : 'footprints'" [size]="15" />
               </span>
@@ -93,7 +93,7 @@ type Scope = 'all' | 'mine' | 'private' | 'club';
 
               <!-- Une blessure nommée est ce qui se décide en premier dans cette file : elle a sa
                    ligne, en toutes lettres, et ne se devine pas d'un niveau de douleur. -->
-              @if (it.injuries?.length) {
+              @if (it.injuries.length) {
                 <p class="fq__injuries">
                   <app-icon name="alert-triangle" [size]="14" />
                   @for (i of it.injuries; track $index) {

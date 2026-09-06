@@ -159,7 +159,32 @@ Sentry est **inactif tant que le DSN est vide** (no-op).
 ### 3.4 Bonnes pratiques
 - Configurer une **alerte** Sentry (e-mail/Slack) sur *« a new issue is created »* et sur les pics.
 - Renseigner `appVersion` / `SENTRY_ENV` pour filtrer par **release** et **environnement**.
-- `tracesSampleRate` est à `0.1` (10 %) pour le suivi de performance — ajuster selon le volume.
+- **Le suivi de performance est désactivé côté front**, et c'est un arbitrage mesuré : le traçage
+  navigateur pèse ~42 ko bruts (~12 ko transférés) dans le paquet initial, payés par chaque athlète
+  sur téléphone au premier chargement, pour des relevés de temps de navigation que personne n'avait
+  encore ouverts. **La capture d'erreurs, elle, reste entière** — c'est la seule fenêtre sur ce qui
+  casse en production.
+  Pour le réactiver (`front/src/main.ts`) : `tracesSampleRate: 0.1` et
+  `integrations: [Sentry.browserTracingIntegration()]`. Le budget de paquet en rendra le coût
+  visible immédiatement.
+
+### 3.5 Les budgets de paquet, et pourquoi ils sont où ils sont
+
+`angular.json` refuse le build au-delà d'un seuil, et avertit avant. Les valeurs ne sont pas
+décoratives : un seuil qu'on dépasse à chaque build cesse d'être lu, et c'est ainsi qu'on laisse
+passer autre chose.
+
+| Budget | Avertit | Refuse | Mesure actuelle |
+|---|---|---|---|
+| Paquet initial | 620 ko | 750 ko | **599 ko** (170 ko transférés) |
+| Feuille de style d'un composant | 15 ko | 20 ko | 13,5 ko (calendrier) |
+
+Le calendrier est l'écran le plus dense du produit (446 lignes, 150 sélecteurs) : sa feuille est
+grosse mais légitime. Le seuil a été posé juste au-dessus plutôt que de réécrire l'écran principal
+du coach pour gagner trois kilo-octets.
+
+`allowedCommonJsDependencies` déclare `leaflet` et `localforage` : ces deux-là sont connues et
+assumées, et les déclarer fait qu'une **nouvelle** dépendance CommonJS, elle, avertira.
 
 ---
 
