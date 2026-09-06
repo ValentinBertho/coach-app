@@ -728,14 +728,28 @@ geste — et aucune suite complète n'a été passée après ce commit. Deux cas
 sur la branche jusqu'à ce que la suite du lot 7 les révèle. Un lot qui change une règle d'accès
 n'est pas fini tant que la suite entière n'est pas repassée.
 
-**Deux points du §3.10 restent volontairement non faits**, et il vaut mieux les nommer que les
-laisser croire livrés :
+**Un point du §3.10 reste volontairement non fait**, et il vaut mieux le nommer que le laisser
+croire livré (le second, barré ci-dessous, a été traité depuis) :
 - **la déprogrammation des séances futures** — sans objet en pratique, l'athlète détaché ne voyant
   plus aucun calendrier ; elle redeviendrait nécessaire le jour où une relation se clôturerait sans
   détacher le compte ;
-- **le fil de discussion en lecture seule** — il devient inaccessible aux deux parties plutôt que
-  lisible, l'appartenance dont `ConversationService` déduit ses droits ayant disparu. Le rendre
-  consultable après coup demanderait de revoir ces règles, ce qui dépasse un lot S.
+- ~~**le fil de discussion en lecture seule**~~ — **livré depuis**, et le diagnostic n'était pas
+  celui annoncé. Le coach ne perdait rien : le repli en lecture de l'ancien référent (lot 0) lui
+  laissait le fil. C'est **l'athlète** qui perdait l'accès à ses propres messages, son
+  `athleteId` devenant nul au détachement. L'asymétrie était difficile à défendre — il a écrit la
+  moitié de ce fil, et c'est lui qui, en partant, le perdait.
+
+  Le lien de secours est `athletes.athlete_account_id`, que le détachement ne touche pas.
+  L'écriture, elle, se referme des deux côtés : le coach par l'échelle de permissions (la clôture
+  le ramène à `READ`, sous le `COMMENT` qu'exige l'écriture), l'athlète parce qu'il n'entre plus
+  que comme ancien participant. Le serveur répond 409 « Ce fil est en lecture seule pour vous » —
+  et non 404 : l'écran doit pouvoir dire pourquoi le champ de saisie est fermé, pas prétendre que
+  la conversation a disparu.
+
+  **Un défaut de sécurité a été trouvé en chemin** : `detach` ne fermait pas les sessions. Le
+  jeton porte `athleteId` et `clubId` et les affirme pendant une heure sans jamais les relire en
+  base — un athlète qui venait de partir continuait donc de se présenter comme membre du club de
+  son ancien coach. Le détachement invalide désormais ses sessions.
 
 ### Les signaux du lot 7, et pourquoi ce ne sont pas des avis
 

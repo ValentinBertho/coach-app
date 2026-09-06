@@ -11,6 +11,7 @@ import com.coachrun.entity.Message;
 import com.coachrun.entity.TrainingGroup;
 import com.coachrun.entity.User;
 import com.coachrun.entity.enums.AthleteStatus;
+import com.coachrun.entity.enums.PermissionLevel;
 import com.coachrun.entity.enums.ConversationKind;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.exception.ConflictException;
@@ -69,6 +70,7 @@ public class ConversationService {
     private final ClubMemberRepository clubMemberRepository;
     private final TrainingGroupRepository groupRepository;
     private final AthleteAccessValidator accessValidator;
+    private final com.coachrun.repository.AthleteAccountRepository athleteAccountRepository;
 
     // --- Ouvrir un fil -------------------------------------------------------------------------
 
@@ -157,6 +159,7 @@ public class ConversationService {
         UUID userId = principal.userId();
         return switch (conversation.getKind()) {
             case ATHLETE_COACH -> isTheAthlete(principal, conversation)
+                    || wasTheAthlete(principal, conversation)
                     || (userId.equals(conversation.getCoachUserId())
                         && accessValidator.effectiveLevel(userId, conversation.getAthlete().getId()).isPresent());
             case COACH_COACH -> userId.equals(conversation.getPeerAUserId())
@@ -188,7 +191,35 @@ public class ConversationService {
         if (conversation.getKind() == ConversationKind.CLUB) {
             return principal.role() != UserRole.ATHLETE;
         }
+        if (conversation.getKind() == ConversationKind.ATHLETE_COACH) {
+            return canStillPostToBinome(principal, conversation);
+        }
         return true;
+    }
+
+    /**
+     * Le binôme reste-t-il ouvert à l'écriture ?
+     *
+     * <p>C'est ici que se règle la fin de relation. Le fil devient <b>consultable, plus
+     * inscriptible</b> : chacun relit ce qui s'est dit, personne ne peut plus l'alimenter. Le
+     * laisser ouvert reviendrait à donner à un ancien coach un canal vers quelqu'un qu'il ne suit
+     * plus — et à l'athlète le sentiment que partir ne ferme rien.</p>
+     *
+     * <p>Les deux côtés se lisent sur la même échelle que le reste du produit : le coach écrit
+     * tant qu'il a au moins {@link PermissionLevel#COMMENT} sur la fiche — la clôture le ramène à
+     * {@code READ} —, et l'athlète tant que la fiche est encore la sienne. L'ancien athlète, lui,
+     * n'entre que par {@link #wasTheAthlete}, qui ne donne jamais l'écriture.</p>
+     */
+    private boolean canStillPostToBinome(AuthPrincipal principal, Conversation conversation) {
+        if (isTheAthlete(principal, conversation)) {
+            return true;
+        }
+        if (!principal.userId().equals(conversation.getCoachUserId())) {
+            return false;   // ancien athlète : lecture seule
+        }
+        return accessValidator.effectiveLevel(principal.userId(), conversation.getAthlete().getId())
+                .filter(level -> level.atLeast(PermissionLevel.COMMENT))
+                .isPresent();
     }
 
     /** Le fil, si cette personne y a sa place. Sinon, il n'existe pas pour elle. */
@@ -206,6 +237,46 @@ public class ConversationService {
     private boolean isTheAthlete(AuthPrincipal principal, Conversation conversation) {
         return principal.athleteId() != null && conversation.getAthlete() != null
                 && principal.athleteId().equals(conversation.getAthlete().getId());
+    }
+
+    /**
+     * Les binômes d'un compte athlète détaché : ce qu'il lui reste de ses coachs passés.
+     *
+     * <p>Vide pour un compte qui n'a jamais été suivi — le cas d'un athlète tout juste inscrit,
+     * qui n'a donc aucun fil, et pour qui cette recherche coûte une requête et rien d'autre.</p>
+     */
+    private List<Conversation> formerBinomes(AuthPrincipal principal) {
+        return athleteAccountRepository.findByUserId(principal.userId())
+                .map(account -> athleteRepository.findByAccountId(account.getId()).stream()
+                        .flatMap(a -> conversationRepository.findByAthleteId(a.getId()).stream())
+                        .toList())
+                .orElseGet(List::of);
+    }
+
+    /**
+     * Cette personne <b>a-t-elle été</b> l'athlète de ce fil ?
+     *
+     * <p>Le défaut que cette méthode ferme : mettre fin au coaching détache le compte de sa fiche
+     * ({@code user.athlete = null}), si bien que {@link #isTheAthlete} devenait faux et que
+     * l'athlète perdait l'accès à <b>ses propres messages</b>. Le coach, lui, les gardait — le
+     * repli en lecture de l'ancien référent le lui laisse. L'asymétrie était difficile à
+     * défendre : c'est l'athlète qui a écrit la moitié de ce fil.</p>
+     *
+     * <p>Le lien de secours est {@code athletes.athlete_account_id}, que le détachement ne touche
+     * pas : le compte reste rattaché à la fiche qu'il a occupée. Il n'existe que pour les fiches
+     * nées du hub — celles qu'un coach a saisies lui-même n'ont pas de compte derrière, et il n'y
+     * a alors personne à qui rendre l'accès.</p>
+     */
+    private boolean wasTheAthlete(AuthPrincipal principal, Conversation conversation) {
+        if (conversation.getAthlete() == null || principal.role() != UserRole.ATHLETE) {
+            return false;
+        }
+        return athleteAccountRepository.findByUserId(principal.userId())
+                .map(account -> athleteRepository.findById(conversation.getAthlete().getId())
+                        .map(Athlete::getAccount)
+                        .filter(a -> a != null && a.getId().equals(account.getId()))
+                        .isPresent())
+                .orElse(false);
     }
 
     private boolean athleteBelongsToGroup(UUID athleteId, UUID groupId) {
@@ -279,7 +350,11 @@ public class ConversationService {
         Map<UUID, Conversation> found = new LinkedHashMap<>();
         if (principal.role() == UserRole.ATHLETE) {
             if (principal.athleteId() == null) {
-                return List.of();
+                // Compte détaché : soit il n'a jamais eu de coach, soit la relation est terminée.
+                // Dans le second cas, il reste les fils qu'il a lui-même alimentés, et les lui
+                // cacher reviendrait à effacer sa moitié de la conversation. En lecture seule :
+                // c'est `canPost` qui referme l'écriture.
+                return formerBinomes(principal);
             }
             conversationRepository.findByAthleteId(principal.athleteId())
                     .forEach(c -> found.put(c.getId(), c));

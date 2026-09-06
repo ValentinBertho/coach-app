@@ -13,6 +13,16 @@ import java.util.UUID;
 
 public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
 
+    /**
+     * Les fiches rattachées à ce compte athlète — y compris celles d'une relation terminée.
+     *
+     * <p>{@code athletes.athlete_account_id} survit au détachement : c'est ce lien qui permet à
+     * quelqu'un qui a quitté son coach de relire le fil qu'il a lui-même alimenté, alors que
+     * {@code user.athlete} a été remis à nul.</p>
+     */
+    java.util.List<Athlete> findByAccountId(java.util.UUID accountId);
+
+
     /** Scoping tenant systématique (anti-IDOR) : jamais de findById nu. Club principal uniquement. */
     Optional<Athlete> findByIdAndClubId(UUID id, UUID clubId);
 

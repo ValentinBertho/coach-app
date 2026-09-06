@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { ConversationService } from '../../core/services/conversation.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { AthleteTopbarComponent } from './athlete-topbar.component';
@@ -68,6 +69,14 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
           <a routerLink="/athlete/demandes" routerLinkActive="active">
             <app-icon name="inbox" [size]="22" /><span class="lb">Mes demandes</span>
           </a>
+          <!-- Seulement pour qui a déjà été suivi : ses fils restent lisibles après la fin du
+               coaching, et sans cette entrée il n'aurait aucun chemin pour y arriver. Un athlète
+               qui n'a jamais eu de coach n'en a aucun, et l'entrée ne s'affiche pas. -->
+          @if (hasPastThreads()) {
+            <a routerLink="/athlete/messages" routerLinkActive="active">
+              <app-icon name="message-square" [size]="22" /><span class="lb">Messages</span>
+            </a>
+          }
         }
       </nav>
     </div>
@@ -113,9 +122,10 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
     .ashell__nav a.active .ic { filter: none; opacity: 1; }
   `],
 })
-export class AthleteShellComponent {
+export class AthleteShellComponent implements OnInit {
   private readonly theme = inject(ThemeService);
   private readonly auth = inject(AuthService);
+  private readonly conversations = inject(ConversationService);
 
   /**
    * L'athlète a-t-il un coach ?
@@ -126,6 +136,30 @@ export class AthleteShellComponent {
    * les proposer que les proposer cassés.</p>
    */
   readonly hasCoach = computed(() => !!this.auth.currentUser()?.athleteId);
+
+  /**
+   * Reste-t-il des fils d'une relation passée ?
+   *
+   * <p>Mettre fin au coaching détache la fiche, et la navigation se réduit alors à « chercher » et
+   * « mes demandes ». Les conversations, elles, restent <b>lisibles</b> côté serveur : c'est
+   * l'athlète qui a écrit la moitié de ce fil. Sans cette entrée, il n'aurait aucun chemin pour y
+   * revenir — la règle serait vraie et inatteignable.</p>
+   *
+   * <p>Une requête, au chargement de la coquille, et seulement quand il n'y a pas de coach : celui
+   * qui en a un voit déjà « Messages ». Un athlète tout juste inscrit obtient une liste vide et
+   * l'entrée ne paraît pas.</p>
+   */
+  readonly hasPastThreads = signal(false);
+
+  ngOnInit(): void {
+    if (this.hasCoach()) {
+      return;
+    }
+    this.conversations.inbox().subscribe({
+      next: (list) => this.hasPastThreads.set(list.length > 0),
+      error: () => this.hasPastThreads.set(false),
+    });
+  }
 
   /**
    * Peau du portail : `dark` imposé tant que l'athlète n'a pas choisi, rien ensuite — auquel cas

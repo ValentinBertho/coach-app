@@ -114,11 +114,24 @@ public class CoachingRelationService {
      * <p>C'est ce qui le renvoie à l'état dans lequel il est arrivé — un compte qui peut chercher
      * un coach — plutôt que de le laisser dans un espace d'entraînement que plus personne n'anime.
      * La fiche, elle, n'est pas touchée : elle reste chez le coach, et son
-     * {@code athlete_account_id} continue de la relier à cette personne, ce qui permettra un jour
-     * de lui rendre son historique sans le reconstituer.</p>
+     * {@code athlete_account_id} continue de la relier à cette personne. C'est par ce lien qu'il
+     * relit le fil de discussion qu'il a lui-même alimenté (cf. {@code ConversationService}).</p>
+     *
+     * <h2>Pourquoi les sessions sont fermées</h2>
+     *
+     * <p>Le jeton porte {@code athleteId} et {@code clubId} : il les <b>affirme</b> pendant toute
+     * sa durée de vie, une heure, sans jamais les relire en base. Sans cette invalidation, un
+     * athlète qui vient de partir continuait donc de se présenter comme membre du club de son
+     * ancien coach — et, côté messagerie, de pouvoir écrire dans un fil que la relation venait de
+     * clore.</p>
+     *
+     * <p>La reconnexion est le prix de cette fermeture, et il est juste : c'est le moment où le
+     * compte change de nature. Le mécanisme est celui qui existe déjà pour « fermer les sessions »
+     * du back-office, honoré par {@code TokenFreshnessValidator}.</p>
      */
     private void detach(User athleteUser) {
         athleteUser.setAthlete(null);
         athleteUser.setClub(null);
+        athleteUser.setSessionsInvalidatedAt(java.time.Instant.now());
     }
 }
