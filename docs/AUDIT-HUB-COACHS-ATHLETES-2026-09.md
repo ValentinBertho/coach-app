@@ -777,6 +777,18 @@ qu'en ouvrant la fiche. Le calcul lui-même est nocturne (`CoachResponsivenessSc
 une donnée d'affichage, et la recalculer dans la transaction d'acceptation ferait payer au geste le
 plus important du produit le coût d'une statistique.
 
+### Une fuite d'existence de fiche, fermée après relecture
+
+La recherche par slug de `CoachingRequestService` ne filtrait pas la visibilité : une fiche en
+brouillon, en attente ou **suspendue** répondait 409 en nommant son coach, là où un slug inventé
+répondait 404. Un athlète connecté qui devinait des slugs apprenait donc l'existence et l'état de
+fiches que la plateforme ne publie pas — dont les fiches suspendues, c'est-à-dire des sanctions.
+
+Le filtre est désormais posé dans la recherche, avec la même formulation que l'annuaire :
+« n'existe pas » et « n'est plus publiée » se répondent à l'identique. Une fiche **fermée** reste
+l'exception, et c'est voulu : elle figure dans l'annuaire, son nom est déjà public, et « il ne
+prend personne en ce moment » y est une information utile plutôt qu'une fuite.
+
 ### Le signalement : la contrepartie de la décision 4
 
 La décision 4 affiche les diplômes comme *déclarés par le coach*, sans vérification. La plateforme

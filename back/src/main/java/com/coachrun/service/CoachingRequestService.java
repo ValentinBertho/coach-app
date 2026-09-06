@@ -100,9 +100,19 @@ public class CoachingRequestService {
                             + "pouvoir vous répondre.");
         }
 
+        // Le filtre de visibilité est posé DANS la recherche, et pas seulement après : sans lui,
+        // une fiche en brouillon, en attente ou suspendue se signalait par un 409 nommant son
+        // coach, là où une fiche inexistante rendait 404. Un athlète qui devinait des slugs
+        // distinguait donc l'existence et l'ÉTAT d'une fiche que la plateforme ne publie pas —
+        // dont une fiche suspendue, c'est-à-dire une sanction. Même formulation que l'annuaire :
+        // « pas publiée » et « n'existe pas » se répondent à l'identique.
         CoachProfile profile = profileRepository.findBySlug(submission.coachSlug())
+                .filter(p -> p.getStatus().isVisible())
                 .orElseThrow(() -> new NotFoundException("Ce coach n'existe pas ou n'est plus publié."));
         if (!profile.getStatus().acceptsRequests()) {
+            // Reste le cas d'une fiche CLOSED : elle est publiquement consultable, son nom est
+            // déjà lisible de tous, et dire « il ne prend personne en ce moment » est ici une
+            // information utile plutôt qu'une fuite.
             throw new ConflictException(
                     profile.getCoach().getFullName() + " ne prend pas de nouveaux athlètes en ce moment.");
         }

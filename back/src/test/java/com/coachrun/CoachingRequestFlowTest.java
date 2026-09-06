@@ -337,6 +337,91 @@ class CoachingRequestFlowTest {
                 .andExpect(status().isCreated());
     }
 
+    /**
+     * Une fiche que la plateforme ne publie pas ne se distingue pas d'une fiche inexistante.
+     *
+     * <p>Le défaut fermé ici : la recherche par slug ne filtrait pas la visibilité. Une fiche
+     * <b>suspendue</b> — c'est-à-dire une sanction — répondait 409 en nommant son coach, là où un
+     * slug inventé répondait 404. Un athlète qui devinait des slugs apprenait donc l'existence et
+     * l'état de fiches que la plateforme a retirées de l'annuaire.</p>
+     */
+    @Test
+    void aSuspendedProfileIsIndistinguishableFromAnUnknownOne() throws Exception {
+        String athlete = registerAthlete("suspendu-" + java.util.UUID.randomUUID() + "@exemple.fr");
+
+        String unknown = message(mvc.perform(post("/me/coaching-requests")
+                        .header("Authorization", athlete)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .content(requestBody("personne-de-ce-nom")))
+                .andExpect(status().isNotFound()));
+
+        // La fiche du coach de démonstration est publiée par le setUp : on la suspend.
+        JsonNode published = json(mvc.perform(get("/admin/coach-profiles").param("status", "PUBLISHED")
+                .header("Authorization", adminBearer)));
+        mvc.perform(post("/admin/coach-profiles/{id}/suspend",
+                        published.get("content").get(0).get("id").asText())
+                        .header("Authorization", adminBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .content("{\"note\":\"Vérification en cours.\"}"))
+                .andExpect(status().isOk());
+
+        String suspended = message(mvc.perform(post("/me/coaching-requests")
+                        .header("Authorization", athlete)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .content(requestBody(slug)))
+                .andExpect(status().isNotFound()));
+
+        assertThat(suspended)
+                .as("même statut ET même message : sinon le couple 404/409 reste un oracle")
+                .isEqualTo(unknown);
+        assertThat(suspended)
+                .as("le nom du coach ne doit pas filtrer")
+                .doesNotContain("Coach Démo");
+
+        // Remise en état. Ce cas suspend la fiche du coach de DÉMONSTRATION, que toute la classe
+        // partage, et les écritures faites par requête HTTP survivent d'une méthode à l'autre :
+        // laisser la fiche suspendue faisait échouer les cas de fin de coaching, qui n'ont rien à
+        // voir. Un test qui touche à l'état commun le rend comme il l'a trouvé.
+        mvc.perform(post("/admin/coach-profiles/{id}/reinstate",
+                        published.get("content").get(0).get("id").asText())
+                        .header("Authorization", adminBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .content("{\"note\":\"Vérification close.\"}"))
+                .andExpect(status().isOk());
+    }
+
+    /**
+     * Le pendant : une fiche <b>fermée</b> reste consultable, et le dire est utile.
+     *
+     * <p>Elle figure dans l'annuaire — son nom est déjà public — et « il ne prend personne en ce
+     * moment » évite à l'athlète de croire à une panne. Confondre ce cas avec une fiche retirée
+     * aurait rendu le correctif plus discret que juste.</p>
+     */
+    @Test
+    void aClosedProfileStillSaysThatItTakesNobody() throws Exception {
+        String athlete = registerAthlete("ferme-" + java.util.UUID.randomUUID() + "@exemple.fr");
+
+        mvc.perform(post("/me/coach-profile/accepting").param("accepting", "false")
+                .header("Authorization", coachBearer)).andExpect(status().isOk());
+        // Même précaution que ci-dessus : la fiche est rouverte avant de sortir.
+
+        String closed = message(mvc.perform(post("/me/coaching-requests")
+                        .header("Authorization", athlete)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .content(requestBody(slug)))
+                .andExpect(status().isConflict()));
+
+        assertThat(closed).contains("ne prend pas de nouveaux athlètes");
+
+        mvc.perform(post("/me/coach-profile/accepting").param("accepting", "true")
+                .header("Authorization", coachBearer)).andExpect(status().isOk());
+    }
+
     // ------------------------------------------------------------------ utilitaires
 
     /** Envoie une demande et la fait accepter : le point de départ des tests de sortie. */
@@ -355,8 +440,24 @@ class CoachingRequestFlowTest {
                 .andExpect(status().isCreated())).get("id").asText();
     }
 
+    /**
+     * Le message d'erreur seul.
+     *
+     * <p>Et non le corps entier : `ApiError` porte un `timestamp` qui change à chaque appel, si
+     * bien qu'une comparaison brute échouerait toujours — et masquerait ce qu'on veut vraiment
+     * comparer, le texte rendu au client.</p>
+     */
+    private String message(org.springframework.test.web.servlet.ResultActions actions) throws Exception {
+        return json(actions).get("message").asText();
+    }
+
     private String requestBody() {
-        return "{\"coachSlug\":\"" + slug + "\",\"message\":\"Je prépare mon premier marathon "
+        return requestBody(slug);
+    }
+
+    /** Même corps, vers un slug choisi : sert à comparer une fiche connue et une fiche inventée. */
+    private String requestBody(String coachSlug) {
+        return "{\"coachSlug\":\"" + coachSlug + "\",\"message\":\"Je prépare mon premier marathon "
                 + "au printemps et je cherche un accompagnement structuré.\"}";
     }
 
