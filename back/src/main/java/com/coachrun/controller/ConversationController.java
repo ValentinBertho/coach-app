@@ -72,11 +72,17 @@ public class ConversationController {
         return conversations.openFor(principal, request.kind(), request.targetId());
     }
 
+    /**
+     * Le fil, page par page. La page 0 porte les messages les plus récents ; les suivantes
+     * remontent le temps. À l'intérieur d'une page, l'ordre est chronologique.
+     */
     @GetMapping("/{conversationId}/messages")
-    public List<MessageResponse> messages(@AuthenticationPrincipal AuthPrincipal principal,
-                                          @PathVariable UUID conversationId,
-                                          @RequestParam(defaultValue = "100") int limit) {
-        return conversations.messages(principal, conversationId, limit);
+    public com.coachrun.dto.response.PageResponse<MessageResponse> messages(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable UUID conversationId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        return conversations.messages(principal, conversationId, page, size);
     }
 
     @PostMapping("/{conversationId}/messages")

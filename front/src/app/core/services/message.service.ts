@@ -4,6 +4,7 @@ import { Observable, map, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Message } from '../models/message.model';
 import { AuthService } from './auth.service';
+import { MessagePage } from './conversation.service';
 import { SseStream, StreamTokenService } from './stream-token.service';
 
 /** Messagerie : fil coach (scopé club/athlète) et fil athlète (/me/messages). */
@@ -34,9 +35,11 @@ export class MessageService {
   }
 
   // Coach
-  coachThread(athleteId: string): Observable<Message[]> {
-    return this.http.get<Message[]>(
-      `${environment.apiUrl}/clubs/${this.auth.clubId()}/athletes/${athleteId}/messages`
+  /** Une page du fil du binôme. Page 0 = les messages les plus récents. */
+  coachThread(athleteId: string, page = 0): Observable<MessagePage> {
+    return this.http.get<MessagePage>(
+      `${environment.apiUrl}/clubs/${this.auth.clubId()}/athletes/${athleteId}/messages`,
+      { params: { page } },
     );
   }
   coachSend(athleteId: string, body: string): Observable<Message> {
@@ -47,8 +50,9 @@ export class MessageService {
   }
 
   // Athlète
-  myThread(): Observable<Message[]> {
-    return this.http.get<Message[]>(`${environment.apiUrl}/me/messages`);
+  /** Une page de mon fil avec le coach. Page 0 = les messages les plus récents. */
+  myThread(page = 0): Observable<MessagePage> {
+    return this.http.get<MessagePage>(`${environment.apiUrl}/me/messages`, { params: { page } });
   }
   /**
    * Envoie un message au coach. `workoutId` rattache le message à une séance — c'est ce qui

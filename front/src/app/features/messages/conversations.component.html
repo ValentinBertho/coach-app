@@ -58,6 +58,18 @@
         </div>
       </header>
 
+      <!-- Page 0 = les messages les plus récents ; les suivantes remontent le temps. Au-dessus
+           du fil, parce que c'est vers le haut qu'on remonte une conversation. -->
+      @if (totalPages() > 1) {
+        <app-paginator [page]="page()" [totalPages]="totalPages()" (pageChange)="goToPage($event)" />
+      }
+      @if (viewingHistory()) {
+        <p class="history-hint field-hint">
+          Messages plus anciens — les nouveaux messages n'apparaissent pas ici.
+          <button type="button" class="btn btn-ghost btn-sm" (click)="goToPage(0)">Revenir au fil</button>
+        </p>
+      }
+
       <div class="thread" #thread>
         @if (loadingThread()) {
           <app-skeleton shape="card" [rows]="3" />

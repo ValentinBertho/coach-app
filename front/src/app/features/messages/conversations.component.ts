@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Message } from '../../core/models/message.model';
 import { SseStream } from '../../core/services/stream-token.service';
+import { PaginatorComponent } from '../../shared/components/paginator/paginator.component';
 import { AuthService } from '../../core/services/auth.service';
 import {
   ConversationKind, ConversationService, ConversationSummary, Recipient,
@@ -39,7 +40,7 @@ const KIND_ICONS: Record<ConversationKind, string> = {
   selector: 'app-conversations',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DatePipe, IconComponent, SkeletonComponent],
+  imports: [FormsModule, DatePipe, IconComponent, SkeletonComponent, PaginatorComponent],
   templateUrl: './conversations.component.html',
   styleUrl: './conversations.component.scss',
   // Un fil ouvert change la nature de l'écran au téléphone : il passe en plein écran. La classe
@@ -61,6 +62,18 @@ export class ConversationsComponent implements OnInit, OnDestroy {
   readonly openId = signal<string | null>(null);
   readonly messages = signal<Message[]>([]);
   readonly loadingThread = signal(false);
+
+  /**
+   * Page du fil ouvert. **0 = les messages les plus récents**, les suivantes remontent le temps.
+   *
+   * <p>Le fil rendait auparavant les cent derniers messages et rien derrière : le début d'une
+   * conversation longue était inatteignable, sans même une indication qu'il manquait quelque
+   * chose.</p>
+   */
+  readonly page = signal(0);
+  readonly totalPages = signal(1);
+  /** Vrai dès qu'on remonte dans l'historique : le fil affiché n'est plus le fil vivant. */
+  readonly viewingHistory = computed(() => this.page() > 0);
   readonly sending = signal(false);
   draft = '';
 
@@ -152,22 +165,15 @@ export class ConversationsComponent implements OnInit, OnDestroy {
     this.openId.set(id);
     this.loadingThread.set(true);
     this.messages.set([]);
+    this.page.set(0);
+    this.totalPages.set(1);
     this.stream?.close();
 
     // L'URL porte le fil ouvert : rafraîchir la page, ou revenir depuis une notification,
     // retombe sur la même conversation.
     this.router.navigate([], { relativeTo: this.route, queryParams: { c: id }, replaceUrl: true });
 
-    this.conversations.messages(id).subscribe({
-      next: (messages) => {
-        this.messages.set(messages);
-        this.loadingThread.set(false);
-      },
-      error: () => {
-        this.loadingThread.set(false);
-        this.toast.error('Conversation indisponible.');
-      },
-    });
+    this.loadPage(id, 0);
     this.conversations.markRead(id).subscribe({
       next: () => {
         this.list.update((list) =>
@@ -177,6 +183,31 @@ export class ConversationsComponent implements OnInit, OnDestroy {
       error: () => {},
     });
     this.stream = this.conversations.stream(id, (m) => this.append(m));
+  }
+
+  /** Charge une page du fil ouvert. Page 0 = les messages les plus récents. */
+  private loadPage(conversationId: string, page: number): void {
+    this.loadingThread.set(true);
+    this.conversations.messages(conversationId, page).subscribe({
+      next: (result) => {
+        this.messages.set(result.content);
+        this.page.set(result.page);
+        this.totalPages.set(Math.max(1, result.totalPages));
+        this.loadingThread.set(false);
+      },
+      error: () => {
+        this.loadingThread.set(false);
+        this.toast.error('Conversation indisponible.');
+      },
+    });
+  }
+
+  /** Change de page dans le fil ouvert. Le flux temps réel reste ouvert : cf. `append`. */
+  goToPage(page: number): void {
+    const id = this.openId();
+    if (id) {
+      this.loadPage(id, page);
+    }
   }
 
   /**
@@ -192,8 +223,15 @@ export class ConversationsComponent implements OnInit, OnDestroy {
     this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
   }
 
+  /**
+   * Ajoute un message reçu en temps réel.
+   *
+   * <p>Rien n'est ajouté tant qu'on lit l'historique : un message neuf n'a rien à faire au bas
+   * d'une page d'archives — il y apparaîtrait hors de son ordre, et le retour au fil vivant le
+   * ferait « disparaître ». Le badge de non-lus, lui, continue de compter.</p>
+   */
   private append(m: Message): void {
-    if (this.messages().some((x) => x.id === m.id)) {
+    if (this.viewingHistory() || this.messages().some((x) => x.id === m.id)) {
       return;
     }
     this.messages.update((list) => [...list, m]);
@@ -208,7 +246,8 @@ export class ConversationsComponent implements OnInit, OnDestroy {
     this.sending.set(true);
     this.conversations.send(id, body).subscribe({
       next: (m) => {
-        this.append(m);
+        // Écrire depuis une page d'archives ramène au fil vivant : c'est là que le message part.
+        if (this.viewingHistory()) { this.loadPage(id, 0); } else { this.append(m); }
         this.draft = '';
         this.sending.set(false);
         this.list.update((list) => list.map((c) => (c.id === id

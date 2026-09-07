@@ -8,6 +8,20 @@
     }
   </section>
 
+  <!-- Pagination du fil : la page 0 porte les messages les plus récents, les suivantes remontent
+       le temps. Placée AU-DESSUS du fil, parce que c'est vers le haut qu'on remonte une
+       conversation — et parce qu'en bas elle serait sous le dernier message, là où l'œil attend
+       la suite de la discussion, pas un contrôle de navigation. -->
+  @if (totalPages() > 1) {
+    <app-paginator [page]="page()" [totalPages]="totalPages()" (pageChange)="goToPage($event)" />
+  }
+  @if (viewingHistory()) {
+    <p class="history-hint field-hint">
+      Messages plus anciens — les nouveaux messages n'apparaissent pas ici.
+      <button type="button" class="btn btn-ghost btn-sm" (click)="goToPage(0)">Revenir au fil</button>
+    </p>
+  }
+
   <div #thread class="thread card">
     @if (loading()) {
       <app-skeleton shape="text" [rows]="4" />

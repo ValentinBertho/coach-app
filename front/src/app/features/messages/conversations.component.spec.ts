@@ -57,10 +57,18 @@ describe('messagerie', () => {
     fixture.detectChanges();
   }
 
+  /**
+   * Une page de fil vide, telle que la rend l'API depuis que le fil est paginé — il rendait
+   * auparavant un tableau nu, et son début était inatteignable au-delà de cent messages.
+   */
+  function emptyPage(): Record<string, unknown> {
+    return { content: [], page: 0, size: 50, totalElements: 0, totalPages: 0 };
+  }
+
   /** Sert la boîte de réception, puis le fil que le composant ouvre de lui-même. */
   function serveInbox(list: ConversationSummary[], openedId: string): void {
     http.expectOne((r) => r.url.endsWith('/me/conversations') && r.method === 'GET').flush(list);
-    http.expectOne((r) => r.url.endsWith(`/${openedId}/messages`)).flush([]);
+    http.expectOne((r) => r.url.endsWith(`/${openedId}/messages`)).flush(emptyPage());
     http.expectOne((r) => r.url.endsWith(`/${openedId}/read`)).flush(null);
     http.match((r) => r.url.endsWith('/unread-count')).forEach((r) => r.flush({ count: 0 }));
     fixture.detectChanges();
@@ -90,7 +98,7 @@ describe('messagerie', () => {
       fixture.detectChanges();
 
       fixture.componentInstance.select('c-coach');
-      http.expectOne((r) => r.url.endsWith('/c-coach/messages')).flush([]);
+      http.expectOne((r) => r.url.endsWith('/c-coach/messages')).flush(emptyPage());
       http.expectOne((r) => r.url.endsWith('/c-coach/read')).flush(null);
       http.match((r) => r.url.endsWith('/unread-count')).forEach((r) => r.flush({ count: 0 }));
       fixture.detectChanges();
@@ -113,7 +121,7 @@ describe('messagerie', () => {
     it('ouvre le fil non lu en priorité et le marque lu', () => {
       http.expectOne((r) => r.url.endsWith('/me/conversations') && r.method === 'GET')
         .flush([clubThread, coachThread]);
-      http.expectOne((r) => r.url.endsWith('/c-coach/messages')).flush([]);
+      http.expectOne((r) => r.url.endsWith('/c-coach/messages')).flush(emptyPage());
       http.expectOne((r) => r.url.endsWith('/c-coach/read')).flush(null);
       http.match((r) => r.url.endsWith('/unread-count')).forEach((r) => r.flush({ count: 0 }));
       fixture.detectChanges();
