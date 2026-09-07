@@ -1322,6 +1322,42 @@ public class NotificationService {
                 frontendUrl + feedbackPath + "&rpe=" + rpe);
     }
 
+    /**
+     * Préavis de suppression pour inactivité.
+     *
+     * <p>La politique de confidentialité annonce qu'un compte resté inactif 24 mois est supprimé
+     * « après un e-mail de préavis ». C'est cet e-mail-là — et le seul avertissement que recevra
+     * quelqu'un qui n'ouvre plus l'application depuis deux ans. Il dit donc trois choses, dans cet
+     * ordre : ce qui va se passer, quand exactement, et le geste qui l'annule.</p>
+     *
+     * <p>Le geste tient en une phrase parce qu'il tient en un geste : <b>se connecter suffit</b>.
+     * Rien à cliquer, rien à confirmer — un lien de désinscription dans un préavis de suppression
+     * serait au mieux ambigu, au pire pris pour le contraire de ce qu'il fait.</p>
+     *
+     * @param deletionDate date à partir de laquelle le compte sera effacé, en clair
+     */
+    public void notifyInactiveAccountWarning(User user, LocalDate deletionDate) {
+        if (user == null || user.getEmail() == null) {
+            return;
+        }
+        String when = deletionDate.format(java.time.format.DateTimeFormatter
+                .ofPattern("d MMMM yyyy", java.util.Locale.FRENCH));
+        String html = "<p>Bonjour " + esc(user.getFullName()) + ",</p>"
+                + "<p>Votre compte Darilab n'a pas été utilisé depuis deux ans. Conformément à "
+                + "notre politique de confidentialité, les comptes inactifs sont supprimés : "
+                + "le vôtre le sera <strong>le " + esc(when) + "</strong>, avec l'ensemble des "
+                + "données qui s'y rattachent — entraînements, historique, mesures. Cette "
+                + "suppression est définitive et sans copie de secours.</p>"
+                + "<p><strong>Pour le conserver, il suffit de vous connecter avant cette "
+                + "date.</strong> Aucune autre démarche n'est nécessaire.</p>"
+                + cta("Me connecter", frontendUrl + "/login")
+                + "<p>Si vous préférez que ce compte disparaisse, vous n'avez rien à faire.</p>";
+        send(user.getEmail(), "Votre compte Darilab sera supprimé le " + when, html,
+                user.getRole() == com.coachrun.entity.enums.UserRole.ATHLETE
+                        ? Audience.ATHLETE : Audience.COACH,
+                MailKind.ACCOUNT_INACTIVITY);
+    }
+
     /** Vérification d'e-mail à l'inscription : e-mail avec le lien de confirmation. */
     public void notifyEmailVerification(String email, String fullName, String url) {
         if (email == null) {

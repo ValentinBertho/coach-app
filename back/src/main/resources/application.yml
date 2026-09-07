@@ -146,6 +146,19 @@ app:
     # Pied de page et en-têtes du gabarit transactionnel.
     publisher: ${MAIL_PUBLISHER:Darilab}
     reply-to: ${MAIL_REPLY_TO:}
+  accounts:
+    # Durée de conservation des comptes, telle que l'annonce la politique de confidentialité :
+    # « un compte resté inactif pendant 24 mois est supprimé après un e-mail de préavis ».
+    # Ce bloc est ce qui rend cette phrase vraie (L-20). Changer ces valeurs, c'est changer un
+    # engagement publié : la politique doit suivre.
+    inactivity:
+      enabled: ${INACTIVE_ACCOUNT_PURGE_ENABLED:true}
+      retention-days: ${INACTIVE_ACCOUNT_RETENTION_DAYS:730}   # 24 mois
+      notice-days: ${INACTIVE_ACCOUNT_NOTICE_DAYS:30}          # délai entre préavis et suppression
+      # Plafond par passage, pour chaque phase. Le premier passage rattrape tout l'arriéré :
+      # sans plafond il viderait le plan d'envoi (100 e-mails/jour) en quelques secondes.
+      max-per-run: ${INACTIVE_ACCOUNT_MAX_PER_RUN:100}
+      cron: ${INACTIVE_ACCOUNT_PURGE_CRON:0 20 4 * * *}
   storage:
     # Quota de pièces jointes par club (stockées en base) : au-delà, l'envoi est refusé avec un
     # message explicite. C'est la sauvegarde quotidienne qui casse en premier, pas l'application.

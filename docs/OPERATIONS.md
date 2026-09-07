@@ -247,6 +247,54 @@ ne peuvent plus diverger en silence.
 
 ---
 
+## 4 ter. Purge des comptes inactifs (L-20)
+
+La politique de confidentialité annonce qu'« un compte resté inactif pendant 24 mois est supprimé
+après un e-mail de préavis ». `InactiveAccountPurgeScheduler` l'applique, sous verrou ShedLock,
+tous les jours à 4 h 20.
+
+| Étape | Quand | Effet |
+|---|---|---|
+| Préavis | inactivité ≥ 700 jours (730 − 30) | e-mail « votre compte sera supprimé le … », date d'envoi notée dans `users.inactivity_warned_at` |
+| Suppression | inactivité ≥ 730 jours **et** préavis envoyé il y a ≥ 30 jours | effacement définitif, en cascade |
+
+**Ce qui compte comme activité** : la dernière requête authentifiée (`last_seen_at`, à un quart
+d'heure près), à défaut la dernière connexion, à défaut la création du compte. Les deux replis
+existent parce que `last_seen_at` date de la migration 091 : le lire seul ferait passer tout
+compte antérieur pour inactif depuis toujours.
+
+**Se reconnecter annule tout**, sans aucune démarche : la visite repousse `last_seen_at` au-delà
+de la date de préavis, et le compte cesse d'être candidat des deux côtés. Rien à effacer côté
+exploitation.
+
+**Jamais purgés** :
+- les **administrateurs de plateforme** — leur compte peut légitimement dormir un an, et le
+  supprimer fermerait le back-office sans moyen de le rouvrir ;
+- le **dernier membre d'un club qui en contient d'autres** — l'effacer ne libérerait rien et
+  laisserait un club sans personne pour y accéder. Ces comptes apparaissent en `WARN` dans le
+  journal (« conservé : dernier membre du club … ») et sont à arbitrer à la main.
+
+**Réglages** (`app.accounts.inactivity.*`, cf. `.env.example`) :
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `INACTIVE_ACCOUNT_PURGE_ENABLED` | `true` | interrupteur — à `false`, la tâche ne lit ni n'écrit rien |
+| `INACTIVE_ACCOUNT_RETENTION_DAYS` | `730` | l'inactivité annoncée (24 mois) |
+| `INACTIVE_ACCOUNT_NOTICE_DAYS` | `30` | le préavis annoncé |
+| `INACTIVE_ACCOUNT_MAX_PER_RUN` | `100` | plafond par passage et par phase |
+| `INACTIVE_ACCOUNT_PURGE_CRON` | `0 20 4 * * *` | heure du balayage |
+
+> ⚠️ **Ces valeurs sont un engagement publié.** Les changer suppose de changer aussi le texte de
+> la politique de confidentialité (`front/src/app/features/public/legal.component.ts`, §5), et
+> réciproquement.
+
+**Au premier passage en production**, tout l'arriéré est rattrapé d'un coup : le plafond par
+passage existe précisément pour que cela ne vide pas le plan d'envoi Resend (100 e-mails/jour,
+partagé avec les réinitialisations de mot de passe). Surveiller la ligne
+`Comptes inactifs : N préavis, N suppression(s), N conservé(s)` sur les premiers jours.
+
+---
+
 ## 5. Intégration continue (CI)
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) sur chaque push/PR :
