@@ -58,9 +58,10 @@ public class MessageService {
      * transaction en lecture seule le laisserait en mémoire sans jamais l'écrire.</p>
      */
     @Transactional
-    public List<MessageResponse> coachThread(UUID clubId, UUID athleteId, AuthPrincipal principal, int limit) {
+    public com.coachrun.dto.response.PageResponse<MessageResponse> coachThread(
+            UUID clubId, UUID athleteId, AuthPrincipal principal, int page, int size) {
         var conversation = conversationService.athleteCoach(athleteId, principal.userId());
-        return conversationService.messages(principal, conversation.getId(), limit);
+        return conversationService.messages(principal, conversation.getId(), page, size);
     }
 
     @Transactional
@@ -116,18 +117,28 @@ public class MessageService {
     }
 
     // --- Côté athlète (scopé athleteId du principal) ---
-    /** Fil de l'athlète, même bornage que le fil du coach. */
-    public List<MessageResponse> athleteThread(AuthPrincipal principal, int limit) {
+    /** Fil de l'athlète, paginé comme celui du coach. */
+    public com.coachrun.dto.response.PageResponse<MessageResponse> athleteThread(
+            AuthPrincipal principal, int page, int size) {
         return conversationService.defaultAthleteConversation(principal.athleteId())
-                .map(c -> conversationService.messages(principal, c.getId(), limit))
-                .orElseGet(List::of);
+                .map(c -> conversationService.messages(principal, c.getId(), page, size))
+                .orElseGet(() -> new com.coachrun.dto.response.PageResponse<>(
+                        List.of(), 0, threadPageSize(size), 0, 0));
     }
 
-    /** Profondeur par défaut d'un fil : de quoi couvrir plusieurs semaines d'échanges. */
-    public static final int DEFAULT_THREAD_LIMIT = 100;
+    /**
+     * Taille de page d'un fil : assez pour qu'une conversation ordinaire tienne sur une seule
+     * page, assez peu pour qu'une saison entière ne parte pas en une requête.
+     */
+    public static final int DEFAULT_THREAD_PAGE_SIZE = 50;
 
-    static int threadLimit(int requested) {
-        return Math.max(1, Math.min(requested <= 0 ? DEFAULT_THREAD_LIMIT : requested, 500));
+    /**
+     * Taille de page effective. Le plafond n'est pas décoratif : la page porte les pièces jointes
+     * par leurs métadonnées, mais surtout, une taille libre redonnerait à qui la demande le
+     * pouvoir de charger le fil entier — ce que la pagination existe précisément pour éviter.
+     */
+    public static int threadPageSize(int requested) {
+        return Math.max(1, Math.min(requested <= 0 ? DEFAULT_THREAD_PAGE_SIZE : requested, 200));
     }
 
     @Transactional

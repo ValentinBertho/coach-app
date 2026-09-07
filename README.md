@@ -572,7 +572,8 @@ le produit et les parcours) :
   Le registre des **jetons de flux** (`StreamTokenService`) l'est aussi, au même titre que la liste
   noire des jetons révoqués : à externaliser avant tout passage à plusieurs instances.
 - **Import Strava** par polling (webhook à venir) — le `state` OAuth est désormais signé (HMAC, TTL 10 min).
-- **Pagination** à généraliser sur les listes non bornées (fil de messages, résultats…).
+- **Pagination** à généraliser sur les listes non bornées. Le fil de messages l'est désormais
+  (page 0 = les messages les plus récents, 50 par page) ; restent d'autres listes de résultats.
 - **Pièces jointes en base** (`bytea`) → stockage objet (S3) à plus grande échelle.
 
 ---

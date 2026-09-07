@@ -16,6 +16,18 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
 
     List<Message> findByClubIdAndAthleteIdOrderByCreatedAtAsc(UUID clubId, UUID athleteId);
 
+    /**
+     * Une page du fil, la plus récente d'abord.
+     *
+     * <p>Le fil n'était pas paginé mais <b>tronqué</b> : les cent derniers messages, et rien
+     * derrière. Une conversation qui dure une saison perdait donc silencieusement son début, sans
+     * aucun moyen d'y revenir — ni pour l'athlète, ni pour le coach, ni pour répondre à une
+     * demande d'accès. Ici la page 0 porte les plus récents (c'est là qu'on ouvre un fil), et les
+     * suivantes remontent le temps.</p>
+     */
+    org.springframework.data.domain.Page<Message> findPageByConversationId(
+            UUID conversationId, org.springframework.data.domain.Pageable pageable);
+
     /** Fil borné (les plus récents d'abord) — le fil entier était chargé à chaque ouverture. */
     List<Message> findByClubIdAndAthleteIdOrderByCreatedAtDesc(
             UUID clubId, UUID athleteId, org.springframework.data.domain.Pageable pageable);

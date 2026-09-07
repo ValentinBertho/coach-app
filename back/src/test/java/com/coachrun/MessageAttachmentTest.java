@@ -68,11 +68,13 @@ class MessageAttachmentTest {
         assertThat(msg.get("attachmentFilename").asText()).isEqualTo("photo.png");
         String messageId = msg.get("id").asText();
 
-        // Le fil contient le message avec la métadonnée de pièce jointe.
+        // Le fil contient le message avec la métadonnée de pièce jointe. Le fil est paginé :
+        // la page 0 porte les messages les plus récents, donc celui qu'on vient d'écrire.
         JsonNode thread = objectMapper.readTree(mvc.perform(
                         get("/clubs/{c}/athletes/{a}/messages", clubId, athleteId).header("Authorization", coachBearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        assertThat(thread).anyMatch(m -> "photo.png".equals(m.path("attachmentFilename").asText(null)));
+        assertThat(thread.get("content"))
+                .anyMatch(m -> "photo.png".equals(m.path("attachmentFilename").asText(null)));
 
         // Téléchargement : les octets et le type sont restitués.
         byte[] dl = mvc.perform(get("/clubs/{c}/athletes/{a}/messages/{m}/attachment", clubId, athleteId, messageId)

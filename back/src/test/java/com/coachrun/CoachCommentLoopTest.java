@@ -156,7 +156,9 @@ class CoachCommentLoopTest {
         // le corps de réponse dans le jeu de caractères par défaut de la plateforme, si bien
         // qu'une comparaison de chaîne accentuée testerait l'encodage du test, pas le produit.
         JsonNode answer = null;
-        for (JsonNode m : thread) {
+        // Le fil est paginé : la page 0 porte les messages les plus récents, donc la réponse
+        // qu'on vient d'écrire.
+        for (JsonNode m : thread.get("content")) {
             if (m.hasNonNull("workoutId") && workoutId.equals(m.get("workoutId").asText())) {
                 answer = m;
             }
