@@ -39,6 +39,12 @@
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
+  <!-- Version déployée : « <version>+<commit> », gravée au build par scripts/stamp-build.mjs.
+       C'est ce que portent la `release` Sentry et le contexte des retours de bêta ; sans elle,
+       une erreur remontée ne désigne aucun code en particulier (OPS-09). La valeur ci-dessous
+       est celle d'un build non tamponné (ng build appelé directement, par exemple). -->
+  <meta name="dari-build" content="dev">
+
   <meta name="theme-color" content="#3d5afe">
 
   <!-- iOS / Apple -->

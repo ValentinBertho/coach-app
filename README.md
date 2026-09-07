@@ -446,6 +446,12 @@ cd front && npm run build
   `admin_audit_log` (acteur, action, cible, adresse d'appel), impersonation comprise — sans
   aucune donnée de santé ni secret dans le résumé. Consultable sur `/admin/audit`.
 
+- **Version déployée traçable** : `/api/actuator/info` (public) et la balise
+  `<meta name="dari-build">` du front portent `version + commit`. C'est la `release` Sentry des
+  deux côtés, et le contexte joint à chaque retour de bêta : une erreur remontée désigne un
+  commit. Le tag de livraison se pose avec [`ops/tag-release.sh`](./ops/tag-release.sh) — détail
+  dans [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) §4 bis.
+
 > Exploitation (Sentry, sauvegardes, uptime) : [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) et
 > [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md). Ce qui reste à lever avant
 > d'ouvrir : [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md).
