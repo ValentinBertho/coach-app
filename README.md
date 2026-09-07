@@ -449,6 +449,12 @@ cd front && npm run build
   `admin_audit_log` (acteur, action, cible, adresse d'appel), impersonation comprise — sans
   aucune donnée de santé ni secret dans le résumé. Consultable sur `/admin/audit`.
 
+- **Version déployée traçable** : `/api/actuator/info` (public) et la balise
+  `<meta name="dari-build">` du front portent `version + commit`. C'est la `release` Sentry des
+  deux côtés, et le contexte joint à chaque retour de bêta : une erreur remontée désigne un
+  commit. Le tag de livraison se pose avec [`ops/tag-release.sh`](./ops/tag-release.sh) — détail
+  dans [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) §4 bis.
+
 > Exploitation (Sentry, sauvegardes, uptime) : [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) et
 > [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md). Ce qui reste à lever avant
 > d'ouvrir : [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md).
@@ -569,7 +575,8 @@ le produit et les parcours) :
   Le registre des **jetons de flux** (`StreamTokenService`) l'est aussi, au même titre que la liste
   noire des jetons révoqués : à externaliser avant tout passage à plusieurs instances.
 - **Import Strava** par polling (webhook à venir) — le `state` OAuth est désormais signé (HMAC, TTL 10 min).
-- **Pagination** à généraliser sur les listes non bornées (fil de messages, résultats…).
+- **Pagination** à généraliser sur les listes non bornées. Le fil de messages l'est désormais
+  (page 0 = les messages les plus récents, 50 par page) ; restent d'autres listes de résultats.
 - **Pièces jointes en base** (`bytea`) → stockage objet (S3) à plus grande échelle.
 
 ---
@@ -592,6 +599,7 @@ le produit et les parcours) :
 | [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md) | **plan de mise en conformité** : vagues 0 à 3, check-lists légale/RGPD et opérationnelle, recommandation GO/NO-GO |
 | [`docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md`](./docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md) | **analyse concurrentielle Nolio** : fonctionnalités, UX, UI, ergonomie, verdict, maturité, feuille de route |
 | [`docs/AUDIT-FONCTIONNEL-2026-08.md`](./docs/AUDIT-FONCTIONNEL-2026-08.md) | audit métier : parcours coach/athlète sur un mésocycle réel (prescription, charge, alertes, blessure, force) |
+| [`docs/REGISTRE-TRAITEMENTS.md`](./docs/REGISTRE-TRAITEMENTS.md) | registre des traitements (RGPD art. 30), établi à partir du code : données, bases légales, durées appliquées, sous-traitants, et écarts avec la politique publiée |
 | [`docs/AUDIT-BETA-OUVERTE-2026-08.md`](./docs/AUDIT-BETA-OUVERTE-2026-08.md) | audit de bêta ouverte : second passage (builds exécutés, consentement santé, autorisations club, plafonds SSE et e-mail) |
 | [`docs/AUDIT-PRODUIT-WAHOU-2026-08.md`](./docs/AUDIT-PRODUIT-WAHOU-2026-08.md) | **audit produit / UX / métier** : les dix évolutions de la couche de décision, et la contrainte qui les gouverne — rien n'est appliqué sans validation humaine |
 | [`docs/AUDIT-TECHNIQUE-2026-08.md`](./docs/AUDIT-TECHNIQUE-2026-08.md) | audit technique : chemin push, consentement santé, gestion d'erreurs |

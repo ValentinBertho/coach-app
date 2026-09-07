@@ -32,6 +32,11 @@ services:
     build:
       context: ./back
       dockerfile: Dockerfile
+      args:
+        # Commit gravé dans l'image, relu au démarrage et exposé sur /api/actuator/info. Vide
+        # ici (le contexte de build ne contient pas `.git`), à moins de le passer :
+        #   APP_COMMIT=$(git rev-parse HEAD) docker compose up --build
+        APP_COMMIT: ${APP_COMMIT:-}
     container_name: coachrun-backend
     depends_on:
       postgres:
@@ -74,6 +79,8 @@ services:
     build:
       context: ./front
       dockerfile: Dockerfile
+      args:
+        APP_COMMIT: ${APP_COMMIT:-}
     container_name: coachrun-frontend
     depends_on:
       backend:

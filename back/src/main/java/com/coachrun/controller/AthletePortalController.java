@@ -656,12 +656,16 @@ public class AthletePortalController {
         calendarNoteService.deleteByAthlete(principal.athleteId(), noteId, principal.userId());
     }
 
-    /** Messagerie : fil de discussion avec le coach. */
+    /**
+     * Messagerie : fil de discussion avec le coach, page par page. La page 0 porte les messages
+     * les plus récents ; les suivantes remontent le temps.
+     */
     @GetMapping("/messages")
-    public java.util.List<com.coachrun.dto.response.MessageResponse> messages(
+    public com.coachrun.dto.response.PageResponse<com.coachrun.dto.response.MessageResponse> messages(
             @AuthenticationPrincipal AuthPrincipal principal,
-            @RequestParam(defaultValue = "100") int limit) {
-        return messageService.athleteThread(principal, limit);
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+        return messageService.athleteThread(principal, page, size);
     }
 
     @PostMapping("/messages")

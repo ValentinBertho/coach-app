@@ -328,7 +328,7 @@ anomalie → e-mail » ; tag git à chaque déploiement, aligné sur `appVersion
 | V3-12 | SSE multi-instance (pub/sub) — prérequis à tout passage à deux pods | M | Technique |
 | V3-13 | Environnement de préproduction (la CI est aujourd'hui le seul filet entre un commit et la production) | M | Exploitation |
 | V3-14 | Mesure d'usage produit : aucun compteur n'existe, Sentry dit ce qui casse, pas ce qui sert | M | Produit |
-| V3-15 | Purge des comptes inactifs à 24 mois, annoncée par la politique de confidentialité | M | RGPD |
+| V3-15 | Purge des comptes inactifs à 24 mois, annoncée par la politique de confidentialité | M | RGPD — ✅ fait (L-20) |
 | V3-16 | Tests de bout en bout (aucun aujourd'hui) et Testcontainers (les tests tournent sur H2) | L | Technique |
 | V3-17 | Budget de bundle front (608 kB pour 500 kB annoncés) | S | Technique |
 | V3-18 | Durcir `clubLevelFallback`, qui accorde l'écriture par défaut quand la relation référente manque | S | Sécurité |
@@ -372,15 +372,16 @@ anomalie → e-mail » ; tag git à chaque déploiement, aligné sur `appVersion
 | L-16 | **DPA signés** avec chaque sous-traitant | ❓ **Hors code** — à collecter et archiver | Non |
 | L-17 | Hébergement des données de santé dans l'UE | ⚠️ Sentry configuré en région UE ; **à confirmer pour l'hébergeur back, la BDD et l'e-mail** | Non |
 | L-18 | Question HDS (hébergeur de données de santé) tranchée | ❓ Le cahier des charges dit « non requis a priori, à confirmer juridiquement » — **toujours ouvert** | Non |
-| L-19 | **Registre des traitements** | ❓ **Hors code** — à rédiger | Non |
-| L-20 | Durée de conservation annoncée (24 mois d'inactivité) et **appliquée** | ⚠️ Annoncée, **non implémentée** — cf. V3-15 | Oui |
+| L-19 | **Registre des traitements** | ✅ [`docs/REGISTRE-TRAITEMENTS.md`](./REGISTRE-TRAITEMENTS.md) — établi à partir du code (13 traitements, 8 sous-traitants, durées réellement appliquées) et **10 écarts relevés** avec la politique publiée, dont l'identité civile absente (L-01) | Relire le §7 : il ouvre des points de décision |
+| L-20 | Durée de conservation annoncée (24 mois d'inactivité) et **appliquée** | ✅ `InactiveAccountPurgeScheduler` (ShedLock, 4 h 20) : préavis par e-mail à J-30, suppression ensuite. Se reconnecter annule tout. Réglages `app.accounts.inactivity.*` | — |
 | L-21 | Chiffrement au repos des données de santé et des jetons OAuth | ✅ AES-256-GCM, IV par valeur | Oui |
 | L-22 | Non-exposition des données de santé dans les journaux et le monitoring | ✅ `send-default-pii: false`, journaux sans valeurs de santé | Oui |
 | L-23 | Procédure de notification de violation (72 h) | ❓ **Hors code** — cf. §4, OPS-04 | Non |
 
 **Bloquants légaux avant ouverture** : L-01, L-08, L-09, L-11 (via V0-11).
 **À trancher humainement avant ouverture** : L-04 (relecture), L-14 (mineurs), L-16 (DPA),
-L-17/L-18 (localisation et HDS), L-19 (registre), L-23 (procédure de violation).
+L-17/L-18 (localisation et HDS), L-23 (procédure de violation). L-19 (registre) est établi : son
+§7 liste dix écarts, dont plusieurs relèvent d'une décision et non d'un développement.
 
 ---
 
@@ -396,7 +397,7 @@ L-17/L-18 (localisation et HDS), L-19 (registre), L-23 (procédure de violation)
 | OPS-06 | **Collecte des retours de bêta** | ✅ Formulaire avec contexte automatique (page, version, navigateur, identifiant de corrélation) | Définir qui dépouille la file, et à quelle fréquence |
 | OPS-07 | **Compte administrateur de plateforme** | ❌ Absent en production | V0-11 |
 | OPS-08 | **Variables d'environnement de production complètes** | ⚠️ Le garde-fou de démarrage couvre secrets, URL, CORS, VAPID, relais de confiance et code d'invitation ; il **ne couvre pas** le compte admin | V0-11 + revue de la liste du runbook |
-| OPS-09 | **Versionnement des déploiements** (tag git ↔ version applicative) | ❌ Aucun tag | V1-09 |
+| OPS-09 | **Versionnement des déploiements** (tag git ↔ version applicative) | ✅ Commit exposé à chaud (`/api/actuator/info`, `<meta name="dari-build">`, `release` Sentry des deux côtés) ; tag annoté par `ops/tag-release.sh` ; CI vérifie que back et front annoncent la même version | Voir `docs/OPERATIONS.md` §4 bis |
 | OPS-10 | **Limite du nombre de bêta-testeurs** | ⚠️ Le mode « invitation » permet une cohorte fermée ; passer en ouvert lève toute limite | Voir ci-dessous |
 | OPS-11 | Environnement de préproduction | ❌ La CI est le seul filet | Vague 3 — accepté (§5) |
 | OPS-12 | Tenue en charge mesurée | ❓ **Jamais mesurée** — cf. §6 | Voir OPS-10 |
@@ -427,7 +428,7 @@ temps réel sont en mémoire (non répartissables). Deux garde-fous simples, san
 | **Tests sur H2 plutôt que PostgreSQL réel** | Le démarrage est vérifié sur PostgreSQL réel en intégration continue, migrations comprises. L'écart résiduel porte sur des comportements SQL fins, non sur le schéma (cohérence schéma/entités vérifiée : 50 tables, aucun écart). |
 | **Aucun test de bout en bout** | 295 tests back et 63 front, verts. La couverture est bonne sur les moteurs et les accès ; elle manque sur les parcours. Coût élevé, valeur surtout en régression : après la bêta. |
 | **Pas de préproduction** | Un environnement de plus à tenir pour une cohorte de quelques dizaines. La CI plus un déploiement réversible suffisent à ce stade. |
-| **Purge des comptes inactifs non implémentée** | Annoncée à 24 mois par la politique. Aucun compte ne peut l'atteindre avant deux ans : l'écart entre le texte et le code est réel mais sans effet pratique pendant la bêta. À implémenter bien avant l'échéance. |
+| ~~**Purge des comptes inactifs non implémentée**~~ | ✅ Implémentée (L-20). Reste hors périmètre automatique : le **dernier encadrant d'un club qui contient encore des données** est conservé et signalé en journal — fermer un club est une décision, pas une conséquence de calendrier. |
 | **Un athlète = un seul groupe** | Gênant pour un club qui croise ses groupes (piste le mardi, sortie longue le dimanche), sans effet en coaching individuel. Contournable par un découpage unique. Changement de modèle de données : vague 3. |
 | **Garmin / COROS absents** | Annoncé comme tel dans le produit et l'aide. Le repli GPX/TCX couvre l'essentiel — à condition que V1-03 (dédoublonnage) soit livré, sinon le repli fabrique des doublons. |
 | **Facturation absente** | Priorité C au cahier des charges, hors périmètre d'une bêta gratuite. Rend aussi les CGV sans objet (L-05). |

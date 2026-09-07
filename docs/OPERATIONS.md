@@ -174,11 +174,135 @@ Sentry est **inactif tant que le DSN est vide** (no-op).
 
 ---
 
+## 4 bis. Quelle version tourne ? (OPS-09)
+
+Une erreur remontée par un utilisateur arrive avec un identifiant de corrélation, une heure et un
+écran — et, jusqu'ici, rien qui désigne le **code** qui l'a produite. La version applicative
+existait, jamais reliée à un commit : entre deux déploiements du même `0.3.0`, « ça marchait
+hier » restait indécidable.
+
+### La réponse, en une commande
+
+```bash
+curl -s https://<host>/api/actuator/info | jq .app
+# {
+#   "name": "DARI Lab",
+#   "version": "0.3.0",
+#   "commit": "9f3c1ab",      ← le commit qui tourne, là, maintenant
+#   "builtAt": "2026-09-07T14:02:11Z",
+#   "environment": "production"
+# }
+```
+
+La route est **publique et sans jeton**, délibérément : la question se pose avant d'avoir un
+accès — au téléphone avec un utilisateur, depuis une sonde d'exploitation, dans un ticket.
+
+Côté front, la même chose est gravée dans la page :
+
+```bash
+curl -s https://www.darilab.app/ | grep dari-build
+# <meta name="dari-build" content="0.3.0+9f3c1ab">
+```
+
+C'est cette valeur — et non plus une chaîne recopiée à la main — qui sert de `release` à Sentry,
+qui accompagne chaque retour de bêta (visible dans `/admin/feedback`) et qui remplit le mail de
+support. Une erreur Sentry pointe donc sur un commit, des deux côtés.
+
+### D'où vient le commit
+
+| Contexte | Source | Remarque |
+|---|---|---|
+| Railway (back) | `RAILWAY_GIT_COMMIT_SHA` | posé par la plateforme, rien à faire |
+| Vercel (front) | `VERCEL_GIT_COMMIT_SHA` | idem |
+| CI (GitHub Actions) | `GITHUB_SHA` / `APP_COMMIT` | le smoke test **vérifie** que `/actuator/info` le renvoie |
+| Build local ou Docker | `APP_COMMIT`, sinon le dépôt Git | `docker compose` : `APP_COMMIT=$(git rev-parse HEAD) docker compose up --build` |
+| Rien de tout cela | `inconnu` | dit explicitement, pour ne pas passer pour un oubli d'affichage |
+
+Côté back, le commit est en plus **gravé dans l'artefact** au moment de la compilation
+(`git-commit-id-maven-plugin` → `git.properties` → bloc `git` d'`/actuator/info`) quand le dépôt
+est disponible. L'image de production est construite depuis un contexte Docker sans `.git` : là,
+c'est la variable d'environnement qui répond.
+
+### Le tag de livraison
+
+Le commit dit *quel code tourne*. Le tag donne un nom lisible à une livraison — pour en parler,
+comparer deux versions, revenir en arrière.
+
+```bash
+# 1. changer la version dans back/pom.xml ET front/package.json, commiter
+# 2. vérifier sans rien poser
+./ops/tag-release.sh --dry-run
+# 3. poser et pousser le tag annoté vX.Y.Z
+./ops/tag-release.sh
+```
+
+Le script refuse de taguer un arbre de travail sale, un tag déjà pris, et surtout **deux
+manifestes qui n'annoncent pas la même version** — sinon `v0.4.0` désignerait deux choses. La CI
+rejoue cette dernière vérification à chaque push (job « Versions alignées ») : les deux moitiés
+ne peuvent plus diverger en silence.
+
+> **`SENTRY_RELEASE`** : à poser au commit déployé côté back si l'on veut que les releases Sentry
+> du back et du front se correspondent exactement. Sans elle, le back retombe sur le seul numéro
+> de version, ce qui ne distingue pas deux déploiements.
+
+---
+
+## 4 ter. Purge des comptes inactifs (L-20)
+
+La politique de confidentialité annonce qu'« un compte resté inactif pendant 24 mois est supprimé
+après un e-mail de préavis ». `InactiveAccountPurgeScheduler` l'applique, sous verrou ShedLock,
+tous les jours à 4 h 20.
+
+| Étape | Quand | Effet |
+|---|---|---|
+| Préavis | inactivité ≥ 700 jours (730 − 30) | e-mail « votre compte sera supprimé le … », date d'envoi notée dans `users.inactivity_warned_at` |
+| Suppression | inactivité ≥ 730 jours **et** préavis envoyé il y a ≥ 30 jours | effacement définitif, en cascade |
+
+**Ce qui compte comme activité** : la dernière requête authentifiée (`last_seen_at`, à un quart
+d'heure près), à défaut la dernière connexion, à défaut la création du compte. Les deux replis
+existent parce que `last_seen_at` date de la migration 091 : le lire seul ferait passer tout
+compte antérieur pour inactif depuis toujours.
+
+**Se reconnecter annule tout**, sans aucune démarche : la visite repousse `last_seen_at` au-delà
+de la date de préavis, et le compte cesse d'être candidat des deux côtés. Rien à effacer côté
+exploitation.
+
+**Jamais purgés** :
+- les **administrateurs de plateforme** — leur compte peut légitimement dormir un an, et le
+  supprimer fermerait le back-office sans moyen de le rouvrir ;
+- le **dernier membre d'un club qui en contient d'autres** — l'effacer ne libérerait rien et
+  laisserait un club sans personne pour y accéder. Ces comptes apparaissent en `WARN` dans le
+  journal (« conservé : dernier membre du club … ») et sont à arbitrer à la main.
+
+**Réglages** (`app.accounts.inactivity.*`, cf. `.env.example`) :
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `INACTIVE_ACCOUNT_PURGE_ENABLED` | `true` | interrupteur — à `false`, la tâche ne lit ni n'écrit rien |
+| `INACTIVE_ACCOUNT_RETENTION_DAYS` | `730` | l'inactivité annoncée (24 mois) |
+| `INACTIVE_ACCOUNT_NOTICE_DAYS` | `30` | le préavis annoncé |
+| `INACTIVE_ACCOUNT_MAX_PER_RUN` | `100` | plafond par passage et par phase |
+| `INACTIVE_ACCOUNT_PURGE_CRON` | `0 20 4 * * *` | heure du balayage |
+
+> ⚠️ **Ces valeurs sont un engagement publié.** Les changer suppose de changer aussi le texte de
+> la politique de confidentialité (`front/src/app/features/public/legal.component.ts`, §5), et
+> réciproquement.
+
+**Au premier passage en production**, tout l'arriéré est rattrapé d'un coup : le plafond par
+passage existe précisément pour que cela ne vide pas le plan d'envoi Resend (100 e-mails/jour,
+partagé avec les réinitialisations de mot de passe). Surveiller la ligne
+`Comptes inactifs : N préavis, N suppression(s), N conservé(s)` sur les premiers jours.
+
+---
+
 ## 5. Intégration continue (CI)
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) sur chaque push/PR :
-- **Backend** : `mvn verify` (tests + Liquibase sur H2) **puis smoke test** de démarrage
-  contre un PostgreSQL éphémère (valide les migrations via `/actuator/health`).
+- **Versions alignées** : `back/pom.xml` et `front/package.json` doivent annoncer la même version
+  (c'est elle qui sera taguée).
+- **Backend** : `mvn verify` (tests + Liquibase sur H2), tests sur PostgreSQL réel (profil
+  `pgtest`), **puis smoke test** de démarrage contre un PostgreSQL éphémère — qui valide les
+  migrations via `/actuator/health` **et** que `/actuator/info` porte bien le commit déployé.
 - **Frontend** : `npm ci`, build AOT prod, tests Karma headless.
 
 ---

@@ -9,7 +9,10 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test --watch=false --browsers=ChromeHeadlessNoSandbox",
     "build:pwa": "ng build --configuration pwa",
-    "start:pwa": "ng build --configuration pwa && npx --yes http-server dist/front/browser -p 4200 -c-1 --proxy http://localhost:4200?"
+    "start:pwa": "ng build --configuration pwa && npx --yes http-server dist/front/browser -p 4200 -c-1 --proxy http://localhost:4200?",
+    "postbuild": "node scripts/stamp-build.mjs",
+    "postbuild:docker": "node scripts/stamp-build.mjs",
+    "postbuild:pwa": "node scripts/stamp-build.mjs"
   },
   "private": true,
   "dependencies": {

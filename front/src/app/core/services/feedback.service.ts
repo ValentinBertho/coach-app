@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { buildStamp } from '../build-info';
 
 export type FeedbackKind = 'BUG' | 'IDEA' | 'QUESTION';
 
@@ -51,7 +52,7 @@ export class FeedbackService {
       kind: draft.kind,
       message: draft.message,
       page: location?.pathname ?? '',
-      appVersion: environment.appVersion,
+      appVersion: buildStamp(),
       correlationId: this.lastCorrelationId(),
     });
   }

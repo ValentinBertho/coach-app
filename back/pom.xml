@@ -27,6 +27,7 @@
         <jjwt.version>0.12.5</jjwt.version>
         <springdoc.version>2.5.0</springdoc.version>
         <logback-logtail.version>0.3.6</logback-logtail.version>
+        <git-commit-id.version>9.0.1</git-commit-id.version>
     </properties>
 
     <dependencies>
@@ -199,6 +200,47 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            <!--
+                Grave le commit dans l'artefact (git.properties → /api/actuator/info).
+
+                Sans lui, la version applicative seule ne dit pas QUEL code tourne : entre deux
+                déploiements du même 0.3.0, « ça marchait hier » restait indécidable, et une
+                erreur remontée par un utilisateur ne pointait sur rien de précis (OPS-09).
+
+                Tolérant à l'absence de dépôt : l'image de production est construite depuis un
+                contexte Docker qui ne contient pas `.git`. Là, c'est la variable
+                d'environnement du déploiement qui prend le relais au démarrage — cf.
+                `app.build.commit` dans application.yml et BuildInfoContributor.
+            -->
+            <plugin>
+                <groupId>io.github.git-commit-id</groupId>
+                <artifactId>git-commit-id-maven-plugin</artifactId>
+                <version>${git-commit-id.version}</version>
+                <executions>
+                    <execution>
+                        <id>get-the-git-infos</id>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                        <phase>initialize</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <failOnNoGitDirectory>false</failOnNoGitDirectory>
+                    <failOnUnableToExtractRepoInfo>false</failOnUnableToExtractRepoInfo>
+                    <generateGitPropertiesFile>true</generateGitPropertiesFile>
+                    <generateGitPropertiesFilename>
+                        ${project.build.outputDirectory}/git.properties
+                    </generateGitPropertiesFilename>
+                    <!-- Spring Boot ne lit que ces trois clés ; le reste ne ferait qu'alourdir
+                         l'artefact et exposer des détails de poste de travail. -->
+                    <includeOnlyProperties>
+                        <includeOnlyProperty>^git.branch$</includeOnlyProperty>
+                        <includeOnlyProperty>^git.commit.id.abbrev$</includeOnlyProperty>
+                        <includeOnlyProperty>^git.commit.time$</includeOnlyProperty>
+                    </includeOnlyProperties>
+                </configuration>
             </plugin>
         </plugins>
     </build>

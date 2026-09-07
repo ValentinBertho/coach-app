@@ -10,6 +10,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { MessageService } from '../../core/services/message.service';
 import { SseStream } from '../../core/services/stream-token.service';
 import { ToastService } from '../../core/services/toast.service';
+import { PaginatorComponent } from '../../shared/components/paginator/paginator.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
 
 /** Élément de fil avec séparateur de jour calculé. */
@@ -23,7 +24,7 @@ interface ThreadItem { m: Message; showDay: boolean; dayLabel: string; }
   selector: 'app-chat',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, IconComponent, FormsModule, RouterLink],
+  imports: [SkeletonComponent, IconComponent, FormsModule, RouterLink, PaginatorComponent],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.scss',
 })
@@ -40,6 +41,18 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   readonly messages = signal<Message[]>([]);
   readonly loading = signal(true);
+
+  /**
+   * Page du fil affichée. **0 = les messages les plus récents**, les suivantes remontent le temps.
+   *
+   * <p>Le fil rendait auparavant les cent derniers messages et rien derrière : une conversation
+   * qui dure une saison commençait au milieu d'une phrase, sans aucun moyen d'en voir le
+   * début.</p>
+   */
+  readonly page = signal(0);
+  readonly totalPages = signal(1);
+  /** Vrai dès qu'on remonte dans l'historique : le fil affiché n'est plus le fil vivant. */
+  readonly viewingHistory = computed(() => this.page() > 0);
   readonly coachMode = computed(() => !!this.athleteId());
   readonly backLink = computed(() => (this.athleteId() ? ['/app/athletes', this.athleteId()!] : ['/athlete/today']));
   draft = '';
@@ -87,7 +100,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.load();
+    this.load(0);
     this.stream = this.messageService.stream(this.athleteId(), (m) => this.append(m));
     // Ouvrir le fil vaut accusé de lecture : le badge de la boîte de réception se met à jour.
     if (this.athleteId()) {
@@ -120,8 +133,17 @@ export class ChatComponent implements OnInit, OnDestroy {
     for (const url of Object.values(this.imageUrls())) URL.revokeObjectURL(url);
   }
 
-  /** Ajoute un message reçu en temps réel, en évitant les doublons (écho de notre envoi). */
+  /**
+   * Ajoute un message reçu en temps réel, en évitant les doublons (écho de notre envoi).
+   *
+   * <p>Rien n'est ajouté tant qu'on lit l'historique : un message neuf n'a rien à faire au bas
+   * d'une page d'archives — il y apparaîtrait hors de son ordre, et le retour au fil vivant le
+   * ferait « disparaître ». Le badge de non-lus, lui, continue de compter.</p>
+   */
   private append(m: Message): void {
+    if (this.viewingHistory()) {
+      return;
+    }
     this.messages.update((list) => (list.some((x) => x.id === m.id) ? list : [...list, m]));
     this.loadImage(m);
   }
@@ -138,19 +160,26 @@ export class ChatComponent implements OnInit, OnDestroy {
     });
   }
 
-  load(): void {
+  load(page = this.page()): void {
     this.loading.set(true);
     const obs = this.athleteId()
-      ? this.messageService.coachThread(this.athleteId()!)
-      : this.messageService.myThread();
+      ? this.messageService.coachThread(this.athleteId()!, page)
+      : this.messageService.myThread(page);
     obs.subscribe({
-      next: (m) => {
-        this.messages.set(m);
+      next: (result) => {
+        this.messages.set(result.content);
+        this.page.set(result.page);
+        this.totalPages.set(Math.max(1, result.totalPages));
         this.loading.set(false);
-        for (const message of m) this.loadImage(message);
+        for (const message of result.content) this.loadImage(message);
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  /** Change de page. Le flux temps réel reste ouvert : cf. `append`. */
+  goToPage(page: number): void {
+    this.load(page);
   }
 
   mine(m: Message): boolean {
@@ -164,7 +193,8 @@ export class ChatComponent implements OnInit, OnDestroy {
       ? this.messageService.coachSend(this.athleteId()!, body)
       : this.messageService.mySend(body);
     obs.subscribe({
-      next: (m) => { this.append(m); this.draft = ''; },
+      // Écrire depuis une page d'archives ramène au fil vivant : c'est là que le message part.
+      next: (m) => { this.draft = ''; if (this.viewingHistory()) { this.load(0); } else { this.append(m); } },
       error: () => this.toast.error('Envoi impossible.'),
     });
   }
@@ -178,7 +208,11 @@ export class ChatComponent implements OnInit, OnDestroy {
       ? this.messageService.coachSendAttachment(this.athleteId()!, file, this.draft.trim() || undefined)
       : this.messageService.mySendAttachment(file, this.draft.trim() || undefined);
     obs.subscribe({
-      next: (m) => { this.append(m); this.draft = ''; input.value = ''; },
+      next: (m) => {
+        this.draft = '';
+        input.value = '';
+        if (this.viewingHistory()) { this.load(0); } else { this.append(m); }
+      },
       error: () => this.toast.error('Pièce jointe refusée (image ou PDF, max 10 Mo).'),
     });
   }

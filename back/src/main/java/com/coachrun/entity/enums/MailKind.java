@@ -50,6 +50,15 @@ public enum MailKind {
      */
     WEEKLY_RECAP(false),
 
+    /**
+     * Préavis de suppression d'un compte resté inactif. Transactionnel, et de la façon la plus
+     * stricte : c'est le seul avertissement avant un effacement définitif, il s'adresse à
+     * quelqu'un qui n'ouvre plus l'application depuis deux ans — donc pour qui le centre de
+     * notifications et le push ne sont pas des replis — et la politique de confidentialité en
+     * fait un engagement écrit.
+     */
+    ACCOUNT_INACTIVITY(true),
+
     /** Envoi non classé — ne devrait pas apparaître ; sa présence signale un oubli de classement. */
     OTHER(false);
 
@@ -77,6 +86,7 @@ public enum MailKind {
             case MESSAGE -> "Message";
             case UNAVAILABILITY -> "Indisponibilité";
             case WEEKLY_RECAP -> "Bilan hebdomadaire";
+            case ACCOUNT_INACTIVITY -> "Préavis d'inactivité";
             case OTHER -> "Non classé";
         };
     }
