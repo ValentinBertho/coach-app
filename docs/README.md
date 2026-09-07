@@ -20,6 +20,7 @@
 | [`DEPLOIEMENT.md`](./DEPLOIEMENT.md) | Le déploiement Railway / Vercel et les variables d'environnement | À chaque changement d'infra |
 | [`OPERATIONS.md`](./OPERATIONS.md) | L'**exploitation** : Sentry, sauvegardes, Actuator, CI | À chaque changement de procédure |
 | [`BETA-LAUNCH-RUNBOOK.md`](./BETA-LAUNCH-RUNBOOK.md) | La **checklist de mise en service** de la bêta, pas à pas | Pendant la mise en service |
+| [`REGISTRE-TRAITEMENTS.md`](./REGISTRE-TRAITEMENTS.md) | Le **registre des activités de traitement** (RGPD art. 30), établi à partir du code réel : quelles données, quelle base légale, quelle durée **appliquée**, quels sous-traitants — et les écarts avec la politique publiée | Quand une entité, un sous-traitant, une durée ou une base légale change |
 
 ## Plans — ce qu'on a décidé de faire, et dans quel ordre
 

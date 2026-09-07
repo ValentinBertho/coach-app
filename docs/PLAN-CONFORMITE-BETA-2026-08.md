@@ -372,7 +372,7 @@ anomalie → e-mail » ; tag git à chaque déploiement, aligné sur `appVersion
 | L-16 | **DPA signés** avec chaque sous-traitant | ❓ **Hors code** — à collecter et archiver | Non |
 | L-17 | Hébergement des données de santé dans l'UE | ⚠️ Sentry configuré en région UE ; **à confirmer pour l'hébergeur back, la BDD et l'e-mail** | Non |
 | L-18 | Question HDS (hébergeur de données de santé) tranchée | ❓ Le cahier des charges dit « non requis a priori, à confirmer juridiquement » — **toujours ouvert** | Non |
-| L-19 | **Registre des traitements** | ❓ **Hors code** — à rédiger | Non |
+| L-19 | **Registre des traitements** | ✅ [`docs/REGISTRE-TRAITEMENTS.md`](./REGISTRE-TRAITEMENTS.md) — établi à partir du code (13 traitements, 8 sous-traitants, durées réellement appliquées) et **10 écarts relevés** avec la politique publiée, dont l'identité civile absente (L-01) | Relire le §7 : il ouvre des points de décision |
 | L-20 | Durée de conservation annoncée (24 mois d'inactivité) et **appliquée** | ✅ `InactiveAccountPurgeScheduler` (ShedLock, 4 h 20) : préavis par e-mail à J-30, suppression ensuite. Se reconnecter annule tout. Réglages `app.accounts.inactivity.*` | — |
 | L-21 | Chiffrement au repos des données de santé et des jetons OAuth | ✅ AES-256-GCM, IV par valeur | Oui |
 | L-22 | Non-exposition des données de santé dans les journaux et le monitoring | ✅ `send-default-pii: false`, journaux sans valeurs de santé | Oui |
@@ -380,7 +380,8 @@ anomalie → e-mail » ; tag git à chaque déploiement, aligné sur `appVersion
 
 **Bloquants légaux avant ouverture** : L-01, L-08, L-09, L-11 (via V0-11).
 **À trancher humainement avant ouverture** : L-04 (relecture), L-14 (mineurs), L-16 (DPA),
-L-17/L-18 (localisation et HDS), L-19 (registre), L-23 (procédure de violation).
+L-17/L-18 (localisation et HDS), L-23 (procédure de violation). L-19 (registre) est établi : son
+§7 liste dix écarts, dont plusieurs relèvent d'une décision et non d'un développement.
 
 ---
 

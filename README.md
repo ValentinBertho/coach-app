@@ -595,6 +595,7 @@ le produit et les parcours) :
 | [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md) | **plan de mise en conformité** : vagues 0 à 3, check-lists légale/RGPD et opérationnelle, recommandation GO/NO-GO |
 | [`docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md`](./docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md) | **analyse concurrentielle Nolio** : fonctionnalités, UX, UI, ergonomie, verdict, maturité, feuille de route |
 | [`docs/AUDIT-FONCTIONNEL-2026-08.md`](./docs/AUDIT-FONCTIONNEL-2026-08.md) | audit métier : parcours coach/athlète sur un mésocycle réel (prescription, charge, alertes, blessure, force) |
+| [`docs/REGISTRE-TRAITEMENTS.md`](./docs/REGISTRE-TRAITEMENTS.md) | registre des traitements (RGPD art. 30), établi à partir du code : données, bases légales, durées appliquées, sous-traitants, et écarts avec la politique publiée |
 | [`docs/AUDIT-BETA-OUVERTE-2026-08.md`](./docs/AUDIT-BETA-OUVERTE-2026-08.md) | audit de bêta ouverte : second passage (builds exécutés, consentement santé, autorisations club, plafonds SSE et e-mail) |
 | [`docs/AUDIT-PRODUIT-WAHOU-2026-08.md`](./docs/AUDIT-PRODUIT-WAHOU-2026-08.md) | **audit produit / UX / métier** : les dix évolutions de la couche de décision, et la contrainte qui les gouverne — rien n'est appliqué sans validation humaine |
 | [`docs/AUDIT-TECHNIQUE-2026-08.md`](./docs/AUDIT-TECHNIQUE-2026-08.md) | audit technique : chemin push, consentement santé, gestion d'erreurs |
