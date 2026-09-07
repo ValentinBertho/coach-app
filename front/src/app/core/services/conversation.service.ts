@@ -3,7 +3,7 @@ import { Injectable, inject, signal } from '@angular/core';
 import { Observable, map, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Message } from '../models/message.model';
-import { AuthService } from './auth.service';
+import { SseStream, StreamTokenService } from './stream-token.service';
 
 export type ConversationKind = 'ATHLETE_COACH' | 'COACH_COACH' | 'GROUP' | 'CLUB';
 
@@ -39,7 +39,7 @@ export interface Recipient {
 @Injectable({ providedIn: 'root' })
 export class ConversationService {
   private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
+  private readonly streamTokens = inject(StreamTokenService);
   private readonly base = `${environment.apiUrl}/me/conversations`;
 
   /** Total de non-lus, partagé par les pastilles de navigation. */
@@ -80,20 +80,20 @@ export class ConversationService {
   }
 
   /**
-   * Flux temps réel du fil. Le jeton passe en paramètre d'URL — `EventSource` ne porte pas
-   * d'en-tête. L'appelant referme la source.
+   * Flux temps réel du fil. `EventSource` ne porte pas d'en-tête : l'authentification passe par un
+   * jeton de flux à usage unique, valable une minute, renouvelé à chaque (re)connexion — jamais
+   * par le jeton de session, qui vaut une heure sur toute l'API et fuirait dans les journaux
+   * d'accès comme dans l'historique du navigateur. L'appelant referme le flux.
    */
-  stream(conversationId: string, onMessage: (m: Message) => void): EventSource {
-    const url = `${this.base}/${conversationId}/stream`
-      + `?access_token=${encodeURIComponent(this.auth.token() ?? '')}`;
-    const source = new EventSource(url);
-    source.addEventListener('message', (ev) => {
-      try {
-        onMessage(JSON.parse((ev as MessageEvent).data) as Message);
-      } catch {
-        /* événement malformé : ignoré */
-      }
+  stream(conversationId: string, onMessage: (m: Message) => void): SseStream {
+    return this.streamTokens.openSse(`${this.base}/${conversationId}/stream`, {
+      message: (ev) => {
+        try {
+          onMessage(JSON.parse(ev.data) as Message);
+        } catch {
+          /* événement malformé : ignoré */
+        }
+      },
     });
-    return source;
   }
 }

@@ -4,12 +4,14 @@ import { Observable, map, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { Message } from '../models/message.model';
 import { AuthService } from './auth.service';
+import { SseStream, StreamTokenService } from './stream-token.service';
 
 /** Messagerie : fil coach (scopé club/athlète) et fil athlète (/me/messages). */
 @Injectable({ providedIn: 'root' })
 export class MessageService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
+  private readonly streamTokens = inject(StreamTokenService);
 
   /** Total de non-lus coach, partagé (badge de la navigation latérale). */
   readonly unread = signal(0);
@@ -73,32 +75,55 @@ export class MessageService {
     return this.http.post<Message>(`${environment.apiUrl}/me/messages/attachment`, form);
   }
 
-  /** URL de téléchargement d'une pièce jointe (token en query param pour <img>/<a>). */
-  attachmentUrl(athleteId: string | undefined, messageId: string): string {
-    const base = athleteId
+  private attachmentBase(athleteId: string | undefined, messageId: string): string {
+    return athleteId
       ? `${environment.apiUrl}/clubs/${this.auth.clubId()}/athletes/${athleteId}/messages/${messageId}/attachment`
       : `${environment.apiUrl}/me/messages/${messageId}/attachment`;
-    return `${base}?access_token=${encodeURIComponent(this.auth.token() ?? '')}`;
   }
 
   /**
-   * Flux temps réel (SSE) des nouveaux messages. Côté coach si {@code athleteId} fourni,
-   * sinon côté athlète. Le token est passé en query param ({@code EventSource} ne porte
-   * pas d'en-tête). Retourne la source ouverte ; l'appelant doit la fermer.
+   * Contenu d'une pièce jointe, chargé par le code applicatif — donc avec l'en-tête
+   * `Authorization`, et sans le moindre jeton dans l'URL.
+   *
+   * C'est ce qui alimente les vignettes du fil. Le jeton de session y transitait jusqu'ici en
+   * paramètre d'URL, où il finissait dans les journaux d'accès du relais et dans l'historique de
+   * navigation. Ici, il n'y a plus d'URL à faire fuir : l'appelant reçoit les octets et fabrique
+   * une URL locale (`URL.createObjectURL`), comme le fait déjà l'export PDF.
    */
-  stream(athleteId: string | undefined, onMessage: (m: Message) => void): EventSource {
-    const base = athleteId
+  attachmentBlob(athleteId: string | undefined, messageId: string): Observable<Blob> {
+    return this.http.get(this.attachmentBase(athleteId, messageId), { responseType: 'blob' });
+  }
+
+  /**
+   * URL ouvrable dans un onglet, portant un jeton **à usage unique** valable une minute.
+   *
+   * C'est le seul cas où le navigateur va chercher la pièce jointe lui-même : on ne peut donc pas
+   * lui poser d'en-tête. Le jeton qu'il porte n'ouvre que les pièces jointes, ne sert qu'une fois,
+   * et est demandé au moment du clic — pas à l'affichage du fil, où il aurait le temps de périmer.
+   */
+  attachmentUrl(athleteId: string | undefined, messageId: string): Observable<string> {
+    return this.streamTokens.urlWithToken(
+      this.attachmentBase(athleteId, messageId), 'ATTACHMENT');
+  }
+
+  /**
+   * Flux temps réel (SSE) des nouveaux messages. Côté coach si `athleteId` est fourni, sinon côté
+   * athlète. `EventSource` ne sait pas poser d'en-tête : l'authentification passe par un jeton de
+   * flux à usage unique, renouvelé à chaque (re)connexion. Retourne le flux ouvert ; l'appelant
+   * doit le fermer.
+   */
+  stream(athleteId: string | undefined, onMessage: (m: Message) => void): SseStream {
+    const url = athleteId
       ? `${environment.apiUrl}/clubs/${this.auth.clubId()}/athletes/${athleteId}/messages/stream`
       : `${environment.apiUrl}/me/messages/stream`;
-    const url = `${base}?access_token=${encodeURIComponent(this.auth.token() ?? '')}`;
-    const source = new EventSource(url);
-    source.addEventListener('message', (ev) => {
-      try {
-        onMessage(JSON.parse((ev as MessageEvent).data) as Message);
-      } catch {
-        /* ignore malformed event */
-      }
+    return this.streamTokens.openSse(url, {
+      message: (ev) => {
+        try {
+          onMessage(JSON.parse(ev.data) as Message);
+        } catch {
+          /* événement malformé : ignoré */
+        }
+      },
     });
-    return source;
   }
 }

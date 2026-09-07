@@ -15,9 +15,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p><b>Les routes à jeton en paramètre échappaient au comptage.</b> La clé d'une requête
  * authentifiée était dérivée du seul en-tête {@code Authorization}. Or les flux SSE
  * ({@code EventSource} ne sait pas poser d'en-tête) et l'ouverture d'une pièce jointe dans un
- * onglet passent le jeton en {@code access_token}. Ces routes n'avaient donc <em>aucune</em>
+ * onglet portent leur jeton en paramètre d'URL. Ces routes n'avaient donc <em>aucune</em>
  * limite — alors que le proxy Vercel coupe mal les connexions longues et que le navigateur
  * rouvre automatiquement.</p>
+ *
+ * <p>Le jeton qu'elles portent est désormais opaque ({@code stream_token}) : impossible d'en
+ * dériver un compte en le décodant. D'où l'étiquette que {@code StreamTokenService} place en
+ * tête. Sans elle, ces requêtes retomberaient sur un comptage par adresse IP — c'est-à-dire sur
+ * un compteur partagé par tous les athlètes d'un club derrière la même box.</p>
  *
  * <p><b>Les routes qui déclenchent un e-mail retombaient sur le plafond général</b> de 300
  * requêtes/minute, soit ~300 e-mails/minute pour un compte légitime. Le renvoi de vérification
@@ -38,6 +43,9 @@ class RateLimitEmailAndStreamTest {
 
     /** Jeton JWT factice : le filtre n'en lit que la charge utile, sans la valider. */
     private static final String TOKEN = "aaa.bbbbbbbb.ccc";
+    /** Jeton de flux factice : le filtre n'en lit que l'étiquette de tête. */
+    private static final String STREAM_TOKEN = "abcdefghijkl.secret-opaque";
+    private static final String OTHER_STREAM_TOKEN = "zyxwvutsrqpo.autre-secret";
 
     private RateLimitFilter filter() {
         return new RateLimitFilter(MAX, 60, LOGIN_MAX, 60, AUTH_MAX, LIVE_MAX, EMAIL_MAX, 3600,
@@ -52,8 +60,13 @@ class RateLimitEmailAndStreamTest {
     }
 
     private MockHttpServletRequest streamRequest() {
+        return streamRequest(STREAM_TOKEN);
+    }
+
+    private MockHttpServletRequest streamRequest(String streamToken) {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/notifications/stream");
-        request.setParameter("access_token", TOKEN);
+        request.setParameter("stream_token", streamToken);
+        // Même sortie réseau pour les deux comptes : c'est tout l'objet du test qui suit.
         request.setRemoteAddr("203.0.113.9");
         return request;
     }
@@ -74,6 +87,47 @@ class RateLimitEmailAndStreamTest {
         assertThat(call(filter, streamRequest()))
                 .as("la reconnexion en boucle finit par être freinée")
                 .isEqualTo(429);
+    }
+
+    /**
+     * Deux comptes derrière la même box ne se volent pas leur plafond. C'est ce que garantit
+     * l'étiquette du jeton de flux — et ce que l'on perdrait à compter par adresse IP : un club
+     * entier partagerait alors le budget de reconnexions d'un seul athlète.
+     */
+    @Test
+    void twoAccountsBehindTheSameAddressDoNotShareTheirBudget() {
+        RateLimitFilter filter = filter();
+        for (int i = 0; i < LIVE_MAX; i++) {
+            assertThat(call(filter, streamRequest(STREAM_TOKEN))).isEqualTo(200);
+        }
+        assertThat(call(filter, streamRequest(STREAM_TOKEN)))
+                .as("le premier compte a épuisé le sien")
+                .isEqualTo(429);
+
+        assertThat(call(filter, streamRequest(OTHER_STREAM_TOKEN)))
+                .as("le second compte a le sien, intact")
+                .isEqualTo(200);
+    }
+
+    /**
+     * L'émission d'un jeton de flux est comptée avec les canaux de présence : c'est le dernier
+     * point où une ouverture de flux peut être plafonnée par compte, la requête suivante ne
+     * portant plus qu'un jeton opaque.
+     */
+    @Test
+    void issuingAStreamTokenCountsAgainstThePresenceBudget() {
+        RateLimitFilter filter = filter();
+        for (int i = 0; i < LIVE_MAX; i++) {
+            assertThat(call(filter, streamTokenIssuance())).isEqualTo(200);
+        }
+        assertThat(call(filter, streamTokenIssuance())).isEqualTo(429);
+    }
+
+    private MockHttpServletRequest streamTokenIssuance() {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/stream-token");
+        request.addHeader("Authorization", "Bearer " + TOKEN);
+        request.setRemoteAddr("203.0.113.9");
+        return request;
     }
 
     @Test

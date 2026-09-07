@@ -148,12 +148,16 @@ class SessionRevocationTest {
     }
 
     /**
-     * Le jeton en paramètre de requête n'est accepté que là où l'en-tête est impossible (SSE,
-     * pièce jointe ouverte dans un onglet). Partout ailleurs il fuit dans les journaux d'accès,
-     * l'historique du navigateur et le Referer.
+     * Le jeton de session n'est plus accepté dans une URL, <b>nulle part</b> — pas même sur un
+     * flux, où il l'était.
+     *
+     * <p>Il vaut une heure sur toute l'API. Placé dans une URL, il se retrouve dans les journaux
+     * d'accès du relais, dans l'historique du navigateur et dans le {@code Referer} de la page
+     * suivante. Les deux routes qui ne peuvent pas porter d'en-tête ont désormais leur propre
+     * jeton (cf. {@code StreamTokenLifecycleTest}).</p>
      */
     @Test
-    void queryParameterTokenIsRejectedOnOrdinaryRoutes() throws Exception {
+    void theSessionTokenIsNeverAcceptedInTheUrl() throws Exception {
         MockMvc mvc = mockMvc();
         String access = register(mvc, "qp").get("accessToken").asText();
 
@@ -161,9 +165,10 @@ class SessionRevocationTest {
                 .andExpect(status().isUnauthorized());
         mvc.perform(get("/me/today").param("access_token", access))
                 .andExpect(status().isUnauthorized());
-
-        // Sur un flux, il reste accepté : EventSource ne peut pas porter d'en-tête.
         mvc.perform(get("/notifications/stream").param("access_token", access))
-                .andExpect(status().is2xxSuccessful());
+                .andExpect(status().isUnauthorized());
+        // Le nouveau paramètre n'ouvre pas non plus la porte à un JWT : ce n'en est pas un.
+        mvc.perform(get("/notifications/stream").param("stream_token", access))
+                .andExpect(status().isUnauthorized());
     }
 }

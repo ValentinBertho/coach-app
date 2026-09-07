@@ -212,7 +212,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * l'utilisateur : les compter avec le reste revenait à plafonner la navigation elle-même.</p>
      */
     private boolean isLiveChannel(String uri) {
-        return uri.endsWith("/stream") || uri.endsWith("/unread-count");
+        return uri.endsWith("/stream")
+                || uri.endsWith("/unread-count")
+                // L'émission d'un jeton de flux précède immédiatement l'ouverture qu'elle sert :
+                // la plafonner, c'est plafonner cette ouverture. C'est même le seul endroit où
+                // elle peut l'être encore par compte — la requête suivante, elle, ne portera
+                // qu'un jeton opaque.
+                || uri.endsWith("/auth/stream-token");
     }
 
     @Override
@@ -291,32 +297,26 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * forgé n'ouvre aucun accès — au pire il choisit son propre compteur, ce qui ne dessert
      * que lui.</p>
      *
-     * <p>Le jeton est aussi cherché dans le paramètre {@code access_token}. Les flux SSE
-     * ({@code EventSource} ne sait pas poser d'en-tête) et l'ouverture d'une pièce jointe dans un
-     * onglet l'y placent — et comme cette méthode ne lisait que l'en-tête, ces routes
-     * échappaient <b>entièrement</b> au comptage : une reconnexion SSE en boucle, ou un
-     * téléchargement répété de pièces jointes servies depuis la base, n'avaient aucune limite.</p>
+     * <p>Les deux requêtes qui ne peuvent pas porter d'en-tête — l'ouverture d'un flux SSE et
+     * celle d'une pièce jointe dans un onglet — portent un <b>jeton de flux</b> opaque, qu'on ne
+     * saurait pas décoder. Elles échapperaient donc au comptage par compte, et retomberaient sur
+     * l'adresse IP : c'est-à-dire sur un compteur partagé par tout un club derrière la même box.
+     * D'où l'étiquette que {@link StreamTokenService} place en tête de ses jetons — stable pour
+     * un compte, non réversible, sans pouvoir d'autorisation. Elle ne sert qu'ici.</p>
      */
     private String bearerKey(HttpServletRequest request) {
-        String token = null;
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
-            token = header.substring(7);
-        } else {
-            String param = request.getParameter("access_token");
-            if (param != null && !param.isBlank()) {
-                token = param;
+            String token = header.substring(7);
+            int first = token.indexOf('.');
+            int second = token.indexOf('.', first + 1);
+            if (first < 0 || second < 0) {
+                return null;
             }
+            return "u:" + Integer.toHexString(token.substring(first + 1, second).hashCode());
         }
-        if (token == null) {
-            return null;
-        }
-        int first = token.indexOf('.');
-        int second = token.indexOf('.', first + 1);
-        if (first < 0 || second < 0) {
-            return null;
-        }
-        return "u:" + Integer.toHexString(token.substring(first + 1, second).hashCode());
+        String tag = StreamTokenService.tagOf(request.getParameter("stream_token"));
+        return tag != null ? "s:" + tag : null;
     }
 
     /**

@@ -6,6 +6,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Message } from '../../core/models/message.model';
+import { SseStream } from '../../core/services/stream-token.service';
 import { AuthService } from '../../core/services/auth.service';
 import {
   ConversationKind, ConversationService, ConversationSummary, Recipient,
@@ -86,7 +87,7 @@ export class ConversationsComponent implements OnInit, OnDestroy {
     this.searchTerm.set(value);
   }
 
-  private stream?: EventSource;
+  private stream?: SseStream;
 
   /**
    * Écran étroit : la liste et le fil n'y tiennent pas côte à côte.
