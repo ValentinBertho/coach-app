@@ -328,7 +328,7 @@ anomalie → e-mail » ; tag git à chaque déploiement, aligné sur `appVersion
 | V3-12 | SSE multi-instance (pub/sub) — prérequis à tout passage à deux pods | M | Technique |
 | V3-13 | Environnement de préproduction (la CI est aujourd'hui le seul filet entre un commit et la production) | M | Exploitation |
 | V3-14 | Mesure d'usage produit : aucun compteur n'existe, Sentry dit ce qui casse, pas ce qui sert | M | Produit |
-| V3-15 | Purge des comptes inactifs à 24 mois, annoncée par la politique de confidentialité | M | RGPD |
+| V3-15 | Purge des comptes inactifs à 24 mois, annoncée par la politique de confidentialité | M | RGPD — ✅ fait (L-20) |
 | V3-16 | Tests de bout en bout (aucun aujourd'hui) et Testcontainers (les tests tournent sur H2) | L | Technique |
 | V3-17 | Budget de bundle front (608 kB pour 500 kB annoncés) | S | Technique |
 | V3-18 | Durcir `clubLevelFallback`, qui accorde l'écriture par défaut quand la relation référente manque | S | Sécurité |
@@ -373,7 +373,7 @@ anomalie → e-mail » ; tag git à chaque déploiement, aligné sur `appVersion
 | L-17 | Hébergement des données de santé dans l'UE | ⚠️ Sentry configuré en région UE ; **à confirmer pour l'hébergeur back, la BDD et l'e-mail** | Non |
 | L-18 | Question HDS (hébergeur de données de santé) tranchée | ❓ Le cahier des charges dit « non requis a priori, à confirmer juridiquement » — **toujours ouvert** | Non |
 | L-19 | **Registre des traitements** | ❓ **Hors code** — à rédiger | Non |
-| L-20 | Durée de conservation annoncée (24 mois d'inactivité) et **appliquée** | ⚠️ Annoncée, **non implémentée** — cf. V3-15 | Oui |
+| L-20 | Durée de conservation annoncée (24 mois d'inactivité) et **appliquée** | ✅ `InactiveAccountPurgeScheduler` (ShedLock, 4 h 20) : préavis par e-mail à J-30, suppression ensuite. Se reconnecter annule tout. Réglages `app.accounts.inactivity.*` | — |
 | L-21 | Chiffrement au repos des données de santé et des jetons OAuth | ✅ AES-256-GCM, IV par valeur | Oui |
 | L-22 | Non-exposition des données de santé dans les journaux et le monitoring | ✅ `send-default-pii: false`, journaux sans valeurs de santé | Oui |
 | L-23 | Procédure de notification de violation (72 h) | ❓ **Hors code** — cf. §4, OPS-04 | Non |
@@ -427,7 +427,7 @@ temps réel sont en mémoire (non répartissables). Deux garde-fous simples, san
 | **Tests sur H2 plutôt que PostgreSQL réel** | Le démarrage est vérifié sur PostgreSQL réel en intégration continue, migrations comprises. L'écart résiduel porte sur des comportements SQL fins, non sur le schéma (cohérence schéma/entités vérifiée : 50 tables, aucun écart). |
 | **Aucun test de bout en bout** | 295 tests back et 63 front, verts. La couverture est bonne sur les moteurs et les accès ; elle manque sur les parcours. Coût élevé, valeur surtout en régression : après la bêta. |
 | **Pas de préproduction** | Un environnement de plus à tenir pour une cohorte de quelques dizaines. La CI plus un déploiement réversible suffisent à ce stade. |
-| **Purge des comptes inactifs non implémentée** | Annoncée à 24 mois par la politique. Aucun compte ne peut l'atteindre avant deux ans : l'écart entre le texte et le code est réel mais sans effet pratique pendant la bêta. À implémenter bien avant l'échéance. |
+| ~~**Purge des comptes inactifs non implémentée**~~ | ✅ Implémentée (L-20). Reste hors périmètre automatique : le **dernier encadrant d'un club qui contient encore des données** est conservé et signalé en journal — fermer un club est une décision, pas une conséquence de calendrier. |
 | **Un athlète = un seul groupe** | Gênant pour un club qui croise ses groupes (piste le mardi, sortie longue le dimanche), sans effet en coaching individuel. Contournable par un découpage unique. Changement de modèle de données : vague 3. |
 | **Garmin / COROS absents** | Annoncé comme tel dans le produit et l'aide. Le repli GPX/TCX couvre l'essentiel — à condition que V1-03 (dédoublonnage) soit livré, sinon le repli fabrique des doublons. |
 | **Facturation absente** | Priorité C au cahier des charges, hors périmètre d'une bêta gratuite. Rend aussi les CGV sans objet (L-05). |
