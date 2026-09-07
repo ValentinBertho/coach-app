@@ -1,4 +1,4 @@
-import { environment } from '../../../environments/environment';
+import { buildStamp } from '../../core/build-info';
 import { LEGAL_OWNER } from '../../features/public/legal.component';
 import { SUPPORT_EMAIL, supportMailto } from './support-link';
 
@@ -25,7 +25,7 @@ describe('supportMailto', () => {
 
     const body = decodeURIComponent(link.split('body=')[1]);
     // Ce sont les trois informations qu'on redemande sinon systématiquement au premier échange.
-    expect(body).toContain(`Version : ${environment.appVersion}`);
+    expect(body).toContain(`Version : ${buildStamp()}`);
     expect(body).toContain('Page : /app/athletes/42');
     expect(body).toContain('Navigateur :');
   });

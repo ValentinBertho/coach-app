@@ -58,12 +58,19 @@ management:
   info:
     env:
       enabled: true
+    # Branche, commit et date du commit, gravés dans l'artefact au build.
+    git:
+      mode: full
 
 # Sentry : remontée des erreurs serveur. No-op si SENTRY_DSN absent.
 sentry:
   dsn: ${SENTRY_DSN:}
   environment: ${SENTRY_ENV:dev}
-  release: @project.version@
+  # Release Sentry. La version seule ne distingue pas deux déploiements du même numéro : poser
+  # SENTRY_RELEASE au commit déployé (cf. docs/DEPLOIEMENT.md) rend « ça marchait hier »
+  # décidable, et fait correspondre les erreurs serveur aux erreurs front, qui portent le même
+  # tampon.
+  release: ${SENTRY_RELEASE:@project.version@}
   traces-sample-rate: 0.1
   send-default-pii: false
 
@@ -73,6 +80,13 @@ springdoc:
 
 app:
   version: @project.version@
+  build:
+    # Commit déployé, pour que /actuator/info dise QUEL code tourne — pas seulement quelle
+    # version (OPS-09). L'image de production est construite depuis un contexte Docker sans
+    # `.git` : la valeur vient donc de la plateforme (Railway pose RAILWAY_GIT_COMMIT_SHA) ou
+    # de l'argument de build (APP_COMMIT). En CI et en local, `git.properties` — gravé dans
+    # l'artefact par git-commit-id-maven-plugin — prend le relais tout seul.
+    commit: ${APP_COMMIT:${RAILWAY_GIT_COMMIT_SHA:}}
   frontend-url: ${FRONTEND_URL:http://localhost:4200}
   # Fuseau métier (dates civiles : séance du jour, check-in, rappels, compte à rebours).
   # Ne concerne pas le stockage des instants, qui reste en UTC (hibernate.jdbc.time_zone).

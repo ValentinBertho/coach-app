@@ -113,6 +113,12 @@ Poser les variables d'environnement ci-dessus, puis redéployer.
 ### Étape 5 — vérifier ce qui tourne réellement
 
 - `GET /api/actuator/health` → `{"status":"UP"}`
+- `GET /api/actuator/info` → `app.commit` = le commit **effectivement déployé** (sept caractères).
+  S'il vaut `inconnu`, la plateforme n'a pas transmis le commit : poser `APP_COMMIT` (Railway
+  expose `RAILWAY_GIT_COMMIT_SHA`, repris automatiquement). Sans lui, une erreur remontée par un
+  utilisateur ne désigne aucun code — cf. `docs/OPERATIONS.md` §4 bis.
+- Côté front, `curl -s https://www.darilab.app/ | grep dari-build` doit renvoyer
+  `content="<version>+<commit>"` et non `content="dev"`.
 - Back-office → **Configuration** (`/admin/platform`) : chaque réglage y est dit *posé* ou non,
   avec le nom de la variable en cause. Aucune valeur de secret n'y est jamais affichée.
 - Back-office → **Tableau de bord** : les anomalies actionnables (plafond d'e-mails, comptes

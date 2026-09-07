@@ -1,4 +1,4 @@
-import { environment } from '../../../environments/environment';
+import { buildStamp } from '../../core/build-info';
 import { LEGAL_OWNER } from '../../features/public/legal.component';
 
 /**
@@ -19,7 +19,7 @@ export function supportMailto(context: string, page: string = location?.pathname
     '',
     '',
     '---',
-    `Version : ${environment.appVersion}`,
+    `Version : ${buildStamp()}`,
     `Page : ${page}`,
     `Navigateur : ${typeof navigator === 'undefined' ? '—' : navigator.userAgent}`,
   ].join('\n');

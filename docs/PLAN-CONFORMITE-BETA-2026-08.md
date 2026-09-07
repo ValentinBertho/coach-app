@@ -396,7 +396,7 @@ L-17/L-18 (localisation et HDS), L-19 (registre), L-23 (procédure de violation)
 | OPS-06 | **Collecte des retours de bêta** | ✅ Formulaire avec contexte automatique (page, version, navigateur, identifiant de corrélation) | Définir qui dépouille la file, et à quelle fréquence |
 | OPS-07 | **Compte administrateur de plateforme** | ❌ Absent en production | V0-11 |
 | OPS-08 | **Variables d'environnement de production complètes** | ⚠️ Le garde-fou de démarrage couvre secrets, URL, CORS, VAPID, relais de confiance et code d'invitation ; il **ne couvre pas** le compte admin | V0-11 + revue de la liste du runbook |
-| OPS-09 | **Versionnement des déploiements** (tag git ↔ version applicative) | ❌ Aucun tag | V1-09 |
+| OPS-09 | **Versionnement des déploiements** (tag git ↔ version applicative) | ✅ Commit exposé à chaud (`/api/actuator/info`, `<meta name="dari-build">`, `release` Sentry des deux côtés) ; tag annoté par `ops/tag-release.sh` ; CI vérifie que back et front annoncent la même version | Voir `docs/OPERATIONS.md` §4 bis |
 | OPS-10 | **Limite du nombre de bêta-testeurs** | ⚠️ Le mode « invitation » permet une cohorte fermée ; passer en ouvert lève toute limite | Voir ci-dessous |
 | OPS-11 | Environnement de préproduction | ❌ La CI est le seul filet | Vague 3 — accepté (§5) |
 | OPS-12 | Tenue en charge mesurée | ❓ **Jamais mesurée** — cf. §6 | Voir OPS-10 |

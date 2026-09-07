@@ -10,6 +10,13 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+# Commit gravé dans l'index.html (scripts/stamp-build.mjs, via le hook postbuild:docker). Le
+# contexte de build ne contient pas `.git` : sans cet argument, le front affiche la version de
+# repli d'environment.docker.ts.
+#   docker build --build-arg APP_COMMIT=$(git rev-parse HEAD) ...
+ARG APP_COMMIT=""
+ENV APP_COMMIT=${APP_COMMIT}
+
 # Build de production (optimisation, hachage, service worker) SANS le DSN Sentry de production :
 # une stack locale n'a rien à écrire dans le projet d'erreurs des utilisateurs réels.
 # Cf. front/src/environments/environment.docker.ts.
