@@ -1,0 +1,37 @@
+# ============================================================================
+# 096 — Purge des comptes inactifs : la date du préavis.
+#
+#   La politique de confidentialité annonce depuis l'origine qu'« un compte resté inactif
+#   pendant 24 mois est supprimé après un e-mail de préavis ». Rien ne l'appliquait (L-20) :
+#   le texte publié promettait une durée de conservation que le code ne tenait pas.
+#
+#   `inactivity_warned_at` est la trace de ce préavis. Elle porte la garantie la plus
+#   importante du dispositif : AUCUN compte n'est supprimé sans qu'un e-mail lui ait été
+#   envoyé, et sans que le délai annoncé se soit écoulé depuis. Le planificateur ne supprime
+#   que des comptes dont cette date est renseignée, postérieure à leur dernière activité, et
+#   assez ancienne.
+#
+#   C'est aussi ce qui rend le retour d'un utilisateur suffisant à tout annuler : une
+#   connexion repousse `last_seen_at` au-delà de `inactivity_warned_at`, et le préavis cesse
+#   de compter. Rien à effacer, rien à réarmer.
+#
+#   Additif et nullable : les comptes existants sont « jamais prévenus », ce qui est exact.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 096-inactive-account-purge
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column: { name: inactivity_warned_at, type: TIMESTAMP WITH TIME ZONE }
+
+        # Le balayage quotidien lit les comptes par ancienneté d'activité. `last_seen_at` a
+        # déjà son index (091) ; celui-ci sert la seconde moitié de la requête — les comptes
+        # déjà prévenus, qu'on relit tous les jours jusqu'à la fin du préavis.
+        - createIndex:
+            tableName: users
+            indexName: idx_users_inactivity_warned_at
+            columns:
+              - column: { name: inactivity_warned_at }

@@ -242,4 +242,36 @@ public class User extends BaseEntity {
      */
     @Column(name = "last_seen_at")
     private java.time.Instant lastSeenAt;
+
+    /**
+     * Date d'envoi du préavis de suppression pour inactivité, ou {@code null} si aucun préavis
+     * n'a été envoyé depuis la dernière activité du compte.
+     *
+     * <p>C'est la garantie du dispositif annoncé par la politique de confidentialité : un compte
+     * n'est supprimé que si cette date est renseignée, <b>postérieure</b> à sa dernière activité,
+     * et vieille d'au moins le délai de préavis. Une comparaison, pas un drapeau.</p>
+     *
+     * <p>Elle n'a donc pas à être effacée quand l'utilisateur revient : sa connexion repousse
+     * {@link #lastSeenAt} au-delà, et le préavis cesse mécaniquement de compter. Un drapeau
+     * booléen aurait exigé un effacement — donc un chemin de plus où l'oublier, et un compte
+     * supprimé sans nouveau préavis.</p>
+     */
+    @Column(name = "inactivity_warned_at")
+    private java.time.Instant inactivityWarnedAt;
+
+    /**
+     * Dernier signe de vie du compte : dernière requête authentifiée, à défaut dernière
+     * connexion, à défaut sa création.
+     *
+     * <p>Les deux replis comptent. {@link #lastSeenAt} n'existe que depuis la migration 091 : les
+     * comptes plus anciens l'ont à {@code null} sans être pour autant inactifs. Et un compte
+     * invité qui n'a jamais rien fait n'a ni l'une ni l'autre — sa création est alors le seul
+     * repère, et c'est bien à partir de là que son inactivité se compte.</p>
+     */
+    public java.time.Instant lastActivityAt() {
+        if (lastSeenAt != null) {
+            return lastSeenAt;
+        }
+        return lastLoginAt != null ? lastLoginAt : getCreatedAt();
+    }
 }
