@@ -7,6 +7,15 @@ import { SseStream, StreamTokenService } from './stream-token.service';
 
 export type ConversationKind = 'ATHLETE_COACH' | 'COACH_COACH' | 'GROUP' | 'CLUB';
 
+/** Une page de fil, telle que la rend l'API (page 0 = les messages les plus récents). */
+export interface MessagePage {
+  content: Message[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
 /** Une ligne de boîte de réception : de quel fil s'agit-il, et qu'y a-t-il de neuf. */
 export interface ConversationSummary {
   id: string;
@@ -67,8 +76,17 @@ export class ConversationService {
     return this.http.post<ConversationSummary>(`${this.base}/open`, { kind, targetId });
   }
 
-  messages(conversationId: string): Observable<Message[]> {
-    return this.http.get<Message[]>(`${this.base}/${conversationId}/messages`);
+  /**
+   * Une page du fil. La page 0 porte les messages les plus récents ; les suivantes remontent le
+   * temps, et l'ordre reste chronologique à l'intérieur d'une page.
+   *
+   * Le fil rendait auparavant les cent derniers messages, sans rien derrière ni aucune indication :
+   * une conversation qui dure une saison commençait au milieu d'une phrase, et son début était
+   * inatteignable.
+   */
+  messages(conversationId: string, page = 0): Observable<MessagePage> {
+    return this.http.get<MessagePage>(`${this.base}/${conversationId}/messages`,
+      { params: { page } });
   }
 
   send(conversationId: string, body: string, workoutId?: string): Observable<Message> {

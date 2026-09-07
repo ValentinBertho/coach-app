@@ -75,3 +75,14 @@
   display: inline-flex;
   align-items: center;
 }
+
+/* Bandeau « vous lisez l'historique ». Discret : c'est un repère, pas une alerte — mais il doit
+   suffire à expliquer pourquoi un message qu'on vient de recevoir n'apparaît pas. */
+.history-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-2);
+  text-align: center;
+}

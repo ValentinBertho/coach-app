@@ -93,6 +93,37 @@ class ConversationOnPostgresTest {
                 .andExpect(status().isOk());
     }
 
+    /**
+     * La pagination du fil, sur le moteur de production.
+     *
+     * <p>Une page de fil, c'est deux requêtes SQL : la page triée et son décompte. Elles sont
+     * générées par Spring Data et non écrites à la main, mais c'est exactement le genre de code
+     * qui n'a jamais été exécuté ailleurs qu'en H2 — et la messagerie est déjà partie en 500 en
+     * production pour une requête que H2 acceptait. Ici, le fil rendu par la page 1 ne servirait
+     * plus la moitié ancienne de la conversation.</p>
+     */
+    @Test
+    void aPaginatedThreadLoads() throws Exception {
+        String bearer = bearer(DemoSeedService.HEAD_COACH_EMAIL);
+        JsonNode inbox = objectMapper.readTree(
+                mvc.perform(get("/me/conversations").header("Authorization", bearer))
+                        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        org.assertj.core.api.Assertions.assertThat(inbox.size())
+                .as("le jeu de demonstration ouvre au moins un fil au coach")
+                .isGreaterThan(0);
+        String conversationId = inbox.get(0).get("id").asText();
+
+        for (String page : new String[] {"0", "1"}) {
+            String body = mvc.perform(get("/me/conversations/{id}/messages", conversationId)
+                            .param("page", page).param("size", "5")
+                            .header("Authorization", bearer))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            org.assertj.core.api.Assertions.assertThat(objectMapper.readTree(body).has("totalPages"))
+                    .as("la page %s porte bien une enveloppe de pagination", page)
+                    .isTrue();
+        }
+    }
+
     private String bearer(String email) throws Exception {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)

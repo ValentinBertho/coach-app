@@ -40,12 +40,20 @@ public class MessageController {
     private final MessageStreamService streamService;
     private final com.coachrun.service.ConversationService conversationService;
 
+    /**
+     * Le fil, page par page. La page 0 porte les messages les plus récents ; les suivantes
+     * remontent le temps.
+     *
+     * <p>Le fil rendait auparavant les cent derniers messages, sans rien derrière : une
+     * conversation qui dure une saison perdait son début, sans indication ni moyen d'y revenir.</p>
+     */
     @GetMapping
-    public List<MessageResponse> thread(@PathVariable UUID clubId, @PathVariable UUID athleteId,
-                                        @AuthenticationPrincipal AuthPrincipal principal,
-                                        @org.springframework.web.bind.annotation.RequestParam(
-                                                defaultValue = "100") int limit) {
-        return messageService.coachThread(clubId, athleteId, principal, limit);
+    public com.coachrun.dto.response.PageResponse<MessageResponse> thread(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId,
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "50") int size) {
+        return messageService.coachThread(clubId, athleteId, principal, page, size);
     }
 
     /** Accusé de lecture : le coach a ouvert le fil, ses non-lus repassent à zéro. */

@@ -27,7 +27,9 @@ import com.coachrun.security.AthleteAccessValidator;
 import com.coachrun.security.AuthPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -393,15 +395,35 @@ public class ConversationService {
 
     // --- Lire et écrire ------------------------------------------------------------------------
 
-    public List<MessageResponse> messages(AuthPrincipal principal, UUID conversationId, int limit) {
+    /**
+     * Une page du fil.
+     *
+     * <p><b>Ce que cela répare.</b> Le fil n'était pas paginé mais <b>tronqué</b> : les cent
+     * derniers messages, et rien derrière. Une conversation qui dure une saison perdait donc
+     * silencieusement son début — pas de bouton, pas d'indication, simplement un fil qui commence
+     * au milieu d'une phrase. Ni l'athlète ni le coach ne pouvaient y revenir, et une demande
+     * d'accès aux données n'aurait rendu que la partie visible.</p>
+     *
+     * <p><b>La page 0 porte les messages les plus récents</b>, parce que c'est là qu'on ouvre un
+     * fil ; les pages suivantes remontent le temps. À l'intérieur d'une page, l'ordre redevient
+     * chronologique : c'est ainsi qu'une conversation se lit.</p>
+     */
+    public com.coachrun.dto.response.PageResponse<MessageResponse> messages(
+            AuthPrincipal principal, UUID conversationId, int page, int size) {
         Conversation conversation = requireReadable(principal, conversationId);
-        List<Message> page = messageRepository.findByConversationIdOrderByCreatedAtDesc(
-                conversation.getId(), PageRequest.of(0, MessageService.threadLimit(limit)));
-        List<MessageResponse> out = new ArrayList<>(page.size());
-        for (int i = page.size() - 1; i >= 0; i--) {
-            out.add(MessageResponse.from(page.get(i)));
+        Page<Message> found = messageRepository.findPageByConversationId(
+                conversation.getId(),
+                PageRequest.of(Math.max(0, page), MessageService.threadPageSize(size),
+                        Sort.by(Sort.Direction.DESC, "createdAt")));
+
+        List<MessageResponse> out = new ArrayList<>(found.getNumberOfElements());
+        List<Message> content = found.getContent();
+        for (int i = content.size() - 1; i >= 0; i--) {
+            out.add(MessageResponse.from(content.get(i)));
         }
-        return out;
+        return new com.coachrun.dto.response.PageResponse<>(
+                out, found.getNumber(), found.getSize(),
+                found.getTotalElements(), found.getTotalPages());
     }
 
     /** Accusé de lecture : cette personne a ouvert ce fil, à cet instant. */
