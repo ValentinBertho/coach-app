@@ -13,9 +13,22 @@ RUN mvn -B -ntp dependency:go-offline
 COPY src ./src
 RUN mvn -B -ntp clean package -DskipTests
 
+# --- Commit déployé ----------------------------------------------------------
+# Le contexte de build ne contient pas `.git` (et on ne veut pas l'y copier : le dépôt entier
+# pour sept caractères). Le commit est donc passé en argument, et relu au démarrage par
+# BuildInfoContributor pour alimenter /api/actuator/info — la seule façon de savoir QUEL code
+# tourne quand une erreur remonte (OPS-09).
+#
+#   docker build --build-arg APP_COMMIT=$(git rev-parse HEAD) ...
+#
+# Sur Railway, `RAILWAY_GIT_COMMIT_SHA` est posé à l'exécution et prend le relais tout seul.
+
 # --- Stage 2 : runtime -------------------------------------------------------
 FROM eclipse-temurin:21-jre-jammy AS runtime
 WORKDIR /app
+
+ARG APP_COMMIT=""
+ENV APP_COMMIT=${APP_COMMIT}
 
 # Fuseau du conteneur : sans lui la JVM tourne en UTC et toutes les dates civiles
 # (séance du jour, check-in, rappels) sont décalées d'une à deux heures.

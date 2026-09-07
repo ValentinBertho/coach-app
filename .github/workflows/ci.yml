@@ -14,6 +14,31 @@ concurrency:
 
 jobs:
   # --------------------------------------------------------------------------
+  # Versionnement : les deux moitiés doivent annoncer la même version.
+  #
+  # Elle sert à taguer la livraison (ops/tag-release.sh) et de repli au tampon de version du
+  # front. Laissées libres, elles divergent en silence — le front a déjà porté « 0.2.0-docker »
+  # face à un back en 0.3.0 — et « quelle version tourne ? » redevient sans réponse (OPS-09).
+  # --------------------------------------------------------------------------
+  version:
+    name: Versions alignées (back ↔ front)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Comparer back/pom.xml et front/package.json
+        run: |
+          # La version du back est la PREMIÈRE <version> après </parent> : celle du parent
+          # Spring Boot la précède dans le fichier.
+          back=$(sed -n '/<\/parent>/,$p' back/pom.xml \
+            | grep -m1 -oE '<version>[^<]+</version>' | sed -E 's:</?version>::g')
+          front=$(node -p "require('./front/package.json').version")
+          echo "back=$back front=$front"
+          if [ "$back" != "$front" ]; then
+            echo "::error::back/pom.xml ($back) et front/package.json ($front) divergent."
+            exit 1
+          fi
+
+  # --------------------------------------------------------------------------
   # Backend : build + tests (Liquibase sur H2) puis smoke test de démarrage
   # contre un PostgreSQL éphémère (valide les migrations via /actuator/health).
   # --------------------------------------------------------------------------
@@ -89,6 +114,10 @@ jobs:
       - name: Smoke test démarrage (PostgreSQL éphémère + Liquibase)
         env:
           SPRING_PROFILES_ACTIVE: prod
+          # Le commit déployé, tel que la plateforme le pose en production. Le smoke test
+          # vérifie plus bas que /actuator/info le renvoie : sans lui, une erreur remontée par
+          # un utilisateur ne désigne aucun code (OPS-09).
+          APP_COMMIT: ${{ github.sha }}
           JDBC_DATABASE_URL: jdbc:postgresql://localhost:5432/coachrun
           PGUSER: postgres
           PGPASSWORD: postgres
@@ -113,6 +142,15 @@ jobs:
             if curl -fsS http://localhost:8080/api/actuator/health | grep -q '"status":"UP"'; then
               echo "✅ /api/actuator/health = UP"
               curl -fsS http://localhost:8080/api/public/ping
+              # La version déployée doit être lisible SANS jeton : c'est la première question
+              # posée quand une erreur remonte, et elle se pose avant d'avoir un accès.
+              INFO=$(curl -fsS http://localhost:8080/api/actuator/info)
+              echo "$INFO"
+              echo "$INFO" | grep -q "\"commit\":\"${GITHUB_SHA:0:7}\"" || {
+                echo "❌ /api/actuator/info n'expose pas le commit déployé."
+                kill "$APP_PID"; exit 1
+              }
+              echo "✅ /api/actuator/info porte le commit ${GITHUB_SHA:0:7}"
               kill "$APP_PID"
               exit 0
             fi

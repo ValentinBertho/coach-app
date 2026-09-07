@@ -174,11 +174,87 @@ Sentry est **inactif tant que le DSN est vide** (no-op).
 
 ---
 
+## 4 bis. Quelle version tourne ? (OPS-09)
+
+Une erreur remontée par un utilisateur arrive avec un identifiant de corrélation, une heure et un
+écran — et, jusqu'ici, rien qui désigne le **code** qui l'a produite. La version applicative
+existait, jamais reliée à un commit : entre deux déploiements du même `0.3.0`, « ça marchait
+hier » restait indécidable.
+
+### La réponse, en une commande
+
+```bash
+curl -s https://<host>/api/actuator/info | jq .app
+# {
+#   "name": "DARI Lab",
+#   "version": "0.3.0",
+#   "commit": "9f3c1ab",      ← le commit qui tourne, là, maintenant
+#   "builtAt": "2026-09-07T14:02:11Z",
+#   "environment": "production"
+# }
+```
+
+La route est **publique et sans jeton**, délibérément : la question se pose avant d'avoir un
+accès — au téléphone avec un utilisateur, depuis une sonde d'exploitation, dans un ticket.
+
+Côté front, la même chose est gravée dans la page :
+
+```bash
+curl -s https://www.darilab.app/ | grep dari-build
+# <meta name="dari-build" content="0.3.0+9f3c1ab">
+```
+
+C'est cette valeur — et non plus une chaîne recopiée à la main — qui sert de `release` à Sentry,
+qui accompagne chaque retour de bêta (visible dans `/admin/feedback`) et qui remplit le mail de
+support. Une erreur Sentry pointe donc sur un commit, des deux côtés.
+
+### D'où vient le commit
+
+| Contexte | Source | Remarque |
+|---|---|---|
+| Railway (back) | `RAILWAY_GIT_COMMIT_SHA` | posé par la plateforme, rien à faire |
+| Vercel (front) | `VERCEL_GIT_COMMIT_SHA` | idem |
+| CI (GitHub Actions) | `GITHUB_SHA` / `APP_COMMIT` | le smoke test **vérifie** que `/actuator/info` le renvoie |
+| Build local ou Docker | `APP_COMMIT`, sinon le dépôt Git | `docker compose` : `APP_COMMIT=$(git rev-parse HEAD) docker compose up --build` |
+| Rien de tout cela | `inconnu` | dit explicitement, pour ne pas passer pour un oubli d'affichage |
+
+Côté back, le commit est en plus **gravé dans l'artefact** au moment de la compilation
+(`git-commit-id-maven-plugin` → `git.properties` → bloc `git` d'`/actuator/info`) quand le dépôt
+est disponible. L'image de production est construite depuis un contexte Docker sans `.git` : là,
+c'est la variable d'environnement qui répond.
+
+### Le tag de livraison
+
+Le commit dit *quel code tourne*. Le tag donne un nom lisible à une livraison — pour en parler,
+comparer deux versions, revenir en arrière.
+
+```bash
+# 1. changer la version dans back/pom.xml ET front/package.json, commiter
+# 2. vérifier sans rien poser
+./ops/tag-release.sh --dry-run
+# 3. poser et pousser le tag annoté vX.Y.Z
+./ops/tag-release.sh
+```
+
+Le script refuse de taguer un arbre de travail sale, un tag déjà pris, et surtout **deux
+manifestes qui n'annoncent pas la même version** — sinon `v0.4.0` désignerait deux choses. La CI
+rejoue cette dernière vérification à chaque push (job « Versions alignées ») : les deux moitiés
+ne peuvent plus diverger en silence.
+
+> **`SENTRY_RELEASE`** : à poser au commit déployé côté back si l'on veut que les releases Sentry
+> du back et du front se correspondent exactement. Sans elle, le back retombe sur le seul numéro
+> de version, ce qui ne distingue pas deux déploiements.
+
+---
+
 ## 5. Intégration continue (CI)
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) sur chaque push/PR :
-- **Backend** : `mvn verify` (tests + Liquibase sur H2) **puis smoke test** de démarrage
-  contre un PostgreSQL éphémère (valide les migrations via `/actuator/health`).
+- **Versions alignées** : `back/pom.xml` et `front/package.json` doivent annoncer la même version
+  (c'est elle qui sera taguée).
+- **Backend** : `mvn verify` (tests + Liquibase sur H2), tests sur PostgreSQL réel (profil
+  `pgtest`), **puis smoke test** de démarrage contre un PostgreSQL éphémère — qui valide les
+  migrations via `/actuator/health` **et** que `/actuator/info` porte bien le commit déployé.
 - **Frontend** : `npm ci`, build AOT prod, tests Karma headless.
 
 ---
