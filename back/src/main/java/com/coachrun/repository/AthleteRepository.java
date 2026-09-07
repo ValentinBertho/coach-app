@@ -72,6 +72,64 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
                          @Param("q") String q,
                          Pageable pageable);
 
+    /**
+     * La même recherche, <b>privée à son référent</b> pour les athlètes qui le sont.
+     *
+     * <h2>Ce que cette requête répare</h2>
+     *
+     * <p>Un athlète venu du hub est créé privé — {@code coach_athlete_relations.club_id IS NULL} —
+     * et {@code AthleteAccessValidator} tient cette promesse sur sa fiche. La <b>liste</b>, elle,
+     * ne la connaissait pas : elle ne filtrait que par club. Les collègues du coach choisi
+     * voyaient donc le nom, le niveau et le groupe de quelqu'un qui, sur une place de marché
+     * publique, avait choisi une personne nommée et n'avait jamais entendu parler d'eux.</p>
+     *
+     * <p>Avant le hub, un athlète privé était saisi par un coach <em>dans</em> le club, et sa
+     * visibilité entre collègues allait de soi. C'est d'où ils viennent qui a changé, pas le
+     * code.</p>
+     *
+     * <p>Deux méthodes plutôt qu'un drapeau booléen dans la requête : un paramètre qui
+     * n'apparaîtrait qu'en face d'un littéral — {@code :includePrivate = true} — laisse PostgreSQL
+     * sans moyen d'en déduire le type et fait échouer la requête (SQLSTATE 42P18), défaut que
+     * {@code AdminAuditOnPostgresTest} documente déjà pour l'écran d'audit. Ici {@code :viewerId}
+     * apparaît en face d'une colonne, donc son type se déduit.</p>
+     */
+    @Query(value = """
+            select distinct a from Athlete a
+            left join a.additionalClubs ac
+            where (a.club.id = :clubId or ac.id = :clubId)
+              and (:status is null or a.status = :status)
+              and (:groupId is null or a.group.id = :groupId)
+              and (lower(a.firstName) like lower(concat('%', :q, '%'))
+                   or lower(a.lastName) like lower(concat('%', :q, '%')))
+              and (not exists (select 1 from CoachAthleteRelation p
+                                where p.athlete = a and p.referent = true and p.active = true
+                                  and p.club is null)
+                   or exists (select 1 from CoachAthleteRelation m
+                               where m.athlete = a and m.referent = true and m.active = true
+                                 and m.coach.id = :viewerId))
+            """,
+            countQuery = """
+            select count(distinct a) from Athlete a
+            left join a.additionalClubs ac
+            where (a.club.id = :clubId or ac.id = :clubId)
+              and (:status is null or a.status = :status)
+              and (:groupId is null or a.group.id = :groupId)
+              and (lower(a.firstName) like lower(concat('%', :q, '%'))
+                   or lower(a.lastName) like lower(concat('%', :q, '%')))
+              and (not exists (select 1 from CoachAthleteRelation p
+                                where p.athlete = a and p.referent = true and p.active = true
+                                  and p.club is null)
+                   or exists (select 1 from CoachAthleteRelation m
+                               where m.athlete = a and m.referent = true and m.active = true
+                                 and m.coach.id = :viewerId))
+            """)
+    Page<Athlete> searchVisibleTo(@Param("clubId") UUID clubId,
+                                  @Param("status") AthleteStatus status,
+                                  @Param("groupId") UUID groupId,
+                                  @Param("q") String q,
+                                  @Param("viewerId") UUID viewerId,
+                                  Pageable pageable);
+
     /** Athlètes rattachés à un coach (modèle multi-club : « mes athlètes » transverse aux clubs). */
     @Query("""
             select distinct a from Athlete a join a.coaches co

@@ -255,6 +255,14 @@ par `@PreAuthorize` sur les routes `/clubs/{clubId}/athletes/{athleteId}/**`
 - `PLATFORM_ADMIN` a un accès transverse ; un compte `ATHLETE` n'emprunte jamais ces routes
   (il passe par `/me/**`).
 
+**Athlètes privés et liste du club.** Un athlète venu du hub est créé **privé** — sa relation
+référente porte `club_id IS NULL` — parce que l'annuaire lui a promis qu'il choisissait *un coach*,
+pas un club. Cette promesse vaut désormais aussi pour la **liste** des athlètes : les collègues du
+référent ne l'y voient pas. `PLATFORM_ADMIN` garde sa vue transverse, comme sur la fiche.
+
+Conséquence à connaître si un coach s'en étonne : dans un club à plusieurs coachs, la liste n'est
+plus la même pour tout le monde. Ce n'est pas un défaut d'affichage.
+
 **Membres du club.** L'inscription crée le coach comme **membre `OWNER`** de son club. Via la page
 Club (`POST /clubs/{clubId}/members`), on **ajoute un coach par e-mail** : s'il a déjà un compte, il
 est rattaché immédiatement (accès tenant) ; sinon un **compte coach en attente** est créé et un lien

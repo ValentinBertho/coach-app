@@ -12,6 +12,8 @@ import com.coachrun.entity.Club;
 import com.coachrun.entity.User;
 import com.coachrun.entity.enums.AthleteStatus;
 import com.coachrun.entity.enums.UserRole;
+import com.coachrun.security.AuthPrincipal;
+import com.coachrun.entity.enums.UserRole;
 import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
@@ -59,13 +61,27 @@ public class AthleteService {
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
+    /**
+     * La liste des athlètes d'un club, telle que cette personne a le droit de la voir.
+     *
+     * <p>Les athlètes <b>privés</b> — ceux venus du hub, rattachés à leur seul référent — ne
+     * figurent que dans la liste de ce référent. La promesse faite sur l'annuaire (« vous
+     * choisissez un coach, pas un club ») était tenue sur la fiche par
+     * {@code AthleteAccessValidator} et démentie par cette liste, qui ne filtrait que par club.</p>
+     *
+     * <p>{@code PLATFORM_ADMIN} garde sa vue transverse : c'est déjà la règle sur la fiche, et un
+     * support qui ne voit pas la moitié d'un club ne peut pas faire son travail.</p>
+     */
     public PageResponse<AthleteSummaryResponse> list(UUID clubId, AthleteStatus status,
                                                      UUID groupId, String query, Pageable pageable,
-                                                     UUID coachId) {
+                                                     AuthPrincipal principal) {
         String q = StringUtils.hasText(query) ? query.trim() : "";
-        return PageResponse.from(
-                athleteRepository.search(clubId, status, groupId, q, pageable),
-                a -> AthleteSummaryResponse.from(a, canWrite(coachId, a.getId())));
+        UUID viewerId = principal.userId();
+        var page = principal.role() == UserRole.PLATFORM_ADMIN
+                ? athleteRepository.search(clubId, status, groupId, q, pageable)
+                : athleteRepository.searchVisibleTo(clubId, status, groupId, q, viewerId, pageable);
+        return PageResponse.from(page,
+                a -> AthleteSummaryResponse.from(a, canWrite(viewerId, a.getId())));
     }
 
     /** Le coach peut-il prescrire/modifier cet athlète ? (cohérent avec @athleteAccessValidator) */

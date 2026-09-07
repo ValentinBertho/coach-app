@@ -777,6 +777,23 @@ qu'en ouvrant la fiche. Le calcul lui-même est nocturne (`CoachResponsivenessSc
 une donnée d'affichage, et la recalculer dans la transaction d'acceptation ferait payer au geste le
 plus important du produit le coût d'une statistique.
 
+### La promesse « un coach, pas un club », tenue aussi par la liste
+
+Relecture de sécurité, second point. L'acceptation crée l'athlète **privé** (`club_id IS NULL`) et
+`AthleteAccessValidator` tenait cette promesse sur la fiche. La **liste** des athlètes, elle, ne
+filtrait que par club : les autres coachs y voyaient le nom, le niveau et le groupe de quelqu'un
+qui n'avait jamais entendu parler d'eux.
+
+Aucune donnée de santé ne fuitait, et aucun ne pouvait écrire — mais un nom est une donnée
+personnelle, et la promesse était fausse. Le mécanisme préexistait au hub ; **c'est d'où viennent
+ces athlètes qui a changé** : avant, un athlète privé était saisi par un coach *dans* le club.
+
+`searchVisibleTo` filtre désormais à la source. Deux méthodes de dépôt plutôt qu'un drapeau
+booléen dans la requête : un paramètre qui n'apparaîtrait qu'en face d'un littéral laisse
+PostgreSQL sans moyen d'en déduire le type (SQLSTATE 42P18), défaut que ce produit a déjà connu
+sur l'écran d'audit. La requête est éprouvée sur un vrai PostgreSQL
+(`AthleteVisibilityQueryOnPostgresTest`), et le correctif par un test qui **échoue sans lui**.
+
 ### Une fuite d'existence de fiche, fermée après relecture
 
 La recherche par slug de `CoachingRequestService` ne filtrait pas la visibilité : une fiche en
