@@ -1,0 +1,25 @@
+# ============================================================================
+# Surcouche de DÉBOGAGE — jamais chargée par défaut. À combiner explicitement :
+#
+#   docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d --build
+#
+# Elle ouvre le port JDWP du backend (5005) pour y attacher IntelliJ ou VS Code,
+# et passe les journaux applicatifs en DEBUG. Rien d'autre ne change : mêmes images,
+# mêmes données, même comportement.
+# ============================================================================
+services:
+  backend:
+    environment:
+      # `address=0.0.0.0:5005` et non `*:5005` : la forme joker tente d'abord IPv6 et
+      # l'agent refuse de démarrer (« Address family not supported by protocol ») sur
+      # un hôte ou un conteneur sans IPv6 — le backend ne démarre alors pas du tout.
+      # `suspend=n` : l'application démarre sans attendre le débogueur. Mettre `suspend=y`
+      # seulement pour déboguer le démarrage lui-même (Liquibase, seed, bootstrap Spring).
+      JAVA_TOOL_OPTIONS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005"
+      LOG_LEVEL_APP: DEBUG
+      # Décommenter pour voir les requêtes SQL (et leurs paramètres) dans les journaux.
+      # LOG_LEVEL_SQL: DEBUG
+      # LOG_LEVEL_SQL_PARAMS: TRACE
+    # Compose ajoute ce port à ceux du fichier de base : 8081 reste publié.
+    ports:
+      - "${DEBUG_PORT:-5005}:5005"

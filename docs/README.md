@@ -18,6 +18,7 @@
 | [`Design.md`](./Design.md) | Le **design system** : tokens, composants, états d'interface, règles d'accessibilité | À chaque évolution du système visuel |
 | [`Claude.md`](./Claude.md) | Les **conventions de code**, pour les humains comme pour les agents | Quand une convention change |
 | [`DEPLOIEMENT.md`](./DEPLOIEMENT.md) | Le déploiement Railway / Vercel et les variables d'environnement | À chaque changement d'infra |
+| [`DEBUG.md`](./DEBUG.md) | Le **débogage au quotidien** : points d'arrêt en Docker (JDWP 5005), IntelliJ, VS Code, niveaux de journaux, `correlationId` | Quand l'outillage de développement change |
 | [`OPERATIONS.md`](./OPERATIONS.md) | L'**exploitation** : Sentry, sauvegardes, Actuator, CI | À chaque changement de procédure |
 | [`BETA-LAUNCH-RUNBOOK.md`](./BETA-LAUNCH-RUNBOOK.md) | La **checklist de mise en service** de la bêta, pas à pas | Pendant la mise en service |
 
