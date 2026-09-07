@@ -242,7 +242,8 @@ class CoachingRequestFlowTest {
      */
     @Test
     void anAthleteCanLeaveTheirCoachAndGoBackToTheDirectory() throws Exception {
-        String athlete = registerAthlete("nina@exemple.fr");
+        String email = "nina@exemple.fr";
+        String athlete = registerAthlete(email);
         acceptRequestFrom(athlete);
 
         mvc.perform(post("/me/coach/end").header("Authorization", athlete)
@@ -250,6 +251,17 @@ class CoachingRequestFlowTest {
                         .characterEncoding(StandardCharsets.UTF_8)
                         .content("{\"note\":\"Je change de discipline.\"}"))
                 .andExpect(status().isNoContent());
+
+        // Reconnexion : le détachement FERME LES SESSIONS du compte, parce que le jeton affirme un
+        // `athleteId` et un `clubId` qu'il ne relit jamais en base. C'est ce que fait
+        // l'application, et c'est ce qui empêche un ancien athlète de continuer à se présenter
+        // comme membre du club de son ancien coach.
+        //
+        // Sans elle, ce test dépendait de l'HORLOGE : le seuil de révocation est tronqué à la
+        // seconde et un jeton émis dans la même seconde est tenu pour frais. Il passait donc quand
+        // l'inscription et la sortie tombaient dans la même seconde, et échouait dès que la suite
+        // s'allongeait — un échec qui accusait le code d'un défaut appartenant au test.
+        athlete = bearerFor(email);
 
         JsonNode me = json(mvc.perform(get("/me").header("Authorization", athlete)));
         assertThat(me.get("athleteId").isNull()).as("plus de fiche courante").isTrue();
@@ -259,18 +271,19 @@ class CoachingRequestFlowTest {
     /** La même sortie, à l'initiative du coach. Les deux parties peuvent partir. */
     @Test
     void aCoachCanEndTheCoachingToo() throws Exception {
-        String athlete = registerAthlete("nina@exemple.fr");
+        String email = "nina@exemple.fr";
+        String athlete = registerAthlete(email);
         acceptRequestFrom(athlete);
-        String clubId = json(mvc.perform(get("/me").header("Authorization", athlete)))
-                .get("clubId").asText();
-        String athleteId = json(mvc.perform(get("/me").header("Authorization", athlete)))
-                .get("athleteId").asText();
+        JsonNode me = json(mvc.perform(get("/me").header("Authorization", athlete)));
+        String clubId = me.get("clubId").asText();
+        String athleteId = me.get("athleteId").asText();
 
         mvc.perform(post("/clubs/{c}/athletes/{a}/end-relation", clubId, athleteId)
                         .header("Authorization", coachBearer))
                 .andExpect(status().isNoContent());
 
-        assertThat(json(mvc.perform(get("/me").header("Authorization", athlete)))
+        // Reconnexion, pour la raison dite au cas précédent : la sortie ferme les sessions.
+        assertThat(json(mvc.perform(get("/me").header("Authorization", bearerFor(email))))
                 .get("athleteId").isNull()).isTrue();
     }
 
@@ -449,6 +462,16 @@ class CoachingRequestFlowTest {
      */
     private String message(org.springframework.test.web.servlet.ResultActions actions) throws Exception {
         return json(actions).get("message").asText();
+    }
+
+    /** Un jeton frais pour un athlète inscrit par {@link #registerAthlete(String)}. */
+    private String bearerFor(String email) throws Exception {
+        JsonNode res = json(mvc.perform(post("/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .content("{\"email\":\"" + email + "\",\"password\":\"password123\"}"))
+                .andExpect(status().isOk()));
+        return "Bearer " + res.get("accessToken").asText();
     }
 
     private String requestBody() {
