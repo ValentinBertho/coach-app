@@ -32,11 +32,18 @@
 
             @if (it.m.attachmentId) {
               @if (isImage(it.m)) {
-                <a [href]="attachmentUrl(it.m)" target="_blank" rel="noopener">
-                  <img class="msg-image" [src]="attachmentUrl(it.m)" [alt]="it.m.attachmentFilename || 'pièce jointe'" />
+                <!-- La vignette est chargée par le code applicatif (en-tête Authorization) : son
+                     URL est locale à l'onglet. Le clic, lui, ouvre la pièce jointe côté serveur
+                     avec un jeton à usage unique demandé à cet instant. -->
+                <a href="#" (click)="openAttachment(it.m, $event)">
+                  @if (imageUrl(it.m); as src) {
+                    <img class="msg-image" [src]="src" [alt]="it.m.attachmentFilename || 'pièce jointe'" />
+                  } @else {
+                    <span class="msg-file"><app-icon name="paperclip" [size]="14" /> {{ it.m.attachmentFilename }}</span>
+                  }
                 </a>
               } @else {
-                <a class="msg-file" [href]="attachmentUrl(it.m)" target="_blank" rel="noopener"><app-icon name="paperclip" [size]="14" /> {{ it.m.attachmentFilename }}</a>
+                <a class="msg-file" href="#" (click)="openAttachment(it.m, $event)"><app-icon name="paperclip" [size]="14" /> {{ it.m.attachmentFilename }}</a>
               }
             }
 

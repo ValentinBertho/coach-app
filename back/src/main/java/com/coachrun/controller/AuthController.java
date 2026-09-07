@@ -4,9 +4,12 @@ import com.coachrun.dto.request.LoginRequest;
 import com.coachrun.dto.request.RefreshRequest;
 import com.coachrun.dto.request.RegisterRequest;
 import com.coachrun.dto.response.AuthResponse;
+import com.coachrun.dto.request.StreamTokenRequest;
+import com.coachrun.dto.response.StreamTokenResponse;
 import com.coachrun.dto.response.UserResponse;
 import com.coachrun.security.AuthPrincipal;
 import com.coachrun.security.JwtService;
+import com.coachrun.security.StreamTokenService;
 import com.coachrun.security.TokenBlacklist;
 import com.coachrun.service.AuthService;
 import io.jsonwebtoken.Claims;
@@ -34,6 +37,7 @@ public class AuthController {
     private final AuthService authService;
     private final JwtService jwtService;
     private final TokenBlacklist tokenBlacklist;
+    private final StreamTokenService streamTokens;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -70,6 +74,25 @@ public class AuthController {
     public void changePassword(@AuthenticationPrincipal AuthPrincipal principal,
                                @Valid @RequestBody com.coachrun.dto.request.ChangePasswordRequest request) {
         authService.changePassword(principal.userId(), request);
+    }
+
+    /**
+     * Jeton à usage unique pour la requête qui suit, quand elle ne peut pas porter d'en-tête.
+     *
+     * <p>Deux cas, et deux seulement : l'ouverture d'un flux {@code EventSource} et l'ouverture
+     * d'une pièce jointe dans un onglet. Le jeton de session ne doit jamais y servir — placé dans
+     * une URL, il se retrouve dans les journaux du relais, l'historique du navigateur et le
+     * {@code Referer} de la page suivante, et il vaut une heure sur toute l'API.</p>
+     *
+     * <p>La demande, elle, porte l'en-tête : c'est une requête ordinaire, faite juste avant
+     * l'usage. Elle est plafonnée avec les autres canaux de présence (cf. {@code RateLimitFilter}),
+     * ce qui borne le nombre de jetons qu'un compte peut avoir en circulation.</p>
+     */
+    @PostMapping("/stream-token")
+    public StreamTokenResponse streamToken(@AuthenticationPrincipal AuthPrincipal principal,
+                                           @Valid @RequestBody StreamTokenRequest request) {
+        return new StreamTokenResponse(
+                streamTokens.issue(principal, request.scope()), streamTokens.ttlSeconds());
     }
 
     @PostMapping("/resend-verification")

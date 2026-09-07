@@ -91,6 +91,12 @@ app:
     jwt:
       secret: ${JWT_SECRET:dev-local-secret-change-in-production-min-256-bits-long!!}
       access-token-ttl-seconds: ${JWT_ACCESS_TTL:3600}
+    # Jetons dédiés aux deux requêtes qui ne peuvent pas porter d'en-tête : l'ouverture d'un
+    # EventSource et celle d'une pièce jointe dans un onglet (cf. StreamTokenService). Ils sont
+    # demandés juste avant l'usage et brûlés au premier ; cette durée n'a donc qu'à couvrir un
+    # aller-retour réseau, réseau mobile poussif compris. L'allonger n'apporte rien et rallonge
+    # d'autant la fenêtre de rejeu d'une URL ramassée dans un journal d'accès.
+    stream-token-ttl-seconds: ${STREAM_TOKEN_TTL:60}
     field-encryption-key: ${FIELD_ENCRYPTION_KEY:0000000000000000000000000000000000000000000000000000000000000000}
     # Inviter un athlète ou un coach envoie un e-mail à un tiers : l'adresse de l'invitant doit
     # être vérifiée. Suit l'activation du mail — sans envoi, le lien de vérification n'arrive

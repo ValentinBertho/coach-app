@@ -428,7 +428,15 @@ cd front && npm run build
 
 - **Chiffrement au repos** des données sensibles (mesures de santé : lactate, douleur… ; jetons OAuth)
   en **AES-256-GCM** avec IV aléatoire par valeur (`EncryptionService` + converters JPA).
-- **JWT** stateless, TTL court, en-tête `Authorization: Bearer`.
+- **JWT** stateless, TTL court, en-tête `Authorization: Bearer` — **et jamais dans une URL**.
+- **Jetons de flux** (`StreamTokenService`) pour les deux seules requêtes qui ne peuvent pas porter
+  d'en-tête : l'ouverture d'un `EventSource` et celle d'une pièce jointe dans un onglet. Le client
+  les demande sur `POST /auth/stream-token` (avec l'en-tête, donc), juste avant l'usage ; ils valent
+  **une minute, un seul usage, une seule portée** (`STREAM` ou `ATTACHMENT`) et n'ouvrent aucune
+  autre route ni aucune écriture. Ils remplacent le `?access_token=<JWT>` d'avant, qui déposait une
+  session d'une heure dans les journaux d'accès du relais, l'historique de navigation et le
+  `Referer`. Les vignettes de pièces jointes, elles, sont chargées par le code applicatif avec
+  l'en-tête : leur URL ne porte plus rien du tout.
 - **Garde-fou au démarrage** (`StartupSecretsValidator`) : l'application **refuse de démarrer en prod**
   si `JWT_SECRET` ou `FIELD_ENCRYPTION_KEY` sont laissés à leurs valeurs par défaut.
 - **En-têtes** : Content-Security-Policy, `frame-options: deny`, `object-src 'none'`.
@@ -555,8 +563,8 @@ le produit et les parcours) :
   fermerait le risque H2↔PG (le CI ne fait qu'un smoke de démarrage sur PG).
 - **Couverture front** : tests unitaires/e2e à étoffer (pas de Playwright/Cypress).
 - **SSE mono-instance** : les émetteurs sont en mémoire → nécessite Redis pub/sub pour le multi-pod.
-- **Jeton en query param** pour le flux SSE et le téléchargement des pièces jointes → à remplacer par
-  des jetons courts signés.
+  Le registre des **jetons de flux** (`StreamTokenService`) l'est aussi, au même titre que la liste
+  noire des jetons révoqués : à externaliser avant tout passage à plusieurs instances.
 - **Import Strava** par polling (webhook à venir) — le `state` OAuth est désormais signé (HMAC, TTL 10 min).
 - **Pagination** à généraliser sur les listes non bornées (fil de messages, résultats…).
 - **Pièces jointes en base** (`bytea`) → stockage objet (S3) à plus grande échelle.
