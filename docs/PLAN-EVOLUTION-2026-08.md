@@ -100,7 +100,7 @@ fausse.
 | B5 | L'athlète ne peut pas dire « je n'ai pas fait la séance » | Idem |
 | — | [`PLAN-CONFORMITE-BETA-2026-08.md`](./PLAN-CONFORMITE-BETA-2026-08.md) | La vague 2 touche des données de santé art. 9 ; le socle de consentement doit être sain d'abord |
 
-Détail : [`AUDIT-FONCTIONNEL-2026-08.md`](./AUDIT-FONCTIONNEL-2026-08.md).
+Détail : [`PLAN-CONFORMITE-BETA-2026-08.md`](./PLAN-CONFORMITE-BETA-2026-08.md) §2, qui reprend ces bloquants B1 à B5 (l'audit fonctionnel dont ils viennent a été retiré une fois clos).
 
 ---
 
