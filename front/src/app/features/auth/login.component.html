@@ -35,8 +35,14 @@
     <p class="auth-switch">
       <a routerLink="/forgot-password">Mot de passe oublié ?</a>
     </p>
+    <!-- Deux portes, parce qu'il y a désormais deux façons d'entrer. « Créer un club » était la
+         seule proposée : un athlète venu du hub — celui qui a suivi le lien d'un coach puis
+         retrouvé cette page — n'avait aucun moyen de se créer un compte depuis ici. -->
     <p class="auth-switch">
-      Pas encore de compte ? <a routerLink="/register">Créer un club</a>
+      Vous êtes coach ? <a routerLink="/register">Créer votre espace</a>
+    </p>
+    <p class="auth-switch">
+      Vous cherchez un coach ? <a routerLink="/inscription-athlete">Créer un compte athlète</a>
     </p>
   </form>
 </main>

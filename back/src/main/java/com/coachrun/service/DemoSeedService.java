@@ -16,6 +16,16 @@ import com.coachrun.entity.enums.ClubStatus;
 import com.coachrun.entity.enums.IntensityZone;
 import com.coachrun.entity.enums.Sex;
 import com.coachrun.entity.enums.UserRole;
+import com.coachrun.entity.AthleteAccount;
+import com.coachrun.entity.CoachCertification;
+import com.coachrun.entity.CoachOffer;
+import com.coachrun.entity.CoachProfile;
+import com.coachrun.entity.CoachingRequest;
+import com.coachrun.entity.enums.CoachProfileStatus;
+import com.coachrun.entity.enums.CoachSpecialty;
+import com.coachrun.entity.enums.CoachingRequestStatus;
+import com.coachrun.entity.enums.OfferPeriodicity;
+import java.util.Set;
 import com.coachrun.entity.enums.UserStatus;
 import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.entity.enums.WorkoutStepType;
@@ -77,6 +87,21 @@ public class DemoSeedService {
     public static final String HEAD_COACH_EMAIL = "demo@coachrun.fr";
     public static final String COACH_EMAIL = "coach@coachrun.fr";
     public static final String ATHLETE_EMAIL = "athlete@coachrun.fr";
+
+    /** Coach indépendant, fiche PUBLIÉE : c'est lui qu'on trouve dans l'annuaire. */
+    public static final String SOLO_COACH_EMAIL = "sarah@coachrun.fr";
+
+    /** Second coach indépendant publié : sans lui, l'annuaire n'a rien à filtrer. */
+    public static final String SOLO_COACH_2_EMAIL = "malik@coachrun.fr";
+
+    /** Coach dont la fiche attend une validation : la file du back-office aurait été vide. */
+    public static final String PENDING_COACH_EMAIL = "julie@coachrun.fr";
+
+    /** Athlète du hub SANS coach : il arrive sur l'annuaire, comme un vrai visiteur inscrit. */
+    public static final String HUB_ATHLETE_EMAIL = "nina@coachrun.fr";
+
+    /** Athlète du hub dont la demande attend : la file du coach aurait été vide elle aussi. */
+    public static final String HUB_ATHLETE_PENDING_EMAIL = "tom@coachrun.fr";
     public static final String DEMO_PASSWORD = "password123";
 
     private static final String[] FIRST_M = {
@@ -119,6 +144,11 @@ public class DemoSeedService {
     private final com.coachrun.repository.ClubMemberRepository clubMemberRepository;
     private final com.coachrun.repository.CoachAthleteRelationRepository relationRepository;
     private final com.coachrun.repository.AthleteCoachPermissionRepository permissionRepository;
+    private final com.coachrun.repository.CoachProfileRepository coachProfileRepository;
+    private final com.coachrun.repository.CoachOfferRepository coachOfferRepository;
+    private final com.coachrun.repository.CoachCertificationRepository coachCertificationRepository;
+    private final com.coachrun.repository.AthleteAccountRepository athleteAccountRepository;
+    private final com.coachrun.repository.CoachingRequestRepository coachingRequestRepository;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
@@ -156,6 +186,9 @@ public class DemoSeedService {
         purge();
         // seed() court-circuite si isSeeded() ; après purge, plus d'admin → régénère.
         seed();
+        // Et le hub avec, sinon une remise à zéro viderait l'annuaire pour de bon : les fiches
+        // coachs ne se recréent par aucun autre chemin automatique.
+        seedHub();
         log.warn("[RAZ démo] Données purgées et jeu de démo rechargé.");
     }
 
@@ -203,6 +236,194 @@ public class DemoSeedService {
     }
 
     // ----------------------------------------------------------------------
+
+    /**
+     * Le jeu de démonstration <b>du hub</b> : coachs indépendants publiés, comptes athlètes
+     * autoportés, demandes en attente.
+     *
+     * <h2>Pourquoi il est séparé de {@link #seed()}</h2>
+     *
+     * <p>{@code seed()} est appelé par cent-cinquante-huit classes de tests. Y verser des fiches
+     * coachs publiées changerait ce que voit l'annuaire dans chacune d'elles, et casserait celles
+     * qui comptent — c'est exactement de cette façon qu'une classe voisine a déjà fait échouer
+     * {@code CoachDirectoryTest}. Le hub se sème donc à part, au démarrage seulement.</p>
+     *
+     * <p>Idempotent, comme {@code seed()} : rien n'est recréé si le coach indépendant existe.</p>
+     *
+     * <h2>Ce qu'il permet d'essayer, et qui était sinon inatteignable</h2>
+     *
+     * <p>Sans lui l'annuaire est vide, aucune fiche n'est consultable, aucune file d'arbitrage n'a
+     * de dossier, et il n'existe aucun compte athlète du hub pour se connecter : la moitié du
+     * produit livré ce mois-ci ne pouvait pas se regarder tourner.</p>
+     *
+     * @return vrai si des données ont été créées
+     */
+    @Transactional
+    public boolean seedHub() {
+        if (userRepository.existsByEmailIgnoreCase(SOLO_COACH_EMAIL)) {
+            return false;
+        }
+
+        // --- Deux coachs indépendants publiés : l'annuaire a de quoi montrer et de quoi filtrer.
+        CoachProfile sarah = independentCoach(
+                SOLO_COACH_EMAIL, "Sarah Lemoine", "Coach route et marathon",
+                "Douze ans à accompagner des coureurs de tous niveaux, du premier 10 km au "
+                        + "marathon sous les 3 heures. Je travaille surtout à distance, avec un "
+                        + "point hebdomadaire et un plan ajusté chaque semaine.",
+                "Lyon", 12,
+                Set.of(Discipline.ROUTE),
+                Set.of(CoachSpecialty.MARATHON, CoachSpecialty.SEMI_MARATHON,
+                        CoachSpecialty.CINQ_DIX_KM),
+                Set.of(AthleteLevel.BEGINNER, AthleteLevel.INTERMEDIATE, AthleteLevel.ADVANCED));
+        offer(sarah, "Suivi mensuel", "Plan hebdomadaire, ajustements, messagerie.",
+                9000, OfferPeriodicity.MONTHLY, 0);
+        offer(sarah, "Préparation marathon", "16 semaines, du bilan à la ligne d'arrivée.",
+                48000, OfferPeriodicity.ONE_OFF, 1);
+        certification(sarah, "BEES 1er degré athlétisme", "Ministère des Sports", 2013);
+        certification(sarah, "Coach FFA — Running", "Fédération Française d'Athlétisme", 2018);
+
+        CoachProfile malik = independentCoach(
+                SOLO_COACH_2_EMAIL, "Malik Fournier", "Trail et ultra, du 30 km au 100 miles",
+                "Ancien coureur d'ultra passé de l'autre côté. J'accompagne en présentiel autour "
+                        + "de Grenoble et à distance partout ailleurs. Beaucoup de dénivelé, "
+                        + "beaucoup de patience.",
+                "Grenoble", 7,
+                Set.of(Discipline.TRAIL),
+                Set.of(CoachSpecialty.TRAIL, CoachSpecialty.ULTRA,
+                        CoachSpecialty.PREPARATION_PHYSIQUE),
+                Set.of(AthleteLevel.INTERMEDIATE, AthleteLevel.ADVANCED, AthleteLevel.ELITE));
+        malik.setInPerson(true);
+        offer(malik, "Accompagnement trail", "Plan, sorties longues, stratégie de course.",
+                11000, OfferPeriodicity.MONTHLY, 0);
+        certification(malik, "DEJEPS Athlétisme", "Ministère des Sports", 2019);
+
+        // --- Une fiche EN ATTENTE : sans elle, la file de validation s'ouvre vide.
+        CoachProfile julie = independentCoach(
+                PENDING_COACH_EMAIL, "Julie Ferrand", "Reprise du sport et retour de blessure",
+                "Je travaille avec des coureurs qui reviennent — d'une blessure, d'une longue "
+                        + "pause, ou d'un rapport au sport qui s'était abîmé. Patience et "
+                        + "progressivité.",
+                "Nantes", 5,
+                Set.of(Discipline.ROUTE),
+                Set.of(CoachSpecialty.RETOUR_DE_BLESSURE, CoachSpecialty.REPRISE_DU_SPORT,
+                        CoachSpecialty.DEBUTANT),
+                Set.of(AthleteLevel.BEGINNER, AthleteLevel.INTERMEDIATE));
+        offer(julie, "Reprise en douceur", "Six semaines pour retrouver une habitude.",
+                6000, OfferPeriodicity.ONE_OFF, 0);
+        julie.setStatus(CoachProfileStatus.PENDING);
+        julie.setSubmittedAt(Instant.now().minus(2, ChronoUnit.DAYS));
+        julie.setPublishedAt(null);
+
+        // --- Deux comptes athlètes du hub. Le premier n'a pas de coach : c'est l'état dans lequel
+        //     on arrive sur l'annuaire, et celui qu'aucun compte de démo ne permettait d'essayer.
+        AthleteAccount nina = hubAthlete(HUB_ATHLETE_EMAIL, "Nina", "Roy", 29,
+                "Finir mon premier marathon au printemps prochain.");
+
+        // --- Le second a une demande EN ATTENTE chez Sarah : la file du coach a un dossier.
+        AthleteAccount tom = hubAthlete(HUB_ATHLETE_PENDING_EMAIL, "Tom", "Bertrand", 34,
+                "Passer sous les 40 minutes au 10 km, après deux ans d'arrêt.");
+        CoachingRequest request = new CoachingRequest();
+        request.setAthleteAccount(tom);
+        request.setCoach(sarah.getCoach());
+        request.setStatus(CoachingRequestStatus.PENDING);
+        request.setMessage("Bonjour, j'ai repris la course il y a six mois après deux ans d'arrêt. "
+                + "Je vise 40 minutes au 10 km cet automne et je bloque autour de 44. "
+                + "J'aimerais un plan qui tienne compte de mes trois séances par semaine.");
+        request.setExpiresAt(Instant.now().plus(14, ChronoUnit.DAYS));
+        coachingRequestRepository.save(request);
+
+        log.info("[seed démo] Hub prêt — annuaire : {} et {} ; en attente de validation : {} ; "
+                        + "athlètes du hub : {} (sans coach) et {} (demande en attente)",
+                SOLO_COACH_EMAIL, SOLO_COACH_2_EMAIL, PENDING_COACH_EMAIL,
+                HUB_ATHLETE_EMAIL, HUB_ATHLETE_PENDING_EMAIL);
+        // `nina` n'a volontairement aucune demande : c'est le compte avec lequel on parcourt
+        // l'annuaire et on en dépose une soi-même.
+        return nina != null;
+    }
+
+    /** Un coach qui exerce seul : son espace porte son nom, pas celui d'un club. */
+    private CoachProfile independentCoach(String email, String fullName, String headline,
+                                          String bio, String city, int experienceYears,
+                                          Set<Discipline> disciplines,
+                                          Set<CoachSpecialty> specialties,
+                                          Set<AthleteLevel> levels) {
+        Club club = new Club();
+        club.setName(fullName);
+        club.setSlug(slugify(fullName));
+        club.setStatus(ClubStatus.ACTIVE);
+        // Le drapeau qui fait cesser à l'interface de parler de « club » à quelqu'un qui n'en a pas.
+        club.setSoloPractice(true);
+        club = clubRepository.save(club);
+
+        User coach = account(email, fullName, UserRole.HEAD_COACH, club, null);
+        coach.setEmailVerified(true);
+        coach = userRepository.save(coach);
+
+        CoachProfile profile = new CoachProfile();
+        profile.setCoach(coach);
+        profile.setSlug(slugify(fullName));
+        profile.setHeadline(headline);
+        profile.setBio(bio);
+        profile.setCity(city);
+        profile.setCountry("FR");
+        profile.setExperienceYears(experienceYears);
+        profile.getDisciplines().addAll(disciplines);
+        profile.getSpecialties().addAll(specialties);
+        profile.getLevels().addAll(levels);
+        profile.getLanguages().add("fr");
+        profile.setStatus(CoachProfileStatus.PUBLISHED);
+        profile.setSubmittedAt(Instant.now().minus(10, ChronoUnit.DAYS));
+        profile.setPublishedAt(Instant.now().minus(9, ChronoUnit.DAYS));
+        return coachProfileRepository.save(profile);
+    }
+
+    private void offer(CoachProfile profile, String name, String description,
+                       int amountCents, OfferPeriodicity periodicity, int position) {
+        CoachOffer o = new CoachOffer();
+        o.setProfile(profile);
+        o.setName(name);
+        o.setDescription(description);
+        o.setAmountCents(amountCents);
+        o.setPeriodicity(periodicity);
+        o.setPosition(position);
+        coachOfferRepository.save(o);
+    }
+
+    private void certification(CoachProfile profile, String label, String organisation, int year) {
+        CoachCertification c = new CoachCertification();
+        c.setProfile(profile);
+        c.setLabel(label);
+        c.setOrganisation(organisation);
+        c.setObtainedYear(year);
+        coachCertificationRepository.save(c);
+    }
+
+    /** Un compte athlète autoporté : il existe sans fiche, et c'est tout l'objet du hub. */
+    private AthleteAccount hubAthlete(String email, String firstName, String lastName,
+                                      int age, String goal) {
+        User user = account(email, firstName + " " + lastName, UserRole.ATHLETE, null, null);
+        user.setEmailVerified(true);
+        user = userRepository.save(user);
+
+        AthleteAccount a = new AthleteAccount();
+        a.setUser(user);
+        a.setFirstName(firstName);
+        a.setLastName(lastName);
+        a.setBirthDate(LocalDate.now().minusYears(age));
+        a.setGoal(goal);
+        a.setTermsAcceptedAt(Instant.now().minus(3, ChronoUnit.DAYS));
+        a.setHealthDataConsentAt(Instant.now().minus(3, ChronoUnit.DAYS));
+        return athleteAccountRepository.save(a);
+    }
+
+    /** Minuscules, accents retirés, espaces en tirets — assez pour un jeu de démonstration. */
+    private static String slugify(String value) {
+        String normalized = java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return normalized.toLowerCase(java.util.Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-|-$)", "");
+    }
 
     private void seedClub(Club club, boolean isPrimary) {
         // Coachs
