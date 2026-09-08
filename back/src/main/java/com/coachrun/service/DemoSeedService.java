@@ -186,8 +186,10 @@ public class DemoSeedService {
         purge();
         // seed() court-circuite si isSeeded() ; après purge, plus d'admin → régénère.
         seed();
-        // Et le hub avec, sinon une remise à zéro viderait l'annuaire pour de bon : les fiches
-        // coachs ne se recréent par aucun autre chemin automatique.
+        // Et le hub avec, pour que `reset()` reste cohérent avec ce que produit un démarrage.
+        // NB : plus aucun écran n'appelle cette méthode — la remise à zéro du back-office a été
+        // retirée (cf. README), et seul un test l'exerce encore. Pour repartir de zéro en local,
+        // on recrée la base (`docker compose down -v`).
         seedHub();
         log.warn("[RAZ démo] Données purgées et jeu de démo rechargé.");
     }

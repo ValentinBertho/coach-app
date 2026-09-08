@@ -222,12 +222,32 @@ Darilab 0.2.0 démarré — profil actif : dev · front : http://localhost:4200
 
 Mot de passe commun : **`password123`**
 
+### Le club de démonstration
+
 | Rôle | Email | Destination |
 |---|---|---|
 | Admin plateforme | `admin@coachrun.fr` | `/admin` |
 | Responsable de club | `demo@coachrun.fr` | `/app` |
 | Coach assistant | `coach@coachrun.fr` | `/app` |
 | Athlète | `athlete@coachrun.fr` | `/athlete/today` |
+
+### Le hub — coachs indépendants et athlètes sans club
+
+| Rôle | Email | Ce qu'il permet d'essayer |
+|---|---|---|
+| Coach indépendante, fiche **publiée** | `sarah@coachrun.fr` | Sa vitrine dans l'annuaire, et **une demande qui l'attend** dans sa file |
+| Coach indépendant, fiche **publiée** | `malik@coachrun.fr` | Trail/ultra, présentiel — sans lui les filtres de l'annuaire n'ont rien à trier |
+| Coach, fiche **en attente** | `julie@coachrun.fr` | Donne son dossier à `Admin › Fiches coachs` |
+| Athlète du hub, **sans coach** | `nina@coachrun.fr` | L'état dans lequel on arrive sur l'annuaire : chercher, puis demander |
+| Athlète du hub, **demande en attente** | `tom@coachrun.fr` | Le pendant de la file de Sarah, côté athlète |
+
+Les deux coachs indépendants ont un espace `soloPractice` : l'interface cesse de leur parler d'un
+club qu'ils n'ont pas.
+
+> Ces cinq comptes viennent de `seedHub()`, **distinct de `seed()`** : ce dernier est appelé par
+> toute la suite de tests, où des fiches publiées changeraient ce que voit l'annuaire dans chaque
+> classe. Ils apparaissent donc au **démarrage** en profil `dev` — après un `git pull`, il faut
+> relancer le backend pour les voir.
 
 > Le jeu de démo est **déterministe** (graine fixe) : profils physio, tests lactate, séances course
 > et force structurées, cycles, tests 1RM, charge, objectifs et indisponibilités. Il est produit par
