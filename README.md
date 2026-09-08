@@ -558,9 +558,8 @@ Procédure pas-à-pas (ordre de déploiement, variables, CORS, redirect URIs) :
 ## Limites connues & pistes d'amélioration
 
 Transparence sur ce qui reste à durcir (détail et priorisation dans
-[`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md) pour
-l'exploitation, [`docs/AUDIT-BETA-OUVERTE-2026-08.md`](./docs/AUDIT-BETA-OUVERTE-2026-08.md) pour
-le produit et les parcours) :
+[`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md), qui porte
+aussi bien l'exploitation que le reliquat produit des audits d'août depuis retirés) :
 
 - **Tests sur PG réel** : les assertions tournent sur H2 (mode PostgreSQL) ; **Testcontainers**
   fermerait le risque H2↔PG (le CI ne fait qu'un smoke de démarrage sur PG).
@@ -591,15 +590,16 @@ le produit et les parcours) :
 | [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md) | **runbook de mise en service : Resend, Sentry, uptime, backups (pas-à-pas)** |
 | [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md) | **plan de mise en conformité** : vagues 0 à 3, check-lists légale/RGPD et opérationnelle, recommandation GO/NO-GO |
 | [`docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md`](./docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md) | **analyse concurrentielle Nolio** : fonctionnalités, UX, UI, ergonomie, verdict, maturité, feuille de route |
-| [`docs/AUDIT-FONCTIONNEL-2026-08.md`](./docs/AUDIT-FONCTIONNEL-2026-08.md) | audit métier : parcours coach/athlète sur un mésocycle réel (prescription, charge, alertes, blessure, force) |
-| [`docs/AUDIT-BETA-OUVERTE-2026-08.md`](./docs/AUDIT-BETA-OUVERTE-2026-08.md) | audit de bêta ouverte : second passage (builds exécutés, consentement santé, autorisations club, plafonds SSE et e-mail) |
-| [`docs/AUDIT-PRODUIT-WAHOU-2026-08.md`](./docs/AUDIT-PRODUIT-WAHOU-2026-08.md) | **audit produit / UX / métier** : les dix évolutions de la couche de décision, et la contrainte qui les gouverne — rien n'est appliqué sans validation humaine |
-| [`docs/AUDIT-TECHNIQUE-2026-08.md`](./docs/AUDIT-TECHNIQUE-2026-08.md) | audit technique : chemin push, consentement santé, gestion d'erreurs |
-| [`docs/AUDIT-PWA-COACH-2026-08.md`](./docs/AUDIT-PWA-COACH-2026-08.md) | audit PWA mobile côté coach (les trois vagues sont livrées) |
+| [`docs/AUDIT-ADMIN-2026-08.md`](./docs/AUDIT-ADMIN-2026-08.md) | audit du back-office `/admin` : P0/P1 livrés, **P2 encore ouvert** (§3) |
 | [`docs/AUDIT-COACH-INDEPENDANT-2026-08.md`](./docs/AUDIT-COACH-INDEPENDANT-2026-08.md) | audit du coach indépendant : athlètes privés, multi-club |
 | [`docs/PLAN-EVOLUTION-2026-08.md`](./docs/PLAN-EVOLUTION-2026-08.md) · [`docs/PLAN-PRODUIT-2026-08.md`](./docs/PLAN-PRODUIT-2026-08.md) | plans d'évolution : ce que le marché réclame, et ce que le modèle de domaine empêche |
 | [`docs/DEMANDES-API-GARMIN-COROS.md`](./docs/DEMANDES-API-GARMIN-COROS.md) | dossiers d'accès aux API montres (Garmin fermé, COROS ouvert) |
-| [`docs/archive/`](./docs/archive/) | historique non maintenu : blueprint UX (encore cité par des composants), wireframes, deux audits de juillet |
+| [`docs/archive/`](./docs/archive/) | historique non maintenu : le seul blueprint UX, gardé parce que trois fichiers front le citent encore |
+
+> Les audits d'août clos — produit/UX, PWA coach, fonctionnel, technique et bêta ouverte — ont été
+> **retirés du dépôt** une fois leurs constats livrés : leur reliquat vit dans
+> `docs/PLAN-CONFORMITE-BETA-2026-08.md`, leur texte dans l'historique git. `docs/README.md` dit
+> pour chacun ce qu'il est devenu.
 
 > **Aide utilisateur intégrée** : chaque espace dispose d'un **centre d'aide** adapté à son profil
 > (athlète `/athlete/help`, coach `/app/aide`, admin `/admin/aide`), avec **recherche globale**
