@@ -151,79 +151,86 @@ class MatchingServiceTest {
     }
 
     /**
-     * Le cas exact remonté : la séance du jour a des cibles inexploitables — une prescription
-     * écrite en durée dont aucun bloc n'est chiffrable ne totalise que ses éducatifs — pendant que
-     * celle du lendemain colle au mètre près. Aucune des deux ne gagne au score : celle de demain
-     * est écartée d'office, celle du jour n'a rien à opposer. C'est le repli qui la récupère.
+     * Une séance dont les cibles ne sont pas exploitables — une prescription écrite en durée dont
+     * aucun bloc n'est chiffrable, qui ne totalise que ses éducatifs — n'a rien à opposer à la
+     * sortie du jour. <b>Elle reste donc sans réalisé, et la sortie sans séance.</b>
+     *
+     * <p>Un repli la récupérait « faute de mieux », sur la seule foi de la date, à condition
+     * qu'elle soit la seule séance du jour. Mais la date ne prouve rien : sur une journée à
+     * plusieurs sorties, ce repli donnait la séance à la <b>première importée</b>, qui n'est pas
+     * celle qui l'a réalisée — l'ordre de synchronisation n'a aucun rapport avec ce que l'athlète
+     * a fait. Mieux vaut ne rien rattacher : une sortie « non rattachée » se corrige d'un geste et
+     * se voit, une séance déclarée faite par la mauvaise sortie fausse silencieusement le
+     * prévu/réalisé, le volume de la semaine et la charge.</p>
      */
     @Test
-    void neitherWinsOnScoreWhenTodaysTargetsAreUnusable() {
+    void noMatchWhenTheSessionHasNothingComparableToOffer() {
         LocalDate today = LocalDate.of(2026, 8, 10);
         Activity ran = activity(today, 11350, 3465);
         Workout todaysSession = workout(today, 100, null, WorkoutStatus.PLANNED);
         Workout tomorrow = workout(today.plusDays(1), 11320, 3450, WorkoutStatus.PLANNED);
 
         assertThat(matching.findBestMatch(ran, List.of(todaysSession, tomorrow))).isEmpty();
-        assertThat(matching.canFallBackOn(ran, todaysSession)).isTrue();
-        assertThat(matching.resolvedStatus(ran, todaysSession)).isEqualTo(WorkoutStatus.PARTIAL);
     }
 
-    // --- Repli : la seule séance de la journée, quand rien ne permet de la comparer ----------
+    // --- La date ne suffit jamais : il faut une preuve ---------------------------------------
 
     /**
-     * Une séance sans volume exploitable n'a rien à opposer à la sortie du jour. Refuser tout
-     * rapprochement laissait deux écrans vides — la sortie orpheline, la séance sans réalisé —
-     * pour un entraînement qui a bel et bien eu lieu.
+     * Une sortie de 2 km ne réalise pas une séance de 10, même le jour même.
      *
-     * <p>La garde « une seule séance ce jour-là » n'est pas testée ici : elle demande de connaître
-     * la journée entière, séances déjà rapprochées comprises, et vit donc dans le service qui
-     * appelle ce prédicat.</p>
+     * <p>La date rapportait la moitié du score et le seuil est à 0,6 : il ne restait qu'un
+     * cinquième d'accord de volume à trouver. Le score sert à dire <i>laquelle</i> des sorties du
+     * jour, il ne devrait jamais dire « oui » à lui tout seul.</p>
      */
     @Test
-    void allowsTheFallbackWhenNothingIsComparable() {
+    void aFractionOfThePrescribedVolumeIsNotAMatch() {
         LocalDate d = LocalDate.of(2026, 8, 10);
-        Activity ran = activity(d, 11350, 3465);
-        Workout noTargets = workout(d, null, null, WorkoutStatus.PLANNED);
+        Activity jog = activity(d, 2000, 12 * 60);
+        Workout tenK = workout(d, 10000, 50 * 60, WorkoutStatus.PLANNED);
 
-        assertThat(matching.canFallBackOn(ran, noTargets)).isTrue();
-        assertThat(matching.resolvedStatus(ran, noTargets)).isEqualTo(WorkoutStatus.PARTIAL);
+        assertThat(matching.findBestMatch(jog, List.of(tenK))).isEmpty();
     }
 
     /**
-     * Le repli ne vaut que pour le jour même : rattacher la sortie d'aujourd'hui à la séance
-     * d'hier sans rien pour l'étayer serait exactement le rapprochement sur date qu'on a retiré.
+     * L'échauffement enregistré à part : 4,8 km en face d'un fractionné de 13,3 km prescrit.
+     * Il passait le seuil (0,69) et emportait la séance s'il était importé le premier — c'est
+     * exactement le « rattacher la première activité du jour » qu'on ne veut plus.
      */
     @Test
-    void theFallbackNeverReachesBackToYesterday() {
-        LocalDate d = LocalDate.of(2026, 8, 10);
-        Activity ran = activity(d, 11350, 3465);
-        Workout yesterday = workout(d.minusDays(1), null, null, WorkoutStatus.PLANNED);
+    void aWarmUpRecordedOnItsOwnDoesNotRealiseTheWholeSession() {
+        LocalDate d = LocalDate.of(2026, 9, 8);
+        Workout prescribed = course(d, "Endurance · Séance 8x(200/400)", 13300, 59 * 60);
+        Activity warmup = sortie(d, "Course à pied en soirée", ActivitySport.RUN, 4810, 23 * 60);
 
-        assertThat(matching.canFallBackOn(ran, yesterday)).isFalse();
-    }
-
-    /** Une séance déclarée non faite reste hors d'atteinte, y compris par le repli. */
-    @Test
-    void theFallbackNeverContradictsAMissedSession() {
-        LocalDate d = LocalDate.of(2026, 8, 10);
-        Activity ran = activity(d, 11350, 3465);
-        Workout missed = workout(d, null, null, WorkoutStatus.MISSED);
-
-        assertThat(matching.canFallBackOn(ran, missed)).isFalse();
+        assertThat(matching.findBestMatch(warmup, List.of(prescribed))).isEmpty();
     }
 
     /**
-     * Deux volumes qui se contredisent restent un refus : ils portent une information, là où
-     * l'absence de cible n'en porte aucune.
+     * Une distance qui colle ne rachète pas une durée qui ne colle pas : 10 km en 2 h en face de
+     * 10 km prévus en 50 min, ce sont deux séances différentes sur la même boucle — une sortie de
+     * récupération marchée là où un tempo était prescrit.
      */
     @Test
-    void theFallbackDoesNotOverrideAContradictoryVolume() {
+    void oneAgreeingMeasureDoesNotExcuseTheOther() {
         LocalDate d = LocalDate.of(2026, 8, 10);
-        Activity sprint = activity(d, 3000, 12 * 60);
-        Workout longRun = workout(d, 25000, 150 * 60, WorkoutStatus.PLANNED);
+        Activity slow = activity(d, 10000, 120 * 60);
+        Workout tenK = workout(d, 10000, 50 * 60, WorkoutStatus.PLANNED);
 
-        assertThat(matching.findBestMatch(sprint, List.of(longRun))).isEmpty();
-        assertThat(matching.canFallBackOn(sprint, longRun)).isFalse();
+        assertThat(matching.findBestMatch(slow, List.of(tenK))).isEmpty();
+    }
+
+    /**
+     * Un titre qui désigne la séance dispense de l'accord des volumes — c'est une preuve d'une
+     * autre nature, et souvent meilleure : la montre n'avait enregistré que la partie rapide du
+     * fractionné (6,2 km sur 13,3), les volumes ne pouvaient donc pas concorder.
+     */
+    @Test
+    void aTitleThatNamesTheSessionIsProofEnough() {
+        LocalDate d = LocalDate.of(2026, 9, 8);
+        Workout prescribed = course(d, "Endurance · Séance 8x(200/400)", 13300, 59 * 60);
+        Activity intervals = sortie(d, "8*(200/400)", ActivitySport.RUN, 6220, 25 * 60);
+
+        assertThat(matching.findBestMatch(intervals, List.of(prescribed))).contains(prescribed);
     }
 
     /** La séance de la veille, elle, reste rapprochable : on a couru en retard, ça arrive. */
@@ -268,7 +275,6 @@ class MatchingServiceTest {
                 ActivitySport.STRENGTH, 0, 29 * 60);
 
         assertThat(matching.findBestMatch(weights, List.of(prescribed))).isEmpty();
-        assertThat(matching.canFallBackOn(weights, prescribed)).isFalse();
     }
 
     @Test
@@ -315,7 +321,6 @@ class MatchingServiceTest {
         Activity run = sortie(d, "Footing", ActivitySport.RUN, 8000, 40 * 60);
 
         assertThat(matching.findBestMatch(run, List.of(rest))).isEmpty();
-        assertThat(matching.canFallBackOn(run, rest)).isFalse();
     }
 
     // --- Le titre : ce que l'athlète a écrit lui-même ---------------------------------------

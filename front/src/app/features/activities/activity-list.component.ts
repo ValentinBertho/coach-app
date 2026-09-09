@@ -5,7 +5,7 @@ import { RouterLink } from '@angular/router';
 import {
   ACTIVITY_STATUS_BADGE,
   ACTIVITY_STATUS_LABELS,
-  activitySportLabel,
+  activityCategoryLabel,
   Activity,
 } from '../../core/models/activity.model';
 import { Workout } from '../../core/models/workout.model';
@@ -52,8 +52,11 @@ export class ActivityListComponent implements OnInit {
     return a.source === 'FILE' || a.source === 'STRAVA';
   }
 
-  /** Libellé du sport, vide quand la source n'a rien déclaré : l'appelant retombe alors dessus. */
-  sportLabel(a: Activity): string { return activitySportLabel(a.sport); }
+  /**
+   * Catégorie de la sortie, au niveau de détail que la source a donné : « Vélo gravel » plutôt
+   * que « Vélo ». Vide quand elle n'a rien déclaré — l'appelant retombe alors sur la provenance.
+   */
+  sportLabel(a: Activity): string { return activityCategoryLabel(a); }
 
   toggleZones(id: string): void {
     this.zonesOpen.update((cur) => (cur === id ? null : id));

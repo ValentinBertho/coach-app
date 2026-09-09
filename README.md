@@ -101,9 +101,14 @@ assistant), et athlète (PWA mobile).
 - **Sync Strava** (OAuth) **initiée par l'athlète** (l'intégration est d'abord côté athlète, CDC §12),
   import automatique des activités avec déduplication ; le coach voit l'état en lecture seule. Import
   fichier **FIT / GPX / TCX** — le FIT est le format natif Garmin et COROS, décodé sans dépendance
-  externe (totaux de la montre, tours, **sport déclaré** et vitesse mesurée compris) — et
+  externe (totaux de la montre, tours, **sport et sous-sport déclarés** et vitesse mesurée
+  compris) — et
   **saisie manuelle** d'une sortie par l'athlète. La **synchronisation automatique** Garmin / COROS
   reste à venir : demandes d'accès déposées, l'import FIT en tient lieu en attendant.
+- **Catégorie de la sortie conservée** : la famille (course / vélo / natation / renforcement /
+  marche) sert au rapprochement, mais le **type exact déclaré par la source** est gardé et affiché
+  — « Vélo gravel », « Trail », « Nage en eau libre » plutôt qu'un « Vélo » ou « Course à pied »
+  qui appauvrit. Un type inconnu de l'application s'affiche quand même, mis en forme.
 - **Rapprochement prévu / réalisé** : une sortie importée retrouve la séance qu'elle réalise à
   partir du **sport** (une séance de renforcement ou une sortie à vélo ne réalisent pas un
   fractionné de course), de la **date**, du **volume** (distance *et* durée) et de la
@@ -111,6 +116,9 @@ assistant), et athlète (PWA mobile).
   mieux que n'importe quel chiffre. Sur une journée à plusieurs sorties, la séance revient à la
   **meilleure** d'entre elles quel que soit l'ordre de synchronisation ; un rapprochement décidé
   à la main par le coach ou l'athlète n'est jamais défait par un import ultérieur.
+  **Sans preuve, rien n'est rattaché** : la date seule ne rapproche jamais, et une sortie laissée
+  « non rattachée » — qui se corrige d'un geste — vaut mieux qu'une séance déclarée réalisée par
+  la mauvaise sortie, qui fausse silencieusement le prévu/réalisé et la charge.
 - **Export PDF** du programme d'un athlète.
 - Notifications e-mail (Resend) et push (Web Push / VAPID).
 

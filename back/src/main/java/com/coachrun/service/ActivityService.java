@@ -29,7 +29,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -144,6 +143,7 @@ public class ActivityService {
         activity.setAvgHr(request.avgHr());
         activity.setElevationGainM(request.elevationGainM());
         activity.setSport(request.sport());
+        activity.setSportDetail(request.sportDetail());
         activity.setStatus(ActivityStatus.IMPORTED);
         applyExtras(activity, extras);
 
@@ -770,6 +770,7 @@ public class ActivityService {
         activity.setAvgHr(request.avgHr());
         activity.setElevationGainM(request.elevationGainM());
         activity.setSport(request.sport());
+        activity.setSportDetail(request.sportDetail());
         activity.setStatus(ActivityStatus.IMPORTED);
         autoMatch(athleteId, activity);
         activity = activityRepository.save(activity);
@@ -819,6 +820,7 @@ public class ActivityService {
         // Le sport déclaré par la montre : c'est lui qui empêche une séance de renforcement ou
         // une sortie à vélo d'aller se rapprocher du fractionné prescrit le même jour.
         activity.setSport(parsed.sport());
+        activity.setSportDetail(parsed.sportDetail());
         activity.setStatus(ActivityStatus.IMPORTED);
         try {
             activity.setRouteJson(objectMapper.writeValueAsString(parsed.route()));
@@ -997,6 +999,13 @@ public class ActivityService {
      * l'ordre de synchronisation qui tranchait, pas les chiffres — et sur une journée à cinq
      * sorties, cet ordre n'a aucun rapport avec ce que l'athlète a fait.</p>
      *
+     * <p><b>Et quand rien ne correspond, rien n'est rattaché.</b> Il n'y a plus de repli « la
+     * seule séance de la journée, faute de mieux » : rattacher sur la seule foi de la date
+     * revenait à donner la séance à la première sortie importée ce jour-là, qui n'est pas
+     * forcément celle qui l'a réalisée. Une sortie « non rattachée » se corrige d'un geste et se
+     * voit ; une séance déclarée faite par la mauvaise sortie fausse le prévu/réalisé sans que
+     * personne ne s'en aperçoive.</p>
+     *
      * <p>Une séance tenue par une sortie <b>moins bien placée</b> redevient donc disponible, et
      * la sortie délogée repart « non rattachée » — avec son ressenti, que le détachement lui
      * rend. Deux choses restent intouchables : un rapprochement décidé <b>à la main</b> (voir
@@ -1019,9 +1028,6 @@ public class ActivityService {
                 .toList();
 
         Optional<Workout> best = matchingService.findBestMatch(activity, candidates);
-        if (best.isEmpty()) {
-            best = loneSessionOfTheDay(activity, window, holders.keySet());
-        }
         if (best.isEmpty()) {
             activity.setStatus(ActivityStatus.UNMATCHED);
             return;
@@ -1092,32 +1098,6 @@ public class ActivityService {
         activityRepository.save(incumbent);
         log.info("Sortie {} détachée de la séance {} au profit d'une meilleure correspondance",
                 incumbent.getId(), workout.getId());
-    }
-
-    /**
-     * Repli : la seule séance de la journée, quand rien ne permet de la comparer à la sortie.
-     *
-     * <p>La garde décisive se pose <b>ici</b> et pas dans l'algorithme de score, parce qu'elle
-     * demande de connaître la journée entière — séances déjà rapprochées comprises. Compter les
-     * seules séances encore libres reviendrait à dire « la seule séance <i>restante</i> », ce qui
-     * n'est pas la même chose : une journée à deux séances dont la première est déjà prise
-     * laisserait la seconde attraper n'importe quelle sortie, alors que le choix y est justement
-     * arbitraire.</p>
-     */
-    private Optional<Workout> loneSessionOfTheDay(Activity activity, List<Workout> window,
-                                                  Set<UUID> taken) {
-        // Ce repli ne déloge personne : il sert quand rien n'est comparable, donc quand aucun
-        // score ne pourrait départager deux prétendantes. Une séance déjà prise le reste.
-
-        List<Workout> sameDay = window.stream()
-                .filter(w -> activity.getActivityDate().equals(w.getScheduledDate()))
-                .toList();
-        if (sameDay.size() != 1) {
-            return Optional.empty();
-        }
-        Workout only = sameDay.get(0);
-        return !taken.contains(only.getId()) && matchingService.canFallBackOn(activity, only)
-                ? Optional.of(only) : Optional.empty();
     }
 
     private void link(Activity activity, Workout workout) {

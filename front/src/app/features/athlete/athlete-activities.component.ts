@@ -18,7 +18,7 @@ import { PainFatigueSelectorComponent } from '../../shared/components/physiology
 import { Injury } from '../../core/models/injury.model';
 import {
   ACTIVITY_SPORT_LABELS, ACTIVITY_STATUS_BADGE, ACTIVITY_STATUS_LABELS, Activity, ActivitySport,
-  activitySportLabel, isSyncedSource,
+  activityCategoryLabel, isSyncedSource,
 } from '../../core/models/activity.model';
 import { formatPace, paceFrom } from '../../core/utils/pace';
 import { ActivityLapsComponent } from '../../shared/components/activity-laps/activity-laps.component';
@@ -723,7 +723,11 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
 
   statusLabel(s: Activity['status']): string { return ACTIVITY_STATUS_LABELS[s]; }
 
-  /** Libellé du sport, vide quand la source n'a rien déclaré (rien à afficher, rien à inventer). */
-  sportLabel(a: Activity): string { return activitySportLabel(a.sport); }
+  /**
+   * Catégorie de la sortie : la plus précise dont on dispose — « Trail » plutôt que « Course à
+   * pied », « Vélo gravel » plutôt que « Vélo ». Vide quand la source n'a rien déclaré : rien à
+   * afficher, rien à inventer.
+   */
+  sportLabel(a: Activity): string { return activityCategoryLabel(a); }
   statusBadge(s: Activity['status']): string { return ACTIVITY_STATUS_BADGE[s]; }
 }

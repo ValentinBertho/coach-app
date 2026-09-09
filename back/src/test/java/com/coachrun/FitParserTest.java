@@ -1,6 +1,7 @@
 package com.coachrun;
 
 import com.coachrun.FitFileBuilder.Field;
+import com.coachrun.entity.enums.ActivitySport;
 import com.coachrun.util.ActivityFileParser;
 import com.coachrun.util.ActivityTrack;
 import com.coachrun.util.FitParser;
@@ -51,6 +52,14 @@ class FitParserTest {
             new Field(9, 4, TYPE_U32),     // total_distance
             new Field(16, 1, TYPE_U8),     // avg_heart_rate
             new Field(22, 2, TYPE_U16));   // total_ascent
+
+    /** Session portant en plus son sport et son sous-sport : les deux champs longtemps ignorés. */
+    private static final List<Field> SESSION_WITH_SPORT = List.of(
+            new Field(2, 4, TYPE_U32),     // start_time
+            new Field(5, 1, TYPE_U8),      // sport
+            new Field(6, 1, TYPE_U8),      // sub_sport
+            new Field(8, 4, TYPE_U32),     // total_timer_time
+            new Field(9, 4, TYPE_U32));    // total_distance
 
     private static final long T0 = fitTime("2026-06-20T08:00:00Z");
 
@@ -128,6 +137,56 @@ class FitParserTest {
         assertThat(a.stream()).isNotEmpty();
         assertThat(a.stream().get(0)[1]).isEqualTo(138);
         assertThat(a.stream().get(0)[2]).isEqualTo(-1); // aucune allure dérivable
+    }
+
+    /**
+     * Le sous-sport dit ce que le sport tait : {@code sport=1} annonce « course »,
+     * {@code sub_sport=3} annonce que c'était du <b>trail</b>. Les deux champs étaient ignorés —
+     * le premier a laissé une séance de musculation emporter un fractionné, le second faisait
+     * afficher « Course à pied » à un athlète qui rentrait d'un trail.
+     */
+    @Test
+    void litLeSportEtLeSousSportDeLaSession() {
+        byte[] fit = new FitFileBuilder()
+                .define(1, 18, SESSION_WITH_SPORT)
+                .data(1, SESSION_WITH_SPORT, T0, 1, 3, 3_600_000, 1_500_000)
+                .build();
+
+        ActivityTrack.ParsedActivity a = FitParser.parse(fit);
+
+        assertThat(a.sport()).isEqualTo(ActivitySport.RUN);
+        assertThat(a.sportDetail()).isEqualTo("trail_running");
+    }
+
+    /** Sans sous-sport exploitable, la catégorie reste celle du sport — jamais rien. */
+    @Test
+    void retombeSurLeSportQuandLeSousSportNeDitRien() {
+        byte[] fit = new FitFileBuilder()
+                .define(1, 18, SESSION_WITH_SPORT)
+                .data(1, SESSION_WITH_SPORT, T0, 2, 0, 3_600_000, 30_000_000)
+                .build();
+
+        ActivityTrack.ParsedActivity a = FitParser.parse(fit);
+
+        assertThat(a.sport()).isEqualTo(ActivitySport.RIDE);
+        assertThat(a.sportDetail()).isEqualTo("cycling");
+    }
+
+    /**
+     * Une séance de renforcement : distance nulle, sport « training ». C'est ce couple qui
+     * l'empêche désormais d'aller se rapprocher du fractionné prescrit le même jour.
+     */
+    @Test
+    void reconnaitUneSeanceDeRenforcement() {
+        byte[] fit = new FitFileBuilder()
+                .define(1, 18, SESSION_WITH_SPORT)
+                .data(1, SESSION_WITH_SPORT, T0, 10, 20, 1_740_000, 0)
+                .build();
+
+        ActivityTrack.ParsedActivity a = FitParser.parse(fit);
+
+        assertThat(a.sport()).isEqualTo(ActivitySport.STRENGTH);
+        assertThat(a.sportDetail()).isEqualTo("strength_training");
     }
 
     @Test

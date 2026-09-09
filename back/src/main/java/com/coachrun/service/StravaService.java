@@ -372,6 +372,9 @@ public class StravaService {
                 // Strava renvoie toujours, et qui sert de repli.
                 com.coachrun.entity.enums.ActivitySport.fromStrava(
                         a.sportType() != null ? a.sportType() : a.type()),
+                // Et le type lui-même, non résumé : « GravelRide » dit à un coach ce que « Vélo »
+                // ne dit pas, et c'est la seule occasion de le garder — il n'est envoyé qu'ici.
+                a.sportType() != null ? a.sportType() : a.type(),
                 // Jamais de confirmation automatique : si la sortie est déjà en base sous une
                 // autre provenance (trace GPX importée à la main), la synchro doit l'écarter,
                 // pas en créer une seconde copie.

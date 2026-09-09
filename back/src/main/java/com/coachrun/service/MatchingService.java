@@ -25,6 +25,28 @@ public class MatchingService {
 
     /** Seuil de confiance minimal pour un rapprochement automatique. */
     public static final double MATCH_THRESHOLD = 0.6;
+
+    /**
+     * Accord minimal des volumes pour qu'un rapprochement se fasse tout seul : la plus petite des
+     * deux grandeurs doit valoir au moins la moitié de la plus grande.
+     *
+     * <h2>Pourquoi une garde en plus du seuil</h2>
+     *
+     * <p>La date du jour rapportait déjà la moitié du score, et le seuil est à 0,6 : il ne restait
+     * qu'un cinquième d'accord de volume à trouver pour rapprocher. Une sortie de 2 km réalisait
+     * donc une séance de 10, et le footing d'échauffement de 4,8 km — enregistré à part — se
+     * rattachait au fractionné de 13,3 km simplement parce qu'il était le premier importé ce
+     * jour-là. Le score dit « laquelle », il ne devrait jamais dire « oui » à lui tout seul.</p>
+     *
+     * <p><b>Mieux vaut ne rien rattacher que rattacher à côté.</b> Une sortie laissée « non
+     * rattachée » se corrige d'un geste et se voit ; une séance déclarée réalisée par la mauvaise
+     * sortie fausse silencieusement le prévu/réalisé, le volume de la semaine et la charge.</p>
+     *
+     * <p>Un titre qui désigne la séance dispense de cette garde : c'est une preuve d'une autre
+     * nature, et souvent meilleure — la montre d'un athlète n'enregistre parfois que la partie
+     * rapide de son fractionné, et les volumes ne peuvent alors pas concorder.</p>
+     */
+    private static final double MIN_VOLUME_AGREEMENT = 0.5;
     /** Tolérance de distance pour considérer la séance COMPLETED (sinon PARTIAL). */
     private static final double COMPLETED_DISTANCE_TOLERANCE = 0.15;
 
@@ -78,10 +100,34 @@ public class MatchingService {
     public Optional<Workout> findBestMatch(Activity activity, List<Workout> candidates) {
         return candidates.stream()
                 .filter(w -> eligible(activity, w))
+                .filter(w -> corroborated(activity, w))
                 .map(w -> new Scored(w, score(activity, w)))
                 .filter(s -> s.score >= MATCH_THRESHOLD)
                 .max((a, b) -> Double.compare(a.score, b.score))
                 .map(s -> s.workout);
+    }
+
+    /**
+     * Y a-t-il de quoi affirmer que cette sortie réalise cette séance ?
+     *
+     * <p>Deux preuves possibles, et il en faut au moins une : des <b>volumes qui concordent</b>
+     * (cf. {@link #MIN_VOLUME_AGREEMENT}), ou un <b>titre qui désigne la séance</b>. La date n'en
+     * est pas une : elle dit seulement que les deux ont eu lieu le même jour, ce qui est vrai de
+     * toutes les sorties de la journée.</p>
+     */
+    private boolean corroborated(Activity activity, Workout workout) {
+        if (titleCloseness(activity, workout) > 0) {
+            return true;
+        }
+        Double distance = distanceCloseness(activity, workout);
+        Double duration = durationCloseness(activity, workout);
+        if (distance == null && duration == null) {
+            return false;
+        }
+        // Chaque grandeur comparable doit tenir : une distance qui colle ne rachète pas une durée
+        // deux fois trop longue — ce sont alors deux séances différentes sur la même boucle.
+        return (distance == null || distance >= MIN_VOLUME_AGREEMENT)
+                && (duration == null || duration >= MIN_VOLUME_AGREEMENT);
     }
 
     /**
@@ -157,41 +203,6 @@ public class MatchingService {
             // en côte alterne les deux, et une montre en range parfois la totalité en « walk ».
             default -> sport.isFootborne();
         };
-    }
-
-    /**
-     * Repli de dernier recours : cette séance peut-elle accueillir la sortie faute de mieux ?
-     *
-     * <p><b>Pourquoi ce repli existe.</b> Une séance dont le volume prévu n'est pas exploitable —
-     * une prescription écrite en durée dont aucun bloc n'est chiffrable, qui ne totalise que ses
-     * éducatifs — n'a rien à opposer à l'activité : le score tombe à zéro et la sortie du jour
-     * restait orpheline, à côté d'une séance qui restait sans réalisé. Deux écrans vides pour un
-     * entraînement qui a bel et bien eu lieu.</p>
-     *
-     * <p><b>Pourquoi il est aussi étroit.</b> La date seule ne prouve rien : c'est précisément ce
-     * qui avait fait retirer le rapprochement sur date. Quatre gardes le rendent acceptable — la
-     * séance doit être celle du <b>jour même</b> (pas de la veille), ne pas avoir été déclarée
-     * non faite, accepter le <b>sport</b> de la sortie, et n'avoir <b>rien de comparable</b> à
-     * opposer : deux volumes qui se contredisent restent un refus, ils portent une information.
-     * L'appelant y ajoute la garde décisive — il faut que ce soit la <b>seule séance de la
-     * journée</b>, prises comprises, sans quoi le choix redevient arbitraire.</p>
-     *
-     * <p>Le statut retenu reste {@code PARTIAL} : la sortie a eu lieu, rien ne prouve qu'elle
-     * correspond à la séance prescrite, et c'est à l'athlète ou au coach de trancher.</p>
-     */
-    public boolean canFallBackOn(Activity activity, Workout workout) {
-        return workout.getStatus() != WorkoutStatus.MISSED
-                && workout.getType() != WorkoutType.REST
-                && sportAllows(activity, workout)
-                && workout.getScheduledDate() != null
-                && workout.getScheduledDate().equals(activity.getActivityDate())
-                && hasNothingComparable(activity, workout);
-    }
-
-    /** Ni distance ni durée exploitables du côté de la séance : il n'y a rien à confronter. */
-    private boolean hasNothingComparable(Activity activity, Workout workout) {
-        return distanceCloseness(activity, workout) == null
-                && durationCloseness(activity, workout) == null;
     }
 
     /** La séance est-elle prévue après la sortie ? On ne peut pas avoir déjà fait ce qui vient. */

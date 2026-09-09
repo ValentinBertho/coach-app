@@ -91,6 +91,95 @@ public enum ActivitySport {
     }
 
     /**
+     * Nom canonique FIT de la catégorie, sous-sport compris — « trail_running »,
+     * « lap_swimming », « indoor_cycling ».
+     *
+     * <p>Un FIT ne déclare pas un libellé mais deux entiers, et c'est le second qui porte le
+     * plus d'information : {@code sport=1} dit « course », {@code sub_sport=3} dit que c'était
+     * du trail. Ne garder que la famille revenait à jeter la moitié de ce que la montre avait
+     * pris soin d'écrire.</p>
+     *
+     * <p>Un code que cette table ne nomme pas rend {@code null} plutôt qu'un « sport 47 » :
+     * l'écran retombe alors sur la famille, qui dit au moins quelque chose de juste. Inventer un
+     * libellé à partir d'un numéro ne serait pas conserver l'information, ce serait la déguiser.</p>
+     */
+    public static String fitLabel(Integer sport, Integer subSport) {
+        // Un fichier sans message de session ne déclare ni l'un ni l'autre, et une table
+        // immuable refuse qu'on l'interroge sur un nul.
+        String refined = subSport == null ? null : SUB_SPORTS.get(subSport);
+        if (refined != null) {
+            return refined;
+        }
+        return sport == null ? null : SPORTS.get(sport);
+    }
+
+    /** Sports FIT nommés (profil Garmin) — les familles, quand le sous-sport ne précise rien. */
+    private static final java.util.Map<Integer, String> SPORTS = java.util.Map.ofEntries(
+            java.util.Map.entry(1, "running"),
+            java.util.Map.entry(2, "cycling"),
+            java.util.Map.entry(4, "fitness_equipment"),
+            java.util.Map.entry(5, "swimming"),
+            java.util.Map.entry(10, "training"),
+            java.util.Map.entry(11, "walking"),
+            java.util.Map.entry(12, "cross_country_skiing"),
+            java.util.Map.entry(13, "alpine_skiing"),
+            java.util.Map.entry(14, "snowboarding"),
+            java.util.Map.entry(15, "rowing"),
+            java.util.Map.entry(16, "mountaineering"),
+            java.util.Map.entry(17, "hiking"),
+            java.util.Map.entry(19, "paddling"),
+            java.util.Map.entry(21, "e_biking"),
+            java.util.Map.entry(25, "golf"),
+            java.util.Map.entry(30, "inline_skating"),
+            java.util.Map.entry(31, "rock_climbing"),
+            java.util.Map.entry(32, "sailing"),
+            java.util.Map.entry(33, "ice_skating"),
+            java.util.Map.entry(35, "snowshoeing"),
+            java.util.Map.entry(37, "stand_up_paddleboarding"),
+            java.util.Map.entry(38, "surfing"),
+            java.util.Map.entry(41, "kayaking"),
+            java.util.Map.entry(43, "windsurfing"),
+            java.util.Map.entry(44, "kitesurfing"),
+            java.util.Map.entry(47, "boxing"),
+            java.util.Map.entry(53, "diving"),
+            java.util.Map.entry(62, "hiit"));
+
+    /**
+     * Sous-sports FIT nommés : ce sont eux qui distinguent un trail d'un 10 km sur piste, ou une
+     * séance en bassin d'une traversée en eau libre. Quand l'un d'eux est reconnu, il prime sur
+     * la famille — il en dit strictement plus.
+     */
+    private static final java.util.Map<Integer, String> SUB_SPORTS = java.util.Map.ofEntries(
+            java.util.Map.entry(1, "treadmill"),
+            java.util.Map.entry(2, "street_running"),
+            java.util.Map.entry(3, "trail_running"),
+            java.util.Map.entry(4, "track_running"),
+            java.util.Map.entry(5, "spin"),
+            java.util.Map.entry(6, "indoor_cycling"),
+            java.util.Map.entry(7, "road_cycling"),
+            java.util.Map.entry(8, "mountain_biking"),
+            java.util.Map.entry(9, "downhill"),
+            java.util.Map.entry(11, "cyclocross"),
+            java.util.Map.entry(12, "hand_cycling"),
+            java.util.Map.entry(13, "track_cycling"),
+            java.util.Map.entry(14, "indoor_rowing"),
+            java.util.Map.entry(15, "elliptical"),
+            java.util.Map.entry(16, "stair_climbing"),
+            java.util.Map.entry(17, "lap_swimming"),
+            java.util.Map.entry(18, "open_water"),
+            java.util.Map.entry(19, "flexibility_training"),
+            java.util.Map.entry(20, "strength_training"),
+            java.util.Map.entry(26, "cardio_training"),
+            java.util.Map.entry(27, "indoor_walking"),
+            java.util.Map.entry(28, "e_bike_fitness"),
+            java.util.Map.entry(29, "bmx"),
+            java.util.Map.entry(30, "casual_walking"),
+            java.util.Map.entry(31, "speed_walking"),
+            java.util.Map.entry(46, "indoor_running"),
+            java.util.Map.entry(58, "virtual_activity"),
+            java.util.Map.entry(65, "gravel_cycling"));
+
+    /**
      * Sport déclaré dans un fichier XML : attribut {@code Sport} d'un TCX
      * ({@code Running} / {@code Biking} / {@code Other}) ou balise {@code <type>} d'un GPX.
      */

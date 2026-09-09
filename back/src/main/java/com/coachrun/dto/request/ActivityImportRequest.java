@@ -27,6 +27,12 @@ public record ActivityImportRequest(
          * l'empêche d'aller se rapprocher du fractionné prescrit le même jour.
          */
         ActivitySport sport,
+        /**
+         * Catégorie exacte déclarée par la source (« GravelRide », « trail_running »), quand
+         * {@code sport} n'en garde que la famille. Purement descriptive : elle s'affiche, elle ne
+         * décide de rien — c'est ce qui permet de l'accepter telle quelle.
+         */
+        @Size(max = 64) String sportDetail,
         /** Confirme l'enregistrement malgré une sortie très proche déjà présente le même jour. */
         Boolean confirmDuplicate) {
 

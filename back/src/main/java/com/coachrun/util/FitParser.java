@@ -58,6 +58,9 @@ public final class FitParser {
     private Integer sessionAscentM;
     private Integer sessionAvgHr;
     private com.coachrun.entity.enums.ActivitySport sessionSport;
+    /** Codes bruts du message de session : c'est leur couple qui nomme la catégorie exacte. */
+    private Integer sessionSportCode;
+    private Integer sessionSubSportCode;
 
     /** Distance cumulée du dernier point : repli quand le message de session manque. */
     private Double lastRecordDistanceM;
@@ -289,8 +292,13 @@ public final class FitParser {
                 // Le sport déclaré par la montre. Il était explicitement ignoré ici — « dérivable
                 // ou inutile ». Il ne l'était pas : c'est la seule chose qui distingue, dans le
                 // fichier, une séance de renforcement d'un fractionné de même durée.
-                case 5 -> sessionSport = com.coachrun.entity.enums.ActivitySport.fromFit(
-                        (int) Math.round(v));
+                case 5 -> {
+                    sessionSportCode = (int) Math.round(v);
+                    sessionSport = com.coachrun.entity.enums.ActivitySport.fromFit(sessionSportCode);
+                }
+                // Le sous-sport : c'est lui qui dit « trail » là où le sport ne dit que
+                // « course », et « eau libre » là où il ne dit que « natation ».
+                case 6 -> sessionSubSportCode = (int) Math.round(v);
                 default -> { /* calories, vitesse moyenne… : dérivables ou inutiles */ }
             }
         }
@@ -339,7 +347,8 @@ public final class FitParser {
                 // Un tour unique n'en est pas un : la montre a enregistré la sortie d'un bloc.
                 // Même règle que le TCX, pour que les deux formats se lisent pareil.
                 laps.size() > 1 ? List.copyOf(laps) : List.of(),
-                sessionSport);
+                sessionSport,
+                com.coachrun.entity.enums.ActivitySport.fitLabel(sessionSportCode, sessionSubSportCode));
     }
 
     // --- Lecture bas niveau ------------------------------------------------
