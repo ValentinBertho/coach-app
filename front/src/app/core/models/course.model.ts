@@ -90,6 +90,26 @@ export function courseBlockTypeLabel(type: string | null | undefined): string {
   return known ?? type.charAt(0).toUpperCase() + type.slice(1);
 }
 
+/**
+ * Une allure d'un **enchaînement** : l'un des efforts qui se succèdent dans une même répétition.
+ *
+ * Un bloc ne portait qu'une distance et qu'une prescription : « 8 × (200 m / 400 m) », où les 200
+ * se courent à 2'48–3'04 et les 400 à 3'20–3'26, ne rentrait pas — il fallait seize blocs saisis
+ * un par un. Une étape est volontairement plus pauvre qu'un bloc (ni répétitions, ni séries, ni
+ * éducatifs : c'est le bloc qui les porte) mais elle a **sa** récupération, parce que celle qui
+ * suit le 200 n'est pas forcément celle qui suit le 400.
+ */
+export interface CourseStep {
+  id: string;
+  distanceM?: number | null;
+  durationS?: number | null;
+  prescription?: CoursePrescription | null;
+  /** Récupération qui suit cette étape — les 100 m de trot entre le 200 et le 400. */
+  recovery?: CourseRecovery | null;
+  rpe?: number | null;
+  note?: string | null;
+}
+
 export interface CourseBlock {
   id: string;
   type: string;
@@ -110,6 +130,27 @@ export interface CourseBlock {
   note?: string | null;
   /** Éducatifs (gammes) attachés au bloc (ids) — ex. échauffement. */
   drillIds?: string[] | null;
+  /**
+   * Étapes enchaînées **dans** chaque répétition, ou vide/absent pour un bloc simple.
+   *
+   * Renseignées, elles remplacent le volume et la prescription du bloc : c'est alors chaque étape
+   * qui porte les siens (cf. {@link CourseStep}).
+   */
+  steps?: CourseStep[] | null;
+}
+
+/**
+ * Ce qu'un bloc et une étape ont en commun : un volume, une intensité, une récupération.
+ *
+ * Tout l'éditeur — unités, fourchettes en %, sélecteur de zone, récupération — travaille sur ce
+ * contrat plutôt que sur `CourseBlock`, ce qui lui permet d'éditer une étape avec exactement les
+ * mêmes commandes qu'un bloc, sans les réécrire une seconde fois.
+ */
+export type PrescribedUnit = Pick<CourseBlock, 'id' | 'distanceM' | 'durationS' | 'prescription' | 'recovery'>;
+
+/** Le bloc enchaîne-t-il plusieurs efforts par répétition ? */
+export function isChainBlock(b: Pick<CourseBlock, 'steps'>): boolean {
+  return (b.steps?.length ?? 0) > 0;
 }
 
 export interface SessionStructure {
@@ -161,11 +202,24 @@ export interface CalculatedBlock {
   paceEstimated?: boolean;
 }
 
+/** Une étape d'enchaînement avec ses cibles, et celles de la récup qui la suit. */
+export interface CalculatedStepEntry {
+  step: CourseStep;
+  calc: CalculatedBlock | null;
+  recoveryCalc: CalculatedBlock | null;
+}
+
 /** Un bloc de séance avec ses cibles calculées (et celles de sa récupération). */
 export interface CalculatedBlockEntry {
   block: CourseBlock;
   calc: CalculatedBlock | null;
   recoveryCalc: CalculatedBlock | null;
+  /**
+   * Cibles des étapes, pour un bloc enchaîné ; vide pour un bloc simple, dont tout est dans
+   * `calc`. Un enchaînement n'a **pas** de cible à son niveau : moyenner deux allures qui n'ont
+   * rien à voir ne dirait rien à personne.
+   */
+  steps?: CalculatedStepEntry[] | null;
 }
 
 /** Séance course entièrement calculée pour un athlète. */

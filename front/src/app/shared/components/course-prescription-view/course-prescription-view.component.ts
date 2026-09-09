@@ -1,6 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
-import { CalculatedBlockEntry, courseBlockTypeLabel, CourseDrill, WorkoutPrescription } from '../../../core/models/course.model';
+import {
+  CalculatedBlock, CalculatedBlockEntry, CalculatedStepEntry, courseBlockTypeLabel, CourseDrill,
+  WorkoutPrescription,
+} from '../../../core/models/course.model';
 import { RangePrescriptionPillComponent } from '../range-prescription-pill/range-prescription-pill.component';
 import { formatBlockSets, formatBlockVolume } from '../../../core/utils/prescription-format';
 
@@ -33,6 +36,55 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                     <span class="cpv__type">{{ blockTitle(e) }}</span>
                     @if (volume(e); as v) { <span class="cpv__vol">{{ v }}</span> }
                   </div>
+                  <!-- Enchaînement : chaque allure avec sa cible, dans l'ordre où elle se court.
+                       Un bloc n'en portait qu'une, et « 8 × (200 / 400) » ne pouvait donc pas
+                       s'afficher — pas plus qu'il ne pouvait s'écrire. -->
+                  @if (stepsOf(e).length) {
+                    <div class="cpv__chain">
+                      @for (se of stepsOf(e); track se.step.id) {
+                        <div class="cpv__step">
+                          <div class="cpv__head">
+                            <span class="cpv__step-idx">{{ $index + 1 }}</span>
+                            @if (stepVolume(se); as v) { <span class="cpv__vol">{{ v }}</span> }
+                          </div>
+                          <div class="cpv__pills">
+                            @if (se.calc?.computable && se.calc?.paceMinLabel && showPace(se)) {
+                              <app-range-prescription-pill
+                                label="Allure"
+                                [min]="se.calc!.paceMinSecPerKm"
+                                [max]="se.calc!.paceMaxSecPerKm"
+                                [format]="paceFmt" unit="/km" />
+                              @if (se.calc?.paceEstimated) {
+                                <span class="cpv__est" title="Allure estimée à partir du VDOT (pas de test lactate)">estimée</span>
+                              }
+                            }
+                            @if (se.calc?.computable && se.calc?.speedMinKmh != null && showSpeed(se)) {
+                              <app-range-prescription-pill
+                                label="Vitesse"
+                                [min]="se.calc!.speedMinKmh"
+                                [max]="se.calc!.speedMaxKmh"
+                                [format]="speedFmt" unit="km/h" />
+                            }
+                            @if (se.calc?.hrMin != null) {
+                              <app-range-prescription-pill label="FC" [min]="se.calc!.hrMin" [max]="se.calc!.hrMax" unit="bpm" />
+                            }
+                            @if (se.calc?.rpeMin != null) {
+                              <app-range-prescription-pill label="RPE" [min]="se.calc!.rpeMin" [max]="se.calc!.rpeMax" />
+                            }
+                          </div>
+                          @if (se.step.recovery) {
+                            <div class="cpv__rec">
+                              Récup{{ stepRecoveryVol(se) ? ' : ' + stepRecoveryVol(se) : '' }}
+                              @if (se.recoveryCalc?.computable && se.recoveryCalc?.paceMinLabel) {
+                                <span class="cpv__rec-pace">{{ se.recoveryCalc!.paceMinLabel }}–{{ se.recoveryCalc!.paceMaxLabel }} /km</span>
+                              }
+                            </div>
+                          }
+                          @if (se.step.note) { <p class="cpv__note">{{ se.step.note }}</p> }
+                        </div>
+                      }
+                    </div>
+                  }
                   <div class="cpv__pills">
                     @if (e.calc?.computable && e.calc?.paceMinLabel && showPace(e)) {
                       <app-range-prescription-pill
@@ -62,7 +114,7 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                        une récup sans cible d'allure — le cas le plus courant, on trotte — disparaissait
                        entièrement, y compris sa durée. L'athlète lisait « 5 × 2000 m » sans savoir
                        combien de temps il récupérait entre les répétitions. -->
-                  @if (e.block.recovery) {
+                  @if (e.block.recovery && !stepsOf(e).length) {
                     <div class="cpv__rec">
                       Récup{{ recoveryVol(e) ? ' : ' + recoveryVol(e) : '' }}
                       @if (e.recoveryCalc?.computable && e.recoveryCalc?.paceMinLabel) {
@@ -112,6 +164,9 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
     .cpv__vol { font-variant-numeric: tabular-nums; color: var(--ink-2); font-size: var(--text-sm); }
     .cpv__pills { display: flex; flex-wrap: wrap; gap: 6px; }
     .cpv__rec { font-size: var(--text-sm); color: var(--ink-3); }
+    .cpv__chain { display: flex; flex-direction: column; gap: 6px; padding-left: var(--sp-2); border-left: 2px solid color-mix(in srgb, var(--dari-teal, currentColor) 35%, transparent); }
+    .cpv__step { display: flex; flex-direction: column; gap: 4px; }
+    .cpv__step-idx { min-width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-full); background: var(--paper-sunk); border: 1px solid var(--hairline); font-size: var(--text-xs); font-weight: 700; color: var(--ink-3); }
     .cpv__rec-pace { font-variant-numeric: tabular-nums; color: var(--ink-2); }
     .cpv__note { margin: 0; font-size: var(--text-sm); color: var(--ink-3); font-style: italic; }
     .cpv__drills { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -141,13 +196,27 @@ export class CoursePrescriptionViewComponent {
   private readonly prefersSpeed = computed(() => this.auth.paceUnit() === 'SPEED');
 
   /** Affiche l'allure si elle est préférée, ou si la vitesse n'est pas calculable pour ce bloc. */
-  showPace(e: CalculatedBlockEntry): boolean {
+  showPace(e: { calc: CalculatedBlock | null }): boolean {
     return !this.prefersSpeed() || e.calc?.speedMinKmh == null;
   }
 
   /** Symétrique : la vitesse si elle est préférée, ou si l'allure manque. */
-  showSpeed(e: CalculatedBlockEntry): boolean {
+  showSpeed(e: { calc: CalculatedBlock | null }): boolean {
     return this.prefersSpeed() || !e.calc?.paceMinLabel;
+  }
+
+  /** Les allures d'un enchaînement ; liste vide pour un bloc simple. */
+  stepsOf(e: CalculatedBlockEntry): CalculatedStepEntry[] {
+    return e.steps ?? [];
+  }
+
+  stepVolume(se: CalculatedStepEntry): string | null {
+    return this.distOrTime(se.step.distanceM, se.step.durationS);
+  }
+
+  stepRecoveryVol(se: CalculatedStepEntry): string {
+    const r = se.step.recovery;
+    return r ? this.distOrTime(r.distanceM ?? null, r.durationS ?? null) ?? '' : '';
   }
 
   readonly paceFmt = (secPerKm: number): string => {
@@ -169,7 +238,8 @@ export class CoursePrescriptionViewComponent {
   readonly hasEstimated = computed(() => {
     const c = this.prescription()?.calculated;
     if (!c) return false;
-    return [...c.warmup, ...c.main, ...c.cooldown].some((e) => e.calc?.paceEstimated);
+    return [...c.warmup, ...c.main, ...c.cooldown]
+      .some((e) => e.calc?.paceEstimated || (e.steps ?? []).some((se) => se.calc?.paceEstimated));
   });
 
   /** Index id → éducatif, pour résoudre les drills attachés à un bloc. */

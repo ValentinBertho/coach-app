@@ -189,7 +189,17 @@ public class CourseSessionService {
                         b.id(), b.type(), b.reps(), b.distanceM(), b.durationS(),
                         b.prescription(), b.recovery(), b.rpe(),
                         null,
-                        b.drillIds(), b.sets(), b.setRecovery()))
+                        b.drillIds(), b.sets(), b.setRecovery(), stripStepNotes(b.stepList())))
+                .toList();
+    }
+
+    /** Même règle à l'étage des étapes : la structure passe, les mots écrits pour quelqu'un non. */
+    private java.util.List<com.coachrun.dto.session.CourseStep> stripStepNotes(
+            java.util.List<com.coachrun.dto.session.CourseStep> steps) {
+        return steps.stream()
+                .map(st -> new com.coachrun.dto.session.CourseStep(
+                        st.id(), st.distanceM(), st.durationS(), st.prescription(),
+                        st.recovery(), st.rpe(), null))
                 .toList();
     }
 

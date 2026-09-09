@@ -25,8 +25,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -142,6 +143,7 @@ public class ActivityService {
         activity.setDurationS(request.durationS());
         activity.setAvgHr(request.avgHr());
         activity.setElevationGainM(request.elevationGainM());
+        activity.setSport(request.sport());
         activity.setStatus(ActivityStatus.IMPORTED);
         applyExtras(activity, extras);
 
@@ -767,6 +769,7 @@ public class ActivityService {
         activity.setDurationS(request.durationS());
         activity.setAvgHr(request.avgHr());
         activity.setElevationGainM(request.elevationGainM());
+        activity.setSport(request.sport());
         activity.setStatus(ActivityStatus.IMPORTED);
         autoMatch(athleteId, activity);
         activity = activityRepository.save(activity);
@@ -813,6 +816,9 @@ public class ActivityService {
         // ses points. Sans elle, une sortie importée s'affichait sans cardio là où la même sortie
         // remontée par Strava en avait une.
         activity.setAvgHr(parsed.avgHr());
+        // Le sport déclaré par la montre : c'est lui qui empêche une séance de renforcement ou
+        // une sortie à vélo d'aller se rapprocher du fractionné prescrit le même jour.
+        activity.setSport(parsed.sport());
         activity.setStatus(ActivityStatus.IMPORTED);
         try {
             activity.setRouteJson(objectMapper.writeValueAsString(parsed.route()));
@@ -937,6 +943,10 @@ public class ActivityService {
      * détachement, l'ancienne séance restait COMPLETED alors que plus rien ne l'atteste.
      */
     private ActivityResponse relink(Activity activity, UUID clubId, UUID workoutId) {
+        // Tout ce qui passe par ici vient d'un coach ou d'un athlète : l'arbitrage automatique
+        // ne reviendra plus dessus, y compris pour un détachement — « cette sortie n'est aucune
+        // de mes séances » est une réponse, et l'import suivant n'a pas à la rediscuter.
+        activity.setManualMatch(true);
         UUID previous = activity.getMatchedWorkoutId();
         if (previous != null && !previous.equals(workoutId)) {
             workoutRepository.findByIdAndClubId(previous, clubId).ifPresent(w -> {
@@ -977,26 +987,111 @@ public class ActivityService {
         }
     }
 
+    /**
+     * Rapproche la sortie qui vient d'arriver de la séance qu'elle réalise, s'il y en a une.
+     *
+     * <h2>Pourquoi l'ordre d'arrivée ne décide plus</h2>
+     *
+     * <p>Une séance déjà rapprochée était définitivement prise : la première sortie importée qui
+     * franchissait le seuil gardait la séance, quelle que soit celle qui arrivait ensuite. C'est
+     * l'ordre de synchronisation qui tranchait, pas les chiffres — et sur une journée à cinq
+     * sorties, cet ordre n'a aucun rapport avec ce que l'athlète a fait.</p>
+     *
+     * <p>Une séance tenue par une sortie <b>moins bien placée</b> redevient donc disponible, et
+     * la sortie délogée repart « non rattachée » — avec son ressenti, que le détachement lui
+     * rend. Deux choses restent intouchables : un rapprochement décidé <b>à la main</b> (voir
+     * {@link Activity#isManualMatch()}), parce qu'une personne s'est prononcée et que l'import
+     * suivant n'a pas à la contredire, et une séance dont la sortie tenante est à peu près aussi
+     * bonne : il faut battre la tenante <b>franchement</b> (cf. {@link #REARBITRATION_MARGIN}),
+     * sans quoi l'affichage se mettrait à dépendre de quelques millièmes de score.</p>
+     */
     private void autoMatch(UUID athleteId, Activity activity) {
         List<Workout> window = workoutRepository
                 .findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
                         athleteId, activity.getActivityDate().minusDays(1), activity.getActivityDate().plusDays(1));
-        // Une séance qui porte déjà une sortie n'est plus disponible : sans ce tri, la deuxième
-        // sortie de la journée viendrait déloger la première.
-        Set<UUID> taken = window.isEmpty() ? Set.of()
-                : new HashSet<>(activityRepository.findMatchedWorkoutIdsIn(
-                        window.stream().map(Workout::getId).toList()));
-        List<Workout> candidates = window.stream().filter(w -> !taken.contains(w.getId())).toList();
+        if (window.isEmpty()) {
+            activity.setStatus(ActivityStatus.UNMATCHED);
+            return;
+        }
+        Map<UUID, Activity> holders = incumbents(window);
+        List<Workout> candidates = window.stream()
+                .filter(w -> availableFor(activity, w, holders))
+                .toList();
 
         Optional<Workout> best = matchingService.findBestMatch(activity, candidates);
         if (best.isEmpty()) {
-            best = loneSessionOfTheDay(activity, window, taken);
+            best = loneSessionOfTheDay(activity, window, holders.keySet());
         }
-        if (best.isPresent()) {
-            link(activity, best.get());
-        } else {
+        if (best.isEmpty()) {
             activity.setStatus(ActivityStatus.UNMATCHED);
+            return;
         }
+        Activity incumbent = holders.get(best.get().getId());
+        if (incumbent != null) {
+            evict(incumbent, best.get());
+        }
+        link(activity, best.get());
+    }
+
+    /** Les sorties déjà rapprochées des séances de la fenêtre, indexées par séance. */
+    private Map<UUID, Activity> incumbents(List<Workout> window) {
+        Map<UUID, Activity> byWorkout = new HashMap<>();
+        for (Activity a : activityRepository.findByMatchedWorkoutIdIn(
+                window.stream().map(Workout::getId).toList())) {
+            byWorkout.put(a.getMatchedWorkoutId(), a);
+        }
+        return byWorkout;
+    }
+
+    /**
+     * De combien la prétendante doit dépasser la tenante pour lui prendre la séance.
+     *
+     * <p>Une marge, et pas une simple inégalité stricte, pour deux raisons. Un écart de quelques
+     * millièmes ne décrit rien de réel — deux footings de 10,1 et 10,2 km réalisent aussi bien la
+     * séance du jour, et faire dépendre l'affichage de cet écart-là revient à le faire dépendre du
+     * hasard. Et surtout : les sorties rapprochées <b>avant</b> l'existence de
+     * {@link Activity#isManualMatch()} portent toutes {@code false}, y compris celles qu'un coach
+     * avait corrigées à la main. La marge limite les dégâts de cette zone d'ombre aux cas où la
+     * nouvelle venue est franchement meilleure.</p>
+     */
+    private static final double REARBITRATION_MARGIN = 0.05;
+
+    /**
+     * Cette séance est-elle à prendre ? Libre, tenue par une sortie qui ne peut plus la réaliser
+     * du tout, ou tenue par une sortie que celle-ci bat <b>franchement</b>.
+     *
+     * <p>Le premier cas est celui que corrige cette version : une séance de renforcement tenant un
+     * fractionné de course obtient désormais une confiance nulle, et doit rendre la séance à la
+     * première sortie qui peut vraiment l'avoir réalisée — sans attendre d'être battue d'une
+     * marge, qu'un zéro rend d'ailleurs facile à franchir.</p>
+     */
+    private boolean availableFor(Activity activity, Workout workout, Map<UUID, Activity> holders) {
+        Activity holder = holders.get(workout.getId());
+        if (holder == null) {
+            return true;
+        }
+        if (holder.isManualMatch()) {
+            return false;
+        }
+        double challenger = matchingService.confidence(activity, workout);
+        double incumbent = matchingService.confidence(holder, workout);
+        return incumbent == 0.0 ? challenger > 0.0 : challenger >= incumbent + REARBITRATION_MARGIN;
+    }
+
+    /**
+     * La sortie délogée redevient « non rattachée », et reprend le ressenti de la séance qu'elle
+     * quitte — exactement comme un détachement manuel. La séance repasse {@code PLANNED} le temps
+     * que la nouvelle sortie la reprenne, sans quoi {@link #link} laisserait en place le statut
+     * déduit de la mauvaise sortie.
+     */
+    private void evict(Activity incumbent, Workout workout) {
+        releaseDebrief(incumbent, workout);
+        incumbent.setMatchedWorkoutId(null);
+        incumbent.setStatus(ActivityStatus.UNMATCHED);
+        workout.setStatus(WorkoutStatus.PLANNED);
+        activityRepository.save(incumbent);
+        log.info("Sortie {} détachée de la séance {} au profit d'une meilleure correspondance",
+                incumbent.getId(), workout.getId());
     }
 
     /**
@@ -1011,6 +1106,9 @@ public class ActivityService {
      */
     private Optional<Workout> loneSessionOfTheDay(Activity activity, List<Workout> window,
                                                   Set<UUID> taken) {
+        // Ce repli ne déloge personne : il sert quand rien n'est comparable, donc quand aucun
+        // score ne pourrait départager deux prétendantes. Une séance déjà prise le reste.
+
         List<Workout> sameDay = window.stream()
                 .filter(w -> activity.getActivityDate().equals(w.getScheduledDate()))
                 .toList();

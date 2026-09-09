@@ -110,7 +110,17 @@ public class ComplianceService {
     private List<PrescribedEffort> flatten(CalculatedSessionResponse calc) {
         List<PrescribedEffort> out = new ArrayList<>();
         for (CalculatedBlockEntry entry : calc.main()) {
-            if (entry.block() == null || entry.calc() == null || !entry.calc().computable()) {
+            if (entry.block() == null) {
+                continue;
+            }
+            // Un bloc enchaîné n'a pas de cible à lui : ce sont ses étapes qui en portent une,
+            // et chacune doit produire son effort. Sans ce cas, « 8 × (200 / 400) » disparaissait
+            // entièrement du calcul de conformité — le corps de séance n'était plus jugé du tout.
+            if (entry.block().isChain()) {
+                flattenChain(entry, out);
+                continue;
+            }
+            if (entry.calc() == null || !entry.calc().computable()) {
                 continue;
             }
             var b = entry.block();
@@ -131,17 +141,42 @@ public class ComplianceService {
         return out;
     }
 
+    /**
+     * Efforts d'un bloc enchaîné : les étapes dans l'ordre, autant de fois que le bloc se répète.
+     * L'ordre compte — c'est lui qui permet de dire « c'est le troisième 400 qui a lâché ».
+     */
+    private void flattenChain(CalculatedBlockEntry entry, List<PrescribedEffort> out) {
+        var b = entry.block();
+        int repeats = b.repCount() * b.setCount();
+        for (int i = 1; i <= repeats; i++) {
+            for (var stepEntry : entry.steps()) {
+                var c = stepEntry.calc();
+                if (c == null || !c.computable()) {
+                    continue;
+                }
+                var st = stepEntry.step();
+                String label = label(st.distanceM(), st.durationS(), null)
+                        + (repeats > 1 ? " (" + i + "/" + repeats + ")" : "");
+                out.add(new PrescribedEffort(label, c.paceMinSecPerKm(), c.paceMaxSecPerKm(),
+                        st.distanceM(), st.durationS() != null ? st.durationS() : c.estimatedDurationS()));
+            }
+        }
+    }
+
     private String label(com.coachrun.dto.session.CourseBlock b) {
-        if (b.distanceM() != null) {
-            return b.distanceM() >= 1000
-                    ? (b.distanceM() / 1000.0 == Math.floor(b.distanceM() / 1000.0)
-                        ? (b.distanceM() / 1000) + " km" : b.distanceM() + " m")
-                    : b.distanceM() + " m";
+        return label(b.distanceM(), b.durationS(), b.type());
+    }
+
+    /** « 400 m », « 1 km », « 5 min » — le volume d'un effort, bloc ou étape d'enchaînement. */
+    private String label(Integer distanceM, Integer durationS, String type) {
+        if (distanceM != null) {
+            return distanceM >= 1000 && distanceM % 1000 == 0
+                    ? (distanceM / 1000) + " km" : distanceM + " m";
         }
-        if (b.durationS() != null) {
-            return (b.durationS() / 60) + " min";
+        if (durationS != null) {
+            return (durationS / 60) + " min";
         }
-        return b.type() == null ? "Bloc" : b.type();
+        return type == null ? "Bloc" : type;
     }
 
     /**

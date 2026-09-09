@@ -132,7 +132,7 @@ class StravaControllerTest {
     /** Activité Strava complète : capteurs, tracé et flux, comme la vraie API les renvoie. */
     private static StravaActivity stravaActivity(long id, String name, Double distance,
                                                  Integer movingTime, String startDateLocal) {
-        return new StravaActivity(id, name, "Run", distance, movingTime, 120.0,
+        return new StravaActivity(id, name, "Run", "Run", distance, movingTime, 120.0,
                 145.0, 178.0, 3.3, 88.0, 240.0, 620.0, 90.0, "b123", 0, 1,
                 new StravaClient.ActivityMap("m" + id, POLYLINE), startDateLocal,
                 // Même instant que le départ local, exprimé en UTC : c'est ce champ qui positionne

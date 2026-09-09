@@ -59,7 +59,12 @@ public class PrescriptionZoneMapper {
                 .flatMap(List::stream)
                 .anyMatch(b -> isLegacyWithoutZone(b.prescription())
                         || (b.recovery() != null && isLegacyWithoutZone(b.recovery().prescription()))
-                        || (b.setRecovery() != null && isLegacyWithoutZone(b.setRecovery().prescription())));
+                        || (b.setRecovery() != null && isLegacyWithoutZone(b.setRecovery().prescription()))
+                        // Les étapes d'un enchaînement portent leurs propres prescriptions : les
+                        // oublier ici ferait passer la migration à côté d'un bloc entier.
+                        || b.stepList().stream().anyMatch(st -> isLegacyWithoutZone(st.prescription())
+                                || (st.recovery() != null
+                                        && isLegacyWithoutZone(st.recovery().prescription()))));
     }
 
     /**
@@ -80,7 +85,21 @@ public class PrescriptionZoneMapper {
                 mapPrescription(b.prescription(), zonesByName, fallback),
                 mapRecovery(b.recovery(), zonesByName, fallback),
                 b.rpe(), b.note(), b.drillIds(),
-                b.sets(), mapRecovery(b.setRecovery(), zonesByName, fallback))).toList();
+                b.sets(), mapRecovery(b.setRecovery(), zonesByName, fallback),
+                mapSteps(b.stepList(), zonesByName, fallback))).toList();
+    }
+
+    /** Mêmes règles pour les étapes d'un enchaînement : chacune porte sa propre prescription. */
+    private List<com.coachrun.dto.session.CourseStep> mapSteps(
+            List<com.coachrun.dto.session.CourseStep> steps, Map<String, UUID> zonesByName, UUID fallback) {
+        if (steps.isEmpty()) {
+            return steps;
+        }
+        return steps.stream().map(st -> new com.coachrun.dto.session.CourseStep(
+                st.id(), st.distanceM(), st.durationS(),
+                mapPrescription(st.prescription(), zonesByName, fallback),
+                mapRecovery(st.recovery(), zonesByName, fallback),
+                st.rpe(), st.note())).toList();
     }
 
     private CourseRecovery mapRecovery(CourseRecovery r, Map<String, UUID> zonesByName, UUID fallback) {

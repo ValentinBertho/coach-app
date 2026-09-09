@@ -1,5 +1,6 @@
 package com.coachrun.util;
 
+import com.coachrun.entity.enums.ActivitySport;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -42,7 +43,47 @@ public final class GpxParser {
                 ActivityTrack.distanceM(positioned), durationS,
                 ActivityTrack.elevationGainM(points), ActivityTrack.avgHr(points),
                 ActivityTrack.downsample(positioned), ActivityTrack.buildStream(points),
-                readTcxLaps(content));
+                readTcxLaps(content), readSport(content));
+    }
+
+    /**
+     * Sport déclaré par le fichier : attribut {@code Sport} de l'{@code <Activity>} d'un TCX
+     * («&nbsp;Running&nbsp;», «&nbsp;Biking&nbsp;»), ou balise {@code <type>} de la trace d'un GPX.
+     *
+     * <p>Les deux arrivaient déjà dans le fichier et n'étaient pas lus. Sans eux, une sortie à
+     * vélo importée à la main n'est qu'une date, une distance et une durée — de quoi aller se
+     * rapprocher du fractionné prescrit le même jour.</p>
+     *
+     * <p>{@code null} quand rien n'est déclaré, et aussi quand un TCX annonce «&nbsp;Other&nbsp;» :
+     * les montres y rangent tout ce qu'elles ne savent pas nommer, course à pied comprise. Mieux
+     * vaut ne rien affirmer que d'exclure à tort.</p>
+     */
+    private static ActivitySport readSport(byte[] content) {
+        try {
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            dbf.setNamespaceAware(false);
+            var doc = dbf.newDocumentBuilder().parse(new ByteArrayInputStream(content));
+
+            NodeList activities = doc.getElementsByTagName("Activity");
+            for (int i = 0; i < activities.getLength(); i++) {
+                ActivitySport sport = ActivitySport.fromXmlLabel(
+                        ((Element) activities.item(i)).getAttribute("Sport"));
+                if (sport != null) {
+                    return sport;
+                }
+            }
+            NodeList types = doc.getElementsByTagName("type");
+            for (int i = 0; i < types.getLength(); i++) {
+                ActivitySport sport = ActivitySport.fromXmlLabel(types.item(i).getTextContent());
+                if (sport != null) {
+                    return sport;
+                }
+            }
+            return null;
+        } catch (Exception e) {
+            return null; // le sport est un bonus : son absence n'invalide pas le fichier
+        }
     }
 
     /**

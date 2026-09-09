@@ -147,6 +147,6 @@ class SessionAdaptationEngineTest {
     private CourseBlock block(String type, Integer reps, Integer distanceM, Integer durationS,
                               CoursePrescription rx) {
         return new CourseBlock(UUID.randomUUID().toString(), type, reps, distanceM, durationS,
-                rx, null, null, null, List.of(), 1, null);
+                rx, null, null, null, List.of(), 1, null, List.of());
     }
 }

@@ -3,7 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../icon/icon.component';
 import { CategoryOption, SessionCategory, categoryOptions } from '../../../core/models/session-category.model';
-import { CourseBlock, CourseStructureResponse, courseBlockTypeLabel } from '../../../core/models/course.model';
+import {
+  CourseBlock, CourseStep, CourseStructureResponse, courseBlockTypeLabel, isChainBlock,
+} from '../../../core/models/course.model';
 import { TrainingZone } from '../../../core/models/training-zone.model';
 import { CourseService } from '../../../core/services/course.service';
 import { TrainingZoneService } from '../../../core/services/training-zone.service';
@@ -54,9 +56,13 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                   <div class="sd-block">
                     <span class="sd-vol metric">{{ volume(b) }}</span>
                     <span class="sd-type">{{ typeLabel(b.type) }}</span>
-                    <span class="sd-zone">
-                      <span class="dot" [style.background]="zoneColor(b)"></span>{{ zoneLabel(b) }}
-                    </span>
+                    <!-- Un enchaînement n'a pas de zone à lui : ce sont ses allures qui en ont
+                         une, listées juste dessous. -->
+                    @if (!isChain(b)) {
+                      <span class="sd-zone">
+                        <span class="dot" [style.background]="zoneColor(b)"></span>{{ zoneLabel(b) }}
+                      </span>
+                    }
                     <!-- Zone cardio du bloc (seconde échelle) : allure + FC côte à côte. -->
                     @if (hrZoneLabel(b); as hz) {
                       <span class="sd-zone sd-zone--hr">
@@ -71,6 +77,22 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
                       <span class="sd-rec">entre séries {{ sr }}</span>
                     }
                   </div>
+                  @if (isChain(b)) {
+                    <div class="sd-chain">
+                      @for (st of steps(b); track st.id) {
+                        <div class="sd-block sd-block--step">
+                          <span class="sd-vol metric">{{ stepVolume(st) }}</span>
+                          <span class="sd-zone">
+                            <span class="dot" [style.background]="zoneColor(st)"></span>{{ zoneLabel(st) }}
+                          </span>
+                          @if (st.rpe) { <span class="sd-rpe metric">RPE {{ st.rpe }}</span> }
+                          @if (st.recovery; as r) {
+                            <span class="sd-rec">récup {{ recoveryVol(r) }} · {{ zoneLabel(r) }}</span>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
                   @if (b.note) { <p class="sd-note">« {{ b.note }} »</p> }
                 }
               </section>
@@ -105,6 +127,10 @@ interface Section { key: 'warmup' | 'main' | 'cooldown'; label: string; }
     .sd-sec { margin-bottom: var(--sp-4); }
     .sd-sec h3 { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); margin: 0 0 var(--sp-2); }
     .sd-block { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius-md); margin-bottom: var(--sp-2); }
+    /* Les allures d'un enchaînement, décalées sous leur bloc : elles se courent l'une après
+       l'autre DANS une répétition, elles ne sont pas des blocs de plus. */
+    .sd-chain { margin: calc(-1 * var(--sp-1)) 0 var(--sp-2) var(--sp-4); padding-left: var(--sp-3); border-left: 2px solid var(--hairline); }
+    .sd-block--step { margin-bottom: var(--sp-1); border-style: dashed; }
     .sd-vol { font-weight: 800; min-width: 78px; }
     .sd-type { font-weight: 600; }
     .sd-zone { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--ink-2); }
@@ -179,6 +205,14 @@ export class SessionDetailModalComponent {
 
   volume(b: CourseBlock): string {
     return formatBlockSets(b) || '—';
+  }
+
+  isChain(b: CourseBlock): boolean { return isChainBlock(b); }
+
+  steps(b: CourseBlock): CourseStep[] { return b.steps ?? []; }
+
+  stepVolume(st: CourseStep): string {
+    return formatBlockVolume(st.distanceM, st.durationS) || '—';
   }
 
   /** Récupération entre séries, à annoncer dès que le bloc est répété. */

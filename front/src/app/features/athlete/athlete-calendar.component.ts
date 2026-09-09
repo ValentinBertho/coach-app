@@ -25,7 +25,9 @@ import { HelpHintComponent } from '../help/help-hint.component';
 import { CycleBannerComponent } from '../../shared/components/cycle-banner/cycle-banner.component';
 import { CalendarNote } from '../../core/models/calendar-note.model';
 import { WeekOutlook } from '../../core/models/decision.model';
-import { CalculatedBlockEntry, courseBlockTypeLabel, CourseBlock, WorkoutPrescription } from '../../core/models/course.model';
+import {
+  CalculatedBlockEntry, CalculatedStepEntry, courseBlockTypeLabel, CourseBlock, WorkoutPrescription,
+} from '../../core/models/course.model';
 import { RaceObjective } from '../../core/models/race.model';
 
 interface DayRow {
@@ -422,7 +424,36 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                          calculable. Seule l'allure était affichée, et uniquement quand elle existait :
                          « 5 × 2000 m » n'indiquait donc pas combien de temps on récupère entre les
                          répétitions — l'information qui fait la séance. -->
-                    @if (e.block.recovery) {
+                    <!-- Enchaînement : chaque allure avec sa cible, dans l'ordre où elle se
+                         court. Le bloc, lui, n'en porte aucune — un 200 lancé et un 400 en
+                         résistance ne se moyennent pas. -->
+                    @for (se of chainSteps(e); track se.step.id) {
+                      <div class="chain-step">
+                        <span class="blk-type">{{ chainStepVolume(se) }}</span>
+                        @if (se.calc?.computable) {
+                          <div class="targets">
+                            @if (se.calc!.paceMinLabel) {
+                              <span class="tgt"><app-icon name="footprints" [size]="13" /> {{ se.calc!.paceMinLabel }}–{{ se.calc!.paceMaxLabel }}/km</span>
+                            }
+                            @if (se.calc!.hrMin != null) {
+                              <span class="tgt"><app-icon name="heart-pulse" [size]="13" /> {{ se.calc!.hrMin }}–{{ se.calc!.hrMax }} bpm</span>
+                            }
+                            @if (se.calc!.rpeMin != null) {
+                              <span class="tgt">RPE {{ se.calc!.rpeMin }}–{{ se.calc!.rpeMax }}</span>
+                            }
+                          </div>
+                        }
+                        @if (se.step.recovery) {
+                          <div class="targets recov field-hint">
+                            récup{{ chainRecoveryVol(se) ? ' · ' + chainRecoveryVol(se) : '' }}
+                            @if (se.recoveryCalc?.computable && se.recoveryCalc!.paceMinLabel) {
+                              · {{ se.recoveryCalc!.paceMinLabel }}–{{ se.recoveryCalc!.paceMaxLabel }}/km
+                            }
+                          </div>
+                        }
+                      </div>
+                    }
+                    @if (e.block.recovery && !chainSteps(e).length) {
                       <div class="targets recov field-hint">
                         récup{{ recoveryVol(e) ? ' · ' + recoveryVol(e) : '' }}
                         @if (e.recoveryCalc?.computable && e.recoveryCalc!.paceMinLabel) {
@@ -663,6 +694,9 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     .det-notes { margin: 0; color: var(--ink-2); }
     .blocks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
     .blk { padding: var(--sp-2) 0; border-top: 1px solid var(--hairline); }
+    /* Les allures d'un enchaînement, décalées sous leur bloc : elles s'enchaînent DANS une
+       répétition, elles ne sont pas des blocs de plus dans la séance. */
+    .chain-step { margin: var(--sp-2) 0 0 var(--sp-3); padding-left: var(--sp-3); border-left: 2px solid var(--hairline); }
     .blk:first-child { border-top: none; }
     .blk-hd { display: flex; align-items: center; gap: var(--sp-2); }
     .blk-type { font-weight: 700; color: var(--ink); }
@@ -1295,6 +1329,20 @@ export class AthleteCalendarComponent implements OnInit {
     const r = e.block.setRecovery;
     if (!r || (e.block.sets ?? 1) <= 1) return '';
     return formatBlockVolume(r.distanceM, r.durationS);
+  }
+
+  /** Les allures d'un enchaînement ; liste vide pour un bloc simple. */
+  chainSteps(e: CalculatedBlockEntry): CalculatedStepEntry[] {
+    return e.steps ?? [];
+  }
+
+  chainStepVolume(se: CalculatedStepEntry): string {
+    return formatBlockVolume(se.step.distanceM, se.step.durationS) || '—';
+  }
+
+  chainRecoveryVol(se: CalculatedStepEntry): string {
+    const r = se.step.recovery;
+    return r ? formatBlockVolume(r.distanceM, r.durationS) : '';
   }
 
   recoveryVol(e: CalculatedBlockEntry): string {

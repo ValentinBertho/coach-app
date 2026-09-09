@@ -57,6 +57,7 @@ public final class FitParser {
     private Integer sessionDurationS;
     private Integer sessionAscentM;
     private Integer sessionAvgHr;
+    private com.coachrun.entity.enums.ActivitySport sessionSport;
 
     /** Distance cumulée du dernier point : repli quand le message de session manque. */
     private Double lastRecordDistanceM;
@@ -285,7 +286,12 @@ public final class FitParser {
                 case 9 -> sessionDistanceM = (int) Math.round(v / 100.0);
                 case 16 -> sessionAvgHr = positive(v);
                 case 22 -> sessionAscentM = positive(v);
-                default -> { /* sport, calories, vitesse moyenne… : dérivables ou inutiles */ }
+                // Le sport déclaré par la montre. Il était explicitement ignoré ici — « dérivable
+                // ou inutile ». Il ne l'était pas : c'est la seule chose qui distingue, dans le
+                // fichier, une séance de renforcement d'un fractionné de même durée.
+                case 5 -> sessionSport = com.coachrun.entity.enums.ActivitySport.fromFit(
+                        (int) Math.round(v));
+                default -> { /* calories, vitesse moyenne… : dérivables ou inutiles */ }
             }
         }
         Double duration = timer != null ? timer : elapsed;
@@ -332,7 +338,8 @@ public final class FitParser {
                 ActivityTrack.downsample(positioned), ActivityTrack.buildStream(points),
                 // Un tour unique n'en est pas un : la montre a enregistré la sortie d'un bloc.
                 // Même règle que le TCX, pour que les deux formats se lisent pareil.
-                laps.size() > 1 ? List.copyOf(laps) : List.of());
+                laps.size() > 1 ? List.copyOf(laps) : List.of(),
+                sessionSport);
     }
 
     // --- Lecture bas niveau ------------------------------------------------

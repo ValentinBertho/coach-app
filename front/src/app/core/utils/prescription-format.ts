@@ -27,6 +27,8 @@ export interface BlockVolume {
   durationS?: number | null;
   reps?: number | null;
   sets?: number | null;
+  /** Étapes d'un enchaînement — « 8 × (200 m / 400 m) ». Absentes pour un bloc simple. */
+  steps?: { distanceM?: number | null; durationS?: number | null }[] | null;
 }
 
 /**
@@ -88,7 +90,7 @@ export function formatBlockVolume(
  * @returns chaîne vide si le bloc ne porte aucun volume
  */
 export function formatBlockSets(block: BlockVolume): string {
-  const unit = formatBlockVolume(block.distanceM, block.durationS);
+  const unit = formatChain(block) || formatBlockVolume(block.distanceM, block.durationS);
   if (!unit) {
     return '';
   }
@@ -96,4 +98,18 @@ export function formatBlockSets(block: BlockVolume): string {
   const sets = block.sets ?? 1;
   const repeated = reps > 1 ? `${reps} × ${unit}` : unit;
   return sets > 1 ? `${sets} × (${repeated})` : repeated;
+}
+
+/**
+ * Le contenu d'une répétition d'enchaînement : « (200 m / 400 m) ».
+ *
+ * <p>Les parenthèses sont ici indispensables : « 8 × 200 m / 400 m » se lit comme une division,
+ * et le bloc de l'athlète — huit fois un 200 <b>puis</b> un 400 — n'est pas cela. Chaîne vide
+ * pour un bloc simple, qui garde son écriture d'origine au mètre près.</p>
+ */
+export function formatChain(block: BlockVolume): string {
+  const parts = (block.steps ?? [])
+    .map((st) => formatBlockVolume(st.distanceM, st.durationS))
+    .filter((v) => !!v);
+  return parts.length ? `(${parts.join(' / ')})` : '';
 }
