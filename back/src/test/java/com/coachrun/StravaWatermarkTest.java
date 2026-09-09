@@ -97,7 +97,7 @@ class StravaWatermarkTest {
     }
 
     private StravaActivity activity(String startDate, String startDateLocal) {
-        return new StravaActivity(1L, "Afternoon Run", "Run", 14418.0, 4351, null, null, null,
+        return new StravaActivity(1L, "Afternoon Run", "Run", "Run", 14418.0, 4351, null, null, null,
                 null, null, null, null, null, null, null, null, null, startDateLocal, startDate);
     }
 }

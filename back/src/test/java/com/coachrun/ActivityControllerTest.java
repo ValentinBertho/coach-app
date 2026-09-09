@@ -159,6 +159,127 @@ class ActivityControllerTest {
                 .put("token", token).put("clubId", clubId).put("athleteId", athleteId);
     }
 
+    /**
+     * La journée rapportée en bêta, rejouée dans l'ordre où elle est arrivée.
+     *
+     * <p>Un fractionné prescrit — « Endurance · Séance 8x(200/400) », 13,3 km en 59 min — et cinq
+     * sorties le même jour : une sortie gravel, une séance de renforcement, deux footings et le
+     * fractionné. C'est la <b>musculation</b> qui a emporté la séance : 29 min contre 59 prévues,
+     * distance nulle lue comme « non renseignée », score 0,75 — pendant que le fractionné
+     * réellement couru, dont la montre n'avait gardé que la partie rapide, restait affiché
+     * « non rattachée ».</p>
+     *
+     * <p>Deux corrections, et elles sont indissociables : le <b>sport</b> écarte la musculation et
+     * le vélo, et l'<b>arbitrage</b> ne laisse plus le premier footing importé garder la séance
+     * quand le fractionné arrive derrière lui. La séance doit finir sur le 8*(200/400), et le
+     * footing repartir « non rattachée ».</p>
+     */
+    @Test
+    void theDaysBestOutingTakesTheWorkoutWhateverTheImportOrder() throws Exception {
+        MockMvc mvc = mockMvc();
+        JsonNode ctx = clubWithAthlete(mvc, "day");
+        String token = ctx.get("token").asText();
+        String clubId = ctx.get("clubId").asText();
+        String athleteId = ctx.get("athleteId").asText();
+
+        mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"scheduledDate":"2026-09-08","type":"INTERVALS",
+                                 "title":"Endurance · Séance 8x(200/400)",
+                                 "targetDistanceM":13300,"targetDurationS":3540}"""))
+                .andExpect(status().isCreated());
+
+        // 1. La sortie gravel : jamais candidate à une séance de course à pied.
+        mvc.perform(importOf(clubId, athleteId, token, "1", "Afternoon Gravel Ride", "RIDE", 11520, 1920))
+                .andExpect(jsonPath("$.status").value("UNMATCHED"));
+
+        // 2. La séance de renforcement : c'est elle qui emportait la séance prescrite.
+        mvc.perform(importOf(clubId, athleteId, token, "2", "Entraînement aux poids le midi",
+                        "STRENGTH", 0, 1740))
+                .andExpect(jsonPath("$.status").value("UNMATCHED"));
+
+        // 3. Le footing d'échauffement, enregistré à part : rapproché faute de mieux, pour
+        //    l'instant — c'est bien la meilleure sortie connue à cet instant.
+        String warmup = objectMapper.readTree(
+                        mvc.perform(importOf(clubId, athleteId, token, "3", "Course à pied en soirée",
+                                        "RUN", 4810, 1380))
+                                .andExpect(jsonPath("$.status").value("MATCHED"))
+                                .andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        // 4. Le fractionné, arrivé après : il reprend la séance, et le footing la rend.
+        mvc.perform(importOf(clubId, athleteId, token, "4", "8*(200/400)", "RUN", 6220, 1500))
+                .andExpect(jsonPath("$.status").value("MATCHED"))
+                .andExpect(jsonPath("$.title").value("8*(200/400)"));
+
+        JsonNode all = objectMapper.readTree(mvc.perform(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .get("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        for (JsonNode a : all) {
+            String expected = "8*(200/400)".equals(a.get("title").asText()) ? "MATCHED" : "UNMATCHED";
+            org.assertj.core.api.Assertions.assertThat(a.get("status").asText())
+                    .as("statut de « %s »", a.get("title").asText())
+                    .isEqualTo(expected);
+        }
+        org.assertj.core.api.Assertions.assertThat(
+                        all.findValues("id").stream().map(JsonNode::asText).toList())
+                .contains(warmup);
+    }
+
+    /** Un rapprochement décidé à la main ne se fait pas déloger par l'import suivant. */
+    @Test
+    void aManualMatchSurvivesABetterCandidate() throws Exception {
+        MockMvc mvc = mockMvc();
+        JsonNode ctx = clubWithAthlete(mvc, "manual");
+        String token = ctx.get("token").asText();
+        String clubId = ctx.get("clubId").asText();
+        String athleteId = ctx.get("athleteId").asText();
+
+        String workoutId = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                                .header("Authorization", "Bearer " + token)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"scheduledDate":"2026-09-08","type":"ENDURANCE","title":"Footing",
+                                         "targetDistanceM":10000,"targetDurationS":3000}"""))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        String chosen = objectMapper.readTree(
+                        mvc.perform(importOf(clubId, athleteId, token, "10", "Sortie du soir",
+                                        "RUN", 5000, 1500))
+                                .andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        // Le coach tranche : c'est cette sortie-là qui réalise la séance.
+        mvc.perform(post("/clubs/{c}/athletes/{a}/activities/{id}/match/{w}",
+                        clubId, athleteId, chosen, workoutId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk());
+
+        // Une sortie objectivement plus proche arrive ensuite : elle ne reprend pas la séance.
+        mvc.perform(importOf(clubId, athleteId, token, "11", "Sortie", "RUN", 10050, 3010))
+                .andExpect(jsonPath("$.status").value("UNMATCHED"));
+    }
+
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder importOf(
+            String clubId, String athleteId, String token, String externalId, String title,
+            String sport, int distanceM, int durationS) {
+        return post("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"source":"STRAVA","externalId":"%s","activityDate":"2026-09-08",
+                         "title":"%s","sport":"%s","distanceM":%d,"durationS":%d,
+                         "confirmDuplicate":true}"""
+                        .formatted(externalId, title, sport, distanceM, durationS));
+    }
+
     @Test
     void matchedActivityIsExposedOnTheWorkout() throws Exception {
         MockMvc mvc = mockMvc();

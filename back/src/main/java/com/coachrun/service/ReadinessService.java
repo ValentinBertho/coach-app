@@ -228,14 +228,32 @@ public class ReadinessService {
     }
 
     private String blockLabel(CourseBlock b) {
-        String volume = b.distanceM() != null ? formatDistance(b.distanceM())
-                : b.durationS() != null ? (b.durationS() / 60) + " min"
-                : null;
+        String volume = b.isChain() ? chainVolume(b) : simpleVolume(b);
         if (volume == null) {
             return null;
         }
         int reps = b.repCount();
         return reps > 1 ? reps + " × " + volume : volume;
+    }
+
+    private String simpleVolume(CourseBlock b) {
+        return b.distanceM() != null ? formatDistance(b.distanceM())
+                : b.durationS() != null ? (b.durationS() / 60) + " min"
+                : null;
+    }
+
+    /**
+     * « (200 m / 400 m) » — les étapes d'un enchaînement, séparées comme un coach les écrit. Sans
+     * ce cas, le bloc n'avait ni distance ni durée à lui et le résumé de la séance sautait la
+     * partie qui en fait tout l'intérêt.
+     */
+    private String chainVolume(CourseBlock b) {
+        List<String> parts = b.stepList().stream()
+                .map(st -> st.distanceM() != null ? formatDistance(st.distanceM())
+                        : st.durationS() != null ? (st.durationS() / 60) + " min" : null)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return parts.isEmpty() ? null : "(" + String.join(" / ", parts) + ")";
     }
 
     private String formatDistance(int m) {

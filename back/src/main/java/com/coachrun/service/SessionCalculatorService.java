@@ -134,18 +134,56 @@ public class SessionCalculatorService {
             return entries;
         }
         for (CourseBlock block : blocks) {
-            CalculatedBlockResponse calc = calcBlock(block, ctx, zoneTargets);
-            CalculatedBlockResponse recoveryCalc = calcRecovery(block.recovery(), ctx, zoneTargets);
-            boolean computable = calc != null && calc.computable();
-            Integer distance = computable ? calc.estimatedDistanceM() : null;
-            Integer duration = computable ? calc.estimatedDurationS() : null;
-            // Estimation d'abord, structure ensuite : chaque grandeur connue est comptée une fois.
-            totals.distanceM += distance != null ? distance : writtenDistanceM(block);
-            totals.durationS += duration != null ? duration : writtenDurationS(block);
-            totals.durationS += recoveryDurationS(block);
-            entries.add(new CalculatedBlockEntry(block, calc, recoveryCalc));
+            entries.add(block.isChain()
+                    ? calcChain(block, ctx, zoneTargets, totals)
+                    : calcSimple(block, ctx, zoneTargets, totals));
         }
         return entries;
+    }
+
+    private CalculatedBlockEntry calcSimple(CourseBlock block, AthletePaceContext ctx,
+                                            ZoneTargets zoneTargets, Totals totals) {
+        CalculatedBlockResponse calc = calcBlock(block, ctx, zoneTargets);
+        CalculatedBlockResponse recoveryCalc = calcRecovery(block.recovery(), ctx, zoneTargets);
+        boolean computable = calc != null && calc.computable();
+        Integer distance = computable ? calc.estimatedDistanceM() : null;
+        Integer duration = computable ? calc.estimatedDurationS() : null;
+        // Estimation d'abord, structure ensuite : chaque grandeur connue est comptée une fois.
+        totals.distanceM += distance != null ? distance : writtenDistanceM(block);
+        totals.durationS += duration != null ? duration : writtenDurationS(block);
+        totals.durationS += recoveryDurationS(block);
+        return new CalculatedBlockEntry(block, calc, recoveryCalc);
+    }
+
+    /**
+     * Bloc enchaîné : chaque étape a sa propre allure, donc son propre calcul.
+     *
+     * <p>Une seule cible pour le bloc entier ne dirait rien de « 8 × (200 m / 400 m) » — les 200
+     * se courent à 2'48/km et les 400 à 3'20/km, et c'est exactement pour cette raison que le bloc
+     * simple ne suffisait pas. Le total du bloc, lui, s'additionne étape par étape et se multiplie
+     * par les répétitions puis les séries, comme n'importe quel bloc.</p>
+     */
+    private CalculatedBlockEntry calcChain(CourseBlock block, AthletePaceContext ctx,
+                                           ZoneTargets zoneTargets, Totals totals) {
+        List<CalculatedSessionResponse.CalculatedStepEntry> steps = new ArrayList<>();
+        int repeats = block.repCount() * block.setCount();
+        for (com.coachrun.dto.session.CourseStep step : block.stepList()) {
+            // Le calcul d'une étape est celui d'un bloc d'une seule répétition : ce sont les
+            // répétitions du bloc qui la répètent, et les compter ici les compterait deux fois.
+            CalculatedBlockResponse calc = calcPrescription(step.prescription(), 1,
+                    step.distanceM(), step.durationS(), ctx, zoneTargets);
+            CalculatedBlockResponse recoveryCalc = calcRecovery(step.recovery(), ctx, zoneTargets);
+            boolean computable = calc != null && calc.computable();
+            Integer distance = computable ? calc.estimatedDistanceM() : step.distanceM();
+            Integer duration = computable ? calc.estimatedDurationS() : step.durationS();
+            totals.distanceM += (distance == null ? 0 : distance) * repeats;
+            totals.durationS += (duration == null ? 0 : duration) * repeats;
+            steps.add(new CalculatedSessionResponse.CalculatedStepEntry(step, calc, recoveryCalc));
+        }
+        totals.durationS += chainRecoveryDurationS(block);
+        // Pas de cible au niveau du bloc : elle appartient aux étapes, et en inventer une
+        // reviendrait à moyenner deux allures qui n'ont rien à voir.
+        return new CalculatedBlockEntry(block, null, null, steps);
     }
 
     /**
@@ -202,32 +240,75 @@ public class SessionCalculatorService {
     }
 
     /**
+     * Récupérations d'un bloc enchaîné : chaque étape est suivie de la sienne, à chaque répétition
+     * et à chaque série.
+     *
+     * <p>Même règle que pour un bloc simple — la dernière récupération compte aussi, une côte se
+     * termine en haut — et même exception : entre deux séries, la récup de série <b>remplace</b>
+     * celle qui suivait la dernière étape, elle ne s'y ajoute pas.</p>
+     */
+    private int chainRecoveryDurationS(CourseBlock block) {
+        int sets = block.setCount();
+        boolean hasSetRecovery = sets > 1 && block.setRecovery() != null
+                && block.setRecovery().durationS() != null;
+        int setBoundaries = hasSetRecovery ? sets - 1 : 0;
+
+        int perRepetition = 0;
+        for (com.coachrun.dto.session.CourseStep step : block.stepList()) {
+            if (step.recovery() != null && step.recovery().durationS() != null) {
+                perRepetition += step.recovery().durationS();
+            }
+        }
+        int total = perRepetition * block.repCount() * sets;
+
+        if (hasSetRecovery) {
+            total += block.setRecovery().durationS() * setBoundaries;
+            // Ce que la récup de série remplace : la récup de la dernière étape de chaque série,
+            // sauf la toute dernière du bloc, qui n'a aucune série après elle.
+            List<com.coachrun.dto.session.CourseStep> steps = block.stepList();
+            CourseRecovery last = steps.get(steps.size() - 1).recovery();
+            if (last != null && last.durationS() != null) {
+                total -= last.durationS() * setBoundaries;
+            }
+        }
+        return total;
+    }
+
+    /**
      * Cibles d'un bloc. Les répétitions passées au moteur incluent les séries : pour le volume,
      * « 2 × (6 × 400 m) » vaut 12 × 400 m, et c'est cette estimation que reprennent ensuite les
      * totaux de séance et la charge prévue.
      */
     private CalculatedBlockResponse calcBlock(CourseBlock block, AthletePaceContext ctx,
                                               ZoneTargets zoneTargets) {
-        CoursePrescription p = block.prescription();
+        return calcPrescription(block.prescription(), block.repCount() * block.setCount(),
+                block.distanceM(), block.durationS(), ctx, zoneTargets);
+    }
+
+    /**
+     * Cœur du calcul, partagé par un bloc et par une étape d'enchaînement : les deux prescrivent
+     * de la même façon (zone, ou fourchette écrite à la main), seul leur volume diffère.
+     */
+    private CalculatedBlockResponse calcPrescription(CoursePrescription p, int reps,
+                                                     Integer distanceM, Integer durationS,
+                                                     AthletePaceContext ctx, ZoneTargets zoneTargets) {
         if (p == null) {
             return null;
         }
-        int reps = block.repCount() * block.setCount();
         // Fourchette écrite par le coach : elle prime sur la zone, y compris sur celle que la
         // migration douce a pu déduire du même couple ref + %.
         if (p.isCustomRange()) {
             return CalculatedBlockResponse.from(engine.calculate(new PrescriptionInput(
-                    p.ref(), p.minPct(), p.maxPct(), reps, block.distanceM(), block.durationS()), ctx));
+                    p.ref(), p.minPct(), p.maxPct(), reps, distanceM, durationS), ctx));
         }
         if (p.hasZone()) {
-            return calcZone(p.zoneId(), p.hrZoneId(), reps, block.distanceM(), block.durationS(),
-                    zoneTargets);
+            return calcZone(p.zoneId(), p.hrZoneId(), reps, distanceM, durationS, zoneTargets);
         }
         if (p.ref() == null || p.minPct() == null || p.maxPct() == null) {
             return null;
         }
         PrescriptionInput input = new PrescriptionInput(
-                p.ref(), p.minPct(), p.maxPct(), reps, block.distanceM(), block.durationS());
+                p.ref(), p.minPct(), p.maxPct(), reps, distanceM, durationS);
         return CalculatedBlockResponse.from(engine.calculate(input, ctx));
     }
 

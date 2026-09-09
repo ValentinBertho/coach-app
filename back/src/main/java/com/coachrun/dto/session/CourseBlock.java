@@ -8,6 +8,17 @@ package com.coachrun.dto.session;
  * répétitions <b>dans</b> une série (« 6 × 400 m »), {@code sets} compte les séries elles-mêmes
  * (« 2 × (6 × 400 m) »). Le second manquait : un coach qui écrivait un bloc à doubler devait le
  * saisir deux fois, et le retoucher deux fois à chaque ajustement.</p>
+ *
+ * <h2>Bloc simple ou enchaînement</h2>
+ *
+ * <p>{@code steps} vide (le cas de toute séance écrite jusqu'ici) : le bloc est <b>simple</b>, il
+ * répète {@code reps} fois le même effort, décrit par {@code distanceM}/{@code durationS} et
+ * {@code prescription}, avec {@code recovery} entre les répétitions.</p>
+ *
+ * <p>{@code steps} renseigné : le bloc est un <b>enchaînement</b>. Chaque répétition parcourt les
+ * étapes dans l'ordre, chacune avec sa propre allure et sa propre récupération — « 8 × (200 m /
+ * 400 m), 100 m de récup entre chaque ». Le volume et la prescription du bloc lui-même ne sont
+ * alors pas lus : ce sont les étapes qui les portent.</p>
  */
 public record CourseBlock(
         String id,
@@ -25,8 +36,28 @@ public record CourseBlock(
         /** Nombre de séries : le bloc entier (répétitions et récupération) est répété d'autant. */
         Integer sets,
         /** Récupération entre deux séries — plus longue que celle entre répétitions. */
-        CourseRecovery setRecovery
+        CourseRecovery setRecovery,
+        /**
+         * Étapes enchaînées <b>à l'intérieur</b> de chaque répétition, ou vide pour un bloc simple.
+         * Voir {@link CourseStep} : c'est ce qui permet d'écrire « 8 × (200 m / 400 m) » à deux
+         * allures distinctes en un seul bloc.
+         */
+        java.util.List<CourseStep> steps
 ) {
+
+    /**
+     * Étapes du bloc, jamais {@code null}. Vide = bloc simple, et c'est ce que vaut toute séance
+     * écrite avant l'existence des enchaînements : le repli garantit que leurs totaux et leur
+     * affichage ne bougent pas.
+     */
+    public java.util.List<CourseStep> stepList() {
+        return steps == null ? java.util.List.of() : steps;
+    }
+
+    /** Ce bloc enchaîne-t-il plusieurs efforts par répétition ? */
+    public boolean isChain() {
+        return !stepList().isEmpty();
+    }
 
     /**
      * Nombre de séries effectif. Une séance écrite avant l'existence des séries n'en porte aucune,

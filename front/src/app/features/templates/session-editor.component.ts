@@ -14,7 +14,8 @@ import { PhysioService } from '../../core/services/physio.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import {
   CalculatedBlock, COURSE_BLOCK_TYPE_LABELS, CourseBlock, CourseBlockType, CoursePrescription,
-  CourseRecovery, PRESCRIPTION_REF_LABELS, PRESCRIPTION_REF_SHORT, PrescriptionRef, SessionStructure,
+  CourseRecovery, CourseStep, isChainBlock, PRESCRIPTION_REF_LABELS, PRESCRIPTION_REF_SHORT,
+  PrescribedUnit, PrescriptionRef, SessionStructure,
 } from '../../core/models/course.model';
 import { PhysioProfile } from '../../core/models/physio.model';
 import { RunDrill } from '../../core/models/run-drill.model';
@@ -84,6 +85,11 @@ function toUnit(durationS: number | null | undefined, distanceM: number | null |
  * C'est la lecture d'un coureur, et c'est celle qui manquait — une récupération de 90 s affichée
  * « 1.5 min » (ou arrondie à 2 min plus loin dans l'application) n'est pas la même séance.</p>
  */
+/** Identifiant local d'un bloc ou d'une étape : il ne vit que dans le JSON de la structure. */
+function newId(): string {
+  return 'b-' + Math.random().toString(36).slice(2, 9);
+}
+
 export function volumeText(durationS: number | null | undefined,
                            distanceM: number | null | undefined, unit: VolumeUnit): string {
   if (unit === 'min' && durationS != null && distanceM == null && durationS % 60 !== 0) {
@@ -282,12 +288,12 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   }
 
   /** Choix de zone d'un bloc (via le sélecteur riche) → met à jour la prescription + recalcule. */
-  onBlockZone(b: CourseBlock, zoneId: string): void {
+  onBlockZone(b: PrescribedUnit, zoneId: string, owner?: CourseBlock): void {
     if (!b.prescription) b.prescription = { zoneId };
     else b.prescription.zoneId = zoneId;
     // Une zone cardio ne se double pas d'une seconde cible FC : elle en porte déjà une.
     if (b.prescription.hrZoneId && this.isCardioZone(zoneId)) b.prescription.hrZoneId = null;
-    this.onBlockEdited(b);
+    this.edited(b, owner);
   }
 
   /** Zones portant la métrique FC (échelle cardio) — celles qu'on peut ajouter en second. */
@@ -351,37 +357,39 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   private readonly zoneBeforePct = signal<Record<string, string | null>>({});
 
   /** Le bloc est-il prescrit en fourchette de % plutôt que par une zone ? */
-  usesPct(b: CourseBlock): boolean {
+  usesPct(b: PrescribedUnit): boolean {
     return !!b.prescription?.custom && !!b.prescription?.ref;
   }
 
   /** Référentiel court affiché à côté des bornes (« % de VC »). */
-  pctRefShort(b: CourseBlock): string {
+  pctRefShort(b: PrescribedUnit): string {
     const ref = b.prescription?.ref;
     return ref ? PRESCRIPTION_REF_SHORT[ref] : '';
   }
 
   /** Passe le bloc en allure sur mesure, en partant d'une fourchette usuelle pour son type. */
-  switchToPct(b: CourseBlock): void {
-    const d = this.PCT_DEFAULTS[b.type] ?? { ref: 'PCT_LT2' as PrescriptionRef, minPct: 90, maxPct: 100 };
+  switchToPct(b: PrescribedUnit, owner?: CourseBlock): void {
+    const type = (owner ?? (b as CourseBlock)).type;
+    const d = this.PCT_DEFAULTS[type] ?? { ref: 'PCT_LT2' as PrescriptionRef, minPct: 90, maxPct: 100 };
     this.zoneBeforePct.update((m) => ({ ...m, [b.id]: b.prescription?.zoneId ?? null }));
     // La zone disparaît : elle primerait sur le %. La zone cardio aussi — le chemin en %
     // estime la FC par interpolation depuis les seuils, il n'en lit aucune.
     b.prescription = { zoneId: null, hrZoneId: null, ref: d.ref, minPct: d.minPct, maxPct: d.maxPct, custom: true };
-    this.onBlockEdited(b);
+    this.edited(b, owner);
   }
 
   /** Revient à une prescription par zone (celle d'avant le passage en %, si elle existait). */
-  switchToZone(b: CourseBlock): void {
-    const previous = this.zoneBeforePct()[b.id] ?? this.defaultZoneIdForType(b.type);
+  switchToZone(b: PrescribedUnit, owner?: CourseBlock): void {
+    const type = (owner ?? (b as CourseBlock)).type;
+    const previous = this.zoneBeforePct()[b.id] ?? this.defaultZoneIdForType(type);
     b.prescription = { zoneId: previous };
-    this.onBlockEdited(b);
+    this.edited(b, owner);
   }
 
-  setPctRef(b: CourseBlock, ref: PrescriptionRef): void {
+  setPctRef(b: PrescribedUnit, ref: PrescriptionRef, owner?: CourseBlock): void {
     if (!b.prescription) return;
     b.prescription.ref = ref;
-    this.onBlockEdited(b);
+    this.edited(b, owner);
   }
 
   /**
@@ -396,9 +404,10 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
    * saisie est finie : une borne basse au-dessus de la haute ferait refuser le calcul par le
    * serveur, et le coach n'aurait pour tout retour qu'une cible disparue.</p>
    */
-  setPctBoundText(b: CourseBlock, which: 'min' | 'max', input: HTMLInputElement): void {
+  setPctBoundText(b: PrescribedUnit, which: 'min' | 'max', input: HTMLInputElement,
+                  owner?: CourseBlock): void {
     if (b.prescription && this.applyPctBound(b.prescription, which, input.value)) {
-      this.onBlockEdited(b);
+      this.edited(b, owner);
     }
     input.value = String((which === 'min' ? b.prescription?.minPct : b.prescription?.maxPct) ?? '');
   }
@@ -429,18 +438,18 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   // une fourchette écrite pour la séance. Or c'est le même besoin : « récup à 65–70 % de LT1 » ne
   // rentre dans aucune bande nommée, et les zones ne se retouchent pas séance par séance.
 
-  recUsesPct(b: CourseBlock): boolean {
+  recUsesPct(b: PrescribedUnit): boolean {
     const p = b.recovery?.prescription;
     return !!p?.custom && !!p?.ref;
   }
 
-  recPctRefShort(b: CourseBlock): string {
+  recPctRefShort(b: PrescribedUnit): string {
     const ref = b.recovery?.prescription?.ref;
     return ref ? PRESCRIPTION_REF_SHORT[ref] : '';
   }
 
   /** Passe la récup en allure sur mesure, en partant d'une fourchette de récupération usuelle. */
-  switchRecToPct(b: CourseBlock): void {
+  switchRecToPct(b: PrescribedUnit): void {
     const r = b.recovery;
     if (!r) return;
     this.recZoneBeforePct.update((m) => ({ ...m, [b.id]: r.prescription?.zoneId ?? null }));
@@ -450,7 +459,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   }
 
   /** Revient à une récup prescrite par zone (celle d'avant, si elle existait). */
-  switchRecToZone(b: CourseBlock): void {
+  switchRecToZone(b: PrescribedUnit): void {
     const r = b.recovery;
     if (!r) return;
     r.prescription = { zoneId: this.recZoneBeforePct()[b.id] ?? this.zoneIdByName('Récupération') };
@@ -458,7 +467,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     this.touch();
   }
 
-  setRecPctRef(b: CourseBlock, ref: PrescriptionRef): void {
+  setRecPctRef(b: PrescribedUnit, ref: PrescriptionRef): void {
     const p = b.recovery?.prescription;
     if (!p) return;
     p.ref = ref;
@@ -466,7 +475,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     this.touch();
   }
 
-  setRecPctBoundText(b: CourseBlock, which: 'min' | 'max', input: HTMLInputElement): void {
+  setRecPctBoundText(b: PrescribedUnit, which: 'min' | 'max', input: HTMLInputElement): void {
     const p = b.recovery?.prescription;
     if (p && this.applyPctBound(p, which, input.value)) {
       this.recalcRecovery(b);
@@ -547,7 +556,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     this.isSimple() ? this.sections.filter((s) => s.key === 'main') : this.sections);
 
   /** Effort perçu (RPE 1–10) d'un bloc — propre au contenu de la séance. */
-  setBlockRpe(b: CourseBlock, value: number | null): void {
+  setBlockRpe(b: { rpe?: number | null }, value: number | null): void {
     b.rpe = value == null ? null : Math.max(1, Math.min(10, Math.round(value)));
     this.touch();
   }
@@ -585,6 +594,34 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     let hasAny = false;
     for (const sec of this.sections) {
       for (const b of this.structure()[sec.key]) {
+        const sets = this.setCount(b);
+        const reps = b.reps && b.reps > 1 ? b.reps : 1;
+        const setRecoveries = sets > 1 && b.setRecovery?.durationS ? sets - 1 : 0;
+
+        if (isChainBlock(b)) {
+          // Un enchaînement s'additionne étape par étape, puis se répète : « 8 × (200 / 400) »
+          // fait huit fois la somme de ses deux allures, récupérations comprises. La récup de
+          // série remplace, aux frontières de séries, celle qui suit la dernière étape.
+          const repeats = reps * sets;
+          const steps = this.steps(b);
+          for (const [i, st] of steps.entries()) {
+            const sc = calc[st.id];
+            if (sc?.computable) {
+              if (sc.estimatedDurationS) { durationS += sc.estimatedDurationS * repeats; hasAny = true; }
+              if (sc.estimatedDistanceM) { distanceM += sc.estimatedDistanceM * repeats; hasAny = true; }
+            }
+            const src = recCalc[st.id];
+            if (!st.recovery || !src?.computable) continue;
+            const isLast = i === steps.length - 1;
+            const times = repeats - (isLast ? setRecoveries : 0);
+            if (times <= 0) continue;
+            if (src.estimatedDurationS) durationS += src.estimatedDurationS * times;
+            if (src.estimatedDistanceM) distanceM += src.estimatedDistanceM * times;
+          }
+          if (setRecoveries) durationS += b.setRecovery!.durationS! * setRecoveries;
+          continue;
+        }
+
         const c = calc[b.id];
         if (!c?.computable) continue;
         if (c.estimatedDurationS) { durationS += c.estimatedDurationS; hasAny = true; }
@@ -593,10 +630,8 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
         // 1'15 » en compte dix, pas neuf : la descente après la dixième côte se court aussi, et
         // le total la doit à l'athlète. Entre deux séries, c'est la récup de série qui remplace
         // celle de la répétition — elle ne s'y ajoute pas.
-        const sets = this.setCount(b);
         const rc = recCalc[b.id];
-        const setRecoveries = sets > 1 && b.setRecovery?.durationS ? sets - 1 : 0;
-        const inter = (b.reps && b.reps > 1 ? b.reps : 1) * sets - setRecoveries;
+        const inter = reps * sets - setRecoveries;
         if (rc?.computable && inter > 0) {
           if (rc.estimatedDurationS) durationS += rc.estimatedDurationS * inter;
           if (rc.estimatedDistanceM) distanceM += rc.estimatedDistanceM * inter;
@@ -647,7 +682,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     // arrivent par les presets (10×400 m r1'…), qui portent leurs reps et leur récupération.
     const type = isMain ? 'easy' : (key === 'warmup' ? 'warmup' : 'cooldown');
     const base: CourseBlock = {
-      id: 'b-' + Math.random().toString(36).slice(2, 9),
+      id: newId(),
       type,
       reps: null,
       distanceM: null,
@@ -664,11 +699,11 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   }
 
   /** Mode de mesure d'un bloc : par distance ou par durée (jamais les deux). */
-  measureOf(b: CourseBlock): 'distance' | 'duration' {
+  measureOf(b: PrescribedUnit): 'distance' | 'duration' {
     return b.durationS != null && b.distanceM == null ? 'duration' : 'distance';
   }
 
-  setMeasure(b: CourseBlock, mode: 'distance' | 'duration'): void {
+  setMeasure(b: PrescribedUnit, mode: 'distance' | 'duration', owner?: CourseBlock): void {
     if (mode === 'duration') {
       b.distanceM = null;
       b.durationS = b.durationS ?? 600;
@@ -676,7 +711,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
       b.durationS = null;
       b.distanceM = b.distanceM ?? 1000;
     }
-    this.onBlockEdited(b);
+    this.edited(b, owner);
   }
 
   // --- Unités de volume : secondes / minutes / heures · mètres / kilomètres -----------------
@@ -697,22 +732,22 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   /** Zone de la récup avant son passage en %, pour pouvoir y revenir sans la retrouver à la main. */
   private readonly recZoneBeforePct = signal<Record<string, string | null>>({});
 
-  unitOf(b: CourseBlock): VolumeUnit {
+  unitOf(b: PrescribedUnit): VolumeUnit {
     return this.blockUnit()[b.id] ?? naturalUnit(b.durationS, b.distanceM, 'min');
   }
 
-  recUnitOf(b: CourseBlock): VolumeUnit {
+  recUnitOf(b: PrescribedUnit): VolumeUnit {
     const r = b.recovery;
     return this.recUnit()[b.id] ?? naturalUnit(r?.durationS ?? null, r?.distanceM ?? null, 's');
   }
 
   /** Valeur du bloc dans son unité d'affichage. */
-  volumeValue(b: CourseBlock): number | null {
+  volumeValue(b: PrescribedUnit): number | null {
     return toUnit(b.durationS, b.distanceM, this.unitOf(b));
   }
 
   /** Texte du champ de volume : « 1:30 » dès que la durée ne tombe pas sur la minute. */
-  volumeText(b: CourseBlock): string {
+  volumeText(b: PrescribedUnit): string {
     return volumeText(b.durationS, b.distanceM, this.unitOf(b));
   }
 
@@ -724,14 +759,14 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
    * <p>Le champ est renormalisé à la sortie : une saisie illisible ne doit pas rester affichée
    * comme si elle avait été prise en compte.</p>
    */
-  setVolumeText(b: CourseBlock, input: HTMLInputElement): void {
+  setVolumeText(b: PrescribedUnit, input: HTMLInputElement, owner?: CourseBlock): void {
     const seconds = parseMinSec(input.value);
     if (seconds != null) {
       // Une écriture sexagésimale est un temps, quelle que soit l'unité affichée : on bascule le
       // champ en minutes, seule unité où « 1:30 » se relit tel quel.
       this.blockUnit.update((m) => ({ ...m, [b.id]: 'min' }));
       applyUnit(b, 's', seconds);
-      this.onBlockEdited(b);
+      this.edited(b, owner);
     } else {
       const value = parseNumber(input.value);
       if (value !== undefined) {
@@ -740,7 +775,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
         const unit = this.unitOf(b);
         this.blockUnit.update((m) => ({ ...m, [b.id]: unit }));
         applyUnit(b, unit, value);
-        this.onBlockEdited(b);
+        this.edited(b, owner);
       }
     }
     input.value = this.volumeText(b);
@@ -751,26 +786,26 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
    * conservée — 600 s devient 10 min ; d'une famille à l'autre, la mesure bascule et repart
    * d'une valeur usuelle.
    */
-  setUnit(b: CourseBlock, unit: VolumeUnit): void {
+  setUnit(b: PrescribedUnit, unit: VolumeUnit, owner?: CourseBlock): void {
     this.blockUnit.update((m) => ({ ...m, [b.id]: unit }));
     if (isTime(unit) === (b.durationS != null && b.distanceM == null)) {
       return; // même famille : la valeur stockée ne bouge pas, seul l'affichage change
     }
-    this.setMeasure(b, isTime(unit) ? 'duration' : 'distance');
+    this.setMeasure(b, isTime(unit) ? 'duration' : 'distance', owner);
   }
 
-  recVolumeValue(b: CourseBlock): number | null {
+  recVolumeValue(b: PrescribedUnit): number | null {
     const r = b.recovery;
     return r ? toUnit(r.durationS ?? null, r.distanceM ?? null, this.recUnitOf(b)) : null;
   }
 
-  recVolumeText(b: CourseBlock): string {
+  recVolumeText(b: PrescribedUnit): string {
     const r = b.recovery;
     return r ? volumeText(r.durationS ?? null, r.distanceM ?? null, this.recUnitOf(b)) : '';
   }
 
   /** Même contrat que {@link setVolumeText}, pour la récupération entre répétitions. */
-  setRecVolumeText(b: CourseBlock, input: HTMLInputElement): void {
+  setRecVolumeText(b: PrescribedUnit, input: HTMLInputElement): void {
     if (!b.recovery) return;
     const seconds = parseMinSec(input.value);
     if (seconds != null) {
@@ -791,7 +826,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     input.value = this.recVolumeText(b);
   }
 
-  setRecUnit(b: CourseBlock, unit: VolumeUnit): void {
+  setRecUnit(b: PrescribedUnit, unit: VolumeUnit): void {
     this.recUnit.update((m) => ({ ...m, [b.id]: unit }));
     const r = b.recovery;
     if (!r || isTime(unit) === (r.durationS != null && r.distanceM == null)) return;
@@ -861,29 +896,146 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     input.value = this.seriesRecText(b);
   }
 
+  // --- Enchaînements : plusieurs allures dans une même répétition ------------
+  // « 8 × (200 m / 400 m) avec 100 m de récup entre chaque » n'avait aucune écriture : un bloc
+  // portait UNE distance et UNE allure, et les deux fractions se courent à des allures
+  // différentes. Le coach devait saisir seize blocs à la main — et les retoucher seize fois à
+  // chaque ajustement — pour écrire une séance que son athlète courait déjà.
+
+  isChain(b: CourseBlock): boolean { return isChainBlock(b); }
+
+  steps(b: CourseBlock): CourseStep[] { return b.steps ?? []; }
+
+  /**
+   * Transforme un bloc simple en enchaînement, sans rien perdre.
+   *
+   * <p>Le volume et l'allure du bloc deviennent sa <b>première</b> étape — le coach a déjà saisi
+   * un 200 m, il n'a pas à le ressaisir — et une seconde étape naît à côté, copie de la première,
+   * qu'il n'a plus qu'à passer à 400 m. La récupération du bloc suit la première étape : c'est
+   * bien là qu'elle se courait.</p>
+   */
+  toChain(b: CourseBlock): void {
+    if (isChainBlock(b)) return;
+    const first: CourseStep = {
+      id: newId(), distanceM: b.distanceM, durationS: b.durationS,
+      prescription: b.prescription ? { ...b.prescription } : null,
+      recovery: b.recovery ? { ...b.recovery } : null,
+      rpe: b.rpe ?? null, note: null,
+    };
+    const second: CourseStep = {
+      ...first, id: newId(),
+      prescription: first.prescription ? { ...first.prescription } : null,
+      recovery: first.recovery ? { ...first.recovery } : null,
+    };
+    b.steps = [first, second];
+    // Le bloc ne porte plus ni volume ni allure : ce sont ses étapes qui les portent, et laisser
+    // les anciennes valeurs en place ferait deux vérités pour une seule séance.
+    b.distanceM = null;
+    b.durationS = null;
+    b.recovery = null;
+    b.reps = b.reps ?? 8;
+    // La cible calculée du bloc n'a plus d'objet : la laisser en place afficherait, sous
+    // l'enchaînement, l'allure du bloc tel qu'il était avant sa conversion.
+    this.calc.update((m) => { const c = { ...m }; delete c[b.id]; return c; });
+    this.recCalc.update((m) => { const c = { ...m }; delete c[b.id]; return c; });
+    this.onBlockEdited(b);
+  }
+
+  /** Redevient un bloc simple : la première étape reprend sa place, les autres sont perdues. */
+  toSimple(b: CourseBlock): void {
+    const first = this.steps(b)[0];
+    if (first) {
+      b.distanceM = first.distanceM ?? null;
+      b.durationS = first.durationS ?? null;
+      b.prescription = first.prescription ?? b.prescription ?? null;
+      b.recovery = first.recovery ?? null;
+    }
+    b.steps = null;
+    this.onBlockEdited(b);
+  }
+
+  /** Ajoute une allure à l'enchaînement, copiée de la dernière — on ajuste, on ne ressaisit pas. */
+  addStep(b: CourseBlock): void {
+    const last = this.steps(b).at(-1);
+    const step: CourseStep = {
+      id: newId(),
+      distanceM: last?.distanceM ?? 200,
+      durationS: last?.durationS ?? null,
+      prescription: last?.prescription ? { ...last.prescription } : { zoneId: this.defaultZoneIdForType(b.type) },
+      recovery: last?.recovery ? { ...last.recovery } : null,
+      rpe: last?.rpe ?? null, note: null,
+    };
+    b.steps = [...this.steps(b), step];
+    this.recalcStep(step);
+    this.touch();
+  }
+
+  duplicateStep(b: CourseBlock, id: string): void {
+    const source = this.steps(b).find((st) => st.id === id);
+    if (!source) return;
+    const copy: CourseStep = {
+      ...source, id: newId(),
+      prescription: source.prescription ? { ...source.prescription } : null,
+      recovery: source.recovery ? { ...source.recovery } : null,
+    };
+    const at = this.steps(b).findIndex((st) => st.id === id);
+    b.steps = [...this.steps(b).slice(0, at + 1), copy, ...this.steps(b).slice(at + 1)];
+    this.recalcStep(copy);
+    this.touch();
+  }
+
+  /**
+   * Retire une allure. La dernière ne se retire pas d'ici : un enchaînement à une seule allure
+   * n'en est plus un, et c'est « redevenir un bloc simple » qu'il faut alors, pas un bloc vide.
+   */
+  removeStep(b: CourseBlock, id: string): void {
+    const rest = this.steps(b).filter((st) => st.id !== id);
+    if (rest.length === 0) {
+      this.toSimple(b);
+      return;
+    }
+    b.steps = rest;
+    this.touch();
+  }
+
+  /** Cible compacte d'une étape, lue dans la même table que celle des blocs (clé = son id). */
+  stepTargetLabel(stepId: string): string | null {
+    return this.compactTarget(this.calc()[stepId]);
+  }
+
   // --- Récupération inter-répétitions (fractionnés) --------------------------
 
-  hasRecovery(b: CourseBlock): boolean { return !!b.recovery; }
+  hasRecovery(b: PrescribedUnit): boolean { return !!b.recovery; }
 
-  /** Ajoute une récupération par défaut (trot 1', zone Récupération). */
-  addRecovery(b: CourseBlock): void {
-    b.recovery = { type: 'jog', durationS: 60, distanceM: null, prescription: { zoneId: this.zoneIdByName('Récupération') } };
+  /**
+   * Ajoute une récupération par défaut.
+   *
+   * <p>Une étape d'enchaînement reçoit une récup en <b>distance</b> (100 m de trot), un bloc une
+   * récup en <b>temps</b> (1'). Ce n'est pas un détail d'ergonomie : entre deux allures d'un même
+   * enchaînement, la récup s'écrit en mètres sur la piste — « 8 × (200 / 400) avec 100 m de récup
+   * entre chaque » — alors qu'entre deux répétitions d'un fractionné classique elle se compte en
+   * minutes. Partir de la bonne unité évite au coach d'avoir à corriger huit champs.</p>
+   */
+  addRecovery(b: PrescribedUnit, shape: 'time' | 'distance' = 'time'): void {
+    b.recovery = shape === 'distance'
+      ? { type: 'jog', durationS: null, distanceM: 100, prescription: { zoneId: this.zoneIdByName('Récupération') } }
+      : { type: 'jog', durationS: 60, distanceM: null, prescription: { zoneId: this.zoneIdByName('Récupération') } };
     this.recalcRecovery(b);
     this.touch();
   }
 
-  removeRecovery(b: CourseBlock): void {
+  removeRecovery(b: PrescribedUnit): void {
     b.recovery = null;
     this.recCalc.update((m) => { const c = { ...m }; delete c[b.id]; return c; });
     this.touch();
   }
 
-  recMeasureOf(b: CourseBlock): 'distance' | 'duration' {
+  recMeasureOf(b: PrescribedUnit): 'distance' | 'duration' {
     const r = b.recovery;
     return r && r.durationS != null && r.distanceM == null ? 'duration' : 'distance';
   }
 
-  setRecMeasure(b: CourseBlock, mode: 'distance' | 'duration'): void {
+  setRecMeasure(b: PrescribedUnit, mode: 'distance' | 'duration'): void {
     const r = b.recovery;
     if (!r) return;
     if (mode === 'duration') { r.distanceM = null; r.durationS = r.durationS ?? 60; }
@@ -892,15 +1044,15 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     this.touch();
   }
 
-  setRecZone(b: CourseBlock, zoneId: string): void {
+  setRecZone(b: PrescribedUnit, zoneId: string): void {
     if (b.recovery?.prescription) { b.recovery.prescription.zoneId = zoneId; this.recalcRecovery(b); this.touch(); }
   }
-  setRecType(b: CourseBlock, type: string): void {
+  setRecType(b: PrescribedUnit, type: string): void {
     if (b.recovery) { b.recovery.type = type; this.touch(); }
   }
 
   /** Recalcule la cible de la récupération d'un bloc (lecture depuis la zone de l'athlète). */
-  recalcRecovery(b: CourseBlock): void {
+  recalcRecovery(b: PrescribedUnit): void {
     const a = this.calcAthleteId();
     const r = b.recovery;
     const p = r?.prescription;
@@ -940,7 +1092,7 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     const source = s[key][index];
     const copy: CourseBlock = {
       ...structuredClone(source),
-      id: 'b-' + Math.random().toString(36).slice(2, 9),
+      id: newId(),
     };
     const arr = [...s[key]];
     arr.splice(index + 1, 0, copy);
@@ -1055,15 +1207,28 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
   }
 
   recalc(b: CourseBlock): void {
+    // Un bloc enchaîné n'a pas de cible à lui : ce sont ses étapes qui en portent une, chacune
+    // avec son allure. En calculer une au niveau du bloc reviendrait à moyenner un 200 lancé et
+    // un 400 en résistance, ce qui ne décrit ni l'un ni l'autre.
+    for (const st of b.steps ?? []) this.recalcStep(st);
+    if (!isChainBlock(b)) this.calcUnit(b, this.effectiveReps(b));
+    if (b.recovery) this.recalcRecovery(b);
+  }
+
+  /** Cible d'une étape : celle d'une seule répétition — c'est le bloc qui la répète. */
+  recalcStep(st: CourseStep): void {
+    this.calcUnit(st, 1);
+    if (st.recovery) this.recalcRecovery(st);
+  }
+
+  /** Calcul partagé par un bloc et par une étape : même prescription, seul le volume diffère. */
+  private calcUnit(b: PrescribedUnit, reps: number | null | undefined): void {
     const a = this.calcAthleteId();
     const p = b.prescription;
     if (!a || !p) return;
     // Chemin Z3 : cible lue depuis la zone de l'athlète. Repli legacy (ref + %) pour l'adaptation
     // d'anciens snapshots non encore migrés vers une zone.
     let body: Parameters<CourseService['sessionCalc']>[1] | null = null;
-    // Séries comprises : pour le volume, « 2 × (6 × 400 m) » vaut 12 × 400 m — même règle que
-    // le serveur, sinon l'aperçu de l'éditeur et le total de la séance se contrediraient.
-    const reps = this.effectiveReps(b);
     // Ordre calqué sur le serveur : une fourchette voulue par le coach prime sur la zone.
     if (p.custom && p.ref && p.minPct != null && p.maxPct != null) {
       body = { ref: p.ref, minPct: p.minPct, maxPct: p.maxPct, reps, distanceM: b.distanceM, durationS: b.durationS };
@@ -1077,7 +1242,6 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     }
     if (!body) return;
     this.course.sessionCalc(a, body).subscribe((c) => this.calc.update((map) => ({ ...map, [b.id]: c })));
-    if (b.recovery) this.recalcRecovery(b);
   }
 
   /** Cible compacte d'un bloc (« 3:35–3:45/km · 178–185 bpm ») pour affichage en regard de la zone. */
@@ -1103,6 +1267,17 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
    */
   onBlockEdited(b: CourseBlock): void {
     this.recalc(b);
+    this.touch();
+  }
+
+  /**
+   * Modification d'un bloc ou d'une étape. Les commandes de l'éditeur — volume, unité, zone,
+   * fourchette en % — sont exactement les mêmes des deux côtés ; seul le recalcul diffère, parce
+   * qu'une étape se calcule pour une répétition et un bloc pour toutes les siennes.
+   */
+  private edited(u: PrescribedUnit, owner?: CourseBlock): void {
+    if (owner && owner.id !== u.id) this.recalcStep(u as CourseStep);
+    else this.recalc(u as CourseBlock);
     this.touch();
   }
 

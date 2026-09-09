@@ -66,6 +66,12 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
     @Query("select a.matchedWorkoutId from Activity a where a.matchedWorkoutId in :workoutIds")
     List<UUID> findMatchedWorkoutIdsIn(@Param("workoutIds") Collection<UUID> workoutIds);
 
+    /**
+     * Les sorties elles-mêmes, et non leurs seuls identifiants de séance : l'arbitrage a besoin
+     * de <b>comparer</b> la prétendante à la tenante, ce qui suppose de connaître la seconde.
+     */
+    List<Activity> findByMatchedWorkoutIdIn(Collection<UUID> workoutIds);
+
     // --- Administration (cross-club) ---
     long countByActivityDateAfter(java.time.LocalDate date);
 

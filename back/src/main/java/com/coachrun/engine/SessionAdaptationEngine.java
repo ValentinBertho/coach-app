@@ -208,7 +208,7 @@ public class SessionAdaptationEngine {
                 java.util.UUID.randomUUID().toString(), "easy", 1, null, duration,
                 warmupRx, null, 3,
                 "Intensité retirée : séance transformée en footing.",
-                List.of(), 1, null);
+                List.of(), 1, null, List.of());
 
         return new SessionStructure(source.warmup(), List.of(easy), source.cooldown());
     }
@@ -217,9 +217,12 @@ public class SessionAdaptationEngine {
     private int estimateMainDuration(SessionStructure source) {
         int total = 0;
         for (CourseBlock b : source.main()) {
-            if (b.durationS() != null) {
-                total += b.durationS() * b.repCount() * b.setCount();
-            }
+            // Un bloc enchaîné n'a pas de durée à lui : elle est répartie sur ses étapes, et
+            // l'ignorer ferait retomber toute séance de fractionné sur le footing par défaut.
+            int unit = b.isChain()
+                    ? b.stepList().stream().mapToInt(st -> st.durationS() == null ? 0 : st.durationS()).sum()
+                    : (b.durationS() == null ? 0 : b.durationS());
+            total += unit * b.repCount() * b.setCount();
         }
         return total > 0 ? total : 2400; // 40 min : la durée d'un footing par défaut
     }
@@ -227,6 +230,6 @@ public class SessionAdaptationEngine {
     private CourseBlock withVolume(CourseBlock b, Integer reps, Integer distanceM, Integer durationS) {
         return new CourseBlock(b.id(), b.type(), reps, distanceM, durationS,
                 b.prescription(), b.recovery(), b.rpe(), b.note(), b.drillIds(),
-                b.sets(), b.setRecovery());
+                b.sets(), b.setRecovery(), b.steps());
     }
 }

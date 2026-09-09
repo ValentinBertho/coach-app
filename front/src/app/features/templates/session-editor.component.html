@@ -172,66 +172,206 @@
             @if ((b.reps ?? 0) > 1) { <span class="reps-x">×</span> }
           </span>
 
-          <!-- Volume : la valeur et son unité (sec/min/h · m/km) se choisissent librement ;
-               le stockage reste en secondes et en mètres. -->
-          <span class="vol">
-            <input type="text" inputmode="decimal" class="vol-in" [value]="volumeText(b)"
-                   (change)="setVolumeText(b, $any($event.target))" placeholder="0"
-                   title="Un nombre dans l'unité choisie, ou un temps en min:sec (1:30)" />
-            <select class="vol-unit" [ngModel]="unitOf(b)" (ngModelChange)="setUnit(b, $event)" title="Unité">
-              @for (u of volumeUnits; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
-            </select>
+          @if (isChain(b)) {
+            <!-- Un enchaînement n'a ni volume ni allure à son niveau : ils appartiennent à ses
+                 étapes, listées juste dessous. Afficher un champ vide ici laisserait croire
+                 qu'il reste quelque chose à y saisir. -->
+            <span class="chain-tag" title="Ce bloc enchaîne plusieurs allures dans chaque répétition">
+              <app-icon name="list" [size]="14" /> enchaînement
+            </span>
             @if (setCount(b) > 1) { <span class="reps-x">)</span> }
-          </span>
+          } @else {
+            <!-- Volume : la valeur et son unité (sec/min/h · m/km) se choisissent librement ;
+                 le stockage reste en secondes et en mètres. -->
+            <span class="vol">
+              <input type="text" inputmode="decimal" class="vol-in" [value]="volumeText(b)"
+                     (change)="setVolumeText(b, $any($event.target))" placeholder="0"
+                     title="Un nombre dans l'unité choisie, ou un temps en min:sec (1:30)" />
+              <select class="vol-unit" [ngModel]="unitOf(b)" (ngModelChange)="setUnit(b, $event)" title="Unité">
+                @for (u of volumeUnits; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
+              </select>
+              @if (setCount(b) > 1) { <span class="reps-x">)</span> }
+            </span>
 
-          <!-- Intensité : une zone du club, ou une fourchette en % écrite pour cette séance.
-               Un « 6×1000 à 102–106 % de VC » ne rentre dans aucune bande nommée, et les zones
-               ne se retouchent pas athlète par athlète. -->
-          @if (b.prescription) {
-            @if (usesPct(b)) {
-              <!-- Bornes écrites à la validation du champ (sortie ou Entrée), pas à chaque frappe :
-                   repliées dans [30, 150] à chaque touche, elles rendaient « 102 » impossible à
-                   taper — le « 1 » devenait 30 sous les doigts. -->
-              <span class="block-pct" title="Allure prescrite en % d'un référentiel">
-                <input type="number" class="pct-in" [value]="b.prescription.minPct ?? ''"
-                       (change)="setPctBoundText(b, 'min', $any($event.target))" min="30" max="150" step="1" />
-                <span class="pct-sep">–</span>
-                <input type="number" class="pct-in" [value]="b.prescription.maxPct ?? ''"
-                       (change)="setPctBoundText(b, 'max', $any($event.target))" min="30" max="150" step="1" />
-                <span class="pct-u">% de</span>
-                <select class="pct-ref" [ngModel]="b.prescription.ref" (ngModelChange)="setPctRef(b, $event)">
-                  @for (r of prescriptionRefs; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
-                </select>
-                <button type="button" class="pct-back" (click)="switchToZone(b)" title="Revenir à une zone">
-                  <app-icon name="rotate-ccw" [size]="14" />
-                </button>
-              </span>
-            } @else {
-              <app-zone-picker class="block-zone" [dense]="true"
-                [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
-                [selectedId]="b.prescription.zoneId" (zoneChange)="onBlockZone(b, $event)"
-                (pctChange)="onZonePct($event)" />
-              <button type="button" class="pct-switch" (click)="switchToPct(b)"
-                      title="Prescrire une allure sur mesure (% de VC, LT1/LT2, allure de course)">%</button>
+            <!-- Intensité : une zone du club, ou une fourchette en % écrite pour cette séance.
+                 Un « 6×1000 à 102–106 % de VC » ne rentre dans aucune bande nommée, et les zones
+                 ne se retouchent pas athlète par athlète. -->
+            @if (b.prescription) {
+              @if (usesPct(b)) {
+                <!-- Bornes écrites à la validation du champ (sortie ou Entrée), pas à chaque frappe :
+                     repliées dans [30, 150] à chaque touche, elles rendaient « 102 » impossible à
+                     taper — le « 1 » devenait 30 sous les doigts. -->
+                <span class="block-pct" title="Allure prescrite en % d'un référentiel">
+                  <input type="number" class="pct-in" [value]="b.prescription.minPct ?? ''"
+                         (change)="setPctBoundText(b, 'min', $any($event.target))" min="30" max="150" step="1" />
+                  <span class="pct-sep">–</span>
+                  <input type="number" class="pct-in" [value]="b.prescription.maxPct ?? ''"
+                         (change)="setPctBoundText(b, 'max', $any($event.target))" min="30" max="150" step="1" />
+                  <span class="pct-u">% de</span>
+                  <select class="pct-ref" [ngModel]="b.prescription.ref" (ngModelChange)="setPctRef(b, $event)">
+                    @for (r of prescriptionRefs; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
+                  </select>
+                  <button type="button" class="pct-back" (click)="switchToZone(b)" title="Revenir à une zone">
+                    <app-icon name="rotate-ccw" [size]="14" />
+                  </button>
+                </span>
+              } @else {
+                <app-zone-picker class="block-zone" [dense]="true"
+                  [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
+                  [selectedId]="b.prescription.zoneId" (zoneChange)="onBlockZone(b, $event)"
+                  (pctChange)="onZonePct($event)" />
+                <button type="button" class="pct-switch" (click)="switchToPct(b)"
+                        title="Prescrire une allure sur mesure (% de VC, LT1/LT2, allure de course)">%</button>
+              }
             }
+
+            <!-- Effort perçu visé (RPE 1–10), propre au contenu de la séance. -->
+            <!-- Le repère verbal CR10 (même échelle que la saisie athlète) évite que coach et
+                 athlète parlent de deux « 7 » différents. -->
+            <span class="rpe" [title]="rpeTitle(b.rpe)">
+              <span class="rpe-lb">RPE</span>
+              <input type="number" class="rpe-in" min="1" max="10" [ngModel]="b.rpe" (ngModelChange)="setBlockRpe(b, $event)" placeholder="–" />
+            </span>
           }
 
-          <!-- Effort perçu visé (RPE 1–10), propre au contenu de la séance. -->
-          <!-- Le repère verbal CR10 (même échelle que la saisie athlète) évite que coach et
-               athlète parlent de deux « 7 » différents. -->
-          <span class="rpe" [title]="rpeTitle(b.rpe)">
-            <span class="rpe-lb">RPE</span>
-            <input type="number" class="rpe-in" min="1" max="10" [ngModel]="b.rpe" (ngModelChange)="setBlockRpe(b, $event)" placeholder="–" />
-          </span>
-
           <span class="block-tools">
+            <!-- Passer le bloc en enchaînement. « 8 × (200 / 400) » n'avait aucune écriture :
+                 un bloc ne portait qu'une distance et qu'une allure, et il fallait saisir seize
+                 blocs à la main pour une séance que l'athlète courait déjà. -->
+            @if (!isChain(b)) {
+              <button type="button" class="icon-btn" (click)="toChain(b)"
+                      title="Enchaîner plusieurs allures dans une répétition (8 × (200 / 400))">
+                <app-icon name="list" [size]="16" />
+              </button>
+            }
             <button type="button" class="icon-btn" [class.on]="isDetailsOpen(b.id)" (click)="toggleDetails(b.id)" title="Détails (vitesse, éducatifs, commentaire)"><app-icon name="ellipsis" [size]="16" /></button>
             <button type="button" class="icon-btn" (click)="duplicateBlock(sec.key, b.id)" title="Dupliquer le bloc"><app-icon name="copy" [size]="15" /></button>
             <button type="button" class="icon-btn danger" (click)="removeBlock(sec.key, b.id)" title="Supprimer"><app-icon name="trash-2" [size]="15" /></button>
           </span>
         </div>
 
-        <!-- Cible lue (hero) -->
+        <!-- Cible lue (hero). Un enchaînement n'en a pas : chaque étape porte la sienne. -->
+        @if (isChain(b)) {
+          <!-- Les allures de l'enchaînement, dans l'ordre où elles se courent. -->
+          <div class="chain">
+            @for (st of steps(b); track st.id) {
+              <div class="chain-step">
+                <div class="chain-row">
+                  <span class="chain-idx">{{ $index + 1 }}</span>
+
+                  <span class="vol">
+                    <input type="text" inputmode="decimal" class="vol-in" [value]="volumeText(st)"
+                           (change)="setVolumeText(st, $any($event.target), b)" placeholder="0"
+                           title="Un nombre dans l'unité choisie, ou un temps en min:sec (1:30)" />
+                    <select class="vol-unit" [ngModel]="unitOf(st)" (ngModelChange)="setUnit(st, $event, b)" title="Unité">
+                      @for (u of volumeUnits; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
+                    </select>
+                  </span>
+
+                  @if (st.prescription) {
+                    @if (usesPct(st)) {
+                      <span class="block-pct" title="Allure prescrite en % d'un référentiel">
+                        <input type="number" class="pct-in" [value]="st.prescription.minPct ?? ''"
+                               (change)="setPctBoundText(st, 'min', $any($event.target), b)" min="30" max="150" step="1" />
+                        <span class="pct-sep">–</span>
+                        <input type="number" class="pct-in" [value]="st.prescription.maxPct ?? ''"
+                               (change)="setPctBoundText(st, 'max', $any($event.target), b)" min="30" max="150" step="1" />
+                        <span class="pct-u">% de</span>
+                        <select class="pct-ref" [ngModel]="st.prescription.ref" (ngModelChange)="setPctRef(st, $event, b)">
+                          @for (r of prescriptionRefs; track r.value) { <option [value]="r.value">{{ r.label }}</option> }
+                        </select>
+                        <button type="button" class="pct-back" (click)="switchToZone(st, b)" title="Revenir à une zone">
+                          <app-icon name="rotate-ccw" [size]="14" />
+                        </button>
+                      </span>
+                    } @else {
+                      <app-zone-picker class="block-zone" [dense]="true"
+                        [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
+                        [selectedId]="st.prescription.zoneId" (zoneChange)="onBlockZone(st, $event, b)"
+                        (pctChange)="onZonePct($event)" />
+                      <button type="button" class="pct-switch" (click)="switchToPct(st, b)"
+                              title="Prescrire une allure sur mesure (% de VC, LT1/LT2, allure de course)">%</button>
+                    }
+                  }
+
+                  <span class="rpe" [title]="rpeTitle(st.rpe)">
+                    <span class="rpe-lb">RPE</span>
+                    <input type="number" class="rpe-in" min="1" max="10" [ngModel]="st.rpe" (ngModelChange)="setBlockRpe(st, $event)" placeholder="–" />
+                  </span>
+
+                  <span class="block-tools">
+                    <button type="button" class="icon-btn" (click)="duplicateStep(b, st.id)" title="Dupliquer l'allure"><app-icon name="copy" [size]="15" /></button>
+                    <button type="button" class="icon-btn danger" (click)="removeStep(b, st.id)" title="Retirer l'allure"><app-icon name="trash-2" [size]="15" /></button>
+                  </span>
+                </div>
+
+                @if (stepTargetLabel(st.id); as t) {
+                  <p class="block-cible metric">{{ t }}</p>
+                }
+
+                <!-- Récupération APRÈS cette allure : « 100 m entre chaque ». Elle appartient à
+                     l'étape, pas au bloc — celle qui suit le 200 n'est pas celle qui suit le 400. -->
+                @if (st.recovery; as r) {
+                  <div class="rec">
+                    <span class="rec-lb">Récup. après</span>
+                    <select class="rec-type" [ngModel]="r.type" (ngModelChange)="setRecType(st, $event)"
+                            title="Nature de la récupération">
+                      @for (t of recoveryTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
+                    </select>
+                    <span class="vol">
+                      <input type="text" inputmode="decimal" class="vol-in" [value]="recVolumeText(st)"
+                             (change)="setRecVolumeText(st, $any($event.target))" placeholder="0"
+                             title="Un nombre dans l'unité choisie, ou un temps en min:sec (1:30)" />
+                      <select class="vol-unit" [ngModel]="recUnitOf(st)" (ngModelChange)="setRecUnit(st, $event)" title="Unité">
+                        @for (u of volumeUnits; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
+                      </select>
+                    </span>
+                    @if (r.prescription) {
+                      @if (recUsesPct(st)) {
+                        <span class="block-pct" title="Récup prescrite en % d'un référentiel">
+                          <input type="number" class="pct-in" [value]="r.prescription.minPct ?? ''"
+                                 (change)="setRecPctBoundText(st, 'min', $any($event.target))" min="30" max="150" step="1" />
+                          <span class="pct-sep">–</span>
+                          <input type="number" class="pct-in" [value]="r.prescription.maxPct ?? ''"
+                                 (change)="setRecPctBoundText(st, 'max', $any($event.target))" min="30" max="150" step="1" />
+                          <span class="pct-u">% de</span>
+                          <select class="pct-ref" [ngModel]="r.prescription.ref" (ngModelChange)="setRecPctRef(st, $event)">
+                            @for (ref of prescriptionRefs; track ref.value) { <option [value]="ref.value">{{ ref.label }}</option> }
+                          </select>
+                          <button type="button" class="pct-back" (click)="switchRecToZone(st)" title="Revenir à une zone">
+                            <app-icon name="rotate-ccw" [size]="14" />
+                          </button>
+                        </span>
+                      } @else {
+                        <app-zone-picker class="block-zone" [dense]="true"
+                          [zones]="zones()" [metrics]="metrics()" [values]="zoneValues()"
+                          [selectedId]="r.prescription.zoneId" (zoneChange)="setRecZone(st, $event)"
+                          (pctChange)="onZonePct($event)" />
+                        <button type="button" class="pct-switch" (click)="switchRecToPct(st)"
+                                title="Prescrire la récup à la main (% de LT1, VC, allure de course)">%</button>
+                      }
+                    }
+                    @if (recoveryTargetLabel(st.id); as rt) { <span class="rec-cible metric">{{ rt }}</span> }
+                    <button type="button" class="icon-btn danger rec-del" (click)="removeRecovery(st)" title="Retirer la récup"><app-icon name="x" [size]="15" /></button>
+                  </div>
+                } @else {
+                  <button type="button" class="add-rec" (click)="addRecovery(st, 'distance')">
+                    <app-icon name="plus" [size]="14" /> Ajouter la récupération après cette allure
+                  </button>
+                }
+              </div>
+            }
+            <div class="chain-actions">
+              <button type="button" class="add-rec" (click)="addStep(b)">
+                <app-icon name="plus" [size]="14" /> Ajouter une allure
+              </button>
+              <button type="button" class="add-rec" (click)="toSimple(b)"
+                      title="Revenir à un bloc à une seule allure (les allures suivantes sont perdues)">
+                <app-icon name="rotate-ccw" [size]="14" /> Redevenir un bloc simple
+              </button>
+            </div>
+          </div>
+        }
         @if (targetLabel(b.id); as t) {
           <p class="block-cible metric">{{ t }}</p>
         } @else if (calc()[b.id] && !calc()[b.id].computable) {
@@ -271,8 +411,9 @@
           </div>
         }
 
-        <!-- Récupération inter-répétitions (imbriquée dans le groupe) -->
-        @if ((b.reps ?? 0) > 1) {
+        <!-- Récupération inter-répétitions (imbriquée dans le groupe). Un enchaînement n'en a
+             pas à ce niveau : chacune de ses allures porte la sienne. -->
+        @if ((b.reps ?? 0) > 1 && !isChain(b)) {
           @if (hasRecovery(b) && b.recovery; as r) {
             <div class="rec">
               <span class="rec-lb">Récup. entre répétitions<span class="rec-count">× {{ (b.reps ?? 1) - 1 }}</span></span>

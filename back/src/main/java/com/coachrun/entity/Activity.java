@@ -1,6 +1,7 @@
 package com.coachrun.entity;
 
 import com.coachrun.entity.enums.ActivitySource;
+import com.coachrun.entity.enums.ActivitySport;
 import com.coachrun.entity.enums.ActivityStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -46,6 +47,18 @@ public class Activity extends BaseEntity {
 
     @Column(name = "activity_date", nullable = false)
     private LocalDate activityDate;
+
+    /**
+     * Sport déclaré par la source (Strava, FIT, TCX), ou {@code null} quand elle ne l'a pas dit —
+     * saisie manuelle, et toute sortie importée avant l'existence de cette colonne.
+     *
+     * <p>C'est ce qui empêche le rapprochement automatique de confondre une séance de musculation
+     * ou une sortie à vélo avec le fractionné prescrit le même jour : sans lui, ces trois sorties
+     * n'étaient qu'une date, une distance et une durée.</p>
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sport", length = 16)
+    private ActivitySport sport;
 
     @Column(name = "title")
     private String title;
@@ -120,6 +133,17 @@ public class Activity extends BaseEntity {
 
     @Column(name = "matched_workout_id")
     private UUID matchedWorkoutId;
+
+    /**
+     * Ce rapprochement (ou ce détachement) a été décidé par un humain — coach ou athlète.
+     *
+     * <p>L'arbitrage automatique peut désormais reprendre une séance à une sortie moins bien
+     * placée quand une meilleure arrive après elle. Sans ce drapeau, il déferait aussi la
+     * correction que quelqu'un venait de faire à la main : l'import suivant aurait le dernier
+     * mot sur une personne qui, elle, était là.</p>
+     */
+    @Column(name = "manual_match", nullable = false)
+    private boolean manualMatch = false;
 
     /**
      * Date à laquelle l'athlète a été invité à confirmer le ressenti de la séance rapprochée.

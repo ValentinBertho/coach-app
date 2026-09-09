@@ -10,7 +10,8 @@ import { PhysioProfile, Performance, Vdot } from '../models/physio.model';
 import { AthleteZoneSheet } from '../models/athlete-zone-sheet.model';
 import { ActivityExclusion } from '../models/activity.model';
 import {
-  Activity, ActivityLaps, ActivityStream, ActivityUpdate, LapKind, TimeInZone, WeekSummary,
+  Activity, ActivityLaps, ActivitySport, ActivityStream, ActivityUpdate, LapKind, TimeInZone,
+  WeekSummary,
 } from '../models/activity.model';
 import { Analytics } from './analytics.service';
 import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
@@ -33,6 +34,11 @@ export interface ActivityLog {
   durationS?: number | null;
   avgHr?: number | null;
   elevationGainM?: number | null;
+  /**
+   * Sport de la sortie. Une montre le déclare toute seule ; une saisie à la main, non — et sans
+   * lui une séance de renforcement notée ici irait se rattacher au fractionné prescrit du jour.
+   */
+  sport?: ActivitySport | null;
   /** Confirme l'enregistrement malgré une sortie très proche déjà présente le même jour. */
   confirmDuplicate?: boolean;
 }

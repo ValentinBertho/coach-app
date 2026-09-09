@@ -365,6 +365,13 @@ public class StravaService {
                 a.movingTime(),
                 a.averageHeartrate() != null ? (int) Math.round(a.averageHeartrate()) : null,
                 a.totalElevationGain() != null ? (int) Math.round(a.totalElevationGain()) : null,
+                // Le sport, que Strava envoyait déjà et qu'on jetait. « GravelRide »,
+                // « WeightTraining » : sans lui, ces sorties n'étaient qu'une date, une distance
+                // et une durée — et l'une d'elles a emporté le fractionné prescrit du jour.
+                // `sport_type` est le champ moderne (plus granulaire) ; `type` est son aîné, que
+                // Strava renvoie toujours, et qui sert de repli.
+                com.coachrun.entity.enums.ActivitySport.fromStrava(
+                        a.sportType() != null ? a.sportType() : a.type()),
                 // Jamais de confirmation automatique : si la sortie est déjà en base sous une
                 // autre provenance (trace GPX importée à la main), la synchro doit l'écarter,
                 // pas en créer une seconde copie.

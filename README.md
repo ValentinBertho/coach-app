@@ -48,7 +48,10 @@ assistant), et athlète (PWA mobile).
   (échauffement / corps / retour au calme) en **fourchettes** (% LT1/LT2/VC/allures) avec
   **calculateur live** par athlète. Chaque bloc se prescrit **par zone** du club ou, d'un clic, en
   **fourchette de % sur mesure** (« 6 × 1000 à 102–106 % de VC ») quand aucune bande nommée ne
-  convient. Identité (nom, titre, catégorie) éditable dans l'éditeur ;
+  convient. Un bloc peut **enchaîner plusieurs allures dans une même répétition** —
+  « 8 × (200 m / 400 m), 100 m de récup entre chaque » — chacune avec sa cible et sa
+  récupération, là où un bloc ne portait qu'un volume et qu'une allure.
+  Identité (nom, titre, catégorie) éditable dans l'éditeur ;
   volumes saisis dans **l'unité de son choix** (sec / min / h · m / km) ; blocs pré-remplis ;
   **éducatifs de course** (gammes technique/amplitude) attachables aux blocs. Affichage
   **cartes compactes ↔ liste dense** avec recherche et filtre par catégorie.
@@ -98,9 +101,16 @@ assistant), et athlète (PWA mobile).
 - **Sync Strava** (OAuth) **initiée par l'athlète** (l'intégration est d'abord côté athlète, CDC §12),
   import automatique des activités avec déduplication ; le coach voit l'état en lecture seule. Import
   fichier **FIT / GPX / TCX** — le FIT est le format natif Garmin et COROS, décodé sans dépendance
-  externe (totaux de la montre, tours et vitesse mesurée compris) — et **saisie manuelle** d'une
-  sortie par l'athlète. La **synchronisation automatique** Garmin / COROS reste à venir : demandes
-  d'accès déposées, l'import FIT en tient lieu en attendant.
+  externe (totaux de la montre, tours, **sport déclaré** et vitesse mesurée compris) — et
+  **saisie manuelle** d'une sortie par l'athlète. La **synchronisation automatique** Garmin / COROS
+  reste à venir : demandes d'accès déposées, l'import FIT en tient lieu en attendant.
+- **Rapprochement prévu / réalisé** : une sortie importée retrouve la séance qu'elle réalise à
+  partir du **sport** (une séance de renforcement ou une sortie à vélo ne réalisent pas un
+  fractionné de course), de la **date**, du **volume** (distance *et* durée) et de la
+  **ressemblance des titres** — un athlète qui nomme sa sortie « 8*(200/400) » désigne sa séance
+  mieux que n'importe quel chiffre. Sur une journée à plusieurs sorties, la séance revient à la
+  **meilleure** d'entre elles quel que soit l'ordre de synchronisation ; un rapprochement décidé
+  à la main par le coach ou l'athlète n'est jamais défait par un import ultérieur.
 - **Export PDF** du programme d'un athlète.
 - Notifications e-mail (Resend) et push (Web Push / VAPID).
 

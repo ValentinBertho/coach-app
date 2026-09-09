@@ -4,6 +4,31 @@ export type ActivitySource = 'MANUAL' | 'FILE' | 'STRAVA' | 'GARMIN' | 'COROS';
 export type ActivityStatus = 'IMPORTED' | 'MATCHED' | 'UNMATCHED';
 
 /**
+ * Sport d'une sortie, tel que la montre ou Strava le déclare. `null` = non déclaré (saisie
+ * manuelle, et tout ce qui a été importé avant l'existence du champ).
+ *
+ * C'est lui qui empêche le rapprochement automatique de confondre une séance de renforcement ou
+ * une sortie à vélo avec le fractionné prescrit le même jour : sans lui, ces trois sorties
+ * n'étaient qu'une date, une distance et une durée.
+ */
+export type ActivitySport = 'RUN' | 'RIDE' | 'SWIM' | 'STRENGTH' | 'WALK' | 'OTHER';
+
+/** Libellés FR des sports (le code reste en anglais, cf. convention README). */
+export const ACTIVITY_SPORT_LABELS: Record<ActivitySport, string> = {
+  RUN: 'Course à pied',
+  RIDE: 'Vélo',
+  SWIM: 'Natation',
+  STRENGTH: 'Renforcement',
+  WALK: 'Marche',
+  OTHER: 'Autre',
+};
+
+/** Libellé FR d'un sport, ou chaîne vide quand la source n'a rien déclaré. */
+export function activitySportLabel(sport: ActivitySport | null | undefined): string {
+  return sport ? ACTIVITY_SPORT_LABELS[sport] ?? '' : '';
+}
+
+/**
  * Sources dont une sortie peut <b>revenir toute seule</b> : elles se synchronisent. Une saisie
  * manuelle ou un fichier déposé à la main ne reviennent que si quelqu'un les redépose — proposer
  * « ne plus jamais importer » là-dessus n'aurait rien à empêcher.
@@ -32,6 +57,8 @@ export interface Activity {
   athleteId: string;
   source: ActivitySource;
   activityDate: string;
+  /** Sport déclaré par la source, ou `null` si elle n'a rien dit. */
+  sport: ActivitySport | null;
   title: string | null;
   distanceM: number | null;
   durationS: number | null;
@@ -98,6 +125,12 @@ export interface ActivityImportRequest {
   durationS?: number | null;
   avgHr?: number | null;
   elevationGainM?: number | null;
+  /**
+   * Sport de la sortie. Facultatif : `null` signifie « non déclaré », et le rapprochement se
+   * comporte alors comme avant l'existence du champ. Le renseigner sur une séance de
+   * renforcement saisie à la main l'empêche d'aller se rattacher au fractionné du jour.
+   */
+  sport?: ActivitySport | null;
 }
 
 export const ACTIVITY_STATUS_LABELS: Record<ActivityStatus, string> = {

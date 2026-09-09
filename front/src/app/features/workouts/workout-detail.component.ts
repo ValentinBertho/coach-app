@@ -180,6 +180,19 @@ export class WorkoutDetailComponent implements OnInit {
         if (setRecoveries) {
           add(e.block.setRecovery?.prescription?.zoneId, e.block.setRecovery!.durationS! * setRecoveries);
         }
+        // Un enchaînement n'a ni zone ni durée à son niveau : sans cette boucle, « 8 × (200 /
+        // 400) » — le corps même de la séance — disparaissait de la répartition, qui n'aurait
+        // plus montré que l'échauffement et le retour au calme.
+        const repeats = (e.block.reps && e.block.reps > 1 ? e.block.reps : 1) * sets;
+        const steps = e.steps ?? [];
+        for (const [i, se] of steps.entries()) {
+          add(se.step.prescription?.zoneId, (se.calc?.estimatedDurationS ?? 0) * repeats);
+          const isLast = i === steps.length - 1;
+          const times = repeats - (isLast ? setRecoveries : 0);
+          if (times > 0 && se.recoveryCalc?.estimatedDurationS) {
+            add(se.step.recovery?.prescription?.zoneId, se.recoveryCalc.estimatedDurationS * times);
+          }
+        }
       }
     };
     acc(calc.warmup); acc(calc.main); acc(calc.cooldown);
@@ -233,6 +246,14 @@ export class WorkoutDetailComponent implements OnInit {
     let weighted = 0;
     let totalS = 0;
     for (const e of [...calc.warmup, ...calc.main, ...calc.cooldown]) {
+      // Un enchaînement porte ses RPE sur ses allures, pas sur lui-même : les ignorer revenait
+      // à juger la séance sur son seul échauffement.
+      for (const se of e.steps ?? []) {
+        if (se.step.rpe == null) continue;
+        const s = (se.calc?.estimatedDurationS ?? 60) * ((e.block.reps ?? 1) * (e.block.sets ?? 1));
+        weighted += se.step.rpe * s;
+        totalS += s;
+      }
       const rpe = e.block.rpe;
       if (rpe == null) continue;
       // Un bloc sans durée estimée compte quand même, avec un poids neutre d'une minute.

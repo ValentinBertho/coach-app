@@ -1,6 +1,7 @@
 package com.coachrun.util;
 
 import com.coachrun.dto.response.ActivityLapsResponse;
+import com.coachrun.entity.enums.ActivitySport;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -53,11 +54,15 @@ public final class ActivityTrack {
      * @param laps  tours relevés par la montre. Vide quand le fichier n'en déclare qu'un : une
      *              sortie continue n'a pas de tours, l'écran retombera alors sur des splits
      *              kilométriques calculés.
+     * @param sport sport déclaré par le fichier, ou {@code null} s'il n'en déclare aucun. Le FIT
+     *              le porte dans son message de session, le TCX en attribut de son activité, le
+     *              GPX dans la balise {@code <type>} de sa trace. Il était décodé puis jeté :
+     *              c'est ce qui laissait une séance de musculation se rapprocher d'un fractionné.
      */
     public record ParsedActivity(
             LocalDate date, Integer distanceM, Integer durationS, Integer elevationGainM,
             Integer avgHr, List<double[]> route, List<int[]> stream,
-            List<ActivityLapsResponse.Lap> laps) {
+            List<ActivityLapsResponse.Lap> laps, ActivitySport sport) {
     }
 
     /** Les points qui portent une position, seuls exploitables pour la géométrie. */

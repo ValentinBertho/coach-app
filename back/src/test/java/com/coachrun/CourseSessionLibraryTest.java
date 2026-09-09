@@ -209,6 +209,79 @@ class CourseSessionLibraryTest {
         assertThat(calc.get("totalDurationS").asInt() - running).isEqualTo(6 * 90);
     }
 
+    /**
+     * L'enchaînement du terrain : « 8 × (200 m / 400 m), 100 m de récup entre chaque ».
+     *
+     * <p>Un bloc ne portait qu'<b>une</b> distance et qu'<b>une</b> allure. Les 200 se courent à
+     * 2'48–3'04 et les 400 à 3'20–3'26 : la séance ne rentrait donc pas, et il fallait saisir
+     * seize blocs à la main — puis les retoucher seize fois à chaque ajustement. Un athlète
+     * courait cette séance, son coach ne pouvait pas l'écrire.</p>
+     *
+     * <p>Ce que le calcul doit rendre : une cible <b>par allure</b> (deux ici, aucune au niveau
+     * du bloc — moyenner un 200 lancé et un 400 en résistance ne décrirait ni l'un ni l'autre),
+     * et un total qui compte les huit passages, récupérations comprises.</p>
+     */
+    @Test
+    void aChainedBlockPrescribesTwoPacesInOneRepetition() throws Exception {
+        String templateId = templateWithMain("""
+              {"type":"intervals","reps":8,
+               "steps":[
+                 {"id":"s1","distanceM":200,
+                  "prescription":{"ref":"PCT_PACE_5KM","minPct":110,"maxPct":118},
+                  "recovery":{"type":"jog","distanceM":100,"durationS":45}},
+                 {"id":"s2","distanceM":400,
+                  "prescription":{"ref":"PCT_PACE_5KM","minPct":100,"maxPct":106},
+                  "recovery":{"type":"jog","distanceM":100,"durationS":45}}]}""");
+
+        JsonNode block = calculated(templateId).get("main").get(0);
+
+        // Une cible par allure, et aucune au niveau du bloc.
+        assertThat(block.get("calc").isNull()).isTrue();
+        assertThat(block.get("steps")).hasSize(2);
+        assertThat(block.get("steps").get(0).get("calc").get("computable").asBoolean()).isTrue();
+        assertThat(block.get("steps").get(1).get("calc").get("computable").asBoolean()).isTrue();
+        // Le 200 se court plus vite que le 400 : c'est tout l'objet de l'enchaînement.
+        assertThat(block.get("steps").get(0).get("calc").get("paceMinSecPerKm").asInt())
+                .isLessThan(block.get("steps").get(1).get("calc").get("paceMinSecPerKm").asInt());
+
+        JsonNode calc = calculated(templateId);
+        // 8 × (200 + 400) = 4 800 m de travail. Comme pour un bloc simple, la distance des
+        // récupérations n'entre pas dans le total : seule leur durée le fait.
+        assertThat(calc.get("totalDistanceM").asInt()).isEqualTo(8 * 600);
+        // Chaque allure est suivie de sa récup, la dernière comprise : 16 × 45 s.
+        assertThat(calc.get("totalDurationS").asInt()).isGreaterThanOrEqualTo(16 * 45);
+    }
+
+    /**
+     * Séries et enchaînement se combinent : « 2 × (4 × (200 / 400)) ». Entre deux séries, la
+     * récup de série remplace celle qui suivait la dernière allure — elle ne s'y ajoute pas.
+     */
+    @Test
+    void setsAndChainsCombine() throws Exception {
+        String templateId = templateWithMain("""
+              {"type":"intervals","reps":4,"sets":2,
+               "setRecovery":{"type":"jog","durationS":300},
+               "steps":[
+                 {"id":"s1","distanceM":200,
+                  "prescription":{"ref":"PCT_PACE_5KM","minPct":110,"maxPct":118},
+                  "recovery":{"type":"jog","durationS":60}},
+                 {"id":"s2","distanceM":400,
+                  "prescription":{"ref":"PCT_PACE_5KM","minPct":100,"maxPct":106},
+                  "recovery":{"type":"jog","durationS":60}}]}""");
+
+        JsonNode calc = calculated(templateId);
+        // 2 × 4 × (200 + 400) = 4 800 m.
+        assertThat(calc.get("totalDistanceM").asInt()).isEqualTo(4800);
+
+        // Récupérations : 16 en tout (2 séries × 4 répétitions × 2 allures), dont celle qui
+        // sépare les deux séries est remplacée par les 5 minutes de récup de série.
+        int running = 0;
+        for (JsonNode step : calc.get("main").get(0).get("steps")) {
+            running += step.get("calc").get("estimatedDurationS").asInt() * 8;
+        }
+        assertThat(calc.get("totalDurationS").asInt() - running).isEqualTo(15 * 60 + 300);
+    }
+
     /** Modèle à un seul bloc de corps de séance, pour les cas de calcul ci-dessus. */
     private String templateWithMain(String mainBlockJson) throws Exception {
         mvc.perform(post("/clubs/{c}/athletes/{a}/performances", clubId, athleteId)

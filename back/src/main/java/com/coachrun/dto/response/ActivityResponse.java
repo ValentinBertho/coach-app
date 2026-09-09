@@ -2,6 +2,7 @@ package com.coachrun.dto.response;
 
 import com.coachrun.entity.Activity;
 import com.coachrun.entity.enums.ActivitySource;
+import com.coachrun.entity.enums.ActivitySport;
 import com.coachrun.entity.enums.ActivityStatus;
 
 import java.time.LocalDate;
@@ -20,6 +21,12 @@ public record ActivityResponse(
         UUID athleteId,
         ActivitySource source,
         LocalDate activityDate,
+        /**
+         * Sport déclaré par la source, ou {@code null} si elle n'a rien dit. Sert à l'écran :
+         * une sortie à vélo ou une séance de renforcement au milieu d'une semaine de course se
+         * reconnaissent alors sans lire les chiffres.
+         */
+        ActivitySport sport,
         String title,
         Integer distanceM,
         Integer durationS,
@@ -61,7 +68,8 @@ public record ActivityResponse(
         String injuriesJson = debriefOwner != null ? debriefOwner.getInjuriesJson() : a.getInjuriesJson();
         String comment = debriefOwner != null ? debriefOwner.getAthleteComment() : a.getAthleteComment();
         return new ActivityResponse(
-                a.getId(), a.getAthlete().getId(), a.getSource(), a.getActivityDate(), a.getTitle(),
+                a.getId(), a.getAthlete().getId(), a.getSource(), a.getActivityDate(),
+                a.getSport(), a.getTitle(),
                 a.getDistanceM(), a.getDurationS(), a.getAvgHr(), a.getElevationGainM(),
                 a.getMaxHr(), a.getAvgCadence(), a.getAvgPowerW(), a.getCalories(),
                 pace(a.getDistanceM(), a.getDurationS()),

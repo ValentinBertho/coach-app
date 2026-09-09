@@ -17,7 +17,8 @@ import { InjuryPickerComponent } from '../../shared/components/injury-picker/inj
 import { PainFatigueSelectorComponent } from '../../shared/components/physiology';
 import { Injury } from '../../core/models/injury.model';
 import {
-  ACTIVITY_STATUS_BADGE, ACTIVITY_STATUS_LABELS, Activity, isSyncedSource,
+  ACTIVITY_SPORT_LABELS, ACTIVITY_STATUS_BADGE, ACTIVITY_STATUS_LABELS, Activity, ActivitySport,
+  activitySportLabel, isSyncedSource,
 } from '../../core/models/activity.model';
 import { formatPace, paceFrom } from '../../core/utils/pace';
 import { ActivityLapsComponent } from '../../shared/components/activity-laps/activity-laps.component';
@@ -71,6 +72,14 @@ interface MonthGroup {
           <div class="lf-row">
             <label>Date<input type="date" class="form-control" [(ngModel)]="draft.activityDate" name="d" required /></label>
             <label>Titre<input class="form-control" [(ngModel)]="draft.title" name="t" placeholder="Sortie libre" /></label>
+            <!-- Le sport : c'est lui qui évite qu'une séance de renforcement saisie ici aille se
+                 rattacher au fractionné prescrit le même jour. Une montre le déclare toute seule ;
+                 une saisie manuelle, non — d'où ce champ, et son défaut « course à pied ». -->
+            <label>Sport
+              <select class="form-control" [(ngModel)]="draft.sport" name="sp">
+                @for (sp of sportChoices; track sp.value) { <option [value]="sp.value">{{ sp.label }}</option> }
+              </select>
+            </label>
           </div>
           <div class="lf-row">
             <label>Distance (km)<input type="number" min="0" step="0.1" class="form-control" [(ngModel)]="draft.km" name="km" /></label>
@@ -133,6 +142,12 @@ interface MonthGroup {
                   </p>
                 }
                 <div class="row-kpis">
+                  <!-- Le sport, quand la source l'a déclaré. C'est aussi l'explication d'un
+                       « non rattachée » qui pourrait surprendre : une sortie à vélo ne réalise
+                       pas la séance de course du jour. -->
+                  @if (sportLabel(a); as sp) {
+                    <span class="row-sport">{{ sp }}</span>
+                  }
                   @if (a.distanceM != null) {
                     <span><app-icon name="footprints" [size]="14" /> {{ (a.distanceM / 1000) | number: '1.0-2' }} km</span>
                   }
@@ -295,6 +310,7 @@ interface MonthGroup {
     .row-note { display: inline-flex; align-items: center; gap: 4px; color: var(--ink-2); font-size: var(--text-sm); min-width: 0; }
     .row-kpis { display: flex; flex-wrap: wrap; gap: var(--sp-3); padding: 0 var(--sp-4) var(--sp-3); color: var(--ink-2); font-size: var(--text-sm); }
     .row-kpis span { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+    .row-sport { font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; font-size: var(--text-xs); }
     .map { height: 260px; width: 100%; }
     .map-empty { padding: 0 var(--sp-4) var(--sp-4); }
     .row-laps, .row-zones { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--hairline); }
@@ -379,9 +395,18 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
   readonly showLog = signal(false);
   readonly busy = signal(false);
   readonly fileBusy = signal(false);
-  draft: { activityDate: string; title: string; km: number | null; min: number | null; dplus: number | null } = {
-    activityDate: new Date().toISOString().slice(0, 10), title: '', km: null, min: null, dplus: null,
+  draft: {
+    activityDate: string; title: string; sport: ActivitySport;
+    km: number | null; min: number | null; dplus: number | null;
+  } = {
+    activityDate: new Date().toISOString().slice(0, 10), title: '', sport: 'RUN',
+    km: null, min: null, dplus: null,
   };
+
+  /** Sports proposés à la saisie, dans l'ordre où ils servent à un coureur. */
+  readonly sportChoices: { value: ActivitySport; label: string }[] =
+    (['RUN', 'WALK', 'RIDE', 'SWIM', 'STRENGTH', 'OTHER'] as ActivitySport[])
+      .map((value) => ({ value, label: ACTIVITY_SPORT_LABELS[value] }));
 
   ngOnInit(): void {
     this.load();
@@ -583,12 +608,16 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
       distanceM: this.draft.km != null ? Math.round(this.draft.km * 1000) : null,
       durationS: this.draft.min != null ? Math.round(this.draft.min * 60) : null,
       elevationGainM: this.draft.dplus,
+      sport: this.draft.sport,
       confirmDuplicate,
     }).subscribe({
       next: () => {
         this.busy.set(false);
         this.showLog.set(false);
-        this.draft = { activityDate: new Date().toISOString().slice(0, 10), title: '', km: null, min: null, dplus: null };
+        this.draft = {
+          activityDate: new Date().toISOString().slice(0, 10), title: '', sport: 'RUN',
+          km: null, min: null, dplus: null,
+        };
         this.toast.success('Sortie ajoutée');
         this.load();
       },
@@ -693,5 +722,8 @@ export class AthleteActivitiesComponent implements OnInit, OnDestroy {
   }
 
   statusLabel(s: Activity['status']): string { return ACTIVITY_STATUS_LABELS[s]; }
+
+  /** Libellé du sport, vide quand la source n'a rien déclaré (rien à afficher, rien à inventer). */
+  sportLabel(a: Activity): string { return activitySportLabel(a.sport); }
   statusBadge(s: Activity['status']): string { return ACTIVITY_STATUS_BADGE[s]; }
 }
