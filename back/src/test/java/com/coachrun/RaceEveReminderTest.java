@@ -21,8 +21,6 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
 
-import java.time.LocalDate;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -53,6 +51,7 @@ class RaceEveReminderTest {
     @Autowired private RaceObjectiveRepository raceRepository;
     @Autowired private com.coachrun.repository.AthleteRepository athleteRepository;
     @Autowired private com.coachrun.repository.NotificationRepository notificationRepository;
+    @Autowired private com.coachrun.service.ClockService clock;
 
     private MockMvc mvc;
 
@@ -157,13 +156,27 @@ class RaceEveReminderTest {
         return athleteRepository.findById(java.util.UUID.fromString(id)).orElseThrow();
     }
 
+    /**
+     * Une course demain — <b>demain au sens de l'application</b>, pas de la JVM.
+     *
+     * <p>La date était posée avec {@code LocalDate.now()}, qui prend le fuseau de la JVM : UTC en
+     * conteneur. Le planificateur, lui, calcule sa journée avec {@link ClockService}, dans le
+     * fuseau métier (Europe/Paris). Entre 22 h et minuit UTC, Paris est déjà le lendemain : le
+     * test posait la course au 10 pendant que le balayage cherchait celles du 11, et les quatre
+     * scénarios de veille de course tombaient — deux heures par nuit, sans rien changer au code.
+     * C'est ce qu'a attrapé la CI à 22 h 02 UTC.</p>
+     *
+     * <p>Le décalage lui-même n'est pas un défaut à corriger : c'est le comportement voulu, et
+     * {@code SchedulerTimeZoneTest} le verrouille avec une horloge figée. Ce qui manquait ici,
+     * c'est que le décor du test parle la même langue que le code qu'il éprouve.</p>
+     */
     private RaceObjective raceTomorrow(Athlete athlete, String name, int distanceM,
                                        RacePriority priority) {
         RaceObjective race = new RaceObjective();
         race.setClub(athlete.getClub());
         race.setAthlete(athlete);
         race.setName(name);
-        race.setRaceDate(LocalDate.now().plusDays(1));
+        race.setRaceDate(clock.today().plusDays(1));
         race.setDistanceM(distanceM);
         race.setPriority(priority);
         return raceRepository.save(race);
