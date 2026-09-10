@@ -169,10 +169,14 @@ class ActivityControllerTest {
      * réellement couru, dont la montre n'avait gardé que la partie rapide, restait affiché
      * « non rattachée ».</p>
      *
-     * <p>Deux corrections, et elles sont indissociables : le <b>sport</b> écarte la musculation et
-     * le vélo, et l'<b>arbitrage</b> ne laisse plus le premier footing importé garder la séance
-     * quand le fractionné arrive derrière lui. La séance doit finir sur le 8*(200/400), et le
-     * footing repartir « non rattachée ».</p>
+     * <p>Trois corrections, indissociables. Le <b>sport</b> écarte la musculation et le vélo.
+     * L'exigence de <b>preuve</b> écarte le footing d'échauffement enregistré à part — 4,8 km
+     * pour une séance de 13,3 : il passait le seuil sur la seule foi de la date, et emportait la
+     * séance parce qu'il était importé le premier. Et le <b>titre</b> désigne le fractionné, dont
+     * la montre n'avait pourtant gardé que la partie rapide.</p>
+     *
+     * <p>Une seule sortie doit finir rattachée : le 8*(200/400). Les quatre autres restent « non
+     * rattachées » — mieux vaut rien que la mauvaise.</p>
      */
     @Test
     void theDaysBestOutingTakesTheWorkoutWhateverTheImportOrder() throws Exception {
@@ -200,16 +204,15 @@ class ActivityControllerTest {
                         "STRENGTH", 0, 1740))
                 .andExpect(jsonPath("$.status").value("UNMATCHED"));
 
-        // 3. Le footing d'échauffement, enregistré à part : rapproché faute de mieux, pour
-        //    l'instant — c'est bien la meilleure sortie connue à cet instant.
-        String warmup = objectMapper.readTree(
-                        mvc.perform(importOf(clubId, athleteId, token, "3", "Course à pied en soirée",
-                                        "RUN", 4810, 1380))
-                                .andExpect(jsonPath("$.status").value("MATCHED"))
-                                .andReturn().getResponse().getContentAsString())
-                .get("id").asText();
+        // 3. Le footing d'échauffement, enregistré à part : 4,8 km pour une séance de 13,3, et
+        //    aucun titre qui la désigne. Il ne prend plus la séance parce qu'il arrive en
+        //    premier — c'est précisément le rapprochement à côté qu'on ne veut plus.
+        mvc.perform(importOf(clubId, athleteId, token, "3", "Course à pied en soirée",
+                        "RUN", 4810, 1380))
+                .andExpect(jsonPath("$.status").value("UNMATCHED"));
 
-        // 4. Le fractionné, arrivé après : il reprend la séance, et le footing la rend.
+        // 4. Le fractionné : ses volumes ne concordent pas non plus (la montre n'a gardé que la
+        //    partie rapide), mais son titre désigne la séance sans ambiguïté.
         mvc.perform(importOf(clubId, athleteId, token, "4", "8*(200/400)", "RUN", 6220, 1500))
                 .andExpect(jsonPath("$.status").value("MATCHED"))
                 .andExpect(jsonPath("$.title").value("8*(200/400)"));
@@ -226,9 +229,55 @@ class ActivityControllerTest {
                     .as("statut de « %s »", a.get("title").asText())
                     .isEqualTo(expected);
         }
-        org.assertj.core.api.Assertions.assertThat(
-                        all.findValues("id").stream().map(JsonNode::asText).toList())
-                .contains(warmup);
+    }
+
+    /**
+     * L'arbitrage entre deux sorties qui pourraient toutes deux réaliser la séance : c'est la
+     * meilleure qui la prend, même arrivée en second, et la délogée repart « non rattachée ».
+     *
+     * <p>Sans cela, l'ordre de synchronisation trancherait à la place des chiffres — et il n'a
+     * aucun rapport avec ce que l'athlète a fait.</p>
+     */
+    @Test
+    void aBetterOutingTakesTheWorkoutFromTheOneThatArrivedFirst() throws Exception {
+        MockMvc mvc = mockMvc();
+        JsonNode ctx = clubWithAthlete(mvc, "arb");
+        String token = ctx.get("token").asText();
+        String clubId = ctx.get("clubId").asText();
+        String athleteId = ctx.get("athleteId").asText();
+
+        mvc.perform(post("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"scheduledDate":"2026-09-08","type":"ENDURANCE","title":"Footing 10 km",
+                                 "targetDistanceM":10000,"targetDurationS":3000}"""))
+                .andExpect(status().isCreated());
+
+        // Une sortie plausible, mais nettement plus courte que la séance.
+        String first = objectMapper.readTree(
+                        mvc.perform(importOf(clubId, athleteId, token, "20", "Sortie du matin",
+                                        "RUN", 6500, 1950))
+                                .andExpect(jsonPath("$.status").value("MATCHED"))
+                                .andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        // Celle qui colle vraiment, importée après.
+        mvc.perform(importOf(clubId, athleteId, token, "21", "Sortie du soir", "RUN", 10100, 3020))
+                .andExpect(jsonPath("$.status").value("MATCHED"));
+
+        JsonNode all = objectMapper.readTree(mvc.perform(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .get("/clubs/{c}/athletes/{a}/activities", clubId, athleteId)
+                                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        for (JsonNode a : all) {
+            String expected = first.equals(a.get("id").asText()) ? "UNMATCHED" : "MATCHED";
+            org.assertj.core.api.Assertions.assertThat(a.get("status").asText())
+                    .as("statut de « %s »", a.get("title").asText())
+                    .isEqualTo(expected);
+        }
     }
 
     /** Un rapprochement décidé à la main ne se fait pas déloger par l'import suivant. */

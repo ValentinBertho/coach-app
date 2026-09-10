@@ -27,6 +27,12 @@ public record ActivityResponse(
          * reconnaissent alors sans lire les chiffres.
          */
         ActivitySport sport,
+        /**
+         * Catégorie exacte déclarée par la source — « GravelRide », « trail_running ». C'est elle
+         * que l'écran affiche : la famille range, mais ranger c'est perdre, et un coach qui lit
+         * « Vélo » là où son athlète a fait du gravel lit une information appauvrie.
+         */
+        String sportDetail,
         String title,
         Integer distanceM,
         Integer durationS,
@@ -69,7 +75,7 @@ public record ActivityResponse(
         String comment = debriefOwner != null ? debriefOwner.getAthleteComment() : a.getAthleteComment();
         return new ActivityResponse(
                 a.getId(), a.getAthlete().getId(), a.getSource(), a.getActivityDate(),
-                a.getSport(), a.getTitle(),
+                a.getSport(), a.getSportDetail(), a.getTitle(),
                 a.getDistanceM(), a.getDurationS(), a.getAvgHr(), a.getElevationGainM(),
                 a.getMaxHr(), a.getAvgCadence(), a.getAvgPowerW(), a.getCalories(),
                 pace(a.getDistanceM(), a.getDurationS()),

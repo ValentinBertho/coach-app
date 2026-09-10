@@ -1,5 +1,6 @@
 package com.coachrun;
 
+import com.coachrun.entity.enums.ActivitySport;
 import com.coachrun.util.ActivityTrack;
 import com.coachrun.util.GpxParser;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,49 @@ class GpxParserTest {
         assertThat(a.elevationGainM()).isEqualTo(10);
         assertThat(a.route()).hasSize(3);
         assertThat(a.date().toString()).isEqualTo("2026-07-01");
+    }
+
+    /**
+     * Le GPX déclare son type dans {@code <type>} et le TCX dans l'attribut {@code Sport} de son
+     * activité : deux informations qui arrivaient dans le fichier et n'étaient pas lues. Le
+     * libellé est gardé <b>tel quel</b> — le ranger en famille ici reviendrait à jeter ce qu'on
+     * est venu chercher.
+     */
+    @Test
+    void gardeLeTypeDeclareParLaTrace() {
+        String gpx = """
+                <?xml version="1.0"?>
+                <gpx><trk><type>trail running</type><trkseg>
+                  <trkpt lat="45.7640" lon="4.8357"><time>2026-07-01T08:00:00Z</time></trkpt>
+                  <trkpt lat="45.7700" lon="4.8400"><time>2026-07-01T08:05:00Z</time></trkpt>
+                </trkseg></trk></gpx>
+                """;
+        ActivityTrack.ParsedActivity a = GpxParser.parse(gpx.getBytes(StandardCharsets.UTF_8));
+
+        assertThat(a.sport()).isEqualTo(ActivitySport.RUN);
+        assertThat(a.sportDetail()).isEqualTo("trail running");
+    }
+
+    /**
+     * « Other » ne nomme rien : les montres y rangent tout ce qu'elles ne savent pas nommer,
+     * course à pied comprise. L'afficher serait annoncer une information là où il n'y en a pas —
+     * et l'opposer au rapprochement serait pire encore.
+     */
+    @Test
+    void ecarteLeSportOtherDunTcxQuiNeNommeRien() {
+        String tcx = """
+                <?xml version="1.0"?>
+                <TrainingCenterDatabase><Activities><Activity Sport="Other"><Lap><Track>
+                  <Trackpoint><Time>2026-07-01T08:00:00Z</Time>
+                    <Position><LatitudeDegrees>45.7640</LatitudeDegrees><LongitudeDegrees>4.8357</LongitudeDegrees></Position></Trackpoint>
+                  <Trackpoint><Time>2026-07-01T08:05:00Z</Time>
+                    <Position><LatitudeDegrees>45.7700</LatitudeDegrees><LongitudeDegrees>4.8400</LongitudeDegrees></Position></Trackpoint>
+                </Track></Lap></Activity></Activities></TrainingCenterDatabase>
+                """;
+        ActivityTrack.ParsedActivity a = GpxParser.parse(tcx.getBytes(StandardCharsets.UTF_8));
+
+        assertThat(a.sport()).isNull();
+        assertThat(a.sportDetail()).isNull();
     }
 
     @Test

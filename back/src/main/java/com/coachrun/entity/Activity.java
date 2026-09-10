@@ -60,6 +60,21 @@ public class Activity extends BaseEntity {
     @Column(name = "sport", length = 16)
     private ActivitySport sport;
 
+    /**
+     * La catégorie <b>exacte</b> déclarée par la source — « GravelRide », « TrailRun »,
+     * « trail_running » — quand {@link #sport} n'en garde que la famille.
+     *
+     * <p>Ranger, c'est perdre : un gravel et une sortie route deviennent tous deux
+     * {@code RIDE}, un trail et un 10 km sur piste tous deux {@code RUN}. La famille est ce
+     * qu'il faut au rapprochement, le libellé est ce qu'il faut à l'écran — et ils sont gardés
+     * séparément parce qu'ils ne servent pas à la même chose.</p>
+     *
+     * <p>Ce champ ne pilote <b>rien</b> : c'est ce qui permet de l'accepter tel quel, sans avoir
+     * à connaître d'avance tout ce que Strava et les montres sauront un jour déclarer.</p>
+     */
+    @Column(name = "sport_detail", length = 64)
+    private String sportDetail;
+
     @Column(name = "title")
     private String title;
 

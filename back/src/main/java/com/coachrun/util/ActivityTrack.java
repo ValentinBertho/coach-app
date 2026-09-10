@@ -58,11 +58,14 @@ public final class ActivityTrack {
      *              le porte dans son message de session, le TCX en attribut de son activité, le
      *              GPX dans la balise {@code <type>} de sa trace. Il était décodé puis jeté :
      *              c'est ce qui laissait une séance de musculation se rapprocher d'un fractionné.
+     * @param sportDetail la catégorie exacte que le fichier déclare (« trail_running »,
+     *              « Biking »), quand {@code sport} n'en garde que la famille. Elle ne sert qu'à
+     *              l'affichage — mais la ranger sans la garder, c'était la perdre.
      */
     public record ParsedActivity(
             LocalDate date, Integer distanceM, Integer durationS, Integer elevationGainM,
             Integer avgHr, List<double[]> route, List<int[]> stream,
-            List<ActivityLapsResponse.Lap> laps, ActivitySport sport) {
+            List<ActivityLapsResponse.Lap> laps, ActivitySport sport, String sportDetail) {
     }
 
     /** Les points qui portent une position, seuls exploitables pour la géométrie. */

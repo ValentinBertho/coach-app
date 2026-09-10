@@ -39,11 +39,12 @@ public final class GpxParser {
         LocalDate date = first != null ? first.atZone(ZoneOffset.UTC).toLocalDate() : LocalDate.now();
 
         List<ActivityTrack.Point> positioned = ActivityTrack.positioned(points);
+        String declared = readDeclaredSport(content);
         return new ActivityTrack.ParsedActivity(date,
                 ActivityTrack.distanceM(positioned), durationS,
                 ActivityTrack.elevationGainM(points), ActivityTrack.avgHr(points),
                 ActivityTrack.downsample(positioned), ActivityTrack.buildStream(points),
-                readTcxLaps(content), readSport(content));
+                readTcxLaps(content), ActivitySport.fromXmlLabel(declared), declared);
     }
 
     /**
@@ -54,36 +55,51 @@ public final class GpxParser {
      * vélo importée à la main n'est qu'une date, une distance et une durée — de quoi aller se
      * rapprocher du fractionné prescrit le même jour.</p>
      *
-     * <p>{@code null} quand rien n'est déclaré, et aussi quand un TCX annonce «&nbsp;Other&nbsp;» :
-     * les montres y rangent tout ce qu'elles ne savent pas nommer, course à pied comprise. Mieux
-     * vaut ne rien affirmer que d'exclure à tort.</p>
+     * <p>Le libellé est rendu <b>tel quel</b> : c'est lui qui s'affichera, et le traduire en
+     * famille ici reviendrait à jeter ce qu'on est venu chercher. Un libellé qu'on ne sait pas
+     * classer — « Pickleball » — vaut mieux que rien : il ne dira rien au rapprochement, mais il
+     * dira quelque chose au coach.</p>
+     *
+     * <p>Deux exceptions rendent {@code null} : l'absence de déclaration, et le «&nbsp;Other&nbsp;»
+     * d'un TCX — les montres y rangent tout ce qu'elles ne savent pas nommer, course à pied
+     * comprise, et l'afficher tel quel serait annoncer une information là où il n'y en a pas.</p>
      */
-    private static ActivitySport readSport(byte[] content) {
+    private static String readDeclaredSport(byte[] content) {
         try {
             DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
             dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
             dbf.setNamespaceAware(false);
             var doc = dbf.newDocumentBuilder().parse(new ByteArrayInputStream(content));
 
+            List<String> declared = new ArrayList<>();
             NodeList activities = doc.getElementsByTagName("Activity");
             for (int i = 0; i < activities.getLength(); i++) {
-                ActivitySport sport = ActivitySport.fromXmlLabel(
-                        ((Element) activities.item(i)).getAttribute("Sport"));
-                if (sport != null) {
-                    return sport;
-                }
+                declared.add(((Element) activities.item(i)).getAttribute("Sport"));
             }
             NodeList types = doc.getElementsByTagName("type");
             for (int i = 0; i < types.getLength(); i++) {
-                ActivitySport sport = ActivitySport.fromXmlLabel(types.item(i).getTextContent());
-                if (sport != null) {
-                    return sport;
-                }
+                declared.add(types.item(i).getTextContent());
             }
-            return null;
+
+            // Un libellé qu'on sait classer d'abord : sur un TCX multisport, c'est celui qui
+            // décrit l'activité plutôt que le « Other » d'une transition.
+            return declared.stream().map(GpxParser::cleaned).filter(java.util.Objects::nonNull)
+                    .filter(l -> ActivitySport.fromXmlLabel(l) != null)
+                    .findFirst()
+                    .orElseGet(() -> declared.stream().map(GpxParser::cleaned)
+                            .filter(java.util.Objects::nonNull).findFirst().orElse(null));
         } catch (Exception e) {
             return null; // le sport est un bonus : son absence n'invalide pas le fichier
         }
+    }
+
+    /** Libellé exploitable, ou {@code null} : ni vide, ni le « Other » qui ne nomme rien. */
+    private static String cleaned(String label) {
+        if (label == null || label.isBlank()) {
+            return null;
+        }
+        String trimmed = label.trim();
+        return trimmed.equalsIgnoreCase("other") ? null : trimmed;
     }
 
     /**
