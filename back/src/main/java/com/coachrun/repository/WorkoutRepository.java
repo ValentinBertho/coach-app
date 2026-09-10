@@ -142,6 +142,28 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
                                       @Param("since") LocalDate since);
 
     /**
+     * Les séances sur lesquelles un athlète a répondu au coach sans que personne ne l'ait lu.
+     *
+     * <p>C'est la file la plus courte du produit et celle qui coûtait le plus cher : la réponse
+     * existait — dans la messagerie — mais rien ne disait au coach qu'elle l'attendait. Le couple
+     * (a répondu, personne n'a lu) est le même mécanisme que le mot du coach non lu côté athlète,
+     * pris dans l'autre sens.</p>
+     *
+     * <p>Bornée comme la file de retours : au-delà, une réponse ne se traite plus, elle se relit
+     * sur la séance.</p>
+     */
+    @Query("""
+            select w from Workout w
+            where w.athlete.id in :athleteIds
+              and w.athleteReplyAt is not null
+              and w.athleteReplyReadAt is null
+              and w.scheduledDate >= :since
+            order by w.athleteReplyAt desc
+            """)
+    List<Workout> findPendingReplies(@Param("athleteIds") Collection<UUID> athleteIds,
+                                     @Param("since") LocalDate since);
+
+    /**
      * Les séances d'un jour donné, pour un ensemble d'athlètes — la journée du coach.
      *
      * <p>Le calendrier ne sait lire qu'un athlète à la fois : « qu'est-ce qui est prévu

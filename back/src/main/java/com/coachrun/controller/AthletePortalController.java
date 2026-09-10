@@ -218,6 +218,23 @@ public class AthletePortalController {
     }
 
     /**
+     * Le fil de cette séance : le mot du coach a une suite, et elle se lit là où il l'a écrit.
+     *
+     * <p>Ce sont les messages de la messagerie rattachés à cette séance, pas un second canal :
+     * l'échange reste entier dans « Mes messages ». La fiche montrait jusqu'ici la question du
+     * coach et un champ de réponse qui, une fois envoyé, ne laissait plus rien — l'athlète ne
+     * pouvait ni se relire, ni voir que son coach avait répondu.</p>
+     */
+    @GetMapping("/workouts/{workoutId}/thread")
+    public java.util.List<com.coachrun.dto.response.MessageResponse> myWorkoutThread(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID workoutId) {
+        // La séance est d'abord vérifiée comme étant la sienne : le fil se lit par rattachement,
+        // et rien n'empêcherait sinon de demander celui de la séance de quelqu'un d'autre.
+        workoutService.getForAthlete(principal.athleteId(), workoutId);
+        return messageService.workoutThread(principal, workoutId);
+    }
+
+    /**
      * Les mots du coach que je n'ai pas encore lus, séance la plus récente d'abord.
      *
      * <p>Sert la carte d'« Aujourd'hui ». Sans elle, un commentaire posé sur une sortie de

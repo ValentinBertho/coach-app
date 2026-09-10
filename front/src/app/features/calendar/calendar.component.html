@@ -134,7 +134,7 @@
               Tout sélectionner <kbd class="ctx-kbd">{{ keys('mod','A') }}</kbd>
             </button>
             <button type="button" class="ctx-item" (click)="pasteOn(hoveredDate()); actionsMenuOpen.set(false)"
-                    [disabled]="clipboard().refs.length === 0">
+                    [disabled]="clipboard().entries.length === 0">
               Coller <kbd class="ctx-kbd">{{ keys('mod','V') }}</kbd>
             </button>
           </div>
@@ -279,7 +279,11 @@
           <h3>Bibliothèque</h3>
           <button type="button" class="icon-btn" (click)="toggleSidebar()" title="Masquer la bibliothèque"><app-icon name="x" [size]="15" /></button>
         </div>
-        <p class="field-hint">Glisse une séance sur la ligne d'un athlète pour la lui planifier.</p>
+        <p class="field-hint">
+          Glisse une séance sur la ligne d'un athlète pour la lui planifier.
+          Clic droit sur une séance déjà posée pour la copier, puis sur une case — ou sur
+          « tout le groupe » — pour la coller.
+        </p>
 
         <app-session-library-panel
           [courseTemplates]="courseTemplates()"
@@ -310,7 +314,8 @@
           <div class="gg-cell gg-cell--all" [class.today]="d.isToday"
                [class.gg-cell--busy]="groupScheduling()"
                cdkDropList (cdkDropListDropped)="onGroupAllDrop($event, d.date)"
-               title="Déposer une séance ici la planifie pour tout le groupe">
+               (contextmenu)="openGroupAllMenu(d.date, $event)"
+               title="Déposer une séance ici la planifie pour tout le groupe — clic droit pour y coller le presse-papier">
             <span class="gg-all-hint">+ tout le groupe</span>
           </div>
         }
@@ -327,12 +332,17 @@
 
           @for (d of weekDates(); track d.date) {
             <div class="gg-cell" [class.today]="d.isToday" [class.weekend]="d.weekend"
-                 cdkDropList (cdkDropListDropped)="onGroupDrop($event, row, d.date)">
+                 [class.gg-cell--hover]="hoveredCell()?.athleteId === row.athleteId && hoveredCell()?.date === d.date"
+                 cdkDropList (cdkDropListDropped)="onGroupDrop($event, row, d.date)"
+                 (mouseenter)="onGroupCellEnter(row, d.date)" (mouseleave)="onGroupCellLeave(row, d.date)"
+                 (contextmenu)="openGroupCellMenu(row, d.date, $event)">
               @for (w of rowWorkouts(row, d.date); track w.id) {
-                <button type="button" class="workout-card gg-chip"
+                <button type="button" class="workout-card gg-chip" data-chip
                         [class.workout-card--key]="typeMeta(w.type).key"
                         [style.--type-color]="typeMeta(w.type).color"
                         cdkDrag [cdkDragData]="w" [cdkDragDisabled]="!row.canWrite"
+                        (cdkDragStarted)="onDragStarted($event)" (cdkDragEnded)="onDragEnded()"
+                        (contextmenu)="openGroupChipMenu(row, w, $event)"
                         (click)="openGroupWorkout(row, w)">
                   <span class="wc-head">
                     <app-icon class="wc-type" [name]="typeMeta(w.type).icon" [size]="12" />
@@ -345,9 +355,11 @@
                 </button>
               }
               @for (s of rowStrength(row, d.date); track s.id) {
-                <div class="strength-chip gg-chip" [class.done]="s.completed"
+                <div class="strength-chip gg-chip" data-chip [class.done]="s.completed"
                      [style.--type-color]="typeMeta('STRENGTH').color"
-                     cdkDrag [cdkDragData]="s" [cdkDragDisabled]="!row.canWrite" [title]="s.title">
+                     cdkDrag [cdkDragData]="s" [cdkDragDisabled]="!row.canWrite"
+                     (cdkDragStarted)="onDragStarted($event)" (cdkDragEnded)="onDragEnded()"
+                     (contextmenu)="openGroupChipMenu(row, s, $event)" [title]="s.title">
                   <app-icon class="sc-icon" name="dumbbell" [size]="12" />
                   <span class="sc-title">{{ s.title }}</span>
                 </div>
@@ -358,6 +370,43 @@
       }
     </div>
     </div>
+
+    <!-- Menu contextuel de la vue groupe : la moitié découvrable du copier-coller.
+         Le geste existait au clavier en mode athlète et nulle part ici — un coach de club en
+         concluait raisonnablement qu'il n'existait pas (« sur les séances de groupe, juste les
+         copier-coller qui sont pas possible »). -->
+    @if (groupMenu(); as gm) {
+      <div class="ctx-backdrop" (click)="closeGroupMenu()" (contextmenu)="$event.preventDefault(); closeGroupMenu()"></div>
+      <div class="ctx-menu" [style.left.px]="gm.x" [style.top.px]="gm.y" (click)="$event.stopPropagation()">
+        <span class="ctx-title">{{ gm.athleteName }} · {{ fmtDate(gm.date) }}</span>
+
+        @if (gm.entry) {
+          <button type="button" class="ctx-item" (click)="ctxGroupCopy()">
+            <app-icon name="copy" [size]="14" /> Copier « {{ gm.title }} »
+            <kbd class="ctx-kbd">{{ keys('mod','C') }}</kbd>
+          </button>
+          <div class="ctx-sep"></div>
+        }
+
+        @if (gm.all) {
+          <button type="button" class="ctx-item" (click)="ctxGroupPasteAll()"
+                  [disabled]="!clipboardLabel()">
+            <app-icon name="users-round" [size]="14" />
+            {{ clipboardLabel() ? 'Coller « ' + clipboardLabel() + ' » pour tout le groupe' : 'Coller pour tout le groupe (presse-papier vide)' }}
+          </button>
+        } @else {
+          <button type="button" class="ctx-item" (click)="ctxGroupPaste()"
+                  [disabled]="!clipboardLabel() || !gm.canWrite">
+            <app-icon name="copy" [size]="14" />
+            {{ clipboardLabel() ? 'Coller « ' + clipboardLabel() + ' » ici' : 'Coller ici (presse-papier vide)' }}
+            <kbd class="ctx-kbd">{{ keys('mod','V') }}</kbd>
+          </button>
+          @if (!gm.canWrite) {
+            <span class="ctx-title ctx-title--note">Lecture seule sur cet athlète.</span>
+          }
+        }
+      </div>
+    }
   }
 } @else if (athletes().length === 0 && !lockedToAthlete()) {
   <div class="card empty-state">

@@ -39,11 +39,27 @@ export class MessageService {
       `${environment.apiUrl}/clubs/${this.auth.clubId()}/athletes/${athleteId}/messages`
     );
   }
-  coachSend(athleteId: string, body: string): Observable<Message> {
+  coachSend(athleteId: string, body: string, workoutId?: string): Observable<Message> {
     return this.http.post<Message>(
       `${environment.apiUrl}/clubs/${this.auth.clubId()}/athletes/${athleteId}/messages`,
-      { body }
+      { body, workoutId }
     );
+  }
+
+  // --- Fil d'une séance -------------------------------------------------------------------
+  // Les mêmes messages que la messagerie, lus par leur rattachement à une séance. Pas un second
+  // canal : la question du coach et la réponse de l'athlète se lisent là où elles ont été
+  // écrites, et l'échange reste entier dans la boîte de réception.
+
+  /** Fil d'une séance, vu du coach. */
+  coachWorkoutThread(athleteId: string, workoutId: string): Observable<Message[]> {
+    return this.http.get<Message[]>(
+      `${environment.apiUrl}/clubs/${this.auth.clubId()}/athletes/${athleteId}/workouts/${workoutId}/thread`);
+  }
+
+  /** Fil d'une séance, vu de l'athlète. */
+  myWorkoutThread(workoutId: string): Observable<Message[]> {
+    return this.http.get<Message[]>(`${environment.apiUrl}/me/workouts/${workoutId}/thread`);
   }
 
   // Athlète

@@ -61,6 +61,31 @@ import { SessionStructure } from '../../core/models/course.model';
 /** Vue du calendrier : séances prévues, activités réalisées, ou les deux (façon Nolio). */
 type CalView = 'planned' | 'realized' | 'both';
 
+/**
+ * Une entrée du presse-papier du calendrier.
+ *
+ * <p>Autoportante à dessein : elle dit <b>chez qui</b> et <b>quand</b> la séance se trouvait, pas
+ * seulement son identifiant. Le presse-papier ne résolvait ses références qu'en relisant les
+ * signaux de la grille mono-athlète ; il ne pouvait donc ni copier ni coller dans la vue groupe,
+ * qui charge ses lignes ailleurs. Porter l'origine dans l'entrée est ce qui rend le geste
+ * indépendant de la vue — et permet de coller la séance de Marc chez Julie.</p>
+ */
+interface ClipEntry extends ChipRef {
+  /** Athlète chez qui la séance se trouve — la source, pas la cible. */
+  readonly athleteId: string;
+  /** Date d'origine : c'est elle qui donne les écarts d'un collage multi-jours. */
+  readonly date: string;
+  /** Séance de force : son modèle de bibliothèque, seule façon de la recréer ailleurs. */
+  readonly sourceSessionId: string | null;
+}
+
+/** Une séance créée par un collage, et chez qui — de quoi l'annuler. */
+interface Created {
+  readonly kind: 'course' | 'strength';
+  readonly id: string;
+  readonly athleteId: string;
+}
+
 interface DayCell {
   date: string;
   label: string;
@@ -190,10 +215,24 @@ export class CalendarComponent implements OnInit, OnDestroy {
   readonly weekOutlook = signal<WeekOutlook | null>(null);
 
   readonly selection = new CalendarSelection();
-  /** Séances copiées (Cmd+C) : on garde la référence, pas une copie de l'objet. */
-  readonly clipboard = signal<{ refs: ChipRef[]; label: string }>({ refs: [], label: '' });
+  /**
+   * Séances copiées (Cmd+C) : on garde la référence, pas une copie de l'objet.
+   *
+   * <p>Chaque entrée est <b>autoportante</b> — elle dit chez qui et quand la séance était, pas
+   * seulement son identifiant. C'est ce qui permet de coller ailleurs que dans la grille qui a
+   * servi à copier : la vue groupe n'affiche pas {@link workouts}, et résoudre une référence en
+   * la relisant dans les signaux du mode athlète y renvoyait toujours « les séances à copier ne
+   * sont plus affichées ». C'est le manque remonté en bêta : « sur les séances de groupe, juste
+   * les copier-coller qui sont pas possible ».</p>
+   */
+  readonly clipboard = signal<{ entries: ClipEntry[]; label: string }>({ entries: [], label: '' });
   /** Jour survolé : cible implicite de Cmd+V et de N, comme un curseur de tableur. */
   readonly hoveredDate = signal<string | null>(null);
+  /**
+   * Case survolée en vue groupe : (athlète, jour). Le curseur du mode athlète ne connaît qu'une
+   * date — ici, coller demande aussi de savoir chez qui.
+   */
+  readonly hoveredCell = signal<{ athleteId: string; date: string } | null>(null);
   /** Plage de jours retenue par un rectangle tracé sur des jours vides. */
   readonly dayRange = signal<string[]>([]);
   readonly shortcutsOpen = signal(false);
@@ -486,6 +525,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // Alt (ou ⌘/Ctrl) enfoncé : on duplique au lieu de déplacer, comme en mode athlète. Le
+    // curseur l'annonçait déjà pendant le glisser ; la grille groupe déplaçait quand même.
+    const chip = item as unknown as Workout | ScheduledStrength;
+    const native = event.event as MouseEvent;
+    if (native && (native.altKey || native.ctrlKey || native.metaKey)) {
+      if (chip.scheduledDate === targetDate) return;
+      this.copyGroupChip(row, chip, targetDate);
+      return;
+    }
+
     if ('sourceSessionId' in rec) {
       this.moveGroupStrength(row, item as unknown as ScheduledStrength, targetDate);
     } else {
@@ -576,6 +625,193 @@ export class CalendarComponent implements OnInit, OnDestroy {
   /** Ouvre la séance course d'une ligne de groupe (lecture). */
   openGroupWorkout(row: GroupCalendarRow, w: Workout): void {
     this.router.navigate(['/app/athletes', row.athleteId, 'workouts', w.id]);
+  }
+
+  // --- Copier-coller en vue groupe ----------------------------------------------------------
+  // Le mode groupe savait planifier depuis la bibliothèque et déplacer une séance d'un jour à
+  // l'autre, mais pas la copier : « sur les séances de groupe, juste les copier-coller qui sont
+  // pas possible » (retour bêta d'un coach de club). Or c'est précisément là que le geste sert
+  // le plus — un club fait courir la même séance à plusieurs athlètes, à un détail près.
+  //
+  // Le presse-papier est le MÊME que celui du mode athlète : on copie ici, on colle là-bas, et
+  // réciproquement. Deux presse-papiers auraient été deux gestes à apprendre pour un seul mot.
+
+  /** Menu contextuel de la grille groupe : sur une chip, sur une case, ou sur « tout le groupe ». */
+  readonly groupMenu = signal<{
+    x: number; y: number;
+    athleteId: string | null; athleteName: string; canWrite: boolean; date: string;
+    entry: ClipEntry | null; title: string | null; all: boolean;
+  } | null>(null);
+
+  closeGroupMenu(): void { this.groupMenu.set(null); }
+
+  onGroupCellEnter(row: GroupCalendarRow, date: string): void {
+    this.hoveredCell.set({ athleteId: row.athleteId, date });
+  }
+  onGroupCellLeave(row: GroupCalendarRow, date: string): void {
+    const h = this.hoveredCell();
+    if (h && h.athleteId === row.athleteId && h.date === date) this.hoveredCell.set(null);
+  }
+
+  /** Clic droit sur une séance de la grille groupe. */
+  openGroupChipMenu(row: GroupCalendarRow, chip: Workout | ScheduledStrength, ev: MouseEvent): void {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
+    this.hoveredCell.set({ athleteId: row.athleteId, date: chip.scheduledDate });
+    this.groupMenu.set({
+      x, y, athleteId: row.athleteId, athleteName: `${row.firstName} ${row.lastName}`,
+      canWrite: row.canWrite, date: chip.scheduledDate,
+      entry: this.groupEntry(row, chip), title: chip.title, all: false,
+    });
+  }
+
+  /** Clic droit sur une case (jour d'un athlète). */
+  openGroupCellMenu(row: GroupCalendarRow, date: string, ev: MouseEvent): void {
+    ev.preventDefault();
+    if ((ev.target as HTMLElement).closest('[data-chip]')) return;
+    const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
+    this.hoveredCell.set({ athleteId: row.athleteId, date });
+    this.groupMenu.set({
+      x, y, athleteId: row.athleteId, athleteName: `${row.firstName} ${row.lastName}`,
+      canWrite: row.canWrite, date, entry: null, title: null, all: false,
+    });
+  }
+
+  /** Clic droit sur la ligne « tout le groupe » : coller la même séance à tout le monde. */
+  openGroupAllMenu(date: string, ev: MouseEvent): void {
+    ev.preventDefault();
+    const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
+    this.groupMenu.set({
+      x, y, athleteId: null, athleteName: 'Tout le groupe', canWrite: true, date,
+      entry: null, title: null, all: true,
+    });
+  }
+
+  /** Une chip de la grille groupe, en entrée de presse-papier autoportante. */
+  private groupEntry(row: GroupCalendarRow, chip: Workout | ScheduledStrength): ClipEntry {
+    const strength = chip as ScheduledStrength;
+    const isStrength = 'sourceSessionId' in chip;
+    return {
+      kind: isStrength ? 'strength' : 'course',
+      id: chip.id,
+      athleteId: row.athleteId,
+      date: chip.scheduledDate,
+      sourceSessionId: isStrength ? (strength.sourceSessionId ?? null) : null,
+    };
+  }
+
+  /** Copie la séance visée par le menu. */
+  ctxGroupCopy(): void {
+    const m = this.groupMenu();
+    this.closeGroupMenu();
+    if (!m?.entry) return;
+    this.putInClipboard([m.entry], m.title ?? '1 séance');
+  }
+
+  /** Copie tout ce que porte la case survolée (une journée d'un athlète) — Cmd+C en vue groupe. */
+  copyHoveredCell(): void {
+    const h = this.hoveredCell();
+    const row = h ? this.groupRows().find((r) => r.athleteId === h.athleteId) : undefined;
+    if (!h || !row) { this.toast.info('Survole la séance d’un athlète pour la copier.'); return; }
+    const chips = [...this.rowWorkouts(row, h.date), ...this.rowStrength(row, h.date)];
+    if (!chips.length) { this.toast.info('Rien à copier sur ce jour.'); return; }
+    const entries = chips.map((c) => this.groupEntry(row, c));
+    this.putInClipboard(entries, chips.length === 1 ? chips[0].title : `${chips.length} séances`);
+  }
+
+  /** Colle sur une case de la grille groupe (menu contextuel ou Cmd+V sur la case survolée). */
+  pasteOnGroupCell(target?: { athleteId: string; date: string }): void {
+    const cell = target ?? this.hoveredCell();
+    if (!cell) { this.toast.info('Survole le jour d’un athlète pour coller.'); return; }
+    const row = this.groupRows().find((r) => r.athleteId === cell.athleteId);
+    if (!row) return;
+    if (!row.canWrite) {
+      this.toast.warning(`Lecture seule sur ${row.firstName} ${row.lastName}.`);
+      return;
+    }
+    const entries = this.clipboard().entries;
+    if (!entries.length) {
+      this.toast.info(`Presse-papier vide — ${this.keys('mod', 'C')} pour copier.`);
+      return;
+    }
+    this.pasteRefs(entries, row.athleteId, cell.date, undefined, 'le collage',
+      (n) => `${n} séance(s) collée(s) chez ${row.firstName} le ${this.fmtDate(cell.date)}`);
+  }
+
+  ctxGroupPaste(): void {
+    const m = this.groupMenu();
+    this.closeGroupMenu();
+    if (!m?.athleteId) return;
+    this.pasteOnGroupCell({ athleteId: m.athleteId, date: m.date });
+  }
+
+  /**
+   * Colle le presse-papier chez <b>tous</b> les athlètes du groupe, sur le même jour.
+   *
+   * <p>C'est le geste que la ligne « tout le groupe » proposait déjà pour la bibliothèque, étendu
+   * à une séance déjà écrite : un coach de club ajuste une séance pour un athlète, puis la donne
+   * telle quelle aux quatorze autres. Chacun reçoit ses <b>propres</b> cibles — le serveur
+   * recalcule la prescription pour lui.</p>
+   *
+   * <p>Les athlètes en lecture seule sont ignorés, et on le dit : les taire ferait croire à une
+   * prescription complète.</p>
+   */
+  async ctxGroupPasteAll(): Promise<void> {
+    const m = this.groupMenu();
+    this.closeGroupMenu();
+    if (!m) return;
+    const entries = this.clipboard().entries;
+    if (!entries.length) {
+      this.toast.info(`Presse-papier vide — ${this.keys('mod', 'C')} pour copier.`);
+      return;
+    }
+    const rows = this.groupRows().filter((r) => r.canWrite);
+    const skipped = this.groupRows().length - rows.length;
+    if (!rows.length) { this.toast.warning('Aucun athlète du groupe n’est modifiable.'); return; }
+
+    const ok = await this.confirm.ask({
+      title: 'Coller pour tout le groupe',
+      message: `Donner « ${this.clipboardLabel()} » à ${rows.length} athlète(s) le `
+        + `${this.fmtDate(m.date)} ?`,
+      confirmLabel: 'Coller',
+    });
+    if (!ok) return;
+
+    // Un seul lot, une seule entrée d'annulation : le coach a fait un geste, il doit pouvoir le
+    // défaire d'un geste — pas athlète par athlète.
+    const created: Created[] = [];
+    const sourcesFor = (athleteId: string) =>
+      this.pasteSources(entries, m.date).map((src) => this.pasteOne(src, athleteId, created));
+    const run = () => defer(() => {
+      created.length = 0;
+      return this.all(rows.flatMap((r) => sourcesFor(r.athleteId)));
+    });
+    run().subscribe({
+      next: () => {
+        this.refreshAll();
+        const note = skipped > 0 ? ` — ${skipped} athlète(s) ignoré(s) (lecture seule)` : '';
+        this.commit({
+          label: 'le collage sur le groupe',
+          undo: () => this.all(created.map((c) => this.removeCreated(c))),
+          redo: () => run(),
+        }, `${this.clipboardLabel()} collée pour ${rows.length} athlète(s)${note}`);
+      },
+      error: () => { this.refreshAll(); this.toast.error('Collage impossible.'); },
+    });
+  }
+
+  /**
+   * Duplique une séance déjà planifiée d'une case à l'autre (Alt + glisser, en vue groupe).
+   *
+   * <p>Le mode athlète connaît ce geste depuis toujours ; la grille groupe, elle, ne savait que
+   * déplacer — et Alt enfoncé y donnait donc silencieusement le contraire de ce que le curseur
+   * annonçait.</p>
+   */
+  private copyGroupChip(row: GroupCalendarRow, chip: Workout | ScheduledStrength, date: string): void {
+    const entry = this.groupEntry(row, chip);
+    this.pasteRefs([entry], row.athleteId, date, undefined, 'la copie',
+      () => `${chip.title} copiée le ${this.fmtDate(date)}`);
   }
 
   /** Semaines (lignes de 7 jours) + totaux — colonne de droite façon Nolio. */
@@ -1208,8 +1444,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.closePicker();
     this.dayRange.set([]);
 
-    const created: { kind: 'course' | 'strength'; id: string }[] = [];
-    const run = () => this.all(dates.map((d) => schedule(d).pipe(tap((c) => created.push({ kind, id: c.id })))));
+    const athleteId = this.selectedAthleteId;
+    const created: Created[] = [];
+    const run = () => this.all(dates.map(
+      (d) => schedule(d).pipe(tap((c) => created.push({ kind, id: c.id, athleteId })))));
     run().subscribe({
       next: () => {
         this.refreshAll();
@@ -1421,8 +1659,15 @@ export class CalendarComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Recharge tout ce qui peut avoir bougé (séances course + force). */
+  /**
+   * Recharge tout ce qui peut avoir bougé (séances course + force).
+   *
+   * <p>Suit la vue affichée : la grille groupe ne lit ni {@link workouts} ni {@link strength},
+   * et recharger le mode athlète derrière un collage fait en vue groupe ne montrait rien —
+   * l'annulation, elle, semblait alors n'avoir aucun effet.</p>
+   */
   private refreshAll(): void {
+    if (this.scopeMode() === 'group') { this.loadGroup(); return; }
     this.load();
     this.reloadStrength();
   }
@@ -1538,13 +1783,25 @@ export class CalendarComponent implements OnInit, OnDestroy {
     if (this.pickerDate()) this.noteOpen.set(true);
   }
 
-  /** Toutes les chips d'une semaine (7 jours à partir du lundi donné), course et force. */
-  private weekChips(start: string): ChipRef[] {
+  /**
+   * Toutes les chips d'une semaine (7 jours à partir du lundi donné), course et force.
+   *
+   * <p>Rend des entrées de presse-papier plutôt que de simples références : elles servent aussi
+   * bien à la duplication de semaine (qui a besoin des dates d'origine) qu'à la sélection, à
+   * laquelle {@code kind} et {@code id} suffisent.</p>
+   */
+  private weekChips(start: string): ClipEntry[] {
     const end = this.shiftDate(start, 6);
     const inWeek = (d: string) => d >= start && d <= end;
+    const athleteId = this.selectedAthleteId;
     return [
-      ...this.workouts().filter((w) => inWeek(w.scheduledDate)).map((w) => ({ kind: 'course' as const, id: w.id })),
-      ...this.strength().filter((x) => inWeek(x.scheduledDate)).map((x) => ({ kind: 'strength' as const, id: x.id })),
+      ...this.workouts().filter((w) => inWeek(w.scheduledDate)).map((w) => ({
+        kind: 'course' as const, id: w.id, athleteId, date: w.scheduledDate, sourceSessionId: null,
+      })),
+      ...this.strength().filter((x) => inWeek(x.scheduledDate)).map((x) => ({
+        kind: 'strength' as const, id: x.id, athleteId, date: x.scheduledDate,
+        sourceSessionId: x.sourceSessionId ?? null,
+      })),
     ];
   }
 
@@ -1560,6 +1817,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   private async duplicateWeekTo(sourceStart: string, targetStart: string): Promise<void> {
+    if (!this.requireWrite()) return;
     const refs = this.weekChips(sourceStart);
     if (!refs.length) { this.toast.info('Aucune séance à copier cette semaine.'); return; }
 
@@ -1574,7 +1832,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     // Origine calée sur le lundi source : une semaine qui commence le mardi doit arriver le
     // mardi de la semaine cible, pas se recoller sur son lundi.
-    this.pasteRefs(refs, targetIso, sourceStart, 'la duplication de semaine',
+    this.pasteRefs(refs, this.selectedAthleteId, targetIso, sourceStart, 'la duplication de semaine',
       (n) => `${n} séance(s) copiée(s) sur la semaine du ${this.fmtDate(targetIso)}`);
     this.anchor.set(target); // on montre le résultat, sinon la copie est invisible
   }
@@ -1748,13 +2006,28 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   copySelection(): void {
-    const refs = this.selected().map((p) => ({ kind: p.kind, id: p.id }));
-    if (!refs.length) { this.toast.info('Rien à copier — sélectionne d’abord une séance.'); return; }
-    const label = refs.length === 1
+    const entries = this.entriesFor(this.selected());
+    if (!entries.length) { this.toast.info('Rien à copier — sélectionne d’abord une séance.'); return; }
+    const label = entries.length === 1
       ? (this.selectedWorkouts()[0]?.title ?? this.selectedStrength()[0]?.title ?? '1 séance')
-      : `${refs.length} séances`;
-    this.clipboard.set({ refs, label });
-    this.toast.info(`${label} copiée${refs.length > 1 ? 's' : ''} — ${this.keys('mod', 'V')} pour coller sur un jour.`);
+      : `${entries.length} séances`;
+    this.putInClipboard(entries, label);
+  }
+
+  /** Dépose dans le presse-papier et le dit, avec le raccourci qui sert la suite du geste. */
+  private putInClipboard(entries: ClipEntry[], label: string): void {
+    this.clipboard.set({ entries, label });
+    this.toast.info(
+      `${label} copiée${entries.length > 1 ? 's' : ''} — ${this.keys('mod', 'V')} pour coller sur un jour.`);
+  }
+
+  /** Résout des positions de la grille athlète en entrées autoportantes. */
+  private entriesFor(picked: readonly ChipPosition[]): ClipEntry[] {
+    const strengthById = new Map(this.strength().map((x) => [x.id, x]));
+    return picked.map((p) => ({
+      kind: p.kind, id: p.id, athleteId: this.selectedAthleteId, date: p.date,
+      sourceSessionId: p.kind === 'strength' ? (strengthById.get(p.id)?.sourceSessionId ?? null) : null,
+    }));
   }
 
   /**
@@ -1763,9 +2036,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
   pasteOn(date: string | null): void {
     const clip = this.clipboard();
     const target = date ?? this.hoveredDate();
-    if (!clip.refs.length) { this.toast.info(`Presse-papier vide — ${this.keys('mod', 'C')} pour copier.`); return; }
+    if (!clip.entries.length) { this.toast.info(`Presse-papier vide — ${this.keys('mod', 'C')} pour copier.`); return; }
     if (!target) { this.toast.info('Survole un jour pour coller.'); return; }
-    this.pasteRefs(clip.refs, target, undefined, 'le collage',
+    if (!this.requireWrite()) return;
+    this.pasteRefs(clip.entries, this.selectedAthleteId, target, undefined, 'le collage',
       (n) => `${n} séance(s) collée(s) le ${this.fmtDate(target)}`);
   }
 
@@ -1778,17 +2052,22 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * une semaine qui commence le mardi arriverait décalée d'un jour.
    */
   private pasteRefs(
-    refs: ChipRef[], target: string, base: string | undefined,
+    entries: ClipEntry[], targetAthleteId: string, target: string, base: string | undefined,
     label: string, message: (n: number) => string,
   ): void {
-    if (!this.requireWrite()) return;
-    const sources = this.pasteSources(refs, target, base);
-    if (!sources.length) { this.toast.warning('Les séances à copier ne sont plus affichées.'); return; }
+    // Une séance de force sans modèle de bibliothèque ne se recrée pas : elle était écartée en
+    // silence, et le toast annonçait quand même « 2 séances collées » pour une seule créée.
+    const usable = entries.filter((e) => e.kind === 'course' || !!e.sourceSessionId);
+    if (!usable.length) {
+      this.toast.warning('Cette séance de renforcement n’a plus de modèle : impossible de la recopier.');
+      return;
+    }
+    const sources = this.pasteSources(usable, target, base);
 
-    const created: { kind: 'course' | 'strength'; id: string }[] = [];
+    const created: Created[] = [];
     const run = () => defer(() => {
       created.length = 0;
-      return this.all(sources.map((src) => this.pasteOne(src, created)));
+      return this.all(sources.map((src) => this.pasteOne(src, targetAthleteId, created)));
     });
     run().subscribe({
       next: () => {
@@ -1803,56 +2082,64 @@ export class CalendarComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Résout des références en (séance, date cible), décalage relatif conservé. */
-  private pasteSources(refs: ChipRef[], target: string, base?: string):
-    { kind: 'course' | 'strength'; source: Workout | ScheduledStrength; date: string }[] {
-    const byId = new Map<string, Workout | ScheduledStrength>();
-    for (const w of this.workouts()) byId.set(`course:${w.id}`, w);
-    for (const st of this.strength()) byId.set(`strength:${st.id}`, st);
-
-    const found = refs
-      .map((r) => ({ kind: r.kind, source: byId.get(`${r.kind}:${r.id}`) }))
-      .filter((x): x is { kind: 'course' | 'strength'; source: Workout | ScheduledStrength } => !!x.source);
-    if (!found.length) return [];
-
-    const origin = base ?? found.reduce(
-      (min, x) => (x.source.scheduledDate < min ? x.source.scheduledDate : min),
-      found[0].source.scheduledDate);
-    return found.map((x) => ({
-      ...x,
-      date: this.shiftDate(target, this.daysBetween(origin, x.source.scheduledDate)),
+  /**
+   * Cale les entrées sur la date cible, décalage relatif conservé.
+   *
+   * <p>Les dates d'origine viennent des entrées elles-mêmes, plus des signaux de la grille. C'est
+   * ce qui rend le presse-papier utilisable d'une vue à l'autre : la vue groupe ne remplit ni
+   * {@link workouts} ni {@link strength}, et une résolution par ces signaux y répondait
+   * invariablement « les séances à copier ne sont plus affichées ».</p>
+   */
+  private pasteSources(entries: ClipEntry[], target: string, base?: string):
+    { entry: ClipEntry; date: string }[] {
+    if (!entries.length) return [];
+    const origin = base ?? entries.reduce((min, e) => (e.date < min ? e.date : min), entries[0].date);
+    return entries.map((entry) => ({
+      entry,
+      date: this.shiftDate(target, this.daysBetween(origin, entry.date)),
     }));
   }
 
+  /**
+   * Recrée une séance chez l'athlète cible.
+   *
+   * <p>Chez le <b>même</b> athlète, on duplique la séance telle quelle : sa prescription figée
+   * est l'adaptation faite pour lui, et c'est elle qu'on veut à l'identique. Chez un <b>autre</b>,
+   * le serveur recalcule les cibles pour celui qui les recevra — recopier les allures de Marc
+   * chez Julie serait faux, et faux silencieusement.</p>
+   */
   private pasteOne(
-    src: { kind: 'course' | 'strength'; source: Workout | ScheduledStrength; date: string },
-    created: { kind: 'course' | 'strength'; id: string }[],
+    src: { entry: ClipEntry; date: string }, targetAthleteId: string, created: Created[],
   ): Observable<unknown> {
-    if (src.kind === 'course') {
-      return this.workoutService.copy(this.selectedAthleteId, src.source.id, src.date)
-        .pipe(tap((c) => created.push({ kind: 'course', id: c.id })));
+    const entry = src.entry;
+    if (entry.kind === 'course') {
+      const call = entry.athleteId === targetAthleteId
+        ? this.workoutService.copy(targetAthleteId, entry.id, src.date)
+        : this.workoutService.copyFrom(targetAthleteId, entry.id, src.date);
+      return call.pipe(tap((c) => created.push({ kind: 'course', id: c.id, athleteId: targetAthleteId })));
     }
-    const st = src.source as ScheduledStrength;
-    if (!st.sourceSessionId) return of(null);
+    // Une séance de force se recrée depuis son modèle de bibliothèque : c'est déjà indépendant de
+    // l'athlète, il n'y a donc rien de particulier à faire pour la donner à quelqu'un d'autre.
+    if (!entry.sourceSessionId) return of(null);
     return this.strengthService
-      .scheduleSession(this.selectedAthleteId, st.sourceSessionId, { date: src.date, fieldsPreset: 'AVANCE' })
-      .pipe(tap((c) => created.push({ kind: 'strength', id: c.id })));
+      .scheduleSession(targetAthleteId, entry.sourceSessionId, { date: src.date, fieldsPreset: 'AVANCE' })
+      .pipe(tap((c) => created.push({ kind: 'strength', id: c.id, athleteId: targetAthleteId })));
   }
 
-  private removeCreated(c: { kind: 'course' | 'strength'; id: string }): Observable<unknown> {
+  private removeCreated(c: Created): Observable<unknown> {
     return c.kind === 'course'
-      ? this.workoutService.delete(this.selectedAthleteId, c.id)
-      : this.strengthService.deleteScheduled(this.selectedAthleteId, c.id);
+      ? this.workoutService.delete(c.athleteId, c.id)
+      : this.strengthService.deleteScheduled(c.athleteId, c.id);
   }
 
   /** Duplique la sélection sur place (chaque séance sur son propre jour). */
   duplicateSelection(): void {
     const picked = this.selected();
     if (!picked.length) { this.toast.info('Sélectionne d’abord une séance.'); return; }
-    const refs = picked.map((p) => ({ kind: p.kind, id: p.id }));
+    if (!this.requireWrite()) return;
     // Cible = la date de la première : avec les écarts conservés, chacune retombe chez elle.
-    this.pasteRefs(refs, picked[0].date, undefined, 'la duplication',
-      (n) => `${n} séance(s) dupliquée(s)`);
+    this.pasteRefs(this.entriesFor(picked), this.selectedAthleteId, picked[0].date, undefined,
+      'la duplication', (n) => `${n} séance(s) dupliquée(s)`);
   }
 
   /** Supprime tout le lot sélectionné, en une seule entrée d'annulation. */
@@ -2283,8 +2570,17 @@ export class CalendarComponent implements OnInit, OnDestroy {
         ev.preventDefault();
         ev.shiftKey ? this.redoLast() : this.undoLast();
       } else if (key === 'y') { ev.preventDefault(); this.redoLast(); }
-      else if (key === 'c') { ev.preventDefault(); this.copySelection(); }
-      else if (key === 'v') { ev.preventDefault(); this.pasteOn(null); }
+      // Le même raccourci dans les deux vues. En mode groupe il n'y a pas de sélection : le
+      // curseur est la case survolée (un athlète × un jour), comme le jour survolé l'est en mode
+      // athlète — et copier y prend toute la journée de cet athlète.
+      else if (key === 'c') {
+        ev.preventDefault();
+        this.scopeMode() === 'group' ? this.copyHoveredCell() : this.copySelection();
+      }
+      else if (key === 'v') {
+        ev.preventDefault();
+        this.scopeMode() === 'group' ? this.pasteOnGroupCell() : this.pasteOn(null);
+      }
       else if (key === 'd') { ev.preventDefault(); this.duplicateSelection(); }
       else if (key === 'a') { ev.preventDefault(); this.selectAll(); }
       return;
@@ -2299,7 +2595,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
       if (this.selection.count() || this.dayRange().length) { this.clearSelection(); ev.preventDefault(); }
       return;
     }
-    if (this.ctxMenu() || this.strengthMenu() || this.weekMenu()) return;
+    if (this.ctxMenu() || this.strengthMenu() || this.weekMenu() || this.groupMenu()) return;
 
     if (ev.key === 'Delete' || ev.key === 'Backspace') {
       if (this.selection.count()) { ev.preventDefault(); void this.deleteSelection(); }
@@ -2317,12 +2613,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Ferme ce qui est ouvert par-dessus la grille ; vrai si quelque chose s'est fermé. */
   private closeAllMenus(): boolean {
-    const wasOpen = !!(this.ctxMenu() || this.strengthMenu() || this.weekMenu() || this.dayMenu())
+    const wasOpen = !!(this.ctxMenu() || this.strengthMenu() || this.weekMenu() || this.dayMenu()
+      || this.groupMenu())
       || this.viewMenuOpen() || this.actionsMenuOpen() || this.pickerDates().length > 0;
     this.closeContextMenu();
     this.closeStrengthMenu();
     this.closeWeekMenu();
     this.closeDayMenu();
+    this.closeGroupMenu();
     this.viewMenuOpen.set(false);
     this.actionsMenuOpen.set(false);
     if (this.pickerDates().length) this.closePicker();

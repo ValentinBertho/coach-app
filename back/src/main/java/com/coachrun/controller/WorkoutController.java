@@ -38,6 +38,8 @@ public class WorkoutController {
 
     private final WorkoutService workoutService;
     private final com.coachrun.service.ActivityService activityService;
+    private final com.coachrun.service.MessageService messageService;
+    private final com.coachrun.service.CourseSessionService courseSessionService;
 
     /** Activité réalisée rapprochée de cette séance (vue « réalisé »), ou 204 si aucune. */
     @GetMapping("/{workoutId}/activity")
@@ -131,6 +133,33 @@ public class WorkoutController {
     }
 
     /**
+     * Le fil de la séance : le commentaire du coach a une suite, et elle se lit ici.
+     *
+     * <p>Ce ne sont pas des messages d'un canal à part — ce sont ceux de la messagerie rattachés
+     * à cette séance. La réponse de l'athlète partait dans le fil général : le coach devait
+     * rouvrir la messagerie, retrouver de quelle sortie on parlait, et le plus souvent ne voyait
+     * rien du tout. Elle s'affiche désormais sous la question qui l'a provoquée.</p>
+     */
+    @GetMapping("/{workoutId}/thread")
+    public List<com.coachrun.dto.response.MessageResponse> thread(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID workoutId,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal
+            com.coachrun.security.AuthPrincipal principal) {
+        return messageService.workoutThread(principal, workoutId);
+    }
+
+    /**
+     * Accusé de lecture d'une réponse d'athlète sur une séance : elle sort de l'alerte du cockpit
+     * et du digest du matin. Miroir de {@code /me/workouts/{id}/coach-comment/read}.
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canComment(authentication, #athleteId)")
+    @PostMapping("/{workoutId}/reply/read")
+    public WorkoutResponse markReplyRead(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                         @PathVariable UUID workoutId) {
+        return workoutService.markReplyRead(clubId, workoutId);
+    }
+
+    /**
      * Marque le retour de l'athlète comme traité (file « retours à traiter » du tableau de bord).
      * Accusé de lecture côté coach : ne modifie ni la séance ni le retour.
      */
@@ -189,6 +218,26 @@ public class WorkoutController {
                                 @PathVariable UUID workoutId,
                                 @Valid @RequestBody WorkoutRescheduleRequest request) {
         return workoutService.copyToDate(clubId, workoutId, request.scheduledDate());
+    }
+
+    /**
+     * Copie ici la séance d'un autre athlète du club (copier-coller de la vue groupe).
+     *
+     * <p>L'athlète de l'URL est la <b>cible</b> : c'est son calendrier qu'on écrit, et c'est donc
+     * sur lui que porte {@code canWrite}. La source est lue dans le périmètre du club — un coach
+     * ne peut coller que ce que la vue groupe lui a montré, et la vue groupe n'affiche déjà que
+     * les athlètes de son périmètre.</p>
+     *
+     * <p>Les cibles (allures, FC) sont <b>recalculées pour l'athlète cible</b> : recopier celles
+     * de la source lui donnerait silencieusement les allures de quelqu'un d'autre.</p>
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PostMapping("/copy-from")
+    @ResponseStatus(HttpStatus.CREATED)
+    public WorkoutResponse copyFrom(@PathVariable UUID clubId, @PathVariable UUID athleteId,
+                                    @Valid @RequestBody com.coachrun.dto.request.WorkoutCopyFromRequest request) {
+        return courseSessionService.copyToAthlete(
+                clubId, athleteId, request.sourceWorkoutId(), request.scheduledDate());
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")

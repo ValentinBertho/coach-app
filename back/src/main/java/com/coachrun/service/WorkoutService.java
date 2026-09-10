@@ -342,6 +342,25 @@ public class WorkoutService {
         return WorkoutResponse.from(workout);
     }
 
+    /**
+     * Un coach a lu la réponse de l'athlète sur cette séance.
+     *
+     * <p>Idempotent, comme son miroir côté athlète : la date de première lecture ne bouge plus,
+     * sinon « répondu il y a trois jours, lu ce matin » redeviendrait « lu à l'instant » à chaque
+     * ouverture de la fiche, et l'attente cesserait d'être mesurable.</p>
+     *
+     * <p>Marquer lu suffit à sortir la séance de l'alerte du cockpit et du digest : c'est le
+     * même couple (réponse, lecture) qui les alimente tous les deux.</p>
+     */
+    @Transactional
+    public WorkoutResponse markReplyRead(UUID clubId, UUID workoutId) {
+        Workout workout = require(clubId, workoutId);
+        if (workout.getAthleteReplyAt() != null && workout.getAthleteReplyReadAt() == null) {
+            workout.setAthleteReplyReadAt(java.time.Instant.now());
+        }
+        return WorkoutResponse.from(workout);
+    }
+
     /** Les mots du coach que cet athlète n'a pas encore lus, le plus récent d'abord. */
     @Transactional(readOnly = true)
     public java.util.List<WorkoutResponse> unreadCoachComments(UUID athleteId) {

@@ -68,9 +68,13 @@ import java.util.UUID;
  * par mois, et gagne en réactivité au passage.</p>
  *
  * <p><strong>Repli.</strong> Tout le monde n'accepte pas les notifications système — et sur
- * iPhone, le push n'existe même pas hors de l'application installée. Deux flux, dont l'absence se
- * remarque vraiment, retombent donc sur l'e-mail quand aucun appareil ne peut être joint
- * ({@link PushNotificationService#canReach}) : le <b>rappel de séance</b> et le <b>message</b>.
+ * iPhone, le push n'existe même pas hors de l'application installée. Les flux dont l'absence se
+ * remarque vraiment retombent donc sur l'e-mail quand aucun appareil ne peut être joint
+ * ({@link PushNotificationService#canReach}) : le <b>rappel de séance</b> et tout ce qui porte un
+ * <b>mot adressé à quelqu'un</b> — message du fil, <b>commentaire de séance</b>, réponse sur une
+ * séance. Le commentaire de séance en était exclu, et c'est ce que la bêta a remonté en toutes
+ * lettres : « je viens de voir ton message, je n'avais pas reçu d'alerte mail ». La question du
+ * coach n'annonçait rien du tout à qui n'a pas d'appareil abonné, et elle a attendu trois jours.
  * Le repli ne s'applique jamais à qui a coupé la famille dans ses préférences — c'est un choix
  * explicite, pas une panne de canal. Les autres notifications de routine restent consultables
  * dans le centre de notifications, qui est toujours actif.</p>
@@ -446,6 +450,12 @@ public class NotificationService {
         // Le destinataire n'est plus déduit du rôle de l'expéditeur — ce qui, à plusieurs coachs,
         // faisait aboutir chaque question au seul référent — mais de la composition du fil.
         for (User target : conversations.participantsToNotify(conversation, message.getSenderUserId())) {
+            // Un message qui parle d'une séance ne s'annonce pas comme un message de plus : il
+            // mène à la séance, pas à la messagerie. Voir notifyWorkoutMessage.
+            if (message.getWorkoutId() != null && message.getAthlete() != null) {
+                notifyWorkoutMessage(target, message);
+                continue;
+            }
             String link = linkToConversation(target, conversation);
             if (recentlyNotified(target.getId(), "NEW_MESSAGE", link, MESSAGE_BURST_WINDOW)) {
                 continue;
@@ -458,6 +468,42 @@ public class NotificationService {
             mailFallbackForMessage(target, message.getSenderName(), link,
                     target.getRole() != UserRole.ATHLETE);
         }
+    }
+
+    /**
+     * Message rattaché à une séance → la notification mène <b>à la séance</b>.
+     *
+     * <p><b>Ce qui n'allait pas.</b> Un coach commente la séance du mardi pour demander un
+     * ressenti ; l'athlète répond depuis sa fiche de séance. Sa réponse partait dans le fil
+     * général avec le titre « Nouveau message » et un lien vers la messagerie : le coach devait
+     * ouvrir la boîte, retrouver la conversation, puis deviner de quelle séance on parlait. Pire,
+     * l'anti-rafale de la messagerie (dix minutes, une seule destination pour tout un fil) faisait
+     * disparaître la réponse derrière n'importe quel autre message du même échange. Un coach bêta
+     * a attendu trois jours une réponse arrivée le soir même.</p>
+     *
+     * <p><b>Ce qui change.</b> Type propre, titre qui nomme la séance, et une destination par
+     * séance — ce qui redonne à l'anti-rafale son sens : elle dédoublonne deux réponses sur la
+     * <b>même</b> séance, elle n'avale plus celle qui portait sur une autre. Le repli e-mail est
+     * celui de la messagerie : quelqu'un sans appareil joignable reçoit son mot, sinon la boucle
+     * ne se referme jamais.</p>
+     *
+     * <p>Le corps ne porte jamais le texte du message — il peut parler d'une douleur, et une
+     * notification s'affiche sur un écran verrouillé. Le nom de l'expéditeur et le titre de la
+     * séance suffisent à faire revenir.</p>
+     */
+    private void notifyWorkoutMessage(User target, Message message) {
+        boolean toAthlete = target.getRole() == UserRole.ATHLETE;
+        String link = toAthlete
+                ? "/athlete/workouts/" + message.getWorkoutId()
+                : "/app/athletes/" + message.getAthlete().getId() + "/workouts/" + message.getWorkoutId();
+        if (recentlyNotified(target.getId(), "WORKOUT_REPLY", link, MESSAGE_BURST_WINDOW)) {
+            return;
+        }
+        String title = toAthlete ? "Un mot de ton coach sur ta séance" : "Réponse sur une séance";
+        notifyUser(target, "WORKOUT_REPLY", title, message.getSenderName(),
+                message.getSenderName(), link, true,
+                List.of(action("ouvrir", "Ouvrir la séance", link)));
+        mailFallbackForMessage(target, message.getSenderName(), link, !toAthlete);
     }
 
     /**
@@ -505,6 +551,9 @@ public class NotificationService {
      */
     private void mailFallbackForMessage(User target, String senderName, String link,
                                         boolean toCoach) {
+        if (target == null) {
+            return;
+        }
         if (target.mutedCategories().contains(NotificationCategory.MESSAGES)) {
             return;
         }
@@ -690,8 +739,25 @@ public class NotificationService {
      * verrouillé, à la vue de qui passe.</p>
      */
     public void notifyCoachComment(Workout workout) {
-        notifyUser(athleteUser(workout.getAthlete()), "COACH_COMMENT", "Un mot de ton coach",
-                workout.getTitle(), "/athlete/workouts/" + workout.getId());
+        User athlete = athleteUser(workout.getAthlete());
+        String link = "/athlete/workouts/" + workout.getId();
+        notifyUser(athlete, "COACH_COMMENT", "Un mot de ton coach", workout.getTitle(), link);
+        // Repli e-mail, exactement comme un message — parce que c'en est un.
+        //
+        // Il manquait, et c'est le défaut que la bêta a remonté en toutes lettres : « je viens de
+        // voir ton message, je n'avais pas reçu d'alerte mail ». Le commentaire de séance ne
+        // partait qu'en push, or sur un iPhone où l'application n'est pas installée le push
+        // système n'existe pas : la question du coach n'annonçait alors strictement rien, et
+        // attendait que l'athlète rouvre l'application de lui-même. Elle a attendu trois jours.
+        //
+        // Mêmes trois portes fermées que la messagerie (catégorie coupée, appareil joignable,
+        // e-mail refusé) et même discrétion : ni le commentaire, ni le titre de la séance.
+        mailFallbackForMessage(athlete, coachName(workout), link, false);
+    }
+
+    /** Nom du coach référent, pour un e-mail qui doit dire de qui vient le mot. Repli neutre. */
+    private String coachName(Workout workout) {
+        return coachToNotify(workout).map(User::getFullName).orElse("Ton coach");
     }
 
     /**

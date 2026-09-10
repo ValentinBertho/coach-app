@@ -47,6 +47,14 @@ public record WorkoutResponse(
          * notification est passée et oubliée.
          */
         java.time.Instant coachAcknowledgedAt,
+        /**
+         * Quand l'athlète a répondu sur cette séance au mot de son coach ; null s'il n'a rien
+         * répondu ici. Exposée aux deux côtés : c'est ce qui permet à la fiche de dire « en
+         * attente de ta réponse » à l'athlète et « il t'a répondu » au coach.
+         */
+        java.time.Instant athleteReplyAt,
+        /** Quand un coach a lu cette réponse. Null + {@code athleteReplyAt} = réponse en attente. */
+        java.time.Instant athleteReplyReadAt,
         boolean movedByAthlete,
         LocalDate originalDate,
         UUID sourceTemplateId,
@@ -79,6 +87,8 @@ public record WorkoutResponse(
                 w.getCoachCommentReadAt(),
                 w.getCoachCommentAt(),
                 w.getCoachAcknowledgedAt(),
+                w.getAthleteReplyAt(),
+                w.getAthleteReplyReadAt(),
                 w.isMovedByAthlete(),
                 w.getOriginalDate(),
                 w.getSourceTemplateId(),

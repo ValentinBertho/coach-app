@@ -63,13 +63,19 @@
     <ul class="alert-list">
       @for (al of alerts(); track $index) {
         <li>
-          <a class="alert-row card-interactive" [routerLink]="['/app/athletes', al.athleteId]">
+          <!-- Le lien suit l'action attachée à l'alerte quand il y en a une : une réponse
+               d'athlète mène à SA séance, pas à la fiche de l'athlète où il faudrait ensuite la
+               chercher. Sans action, on retombe sur la fiche, comme avant. -->
+          <a class="alert-row card-interactive" [routerLink]="alertLink(al)">
             <span class="alert-dot" [class.alert-dot--red]="al.severity === 'RED'"
                   [class.alert-dot--orange]="al.severity === 'ORANGE'"></span>
             <div class="alert-body">
               <div class="alert-line">
                 <strong>{{ al.athleteName }}</strong>
-                <span class="alert-title">{{ al.title }}</span>
+                <span class="alert-title">
+                  @if (al.type === 'REPLY') { <app-icon name="message-square" [size]="14" /> }
+                  {{ al.title }}
+                </span>
               </div>
               <span class="field-hint">{{ al.detail }}</span>
             </div>

@@ -350,8 +350,16 @@ public class CoachDashboardService {
     public List<CoachAlertResponse> alerts(UUID clubId, String scope, UUID coachId) {
         LocalDate today = clock.today();
         List<CoachAlertResponse> alerts = new ArrayList<>();
+        List<Athlete> inScope = athletesInScope(clubId, scope, coachId);
 
-        for (Athlete a : athletesInScope(clubId, scope, coachId)) {
+        // --- Réponses d'athlètes en attente de lecture ---
+        // En tête de file, avant tout le reste : c'est la seule ligne où quelqu'un attend une
+        // réponse d'un humain. Les autres alertes décrivent un état (une douleur, une charge, un
+        // silence) qui sera encore là demain ; celle-ci se périme — un athlète qui répond le soir
+        // et n'obtient rien pendant trois jours cesse de répondre.
+        alerts.addAll(pendingReplyAlerts(inScope, today));
+
+        for (Athlete a : inScope) {
             if (a.getStatus() != AthleteStatus.ACTIVE) {
                 continue;
             }
@@ -452,11 +460,60 @@ public class CoachDashboardService {
             }
         }
 
-        // Tri : rouge avant orange, puis par nom pour la stabilité.
+        // Tri : les réponses qui attendent d'abord — quelqu'un est au bout —, puis rouge avant
+        // orange, puis par nom pour la stabilité.
         alerts.sort(java.util.Comparator
-                .comparingInt((CoachAlertResponse al) -> "RED".equals(al.severity()) ? 0 : 1)
+                .comparingInt((CoachAlertResponse al) -> REPLY.equals(al.type()) ? 0 : 1)
+                .thenComparingInt(al -> "RED".equals(al.severity()) ? 0 : 1)
                 .thenComparing(CoachAlertResponse::athleteName));
         return alerts;
+    }
+
+    /** Code d'alerte d'une réponse d'athlète non lue. Partagé par le tri et l'action attachée. */
+    private static final String REPLY = "REPLY";
+
+    /**
+     * Profondeur de la file des réponses. Plus large que celle des retours : une réponse est un
+     * mot adressé à quelqu'un, elle ne se périme pas en deux semaines comme un RPE.
+     */
+    private static final int REPLY_WINDOW_DAYS = 60;
+
+    /**
+     * Les réponses d'athlètes qu'aucun coach n'a encore lues, une alerte par séance.
+     *
+     * <p><b>Le trou que cela bouche.</b> Le coach commente une séance pour demander un ressenti ;
+     * l'athlète répond depuis sa fiche. La réponse arrivait dans la messagerie, et nulle part
+     * ailleurs : ni sur la séance commentée, ni sur le cockpit, ni dans le digest du matin. Le
+     * seul moyen de la trouver était d'ouvrir la boîte de réception au bon moment. En bêta, une
+     * réponse envoyée le soir même a été découverte trois jours plus tard.</p>
+     *
+     * <p>L'action mène <b>à la séance</b>, pas à la fiche de l'athlète ni à la messagerie :
+     * c'est là que la question a été posée, c'est là que la réponse se lit, et l'ouvrir vaut
+     * accusé de lecture.</p>
+     */
+    private List<CoachAlertResponse> pendingReplyAlerts(List<Athlete> inScope, LocalDate today) {
+        if (inScope.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, Athlete> byId = inScope.stream()
+                .collect(java.util.stream.Collectors.toMap(Athlete::getId, a -> a));
+        List<CoachAlertResponse> out = new ArrayList<>();
+        for (Workout w : workoutRepository.findPendingReplies(
+                List.copyOf(byId.keySet()), today.minusDays(REPLY_WINDOW_DAYS))) {
+            Athlete a = byId.get(w.getAthlete().getId());
+            if (a == null) {
+                continue;
+            }
+            String name = displayName(a);
+            String discipline = a.getDiscipline() == Discipline.TRAIL ? "TRAIL" : "ROUTE";
+            // Le détail nomme la séance et sa date, jamais le texte de la réponse : le cockpit
+            // s'ouvre en salle, et un ressenti peut parler de douleur ou de moral.
+            out.add(new CoachAlertResponse(a.getId(), name, discipline, "ORANGE", REPLY,
+                    "T'a répondu", w.getTitle() + " — " + w.getScheduledDate(),
+                    new CoachAlertResponse.SuggestedAction("OPEN_REPLY", "Lire la réponse",
+                            "/app/athletes/" + a.getId() + "/workouts/" + w.getId())));
+        }
+        return out;
     }
 
     /** Profondeur de la fenêtre « séances manquées », et donc de la recherche d'indisponibilités. */

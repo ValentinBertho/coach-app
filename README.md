@@ -61,12 +61,18 @@ assistant), et athlète (PWA mobile).
   **Bibliothèque latérale repliable** (semaine pleine largeur) ;
   les actions d'écriture (planifier, dupliquer la semaine, mésocycle) sont **désactivées sur un
   athlète en lecture seule** (cohérent avec la permission `write`).
+  La **vue groupe** (une ligne par athlète × 7 jours) porte le **même copier-coller** que la vue
+  athlète — clic droit, Ctrl/Cmd+C · V sur la case survolée, Alt + glisser — et le geste que seule
+  elle peut offrir : **coller la même séance pour tout le groupe**. Une séance collée chez un
+  **autre** athlète voit ses cibles **recalculées pour lui** : la structure du coach est reprise,
+  jamais les allures de la personne d'origine.
 - **Zones d'entraînement paramétrables** : le coach nomme ses zones, leurs métriques et leurs
   règles de calcul (ancre + %), et peut entretenir **plusieurs modèles de zones** (route / trail,
   débutant / confirmé…) qu'il applique athlète par athlète ; les cibles se recalculent seules
   quand une valeur de référence change.
 - **Dashboard coach** : tableaux Route/Trail, **pastilles de forme** (fatigue + douleur, jamais RPE),
-  portée mes athlètes / privés / club.
+  portée mes athlètes / privés / club. Les **réponses d'athlètes non lues** y ouvrent la file
+  d'alertes et mènent d'un clic à la séance concernée.
 - **Portail athlète** (PWA, offline-friendly) : ouvre sur un **calendrier mensuel visuel** — une
   case par jour, durée et distance de chaque séance, couleur par type, sortie réalisée
   distinguée du prescrit ; un jour se touche pour son détail. Puis séance du jour **avec cibles en fourchettes**
@@ -96,6 +102,14 @@ assistant), et athlète (PWA mobile).
 
 ### Communication & données
 - **Messagerie temps réel** (Server-Sent Events) coach ↔ athlète, avec **pièces jointes** (images / PDF).
+- **Fil de séance** : le commentaire du coach et les réponses qu'il appelle se lisent **sur la
+  séance**, des deux côtés. Ce n'est pas un second canal — ce sont les messages de la messagerie
+  lus par leur rattachement (`Message.workoutId`), si bien que l'échange reste entier dans la
+  boîte de réception. Une réponse d'athlète marque la séance comme **en attente** jusqu'à ce
+  qu'un coach l'ouvre : elle déclenche une notification qui mène à la séance (et non à la
+  messagerie), s'affiche dans les alertes du cockpit et revient dans le digest de 7 h.
+  Le mot du coach, lui, retombe sur l'**e-mail** quand aucun appareil n'est joignable — sans quoi
+  une question posée à quelqu'un sans push n'annonçait rien du tout.
 - **Objectifs A/B/C** (gérables par le coach **et** par l'athlète) et **indisponibilités**
   (blessure / maladie / vacances).
 - **Sync Strava** (OAuth) **initiée par l'athlète** (l'intégration est d'abord côté athlète, CDC §12),

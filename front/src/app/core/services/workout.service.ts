@@ -87,6 +87,22 @@ export class WorkoutService {
     return this.http.post<Workout>(`${this.base(athleteId)}/${workoutId}/copy`, { scheduledDate });
   }
 
+  /**
+   * Copie ici la séance d'un **autre** athlète (copier-coller de la vue groupe).
+   *
+   * `athleteId` est la cible : c'est son calendrier qu'on écrit. Les cibles (allures, FC) sont
+   * recalculées pour lui côté serveur — recopier celles de la source lui donnerait silencieusement
+   * les allures de quelqu'un d'autre.
+   */
+  copyFrom(athleteId: string, sourceWorkoutId: string, scheduledDate: string): Observable<Workout> {
+    return this.http.post<Workout>(`${this.base(athleteId)}/copy-from`, { sourceWorkoutId, scheduledDate });
+  }
+
+  /** Accusé de lecture d'une réponse d'athlète sur une séance (sort de l'alerte du cockpit). */
+  markReplyRead(athleteId: string, workoutId: string): Observable<Workout> {
+    return this.http.post<Workout>(`${this.base(athleteId)}/${workoutId}/reply/read`, null);
+  }
+
   /** Réordonne les séances d'un même jour (glisser-déposer intra-jour). */
   reorder(athleteId: string, date: string, orderedIds: string[]): Observable<void> {
     return this.http.patch<void>(`${this.base(athleteId)}/reorder`, { date, orderedIds });
