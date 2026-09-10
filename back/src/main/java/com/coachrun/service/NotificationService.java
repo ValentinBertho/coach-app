@@ -983,7 +983,18 @@ public class NotificationService {
         };
     }
 
+    /**
+     * Le coach à prévenir au sujet d'une séance, s'il y en a un.
+     *
+     * <p>Tolère une séance incomplètement peuplée — sans athlète, ou sans club. Une notification
+     * n'est jamais assez importante pour faire échouer l'action métier qui l'a déclenchée ; c'est
+     * l'invariant de tout ce service, et cette méthode était le seul chemin qui pouvait le rompre
+     * par un {@code NullPointerException}.</p>
+     */
     private Optional<User> coachToNotify(Workout workout) {
+        if (workout == null || workout.getAthlete() == null || workout.getClub() == null) {
+            return Optional.empty();
+        }
         return referentCoach(workout.getAthlete().getId(), workout.getClub().getId());
     }
 
