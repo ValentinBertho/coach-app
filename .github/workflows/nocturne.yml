@@ -1,0 +1,670 @@
+# ============================================================================
+# CI nocturne — ce que la CI de pull request ne peut pas se permettre.
+#
+#   `ci.yml` doit rendre son verdict en quelques minutes, sur chaque poussée : elle joue la
+#   suite une fois, dans l'ordre habituel, et ne regarde ni les dépendances vulnérables ni le
+#   poids de ce qui part chez l'athlète. Tout ce qui coûte trop cher pour une PR — mais qui
+#   attrape de vraies régressions — vit ici, une fois par nuit.
+#
+#   Ce que ce fichier ajoute, et pourquoi :
+#
+#   1. Suite backend rejouée DEUX fois, dont une en ORDRE ALÉATOIRE. Les tests partagent un
+#      contexte Spring mis en cache, une base H2 et des singletons ; un test qui ne passe que
+#      parce qu'un autre s'est exécuté avant est un défaut réel, qui se manifeste plus tard sous
+#      la forme d'une suite « verte chez moi, rouge en CI ». La comparaison des deux passes rend
+#      le diagnostic immédiat : nominal vert + aléatoire rouge = dépendance d'ordre ; les deux
+#      rouges = régression franche.
+#
+#   2. Suite complète sur un PostgreSQL RÉEL (`-Dpgtest=true`). `ci.yml` n'y rejoue que les
+#      trois classes `*OnPostgresTest` de façon ciblée ; ici la suite entière tourne avec le
+#      drapeau levé, dans une seule invocation.
+#
+#   3. Benchmark de démarrage. Le backend est redéployé à chaud sur Railway : un boot qui
+#      double de durée, c'est une fenêtre d'indisponibilité qui double. Rien ne le mesurait.
+#
+#   4. Budget du bundle initial. `ng build` n'émet qu'un AVERTISSEMENT au-delà de 500 kB (et le
+#      projet est déjà au-dessus) : la dérive ne fait donc jamais échouer quoi que ce soit. La
+#      nuit, on la mesure et on la plafonne pour de bon.
+#
+#   5. Vulnérabilités des dépendances, dans les deux écosystèmes. Dependabot ouvre des PR de
+#      montée de version ; il ne dit pas « ce qui est en production ce soir est troué ».
+#
+#   Sur le seuil d'échec des vulnérabilités — lire avant de le durcir :
+#   la barre bloquante est à CRITIQUE, pas à ÉLEVÉE. Le projet est épinglé sur Angular 17 et
+#   Spring Boot 3.2 ; côté front, `npm audit --omit=dev` remonte déjà 12 avis ÉLEVÉS dont la
+#   correction passe par Angular 19+, c'est-à-dire une montée majeure. Une barre à ÉLEVÉE
+#   rendrait ce workflow rouge toutes les nuits dès la première, et un signal toujours rouge
+#   n'est plus un signal. Les avis ÉLEVÉS sont donc COMPTÉS ET PUBLIÉS chaque nuit dans le
+#   résumé du job, sans bloquer. Après la montée majeure d'Angular et de Spring Boot, passer
+#   `SEUIL_BLOQUANT` à `HIGH` ci-dessous.
+#
+#   NB : GitHub désactive les crons d'un dépôt inactif plus de 60 jours. Le déclenchement
+#   manuel ci-dessous sert aussi à les réarmer.
+# ============================================================================
+name: CI nocturne
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # quotidien, 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      graine:
+        description: >-
+          Graine d'ordre aléatoire des tests backend. Laisser vide pour tirer au sort
+          (numéro du run). À renseigner avec la graine affichée par une nuit rouge pour
+          rejouer EXACTEMENT le même ordre et reproduire l'échec.
+        required: false
+        type: string
+
+# Une nuit à la fois : deux exécutions concurrentes se disputeraient les mêmes conteneurs
+# PostgreSQL éphémères. On ne coupe pas celle en cours — un lancement manuel ne doit pas
+# tuer la nuit qui tourne, elle a déjà payé son heure de suite.
+concurrency:
+  group: nocturne-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Barre au-delà de laquelle une vulnérabilité fait échouer la nuit (cf. en-tête).
+  SEUIL_BLOQUANT: CRITICAL
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 1. Suite backend complète, sur PostgreSQL réel, jouée deux fois.
+  # --------------------------------------------------------------------------
+  suite-backend:
+    name: Suite backend (${{ matrix.libelle }}, PostgreSQL réel)
+    runs-on: ubuntu-latest
+    # La passe aléatoire casse le cache de contexte Spring (les classes ne sont plus groupées
+    # par contexte) : elle recharge l'application bien plus souvent et dure nettement plus
+    # longtemps que la passe nominale. D'où un plafond large — on ne veut pas qu'un plafond
+    # trop serré se lise comme une régression.
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false # les deux passes doivent rendre leur verdict : c'est leur écart qui informe
+      matrix:
+        # Valeurs sans accent : elles servent de nom d'artefact et de clé de comparaison.
+        ordre: [nominal, aleatoire]
+        include:
+          - ordre: nominal
+            libelle: ordre nominal
+          - ordre: aleatoire
+            libelle: ordre aléatoire
+    defaults:
+      run:
+        working-directory: back
+    services:
+      postgres:
+        # Même major que la production (Railway) — c'est toute la valeur de ces tests.
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: coachrun
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # Base à part de « coachrun » : les tests `pgtest` chargent le jeu de démo, dont
+      # plusieurs champs sont chiffrés avec la clé du profil de test. Le benchmark de
+      # démarrage (job suivant) utilise SA clé — même raison qu'en CI de PR.
+      - name: Base dédiée aux tests PostgreSQL
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE pgtest;'
+
+      # La graine est AFFICHÉE : c'est elle qu'on repasse en entrée d'un lancement manuel
+      # pour rejouer un ordre fautif à l'identique. Sans elle, un échec d'ordre n'est pas
+      # reproductible et finit classé « flaky » à tort.
+      - name: Fixer la graine d'ordre
+        id: graine
+        run: |
+          GRAINE="${{ inputs.graine }}"
+          [ -n "$GRAINE" ] || GRAINE="${{ github.run_id }}"
+          echo "valeur=$GRAINE" >> "$GITHUB_OUTPUT"
+          echo "Graine d'ordre : $GRAINE"
+
+      # Ordre nominal : la référence. Si elle est rouge, c'est une régression franche,
+      # indépendante de tout effet d'ordre.
+      - name: Suite complète — ordre nominal (H2 + PostgreSQL)
+        if: matrix.ordre == 'nominal'
+        run: >-
+          mvn -B -ntp clean verify
+          -Dpgtest=true
+          -DPGTEST_URL=jdbc:postgresql://localhost:5432/pgtest
+
+      # Ordre aléatoire : classes ET méthodes mélangées. `ClassOrderer$Random` et
+      # `MethodOrderer$Random` sont fournis par JUnit 5 ; le moteur lit ces trois paramètres
+      # depuis les propriétés système, aucune modification du pom n'est nécessaire.
+      - name: Suite complète — ordre aléatoire (H2 + PostgreSQL)
+        if: matrix.ordre == 'aleatoire'
+        run: >-
+          mvn -B -ntp clean verify
+          -Dpgtest=true
+          -DPGTEST_URL=jdbc:postgresql://localhost:5432/pgtest
+          '-Djunit.jupiter.testclass.order.default=org.junit.jupiter.api.ClassOrderer$Random'
+          '-Djunit.jupiter.testmethod.order.default=org.junit.jupiter.api.MethodOrderer$Random'
+          -Djunit.jupiter.execution.order.random.seed=${{ steps.graine.outputs.valeur }}
+
+      - name: Rappeler comment rejouer l'ordre fautif
+        if: failure() && matrix.ordre == 'aleatoire'
+        run: |
+          {
+            echo "### Suite backend en ordre aléatoire : échec"
+            echo
+            echo "Graine : \`${{ steps.graine.outputs.valeur }}\`"
+            echo
+            echo "Si la passe **nominale** est verte, l'échec vient d'une dépendance d'ordre"
+            echo "entre tests (état partagé, contexte Spring, données résiduelles), pas d'une"
+            echo "régression fonctionnelle."
+            echo
+            echo "Pour le rejouer à l'identique : « Run workflow » en renseignant cette graine,"
+            echo "ou en local :"
+            echo
+            echo '```bash'
+            echo "cd back && ./mvnw -B -ntp test \\"
+            echo "  '-Djunit.jupiter.testclass.order.default=org.junit.jupiter.api.ClassOrderer\$Random' \\"
+            echo "  '-Djunit.jupiter.testmethod.order.default=org.junit.jupiter.api.MethodOrderer\$Random' \\"
+            echo "  -Djunit.jupiter.execution.order.random.seed=${{ steps.graine.outputs.valeur }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Les rapports Surefire portent la trace et l'ORDRE réellement exécuté : sans eux, une
+      # nuit rouge en ordre aléatoire n'est qu'un compteur d'échecs.
+      - name: Rapports Surefire
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-${{ matrix.ordre }}
+          path: back/target/surefire-reports/
+          retention-days: 14
+
+  # --------------------------------------------------------------------------
+  # 2. Benchmark : durée de démarrage en configuration de production.
+  # --------------------------------------------------------------------------
+  benchmark-demarrage:
+    name: Benchmark — démarrage (profil prod + Liquibase)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: back
+    env:
+      # Seuil de régression. Mesuré sur un runner GitHub : le boot (contexte Spring +
+      # migrations Liquibase sur une base vide) tient largement sous la minute. 90 s laisse
+      # de la marge au bruit d'un runner partagé tout en attrapant ce qui compte : un boot
+      # qui double ou triple (un bean qui appelle le réseau, une migration qui balaie une
+      # table, un `@PostConstruct` qui bloque).
+      PLAFOND_S: 90
+      # Au-delà, ce n'est plus une lenteur : l'application ne démarre pas.
+      ABANDON_S: 180
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: coachrun
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Construire le jar (sans tests)
+        run: mvn -B -ntp clean package -DskipTests
+
+      # Mêmes variables que le smoke test de `ci.yml` : le profil prod active
+      # StartupSecretsValidator, qui refuse de démarrer sur une configuration incomplète.
+      # `.invalid` est un TLD réservé (RFC 2606) : rien ne peut être joint par erreur.
+      - name: Mesurer le temps jusqu'à /actuator/health = UP
+        env:
+          SPRING_PROFILES_ACTIVE: prod
+          JDBC_DATABASE_URL: jdbc:postgresql://localhost:5432/coachrun
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          JWT_SECRET: ci-nocturne-secret-not-for-production-rotate-me-aaaaaaaaaaaaaaaa
+          FIELD_ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          CORS_ORIGINS: https://ci.invalid
+          FRONTEND_URL: https://ci.invalid
+          VAPID_PUBLIC_KEY: ci-nocturne-public-key
+          VAPID_PRIVATE_KEY: ci-nocturne-private-key
+          REGISTRATION_INVITE_CODE: ci-nocturne
+          RATE_LIMIT_TRUSTED_PROXY_HOPS: "2"
+        run: |
+          set -uo pipefail
+          java -jar target/coachrun-back.jar > demarrage.log 2>&1 &
+          APP_PID=$!
+          DEBUT=$(date +%s)
+          DUREE=""
+          for _ in $(seq 1 "$ABANDON_S"); do
+            if ! kill -0 "$APP_PID" 2>/dev/null; then
+              echo "::error::Le processus s'est arrêté avant d'être sain."
+              tail -60 demarrage.log
+              exit 1
+            fi
+            if curl -fsS http://localhost:8080/api/actuator/health 2>/dev/null | grep -q '"status":"UP"'; then
+              DUREE=$(( $(date +%s) - DEBUT ))
+              break
+            fi
+            sleep 1
+          done
+          kill "$APP_PID" 2>/dev/null || true
+
+          if [ -z "$DUREE" ]; then
+            echo "::error::Le backend n'est jamais devenu sain (${ABANDON_S}s). Ce n'est pas une lenteur : il ne démarre pas."
+            tail -60 demarrage.log
+            exit 1
+          fi
+
+          {
+            echo "### Benchmark de démarrage"
+            echo
+            echo "| Mesure | Valeur | Seuil |"
+            echo "| --- | ---: | ---: |"
+            echo "| Démarrage jusqu'à \`UP\` | ${DUREE} s | ${PLAFOND_S} s |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$DUREE" -gt "$PLAFOND_S" ]; then
+            echo "::error::Démarrage en ${DUREE}s, au-delà du plafond de ${PLAFOND_S}s — régression de démarrage."
+            exit 1
+          fi
+          echo "✅ Démarrage en ${DUREE}s (plafond ${PLAFOND_S}s)."
+
+      - name: Journal de démarrage
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demarrage-log
+          path: back/demarrage.log
+          retention-days: 14
+
+  # --------------------------------------------------------------------------
+  # 3. Frontend : suite Karma sur le Chrome du jour + budget du bundle initial.
+  # --------------------------------------------------------------------------
+  suite-frontend:
+    name: Frontend — Karma + budget du bundle
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: front
+    env:
+      # Budget du bundle INITIAL (ce que le navigateur télécharge avant le premier écran ;
+      # les chunks de route paresseux n'y entrent pas).
+      #
+      # Mesures de référence à la mise en place de ce workflow :
+      #   brut  653 605 octets   → plafond 750 000 (~15 % de marge)
+      #   gzip  205 548 octets   → plafond 240 000 (~17 % de marge)
+      #
+      # La marge absorbe les correctifs hebdomadaires de Dependabot ; une nouvelle
+      # dépendance lourde ou une route rendue non paresseuse la crève. C'est le but.
+      #
+      # Le budget de `angular.json` (avertissement à 500 kB, erreur à 1 Mo) reste la règle du
+      # build de PR ; il n'échoue pas, et le projet est déjà à 638 kB selon son propre calcul.
+      # Ici on plafonne la DÉRIVE à partir de l'état réel, plutôt qu'un idéal jamais atteint.
+      BUDGET_BRUT: 750000
+      BUDGET_GZIP: 240000
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: front/package-lock.json
+
+      - name: Installer les dépendances
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
+        run: npm ci
+
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+        id: setup-chrome
+
+      # La suite tourne déjà sur chaque PR — mais sur le Chrome du jour de la PR. Rejouée
+      # chaque nuit sur le Chrome le plus récent, elle attrape les ruptures du navigateur
+      # (API retirée, comportement de rendu modifié) AVANT qu'elles ne tombent, inexpliquées,
+      # sur la prochaine pull request. Jasmine tire l'ordre des specs au sort à chaque
+      # exécution : la répétition nocturne a aussi valeur de détection de tests fragiles.
+      - name: Tests unitaires (Karma, Chrome du jour)
+        env:
+          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+        run: npm test
+
+      - name: Build de production
+        run: npm run build
+
+      - name: Budget du bundle initial
+        run: |
+          set -uo pipefail
+          DIST=dist/front/browser
+          [ -f "$DIST/index.html" ] || { echo "::error::Build introuvable ($DIST/index.html)."; exit 1; }
+
+          # « Initial » = exactement ce que index.html fait charger au démarrage : les
+          # <script src> et les <link rel="modulepreload"|"stylesheet" href>. On lit la sortie
+          # du build plutôt que le tableau affiché par la CLI : pas de format à reparser à
+          # chaque montée d'Angular.
+          mapfile -t FICHIERS < <(grep -oE '(src|href)="[^"]+\.(js|css)"' "$DIST/index.html" \
+                                  | sed -E 's/.*="([^"]+)"/\1/' | sort -u)
+          if [ "${#FICHIERS[@]}" -eq 0 ]; then
+            echo "::error::Aucun script ni feuille de style initiale trouvé dans index.html — mesure impossible."
+            exit 1
+          fi
+
+          BRUT=0
+          GZIP=0
+          for f in "${FICHIERS[@]}"; do
+            CHEMIN="$DIST/$f"
+            [ -f "$CHEMIN" ] || { echo "::error::index.html référence « $f », absent du build."; exit 1; }
+            BRUT=$(( BRUT + $(stat -c%s "$CHEMIN") ))
+            GZIP=$(( GZIP + $(gzip -c9 "$CHEMIN" | wc -c) ))
+          done
+
+          {
+            echo "### Budget du bundle initial"
+            echo
+            echo "| Mesure | Valeur | Plafond |"
+            echo "| --- | ---: | ---: |"
+            echo "| Fichiers initiaux | ${#FICHIERS[@]} | — |"
+            echo "| Brut | $(( BRUT / 1000 )) kB | $(( BUDGET_BRUT / 1000 )) kB |"
+            echo "| Gzip (ce que l'athlète télécharge) | $(( GZIP / 1000 )) kB | $(( BUDGET_GZIP / 1000 )) kB |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          DEPASSE=0
+          if [ "$BRUT" -gt "$BUDGET_BRUT" ]; then
+            echo "::error::Bundle initial brut : ${BRUT} octets, au-delà du plafond ${BUDGET_BRUT}."
+            DEPASSE=1
+          fi
+          if [ "$GZIP" -gt "$BUDGET_GZIP" ]; then
+            echo "::error::Bundle initial gzip : ${GZIP} octets, au-delà du plafond ${BUDGET_GZIP}."
+            DEPASSE=1
+          fi
+          if [ "$DEPASSE" -eq 0 ]; then
+            echo "✅ Bundle initial : ${BRUT} octets bruts / ${GZIP} octets gzip — sous les plafonds."
+          else
+            echo "Si la hausse est assumée (nouvelle fonctionnalité), relever les plafonds dans ce workflow."
+          fi
+          exit "$DEPASSE"
+
+  # --------------------------------------------------------------------------
+  # 4. Vulnérabilités des dépendances backend (Maven).
+  # --------------------------------------------------------------------------
+  vulnerabilites-backend:
+    name: Vulnérabilités — dépendances backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      # Maven n'a pas d'équivalent de `npm audit`. On produit d'abord un SBOM CycloneDX —
+      # l'arbre RÉSOLU, dépendances transitives comprises, là où un scan de `pom.xml` ne voit
+      # que les dépendances déclarées. Le plugin est invoqué par ses coordonnées : rien à
+      # ajouter au pom. Portée de test exclue — elle ne part pas en production.
+      - name: SBOM CycloneDX des dépendances backend
+        working-directory: back
+        run: >-
+          mvn -B -ntp org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
+          -DoutputFormat=json -DoutputName=bom -DincludeTestScope=false
+
+      # Méthode d'installation officielle (documentation Trivy). Volontairement sans version
+      # épinglée : un scanner de vulnérabilités qui vieillit ne voit pas les avis récents,
+      # et c'est précisément ce qu'on lui demande de voir.
+      - name: Installer Trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+
+      - name: Analyser le SBOM
+        env:
+          TRIVY_NO_PROGRESS: "true"
+        run: >-
+          trivy sbom --format json --output trivy-back.json
+          --severity HIGH,CRITICAL --exit-code 0 back/target/bom.json
+
+      - name: Verdict
+        run: |
+          set -uo pipefail
+          jq -e '.Results? // []' trivy-back.json > /dev/null 2>&1 || {
+            echo "::error::trivy-back.json illisible — l'analyse n'a pas produit de rapport exploitable."
+            head -20 trivy-back.json 2>/dev/null || echo "(fichier absent)"
+            exit 1
+          }
+          CRITIQUES=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' trivy-back.json)
+          ELEVEES=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' trivy-back.json)
+
+          {
+            echo "### Vulnérabilités — dépendances backend (Maven)"
+            echo
+            echo "| Gravité | Nombre |"
+            echo "| --- | ---: |"
+            echo "| Critiques | ${CRITIQUES} |"
+            echo "| Élevées | ${ELEVEES} |"
+            echo
+            echo "Seuil bloquant : \`${SEUIL_BLOQUANT}\`."
+            echo
+            if [ "$(( CRITIQUES + ELEVEES ))" -gt 0 ]; then
+              echo "| Paquet | Version | Gravité | Avis |"
+              echo "| --- | --- | --- | --- |"
+              jq -r '[.Results[]?.Vulnerabilities[]?]
+                     | sort_by(.Severity)
+                     | .[]
+                     | "| \(.PkgName) | \(.InstalledVersion) | \(.Severity) | [\(.VulnerabilityID)](\(.PrimaryURL // "https://osv.dev/")) |"' \
+                 trivy-back.json | sort -u
+            else
+              echo "Aucun avis élevé ni critique."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # `SEUIL_BLOQUANT` (en-tête du workflow) décide de ce qui fait échouer la nuit.
+          case "$SEUIL_BLOQUANT" in
+            CRITICAL) BLOQUANTS=$CRITIQUES ;;
+            HIGH)     BLOQUANTS=$(( CRITIQUES + ELEVEES )) ;;
+            *) echo "::error::SEUIL_BLOQUANT vaut « $SEUIL_BLOQUANT » : attendu CRITICAL ou HIGH."; exit 1 ;;
+          esac
+
+          if [ "$BLOQUANTS" -gt 0 ]; then
+            echo "::error::${BLOQUANTS} vulnérabilité(s) de gravité ${SEUIL_BLOQUANT} ou plus dans les dépendances backend."
+            jq -r --arg seuil "$SEUIL_BLOQUANT" \
+               '.Results[]?.Vulnerabilities[]?
+                | select(.Severity == "CRITICAL" or ($seuil == "HIGH" and .Severity == "HIGH"))
+                | "  \(.VulnerabilityID)  \(.PkgName) \(.InstalledVersion) → corrigé en \(.FixedVersion // "aucune version corrigée")"' \
+               trivy-back.json | sort -u
+            exit 1
+          fi
+          echo "✅ Rien au-dessus du seuil ${SEUIL_BLOQUANT} (${ELEVEES} avis élevé(s) signalé(s), cf. résumé et en-tête du workflow)."
+
+      - name: Rapport complet
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerabilites-backend
+          path: |
+            trivy-back.json
+            back/target/bom.json
+          retention-days: 30
+
+  # --------------------------------------------------------------------------
+  # 5. Vulnérabilités des dépendances frontend (npm).
+  # --------------------------------------------------------------------------
+  vulnerabilites-frontend:
+    name: Vulnérabilités — dépendances frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: front
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # `npm audit` travaille sur `package-lock.json` seul : pas de `npm ci` à payer ici.
+      #
+      # Deux audits, deux poids. Celui de PRODUCTION (`--omit=dev`) porte sur le code
+      # réellement servi à l'athlète : c'est lui qui décide de l'échec. L'audit complet
+      # inclut la chaîne de build (Angular CLI, webpack, esbuild…) — une faille y est un
+      # risque de compromission du build, réel mais d'une autre nature, et hors de portée
+      # d'un correctif tant que le CLI n'est pas monté de version majeure : on le publie
+      # sans bloquer.
+      - name: Audit des dépendances de production
+        run: npm audit --omit=dev --json > audit-prod.json || true
+
+      - name: Audit complet (build compris, non bloquant)
+        run: npm audit --json > audit-complet.json || true
+
+      - name: Verdict
+        run: |
+          set -uo pipefail
+          for f in audit-prod.json audit-complet.json; do
+            jq -e '.metadata.vulnerabilities' "$f" > /dev/null 2>&1 || {
+              echo "::error::$f illisible — npm audit a échoué (registre injoignable ?)."
+              head -20 "$f"
+              exit 1
+            }
+          done
+
+          CRITIQUES=$(jq '.metadata.vulnerabilities.critical' audit-prod.json)
+          ELEVEES=$(jq '.metadata.vulnerabilities.high' audit-prod.json)
+          CRIT_TOTAL=$(jq '.metadata.vulnerabilities.critical' audit-complet.json)
+          ELEV_TOTAL=$(jq '.metadata.vulnerabilities.high' audit-complet.json)
+
+          {
+            echo "### Vulnérabilités — dépendances frontend (npm)"
+            echo
+            echo "| Périmètre | Critiques | Élevées |"
+            echo "| --- | ---: | ---: |"
+            echo "| Production — **bloquant à partir de ${SEUIL_BLOQUANT}** | ${CRITIQUES} | ${ELEVEES} |"
+            echo "| Build comprise — signalé | ${CRIT_TOTAL} | ${ELEV_TOTAL} |"
+            echo
+            if [ "$(( CRITIQUES + ELEVEES ))" -gt 0 ]; then
+              echo "Avis touchant le code servi à l'athlète :"
+              echo
+              echo "| Paquet | Gravité | Avis |"
+              echo "| --- | --- | --- |"
+              jq -r '.vulnerabilities
+                     | to_entries[]
+                     | .key as $p
+                     | (.value.via[]
+                        | select(type == "object")
+                        | select(.severity == "critical" or .severity == "high")
+                        | "| \($p) | \(.severity) | [\(.title)](\(.url)) |")' \
+                 audit-prod.json | sort -u
+            else
+              echo "Aucun avis élevé ni critique sur les dépendances de production."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # `SEUIL_BLOQUANT` (en-tête du workflow) décide de ce qui fait échouer la nuit.
+          case "$SEUIL_BLOQUANT" in
+            CRITICAL) BLOQUANTS=$CRITIQUES ;;
+            HIGH)     BLOQUANTS=$(( CRITIQUES + ELEVEES )) ;;
+            *) echo "::error::SEUIL_BLOQUANT vaut « $SEUIL_BLOQUANT » : attendu CRITICAL ou HIGH."; exit 1 ;;
+          esac
+
+          if [ "$BLOQUANTS" -gt 0 ]; then
+            echo "::error::${BLOQUANTS} vulnérabilité(s) de gravité ${SEUIL_BLOQUANT} ou plus dans les dépendances de production du front."
+            exit 1
+          fi
+          echo "✅ Rien au-dessus du seuil ${SEUIL_BLOQUANT} en production (${ELEVEES} avis élevé(s) signalé(s), cf. résumé et en-tête du workflow)."
+
+      - name: Rapports complets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerabilites-frontend
+          path: |
+            front/audit-prod.json
+            front/audit-complet.json
+          retention-days: 30
+
+  # --------------------------------------------------------------------------
+  # 6. Bilan — un seul endroit à lire au réveil.
+  #
+  #   Sans ce job, il faut ouvrir cinq onglets pour savoir ce qui a lâché. Il échoue dès
+  #   qu'un job en amont a échoué : la nuit est rouge, et le tableau dit laquelle.
+  # --------------------------------------------------------------------------
+  bilan:
+    name: Bilan de la nuit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs:
+      - suite-backend
+      - benchmark-demarrage
+      - suite-frontend
+      - vulnerabilites-backend
+      - vulnerabilites-frontend
+    steps:
+      - name: Récapituler
+        env:
+          SUITE_BACKEND: ${{ needs.suite-backend.result }}
+          BENCHMARK: ${{ needs.benchmark-demarrage.result }}
+          FRONTEND: ${{ needs.suite-frontend.result }}
+          VULN_BACK: ${{ needs.vulnerabilites-backend.result }}
+          VULN_FRONT: ${{ needs.vulnerabilites-frontend.result }}
+        run: |
+          set -uo pipefail
+          ECHEC=0
+          {
+            echo "## Bilan de la nuit"
+            echo
+            echo "| Vérification | Résultat |"
+            echo "| --- | --- |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          ligne() {
+            case "$2" in
+              success) ICONE="✅" ;;
+              skipped) ICONE="⏭️" ;;
+              cancelled) ICONE="🚫" ;;
+              *) ICONE="❌"; ECHEC=1 ;;
+            esac
+            echo "| $1 | $ICONE $2 |" >> "$GITHUB_STEP_SUMMARY"
+          }
+
+          ligne "Suite backend (nominal + aléatoire, PostgreSQL réel)" "$SUITE_BACKEND"
+          ligne "Benchmark de démarrage" "$BENCHMARK"
+          ligne "Frontend (Karma + budget du bundle)" "$FRONTEND"
+          ligne "Vulnérabilités backend" "$VULN_BACK"
+          ligne "Vulnérabilités frontend" "$VULN_FRONT"
+
+          if [ "$ECHEC" -ne 0 ]; then
+            echo "::error::La nuit est rouge — cf. le tableau du résumé."
+            exit 1
+          fi
+          echo "✅ Nuit verte."
