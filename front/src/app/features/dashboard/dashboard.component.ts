@@ -113,6 +113,18 @@ export class DashboardComponent implements OnInit {
 
   level(status: FormStatus): FormLevel { return LEVEL_OF[status]; }
 
+  /**
+   * Où mène une ligne d'alerte.
+   *
+   * <p>La ligne menait toujours à la fiche de l'athlète, alors que l'alerte porte déjà le geste
+   * qu'elle appelle — c'est le sens de `SuggestedAction`, que l'écran « Ma journée » utilise
+   * depuis toujours et que le cockpit ignorait. Une réponse d'athlète non lue mène ainsi à la
+   * séance où elle a été écrite, et l'ouvrir vaut lecture.</p>
+   */
+  alertLink(al: CoachAlert): string | unknown[] {
+    return al.action?.link ?? ['/app/athletes', al.athleteId];
+  }
+
   /** Note contextuelle pour la jauge (dernier retour). */
   /**
    * Ancienneté du signal, toujours affichée.

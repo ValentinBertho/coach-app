@@ -40,6 +40,9 @@ import { FeedbackRecapComponent } from '../../shared/components/feedback-recap/f
 import {
   PlannedStats, RealizedStats, SessionStatsComponent,
 } from '../../shared/components/session-stats/session-stats.component';
+import { SessionThreadComponent } from '../../shared/components/session-thread/session-thread.component';
+import { Message } from '../../core/models/message.model';
+import { MessageService } from '../../core/services/message.service';
 
 /** Segment de la barre de répartition du temps par zone (façon Nolio). */
 interface ZoneSegment {
@@ -66,6 +69,7 @@ type State = 'loading' | 'ready' | 'error';
     DataOriginTagComponent, StickyActionBarComponent, CoursePrescriptionViewComponent,
     SessionStatsComponent, ActivityChartComponent, ActivityLapsComponent,
     ActivityRouteMapComponent, FeedbackRecapComponent, ComplianceVerdictComponent,
+    SessionThreadComponent,
   ],
   templateUrl: './workout-detail.component.html',
   styleUrl: './workout-detail.component.scss',
@@ -76,6 +80,7 @@ export class WorkoutDetailComponent implements OnInit {
   private readonly activityService = inject(ActivityService);
   private readonly paceReference = inject(PaceReferenceService);
   private readonly toast = inject(ToastService);
+  private readonly messages = inject(MessageService);
   private readonly decisions = inject(DecisionService);
 
   /** Allure d'endurance de l'athlète, seule base admise pour estimer un volume écrit en durée. */
@@ -276,6 +281,34 @@ export class WorkoutDetailComponent implements OnInit {
   /** Au-delà de ±2, l'écart mérite l'attention du coach (séance mal calibrée ou athlète en difficulté). */
   readonly rpeGapNotable = computed(() => Math.abs(this.rpeGap() ?? 0) >= 2);
 
+  // --- Fil de la séance : commentaire du coach, puis l'échange qui s'ensuit ---------------
+  /** Messages de la messagerie rattachés à cette séance (la suite du commentaire). */
+  readonly thread = signal<Message[]>([]);
+  readonly sendingReply = signal(false);
+
+  /**
+   * Répond à l'athlète depuis la séance.
+   *
+   * <p>Écrit dans le fil de messagerie, rattaché à cette séance : c'est le même canal que la
+   * boîte de réception, vu par le bout qui porte le contexte. Répondre vaut lecture — le
+   * serveur referme l'attente ouverte par la réponse de l'athlète, et la séance quitte l'alerte
+   * du cockpit sans geste supplémentaire.</p>
+   */
+  sendReply(body: string): void {
+    const text = body.trim();
+    if (!text || this.sendingReply()) return;
+    this.sendingReply.set(true);
+    this.messages.coachSend(this.athleteId(), text, this.workoutId()).subscribe({
+      next: (m) => {
+        this.sendingReply.set(false);
+        this.thread.update((l) => [...l, m]);
+        this.workout.update((w) => (w ? { ...w, athleteReplyReadAt: new Date().toISOString() } : w));
+        this.toast.success('Réponse envoyée à l’athlète.');
+      },
+      error: () => { this.sendingReply.set(false); this.toast.error('Envoi impossible.'); },
+    });
+  }
+
   // --- Commentaire du coach sur la séance réalisée --------------------------
   coachCommentDraft = '';
   readonly savingComment = signal(false);
@@ -360,6 +393,24 @@ export class WorkoutDetailComponent implements OnInit {
       next: (p) => this.referencePace.set(p),
       error: () => this.referencePace.set(null),
     });
+    // Le fil de la séance, et son accusé de lecture. Ouvrir la fiche vaut lecture : c'est ici
+    // que la réponse se lit, donc c'est ici que l'attente se referme — sinon l'alerte du cockpit
+    // resterait allumée derrière un coach qui a pourtant tout vu.
+    this.messages.coachWorkoutThread(this.athleteId(), this.workoutId()).subscribe({
+      next: (t) => {
+        this.thread.set(t);
+        // Seulement s'il y a quelque chose à lire : appeler l'accusé de lecture à chaque
+        // ouverture de fiche coûterait une requête d'écriture sur toutes les séances du club.
+        if (t.some((m) => m.senderRole === 'ATHLETE')) this.markReplyRead();
+      },
+      error: () => this.thread.set([]),
+    });
+  }
+
+  /** Silencieux : ne pas avoir marqué une réponse comme lue n'interrompt personne. */
+  private markReplyRead(): void {
+    this.workoutService.markReplyRead(this.athleteId(), this.workoutId())
+      .subscribe({ error: () => undefined });
   }
 
   /** Écart de durée signé (« +2:15 » / « -0:40 ») pour l'affichage prévu/réalisé. */

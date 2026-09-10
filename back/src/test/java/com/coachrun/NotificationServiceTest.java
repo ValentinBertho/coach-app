@@ -680,7 +680,14 @@ class NotificationServiceTest {
 
         notificationService.notifyCoachComment(w);
 
-        verifyNoInteractions(pushService);
+        // « Le téléphone ne sonne pas » = aucun envoi, pas « on ne parle pas au service de push ».
+        // Le repli e-mail du commentaire de séance lui demande maintenant si un appareil est
+        // joignable — une lecture, pas une remise : un appareil joignable veut dire que la
+        // notification attend déjà l'utilisateur, donc qu'il ne faut pas doubler par e-mail.
+        // `verifyNoInteractions` confondait les deux et interdisait jusqu'à la question.
+        verify(pushService, never()).sendToUser(any(), any(), any(), any());
+        verify(pushService, never()).sendToUser(any(), any(), any(), any(), any());
+        verify(mailClient, never()).send(any(), any(), any(), any(), any(), any());
         verify(notificationRepository).save(any());
     }
 

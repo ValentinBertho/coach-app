@@ -1,0 +1,30 @@
+# ============================================================================
+# 098 — La réponse de l'athlète, portée par la séance dont elle parle.
+#
+#   Le coach pose sa question sur la séance (`coach_comment`), l'athlète y
+#   répond depuis sa fiche — et sa réponse partait dans le fil de messagerie
+#   sans rien laisser sur la séance. Le coach n'avait donc aucun endroit où
+#   voir qu'on lui avait répondu : ni sur la séance qu'il avait commentée, ni
+#   sur son tableau de bord. Un coach bêta l'a signalé après trois jours de
+#   silence sur une question qui, elle, avait bien reçu sa réponse.
+#
+#   Ces deux colonnes sont le miroir exact de `coach_comment_at` /
+#   `coach_comment_read_at`, dans l'autre sens : quand l'athlète a répondu, et
+#   quand un coach l'a lu. NULL sur `athlete_reply_read_at` avec une date de
+#   réponse = une réponse qui attend, et c'est ce que remontent l'alerte du
+#   cockpit, le digest du matin et la pastille de la séance.
+#
+#   Additif : deux colonnes nouvelles, nullables, aucune ligne existante
+#   modifiée. Les séances d'avant n'ont jamais de réponse en attente — ce qui
+#   est exact : leurs réponses vivaient déjà, et seulement, dans la messagerie.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 098-workout-athlete-reply
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workouts
+            columns:
+              - column: { name: athlete_reply_at, type: TIMESTAMP }
+              - column: { name: athlete_reply_read_at, type: TIMESTAMP }

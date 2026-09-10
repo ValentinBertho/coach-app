@@ -205,6 +205,37 @@
               <app-icon name="pencil" [size]="15" /> Commenter cette séance
             </button>
           }
+
+          <!--
+            La suite de l'échange, sur la séance.
+
+            Le coach posait sa question ici et la réponse partait dans la messagerie : il fallait
+            l'y aller chercher, retrouver la conversation, puis deviner de quelle sortie on
+            parlait. Le plus souvent il ne la voyait pas du tout — c'est le défaut remonté en
+            bêta, une réponse arrivée le soir même et découverte trois jours plus tard.
+
+            Ce ne sont pas des messages d'un canal à part : ce sont ceux de la messagerie
+            rattachés à cette séance. Répondre d'ici écrit dans le même fil.
+          -->
+          @if (thread().length || w.athleteReplyAt) {
+            <div class="cc-thread">
+              <h3 class="cc-thread__h">
+                La suite
+                @if (w.athleteReplyAt && !w.athleteReplyReadAt) {
+                  <span class="badge badge-warning">Réponse non lue</span>
+                }
+              </h3>
+              <app-session-thread
+                [messages]="thread()"
+                viewer="COACH"
+                [sending]="sendingReply()"
+                replyLabel="Répondre à l'athlète"
+                placeholder="Ta réponse…"
+                inputId="wd-coach-reply"
+                emptyLabel="Pas encore de réponse."
+                (send)="sendReply($event)" />
+            </div>
+          }
         </section>
       </div>
 

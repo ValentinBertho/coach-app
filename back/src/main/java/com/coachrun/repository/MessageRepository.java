@@ -71,6 +71,17 @@ public interface MessageRepository extends JpaRepository<Message, UUID> {
     /** Messages sans fil : le backfill des échanges antérieurs au modèle de conversations. */
     List<Message> findByConversationIsNull();
 
+    // --- Fil d'une séance -----------------------------------------------------------------
+
+    /**
+     * Les messages rattachés à une séance, du plus ancien au plus récent.
+     *
+     * <p>Le rattachement existait depuis toujours ({@code Message.workoutId}) sans que rien ne le
+     * relise : la réponse d'un athlète à un commentaire de séance partait dans la messagerie et
+     * n'y était plus qu'un message parmi les autres, séparé de la séance dont il parlait.</p>
+     */
+    List<Message> findByWorkoutIdOrderByCreatedAtAsc(UUID workoutId);
+
     /** Marque le fil comme lu (accusé de lecture à l'ouverture de la conversation). */
     @Modifying
     @Query("""
