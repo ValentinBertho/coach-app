@@ -1,0 +1,32 @@
+# ============================================================================
+# Dérogations de la CI nocturne — vulnérabilités connues, sans correctif
+# atteignable, explicitement acceptées jusqu'à une date.
+#
+# Ce fichier existe pour une seule raison : une vulnérabilité dont le correctif
+# exige une montée de version majeure ne se corrige pas dans la nuit. Sans lui,
+# le job « Vulnérabilités — dépendances backend » resterait rouge tous les soirs
+# jusqu'à cette montée — et une CI toujours rouge ne signale plus rien, ce qui
+# est exactement le raisonnement tenu en en-tête de nocturne.yml pour fixer le
+# seuil bloquant à CRITIQUE plutôt qu'à ÉLEVÉE.
+#
+# Ce n'est PAS un moyen de faire taire un avis gênant :
+#
+#   * une dérogation ne masque rien — la vulnérabilité reste comptée, affichée
+#     dans le tableau du résumé de la nuit et listée ici avec sa date ;
+#   * elle EXPIRE. Passée sa date, la nuit redevient rouge, et la seule façon de
+#     la reverdir est de corriger ou de rouvrir ce fichier en connaissance de
+#     cause ;
+#   * elle ne couvre que la CVE nommée. Toute nouvelle vulnérabilité critique
+#     fait échouer la nuit, dérogations ou pas.
+#
+# Format : trois colonnes séparées par une TABULATION.
+#   1. identifiant de la vulnérabilité, tel que Trivy le rapporte (CVE-…, GHSA-…)
+#   2. date d'expiration, AAAA-MM-JJ
+#   3. raison — pourquoi le correctif n'est pas atteignable aujourd'hui
+#
+# Lu par le job « Vulnérabilités — dépendances backend ». Le job frontend n'a
+# pas de dérogation à ce jour ; si le besoin s'en présente, c'est ici qu'elles
+# iraient, les avis npm étant rapportés sous leur identifiant GHSA.
+# ============================================================================
+
+CVE-2026-22732	2026-12-31	spring-security-web : corrigée en 6.5.9 et 7.0.4 uniquement. Spring Security 6.5 réclame Spring Framework 6.2, que Spring Boot n'apporte qu'à partir de sa 3.5 ; le projet est en 3.2. Fermeture conditionnée à la montée de Spring Boot — la propriété spring-security.version du pom est déjà au maximum de la ligne 6.2 (6.2.8).

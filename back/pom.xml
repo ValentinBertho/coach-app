@@ -27,7 +27,65 @@
         <jjwt.version>0.12.5</jjwt.version>
         <springdoc.version>2.5.0</springdoc.version>
         <logback-logtail.version>0.3.6</logback-logtail.version>
+
+        <!-- ====================================================================
+             Montées de version imposées par le job « Vulnérabilités — dépendances
+             backend » de la CI nocturne. Spring Boot 3.2.5 gère bien ces artefacts,
+             mais y fige des versions désormais trouées. On relève UNIQUEMENT la
+             ligne de correctif, à l'intérieur de la même version mineure, sans
+             toucher au parent : la portée reste celle d'un correctif de sécurité.
+
+             Chacune de ces propriétés doit disparaître lors de la montée de Spring
+             Boot, dès que la version gérée par le parent dépassera celle exigée ici
+             — les garder plus longtemps reviendrait à figer en arrière.
+             ==================================================================== -->
+
+        <!-- 10.1.20 portait 7 avis critiques, dont CVE-2025-24813 (exécution de code
+             à distance sur écriture partielle du PUT). Les correctifs se sont
+             échelonnés en 10.1.35, 10.1.55 puis 10.1.58 : on prend la dernière de la
+             ligne 10.1. On n'en sort pas — Tomcat 11 implémente Jakarta EE 11, que
+             Spring Boot 3.2 ne sait pas accueillir. -->
+        <tomcat.version>10.1.59</tomcat.version>
+
+        <!-- 4.1.109 → CVE-2026-75595, corrigée en 4.1.137. Netty n'entre ici que par
+             async-http-client (Web Push), mais c'est le BOM de Spring Boot qui en
+             arbitre la version : c'est donc ici, et pas dans la dépendance, qu'on la
+             relève. Ligne 4.1 conservée — la 4.2 est une montée majeure de fait. -->
+        <netty.version>4.1.138.Final</netty.version>
+
+        <!-- 6.2.4 → CVE-2024-38821 : contournement d'autorisation sur les ressources
+             statiques, corrigée en 6.2.7. On prend la dernière 6.2.x.
+
+             ATTENTION — la montée s'arrête là, et pas par prudence : CVE-2026-22732
+             touche elle aussi spring-security-web et n'est corrigée qu'en 6.5.9 et
+             7.0.4. Or Spring Security 6.5 réclame Spring Framework 6.2, que Spring
+             Boot n'apporte qu'à partir de sa 3.5 : la fermer exige la montée de
+             Spring Boot, pas une propriété. En attendant, elle fait l'objet d'une
+             dérogation datée et publiée chaque nuit (cf.
+             .github/vulnerabilites-acceptees.tsv). -->
+        <spring-security.version>6.2.8</spring-security.version>
     </properties>
+
+    <!--
+        async-http-client entre par `nl.martijndwars:web-push`, qui l'épingle en 2.10.4 :
+        CVE-2024-53990, corrigée en 2.12.4. Spring Boot ne gère pas cet artefact — cette
+        section est donc la seule façon de relever une version transitive sans forker la
+        dépendance qui l'apporte.
+
+        La montée reste interne à web-push : notre code ne touche jamais
+        async-http-client directement, il ne connaît que `PushService` (cf.
+        PushNotificationService). 2.12.4 est la dernière de la ligne 2.12, celle que
+        web-push 5.1.1 sait utiliser ; la 3.x change de paquetage.
+    -->
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.asynchttpclient</groupId>
+                <artifactId>async-http-client</artifactId>
+                <version>2.12.4</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
 
     <dependencies>
         <!-- Web / REST -->
@@ -116,10 +174,12 @@
             <artifactId>shedlock-provider-jdbc-template</artifactId>
             <version>5.13.0</version>
         </dependency>
+        <!-- Fournisseur JCE des clés ECDH du Web Push (cf. VapidKeys, PushNotificationService).
+             1.78.1 → CVE-2025-14813, corrigée en 1.84. -->
         <dependency>
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
-            <version>1.78.1</version>
+            <version>1.84</version>
         </dependency>
 
         <!-- Lombok -->
