@@ -33,6 +33,39 @@ class StravaAutoNameTest {
     }
 
     /**
+     * Les moments du soir et de la nuit, que la liste française ignorait.
+     *
+     * <p>Régression constatée en bêta : une sortie du soir importée d'un compte Strava en
+     * français s'appelait « Course à pied en soirée » et n'était <b>pas</b> renommée, alors que
+     * la même sortie sur un compte en anglais (« Evening Run ») l'était. La liste des tournures
+     * était tenue à la main et « en soirée » n'y figurait pas : le titre passait donc pour choisi
+     * par l'athlète, et la séance rapprochée ne lui donnait jamais son nom.</p>
+     */
+    @Test
+    void frenchEveningAndNightTemplatesAreRecognized() {
+        assertThat(StravaAutoName.sportOf("Course à pied en soirée")).contains("Course à pied");
+        assertThat(StravaAutoName.sportOf("Sortie à vélo en soirée")).contains("Vélo");
+        assertThat(StravaAutoName.sportOf("Course à pied de nuit")).contains("Course à pied");
+        assertThat(StravaAutoName.sportOf("Course à pied le midi")).contains("Course à pied");
+    }
+
+    /**
+     * L'apostrophe typographique de Strava (« l’après-midi ») et les accents ne doivent pas
+     * décider du sort d'un titre.
+     *
+     * <p>Même famille de défaut que ci-dessus : la comparaison portait sur les octets, si bien
+     * qu'il fallait énumérer « l'après-midi », « l'apres-midi »… et que le jour où Strava écrit
+     * l'apostrophe courbe, plus rien ne correspond. Le titre est désormais ramené à une forme
+     * sans accent et à apostrophe droite avant comparaison.</p>
+     */
+    @Test
+    void accentsAndTypographicApostrophesDoNotDecide() {
+        assertThat(StravaAutoName.sportOf("Course à pied l’après-midi")).contains("Course à pied");
+        assertThat(StravaAutoName.sportOf("COURSE A PIED EN SOIREE")).contains("Course à pied");
+        assertThat(StravaAutoName.sportOf("Randonnée le matin")).contains("Randonnée");
+    }
+
+    /**
      * Le cœur du sujet : la correspondance porte sur la chaîne <b>entière</b>. « Morning Run »
      * est un nom subi, « Morning Run avec Paul » est un nom choisi — et il contient pourtant le
      * gabarit mot pour mot. Une reconnaissance par sous-chaîne les confondrait.
@@ -45,6 +78,11 @@ class StravaAutoNameTest {
         assertThat(StravaAutoName.sportOf("Fractionné 10x400")).isEmpty();
         assertThat(StravaAutoName.sportOf("Run")).isEmpty();
         assertThat(StravaAutoName.sportOf("Morning")).isEmpty();
+        // Les tournures ajoutées pour le soir ne doivent pas se mettre à mordre sur des titres
+        // qu'on écrit vraiment : c'est le risque exact que fait courir une liste qu'on élargit.
+        assertThat(StravaAutoName.sportOf("Course à pied en soirée avec Paul")).isEmpty();
+        assertThat(StravaAutoName.sportOf("Sortie du soir, bonsoir")).isEmpty();
+        assertThat(StravaAutoName.sportOf("S1 2x15'")).isEmpty();
     }
 
     /** Un titre absent n'est pas un titre généré : il n'y a rien à remplacer, et rien à décider. */
