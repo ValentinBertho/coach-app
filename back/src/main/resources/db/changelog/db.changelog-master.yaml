@@ -207,3 +207,5 @@ databaseChangeLog:
       file: db/changelog/changes/097-activity-sport-detail.yaml
   - include:
       file: db/changelog/changes/098-workout-athlete-reply.yaml
+  - include:
+      file: db/changelog/changes/099-audit-log-context.yaml

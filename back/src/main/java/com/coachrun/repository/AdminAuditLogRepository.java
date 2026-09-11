@@ -31,6 +31,13 @@ public interface AdminAuditLogRepository extends JpaRepository<AdminAuditLog, UU
      * avec un type non spécifié — c'est ce qui fait la différence, et c'est pourquoi seul
      * celui-ci a dû changer.</p>
      *
+     * <h2>Chercher un administrateur le trouve aussi derrière un emprunt</h2>
+     *
+     * <p>La recherche libre couvre {@code impersonatorEmail} en plus de {@code actorEmail} : sans
+     * cela, taper l'adresse d'un administrateur ne rendait que les gestes faits sous sa propre
+     * identité, et manquait exactement ceux qu'on cherche — ceux qu'il a faits au nom de
+     * quelqu'un d'autre.</p>
+     *
      * <p>{@code coalesce(:since, a.occurredAt)} ancre le type sur la colonne et dit exactement la
      * même chose : sans borne, on compare la date à elle-même, ce qui est toujours vrai.
      * {@code MessageRepository} documente le même piège pour la messagerie, où il avait déjà
@@ -46,6 +53,7 @@ public interface AdminAuditLogRepository extends JpaRepository<AdminAuditLog, UU
               and a.occurredAt >= coalesce(:since, a.occurredAt)
               and (:q = '' or lower(coalesce(a.targetLabel, '')) like lower(concat('%', :q, '%'))
                    or lower(coalesce(a.actorEmail, '')) like lower(concat('%', :q, '%'))
+                   or lower(coalesce(a.impersonatorEmail, '')) like lower(concat('%', :q, '%'))
                    or lower(coalesce(a.summary, '')) like lower(concat('%', :q, '%')))
             order by a.occurredAt desc
             """)

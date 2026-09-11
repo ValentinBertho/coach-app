@@ -101,6 +101,18 @@ export interface AdminAuditEntry {
   id: string;
   actorUserId: string | null;
   actorEmail: string | null;
+  /**
+   * Rôle de l'acteur **au moment du geste**, pas celui qu'il a aujourd'hui. Optionnel : les
+   * entrées antérieures à sa mise en place ne le portent pas, et une PWA peut tourner sur un
+   * front qui l'ignore (cf. Claude.md §4 bis).
+   */
+  actorRole?: string | null;
+  /**
+   * Administrateur réellement aux commandes, quand le geste vient d'une session **empruntée**.
+   * Nul dans le cas normal — et c'est bien le cas normal.
+   */
+  impersonatorUserId?: string | null;
+  impersonatorEmail?: string | null;
   action: string;
   actionLabel: string;
   sensitive: boolean;
@@ -110,6 +122,10 @@ export interface AdminAuditEntry {
   targetLabel: string | null;
   summary: string | null;
   ipAddress: string | null;
+  /** Navigateur de l'appel. Enregistré depuis l'origine, affiché depuis seulement maintenant. */
+  userAgent?: string | null;
+  requestMethod?: string | null;
+  requestPath?: string | null;
   occurredAt: string;
 }
 

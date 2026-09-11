@@ -194,11 +194,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private AuthPrincipal toPrincipal(Claims claims) {
         String clubId = claims.get("clubId", String.class);
         String athleteId = claims.get("athleteId", String.class);
+        // `imp` : l'administrateur derrière une session empruntée. Le claim était émis depuis
+        // toujours et lu nulle part, si bien qu'une action faite au nom d'un utilisateur ne se
+        // distinguait des siennes par rien — journal d'audit compris.
+        String impersonator = claims.get("imp", String.class);
         return new AuthPrincipal(
                 UUID.fromString(claims.getSubject()),
                 clubId != null ? UUID.fromString(clubId) : null,
                 athleteId != null ? UUID.fromString(athleteId) : null,
                 claims.get("email", String.class),
-                UserRole.valueOf(claims.get("role", String.class)));
+                UserRole.valueOf(claims.get("role", String.class)),
+                impersonator != null && !impersonator.isBlank() ? UUID.fromString(impersonator) : null);
     }
 }

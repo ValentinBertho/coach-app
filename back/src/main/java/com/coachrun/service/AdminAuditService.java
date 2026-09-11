@@ -40,6 +40,11 @@ import java.util.UUID;
  * compromis. La réserve à connaître : si l'échec vient de la base elle-même, la transaction est
  * déjà marquée pour annulation et le geste échouera de toute façon au commit.</p>
  *
+ * <p><b>Ce que la trace porte, au-delà du geste.</b> Le rôle de l'acteur <b>au moment du geste</b>
+ * (il change, et le relire plus tard raconterait autre chose), l'administrateur derrière une
+ * session empruntée quand il y en a un, et l'appel HTTP qui a servi. Les trois répondent à des
+ * questions qu'on ne se pose qu'après coup, c'est-à-dire trop tard pour les instrumenter.</p>
+ *
  * <p><b>Rien de sensible dans le résumé.</b> Les appelants composent des phrases à partir de
  * noms, rôles et statuts. Aucune note médicale, aucune valeur physiologique, aucun jeton, aucun
  * mot de passe ne doit y transiter — c'est une règle d'appel, rappelée sur chaque site d'écriture.</p>
@@ -55,6 +60,7 @@ public class AdminAuditService {
     private static final int USER_AGENT_MAX = 255;
 
     private final AdminAuditLogRepository repository;
+    private final com.coachrun.repository.UserRepository userRepository;
 
     /** Consigne une action. Ne lève jamais : voir la note de classe. */
     @Transactional
@@ -68,6 +74,7 @@ public class AdminAuditService {
                 entry.setActorEmail(actor.email());
             }
             entry.setActorName(currentActorName());
+            applyActorContext(entry, actor);
             entry.setAction(action);
             entry.setTargetType(targetType);
             entry.setTargetId(targetId);
@@ -81,6 +88,37 @@ public class AdminAuditService {
             log.error("Journal d'audit indisponible pour {} sur {} — action effectuée quand même",
                     action, targetType, ex);
         }
+    }
+
+    /**
+     * De quel droit, et qui vraiment.
+     *
+     * <p><b>Le rôle</b> est recopié plutôt que relu au moment de la relecture : il change (un head
+     * coach redevient coach, un administrateur est rétrogradé), et un journal qui affiche le rôle
+     * d'aujourd'hui en face d'un geste d'il y a six mois raconte quelque chose de faux.</p>
+     *
+     * <p><b>L'emprunteur</b> est le renseignement qui manquait le plus. Une action faite par un
+     * administrateur depuis une session empruntée était consignée comme celle du compte emprunté,
+     * sans marque d'aucune sorte. L'e-mail est résolu en base — une lecture de plus, mais
+     * uniquement dans ce cas rare, et c'est le seul moyen que la ligne reste lisible si le compte
+     * administrateur disparaît ensuite.</p>
+     */
+    private void applyActorContext(AdminAuditLog entry, AuthPrincipal actor) {
+        if (actor == null) {
+            return;
+        }
+        if (actor.role() != null) {
+            entry.setActorRole(actor.role().name());
+        }
+        UUID impersonator = actor.impersonatorUserId();
+        if (impersonator == null) {
+            return;
+        }
+        entry.setImpersonatorUserId(impersonator);
+        entry.setImpersonatorEmail(truncate(
+                userRepository.findById(impersonator)
+                        .map(com.coachrun.entity.User::getEmail)
+                        .orElse(null), 255));
     }
 
     /** Variante sans cible identifiée (réglages de plateforme, RAZ démo…). */
@@ -155,6 +193,10 @@ public class AdminAuditService {
                 : request.getRemoteAddr();
         entry.setIpAddress(truncate(ip, 64));
         entry.setUserAgent(truncate(request.getHeader("User-Agent"), USER_AGENT_MAX));
+        entry.setRequestMethod(truncate(request.getMethod(), 8));
+        // `getRequestURI()` et non l'URL complète : la chaîne de requête peut transporter des
+        // filtres saisis à la main, donc de la donnée qui n'a rien à faire dans un journal.
+        entry.setRequestPath(truncate(request.getRequestURI(), 255));
     }
 
     private static String truncate(String value, int max) {

@@ -528,6 +528,20 @@ survivre à la suppression de son propre compte), action, cible, résumé, adres
 le code, jamais recopié d'une saisie libre. Les modifications de profil athlète sont consignées
 « dont des données physiologiques » **sans les valeurs**.
 
+Chaque ligne porte aussi le contexte qu'on cherche toujours après coup :
+
+- **De quel droit** — le **rôle de l'acteur au moment du geste**, figé comme son e-mail. Un rôle
+  change ; afficher celui d'aujourd'hui en face d'une action d'il y a six mois raconterait autre chose.
+- **Qui vraiment** — l'**administrateur derrière une session empruntée**. Le jeton d'impersonation
+  portait ce renseignement depuis l'origine sans que rien ne le lise : une action faite au nom d'un
+  utilisateur était indiscernable des siennes. Toute **écriture** en session empruntée est désormais
+  consignée (`IMPERSONATED_WRITE`), signalée comme sensible, et retrouvée en cherchant l'adresse de
+  l'administrateur. Les **lectures** ne le sont pas — voir l'application comme l'utilisateur est
+  l'usage revendiqué, et les journaliser noierait les écritures.
+- **Par où** — méthode et chemin HTTP (jamais la chaîne de requête, qui porte des saisies ; jamais
+  le corps, qui porte du ressenti) et le navigateur, enregistré depuis l'origine et affiché
+  seulement maintenant.
+
 > ⚠️ **Rétention à trancher.** Contrairement au journal d'e-mails (purgé à 180 jours), le journal
 > d'audit n'a **pas** de purge automatique : il porte des adresses e-mail et des adresses IP, donc
 > des données personnelles. Un journal de sécurité se conserve plutôt longtemps, mais la durée doit
