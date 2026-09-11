@@ -296,4 +296,24 @@ export class AdminUserDetailComponent implements OnInit {
       error: () => this.busy.set(false),
     });
   }
+
+  /** L'icône de la famille d'appareil : le tableau se lit d'un coup d'œil, pas mot à mot. */
+  platformIcon(platform: string): string {
+    if (platform === 'Mobile') return 'smartphone';
+    if (platform === 'Tablette') return 'tablet';
+    if (platform === 'Ordinateur') return 'monitor';
+    return 'circle-help';
+  }
+
+  /** Libellés des familles de notifications, pour ne pas afficher un enum brut. */
+  private static readonly CATEGORY_LABELS: Record<string, string> = {
+    PROGRAMME: 'Programme',
+    RAPPELS: 'Rappels',
+    MESSAGES: 'Messages',
+    SUIVI: 'Suivi',
+  };
+
+  categoryLabel(code: string): string {
+    return AdminUserDetailComponent.CATEGORY_LABELS[code] ?? code;
+  }
 }

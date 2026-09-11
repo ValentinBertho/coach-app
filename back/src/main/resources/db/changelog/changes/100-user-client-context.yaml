@@ -1,0 +1,35 @@
+# ============================================================================
+# 100 — Avec quoi cette personne utilise l'application.
+#
+#   « Sur quoi il est, mobile ou ordinateur ? » et « il tourne sur quelle
+#   version du front ? » n'avaient aucune réponse. La seconde est la plus
+#   coûteuse : le front est une PWA à service worker, des téléphones restent
+#   des jours sur une version antérieure (§4 bis), et un « ça ne marche pas »
+#   est ininterprétable sans savoir de quelle version on parle. C'était
+#   jusqu'ici une question qu'on posait à l'utilisateur, qui ne sait pas y
+#   répondre.
+#
+#   On stocke la MATIÈRE BRUTE (l'en-tête User-Agent, la version annoncée)
+#   et rien de dérivé : « mobile ou ordinateur » se recalcule à la lecture.
+#   Un classement figé en base deviendrait faux le jour où la règle change,
+#   et il faudrait réécrire des lignes pour le corriger — exactement ce que
+#   §4 bis interdit.
+#
+#   Écrit par UserActivityTracker, c'est-à-dire au plus une fois par quart
+#   d'heure et par compte : mesurer l'usage ne doit pas coûter une écriture
+#   par requête. C'est le même robinet que last_seen_at, et il était déjà
+#   ouvert.
+#
+#   Additif et nullable : les comptes qui ne sont pas repassés depuis restent
+#   à NULL, ce que l'écran affiche « inconnu » plutôt que d'inventer.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 100-user-client-context
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: users
+            columns:
+              - column: { name: last_user_agent, type: VARCHAR(255) }
+              - column: { name: last_app_version, type: VARCHAR(32) }

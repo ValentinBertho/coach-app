@@ -11,3 +11,17 @@
 .aa-action { display: inline-flex; align-items: center; gap: var(--sp-2); }
 .aa-detail { color: var(--ink-2); font-size: var(--text-sm); max-width: 38ch; }
 .aa-row--sensitive td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+
+/* --- Contexte de l'auteur et de l'appel -----------------------------------
+   Trois renseignements qui manquaient : de quel droit (le rôle), qui vraiment
+   (l'emprunt), par où (l'appel HTTP et le navigateur). Empilés en colonne et
+   en petit : ils se lisent quand on les cherche, sans encombrer la ligne. */
+.aa-actor { display: block; }
+.aa-origin .aa-sub { display: block; }
+
+/* Une action faite depuis une session empruntée est le cas le plus
+   exceptionnel du journal : elle se repère sans lire la ligne. */
+.aa-imp {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-top: 2px;
+}

@@ -78,6 +78,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final TokenBlacklist tokenBlacklist;
     private final TokenFreshnessValidator tokenFreshness;
     private final UserActivityTracker activityTracker;
+
+    /** Version du front annoncée par le client. Absente d'un appel hors navigateur : on n'écrit rien. */
+    public static final String APP_VERSION_HEADER = "X-App-Version";
     private final StreamTokenService streamTokens;
 
     @Override
@@ -188,17 +191,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Dernière activité du compte : au plus une écriture par quart d'heure
         // (cf. UserActivityTracker). Sans elle, « utilisateurs actifs » et
         // « à quand remonte sa dernière visite ? » restent sans réponse.
-        activityTracker.touch(principal.userId());
+        //
+        // On y joint ce que le client dit de lui — son navigateur, et la version du front qu'il
+        // fait tourner (X-App-Version). Le front est une PWA à service worker : un téléphone peut
+        // rester des jours sur une version antérieure, et « ça ne marche pas » est alors
+        // ininterprétable. Ces deux renseignements voyagent dans une écriture qui avait déjà
+        // lieu, donc sans coût supplémentaire.
+        activityTracker.touch(principal.userId(),
+                request.getHeader("User-Agent"),
+                request.getHeader(APP_VERSION_HEADER));
     }
 
     private AuthPrincipal toPrincipal(Claims claims) {
         String clubId = claims.get("clubId", String.class);
         String athleteId = claims.get("athleteId", String.class);
+        // `imp` : l'administrateur derrière une session empruntée. Le claim était émis depuis
+        // toujours et lu nulle part, si bien qu'une action faite au nom d'un utilisateur ne se
+        // distinguait des siennes par rien — journal d'audit compris.
+        String impersonator = claims.get("imp", String.class);
         return new AuthPrincipal(
                 UUID.fromString(claims.getSubject()),
                 clubId != null ? UUID.fromString(clubId) : null,
                 athleteId != null ? UUID.fromString(athleteId) : null,
                 claims.get("email", String.class),
-                UserRole.valueOf(claims.get("role", String.class)));
+                UserRole.valueOf(claims.get("role", String.class)),
+                impersonator != null && !impersonator.isBlank() ? UUID.fromString(impersonator) : null);
     }
 }

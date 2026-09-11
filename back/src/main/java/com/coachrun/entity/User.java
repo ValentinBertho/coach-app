@@ -242,4 +242,27 @@ public class User extends BaseEntity {
      */
     @Column(name = "last_seen_at")
     private java.time.Instant lastSeenAt;
+
+    /**
+     * Dernier {@code User-Agent} vu pour ce compte, brut.
+     *
+     * <p>On garde la matière, pas le verdict : « mobile ou ordinateur » se dérive à la lecture.
+     * Figer le classement en base le rendrait faux le jour où la règle s'affine, et il faudrait
+     * réécrire des lignes pour le corriger — ce que §4 bis interdit.</p>
+     *
+     * <p>Écrit par {@code UserActivityTracker}, donc au plus une fois par quart d'heure.</p>
+     */
+    @Column(name = "last_user_agent", length = 255)
+    private String lastUserAgent;
+
+    /**
+     * Version du front que ce compte faisait tourner à sa dernière visite, annoncée par
+     * l'en-tête {@code X-App-Version}.
+     *
+     * <p>Le front est une PWA à service worker : un téléphone peut rester des jours sur une
+     * version antérieure. Sans ce champ, « ça ne marche pas » est ininterprétable — et la
+     * question « tu es sur quelle version ? » n'a pas de destinataire capable d'y répondre.</p>
+     */
+    @Column(name = "last_app_version", length = 32)
+    private String lastAppVersion;
 }

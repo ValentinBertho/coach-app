@@ -5,6 +5,7 @@ import com.coachrun.dto.request.AdminUserUpdateRequest;
 import com.coachrun.dto.response.AdminAuditResponse;
 import com.coachrun.dto.response.AdminUserDetailResponse;
 import com.coachrun.dto.response.AdminUserResponse;
+import com.coachrun.dto.response.AdminUserUsageResponse;
 import com.coachrun.dto.response.PageResponse;
 import com.coachrun.entity.Club;
 import com.coachrun.entity.User;
@@ -12,21 +13,29 @@ import com.coachrun.entity.enums.AdminAuditAction;
 import com.coachrun.entity.enums.AdminAuditTarget;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.entity.enums.UserStatus;
+import com.coachrun.entity.enums.DeviceProvider;
+import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.ForbiddenException;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.ClubRepository;
+import com.coachrun.repository.ActivityRepository;
+import com.coachrun.repository.DeviceConnectionRepository;
 import com.coachrun.repository.PushSubscriptionRepository;
+import com.coachrun.repository.WorkoutRepository;
 import com.coachrun.repository.UserRepository;
+import com.coachrun.util.ClientProfile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -57,6 +66,15 @@ public class AdminUserService {
     private final PasswordEncoder passwordEncoder;
     private final AdminAuditService audit;
     private final AuthService authService;
+    private final DeviceConnectionRepository deviceConnectionRepository;
+    private final ActivityRepository activityRepository;
+    private final WorkoutRepository workoutRepository;
+    private final AthleteFeedbackService feedbackService;
+    private final PushNotificationService pushService;
+
+    /** Version servie par ce serveur — la référence à laquelle se compare celle du client. */
+    @Value("${app.version:dev}")
+    private String appVersion;
 
     /**
      * @param verified filtre sur la vérification d'adresse ({@code false} = comptes bloqués sur
@@ -84,7 +102,99 @@ public class AdminUserService {
         return AdminUserDetailResponse.from(user,
                 pushSubscriptionRepository.countByUserId(id),
                 coached,
-                history);
+                history,
+                usage(user));
+    }
+
+    /** Fenêtre des compteurs d'usage : assez large pour un mois d'entraînement, pas davantage. */
+    private static final int USAGE_WINDOW_DAYS = 30;
+
+    /**
+     * Comment cette personne se sert de l'application.
+     *
+     * <p>Rassemblé ici plutôt que réparti sur des appels séparés : c'est une seule question —
+     * « comment elle s'en sert » — et la poser en quatre requêtes depuis l'écran ferait afficher
+     * une fiche par morceaux. Les lectures sont toutes bornées à un compte.</p>
+     */
+    private AdminUserUsageResponse usage(User user) {
+        return new AdminUserUsageResponse(
+                clientInfo(user), notificationsInfo(user), watchInfo(user), engagementInfo(user));
+    }
+
+    private AdminUserUsageResponse.ClientInfo clientInfo(User user) {
+        ClientProfile profile = ClientProfile.of(user.getLastUserAgent());
+        String seen = user.getLastAppVersion();
+        // « En retard » ne se prononce que si l'on sait sur quoi : sans version annoncée, on ne
+        // dit rien plutôt que d'accuser un client qui ne s'est simplement jamais présenté.
+        boolean outdated = seen != null && appVersion != null && !seen.startsWith(appVersion);
+        return new AdminUserUsageResponse.ClientInfo(
+                profile.platform().label(), profile.os(), profile.browser(),
+                seen, appVersion, outdated, user.getLastUserAgent());
+    }
+
+    private AdminUserUsageResponse.NotificationsInfo notificationsInfo(User user) {
+        List<AdminUserUsageResponse.DeviceInfo> devices =
+                pushSubscriptionRepository.findByUserIdOrderByCreatedAtDesc(user.getId()).stream()
+                        .map(sub -> {
+                            ClientProfile p = ClientProfile.of(sub.getUserAgent());
+                            return new AdminUserUsageResponse.DeviceInfo(
+                                    p.platform().label(), p.os(), p.browser(),
+                                    sub.getCreatedAt(), sub.getLastSuccessAt());
+                        })
+                        .toList();
+        Instant lastSuccess = devices.stream()
+                .map(AdminUserUsageResponse.DeviceInfo::lastSuccessAt)
+                .filter(java.util.Objects::nonNull)
+                .max(Instant::compareTo)
+                .orElse(null);
+        List<String> muted = user.mutedCategories().stream().map(Enum::name).sorted().toList();
+        return new AdminUserUsageResponse.NotificationsInfo(
+                user.isNotifyPushEnabled(),
+                user.isNotifyEmailEnabled(),
+                user.isEmailVerified(),
+                muted,
+                devices.size(),
+                // La seule question qui compte, et elle ne se déduit d'aucun champ isolé.
+                user.isNotifyPushEnabled() && pushService.canReach(user.getId()),
+                lastSuccess,
+                devices);
+    }
+
+    private AdminUserUsageResponse.WatchInfo watchInfo(User user) {
+        if (user.getAthlete() == null) {
+            return new AdminUserUsageResponse.WatchInfo(false, null, null, null, false, false);
+        }
+        return deviceConnectionRepository
+                .findByAthleteIdAndProvider(user.getAthlete().getId(), DeviceProvider.STRAVA)
+                .map(conn -> new AdminUserUsageResponse.WatchInfo(
+                        true,
+                        conn.getProvider().name(),
+                        conn.getCreatedAt(),
+                        conn.getLastImportEpoch() == null
+                                ? null : Instant.ofEpochSecond(conn.getLastImportEpoch()),
+                        // Le consentement ne vaut pas autorisation : seul le scope rendu par
+                        // Strava en décide, et c'est la confusion la plus fréquente au support.
+                        conn.getScope() != null && conn.getScope().contains("activity:write"),
+                        conn.isRenameOnProvider()))
+                .orElseGet(() -> new AdminUserUsageResponse.WatchInfo(
+                        false, null, null, null, false, false));
+    }
+
+    private AdminUserUsageResponse.EngagementInfo engagementInfo(User user) {
+        if (user.getAthlete() == null) {
+            // Un coach n'a ni séances ni sorties : on rend null plutôt que zéro, qui se lirait
+            // « il n'en a fait aucune » alors que la question ne se pose pas pour lui.
+            return new AdminUserUsageResponse.EngagementInfo(
+                    user.getLastLoginAt(), user.getLastSeenAt(), null, null, null);
+        }
+        UUID athleteId = user.getAthlete().getId();
+        LocalDate since = LocalDate.now().minusDays(USAGE_WINDOW_DAYS);
+        long done = workoutRepository.countByAthleteIdInAndStatusAndScheduledDateBetween(
+                List.of(athleteId), WorkoutStatus.COMPLETED, since, LocalDate.now().plusDays(1));
+        long imported = activityRepository.countByAthleteIdAndActivityDateAfter(athleteId, since);
+        return new AdminUserUsageResponse.EngagementInfo(
+                user.getLastLoginAt(), user.getLastSeenAt(), done, imported,
+                feedbackService.lastFeedback(athleteId).date());
     }
 
     @Transactional

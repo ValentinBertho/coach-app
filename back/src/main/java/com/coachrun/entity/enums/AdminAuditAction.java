@@ -23,6 +23,16 @@ public enum AdminAuditAction {
     USER_CLUB_ADDED("Club rattaché"),
     USER_CLUB_REMOVED("Club détaché"),
     USER_IMPERSONATED("Session ouverte au nom d'un utilisateur"),
+    /**
+     * Écriture effectuée <b>pendant</b> une session empruntée.
+     *
+     * <p>L'ouverture de l'impersonation était consignée, la suite ne l'était pas : une séance
+     * déplacée ou un message envoyé depuis un compte emprunté laissait une trace en tout point
+     * identique à celle de son titulaire. La cible est le compte emprunté, l'emprunteur figure
+     * dans les colonnes dédiées, et le résumé porte la route appelée — jamais le corps de la
+     * requête, qui transporte du ressenti et des douleurs.</p>
+     */
+    IMPERSONATED_WRITE("Écriture en session empruntée"),
 
     // --- Clubs ---
     CLUB_CREATED("Club créé"),
@@ -68,7 +78,8 @@ public enum AdminAuditAction {
     public boolean sensitive() {
         return switch (this) {
             case USER_DELETED, CLUB_DELETED, ATHLETE_DELETED, USER_ROLE_CHANGED,
-                 USER_IMPERSONATED, USER_SUSPENDED, CLUB_REQUEST_APPROVED, DEMO_RESET -> true;
+                 USER_IMPERSONATED, IMPERSONATED_WRITE, USER_SUSPENDED, CLUB_REQUEST_APPROVED,
+                 DEMO_RESET -> true;
             default -> false;
         };
     }

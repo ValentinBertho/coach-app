@@ -71,7 +71,23 @@
         @for (e of entries(); track e.id) {
           <tr [class.aa-row--sensitive]="e.sensitive">
             <td class="aa-nowrap metric">{{ e.occurredAt | date: 'd MMM y, HH:mm' }}</td>
-            <td>{{ e.actorEmail || 'système' }}</td>
+            <!--
+              L'auteur ne se résume pas à une adresse. Le RÔLE qu'il avait à cet instant dit de
+              quel droit le geste a été fait — il change, et le relire aujourd'hui raconterait
+              autre chose. L'EMPRUNT dit qui était vraiment aux commandes : une action faite par
+              un administrateur au nom d'un coach s'affichait jusqu'ici comme celle du coach,
+              sans la moindre marque.
+            -->
+            <td>
+              <span class="aa-actor">{{ e.actorEmail || 'système' }}</span>
+              @if (e.actorRole) { <span class="aa-sub">{{ roleLabel(e.actorRole) }}</span> }
+              @if (e.impersonatorEmail) {
+                <span class="badge badge-danger aa-imp" title="Action faite depuis une session empruntée">
+                  <app-icon name="user-round" [size]="12" /> emprunt
+                </span>
+                <span class="aa-sub">par {{ e.impersonatorEmail }}</span>
+              }
+            </td>
             <td>
               <span class="aa-action">
                 {{ e.actionLabel }}
@@ -87,7 +103,19 @@
               <span class="aa-sub">{{ e.targetTypeLabel }}</span>
             </td>
             <td class="aa-detail">{{ e.summary || '—' }}</td>
-            <td class="aa-nowrap"><span class="aa-sub metric">{{ e.ipAddress || '—' }}</span></td>
+            <!-- L'appel HTTP recoupe la ligne avec les journaux applicatifs ; le navigateur
+                 était enregistré depuis l'origine et n'était affiché nulle part. -->
+            <td class="aa-origin">
+              <span class="aa-sub metric">{{ e.ipAddress || '—' }}</span>
+              @if (e.requestMethod || e.requestPath) {
+                <span class="aa-sub metric" [title]="e.requestPath || ''">
+                  {{ e.requestMethod }} {{ shortPath(e.requestPath) }}
+                </span>
+              }
+              @if (e.userAgent) {
+                <span class="aa-sub" [title]="e.userAgent">{{ browserOf(e.userAgent) }}</span>
+              }
+            </td>
           </tr>
         }
       </tbody>

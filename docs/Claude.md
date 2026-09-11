@@ -150,6 +150,58 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 
 ---
 
+## 4 ter. Une version par déploiement, et elle n'avance que dans un sens
+
+> **La règle, en une phrase : rien ne part en production sans un numéro de version nouveau, plus
+> grand que le précédent, et porté par les *trois* endroits qui le déclarent.**
+
+**Les trois endroits.** `front/package.json`, `back/pom.xml`, et `front/src/environments/*.ts`
+(`appVersion`). Le troisième s'oublie — il l'a été : il annonçait encore `0.3.0` quand les deux
+autres étaient passés à `0.4.0`. C'est pourtant celui qui se voit le plus : il part dans l'en-tête
+`X-App-Version` de chaque requête, sert de `release` à Sentry, et s'écrit dans les e-mails de
+support. Un `appVersion` figé rend indécidable un « ça marchait hier », puisque tous les
+événements portent alors la même version. Les variantes (`-dev`, `-pwa`, `-docker`) suivent le
+même numéro, avec leur suffixe.
+
+**Pourquoi c'est une règle et pas une habitude.** Le front est une **PWA avec service worker** :
+des téléphones tournent sur une version antérieure pendant des jours (§4 bis). Le jour où un
+athlète dit « ça ne marche pas », la première question est « tu es sur quelle version ? » — et
+elle n'a de réponse que si chaque déploiement en porte une, distincte. Deux déploiements qui
+partagent un numéro rendent un rapport de bug ininterprétable et une régression impossible à
+dater : on ne sait plus si le défaut est arrivé avec le correctif ou avec celui d'avant.
+
+**Le numéro se réfléchit, il ne s'incrémente pas machinalement.** Format `MAJEUR.MINEUR.CORRECTIF`,
+et c'est **le contenu du déploiement** qui décide lequel bouge :
+
+| On incrémente | Quand le déploiement… | Exemples réels |
+|---|---|---|
+| **CORRECTIF** (`0.4.0` → `0.4.1`) | corrige un comportement sans rien ajouter ni changer de contrat | un gabarit Strava non reconnu, un NPE dans une notification, un libellé faux |
+| **MINEUR** (`0.4.1` → `0.5.0`) | ajoute une capacité visible, une migration, un champ d'API, un écran | le fil de séance, le copier-coller en vue groupe, l'enrichissement du journal d'audit |
+| **MAJEUR** (`0.x` → `1.0.0`) | rompt un contrat que quelqu'un consomme, ou marque un jalon produit décidé **par une personne** | sortie de bêta, refonte d'une API publique |
+
+Le majeur ne se décide **jamais** seul : il se propose, il ne s'applique pas.
+
+**Les invariants, dans l'ordre où ils comptent.**
+
+1. **Jamais en arrière, jamais à l'identique.** Un numéro déjà déployé est brûlé, même si le
+   déploiement a été annulé : on repart au-dessus, on ne réutilise pas. Vérifier avant d'écrire
+   (`git log -p --follow front/package.json | grep version`, ou les tags) plutôt que de supposer.
+2. **Les trois endroits disent la même chose.** Un front 0.5.0 en face d'un back 0.4.2 ne se
+   diagnostique pas, et un `appVersion` en retard sur `package.json` ment à Sentry et au support.
+   Vérifier les trois : `grep -rn "appVersion" front/src/environments/*.ts`, `package.json`, `pom.xml`.
+3. **Le bump fait partie du changement, pas d'un commit à part.** Il voyage dans le commit ou la
+   PR qu'il décrit, sans quoi il s'oublie — et un déploiement sans bump est précisément le cas
+   qu'on cherche à rendre impossible.
+4. **Un seul bump par déploiement.** Plusieurs correctifs livrés ensemble ne font qu'un numéro ;
+   c'est le déploiement qu'on numérote, pas le commit.
+
+**Ce qu'on écrit à côté du numéro.** Une ligne dans « [État actuel](#état-actuel) », en bas de ce
+fichier : ce que la version **apporte**, en une phrase compréhensible par quelqu'un qui n'a pas lu
+le diff. Un numéro sans phrase ne sert qu'à trier ; c'est la phrase qui répond à « qu'est-ce qui a
+changé depuis lundi ? ».
+
+---
+
 ## 5. Conventions de code (identiques au socle technique)
 
 ### Backend (Java / Spring Boot)
@@ -219,7 +271,7 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 ✅ Chiffrer au repos les données de santé (FC repos, HRV, poids, pathologies) comme le socle chiffre IBAN/VIN.
 ✅ Valider les transitions d'état avant mutation.
 ✅ Toast sur chaque action ; libellés FR ; statuts traduits.
-✅ Incrémenter la version à chaque session (`package.json` + `pom.xml`) et tenir à jour « État actuel ».
+✅ **Un numéro de version nouveau et plus grand à chaque déploiement**, le même dans `package.json`, `pom.xml` **et `environments/*.ts`** (`appVersion`), choisi selon §4 ter — et « État actuel » mis à jour dans la foulée.
 ✅ Migration **additive et nullable** ; corriger une donnée fausse par une règle de **lecture**, pas par un `UPDATE` (§4 bis).
 ✅ Champ ajouté à une réponse d'API rendu **optionnel côté TypeScript** — des PWA tournent encore sur l'ancien front.
 ✅ Tolérer l'ancien format en relisant du JSON stocké : `@JsonIgnoreProperties`, valeur par défaut, repli explicite.
@@ -252,7 +304,7 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 6. **Front** : `xxx.model.ts` (nouveau champ **optionnel**) → `xxx.service.ts` → composants `list/detail/form` standalone, routes lazy + guard.
 7. **UX** : toasts, skeletons/empty-state, badges de statut, responsive ≤768px.
 8. **Non-régression** : un athlète créé avant ce changement lit-il encore ses écrans sans erreur ?
-9. **Versionner** + mettre à jour « État actuel ».
+9. **Versionner** selon §4 ter (correctif / mineur / majeur, jamais en arrière, les deux fichiers alignés) + mettre à jour « État actuel ».
 
 ### Exemples de premières features à livrer (MVP coaching)
 1. CRUD athlètes + profil physiologique (zones FC/allure) + invitation par lien.
@@ -279,6 +331,23 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
    déjà avant le changement (worktree sur la base : `git worktree add … <commit>`). Corriger le code si c'est
    une régression, le test s'il dépendait d'un contexte instable — jamais l'inverse par confort.
 9. **Git** : branche dédiée, commits clairs, push/PR uniquement sur demande.
+
+---
+
+## État actuel
+
+> Une ligne par version déployée, la plus récente en haut (§4 ter). On y écrit ce que la version
+> **apporte**, pas ce qu'elle touche : la phrase doit se comprendre sans avoir lu le diff, parce
+> que c'est elle qui répond à « qu'est-ce qui a changé depuis lundi ? » et à « tu es sur quelle
+> version ? ».
+>
+> Le tableau commence à 0.3.1 : les versions antérieures n'ont pas été journalisées, et on ne les
+> reconstitue pas de mémoire — un historique inventé est pire qu'un historique qui commence tard.
+
+| Version | Ce qu'elle apporte |
+|---|---|
+| **0.4.0** | Le **back-office voit l'usage** : chaque fiche de compte dit sur quoi la personne travaille (mobile / ordinateur), quelle version du front elle fait tourner, si un push peut réellement l'atteindre, si sa montre est branchée, et ses signes de vie. Le **journal d'audit** dit de quel droit (rôle figé au moment du geste), qui vraiment (écritures en session empruntée consignées avec l'administrateur derrière) et par où (appel HTTP, navigateur). |
+| **0.3.1** | Le **fil de séance** : la question du coach et la réponse de l'athlète se lisent sur la séance, avec alerte au cockpit et notification qui mène à la séance. Le **copier-coller en vue groupe**, y compris « coller pour tout le groupe », avec recalcul des cibles chez l'athlète cible. Reconnaissance des noms Strava français du soir (« Course à pied en soirée »). |
 
 ---
 

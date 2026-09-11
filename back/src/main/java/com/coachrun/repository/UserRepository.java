@@ -97,6 +97,28 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     void touchLastSeen(@Param("userId") UUID userId,
                        @Param("seenAt") java.time.Instant seenAt);
 
+    /**
+     * Même écriture, avec ce que le client dit de lui : son {@code User-Agent} et la version du
+     * front qu'il fait tourner.
+     *
+     * <p>Une seconde méthode plutôt qu'un paramètre nullable sur la première : un client qui
+     * n'annonce rien ne doit pas <b>effacer</b> ce qu'on savait de sa visite précédente. Les
+     * appels sans contexte gardent donc la forme d'origine, et celle-ci n'est employée que
+     * lorsqu'il y a réellement quelque chose à écrire.</p>
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("""
+            update User u
+               set u.lastSeenAt = :seenAt,
+                   u.lastUserAgent = coalesce(:userAgent, u.lastUserAgent),
+                   u.lastAppVersion = coalesce(:appVersion, u.lastAppVersion)
+             where u.id = :userId
+            """)
+    void touchLastSeenWithClient(@Param("userId") UUID userId,
+                                 @Param("seenAt") java.time.Instant seenAt,
+                                 @Param("userAgent") String userAgent,
+                                 @Param("appVersion") String appVersion);
+
     long countByRoleAndStatus(UserRole role, UserStatus status);
 
     long countByStatus(UserStatus status);

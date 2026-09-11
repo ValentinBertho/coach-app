@@ -130,6 +130,48 @@ export class AdminAuditComponent implements OnInit {
       });
   }
 
+  /** Libellés des rôles, pour ne pas afficher un SCREAMING_SNAKE_CASE dans un tableau français. */
+  private static readonly ROLE_LABELS: Record<string, string> = {
+    PLATFORM_ADMIN: 'Admin plateforme',
+    HEAD_COACH: 'Head coach',
+    COACH: 'Coach',
+    ATHLETE: 'Athlète',
+  };
+
+  /** Un rôle inconnu s'affiche tel quel plutôt que de disparaître : le journal ne cache rien. */
+  roleLabel(role: string): string {
+    return AdminAuditComponent.ROLE_LABELS[role] ?? role;
+  }
+
+  /**
+   * Le chemin, raccourci par la gauche. Les routes du produit sont longues et toutes préfixées
+   * de la même façon (`/clubs/{uuid}/athletes/{uuid}/…`) : affichées en entier, elles poussent la
+   * colonne hors de l'écran et se ressemblent toutes. Le chemin complet reste en infobulle.
+   */
+  shortPath(path: string | null | undefined): string {
+    if (!path) return '';
+    return path.length <= 32 ? path : '…' + path.slice(-31);
+  }
+
+  /**
+   * Le navigateur, en un mot.
+   *
+   * <p>L'agent utilisateur est enregistré depuis l'origine et n'était affiché nulle part. Brut,
+   * il fait cent caractères illisibles ; ce qu'on en cherche dans un journal, c'est « est-ce le
+   * même poste que d'habitude ». Le détail complet reste en infobulle.</p>
+   */
+  browserOf(ua: string | null | undefined): string {
+    if (!ua) return '';
+    // L'ordre compte : Edge et Chrome se déclarent tous deux « Chrome », Chrome se déclare
+    // « Safari ». On teste donc du plus spécifique au plus générique.
+    if (ua.includes('Edg/')) return 'Edge';
+    if (ua.includes('OPR/') || ua.includes('Opera')) return 'Opera';
+    if (ua.includes('Firefox/')) return 'Firefox';
+    if (ua.includes('Chrome/')) return 'Chrome';
+    if (ua.includes('Safari/')) return 'Safari';
+    return 'Autre';
+  }
+
   /** La fiche correspondante, quand la cible en a une. */
   targetRoute(e: AdminAuditEntry): string[] | null {
     if (!e.targetId) return null;
