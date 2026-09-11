@@ -259,6 +259,65 @@ export interface AdminUserDetail {
   coachedAthletes: number;
   createdAt: string;
   history: AdminAuditEntry[];
+  /**
+   * Comment ce compte se sert de l'application. Optionnel : une PWA peut tourner sur un front
+   * antérieur au champ (cf. Claude.md §4 bis).
+   */
+  usage?: AdminUserUsage | null;
+}
+
+// ---------------------------------------------------------------------------
+// Usage d'un compte — « avec quoi », « ce qui peut l'atteindre », « signes de vie »
+// ---------------------------------------------------------------------------
+
+export interface AdminUserUsage {
+  client: {
+    /** Mobile · Tablette · Ordinateur · Inconnu, dérivé du dernier User-Agent vu. */
+    platform: string;
+    os: string | null;
+    browser: string | null;
+    /** Version du front que ce compte faisait tourner à sa dernière visite. */
+    appVersion: string | null;
+    /** Version servie par le serveur, pour la comparaison. */
+    latestAppVersion: string | null;
+    /** Les deux diffèrent : un service worker qui n'a pas repris la main. */
+    outdated: boolean;
+    userAgent: string | null;
+  };
+  notifications: {
+    pushEnabled: boolean;
+    emailEnabled: boolean;
+    emailVerified: boolean;
+    mutedCategories: string[];
+    devices: number;
+    /** La seule question qui compte : un push peut-il réellement arriver ? */
+    reachable: boolean;
+    lastPushSuccessAt: string | null;
+    deviceList: {
+      platform: string;
+      os: string | null;
+      browser: string | null;
+      since: string | null;
+      lastSuccessAt: string | null;
+    }[];
+  };
+  watch: {
+    connected: boolean;
+    provider: string | null;
+    connectedAt: string | null;
+    lastImportAt: string | null;
+    /** Strava a-t-il accordé l'écriture ? Distinct du consentement coché dans Darilab. */
+    canRenameOnProvider: boolean;
+    renameOptIn: boolean;
+  };
+  engagement: {
+    lastLoginAt: string | null;
+    lastSeenAt: string | null;
+    /** Nuls pour un coach : il n'a ni séances ni sorties, la question ne se pose pas. */
+    sessionsCompleted30d: number | null;
+    activitiesImported30d: number | null;
+    lastFeedbackAt: string | null;
+  };
 }
 
 export interface AdminUserCreateRequest {

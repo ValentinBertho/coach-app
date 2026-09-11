@@ -153,7 +153,15 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 ## 4 ter. Une version par déploiement, et elle n'avance que dans un sens
 
 > **La règle, en une phrase : rien ne part en production sans un numéro de version nouveau, plus
-> grand que le précédent, et identique dans `front/package.json` et `back/pom.xml`.**
+> grand que le précédent, et porté par les *trois* endroits qui le déclarent.**
+
+**Les trois endroits.** `front/package.json`, `back/pom.xml`, et `front/src/environments/*.ts`
+(`appVersion`). Le troisième s'oublie — il l'a été : il annonçait encore `0.3.0` quand les deux
+autres étaient passés à `0.4.0`. C'est pourtant celui qui se voit le plus : il part dans l'en-tête
+`X-App-Version` de chaque requête, sert de `release` à Sentry, et s'écrit dans les e-mails de
+support. Un `appVersion` figé rend indécidable un « ça marchait hier », puisque tous les
+événements portent alors la même version. Les variantes (`-dev`, `-pwa`, `-docker`) suivent le
+même numéro, avec leur suffixe.
 
 **Pourquoi c'est une règle et pas une habitude.** Le front est une **PWA avec service worker** :
 des téléphones tournent sur une version antérieure pendant des jours (§4 bis). Le jour où un
@@ -178,8 +186,9 @@ Le majeur ne se décide **jamais** seul : il se propose, il ne s'applique pas.
 1. **Jamais en arrière, jamais à l'identique.** Un numéro déjà déployé est brûlé, même si le
    déploiement a été annulé : on repart au-dessus, on ne réutilise pas. Vérifier avant d'écrire
    (`git log -p --follow front/package.json | grep version`, ou les tags) plutôt que de supposer.
-2. **Les deux fichiers disent la même chose.** `front/package.json` et `back/pom.xml` portent le
-   **même** numéro. Un front 0.5.0 en face d'un back 0.4.2 ne se diagnostique pas.
+2. **Les trois endroits disent la même chose.** Un front 0.5.0 en face d'un back 0.4.2 ne se
+   diagnostique pas, et un `appVersion` en retard sur `package.json` ment à Sentry et au support.
+   Vérifier les trois : `grep -rn "appVersion" front/src/environments/*.ts`, `package.json`, `pom.xml`.
 3. **Le bump fait partie du changement, pas d'un commit à part.** Il voyage dans le commit ou la
    PR qu'il décrit, sans quoi il s'oublie — et un déploiement sans bump est précisément le cas
    qu'on cherche à rendre impossible.
@@ -262,7 +271,7 @@ changé depuis lundi ? ».
 ✅ Chiffrer au repos les données de santé (FC repos, HRV, poids, pathologies) comme le socle chiffre IBAN/VIN.
 ✅ Valider les transitions d'état avant mutation.
 ✅ Toast sur chaque action ; libellés FR ; statuts traduits.
-✅ **Un numéro de version nouveau et plus grand à chaque déploiement**, le même dans `package.json` et `pom.xml`, choisi selon §4 ter — et « État actuel » mis à jour dans la foulée.
+✅ **Un numéro de version nouveau et plus grand à chaque déploiement**, le même dans `package.json`, `pom.xml` **et `environments/*.ts`** (`appVersion`), choisi selon §4 ter — et « État actuel » mis à jour dans la foulée.
 ✅ Migration **additive et nullable** ; corriger une donnée fausse par une règle de **lecture**, pas par un `UPDATE` (§4 bis).
 ✅ Champ ajouté à une réponse d'API rendu **optionnel côté TypeScript** — des PWA tournent encore sur l'ancien front.
 ✅ Tolérer l'ancien format en relisant du JSON stocké : `@JsonIgnoreProperties`, valeur par défaut, repli explicite.
@@ -337,7 +346,7 @@ changé depuis lundi ? ».
 
 | Version | Ce qu'elle apporte |
 |---|---|
-| **0.4.0** | Le journal d'audit dit **de quel droit** (rôle de l'acteur figé au moment du geste), **qui vraiment** (les écritures faites depuis une session empruntée sont consignées avec l'administrateur derrière) et **par où** (appel HTTP, navigateur — enregistré depuis l'origine et jamais affiché). |
+| **0.4.0** | Le **back-office voit l'usage** : chaque fiche de compte dit sur quoi la personne travaille (mobile / ordinateur), quelle version du front elle fait tourner, si un push peut réellement l'atteindre, si sa montre est branchée, et ses signes de vie. Le **journal d'audit** dit de quel droit (rôle figé au moment du geste), qui vraiment (écritures en session empruntée consignées avec l'administrateur derrière) et par où (appel HTTP, navigateur). |
 | **0.3.1** | Le **fil de séance** : la question du coach et la réponse de l'athlète se lisent sur la séance, avec alerte au cockpit et notification qui mène à la séance. Le **copier-coller en vue groupe**, y compris « coller pour tout le groupe », avec recalcul des cibles chez l'athlète cible. Reconnaissance des noms Strava français du soir (« Course à pied en soirée »). |
 
 ---

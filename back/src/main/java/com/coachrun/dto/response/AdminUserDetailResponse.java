@@ -46,7 +46,13 @@ public record AdminUserDetailResponse(
         long pushSubscriptions,
         long coachedAthletes,
         Instant createdAt,
-        List<AdminAuditResponse> history) {
+        List<AdminAuditResponse> history,
+        /**
+         * Comment ce compte se sert de l'application : plateforme, version du front, portée des
+         * notifications, montre connectée, signes de vie. Optionnel côté client — des écrans
+         * antérieurs l'ignorent (§4 bis).
+         */
+        AdminUserUsageResponse usage) {
 
     /** Adresse technique des comptes athlète créés par lien magique — jamais délivrable. */
     private static final String SYNTHETIC_EMAIL_SUFFIX = "@athlete.coachrun.local";
@@ -54,7 +60,8 @@ public record AdminUserDetailResponse(
     public static AdminUserDetailResponse from(User u,
                                                long pushSubscriptions,
                                                long coachedAthletes,
-                                               List<AdminAuditResponse> history) {
+                                               List<AdminAuditResponse> history,
+                                               AdminUserUsageResponse usage) {
         List<RefResponse> additionalClubs = u.getAdditionalClubs().stream()
                 .map(c -> new RefResponse(c.getId(), c.getName()))
                 .sorted(Comparator.comparing(RefResponse::name, Comparator.nullsLast(String::compareTo)))
@@ -83,6 +90,7 @@ public record AdminUserDetailResponse(
                 pushSubscriptions,
                 coachedAthletes,
                 u.getCreatedAt(),
-                history);
+                history,
+                usage);
     }
 }

@@ -91,6 +91,186 @@
         </dl>
       </section>
 
+      <!--
+        Comment ce compte se sert de l'application.
+
+        La fiche disait qui était le compte et ce qu'on lui avait fait ; rien de son usage. Or
+        c'est ce qui décide de la réponse à un ticket : conseiller d'installer l'application à
+        quelqu'un qui n'a pas de push, ou chercher un bug d'import chez quelqu'un dont Strava n'a
+        jamais été connecté, fait perdre le même temps aux deux côtés.
+      -->
+      @if (u.usage; as g) {
+        <section class="card">
+          <h2 class="aud-h2">Comment il utilise l'application</h2>
+
+          <h3 class="aud-h3">Avec quoi</h3>
+          <dl class="aud-kv">
+            <div>
+              <dt>Plateforme</dt>
+              <dd>
+                <app-icon [name]="platformIcon(g.client.platform)" [size]="15" />
+                {{ g.client.platform }}
+                @if (g.client.os) { <span class="aud-muted">· {{ g.client.os }}</span> }
+                @if (g.client.browser) { <span class="aud-muted">· {{ g.client.browser }}</span> }
+              </dd>
+            </div>
+            <div>
+              <dt>Version du front</dt>
+              <dd>
+                @if (g.client.appVersion) {
+                  <span class="metric">{{ g.client.appVersion }}</span>
+                  <!-- Le service worker peut garder un téléphone des jours en arrière : c'est la
+                       première chose à vérifier sur un « ça ne marche pas ». -->
+                  @if (g.client.outdated) {
+                    <span class="badge badge-warning" [title]="'Version servie : ' + g.client.latestAppVersion">
+                      en retard sur {{ g.client.latestAppVersion }}
+                    </span>
+                  } @else {
+                    <span class="badge badge-success">à jour</span>
+                  }
+                } @else {
+                  <span class="aud-muted">jamais annoncée</span>
+                }
+              </dd>
+            </div>
+            @if (g.client.userAgent) {
+              <div>
+                <dt>Navigateur (brut)</dt>
+                <dd class="aud-ua" [title]="g.client.userAgent">{{ g.client.userAgent }}</dd>
+              </div>
+            }
+          </dl>
+
+          <h3 class="aud-h3">Ce qui peut l'atteindre</h3>
+          <dl class="aud-kv">
+            <div>
+              <dt>Notifications push</dt>
+              <dd>
+                <!-- « Joignable » ne se déduit d'aucun autre champ pris seul : il faut un appareil
+                     abonné ET la préférence active. C'est le cas qui a coûté trois jours en bêta. -->
+                @if (g.notifications.reachable) {
+                  <span class="badge badge-success">joignable</span>
+                } @else {
+                  <span class="badge badge-danger">aucun push ne lui arrive</span>
+                }
+                <span class="aud-muted">
+                  · préférence {{ g.notifications.pushEnabled ? 'activée' : 'coupée' }}
+                  · {{ g.notifications.devices }} appareil{{ g.notifications.devices > 1 ? 's' : '' }}
+                </span>
+              </dd>
+            </div>
+            <div>
+              <dt>E-mails</dt>
+              <dd>
+                {{ g.notifications.emailEnabled ? 'Activés' : 'Coupés' }}
+                @if (!g.notifications.emailVerified) {
+                  <span class="badge badge-warning">adresse non vérifiée</span>
+                }
+              </dd>
+            </div>
+            @if (g.notifications.mutedCategories.length) {
+              <div>
+                <dt>Familles coupées</dt>
+                <dd>
+                  @for (c of g.notifications.mutedCategories; track c) {
+                    <span class="badge badge-neutral">{{ categoryLabel(c) }}</span>
+                  }
+                </dd>
+              </div>
+            }
+            @if (g.notifications.lastPushSuccessAt) {
+              <div>
+                <dt>Dernier push reçu</dt>
+                <dd>{{ g.notifications.lastPushSuccessAt | date: 'd MMM y, HH:mm' }}</dd>
+              </div>
+            }
+          </dl>
+          @if (g.notifications.deviceList.length) {
+            <ul class="aud-devices">
+              @for (d of g.notifications.deviceList; track $index) {
+                <li>
+                  <app-icon [name]="platformIcon(d.platform)" [size]="14" />
+                  {{ d.platform }}
+                  @if (d.os) { <span class="aud-muted">{{ d.os }}</span> }
+                  @if (d.browser) { <span class="aud-muted">{{ d.browser }}</span> }
+                  <span class="aud-muted metric">
+                    abonné le {{ d.since | date: 'd MMM y' }}
+                    @if (d.lastSuccessAt) { · reçu {{ d.lastSuccessAt | date: 'd MMM' }} }
+                  </span>
+                </li>
+              }
+            </ul>
+          }
+
+          <h3 class="aud-h3">Sa montre</h3>
+          <dl class="aud-kv">
+            <div>
+              <dt>Strava</dt>
+              <dd>
+                @if (g.watch.connected) {
+                  <span class="badge badge-success">connecté</span>
+                  <span class="aud-muted">depuis le {{ g.watch.connectedAt | date: 'd MMM y' }}</span>
+                } @else if (u.athleteId) {
+                  <span class="badge badge-neutral">non connecté</span>
+                } @else {
+                  <span class="aud-muted">sans objet (compte coach)</span>
+                }
+              </dd>
+            </div>
+            @if (g.watch.connected) {
+              <div>
+                <dt>Dernier import</dt>
+                <dd>
+                  @if (g.watch.lastImportAt) { {{ g.watch.lastImportAt | date: 'd MMM y, HH:mm' }} }
+                  @else { <span class="aud-muted">jamais</span> }
+                </dd>
+              </div>
+              <div>
+                <dt>Renommage sur Strava</dt>
+                <dd>
+                  {{ g.watch.renameOptIn ? 'Demandé' : 'Non demandé' }}
+                  <!-- Cocher la case dans Darilab ne vaut pas autorisation chez Strava : seul le
+                       scope rendu avec le jeton en décide. C'est la confusion la plus fréquente. -->
+                  @if (g.watch.renameOptIn && !g.watch.canRenameOnProvider) {
+                    <span class="badge badge-danger" title="Il doit reconnecter Strava : un scope ne s'ajoute pas à un jeton existant">
+                      Strava n'a pas accordé l'écriture
+                    </span>
+                  }
+                </dd>
+              </div>
+            }
+          </dl>
+
+          <h3 class="aud-h3">Signes de vie</h3>
+          <dl class="aud-kv">
+            <div>
+              <dt>Dernière visite</dt>
+              <dd>
+                @if (g.engagement.lastSeenAt) { {{ g.engagement.lastSeenAt | date: 'd MMM y, HH:mm' }} }
+                @else { <span class="aud-muted">jamais</span> }
+              </dd>
+            </div>
+            @if (g.engagement.sessionsCompleted30d !== null) {
+              <div>
+                <dt>Séances réalisées (30 j)</dt>
+                <dd class="metric">{{ g.engagement.sessionsCompleted30d }}</dd>
+              </div>
+              <div>
+                <dt>Sorties importées (30 j)</dt>
+                <dd class="metric">{{ g.engagement.activitiesImported30d }}</dd>
+              </div>
+              <div>
+                <dt>Dernier retour de séance</dt>
+                <dd>
+                  @if (g.engagement.lastFeedbackAt) { {{ g.engagement.lastFeedbackAt | date: 'd MMM y' }} }
+                  @else { <span class="aud-muted">aucun</span> }
+                </dd>
+              </div>
+            }
+          </dl>
+        </section>
+      }
+
       <section class="card">
         <h2 class="aud-h2">Identité & rattachement</h2>
         <div class="form-row-3">

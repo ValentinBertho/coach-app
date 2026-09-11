@@ -520,6 +520,26 @@ Toutes confirmées, toutes journalisées. Aucune ne demande d'accès à la base.
 | Renvoyer une invitation athlète | Régénère le lien (14 j) et l'envoie ; le lien est aussi rendu à l'écran pour un athlète sans adresse connue. |
 | Voir en tant que | Session au nom d'un coach ou d'un athlète, sans rafraîchissement, jamais sur un compte d'administration. |
 
+### Fiche d'un compte : comment il utilise l'application
+
+La fiche disait **qui** était le compte et **ce qu'on lui avait fait**. Elle ne disait rien de son
+usage — or c'est ce qui décide de la réponse à un ticket. Quatre blocs :
+
+| Bloc | Ce qu'on y lit |
+|---|---|
+| **Avec quoi** | Mobile / Tablette / Ordinateur, système et navigateur, dérivés du dernier `User-Agent` vu. Et la **version du front qu'il fait tourner**, comparée à celle que sert le serveur : le service worker peut laisser un téléphone des jours en arrière, et c'est la première chose à vérifier sur un « ça ne marche pas ». |
+| **Ce qui peut l'atteindre** | **Joignable ou non** — la seule question qui compte, et elle ne se déduit d'aucun champ isolé : il faut un appareil abonné *et* la préférence active. Plus le détail : préférences push/e-mail, familles coupées, appareils abonnés avec leur plateforme et leur dernier push reçu, adresse vérifiée. |
+| **Sa montre** | Strava connecté ou non, depuis quand, dernier import, renommage demandé — et si **Strava a réellement accordé l'écriture** (`activity:write`), distinct du consentement coché dans Darilab : c'est la confusion la plus fréquente au support. |
+| **Signes de vie** | Dernière connexion, dernière visite, et pour un athlète : séances réalisées et sorties importées sur 30 jours, dernier retour de séance. Nuls pour un coach — la question ne se pose pas pour lui, et un zéro se lirait comme un reproche. |
+
+La capture ne coûte rien : le `User-Agent` et l'en-tête `X-App-Version` sont notés par l'écriture
+de « dernière visite », déjà limitée à une fois par quart d'heure et par compte. On stocke la
+**matière brute** et jamais le verdict : « mobile ou ordinateur » se recalcule à la lecture, si
+bien qu'affiner la règle requalifie tout l'historique sans réécrire une seule ligne (§4 bis).
+
+**Aucune donnée de santé** : le bloc compte des séances et des sorties, il ne rend ni RPE, ni
+douleur, ni fatigue, ni commentaire.
+
 ### Journal d'audit (`admin_audit_log`)
 
 Toute mutation d'administration y laisse une trace : acteur (identifiant **et** e-mail recopié, pour

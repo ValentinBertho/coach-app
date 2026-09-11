@@ -75,6 +75,9 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
     // --- Administration (cross-club) ---
     long countByActivityDateAfter(java.time.LocalDate date);
 
+    /** Sorties importées par un athlète depuis une date — signe de vie de sa montre. */
+    long countByAthleteIdAndActivityDateAfter(UUID athleteId, java.time.LocalDate date);
+
     long countByClubIdAndActivityDateAfter(UUID clubId, java.time.LocalDate date);
 
     long countByClubId(UUID clubId);

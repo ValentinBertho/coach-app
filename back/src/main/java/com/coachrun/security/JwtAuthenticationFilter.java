@@ -78,6 +78,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final TokenBlacklist tokenBlacklist;
     private final TokenFreshnessValidator tokenFreshness;
     private final UserActivityTracker activityTracker;
+
+    /** Version du front annoncée par le client. Absente d'un appel hors navigateur : on n'écrit rien. */
+    public static final String APP_VERSION_HEADER = "X-App-Version";
     private final StreamTokenService streamTokens;
 
     @Override
@@ -188,7 +191,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // Dernière activité du compte : au plus une écriture par quart d'heure
         // (cf. UserActivityTracker). Sans elle, « utilisateurs actifs » et
         // « à quand remonte sa dernière visite ? » restent sans réponse.
-        activityTracker.touch(principal.userId());
+        //
+        // On y joint ce que le client dit de lui — son navigateur, et la version du front qu'il
+        // fait tourner (X-App-Version). Le front est une PWA à service worker : un téléphone peut
+        // rester des jours sur une version antérieure, et « ça ne marche pas » est alors
+        // ininterprétable. Ces deux renseignements voyagent dans une écriture qui avait déjà
+        // lieu, donc sans coût supplémentaire.
+        activityTracker.touch(principal.userId(),
+                request.getHeader("User-Agent"),
+                request.getHeader(APP_VERSION_HEADER));
     }
 
     private AuthPrincipal toPrincipal(Claims claims) {

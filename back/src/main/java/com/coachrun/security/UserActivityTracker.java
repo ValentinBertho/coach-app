@@ -63,6 +63,23 @@ public class UserActivityTracker {
 
     /** À appeler sur chaque requête authentifiée. Ne lève jamais. */
     public void touch(UUID userId) {
+        touch(userId, null, null);
+    }
+
+    /**
+     * Variante qui note aussi <b>avec quoi</b> la personne vient : son {@code User-Agent} et la
+     * version du front qu'elle fait tourner.
+     *
+     * <p>Le même robinet que {@code last_seen_at}, et il était déjà ouvert : la limite d'une
+     * écriture par quart d'heure et par compte s'applique telle quelle, donc ce renseignement ne
+     * coûte rien de plus. C'est précisément pour cela qu'il vient ici plutôt que dans un
+     * mécanisme à lui.</p>
+     *
+     * <p>Ni l'un ni l'autre n'écrase ce qu'on savait quand le client ne dit rien : un appel
+     * dépourvu de ces en-têtes (un script, un vieux client) ne doit pas effacer la dernière
+     * visite utile.</p>
+     */
+    public void touch(UUID userId, String userAgent, String appVersion) {
         if (userId == null) {
             return;
         }
@@ -77,10 +94,27 @@ public class UserActivityTracker {
         // Posé avant l'écriture : si celle-ci échoue, on ne retentera qu'au prochain quart
         // d'heure — préférable à un martèlement de la base quand elle est déjà en difficulté.
         lastWrite.put(userId, now);
+        String ua = trim(userAgent, 255);
+        String version = trim(appVersion, 32);
         try {
-            transactions.executeWithoutResult(status -> userRepository.touchLastSeen(userId, now));
+            transactions.executeWithoutResult(status -> {
+                if (ua == null && version == null) {
+                    userRepository.touchLastSeen(userId, now);
+                } else {
+                    userRepository.touchLastSeenWithClient(userId, now, ua, version);
+                }
+            });
         } catch (RuntimeException ex) {
             log.debug("last_seen_at non mis à jour pour {} : {}", userId, ex.getMessage());
         }
+    }
+
+    /** Borne à la largeur de la colonne ; une chaîne vide vaut « rien annoncé ». */
+    private static String trim(String value, int max) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String v = value.trim();
+        return v.length() <= max ? v : v.substring(0, max);
     }
 }
