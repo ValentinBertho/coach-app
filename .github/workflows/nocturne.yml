@@ -38,6 +38,28 @@
 #   résumé du job, sans bloquer. Après la montée majeure d'Angular et de Spring Boot, passer
 #   `SEUIL_BLOQUANT` à `HIGH` ci-dessous.
 #
+#   Sur les vulnérabilités sans correctif atteignable — lire avant d'ajouter une ligne :
+#   une CVE dont le correctif n'existe qu'au-delà d'une montée majeure ne se corrige pas
+#   dans la nuit, et laisser la nuit rouge en l'attendant éteindrait le signal, exactement
+#   pour la raison exposée juste au-dessus. Ces cas-là se déclarent, DATÉS et MOTIVÉS, dans
+#   `.github/vulnerabilites-acceptees.tsv`. Une dérogation ne masque rien : la vulnérabilité
+#   reste comptée et affichée dans le résumé, elle EXPIRE à la date inscrite — après quoi la
+#   nuit redevient rouge — et elle ne couvre que la CVE nommée : toute nouvelle vulnérabilité
+#   critique fait échouer la nuit, dérogations ou pas.
+#
+#   Sur l'heure de déclenchement — lire avant de la ramener sur une heure ronde :
+#   le planificateur de GitHub ne promet pas une heure, il met en file. La toute première
+#   nuit de ce workflow était programmée à 03:00 UTC et a démarré à 07:54 UTC — presque cinq
+#   heures de retard, une heure de suite par-dessus, et un « bilan de la nuit » rendu en
+#   pleine matinée. C'est la bousculade du début d'heure : `0 3 * * *` est l'un des crons les
+#   plus répandus au monde, et la documentation GitHub demande explicitement d'éviter le haut
+#   de l'heure. D'où deux précautions cumulées :
+#     * une minute décalée (`37`), pour sortir de la file du top horaire ;
+#     * un départ à 23:37 UTC, qui laisse trois bonnes heures de retard encaissables avant
+#       que la nuit ne déborde sur le réveil.
+#   L'heure à laquelle le bilan est effectivement rendu est affichée dans son résumé : si la
+#   file se rallonge malgré tout, ça se voit sans aller comparer les horodatages du run.
+#
 #   NB : GitHub désactive les crons d'un dépôt inactif plus de 60 jours. Le déclenchement
 #   manuel ci-dessous sert aussi à les réarmer.
 # ============================================================================
@@ -45,7 +67,9 @@ name: CI nocturne
 
 on:
   schedule:
-    - cron: "0 3 * * *" # quotidien, 03:00 UTC
+    # 23:37 UTC — 00:37 à Paris en hiver, 01:37 en été. Ni sur une heure ronde, ni collé au
+    # lever : cf. « Sur l'heure de déclenchement » en en-tête avant de la déplacer.
+    - cron: "37 23 * * *"
   workflow_dispatch:
     inputs:
       graine:
@@ -454,6 +478,11 @@ jobs:
           --severity HIGH,CRITICAL --exit-code 0 back/target/bom.json
 
       - name: Verdict
+        env:
+          # Dérogations datées : vulnérabilités sans correctif atteignable, explicitement
+          # acceptées jusqu'à une date (cf. en-tête du workflow). Fichier absent = aucune
+          # dérogation, ce qui est l'état souhaitable.
+          DEROGATIONS: .github/vulnerabilites-acceptees.tsv
         run: |
           set -uo pipefail
           jq -e '.Results? // []' trivy-back.json > /dev/null 2>&1 || {
@@ -461,18 +490,98 @@ jobs:
             head -20 trivy-back.json 2>/dev/null || echo "(fichier absent)"
             exit 1
           }
-          CRITIQUES=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' trivy-back.json)
-          ELEVEES=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' trivy-back.json)
+
+          # On raisonne en vulnérabilités DISTINCTES. Une même CVE est rapportée autant de
+          # fois qu'elle touche de paquets : compter les occurrences ferait diverger le
+          # nombre annoncé et le tableau affiché plus bas, lui dédoublonné. Dédoublonner des
+          # deux côtés, et les deux disent la même chose.
+          jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL") | .VulnerabilityID' \
+             trivy-back.json | sort -u > critiques.txt
+          jq -r '.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH") | .VulnerabilityID' \
+             trivy-back.json | sort -u > elevees.txt
+          cat critiques.txt elevees.txt | sort -u > presentes.txt
+          CRITIQUES=$(wc -l < critiques.txt)
+          ELEVEES=$(wc -l < elevees.txt)
+
+          # --- Dérogations ---------------------------------------------------------------
+          # Trois sorts possibles pour une ligne du fichier :
+          #   acceptée : la vulnérabilité est là, la date tient → elle ne bloque pas ;
+          #   expirée  : la vulnérabilité est là, la date est passée → la nuit est rouge ;
+          #   obsolète : la vulnérabilité a disparu du rapport → la ligne ne sert plus. On le
+          #              signale sans faire échouer : une nuit ne devient pas rouge parce
+          #              qu'une faille a fini par être corrigée.
+          AUJOURDHUI=$(date -u +%F)
+          : > deroge-acceptees.txt
+          : > deroge-expirees.txt
+          : > deroge-obsoletes.txt
+
+          if [ -f "$DEROGATIONS" ]; then
+            NUM=0
+            while IFS=$'\t' read -r CVE FIN RAISON || [ -n "${CVE:-}" ]; do
+              NUM=$(( NUM + 1 ))
+              case "${CVE:-}" in ''|'#'*) continue ;; esac
+              # Une date illisible ne doit surtout pas se lire comme « n'expire jamais » :
+              # une dérogation sans échéance valable, c'est le seuil abaissé en douce.
+              if [ -z "${FIN:-}" ] || ! date -u -d "$FIN" +%F > /dev/null 2>&1; then
+                echo "::error file=${DEROGATIONS},line=${NUM}::Dérogation « ${CVE} » : date d'expiration « ${FIN:-(vide)} » illisible (attendu AAAA-MM-JJ)."
+                exit 1
+              fi
+              if ! grep -qxF "$CVE" presentes.txt; then
+                printf '%s\t%s\t%s\n' "$CVE" "$FIN" "${RAISON:-}" >> deroge-obsoletes.txt
+              elif [[ "$FIN" < "$AUJOURDHUI" ]]; then
+                printf '%s\t%s\t%s\n' "$CVE" "$FIN" "${RAISON:-}" >> deroge-expirees.txt
+              else
+                printf '%s\t%s\t%s\n' "$CVE" "$FIN" "${RAISON:-}" >> deroge-acceptees.txt
+              fi
+            done < "$DEROGATIONS"
+          fi
+
+          # --- Ce qui bloque réellement --------------------------------------------------
+          # `SEUIL_BLOQUANT` (en-tête du workflow) décide de ce qui fait échouer la nuit ;
+          # les dérogations acceptées en sont retranchées, et rien d'autre.
+          case "$SEUIL_BLOQUANT" in
+            CRITICAL) cp critiques.txt bloquants-bruts.txt ;;
+            HIGH)     cp presentes.txt bloquants-bruts.txt ;;
+            *) echo "::error::SEUIL_BLOQUANT vaut « $SEUIL_BLOQUANT » : attendu CRITICAL ou HIGH."; exit 1 ;;
+          esac
+          cut -f1 deroge-acceptees.txt | sort -u > couvertes.txt
+          comm -23 bloquants-bruts.txt couvertes.txt > bloquants.txt
+          comm -12 bloquants-bruts.txt couvertes.txt > retranchees.txt
+          NB_BLOQUANTS=$(wc -l < bloquants.txt)
+          NB_RETRANCHEES=$(wc -l < retranchees.txt)
+          NB_EXPIREES=$(wc -l < deroge-expirees.txt)
 
           {
             echo "### Vulnérabilités — dépendances backend (Maven)"
             echo
-            echo "| Gravité | Nombre |"
+            echo "| Gravité | Vulnérabilités distinctes |"
             echo "| --- | ---: |"
             echo "| Critiques | ${CRITIQUES} |"
             echo "| Élevées | ${ELEVEES} |"
             echo
-            echo "Seuil bloquant : \`${SEUIL_BLOQUANT}\`."
+            echo "Seuil bloquant : \`${SEUIL_BLOQUANT}\` — **${NB_BLOQUANTS}** au-dessus du seuil hors dérogation, ${NB_RETRANCHEES} dérogée(s)."
+
+            if [ -s deroge-acceptees.txt ] || [ -s deroge-expirees.txt ]; then
+              echo
+              echo "#### Dérogations en cours (\`${DEROGATIONS}\`)"
+              echo
+              echo "| Vulnérabilité | État | Expire le | Pourquoi le correctif n'est pas atteignable |"
+              echo "| --- | --- | --- | --- |"
+              while IFS=$'\t' read -r CVE FIN RAISON; do
+                echo "| ${CVE} | ⏳ acceptée | ${FIN} | ${RAISON} |"
+              done < deroge-acceptees.txt
+              while IFS=$'\t' read -r CVE FIN RAISON; do
+                echo "| ${CVE} | ⛔ **expirée** | ${FIN} | ${RAISON} |"
+              done < deroge-expirees.txt
+            fi
+
+            if [ -s deroge-obsoletes.txt ]; then
+              echo
+              echo "Dérogations devenues inutiles — la vulnérabilité ne figure plus au rapport, la ligne peut être retirée de \`${DEROGATIONS}\` :"
+              echo
+              cut -f1 deroge-obsoletes.txt | sed 's/^/* /'
+            fi
+
             echo
             if [ "$(( CRITIQUES + ELEVEES ))" -gt 0 ]; then
               echo "| Paquet | Version | Gravité | Avis |"
@@ -487,23 +596,27 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-          # `SEUIL_BLOQUANT` (en-tête du workflow) décide de ce qui fait échouer la nuit.
-          case "$SEUIL_BLOQUANT" in
-            CRITICAL) BLOQUANTS=$CRITIQUES ;;
-            HIGH)     BLOQUANTS=$(( CRITIQUES + ELEVEES )) ;;
-            *) echo "::error::SEUIL_BLOQUANT vaut « $SEUIL_BLOQUANT » : attendu CRITICAL ou HIGH."; exit 1 ;;
-          esac
+          # Détail paquet par paquet, pour les identifiants qu'on va citer en erreur.
+          jq -r '.Results[]?.Vulnerabilities[]?
+                 | "\(.VulnerabilityID)\t  \(.VulnerabilityID)  \(.PkgName) \(.InstalledVersion) → corrigé en \(.FixedVersion // "aucune version corrigée")"' \
+             trivy-back.json | sort -u > detail.txt
 
-          if [ "$BLOQUANTS" -gt 0 ]; then
-            echo "::error::${BLOQUANTS} vulnérabilité(s) de gravité ${SEUIL_BLOQUANT} ou plus dans les dépendances backend."
-            jq -r --arg seuil "$SEUIL_BLOQUANT" \
-               '.Results[]?.Vulnerabilities[]?
-                | select(.Severity == "CRITICAL" or ($seuil == "HIGH" and .Severity == "HIGH"))
-                | "  \(.VulnerabilityID)  \(.PkgName) \(.InstalledVersion) → corrigé en \(.FixedVersion // "aucune version corrigée")"' \
-               trivy-back.json | sort -u
+          if [ "$NB_EXPIREES" -gt 0 ]; then
+            echo "::error::${NB_EXPIREES} dérogation(s) expirée(s) dans ${DEROGATIONS} : la vulnérabilité est toujours là et la date est passée."
+            awk -F'\t' 'NR==FNR{d[$1]=$2;next} d[$1]{print $2"  (dérogation expirée le "d[$1]")"}' \
+                deroge-expirees.txt detail.txt
+            echo "Corriger la dépendance, ou repousser l'échéance en connaissance de cause — pas par réflexe."
+          fi
+
+          if [ "$NB_BLOQUANTS" -gt 0 ]; then
+            echo "::error::${NB_BLOQUANTS} vulnérabilité(s) distincte(s) de gravité ${SEUIL_BLOQUANT} ou plus, hors dérogation, dans les dépendances backend (détail par paquet ci-dessous)."
+            awk -F'\t' 'NR==FNR{b[$1]=1;next} b[$1]{print $2}' bloquants.txt detail.txt
+          fi
+
+          if [ "$NB_EXPIREES" -gt 0 ] || [ "$NB_BLOQUANTS" -gt 0 ]; then
             exit 1
           fi
-          echo "✅ Rien au-dessus du seuil ${SEUIL_BLOQUANT} (${ELEVEES} avis élevé(s) signalé(s), cf. résumé et en-tête du workflow)."
+          echo "✅ Rien au-dessus du seuil ${SEUIL_BLOQUANT} hors dérogation — ${CRITIQUES} critique(s) dont ${NB_RETRANCHEES} dérogée(s), ${ELEVEES} avis élevé(s) signalé(s) sans bloquer (cf. résumé et en-tête du workflow)."
 
       - name: Rapport complet
         if: always()
@@ -637,11 +750,28 @@ jobs:
           FRONTEND: ${{ needs.suite-frontend.result }}
           VULN_BACK: ${{ needs.vulnerabilites-backend.result }}
           VULN_FRONT: ${{ needs.vulnerabilites-frontend.result }}
+          # Vide en cas de lancement manuel : c'est justement ce qu'on veut distinguer.
+          PLANIFICATION: ${{ github.event.schedule }}
         run: |
           set -uo pipefail
           ECHEC=0
+
+          # « Est-ce que ça a bien tourné la nuit ? » — la question qui a fait déplacer le
+          # cron (cf. en-tête). Le planificateur de GitHub met en file et peut rendre une
+          # nuit en pleine matinée ; l'heure de rendu, affichée ici en heure de Paris, le dit
+          # d'un coup d'œil, sans aller ouvrir les horodatages du run.
+          RENDU_PARIS=$(TZ=Europe/Paris date '+%d/%m %H:%M %Z')
+          RENDU_UTC=$(date -u '+%H:%M UTC')
+          if [ -n "${PLANIFICATION:-}" ]; then
+            DECLENCHEMENT="planifié (\`${PLANIFICATION}\`)"
+          else
+            DECLENCHEMENT="lancement manuel"
+          fi
+
           {
             echo "## Bilan de la nuit"
+            echo
+            echo "Rendu le ${RENDU_PARIS} (${RENDU_UTC}) — ${DECLENCHEMENT}."
             echo
             echo "| Vérification | Résultat |"
             echo "| --- | --- |"
