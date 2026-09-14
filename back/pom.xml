@@ -172,7 +172,7 @@
         <dependency>
             <groupId>net.javacrumbs.shedlock</groupId>
             <artifactId>shedlock-provider-jdbc-template</artifactId>
-            <version>5.13.0</version>
+            <version>7.8.0</version>
         </dependency>
         <!-- Fournisseur JCE des clés ECDH du Web Push (cf. VapidKeys, PushNotificationService).
              1.78.1 → CVE-2025-14813, corrigée en 1.84. -->
