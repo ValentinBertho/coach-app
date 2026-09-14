@@ -80,7 +80,10 @@ assistant), et athlète (PWA mobile).
   de séance (jamais de modification/suppression), **mes activités** (saisie manuelle + import FIT/GPX/TCX),
   **mes objectifs** (CRUD A/B/C) et **connexion de sa montre** (Strava) directement côté athlète.
   L'agenda se lit en **prévu / réalisé / les deux** : les sorties qui n'étaient pas au programme
-  y apparaissent, marquées comme telles. Chaque sortie s'ouvre sur son tracé, son temps en zone
+  y apparaissent, marquées comme telles. Un clic y mène **en un geste** à ce qu'on cherche : une
+  séance déjà faite et une sortie rattachée ouvrent directement la fiche de la séance — prévu,
+  réalisé et écart au même endroit. Une séance encore à faire garde sa feuille du prévu, qui
+  répond au pouce sans quitter l'agenda ; une sortie hors programme reste sur la sienne. Chaque sortie s'ouvre sur son tracé, son temps en zone
   et son **détail tour par tour** — les tours de la montre quand elle en a pris (les répétitions
   d'un fractionné), des splits kilométriques calculés sinon. L'athlète **corrige, note et
   supprime** ses sorties : RPE et mot au coach vivent sur la sortie elle-même, seul endroit

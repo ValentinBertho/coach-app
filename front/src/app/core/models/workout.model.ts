@@ -164,6 +164,19 @@ export const STATUS_LABELS: Record<WorkoutStatus, string> = {
 };
 
 /**
+ * La séance a-t-elle **eu lieu** ?
+ *
+ * `PARTIAL` compte : « écourtée » veut dire courue, plus court que prévu — il y a donc un réalisé
+ * à montrer. `MISSED` ne compte pas : rien n'a été couru, il n'y a rien à ouvrir. Distinct de
+ * {@link needsFeedback}, qui répond à « peut-elle encore recevoir un ressenti ? » — les deux se
+ * recouvrent sur `PARTIAL` sans dire la même chose, et les confondre enverrait une séance manquée
+ * vers un détail vide.
+ */
+export function isRealised(w: Pick<Workout, 'status'>): boolean {
+  return w.status === 'COMPLETED' || w.status === 'PARTIAL';
+}
+
+/**
  * La séance est-elle encore ouverte au ressenti de l'athlète ?
  * Prédicat unique partagé par « Aujourd'hui », l'agenda et l'historique : le ressenti est la
  * donnée qui alimente la forme et les alertes du coach, il ne doit pas dépendre de l'écran
