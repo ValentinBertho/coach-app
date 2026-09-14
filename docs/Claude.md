@@ -346,6 +346,7 @@ changé depuis lundi ? ».
 
 | Version | Ce qu'elle apporte |
 |---|---|
+| **0.4.1** | Depuis l'agenda de l'athlète, une séance **déjà réalisée** et une **sortie rattachée** ouvrent directement la fiche de la séance — prévu, réalisé et écart au même endroit — au lieu d'une feuille du prévu ou de la liste des sorties, qui demandaient toutes deux un second geste. |
 | **0.4.0** | Le **back-office voit l'usage** : chaque fiche de compte dit sur quoi la personne travaille (mobile / ordinateur), quelle version du front elle fait tourner, si un push peut réellement l'atteindre, si sa montre est branchée, et ses signes de vie. Le **journal d'audit** dit de quel droit (rôle figé au moment du geste), qui vraiment (écritures en session empruntée consignées avec l'administrateur derrière) et par où (appel HTTP, navigateur). |
 | **0.3.1** | Le **fil de séance** : la question du coach et la réponse de l'athlète se lisent sur la séance, avec alerte au cockpit et notification qui mène à la séance. Le **copier-coller en vue groupe**, y compris « coller pour tout le groupe », avec recalcul des cibles chez l'athlète cible. Reconnaissance des noms Strava français du soir (« Course à pied en soirée »). |
 

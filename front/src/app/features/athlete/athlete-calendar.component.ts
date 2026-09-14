@@ -1,13 +1,14 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import {
-  STEP_TYPE_LABELS, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_META, Workout, awaitsFeedback, needsFeedback,
+  STEP_TYPE_LABELS, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_META, Workout, awaitsFeedback, isRealised,
+  needsFeedback,
 } from '../../core/models/workout.model';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
 import { CalendarNoteService } from '../../core/services/calendar-note.service';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Activity } from '../../core/models/activity.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -223,7 +224,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
             <!-- Sorties réellement effectuées. Celles qui ne sont rattachées à aucune séance
                  portent « hors programme » : c'est l'information que l'agenda taisait. -->
             @for (a of day.activities; track a.id) {
-              <a class="ses ses--done" [routerLink]="['/athlete/activities']" [queryParams]="{ open: a.id }">
+              <button type="button" class="ses ses--done" (click)="openActivity(a)">
                 <span class="ses-main">
                   <span class="ses-title"><app-icon name="check" [size]="14" /> {{ a.title || 'Sortie' }}</span>
                   @if (a.status !== 'MATCHED') { <span class="ses-extra">hors programme</span> }
@@ -234,7 +235,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                   @if (actPace(a); as p) { <span class="metric">{{ p }}/km</span> }
                   @if (a.avgHr) { <span class="metric">{{ a.avgHr }} bpm</span> }
                 </span>
-              </a>
+              </button>
             }
           </div>
         </section>
@@ -333,7 +334,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
             </button>
           }
           @for (a of d.activities; track a.id) {
-            <a class="ses ses--done" [routerLink]="['/athlete/activities']" [queryParams]="{ open: a.id }">
+            <button type="button" class="ses ses--done" (click)="openActivity(a)">
               <span class="ses-main">
                 <span class="ses-title"><app-icon name="check" [size]="14" /> {{ a.title || 'Sortie' }}</span>
                 @if (a.status !== 'MATCHED') { <span class="ses-extra">hors programme</span> }
@@ -344,7 +345,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                 @if (actPace(a); as p) { <span class="metric">{{ p }}/km</span> }
                 @if (a.rpe != null) { <span class="metric">RPE {{ a.rpe }}</span> }
               </span>
-            </a>
+            </button>
           }
           @if (d.empty) {
             <p class="dsheet-empty field-hint">Rien de prévu ni de réalisé ce jour-là.</p>
@@ -615,6 +616,9 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
       width: 100%; padding: var(--sp-3); border-radius: var(--radius);
       border: 1px solid var(--hairline); border-left: 4px solid var(--type-c, var(--primary));
       background: var(--paper); cursor: pointer;
+      /* Les vignettes sont des <button> : sans ça, elles tombent sur la police du système au
+         lieu de celle de l'application, et détonnent au milieu des autres lignes de l'agenda. */
+      font: inherit; color: inherit;
     }
     .ses:active { transform: scale(0.99); }
     /* Le rail portait une seule couleur pour toutes les séances de course : ouvrir sa semaine ne
@@ -725,6 +729,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
 })
 export class AthleteCalendarComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
+  private readonly router = inject(Router);
   private readonly paceReference = inject(PaceReferenceService);
   private readonly toast = inject(ToastService);
   private readonly noteService = inject(CalendarNoteService);
@@ -1264,7 +1269,25 @@ export class AthleteCalendarComponent implements OnInit {
     this.moveOpen.set(true);
   }
 
+  /**
+   * Ouvrir une séance depuis l'agenda.
+   *
+   * <p><b>Réalisée : on va droit à sa fiche.</b> La feuille ne montre que <i>ce qui était
+   * prévu</i> — utile devant une séance à faire, redondante une fois qu'elle est faite : elle
+   * obligeait alors à un second geste (« Voir le détail de la séance ») pour atteindre ce qu'on
+   * venait précisément chercher, les chiffres de la montre, la courbe, les tours et le tracé. La
+   * fiche porte d'ailleurs aussi le prévu, donc rien ne se perd au passage.</p>
+   *
+   * <p><b>À faire, ou manquée : la feuille.</b> Devant une séance à venir, le prévu <i>est</i> la
+   * question, et la feuille répond au pouce sans quitter l'agenda. Une séance manquée n'a, elle,
+   * aucun réalisé à montrer — l'envoyer sur une fiche vide serait une fausse promesse.</p>
+   */
   openDetail(w: Workout): void {
+    if (this.isRealised(w)) {
+      this.dayOpen.set(false);
+      void this.router.navigate(['/athlete/workouts', w.id]);
+      return;
+    }
     this.dayOpen.set(false);
     this.detailWorkout.set(w);
     this.detailPrescription.set(null);
@@ -1274,6 +1297,39 @@ export class AthleteCalendarComponent implements OnInit {
       next: (p) => { this.detailPrescription.set(p); this.detailLoading.set(false); },
       error: () => this.detailLoading.set(false),
     });
+  }
+
+  /**
+   * La séance a-t-elle eu lieu ?
+   *
+   * <p>Le statut d'abord. Mais une sortie rattachée suffit, même si le statut n'a pas suivi :
+   * le rapprochement passe normalement la séance en COMPLETED/PARTIAL, et cette seconde
+   * condition ne sert qu'aux cas où il ne l'a pas fait — un rapprochement posé à la main sur une
+   * ligne ancienne, un historique d'avant la règle. Mieux vaut ouvrir la fiche d'une séance qui a
+   * bien un réalisé que de renvoyer sur un prévu au motif qu'une colonne n'a pas été mise à
+   * jour.</p>
+   */
+  isRealised(w: Workout): boolean {
+    return isRealised(w) || this.activities().some((a) => a.matchedWorkoutId === w.id);
+  }
+
+  /**
+   * Ouvrir une sortie depuis l'agenda.
+   *
+   * <p>Rattachée à une séance, elle mène à <b>la séance</b> : c'est le même effort vu des deux
+   * côtés, et c'est la fiche qui les confronte — prévu, réalisé, écart. L'agenda renvoyait sur la
+   * liste des sorties, où il fallait retrouver la bonne puis repartir vers la séance pour voir ce
+   * qu'elle valait.</p>
+   *
+   * <p>Hors programme, il n'y a pas de séance à ouvrir : on reste sur la sortie elle-même.</p>
+   */
+  openActivity(a: Activity): void {
+    this.dayOpen.set(false);
+    if (a.matchedWorkoutId) {
+      void this.router.navigate(['/athlete/workouts', a.matchedWorkoutId]);
+      return;
+    }
+    void this.router.navigate(['/athlete/activities'], { queryParams: { open: a.id } });
   }
 
   /**
