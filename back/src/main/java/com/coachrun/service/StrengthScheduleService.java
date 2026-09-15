@@ -221,12 +221,9 @@ public class StrengthScheduleService {
     /** Applique le décalage aux deux bornes de la fourchette de l'exercice visé, et à lui seul. */
     private StrengthStructure shiftCharge(StrengthStructure structure, UUID exerciseId, double deltaKg) {
         return new StrengthStructure(structure.blocks().stream()
-                .map(b -> new com.coachrun.dto.strength.StrengthBlock(
-                        b.id(), b.blockType(), b.format(), b.durationSec(), b.rounds(),
-                        b.workSec(), b.restSec(),
-                        b.exercises().stream()
-                                .map(ex -> exerciseId.equals(ex.exerciseId()) ? shiftItem(ex, deltaKg) : ex)
-                                .toList()))
+                .map(b -> b.withExercises(b.exercises().stream()
+                        .map(ex -> exerciseId.equals(ex.exerciseId()) ? shiftItem(ex, deltaKg) : ex)
+                        .toList()))
                 .toList());
     }
 
@@ -238,15 +235,10 @@ public class StrengthScheduleService {
             // kilos par-dessus un %RM ferait diverger la séance de son référentiel.
             return ex;
         }
-        var shifted = new com.coachrun.dto.strength.StrengthPrescription(
-                p.chargeRefType(),
+        var shifted = p.withCharges(
                 floorAt(p.chargeKgMin() + deltaKg), floorAt(p.chargeKgMax() == null ? null : p.chargeKgMax() + deltaKg),
-                p.chargePctRmMin(), p.chargePctRmMax(),
-                p.effortRefType(), p.rpeMin(), p.rpeMax(), p.rirMin(), p.rirMax(),
-                p.sets(), p.repsFixed(), p.repsMin(), p.repsMax(), p.durationSec(),
-                p.plyoContacts(), p.tempo(), p.restSecMin(), p.restSecMax(), p.maxPainAllowed());
-        return new com.coachrun.dto.strength.StrengthExerciseItem(
-                ex.exerciseId(), ex.exerciseName(), ex.setType(), shifted, ex.setConfig(), ex.coachNotes());
+                p.chargePctRmMin(), p.chargePctRmMax());
+        return ex.withPrescription(shifted);
     }
 
     /** Une charge ne descend pas sous zéro — une régression trop forte devient « à vide ». */
@@ -401,10 +393,7 @@ public class StrengthScheduleService {
             return structure == null ? StrengthStructure.empty() : structure;
         }
         return new StrengthStructure(structure.blocks().stream()
-                .map(b -> new com.coachrun.dto.strength.StrengthBlock(
-                        b.id(), b.blockType(), b.format(), b.durationSec(), b.rounds(),
-                        b.workSec(), b.restSec(),
-                        b.exercises().stream().map(ex -> scaleItem(ex, factor)).toList()))
+                .map(b -> b.withExercises(b.exercises().stream().map(ex -> scaleItem(ex, factor)).toList()))
                 .toList());
     }
 
@@ -414,15 +403,10 @@ public class StrengthScheduleService {
         if (p == null) {
             return ex;
         }
-        var scaled = new com.coachrun.dto.strength.StrengthPrescription(
-                p.chargeRefType(),
+        var scaled = p.withCharges(
                 scale(p.chargeKgMin(), factor), scale(p.chargeKgMax(), factor),
-                scale(p.chargePctRmMin(), factor), scale(p.chargePctRmMax(), factor),
-                p.effortRefType(), p.rpeMin(), p.rpeMax(), p.rirMin(), p.rirMax(),
-                p.sets(), p.repsFixed(), p.repsMin(), p.repsMax(), p.durationSec(),
-                p.plyoContacts(), p.tempo(), p.restSecMin(), p.restSecMax(), p.maxPainAllowed());
-        return new com.coachrun.dto.strength.StrengthExerciseItem(
-                ex.exerciseId(), ex.exerciseName(), ex.setType(), scaled, ex.setConfig(), ex.coachNotes());
+                scale(p.chargePctRmMin(), factor), scale(p.chargePctRmMax(), factor));
+        return ex.withPrescription(scaled);
     }
 
     /** Arrondi au dixième : un %RM ou une charge au centième n'a aucun sens en salle. */

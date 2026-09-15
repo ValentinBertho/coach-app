@@ -82,7 +82,20 @@
   margin: 0; font-family: var(--font-display);
   font-size: var(--text-2xl); line-height: 1.15; color: var(--night-text);
 }
-.ss__rx { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.ss__rx { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+
+/* Consigne du coach sur l'exercice : lisible sans être criarde, juste sous le nom. */
+.ss__ex-note {
+  margin: var(--sp-2) 0 0; font-size: var(--text-sm); line-height: 1.45;
+  color: var(--night-text-2);
+  border-left: 2px solid var(--primary-light); padding-left: var(--sp-3);
+}
+/* « Par côté », « Alterné G / D » : la précision qui change la série. */
+.ss__side {
+  font-size: var(--text-xs); font-weight: 700; color: var(--night-text);
+  border: 1px solid var(--night-hairline, rgba(255, 255, 255, 0.18));
+  border-radius: var(--radius-full); padding: 2px var(--sp-2); white-space: nowrap;
+}
 
 /* --- Série en cours ------------------------------------------------------ */
 .ss__set-of {

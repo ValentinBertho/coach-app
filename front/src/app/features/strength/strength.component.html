@@ -175,6 +175,15 @@
   @if (!newSessionName.trim() && sessions().length === 0) {
     <p class="empty-hint">Donne un nom à ta séance pour la créer, puis compose-la avec tes exercices.</p>
   }
+  <!-- « Comment mettre un programme de musculation sur le calendrier ? » — la question d'un coach
+       bêta. Les deux chemins existaient, aucun écran ne les nommait : on les dit ici, à l'endroit
+       exact où l'on vient de finir une séance et où l'on se demande ce qu'on en fait. -->
+  <p class="field-hint plan-hint">
+    <app-icon name="calendar-days" [size]="14" />
+    Pour planifier : ouvre le <strong>calendrier</strong> d'un athlète et glisse une séance depuis
+    la bibliothèque latérale sur le jour voulu. Pour un programme sur plusieurs semaines, passe par
+    l'onglet <strong>Cycles</strong> : crée le cycle, puis « Assigner » (athlète + date de début).
+  </p>
   @if (loadingSes()) {
     <div class="card"><app-skeleton shape="list" [rows]="4" /></div>
   } @else {

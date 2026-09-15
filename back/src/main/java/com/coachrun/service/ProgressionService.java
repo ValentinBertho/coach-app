@@ -15,6 +15,7 @@ import com.coachrun.entity.PpExercise;
 import com.coachrun.entity.ScheduledStrengthSession;
 import com.coachrun.entity.StrengthResult;
 import com.coachrun.entity.enums.ExerciseCategory;
+import com.coachrun.entity.enums.VolumeType;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.PpExerciseRepository;
@@ -119,7 +120,7 @@ public class ProgressionService {
             boolean isReath = exercise != null && exercise.getCategory() == ExerciseCategory.REATHLETISATION;
 
             StrengthPrescription p = prescriptions.get(exerciseId);
-            int targetReps = p != null && p.repsFixed() != null ? p.repsFixed() : Integer.MAX_VALUE;
+            int targetReps = targetReps(p);
             Integer targetRir = p != null ? p.rirMin() : null;
             double currentCharge = currentChargeByExercise.getOrDefault(exerciseId, 0.0);
             Double reference = prescribedCharge(scheduled, exerciseId);
@@ -133,6 +134,22 @@ public class ProgressionService {
         }
 
         return new ProgressionResponse(scheduled.getId(), progressions, alerts);
+    }
+
+    /**
+     * Répétitions à atteindre pour que la charge monte : la valeur exacte prescrite, ou le
+     * <b>haut</b> de la fourchette quand elle en est une — « 8 à 10 » se progresse à 10, pas à 8.
+     *
+     * <p>{@code MAX_VALUE} = jamais atteint, donc jamais de suggestion de montée : c'est le cas
+     * d'un exercice prescrit en durée ou en distance, où les répétitions ne veulent rien dire, et
+     * d'un exercice sans volume prescrit du tout.</p>
+     */
+    private int targetReps(StrengthPrescription p) {
+        if (p == null || p.effectiveVolumeType() != VolumeType.REPS) {
+            return Integer.MAX_VALUE;
+        }
+        Integer target = p.repsFixed() != null ? p.repsFixed() : p.repsMax();
+        return target == null ? Integer.MAX_VALUE : target;
     }
 
     /**

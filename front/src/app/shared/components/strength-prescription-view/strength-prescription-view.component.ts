@@ -6,6 +6,7 @@ import {
   StrengthExerciseItem,
   StrengthPrescriptionView,
 } from '../../../core/models/strength.model';
+import { restPill, sideLabel, volumePill, type VolumePill } from '../../../core/utils/strength-volume';
 import { EffortBadgeComponent, type EffortKind } from '../effort-badge/effort-badge.component';
 import { RangePrescriptionPillComponent } from '../range-prescription-pill/range-prescription-pill.component';
 
@@ -32,6 +33,8 @@ interface ExerciseRow {
   item: StrengthExerciseItem;
   kgMin: number | null;
   kgMax: number | null;
+  /** Format du bloc : il décide de la lecture d'une prescription d'avant (isométrie = durée). */
+  blockFormat: BlockFormat;
 }
 interface BlockRow {
   id: string;
@@ -80,19 +83,17 @@ interface BlockRow {
                       [max]="ex.item.prescription.chargePctRmMax ?? ex.item.prescription.chargePctRmMin"
                       unit="% 1RM" />
                   }
-                  @if (repsMin(ex) != null) {
-                    <app-range-prescription-pill label="Reps" [min]="repsMin(ex)" [max]="repsMax(ex)" />
+                  @if (volume(ex); as v) {
+                    <app-range-prescription-pill [label]="v.label" [min]="v.min" [max]="v.max" [unit]="v.unit" />
                   }
+                  @if (side(ex); as s) { <span class="spv__side">{{ s }}</span> }
                   @if (effortKind(ex); as kind) {
                     @if (effortMin(ex); as emin) {
                       <app-effort-badge [kind]="kind" [min]="emin" [max]="effortMax(ex) ?? emin" />
                     }
                   }
-                  @if (ex.item.prescription.restSecMin != null) {
-                    <app-range-prescription-pill label="Récup"
-                      [min]="ex.item.prescription.restSecMin"
-                      [max]="ex.item.prescription.restSecMax ?? ex.item.prescription.restSecMin"
-                      unit="s" />
+                  @if (rest(ex); as r) {
+                    <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" />
                   }
                   @if (ex.item.prescription.tempo) {
                     <span class="spv__tempo">Tempo {{ ex.item.prescription.tempo }}</span>
@@ -127,6 +128,10 @@ interface BlockRow {
       border: 1px solid var(--hairline); border-radius: var(--radius-full); padding: 2px var(--sp-2);
     }
     .spv__notes { margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
+    .spv__side {
+      font-size: var(--text-xs); font-weight: 700; color: var(--ink-2);
+      border: 1px solid var(--hairline); border-radius: var(--radius-full); padding: 1px var(--sp-2);
+    }
   `],
 })
 export class StrengthPrescriptionViewComponent {
@@ -145,13 +150,13 @@ export class StrengthPrescriptionViewComponent {
       return calculated.map((e) => ({
         ...this.blockHeader(e.block),
         exercises: e.exercises.map((x) => ({
-          item: x.item, kgMin: x.charge.kgMin, kgMax: x.charge.kgMax,
+          item: x.item, kgMin: x.charge.kgMin, kgMax: x.charge.kgMax, blockFormat: e.block.format,
         })),
       }));
     }
     return (p.snapshot?.blocks ?? []).map((b) => ({
       ...this.blockHeader(b),
-      exercises: b.exercises.map((item) => ({ item, kgMin: null, kgMax: null })),
+      exercises: b.exercises.map((item) => ({ item, kgMin: null, kgMax: null, blockFormat: b.format })),
     }));
   });
 
@@ -179,13 +184,18 @@ export class StrengthPrescriptionViewComponent {
     return s ? `${s} série${s > 1 ? 's' : ''}` : '';
   }
 
-  repsMin(ex: ExerciseRow): number | null {
-    const p = ex.item.prescription;
-    return p.repsFixed ?? p.repsMin ?? null;
+  /**
+   * Volume, latéralité et repos passent par la règle partagée : l'athlète doit lire ici
+   * exactement ce que le coach a prescrit dans son éditeur — mêmes unités, mêmes bornes.
+   */
+  volume(ex: ExerciseRow): VolumePill | null {
+    return volumePill(ex.item.prescription, ex.blockFormat);
   }
-  repsMax(ex: ExerciseRow): number | null {
-    const p = ex.item.prescription;
-    return p.repsFixed ?? p.repsMax ?? p.repsMin ?? null;
+  side(ex: ExerciseRow): string | null {
+    return sideLabel(ex.item.prescription);
+  }
+  rest(ex: ExerciseRow): VolumePill | null {
+    return restPill(ex.item.prescription);
   }
 
   effortKind(ex: ExerciseRow): EffortKind | null {

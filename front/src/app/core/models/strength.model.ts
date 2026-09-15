@@ -20,6 +20,18 @@ export type BlockType = 'ECHAUFFEMENT' | 'ACTIVATION' | 'PRINCIPAL' | 'ACCESSOIR
 export type BlockFormat =
   | 'CLASSIQUE' | 'EMOM' | 'AMRAP' | 'FOR_TIME' | 'CIRCUIT' | 'ISOMETRIE' | 'PLIOMETRIE';
 
+/**
+ * Ce que compte une série : des répétitions, une durée, ou une distance. Une planche ne se
+ * prescrit pas en reps, un porté du fermier non plus.
+ */
+export type VolumeType = 'REPS' | 'DUREE' | 'DISTANCE';
+
+/**
+ * Latéralité : « 3 × 8 » sur une fente ne dit pas la même chose selon qu'on compte 8 en tout,
+ * 8 par jambe, ou 8 en alternant — et l'athlète n'avait aucun moyen de le deviner.
+ */
+export type SideMode = 'BILATERAL' | 'ALTERNE' | 'PAR_COTE';
+
 export interface PpExercise {
   id: string;
   name: string;
@@ -84,13 +96,24 @@ export interface StrengthPrescription {
   rirMin?: number | null;
   rirMax?: number | null;
   sets?: number | null;
+  /** Unité du volume ; absente sur les prescriptions d'avant, qui se lisent en répétitions. */
+  volumeType?: VolumeType | null;
   repsFixed?: number | null;
   repsMin?: number | null;
   repsMax?: number | null;
+  /** Durée d'une série (s) : valeur exacte, ou borne basse d'une fourchette. */
   durationSec?: number | null;
+  durationSecMax?: number | null;
+  /** Distance d'une série (m) : valeur exacte, ou borne basse d'une fourchette. */
+  distanceM?: number | null;
+  distanceMMax?: number | null;
+  plyoContacts?: number | null;
+  sideMode?: SideMode | null;
   tempo?: string | null;
+  /** Repos entre séries (s) : `restSecMax` absent = repos strict, sinon fourchette. */
   restSecMin?: number | null;
   restSecMax?: number | null;
+  maxPainAllowed?: number | null;
 }
 
 export interface StrengthExerciseItem {
@@ -289,6 +312,10 @@ export interface StrengthResultEntry {
   setNumber: number;
   chargeKg: number | null;
   repsDone: number | null;
+  /** Durée réalisée (s) d'une série prescrite en durée. */
+  durationSecDone?: number | null;
+  /** Distance réalisée (m) d'une série prescrite en distance. */
+  distanceMDone?: number | null;
   rirDone?: number | null;
   rpeDone?: number | null;
   pain?: number | null;

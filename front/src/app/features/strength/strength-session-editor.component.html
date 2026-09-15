@@ -58,8 +58,10 @@
       <!-- Paramètres spécifiques au format -->
       @if (showDuration(block)) {
         <div class="format-params">
-          <div class="form-group"><label>Durée totale (s)</label>
-            <input type="number" class="form-control" [(ngModel)]="block.durationSec" (ngModelChange)="touch()" /></div>
+          <!-- En minutes : un AMRAP se prescrit « 12 minutes », jamais « 720 secondes ». -->
+          <div class="form-group"><label>Durée totale (min)</label>
+            <input type="number" min="0" step="1" class="form-control"
+                   [ngModel]="blockMinutes(block)" (ngModelChange)="setBlockMinutes(block, $event)" /></div>
         </div>
       }
       @if (showCircuit(block)) {
@@ -81,30 +83,37 @@
           </div>
           <div class="ex-summary">
             @if (item.prescription.sets) { <span class="ex-sum-sets metric">{{ item.prescription.sets }} séries</span> }
-            @if (repsInfo(block, item.prescription); as r) {
+            @if (volumeInfo(block, item.prescription); as r) {
               <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" />
             }
+            @if (sideInfo(item.prescription); as side) { <span class="ex-side">{{ side }}</span> }
             @if (chargePill(item.prescription); as c) {
               <app-range-prescription-pill label="Charge" [min]="c.min" [max]="c.max" [unit]="c.unit" />
             }
             @if (effortInfo(item.prescription); as e) {
               <app-effort-badge [kind]="e.kind" [min]="e.min" [max]="e.max" />
             }
+            @if (restInfo(item.prescription); as rest) {
+              <app-range-prescription-pill [label]="rest.label" [min]="rest.min" [max]="rest.max" [unit]="rest.unit" />
+            }
             @if (chargeAt(bi, i); as ct) {
               @if (ct.computable && ct.chargeLabel) { <span class="charge-chip"><app-icon name="target" [size]="12" /> {{ ct.chargeLabel }}</span> }
             }
           </div>
+          <!-- Le commentaire du coach se lit sur la carte : écrit puis invisible, il n'aurait
+               servi à rien ici, et c'est là qu'on vérifie ce qu'on a prescrit. -->
+          @if (item.coachNotes) {
+            <p class="ex-note"><app-icon name="message-square" [size]="13" /> {{ item.coachNotes }}</p>
+          }
         </div>
       } @empty {
         <p class="field-hint">Aucun exercice dans ce bloc.</p>
       }
 
       <div class="add-ex">
-        <select class="form-control" [(ngModel)]="exercisePick[block.id]">
-          <option value="">+ Ajouter un exercice…</option>
-          @for (e of exercises(); track e.id) { <option [value]="e.id">{{ e.name }}</option> }
-        </select>
-        <button type="button" class="btn btn-accent btn-sm" [disabled]="!exercisePick[block.id]" (click)="addExercise(block)">Ajouter</button>
+        <button type="button" class="btn btn-accent btn-sm" (click)="openPicker(block)">
+          <app-icon name="plus" [size]="15" /> Ajouter un exercice
+        </button>
       </div>
     </div>
   }
@@ -121,7 +130,7 @@
       <div class="pv-head">
         <span class="badge badge-neutral">{{ blockTypeLabel(block.blockType) }}</span>
         <span class="badge badge-info">{{ formatLabel(block.format) }}</span>
-        @if (showDuration(block) && block.durationSec) { <span class="pv-dur metric">{{ block.durationSec }} s</span> }
+        @if (showDuration(block) && blockMinutes(block)) { <span class="pv-dur metric">{{ blockMinutes(block) }} min</span> }
         @if (showCircuit(block)) { <span class="pv-dur metric">{{ block.rounds }} tours · {{ block.workSec }}/{{ block.restSec }} s</span> }
       </div>
       @for (item of block.exercises; track item; let i = $index) {
@@ -131,20 +140,25 @@
             @if (item.prescription.sets) { <span class="pv-sets metric">{{ item.prescription.sets }} séries</span> }
           </div>
           <div class="pv-pills">
-            @if (repsInfo(block, item.prescription); as r) {
+            @if (volumeInfo(block, item.prescription); as r) {
               <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" />
             }
+            @if (sideInfo(item.prescription); as side) { <span class="ex-side">{{ side }}</span> }
             @if (chargePill(item.prescription); as c) {
               <app-range-prescription-pill label="Charge" [min]="c.min" [max]="c.max" [unit]="c.unit" />
             }
             @if (effortInfo(item.prescription); as e) {
               <app-effort-badge [kind]="e.kind" [min]="e.min" [max]="e.max" />
             }
+            @if (restInfo(item.prescription); as rest) {
+              <app-range-prescription-pill [label]="rest.label" [min]="rest.min" [max]="rest.max" [unit]="rest.unit" />
+            }
             @if (item.prescription.tempo) { <span class="pv-tempo">Tempo {{ item.prescription.tempo }}</span> }
             @if (chargeAt(bi, i); as ct) {
               @if (ct.computable && ct.chargeLabel) { <span class="pv-computed"><app-icon name="target" [size]="12" /> {{ ct.chargeLabel }}</span> }
             }
           </div>
+          @if (item.coachNotes) { <p class="pv-note">{{ item.coachNotes }}</p> }
         </div>
       } @empty { <p class="field-hint">Aucun exercice dans ce bloc.</p> }
     </div>
@@ -164,11 +178,58 @@
           </select>
         </div>
         <div class="form-group"><label>Séries</label><input type="number" class="form-control" [(ngModel)]="item.prescription.sets" (ngModelChange)="touch()" /></div>
-        @if (block.format === 'ISOMETRIE') {
-          <div class="form-group"><label>Durée (s)</label><input type="number" class="form-control" [(ngModel)]="item.prescription.durationSec" (ngModelChange)="touch()" /></div>
-        } @else {
-          <div class="form-group"><label>Répétitions</label><input type="number" class="form-control" [(ngModel)]="item.prescription.repsFixed" (ngModelChange)="touch()" /></div>
+
+        <!-- Volume : ce que compte la série. Une planche se tient en secondes, un porté du
+             fermier se parcourt en mètres — « 45 répétitions de gainage » ne voulait rien dire. -->
+        <div class="form-group"><label>Volume compté en</label>
+          <select class="form-control" [ngModel]="volumeTypeOf(block, item)"
+                  (ngModelChange)="setVolumeType(block, item, $event)">
+            @for (v of volumeTypes; track v.value) { <option [value]="v.value">{{ v.label }}</option> }
+          </select>
+        </div>
+        <div class="form-group"><label>Prescription</label>
+          <select class="form-control" [ngModel]="volumeRanged(block, item)"
+                  (ngModelChange)="setVolumeRanged(block, item, $event)">
+            <option [ngValue]="false">Valeur exacte</option>
+            <option [ngValue]="true">Fourchette</option>
+          </select>
+        </div>
+
+        @switch (volumeTypeOf(block, item)) {
+          @case ('DUREE') {
+            @if (volumeRanged(block, item)) {
+              <div class="form-group"><label>Durée min (s)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.durationSec" (ngModelChange)="touch()" /></div>
+              <div class="form-group"><label>Durée max (s)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.durationSecMax" (ngModelChange)="touch()" /></div>
+            } @else {
+              <div class="form-group"><label>Durée (s)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.durationSec" (ngModelChange)="touch()" /></div>
+            }
+          }
+          @case ('DISTANCE') {
+            @if (volumeRanged(block, item)) {
+              <div class="form-group"><label>Distance min (m)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.distanceM" (ngModelChange)="touch()" /></div>
+              <div class="form-group"><label>Distance max (m)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.distanceMMax" (ngModelChange)="touch()" /></div>
+            } @else {
+              <div class="form-group"><label>Distance (m)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.distanceM" (ngModelChange)="touch()" /></div>
+            }
+          }
+          @default {
+            @if (volumeRanged(block, item)) {
+              <div class="form-group"><label>Reps min</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.repsMin" (ngModelChange)="touch()" /></div>
+              <div class="form-group"><label>Reps max</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.repsMax" (ngModelChange)="touch()" /></div>
+            } @else {
+              <div class="form-group"><label>Répétitions</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.repsFixed" (ngModelChange)="touch()" /></div>
+            }
+          }
         }
+
+        <!-- Latéralité : « 3 × 8 » sur une fente ne dit pas la même chose selon qu'on compte
+             8 en tout, 8 par jambe, ou 8 en alternant. -->
+        <div class="form-group"><label>Côtés</label>
+          <select class="form-control" [ngModel]="item.prescription.sideMode ?? 'BILATERAL'"
+                  (ngModelChange)="setSideMode(item, $event)">
+            @for (sm of sideModes; track sm.value) { <option [value]="sm.value">{{ sm.label }}</option> }
+          </select>
+        </div>
 
         <div class="form-group"><label>Réf. charge</label>
           <select class="form-control" [(ngModel)]="item.prescription.chargeRefType" (ngModelChange)="touch()">
@@ -205,24 +266,85 @@
         }
 
         <div class="form-group"><label>Tempo</label><input class="form-control" placeholder="3-1-X-1" [(ngModel)]="item.prescription.tempo" (ngModelChange)="touch()" /></div>
-        <div class="form-group"><label>Repos min (s)</label><input type="number" class="form-control" [(ngModel)]="item.prescription.restSecMin" (ngModelChange)="touch()" /></div>
-        <div class="form-group"><label>Repos max (s)</label><input type="number" class="form-control" [(ngModel)]="item.prescription.restSecMax" (ngModelChange)="touch()" /></div>
+
+        <!-- Repos : strict quand la récupération fait partie de la séance (force max), en
+             fourchette quand le coach laisse le choix. Deux champs min/max obligeaient à
+             prescrire une fourchette même là où seule une valeur exacte a un sens. -->
+        <div class="form-group"><label>Repos</label>
+          <select class="form-control" [ngModel]="restRanged(item)"
+                  (ngModelChange)="setRestRanged(item, $event)">
+            <option [ngValue]="false">Strict</option>
+            <option [ngValue]="true">Fourchette</option>
+          </select>
+        </div>
+        @if (restRanged(item)) {
+          <div class="form-group"><label>Repos min (s)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.restSecMin" (ngModelChange)="touch()" /></div>
+          <div class="form-group"><label>Repos max (s)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.restSecMax" (ngModelChange)="touch()" /></div>
+        } @else {
+          <div class="form-group"><label>Repos (s)</label><input type="number" min="0" class="form-control" [(ngModel)]="item.prescription.restSecMin" (ngModelChange)="touch()" /></div>
+        }
+      </div>
+
+      <!-- Commentaire : consigne d'exécution propre à cette séance (« amplitude complète »,
+           « genou dans l'axe »). L'athlète le lit sur l'exercice, au moment de le faire. -->
+      <div class="form-group sp-note">
+        <label for="sp-coach-notes">Commentaire pour l'athlète</label>
+        <textarea id="sp-coach-notes" class="form-control" rows="3" maxlength="1000"
+                  placeholder="Amplitude complète, genou dans l'axe, souffle sur la poussée…"
+                  [(ngModel)]="item.coachNotes" (ngModelChange)="touch()"></textarea>
       </div>
 
       <!-- Aperçu live de la prescription dans le panneau -->
       <div class="sp-preview">
-        @if (repsInfo(block, item.prescription); as r) {
+        @if (volumeInfo(block, item.prescription); as r) {
           <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" />
         }
+        @if (sideInfo(item.prescription); as side) { <span class="ex-side">{{ side }}</span> }
         @if (chargePill(item.prescription); as c) {
           <app-range-prescription-pill label="Charge" [min]="c.min" [max]="c.max" [unit]="c.unit" />
         }
         @if (effortInfo(item.prescription); as e) {
           <app-effort-badge [kind]="e.kind" [min]="e.min" [max]="e.max" />
         }
+        @if (restInfo(item.prescription); as rest) {
+          <app-range-prescription-pill [label]="rest.label" [min]="rest.min" [max]="rest.max" [unit]="rest.unit" />
+        }
       </div>
 
       <button type="button" class="btn btn-primary sp-done" (click)="panelOpen.set(false)">Terminé</button>
     }
   }
+</app-side-panel>
+
+<!-- ===== Panneau latéral : choisir un exercice, rangé par catégorie ===== -->
+<app-side-panel [(open)]="pickerOpen" title="Ajouter un exercice" [width]="420">
+  <div class="picker">
+    <input class="form-control picker__search" type="search" placeholder="Rechercher un exercice…"
+           [ngModel]="pickerQuery()" (ngModelChange)="pickerQuery.set($event)"
+           aria-label="Rechercher un exercice" />
+
+    @if (!pickerCount()) {
+      <p class="field-hint">
+        @if (pickerQuery()) { Aucun exercice ne correspond à « {{ pickerQuery() }} ». }
+        @else { Aucun exercice dans la bibliothèque — crée-les depuis Préparation physique. }
+      </p>
+    }
+
+    @for (group of pickerGroups(); track group.key) {
+      <section class="picker__group">
+        <h4 class="picker__cat">{{ group.title }} <span class="picker__count">{{ group.exercises.length }}</span></h4>
+        @for (ex of group.exercises; track ex.id) {
+          <button type="button" class="picker__item" (click)="addExercise(ex)">
+            <span class="picker__name">{{ ex.name }}</span>
+            @if (ex.muscleGroups.length) {
+              <span class="picker__tags">
+                @for (m of ex.muscleGroups; track m) { <span class="badge badge-neutral">{{ label(m) }}</span> }
+              </span>
+            }
+            <app-icon class="picker__add" name="plus" [size]="15" />
+          </button>
+        }
+      </section>
+    }
+  </div>
 </app-side-panel>

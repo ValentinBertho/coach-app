@@ -266,3 +266,10 @@
   font-size: var(--text-xs); color: var(--danger-text, var(--dari-red));
 }
 .ex-prog { margin: 0; }
+
+/* Où poser une séance de force : la question qu'on se pose juste après l'avoir construite. */
+.plan-hint {
+  display: flex; align-items: flex-start; gap: var(--sp-2);
+  margin: var(--sp-2) 0 var(--sp-4); line-height: 1.5;
+}
+.plan-hint app-icon { flex: none; margin-top: 2px; }

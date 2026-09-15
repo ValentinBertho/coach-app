@@ -23,4 +23,9 @@ public record StrengthBlock(
     public StrengthBlock {
         exercises = exercises == null ? List.of() : exercises;
     }
+
+    /** Même bloc, liste d'exercices remplacée (recalcul de charges, snapshot de planification). */
+    public StrengthBlock withExercises(List<StrengthExerciseItem> replacement) {
+        return new StrengthBlock(id, blockType, format, durationSec, rounds, workSec, restSec, replacement);
+    }
 }
