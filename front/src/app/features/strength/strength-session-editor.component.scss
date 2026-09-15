@@ -189,3 +189,43 @@
   background: var(--paper-sunk); border-radius: var(--radius);
 }
 .sp-done { width: 100%; }
+
+/* --- Latéralité, commentaire du coach ------------------------------------- */
+.ex-side {
+  font-size: var(--text-xs); font-weight: 700; color: var(--ink-2);
+  border: 1px solid var(--hairline); border-radius: var(--radius-full);
+  padding: 1px var(--sp-2); white-space: nowrap;
+}
+.ex-note, .pv-note {
+  display: flex; align-items: flex-start; gap: var(--sp-2);
+  margin: var(--sp-2) 0 0; font-size: var(--text-sm); color: var(--ink-2);
+}
+.sp-note { margin-top: var(--sp-4); }
+.sp-note textarea { resize: vertical; }
+
+/* --- Panneau de choix d'exercice (rangé par catégorie) -------------------- */
+.picker { display: flex; flex-direction: column; gap: var(--sp-3); }
+.picker__search { position: sticky; top: 0; z-index: 1; }
+.picker__group { display: flex; flex-direction: column; gap: 2px; }
+.picker__cat {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin: var(--sp-2) 0 var(--sp-1);
+  font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--ink-3);
+}
+.picker__count {
+  font-family: var(--font-data); font-weight: 700; color: var(--ink-3);
+  background: var(--paper-sunk); border-radius: var(--radius-full); padding: 0 var(--sp-2);
+}
+.picker__item {
+  display: flex; align-items: center; gap: var(--sp-2); width: 100%;
+  padding: var(--sp-2) var(--sp-3); text-align: left;
+  background: none; border: 1px solid transparent; border-radius: var(--radius-md);
+  color: var(--ink); font: inherit; cursor: pointer;
+}
+.picker__item:hover, .picker__item:focus-visible {
+  background: var(--paper-sunk); border-color: var(--hairline);
+}
+.picker__name { font-weight: 600; }
+.picker__tags { display: flex; flex-wrap: wrap; gap: 2px; }
+.picker__add { margin-left: auto; color: var(--primary); }

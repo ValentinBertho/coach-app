@@ -93,8 +93,16 @@ assistant), et athlète (PWA mobile).
 ### Module préparation physique (force)
 - **Bibliothèque d'exercices** (catégories, groupes musculaires, matériel, vidéo, progression/régression).
 - **Éditeur de structure de séance** : blocs typés + **formats avancés** (Classique, EMOM, AMRAP,
-  For Time, Circuit, Isométrie, Pliométrie) et **types de série** (drop-set, super-set, myo-reps,
-  cluster, iso) avec prescription complète (charge **et** effort indépendants, tempo, repos).
+  For Time, Circuit, Isométrie, Pliométrie — durée saisie **en minutes**) et **types de série**
+  (drop-set, super-set, myo-reps, cluster, iso) avec prescription complète (charge **et** effort
+  indépendants, tempo, repos). Le volume d'un exercice se compte **en répétitions, en durée ou en
+  distance** — une planche se tient en secondes, un porté du fermier se parcourt en mètres —
+  chacun en **valeur exacte ou en fourchette**, avec la **latéralité** (les deux côtés, alterné
+  gauche/droite, ou par côté), un **repos strict ou en fourchette**, et un **commentaire par
+  exercice** que l'athlète lit au moment de le faire. Le choix des exercices se fait dans un
+  panneau **rangé par catégorie** (celles du coach d'abord, le type d'exercice à défaut) avec
+  recherche, là où une liste déroulante à plat alignait toute la bibliothèque sans ordre.
+  L'athlète saisit son retour **dans l'unité prescrite** (reps, secondes ou mètres).
 - **Calcul de charge (1RM)** : méthode **Nuzzo** par défaut + Epley / Brzycki / RIR-based,
   zones de travail Lacourpaille.
 - **Tests 1RM** (4 protocoles : 1RM direct, rep-test 3–5, AMRAP, isométrie MVC) → mise à jour

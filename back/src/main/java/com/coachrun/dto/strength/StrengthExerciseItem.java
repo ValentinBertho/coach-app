@@ -17,4 +17,9 @@ public record StrengthExerciseItem(
         JsonNode setConfig,
         String coachNotes
 ) {
+
+    /** Même exercice prescrit, prescription remplacée (décalage ou mise à l'échelle de charge). */
+    public StrengthExerciseItem withPrescription(StrengthPrescription replacement) {
+        return new StrengthExerciseItem(exerciseId, exerciseName, setType, replacement, setConfig, coachNotes);
+    }
 }

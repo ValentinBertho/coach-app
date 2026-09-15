@@ -16,10 +16,18 @@ import {
   EffortRefType,
   PpExercise,
   SetType,
+  SideMode,
   StrengthBlock,
   StrengthExerciseItem,
   StrengthPrescription,
+  VolumeType,
 } from '../../core/models/strength.model';
+import { SessionCategory } from '../../core/models/session-category.model';
+import { SessionCategoryService } from '../../core/services/session-category.service';
+import {
+  SIDE_MODE_LABELS, VOLUME_TYPE_LABELS, effectiveVolumeType, restPill, sideLabel, volumePill,
+  type VolumePill,
+} from '../../core/utils/strength-volume';
 import {
   EffortBadgeComponent,
   type EffortKind,
@@ -53,6 +61,7 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
 
   private readonly strength = inject(StrengthService);
   private readonly athletes = inject(AthleteService);
+  private readonly categoryService = inject(SessionCategoryService);
   private readonly toast = inject(ToastService);
 
   /**
@@ -71,7 +80,8 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   readonly saving = signal(false);
   readonly blocks = signal<StrengthBlock[]>([]);
   readonly exercises = signal<PpExercise[]>([]);
-  readonly exercisePick: Record<string, string> = {};
+  /** Catégories de prépa physique du coach : elles rangent le choix des exercices. */
+  readonly categories = signal<SessionCategory[]>([]);
 
   // Aperçu live des charges
   readonly athleteList = signal<AthleteSummary[]>([]);
@@ -103,6 +113,16 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     { value: 'CLUSTER', label: 'Cluster' },
     { value: 'ISO_OVERCOMING', label: 'Iso (overcoming)' },
     { value: 'ISO_YIELDING', label: 'Iso (yielding)' },
+  ];
+  readonly volumeTypes: { value: VolumeType; label: string }[] = [
+    { value: 'REPS', label: VOLUME_TYPE_LABELS.REPS },
+    { value: 'DUREE', label: VOLUME_TYPE_LABELS.DUREE },
+    { value: 'DISTANCE', label: VOLUME_TYPE_LABELS.DISTANCE },
+  ];
+  readonly sideModes: { value: SideMode; label: string }[] = [
+    { value: 'BILATERAL', label: SIDE_MODE_LABELS.BILATERAL },
+    { value: 'ALTERNE', label: SIDE_MODE_LABELS.ALTERNE },
+    { value: 'PAR_COTE', label: SIDE_MODE_LABELS.PAR_COTE },
   ];
   readonly chargeRefs: { value: ChargeRefType; label: string }[] = [
     { value: 'PCT_RM_RANGE', label: '% RM (fourchette)' },
@@ -153,14 +173,19 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     }
   }
 
-  /** Volume (reps ou durée d'isométrie) à afficher. */
-  repsInfo(block: StrengthBlock, p: StrengthPrescription): { label: string; min: number; max: number; unit: string } | null {
-    if (block.format === 'ISOMETRIE') {
-      return p.durationSec != null ? { label: 'Durée', min: p.durationSec, max: p.durationSec, unit: 's' } : null;
-    }
-    if (p.repsFixed != null) return { label: 'Reps', min: p.repsFixed, max: p.repsFixed, unit: '' };
-    if (p.repsMin != null) return { label: 'Reps', min: p.repsMin, max: p.repsMax ?? p.repsMin, unit: '' };
-    return null;
+  /** Volume prescrit (reps, durée ou distance) à afficher — règle partagée avec l'athlète. */
+  volumeInfo(block: StrengthBlock, p: StrengthPrescription): VolumePill | null {
+    return volumePill(p, block.format);
+  }
+
+  /** Repos entre séries à afficher : strict ou fourchette, selon ce qui est prescrit. */
+  restInfo(p: StrengthPrescription): VolumePill | null {
+    return restPill(p);
+  }
+
+  /** « Par côté », « Alterné G / D » — rien en bilatéral. */
+  sideInfo(p: StrengthPrescription): string | null {
+    return sideLabel(p);
   }
 
   /** Effort prescrit (RPE/RIR) à afficher, ou null. */
@@ -185,6 +210,11 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
       error: () => this.loading.set(false),
     });
     this.strength.listAllExercises().subscribe((e) => this.exercises.set(e));
+    this.categoryService.list('STRENGTH').subscribe({
+      next: (c) => this.categories.set(c),
+      // Sans catégories, le choix d'exercices se range par type — il reste utilisable.
+      error: () => this.categories.set([]),
+    });
     this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
   }
 
@@ -260,25 +290,82 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     return block.format === 'CIRCUIT';
   }
 
-  // --- Exercices d'un bloc ---
-  addExercise(block: StrengthBlock): void {
-    const exId = this.exercisePick[block.id];
-    if (!exId) return;
-    const ex = this.exercises().find((e) => e.id === exId);
+  // --- Choix d'un exercice (panneau rangé par catégorie) ---------------------
+  // Le choix se faisait dans une liste déroulante à plat : une bibliothèque de club y aligne
+  // cent exercices sans ordre ni recherche, et retrouver « Fente bulgare » demandait de la
+  // parcourir en entier. Le panneau range la même bibliothèque par catégorie du coach — à
+  // défaut, par type d'exercice — et se cherche au clavier.
+
+  readonly pickerOpen = signal(false);
+  readonly pickerQuery = signal('');
+  private readonly pickerBlockId = signal<string | null>(null);
+
+  /** Bibliothèque filtrée par la recherche, rangée par catégorie. */
+  readonly pickerGroups = computed<{ key: string; title: string; exercises: PpExercise[] }[]>(() => {
+    const query = normalize(this.pickerQuery());
+    const names = new Map(this.categories().map((c) => [c.id, c.name] as const));
+    const groups = new Map<string, { key: string; title: string; exercises: PpExercise[] }>();
+
+    for (const ex of this.exercises()) {
+      if (query && !normalize(ex.name).includes(query)) continue;
+      // Catégorie du coach si elle est renseignée ; sinon le type de l'exercice, qui l'est
+      // toujours — aucun exercice ne doit tomber dans un « divers » où on ne le cherchera pas.
+      const key = ex.categoryId && names.has(ex.categoryId) ? ex.categoryId : `type:${ex.category}`;
+      const title = ex.categoryId && names.has(ex.categoryId)
+        ? names.get(ex.categoryId)!
+        : this.label(ex.category);
+      const group = groups.get(key) ?? { key, title, exercises: [] };
+      group.exercises.push(ex);
+      groups.set(key, group);
+    }
+
+    // Catégories du coach dans son ordre, puis les types — ses catégories passent avant.
+    const order = new Map(this.categories().map((c, i) => [c.id, i] as const));
+    return [...groups.values()].sort((a, b) => {
+      const ra = order.get(a.key) ?? Number.MAX_SAFE_INTEGER;
+      const rb = order.get(b.key) ?? Number.MAX_SAFE_INTEGER;
+      return ra === rb ? a.title.localeCompare(b.title, 'fr') : ra - rb;
+    });
+  });
+
+  /** Nombre d'exercices proposés, toutes catégories confondues (état vide de la recherche). */
+  readonly pickerCount = computed(() => this.pickerGroups().reduce((n, g) => n + g.exercises.length, 0));
+
+  openPicker(block: StrengthBlock): void {
+    this.pickerBlockId.set(block.id);
+    this.pickerQuery.set('');
+    this.pickerOpen.set(true);
+  }
+
+  /**
+   * Ajoute l'exercice au bloc visé. Le panneau reste ouvert : on compose un bloc en enchaînant
+   * plusieurs exercices, et le refermer à chaque fois ferait rouvrir, rechercher, re-cliquer.
+   */
+  addExercise(ex: PpExercise): void {
+    const block = this.blocks().find((b) => b.id === this.pickerBlockId());
+    if (!block) return;
     const item: StrengthExerciseItem = {
-      exerciseId: exId,
-      exerciseName: ex?.name ?? '',
+      exerciseId: ex.id,
+      exerciseName: ex.name,
       setType: 'STANDARD',
       prescription: {
         chargeRefType: 'PCT_RM_RANGE', chargePctRmMin: 70, chargePctRmMax: 80,
         effortRefType: 'RIR_RANGE', rirMin: 1, rirMax: 3,
-        sets: 4, repsFixed: 6, restSecMin: 90, restSecMax: 120,
+        sets: 4,
+        // Un bloc d'isométrie se tient en secondes ; partout ailleurs on compte des répétitions.
+        ...(block.format === 'ISOMETRIE'
+          ? { volumeType: 'DUREE' as VolumeType, durationSec: 30 }
+          : { volumeType: 'REPS' as VolumeType, repsFixed: 6 }),
+        sideMode: 'BILATERAL',
+        restSecMin: 90, restSecMax: 120,
       },
     };
     block.exercises = [...block.exercises, item];
-    this.exercisePick[block.id] = '';
+    this.toast.success(`${ex.name} ajouté`);
     this.touch();
   }
+
+  // --- Exercices d'un bloc ---
 
   removeExercise(block: StrengthBlock, idx: number): void {
     block.exercises = block.exercises.filter((_, i) => i !== idx);
@@ -330,7 +417,109 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     });
   }
 
+  // --- Prescription d'un exercice : volume, latéralité, repos ----------------
+
+  /** Unité de volume de cet exercice (répétitions par défaut, durée en bloc d'isométrie). */
+  volumeTypeOf(block: StrengthBlock, item: StrengthExerciseItem): VolumeType {
+    return effectiveVolumeType(item.prescription, block.format);
+  }
+
+  /**
+   * Change l'unité du volume. Les champs des autres unités sont vidés : laisser « 8 reps »
+   * derrière une prescription passée en durée, c'est une valeur fantôme que le prochain
+   * changement d'unité ferait ressurgir à la place de celle qu'on vient de saisir.
+   */
+  setVolumeType(block: StrengthBlock, item: StrengthExerciseItem, type: VolumeType): void {
+    const p = item.prescription;
+    p.volumeType = type;
+    if (type !== 'REPS') { p.repsFixed = null; p.repsMin = null; p.repsMax = null; }
+    if (type !== 'DUREE') { p.durationSec = null; p.durationSecMax = null; }
+    if (type !== 'DISTANCE') { p.distanceM = null; p.distanceMMax = null; }
+    if (type === 'REPS' && p.repsFixed == null && p.repsMin == null) p.repsFixed = 8;
+    if (type === 'DUREE' && p.durationSec == null) p.durationSec = 30;
+    if (type === 'DISTANCE' && p.distanceM == null) p.distanceM = 20;
+    this.touch();
+  }
+
+  /** Le volume est-il prescrit en fourchette (« 8 à 10 ») plutôt qu'en valeur exacte ? */
+  volumeRanged(block: StrengthBlock, item: StrengthExerciseItem): boolean {
+    const p = item.prescription;
+    switch (this.volumeTypeOf(block, item)) {
+      case 'DUREE': return p.durationSecMax != null;
+      case 'DISTANCE': return p.distanceMMax != null;
+      default: return p.repsFixed == null;
+    }
+  }
+
+  /** Bascule valeur exacte ↔ fourchette en conservant ce qui était déjà saisi comme borne basse. */
+  setVolumeRanged(block: StrengthBlock, item: StrengthExerciseItem, ranged: boolean): void {
+    const p = item.prescription;
+    switch (this.volumeTypeOf(block, item)) {
+      case 'DUREE':
+        p.durationSecMax = ranged ? p.durationSecMax ?? bumped(p.durationSec, 15) : null;
+        break;
+      case 'DISTANCE':
+        p.distanceMMax = ranged ? p.distanceMMax ?? bumped(p.distanceM, 10) : null;
+        break;
+      default:
+        if (ranged) {
+          p.repsMin = p.repsMin ?? p.repsFixed ?? 8;
+          p.repsMax = p.repsMax ?? bumped(p.repsMin, 2);
+          p.repsFixed = null;
+        } else {
+          p.repsFixed = p.repsFixed ?? p.repsMin ?? 8;
+          p.repsMin = null;
+          p.repsMax = null;
+        }
+    }
+    this.touch();
+  }
+
+  /** Latéralité : un exercice prescrit avant ce choix vaut bilatéral, et s'affiche comme tel. */
+  setSideMode(item: StrengthExerciseItem, mode: SideMode): void {
+    item.prescription.sideMode = mode;
+    this.touch();
+  }
+
+  /** Le repos est-il laissé en fourchette (« 90 à 120 s ») plutôt que strict (« 90 s ») ? */
+  restRanged(item: StrengthExerciseItem): boolean {
+    return item.prescription.restSecMax != null;
+  }
+
+  /** Bascule repos strict ↔ fourchette ; la borne basse saisie reste la borne basse. */
+  setRestRanged(item: StrengthExerciseItem, ranged: boolean): void {
+    const p = item.prescription;
+    p.restSecMax = ranged ? p.restSecMax ?? bumped(p.restSecMin, 30) : null;
+    this.touch();
+  }
+
+  /**
+   * Durée d'un bloc chronométré, **en minutes** : un AMRAP se dit « 12 minutes », un EMOM
+   * « 10 minutes ». Le stockage reste en secondes (le reste de l'application y compte), mais
+   * plus personne ne saisit 720 pour prescrire douze minutes.
+   */
+  blockMinutes(block: StrengthBlock): number | null {
+    return block.durationSec == null ? null : Math.round((block.durationSec / 60) * 10) / 10;
+  }
+
+  setBlockMinutes(block: StrengthBlock, minutes: number | null): void {
+    block.durationSec = minutes == null || !Number.isFinite(minutes)
+      ? null
+      : Math.max(0, Math.round(minutes * 60));
+    this.touch();
+  }
+
   label(value: string): string {
     return value.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
   }
+}
+
+/** Borne haute par défaut d'une fourchette qu'on vient d'ouvrir : la basse, augmentée d'un cran. */
+function bumped(low: number | null | undefined, step: number): number {
+  return (low ?? 0) + step;
+}
+
+/** Comparaison de recherche : sans accents ni casse — « fente » doit trouver « Fente arrière ». */
+function normalize(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }

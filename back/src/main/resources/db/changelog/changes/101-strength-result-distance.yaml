@@ -1,0 +1,23 @@
+# ============================================================================
+# 101 — La distance réalisée d'une série de force.
+#
+#   Un exercice de force ne se compte pas toujours en répétitions : un porté du
+#   fermier, une poussée de traîneau ou une marche lestée se prescrivent sur une
+#   distance. La prescription sait désormais le dire (`volumeType = DISTANCE`),
+#   mais le retour de l'athlète n'avait que `reps_done` et `duration_sec_done` :
+#   30 m parcourus se seraient enregistrés en « 30 répétitions », c'est-à-dire
+#   faux dans l'historique et faux dans la charge mécanique qui s'en déduit.
+#
+#   Additif : une colonne nouvelle, nullable, aucune ligne existante modifiée.
+#   Les séries d'avant sont toutes en répétitions ou en durée — NULL y est la
+#   valeur juste, pas un trou.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 101-strength-result-distance
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: strength_results
+            columns:
+              - column: { name: distance_m_done, type: INT }

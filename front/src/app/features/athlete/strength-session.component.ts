@@ -4,7 +4,12 @@ import { AthletePortalService, StrengthPrescriptionView } from '../../core/servi
 import { CelebrationService } from '../../core/services/celebration.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
-import { Progression, ScheduledStrength, StrengthResultEntry } from '../../core/models/strength.model';
+import {
+  Progression, ScheduledStrength, StrengthResultEntry, VolumeType,
+} from '../../core/models/strength.model';
+import {
+  effectiveVolumeType, sideLabel, volumePill, type VolumePill,
+} from '../../core/utils/strength-volume';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import {
   EffortBadgeComponent,
@@ -14,10 +19,17 @@ import {
 } from '../../shared/components/physiology';
 import { RpeScaleSelectorComponent } from '../../shared/components/rpe-scale-selector/rpe-scale-selector.component';
 
-/** Une série saisie par l'athlète. `done` = validée dans le parcours guidé. */
+/**
+ * Une série saisie par l'athlète. `done` = validée dans le parcours guidé.
+ *
+ * <p>Trois volumes possibles et un seul rempli : l'exercice est prescrit en répétitions, en
+ * durée ou en distance — jamais dans deux unités à la fois.</p>
+ */
 interface SetEntry {
   chargeKg: number | null;
   repsDone: number | null;
+  durationSecDone: number | null;
+  distanceMDone: number | null;
   rirDone: number | null;
   done: boolean;
 }
@@ -26,9 +38,8 @@ interface SetEntry {
 interface ExerciseRx {
   chargeKgMin: number | null;
   chargeKgMax: number | null;
-  repsMin: number | null;
-  repsMax: number | null;
-  repsFixed: number | null;
+  /** Volume prescrit, déjà lu dans son unité (« Reps 8 », « Durée 30–45 s »). */
+  volume: VolumePill | null;
   effortKind: EffortKind | null;
   effortMin: number | null;
   effortMax: number | null;
@@ -39,12 +50,22 @@ interface ExerciseSets {
   name: string;
   sets: SetEntry[];
   rx: ExerciseRx;
+  /** Ce que compte la série : décide du champ de saisie proposé à l'athlète. */
+  volumeType: VolumeType;
+  /** « Par côté », « Alterné G / D » — absent en bilatéral. */
+  side: string | null;
+  /** Consigne du coach sur cet exercice, s'il en a laissé une. */
+  notes: string | null;
 }
 
 type State = 'loading' | 'ready' | 'error';
 
 /** Incrément de charge : le plus petit disque de la plupart des salles. */
 const CHARGE_STEP_KG = 2.5;
+/** Incrément de durée : 5 secondes, le grain d'un gainage ou d'un porté. */
+const DURATION_STEP_SEC = 5;
+/** Incrément de distance : 5 mètres, le grain d'un aller de porté du fermier. */
+const DISTANCE_STEP_M = 5;
 
 /**
  * Mode séance de force plein écran — un exercice à la fois.
@@ -171,11 +192,63 @@ export class StrengthSessionComponent implements OnInit {
     this.touch();
   }
 
-  adjustReps(delta: number): void {
+  /**
+   * Ajuste le volume réalisé dans l'unité de l'exercice : une répétition, cinq secondes de
+   * gainage, cinq mètres de porté. Un seul bouton pour les trois — l'athlète voit l'unité, pas
+   * le champ qui la stocke.
+   */
+  adjustVolume(delta: number): void {
     const set = this.currentSet();
     if (!set) return;
-    set.repsDone = Math.max(0, (set.repsDone ?? 0) + delta);
+    switch (this.currentExercise()?.volumeType) {
+      case 'DUREE':
+        set.durationSecDone = Math.max(0, (set.durationSecDone ?? 0) + delta * DURATION_STEP_SEC);
+        break;
+      case 'DISTANCE':
+        set.distanceMDone = Math.max(0, (set.distanceMDone ?? 0) + delta * DISTANCE_STEP_M);
+        break;
+      default:
+        set.repsDone = Math.max(0, (set.repsDone ?? 0) + delta);
+    }
     this.touch();
+  }
+
+  /** Volume réalisé de la série en cours, dans son unité — « — » tant que rien n'est saisi. */
+  volumeDone(set: SetEntry): string {
+    const value = this.volumeValue(set);
+    return value == null ? '—' : String(value);
+  }
+
+  /** Libellé et unité du champ de volume, selon ce qui est prescrit. */
+  volumeFieldLabel(): string {
+    switch (this.currentExercise()?.volumeType) {
+      case 'DUREE': return 'Durée';
+      case 'DISTANCE': return 'Distance';
+      default: return 'Répétitions';
+    }
+  }
+  volumeUnit(): string {
+    switch (this.currentExercise()?.volumeType) {
+      case 'DUREE': return 's';
+      case 'DISTANCE': return 'm';
+      default: return '';
+    }
+  }
+  /** Pas d'incrément affiché sur les boutons (« +5 » pour une durée, rien pour une rep). */
+  volumeStepLabel(): string {
+    switch (this.currentExercise()?.volumeType) {
+      case 'DUREE': return String(DURATION_STEP_SEC);
+      case 'DISTANCE': return String(DISTANCE_STEP_M);
+      default: return '';
+    }
+  }
+
+  private volumeValue(set: SetEntry, type?: VolumeType): number | null {
+    switch (type ?? this.currentExercise()?.volumeType) {
+      case 'DUREE': return set.durationSecDone;
+      case 'DISTANCE': return set.distanceMDone;
+      default: return set.repsDone;
+    }
   }
 
   adjustRir(delta: number): void {
@@ -199,9 +272,7 @@ export class StrengthSessionComponent implements OnInit {
     const previous = exercise?.sets[this.setIndex() - 1];
     const current = this.currentSet();
     if (!previous || !current) return;
-    current.chargeKg = previous.chargeKg;
-    current.repsDone = previous.repsDone;
-    current.rirDone = previous.rirDone;
+    copyVolume(previous, current);
     this.touch();
   }
 
@@ -216,9 +287,7 @@ export class StrengthSessionComponent implements OnInit {
     if (next) {
       // Une série ressemble à la précédente : on la pré-remplit plutôt que de repartir de zéro.
       if (!next.done) {
-        next.chargeKg = current.chargeKg;
-        next.repsDone = current.repsDone;
-        next.rirDone = current.rirDone;
+        copyVolume(current, next);
       }
       this.setIndex.set(this.setIndex() + 1);
     } else {
@@ -268,10 +337,17 @@ export class StrengthSessionComponent implements OnInit {
     const results: StrengthResultEntry[] = [];
     for (const exercise of this.exercises()) {
       exercise.sets.forEach((set, i) => {
-        if (set.done && set.chargeKg != null && set.repsDone != null) {
+        // Une série compte dès qu'elle porte son volume — en reps, en secondes ou en mètres.
+        // Le critère « des répétitions » aurait jeté toutes les séries d'un gainage.
+        const volume = this.volumeValue(set, exercise.volumeType);
+        if (set.done && volume != null) {
           results.push({
             exerciseId: exercise.exerciseId, setNumber: i + 1,
-            chargeKg: set.chargeKg, repsDone: set.repsDone, rirDone: set.rirDone,
+            chargeKg: set.chargeKg,
+            repsDone: set.repsDone,
+            durationSecDone: set.durationSecDone,
+            distanceMDone: set.distanceMDone,
+            rirDone: set.rirDone,
           });
         }
       });
@@ -362,9 +438,14 @@ export class StrengthSessionComponent implements OnInit {
         // Au moins une série : un exercice prescrit « 0 série » n'a pas de sens et laisserait
         // un exercice sans aucun écran de saisie au milieu du parcours.
         const count = Math.max(1, presc.sets ?? 3);
+        const volumeType = effectiveVolumeType(presc, block.block.format);
+        // Chaque série démarre sur le bas de la fourchette prescrite, dans la bonne unité :
+        // proposer « 30 répétitions » sur un gainage de 30 s serait une consigne fausse.
         const sets: SetEntry[] = Array.from({ length: count }, () => ({
           chargeKg: ex.charge.kgMin ?? presc.chargeKgMin ?? null,
-          repsDone: presc.repsFixed ?? presc.repsMin ?? null,
+          repsDone: volumeType === 'REPS' ? presc.repsFixed ?? presc.repsMin ?? null : null,
+          durationSecDone: volumeType === 'DUREE' ? presc.durationSec ?? null : null,
+          distanceMDone: volumeType === 'DISTANCE' ? presc.distanceM ?? null : null,
           rirDone: presc.rirMin ?? null,
           done: false,
         }));
@@ -373,12 +454,13 @@ export class StrengthSessionComponent implements OnInit {
           exerciseId: ex.item.exerciseId,
           name: ex.item.exerciseName,
           sets,
+          volumeType,
+          side: sideLabel(presc),
+          notes: ex.item.coachNotes ?? null,
           rx: {
             chargeKgMin: ex.charge.kgMin ?? presc.chargeKgMin ?? null,
             chargeKgMax: ex.charge.kgMax ?? presc.chargeKgMax ?? null,
-            repsMin: presc.repsMin ?? null,
-            repsMax: presc.repsMax ?? null,
-            repsFixed: presc.repsFixed ?? null,
+            volume: volumePill(presc, block.block.format),
             effortKind: presc.effortRefType ? (isRir ? 'RIR' : 'RPE') : null,
             effortMin: isRir ? presc.rirMin ?? null : presc.rpeMin ?? null,
             effortMax: isRir ? presc.rirMax ?? null : presc.rpeMax ?? null,
@@ -405,9 +487,37 @@ export class StrengthSessionComponent implements OnInit {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
+  /**
+   * Résumé d'une série validée pour le récapitulatif de fin : « 60×8 », « 30 s », « 20 m ».
+   * La charge ne s'écrit que si elle a été saisie — un gainage au poids du corps n'en a pas.
+   */
+  recapChip(exercise: ExerciseSets, set: SetEntry): string {
+    const charge = set.chargeKg ? `${this.formatKg(set.chargeKg)} kg` : '';
+    switch (exercise.volumeType) {
+      case 'DUREE':
+        return [charge, `${set.durationSecDone ?? '—'} s`].filter(Boolean).join(' × ');
+      case 'DISTANCE':
+        return [charge, `${set.distanceMDone ?? '—'} m`].filter(Boolean).join(' × ');
+      default:
+        return `${charge || '—'} × ${set.repsDone ?? '—'}`;
+    }
+  }
+
   /** « 62,5 » — virgule décimale française, entier sans décimale inutile. */
   formatKg(value: number | null): string {
     if (value == null) return '—';
     return Number.isInteger(value) ? String(value) : value.toFixed(1).replace('.', ',');
   }
+}
+
+/**
+ * Recopie charge, volume et RIR d'une série sur une autre — les trois unités de volume comprises,
+ * dont une seule est renseignée. Recopier les seules répétitions perdait la série d'un gainage.
+ */
+function copyVolume(from: SetEntry, to: SetEntry): void {
+  to.chargeKg = from.chargeKg;
+  to.repsDone = from.repsDone;
+  to.durationSecDone = from.durationSecDone;
+  to.distanceMDone = from.distanceMDone;
+  to.rirDone = from.rirDone;
 }

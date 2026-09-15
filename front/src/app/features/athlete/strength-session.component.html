@@ -101,7 +101,7 @@
                 <span class="ss__recap-sets metric">
                   @for (set of ex.sets; track $index) {
                     @if (set.done) {
-                      <span class="ss__chip">{{ formatKg(set.chargeKg) }}×{{ set.repsDone }}</span>
+                      <span class="ss__chip">{{ recapChip(ex, set) }}</span>
                     }
                   }
                   @if (!ex.sets[0].done) { <span class="ss__chip ss__chip--skip">passé</span> }
@@ -139,17 +139,19 @@
 
           <p class="ss__step-label">Exercice {{ stepIndex() + 1 }} sur {{ totalSteps() }}</p>
           <h1 class="ss__ex-name">{{ ex.name }}</h1>
+          <!-- La consigne du coach se lit ici, au moment de faire l'exercice — pas dans un
+               écran de détail qu'on ne rouvre pas entre deux séries. -->
+          @if (ex.notes) { <p class="ss__ex-note">{{ ex.notes }}</p> }
 
           <div class="ss__rx">
             @if (ex.rx.chargeKgMin != null) {
               <app-range-prescription-pill label="Charge" [min]="ex.rx.chargeKgMin"
                                            [max]="ex.rx.chargeKgMax ?? ex.rx.chargeKgMin" unit="kg" />
             }
-            @if (ex.rx.repsFixed != null) {
-              <app-range-prescription-pill label="Reps" [min]="ex.rx.repsFixed" [max]="ex.rx.repsFixed" />
-            } @else if (ex.rx.repsMin != null) {
-              <app-range-prescription-pill label="Reps" [min]="ex.rx.repsMin" [max]="ex.rx.repsMax ?? ex.rx.repsMin" />
+            @if (ex.rx.volume; as v) {
+              <app-range-prescription-pill [label]="v.label" [min]="v.min" [max]="v.max" [unit]="v.unit" />
             }
+            @if (ex.side) { <span class="ss__side">{{ ex.side }}</span> }
             @if (ex.rx.effortKind && ex.rx.effortMin != null && ex.rx.effortMax != null) {
               <app-effort-badge [kind]="ex.rx.effortKind" [min]="ex.rx.effortMin" [max]="ex.rx.effortMax" />
             }
@@ -171,12 +173,15 @@
               </div>
             </section>
 
+            <!-- Répétitions, secondes ou mètres : l'unité est celle que le coach a prescrite. -->
             <section class="ss__field">
-              <span class="ss__field-label">Répétitions</span>
+              <span class="ss__field-label">{{ volumeFieldLabel() }}</span>
               <div class="ss__stepper">
-                <button type="button" class="ss__pm" (click)="adjustReps(-1)" aria-label="Une répétition de moins">−</button>
-                <span class="ss__value metric">{{ set.repsDone ?? '—' }}</span>
-                <button type="button" class="ss__pm" (click)="adjustReps(1)" aria-label="Une répétition de plus">+</button>
+                <button type="button" class="ss__pm" (click)="adjustVolume(-1)"
+                        [attr.aria-label]="'Diminuer ' + volumeFieldLabel()">−@if (volumeStepLabel()) { <small>{{ volumeStepLabel() }}</small> }</button>
+                <span class="ss__value metric">{{ volumeDone(set) }}@if (volumeUnit()) { <small>{{ volumeUnit() }}</small> }</span>
+                <button type="button" class="ss__pm" (click)="adjustVolume(1)"
+                        [attr.aria-label]="'Augmenter ' + volumeFieldLabel()">+@if (volumeStepLabel()) { <small>{{ volumeStepLabel() }}</small> }</button>
               </div>
             </section>
 
@@ -202,7 +207,7 @@
                   <li class="ss__done" [class.is-done]="s.done" [class.is-current]="$index === setIndex()">
                     <span class="ss__done-n metric">{{ $index + 1 }}</span>
                     @if (s.done) {
-                      <span class="metric">{{ formatKg(s.chargeKg) }} kg × {{ s.repsDone }}</span>
+                      <span class="metric">{{ recapChip(ex, s) }}</span>
                       <app-icon name="check" [size]="14" />
                     } @else {
                       <span class="ss__done-todo">à faire</span>

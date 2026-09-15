@@ -73,6 +73,7 @@ public class StrengthResultService {
             r.setChargeKg(e.chargeKg());
             r.setRepsDone(e.repsDone());
             r.setDurationSecDone(e.durationSecDone());
+            r.setDistanceMDone(e.distanceMDone());
             r.setRpeDone(e.rpeDone());
             r.setRirDone(e.rirDone());
             // Douleur par série : donnée de l'article 9, écartée sans consentement actif. La

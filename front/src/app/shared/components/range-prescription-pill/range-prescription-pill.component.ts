@@ -31,6 +31,8 @@ import { IconComponent } from '../icon/icon.component';
         @if (invalid()) {
           <app-icon class="rx__warn" name="alert-triangle" [size]="12" />
           <span class="rx__val">{{ display(min() ?? max()) }}</span>
+        } @else if (exact()) {
+          <span class="rx__val">{{ display(min()) }}</span>
         } @else {
           <span class="rx__val">{{ display(min()) }}</span>
           <span class="rx__sep" aria-hidden="true">–</span>
@@ -99,6 +101,16 @@ export class RangePrescriptionPillComponent {
   /** Anti-pattern détecté : prescription à valeur unique. */
   protected readonly invalid = computed(() => this.min() == null || this.max() == null);
 
+  /**
+   * Fourchette dont les deux bornes coïncident : une valeur prescrite <b>exactement</b> — un
+   * repos strict de 90 s, 8 répétitions ni plus ni moins. Elle s'écrit « 90 s », pas « 90–90 s » :
+   * répéter la borne ne dit rien de plus et se lit comme un défaut d'affichage.
+   *
+   * <p>À ne pas confondre avec {@link invalid} : là une borne <em>manque</em>, et c'est
+   * l'anti-pattern que la pastille doit continuer de signaler.</p>
+   */
+  protected readonly exact = computed(() => !this.invalid() && this.min() === this.max());
+
   protected readonly actualInRange = computed(() => {
     const a = this.actual();
     const lo = this.min();
@@ -113,6 +125,7 @@ export class RangePrescriptionPillComponent {
 
   protected readonly ariaLabel = computed(() => {
     if (this.invalid()) return `${this.label()} valeur unique (prescription incomplète)`;
+    if (this.exact()) return `${this.label()} ${this.display(this.min())} ${this.unit()}`.trim();
     return `${this.label()} de ${this.display(this.min())} à ${this.display(this.max())} ${this.unit()}`.trim();
   });
 }
