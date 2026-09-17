@@ -103,6 +103,16 @@ assistant), et athlète (PWA mobile).
   panneau **rangé par catégorie** (celles du coach d'abord, le type d'exercice à défaut) avec
   recherche, là où une liste déroulante à plat alignait toute la bibliothèque sans ordre.
   L'athlète saisit son retour **dans l'unité prescrite** (reps, secondes ou mètres).
+- **Une séance de renfo se travaille sur le calendrier**, comme une séance de course : on la pose
+  **vierge sur son jour** (« Séance de renforcement vierge ») sans créer d'abord un modèle de
+  bibliothèque ; on **modifie son contenu directement** — blocs, séries, charges — sans en créer
+  une nouvelle et sans toucher au modèle, qui sert d'autres athlètes ; on la **renomme**, on la
+  **copie-colle** d'un jour, d'un athlète ou d'un groupe à l'autre, et on la **verse en
+  bibliothèque** quand elle mérite d'être gardée. Le copier-coller duplique la séance
+  **affichée** (son snapshot) : une séance adaptée reste adaptée, et une séance construite au
+  calendrier — qui n'a aucun modèle — se copie comme les autres. Chez un **autre** athlète, les
+  charges sont **recalculées avec son 1RM** : la structure du coach voyage, jamais les kilos de
+  quelqu'un d'autre.
 - **Calcul de charge (1RM)** : méthode **Nuzzo** par défaut + Epley / Brzycki / RIR-based,
   zones de travail Lacourpaille.
 - **Tests 1RM** (4 protocoles : 1RM direct, rep-test 3–5, AMRAP, isométrie MVC) → mise à jour

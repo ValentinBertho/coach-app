@@ -2,7 +2,7 @@ import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-
 import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Observable, switchMap, tap } from 'rxjs';
 import { AthleteService } from '../../core/services/athlete.service';
 import { StrengthService } from '../../core/services/strength.service';
@@ -43,6 +43,18 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  * Éditeur de structure d'une séance de force (cf. Darilab) : blocs typés, formats avancés
  * (EMOM / AMRAP / Circuit / Isométrie / Pliométrie), exercices avec type de série et prescription
  * (charge + effort indépendants, volume, tempo, repos).
+ *
+ * <p>Deux modes, selon les paramètres de route — comme l'éditeur course :</p>
+ * <ul>
+ *   <li><b>modèle</b> ({@code sessionId}) : édite la bibliothèque du club ;</li>
+ *   <li><b>séance planifiée</b> ({@code athleteId} + {@code scheduledId}) : réécrit le contenu
+ *       d'une séance <b>posée au calendrier</b>, pour cet athlète seul.</li>
+ * </ul>
+ *
+ * <p>Le second mode manquait, et c'était le manque le plus coûteux de la prépa physique :
+ * changer une série sur une séance déjà planifiée supposait de la déprogrammer, retoucher le
+ * modèle — qui sert d'autres athlètes — puis replanifier. En pratique, les coachs créaient
+ * <b>une séance de plus</b> à chaque ajustement.</p>
  */
 @Component({
   selector: 'app-strength-session-editor',
@@ -57,12 +69,19 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
   styleUrl: './strength-session-editor.component.scss',
 })
 export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
-  readonly sessionId = input.required<string>();
+  // Paramètres de route (component input binding). Un seul jeu est renseigné selon le mode.
+  readonly sessionId = input<string>('');
+  readonly scheduledId = input<string>('');
+  readonly athleteId = input<string>('');
+
+  /** Mode « séance planifiée » : on réécrit la séance d'un athlète, pas un modèle de club. */
+  readonly isScheduled = computed(() => !!this.scheduledId());
 
   private readonly strength = inject(StrengthService);
   private readonly athletes = inject(AthleteService);
   private readonly categoryService = inject(SessionCategoryService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
 
   /**
    * Auto-sauvegarde : construire une séance de force prend de longues minutes, et rien
@@ -86,6 +105,8 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   // Aperçu live des charges
   readonly athleteList = signal<AthleteSummary[]>([]);
   readonly previewAthlete = signal('');
+  /** Athlète dont on modifie la séance (mode séance planifiée) : affiché, jamais choisi. */
+  readonly athleteName = signal('');
   readonly chargePreview = signal<Record<string, ChargeTarget>>({});
   private recomputeTimer?: ReturnType<typeof setTimeout>;
 
@@ -200,6 +221,25 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   }
 
   ngOnInit(): void {
+    if (this.isScheduled()) {
+      this.loadScheduled();
+    } else {
+      this.loadLibrarySession();
+    }
+    this.strength.listAllExercises().subscribe((e) => this.exercises.set(e));
+    this.categoryService.list('STRENGTH').subscribe({
+      next: (c) => this.categories.set(c),
+      // Sans catégories, le choix d'exercices se range par type — il reste utilisable.
+      error: () => this.categories.set([]),
+    });
+    // Le sélecteur d'aperçu n'a de sens que sur un modèle : une séance planifiée a déjà son
+    // athlète, et lui en proposer un autre inviterait à lire des charges qui ne sont pas les siennes.
+    if (!this.isScheduled()) {
+      this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
+    }
+  }
+
+  private loadLibrarySession(): void {
     this.strength.getSession(this.sessionId()).subscribe({
       next: (s) => {
         this.name.set(s.name);
@@ -209,13 +249,28 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
       },
       error: () => this.loading.set(false),
     });
-    this.strength.listAllExercises().subscribe((e) => this.exercises.set(e));
-    this.categoryService.list('STRENGTH').subscribe({
-      next: (c) => this.categories.set(c),
-      // Sans catégories, le choix d'exercices se range par type — il reste utilisable.
-      error: () => this.categories.set([]),
+  }
+
+  /**
+   * Charge la séance posée au calendrier : c'est son <b>snapshot</b> qu'on édite, pas le modèle
+   * dont elle est issue. L'aperçu des charges est fixé sur l'athlète concerné — les kilos affichés
+   * sont ceux qu'il soulèvera.
+   */
+  private loadScheduled(): void {
+    this.previewAthlete.set(this.athleteId());
+    this.athletes.get(this.athleteId()).subscribe({
+      next: (a) => this.athleteName.set(`${a.firstName} ${a.lastName}`),
+      error: () => this.athleteName.set(''),
     });
-    this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
+    this.strength.scheduledPrescription(this.athleteId(), this.scheduledId()).subscribe({
+      next: (rx) => {
+        this.name.set(rx.title ?? 'Séance de renforcement');
+        this.blocks.set(rx.snapshot?.blocks ?? []);
+        this.loading.set(false);
+        this.refreshCharges();
+      },
+      error: () => { this.loading.set(false); this.toast.error('Séance introuvable.'); },
+    });
   }
 
   // --- Aperçu live des charges ---
@@ -241,6 +296,9 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
       });
     }, 350);
   }
+
+  /** Relance le calcul des charges (mode séance planifiée : l'athlète ne change jamais). */
+  private refreshCharges(): void { this.recompute(); }
 
   chargeAt(bi: number, ei: number): ChargeTarget | undefined {
     return this.chargePreview()[`${bi}:${ei}`];
@@ -398,8 +456,17 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
    * (le serveur l'exige non blanc) : la séance garde alors celui qu'elle avait.
    */
   private persist(): Observable<unknown> {
-    const structure$ = this.strength.putStructure(this.sessionId(), { blocks: this.blocks() });
     const name = this.name().trim();
+    if (this.isScheduled()) {
+      const structure$ = this.strength.updateScheduledStructure(
+        this.athleteId(), this.scheduledId(), { blocks: this.blocks() });
+      if (!this.nameDirty || !name) return structure$;
+      return structure$.pipe(
+        switchMap(() => this.strength.renameScheduled(this.athleteId(), this.scheduledId(), name)),
+        tap(() => { this.nameDirty = false; }),
+      );
+    }
+    const structure$ = this.strength.putStructure(this.sessionId(), { blocks: this.blocks() });
     if (!this.nameDirty || !name) return structure$;
     return structure$.pipe(
       switchMap(() => this.strength.updateSession(this.sessionId(), { name, notes: this.notes() })),
@@ -407,13 +474,60 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     );
   }
 
-  /** Enregistrement explicite : ne fait qu'anticiper le debounce, avec un accusé de réception. */
+  /**
+   * Enregistrement explicite : ne fait qu'anticiper le debounce, mais vaut aussi « j'ai fini ».
+   * Sur une séance planifiée, il renvoie donc au calendrier — rester sur l'éditeur laissait le
+   * coach sans issue évidente alors qu'il venait de dire qu'il avait terminé.
+   */
   save(): void {
     this.saving.set(true);
     this.autosave.flush().subscribe((ok) => {
       this.saving.set(false);
-      if (ok) this.toast.success('Structure enregistrée');
-      else this.toast.error('Enregistrement impossible.');
+      if (!ok) { this.toast.error('Enregistrement impossible.'); return; }
+      if (this.isScheduled()) {
+        this.toast.success('Séance modifiée pour l’athlète');
+        // Le programme de l'athlète : c'est le même calendrier, cadré sur lui — donc à coup sûr
+        // la séance qu'on vient de modifier, là où l'écran Calendrier global aurait pu rouvrir
+        // sur un tout autre athlète.
+        this.router.navigate(['/app/athletes', this.athleteId(), 'programme']);
+      } else {
+        this.toast.success('Structure enregistrée');
+      }
+    });
+  }
+
+  // --- Verser une séance du calendrier dans la bibliothèque (mode séance planifiée) ---------
+  // Une séance improvisée pour un athlète puis affinée n'avait pas d'issue : la garder supposait
+  // de la reconstruire bloc par bloc dans la bibliothèque.
+
+  readonly saveAsOpen = signal(false);
+  readonly saveAsBusy = signal(false);
+  saveAsName = '';
+
+  openSaveAs(): void {
+    this.saveAsName = this.saveAsName || this.name().trim();
+    this.saveAsOpen.set(true);
+  }
+
+  closeSaveAs(): void { this.saveAsOpen.set(false); }
+
+  /** Enregistre la structure courante, puis la verse en bibliothèque comme nouveau modèle. */
+  saveAsLibrarySession(): void {
+    const name = this.saveAsName.trim();
+    if (!name) { this.toast.warning('Donne un nom au modèle.'); return; }
+    if (this.saveAsBusy()) return;
+    this.saveAsBusy.set(true);
+    // On vide d'abord le debounce : sinon le modèle figerait la structure d'il y a dix secondes.
+    this.autosave.flush().subscribe((ok) => {
+      if (!ok) { this.saveAsBusy.set(false); this.toast.error('Enregistrement impossible.'); return; }
+      this.strength.saveScheduledAsSession(this.athleteId(), this.scheduledId(), { name }).subscribe({
+        next: (created) => {
+          this.saveAsBusy.set(false);
+          this.saveAsOpen.set(false);
+          this.toast.success(`« ${created.name} » ajoutée à ta bibliothèque`);
+        },
+        error: () => { this.saveAsBusy.set(false); this.toast.error('Enregistrement dans la bibliothèque impossible.'); },
+      });
     });
   }
 

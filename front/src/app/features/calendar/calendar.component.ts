@@ -13,7 +13,9 @@ import { AthleteService } from '../../core/services/athlete.service';
 import { CourseService } from '../../core/services/course.service';
 import { SaveToLibraryService } from '../../core/services/save-to-library.service';
 import { StrengthService } from '../../core/services/strength.service';
-import { ScheduledStrength, StrengthPrescriptionView, StrengthSession } from '../../core/models/strength.model';
+import {
+  ScheduledStrength, StrengthPrescriptionView, StrengthSession, StrengthStructure,
+} from '../../core/models/strength.model';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { PaceReferenceService } from '../../core/services/pace-reference.service';
@@ -75,8 +77,25 @@ interface ClipEntry extends ChipRef {
   readonly athleteId: string;
   /** Date d'origine : c'est elle qui donne les écarts d'un collage multi-jours. */
   readonly date: string;
-  /** Séance de force : son modèle de bibliothèque, seule façon de la recréer ailleurs. */
+  /**
+   * Séance de force : son modèle de bibliothèque, quand elle en a un.
+   *
+   * <p>Ce n'est plus ce qui permet de la recopier — le collage duplique désormais la séance
+   * <b>affichée</b>, snapshot compris. On le garde parce qu'il dit d'où elle vient.</p>
+   */
   readonly sourceSessionId: string | null;
+}
+
+/** Une séance course supprimée, telle qu'il faut la reconstruire pour annuler le geste. */
+interface CourseSnapshot {
+  readonly workout: Workout;
+  readonly structure: SessionStructure | null;
+}
+
+/** Idem pour une séance de renforcement : son identité et sa prescription figée. */
+interface StrengthSnapshot {
+  readonly session: ScheduledStrength;
+  readonly structure: StrengthStructure | null;
 }
 
 /** Une séance créée par un collage, et chez qui — de quoi l'annuler. */
@@ -1349,6 +1368,27 @@ export class CalendarComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Crée une séance de renforcement vierge sur la date, puis ouvre son éditeur de structure.
+   *
+   * <p>Le pendant force de « Séance vierge (ad hoc) ». Poser une séance de prépa physique
+   * imposait jusqu'ici de créer d'abord un modèle de bibliothèque — donc de nommer et de ranger
+   * une séance improvisée qui ne resservira peut-être jamais.</p>
+   */
+  createAdHocStrength(): void {
+    const date = this.pickerDate();
+    if (!date || !this.requireWrite()) return;
+    this.strengthService.createAdHocScheduled(this.selectedAthleteId, { date, fieldsPreset: 'AVANCE' })
+      .subscribe({
+        next: (created) => {
+          this.closePicker();
+          this.router.navigate(
+            ['/app/athletes', this.selectedAthleteId, 'pp', 'scheduled', created.id, 'structure']);
+        },
+        error: () => this.toast.error('Création impossible.'),
+      });
+  }
+
   /** Planifie un modèle de séance course sur la date choisie (snapshot figé + cibles en fourchettes). */
   // --- Planification (partagée entre le glisser-déposer, le picker « + » et le mode groupe) ---
   // Un seul chemin par famille de séance : le picker et le panneau latéral ne doivent pas
@@ -1519,10 +1559,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Séance de force DÉJÀ planifiée glissée d'un jour à l'autre → déplacement.
+    // Séance de force DÉJÀ planifiée glissée d'un jour à l'autre → déplacement, ou duplication
+    // si Alt (⌘) est enfoncé — le même geste que sur une séance de course, qui l'avait déjà.
     // (discriminée par `sourceSessionId`, absent des séances course et des modèles).
     if ('sourceSessionId' in rec && 'scheduledDate' in rec) {
-      this.moveStrength(data as ScheduledStrength, targetDate);
+      const session = data as ScheduledStrength;
+      if (this.isCopyModifier(event.event as MouseEvent)) {
+        this.duplicateStrength(session, targetDate);
+      } else {
+        this.moveStrength(session, targetDate);
+      }
       return;
     }
 
@@ -2055,14 +2101,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
     entries: ClipEntry[], targetAthleteId: string, target: string, base: string | undefined,
     label: string, message: (n: number) => string,
   ): void {
-    // Une séance de force sans modèle de bibliothèque ne se recrée pas : elle était écartée en
-    // silence, et le toast annonçait quand même « 2 séances collées » pour une seule créée.
-    const usable = entries.filter((e) => e.kind === 'course' || !!e.sourceSessionId);
-    if (!usable.length) {
-      this.toast.warning('Cette séance de renforcement n’a plus de modèle : impossible de la recopier.');
-      return;
-    }
-    const sources = this.pasteSources(usable, target, base);
+    const sources = this.pasteSources(entries, target, base);
+    if (!sources.length) return;
 
     const created: Created[] = [];
     const run = () => defer(() => {
@@ -2118,12 +2158,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
         : this.workoutService.copyFrom(targetAthleteId, entry.id, src.date);
       return call.pipe(tap((c) => created.push({ kind: 'course', id: c.id, athleteId: targetAthleteId })));
     }
-    // Une séance de force se recrée depuis son modèle de bibliothèque : c'est déjà indépendant de
-    // l'athlète, il n'y a donc rien de particulier à faire pour la donner à quelqu'un d'autre.
-    if (!entry.sourceSessionId) return of(null);
-    return this.strengthService
-      .scheduleSession(targetAthleteId, entry.sourceSessionId, { date: src.date, fieldsPreset: 'AVANCE' })
-      .pipe(tap((c) => created.push({ kind: 'strength', id: c.id, athleteId: targetAthleteId })));
+    // Une séance de force se recopie depuis la séance affichée, pas depuis son modèle : c'est
+    // elle qu'on voit, c'est elle qu'on croit coller. Repasser par la bibliothèque rendait la
+    // version d'origine — perdant l'adaptation faite pour l'athlète — et ne pouvait rien coller
+    // du tout d'une séance construite directement au calendrier.
+    const call = entry.athleteId === targetAthleteId
+      ? this.strengthService.copyScheduled(targetAthleteId, entry.id, src.date)
+      : this.strengthService.copyScheduledFrom(targetAthleteId, entry.id, src.date);
+    return call.pipe(tap((c) => created.push({ kind: 'strength', id: c.id, athleteId: targetAthleteId })));
   }
 
   private removeCreated(c: Created): Observable<unknown> {
@@ -2160,11 +2202,18 @@ export class CalendarComponent implements OnInit, OnDestroy {
     if (!ok) return;
 
     // Instantanés d'abord : une fois supprimées côté serveur, les séances ne se relisent plus.
-    this.all(workouts.map((w) => this.snapshot(w))).subscribe({
-      next: (snaps) => {
-        const snapshots = (snaps as { workout: Workout; structure: SessionStructure | null }[]) ?? [];
+    // Les séances de force y passent comme les autres — leur annulation repassait par le modèle
+    // de bibliothèque, et laissait donc tomber les adaptations et les séances sans modèle.
+    this.all([
+      ...workouts.map((w) => this.snapshot(w)),
+      ...strength.map((x) => this.snapshotStrength(x)),
+    ]).subscribe({
+      next: (all) => {
+        const taken = (all as unknown[]) ?? [];
+        const snapshots = taken.slice(0, workouts.length) as CourseSnapshot[];
+        const strengthSnaps = taken.slice(workouts.length) as StrengthSnapshot[];
         const courseRefs = workouts.map((w) => ({ id: w.id }));
-        const strengthRefs = strength.map((x) => ({ id: x.id, source: x.sourceSessionId, date: x.scheduledDate }));
+        const strengthRefs = strength.map((x) => ({ id: x.id }));
 
         const removeAll = () => this.all([
           ...courseRefs.map((r) => this.workoutService.delete(this.selectedAthleteId, r.id)),
@@ -2179,9 +2228,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
               label: total > 1 ? 'la suppression du lot' : 'la suppression',
               undo: () => this.all([
                 ...snapshots.map((snap, i) => this.restore(snap).pipe(tap((c) => { courseRefs[i].id = c.id; }))),
-                ...strengthRefs.filter((r) => r.source).map((r) => this.strengthService
-                  .scheduleSession(this.selectedAthleteId, r.source!, { date: r.date, fieldsPreset: 'AVANCE' })
-                  .pipe(tap((c) => { r.id = c.id; }))),
+                ...strengthSnaps.map((snap, i) => this.restoreStrength(snap)
+                  .pipe(tap((c) => { strengthRefs[i].id = c.id; }))),
               ]),
               redo: () => removeAll(),
             }, total > 1 ? `${total} séances supprimées` : `« ${workouts[0]?.title ?? strength[0]?.title }» supprimée`);
@@ -2368,7 +2416,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   // n'a plus de date de péremption : elle vaut tant que l'écran est ouvert.
 
   /** Tout ce qu'il faut pour recréer une séance supprimée, prescription figée comprise. */
-  private snapshot(w: Workout): Observable<{ workout: Workout; structure: SessionStructure | null }> {
+  private snapshot(w: Workout): Observable<CourseSnapshot> {
     return this.workoutService.prescription(this.selectedAthleteId, w.id).pipe(
       // Une prescription illisible ne doit pas empêcher la suppression : on restaurera alors
       // la séance sans sa structure, en le disant.
@@ -2377,7 +2425,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /** Recrée une séance depuis son instantané et renvoie le nouvel identifiant. */
-  private restore(snap: { workout: Workout; structure: SessionStructure | null }): Observable<Workout> {
+  private restore(snap: CourseSnapshot): Observable<Workout> {
     const w = snap.workout;
     return this.workoutService.create(this.selectedAthleteId, {
       scheduledDate: w.scheduledDate,
@@ -2434,6 +2482,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
   readonly strengthRxLoading = signal(false);
   readonly strengthMenu = signal<{ session: ScheduledStrength; x: number; y: number } | null>(null);
   strengthCtxDate = '';
+  /** Date de destination d'une copie : distincte du déplacement, qui vide le jour d'origine. */
+  strengthCopyDate = '';
 
   /** Ouvre le panneau de détail d'une séance de force (prescription figée + charges calculées). */
   openStrength(s: ScheduledStrength): void {
@@ -2452,6 +2502,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     ev.preventDefault();
     if (!this.canWriteSelected()) return;
     this.strengthCtxDate = s.scheduledDate;
+    this.strengthCopyDate = s.scheduledDate;
     const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
     this.strengthMenu.set({ session: s, x, y });
   }
@@ -2465,6 +2516,20 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const m = this.strengthMenu(); if (!m) return;
     this.closeStrengthMenu();
     if (date) this.moveStrength(m.session, date);
+  }
+  /** Met la séance de renforcement au presse-papier : elle se colle ensuite où l'on veut. */
+  ctxStrengthCopy(): void {
+    const m = this.strengthMenu(); if (!m) return;
+    this.closeStrengthMenu();
+    this.putInClipboard([{
+      kind: 'strength', id: m.session.id, athleteId: this.selectedAthleteId,
+      date: m.session.scheduledDate, sourceSessionId: m.session.sourceSessionId ?? null,
+    }], m.session.title);
+  }
+  ctxStrengthCopyTo(date: string): void {
+    const m = this.strengthMenu(); if (!m) return;
+    this.closeStrengthMenu();
+    if (date) this.duplicateStrength(m.session, date);
   }
   ctxStrengthDelete(): void {
     const m = this.strengthMenu(); if (!m) return;
@@ -2491,29 +2556,121 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Supprime une séance de force. Contrairement au course, il n'y a pas de reconstruction
-   * fidèle possible (la prescription figée n'est pas ré-injectable) : on replanifie depuis la
-   * séance de bibliothèque d'origine, ce qui restaure le contenu mais pas un éventuel ajustement
-   * manuel. C'est dit dans le toast plutôt que promis en silence.
+   * Instantané d'une séance de force : son identité et sa prescription figée.
+   *
+   * <p>L'annulation replanifiait depuis le modèle de bibliothèque : elle rendait donc la séance
+   * d'origine, jamais celle qu'on venait de supprimer, et ne rendait rien du tout d'une séance
+   * construite directement au calendrier. On capture ici de quoi la reconstruire telle quelle.</p>
    */
+  private snapshotStrength(s: ScheduledStrength): Observable<StrengthSnapshot> {
+    return this.strengthService.scheduledPrescription(this.selectedAthleteId, s.id).pipe(
+      // Une prescription illisible ne doit pas empêcher la suppression : on restaurera alors
+      // la séance sans son contenu plutôt que de refuser le geste.
+      switchMap((rx) => of({ session: s, structure: rx?.snapshot ?? null })),
+    );
+  }
+
+  /** Repose la séance supprimée sur son jour, contenu compris. */
+  private restoreStrength(snap: StrengthSnapshot): Observable<ScheduledStrength> {
+    const s = snap.session;
+    return this.strengthService.createAdHocScheduled(this.selectedAthleteId, {
+      date: s.scheduledDate, title: s.title, fieldsPreset: 'AVANCE',
+    }).pipe(
+      switchMap((created) => snap.structure
+        ? this.strengthService.updateScheduledStructure(this.selectedAthleteId, created.id, snap.structure)
+          .pipe(switchMap(() => of(created)))
+        : of(created)),
+    );
+  }
+
   private deleteStrengthWithUndo(s: ScheduledStrength): void {
-    this.strength.update((l) => l.filter((x) => x.id !== s.id));
-    const source = s.sourceSessionId;
-    const ref = { id: s.id };
-    this.strengthService.deleteScheduled(this.selectedAthleteId, ref.id).subscribe({
-      next: () => {
-        // Sans séance de bibliothèque d'origine, il n'y a rien à replanifier : mieux vaut ne
-        // pas promettre une annulation qui échouerait.
-        if (!source) { this.toast.info(`« ${s.title} » supprimée`); return; }
-        this.commit({
-          label: 'la suppression',
-          undo: () => this.strengthService
-            .scheduleSession(this.selectedAthleteId, source, { date: s.scheduledDate, fieldsPreset: 'AVANCE' })
-            .pipe(tap((created) => { ref.id = created.id; })),
-          redo: () => this.strengthService.deleteScheduled(this.selectedAthleteId, ref.id),
-        }, `« ${s.title} » supprimée`);
+    this.snapshotStrength(s).subscribe({
+      next: (snap) => {
+        this.strength.update((l) => l.filter((x) => x.id !== s.id));
+        const ref = { id: s.id };
+        this.strengthService.deleteScheduled(this.selectedAthleteId, ref.id).subscribe({
+          next: () => this.commit({
+            label: 'la suppression',
+            undo: () => this.restoreStrength(snap).pipe(tap((created) => { ref.id = created.id; })),
+            redo: () => this.strengthService.deleteScheduled(this.selectedAthleteId, ref.id),
+          }, `« ${s.title} » supprimée`),
+          error: () => { this.toast.error('Suppression impossible.'); this.reloadStrength(); },
+        });
       },
       error: () => { this.toast.error('Suppression impossible.'); this.reloadStrength(); },
+    });
+  }
+
+  /**
+   * Ouvre le contenu de la séance de renforcement pour le <b>modifier</b>.
+   *
+   * <p>Le geste qui manquait. Changer une série sur une séance déjà posée supposait de
+   * déprogrammer, retoucher le modèle de bibliothèque — qui sert d'autres athlètes — puis
+   * replanifier ; en pratique, on créait une séance de plus. L'éditeur écrit maintenant
+   * directement sur la séance de l'athlète, comme « Adapter » le fait côté course.</p>
+   */
+  editStrength(s: ScheduledStrength): void {
+    if (!this.requireWrite()) return;
+    this.strengthPanelOpen.set(false);
+    this.closeStrengthMenu();
+    this.router.navigate(
+      ['/app/athletes', this.selectedAthleteId, 'pp', 'scheduled', s.id, 'structure']);
+  }
+
+  /** Renomme la séance de renforcement planifiée (son modèle de bibliothèque n'y est pour rien). */
+  async renameStrength(s: ScheduledStrength): Promise<void> {
+    if (!this.requireWrite()) return;
+    const title = await this.confirm.prompt({
+      title: 'Renommer la séance',
+      message: `Séance du ${this.fmtDate(s.scheduledDate)}.`,
+      promptLabel: 'Nom de la séance',
+      initialValue: s.title,
+      confirmLabel: 'Renommer',
+    });
+    if (title === null || title === s.title) return;
+    this.strengthService.renameScheduled(this.selectedAthleteId, s.id, title).subscribe({
+      next: (updated) => {
+        this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, title: updated.title } : x)));
+        this.strengthDetail.update((d) => (d && d.id === s.id ? { ...d, title: updated.title } : d));
+        this.toast.success(`Séance renommée « ${updated.title} ».`);
+      },
+      error: () => this.toast.error('Renommage impossible.'),
+    });
+  }
+
+  /**
+   * Duplique la séance de renforcement sur une autre date — contenu actuel compris.
+   *
+   * <p>Passe par le même chemin que le collage : c'est la séance affichée qu'on recopie, pas le
+   * modèle dont elle est issue.</p>
+   */
+  duplicateStrength(s: ScheduledStrength, date: string): void {
+    if (!date || !this.requireWrite()) return;
+    this.pasteRefs(
+      [{ kind: 'strength', id: s.id, athleteId: this.selectedAthleteId, date: s.scheduledDate,
+         sourceSessionId: s.sourceSessionId ?? null }],
+      this.selectedAthleteId, date, undefined, 'la copie',
+      () => `« ${s.title} » copiée le ${this.fmtDate(date)}`);
+  }
+
+  /** Verse la séance de renforcement du calendrier dans la bibliothèque, comme nouveau modèle. */
+  async saveStrengthToLibrary(s: ScheduledStrength): Promise<void> {
+    const name = await this.confirm.prompt({
+      title: 'Enregistrer dans la bibliothèque',
+      message: 'La structure est recopiée comme nouveau modèle ; la séance de l’athlète n’est pas '
+        + 'modifiée. Les commentaires écrits pour lui restent sur sa séance — un modèle resservira '
+        + 'à d’autres.',
+      promptLabel: 'Nom du modèle',
+      initialValue: s.title,
+      confirmLabel: 'Ajouter à la bibliothèque',
+    });
+    if (!name) return;
+    this.strengthService.saveScheduledAsSession(this.selectedAthleteId, s.id, { name }).subscribe({
+      next: (created) => {
+        this.toast.success(`« ${created.name} » ajoutée à ta bibliothèque`);
+        this.strengthService.listAllSessions().subscribe((list) => this.librarySessions.set(list));
+      },
+      error: () => this.toast.error('Enregistrement impossible.'),
     });
   }
 

@@ -1,6 +1,10 @@
 <section class="page-header editor-head">
   <div>
-    <a [routerLink]="['/app/library/strength']" class="back-link">← Séances de force</a>
+    @if (isScheduled()) {
+      <a [routerLink]="['/app/athletes', athleteId(), 'programme']" class="back-link">← Programme</a>
+    } @else {
+      <a [routerLink]="['/app/library/strength']" class="back-link">← Séances de force</a>
+    }
     <h1 class="display-sm">{{ name() || 'Séance de force' }}</h1>
     <!-- Nom éditable : sans lui, une séance dupliquée restait « … (copie) » sans recours. -->
     <div class="form-group session-name">
@@ -8,23 +12,75 @@
       <input id="ss-name" class="form-control" [ngModel]="name()" (ngModelChange)="setName($event)"
              placeholder="Force max — bas du corps" maxlength="255" />
     </div>
+    <!--
+      Ce qu'on est en train de modifier, écrit noir sur blanc : les deux modes se ressemblent à
+      l'écran, et confondre la séance d'un athlète avec le modèle du club fait ressurgir la
+      modification chez tous les autres. Même garde-fou que sur l'éditeur course.
+    -->
+    @if (isScheduled()) {
+      <p class="scope-note scope-note--athlete">
+        <app-icon name="user" [size]="14" />
+        Séance de <strong>{{ athleteName() || 'cet athlète' }}</strong> — blocs, charges et
+        commentaires ne concernent que lui. Le modèle de la bibliothèque n'est pas touché.
+      </p>
+    } @else {
+      <p class="scope-note scope-note--template">
+        <app-icon name="library" [size]="14" />
+        <strong>Modèle de bibliothèque</strong> — ce que vous écrivez ici suivra la séance chez
+        <strong>chaque</strong> athlète à qui vous la prescrirez ensuite.
+      </p>
+    }
     <p class="subtitle">Structure : blocs, formats avancés et prescription des exercices.</p>
   </div>
   <div class="editor-head-actions">
     <app-segmented-control [options]="viewOptions" [(value)]="viewMode" [ariaLabel]="'Mode d\'affichage'" />
-    <div class="form-group preview-picker">
-      <label>Aperçu charges (athlète)</label>
-      <select class="form-control" [ngModel]="previewAthlete()" (ngModelChange)="onAthleteChange($event)">
-        <option value="">Aucun</option>
-        @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
-      </select>
-    </div>
+    @if (!isScheduled()) {
+      <div class="form-group preview-picker">
+        <label>Aperçu charges (athlète)</label>
+        <select class="form-control" [ngModel]="previewAthlete()" (ngModelChange)="onAthleteChange($event)">
+          <option value="">Aucun</option>
+          @for (a of athleteList(); track a.id) { <option [value]="a.id">{{ a.firstName }} {{ a.lastName }}</option> }
+        </select>
+      </div>
+    }
     <app-autosave-badge [autosave]="autosave" />
+    @if (isScheduled()) {
+      <button type="button" class="btn btn-ghost" (click)="openSaveAs()"
+              title="Verser cette séance dans la bibliothèque">
+        <app-icon name="library" [size]="16" /> Enregistrer comme modèle
+      </button>
+    }
     <button type="button" class="btn btn-primary" [disabled]="saving()" (click)="save()">
       {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
     </button>
   </div>
 </section>
+
+<!-- Verser la séance construite au calendrier dans la bibliothèque : sans ce geste, une séance
+     improvisée puis affinée n'avait pas d'issue — la garder supposait de la refaire de zéro. -->
+@if (saveAsOpen()) {
+  <div class="picker-overlay" (click)="closeSaveAs()">
+    <div class="card save-as" (click)="$event.stopPropagation()">
+      <h3>Enregistrer dans la bibliothèque</h3>
+      <p class="field-hint">
+        La structure est recopiée comme nouveau modèle ; la séance de l'athlète n'est pas modifiée.
+        Les commentaires écrits pour lui restent sur sa séance — un modèle resservira à d'autres.
+      </p>
+      <label class="form-group">
+        <span>Nom du modèle</span>
+        <input class="form-control" [(ngModel)]="saveAsName" maxlength="255"
+               placeholder="Full body — force max" />
+      </label>
+      <div class="save-as__actions">
+        <button type="button" class="btn btn-ghost btn-sm" (click)="closeSaveAs()">Annuler</button>
+        <button type="button" class="btn btn-primary btn-sm" [disabled]="saveAsBusy()"
+                (click)="saveAsLibrarySession()">
+          {{ saveAsBusy() ? 'Enregistrement…' : 'Ajouter à la bibliothèque' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
 
 @if (loading()) {
   <div class="card"><app-skeleton shape="card" [rows]="2" /></div>

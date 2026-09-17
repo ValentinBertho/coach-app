@@ -266,6 +266,18 @@ export const routes: Routes = [
           import('./features/workouts/workout-detail.component').then((m) => m.WorkoutDetailComponent),
       },
       {
+        // Modifier le contenu d'une séance de renforcement DÉJÀ posée au calendrier — le pendant
+        // force de l'adaptation d'une séance course. Sans lui, ajuster une série supposait de
+        // retoucher le modèle de bibliothèque (qui sert d'autres athlètes) ou, en pratique, de
+        // créer une séance de plus.
+        path: 'athletes/:athleteId/pp/scheduled/:scheduledId/structure',
+        canDeactivate: [unsavedChangesGuard],
+        loadComponent: () =>
+          import('./features/strength/strength-session-editor.component').then(
+            (m) => m.StrengthSessionEditorComponent
+          ),
+      },
+      {
         path: 'athletes/:athleteId/activities/:activityId/map',
         loadComponent: () =>
           import('./features/activities/activity-map.component').then((m) => m.ActivityMapComponent),

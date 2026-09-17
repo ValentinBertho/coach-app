@@ -325,12 +325,24 @@ export class StrengthComponent implements OnInit {
     });
   }
 
+  /**
+   * Crée la séance <b>et ouvre son éditeur</b> — comme la bibliothèque course le fait depuis
+   * toujours.
+   *
+   * <p>Elle revenait auparavant dans la liste, vide : le coach venait de la nommer pour la
+   * construire, et devait la retrouver parmi les autres pour cliquer « Structure ». Une séance
+   * de prépa physique se crée pour être remplie ; l'écran suit maintenant l'intention.</p>
+   */
   createSession(): void {
-    if (!this.newSessionName.trim()) return;
-    this.strength.createSession({ name: this.newSessionName }).subscribe(() => {
-      this.toast.success('Séance créée');
-      this.newSessionName = '';
-      this.loadSessions();
+    const name = this.newSessionName.trim();
+    if (!name) return;
+    this.strength.createSession({ name }).subscribe({
+      next: (created) => {
+        this.newSessionName = '';
+        this.toast.success('Séance créée — construis la structure');
+        this.router.navigate(['/app/strength/sessions', created.id, 'structure']);
+      },
+      error: () => this.toast.error('Création impossible.'),
     });
   }
 
@@ -341,8 +353,17 @@ export class StrengthComponent implements OnInit {
    * Renomme une séance sans passer par l'éditeur : après une duplication, « … (copie) » n'était
    * modifiable nulle part.
    */
-  renameSession(s: StrengthSession): void {
-    const name = window.prompt('Renommer la séance', s.name)?.trim();
+  async renameSession(s: StrengthSession): Promise<void> {
+    // Modale du produit, jamais `prompt()` natif : il bloque le fil, ignore le thème, et en PWA
+    // installée certains navigateurs ne l'affichent pas du tout — renommer semblait sans effet.
+    const answer = await this.confirm.prompt({
+      title: 'Renommer la séance',
+      message: 'Le nom range la séance dans ta bibliothèque.',
+      promptLabel: 'Nom de la séance',
+      initialValue: s.name,
+      confirmLabel: 'Renommer',
+    });
+    const name = answer?.trim();
     if (!name || name === s.name) return;
     this.strength.updateSession(s.id, { name, notes: s.notes, favorite: s.favorite }).subscribe({
       next: (updated) => {

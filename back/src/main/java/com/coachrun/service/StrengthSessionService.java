@@ -91,6 +91,26 @@ public class StrengthSessionService {
         return StrengthSessionResponse.of(saved, readStructure(saved.getStructureJson()));
     }
 
+    /**
+     * Crée un modèle de bibliothèque à partir d'une structure déjà écrite ailleurs — typiquement
+     * une séance construite directement au calendrier d'un athlète, que le coach veut garder.
+     *
+     * <p>Distinct de {@link #create} : celui-là ouvre une séance vide à remplir, celui-ci verse
+     * une séance qui existe déjà. Les faire passer par le même chemin aurait obligé l'appelant à
+     * créer puis réécrire, avec un modèle vide visible entre les deux.</p>
+     */
+    @Transactional
+    public StrengthSessionResponse createFromStructure(UUID clubId, String name, String notes,
+                                                       StrengthStructure structure) {
+        StrengthStructure safe = structure == null ? StrengthStructure.empty() : structure;
+        StrengthSession s = new StrengthSession();
+        s.setClub(clubRepository.getReferenceById(clubId));
+        s.setName(name.trim());
+        s.setNotes(notes);
+        s.setStructureJson(writeStructure(safe));
+        return StrengthSessionResponse.of(sessionRepository.save(s), safe);
+    }
+
     @Transactional
     public void archive(UUID clubId, UUID id) {
         require(clubId, id).setArchived(true);
