@@ -413,6 +413,19 @@ public class NotificationService {
                 sessionTitle + " — " + fr(date));
     }
 
+    /**
+     * Le <b>contenu</b> d'une séance de renforcement a changé — pas son jour.
+     *
+     * <p>Sans ce libellé, réécrire une séance annonçait « Séance de renforcement déplacée » à un
+     * athlète dont la séance n'avait pas bougé d'un jour : il ouvrait son calendrier pour y
+     * chercher un déplacement qui n'existait pas, et n'avait aucune raison de relire la séance,
+     * qui, elle, avait changé.</p>
+     */
+    public void notifyStrengthUpdated(Athlete athlete, String sessionTitle, LocalDate date) {
+        notifyCalendarChange(athleteUser(athlete), "Séance de renforcement modifiée",
+                sessionTitle + " — " + fr(date));
+    }
+
     private void notifyWorkoutChange(Workout workout, String title) {
         notifyCalendarChange(athleteUser(workout.getAthlete()), title,
                 workout.getTitle() + " — " + fr(workout.getScheduledDate()));

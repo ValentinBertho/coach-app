@@ -719,10 +719,29 @@
   <div class="ctx-menu" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
     <span class="ctx-title">{{ m.session.title }}</span>
     <button type="button" class="ctx-item" (click)="ctxStrengthOpen()"><app-icon name="dumbbell" [size]="14" /> Voir le détail</button>
+    <!-- Modifier le contenu sans créer de séance : le geste qui manquait à la prépa physique. -->
+    @if (!m.session.completed) {
+      <button type="button" class="ctx-item" (click)="editStrength(m.session)">
+        <app-icon name="pencil" [size]="14" /> Modifier le contenu
+      </button>
+    }
+    <button type="button" class="ctx-item" (click)="closeStrengthMenu(); renameStrength(m.session)">
+      <app-icon name="type" [size]="14" /> Renommer
+    </button>
     <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item" (click)="closeStrengthMenu(); ctxStrengthCopy()">
+      <app-icon name="copy" [size]="14" /> Copier <kbd class="ctx-kbd">{{ keys('mod', 'C') }}</kbd>
+    </button>
     <label class="ctx-field">Déplacer vers
       <input type="date" class="form-control" [ngModel]="strengthCtxDate" (ngModelChange)="ctxStrengthMoveTo($event)" />
     </label>
+    <label class="ctx-field">Copier vers
+      <input type="date" class="form-control" [ngModel]="strengthCopyDate" (ngModelChange)="ctxStrengthCopyTo($event)" />
+    </label>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item" (click)="closeStrengthMenu(); saveStrengthToLibrary(m.session)">
+      <app-icon name="library" [size]="14" /> Enregistrer comme modèle
+    </button>
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item danger" (click)="ctxStrengthDelete()"><app-icon name="ban" [size]="14" /> Supprimer</button>
   </div>
@@ -789,7 +808,23 @@
       }
 
       @if (canWriteSelected()) {
-        <div class="sd__actions">
+        <!-- Modifier le contenu de CETTE séance, sans toucher au modèle ni en créer une autre.
+             Une séance déjà faite garde la sienne : la réécrire fausserait le prévu / réalisé. -->
+        <div class="sd__actions sd__actions--split">
+          @if (!s.completed) {
+            <button type="button" class="btn btn-primary btn-sm" (click)="editStrength(s)">
+              <app-icon name="pencil" [size]="15" /> Modifier le contenu
+            </button>
+          }
+          <button type="button" class="btn btn-ghost btn-sm" (click)="renameStrength(s)">
+            <app-icon name="type" [size]="15" /> Renommer
+          </button>
+        </div>
+        <div class="sd__actions sd__actions--split">
+          <button type="button" class="btn btn-ghost btn-sm" (click)="saveStrengthToLibrary(s)"
+                  title="Verser cette séance dans la bibliothèque">
+            <app-icon name="library" [size]="15" /> Enregistrer comme modèle
+          </button>
           <button type="button" class="btn btn-ghost btn-sm" (click)="deleteStrength(s)">
             <app-icon name="ban" [size]="15" /> Supprimer du calendrier
           </button>
@@ -847,8 +882,14 @@
         <button type="button" class="btn btn-ghost btn-sm" (click)="closePicker()">Fermer</button>
       </header>
       <button type="button" class="picker__item picker__adhoc" (click)="createAdHoc()">
-        <span class="picker__name"><app-icon name="plus" [size]="15" /> Séance vierge (ad hoc)</span>
+        <span class="picker__name"><app-icon name="plus" [size]="15" /> Séance de course vierge</span>
         <span class="picker__type">construire la structure</span>
+      </button>
+      <!-- Le même chemin court pour la prépa physique : construire un modèle de bibliothèque pour
+           une séance improvisée était le détour le plus coûteux du module force. -->
+      <button type="button" class="picker__item picker__adhoc" (click)="createAdHocStrength()">
+        <span class="picker__name"><app-icon name="dumbbell" [size]="15" /> Séance de renforcement vierge</span>
+        <span class="picker__type">blocs et exercices à composer</span>
       </button>
       @if (noteOpen()) {
         <div class="picker__note">

@@ -214,7 +214,9 @@ public class StrengthScheduleService {
 
         ss.setSessionSnapshot(writeJson(shifted));
         ss.setCalculatedCharges(writeJson(calc));
-        notificationService.notifyStrengthChanged(ss.getAthlete(), ss.getTitle(), ss.getScheduledDate(), false);
+        // Une charge qui bouge est un changement de contenu, pas un déplacement de calendrier :
+        // l'athlète recevait « Séance de renforcement déplacée » pour une séance restée sur son jour.
+        notificationService.notifyStrengthUpdated(ss.getAthlete(), ss.getTitle(), ss.getScheduledDate());
         return ScheduledStrengthResponse.from(ss, summarize(calc));
     }
 
@@ -244,6 +246,203 @@ public class StrengthScheduleService {
     /** Une charge ne descend pas sous zéro — une régression trop forte devient « à vide ». */
     private Double floorAt(Double kg) {
         return kg == null ? null : Math.max(0d, Math.round(kg * 10d) / 10d);
+    }
+
+    /**
+     * Réécrit le contenu d'une séance de renforcement <b>déjà posée</b> au calendrier, sans
+     * repasser par la bibliothèque.
+     *
+     * <h2>Pourquoi</h2>
+     *
+     * <p>Une séance de force planifiée était figée : le snapshot ne s'écrivait qu'à
+     * l'assignation. Changer une série, retirer un exercice ou corriger une charge supposait donc
+     * de déprogrammer la séance, retoucher le modèle de bibliothèque — qui sert d'autres athlètes
+     * — puis replanifier ; ou, plus souvent, de créer <b>une séance de plus</b> pour la même
+     * journée. Le coach accumulait « Full body 3 », « Full body 3 bis », « Full body 3 (Marc) ».
+     * C'est l'exact pendant de « Adapter » côté course, qui existait depuis toujours.</p>
+     *
+     * <p>L'édition porte sur la séance de l'athlète, jamais sur le modèle : adapter pour
+     * quelqu'un ne doit rien changer chez les autres. Les charges sont recalculées avec
+     * <b>son</b> profil 1RM — une prescription en %RM ne veut rien dire hors de la personne qui
+     * la soulève.</p>
+     */
+    @Transactional
+    public StrengthPrescriptionResponse updateStructure(UUID clubId, UUID athleteId, UUID scheduledId,
+                                                        StrengthStructure structure) {
+        ScheduledStrengthSession ss = require(clubId, athleteId, scheduledId);
+        // Même garde que sur le décalage de charge : réécrire une séance déjà faite fausserait la
+        // comparaison prévu / réalisé, l'athlète ayant soulevé ce qui était prescrit ce jour-là.
+        if (ss.isCompleted()) {
+            throw new com.coachrun.exception.ConflictException(
+                    "Cette séance est déjà faite : son contenu ne se modifie plus.");
+        }
+        StrengthStructure safe = structure == null ? StrengthStructure.empty() : structure;
+        CalculatedStrengthResponse calc = strengthSessionService.previewForAthlete(clubId, athleteId, safe);
+
+        boolean wasEmpty = isEmpty(readJson(ss.getSessionSnapshot(), StrengthStructure.class));
+        String before = ss.getSessionSnapshot();
+        ss.setSessionSnapshot(writeJson(safe));
+        ss.setCalculatedCharges(writeJson(calc));
+        notifyContentChanged(ss, before, wasEmpty);
+        return toPrescription(ss);
+    }
+
+    /**
+     * Prévient l'athlète que le contenu de sa séance a changé.
+     *
+     * <p>Trois gardes, les mêmes que côté course : la séance doit être encore à faire, ne pas
+     * être passée, et la structure doit avoir <b>réellement</b> changé — ouvrir l'éditeur puis
+     * enregistrer sans rien toucher ne notifie personne, sans quoi le canal se dévalue seul.</p>
+     *
+     * <p>Une séance jusque-là vide qui reçoit son contenu est une séance <b>nouvelle</b> pour
+     * l'athlète : c'est le cas de la séance posée à blanc sur le calendrier puis construite. On
+     * l'annonce comme telle plutôt que comme la modification d'une séance qu'il n'a jamais vue.</p>
+     */
+    private void notifyContentChanged(ScheduledStrengthSession ss, String previousSnapshot, boolean wasEmpty) {
+        if (ss.isCompleted() || ss.getScheduledDate().isBefore(clock.today())
+                || java.util.Objects.equals(previousSnapshot, ss.getSessionSnapshot())) {
+            return;
+        }
+        if (wasEmpty) {
+            notificationService.notifyStrengthPlanned(ss.getAthlete(), ss.getTitle(), ss.getScheduledDate());
+        } else {
+            notificationService.notifyStrengthUpdated(ss.getAthlete(), ss.getTitle(), ss.getScheduledDate());
+        }
+    }
+
+    private boolean isEmpty(StrengthStructure structure) {
+        return structure == null || structure.blocks().isEmpty()
+                || structure.blocks().stream().allMatch(b -> b.exercises().isEmpty());
+    }
+
+    /**
+     * Renomme une séance de force planifiée.
+     *
+     * <p>Volontairement distinct de l'édition de structure : « Full body » devient « Full body —
+     * bas du corps » sans que la prescription figée soit relue ni réécrite.</p>
+     */
+    @Transactional
+    public ScheduledStrengthResponse rename(UUID clubId, UUID athleteId, UUID scheduledId, String title) {
+        ScheduledStrengthSession ss = require(clubId, athleteId, scheduledId);
+        ss.setTitle(title.trim());
+        return ScheduledStrengthResponse.from(ss);
+    }
+
+    /**
+     * Recopie une séance de force planifiée sur une autre date, chez le <b>même</b> athlète.
+     *
+     * <p>C'est le snapshot qui est recopié, pas le modèle de bibliothèque. La nuance fait tout :
+     * le copier-coller du calendrier repassait par {@code sourceSessionId}, si bien qu'une séance
+     * adaptée pour l'athlète — ou construite directement sur son calendrier — revenait dans sa
+     * version d'origine, ou ne se copiait pas du tout faute de modèle. On duplique ici ce qui est
+     * affiché, charges comprises : elles ont été calculées pour lui.</p>
+     */
+    @Transactional
+    public ScheduledStrengthResponse copyToDate(UUID clubId, UUID athleteId, UUID scheduledId, LocalDate date) {
+        ScheduledStrengthSession source = require(clubId, athleteId, scheduledId);
+        return ScheduledStrengthResponse.from(saveCopy(source, source.getAthlete(), date,
+                source.getSessionSnapshot(), source.getCalculatedCharges()));
+    }
+
+    /**
+     * Recopie chez un <b>autre</b> athlète une séance de force planifiée (copier-coller de la vue
+     * groupe).
+     *
+     * <p>La structure du coach est reprise telle quelle, mais les charges sont <b>recalculées</b>
+     * avec le profil 1RM de celui qui les recevra : donner à Julie les kilos de Marc serait faux,
+     * et faux silencieusement.</p>
+     */
+    @Transactional
+    public ScheduledStrengthResponse copyToAthlete(UUID clubId, UUID targetAthleteId, UUID sourceScheduledId,
+                                                   LocalDate date) {
+        ScheduledStrengthSession source = scheduledRepository.findByIdAndClubId(sourceScheduledId, clubId)
+                .orElseThrow(() -> new NotFoundException("Séance de force à copier introuvable."));
+        if (source.getAthlete().getId().equals(targetAthleteId)) {
+            return copyToDate(clubId, targetAthleteId, sourceScheduledId, date);
+        }
+        Athlete target = athleteRepository.findByIdAndClubMembership(targetAthleteId, clubId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        StrengthStructure snapshot = readJson(source.getSessionSnapshot(), StrengthStructure.class);
+        StrengthStructure safe = snapshot == null ? StrengthStructure.empty() : snapshot;
+        CalculatedStrengthResponse calc =
+                strengthSessionService.previewForAthlete(clubId, targetAthleteId, safe);
+        return ScheduledStrengthResponse.from(
+                saveCopy(source, target, date, writeJson(safe), writeJson(calc)), summarize(calc));
+    }
+
+    /** Écrit la copie et prévient l'athlète qui la reçoit : pour lui, c'est une séance de plus. */
+    private ScheduledStrengthSession saveCopy(ScheduledStrengthSession source, Athlete target,
+                                              LocalDate date, String snapshot, String charges) {
+        ScheduledStrengthSession copy = new ScheduledStrengthSession();
+        copy.setClub(target.getClub());
+        copy.setAthlete(target);
+        // La provenance suit la copie quand elle existe, mais ne la conditionne plus.
+        copy.setSourceSessionId(source.getSourceSessionId());
+        copy.setTitle(source.getTitle());
+        copy.setSessionSnapshot(snapshot);
+        copy.setCalculatedCharges(charges);
+        copy.setRequiredFields(source.getRequiredFields());
+        copy.setScheduledDate(date);
+        ScheduledStrengthSession saved = scheduledRepository.save(copy);
+        if (!date.isBefore(clock.today())) {
+            notificationService.notifyStrengthPlanned(target, saved.getTitle(), date);
+        }
+        return saved;
+    }
+
+    /**
+     * Pose une séance de renforcement <b>vierge</b> sur un jour, sans modèle de bibliothèque.
+     *
+     * <p>Le chemin court de la prépa physique, celui que la course avait déjà : on pose la séance
+     * là où elle doit avoir lieu, puis on la remplit. Rien n'est annoncé à l'athlète ici — une
+     * séance encore vide n'est pas une nouvelle ; c'est le premier enregistrement de son contenu
+     * qui l'annonce (cf. {@link #notifyContentChanged}).</p>
+     */
+    @Transactional
+    public ScheduledStrengthResponse createAdHoc(UUID clubId, UUID athleteId, LocalDate date,
+                                                 String title, FieldsPreset preset) {
+        Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        ScheduledStrengthSession ss = new ScheduledStrengthSession();
+        ss.setClub(athlete.getClub());
+        ss.setAthlete(athlete);
+        ss.setTitle(StringUtils.hasText(title) ? title.trim() : "Séance de renforcement");
+        ss.setSessionSnapshot(writeJson(StrengthStructure.empty()));
+        ss.setCalculatedCharges(writeJson(new CalculatedStrengthResponse(List.of())));
+        ss.setRequiredFields((preset != null ? preset : FieldsPreset.DEBUTANT).json());
+        ss.setScheduledDate(date);
+        return ScheduledStrengthResponse.from(scheduledRepository.save(ss));
+    }
+
+    /**
+     * Verse dans la bibliothèque une séance de renforcement construite au calendrier.
+     *
+     * <p>Sans ce geste, une séance improvisée pour un athlète puis affinée n'avait pas d'issue :
+     * la garder supposait de la reconstruire bloc par bloc. On recopie sa structure dans un
+     * nouveau modèle du club — sans les commentaires d'exercice, qui ont été écrits <b>pour cette
+     * personne</b> et n'ont rien à faire dans une consigne de club (même parti pris que côté
+     * course).</p>
+     */
+    @Transactional
+    public StrengthSessionResponse saveAsLibrarySession(UUID clubId, UUID athleteId, UUID scheduledId,
+                                                        String name, String notes) {
+        ScheduledStrengthSession ss = require(clubId, athleteId, scheduledId);
+        StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class);
+        return strengthSessionService.createFromStructure(clubId, name, notes, withoutCoachNotes(snapshot));
+    }
+
+    /** La même séance, débarrassée des mots adressés à un athlète en particulier. */
+    private StrengthStructure withoutCoachNotes(StrengthStructure structure) {
+        if (structure == null) {
+            return StrengthStructure.empty();
+        }
+        return new StrengthStructure(structure.blocks().stream()
+                .map(b -> b.withExercises(b.exercises().stream()
+                        .map(ex -> new com.coachrun.dto.strength.StrengthExerciseItem(
+                                ex.exerciseId(), ex.exerciseName(), ex.setType(), ex.prescription(),
+                                ex.setConfig(), null))
+                        .toList()))
+                .toList());
     }
 
     /** Déprogramme une séance de force du calendrier de l'athlète. */
@@ -418,7 +617,7 @@ public class StrengthScheduleService {
         StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class);
         CalculatedStrengthResponse calc = readJson(ss.getCalculatedCharges(), CalculatedStrengthResponse.class);
         JsonNode required = readTree(ss.getRequiredFields());
-        return new StrengthPrescriptionResponse(
+        return new StrengthPrescriptionResponse(ss.getTitle(),
                 snapshot == null ? StrengthStructure.empty() : snapshot, calc, required);
     }
 

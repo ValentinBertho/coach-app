@@ -194,6 +194,8 @@ export interface CalculatedStrength {
  * Servie à l'identique côté coach (calendrier) et côté athlète (portail).
  */
 export interface StrengthPrescriptionView {
+  /** Titre de la séance planifiée : l'éditeur l'affiche et le renomme sans relire le calendrier. */
+  title?: string;
   snapshot: StrengthStructure;
   calculated: CalculatedStrength | null;
   requiredFields: Record<string, boolean> | null;

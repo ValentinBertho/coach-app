@@ -170,6 +170,60 @@ export class StrengthService {
       `${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}/prescription`);
   }
 
+  /**
+   * Pose une séance de renforcement <b>vierge</b> sur un jour, sans passer par la bibliothèque.
+   *
+   * <p>Le chemin court que la course avait déjà : construire un modèle pour une séance improvisée
+   * — qui ne resservira peut-être jamais — était le détour le plus coûteux de la prépa physique.</p>
+   */
+  createAdHocScheduled(athleteId: string, body: { date: string; title?: string; fieldsPreset?: string }): Observable<ScheduledStrength> {
+    return this.http.post<ScheduledStrength>(`${this.club()}/athletes/${athleteId}/pp/scheduled`, body);
+  }
+
+  /**
+   * Réécrit le contenu d'une séance de renforcement déjà planifiée, pour cet athlète seul.
+   *
+   * <p>Le modèle de bibliothèque n'est pas touché : adapter la séance de quelqu'un ne doit rien
+   * changer chez les autres. Les charges sont recalculées avec son profil 1RM.</p>
+   */
+  updateScheduledStructure(athleteId: string, scheduledId: string, structure: StrengthStructure): Observable<StrengthPrescriptionView> {
+    return this.http.put<StrengthPrescriptionView>(
+      `${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}/structure`, { structure });
+  }
+
+  /** Renomme une séance de force planifiée, sans toucher à sa prescription figée. */
+  renameScheduled(athleteId: string, scheduledId: string, title: string): Observable<ScheduledStrength> {
+    return this.http.patch<ScheduledStrength>(
+      `${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}/title`, { title });
+  }
+
+  /**
+   * Duplique une séance de force planifiée vers une date, chez le même athlète.
+   *
+   * <p>C'est le snapshot affiché qui est recopié : le collage repassait par le modèle de
+   * bibliothèque et rendait donc sa version d'origine — ou échouait faute de modèle.</p>
+   */
+  copyScheduled(athleteId: string, scheduledId: string, scheduledDate: string): Observable<ScheduledStrength> {
+    return this.http.post<ScheduledStrength>(
+      `${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}/copy`, { scheduledDate });
+  }
+
+  /**
+   * Copie ici la séance de renforcement d'un <b>autre</b> athlète (copier-coller de la vue groupe).
+   *
+   * `athleteId` est la cible : les charges sont recalculées pour lui côté serveur.
+   */
+  copyScheduledFrom(athleteId: string, sourceScheduledId: string, scheduledDate: string): Observable<ScheduledStrength> {
+    return this.http.post<ScheduledStrength>(
+      `${this.club()}/athletes/${athleteId}/pp/scheduled/copy-from`, { sourceScheduledId, scheduledDate });
+  }
+
+  /** Verse dans la bibliothèque une séance de renforcement construite au calendrier. */
+  saveScheduledAsSession(athleteId: string, scheduledId: string, body: { name: string; notes?: string | null }): Observable<StrengthSession> {
+    return this.http.post<StrengthSession>(
+      `${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}/save-as-session`, body);
+  }
+
   /** Déplace une séance de force planifiée vers une autre date (glisser-déposer coach). */
   rescheduleScheduled(athleteId: string, scheduledId: string, scheduledDate: string): Observable<ScheduledStrength> {
     return this.http.patch<ScheduledStrength>(
