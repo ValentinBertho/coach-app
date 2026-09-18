@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { CategoryDomain, SessionCategory, SessionCategoryRequest } from '../models/session-category.model';
 import { AuthService } from './auth.service';
@@ -24,6 +24,20 @@ export class SessionCategoryService {
 
   list(domain?: CategoryDomain): Observable<SessionCategory[]> {
     return this.http.get<SessionCategory[]>(this.base(), this.domainParams(domain));
+  }
+
+  /**
+   * Les catégories des <b>trois</b> domaines, en une seule liste.
+   *
+   * <p>L'endpoint retombe sur COURSE quand aucun domaine n'est demandé — un défaut rétrocompatible
+   * qui rend service partout où l'on édite la bibliothèque course. Mais un écran qui montre les
+   * trois familles à la fois, comme le panneau bibliothèque du calendrier, ne recevait alors que
+   * le tiers des catégories : la prépa physique et les éducatifs s'y affichaient forcément
+   * « sans catégorie », quel que soit le rangement fait par le coach.</p>
+   */
+  listAll(): Observable<SessionCategory[]> {
+    return forkJoin([this.list('COURSE'), this.list('STRENGTH'), this.list('DRILL')])
+      .pipe(map((lists) => lists.flat()));
   }
   create(body: SessionCategoryRequest, domain?: CategoryDomain): Observable<SessionCategory> {
     return this.http.post<SessionCategory>(this.base(), body, this.domainParams(domain));

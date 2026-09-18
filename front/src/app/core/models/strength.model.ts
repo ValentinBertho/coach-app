@@ -147,6 +147,13 @@ export interface StrengthSession {
   favorite: boolean;
   archived: boolean;
   useCount: number;
+  /**
+   * Catégorie de rangement (arbre unifié du club, domaine STRENGTH), ou `null`.
+   *
+   * <p>Course et éducatifs en portaient une ; la prépa physique non — sa bibliothèque s'affichait
+   * donc en une seule liste à plat, qu'aucun filtre ne pouvait trier.</p>
+   */
+  categoryId: string | null;
   structure: StrengthStructure;
 }
 

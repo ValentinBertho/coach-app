@@ -86,7 +86,7 @@ export class StrengthService {
     );
   }
 
-  createSession(body: { name: string; notes?: string }): Observable<StrengthSession> {
+  createSession(body: { name: string; notes?: string; categoryId?: string | null }): Observable<StrengthSession> {
     return this.http.post<StrengthSession>(`${this.club()}/pp/sessions`, body);
   }
 
@@ -94,7 +94,7 @@ export class StrengthService {
    * Renomme une séance de force (et ses notes / épinglage). Sans ce chemin, une séance dupliquée
    * restait « … (copie) » pour toujours : aucun écran n'exposait la mise à jour des métadonnées.
    */
-  updateSession(id: string, body: { name: string; notes?: string | null; favorite?: boolean }): Observable<StrengthSession> {
+  updateSession(id: string, body: { name: string; notes?: string | null; favorite?: boolean; categoryId?: string | null }): Observable<StrengthSession> {
     return this.http.put<StrengthSession>(`${this.club()}/pp/sessions/${id}`, body);
   }
 
@@ -219,7 +219,7 @@ export class StrengthService {
   }
 
   /** Verse dans la bibliothèque une séance de renforcement construite au calendrier. */
-  saveScheduledAsSession(athleteId: string, scheduledId: string, body: { name: string; notes?: string | null }): Observable<StrengthSession> {
+  saveScheduledAsSession(athleteId: string, scheduledId: string, body: { name: string; notes?: string | null; categoryId?: string | null }): Observable<StrengthSession> {
     return this.http.post<StrengthSession>(
       `${this.club()}/athletes/${athleteId}/pp/scheduled/${scheduledId}/save-as-session`, body);
   }

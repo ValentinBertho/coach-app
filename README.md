@@ -58,8 +58,13 @@ assistant), et athlète (PWA mobile).
 - **Calendrier** multi-types (course / force / test / objectif / indispo) avec drag & drop et
   snapshot figé de la prescription. Une séance construite directement dans le calendrier
   s'**enregistre comme nouveau modèle** de bibliothèque en un geste.
-  **Bibliothèque latérale repliable** (semaine pleine largeur) ;
-  les actions d'écriture (planifier, dupliquer la semaine, mésocycle) sont **désactivées sur un
+  **Bibliothèque latérale repliable** (semaine pleine largeur), qui se **trie avant de se lire** :
+  puces de **famille** (course · prépa physique · éducatifs) puis **menu de catégories** — chacun
+  portant son compte, et ne proposant que ce qui rapporterait quelque chose. Une catégorie parente
+  inclut ses sous-catégories, la recherche ignore les accents, et un filtre ou une recherche
+  **ouvre les accordéons repliés** (un résultat caché derrière un repli était le pire des deux
+  mondes). « Tout replier » ramène une grosse bibliothèque à un écran.
+  Les actions d'écriture (planifier, dupliquer la semaine, mésocycle) sont **désactivées sur un
   athlète en lecture seule** (cohérent avec la permission `write`).
   La **vue groupe** (une ligne par athlète × 7 jours) porte le **même copier-coller** que la vue
   athlète — clic droit, Ctrl/Cmd+C · V sur la case survolée, Alt + glisser — et le geste que seule
@@ -91,7 +96,12 @@ assistant), et athlète (PWA mobile).
   en lecture seule).
 
 ### Module préparation physique (force)
-- **Bibliothèque d'exercices** (catégories, groupes musculaires, matériel, vidéo, progression/régression).
+- **Bibliothèque d'exercices** (catégories, groupes musculaires, matériel, vidéo, progression/régression)
+  et **bibliothèque de séances rangée en catégories** — course et éducatifs en portaient une, la
+  prépa physique non : ses séances s'empilaient en une liste à plat que ni le panneau du calendrier
+  ni l'écran de bibliothèque ne pouvaient trier. La catégorie se donne à la création, se change
+  d'un menu sur la fiche, suit la duplication, et se propose au moment de verser une séance du
+  calendrier en bibliothèque.
 - **Éditeur de structure de séance** : blocs typés + **formats avancés** (Classique, EMOM, AMRAP,
   For Time, Circuit, Isométrie, Pliométrie — durée saisie **en minutes**) et **types de série**
   (drop-set, super-set, myo-reps, cluster, iso) avec prescription complète (charge **et** effort
@@ -186,7 +196,7 @@ unitairement et **source de vérité** (recalcul à la sauvegarde, équivalent d
 |---|---|
 | **Frontend** | Angular 17 (standalone components, signals, control-flow `@if`/`@for`, OnPush), PWA, TypeScript 5.4, Leaflet (cartes) |
 | **Backend** | Spring Boot 3.2.5, Java 21, API REST (~295 endpoints), Springdoc/OpenAPI |
-| **Base de données** | PostgreSQL 18 · **Liquibase** (85 changelogs versionnés, 96 changesets) |
+| **Base de données** | PostgreSQL 18 · **Liquibase** (103 changelogs versionnés, 120 changesets) |
 | **Auth** | JWT (access tokens) + liens magiques d'invitation athlète · `@PreAuthorize` multi-tenant |
 | **Sécurité** | AES-256-GCM (données santé + jetons OAuth chiffrés au repos), CSP, CORS allowlist, rate-limiting |
 | **Intégrations** | Strava (OAuth), import FIT/GPX/TCX (décodeurs maison), e-mail Resend, Web Push (VAPID), export PDF (OpenPDF) |
