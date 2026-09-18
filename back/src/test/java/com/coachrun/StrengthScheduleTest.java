@@ -138,4 +138,67 @@ class StrengthScheduleTest {
         assertThat(mine).isNotNull();
         assertThat(mine.get("scheduledDate").asText()).isEqualTo("2026-06-27");
     }
+
+    /**
+     * L'athlète reçoit le <b>comment on fait</b> des exercices de sa séance : démonstration,
+     * consignes, contre-indications.
+     *
+     * <p><b>Le manque.</b> Le catalogue livré à chaque club porte, pour chaque exercice, ses
+     * consignes et ses contre-indications, et le coach peut y ajouter un lien de démonstration.
+     * Rien n'atteignait la personne en salle : sa séance guidée n'affichait que le nom du
+     * mouvement, les séries et la charge. Le coach remplissait un champ vidéo que lui seul
+     * pouvait voir.</p>
+     *
+     * <p>Servi à part de la prescription, et en lecture vivante : une vidéo corrigée doit
+     * profiter aux séances déjà planifiées, ce qu'un snapshot figé interdit par construction.</p>
+     */
+    @Test
+    void theAthleteReadsHowToPerformTheExercisesOfHerSession() throws Exception {
+        String exerciseId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/pp/exercises", clubId)
+                        .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Fente bulgare\",\"category\":\"FORCE_MAX\","
+                                + "\"muscleGroups\":[\"QUADRICEPS\"],"
+                                + "\"videoUrl\":\"https://youtu.be/dQw4w9WgXcQ\","
+                                + "\"instructions\":\"Pied arriere sureleve, buste droit.\","
+                                + "\"contraindications\":\"Douleur rotulienne en cours.\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+        String sessionId = objectMapper.readTree(mvc.perform(post("/clubs/{c}/pp/sessions", clubId)
+                        .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Bas du corps\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+        mvc.perform(put("/clubs/{c}/pp/sessions/{s}/structure", clubId, sessionId)
+                        .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"structure\":{\"blocks\":[{\"id\":\"b1\",\"blockType\":\"PRINCIPAL\","
+                                + "\"format\":\"CLASSIQUE\",\"exercises\":[{\"exerciseId\":\"" + exerciseId
+                                + "\",\"exerciseName\":\"Fente bulgare\",\"setType\":\"STANDARD\","
+                                + "\"prescription\":{\"sets\":3,\"repsFixed\":10}}]}]}}"))
+                .andExpect(status().isOk());
+        String scheduledId = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/athletes/{a}/pp/sessions/{s}/schedule", clubId, athleteId, sessionId)
+                                .header("Authorization", coachBearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"date\":\"2026-06-25\",\"fieldsPreset\":\"AVANCE\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        JsonNode guidance = objectMapper.readTree(mvc.perform(
+                        get("/me/pp/scheduled/{id}/exercises", scheduledId).header("Authorization", athleteBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+
+        assertThat(guidance).hasSize(1);
+        JsonNode ex = guidance.get(0);
+        assertThat(ex.get("id").asText()).isEqualTo(exerciseId);
+        assertThat(ex.get("videoUrl").asText()).isEqualTo("https://youtu.be/dQw4w9WgXcQ");
+        assertThat(ex.get("instructions").asText()).contains("buste droit");
+        assertThat(ex.get("contraindications").asText()).contains("rotulienne");
+    }
+
+    /** Une séance qui n'est pas la sienne ne livre rien : la fiche est bornée à son athlète. */
+    @Test
+    void theGuidanceOfSomeoneElsesSessionIsNotReadable() throws Exception {
+        mvc.perform(get("/me/pp/scheduled/{id}/exercises", java.util.UUID.randomUUID())
+                        .header("Authorization", athleteBearer))
+                .andExpect(status().isNotFound());
+    }
 }

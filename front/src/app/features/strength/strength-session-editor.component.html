@@ -88,8 +88,15 @@
   @if (empty()) {
     <div class="card empty-state">
       <app-icon name="blocks" [size]="32" />
-      <h2>Séance vide</h2>
-      <p class="field-hint">Ajoute un premier bloc (échauffement, principal, accessoire…).</p>
+      <h2>Par quoi commences-tu ?</h2>
+      <p class="field-hint">Choisis une section : ses exercices naîtront avec des valeurs adaptées.</p>
+      <div class="section-picks">
+        @for (sec of sections; track sec.type) {
+          <button type="button" class="btn btn-ghost btn-sm" (click)="addSection(sec.type)">
+            <app-icon name="plus" [size]="14" /> {{ sec.label }}
+          </button>
+        }
+      </div>
     </div>
   }
 
@@ -102,11 +109,24 @@
           <select class="form-control" [(ngModel)]="block.blockType" (ngModelChange)="touch()">
             @for (t of blockTypes; track t.value) { <option [value]="t.value">{{ t.label }}</option> }
           </select>
-          <select class="form-control" [(ngModel)]="block.format" (ngModelChange)="onFormatChange(block)">
-            @for (f of formats; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
-          </select>
+          <!-- Le format ne se montre qu'à la demande : sept choix en tête de chaque bloc, c'est
+               une question posée avant le premier exercice alors que « Classique » suffit
+               presque toujours. Un bloc déjà réglé autrement reste ouvert. -->
+          @if (optionsOpen(block)) {
+            <select class="form-control" [(ngModel)]="block.format" (ngModelChange)="onFormatChange(block)">
+              @for (f of formats; track f.value) { <option [value]="f.value">{{ f.label }}</option> }
+            </select>
+          } @else {
+            <button type="button" class="btn btn-ghost btn-sm block-options" (click)="toggleOptions(block)">
+              <app-icon name="cog" [size]="14" /> Format
+            </button>
+          }
         </div>
         <div class="block-actions">
+          <button type="button" class="btn btn-ghost btn-sm" (click)="duplicateBlock(block)"
+                  title="Dupliquer la section, exercices compris">
+            <app-icon name="copy" [size]="15" />
+          </button>
           <button type="button" class="btn btn-ghost btn-sm danger" (click)="removeBlock(block.id)">Supprimer</button>
         </div>
       </div>
@@ -134,13 +154,42 @@
           <div class="ex-row-head">
             <strong>{{ item.exerciseName || label(item.exerciseId) }}</strong>
             <span class="ex-spacer"></span>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="duplicateExercise(block, i)"
+                    title="Dupliquer cet exercice"><app-icon name="copy" [size]="15" /></button>
             <button type="button" class="btn btn-ghost btn-sm" (click)="openEditor(block, item)">Éditer</button>
             <button type="button" class="btn btn-ghost btn-sm danger" (click)="removeExercise(block, i)" aria-label="Retirer"><app-icon name="x" [size]="15" /></button>
           </div>
+          <!-- Séries × répétitions se règlent ici, au clavier : ce sont les deux valeurs qu'on
+               retouche en écrivant une séance, et elles imposaient d'ouvrir le panneau latéral. -->
+          @if (inlineVolume(block, item); as unit) {
+            <div class="ex-inline">
+              <label class="ex-inline__field">
+                <span>Séries</span>
+                <input type="number" class="form-control" min="1" max="20" [ngModel]="item.prescription.sets"
+                       (ngModelChange)="setInlineSets(item, $event)" [ngModelOptions]="{ standalone: true }" />
+              </label>
+              <span class="ex-inline__x">×</span>
+              @if (unit === 'REPS') {
+                <label class="ex-inline__field">
+                  <span>Répétitions</span>
+                  <input type="number" class="form-control" min="1" max="100" [ngModel]="item.prescription.repsFixed"
+                         (ngModelChange)="setInlineReps(item, $event)" [ngModelOptions]="{ standalone: true }" />
+                </label>
+              } @else {
+                <label class="ex-inline__field">
+                  <span>Secondes</span>
+                  <input type="number" class="form-control" min="1" max="600" [ngModel]="item.prescription.durationSec"
+                         (ngModelChange)="setInlineDuration(item, $event)" [ngModelOptions]="{ standalone: true }" />
+                </label>
+              }
+            </div>
+          }
           <div class="ex-summary">
-            @if (item.prescription.sets) { <span class="ex-sum-sets metric">{{ item.prescription.sets }} séries</span> }
-            @if (volumeInfo(block, item.prescription); as r) {
-              <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" />
+            @if (!inlineVolume(block, item)) {
+              @if (item.prescription.sets) { <span class="ex-sum-sets metric">{{ item.prescription.sets }} séries</span> }
+              @if (volumeInfo(block, item.prescription); as r) {
+                <app-range-prescription-pill [label]="r.label" [min]="r.min" [max]="r.max" [unit]="r.unit" />
+              }
             }
             @if (sideInfo(item.prescription); as side) { <span class="ex-side">{{ side }}</span> }
             @if (chargePill(item.prescription); as c) {
@@ -175,7 +224,14 @@
   }
   </div>
 
-  <button type="button" class="btn btn-ghost add-block" (click)="addBlock()">+ Ajouter un bloc</button>
+  <div class="section-picks section-picks--footer">
+    <span class="field-hint">Ajouter une section :</span>
+    @for (sec of sections; track sec.type) {
+      <button type="button" class="btn btn-ghost btn-sm" (click)="addSection(sec.type)">
+        <app-icon name="plus" [size]="14" /> {{ sec.label }}
+      </button>
+    }
+  </div>
 } @else {
   <!-- ===== Aperçu athlète (lecture seule, primitives) ===== -->
   @if (empty()) {
@@ -379,7 +435,9 @@
            [ngModel]="pickerQuery()" (ngModelChange)="pickerQuery.set($event)"
            aria-label="Rechercher un exercice" />
 
-    @if (!pickerCount()) {
+    @if (!exercisesLoaded()) {
+      <app-skeleton shape="list" [rows]="3" />
+    } @else if (!pickerCount()) {
       <p class="field-hint">
         @if (pickerQuery()) { Aucun exercice ne correspond à « {{ pickerQuery() }} ». }
         @else { Aucun exercice dans la bibliothèque — crée-les depuis Préparation physique. }
@@ -390,15 +448,29 @@
       <section class="picker__group">
         <h4 class="picker__cat">{{ group.title }} <span class="picker__count">{{ group.exercises.length }}</span></h4>
         @for (ex of group.exercises; track ex.id) {
-          <button type="button" class="picker__item" (click)="addExercise(ex)">
-            <span class="picker__name">{{ ex.name }}</span>
-            @if (ex.muscleGroups.length) {
-              <span class="picker__tags">
-                @for (m of ex.muscleGroups; track m) { <span class="badge badge-neutral">{{ label(m) }}</span> }
-              </span>
+          <!-- Deux gestes distincts sur la même ligne : ajouter, et regarder avant d'ajouter.
+               D'où la rangée plutôt qu'un bouton unique — un bouton n'en contient pas un autre. -->
+          <div class="picker__row">
+            <button type="button" class="picker__item" (click)="addExercise(ex)">
+              <span class="picker__name">{{ ex.name }}</span>
+              @if (ex.muscleGroups.length) {
+                <span class="picker__tags">
+                  @for (m of ex.muscleGroups; track m) { <span class="badge badge-neutral">{{ label(m) }}</span> }
+                </span>
+              }
+              <app-icon class="picker__add" name="plus" [size]="15" />
+            </button>
+            @if (ex.videoUrl) {
+              <button type="button" class="picker__video" (click)="toggleVideo(ex.id)"
+                      [class.on]="videoFor() === ex.id" [attr.aria-expanded]="videoFor() === ex.id"
+                      [attr.aria-label]="'Voir la démonstration de ' + ex.name">
+                <app-icon name="play" [size]="15" />
+              </button>
             }
-            <app-icon class="picker__add" name="plus" [size]="15" />
-          </button>
+          </div>
+          @if (videoFor() === ex.id) {
+            <app-video-embed [url]="ex.videoUrl" [title]="ex.name" />
+          }
         }
       </section>
     }

@@ -113,6 +113,21 @@ assistant), et athlète (PWA mobile).
   panneau **rangé par catégorie** (celles du coach d'abord, le type d'exercice à défaut) avec
   recherche, là où une liste déroulante à plat alignait toute la bibliothèque sans ordre.
   L'athlète saisit son retour **dans l'unité prescrite** (reps, secondes ou mètres).
+- **Composer une séance sans passer par le décor** : une séance vide demande « par quoi
+  commences-tu ? » et propose ses **sections en un clic**
+  (échauffement · activation · principal · accessoires · retour au calme) — le clic qui choisit la
+  section ouvre aussi le choix des exercices. **Chaque section donne ses propres valeurs** aux
+  exercices qu'on y pose — un échauffement ne naît plus à 70–80 % du 1RM, un
+  retour au calme se compte en secondes. Les **séries × répétitions se règlent sur la carte**, au
+  clavier ; le panneau latéral garde le reste (tempo, latéralité, drop-set). Un **bloc ou un
+  exercice se duplique** (« le même circuit, une seconde fois »), et le choix du format (EMOM,
+  AMRAP, Circuit…) attend qu'on le demande au lieu d'être la première question posée.
+- **La démonstration se regarde dans l'application** : lien YouTube / Vimeo reconnu, reconstruit en
+  URL d'intégration (jamais recopié), et lu **au clic seulement** — aucune requête ne part vers
+  l'hébergeur tant que personne ne l'a demandé, et YouTube est appelé sur son domaine sans cookie.
+  Un hébergeur non reconnu reste un lien externe. Côté **athlète**, la séance guidée affiche enfin
+  la vidéo, les **consignes d'exécution** et les **contre-indications** de chaque exercice — elles
+  étaient écrites dans le catalogue depuis toujours et ne sortaient jamais de l'écran du coach.
 - **Une séance de renfo se travaille sur le calendrier**, comme une séance de course : on la pose
   **vierge sur son jour** (« Séance de renforcement vierge ») sans créer d'abord un modèle de
   bibliothèque ; on **modifie son contenu directement** — blocs, séries, charges — sans en créer
@@ -505,7 +520,10 @@ cd front && npm run build
   l'en-tête : leur URL ne porte plus rien du tout.
 - **Garde-fou au démarrage** (`StartupSecretsValidator`) : l'application **refuse de démarrer en prod**
   si `JWT_SECRET` ou `FIELD_ENCRYPTION_KEY` sont laissés à leurs valeurs par défaut.
-- **En-têtes** : Content-Security-Policy, `frame-options: deny`, `object-src 'none'`.
+- **En-têtes** : Content-Security-Policy, `frame-options: deny`, `object-src 'none'`. La CSP du
+  front n'ouvre `frame-src` qu'aux **deux domaines de lecture vidéo** (YouTube sans cookie, Vimeo),
+  et le lecteur n'est monté qu'au clic de l'athlète : une séance ouverte ne déclenche aucune
+  requête tierce.
 - **CORS** restreint à une allowlist · **rate-limiting** par fenêtre fixe.
 - **Anti-IDOR** : toute route club passe par `@clubAccessValidator` (privé / club / permissions).
 - **Traçabilité de l'administration** : toute mutation `/admin/**` est consignée dans
