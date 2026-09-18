@@ -2,6 +2,7 @@ package com.coachrun.service;
 
 import com.coachrun.dto.request.StrengthFeedbackRequest;
 import com.coachrun.dto.response.CalculatedStrengthResponse;
+import com.coachrun.dto.response.ExerciseGuidanceResponse;
 import com.coachrun.dto.response.ScheduledStrengthResponse;
 import com.coachrun.dto.response.StrengthPrescriptionResponse;
 import com.coachrun.dto.response.StrengthSessionResponse;
@@ -43,6 +44,7 @@ public class StrengthScheduleService {
 
     private final ScheduledStrengthSessionRepository scheduledRepository;
     private final AthleteRepository athleteRepository;
+    private final com.coachrun.repository.PpExerciseRepository exerciseRepository;
     private final com.coachrun.security.HealthDataConsentValidator consentValidator;
     private final StrengthSessionService strengthSessionService;
     private final ObjectMapper objectMapper;
@@ -484,6 +486,41 @@ public class StrengthScheduleService {
         return scheduledRepository
                 .findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(athleteId, from, to)
                 .stream().map(ScheduledStrengthResponse::from).toList();
+    }
+
+    /**
+     * Comment exécuter les exercices de <b>cette</b> séance : vidéo, consignes, points techniques,
+     * contre-indications.
+     *
+     * <h2>Pourquoi ça manquait</h2>
+     *
+     * <p>Le catalogue livré à chaque club porte, pour chaque exercice, ses consignes et ses
+     * contre-indications ; le coach peut y ajouter un lien de démonstration. Rien de tout cela
+     * n'atteignait l'athlète : sa séance guidée n'affichait que le nom du mouvement, les séries et
+     * la charge. Le coach remplissait un champ vidéo que seul le coach pouvait voir, et la
+     * personne qui se demande comment tenir une fente bulgare n'avait aucune réponse.</p>
+     *
+     * <p>La lecture est <b>vivante</b> (bibliothèque) et non figée (snapshot) : une vidéo corrigée
+     * doit profiter aux séances déjà planifiées. Et elle est bornée aux exercices de sa propre
+     * séance — la bibliothèque du club ne s'ouvre pas à l'athlète pour autant.</p>
+     */
+    public List<ExerciseGuidanceResponse> exerciseGuidanceForAthlete(UUID athleteId, UUID scheduledId) {
+        ScheduledStrengthSession ss = scheduledRepository.findByIdAndAthleteId(scheduledId, athleteId)
+                .orElseThrow(() -> new NotFoundException("Séance de force introuvable."));
+        StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class);
+        if (snapshot == null) {
+            return List.of();
+        }
+        java.util.Set<UUID> ids = snapshot.blocks().stream()
+                .flatMap(b -> b.exercises().stream())
+                .map(com.coachrun.dto.strength.StrengthExerciseItem::exerciseId)
+                .filter(java.util.Objects::nonNull)
+                .collect(java.util.stream.Collectors.toSet());
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return exerciseRepository.findByClubIdAndIdIn(ss.getClub().getId(), ids).stream()
+                .map(ExerciseGuidanceResponse::from).toList();
     }
 
     public StrengthPrescriptionResponse prescriptionForAthlete(UUID athleteId, UUID scheduledId) {

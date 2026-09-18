@@ -38,6 +38,7 @@ import { AutosaveBadgeComponent } from '../../shared/components/autosave-badge/a
 import { Autosave } from '../../core/services/autosave';
 import { HasAutosave } from '../../core/guards/unsaved-changes.guard';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
+import { VideoEmbedComponent } from '../../shared/components/video-embed/video-embed.component';
 
 /**
  * Éditeur de structure d'une séance de force (cf. Darilab) : blocs typés, formats avancés
@@ -63,7 +64,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
   imports: [SkeletonComponent, IconComponent, 
     FormsModule, RouterLink, DragDropModule,
     SegmentedControlComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
-    SidePanelComponent, AutosaveBadgeComponent,
+    SidePanelComponent, AutosaveBadgeComponent, VideoEmbedComponent,
   ],
   templateUrl: './strength-session-editor.component.html',
   styleUrl: './strength-session-editor.component.scss',
@@ -99,6 +100,10 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   readonly saving = signal(false);
   readonly blocks = signal<StrengthBlock[]>([]);
   readonly exercises = signal<PpExercise[]>([]);
+  /** Le catalogue est arrivé : avant, un sélecteur ouvert mentirait sur une bibliothèque vide. */
+  readonly exercisesLoaded = signal(false);
+  /** Bloc dont le sélecteur doit s'ouvrir dès que le catalogue est là. */
+  private pendingPickerBlockId: string | null = null;
   /** Catégories de prépa physique du coach : elles rangent le choix des exercices. */
   readonly categories = signal<SessionCategory[]>([]);
 
@@ -226,7 +231,11 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     } else {
       this.loadLibrarySession();
     }
-    this.strength.listAllExercises().subscribe((e) => this.exercises.set(e));
+    this.strength.listAllExercises().subscribe((e) => {
+      this.exercises.set(e);
+      this.exercisesLoaded.set(true);
+      this.openPendingPicker();
+    });
     this.categoryService.list('STRENGTH').subscribe({
       next: (c) => this.categories.set(c),
       // Sans catégories, le choix d'exercices se range par type — il reste utilisable.
@@ -249,6 +258,26 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
       },
       error: () => this.loading.set(false),
     });
+  }
+
+  /**
+   * Ouvre le choix des exercices pour ce bloc, dès que le catalogue est là.
+   *
+   * <p>L'attente n'est pas du confort : un sélecteur ouvert sur une bibliothèque pas encore
+   * chargée annonce « aucun exercice — crée-les d'abord », ce qui est faux, et décourageant au
+   * pire moment.</p>
+   */
+  private requestPicker(block: StrengthBlock): void {
+    this.pendingPickerBlockId = block.id;
+    this.openPendingPicker();
+  }
+
+  private openPendingPicker(): void {
+    const id = this.pendingPickerBlockId;
+    if (!id || !this.exercisesLoaded()) return;
+    const block = this.blocks().find((b) => b.id === id);
+    this.pendingPickerBlockId = null;
+    if (block) this.openPicker(block);
   }
 
   /**
@@ -312,19 +341,88 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     this.touch();
   }
 
-  addBlock(): void {
-    const block: StrengthBlock = {
-      id: 'b-' + Math.random().toString(36).slice(2, 9),
-      blockType: 'PRINCIPAL',
-      format: 'CLASSIQUE',
-      durationSec: null,
-      rounds: null,
-      workSec: null,
-      restSec: null,
-      exercises: [],
-    };
+  /**
+   * Les sections proposées en un clic, dans l'ordre où une séance se déroule.
+   *
+   * <p>Ajouter un bloc, c'était choisir un type puis un format dans deux listes déroulantes —
+   * dont l'une propose sept formats alors que la quasi-totalité des séances tient en séries
+   * classiques. On pose maintenant la section voulue d'un geste ; le format reste réglable, mais
+   * il a cessé d'être la première question posée à quelqu'un qui veut écrire « squat 4 × 6 ».</p>
+   */
+  readonly sections: { type: BlockType; label: string }[] = [
+    { type: 'ECHAUFFEMENT', label: 'Échauffement' },
+    { type: 'ACTIVATION', label: 'Activation' },
+    { type: 'PRINCIPAL', label: 'Principal' },
+    { type: 'ACCESSOIRE', label: 'Accessoires' },
+    { type: 'CALME', label: 'Retour au calme' },
+  ];
+
+  /**
+   * Pose une section et ouvre aussitôt le choix des exercices : c'est la suite du même geste.
+   *
+   * <p>C'est par là qu'une séance vide commence — l'écran propose les cinq sections plutôt que
+   * « ajoute un premier bloc », et le clic qui choisit la section est aussi celui qui amène les
+   * exercices. La section choisie décide ensuite des valeurs par défaut de ce qu'on y pose.</p>
+   */
+  addSection(type: BlockType): void {
+    const block = this.blankBlock(type);
     this.blocks.update((list) => [...list, block]);
     this.touch();
+    this.requestPicker(block);
+  }
+
+  addBlock(): void {
+    this.blocks.update((list) => [...list, this.blankBlock('PRINCIPAL')]);
+    this.touch();
+  }
+
+  /**
+   * Duplique un bloc entier — exercices et prescriptions compris.
+   *
+   * <p>« Le même circuit une seconde fois » se reconstruisait exercice par exercice. La copie est
+   * profonde : sans quoi retoucher la prescription du double changerait aussi celle de
+   * l'original, les deux partageant le même objet.</p>
+   */
+  duplicateBlock(block: StrengthBlock): void {
+    const copy: StrengthBlock = {
+      ...block,
+      id: 'b-' + Math.random().toString(36).slice(2, 9),
+      exercises: block.exercises.map((ex) => this.copyItem(ex)),
+    };
+    const index = this.blocks().findIndex((b) => b.id === block.id);
+    this.blocks.update((list) => [...list.slice(0, index + 1), copy, ...list.slice(index + 1)]);
+    this.touch();
+  }
+
+  /** Duplique un exercice dans son bloc, juste sous l'original — « la même, en plus lourd ». */
+  duplicateExercise(block: StrengthBlock, index: number): void {
+    const source = block.exercises[index];
+    if (!source) return;
+    block.exercises = [
+      ...block.exercises.slice(0, index + 1),
+      this.copyItem(source),
+      ...block.exercises.slice(index + 1),
+    ];
+    this.touch();
+  }
+
+  /** Copie profonde d'un exercice prescrit : prescription et configuration de série comprises. */
+  private copyItem(item: StrengthExerciseItem): StrengthExerciseItem {
+    return {
+      ...item,
+      prescription: { ...item.prescription },
+      setConfig: item.setConfig ? JSON.parse(JSON.stringify(item.setConfig)) : item.setConfig,
+    };
+  }
+
+  private blankBlock(type: BlockType): StrengthBlock {
+    return {
+      id: 'b-' + Math.random().toString(36).slice(2, 9),
+      blockType: type,
+      format: 'CLASSIQUE',
+      durationSec: null, rounds: null, workSec: null, restSec: null,
+      exercises: [],
+    };
   }
 
   removeBlock(id: string): void {
@@ -338,6 +436,53 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     block.rounds = block.format === 'CIRCUIT' ? 3 : null;
     block.workSec = block.format === 'CIRCUIT' ? 40 : null;
     block.restSec = block.format === 'CIRCUIT' ? 20 : null;
+    this.touch();
+  }
+
+  /**
+   * Le format d'un bloc est-il déplié ?
+   *
+   * <p>Replié par défaut : sept formats en tête de chaque bloc donnaient à choisir avant même
+   * d'avoir un exercice, alors que « Classique » convient à la quasi-totalité des séances. Un
+   * bloc déjà réglé sur autre chose s'ouvre de lui-même — on ne cache pas un choix fait.</p>
+   */
+  readonly optionsFor = signal<string | null>(null);
+
+  toggleOptions(block: StrengthBlock): void {
+    this.optionsFor.update((id) => (id === block.id ? null : block.id));
+  }
+
+  optionsOpen(block: StrengthBlock): boolean {
+    return this.optionsFor() === block.id || block.format !== 'CLASSIQUE';
+  }
+
+  /**
+   * Le volume se règle-t-il directement sur la carte ?
+   *
+   * <p>Oui pour les deux cas courants — un nombre de répétitions, une durée en secondes — qui
+   * représentent l'essentiel de ce qu'on retouche. Les fourchettes et les distances gardent le
+   * panneau : y mettre deux champs de plus sur la carte la rendrait illisible pour un cas rare.</p>
+   */
+  inlineVolume(block: StrengthBlock, item: StrengthExerciseItem): 'REPS' | 'DUREE' | null {
+    const p = item.prescription;
+    const type = this.volumeTypeOf(block, item);
+    if (type === 'REPS' && p.repsFixed != null) return 'REPS';
+    if (type === 'DUREE' && p.durationSecMax == null) return 'DUREE';
+    return null;
+  }
+
+  setInlineSets(item: StrengthExerciseItem, value: number | null): void {
+    item.prescription.sets = value == null || !Number.isFinite(value) ? null : Math.max(1, Math.round(value));
+    this.touch();
+  }
+
+  setInlineReps(item: StrengthExerciseItem, value: number | null): void {
+    item.prescription.repsFixed = value == null || !Number.isFinite(value) ? null : Math.max(1, Math.round(value));
+    this.touch();
+  }
+
+  setInlineDuration(item: StrengthExerciseItem, value: number | null): void {
+    item.prescription.durationSec = value == null || !Number.isFinite(value) ? null : Math.max(1, Math.round(value));
     this.touch();
   }
 
@@ -356,6 +501,17 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
 
   readonly pickerOpen = signal(false);
   readonly pickerQuery = signal('');
+  /**
+   * L'exercice dont la démonstration est dépliée dans le sélecteur.
+   *
+   * <p>Un seul à la fois : le panneau sert à choisir vite, et empiler les lecteurs y ferait
+   * défiler la liste plutôt que la parcourir.</p>
+   */
+  readonly videoFor = signal<string | null>(null);
+
+  toggleVideo(exerciseId: string): void {
+    this.videoFor.update((current) => (current === exerciseId ? null : exerciseId));
+  }
   private readonly pickerBlockId = signal<string | null>(null);
 
   /** Bibliothèque filtrée par la recherche, rangée par catégorie. */
@@ -396,6 +552,39 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   }
 
   /**
+   * Ce qu'un exercice vaut par défaut <b>selon la section où on le pose</b>.
+   *
+   * <p>Tout exercice ajouté naissait « 4 × 6 à 70–80 % du 1RM, RIR 1–3, repos 90–120 s », y
+   * compris dans un échauffement — une prescription fausse, qu'il fallait corriger à la main à
+   * chaque fois. Un échauffement se fait léger et court, des accessoires se font en volume, un
+   * retour au calme se tient en secondes. La section porte donc son intention.</p>
+   */
+  private static readonly SECTION_DEFAULTS: Record<BlockType, StrengthPrescription> = {
+    ECHAUFFEMENT: {
+      effortRefType: 'RIR_RANGE', rirMin: 4, rirMax: 5,
+      sets: 2, volumeType: 'REPS', repsFixed: 10, restSecMin: 30, restSecMax: 45,
+    },
+    ACTIVATION: {
+      effortRefType: 'RIR_RANGE', rirMin: 3, rirMax: 4,
+      sets: 2, volumeType: 'REPS', repsFixed: 12, restSecMin: 30, restSecMax: 45,
+    },
+    PRINCIPAL: {
+      chargeRefType: 'PCT_RM_RANGE', chargePctRmMin: 70, chargePctRmMax: 80,
+      effortRefType: 'RIR_RANGE', rirMin: 1, rirMax: 3,
+      sets: 4, volumeType: 'REPS', repsFixed: 6, restSecMin: 90, restSecMax: 120,
+    },
+    ACCESSOIRE: {
+      chargeRefType: 'PCT_RM_RANGE', chargePctRmMin: 55, chargePctRmMax: 70,
+      effortRefType: 'RIR_RANGE', rirMin: 2, rirMax: 3,
+      sets: 3, volumeType: 'REPS', repsFixed: 10, restSecMin: 60, restSecMax: 90,
+    },
+    CALME: {
+      effortRefType: 'RIR_RANGE', rirMin: 4, rirMax: 5,
+      sets: 2, volumeType: 'DUREE', durationSec: 45, restSecMin: 30,
+    },
+  };
+
+  /**
    * Ajoute l'exercice au bloc visé. Le panneau reste ouvert : on compose un bloc en enchaînant
    * plusieurs exercices, et le refermer à chaque fois ferait rouvrir, rechercher, re-cliquer.
    */
@@ -407,15 +596,12 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
       exerciseName: ex.name,
       setType: 'STANDARD',
       prescription: {
-        chargeRefType: 'PCT_RM_RANGE', chargePctRmMin: 70, chargePctRmMax: 80,
-        effortRefType: 'RIR_RANGE', rirMin: 1, rirMax: 3,
-        sets: 4,
-        // Un bloc d'isométrie se tient en secondes ; partout ailleurs on compte des répétitions.
+        ...StrengthSessionEditorComponent.SECTION_DEFAULTS[block.blockType],
+        // Un bloc d'isométrie se tient en secondes, quelle que soit la section qui le porte.
         ...(block.format === 'ISOMETRIE'
-          ? { volumeType: 'DUREE' as VolumeType, durationSec: 30 }
-          : { volumeType: 'REPS' as VolumeType, repsFixed: 6 }),
+          ? { volumeType: 'DUREE' as VolumeType, durationSec: 30, repsFixed: null }
+          : {}),
         sideMode: 'BILATERAL',
-        restSecMin: 90, restSecMax: 120,
       },
     };
     block.exercises = [...block.exercises, item];

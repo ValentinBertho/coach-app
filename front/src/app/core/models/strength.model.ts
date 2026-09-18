@@ -208,6 +208,23 @@ export interface StrengthPrescriptionView {
   requiredFields: Record<string, boolean> | null;
 }
 
+/**
+ * Le « comment on fait » d'un exercice, lu en direct depuis la bibliothèque du club.
+ *
+ * <p>Séparé de la prescription à dessein : la prescription est un contrat figé au moment de la
+ * planification, la démonstration une référence qui doit pouvoir être corrigée après coup — et
+ * profiter alors aux séances déjà posées.</p>
+ */
+export interface ExerciseGuidance {
+  id: string;
+  name: string;
+  videoUrl: string | null;
+  imageUrl: string | null;
+  instructions: string | null;
+  technicalNotes: string | null;
+  contraindications: string | null;
+}
+
 export interface ScheduledStrength {
   id: string;
   athleteId: string;

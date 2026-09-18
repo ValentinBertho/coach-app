@@ -5,7 +5,7 @@ import { CelebrationService } from '../../core/services/celebration.service';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import {
-  Progression, ScheduledStrength, StrengthResultEntry, VolumeType,
+  ExerciseGuidance, Progression, ScheduledStrength, StrengthResultEntry, VolumeType,
 } from '../../core/models/strength.model';
 import {
   effectiveVolumeType, sideLabel, volumePill, type VolumePill,
@@ -18,6 +18,7 @@ import {
   RangePrescriptionPillComponent,
 } from '../../shared/components/physiology';
 import { RpeScaleSelectorComponent } from '../../shared/components/rpe-scale-selector/rpe-scale-selector.component';
+import { VideoEmbedComponent } from '../../shared/components/video-embed/video-embed.component';
 
 /**
  * Une série saisie par l'athlète. `done` = validée dans le parcours guidé.
@@ -90,7 +91,7 @@ const DISTANCE_STEP_M = 5;
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     IconComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
-    PainFatigueSelectorComponent, RpeScaleSelectorComponent,
+    PainFatigueSelectorComponent, RpeScaleSelectorComponent, VideoEmbedComponent,
   ],
   templateUrl: './strength-session.component.html',
   styleUrl: './strength-session.component.scss',
@@ -152,6 +153,39 @@ export class StrengthSessionComponent implements OnInit {
     this.load(id);
   }
 
+  /**
+   * Comment exécuter chaque exercice, par identifiant d'exercice.
+   *
+   * <p>Chargé à part de la prescription, et sans bloquer l'écran : la séance doit s'ouvrir même
+   * si la bibliothèque ne répond pas. Une démonstration manquante n'empêche personne de
+   * s'entraîner — l'absence de séance, si.</p>
+   */
+  readonly guidance = signal<Record<string, ExerciseGuidance>>({});
+  /**
+   * L'exercice dont le panneau « Comment faire » est ouvert.
+   *
+   * <p>On retient l'étape plutôt qu'un booléen : passer à l'exercice suivant referme le panneau
+   * de lui-même, sans que les quatre chemins de navigation aient à y penser. Il est fermé par
+   * défaut — on est en séance, pas en lecture, et il pousse le compteur de séries vers le bas.</p>
+   */
+  private readonly howToFor = signal<number | null>(null);
+  readonly howToOpen = computed(() => this.howToFor() === this.stepIndex());
+
+  readonly currentGuidance = computed<ExerciseGuidance | null>(() => {
+    const id = this.currentExercise()?.exerciseId;
+    return id ? this.guidance()[id] ?? null : null;
+  });
+
+  /** Y a-t-il quelque chose à montrer : une vidéo, une consigne, un point technique ? */
+  readonly hasGuidance = computed(() => {
+    const g = this.currentGuidance();
+    return !!g && !!(g.videoUrl || g.instructions || g.technicalNotes || g.contraindications);
+  });
+
+  toggleHowTo(): void {
+    this.howToFor.set(this.howToOpen() ? null : this.stepIndex());
+  }
+
   private load(id: string): void {
     this.state.set('loading');
     const day = this.today();
@@ -165,6 +199,10 @@ export class StrengthSessionComponent implements OnInit {
           return;
         }
         this.session.set(found);
+        this.portal.ppExerciseGuidance(id).subscribe({
+          next: (list) => this.guidance.set(Object.fromEntries(list.map((g) => [g.id, g]))),
+          error: () => this.guidance.set({}),
+        });
         this.portal.ppPrescription(id).subscribe({
           next: (rx) => {
             this.exercises.set(this.buildSets(rx));

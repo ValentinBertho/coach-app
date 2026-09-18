@@ -273,6 +273,18 @@ public class AthletePortalController {
         return strengthScheduleService.prescriptionForAthlete(principal.athleteId(), scheduledId);
     }
 
+    /**
+     * Comment exécuter les exercices de cette séance : démonstration, consignes, contre-indications.
+     *
+     * <p>Servi à part de la prescription, et en lecture vivante : la prescription est un contrat
+     * figé, la démonstration une référence qui doit pouvoir être corrigée après coup.</p>
+     */
+    @GetMapping("/pp/scheduled/{scheduledId}/exercises")
+    public java.util.List<com.coachrun.dto.response.ExerciseGuidanceResponse> ppExerciseGuidance(
+            @AuthenticationPrincipal AuthPrincipal principal, @PathVariable UUID scheduledId) {
+        return strengthScheduleService.exerciseGuidanceForAthlete(principal.athleteId(), scheduledId);
+    }
+
     /** Suggestion de progression du coach après une séance de force réalisée (§6.7). */
     @GetMapping("/pp/scheduled/{scheduledId}/progression")
     public com.coachrun.dto.response.ProgressionResponse ppProgression(

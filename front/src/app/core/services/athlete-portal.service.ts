@@ -21,7 +21,7 @@ import { StravaStatus } from '../models/strava.model';
 import {
   Advice, Compliance, Proposal, Readiness, Timeline, Trajectory, WeekOutlook,
 } from '../models/decision.model';
-import { E1rmHistory, MyOneRm, Progression, ScheduledStrength, StrengthPrescriptionView, StrengthResultEntry, StrengthTest } from '../models/strength.model';
+import { E1rmHistory, ExerciseGuidance, MyOneRm, Progression, ScheduledStrength, StrengthPrescriptionView, StrengthResultEntry, StrengthTest } from '../models/strength.model';
 
 // Le type vit désormais dans le modèle force (partagé coach/athlète) ; ré-export pour les
 // consommateurs historiques qui l'importent depuis ce service.
@@ -450,6 +450,17 @@ export class AthletePortalService {
 
   ppPrescription(scheduledId: string): Observable<StrengthPrescriptionView> {
     return this.http.get<StrengthPrescriptionView>(`${this.base}/pp/scheduled/${scheduledId}/prescription`);
+  }
+
+  /**
+   * Comment exécuter les exercices de cette séance : démonstration, consignes, contre-indications.
+   *
+   * <p>Appel distinct de la prescription : celle-ci est figée, celle-là est vivante. Les charger
+   * ensemble aurait figé la démonstration dans le snapshot, où une vidéo corrigée n'aurait jamais
+   * atteint les séances déjà planifiées.</p>
+   */
+  ppExerciseGuidance(scheduledId: string): Observable<ExerciseGuidance[]> {
+    return this.http.get<ExerciseGuidance[]>(`${this.base}/pp/scheduled/${scheduledId}/exercises`);
   }
 
   ppFeedback(scheduledId: string, body: StrengthFeedback): Observable<ScheduledStrength> {

@@ -143,6 +143,36 @@
                écran de détail qu'on ne rouvre pas entre deux séries. -->
           @if (ex.notes) { <p class="ss__ex-note">{{ ex.notes }}</p> }
 
+          <!-- « Comment faire » : la démonstration et les consignes écrites par le coach dans sa
+               bibliothèque. Elles existaient depuis toujours et ne sortaient jamais de son écran ;
+               la personne qui se demande comment tenir une fente bulgare, c'est celle qui est en
+               salle. Replié par défaut : l'écran sert d'abord à enregistrer des séries. -->
+          @if (hasGuidance()) {
+            <button type="button" class="ss__howto-btn" (click)="toggleHowTo()"
+                    [attr.aria-expanded]="howToOpen()">
+              <app-icon [name]="howToOpen() ? 'chevron-up' : 'chevron-down'" [size]="14" />
+              Comment faire
+            </button>
+            @if (howToOpen() && currentGuidance(); as g) {
+              <section class="ss__howto">
+                <app-video-embed [url]="g.videoUrl" [title]="g.name" />
+                @if (g.instructions) { <p class="ss__howto-txt">{{ g.instructions }}</p> }
+                @if (g.technicalNotes) {
+                  <p class="ss__howto-txt ss__howto-txt--tech">
+                    <app-icon name="target" [size]="13" /> {{ g.technicalNotes }}
+                  </p>
+                }
+                <!-- La contre-indication n'est pas une consigne de plus : elle dit quand ne PAS
+                     faire le mouvement, et se lit donc avant de charger la barre. -->
+                @if (g.contraindications) {
+                  <p class="ss__howto-warn">
+                    <app-icon name="alert-triangle" [size]="13" /> {{ g.contraindications }}
+                  </p>
+                }
+              </section>
+            }
+          }
+
           <div class="ss__rx">
             @if (ex.rx.chargeKgMin != null) {
               <app-range-prescription-pill label="Charge" [min]="ex.rx.chargeKgMin"

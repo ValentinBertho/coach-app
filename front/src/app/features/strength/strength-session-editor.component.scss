@@ -226,6 +226,33 @@
 .picker__item:hover, .picker__item:focus-visible {
   background: var(--paper-sunk); border-color: var(--hairline);
 }
+/* Sections en un clic : dans l'état vide, et en pied de séance. */
+.section-picks {
+  display: flex; flex-wrap: wrap; gap: var(--sp-2); justify-content: center;
+  margin-top: var(--sp-3);
+}
+.section-picks--footer {
+  justify-content: flex-start; align-items: center;
+  padding: var(--sp-3) 0; margin-top: 0;
+}
+.block-options { color: var(--ink-3); }
+
+/* Séries × répétitions, au clavier, sur la carte. */
+.ex-inline { display: flex; align-items: flex-end; gap: var(--sp-2); margin: var(--sp-2) 0; }
+.ex-inline__field { display: flex; flex-direction: column; gap: 2px; }
+.ex-inline__field span { font-size: var(--text-2xs); color: var(--ink-3); font-weight: 700; }
+.ex-inline__field .form-control { width: 82px; padding: var(--sp-1) var(--sp-2); }
+.ex-inline__x { color: var(--ink-3); padding-bottom: var(--sp-2); }
+
+/* Ajouter et regarder sont deux gestes : la ligne les porte côte à côte. */
+.picker__row { display: flex; align-items: center; gap: var(--sp-1); }
+.picker__row .picker__item { flex: 1; }
+.picker__video {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: var(--radius-full);
+  background: none; border: 1px solid var(--hairline); color: var(--ink-3); cursor: pointer;
+}
+.picker__video:hover, .picker__video.on { border-color: var(--primary); color: var(--primary); }
 .picker__name { font-weight: 600; }
 .picker__tags { display: flex; flex-wrap: wrap; gap: 2px; }
 .picker__add { margin-left: auto; color: var(--primary); }

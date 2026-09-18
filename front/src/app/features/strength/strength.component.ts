@@ -13,6 +13,7 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
+import { VideoEmbedComponent } from '../../shared/components/video-embed/video-embed.component';
 import {
   Athlete1rm,
   CycleWeek,
@@ -38,7 +39,10 @@ type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
   selector: 'app-strength',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, IconComponent, FormsModule, DatePipe, RouterLink, TrendChartComponent, SidePanelComponent],
+  imports: [
+    SkeletonComponent, IconComponent, FormsModule, DatePipe, RouterLink, TrendChartComponent,
+    SidePanelComponent, VideoEmbedComponent,
+  ],
   templateUrl: './strength.component.html',
   styleUrl: './strength.component.scss',
 })
