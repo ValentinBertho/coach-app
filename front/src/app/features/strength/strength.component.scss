@@ -223,11 +223,16 @@
 .swatch-metab { background: var(--accent, #f5a623); }
 
 .session-card {
-  display: block;
-  text-decoration: none;
-  color: inherit;
   transition: border-color 0.15s, transform 0.1s;
 }
+/* Le lien ne couvre que ce qui mène à l'éditeur ; le rangement et les actions vivent à côté. */
+.session-card__link { display: block; text-decoration: none; color: inherit; }
+.session-card__tools {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin-top: auto; padding-top: var(--sp-2);
+  border-top: 1px solid var(--hairline);
+}
+.session-card__tools .ex-assign { flex: 1; margin-top: 0; }
 .session-card:hover {
   border-color: var(--primary);
   transform: translateY(-1px);

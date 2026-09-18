@@ -425,10 +425,11 @@ public class StrengthScheduleService {
      */
     @Transactional
     public StrengthSessionResponse saveAsLibrarySession(UUID clubId, UUID athleteId, UUID scheduledId,
-                                                        String name, String notes) {
+                                                        String name, String notes, UUID categoryId) {
         ScheduledStrengthSession ss = require(clubId, athleteId, scheduledId);
         StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class);
-        return strengthSessionService.createFromStructure(clubId, name, notes, withoutCoachNotes(snapshot));
+        return strengthSessionService.createFromStructure(
+                clubId, name, notes, categoryId, withoutCoachNotes(snapshot));
     }
 
     /** La même séance, débarrassée des mots adressés à un athlète en particulier. */

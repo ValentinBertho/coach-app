@@ -105,6 +105,44 @@ export class StrengthComponent implements OnInit {
   // Séances
   readonly sessions = signal<StrengthSession[]>([]);
   newSessionName = '';
+  /** Catégorie donnée à la séance qu'on est en train de créer ('' = sans catégorie). */
+  newSessionCategoryId = '';
+  /** Recherche dans la bibliothèque de séances (sans accents ni casse). */
+  readonly sessionQuery = signal('');
+  /** Filtre catégorie : '' = toutes, '__none__' = sans catégorie, sinon l'id. */
+  readonly sessionCategoryId = signal('');
+
+  /**
+   * Les séances qui restent après recherche et catégorie.
+   *
+   * <p>La grille affichait la bibliothèque entière, sans tri ni recherche : « quand la
+   * bibliothèque contient énormément de séances il faut beaucoup scroller ». Les exercices, eux,
+   * avaient leurs filtres depuis toujours — les séances non.</p>
+   */
+  readonly filteredSessions = computed(() => {
+    const q = normalizeText(this.sessionQuery());
+    const cat = this.sessionCategoryId();
+    return this.sessions().filter((s) => {
+      if (q && !normalizeText(s.name).includes(q)) return false;
+      if (!cat) return true;
+      return cat === '__none__' ? !s.categoryId : s.categoryId === cat;
+    });
+  });
+
+  /** Range (ou sort de sa catégorie) une séance déjà créée, sans ouvrir son éditeur. */
+  assignSessionCategory(s: StrengthSession, categoryId: string): void {
+    const next = categoryId || null;
+    if (next === (s.categoryId ?? null)) return;
+    this.strength.updateSession(s.id, {
+      name: s.name, notes: s.notes, favorite: s.favorite, categoryId: next,
+    }).subscribe({
+      next: (updated) => {
+        this.sessions.update((list) => list.map((x) => (x.id === s.id ? updated : x)));
+        this.toast.success(next ? `Rangée dans « ${this.catName(next)} »` : 'Sortie de sa catégorie');
+      },
+      error: () => this.toast.error('Rangement impossible.'),
+    });
+  }
 
   // Cycles
   readonly cycles = signal<StrengthCycle[]>([]);
@@ -336,7 +374,7 @@ export class StrengthComponent implements OnInit {
   createSession(): void {
     const name = this.newSessionName.trim();
     if (!name) return;
-    this.strength.createSession({ name }).subscribe({
+    this.strength.createSession({ name, categoryId: this.newSessionCategoryId || null }).subscribe({
       next: (created) => {
         this.newSessionName = '';
         this.toast.success('Séance créée — construis la structure');
@@ -365,7 +403,9 @@ export class StrengthComponent implements OnInit {
     });
     const name = answer?.trim();
     if (!name || name === s.name) return;
-    this.strength.updateSession(s.id, { name, notes: s.notes, favorite: s.favorite }).subscribe({
+    this.strength.updateSession(s.id, {
+      name, notes: s.notes, favorite: s.favorite, categoryId: s.categoryId,
+    }).subscribe({
       next: (updated) => {
         this.sessions.update((list) => list.map((x) => (x.id === s.id ? updated : x)));
         this.toast.success('Séance renommée');
@@ -493,4 +533,9 @@ export class StrengthComponent implements OnInit {
   label(value: string): string {
     return value.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
   }
+}
+
+/** Comparaison de recherche : sans accents ni casse — « fessier » doit trouver « Fessiers ». */
+function normalizeText(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }

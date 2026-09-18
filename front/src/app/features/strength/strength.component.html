@@ -169,9 +169,32 @@
   <div class="search-bar">
     <input class="form-control" placeholder="Nom de la nouvelle séance…" [(ngModel)]="newSessionName"
            (keydown.enter)="createSession()" />
+    <!-- Ranger dès la création : une séance nommée sans catégorie ira grossir la liste à plat
+         que le coach devra parcourir la prochaine fois qu'il cherchera. -->
+    <select class="form-control" [(ngModel)]="newSessionCategoryId" title="Catégorie de la nouvelle séance">
+      <option value="">Sans catégorie</option>
+      @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+    </select>
     <button type="button" class="btn btn-primary" [disabled]="!newSessionName.trim()"
             (click)="createSession()">+ Séance</button>
   </div>
+
+  <!-- Chercher et trier, comme sur les exercices : la grille affichait la bibliothèque entière. -->
+  @if (sessions().length) {
+    <div class="search-bar pp-filters">
+      <input class="form-control" placeholder="Rechercher une séance…"
+             [ngModel]="sessionQuery()" (ngModelChange)="sessionQuery.set($event)" />
+      <select class="form-control" [ngModel]="sessionCategoryId()" (ngModelChange)="sessionCategoryId.set($event)"
+              title="Catégorie">
+        <option value="">Toutes catégories</option>
+        @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+        <option value="__none__">Sans catégorie</option>
+      </select>
+      <span class="field-hint sessions-count">
+        {{ filteredSessions().length }} / {{ sessions().length }} séance(s)
+      </span>
+    </div>
+  }
   @if (!newSessionName.trim() && sessions().length === 0) {
     <p class="empty-hint">Donne un nom à ta séance pour la créer, puis compose-la avec tes exercices.</p>
   }
@@ -188,12 +211,32 @@
     <div class="card"><app-skeleton shape="list" [rows]="4" /></div>
   } @else {
     <div class="ex-grid">
-      @for (s of sessions(); track s.id) {
-        <a class="card ex-card session-card" [routerLink]="['/app/strength/sessions', s.id, 'structure']">
-          <div class="ex-head">
-            <strong>{{ s.name }}</strong>
-            @if (s.favorite) { <span class="badge badge-warning"><app-icon name="star" [size]="12" /></span> }
-            <span class="ex-head-actions" (click)="$event.preventDefault(); $event.stopPropagation()">
+      @for (s of filteredSessions(); track s.id) {
+        <!-- La carte n'est plus elle-même un lien : le menu de catégorie est un contrôle de
+             formulaire, et un <select> dans un <a> se comporte différemment d'un navigateur à
+             l'autre. Le lien couvre le titre et l'appel à l'action, le reste vit à côté. -->
+        <div class="card ex-card session-card">
+          <a class="session-card__link" [routerLink]="['/app/strength/sessions', s.id, 'structure']">
+            <div class="ex-head">
+              <strong>{{ s.name }}</strong>
+              @if (s.favorite) { <span class="badge badge-warning"><app-icon name="star" [size]="12" /></span> }
+              @if (s.categoryId) { <span class="badge badge-neutral cat-badge">{{ catName(s.categoryId) }}</span> }
+            </div>
+            <p class="field-hint">{{ s.structure.blocks.length }} bloc(s) · {{ s.useCount }} utilisation(s)</p>
+            <span class="edit-hint">Modifier la structure →</span>
+          </a>
+          <div class="session-card__tools">
+            <!-- Reclasser sans ouvrir la séance : ranger une bibliothèque se fait en rafale, pas
+                 séance par séance dans son éditeur. -->
+            <label class="ex-assign">
+              <span>Catégorie</span>
+              <select class="form-control" [ngModel]="s.categoryId ?? ''" [ngModelOptions]="{ standalone: true }"
+                      (ngModelChange)="assignSessionCategory(s, $event)">
+                <option value="">Sans catégorie</option>
+                @for (c of strengthCats(); track c.id) { <option [value]="c.id">{{ c.name }}</option> }
+              </select>
+            </label>
+            <span class="ex-head-actions">
               <button type="button" class="icon-btn" (click)="renameSession(s)" title="Renommer">
                 <app-icon name="type" [size]="15" />
               </button>
@@ -202,11 +245,13 @@
               </button>
             </span>
           </div>
-          <p class="field-hint">{{ s.structure.blocks.length }} bloc(s) · {{ s.useCount }} utilisation(s)</p>
-          <span class="edit-hint">Modifier la structure →</span>
-        </a>
+        </div>
       } @empty {
-        <p class="empty-hint">Aucune séance de force.</p>
+        @if (sessions().length) {
+          <p class="empty-hint">Aucune séance ne correspond à ce filtre.</p>
+        } @else {
+          <p class="empty-hint">Aucune séance de force.</p>
+        }
       }
     </div>
   }

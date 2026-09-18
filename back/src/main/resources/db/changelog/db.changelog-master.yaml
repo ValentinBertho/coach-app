@@ -213,3 +213,5 @@ databaseChangeLog:
       file: db/changelog/changes/100-user-client-context.yaml
   - include:
       file: db/changelog/changes/101-strength-result-distance.yaml
+  - include:
+      file: db/changelog/changes/102-strength-session-category.yaml

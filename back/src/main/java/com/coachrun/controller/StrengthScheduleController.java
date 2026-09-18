@@ -166,7 +166,7 @@ public class StrengthScheduleController {
                                                  @PathVariable UUID scheduledId,
                                                  @Valid @RequestBody SaveAsStrengthSessionRequest request) {
         return scheduleService.saveAsLibrarySession(clubId, athleteId, scheduledId,
-                request.name(), request.notes());
+                request.name(), request.notes(), request.categoryId());
     }
 
     /** Déprogrammation d'une séance de force depuis le calendrier coach. */

@@ -15,6 +15,12 @@ import jakarta.validation.constraints.Size;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record SaveAsStrengthSessionRequest(
         @NotBlank @Size(max = 255) String name,
-        @Size(max = 2048) String notes
+        @Size(max = 2048) String notes,
+        /**
+         * Catégorie de rangement, facultative. Une bibliothèque se range quand elle grossit, pas
+         * au moment où l'on veut seulement ne pas perdre son travail ; mais la reclasser plus tard
+         * suppose de la retrouver, alors on offre le rangement tout de suite sans l'exiger.
+         */
+        java.util.UUID categoryId
 ) {
 }

@@ -957,7 +957,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.strengthService.listAllSessions().subscribe((s) => this.librarySessions.set(s));
     this.templateService.listAll().subscribe((t) => this.courseTemplates.set(t));
     this.drillService.list().subscribe((d) => this.drills.set(d));
-    this.categoryService.list().subscribe({ next: (c) => this.categories.set(c), error: () => this.categories.set([]) });
+    // Les trois domaines : le panneau bibliothèque range course, prépa physique et éducatifs, et
+    // n'aurait rangé que la course avec le domaine par défaut de l'endpoint.
+    this.categoryService.listAll().subscribe({ next: (c) => this.categories.set(c), error: () => this.categories.set([]) });
   }
 
   /** Épingle / dé-épingle (optimiste) une séance course depuis le panneau. */
@@ -2653,9 +2655,15 @@ export class CalendarComponent implements OnInit, OnDestroy {
       () => `« ${s.title} » copiée le ${this.fmtDate(date)}`);
   }
 
-  /** Verse la séance de renforcement du calendrier dans la bibliothèque, comme nouveau modèle. */
+  /**
+   * Verse la séance de renforcement du calendrier dans la bibliothèque, comme nouveau modèle.
+   *
+   * <p>La catégorie est proposée en même temps que le nom, quand le club en a défini : une
+   * bibliothèque se range au moment où on l'alimente, sans quoi la séance rejoint le tas qu'il
+   * faudra parcourir la prochaine fois. Elle reste facultative — le choix vide est en tête.</p>
+   */
   async saveStrengthToLibrary(s: ScheduledStrength): Promise<void> {
-    const name = await this.confirm.prompt({
+    const common = {
       title: 'Enregistrer dans la bibliothèque',
       message: 'La structure est recopiée comme nouveau modèle ; la séance de l’athlète n’est pas '
         + 'modifiée. Les commentaires écrits pour lui restent sur sa séance — un modèle resservira '
@@ -2663,9 +2671,24 @@ export class CalendarComponent implements OnInit, OnDestroy {
       promptLabel: 'Nom du modèle',
       initialValue: s.title,
       confirmLabel: 'Ajouter à la bibliothèque',
-    });
-    if (!name) return;
-    this.strengthService.saveScheduledAsSession(this.selectedAthleteId, s.id, { name }).subscribe({
+    };
+    const choices = this.categories()
+      .filter((c) => c.domain === 'STRENGTH')
+      .map((c) => ({ value: c.id, label: c.name }));
+
+    const answer = choices.length
+      ? await this.confirm.promptWithChoice({
+        ...common,
+        selectLabel: 'Catégorie (facultatif)',
+        selectOptions: choices,
+        selectEmptyLabel: 'Sans catégorie',
+      })
+      : await this.confirm.prompt(common).then((text) => (text ? { text, choice: null } : null));
+    if (!answer?.text) return;
+
+    this.strengthService.saveScheduledAsSession(this.selectedAthleteId, s.id, {
+      name: answer.text, categoryId: answer.choice,
+    }).subscribe({
       next: (created) => {
         this.toast.success(`« ${created.name} » ajoutée à ta bibliothèque`);
         this.strengthService.listAllSessions().subscribe((list) => this.librarySessions.set(list));

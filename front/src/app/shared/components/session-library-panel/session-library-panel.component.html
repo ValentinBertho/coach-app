@@ -6,19 +6,80 @@
            aria-label="Rechercher dans la bibliothèque" />
   </div>
 
-  @if (search().trim() && resultCount() === 0) {
-    <p class="field-hint">Aucune séance ne correspond à « {{ search() }} ».</p>
+  <!-- Premier tri : la famille. C'est elle qui divise la bibliothèque par trois avant même
+       qu'on ait à lire un nom de séance. Chaque puce porte ce qu'elle rapporterait. -->
+  <div class="slp-families" role="group" aria-label="Famille de séances">
+    @for (f of families; track f.value) {
+      <!-- Une famille vide se tait — sauf si c'est celle qu'on regarde : voir disparaître la puce
+           sur laquelle on vient de cliquer laisse sans moyen de comprendre d'où vient le vide. -->
+      @if (f.value === 'all' || familyCount()[f.value] || family() === f.value) {
+        <button type="button" class="slp-chip" [class.on]="family() === f.value"
+                (click)="setFamily(f.value)" [attr.aria-pressed]="family() === f.value">
+          <app-icon [name]="f.icon" [size]="13" />
+          <span class="slp-chip__lb">{{ f.label }}</span>
+          <span class="slp-chip__n">{{ familyCount()[f.value] }}</span>
+        </button>
+      }
+    }
+  </div>
+
+  <!-- Second tri : la catégorie de la famille regardée. Masqué tant qu'il n'y a rien à trier —
+       un menu à un seul choix est un menu qui ment sur ce qu'il peut faire. -->
+  @if (categoryChoices().length > 1) {
+    <div class="slp-cat">
+      <select class="form-control" [ngModel]="categoryId()" (ngModelChange)="categoryId.set($event)"
+              aria-label="Filtrer par catégorie">
+        <option value="">Toutes les catégories</option>
+        @for (c of categoryChoices(); track c.id) {
+          <option [value]="c.id">{{ c.label }} ({{ c.count }})</option>
+        }
+      </select>
+    </div>
   }
 
-  <!-- Favoris (épinglés) -->
+  <!-- Ce qu'on regarde, et comment en sortir : un filtre qu'on a oublié d'enlever se lit comme
+       une bibliothèque qui a perdu des séances. -->
+  @if (filtersActive()) {
+    <div class="slp-active">
+      <span class="slp-active__txt">
+        <strong>{{ resultCount() }}</strong> sur {{ totalCount() }}
+        @if (activeCategoryLabel()) { · {{ activeCategoryLabel() }} }
+      </span>
+      <button type="button" class="slp-clear" (click)="clearFilters()">
+        <app-icon name="x" [size]="13" /> Tout afficher
+      </button>
+    </div>
+  } @else if (groups().length > 1) {
+    <div class="slp-active slp-active--tools">
+      <span class="slp-active__txt">{{ totalCount() }} séances</span>
+      <button type="button" class="slp-clear" (click)="toggleAll()">
+        <app-icon [name]="allCollapsed() ? 'chevron-down' : 'chevron-up'" [size]="13" />
+        {{ allCollapsed() ? 'Tout déplier' : 'Tout replier' }}
+      </button>
+    </div>
+  }
+
+  @if (filteredToNothing()) {
+    <p class="field-hint">
+      @if (search().trim()) {
+        Aucune séance ne correspond à « {{ search() }} » dans ce filtre.
+      } @else {
+        Aucune séance ici.
+      }
+    </p>
+  }
+
+  <!-- Favoris (épinglés) — course uniquement : l'épingle n'existe que là. -->
   @if (favorites().length) {
     <section class="slp-group slp-quick">
       <div class="slp-quick-hd"><app-icon name="star" [size]="13" /> Favoris</div>
       <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
-        @for (t of favorites(); track t.id) {
-          <div class="lib-item course" cdkDrag [cdkDragData]="t" (click)="courseSelect.emit(t)" [title]="itemHint()">
-            <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ t.name }}</span>
-            <button type="button" class="li-star on" (click)="$event.stopPropagation(); favoriteToggle.emit(t)" aria-label="Retirer des favoris"><app-icon name="star" [size]="15" /></button>
+        @for (item of favorites(); track item.id) {
+          <div class="lib-item course" cdkDrag [cdkDragData]="item.data"
+               (click)="select(item)" [title]="itemHint()">
+            <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ item.name }}</span>
+            <button type="button" class="li-star on" (click)="$event.stopPropagation(); toggleFavorite(item)"
+                    aria-label="Retirer des favoris"><app-icon name="star" [size]="15" /></button>
           </div>
         }
       </div>
@@ -30,33 +91,43 @@
     <section class="slp-group slp-quick">
       <div class="slp-quick-hd"><app-icon name="trending-up" [size]="13" /> Fréquentes</div>
       <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
-        @for (t of frequent(); track t.id) {
-          <div class="lib-item course" cdkDrag [cdkDragData]="t" (click)="courseSelect.emit(t)" [title]="itemHint()">
-            <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ t.name }}</span>
-            <button type="button" class="li-star" (click)="$event.stopPropagation(); favoriteToggle.emit(t)" aria-label="Ajouter aux favoris"><app-icon name="star" [size]="15" /></button>
+        @for (item of frequent(); track item.id) {
+          <div class="lib-item course" cdkDrag [cdkDragData]="item.data"
+               (click)="select(item)" [title]="itemHint()">
+            <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ item.name }}</span>
+            <button type="button" class="li-star" (click)="$event.stopPropagation(); toggleFavorite(item)"
+                    aria-label="Ajouter aux favoris"><app-icon name="star" [size]="15" /></button>
           </div>
         }
       </div>
     </section>
   }
 
-  <!-- Course : accordéons par catégorie -->
-  @for (g of courseGroups(); track g.id) {
+  <!-- Un seul rendu pour les trois familles : course, prépa physique et éducatifs se rangent
+       désormais de la même façon, par catégorie du coach. -->
+  @for (g of groups(); track g.key) {
     <section class="slp-group">
-      <button type="button" class="slp-group__hd" (click)="toggleGroup(g.id)" [attr.aria-expanded]="!isCollapsed(g.id)">
-        <app-icon class="slp-chevron" [name]="isCollapsed(g.id) ? 'chevron-right' : 'chevron-down'" [size]="14" />
-        <app-icon name="footprints" [size]="14" />
+      <button type="button" class="slp-group__hd" (click)="toggleGroup(g.key)"
+              [attr.aria-expanded]="!isCollapsed(g.key)">
+        <app-icon class="slp-chevron" [name]="isCollapsed(g.key) ? 'chevron-right' : 'chevron-down'" [size]="14" />
+        <app-icon [name]="g.icon" [size]="14" />
         <span class="slp-group__name">{{ g.name }}</span>
         <span class="slp-count">{{ g.items.length }}</span>
       </button>
-      @if (!isCollapsed(g.id)) {
+      @if (!isCollapsed(g.key)) {
         <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
-          @for (t of g.items; track t.id) {
-            <div class="lib-item course" cdkDrag [cdkDragData]="t" (click)="courseSelect.emit(t)" [title]="itemHint()">
-              <app-icon class="li-icon" name="footprints" [size]="16" /><span class="li-name">{{ t.name }}</span>
-              <button type="button" class="li-star" [class.on]="t.favorite" (click)="$event.stopPropagation(); favoriteToggle.emit(t)"
-                      [attr.aria-label]="t.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'"><app-icon name="star" [size]="15" /></button>
-              @if (!pickMode()) { <app-icon class="li-eye" name="eye" [size]="15" /> }
+          @for (item of g.items; track item.id) {
+            <div class="lib-item" [class.course]="g.kind === 'course'" [class.drill]="g.kind === 'drill'"
+                 cdkDrag [cdkDragData]="item.data" (click)="select(item)" [title]="itemHint()">
+              <app-icon class="li-icon" [name]="g.icon" [size]="16" /><span class="li-name">{{ item.name }}</span>
+              @if (g.kind === 'course') {
+                <button type="button" class="li-star" [class.on]="item.favorite"
+                        (click)="$event.stopPropagation(); toggleFavorite(item)"
+                        [attr.aria-label]="item.favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'">
+                  <app-icon name="star" [size]="15" />
+                </button>
+                @if (!pickMode()) { <app-icon class="li-eye" name="eye" [size]="15" /> }
+              }
             </div>
           }
         </div>
@@ -64,49 +135,7 @@
     </section>
   }
 
-  <!-- Force -->
-  @if (filteredStrength().length) {
-    <section class="slp-group">
-      <button type="button" class="slp-group__hd" (click)="toggleGroup(STRENGTH_ID)" [attr.aria-expanded]="!isCollapsed(STRENGTH_ID)">
-        <app-icon class="slp-chevron" [name]="isCollapsed(STRENGTH_ID) ? 'chevron-right' : 'chevron-down'" [size]="14" />
-        <app-icon name="dumbbell" [size]="14" />
-        <span class="slp-group__name">Prépa physique</span>
-        <span class="slp-count">{{ filteredStrength().length }}</span>
-      </button>
-      @if (!isCollapsed(STRENGTH_ID)) {
-        <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
-          @for (s of filteredStrength(); track s.id) {
-            <div class="lib-item" cdkDrag [cdkDragData]="s" (click)="strengthSelect.emit(s)" [title]="itemHint()">
-              <app-icon class="li-icon" name="dumbbell" [size]="16" /><span class="li-name">{{ s.name }}</span>
-            </div>
-          }
-        </div>
-      }
-    </section>
-  }
-
-  <!-- Éducatifs -->
-  @if (filteredDrills().length) {
-    <section class="slp-group">
-      <button type="button" class="slp-group__hd" (click)="toggleGroup(DRILLS_ID)" [attr.aria-expanded]="!isCollapsed(DRILLS_ID)">
-        <app-icon class="slp-chevron" [name]="isCollapsed(DRILLS_ID) ? 'chevron-right' : 'chevron-down'" [size]="14" />
-        <app-icon name="graduation-cap" [size]="14" />
-        <span class="slp-group__name">Éducatifs</span>
-        <span class="slp-count">{{ filteredDrills().length }}</span>
-      </button>
-      @if (!isCollapsed(DRILLS_ID)) {
-        <div class="lib-list" cdkDropList (cdkDropListDropped)="onNoop()">
-          @for (d of filteredDrills(); track d.id) {
-            <div class="lib-item drill" cdkDrag [cdkDragData]="d" (click)="drillSelect.emit(d)" [title]="itemHint()">
-              <app-icon class="li-icon" name="graduation-cap" [size]="16" /><span class="li-name">{{ d.name }}</span>
-            </div>
-          }
-        </div>
-      }
-    </section>
-  }
-
-  @if (!courseTemplates().length && !strengthSessions().length && !drills().length) {
+  @if (!totalCount()) {
     <p class="field-hint">Aucune séance en bibliothèque.</p>
     <a routerLink="/app/library/course" class="btn btn-ghost btn-sm">Créer un modèle →</a>
   }
