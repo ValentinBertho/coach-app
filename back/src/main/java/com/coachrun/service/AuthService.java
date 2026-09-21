@@ -9,6 +9,8 @@ import com.coachrun.dto.response.AuthResponse;
 import com.coachrun.dto.response.UserResponse;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.User;
+import com.coachrun.entity.enums.AdminAuditAction;
+import com.coachrun.entity.enums.AdminAuditTarget;
 import com.coachrun.entity.enums.AthleteStatus;
 import com.coachrun.entity.enums.RegistrationMode;
 import com.coachrun.entity.enums.UserRole;
@@ -48,6 +50,12 @@ public class AuthService {
     private final NotificationService notificationService;
     private final PushNotificationService pushNotificationService;
     private final ClubProvisioningService clubProvisioningService;
+    /**
+     * Journal des accès. Les événements d'authentification s'écrivent en transaction séparée
+     * ({@code recordDetached}) : un échec de connexion se termine par une exception, donc par un
+     * rollback qui emporterait la trace — or c'est exactement la ligne qu'on vient chercher.
+     */
+    private final AdminAuditService audit;
 
     private static final java.security.SecureRandom RESET_RANDOM = new java.security.SecureRandom();
 
@@ -92,6 +100,11 @@ public class AuthService {
                 frontendUrl + "/verify-email/" + user.getVerifyToken());
         log.info("Nouveau coach inscrit (club={}, e-mail à vérifier)",
                 user.getClub() != null ? user.getClub().getId() : null);
+        audit.recordDetached(AdminAuditService.Actor.of(user),
+                AdminAuditAction.ACCOUNT_REGISTERED, AdminAuditTarget.USER,
+                user.getId(), user.getEmail(),
+                "Inscription directe" + (user.getClub() != null
+                        ? ", club « " + user.getClub().getName() + " »" : ""));
         return toAuthResponse(user);
     }
 
@@ -106,6 +119,9 @@ public class AuthService {
         user.setVerifyToken(null);
         user.setVerifyExpiresAt(null);
         log.info("E-mail vérifié (user={})", user.getId());
+        audit.recordDetached(AdminAuditService.Actor.of(user),
+                AdminAuditAction.EMAIL_VERIFIED, AdminAuditTarget.USER,
+                user.getId(), user.getEmail(), null);
     }
 
     /**
@@ -118,6 +134,7 @@ public class AuthService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UnauthorizedException("Session invalide."));
         String email = request.email().trim().toLowerCase();
+        String previousEmail = user.getEmail();
         boolean emailChanged = !email.equalsIgnoreCase(user.getEmail());
         if (emailChanged && userRepository.existsByEmailIgnoreCase(email)) {
             throw new ConflictException("Cette adresse e-mail est déjà utilisée.");
@@ -135,6 +152,13 @@ public class AuthService {
                     frontendUrl + "/verify-email/" + user.getVerifyToken());
         }
         log.info("Profil mis à jour (user={}, emailChanged={})", userId, emailChanged);
+        if (emailChanged) {
+            // Seul le changement d'adresse est consigné : c'est lui qui déplace l'identifiant de
+            // connexion et la destination des liens de réinitialisation. Un changement de nom ou
+            // d'unité d'allure ne dit rien qu'on viendrait chercher dans un journal.
+            audit.record(AdminAuditAction.EMAIL_CHANGED, AdminAuditTarget.USER,
+                    userId, email, "Adresse « " + previousEmail + " » → « " + email + " »");
+        }
         return UserResponse.from(user);
     }
 
@@ -150,6 +174,8 @@ public class AuthService {
         // Toutes les sessions ouvertes tombent : c'est le but d'un changement de mot de passe.
         user.setPasswordChangedAt(java.time.Instant.now());
         log.info("Mot de passe changé (user={}) — sessions antérieures révoquées", userId);
+        audit.record(AdminAuditAction.PASSWORD_CHANGED, AdminAuditTarget.USER,
+                userId, user.getEmail(), "Sessions antérieures révoquées");
     }
 
     /** Renvoie un e-mail de vérification au compte courant (s'il n'est pas déjà vérifié). */
@@ -235,6 +261,8 @@ public class AuthService {
         // essais sur plusieurs adresses pour forcer un compte précis.
         java.time.Duration lock = loginAttempts.lockRemaining(request.email());
         if (lock != null) {
+            auditLogin(AdminAuditAction.LOGIN_BLOCKED, null, request.email(),
+                    "Verrou de compte actif, " + Math.max(1, lock.toSeconds()) + " s restantes");
             throw new com.coachrun.exception.ApiException(
                     org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
                     "Trop de tentatives — réessayez dans " + Math.max(1, lock.toSeconds()) + " s.");
@@ -246,9 +274,16 @@ public class AuthService {
             // Le compteur est alimenté même pour un compte inexistant : sinon la présence d'un
             // verrou révélerait quels e-mails existent.
             loginAttempts.recordFailure(request.email());
+            // Le motif distingue les deux formes d'échec, qui ne se lisent pas pareil : des
+            // adresses inconnues en rafale sont un balayage, un mot de passe faux répété sur une
+            // adresse qui existe est une attaque ciblée. Le mot de passe présenté, lui, n'entre
+            // jamais ici — sous aucune forme.
+            auditLogin(AdminAuditAction.LOGIN_FAILED, user, request.email(),
+                    user == null ? "Aucun compte pour cette adresse" : "Mot de passe incorrect");
             throw new UnauthorizedException("Email ou mot de passe incorrect.");
         }
         if (user.getStatus() == UserStatus.SUSPENDED) {
+            auditLogin(AdminAuditAction.LOGIN_FAILED, user, request.email(), "Compte suspendu");
             throw new UnauthorizedException("Ce compte est suspendu.");
         }
         loginAttempts.recordSuccess(request.email());
@@ -257,7 +292,29 @@ public class AuthService {
         // suivi d'entité — d'où le @Transactional sur cette méthode, la classe étant en lecture
         // seule (un appel interne ne repasserait pas par le proxy, donc rien ne serait écrit).
         user.setLastLoginAt(java.time.Instant.now());
+        auditLogin(AdminAuditAction.LOGIN_SUCCEEDED, user, request.email(), null);
         return toAuthResponse(user);
+    }
+
+    /**
+     * Consigne une tentative de connexion, aboutie ou non.
+     *
+     * <p><b>Pourquoi l'adresse saisie figure en cible même quand aucun compte ne lui correspond.</b>
+     * C'est le seul renseignement qui permette de reconnaître un bourrage d'identifiants : une
+     * ligne « échec » sans l'adresse visée ne se relie à rien. Le champ est validé en
+     * {@code @Email} avant d'arriver ici, donc un mot de passe tapé dans la case e-mail est
+     * refusé en amont et n'a aucune chance d'atterrir au journal.</p>
+     *
+     * <p>Transaction séparée, sans exception : trois des quatre appels sont suivis d'un
+     * {@code throw}, qui emporterait une trace jointe à la transaction courante.</p>
+     */
+    private void auditLogin(AdminAuditAction action, User user, String attemptedEmail, String reason) {
+        audit.recordDetached(
+                user != null ? AdminAuditService.Actor.of(user) : AdminAuditService.Actor.anonymous(),
+                action, AdminAuditTarget.USER,
+                user != null ? user.getId() : null,
+                user != null ? user.getEmail() : attemptedEmail,
+                reason);
     }
 
     public AuthResponse refresh(RefreshRequest request) {
@@ -356,6 +413,11 @@ public class AuthService {
         if (firstActivation) {
             notificationService.notifyAthleteJoined(athlete);
         }
+        audit.recordDetached(AdminAuditService.Actor.of(user),
+                AdminAuditAction.INVITATION_ACCEPTED, AdminAuditTarget.USER,
+                user.getId(), user.getEmail(),
+                (firstActivation ? "Première activation" : "Lien rejoué")
+                        + ", consentement santé " + (healthDataConsent ? "donné" : "refusé"));
         return toAuthResponse(user);
     }
 
@@ -383,6 +445,11 @@ public class AuthService {
         user.setInviteToken(null);
         user.setInviteExpiresAt(null);
         log.info("Invitation coach acceptée (user={})", user.getId());
+        audit.recordDetached(AdminAuditService.Actor.of(user),
+                AdminAuditAction.INVITATION_ACCEPTED, AdminAuditTarget.USER,
+                user.getId(), user.getEmail(),
+                "Invitation coach" + (user.getClub() != null
+                        ? ", club « " + user.getClub().getName() + " »" : ""));
         return toAuthResponse(user);
     }
 
@@ -407,6 +474,9 @@ public class AuthService {
             notificationService.notifyPasswordReset(u.getEmail(), u.getFullName(),
                     frontendUrl + "/reset-password/" + token);
             log.info("Réinitialisation de mot de passe demandée (user={})", u.getId());
+            audit.recordDetached(AdminAuditService.Actor.of(u),
+                    AdminAuditAction.PASSWORD_RESET_REQUESTED, AdminAuditTarget.USER,
+                    u.getId(), u.getEmail(), "Lien valable 2 h");
         });
     }
 
@@ -433,6 +503,9 @@ public class AuthService {
         // émis (refresh : 30 jours) doivent cesser de valoir, sinon l'intrus reste connecté.
         user.setPasswordChangedAt(java.time.Instant.now());
         log.info("Mot de passe réinitialisé (user={}) — sessions antérieures révoquées", user.getId());
+        audit.recordDetached(AdminAuditService.Actor.of(user),
+                AdminAuditAction.PASSWORD_RESET_COMPLETED, AdminAuditTarget.USER,
+                user.getId(), user.getEmail(), "Par lien e-mail — sessions antérieures révoquées");
         return toAuthResponse(user);
     }
 
@@ -467,6 +540,8 @@ public class AuthService {
                 .ifPresent(user -> user.setSessionsInvalidatedAt(java.time.Instant.now()));
         pushNotificationService.unsubscribeUser(userId);
         log.info("Déconnexion (user={}) — sessions antérieures révoquées", userId);
+        audit.record(AdminAuditAction.LOGOUT, AdminAuditTarget.USER, userId, null,
+                "Sessions et abonnements push révoqués");
     }
 
     public UserResponse currentUser(UUID userId) {

@@ -3,7 +3,12 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
-import { AdminAuditAction, AdminAuditEntry, AuditTargetType } from '../../core/models/admin.model';
+import {
+  AdminAuditAction,
+  AdminAuditEntry,
+  AdminAuditScopeOption,
+  AuditTargetType,
+} from '../../core/models/admin.model';
 import { AdminService } from '../../core/services/admin.service';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -20,6 +25,11 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  *
  * <p><b>Lecture seule.</b> Aucun bouton n'écrit ni ne supprime : un journal qu'on peut amender
  * depuis l'interface qu'il surveille ne prouve rien.</p>
+ *
+ * <p><b>Il ne montre plus seulement le back-office.</b> Connexions, mots de passe, consentements
+ * santé, exports RGPD, athlètes créés ou archivés y figurent désormais. Le filtre de <b>portée</b>
+ * est ce qui rend l'écran encore lisible : une journée d'usage produit plus de lignes de sécurité
+ * qu'une année de gestes d'administration, et sans lui les secondes seraient introuvables.</p>
  */
 @Component({
   selector: 'app-admin-audit',
@@ -40,6 +50,7 @@ export class AdminAuditComponent implements OnInit {
 
   readonly entries = signal<AdminAuditEntry[]>([]);
   readonly actions = signal<AdminAuditAction[]>([]);
+  readonly scopes = signal<AdminAuditScopeOption[]>([]);
   readonly loading = signal(true);
   readonly failed = signal(false);
   readonly page = signal(0);
@@ -51,11 +62,30 @@ export class AdminAuditComponent implements OnInit {
     { value: 'CLUB', label: 'Club' },
     { value: 'ATHLETE', label: 'Athlète' },
     { value: 'INVITATION', label: 'Invitation' },
+    { value: 'TRAINING_PLAN', label: "Plan d'entraînement" },
     { value: 'PLATFORM', label: 'Plateforme' },
   ];
 
+  /**
+   * Les actions regroupées par famille, pour les `<optgroup>` de la liste déroulante.
+   *
+   * <p>Quarante actions à plat ne se parcourent pas. Un back antérieur ne sert pas la portée :
+   * ces actions atterrissent alors dans un groupe unique sans libellé, ce qui redonne exactement
+   * la liste plate d'avant plutôt qu'un écran cassé (§4 bis).</p>
+   */
+  get actionGroups(): { label: string; actions: AdminAuditAction[] }[] {
+    const groups = new Map<string, { label: string; actions: AdminAuditAction[] }>();
+    for (const a of this.actions()) {
+      const key = a.scope ?? '';
+      if (!groups.has(key)) groups.set(key, { label: a.scopeLabel ?? '', actions: [] });
+      groups.get(key)!.actions.push(a);
+    }
+    return [...groups.values()];
+  }
+
   search = '';
   filterAction = '';
+  filterScope = '';
   filterTarget = '';
   /** 0 = sans limite de temps. 30 jours par défaut : le journal se lit d'abord au présent. */
   filterDays = 30;
@@ -71,9 +101,14 @@ export class AdminAuditComponent implements OnInit {
       next: (a) => this.actions.set(a),
       error: () => this.actions.set([]),
     });
+    this.admin.auditScopes().subscribe({
+      next: (s) => this.scopes.set(s),
+      error: () => this.scopes.set([]),
+    });
     const qp = this.route.snapshot.queryParamMap;
     this.targetId = qp.get('targetId') ?? '';
     this.filterAction = qp.get('action') ?? '';
+    this.filterScope = qp.get('scope') ?? '';
     this.load();
   }
 
@@ -89,6 +124,7 @@ export class AdminAuditComponent implements OnInit {
   resetFilters(): void {
     this.search = '';
     this.filterAction = '';
+    this.filterScope = '';
     this.filterTarget = '';
     this.filterDays = 30;
     this.targetId = '';
@@ -96,7 +132,14 @@ export class AdminAuditComponent implements OnInit {
   }
 
   get hasFilters(): boolean {
-    return !!(this.search || this.filterAction || this.filterTarget || this.targetId || this.filterDays !== 30);
+    return !!(
+      this.search ||
+      this.filterAction ||
+      this.filterScope ||
+      this.filterTarget ||
+      this.targetId ||
+      this.filterDays !== 30
+    );
   }
 
   goToPage(p: number): void {
@@ -110,6 +153,7 @@ export class AdminAuditComponent implements OnInit {
     this.admin
       .audit({
         action: this.filterAction || undefined,
+        scope: this.filterScope || undefined,
         targetType: this.filterTarget || undefined,
         targetId: this.targetId || undefined,
         days: this.filterDays || undefined,
@@ -180,6 +224,8 @@ export class AdminAuditComponent implements OnInit {
     if (e.targetType === 'ATHLETE' || e.targetType === 'INVITATION') {
       return ['/admin/athletes', e.targetId, 'edit'];
     }
+    // TRAINING_PLAN : les plans n'ont pas de fiche dans le back-office. La ligne reste lisible
+    // (le nom du plan est figé dans `targetLabel`), elle n'est simplement pas cliquable.
     return null;
   }
 }

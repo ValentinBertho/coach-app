@@ -95,7 +95,15 @@ export interface AdminOverview {
 // Journal d'audit
 // ---------------------------------------------------------------------------
 
-export type AuditTargetType = 'USER' | 'CLUB' | 'ATHLETE' | 'INVITATION' | 'PLATFORM';
+export type AuditTargetType =
+  | 'USER' | 'CLUB' | 'ATHLETE' | 'INVITATION' | 'TRAINING_PLAN' | 'PLATFORM';
+
+/**
+ * Famille d'actions du journal. Le journal ne regardait que le back-office ; il consigne
+ * désormais aussi ce que font les utilisateurs (connexions, mots de passe, consentements santé,
+ * exports, athlètes créés ou archivés). La portée est ce qui permet de lire l'un sans l'autre.
+ */
+export type AuditScope = 'ADMINISTRATION' | 'SECURITY' | 'PRIVACY' | 'COACHING';
 
 export interface AdminAuditEntry {
   id: string;
@@ -116,6 +124,12 @@ export interface AdminAuditEntry {
   action: string;
   actionLabel: string;
   sensitive: boolean;
+  /**
+   * Famille du geste. Optionnel : les fronts en cache l'ignorent, et une entrée servie par un
+   * back antérieur ne la porte pas (cf. Claude.md §4 bis).
+   */
+  scope?: AuditScope | null;
+  scopeLabel?: string | null;
   targetType: AuditTargetType;
   targetTypeLabel: string;
   targetId: string | null;
@@ -133,6 +147,15 @@ export interface AdminAuditAction {
   value: string;
   label: string;
   sensitive: boolean;
+  /** Famille de l'action, pour regrouper la liste déroulante. Optionnel (§4 bis). */
+  scope?: AuditScope | null;
+  scopeLabel?: string | null;
+}
+
+/** Une famille du journal, telle que servie par `/admin/audit/scopes`. */
+export interface AdminAuditScopeOption {
+  value: AuditScope;
+  label: string;
 }
 
 // ---------------------------------------------------------------------------

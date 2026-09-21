@@ -44,7 +44,7 @@ class AdminAuditOnPostgresTest {
     /** L'appel exact de l'écran à son ouverture : « 30 derniers jours », aucun autre filtre. */
     @Test
     void theDefaultScreenLoads() {
-        assertThatCode(() -> auditService.search(null, null, null, null, 30, null,
+        assertThatCode(() -> auditService.search(null, null, null, null, null, 30, null,
                 PageRequest.of(0, 50)))
                 .doesNotThrowAnyException();
     }
@@ -52,7 +52,7 @@ class AdminAuditOnPostgresTest {
     /** Sans aucun filtre : tous les paramètres nuls à la fois, le cas le plus exposé. */
     @Test
     void noFilterAtAllLoads() {
-        assertThatCode(() -> auditService.search(null, null, null, null, null, null,
+        assertThatCode(() -> auditService.search(null, null, null, null, null, null, null,
                 PageRequest.of(0, 50)))
                 .doesNotThrowAnyException();
     }
@@ -70,12 +70,12 @@ class AdminAuditOnPostgresTest {
         repository.save(entry(marker + "-recent", java.time.Instant.now().minus(java.time.Duration.ofHours(2))));
         repository.save(entry(marker + "-ancien", java.time.Instant.now().minus(java.time.Duration.ofDays(40))));
 
-        var lastDay = auditService.search(null, null, null, null, 1, marker, PageRequest.of(0, 50));
+        var lastDay = auditService.search(null, null, null, null, null, 1, marker, PageRequest.of(0, 50));
         assertThat(lastDay.content()).as("un seul des deux tient dans les dernières 24 h")
                 .hasSize(1);
         assertThat(lastDay.content().get(0).targetLabel()).contains("recent");
 
-        var everything = auditService.search(null, null, null, null, null, marker, PageRequest.of(0, 50));
+        var everything = auditService.search(null, null, null, null, null, null, marker, PageRequest.of(0, 50));
         assertThat(everything.content()).as("sans borne, les deux remontent").hasSize(2);
     }
 
@@ -91,15 +91,38 @@ class AdminAuditOnPostgresTest {
     /** Chaque filtre posé isolément : aucun ne doit dépendre de la présence des autres. */
     @Test
     void eachFilterWorksOnItsOwn() {
-        assertThatCode(() -> auditService.search(AdminAuditAction.USER_DELETED, null, null, null,
+        assertThatCode(() -> auditService.search(AdminAuditAction.USER_DELETED, null, null, null, null,
                 null, null, PageRequest.of(0, 50))).doesNotThrowAnyException();
-        assertThatCode(() -> auditService.search(null, AdminAuditTarget.CLUB, null, null,
+        assertThatCode(() -> auditService.search(null, null, AdminAuditTarget.CLUB, null, null,
                 null, null, PageRequest.of(0, 50))).doesNotThrowAnyException();
-        assertThatCode(() -> auditService.search(null, null, java.util.UUID.randomUUID(), null,
+        assertThatCode(() -> auditService.search(null, null, null, java.util.UUID.randomUUID(), null,
                 null, null, PageRequest.of(0, 50))).doesNotThrowAnyException();
-        assertThatCode(() -> auditService.search(null, null, null, java.util.UUID.randomUUID(),
+        assertThatCode(() -> auditService.search(null, null, null, null, java.util.UUID.randomUUID(),
                 null, null, PageRequest.of(0, 50))).doesNotThrowAnyException();
-        assertThatCode(() -> auditService.search(null, null, null, null, null, "dupont",
+        assertThatCode(() -> auditService.search(null, null, null, null, null, null, "dupont",
                 PageRequest.of(0, 50))).doesNotThrowAnyException();
+    }
+
+    /**
+     * Le filtre de famille passe par un {@code action in (…)} — la seule forme qui ne rejoue pas
+     * le piège documenté plus haut, puisqu'une liste toujours pleine remplace le {@code is null}.
+     */
+    @Test
+    void theScopeFilterLoadsAndExcludes() {
+        String marker = "portee-" + java.util.UUID.randomUUID();
+        AdminAuditLog admin = entry(marker + "-admin", java.time.Instant.now());
+        AdminAuditLog login = entry(marker + "-connexion", java.time.Instant.now());
+        login.setAction(AdminAuditAction.LOGIN_SUCCEEDED);
+        repository.save(admin);
+        repository.save(login);
+
+        var security = auditService.search(null, com.coachrun.entity.enums.AdminAuditScope.SECURITY,
+                null, null, null, null, marker, PageRequest.of(0, 50));
+        assertThat(security.content()).hasSize(1);
+        assertThat(security.content().get(0).targetLabel()).contains("connexion");
+
+        var everything = auditService.search(null, null, null, null, null, null, marker,
+                PageRequest.of(0, 50));
+        assertThat(everything.content()).as("sans famille demandée, les deux remontent").hasSize(2);
     }
 }

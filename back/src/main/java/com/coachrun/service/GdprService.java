@@ -14,6 +14,8 @@ import com.coachrun.dto.response.StrengthTestResponse;
 import com.coachrun.dto.response.UnavailabilityResponse;
 import com.coachrun.dto.response.WorkoutResponse;
 import com.coachrun.entity.Athlete;
+import com.coachrun.entity.enums.AdminAuditAction;
+import com.coachrun.entity.enums.AdminAuditTarget;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.ActivityRepository;
 import com.coachrun.repository.AthletePerformanceRepository;
@@ -68,10 +70,21 @@ public class GdprService {
     private final NotificationService notificationService;
     private final com.coachrun.repository.UserRepository userRepository;
     private final PushNotificationService pushNotificationService;
+    /**
+     * Journal. Les quatre gestes de ce service sont ceux qu'un athlète peut vouloir prouver, et
+     * ceux dont un coach peut avoir à répondre : exercer un droit RGPD sans qu'il en reste trace
+     * rend la réponse à « qui a effacé mes tests ? » impossible à donner.
+     */
+    private final AdminAuditService audit;
 
     public AthleteExportResponse export(UUID athleteId) {
         Athlete athlete = athleteRepository.findById(athleteId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        // Transaction séparée, et pas par précaution : ce service est en readOnly, un écrit joint
+        // à cette transaction ne serait jamais vidé en base — et l'absence de trace ne se
+        // remarquerait nulle part (cf. AdminAuditService#recordDetached).
+        audit.recordDetached(AdminAuditAction.PERSONAL_DATA_EXPORTED, AdminAuditTarget.ATHLETE,
+                athleteId, label(athlete), "Dossier complet (art. 20 — portabilité)");
         LocalDate today = LocalDate.now();
 
         var workouts = workoutRepository.findByAthleteIdOrderByScheduledDateAsc(athleteId)
@@ -120,11 +133,17 @@ public class GdprService {
      */
     @Transactional
     public void deleteAthleteData(UUID athleteId) {
-        if (!athleteRepository.existsById(athleteId)) {
-            throw new NotFoundException("Athlète introuvable.");
-        }
+        // Lu plutôt que simplement compté : le journal a besoin du nom, et après la suppression
+        // il n'y aura plus rien à nommer. Le refus reste le même qu'avant pour un identifiant
+        // inconnu (require lève la même NotFoundException).
+        Athlete athlete = require(athleteId);
         userRepository.findByAthleteId(athleteId)
                 .ifPresent(user -> pushNotificationService.unsubscribeUser(user.getId()));
+        // Consigné AVANT la suppression. La trace ne porte aucune clé étrangère : elle survit à
+        // la disparition de sa cible — c'est précisément ce pour quoi le journal a été conçu sans FK.
+        audit.record(AdminAuditAction.ATHLETE_DATA_ERASED, AdminAuditTarget.ATHLETE,
+                athleteId, label(athlete),
+                "Effacement complet du dossier (art. 17 — droit à l'oubli)");
         athleteRepository.deleteById(athleteId);
         log.warn("[RGPD] Données de l'athlète {} supprimées (droit à l'oubli).", athleteId);
     }
@@ -164,6 +183,12 @@ public class GdprService {
             return; // déjà retiré : idempotent, pas d'erreur
         }
         athlete.setHealthDataConsentWithdrawnAt(Instant.now());
+        // Le résumé dit ce qui a été effacé, jamais ce qu'il y avait dedans : une valeur de
+        // lactate ou un niveau de douleur recopié au journal contredirait le geste même.
+        audit.record(AdminAuditAction.HEALTH_CONSENT_WITHDRAWN, AdminAuditTarget.ATHLETE,
+                athleteId, label(athlete),
+                "Retrait du consentement (art. 7-3) — tests lactate, douleur, fatigue, "
+                        + "motifs médicaux et notes de santé effacés");
 
         var lactateTests = lactateTestRepository.findByAthleteIdOrderByTestDateDesc(athleteId);
         int lactate = lactateTests.size();
@@ -240,6 +265,13 @@ public class GdprService {
         }
         athlete.setHealthDataConsentAt(Instant.now());
         log.info("[RGPD] Consentement santé redonné (athlète={}).", athleteId);
+        audit.record(AdminAuditAction.HEALTH_CONSENT_GRANTED, AdminAuditTarget.ATHLETE,
+                athleteId, label(athlete), "La collecte reprend ; le passé effacé ne revient pas");
+    }
+
+    /** Libellé de cible pour le journal : identifier la personne, sans rien dire de sa santé. */
+    private static String label(Athlete athlete) {
+        return athlete == null ? null : (athlete.getFirstName() + " " + athlete.getLastName()).trim();
     }
 
     private Athlete require(UUID athleteId) {
