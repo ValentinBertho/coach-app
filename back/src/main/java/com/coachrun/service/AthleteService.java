@@ -10,6 +10,8 @@ import com.coachrun.dto.response.RefResponse;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.Club;
 import com.coachrun.entity.User;
+import com.coachrun.entity.enums.AdminAuditAction;
+import com.coachrun.entity.enums.AdminAuditTarget;
 import com.coachrun.entity.enums.AthleteStatus;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.exception.ConflictException;
@@ -55,6 +57,12 @@ public class AthleteService {
     private final ZoneValueSyncService zoneValueSyncService;
     private final NotificationService notificationService;
     private final com.coachrun.security.HealthDataConsentValidator consentValidator;
+    /**
+     * Journal. Trois gestes seulement y entrent : créer, archiver, inviter. Ce sont ceux qui
+     * ouvrent ou ferment un dossier — le reste (une VMA corrigée, une zone retouchée) se compte en
+     * dizaines par jour et se lit déjà sur la fiche de l'athlète.
+     */
+    private final AdminAuditService audit;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -142,6 +150,11 @@ public class AthleteService {
         boolean privat = Boolean.TRUE.equals(request.privateAthlete());
         createReferentRelation(athlete, club, creatorCoachId, privat);
         log.info("Athlète créé {} (club={}, référent={}, privé={})", athlete.getId(), clubId, creatorCoachId, privat);
+        // Nom et prénom seulement : le reste de la fiche (poids, seuils, blessures) est de la
+        // donnée de santé, qui n'entre jamais dans un journal.
+        audit.record(AdminAuditAction.ATHLETE_CREATED, AdminAuditTarget.ATHLETE,
+                athlete.getId(), athleteLabel(athlete),
+                privat ? "Athlète privé (hors club)" : "Club « " + club.getName() + " »");
         return AthleteResponse.from(athlete);
     }
 
@@ -208,7 +221,12 @@ public class AthleteService {
     @Transactional
     public void archive(UUID clubId, UUID athleteId) {
         Athlete athlete = requireAthlete(clubId, athleteId);
+        AthleteStatus previous = athlete.getStatus();
         athlete.setStatus(AthleteStatus.ARCHIVED);
+        // Un athlète archivé disparaît des listes du coach sans que rien ne dise qui l'a retiré
+        // ni quand. C'est la question qui se pose quand un athlète revient six mois plus tard.
+        audit.record(AdminAuditAction.ATHLETE_ARCHIVED, AdminAuditTarget.ATHLETE,
+                athleteId, athleteLabel(athlete), "Statut " + previous + " → ARCHIVED");
     }
 
     @Transactional
@@ -229,7 +247,17 @@ public class AthleteService {
                 athlete.getEmail(), athlete.getFirstName(), clubName, url);
         log.info("Invitation générée pour l'athlète {} (expire {}, e-mail={})",
                 athleteId, expiresAt, athlete.getEmail() != null);
+        // Le lien lui-même n'entre pas au journal : c'est un jeton d'accès au compte.
+        audit.record(AdminAuditAction.ATHLETE_INVITED, AdminAuditTarget.ATHLETE,
+                athleteId, athleteLabel(athlete),
+                "Invitation valable " + INVITE_VALIDITY_DAYS + " jours, envoi e-mail "
+                        + (athlete.getEmail() != null ? "oui" : "non"));
         return new AthleteInvitationResponse(url, expiresAt);
+    }
+
+    /** Libellé de cible pour le journal : de quoi reconnaître la personne, rien de plus. */
+    private static String athleteLabel(Athlete athlete) {
+        return (athlete.getFirstName() + " " + athlete.getLastName()).trim();
     }
 
     /** Lecture publique des infos d'invitation (page d'acceptation athlète). */

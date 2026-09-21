@@ -2,6 +2,7 @@ package com.coachrun.dto.response;
 
 import com.coachrun.entity.AdminAuditLog;
 import com.coachrun.entity.enums.AdminAuditAction;
+import com.coachrun.entity.enums.AdminAuditScope;
 import com.coachrun.entity.enums.AdminAuditTarget;
 
 import java.time.Instant;
@@ -28,6 +29,12 @@ public record AdminAuditResponse(
         AdminAuditAction action,
         String actionLabel,
         boolean sensitive,
+        /**
+         * Famille du geste, déduite de l'action. Ajoutée quand le journal a cessé de ne regarder
+         * que le back-office : c'est elle qui distingue une connexion d'une suppression de club.
+         */
+        AdminAuditScope scope,
+        String scopeLabel,
         AdminAuditTarget targetType,
         String targetTypeLabel,
         UUID targetId,
@@ -54,6 +61,8 @@ public record AdminAuditResponse(
                 // Un geste fait depuis une session empruntée est signalé quelle que soit
                 // l'action : c'est le contexte qui est exceptionnel, pas le geste.
                 (action != null && action.sensitive()) || a.getImpersonatorUserId() != null,
+                action != null ? action.scope() : null,
+                action != null ? action.scope().label() : null,
                 target,
                 target != null ? target.label() : null,
                 a.getTargetId(),

@@ -8,6 +8,7 @@ import {
   AdminAthlete,
   AdminAuditAction,
   AdminAuditEntry,
+  AdminAuditScopeOption,
   AdminOverview,
   AdminPlatform,
   AdminSearchResult,
@@ -63,6 +64,8 @@ export class AdminService {
   audit(
     opts: {
       action?: string;
+      /** Famille d'actions : administration, sécurité, données personnelles, coaching. */
+      scope?: string;
       targetType?: string;
       actorUserId?: string;
       targetId?: string;
@@ -74,6 +77,7 @@ export class AdminService {
   ): Observable<PageResponse<AdminAuditEntry>> {
     let params = new HttpParams().set('page', opts.page ?? 0).set('size', opts.size ?? 50);
     if (opts.action) params = params.set('action', opts.action);
+    if (opts.scope) params = params.set('scope', opts.scope);
     if (opts.targetType) params = params.set('targetType', opts.targetType);
     if (opts.actorUserId) params = params.set('actorUserId', opts.actorUserId);
     if (opts.targetId) params = params.set('targetId', opts.targetId);
@@ -84,6 +88,11 @@ export class AdminService {
 
   auditActions(): Observable<AdminAuditAction[]> {
     return this.http.get<AdminAuditAction[]>(`${this.base}/audit/actions`);
+  }
+
+  /** Familles du journal, pour le filtre de portée. */
+  auditScopes(): Observable<AdminAuditScopeOption[]> {
+    return this.http.get<AdminAuditScopeOption[]>(`${this.base}/audit/scopes`);
   }
 
   // --- E-mails ---

@@ -12,5 +12,5 @@ export const environment = {
   apiUrl: 'http://localhost:8080/api',
   serviceWorker: true,
   sentryDsn: '',
-  appVersion: '0.4.1-pwa',
+  appVersion: '0.5.0-pwa',
 };

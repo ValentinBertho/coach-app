@@ -15,5 +15,5 @@ export const environment = {
   apiUrl: '/api',
   serviceWorker: true,
   sentryDsn: '',
-  appVersion: '0.4.1-docker',
+  appVersion: '0.5.0-docker',
 };

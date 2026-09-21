@@ -1,5 +1,7 @@
 package com.coachrun.service;
 
+import com.coachrun.entity.enums.AdminAuditAction;
+import com.coachrun.entity.enums.AdminAuditTarget;
 import com.coachrun.dto.request.PlanItemDto;
 import com.coachrun.dto.request.TrainingPlanRequest;
 import com.coachrun.dto.response.GroupApplyResponse;
@@ -59,6 +61,11 @@ public class TrainingPlanService {
     private final ObjectMapper objectMapper;
     private final ClockService clock;
     private final NotificationService notificationService;
+    /**
+     * Journal. Seule la suppression y entre : elle emporte le plan et ce qui s'y rattache, et
+     * rien ne disait ensuite qu'il avait existé. Créer et modifier un plan se voit dans le produit.
+     */
+    private final AdminAuditService audit;
 
     public List<TrainingPlanResponse> list(UUID clubId) {
         return planRepository.findByClubIdOrderByNameAsc(clubId).stream()
@@ -93,7 +100,11 @@ public class TrainingPlanService {
 
     @Transactional
     public void delete(UUID clubId, UUID id) {
-        planRepository.delete(require(clubId, id));
+        var plan = require(clubId, id);
+        // Consigné avant la suppression : après, le nom du plan n'existe plus nulle part.
+        audit.record(AdminAuditAction.TRAINING_PLAN_DELETED, AdminAuditTarget.TRAINING_PLAN,
+                id, plan.getName(), "Plan supprimé");
+        planRepository.delete(plan);
     }
 
     /**

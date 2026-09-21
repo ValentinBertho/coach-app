@@ -315,6 +315,40 @@ Le journal ne remonte qu'aux envois postérieurs à sa mise en service, et rien 
 que `MAIL_ENABLED=false`. L'écriture est **hors transaction métier** : un journal en panne ne fait
 jamais échouer l'action qui a déclenché l'envoi.
 
+### 8.6 Le journal d'audit — ce qu'il garde, ce qu'il purge
+
+`/admin/audit` ne consigne plus seulement les gestes du back-office. Il porte aussi ce que font
+les utilisateurs quand c'est important, rangé en quatre **familles** qui servent de filtre :
+
+| Famille | Ce qu'elle consigne |
+|---|---|
+| **Administration** | Les gestes du back-office : comptes, clubs, plateforme, emprunts d'identité. |
+| **Sécurité des accès** | Connexions réussies, échouées et bloquées, déconnexions, mots de passe, adresses e-mail, inscriptions, invitations acceptées. |
+| **Données personnelles** | Consentement santé donné ou retiré, export de dossier, droit à l'oubli, montre branchée ou débranchée. |
+| **Coaching** | Athlète créé, archivé, invité ; coach entré ou sorti d'un club ; plan supprimé. |
+
+Ce qui reste **hors** du journal, délibérément : les séances, les messages, les commentaires, les
+imports d'activité. Ils se comptent en milliers par jour, se lisent déjà dans le produit, et les
+noyer avec le reste reviendrait à n'avoir plus de journal du tout.
+
+Le résumé d'une ligne est composé par le code à partir de champs sûrs. **Aucune donnée de santé,
+aucun mot de passe, aucun jeton n'y transite** — un échec de connexion consigne l'adresse saisie
+et le motif, jamais le mot de passe présenté.
+
+```bash
+AUDIT_ACCESS_RETENTION_DAYS=365  # traces d'accès uniquement. 0 désactive la purge
+AUDIT_PURGE_CRON="0 15 4 * * *"  # la nuit, sous verrou, comme les autres purges
+```
+
+La purge ne touche **que la famille « sécurité des accès »** : ce sont des données de connexion,
+qui se bornent, et les seules dont le volume l'exige. Les gestes d'administration, les exercices
+de droits RGPD et les gestes de coaching ne sont jamais purgés — ce sont eux qu'on vient chercher
+des années plus tard.
+
+Deux lectures restent volontairement **limitées à l'administration** : le bandeau « dernières
+actions » du tableau de bord et le compteur « actions d'administration (7 j) ». Sans cela, une
+journée d'usage ordinaire les remplirait de connexions et ils cesseraient de servir.
+
 ---
 
 ## 9. Journaux centralisés — Better Stack Telemetry (pas-à-pas)

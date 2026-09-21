@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,6 +32,15 @@ public interface AdminAuditLogRepository extends JpaRepository<AdminAuditLog, UU
      * avec un type non spécifié — c'est ce qui fait la différence, et c'est pourquoi seul
      * celui-ci a dû changer.</p>
      *
+     * <h2>La famille d'actions passe par une liste toujours pleine</h2>
+     *
+     * <p>{@code :actions} porte le filtre de portée (administration, sécurité, données
+     * personnelles, coaching). Sans portée demandée, l'appelant passe <b>toutes</b> les valeurs de
+     * l'énumération plutôt que {@code null} : un paramètre seul dans un {@code is null} est
+     * exactement la forme que PostgreSQL refuse, et qui est documentée deux paragraphes plus bas.
+     * Quelques dizaines de constantes dans un {@code in} ne coûtent rien ; un écran qui tombe en
+     * 500, si.</p>
+     *
      * <h2>Chercher un administrateur le trouve aussi derrière un emprunt</h2>
      *
      * <p>La recherche libre couvre {@code impersonatorEmail} en plus de {@code actorEmail} : sans
@@ -50,6 +60,7 @@ public interface AdminAuditLogRepository extends JpaRepository<AdminAuditLog, UU
               and (:targetType is null or a.targetType = :targetType)
               and (:actorUserId is null or a.actorUserId = :actorUserId)
               and (:targetId is null or a.targetId = :targetId)
+              and a.action in :actions
               and a.occurredAt >= coalesce(:since, a.occurredAt)
               and (:q = '' or lower(coalesce(a.targetLabel, '')) like lower(concat('%', :q, '%'))
                    or lower(coalesce(a.actorEmail, '')) like lower(concat('%', :q, '%'))
@@ -58,6 +69,7 @@ public interface AdminAuditLogRepository extends JpaRepository<AdminAuditLog, UU
             order by a.occurredAt desc
             """)
     Page<AdminAuditLog> search(@Param("action") AdminAuditAction action,
+                               @Param("actions") Collection<AdminAuditAction> actions,
                                @Param("targetType") AdminAuditTarget targetType,
                                @Param("actorUserId") UUID actorUserId,
                                @Param("targetId") UUID targetId,
@@ -65,11 +77,27 @@ public interface AdminAuditLogRepository extends JpaRepository<AdminAuditLog, UU
                                @Param("q") String q,
                                Pageable pageable);
 
-    /** Dernières lignes, tous filtres confondus : bandeau « dernières actions » du pilotage. */
-    List<AdminAuditLog> findTop10ByOrderByOccurredAtDesc();
+    /**
+     * Dernières lignes d'une famille d'actions : bandeau « dernières actions » du pilotage.
+     *
+     * <p>Remplace un {@code findTop10ByOrderByOccurredAtDesc} qui ne filtrait rien. Depuis que le
+     * journal consigne aussi les connexions, dix lignes sans filtre sont dix connexions — le
+     * bandeau du tableau de bord, lui, existe pour montrer les gestes d'administration.</p>
+     */
+    List<AdminAuditLog> findTop10ByActionInOrderByOccurredAtDesc(Collection<AdminAuditAction> actions);
 
     /** Historique d'une ressource précise (fiche utilisateur, fiche club). */
     List<AdminAuditLog> findTop20ByTargetIdOrderByOccurredAtDesc(UUID targetId);
 
-    long countByOccurredAtAfter(Instant since);
+    long countByActionInAndOccurredAtAfter(Collection<AdminAuditAction> actions, Instant since);
+
+    /**
+     * Purge de conservation, bornée à une famille d'actions.
+     *
+     * <p>Sert au seul nettoyage des traces d'accès (cf. {@code AuditLogPurgeScheduler}) : ce sont
+     * des données de connexion, que la CNIL recommande de ne pas conserver indéfiniment, et les
+     * seules dont le volume l'exige. Les gestes d'administration, eux, restent — ils sont rares et
+     * ce sont eux qu'on vient chercher des années plus tard.</p>
+     */
+    long deleteByActionInAndOccurredAtBefore(Collection<AdminAuditAction> actions, Instant cutoff);
 }

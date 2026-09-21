@@ -343,9 +343,15 @@
         </section>
       }
 
-      <!-- Historique : c'est ce qui répond à « qui a fait ça, et quand ? ». -->
+      <!--
+        Historique : c'est ce qui répond à « qui a fait ça, et quand ? » — et, depuis que le
+        journal consigne aussi ce que font les utilisateurs, à « que fait ce compte ? ».
+        Connexions, mots de passe et consentements y figurent au même titre que les gestes
+        d'administration ; la famille est affichée pour qu'on les distingue d'un coup d'œil.
+        Vingt lignes au maximum : le lien mène au journal complet, filtré sur ce seul compte.
+      -->
       <section class="card">
-        <h2 class="aud-h2">Historique d'administration</h2>
+        <h2 class="aud-h2">Historique du compte</h2>
         @if (u.history.length) {
           <ul class="aud-timeline">
             @for (h of u.history; track h.id) {
@@ -353,16 +359,18 @@
                 <span class="aud-timeline__when metric">{{ h.occurredAt | date: 'd MMM y, HH:mm' }}</span>
                 <span class="aud-timeline__what">
                   <strong>{{ h.actionLabel }}</strong>
+                  @if (h.scopeLabel) { <span class="field-hint aud-muted">{{ h.scopeLabel }}</span> }
                   @if (h.summary) { <span class="field-hint">{{ h.summary }}</span> }
                   <span class="field-hint aud-muted">par {{ h.actorEmail || 'système' }}</span>
                 </span>
               </li>
             }
           </ul>
+          <a class="btn btn-ghost btn-sm" [routerLink]="['/admin/audit']"
+             [queryParams]="{ targetId: u.id }">Voir tout le journal de ce compte</a>
         } @else {
           <p class="field-hint">
-            Aucune action d'administration sur ce compte. Le journal ne remonte qu'à sa mise en
-            service.
+            Aucune action consignée sur ce compte. Le journal ne remonte qu'à sa mise en service.
           </p>
         }
       </section>

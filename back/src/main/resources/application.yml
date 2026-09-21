@@ -132,6 +132,14 @@ app:
     # Pied de page et en-têtes du gabarit transactionnel.
     publisher: ${MAIL_PUBLISHER:Darilab}
     reply-to: ${MAIL_REPLY_TO:}
+  audit:
+    # Le journal consigne désormais les connexions : ce sont des données de connexion, qui se
+    # bornent (six mois à un an recommandés). Un an couvre un contrôle ou un litige sans tenir un
+    # historique de présence. Zéro désactive la purge. Les gestes d'administration, les exercices
+    # de droits RGPD et les gestes de coaching ne sont JAMAIS purgés : ce sont eux qu'on vient
+    # chercher des années plus tard.
+    access-retention-days: ${AUDIT_ACCESS_RETENTION_DAYS:365}
+    purge-cron: ${AUDIT_PURGE_CRON:0 15 4 * * *}
   storage:
     # Quota de pièces jointes par club (stockées en base) : au-delà, l'envoi est refusé avec un
     # message explicite. C'est la sauvegarde quotidienne qui casse en premier, pas l'application.

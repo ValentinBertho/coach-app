@@ -1,15 +1,37 @@
 <section class="page-header">
   <div>
     <h1 class="display-sm">Journal d'audit</h1>
-    <p class="subtitle">Qui a fait quoi, quand, et sur quelle ressource.</p>
+    <p class="subtitle">
+      Qui a fait quoi, quand, et sur quelle ressource — administration, accès, données
+      personnelles et gestes de coaching.
+    </p>
   </div>
 </section>
 
 <div class="al-filters">
+  <!--
+    La portée en premier : c'est le filtre qui décide de ce qu'on regarde. Depuis que le journal
+    consigne aussi les connexions, une page non filtrée est une page de connexions — les gestes
+    d'administration, eux, s'y comptent sur les doigts d'une main par semaine.
+  -->
+  <select class="form-control" [(ngModel)]="filterScope" (ngModelChange)="onFilterChange()"
+          aria-label="Filtrer par famille d'actions">
+    <option value="">Toutes les familles</option>
+    @for (s of scopes(); track s.value) { <option [value]="s.value">{{ s.label }}</option> }
+  </select>
   <select class="form-control" [(ngModel)]="filterAction" (ngModelChange)="onFilterChange()"
           aria-label="Filtrer par action">
     <option value="">Toutes les actions</option>
-    @for (a of actions(); track a.value) { <option [value]="a.value">{{ a.label }}</option> }
+    @for (g of actionGroups; track g.label) {
+      @if (g.label) {
+        <optgroup [label]="g.label">
+          @for (a of g.actions; track a.value) { <option [value]="a.value">{{ a.label }}</option> }
+        </optgroup>
+      } @else {
+        <!-- Back antérieur à la portée : liste plate, comme avant. -->
+        @for (a of g.actions; track a.value) { <option [value]="a.value">{{ a.label }}</option> }
+      }
+    }
   </select>
   <select class="form-control" [(ngModel)]="filterTarget" (ngModelChange)="onFilterChange()"
           aria-label="Filtrer par type de ressource">
@@ -93,6 +115,7 @@
                 {{ e.actionLabel }}
                 @if (e.sensitive) { <span class="badge badge-warning">sensible</span> }
               </span>
+              @if (e.scopeLabel) { <span class="aa-sub">{{ e.scopeLabel }}</span> }
             </td>
             <td>
               @if (targetRoute(e); as r) {
