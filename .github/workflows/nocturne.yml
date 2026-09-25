@@ -26,8 +26,8 @@
 #      projet est déjà au-dessus) : la dérive ne fait donc jamais échouer quoi que ce soit. La
 #      nuit, on la mesure et on la plafonne pour de bon.
 #
-#   5. Vulnérabilités des dépendances, dans les deux écosystèmes. Dependabot ouvre des PR de
-#      montée de version ; il ne dit pas « ce qui est en production ce soir est troué ».
+#   5. Vulnérabilités des dépendances, dans les deux écosystèmes. Rien d'autre ne dit
+#      « ce qui est en production ce soir est troué » (Dependabot a été débranché du dépôt).
 #
 #   Sur le seuil d'échec des vulnérabilités — lire avant de le durcir :
 #   la barre bloquante est à CRITIQUE, pas à ÉLEVÉE. Le projet est épinglé sur Angular 17 et
@@ -345,7 +345,7 @@ jobs:
       #   brut  653 605 octets   → plafond 750 000 (~15 % de marge)
       #   gzip  205 548 octets   → plafond 240 000 (~17 % de marge)
       #
-      # La marge absorbe les correctifs hebdomadaires de Dependabot ; une nouvelle
+      # La marge absorbe la dérive normale des mises à jour de dépendances ; une nouvelle
       # dépendance lourde ou une route rendue non paresseuse la crève. C'est le but.
       #
       # Le budget de `angular.json` (avertissement à 500 kB, erreur à 1 Mo) reste la règle du
