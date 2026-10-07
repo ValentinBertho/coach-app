@@ -421,9 +421,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
       this.selection.select(ref);
       return;
     }
-    this.selection.clear();
-    if (kind === 'course') this.openWorkout(target as Workout);
-    else this.openStrength(target as ScheduledStrength);
+    if (kind === 'course') {
+      this.selection.clear();
+      this.openWorkout(target as Workout);
+      return;
+    }
+    // La séance de force s'ouvre dans un panneau, sans quitter le calendrier : elle reste
+    // sélectionnée, sinon Cmd+C juste après répondait « Rien à copier » — le copier-coller de la
+    // prépa physique que le coach disait ne pas fonctionner.
+    this.selection.select(ref);
+    this.openStrength(target as ScheduledStrength);
   }
 
   /** Jour survolé : cible de Cmd+V et de N. */

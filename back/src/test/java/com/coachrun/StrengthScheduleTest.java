@@ -120,7 +120,8 @@ class StrengthScheduleTest {
         JsonNode fb = objectMapper.readTree(mvc.perform(
                         patch("/me/pp/scheduled/{id}/feedback", scheduledId)
                                 .header("Authorization", athleteBearer).contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"completed\":true,\"sessionRpe\":8,\"fatigue\":5,\"pain\":1}"))
+                                .content("{\"completed\":true,\"sessionRpe\":8,\"fatigue\":5,\"pain\":1,"
+                                        + "\"comment\":\"Squat trop lourd en fin de seance\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(fb.get("completed").asBoolean()).isTrue();
         assertThat(fb.get("sessionFatigue").asInt()).isEqualTo(5);
@@ -137,6 +138,22 @@ class StrengthScheduleTest {
         }
         assertThat(mine).isNotNull();
         assertThat(mine.get("scheduledDate").asText()).isEqualTo("2026-06-27");
+
+        // Le coach lit le retour écrit et le RPE sur son calendrier, comme pour une séance de
+        // course : l'athlète pouvait les envoyer, rien ne les lui montrait.
+        JsonNode coachCal = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/athletes/{a}/pp/scheduled?from=2026-06-20&to=2026-06-30", clubId, athleteId)
+                                .header("Authorization", coachBearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode seen = null;
+        for (JsonNode s : coachCal) {
+            if (scheduledId.equals(s.get("id").asText())) {
+                seen = s;
+            }
+        }
+        assertThat(seen).isNotNull();
+        assertThat(seen.get("sessionComment").asText()).isEqualTo("Squat trop lourd en fin de seance");
+        assertThat(seen.get("sessionRpe").asInt()).isEqualTo(8);
     }
 
     /**

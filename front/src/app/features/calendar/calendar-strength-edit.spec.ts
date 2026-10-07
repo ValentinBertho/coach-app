@@ -109,6 +109,38 @@ describe('calendrier — séances de renforcement', () => {
       .flush({ id: 'ss-4', athleteId: MARC, scheduledDate: OTHER_DAY, title: 'Full body' });
   });
 
+  /**
+   * Le même geste, mais par le <b>bouton</b> du menu, comme le coach le fait. Le gabarit
+   * fermait le menu avant d'appeler la copie, qui ne trouvait alors plus la séance visée : le
+   * presse-papier restait vide, sans un mot. Appeler la méthode directement ne le voyait pas.
+   */
+  it('copie par le bouton « Copier » du menu clic droit', () => {
+    component.strength.set([session('ss-1', 'lib-1')]);
+    component.openStrengthMenu(session('ss-1', 'lib-1'), new MouseEvent('contextmenu'));
+    fixture.detectChanges();
+
+    const copy = Array.from(fixture.nativeElement.querySelectorAll('.ctx-menu .ctx-item') as NodeListOf<HTMLButtonElement>)
+      .find((b) => b.textContent?.includes('Copier'));
+    expect(copy).withContext('le menu propose « Copier »').toBeDefined();
+    copy!.click();
+
+    expect(component.clipboard().entries.map((e) => e.id)).toEqual(['ss-1']);
+    expect(component.strengthMenu()).withContext('le menu se referme').toBeNull();
+  });
+
+  /** Ouvrir le détail d'un clic puis Cmd+C : la séance ouverte est celle qu'on copie. */
+  it('copie au clavier la séance qu’on vient d’ouvrir', () => {
+    // Un jour de la grille affichée : la sélection ne se résout que sur ce qu'on voit.
+    const s = { ...session('ss-1', 'lib-1'), scheduledDate: component.cells()[3].date };
+    component.strength.set([s]);
+    component.onChipClick(new MouseEvent('click'), 'strength', s);
+    http.match((r) => r.url.includes('/pp/scheduled/ss-1/prescription'));
+
+    component.onKeydown(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }));
+
+    expect(component.clipboard().entries.map((e) => e.id)).toEqual(['ss-1']);
+  });
+
   /** Poser une séance vierge sur un jour, puis la remplir : le chemin court de la prépa physique. */
   it('crée une séance de renforcement vierge sur le jour choisi, puis ouvre son éditeur', () => {
     component.addWorkout(DAY);

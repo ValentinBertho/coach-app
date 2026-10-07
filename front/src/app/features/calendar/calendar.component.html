@@ -729,7 +729,7 @@
       <app-icon name="type" [size]="14" /> Renommer
     </button>
     <div class="ctx-sep"></div>
-    <button type="button" class="ctx-item" (click)="closeStrengthMenu(); ctxStrengthCopy()">
+    <button type="button" class="ctx-item" (click)="ctxStrengthCopy()">
       <app-icon name="copy" [size]="14" /> Copier <kbd class="ctx-kbd">{{ keys('mod', 'C') }}</kbd>
     </button>
     <label class="ctx-field">Déplacer vers
@@ -798,7 +798,12 @@
         <div class="sd__fb">
           @if (s.sessionFatigue != null) { <span>Fatigue <strong class="metric">{{ s.sessionFatigue }}/10</strong></span> }
           @if (s.sessionPain != null) { <span>Douleur <strong class="metric">{{ s.sessionPain }}/10</strong></span> }
+          @if (s.sessionRpe != null) { <span>RPE <strong class="metric">{{ s.sessionRpe }}/10</strong></span> }
         </div>
+        <!-- Le retour écrit de l'athlète : la course l'affichait, la prépa physique le jetait. -->
+        @if (s.sessionComment) {
+          <blockquote class="sd__comment">{{ s.sessionComment }}</blockquote>
+        }
       }
 
       @if (strengthRxLoading()) {
