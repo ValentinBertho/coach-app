@@ -128,6 +128,8 @@ export class StrengthSessionComponent implements OnInit {
   readonly fatigue = signal<number | null>(null);
   readonly pain = signal<number | null>(null);
   readonly rpe = signal<number | null>(null);
+  /** Un mot pour le coach, comme sur une séance de course. Vide = rien n'est envoyé. */
+  readonly comment = signal('');
 
   readonly totalSteps = computed(() => this.exercises().length);
   readonly isDebrief = computed(() => this.stepIndex() >= this.totalSteps());
@@ -394,7 +396,8 @@ export class StrengthSessionComponent implements OnInit {
     const saveFeedback = () => {
       this.portal
         .ppFeedback(session.id, {
-          completed: true, sessionRpe: this.rpe(), fatigue: this.fatigue(), pain: this.pain(), comment: null,
+          completed: true, sessionRpe: this.rpe(), fatigue: this.fatigue(), pain: this.pain(),
+          comment: this.comment().trim() || null,
         })
         .subscribe({
           next: () => {

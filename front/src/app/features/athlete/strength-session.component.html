@@ -94,6 +94,12 @@
           <app-pain-fatigue-selector kind="pain" [(value)]="pain" />
           <app-rpe-scale-selector label="RPE séance" [(value)]="rpe" />
 
+          <label class="ss__comment">Un mot pour ton coach
+            <textarea class="form-control" rows="3" maxlength="1024"
+                      placeholder="Sensations, charges trop lourdes ou trop légères, gêne…"
+                      [value]="comment()" (input)="comment.set($any($event.target).value)"></textarea>
+          </label>
+
           <div class="ss__recap">
             @for (ex of exercises(); track ex.exerciseId) {
               <div class="ss__recap-row">

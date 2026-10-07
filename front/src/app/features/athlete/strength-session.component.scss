@@ -237,3 +237,9 @@
    `data-theme="dark"` ils sont déjà corrects, il ne leur manque que de l'air. */
 .ss__debrief app-pain-fatigue-selector,
 .ss__debrief app-rpe-scale-selector { display: block; }
+
+// Le commentaire libre, comme sur une séance de course. Le champ suit déjà le thème sombre.
+.ss__comment {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  font-size: var(--text-sm); font-weight: 600; color: var(--night-text);
+}

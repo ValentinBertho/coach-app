@@ -236,6 +236,10 @@ export interface ScheduledStrength {
   completed: boolean;
   sessionFatigue: number | null;
   sessionPain: number | null;
+  /** RPE séance donné par l'athlète à la validation. */
+  sessionRpe?: number | null;
+  /** Le mot laissé au coach en fin de séance. */
+  sessionComment?: string | null;
   /** Résumé des charges calculées, renseigné à la planification (CdC §8). */
   chargeSummary?: string | null;
   /** Date du « vu 👏 » du coach sur le débrief ; null tant qu'il n'a pas eu lieu. */
