@@ -30,3 +30,4 @@
 # ============================================================================
 
 CVE-2026-22732	2026-12-31	spring-security-web : corrigée en 6.5.9 et 7.0.4 uniquement. Spring Security 6.5 réclame Spring Framework 6.2, que Spring Boot n'apporte qu'à partir de sa 3.5 ; le projet est en 3.2. Fermeture conditionnée à la montée de Spring Boot — la propriété spring-security.version du pom est déjà au maximum de la ligne 6.2 (6.2.8).
+CVE-2026-47884	2026-12-31	spring-webmvc (XsltView, SSRF/RCE) : corrigée en 7.0.9 uniquement, aucune version corrigée sur les lignes 6.x (toutes les 6.2 jusqu'à 6.2.19 sont touchées). Spring Framework 7 réclame Spring Boot 4 ; le projet est en 3.2. Non exploitable en l'état : l'API ne sert que des @RestController, sans aucune vue (ni XsltView, ni ViewResolver, ni moteur de templates). Fermeture conditionnée à la montée de Spring Boot, comme CVE-2026-22732.
