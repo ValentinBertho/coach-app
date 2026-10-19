@@ -133,6 +133,14 @@ export class WorkoutService {
     );
   }
 
+  /**
+   * Importe un plan rédigé hors de l'application (fichier JSON converti d'un PDF). Réimportable :
+   * une séance déjà importée et encore à faire est mise à jour, une séance réalisée est laissée.
+   */
+  importPlan(athleteId: string, plan: { title?: string; workouts: WorkoutRequest[] }): Observable<PlanImportResult> {
+    return this.http.post<PlanImportResult>(`${this.base(athleteId)}/import`, plan);
+  }
+
   /** Génère le mésocycle pour tout un groupe (semaine source de chaque athlète). */
   generateMesocycleForGroup(groupId: string, params: MesocycleParams): Observable<GroupApplyResult> {
     return this.http.post<GroupApplyResult>(
@@ -155,4 +163,11 @@ export interface GroupApplyResult {
   athletes: number;
   skipped: number;
   created: number;
+}
+
+export interface PlanImportResult {
+  created: number;
+  updated: number;
+  unchanged: number;
+  kept: number;
 }

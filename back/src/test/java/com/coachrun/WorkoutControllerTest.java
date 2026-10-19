@@ -113,4 +113,59 @@ class WorkoutControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("PARTIAL"));
     }
+
+    @Test
+    void importPlanIsReimportableAndNeverRewritesHistory() throws Exception {
+        MockMvc mvc = mockMvc();
+        String[] ctx = coachWithAthlete(mvc);
+        String token = ctx[0], clubId = ctx[1], athleteId = ctx[2];
+
+        String plan = """
+                {"title":"Plan test","workouts":[
+                  {"scheduledDate":"2026-07-14","type":"INTERVALS","title":"Côtes","notes":"10*20''",
+                   "steps":[{"stepType":"WARMUP","repetitions":1,"zone":"Z1","durationS":1800}]},
+                  {"scheduledDate":"2026-07-15","type":"ENDURANCE","title":"Footing","targetDurationS":3000}
+                ]}
+                """;
+        mvc.perform(post("/clubs/{c}/athletes/{a}/workouts/import", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(plan))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.created").value(2));
+
+        // Le même fichier, une seconde fois : rien ne bouge, rien ne se duplique.
+        mvc.perform(post("/clubs/{c}/athletes/{a}/workouts/import", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(plan))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.created").value(0))
+                .andExpect(jsonPath("$.unchanged").value(2));
+
+        // Le footing est fait ; le coach envoie une version corrigée des deux séances.
+        String calendar = mvc.perform(get("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .param("from", "2026-07-15").param("to", "2026-07-15"))
+                .andReturn().getResponse().getContentAsString();
+        String footingId = objectMapper.readTree(calendar).get(0).get("id").asText();
+        mvc.perform(patch("/clubs/{c}/athletes/{a}/workouts/{w}/status", clubId, athleteId, footingId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"COMPLETED\"}"))
+                .andExpect(status().isOk());
+
+        String revised = plan.replace("10*20''", "12*20''").replace("3000", "3600");
+        mvc.perform(post("/clubs/{c}/athletes/{a}/workouts/import", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON).content(revised))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.created").value(0))
+                .andExpect(jsonPath("$.updated").value(1))
+                .andExpect(jsonPath("$.kept").value(1));
+
+        mvc.perform(get("/clubs/{c}/athletes/{a}/workouts", clubId, athleteId)
+                        .header("Authorization", "Bearer " + token)
+                        .param("from", "2026-07-13").param("to", "2026-07-19"))
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].notes").value("12*20''"))
+                .andExpect(jsonPath("$[1].targetDurationS").value(3000));
+    }
 }

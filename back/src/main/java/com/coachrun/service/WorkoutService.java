@@ -1,10 +1,12 @@
 package com.coachrun.service;
 
 import com.coachrun.dto.request.GenerateMesocycleRequest;
+import com.coachrun.dto.request.PlanImportRequest;
 import com.coachrun.dto.request.WorkoutRequest;
 import com.coachrun.dto.request.WorkoutStepRequest;
 import com.coachrun.dto.response.CalculatedSessionResponse;
 import com.coachrun.dto.response.GroupApplyResponse;
+import com.coachrun.dto.response.PlanImportResponse;
 import com.coachrun.dto.response.WorkoutPrescriptionResponse;
 import com.coachrun.dto.response.WorkoutResponse;
 import com.coachrun.dto.session.PrescribedWorkout;
@@ -448,6 +450,58 @@ public class WorkoutService {
         log.info("Semaine dupliquée athlète={} : {} séance(s) ({} → {})",
                 athleteId, created, sourceWeekStart, targetWeekStart);
         return created;
+    }
+
+    /**
+     * Import d'un plan rédigé hors de l'application (cf. {@link PlanImportRequest}).
+     *
+     * <p>Un plan reçu en PDF se corrige : le coach renvoie une version où la séance du jeudi a
+     * changé. L'import est donc <b>réimportable</b> : une séance se reconnaît à sa date et à son
+     * intitulé. Déjà là et encore à faire, elle est mise à jour ; déjà réalisée, elle est laissée
+     * telle quelle — l'historique d'un athlète ne se réécrit pas depuis un fichier. Rien n'est
+     * jamais supprimé : une séance retirée du plan reste au calendrier, à effacer à la main.</p>
+     *
+     * <p>Une seule notification pour tout le lot, comme l'attribution d'un plan.</p>
+     */
+    @Transactional
+    public PlanImportResponse importPlan(UUID clubId, UUID athleteId, PlanImportRequest request) {
+        Athlete athlete = athleteRepository.findByIdAndClubMembership(athleteId, clubId)
+                .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
+        int created = 0, updated = 0, unchanged = 0, kept = 0;
+        LocalDate lastDate = null;
+        for (WorkoutRequest item : request.workouts()) {
+            Workout existing = workoutRepository
+                    .findByClubIdAndAthleteIdAndScheduledDate(clubId, athleteId, item.scheduledDate()).stream()
+                    .filter(w -> sameTitle(w.getTitle(), item.title()))
+                    .findFirst().orElse(null);
+            if (existing == null) {
+                create(clubId, athleteId, item, null, false);
+                created++;
+            } else if (existing.getStatus() != WorkoutStatus.PLANNED) {
+                kept++;
+                continue;
+            } else {
+                String before = signature(existing);
+                apply(existing, item);
+                if (before.equals(signature(existing))) {
+                    unchanged++;
+                    continue;
+                }
+                updated++;
+            }
+            if (lastDate == null || item.scheduledDate().isAfter(lastDate)) {
+                lastDate = item.scheduledDate();
+            }
+        }
+        String planName = StringUtils.hasText(request.title()) ? request.title().trim() : "Plan importé";
+        notificationService.notifyPlanAssigned(athlete, planName, created + updated, lastDate);
+        log.info("Plan importé athlète={} : {} créée(s), {} mise(s) à jour, {} inchangée(s), {} conservée(s)",
+                athleteId, created, updated, unchanged, kept);
+        return new PlanImportResponse(created, updated, unchanged, kept);
+    }
+
+    private static boolean sameTitle(String a, String b) {
+        return a != null && b != null && a.trim().equalsIgnoreCase(b.trim());
     }
 
     /**

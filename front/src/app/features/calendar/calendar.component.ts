@@ -25,6 +25,7 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { WorkoutService } from '../../core/services/workout.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { HelpHintComponent } from '../help/help-hint.component';
+import { PlanImportComponent } from './plan-import.component';
 import { RaceService } from '../../core/services/race.service';
 import { LactateService } from '../../core/services/lactate.service';
 import { RaceObjective } from '../../core/models/race.model';
@@ -185,7 +186,7 @@ function toIso(d: Date): string {
   imports: [
     FormsModule, RouterLink, DragDropModule, DatePipe, IconComponent, HelpHintComponent,
     SessionLibraryPanelComponent, SidePanelComponent, StrengthPrescriptionViewComponent, ZoneBarComponent,
-    AthleteSwitcherComponent, ShortcutsOverlayComponent,
+    AthleteSwitcherComponent, ShortcutsOverlayComponent, PlanImportComponent,
   ],
   host: { '(document:keydown)': 'onKeydown($event)' },
   templateUrl: './calendar.component.html',
@@ -1069,6 +1070,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   // Périodisation assistée (mésocycle progressif).
   readonly showMeso = signal(false);
+  readonly showPlanImport = signal(false);
+
+  /** Plan importé : on referme le panneau et on amène le calendrier sur sa première séance. */
+  onPlanImported(firstDate: string): void {
+    this.showPlanImport.set(false);
+    this.anchor.set(new Date(firstDate + 'T00:00:00'));
+    this.load();
+  }
   /**
    * Semaine de départ du mésocycle, désignée par le menu de la colonne de totaux.
    *

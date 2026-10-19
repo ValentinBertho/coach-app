@@ -276,4 +276,13 @@ public class WorkoutController {
         int created = workoutService.generateMesocycle(clubId, athleteId, request);
         return java.util.Map.of("created", created);
     }
+
+    /** Import d'un plan rédigé hors de l'application (fichier JSON), réimportable. */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PostMapping("/import")
+    public com.coachrun.dto.response.PlanImportResponse importPlan(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId,
+            @Valid @RequestBody com.coachrun.dto.request.PlanImportRequest request) {
+        return workoutService.importPlan(clubId, athleteId, request);
+    }
 }

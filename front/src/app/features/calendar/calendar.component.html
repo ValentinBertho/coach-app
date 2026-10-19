@@ -129,6 +129,9 @@
             <!-- Dupliquer une semaine et en générer un mésocycle sont passés dans le menu de
                  la colonne de totaux : ils portent sur UNE semaine, qu'on y désigne au clic droit,
                  au lieu de « celle qui est affichée » — notion disparue avec la vue semaine. -->
+            <button type="button" class="ctx-item" (click)="showPlanImport.set(true); actionsMenuOpen.set(false)">
+              <app-icon name="file-text" [size]="14" /> Importer un plan…
+            </button>
             <div class="ctx-sep"></div>
             <button type="button" class="ctx-item" (click)="selectAll(); actionsMenuOpen.set(false)">
               Tout sélectionner <kbd class="ctx-kbd">{{ keys('mod','A') }}</kbd>
@@ -192,6 +195,10 @@
   <div class="readonly-banner">
     <app-icon name="lock" [size]="15" /> Lecture seule — tu n'es pas référent ni en écriture sur cet athlète. Planification et déplacement désactivés.
   </div>
+}
+
+@if (showPlanImport() && selectedAthleteId) {
+  <app-plan-import [athleteId]="selectedAthleteId" (imported)="onPlanImported($event)" (closed)="showPlanImport.set(false)" />
 }
 
 @if (showMeso()) {
