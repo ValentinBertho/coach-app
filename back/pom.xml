@@ -68,21 +68,23 @@
 
     <!--
         async-http-client entre par `nl.martijndwars:web-push`, qui l'épingle en 2.10.4 :
-        CVE-2024-53990, corrigée en 2.12.4. Spring Boot ne gère pas cet artefact — cette
-        section est donc la seule façon de relever une version transitive sans forker la
-        dépendance qui l'apporte.
+        CVE-2024-53990, corrigée en 2.12.4, puis CVE-2026-107282 (critique), corrigée en
+        2.16.1 et 3.0.13. Spring Boot ne gère pas cet artefact — cette section est donc la
+        seule façon de relever une version transitive sans forker la dépendance qui
+        l'apporte.
 
         La montée reste interne à web-push : notre code ne touche jamais
         async-http-client directement, il ne connaît que `PushService` (cf.
-        PushNotificationService). 2.12.4 est la dernière de la ligne 2.12, celle que
-        web-push 5.1.1 sait utiliser ; la 3.x change de paquetage.
+        PushNotificationService). On reste sur la ligne 2.x, dont web-push 5.1.1 utilise
+        l'API : 2.16.1 est la dernière version de cette ligne. La 3.x est une montée majeure
+        que web-push n'a jamais été republié pour suivre.
     -->
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>org.asynchttpclient</groupId>
                 <artifactId>async-http-client</artifactId>
-                <version>2.12.4</version>
+                <version>2.16.1</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
