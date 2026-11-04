@@ -464,11 +464,21 @@ jobs:
           mvn -B -ntp org.cyclonedx:cyclonedx-maven-plugin:2.9.1:makeAggregateBom
           -DoutputFormat=json -DoutputName=bom -DincludeTestScope=false
 
-      # Méthode d'installation officielle (documentation Trivy). Volontairement sans version
-      # épinglée : un scanner de vulnérabilités qui vieillit ne voit pas les avis récents,
-      # et c'est précisément ce qu'on lui demande de voir.
+      # Action officielle, épinglée par SHA de commit et non par étiquette : en mars 2026, des
+      # étiquettes des actions Trivy ont été réécrites pour pointer vers du code malveillant.
+      #
+      # La version du binaire est épinglée, elle aussi, et mise en cache. L'ancienne
+      # installation (`curl … install.sh | sh`, toujours en « latest ») retéléchargeait l'archive
+      # depuis GitHub à chaque nuit, et une simple panne réseau (curl, code 6 : hôte introuvable,
+      # nocturne #55) suffisait à faire tomber le job. Épingler le binaire ne fait pas vieillir
+      # l'analyse : la base des vulnérabilités, elle, est téléchargée à chaque exécution par
+      # `trivy sbom`, indépendamment de la version du moteur. Monter `version` de temps en temps
+      # reste nécessaire pour les nouveaux formats et correctifs du moteur.
       - name: Installer Trivy
-        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: v0.76.1
+          cache: true
 
       - name: Analyser le SBOM
         env:
