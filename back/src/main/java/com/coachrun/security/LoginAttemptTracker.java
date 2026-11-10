@@ -4,6 +4,7 @@ import com.coachrun.entity.LoginAttempt;
 import com.coachrun.repository.LoginAttemptRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -28,8 +29,8 @@ import java.util.Locale;
  *
  * <p><b>En base, plus en mémoire.</b> Un redémarrage remettait tous les compteurs à zéro, et un
  * déploiement par jour suffisait à offrir à un attaquant une fenêtre neuve d'essais gratuits. La
- * ligne est verrouillée en écriture le temps de l'incrément : deux échecs simultanés comptent
- * bien pour deux.</p>
+ * l'incrément est fait par la base elle-même (UPDATE … = … + 1) : deux échecs simultanés
+ * comptent bien pour deux.</p>
  *
  * <p>Chaque écriture se fait dans <b>sa propre transaction</b>. La connexion qui échoue lève une
  * exception juste après : dans la transaction de l'appelant, l'échec serait annulé avec elle et
@@ -51,6 +52,8 @@ public class LoginAttemptTracker {
     private static final Duration MAX_DELAY = Duration.ofMinutes(15);
     /** Un compte sans échec récent repart de zéro. */
     private static final Duration ATTEMPT_TTL = Duration.ofHours(1);
+    /** Écritures concurrentes sur un même compte : quelques reprises suffisent à toutes les compter. */
+    private static final int MAX_WRITE_ATTEMPTS = 10;
 
     private final LoginAttemptRepository repository;
     private final TransactionTemplate tx;
@@ -86,15 +89,29 @@ public class LoginAttemptTracker {
             return;
         }
         String key = key(email);
-        LoginAttempt updated;
-        try {
-            updated = tx.execute(s -> increment(key));
-        } catch (DataIntegrityViolationException firstInsertRace) {
-            // Deux premiers échecs simultanés ont tenté de créer la ligne : le second la relit,
-            // désormais présente, et l'incrémente sous verrou.
-            updated = tx.execute(s -> increment(key));
+        LoginAttempt updated = null;
+        // Deux temps, chacun dans sa transaction : s'assurer que la ligne existe, puis l'incrémenter
+        // de façon atomique. Créer et incrémenter d'un seul geste perdait des échecs quand plusieurs
+        // premières tentatives arrivaient ensemble : celles qui butaient sur la ligne en cours de
+        // création ne la voyaient pas encore et abandonnaient.
+        for (int attempt = 0; attempt < MAX_WRITE_ATTEMPTS && updated == null; attempt++) {
+            try {
+                ensureRow(key);
+                updated = tx.execute(s -> increment(key));
+            } catch (DataAccessException transientConflict) {
+                if (attempt == MAX_WRITE_ATTEMPTS - 1) {
+                    throw transientConflict;
+                }
+            }
+            if (updated == null) {
+                pause(attempt);
+            }
         }
-        if (updated != null && updated.getLockedUntil() != null && updated.getFailureCount() > FREE_ATTEMPTS) {
+        if (updated == null) {
+            log.warn("Échec de connexion non compté après {} reprises (conflits d'écriture)", MAX_WRITE_ATTEMPTS);
+            return;
+        }
+        if (updated.getLockedUntil() != null && updated.getFailureCount() > FREE_ATTEMPTS) {
             // Jamais l'adresse en clair dans les journaux : c'est une donnée personnelle.
             log.warn("Connexion verrouillée {} s après {} échecs consécutifs",
                     Duration.between(Instant.now(), updated.getLockedUntil()).toSeconds(),
@@ -102,18 +119,31 @@ public class LoginAttemptTracker {
         }
     }
 
+    /** Crée la ligne du compte si elle n'existe pas ; une création concurrente gagnante suffit. */
+    private void ensureRow(String key) {
+        try {
+            tx.executeWithoutResult(s -> {
+                if (!repository.existsById(key)) {
+                    repository.insertEmpty(key, Instant.now());
+                }
+            });
+        } catch (DataIntegrityViolationException createdMeanwhile) {
+            // Une autre tentative l'a créée au même instant : c'est exactement ce qu'on voulait.
+        }
+    }
+
+    /** Incrémente atomiquement ; {@code null} si la ligne n'est pas encore visible (on réessaie). */
     private LoginAttempt increment(String key) {
         Instant now = Instant.now();
-        LoginAttempt a = repository.lockByKey(key).orElse(null);
-        if (a == null) {
-            a = new LoginAttempt();
-            a.setAccountKey(key);
-        } else if (isExpired(a)) {
-            a.setFailureCount(0);
-            a.setLockedUntil(null);
+        repository.resetIfStale(key, now.minus(ATTEMPT_TTL));
+        if (repository.increment(key, now) == 0) {
+            return null;
         }
-        a.setFailureCount(a.getFailureCount() + 1);
-        a.setLastFailureAt(now);
+        // La ligne est verrouillée par notre UPDATE jusqu'au commit : ce qu'on relit est notre valeur.
+        LoginAttempt a = repository.findById(key).orElse(null);
+        if (a == null) {
+            return null;
+        }
         if (a.getFailureCount() > FREE_ATTEMPTS) {
             long factor = 1L << Math.min(a.getFailureCount() - FREE_ATTEMPTS - 1, 10);
             Duration delay = BASE_DELAY.multipliedBy(factor);
@@ -121,8 +151,9 @@ public class LoginAttemptTracker {
                 delay = MAX_DELAY;
             }
             a.setLockedUntil(now.plus(delay));
+            repository.lockUntil(key, a.getLockedUntil());
         }
-        return repository.saveAndFlush(a);
+        return a;
     }
 
     /** Connexion réussie : le compteur repart de zéro. */
@@ -147,6 +178,14 @@ public class LoginAttemptTracker {
     /** Nombre de comptes suivis (supervision et tests de purge). */
     public long trackedAccounts() {
         return repository.count();
+    }
+
+    private static void pause(int attempt) {
+        try {
+            Thread.sleep(5L * (attempt + 1));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static boolean isExpired(LoginAttempt a) {
