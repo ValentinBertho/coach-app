@@ -56,6 +56,15 @@ public class AuthController {
      * aucun script de la page n'a besoin de le connaître. Un refus efface le cookie, pour que le
      * navigateur cesse de présenter un jeton mort.
      */
+    /**
+     * Second facteur : code de l'application d'authentification, ou code de secours. Ouvre la
+     * session que le mot de passe seul n'a pas ouverte.
+     */
+    @PostMapping("/mfa/verify")
+    public AuthResponse verifyMfa(@Valid @RequestBody com.coachrun.dto.request.MfaVerifyRequest request) {
+        return authService.verifyMfa(request.challengeToken(), request.code());
+    }
+
     @PostMapping("/refresh")
     public AuthResponse refresh(HttpServletRequest request, HttpServletResponse response) {
         try {

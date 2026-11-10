@@ -52,7 +52,7 @@ class SessionCopyAcrossAthletesTest {
         JsonNode a = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"cp-%s@test.fr","password":"password123","fullName":"Coach CP","termsAccepted": true, "clubName":"CP %s"}
+                                {"email":"cp-%s@test.fr","password":"password1234","fullName":"Coach CP","termsAccepted": true, "clubName":"CP %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andReturn().getResponse().getContentAsString());
         token = a.get("accessToken").asText();

@@ -52,15 +52,15 @@ type State = 'loading' | 'ok' | 'invalid' | 'done';
               Choisis un mot de passe pour activer ton compte ({{ info()?.email }}).
             </p>
             <form class="form" (ngSubmit)="accept()">
-              <input type="password" class="form-control" name="pwd" placeholder="Mot de passe (8 caractères min.)"
-                     [(ngModel)]="password" minlength="8" required autocomplete="new-password" />
+              <input type="password" class="form-control" name="pwd" placeholder="Mot de passe (12 caractères min.)"
+                     [(ngModel)]="password" minlength="12" required autocomplete="new-password" />
               <label class="consent">
                 <input type="checkbox" name="terms" [(ngModel)]="termsAccepted" />
                 <span>J'accepte les <a routerLink="/legal/cgu" target="_blank">conditions d'utilisation</a>
                   et la <a routerLink="/legal/confidentialite" target="_blank">politique de confidentialité</a>.</span>
               </label>
               <button type="submit" class="btn btn-primary btn-lg"
-                      [disabled]="joining() || password.length < 8 || !termsAccepted">
+                      [disabled]="joining() || password.length < 12 || !termsAccepted">
                 {{ joining() ? 'Activation…' : 'Activer mon compte' }}
               </button>
             </form>
@@ -126,7 +126,7 @@ export class CoachInvitationComponent implements OnInit {
   }
 
   accept(): void {
-    if (this.password.length < 8 || !this.termsAccepted) return;
+    if (this.password.length < 12 || !this.termsAccepted) return;
     this.joining.set(true);
     this.error.set('');
     this.auth.acceptCoachInvitation(this.token(), this.password, undefined, this.termsAccepted).subscribe({

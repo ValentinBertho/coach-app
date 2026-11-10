@@ -204,6 +204,11 @@ export class AdminService {
     return this.http.post<AdminUser>(`${this.base}/users/${id}/reactivate`, {});
   }
   /** Ferme toutes les sessions sans suspendre : « j'ai perdu mon téléphone ». */
+  /** Retire le second facteur d'un autre administrateur (téléphone et codes de secours perdus). */
+  resetMfa(id: string): Observable<AdminUser> {
+    return this.http.post<AdminUser>(`${this.base}/users/${id}/reset-mfa`, {});
+  }
+
   revokeSessions(id: string): Observable<AdminUser> {
     return this.http.post<AdminUser>(`${this.base}/users/${id}/revoke-sessions`, {});
   }

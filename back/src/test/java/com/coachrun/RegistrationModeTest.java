@@ -62,7 +62,7 @@ class RegistrationModeTest {
     }
 
     private RegisterRequest request(String email, String invitationCode) {
-        return new RegisterRequest(email, "password123", "Coach Test", "Club Test", true, invitationCode);
+        return new RegisterRequest(email, "password1234", "Coach Test", "Club Test", true, invitationCode);
     }
 
     @Test

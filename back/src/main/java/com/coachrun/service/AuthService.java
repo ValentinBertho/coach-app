@@ -44,6 +44,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final com.coachrun.security.LoginAttemptTracker loginAttempts;
     private final com.coachrun.security.RefreshTokenService refreshTokens;
+    private final com.coachrun.security.MfaService mfa;
     private final NotificationService notificationService;
     private final PushNotificationService pushNotificationService;
     private final ClubProvisioningService clubProvisioningService;
@@ -284,6 +285,12 @@ public class AuthService {
             auditLogin(AdminAuditAction.LOGIN_FAILED, user, request.email(), "Compte suspendu");
             throw new UnauthorizedException("Ce compte est suspendu.");
         }
+        if (mfa.required(user)) {
+            // Mot de passe correct, mais pas de session : le second facteur d'abord. Le compteur
+            // d'échecs n'est pas remis à zéro ici — il ne le sera qu'après un code juste, sinon un
+            // mot de passe volé suffirait à rouvrir indéfiniment des séries d'essais sur le code.
+            return AuthResponse.challenge(mfa.start(user));
+        }
         loginAttempts.recordSuccess(request.email());
         // Dernière connexion : sans elle, le back-office ne pouvait pas distinguer un compte
         // abandonné d'un compte en cours d'usage avant de proposer de le supprimer. Écriture par
@@ -329,11 +336,78 @@ public class AuthService {
         if (user.getStatus() == UserStatus.SUSPENDED) {
             throw new UnauthorizedException("Ce compte est suspendu.");
         }
+        if (mfa.required(user) && !mfa.enrolled(user.getId())) {
+            // Session ouverte avant que le second facteur ne soit exigé : elle ne se prolonge pas.
+            refreshTokens.revokeAll(user.getId());
+            throw new UnauthorizedException("Double authentification requise, reconnectez-vous.");
+        }
         return new AuthResponse(
                 jwtService.generateAccessToken(user),
                 rotation.refreshToken(),
                 jwtService.getAccessTtlSeconds(),
                 UserResponse.from(user));
+    }
+
+    /**
+     * Second facteur d'un compte qui l'exige : ouvre la session que le mot de passe seul n'a pas
+     * ouverte.
+     *
+     * <p>Les codes faux alimentent le même compteur par compte que les mots de passe faux, et le
+     * même verrou progressif : cinq essais par défi ne suffiraient pas, puisqu'un mot de passe
+     * volé permettrait d'ouvrir autant de défis qu'on veut.</p>
+     */
+    @Transactional
+    public AuthResponse verifyMfa(String challengeToken, String code) {
+        User owner = mfa.challengeOwner(challengeToken).flatMap(userRepository::findById).orElse(null);
+        if (owner != null) {
+            java.time.Duration lock = loginAttempts.lockRemaining(owner.getEmail());
+            if (lock != null) {
+                auditLogin(AdminAuditAction.LOGIN_BLOCKED, owner, owner.getEmail(),
+                        "Second facteur — verrou de compte actif, " + Math.max(1, lock.toSeconds()) + " s restantes");
+                throw new com.coachrun.exception.ApiException(
+                        org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
+                        "Trop de tentatives — réessayez dans " + Math.max(1, lock.toSeconds()) + " s.");
+            }
+        }
+        com.coachrun.security.MfaService.Verified verified;
+        try {
+            verified = mfa.verify(challengeToken, code);
+        } catch (com.coachrun.security.MfaService.Rejected rejected) {
+            User user = rejected.userId() == null ? null : userRepository.findById(rejected.userId()).orElse(null);
+            if (user != null) {
+                loginAttempts.recordFailure(user.getEmail());
+                auditLogin(AdminAuditAction.MFA_FAILED, user, user.getEmail(),
+                        rejected.challengeDead() ? "Défi expiré ou épuisé" : "Code incorrect");
+            }
+            if (rejected.challengeDead()) {
+                // 410 et non 401 : l'écran revient au mot de passe au lieu de redemander un code.
+                throw new com.coachrun.exception.ApiException(org.springframework.http.HttpStatus.GONE,
+                        "Code expiré ou trop d'essais : reconnectez-vous.");
+            }
+            throw new UnauthorizedException("Code incorrect.");
+        }
+        User user = userRepository.findById(verified.userId())
+                .orElseThrow(() -> new UnauthorizedException("Compte introuvable."));
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            auditLogin(AdminAuditAction.LOGIN_FAILED, user, user.getEmail(), "Compte suspendu");
+            throw new UnauthorizedException("Ce compte est suspendu.");
+        }
+        loginAttempts.recordSuccess(user.getEmail());
+        if (verified.enrolledNow()) {
+            // Les sessions ouvertes avant l'enrôlement l'ont été sans second facteur : elles tombent.
+            refreshTokens.revokeAll(user.getId());
+            auditLogin(AdminAuditAction.MFA_ENROLLED, user, user.getEmail(), "Sessions antérieures fermées");
+        }
+        if (verified.usedRecoveryCode()) {
+            auditLogin(AdminAuditAction.MFA_RECOVERY_CODE_USED, user, user.getEmail(), null);
+        }
+        user.setLastLoginAt(java.time.Instant.now());
+        auditLogin(AdminAuditAction.LOGIN_SUCCEEDED, user, user.getEmail(), "Avec second facteur");
+        AuthResponse session = openSession(user);
+        return verified.enrolledNow()
+                ? new AuthResponse(session.accessToken(), session.refreshToken(), session.expiresIn(),
+                        session.user(), null, verified.recoveryCodes())
+                : session;
     }
 
     /** Déconnexion d'une session précise (celle du cookie), sans toucher aux autres appareils. */
@@ -542,7 +616,18 @@ public class AuthService {
                 .orElseThrow(() -> new UnauthorizedException("Session invalide."));
     }
 
+    /**
+     * Fin d'un parcours qui prouve l'identité (inscription, invitation, mot de passe réinitialisé).
+     * Pour un compte soumis au second facteur, ce n'est pas encore une session : un défi.
+     */
     private AuthResponse toAuthResponse(User user) {
+        if (mfa.required(user)) {
+            return AuthResponse.challenge(mfa.start(user));
+        }
+        return openSession(user);
+    }
+
+    private AuthResponse openSession(User user) {
         return new AuthResponse(
                 jwtService.generateAccessToken(user),
                 refreshTokens.issue(user),

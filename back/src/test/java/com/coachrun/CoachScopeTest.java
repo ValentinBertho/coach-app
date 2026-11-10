@@ -103,7 +103,7 @@ class CoachScopeTest {
         return "Bearer " + objectMapper.readTree(mvc.perform(
                         post("/public/coach-invitations/{t}/accept", token)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"password\":\"password123\",\"termsAccepted\":true}"))
+                                .content("{\"password\":\"password1234\",\"termsAccepted\":true}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString())
                 .get("accessToken").asText();
     }

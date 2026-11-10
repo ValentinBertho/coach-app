@@ -1,0 +1,90 @@
+# ============================================================================
+# 105 — Double authentification (TOTP) des administrateurs plateforme.
+#
+#   mfa_credentials : le secret TOTP d'un compte, CHIFFRÉ (AES-256-GCM, même clé
+#   que les données de santé), et le dernier pas de temps accepté pour qu'un
+#   code ne serve qu'une fois.
+#
+#   mfa_challenges : l'étape intermédiaire entre « mot de passe bon » et
+#   « session ouverte ». Jeton opaque stocké haché, cinq minutes de vie, cinq
+#   essais. Pour un premier enrôlement, le secret proposé y attend (chiffré)
+#   que l'administrateur prouve l'avoir bien enregistré.
+#
+#   mfa_recovery_codes : dix codes de secours à usage unique, hachés, pour un
+#   téléphone perdu.
+#
+#   Additif : trois tables neuves, rien de touché.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 105-create-mfa-credentials
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: mfa_credentials
+            columns:
+              - column: { name: user_id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: secret, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: enabled_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: last_step, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_mfa_credentials_user
+            baseTableName: mfa_credentials
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+  - changeSet:
+      id: 105-create-mfa-challenges
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: mfa_challenges
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: token_hash, type: VARCHAR(64), constraints: { nullable: false, unique: true } }
+              - column: { name: pending_secret, type: VARCHAR(255) }
+              - column: { name: expires_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: attempts, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_mfa_challenges_user
+            baseTableName: mfa_challenges
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_mfa_challenges_expires
+            tableName: mfa_challenges
+            columns:
+              - column: { name: expires_at }
+  - changeSet:
+      id: 105-create-mfa-recovery-codes
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: mfa_recovery_codes
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: code_hash, type: VARCHAR(64), constraints: { nullable: false } }
+              - column: { name: used_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_mfa_recovery_codes_user
+            baseTableName: mfa_recovery_codes
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_mfa_recovery_codes_user
+            tableName: mfa_recovery_codes
+            columns:
+              - column: { name: user_id }

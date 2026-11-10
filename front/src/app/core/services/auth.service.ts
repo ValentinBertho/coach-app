@@ -203,9 +203,20 @@ export class AuthService {
     return this.http.post<void>(`${environment.apiUrl}/public/club-requests`, request);
   }
 
+  /**
+   * Connexion par mot de passe. Pour un administrateur, la réponse ne porte qu'un défi (`mfa`) :
+   * aucune session n'est ouverte avant `verifyMfa`.
+   */
   login(request: LoginRequest): Observable<AuthResponse> {
     return this.http
       .post<AuthResponse>(`${this.base}/login`, request)
+      .pipe(tap((res) => this.applySession(res)));
+  }
+
+  /** Second facteur : code à six chiffres de l'application, ou code de secours. */
+  verifyMfa(challengeToken: string, code: string): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(`${this.base}/mfa/verify`, { challengeToken, code }, { withCredentials: true })
       .pipe(tap((res) => this.applySession(res)));
   }
 
@@ -455,6 +466,10 @@ export class AuthService {
   }
 
   private applySession(res: AuthResponse): void {
+    if (!res.accessToken) {
+      // Défi de double authentification : rien à enregistrer, la session n'existe pas encore.
+      return;
+    }
     localStorage.setItem(ACCESS_KEY, res.accessToken);
     // Le jeton de rafraîchissement est arrivé dans un cookie HttpOnly ; on efface la copie
     // qu'une version précédente aurait laissée dans le stockage, lisible par tout script.

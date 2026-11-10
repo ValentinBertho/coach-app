@@ -44,8 +44,8 @@ type State = 'loading' | 'ok' | 'invalid';
             <div class="field">
               <label class="field-label" for="inv-pass">Mot de passe</label>
               <input id="inv-pass" type="password" class="input" autocomplete="new-password"
-                     [(ngModel)]="password" placeholder="8 caractères minimum" />
-              <p class="field-hint">8 caractères minimum.</p>
+                     [(ngModel)]="password" placeholder="12 caractères minimum" />
+              <p class="field-hint">12 caractères minimum.</p>
             </div>
             <label class="consent">
               <input type="checkbox" [(ngModel)]="consent" />
@@ -109,7 +109,7 @@ export class InvitationComponent implements OnInit {
 
   canSubmit(): boolean {
     return this.consent && this.terms
-      && this.email.trim().length > 0 && this.password.length >= 8;
+      && this.email.trim().length > 0 && this.password.length >= 12;
   }
 
   ngOnInit(): void {

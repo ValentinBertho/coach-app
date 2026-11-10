@@ -56,7 +56,7 @@ const ATHLETE: HelpGuide = {
         {
           kind: 'steps', items: [
             'Ouvre le lien d\'invitation sur ton téléphone.',
-            'Choisis ton e-mail et un mot de passe (8 caractères minimum) pour pouvoir te reconnecter plus tard.',
+            'Choisis ton e-mail et un mot de passe (12 caractères minimum) pour pouvoir te reconnecter plus tard.',
             'Coche le consentement pour le suivi de tes données physiologiques (obligatoire, exigence RGPD).',
             'Tu arrives directement sur ton calendrier : tout ton mois d\'entraînement, d\'un coup d\'œil.',
           ],

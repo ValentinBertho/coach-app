@@ -50,7 +50,7 @@ class RefreshSessionTest {
         return mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"sess-%s@test.fr","password":"password123","fullName":"C",\
+                                {"email":"sess-%s@test.fr","password":"password1234","fullName":"C",\
                                 "termsAccepted": true, "clubName":"AC %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andExpect(status().isCreated()).andReturn().getResponse();
@@ -127,7 +127,7 @@ class RefreshSessionTest {
         String phone = res.getCookie(RefreshCookie.NAME).getValue();
         String laptop = mvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"password123\"}"))
+                        .content("{\"email\":\"" + email + "\",\"password\":\"password1234\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getCookie(RefreshCookie.NAME).getValue();
 
         refresh(phone);

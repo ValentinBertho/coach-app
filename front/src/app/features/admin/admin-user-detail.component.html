@@ -394,6 +394,11 @@
           <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="revokeSessions()">
             <app-icon name="rotate-ccw" [size]="15" /> Fermer toutes les sessions
           </button>
+          @if (u.role === 'PLATFORM_ADMIN' && !isSelf()) {
+            <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="resetMfa()">
+              <app-icon name="lock" [size]="15" /> Réinitialiser la double authentification
+            </button>
+          }
           @if (canImpersonate()) {
             <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="impersonate()">
               <app-icon name="eye" [size]="15" /> Voir en tant que

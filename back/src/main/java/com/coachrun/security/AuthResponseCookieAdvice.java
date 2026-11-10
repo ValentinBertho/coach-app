@@ -37,7 +37,7 @@ public class AuthResponseCookieAdvice implements ResponseBodyAdvice<Object> {
                                   ServerHttpRequest request, ServerHttpResponse response) {
         if (body instanceof AuthResponse auth && auth.refreshToken() != null) {
             response.getHeaders().add(HttpHeaders.SET_COOKIE, refreshCookie.set(auth.refreshToken()));
-            return new AuthResponse(auth.accessToken(), null, auth.expiresIn(), auth.user());
+            return auth.withoutRefreshToken();
         }
         return body;
     }

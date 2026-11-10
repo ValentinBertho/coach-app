@@ -148,4 +148,33 @@ describe('AuthService', () => {
       req.flush({});
     });
   });
+
+  /** Double authentification des administrateurs (audit du 10/11/2026). */
+  describe('double authentification', () => {
+    const challenge = {
+      accessToken: null, refreshToken: null, expiresIn: 0, user: null,
+      mfa: { challengeToken: 'defi', enrollment: false, secret: null, otpauthUri: null, expiresIn: 300 },
+    };
+
+    it('un défi n’ouvre aucune session', () => {
+      create();
+      service.login({ email: 'a@darilab.app', password: 'x' } as never).subscribe();
+      http.expectOne((r) => r.url.endsWith('/auth/login')).flush(challenge);
+
+      expect(localStorage.getItem(ACCESS_KEY)).toBeNull();
+      expect(service.token()).toBeNull();
+      expect(service.currentUser()).toBeNull();
+    });
+
+    it('le code juste ouvre la session, cookie compris', () => {
+      create();
+      service.verifyMfa('defi', '123456').subscribe();
+      const req = http.expectOne((r) => r.url.endsWith('/auth/mfa/verify'));
+      expect(req.request.body).toEqual({ challengeToken: 'defi', code: '123456' });
+      expect(req.request.withCredentials).toBeTrue();
+      req.flush({ accessToken: 'acc', expiresIn: 900, user: { id: 'a', email: 'a@darilab.app' } });
+
+      expect(service.token()).toBe('acc');
+    });
+  });
 });

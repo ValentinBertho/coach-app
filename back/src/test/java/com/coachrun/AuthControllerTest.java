@@ -35,7 +35,7 @@ class AuthControllerTest {
         MockMvc mvc = mockMvc();
         // Sans acceptation des CGU (absente ou false) → 400 (RGPD : consentement requis).
         String withoutTerms = """
-                {"email":"noterms@test.fr","password":"password123","fullName":"No Terms","clubName":"NT Club"}
+                {"email":"noterms@test.fr","password":"password1234","fullName":"No Terms","clubName":"NT Club"}
                 """;
         mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON).content(withoutTerms))
@@ -46,7 +46,7 @@ class AuthControllerTest {
     void register_login_me_flow() throws Exception {
         MockMvc mvc = mockMvc();
         String registerBody = """
-                {"email":"coach@test.fr","password":"password123","fullName":"Test Coach","termsAccepted": true, "clubName":"Team Test"}
+                {"email":"coach@test.fr","password":"password1234","fullName":"Test Coach","termsAccepted": true, "clubName":"Team Test"}
                 """;
 
         String response = mvc.perform(post("/auth/register")
@@ -70,7 +70,7 @@ class AuthControllerTest {
 
         // login
         mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"coach@test.fr\",\"password\":\"password123\"}"))
+                        .content("{\"email\":\"coach@test.fr\",\"password\":\"password1234\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").exists());
     }
@@ -79,7 +79,7 @@ class AuthControllerTest {
     void logoutRevokesToken() throws Exception {
         MockMvc mvc = mockMvc();
         String registerBody = """
-                {"email":"logout-%s@test.fr","password":"password123","fullName":"X","termsAccepted": true, "clubName":"L %s"}
+                {"email":"logout-%s@test.fr","password":"password1234","fullName":"X","termsAccepted": true, "clubName":"L %s"}
                 """.formatted(java.util.UUID.randomUUID(), java.util.UUID.randomUUID());
         JsonNode json = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON).content(registerBody))
@@ -99,7 +99,7 @@ class AuthControllerTest {
     void register_duplicateEmail_returns409() throws Exception {
         MockMvc mvc = mockMvc();
         String body = """
-                {"email":"dup@test.fr","password":"password123","fullName":"Dup","termsAccepted": true, "clubName":"Dup Club"}
+                {"email":"dup@test.fr","password":"password1234","fullName":"Dup","termsAccepted": true, "clubName":"Dup Club"}
                 """;
         mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated());

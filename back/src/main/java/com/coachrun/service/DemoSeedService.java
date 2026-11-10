@@ -77,7 +77,7 @@ public class DemoSeedService {
     public static final String HEAD_COACH_EMAIL = "demo@coachrun.fr";
     public static final String COACH_EMAIL = "coach@coachrun.fr";
     public static final String ATHLETE_EMAIL = "athlete@coachrun.fr";
-    public static final String DEMO_PASSWORD = "password123";
+    public static final String DEMO_PASSWORD = "password1234";
 
     private static final String[] FIRST_M = {
             "Lucas", "Hugo", "Nathan", "Théo", "Antoine", "Maxime", "Julien", "Clément",

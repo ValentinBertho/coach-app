@@ -160,7 +160,7 @@ class AthleteActivityEditTest {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"edit-%s@test.fr","password":"password123","fullName":"C","termsAccepted": true, "clubName":"ED %s"}
+                                {"email":"edit-%s@test.fr","password":"password1234","fullName":"C","termsAccepted": true, "clubName":"ED %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andReturn().getResponse().getContentAsString());
         String coach = "Bearer " + auth.get("accessToken").asText();

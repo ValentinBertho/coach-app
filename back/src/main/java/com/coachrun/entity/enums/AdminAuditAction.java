@@ -89,6 +89,9 @@ public enum AdminAuditAction {
     PASSWORD_CHANGED("Mot de passe changé"),
     PASSWORD_RESET_REQUESTED("Réinitialisation de mot de passe demandée"),
     PASSWORD_RESET_COMPLETED("Mot de passe réinitialisé"),
+    MFA_ENROLLED("Double authentification activée"),
+    MFA_FAILED("Code de double authentification refusé"),
+    MFA_RECOVERY_CODE_USED("Connexion par code de secours"),
 
     // --- Données personnelles (RGPD) ---
     HEALTH_CONSENT_GRANTED("Consentement santé donné"),
@@ -105,6 +108,10 @@ public enum AdminAuditAction {
     COACH_INVITED("Coach invité au club"),
     COACH_REMOVED("Coach retiré du club"),
     TRAINING_PLAN_DELETED("Plan d'entraînement supprimé"),
+
+    // --- Administration (suite) ---
+    /** Second facteur d'un administrateur retiré par un autre (téléphone perdu). */
+    MFA_RESET("Double authentification réinitialisée"),
 
     /**
      * @deprecated La réinitialisation démo a été retirée à l'ouverture de la bêta : elle effaçait
@@ -131,7 +138,7 @@ public enum AdminAuditAction {
         return switch (this) {
             case USER_DELETED, CLUB_DELETED, ATHLETE_DELETED, USER_ROLE_CHANGED,
                  USER_IMPERSONATED, IMPERSONATED_WRITE, USER_SUSPENDED, CLUB_REQUEST_APPROVED,
-                 DEMO_RESET -> true;
+                 DEMO_RESET, MFA_RESET -> true;
             // Gestes d'utilisateurs qui méritent le même traitement : ils effacent des données
             // qui ne reviennent pas, ils déplacent le contrôle d'un compte, ou ils font sortir un
             // dossier entier de la plateforme. L'export est le seul des trois qui soit banal chez
@@ -139,7 +146,7 @@ public enum AdminAuditAction {
             // à ce titre qu'il est mis en évidence.
             case PASSWORD_CHANGED, PASSWORD_RESET_COMPLETED, EMAIL_CHANGED, LOGIN_BLOCKED,
                  HEALTH_CONSENT_WITHDRAWN, PERSONAL_DATA_EXPORTED, ATHLETE_DATA_ERASED,
-                 COACH_REMOVED, TRAINING_PLAN_DELETED -> true;
+                 COACH_REMOVED, TRAINING_PLAN_DELETED, MFA_RECOVERY_CODE_USED -> true;
             default -> false;
         };
     }
@@ -157,7 +164,8 @@ public enum AdminAuditAction {
         return switch (this) {
             case LOGIN_SUCCEEDED, LOGIN_FAILED, LOGIN_BLOCKED, LOGOUT, ACCOUNT_REGISTERED,
                  INVITATION_ACCEPTED, EMAIL_VERIFIED, EMAIL_CHANGED, PASSWORD_CHANGED,
-                 PASSWORD_RESET_REQUESTED, PASSWORD_RESET_COMPLETED -> AdminAuditScope.SECURITY;
+                 PASSWORD_RESET_REQUESTED, PASSWORD_RESET_COMPLETED, MFA_ENROLLED, MFA_FAILED,
+                 MFA_RECOVERY_CODE_USED -> AdminAuditScope.SECURITY;
             case HEALTH_CONSENT_GRANTED, HEALTH_CONSENT_WITHDRAWN, PERSONAL_DATA_EXPORTED,
                  ATHLETE_DATA_ERASED, DEVICE_CONNECTED, DEVICE_DISCONNECTED -> AdminAuditScope.PRIVACY;
             case ATHLETE_CREATED, ATHLETE_ARCHIVED, ATHLETE_INVITED, COACH_INVITED, COACH_REMOVED,

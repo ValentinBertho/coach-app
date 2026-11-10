@@ -71,6 +71,7 @@ public class AdminUserService {
     private final WorkoutRepository workoutRepository;
     private final AthleteFeedbackService feedbackService;
     private final PushNotificationService pushService;
+    private final com.coachrun.security.MfaService mfaService;
 
     /** Version servie par ce serveur — la référence à laquelle se compare celle du client. */
     @Value("${app.version:dev}")
@@ -313,6 +314,29 @@ public class AdminUserService {
         user.setSessionsInvalidatedAt(Instant.now());
         audit.record(AdminAuditAction.USER_SESSIONS_REVOKED, AdminAuditTarget.USER,
                 user.getId(), user.getEmail(), "Toutes les sessions ouvertes ont été fermées.");
+        return AdminUserResponse.from(user);
+    }
+
+    /**
+     * Retire le second facteur d'un administrateur qui a perdu son téléphone <b>et</b> ses codes
+     * de secours. Ses sessions sont fermées ; il se réenrôle à sa prochaine connexion, avec son
+     * mot de passe.
+     *
+     * <p>Jamais sur son propre compte : un jeton d'accès volé suffirait sinon à désactiver la
+     * protection qui le rend insuffisant. C'est un autre administrateur qui le fait.</p>
+     */
+    @Transactional
+    public AdminUserResponse resetMfa(UUID id) {
+        User user = require(id);
+        if (id.equals(currentActorId())) {
+            throw new ForbiddenException(
+                    "Un administrateur ne retire pas son propre second facteur : demandez-le à un autre administrateur.");
+        }
+        mfaService.reset(user.getId());
+        // Même geste que « fermer les sessions » : plus aucun rafraîchissement ne passe.
+        user.setSessionsInvalidatedAt(Instant.now());
+        audit.record(AdminAuditAction.MFA_RESET, AdminAuditTarget.USER, user.getId(), user.getEmail(),
+                "Second facteur retiré, sessions fermées — réenrôlement à la prochaine connexion.");
         return AdminUserResponse.from(user);
     }
 

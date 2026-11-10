@@ -61,7 +61,7 @@ class ClubCoachManagementTest {
     void registrationCreatesOwnerMember() throws Exception {
         JsonNode reg = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"owner.test@darilab.app\",\"password\":\"password123\","
+                        .content("{\"email\":\"owner.test@darilab.app\",\"password\":\"password1234\","
                                 + "\"fullName\":\"Owner Test\",\"termsAccepted\":true,\"clubName\":\"Club Test\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         String newBearer = "Bearer " + reg.get("accessToken").asText();
@@ -78,7 +78,7 @@ class ClubCoachManagementTest {
     void addAndRemoveExistingCoach() throws Exception {
         // Un coach avec son propre compte (autre club).
         mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"assistant2@darilab.app\",\"password\":\"password123\","
+                        .content("{\"email\":\"assistant2@darilab.app\",\"password\":\"password1234\","
                                 + "\"fullName\":\"Assistant Deux\",\"termsAccepted\":true,\"clubName\":\"Autre Club\"}"))
                 .andExpect(status().isCreated());
 

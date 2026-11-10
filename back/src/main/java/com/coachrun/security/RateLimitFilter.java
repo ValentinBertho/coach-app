@@ -120,7 +120,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     /** Bucket de comptage de la route, ou {@code null} si elle n'est pas rate-limitée par IP. */
     public static String bucket(String uri) {
-        if (uri.endsWith("/auth/login")) {
+        // Le code à six chiffres partage le plafond de la connexion : c'est la même porte.
+        if (uri.endsWith("/auth/login") || uri.endsWith("/auth/mfa/verify")) {
             return LOGIN_BUCKET;
         }
         if (uri.endsWith("/auth/register")) {

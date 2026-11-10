@@ -134,7 +134,7 @@ class AuthPasswordTest {
                         .content("{\"email\":\"reset.coach@darilab.app\",\"password\":\"oldpassword1\"}"))
                 .andExpect(status().isUnauthorized());
         mvc.perform(post("/public/password-reset/{t}", token).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"password\":\"another12\"}"))
+                        .content("{\"password\":\"another123456\"}"))
                 .andExpect(status().isNotFound());
     }
 }

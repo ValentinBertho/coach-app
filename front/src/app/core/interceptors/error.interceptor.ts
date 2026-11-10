@@ -20,6 +20,7 @@ const SILENT_PATTERNS = [/\/auth\/refresh$/, /\/auth\/me$/];
  */
 const FORM_HANDLED_PATTERNS = [
   /\/auth\/login$/,
+  /\/auth\/mfa\/verify$/,
   /\/auth\/register$/,
   /\/auth\/change-password$/,
   /\/oauth-callback/,

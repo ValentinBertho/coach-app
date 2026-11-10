@@ -71,7 +71,7 @@ import { ThemePickerComponent } from '../../shared/components/theme-picker/theme
           <label for="newPwd">Nouveau mot de passe</label>
           <input id="newPwd" type="password" class="form-control" autocomplete="new-password"
                  [(ngModel)]="password.next" />
-          <p class="field-hint">8 caractères minimum.</p>
+          <p class="field-hint">12 caractères minimum.</p>
         </div>
         <button type="button" class="btn btn-ghost" (click)="savePassword()" [disabled]="savingPassword()">
           Changer le mot de passe
@@ -243,8 +243,8 @@ export class SettingsComponent implements OnInit {
 
   savePassword(): void {
     if (this.savingPassword()) return;
-    if (!this.password.current || this.password.next.length < 8) {
-      this.toast.warning('Mot de passe actuel requis, et nouveau d’au moins 8 caractères.');
+    if (!this.password.current || this.password.next.length < 12) {
+      this.toast.warning('Mot de passe actuel requis, et nouveau d’au moins 12 caractères.');
       return;
     }
     this.savingPassword.set(true);
