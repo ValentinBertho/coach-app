@@ -181,6 +181,10 @@ Sentry est **inactif tant que le DSN est vide** (no-op).
   contre un PostgreSQL éphémère (valide les migrations via `/actuator/health`).
 - **Frontend** : `npm ci`, build AOT prod, tests Karma headless.
 
+- **Tag de déploiement** ([`deploy-tag.yml`](../.github/workflows/deploy-tag.yml)) : quand la CI
+  de `main` est verte, le commit reçoit un tag annoté `prod-AAAA-MM-JJ-HHMM-<sha7>` (heure UTC),
+  dont le message liste les fusions depuis le tag précédent. Voir §6 bis pour s'en servir.
+
 ---
 
 ## 6. Check-list de mise en production
@@ -207,6 +211,32 @@ Sentry est **inactif tant que le DSN est vide** (no-op).
 - [ ] Logs centralisés + rétention.
 - [ ] Dépendances surveillées (Dependabot/Snyk).
 - [ ] HTTPS + en-têtes proxy (déjà : `forward-headers-strategy: framework`).
+
+---
+
+## 6 bis. Quelle version tourne, et comment revenir en arrière
+
+Railway et Vercel déploient chaque commit poussé sur `main`. Chaque mise en production porte un
+tag `prod-…` (cf. §5).
+
+```bash
+git fetch --tags
+git tag --list 'prod-*' --sort=-creatordate | head      # les dernières mises en production
+git show prod-2026-11-10-1503-b7f879f --stat              # ce qu'elle contenait
+```
+
+**Revenir à la version précédente** (le code seulement) :
+
+1. Railway → service backend → *Deployments* → choisir le déploiement du commit du tag
+   précédent → **Redeploy**. Faire de même sur Vercel (*Deployments* → *Promote to Production*).
+2. Ensuite, dans le dépôt, annuler la fusion fautive par `git revert -m 1 <commit de fusion>` dans
+   une PR, pour que `main` redise la vérité ; le prochain push retaguera.
+
+⚠️ **Les migrations Liquibase ne reviennent pas en arrière.** Une version antérieure démarre sur
+un schéma plus récent : c'est sans risque tant que les migrations sont additives (nouvelles
+tables ou colonnes facultatives), ce qui est la règle du projet. Si une migration a supprimé ou
+renommé quelque chose, revenir en arrière demande une restauration de base (§2), pas un
+redéploiement.
 
 ---
 
