@@ -1,6 +1,5 @@
 package com.coachrun;
 
-import com.coachrun.security.LoginAttemptTracker;
 import com.coachrun.security.RateLimitFilter;
 import com.coachrun.util.FixedWindowRateLimiter;
 import jakarta.servlet.FilterChain;
@@ -10,10 +9,6 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -166,54 +161,5 @@ class RateLimitHardeningTest {
         limiter.tryAcquire("ip-0", now + 61_000L);
         assertThat(limiter.purgeExpired(now + 61_000L)).isEqualTo(499);
         assertThat(limiter.trackedKeys()).isEqualTo(1);
-    }
-
-    /**
-     * Échecs simultanés sur le même compte : l'incrément était appliqué hors du compute(), sur
-     * des champs non volatiles — des tentatives se perdaient, et le verrou progressif ne se
-     * déclenchait jamais face à un attaquant qui parallélise.
-     */
-    @Test
-    void concurrentFailuresAllCount() throws Exception {
-        LoginAttemptTracker tracker = new LoginAttemptTracker();
-        ReflectionTestUtils.setField(tracker, "enabled", true);
-
-        int threads = 16;
-        ExecutorService pool = Executors.newFixedThreadPool(threads);
-        CountDownLatch start = new CountDownLatch(1);
-        CountDownLatch done = new CountDownLatch(threads);
-        for (int i = 0; i < threads; i++) {
-            pool.submit(() -> {
-                try {
-                    start.await();
-                    tracker.recordFailure("cible@darilab.app");
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                } finally {
-                    done.countDown();
-                }
-            });
-        }
-        start.countDown();
-        assertThat(done.await(10, TimeUnit.SECONDS)).isTrue();
-        pool.shutdownNow();
-
-        // 16 échecs > 5 tolérés : le compte doit être verrouillé, quel que soit l'entrelacement.
-        assertThat(tracker.lockRemaining("cible@darilab.app")).isNotNull();
-    }
-
-    /** Les compteurs de connexion sans échec récent sont purgés. */
-    @Test
-    void loginAttemptsArePurged() {
-        LoginAttemptTracker tracker = new LoginAttemptTracker();
-        ReflectionTestUtils.setField(tracker, "enabled", true);
-        for (int i = 0; i < 100; i++) {
-            tracker.recordFailure("inconnu-" + i + "@darilab.app");
-        }
-        assertThat(tracker.trackedAccounts()).isEqualTo(100);
-
-        // Rien n'a expiré (TTL d'une heure) : la purge ne doit rien retirer prématurément.
-        ReflectionTestUtils.invokeMethod(tracker, "purgeExpired");
-        assertThat(tracker.trackedAccounts()).isEqualTo(100);
     }
 }

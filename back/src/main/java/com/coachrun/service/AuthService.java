@@ -2,7 +2,6 @@ package com.coachrun.service;
 
 import com.coachrun.dto.request.LoginRequest;
 import com.coachrun.dto.request.ChangePasswordRequest;
-import com.coachrun.dto.request.RefreshRequest;
 import com.coachrun.dto.request.UpdateProfileRequest;
 import com.coachrun.dto.request.RegisterRequest;
 import com.coachrun.dto.response.AuthResponse;
@@ -21,7 +20,6 @@ import com.coachrun.exception.UnauthorizedException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.UserRepository;
 import com.coachrun.security.JwtService;
-import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -44,9 +42,8 @@ public class AuthService {
     private final AthleteRepository athleteRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final com.coachrun.security.TokenBlacklist tokenBlacklist;
-    private final com.coachrun.security.TokenFreshnessValidator tokenFreshness;
     private final com.coachrun.security.LoginAttemptTracker loginAttempts;
+    private final com.coachrun.security.RefreshTokenService refreshTokens;
     private final NotificationService notificationService;
     private final PushNotificationService pushNotificationService;
     private final ClubProvisioningService clubProvisioningService;
@@ -173,6 +170,7 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
         // Toutes les sessions ouvertes tombent : c'est le but d'un changement de mot de passe.
         user.setPasswordChangedAt(java.time.Instant.now());
+        refreshTokens.revokeAll(userId);
         log.info("Mot de passe changé (user={}) — sessions antérieures révoquées", userId);
         audit.record(AdminAuditAction.PASSWORD_CHANGED, AdminAuditTarget.USER,
                 userId, user.getEmail(), "Sessions antérieures révoquées");
@@ -317,38 +315,30 @@ public class AuthService {
                 reason);
     }
 
-    public AuthResponse refresh(RefreshRequest request) {
-        // Les cinq causes de refus sont journalisées distinctement. Elles se présentaient toutes
-        // au client sous la forme d'un unique 401, donc d'un « Session expirée » indifférencié :
-        // impossible, en production, de dire si un utilisateur déconnecté l'a été par un jeton
-        // périmé, par une rotation rejouée ou par un changement de mot de passe.
-        final Claims claims;
-        try {
-            claims = jwtService.parse(request.refreshToken());
-        } catch (RuntimeException ex) {
-            log.info("Refresh refusé : jeton illisible ou expiré ({})", ex.getClass().getSimpleName());
-            throw new UnauthorizedException("Jeton de rafraîchissement invalide ou expiré.");
+    /**
+     * Rotation du jeton de rafraîchissement présenté (lu dans le cookie protégé).
+     *
+     * <p>La rotation ouvre sa propre transaction, validée même quand elle refuse, pour que la
+     * révocation d'une session rejouée tienne. Les causes de refus sont journalisées par
+     * {@link com.coachrun.security.RefreshTokenService#rotate}.</p>
+     */
+    public AuthResponse refresh(String rawRefreshToken) {
+        var rotation = refreshTokens.rotate(rawRefreshToken);
+        User user = userRepository.findById(rotation.userId())
+                .orElseThrow(() -> new UnauthorizedException("Compte introuvable."));
+        if (user.getStatus() == UserStatus.SUSPENDED) {
+            throw new UnauthorizedException("Ce compte est suspendu.");
         }
-        if (!JwtService.TYPE_REFRESH.equals(claims.get("typ", String.class))) {
-            log.warn("Refresh refusé : jeton du mauvais type (user={})", claims.getSubject());
-            throw new UnauthorizedException("Jeton de rafraîchissement invalide.");
-        }
-        if (tokenBlacklist.isRevoked(claims.getId())) {
-            log.info("Refresh refusé : jeton déjà utilisé, rotation rejouée (user={})", claims.getSubject());
-            throw new UnauthorizedException("Jeton de rafraîchissement déjà utilisé.");
-        }
-        User user = userRepository.findById(UUID.fromString(claims.getSubject()))
-                .orElseThrow(() -> {
-                    log.warn("Refresh refusé : compte introuvable (user={})", claims.getSubject());
-                    return new UnauthorizedException("Compte introuvable.");
-                });
-        if (tokenFreshness.isStale(claims)) {
-            log.info("Refresh refusé : jeton antérieur à la dernière révocation (user={})", user.getId());
-            throw new UnauthorizedException("Le mot de passe a changé, reconnectez-vous.");
-        }
-        // Rotation : on révoque l'ancien refresh avant d'en émettre un nouveau.
-        tokenBlacklist.revoke(claims.getId(), claims.getExpiration().toInstant());
-        return toAuthResponse(user);
+        return new AuthResponse(
+                jwtService.generateAccessToken(user),
+                rotation.refreshToken(),
+                jwtService.getAccessTtlSeconds(),
+                UserResponse.from(user));
+    }
+
+    /** Déconnexion d'une session précise (celle du cookie), sans toucher aux autres appareils. */
+    public void closeSession(String rawRefreshToken) {
+        refreshTokens.revokeSession(rawRefreshToken);
     }
 
     /**
@@ -502,6 +492,7 @@ public class AuthService {
         // Un reset sert souvent à reprendre la main sur un compte compromis : les jetons déjà
         // émis (refresh : 30 jours) doivent cesser de valoir, sinon l'intrus reste connecté.
         user.setPasswordChangedAt(java.time.Instant.now());
+        refreshTokens.revokeAll(user.getId());
         log.info("Mot de passe réinitialisé (user={}) — sessions antérieures révoquées", user.getId());
         audit.recordDetached(AdminAuditService.Actor.of(user),
                 AdminAuditAction.PASSWORD_RESET_COMPLETED, AdminAuditTarget.USER,
@@ -538,6 +529,7 @@ public class AuthService {
     public void logout(UUID userId) {
         userRepository.findById(userId)
                 .ifPresent(user -> user.setSessionsInvalidatedAt(java.time.Instant.now()));
+        refreshTokens.revokeAll(userId);
         pushNotificationService.unsubscribeUser(userId);
         log.info("Déconnexion (user={}) — sessions antérieures révoquées", userId);
         audit.record(AdminAuditAction.LOGOUT, AdminAuditTarget.USER, userId, null,
@@ -553,7 +545,7 @@ public class AuthService {
     private AuthResponse toAuthResponse(User user) {
         return new AuthResponse(
                 jwtService.generateAccessToken(user),
-                jwtService.generateRefreshToken(user),
+                refreshTokens.issue(user),
                 jwtService.getAccessTtlSeconds(),
                 UserResponse.from(user));
     }

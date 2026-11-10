@@ -1,14 +1,24 @@
 package com.coachrun.security;
 
+import com.coachrun.entity.LoginAttempt;
+import com.coachrun.repository.LoginAttemptRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Compteur d'échecs de connexion <strong>par compte</strong>, avec délai progressif.
@@ -17,9 +27,18 @@ import java.util.concurrent.ConcurrentHashMap;
  * répartit ses essais sur plusieurs adresses pour forcer un compte précis. Ce compteur suit la
  * cible plutôt que la source, et le verrou s'allonge à chaque échec supplémentaire.</p>
  *
- * <p>En mémoire et mono-instance, comme les autres garde-fous du MVP. Un redémarrage remet les
- * compteurs à zéro : c'est un ralentisseur, pas un coffre-fort — mais un ralentisseur suffit à
- * rendre le brute-force en ligne inexploitable.</p>
+ * <p><b>En base, plus en mémoire.</b> Un redémarrage remettait tous les compteurs à zéro, et un
+ * déploiement par jour suffisait à offrir à un attaquant une fenêtre neuve d'essais gratuits. La
+ * l'incrément est fait par la base elle-même (UPDATE … = … + 1) : deux échecs simultanés
+ * comptent bien pour deux.</p>
+ *
+ * <p>Chaque écriture se fait dans <b>sa propre transaction</b>. La connexion qui échoue lève une
+ * exception juste après : dans la transaction de l'appelant, l'échec serait annulé avec elle et
+ * ne compterait jamais.</p>
+ *
+ * <p>La clé est l'empreinte SHA-256 de l'adresse normalisée : le compteur s'applique aussi aux
+ * adresses inexistantes (sinon un verrou révélerait quels comptes existent) sans conserver ces
+ * adresses en clair.</p>
  */
 @Slf4j
 @Component
@@ -33,98 +52,153 @@ public class LoginAttemptTracker {
     private static final Duration MAX_DELAY = Duration.ofMinutes(15);
     /** Un compte sans échec récent repart de zéro. */
     private static final Duration ATTEMPT_TTL = Duration.ofHours(1);
+    /** Écritures concurrentes sur un même compte : quelques reprises suffisent à toutes les compter. */
+    private static final int MAX_WRITE_ATTEMPTS = 10;
 
-    private final Map<String, Attempts> attempts = new ConcurrentHashMap<>();
+    private final LoginAttemptRepository repository;
+    private final TransactionTemplate tx;
 
     @Value("${app.rate-limit.enabled:true}")
     private boolean enabled;
+
+    public LoginAttemptTracker(LoginAttemptRepository repository, PlatformTransactionManager txManager) {
+        this.repository = repository;
+        this.tx = new TransactionTemplate(txManager);
+        this.tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
 
     /** Délai restant avant la prochaine tentative autorisée, ou {@code null} si le compte est libre. */
     public Duration lockRemaining(String email) {
         if (!enabled || email == null) {
             return null;
         }
-        Attempts a = attempts.get(key(email));
-        if (a == null || a.lockedUntil == null) {
+        Instant lockedUntil = tx.execute(s -> repository.findById(key(email))
+                .filter(a -> !isExpired(a))
+                .map(LoginAttempt::getLockedUntil)
+                .orElse(null));
+        if (lockedUntil == null) {
             return null;
         }
-        Duration remaining = Duration.between(Instant.now(), a.lockedUntil);
+        Duration remaining = Duration.between(Instant.now(), lockedUntil);
         return remaining.isNegative() || remaining.isZero() ? null : remaining;
     }
 
-    /**
-     * Échec d'authentification : incrémente le compteur et rallonge le verrou.
-     *
-     * <p>Tout se fait <b>dans</b> le {@code compute()} : l'incrément et l'horodatage étaient
-     * auparavant appliqués après coup, sur des champs non volatiles. Deux essais simultanés sur
-     * le même compte lisaient donc la même valeur et n'en écrivaient qu'une — un attaquant qui
-     * parallélise ses tentatives voyait son compteur avancer moins vite que ses essais, et le
-     * verrou progressif ne se déclenchait jamais.</p>
-     */
+    /** Échec d'authentification : incrémente le compteur et rallonge le verrou. */
     public void recordFailure(String email) {
         if (!enabled || email == null) {
             return;
         }
-        Attempts updated = attempts.compute(key(email), (k, existing) -> {
-            Attempts a = (existing == null || existing.isExpired()) ? new Attempts() : existing;
-            a.count++;
-            a.lastFailure = Instant.now();
-            if (a.count > FREE_ATTEMPTS) {
-                long factor = 1L << Math.min(a.count - FREE_ATTEMPTS - 1, 10);
-                Duration delay = BASE_DELAY.multipliedBy(factor);
-                if (delay.compareTo(MAX_DELAY) > 0) {
-                    delay = MAX_DELAY;
+        String key = key(email);
+        LoginAttempt updated = null;
+        // Deux temps, chacun dans sa transaction : s'assurer que la ligne existe, puis l'incrémenter
+        // de façon atomique. Créer et incrémenter d'un seul geste perdait des échecs quand plusieurs
+        // premières tentatives arrivaient ensemble : celles qui butaient sur la ligne en cours de
+        // création ne la voyaient pas encore et abandonnaient.
+        for (int attempt = 0; attempt < MAX_WRITE_ATTEMPTS && updated == null; attempt++) {
+            try {
+                ensureRow(key);
+                updated = tx.execute(s -> increment(key));
+            } catch (DataAccessException transientConflict) {
+                if (attempt == MAX_WRITE_ATTEMPTS - 1) {
+                    throw transientConflict;
                 }
-                a.lockedUntil = Instant.now().plus(delay);
             }
-            return a;
-        });
-        if (updated.lockedUntil != null && updated.count > FREE_ATTEMPTS) {
+            if (updated == null) {
+                pause(attempt);
+            }
+        }
+        if (updated == null) {
+            log.warn("Échec de connexion non compté après {} reprises (conflits d'écriture)", MAX_WRITE_ATTEMPTS);
+            return;
+        }
+        if (updated.getLockedUntil() != null && updated.getFailureCount() > FREE_ATTEMPTS) {
             // Jamais l'adresse en clair dans les journaux : c'est une donnée personnelle.
             log.warn("Connexion verrouillée {} s après {} échecs consécutifs",
-                    Duration.between(Instant.now(), updated.lockedUntil).toSeconds(), updated.count);
+                    Duration.between(Instant.now(), updated.getLockedUntil()).toSeconds(),
+                    updated.getFailureCount());
         }
     }
 
-    /**
-     * Purge les compteurs sans échec récent. La table est indexée sur l'adresse e-mail soumise,
-     * donc sur une valeur choisie par l'appelant : sans purge, une salve de connexions sur des
-     * adresses inventées la faisait croître sans borne.
-     */
-    @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 900_000L)
-    void purgeExpired() {
-        attempts.values().removeIf(Attempts::isExpired);
+    /** Crée la ligne du compte si elle n'existe pas ; une création concurrente gagnante suffit. */
+    private void ensureRow(String key) {
+        try {
+            tx.executeWithoutResult(s -> {
+                if (!repository.existsById(key)) {
+                    repository.insertEmpty(key, Instant.now());
+                }
+            });
+        } catch (DataIntegrityViolationException createdMeanwhile) {
+            // Une autre tentative l'a créée au même instant : c'est exactement ce qu'on voulait.
+        }
     }
 
-    /** Nombre de comptes suivis (supervision et tests de purge). */
-    public int trackedAccounts() {
-        return attempts.size();
+    /** Incrémente atomiquement ; {@code null} si la ligne n'est pas encore visible (on réessaie). */
+    private LoginAttempt increment(String key) {
+        Instant now = Instant.now();
+        repository.resetIfStale(key, now.minus(ATTEMPT_TTL));
+        if (repository.increment(key, now) == 0) {
+            return null;
+        }
+        // La ligne est verrouillée par notre UPDATE jusqu'au commit : ce qu'on relit est notre valeur.
+        LoginAttempt a = repository.findById(key).orElse(null);
+        if (a == null) {
+            return null;
+        }
+        if (a.getFailureCount() > FREE_ATTEMPTS) {
+            long factor = 1L << Math.min(a.getFailureCount() - FREE_ATTEMPTS - 1, 10);
+            Duration delay = BASE_DELAY.multipliedBy(factor);
+            if (delay.compareTo(MAX_DELAY) > 0) {
+                delay = MAX_DELAY;
+            }
+            a.setLockedUntil(now.plus(delay));
+            repository.lockUntil(key, a.getLockedUntil());
+        }
+        return a;
     }
 
     /** Connexion réussie : le compteur repart de zéro. */
     public void recordSuccess(String email) {
-        if (email != null) {
-            attempts.remove(key(email));
+        if (email == null) {
+            return;
         }
-    }
-
-    private String key(String email) {
-        return email.trim().toLowerCase(Locale.ROOT);
+        String key = key(email);
+        tx.executeWithoutResult(s -> repository.findById(key).ifPresent(repository::delete));
     }
 
     /**
-     * État d'un compte. Les champs ne sont mutés que sous le {@code compute()} de la map, qui
-     * verrouille l'entrée : c'est lui qui garantit l'atomicité, pas les champs eux-mêmes. Ils
-     * sont tout de même {@code volatile} pour que {@code lockRemaining()}, qui lit hors du
-     * compute, voie bien la dernière valeur écrite.
+     * Purge les compteurs sans échec récent. La table est indexée sur l'adresse soumise, donc sur
+     * une valeur choisie par l'appelant : sans purge, une salve de connexions sur des adresses
+     * inventées la ferait croître sans borne.
      */
-    private static final class Attempts {
-        volatile int count;
-        volatile Instant lastFailure = Instant.now();
-        volatile Instant lockedUntil;
+    @Scheduled(fixedDelay = 900_000L)
+    void purgeExpired() {
+        tx.executeWithoutResult(s -> repository.deleteStaleBefore(Instant.now().minus(ATTEMPT_TTL)));
+    }
 
-        boolean isExpired() {
-            return Instant.now().isAfter(lastFailure.plus(ATTEMPT_TTL));
+    /** Nombre de comptes suivis (supervision et tests de purge). */
+    public long trackedAccounts() {
+        return repository.count();
+    }
+
+    private static void pause(int attempt) {
+        try {
+            Thread.sleep(5L * (attempt + 1));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static boolean isExpired(LoginAttempt a) {
+        return Instant.now().isAfter(a.getLastFailureAt().plus(ATTEMPT_TTL));
+    }
+
+    static String key(String email) {
+        String normalised = email.trim().toLowerCase(Locale.ROOT);
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(normalised.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 indisponible", e);
         }
     }
 }

@@ -23,7 +23,13 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const bypass = NO_AUTH.some((p) => req.url.includes(p));
 
-  req = req.clone({ setHeaders: { 'X-App-Version': environment.appVersion } });
+  // Cookies joints à tous les appels de l'API : c'est ce qui permet au navigateur de recevoir
+  // puis de renvoyer le cookie de session (connexion, rafraîchissement, déconnexion), y compris
+  // en développement où front et API sont sur deux ports. Sans effet en production : même origine.
+  req = req.clone({
+    setHeaders: { 'X-App-Version': environment.appVersion },
+    withCredentials: req.withCredentials || req.url.startsWith(environment.apiUrl),
+  });
 
   const token = auth.token();
   if (token && !bypass) {

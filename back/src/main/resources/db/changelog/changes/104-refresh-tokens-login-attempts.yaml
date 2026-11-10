@@ -1,0 +1,73 @@
+# ============================================================================
+# 104 — Les sessions et les compteurs de connexion quittent la mémoire.
+#
+#   refresh_tokens : un jeton de rafraîchissement par session ouverte, stocké
+#   HACHÉ (SHA-256), jamais en clair. Chaque rotation crée un nouveau jeton dans
+#   la même « famille » et marque l'ancien comme utilisé. Présenter un jeton
+#   déjà utilisé, c'est un rejeu : toute la famille est révoquée, le voleur et
+#   la victime sont déconnectés ensemble. Avant, la liste des jetons consommés
+#   vivait en mémoire et disparaissait au redémarrage : un jeton volé redevenait
+#   rejouable à chaque déploiement.
+#
+#   login_attempts : le compteur d'échecs par compte (verrou progressif). Clé =
+#   empreinte SHA-256 de l'adresse saisie, pas l'adresse elle-même. Survit aux
+#   redémarrages, qui remettaient jusqu'ici tous les compteurs à zéro.
+#
+#   Additif : deux tables neuves, rien de touché.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 104-create-refresh-tokens
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: refresh_tokens
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: user_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: family_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: token_hash, type: VARCHAR(64), constraints: { nullable: false, unique: true } }
+              - column: { name: expires_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: used_at, type: TIMESTAMP }
+              - column: { name: revoked_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_refresh_tokens_user
+            baseTableName: refresh_tokens
+            baseColumnNames: user_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            indexName: idx_refresh_tokens_user
+            tableName: refresh_tokens
+            columns:
+              - column: { name: user_id }
+        - createIndex:
+            indexName: idx_refresh_tokens_family
+            tableName: refresh_tokens
+            columns:
+              - column: { name: family_id }
+        - createIndex:
+            indexName: idx_refresh_tokens_expires
+            tableName: refresh_tokens
+            columns:
+              - column: { name: expires_at }
+  - changeSet:
+      id: 104-create-login-attempts
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: login_attempts
+            columns:
+              - column: { name: account_key, type: VARCHAR(64), constraints: { primaryKey: true, nullable: false } }
+              - column: { name: failure_count, type: INT, constraints: { nullable: false } }
+              - column: { name: last_failure_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: locked_until, type: TIMESTAMP }
+        - createIndex:
+            indexName: idx_login_attempts_last_failure
+            tableName: login_attempts
+            columns:
+              - column: { name: last_failure_at }
