@@ -1,7 +1,18 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
-import { TrendChartComponent, type TrendPoint } from '../../shared/components/trend-chart/trend-chart.component';
+import {
+  TrendChartComponent,
+  type TrendPoint,
+} from '../../shared/components/trend-chart/trend-chart.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { Performance, Vdot } from '../../core/models/physio.model';
 import { PhysioService } from '../../core/services/physio.service';
@@ -26,7 +37,6 @@ const DISTANCES: { value: string; label: string }[] = [
  */
 @Component({
   selector: 'app-athlete-records-panel',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, DatePipe, IconComponent, TrendChartComponent],
   template: `
@@ -35,23 +45,43 @@ const DISTANCES: { value: string; label: string }[] = [
         <div>
           <h2>Records</h2>
           <p class="field-hint">
-            Un chrono saisi met à jour le VDOT et les allures dérivées (utilisées comme ancres
-            « Allure 800 m … marathon » dans les zones).
+            Un chrono saisi met à jour le VDOT et les allures dérivées
+            (utilisées comme ancres « Allure 800 m … marathon » dans les zones).
           </p>
         </div>
         @if (vdot()?.vdot != null) {
-          <span class="vdot-badge">VDOT <strong class="metric">{{ vdot()!.vdot }}</strong></span>
+          <span class="vdot-badge"
+            >VDOT <strong class="metric">{{ vdot()!.vdot }}</strong></span
+          >
         }
       </header>
 
       <!-- Saisie : distance · temps · date -->
       <form class="rec-form" (ngSubmit)="add()">
-        <select class="form-control" [(ngModel)]="draft.distance" name="distance" aria-label="Distance">
-          @for (d of distances; track d.value) { <option [value]="d.value">{{ d.label }}</option> }
+        <select
+          class="form-control"
+          [(ngModel)]="draft.distance"
+          name="distance"
+          aria-label="Distance"
+        >
+          @for (d of distances; track d.value) {
+            <option [value]="d.value">{{ d.label }}</option>
+          }
         </select>
-        <input class="form-control rf-time" [(ngModel)]="draft.time" name="time"
-               placeholder="mm:ss ou h:mm:ss" aria-label="Temps" />
-        <input class="form-control rf-date" type="date" [(ngModel)]="draft.dateSet" name="dateSet" aria-label="Date" />
+        <input
+          class="form-control rf-time"
+          [(ngModel)]="draft.time"
+          name="time"
+          placeholder="mm:ss ou h:mm:ss"
+          aria-label="Temps"
+        />
+        <input
+          class="form-control rf-date"
+          type="date"
+          [(ngModel)]="draft.dateSet"
+          name="dateSet"
+          aria-label="Date"
+        />
         <button type="submit" class="btn btn-primary" [disabled]="busy()">
           <app-icon name="plus" [size]="15" /> Ajouter
         </button>
@@ -60,7 +90,9 @@ const DISTANCES: { value: string; label: string }[] = [
       @if (loading()) {
         <div class="skeleton" style="height:80px"></div>
       } @else if (records().length === 0) {
-        <p class="empty-hint">Aucun record enregistré. Saisis un chrono pour amorcer le VDOT.</p>
+        <p class="empty-hint">
+          Aucun record enregistré. Saisis un chrono pour amorcer le VDOT.
+        </p>
       } @else {
         <ul class="rec-list">
           @for (p of records(); track p.id) {
@@ -68,26 +100,65 @@ const DISTANCES: { value: string; label: string }[] = [
               @if (editingId() === p.id) {
                 <!-- Correction en place : une faute de frappe n'oblige plus à supprimer puis
                      resaisir, ce qui faisait descendre puis remonter le VDOT. -->
-                <span class="rr-dist">{{ label(p.distanceCode || p.distance) }}</span>
-                <input class="form-control rf-time" [(ngModel)]="editDraft.time" name="editTime"
-                       placeholder="mm:ss ou h:mm:ss" aria-label="Temps" />
-                <input class="form-control rf-date" type="date" [(ngModel)]="editDraft.dateSet"
-                       name="editDate" aria-label="Date" />
-                <button type="button" class="icon-btn" (click)="saveEdit(p)" [disabled]="busy()" aria-label="Enregistrer">
+                <span class="rr-dist">{{
+                  label(p.distanceCode || p.distance)
+                }}</span>
+                <input
+                  class="form-control rf-time"
+                  [(ngModel)]="editDraft.time"
+                  name="editTime"
+                  placeholder="mm:ss ou h:mm:ss"
+                  aria-label="Temps"
+                />
+                <input
+                  class="form-control rf-date"
+                  type="date"
+                  [(ngModel)]="editDraft.dateSet"
+                  name="editDate"
+                  aria-label="Date"
+                />
+                <button
+                  type="button"
+                  class="icon-btn"
+                  (click)="saveEdit(p)"
+                  [disabled]="busy()"
+                  aria-label="Enregistrer"
+                >
                   <app-icon name="check" [size]="15" />
                 </button>
-                <button type="button" class="icon-btn" (click)="cancelEdit()" aria-label="Annuler">
+                <button
+                  type="button"
+                  class="icon-btn"
+                  (click)="cancelEdit()"
+                  aria-label="Annuler"
+                >
                   <app-icon name="x" [size]="15" />
                 </button>
               } @else {
-                <span class="rr-dist">{{ label(p.distanceCode || p.distance) }}</span>
+                <span class="rr-dist">{{
+                  label(p.distanceCode || p.distance)
+                }}</span>
                 <span class="rr-time metric">{{ hms(p.timeSeconds) }}</span>
-                <span class="rr-date field-hint">{{ p.dateSet ? (p.dateSet | date: 'd MMM y') : '—' }}</span>
-                @if (p.vdot != null) { <span class="badge badge-info">VDOT {{ p.vdot }}</span> }
-                <button type="button" class="icon-btn" (click)="startEdit(p)" [attr.aria-label]="'Modifier ' + p.distance">
+                <span class="rr-date field-hint">{{
+                  p.dateSet ? (p.dateSet | date: 'd MMM y') : '—'
+                }}</span>
+                @if (p.vdot != null) {
+                  <span class="badge badge-info">VDOT {{ p.vdot }}</span>
+                }
+                <button
+                  type="button"
+                  class="icon-btn"
+                  (click)="startEdit(p)"
+                  [attr.aria-label]="'Modifier ' + p.distance"
+                >
                   <app-icon name="pencil" [size]="15" />
                 </button>
-                <button type="button" class="icon-btn danger" (click)="remove(p)" [attr.aria-label]="'Supprimer ' + p.distance">
+                <button
+                  type="button"
+                  class="icon-btn danger"
+                  (click)="remove(p)"
+                  [attr.aria-label]="'Supprimer ' + p.distance"
+                >
                   <app-icon name="trash-2" [size]="15" />
                 </button>
               }
@@ -101,7 +172,11 @@ const DISTANCES: { value: string; label: string }[] = [
       @if (vdotPoints().length >= 2) {
         <div class="vdot-trend">
           <h3>Évolution du VDOT</h3>
-          <app-trend-chart [points]="vdotPoints()" label="VDOT" color="var(--dari-teal)" />
+          <app-trend-chart
+            [points]="vdotPoints()"
+            label="VDOT"
+            color="var(--dari-teal)"
+          />
         </div>
       }
 
@@ -121,49 +196,166 @@ const DISTANCES: { value: string; label: string }[] = [
       }
     </section>
   `,
-  styles: [`
-    .records { margin-bottom: var(--sp-5); }
-    .vdot-trend { margin-top: var(--sp-4); }
-    .vdot-trend h3 { margin: 0 0 var(--sp-2); font-size: var(--text-md); }
-    .rec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
-    .rec-head h2 { margin: 0 0 var(--sp-1); font-size: var(--text-lg); }
-    .rec-head .field-hint { margin: 0; max-width: 60ch; }
-    .vdot-badge { font-size: var(--text-sm); color: var(--ink-3); }
-    .vdot-badge strong { color: var(--dari-teal); font-size: var(--text-lg); margin-left: var(--sp-1); }
+  styles: [
+    `
+      .records {
+        margin-bottom: var(--sp-5);
+      }
+      .vdot-trend {
+        margin-top: var(--sp-4);
+      }
+      .vdot-trend h3 {
+        margin: 0 0 var(--sp-2);
+        font-size: var(--text-md);
+      }
+      .rec-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--sp-3);
+        flex-wrap: wrap;
+      }
+      .rec-head h2 {
+        margin: 0 0 var(--sp-1);
+        font-size: var(--text-lg);
+      }
+      .rec-head .field-hint {
+        margin: 0;
+        max-width: 60ch;
+      }
+      .vdot-badge {
+        font-size: var(--text-sm);
+        color: var(--ink-3);
+      }
+      .vdot-badge strong {
+        color: var(--dari-teal);
+        font-size: var(--text-lg);
+        margin-left: var(--sp-1);
+      }
 
-    .rec-form { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; margin: var(--sp-4) 0; }
-    .rec-form .form-control { min-height: 40px; }
-    .rf-time { max-width: 150px; }
-    .rf-date { max-width: 170px; }
+      .rec-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-2);
+        align-items: center;
+        margin: var(--sp-4) 0;
+      }
+      .rec-form .form-control {
+        min-height: 40px;
+      }
+      .rf-time {
+        max-width: 150px;
+      }
+      .rf-date {
+        max-width: 170px;
+      }
 
-    .rec-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
-    .rec-row { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-sm); background: var(--paper-sunk); }
-    .rr-dist { font-weight: 700; min-width: 120px; }
-    .rr-time { font-weight: 800; min-width: 84px; }
-    .rr-date { margin-right: auto; }
-    .icon-btn { border: none; background: none; cursor: pointer; color: var(--ink-3); display: inline-flex; padding: var(--sp-1); border-radius: var(--radius-sm); }
-    .icon-btn.danger:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, transparent); }
+      .rec-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .rec-row {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-3);
+        padding: var(--sp-2) var(--sp-3);
+        border-radius: var(--radius-sm);
+        background: var(--paper-sunk);
+      }
+      .rr-dist {
+        font-weight: 700;
+        min-width: 120px;
+      }
+      .rr-time {
+        font-weight: 800;
+        min-width: 84px;
+      }
+      .rr-date {
+        margin-right: auto;
+      }
+      .icon-btn {
+        border: none;
+        background: none;
+        cursor: pointer;
+        color: var(--ink-3);
+        display: inline-flex;
+        padding: var(--sp-1);
+        border-radius: var(--radius-sm);
+      }
+      .icon-btn.danger:hover {
+        color: var(--danger);
+        background: color-mix(in srgb, var(--danger) 12%, transparent);
+      }
 
-    .derived { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--hairline); }
-    .derived-lb { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; }
-    .derived-grid { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
-    .derived-item { display: inline-flex; align-items: baseline; gap: var(--sp-1); background: var(--paper-sunk); border-radius: var(--radius-full); padding: 2px var(--sp-2); }
-    .di-k { font-size: var(--text-xs); color: var(--ink-3); }
-    .di-v { font-weight: 700; font-size: var(--text-sm); }
+      .derived {
+        margin-top: var(--sp-4);
+        padding-top: var(--sp-3);
+        border-top: 1px solid var(--hairline);
+      }
+      .derived-lb {
+        font-size: var(--text-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--ink-3);
+        font-weight: 700;
+      }
+      .derived-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-2);
+        margin-top: var(--sp-2);
+      }
+      .derived-item {
+        display: inline-flex;
+        align-items: baseline;
+        gap: var(--sp-1);
+        background: var(--paper-sunk);
+        border-radius: var(--radius-full);
+        padding: 2px var(--sp-2);
+      }
+      .di-k {
+        font-size: var(--text-xs);
+        color: var(--ink-3);
+      }
+      .di-v {
+        font-weight: 700;
+        font-size: var(--text-sm);
+      }
 
-    /* Au téléphone, la ligne d'un record ne tenait pas : distance (120 px minimum) + chrono
+      /* Au téléphone, la ligne d'un record ne tenait pas : distance (120 px minimum) + chrono
        (84 px) + date + pastille VDOT + deux boutons font 451 px sur un écran de 390, et c'est
        toute la fiche athlète qui se mettait à défiler latéralement — onglets compris. Mesuré :
        61 px de débordement. La distance prend donc sa propre ligne, le reste suit dessous, et
        les deux boutons passent au plancher tactile du produit. */
-    @media (max-width: 560px) {
-      .rec-row { flex-wrap: wrap; gap: var(--sp-2); }
-      .rr-dist { flex: 1 1 100%; min-width: 0; }
-      .rr-time { min-width: 0; }
-      .icon-btn { min-width: 40px; min-height: 40px; justify-content: center; align-items: center; }
-    }
-    .empty-hint { color: var(--ink-3); font-size: var(--text-sm); }
-  `],
+      @media (max-width: 560px) {
+        .rec-row {
+          flex-wrap: wrap;
+          gap: var(--sp-2);
+        }
+        .rr-dist {
+          flex: 1 1 100%;
+          min-width: 0;
+        }
+        .rr-time {
+          min-width: 0;
+        }
+        .icon-btn {
+          min-width: 40px;
+          min-height: 40px;
+          justify-content: center;
+          align-items: center;
+        }
+      }
+      .empty-hint {
+        color: var(--ink-3);
+        font-size: var(--text-sm);
+      }
+    `,
+  ],
 })
 export class AthleteRecordsPanelComponent implements OnInit {
   readonly athleteId = input.required<string>();
@@ -212,10 +404,18 @@ export class AthleteRecordsPanelComponent implements OnInit {
 
   private load(): void {
     this.physio.performances(this.athleteId()).subscribe({
-      next: (p) => { this.performances.set(p); this.loading.set(false); },
-      error: () => { this.performances.set([]); this.loading.set(false); },
+      next: (p) => {
+        this.performances.set(p);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.performances.set([]);
+        this.loading.set(false);
+      },
     });
-    this.physio.vdot(this.athleteId()).subscribe({ next: (v) => this.vdot.set(v) });
+    this.physio
+      .vdot(this.athleteId())
+      .subscribe({ next: (v) => this.vdot.set(v) });
   }
 
   label(code: string): string {
@@ -225,7 +425,8 @@ export class AthleteRecordsPanelComponent implements OnInit {
   /** « mm:ss » ou « h:mm:ss » → secondes ; null si invalide. */
   private parseTime(input: string): number | null {
     const parts = input.trim().split(':').map(Number);
-    if (!parts.length || parts.some((n) => Number.isNaN(n) || n < 0)) return null;
+    if (!parts.length || parts.some((n) => Number.isNaN(n) || n < 0))
+      return null;
     if (parts.length === 2) return parts[0] * 60 + parts[1];
     if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
     return null;
@@ -242,23 +443,30 @@ export class AthleteRecordsPanelComponent implements OnInit {
   add(): void {
     const seconds = this.parseTime(this.draft.time);
     if (!this.draft.distance || seconds == null || seconds <= 0) {
-      this.toast.warning('Renseigne une distance et un temps (mm:ss ou h:mm:ss).');
+      this.toast.warning(
+        'Renseigne une distance et un temps (mm:ss ou h:mm:ss).',
+      );
       return;
     }
     this.busy.set(true);
-    this.physio.addPerformance(this.athleteId(), {
-      distance: this.draft.distance,
-      timeSeconds: seconds,
-      dateSet: this.draft.dateSet || null,
-    }).subscribe({
-      next: () => {
-        this.toast.success('Record enregistré — VDOT et allures recalculés.');
-        this.draft = { distance: this.draft.distance, time: '', dateSet: '' };
-        this.busy.set(false);
-        this.load();
-      },
-      error: () => { this.busy.set(false); this.toast.error('Enregistrement impossible.'); },
-    });
+    this.physio
+      .addPerformance(this.athleteId(), {
+        distance: this.draft.distance,
+        timeSeconds: seconds,
+        dateSet: this.draft.dateSet || null,
+      })
+      .subscribe({
+        next: () => {
+          this.toast.success('Record enregistré — VDOT et allures recalculés.');
+          this.draft = { distance: this.draft.distance, time: '', dateSet: '' };
+          this.busy.set(false);
+          this.load();
+        },
+        error: () => {
+          this.busy.set(false);
+          this.toast.error('Enregistrement impossible.');
+        },
+      });
   }
 
   // --- Correction d'un record en place ---------------------------------------
@@ -266,10 +474,15 @@ export class AthleteRecordsPanelComponent implements OnInit {
   editDraft = { time: '', dateSet: '' };
 
   startEdit(p: Performance): void {
-    this.editDraft = { time: this.hms(p.timeSeconds), dateSet: p.dateSet ?? '' };
+    this.editDraft = {
+      time: this.hms(p.timeSeconds),
+      dateSet: p.dateSet ?? '',
+    };
     this.editingId.set(p.id);
   }
-  cancelEdit(): void { this.editingId.set(null); }
+  cancelEdit(): void {
+    this.editingId.set(null);
+  }
 
   saveEdit(p: Performance): void {
     const seconds = this.parseTime(this.editDraft.time);
@@ -278,24 +491,32 @@ export class AthleteRecordsPanelComponent implements OnInit {
       return;
     }
     this.busy.set(true);
-    this.physio.updatePerformance(this.athleteId(), p.id, {
-      distance: p.distanceCode || p.distance,
-      timeSeconds: seconds,
-      dateSet: this.editDraft.dateSet || null,
-    }).subscribe({
-      next: () => {
-        this.toast.success('Record corrigé — VDOT et allures recalculés.');
-        this.busy.set(false);
-        this.editingId.set(null);
-        this.load();
-      },
-      error: () => { this.busy.set(false); this.toast.error('Correction impossible.'); },
-    });
+    this.physio
+      .updatePerformance(this.athleteId(), p.id, {
+        distance: p.distanceCode || p.distance,
+        timeSeconds: seconds,
+        dateSet: this.editDraft.dateSet || null,
+      })
+      .subscribe({
+        next: () => {
+          this.toast.success('Record corrigé — VDOT et allures recalculés.');
+          this.busy.set(false);
+          this.editingId.set(null);
+          this.load();
+        },
+        error: () => {
+          this.busy.set(false);
+          this.toast.error('Correction impossible.');
+        },
+      });
   }
 
   remove(p: Performance): void {
     this.physio.deletePerformance(this.athleteId(), p.id).subscribe({
-      next: () => { this.toast.info('Record retiré — VDOT recalculé.'); this.load(); },
+      next: () => {
+        this.toast.info('Record retiré — VDOT recalculé.');
+        this.load();
+      },
       error: () => this.toast.error('Suppression impossible.'),
     });
   }

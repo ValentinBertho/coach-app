@@ -1,8 +1,23 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { Analytics } from '../../core/services/analytics.service';
 import { AnalyticsService } from '../../core/services/analytics.service';
-import { IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
-import { MetricCardComponent, SegmentedControlComponent, type SegmentOption } from '../../shared/components/ui';
+import {
+  IntensityZoneBadgeComponent,
+  type IntensityZone as ZoneNum,
+} from '../../shared/components/physiology';
+import {
+  MetricCardComponent,
+  SegmentedControlComponent,
+  type SegmentOption,
+} from '../../shared/components/ui';
 
 interface Bar {
   label: string;
@@ -19,9 +34,12 @@ interface Bar {
  */
 @Component({
   selector: 'app-analytics',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IntensityZoneBadgeComponent, MetricCardComponent, SegmentedControlComponent],
+  imports: [
+    IntensityZoneBadgeComponent,
+    MetricCardComponent,
+    SegmentedControlComponent,
+  ],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',
 })
@@ -42,7 +60,10 @@ export class AnalyticsComponent implements OnInit {
   readonly maxKm = computed(() => {
     const d = this.data();
     if (!d) return 1;
-    return Math.max(1, ...d.weeklyVolume.flatMap((w) => [w.plannedKm, w.realizedKm]));
+    return Math.max(
+      1,
+      ...d.weeklyVolume.flatMap((w) => [w.plannedKm, w.realizedKm]),
+    );
   });
 
   readonly bars = computed<Bar[]>(() => {
@@ -55,7 +76,8 @@ export class AnalyticsComponent implements OnInit {
       realized: w.realizedKm,
       px: Math.round((w.plannedKm / max) * 100),
       rx: Math.round((w.realizedKm / max) * 100),
-      compliance: w.plannedKm > 0 ? Math.round((w.realizedKm / w.plannedKm) * 100) : null,
+      compliance:
+        w.plannedKm > 0 ? Math.round((w.realizedKm / w.plannedKm) * 100) : null,
     }));
   });
 
@@ -78,13 +100,20 @@ export class AnalyticsComponent implements OnInit {
     const entries = Object.entries(d.zoneDistribution);
     const max = Math.max(1, ...entries.map(([, v]) => v));
     return entries.map(([zone, count]) => ({
-      zone, count, pct: Math.round((count / max) * 100), num: this.zoneNum(zone),
+      zone,
+      count,
+      pct: Math.round((count / max) * 100),
+      num: this.zoneNum(zone),
     }));
   });
 
-  readonly statuses = computed(() => Object.entries(this.data()?.statusCounts ?? {}));
+  readonly statuses = computed(() =>
+    Object.entries(this.data()?.statusCounts ?? {}),
+  );
 
-  ngOnInit(): void { this.reload(); }
+  ngOnInit(): void {
+    this.reload();
+  }
 
   setPeriod(value: string): void {
     this.period.set(value);
@@ -93,10 +122,15 @@ export class AnalyticsComponent implements OnInit {
 
   reload(): void {
     this.loading.set(true);
-    this.analyticsService.get(this.athleteId(), Number(this.period())).subscribe({
-      next: (d) => { this.data.set(d); this.loading.set(false); },
-      error: () => this.loading.set(false),
-    });
+    this.analyticsService
+      .get(this.athleteId(), Number(this.period()))
+      .subscribe({
+        next: (d) => {
+          this.data.set(d);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
   }
 
   zoneNum(zone: string): ZoneNum | null {
@@ -113,9 +147,23 @@ export class AnalyticsComponent implements OnInit {
   }
 
   statusLabel(s: string): string {
-    return { PLANNED: 'Prévu', COMPLETED: 'Réalisé', PARTIAL: 'Partiel', MISSED: 'Manqué' }[s] ?? s;
+    return (
+      {
+        PLANNED: 'Prévu',
+        COMPLETED: 'Réalisé',
+        PARTIAL: 'Partiel',
+        MISSED: 'Manqué',
+      }[s] ?? s
+    );
   }
   statusBadge(s: string): string {
-    return { PLANNED: 'badge-info', COMPLETED: 'badge-success', PARTIAL: 'badge-warning', MISSED: 'badge-danger' }[s] ?? 'badge-neutral';
+    return (
+      {
+        PLANNED: 'badge-info',
+        COMPLETED: 'badge-success',
+        PARTIAL: 'badge-warning',
+        MISSED: 'badge-danger',
+      }[s] ?? 'badge-neutral'
+    );
   }
 }

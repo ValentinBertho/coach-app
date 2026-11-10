@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -21,7 +29,10 @@ import {
   type IntensityZone as ZoneNum,
 } from '../../shared/components/physiology';
 import { StickyActionBarComponent } from '../../shared/components/ui';
-import { CalculatedBlockEntry, WorkoutPrescription } from '../../core/models/course.model';
+import {
+  CalculatedBlockEntry,
+  WorkoutPrescription,
+} from '../../core/models/course.model';
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
 import { TrainingZone } from '../../core/models/training-zone.model';
 import { TrainingZoneService } from '../../core/services/training-zone.service';
@@ -38,7 +49,9 @@ import { ActivityLapsComponent } from '../../shared/components/activity-laps/act
 import { ActivityRouteMapComponent } from '../../shared/components/activity-route-map/activity-route-map.component';
 import { FeedbackRecapComponent } from '../../shared/components/feedback-recap/feedback-recap.component';
 import {
-  PlannedStats, RealizedStats, SessionStatsComponent,
+  PlannedStats,
+  RealizedStats,
+  SessionStatsComponent,
 } from '../../shared/components/session-stats/session-stats.component';
 import { SessionThreadComponent } from '../../shared/components/session-thread/session-thread.component';
 import { Message } from '../../core/models/message.model';
@@ -62,13 +75,22 @@ type State = 'loading' | 'ready' | 'error';
  */
 @Component({
   selector: 'app-workout-detail',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    IconComponent, RouterLink, FormsModule, DatePipe, IntensityZoneBadgeComponent,
-    DataOriginTagComponent, StickyActionBarComponent, CoursePrescriptionViewComponent,
-    SessionStatsComponent, ActivityChartComponent, ActivityLapsComponent,
-    ActivityRouteMapComponent, FeedbackRecapComponent, ComplianceVerdictComponent,
+    IconComponent,
+    RouterLink,
+    FormsModule,
+    DatePipe,
+    IntensityZoneBadgeComponent,
+    DataOriginTagComponent,
+    StickyActionBarComponent,
+    CoursePrescriptionViewComponent,
+    SessionStatsComponent,
+    ActivityChartComponent,
+    ActivityLapsComponent,
+    ActivityRouteMapComponent,
+    FeedbackRecapComponent,
+    ComplianceVerdictComponent,
     SessionThreadComponent,
   ],
   templateUrl: './workout-detail.component.html',
@@ -131,7 +153,10 @@ export class WorkoutDetailComponent implements OnInit {
     // heure de course. Un ordre de grandeur tiré de l'allure d'endurance de l'athlète, marqué
     // comme tel, vaut mieux qu'un chiffre faux — et la séance, elle, n'est pas modifiée.
     const volume = plannedVolume(
-      calc?.totalDistanceM ?? w.targetDistanceM ?? null, durationS, this.referencePace());
+      calc?.totalDistanceM ?? w.targetDistanceM ?? null,
+      durationS,
+      this.referencePace(),
+    );
     return {
       durationS,
       distanceM: volume?.distanceM ?? null,
@@ -152,7 +177,11 @@ export class WorkoutDetailComponent implements OnInit {
   async saveToLibrary(): Promise<void> {
     const w = this.workout();
     if (!w) return;
-    await this.library.promptAndSave({ id: w.id, athleteId: this.athleteId(), title: w.title });
+    await this.library.promptAndSave({
+      id: w.id,
+      athleteId: this.athleteId(),
+      title: w.title,
+    });
   }
 
   private readonly zoneById = computed(() => {
@@ -162,11 +191,17 @@ export class WorkoutDetailComponent implements OnInit {
   });
 
   /** Répartition du temps planifié par zone (barre + légende façon Nolio). */
-  readonly zoneDistribution = computed<{ segments: ZoneSegment[]; totalS: number }>(() => {
+  readonly zoneDistribution = computed<{
+    segments: ZoneSegment[];
+    totalS: number;
+  }>(() => {
     const calc = this.courseRx()?.calculated;
     if (!calc) return { segments: [], totalS: 0 };
     const byZone = new Map<string, number>();
-    const add = (zoneId: string | null | undefined, s: number | null | undefined) => {
+    const add = (
+      zoneId: string | null | undefined,
+      s: number | null | undefined,
+    ) => {
       if (!zoneId || !s) return;
       byZone.set(zoneId, (byZone.get(zoneId) ?? 0) + s);
     };
@@ -176,37 +211,61 @@ export class WorkoutDetailComponent implements OnInit {
         // Une récupération par répétition, la dernière comprise, et autant de fois qu'il y a de
         // séries ; entre deux séries, la récup de série remplace celle de la répétition. Compter
         // (reps - 1) laissait la dernière descente hors de la répartition par zone.
-        const sets = e.block.sets && e.block.sets > 1 ? Math.floor(e.block.sets) : 1;
-        const setRecoveries = sets > 1 && e.block.setRecovery?.durationS ? sets - 1 : 0;
-        const reps = (e.block.reps && e.block.reps > 1 ? e.block.reps : 1) * sets - setRecoveries;
+        const sets =
+          e.block.sets && e.block.sets > 1 ? Math.floor(e.block.sets) : 1;
+        const setRecoveries =
+          sets > 1 && e.block.setRecovery?.durationS ? sets - 1 : 0;
+        const reps =
+          (e.block.reps && e.block.reps > 1 ? e.block.reps : 1) * sets -
+          setRecoveries;
         if (reps > 0 && e.recoveryCalc?.estimatedDurationS) {
-          add(e.block.recovery?.prescription?.zoneId, e.recoveryCalc.estimatedDurationS * reps);
+          add(
+            e.block.recovery?.prescription?.zoneId,
+            e.recoveryCalc.estimatedDurationS * reps,
+          );
         }
         if (setRecoveries) {
-          add(e.block.setRecovery?.prescription?.zoneId, e.block.setRecovery!.durationS! * setRecoveries);
+          add(
+            e.block.setRecovery?.prescription?.zoneId,
+            e.block.setRecovery!.durationS! * setRecoveries,
+          );
         }
         // Un enchaînement n'a ni zone ni durée à son niveau : sans cette boucle, « 8 × (200 /
         // 400) » — le corps même de la séance — disparaissait de la répartition, qui n'aurait
         // plus montré que l'échauffement et le retour au calme.
-        const repeats = (e.block.reps && e.block.reps > 1 ? e.block.reps : 1) * sets;
+        const repeats =
+          (e.block.reps && e.block.reps > 1 ? e.block.reps : 1) * sets;
         const steps = e.steps ?? [];
         for (const [i, se] of steps.entries()) {
-          add(se.step.prescription?.zoneId, (se.calc?.estimatedDurationS ?? 0) * repeats);
+          add(
+            se.step.prescription?.zoneId,
+            (se.calc?.estimatedDurationS ?? 0) * repeats,
+          );
           const isLast = i === steps.length - 1;
           const times = repeats - (isLast ? setRecoveries : 0);
           if (times > 0 && se.recoveryCalc?.estimatedDurationS) {
-            add(se.step.recovery?.prescription?.zoneId, se.recoveryCalc.estimatedDurationS * times);
+            add(
+              se.step.recovery?.prescription?.zoneId,
+              se.recoveryCalc.estimatedDurationS * times,
+            );
           }
         }
       }
     };
-    acc(calc.warmup); acc(calc.main); acc(calc.cooldown);
+    acc(calc.warmup);
+    acc(calc.main);
+    acc(calc.cooldown);
     const totalS = [...byZone.values()].reduce((s, v) => s + v, 0);
     if (!totalS) return { segments: [], totalS: 0 };
     const segments = [...byZone.entries()]
       .map(([zoneId, durationS]) => {
         const z = this.zoneById().get(zoneId);
-        return { name: z?.name ?? 'Zone', color: z?.color || 'var(--ink-3)', durationS, pct: (durationS / totalS) * 100 };
+        return {
+          name: z?.name ?? 'Zone',
+          color: z?.color || 'var(--ink-3)',
+          durationS,
+          pct: (durationS / totalS) * 100,
+        };
       })
       .sort((a, b) => b.durationS - a.durationS);
     return { segments, totalS };
@@ -226,7 +285,7 @@ export class WorkoutDetailComponent implements OnInit {
   readonly courseRx = signal<WorkoutPrescription | null>(null);
   readonly courseRxHasContent = computed(() => {
     const c = this.courseRx()?.calculated;
-    return !!c && (c.warmup.length + c.main.length + c.cooldown.length) > 0;
+    return !!c && c.warmup.length + c.main.length + c.cooldown.length > 0;
   });
 
   /**
@@ -236,8 +295,14 @@ export class WorkoutDetailComponent implements OnInit {
   readonly hasFeedback = computed(() => {
     const w = this.workout();
     if (!w) return false;
-    return w.feel != null || w.rpe != null || w.fatigue != null || w.pain != null
-      || !!w.athleteComment || (w.injuries?.length ?? 0) > 0;
+    return (
+      w.feel != null ||
+      w.rpe != null ||
+      w.fatigue != null ||
+      w.pain != null ||
+      !!w.athleteComment ||
+      (w.injuries?.length ?? 0) > 0
+    );
   });
 
   /**
@@ -255,7 +320,9 @@ export class WorkoutDetailComponent implements OnInit {
       // à juger la séance sur son seul échauffement.
       for (const se of e.steps ?? []) {
         if (se.step.rpe == null) continue;
-        const s = (se.calc?.estimatedDurationS ?? 60) * ((e.block.reps ?? 1) * (e.block.sets ?? 1));
+        const s =
+          (se.calc?.estimatedDurationS ?? 60) *
+          ((e.block.reps ?? 1) * (e.block.sets ?? 1));
         weighted += se.step.rpe * s;
         totalS += s;
       }
@@ -298,15 +365,22 @@ export class WorkoutDetailComponent implements OnInit {
     const text = body.trim();
     if (!text || this.sendingReply()) return;
     this.sendingReply.set(true);
-    this.messages.coachSend(this.athleteId(), text, this.workoutId()).subscribe({
-      next: (m) => {
-        this.sendingReply.set(false);
-        this.thread.update((l) => [...l, m]);
-        this.workout.update((w) => (w ? { ...w, athleteReplyReadAt: new Date().toISOString() } : w));
-        this.toast.success('Réponse envoyée à l’athlète.');
-      },
-      error: () => { this.sendingReply.set(false); this.toast.error('Envoi impossible.'); },
-    });
+    this.messages
+      .coachSend(this.athleteId(), text, this.workoutId())
+      .subscribe({
+        next: (m) => {
+          this.sendingReply.set(false);
+          this.thread.update((l) => [...l, m]);
+          this.workout.update((w) =>
+            w ? { ...w, athleteReplyReadAt: new Date().toISOString() } : w,
+          );
+          this.toast.success('Réponse envoyée à l’athlète.');
+        },
+        error: () => {
+          this.sendingReply.set(false);
+          this.toast.error('Envoi impossible.');
+        },
+      });
   }
 
   // --- Commentaire du coach sur la séance réalisée --------------------------
@@ -318,21 +392,30 @@ export class WorkoutDetailComponent implements OnInit {
     this.coachCommentDraft = this.workout()?.coachComment ?? '';
     this.editingComment.set(true);
   }
-  cancelEditComment(): void { this.editingComment.set(false); }
+  cancelEditComment(): void {
+    this.editingComment.set(false);
+  }
 
   saveCoachComment(): void {
     if (this.savingComment()) return;
     this.savingComment.set(true);
     const text = this.coachCommentDraft.trim();
-    this.workoutService.setCoachComment(this.athleteId(), this.workoutId(), text || null).subscribe({
-      next: (updated) => {
-        this.workout.set(updated);
-        this.savingComment.set(false);
-        this.editingComment.set(false);
-        this.toast.success(text ? 'Commentaire envoyé à l’athlète' : 'Commentaire retiré.');
-      },
-      error: () => { this.savingComment.set(false); this.toast.error('Enregistrement impossible.'); },
-    });
+    this.workoutService
+      .setCoachComment(this.athleteId(), this.workoutId(), text || null)
+      .subscribe({
+        next: (updated) => {
+          this.workout.set(updated);
+          this.savingComment.set(false);
+          this.editingComment.set(false);
+          this.toast.success(
+            text ? 'Commentaire envoyé à l’athlète' : 'Commentaire retiré.',
+          );
+        },
+        error: () => {
+          this.savingComment.set(false);
+          this.toast.error('Enregistrement impossible.');
+        },
+      });
   }
 
   /** Bandeau de stats façon Nolio : durée · distance · allure moyenne · charge estimée. */
@@ -342,8 +425,12 @@ export class WorkoutDetailComponent implements OnInit {
     const calc = this.courseRx()?.calculated;
     const durationS = calc?.totalDurationS ?? w.targetDurationS ?? null;
     const distanceM = calc?.totalDistanceM ?? w.targetDistanceM ?? null;
-    const paceLabel = durationS && distanceM ? this.fmtPace(durationS / (distanceM / 1000)) : null;
-    const loadUA = w.rpe != null && durationS ? Math.round(w.rpe * (durationS / 60)) : null;
+    const paceLabel =
+      durationS && distanceM
+        ? this.fmtPace(durationS / (distanceM / 1000))
+        : null;
+    const loadUA =
+      w.rpe != null && durationS ? Math.round(w.rpe * (durationS / 60)) : null;
     return {
       durationLabel: durationS ? this.fmtDuration(durationS) : null,
       distanceKm: distanceM ? distanceM / 1000 : null,
@@ -364,31 +451,44 @@ export class WorkoutDetailComponent implements OnInit {
     return `${m}:${s.toString().padStart(2, '0')}`;
   }
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+  }
 
   load(): void {
     this.state.set('loading');
     this.courseRx.set(null);
     this.activity.set(null);
     this.workoutService.get(this.athleteId(), this.workoutId()).subscribe({
-      next: (w) => { this.workout.set(w); this.state.set('ready'); },
+      next: (w) => {
+        this.workout.set(w);
+        this.state.set('ready');
+      },
       error: () => this.state.set('error'),
     });
-    this.workoutService.prescription(this.athleteId(), this.workoutId()).subscribe({
-      next: (p) => this.courseRx.set(p),
-      error: () => this.courseRx.set(null),
-    });
+    this.workoutService
+      .prescription(this.athleteId(), this.workoutId())
+      .subscribe({
+        next: (p) => this.courseRx.set(p),
+        error: () => this.courseRx.set(null),
+      });
     // Les zones lues sont celles de l'échelle appliquée à CET athlète (modèle de zones).
-    this.zoneService.list({ athleteId: this.athleteId() })
-      .subscribe({ next: (z) => this.zones.set(z), error: () => this.zones.set([]) });
+    this.zoneService
+      .list({ athleteId: this.athleteId() })
+      .subscribe({
+        next: (z) => this.zones.set(z),
+        error: () => this.zones.set([]),
+      });
     this.decisions.compliance(this.athleteId(), this.workoutId()).subscribe({
       next: (c) => this.compliance.set(c),
       error: () => this.compliance.set(null),
     });
-    this.activityService.forWorkout(this.athleteId(), this.workoutId()).subscribe({
-      next: (a) => this.activity.set(a),
-      error: () => this.activity.set(null),
-    });
+    this.activityService
+      .forWorkout(this.athleteId(), this.workoutId())
+      .subscribe({
+        next: (a) => this.activity.set(a),
+        error: () => this.activity.set(null),
+      });
     this.paceReference.forAthlete(this.athleteId()).subscribe({
       next: (p) => this.referencePace.set(p),
       error: () => this.referencePace.set(null),
@@ -396,20 +496,23 @@ export class WorkoutDetailComponent implements OnInit {
     // Le fil de la séance, et son accusé de lecture. Ouvrir la fiche vaut lecture : c'est ici
     // que la réponse se lit, donc c'est ici que l'attente se referme — sinon l'alerte du cockpit
     // resterait allumée derrière un coach qui a pourtant tout vu.
-    this.messages.coachWorkoutThread(this.athleteId(), this.workoutId()).subscribe({
-      next: (t) => {
-        this.thread.set(t);
-        // Seulement s'il y a quelque chose à lire : appeler l'accusé de lecture à chaque
-        // ouverture de fiche coûterait une requête d'écriture sur toutes les séances du club.
-        if (t.some((m) => m.senderRole === 'ATHLETE')) this.markReplyRead();
-      },
-      error: () => this.thread.set([]),
-    });
+    this.messages
+      .coachWorkoutThread(this.athleteId(), this.workoutId())
+      .subscribe({
+        next: (t) => {
+          this.thread.set(t);
+          // Seulement s'il y a quelque chose à lire : appeler l'accusé de lecture à chaque
+          // ouverture de fiche coûterait une requête d'écriture sur toutes les séances du club.
+          if (t.some((m) => m.senderRole === 'ATHLETE')) this.markReplyRead();
+        },
+        error: () => this.thread.set([]),
+      });
   }
 
   /** Silencieux : ne pas avoir marqué une réponse comme lue n'interrompt personne. */
   private markReplyRead(): void {
-    this.workoutService.markReplyRead(this.athleteId(), this.workoutId())
+    this.workoutService
+      .markReplyRead(this.athleteId(), this.workoutId())
       .subscribe({ error: () => undefined });
   }
 
@@ -423,10 +526,17 @@ export class WorkoutDetailComponent implements OnInit {
   }
 
   setStatus(status: WorkoutStatus): void {
-    this.workoutService.updateStatus(this.athleteId(), this.workoutId(), status).subscribe({
-      next: (w) => { this.workout.set(w); this.toast.success(`Séance ${this.statusLabels[status].toLowerCase()}.`); },
-      error: () => this.toast.error('Mise à jour impossible.'),
-    });
+    this.workoutService
+      .updateStatus(this.athleteId(), this.workoutId(), status)
+      .subscribe({
+        next: (w) => {
+          this.workout.set(w);
+          this.toast.success(
+            `Séance ${this.statusLabels[status].toLowerCase()}.`,
+          );
+        },
+        error: () => this.toast.error('Mise à jour impossible.'),
+      });
   }
 
   async remove(): Promise<void> {

@@ -1,5 +1,17 @@
-import { ChangeDetectionStrategy, Component, HostListener, OnInit, inject, signal } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  HostListener,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
+import {
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
@@ -33,11 +45,15 @@ interface NavGroup {
  */
 @Component({
   selector: 'app-admin-layout',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    RouterOutlet, RouterLink, RouterLinkActive, LogoComponent, OfflineBannerComponent,
-    IconComponent, AdminSearchPaletteComponent,
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    LogoComponent,
+    OfflineBannerComponent,
+    IconComponent,
+    AdminSearchPaletteComponent,
   ],
   templateUrl: './admin-layout.component.html',
   styleUrl: './admin-layout.component.scss',
@@ -55,7 +71,14 @@ export class AdminLayoutComponent implements OnInit {
   readonly groups: NavGroup[] = [
     {
       label: 'Pilotage',
-      links: [{ path: '/admin', label: 'Tableau de bord', icon: 'layout-dashboard', exact: true }],
+      links: [
+        {
+          path: '/admin',
+          label: 'Tableau de bord',
+          icon: 'layout-dashboard',
+          exact: true,
+        },
+      ],
     },
     {
       label: 'Gestion',
@@ -66,7 +89,11 @@ export class AdminLayoutComponent implements OnInit {
         { path: '/admin/invitations', label: 'Invitations', icon: 'mail' },
         // Placé dans « Gestion » et non dans « Supervision » : ce n'est pas une chose qu'on
         // regarde, c'est une file qu'on traite — de l'autre côté, un coach attend d'entrer.
-        { path: '/admin/club-requests', label: 'Demandes de club', icon: 'door-open' },
+        {
+          path: '/admin/club-requests',
+          label: 'Demandes de club',
+          icon: 'door-open',
+        },
       ],
     },
     {
@@ -79,7 +106,13 @@ export class AdminLayoutComponent implements OnInit {
     },
     {
       label: 'Sécurité',
-      links: [{ path: '/admin/audit', label: 'Journal d’audit', icon: 'shield-check' }],
+      links: [
+        {
+          path: '/admin/audit',
+          label: 'Journal d’audit',
+          icon: 'shield-check',
+        },
+      ],
     },
   ];
 
@@ -105,8 +138,11 @@ export class AdminLayoutComponent implements OnInit {
     const target = event.target as HTMLElement | null;
     // SELECT compris : les listes déroulantes réagissent aux touches pour sauter à une option,
     // et détourner « / » y ferait surgir la palette au milieu d'un choix de filtre.
-    const typing = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA'
-      || target?.tagName === 'SELECT' || target?.isContentEditable === true;
+    const typing =
+      target?.tagName === 'INPUT' ||
+      target?.tagName === 'TEXTAREA' ||
+      target?.tagName === 'SELECT' ||
+      target?.isContentEditable === true;
     if (event.key === '/' && !typing && !this.searchOpen()) {
       event.preventDefault();
       this.openSearch();

@@ -18,7 +18,6 @@ import { IconComponent } from '../icon/icon.component';
  */
 @Component({
   selector: 'app-impersonation-banner',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
@@ -26,30 +25,52 @@ import { IconComponent } from '../icon/icon.component';
       <div class="imp" role="status">
         <app-icon name="eye" [size]="16" />
         <span class="imp__txt">
-          Tu vois l'application en tant que <strong>{{ label() }}</strong>.
+          Tu vois l'application en tant que <strong>{{ label() }}</strong
+          >.
         </span>
-        <button type="button" class="imp__back" (click)="back()">Revenir à mon compte</button>
+        <button type="button" class="imp__back" (click)="back()">
+          Revenir à mon compte
+        </button>
       </div>
     }
   `,
-  styles: [`
-    .imp {
-      position: sticky; top: 0; z-index: 1200;
-      display: flex; align-items: center; gap: var(--sp-2);
-      padding: var(--sp-2) var(--sp-3);
-      padding-top: max(var(--sp-2), var(--safe-top, 0px));
-      background: var(--form-red); color: #fff;
-      font-size: var(--text-sm); font-weight: 700;
-    }
-    .imp__txt { flex: 1; min-width: 0; }
-    .imp__back {
-      flex-shrink: 0; min-height: 36px; padding: 0 var(--sp-3);
-      border: 1px solid rgba(255, 255, 255, 0.6); border-radius: var(--radius-full);
-      background: transparent; color: #fff; font-weight: 700; font-size: var(--text-sm);
-      cursor: pointer;
-    }
-    .imp__back:active { transform: scale(0.96); }
-  `],
+  styles: [
+    `
+      .imp {
+        position: sticky;
+        top: 0;
+        z-index: 1200;
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        padding: var(--sp-2) var(--sp-3);
+        padding-top: max(var(--sp-2), var(--safe-top, 0px));
+        background: var(--form-red);
+        color: #fff;
+        font-size: var(--text-sm);
+        font-weight: 700;
+      }
+      .imp__txt {
+        flex: 1;
+        min-width: 0;
+      }
+      .imp__back {
+        flex-shrink: 0;
+        min-height: 36px;
+        padding: 0 var(--sp-3);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: var(--radius-full);
+        background: transparent;
+        color: #fff;
+        font-weight: 700;
+        font-size: var(--text-sm);
+        cursor: pointer;
+      }
+      .imp__back:active {
+        transform: scale(0.96);
+      }
+    `,
+  ],
 })
 export class ImpersonationBannerComponent {
   protected readonly auth = inject(AuthService);

@@ -1,5 +1,13 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import {
@@ -14,7 +22,10 @@ import {
 import { WeekSummary } from '../../core/models/activity.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { PaceReferenceService } from '../../core/services/pace-reference.service';
-import { plannedVolume, plannedVolumeLabel } from '../../core/utils/planned-volume';
+import {
+  plannedVolume,
+  plannedVolumeLabel,
+} from '../../core/utils/planned-volume';
 import { formatBlockVolume } from '../../core/utils/prescription-format';
 import { ScheduledStrength } from '../../core/models/strength.model';
 import { WorkoutPrescription } from '../../core/models/course.model';
@@ -22,7 +33,10 @@ import { CoursePrescriptionViewComponent } from '../../shared/components/course-
 import { AuthService } from '../../core/services/auth.service';
 import { CelebrationService } from '../../core/services/celebration.service';
 import { OfflineBannerComponent } from '../../shared/components/offline-banner/offline-banner.component';
-import { IntensityZoneBadgeComponent, type IntensityZone as ZoneNum } from '../../shared/components/physiology';
+import {
+  IntensityZoneBadgeComponent,
+  type IntensityZone as ZoneNum,
+} from '../../shared/components/physiology';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
 import { MorningCheckInComponent } from './morning-check-in.component';
 import { ReadinessCardComponent } from './readiness-card.component';
@@ -54,15 +68,23 @@ type State = 'loading' | 'ready' | 'error';
  */
 @Component({
   selector: 'app-today',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, DecimalPipe, IconComponent, RouterLink,
+  imports: [
+    DatePipe,
+    DecimalPipe,
+    IconComponent,
+    RouterLink,
     OfflineBannerComponent,
-    IntensityZoneBadgeComponent, WorkoutFeedbackSheetComponent,
-    CoursePrescriptionViewComponent, MorningCheckInComponent, ReadinessCardComponent,
+    IntensityZoneBadgeComponent,
+    WorkoutFeedbackSheetComponent,
+    CoursePrescriptionViewComponent,
+    MorningCheckInComponent,
+    ReadinessCardComponent,
     TrajectoryBannerComponent,
-    StravaCardComponent, HelpHintComponent,
-    PushPromptComponent, CycleBannerComponent,
+    StravaCardComponent,
+    HelpHintComponent,
+    PushPromptComponent,
+    CycleBannerComponent,
   ],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',
@@ -81,7 +103,8 @@ export class TodayComponent implements OnInit {
    */
   volumeLabel(w: Workout): string {
     return plannedVolumeLabel(
-      plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace()));
+      plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace()),
+    );
   }
   private readonly auth = inject(AuthService);
   private readonly route = inject(ActivatedRoute);
@@ -107,7 +130,9 @@ export class TodayComponent implements OnInit {
   readonly workouts = signal<Workout[]>([]);
   /** Prescription course en fourchettes par séance (clé = id séance). */
   readonly courseRx = signal<Record<string, WorkoutPrescription | null>>({});
-  readonly nextRace = signal<import('../../core/models/race.model').RaceObjective | null>(null);
+  readonly nextRace = signal<
+    import('../../core/models/race.model').RaceObjective | null
+  >(null);
   readonly user = this.auth.currentUser;
 
   /**
@@ -147,7 +172,10 @@ export class TodayComponent implements OnInit {
     if (!w || w.plannedKm <= 0) {
       return w && w.realizedKm > 0 ? 100 : 0;
     }
-    return Math.max(0, Math.min(100, Math.round((w.realizedKm / w.plannedKm) * 100)));
+    return Math.max(
+      0,
+      Math.min(100, Math.round((w.realizedKm / w.plannedKm) * 100)),
+    );
   });
 
   ngOnInit(): void {
@@ -180,18 +208,23 @@ export class TodayComponent implements OnInit {
   /** La prescription course d'une séance a-t-elle du contenu calculé à afficher ? */
   rxHasContent(workoutId: string): boolean {
     const c = this.courseRx()[workoutId]?.calculated;
-    return !!c && (c.warmup.length + c.main.length + c.cooldown.length) > 0;
+    return !!c && c.warmup.length + c.main.length + c.cooldown.length > 0;
   }
   rxFor(workoutId: string): WorkoutPrescription | null {
     return this.courseRx()[workoutId] ?? null;
   }
   /** Une séance attend-elle encore un retour ? (PLANNED ou PARTIAL) */
-  needsFeedback(w: Workout): boolean { return needsFeedback(w); }
+  needsFeedback(w: Workout): boolean {
+    return needsFeedback(w);
+  }
 
   /** Date lisible d'une séance en retard : « mardi 28 juillet ». */
   dayLabel(iso: string): string {
-    return new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })
-      .format(new Date(iso + 'T00:00:00'));
+    return new Intl.DateTimeFormat('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    }).format(new Date(iso + 'T00:00:00'));
   }
 
   loadPending(): void {
@@ -243,7 +276,8 @@ export class TodayComponent implements OnInit {
         for (const w of list) {
           this.portal.workoutPrescription(w.id).subscribe({
             next: (p) => this.courseRx.set({ ...this.courseRx(), [w.id]: p }),
-            error: () => this.courseRx.set({ ...this.courseRx(), [w.id]: null }),
+            error: () =>
+              this.courseRx.set({ ...this.courseRx(), [w.id]: null }),
           });
         }
         this.state.set('ready');
@@ -270,22 +304,32 @@ export class TodayComponent implements OnInit {
     if (!workoutId) return;
 
     const rpe = Number(params.get('rpe'));
-    const target = this.workouts().find((w) => w.id === workoutId)
-      ?? this.pending().find((w) => w.id === workoutId);
+    const target =
+      this.workouts().find((w) => w.id === workoutId) ??
+      this.pending().find((w) => w.id === workoutId);
 
     if (target) {
-      this.feedbackSheet()?.openFor(target, { rpe: rpe >= 1 && rpe <= 10 ? rpe : null });
+      this.feedbackSheet()?.openFor(target, {
+        rpe: rpe >= 1 && rpe <= 10 ? rpe : null,
+      });
     } else {
       // La séance n'est plus du jour (notification ouverte le lendemain) : on va la chercher.
       this.portal.pendingFeedback(7).subscribe({
         next: (list) => {
           const late = list.find((w) => w.id === workoutId);
-          if (late) this.feedbackSheet()?.openFor(late, { rpe: rpe >= 1 && rpe <= 10 ? rpe : null });
+          if (late)
+            this.feedbackSheet()?.openFor(late, {
+              rpe: rpe >= 1 && rpe <= 10 ? rpe : null,
+            });
         },
       });
     }
     // L'URL ne doit pas garder le paramètre : un rafraîchissement rouvrirait la feuille.
-    this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {},
+      replaceUrl: true,
+    });
   }
 
   /**
@@ -326,8 +370,14 @@ export class TodayComponent implements OnInit {
    * reçoit enfin quelque chose en retour — sa série.
    */
   onFeedbackSaved(updated: Workout): void {
-    this.workouts.set(this.workouts().map((x) => (x.id === updated.id ? updated : x)));
-    this.pending.set(this.pending().map((x) => (x.id === updated.id ? updated : x)).filter(awaitsFeedback));
+    this.workouts.set(
+      this.workouts().map((x) => (x.id === updated.id ? updated : x)),
+    );
+    this.pending.set(
+      this.pending()
+        .map((x) => (x.id === updated.id ? updated : x))
+        .filter(awaitsFeedback),
+    );
 
     this.portal.feedbackStreak().subscribe({
       next: (streak) => this.celebrateFeedback(streak),
@@ -342,5 +392,4 @@ export class TodayComponent implements OnInit {
       detail: streak > 1 ? `${streak}e retour d'affilée 🔥` : undefined,
     });
   }
-
 }

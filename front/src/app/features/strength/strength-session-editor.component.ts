@@ -1,5 +1,18 @@
-import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, input, signal } from '@angular/core';
+import {
+  CdkDragDrop,
+  DragDropModule,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -25,7 +38,12 @@ import {
 import { SessionCategory } from '../../core/models/session-category.model';
 import { SessionCategoryService } from '../../core/services/session-category.service';
 import {
-  SIDE_MODE_LABELS, VOLUME_TYPE_LABELS, effectiveVolumeType, restPill, sideLabel, volumePill,
+  SIDE_MODE_LABELS,
+  VOLUME_TYPE_LABELS,
+  effectiveVolumeType,
+  restPill,
+  sideLabel,
+  volumePill,
   type VolumePill,
 } from '../../core/utils/strength-volume';
 import {
@@ -33,7 +51,11 @@ import {
   type EffortKind,
   RangePrescriptionPillComponent,
 } from '../../shared/components/physiology';
-import { SegmentedControlComponent, type SegmentOption, SidePanelComponent } from '../../shared/components/ui';
+import {
+  SegmentedControlComponent,
+  type SegmentOption,
+  SidePanelComponent,
+} from '../../shared/components/ui';
 import { AutosaveBadgeComponent } from '../../shared/components/autosave-badge/autosave-badge.component';
 import { Autosave } from '../../core/services/autosave';
 import { HasAutosave } from '../../core/guards/unsaved-changes.guard';
@@ -59,12 +81,19 @@ import { VideoEmbedComponent } from '../../shared/components/video-embed/video-e
  */
 @Component({
   selector: 'app-strength-session-editor',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, IconComponent, 
-    FormsModule, RouterLink, DragDropModule,
-    SegmentedControlComponent, RangePrescriptionPillComponent, EffortBadgeComponent,
-    SidePanelComponent, AutosaveBadgeComponent, VideoEmbedComponent,
+  imports: [
+    SkeletonComponent,
+    IconComponent,
+    FormsModule,
+    RouterLink,
+    DragDropModule,
+    SegmentedControlComponent,
+    RangePrescriptionPillComponent,
+    EffortBadgeComponent,
+    SidePanelComponent,
+    AutosaveBadgeComponent,
+    VideoEmbedComponent,
   ],
   templateUrl: './strength-session-editor.component.html',
   styleUrl: './strength-session-editor.component.scss',
@@ -185,17 +214,44 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     this.panelOpen.set(true);
   }
 
-  blockTypeLabel(t: BlockType): string { return this.blockTypes.find((x) => x.value === t)?.label ?? t; }
-  formatLabel(f: BlockFormat): string { return this.formats.find((x) => x.value === f)?.label ?? f; }
+  blockTypeLabel(t: BlockType): string {
+    return this.blockTypes.find((x) => x.value === t)?.label ?? t;
+  }
+  formatLabel(f: BlockFormat): string {
+    return this.formats.find((x) => x.value === f)?.label ?? f;
+  }
 
   /** Fourchette de charge à afficher (lecture seule), ou null si non renseignée. */
-  chargePill(p: StrengthPrescription): { min: number; max: number; unit: string } | null {
+  chargePill(
+    p: StrengthPrescription,
+  ): { min: number; max: number; unit: string } | null {
     switch (p.chargeRefType) {
-      case 'KG_RANGE': return p.chargeKgMin != null ? { min: p.chargeKgMin, max: p.chargeKgMax ?? p.chargeKgMin, unit: 'kg' } : null;
-      case 'KG_FIXE': return p.chargeKgMin != null ? { min: p.chargeKgMin, max: p.chargeKgMin, unit: 'kg' } : null;
-      case 'PCT_RM_RANGE': return p.chargePctRmMin != null ? { min: p.chargePctRmMin, max: p.chargePctRmMax ?? p.chargePctRmMin, unit: '% RM' } : null;
-      case 'PCT_RM': return p.chargePctRmMin != null ? { min: p.chargePctRmMin, max: p.chargePctRmMin, unit: '% RM' } : null;
-      default: return null;
+      case 'KG_RANGE':
+        return p.chargeKgMin != null
+          ? {
+              min: p.chargeKgMin,
+              max: p.chargeKgMax ?? p.chargeKgMin,
+              unit: 'kg',
+            }
+          : null;
+      case 'KG_FIXE':
+        return p.chargeKgMin != null
+          ? { min: p.chargeKgMin, max: p.chargeKgMin, unit: 'kg' }
+          : null;
+      case 'PCT_RM_RANGE':
+        return p.chargePctRmMin != null
+          ? {
+              min: p.chargePctRmMin,
+              max: p.chargePctRmMax ?? p.chargePctRmMin,
+              unit: '% RM',
+            }
+          : null;
+      case 'PCT_RM':
+        return p.chargePctRmMin != null
+          ? { min: p.chargePctRmMin, max: p.chargePctRmMin, unit: '% RM' }
+          : null;
+      default:
+        return null;
     }
   }
 
@@ -215,13 +271,28 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   }
 
   /** Effort prescrit (RPE/RIR) à afficher, ou null. */
-  effortInfo(p: StrengthPrescription): { kind: EffortKind; min: number; max: number } | null {
+  effortInfo(
+    p: StrengthPrescription,
+  ): { kind: EffortKind; min: number; max: number } | null {
     switch (p.effortRefType) {
-      case 'RIR_RANGE': return p.rirMin != null ? { kind: 'RIR', min: p.rirMin, max: p.rirMax ?? p.rirMin } : null;
-      case 'RIR': return p.rirMin != null ? { kind: 'RIR', min: p.rirMin, max: p.rirMin } : null;
-      case 'RPE_RANGE': return p.rpeMin != null ? { kind: 'RPE', min: p.rpeMin, max: p.rpeMax ?? p.rpeMin } : null;
-      case 'RPE': return p.rpeMin != null ? { kind: 'RPE', min: p.rpeMin, max: p.rpeMin } : null;
-      default: return null;
+      case 'RIR_RANGE':
+        return p.rirMin != null
+          ? { kind: 'RIR', min: p.rirMin, max: p.rirMax ?? p.rirMin }
+          : null;
+      case 'RIR':
+        return p.rirMin != null
+          ? { kind: 'RIR', min: p.rirMin, max: p.rirMin }
+          : null;
+      case 'RPE_RANGE':
+        return p.rpeMin != null
+          ? { kind: 'RPE', min: p.rpeMin, max: p.rpeMax ?? p.rpeMin }
+          : null;
+      case 'RPE':
+        return p.rpeMin != null
+          ? { kind: 'RPE', min: p.rpeMin, max: p.rpeMin }
+          : null;
+      default:
+        return null;
     }
   }
 
@@ -244,7 +315,9 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     // Le sélecteur d'aperçu n'a de sens que sur un modèle : une séance planifiée a déjà son
     // athlète, et lui en proposer un autre inviterait à lire des charges qui ne sont pas les siennes.
     if (!this.isScheduled()) {
-      this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
+      this.athletes
+        .list({ page: 0 })
+        .subscribe((p) => this.athleteList.set(p.content));
     }
   }
 
@@ -291,15 +364,20 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
       next: (a) => this.athleteName.set(`${a.firstName} ${a.lastName}`),
       error: () => this.athleteName.set(''),
     });
-    this.strength.scheduledPrescription(this.athleteId(), this.scheduledId()).subscribe({
-      next: (rx) => {
-        this.name.set(rx.title ?? 'Séance de renforcement');
-        this.blocks.set(rx.snapshot?.blocks ?? []);
-        this.loading.set(false);
-        this.refreshCharges();
-      },
-      error: () => { this.loading.set(false); this.toast.error('Séance introuvable.'); },
-    });
+    this.strength
+      .scheduledPrescription(this.athleteId(), this.scheduledId())
+      .subscribe({
+        next: (rx) => {
+          this.name.set(rx.title ?? 'Séance de renforcement');
+          this.blocks.set(rx.snapshot?.blocks ?? []);
+          this.loading.set(false);
+          this.refreshCharges();
+        },
+        error: () => {
+          this.loading.set(false);
+          this.toast.error('Séance introuvable.');
+        },
+      });
   }
 
   // --- Aperçu live des charges ---
@@ -317,17 +395,24 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     }
     clearTimeout(this.recomputeTimer);
     this.recomputeTimer = setTimeout(() => {
-      this.strength.calculatePreview(a, { blocks: this.blocks() }).subscribe((res) => {
-        const map: Record<string, ChargeTarget> = {};
-        res.blocks.forEach((b, bi) =>
-          b.exercises.forEach((ex, ei) => { map[`${bi}:${ei}`] = ex.charge; }));
-        this.chargePreview.set(map);
-      });
+      this.strength
+        .calculatePreview(a, { blocks: this.blocks() })
+        .subscribe((res) => {
+          const map: Record<string, ChargeTarget> = {};
+          res.blocks.forEach((b, bi) =>
+            b.exercises.forEach((ex, ei) => {
+              map[`${bi}:${ei}`] = ex.charge;
+            }),
+          );
+          this.chargePreview.set(map);
+        });
     }, 350);
   }
 
   /** Relance le calcul des charges (mode séance planifiée : l'athlète ne change jamais). */
-  private refreshCharges(): void { this.recompute(); }
+  private refreshCharges(): void {
+    this.recompute();
+  }
 
   chargeAt(bi: number, ei: number): ChargeTarget | undefined {
     return this.chargePreview()[`${bi}:${ei}`];
@@ -390,7 +475,11 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
       exercises: block.exercises.map((ex) => this.copyItem(ex)),
     };
     const index = this.blocks().findIndex((b) => b.id === block.id);
-    this.blocks.update((list) => [...list.slice(0, index + 1), copy, ...list.slice(index + 1)]);
+    this.blocks.update((list) => [
+      ...list.slice(0, index + 1),
+      copy,
+      ...list.slice(index + 1),
+    ]);
     this.touch();
   }
 
@@ -411,7 +500,9 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     return {
       ...item,
       prescription: { ...item.prescription },
-      setConfig: item.setConfig ? JSON.parse(JSON.stringify(item.setConfig)) : item.setConfig,
+      setConfig: item.setConfig
+        ? JSON.parse(JSON.stringify(item.setConfig))
+        : item.setConfig,
     };
   }
 
@@ -420,7 +511,10 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
       id: 'b-' + Math.random().toString(36).slice(2, 9),
       blockType: type,
       format: 'CLASSIQUE',
-      durationSec: null, rounds: null, workSec: null, restSec: null,
+      durationSec: null,
+      rounds: null,
+      workSec: null,
+      restSec: null,
       exercises: [],
     };
   }
@@ -432,7 +526,9 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
 
   onFormatChange(block: StrengthBlock): void {
     // Valeurs par défaut sensées selon le format.
-    block.durationSec = ['EMOM', 'AMRAP', 'FOR_TIME'].includes(block.format) ? 600 : null;
+    block.durationSec = ['EMOM', 'AMRAP', 'FOR_TIME'].includes(block.format)
+      ? 600
+      : null;
     block.rounds = block.format === 'CIRCUIT' ? 3 : null;
     block.workSec = block.format === 'CIRCUIT' ? 40 : null;
     block.restSec = block.format === 'CIRCUIT' ? 20 : null;
@@ -463,7 +559,10 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
    * représentent l'essentiel de ce qu'on retouche. Les fourchettes et les distances gardent le
    * panneau : y mettre deux champs de plus sur la carte la rendrait illisible pour un cas rare.</p>
    */
-  inlineVolume(block: StrengthBlock, item: StrengthExerciseItem): 'REPS' | 'DUREE' | null {
+  inlineVolume(
+    block: StrengthBlock,
+    item: StrengthExerciseItem,
+  ): 'REPS' | 'DUREE' | null {
     const p = item.prescription;
     const type = this.volumeTypeOf(block, item);
     if (type === 'REPS' && p.repsFixed != null) return 'REPS';
@@ -472,17 +571,26 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   }
 
   setInlineSets(item: StrengthExerciseItem, value: number | null): void {
-    item.prescription.sets = value == null || !Number.isFinite(value) ? null : Math.max(1, Math.round(value));
+    item.prescription.sets =
+      value == null || !Number.isFinite(value)
+        ? null
+        : Math.max(1, Math.round(value));
     this.touch();
   }
 
   setInlineReps(item: StrengthExerciseItem, value: number | null): void {
-    item.prescription.repsFixed = value == null || !Number.isFinite(value) ? null : Math.max(1, Math.round(value));
+    item.prescription.repsFixed =
+      value == null || !Number.isFinite(value)
+        ? null
+        : Math.max(1, Math.round(value));
     this.touch();
   }
 
   setInlineDuration(item: StrengthExerciseItem, value: number | null): void {
-    item.prescription.durationSec = value == null || !Number.isFinite(value) ? null : Math.max(1, Math.round(value));
+    item.prescription.durationSec =
+      value == null || !Number.isFinite(value)
+        ? null
+        : Math.max(1, Math.round(value));
     this.touch();
   }
 
@@ -510,24 +618,37 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   readonly videoFor = signal<string | null>(null);
 
   toggleVideo(exerciseId: string): void {
-    this.videoFor.update((current) => (current === exerciseId ? null : exerciseId));
+    this.videoFor.update((current) =>
+      current === exerciseId ? null : exerciseId,
+    );
   }
   private readonly pickerBlockId = signal<string | null>(null);
 
   /** Bibliothèque filtrée par la recherche, rangée par catégorie. */
-  readonly pickerGroups = computed<{ key: string; title: string; exercises: PpExercise[] }[]>(() => {
+  readonly pickerGroups = computed<
+    { key: string; title: string; exercises: PpExercise[] }[]
+  >(() => {
     const query = normalize(this.pickerQuery());
-    const names = new Map(this.categories().map((c) => [c.id, c.name] as const));
-    const groups = new Map<string, { key: string; title: string; exercises: PpExercise[] }>();
+    const names = new Map(
+      this.categories().map((c) => [c.id, c.name] as const),
+    );
+    const groups = new Map<
+      string,
+      { key: string; title: string; exercises: PpExercise[] }
+    >();
 
     for (const ex of this.exercises()) {
       if (query && !normalize(ex.name).includes(query)) continue;
       // Catégorie du coach si elle est renseignée ; sinon le type de l'exercice, qui l'est
       // toujours — aucun exercice ne doit tomber dans un « divers » où on ne le cherchera pas.
-      const key = ex.categoryId && names.has(ex.categoryId) ? ex.categoryId : `type:${ex.category}`;
-      const title = ex.categoryId && names.has(ex.categoryId)
-        ? names.get(ex.categoryId)!
-        : this.label(ex.category);
+      const key =
+        ex.categoryId && names.has(ex.categoryId)
+          ? ex.categoryId
+          : `type:${ex.category}`;
+      const title =
+        ex.categoryId && names.has(ex.categoryId)
+          ? names.get(ex.categoryId)!
+          : this.label(ex.category);
       const group = groups.get(key) ?? { key, title, exercises: [] };
       group.exercises.push(ex);
       groups.set(key, group);
@@ -543,7 +664,9 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   });
 
   /** Nombre d'exercices proposés, toutes catégories confondues (état vide de la recherche). */
-  readonly pickerCount = computed(() => this.pickerGroups().reduce((n, g) => n + g.exercises.length, 0));
+  readonly pickerCount = computed(() =>
+    this.pickerGroups().reduce((n, g) => n + g.exercises.length, 0),
+  );
 
   openPicker(block: StrengthBlock): void {
     this.pickerBlockId.set(block.id);
@@ -559,28 +682,64 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
    * chaque fois. Un échauffement se fait léger et court, des accessoires se font en volume, un
    * retour au calme se tient en secondes. La section porte donc son intention.</p>
    */
-  private static readonly SECTION_DEFAULTS: Record<BlockType, StrengthPrescription> = {
+  private static readonly SECTION_DEFAULTS: Record<
+    BlockType,
+    StrengthPrescription
+  > = {
     ECHAUFFEMENT: {
-      effortRefType: 'RIR_RANGE', rirMin: 4, rirMax: 5,
-      sets: 2, volumeType: 'REPS', repsFixed: 10, restSecMin: 30, restSecMax: 45,
+      effortRefType: 'RIR_RANGE',
+      rirMin: 4,
+      rirMax: 5,
+      sets: 2,
+      volumeType: 'REPS',
+      repsFixed: 10,
+      restSecMin: 30,
+      restSecMax: 45,
     },
     ACTIVATION: {
-      effortRefType: 'RIR_RANGE', rirMin: 3, rirMax: 4,
-      sets: 2, volumeType: 'REPS', repsFixed: 12, restSecMin: 30, restSecMax: 45,
+      effortRefType: 'RIR_RANGE',
+      rirMin: 3,
+      rirMax: 4,
+      sets: 2,
+      volumeType: 'REPS',
+      repsFixed: 12,
+      restSecMin: 30,
+      restSecMax: 45,
     },
     PRINCIPAL: {
-      chargeRefType: 'PCT_RM_RANGE', chargePctRmMin: 70, chargePctRmMax: 80,
-      effortRefType: 'RIR_RANGE', rirMin: 1, rirMax: 3,
-      sets: 4, volumeType: 'REPS', repsFixed: 6, restSecMin: 90, restSecMax: 120,
+      chargeRefType: 'PCT_RM_RANGE',
+      chargePctRmMin: 70,
+      chargePctRmMax: 80,
+      effortRefType: 'RIR_RANGE',
+      rirMin: 1,
+      rirMax: 3,
+      sets: 4,
+      volumeType: 'REPS',
+      repsFixed: 6,
+      restSecMin: 90,
+      restSecMax: 120,
     },
     ACCESSOIRE: {
-      chargeRefType: 'PCT_RM_RANGE', chargePctRmMin: 55, chargePctRmMax: 70,
-      effortRefType: 'RIR_RANGE', rirMin: 2, rirMax: 3,
-      sets: 3, volumeType: 'REPS', repsFixed: 10, restSecMin: 60, restSecMax: 90,
+      chargeRefType: 'PCT_RM_RANGE',
+      chargePctRmMin: 55,
+      chargePctRmMax: 70,
+      effortRefType: 'RIR_RANGE',
+      rirMin: 2,
+      rirMax: 3,
+      sets: 3,
+      volumeType: 'REPS',
+      repsFixed: 10,
+      restSecMin: 60,
+      restSecMax: 90,
     },
     CALME: {
-      effortRefType: 'RIR_RANGE', rirMin: 4, rirMax: 5,
-      sets: 2, volumeType: 'DUREE', durationSec: 45, restSecMin: 30,
+      effortRefType: 'RIR_RANGE',
+      rirMin: 4,
+      rirMax: 5,
+      sets: 2,
+      volumeType: 'DUREE',
+      durationSec: 45,
+      restSecMin: 30,
     },
   };
 
@@ -599,7 +758,11 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
         ...StrengthSessionEditorComponent.SECTION_DEFAULTS[block.blockType],
         // Un bloc d'isométrie se tient en secondes, quelle que soit la section qui le porte.
         ...(block.format === 'ISOMETRIE'
-          ? { volumeType: 'DUREE' as VolumeType, durationSec: 30, repsFixed: null }
+          ? {
+              volumeType: 'DUREE' as VolumeType,
+              durationSec: 30,
+              repsFixed: null,
+            }
           : {}),
         sideMode: 'BILATERAL',
       },
@@ -645,18 +808,38 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     const name = this.name().trim();
     if (this.isScheduled()) {
       const structure$ = this.strength.updateScheduledStructure(
-        this.athleteId(), this.scheduledId(), { blocks: this.blocks() });
+        this.athleteId(),
+        this.scheduledId(),
+        { blocks: this.blocks() },
+      );
       if (!this.nameDirty || !name) return structure$;
       return structure$.pipe(
-        switchMap(() => this.strength.renameScheduled(this.athleteId(), this.scheduledId(), name)),
-        tap(() => { this.nameDirty = false; }),
+        switchMap(() =>
+          this.strength.renameScheduled(
+            this.athleteId(),
+            this.scheduledId(),
+            name,
+          ),
+        ),
+        tap(() => {
+          this.nameDirty = false;
+        }),
       );
     }
-    const structure$ = this.strength.putStructure(this.sessionId(), { blocks: this.blocks() });
+    const structure$ = this.strength.putStructure(this.sessionId(), {
+      blocks: this.blocks(),
+    });
     if (!this.nameDirty || !name) return structure$;
     return structure$.pipe(
-      switchMap(() => this.strength.updateSession(this.sessionId(), { name, notes: this.notes() })),
-      tap(() => { this.nameDirty = false; }),
+      switchMap(() =>
+        this.strength.updateSession(this.sessionId(), {
+          name,
+          notes: this.notes(),
+        }),
+      ),
+      tap(() => {
+        this.nameDirty = false;
+      }),
     );
   }
 
@@ -669,7 +852,10 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     this.saving.set(true);
     this.autosave.flush().subscribe((ok) => {
       this.saving.set(false);
-      if (!ok) { this.toast.error('Enregistrement impossible.'); return; }
+      if (!ok) {
+        this.toast.error('Enregistrement impossible.');
+        return;
+      }
       if (this.isScheduled()) {
         this.toast.success('Séance modifiée pour l’athlète');
         // Le programme de l'athlète : c'est le même calendrier, cadré sur lui — donc à coup sûr
@@ -695,25 +881,39 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
     this.saveAsOpen.set(true);
   }
 
-  closeSaveAs(): void { this.saveAsOpen.set(false); }
+  closeSaveAs(): void {
+    this.saveAsOpen.set(false);
+  }
 
   /** Enregistre la structure courante, puis la verse en bibliothèque comme nouveau modèle. */
   saveAsLibrarySession(): void {
     const name = this.saveAsName.trim();
-    if (!name) { this.toast.warning('Donne un nom au modèle.'); return; }
+    if (!name) {
+      this.toast.warning('Donne un nom au modèle.');
+      return;
+    }
     if (this.saveAsBusy()) return;
     this.saveAsBusy.set(true);
     // On vide d'abord le debounce : sinon le modèle figerait la structure d'il y a dix secondes.
     this.autosave.flush().subscribe((ok) => {
-      if (!ok) { this.saveAsBusy.set(false); this.toast.error('Enregistrement impossible.'); return; }
-      this.strength.saveScheduledAsSession(this.athleteId(), this.scheduledId(), { name }).subscribe({
-        next: (created) => {
-          this.saveAsBusy.set(false);
-          this.saveAsOpen.set(false);
-          this.toast.success(`« ${created.name} » ajoutée à ta bibliothèque`);
-        },
-        error: () => { this.saveAsBusy.set(false); this.toast.error('Enregistrement dans la bibliothèque impossible.'); },
-      });
+      if (!ok) {
+        this.saveAsBusy.set(false);
+        this.toast.error('Enregistrement impossible.');
+        return;
+      }
+      this.strength
+        .saveScheduledAsSession(this.athleteId(), this.scheduledId(), { name })
+        .subscribe({
+          next: (created) => {
+            this.saveAsBusy.set(false);
+            this.saveAsOpen.set(false);
+            this.toast.success(`« ${created.name} » ajoutée à ta bibliothèque`);
+          },
+          error: () => {
+            this.saveAsBusy.set(false);
+            this.toast.error('Enregistrement dans la bibliothèque impossible.');
+          },
+        });
     });
   }
 
@@ -729,13 +929,28 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
    * derrière une prescription passée en durée, c'est une valeur fantôme que le prochain
    * changement d'unité ferait ressurgir à la place de celle qu'on vient de saisir.
    */
-  setVolumeType(block: StrengthBlock, item: StrengthExerciseItem, type: VolumeType): void {
+  setVolumeType(
+    block: StrengthBlock,
+    item: StrengthExerciseItem,
+    type: VolumeType,
+  ): void {
     const p = item.prescription;
     p.volumeType = type;
-    if (type !== 'REPS') { p.repsFixed = null; p.repsMin = null; p.repsMax = null; }
-    if (type !== 'DUREE') { p.durationSec = null; p.durationSecMax = null; }
-    if (type !== 'DISTANCE') { p.distanceM = null; p.distanceMMax = null; }
-    if (type === 'REPS' && p.repsFixed == null && p.repsMin == null) p.repsFixed = 8;
+    if (type !== 'REPS') {
+      p.repsFixed = null;
+      p.repsMin = null;
+      p.repsMax = null;
+    }
+    if (type !== 'DUREE') {
+      p.durationSec = null;
+      p.durationSecMax = null;
+    }
+    if (type !== 'DISTANCE') {
+      p.distanceM = null;
+      p.distanceMMax = null;
+    }
+    if (type === 'REPS' && p.repsFixed == null && p.repsMin == null)
+      p.repsFixed = 8;
     if (type === 'DUREE' && p.durationSec == null) p.durationSec = 30;
     if (type === 'DISTANCE' && p.distanceM == null) p.distanceM = 20;
     this.touch();
@@ -745,21 +960,32 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   volumeRanged(block: StrengthBlock, item: StrengthExerciseItem): boolean {
     const p = item.prescription;
     switch (this.volumeTypeOf(block, item)) {
-      case 'DUREE': return p.durationSecMax != null;
-      case 'DISTANCE': return p.distanceMMax != null;
-      default: return p.repsFixed == null;
+      case 'DUREE':
+        return p.durationSecMax != null;
+      case 'DISTANCE':
+        return p.distanceMMax != null;
+      default:
+        return p.repsFixed == null;
     }
   }
 
   /** Bascule valeur exacte ↔ fourchette en conservant ce qui était déjà saisi comme borne basse. */
-  setVolumeRanged(block: StrengthBlock, item: StrengthExerciseItem, ranged: boolean): void {
+  setVolumeRanged(
+    block: StrengthBlock,
+    item: StrengthExerciseItem,
+    ranged: boolean,
+  ): void {
     const p = item.prescription;
     switch (this.volumeTypeOf(block, item)) {
       case 'DUREE':
-        p.durationSecMax = ranged ? p.durationSecMax ?? bumped(p.durationSec, 15) : null;
+        p.durationSecMax = ranged
+          ? (p.durationSecMax ?? bumped(p.durationSec, 15))
+          : null;
         break;
       case 'DISTANCE':
-        p.distanceMMax = ranged ? p.distanceMMax ?? bumped(p.distanceM, 10) : null;
+        p.distanceMMax = ranged
+          ? (p.distanceMMax ?? bumped(p.distanceM, 10))
+          : null;
         break;
       default:
         if (ranged) {
@@ -789,7 +1015,7 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
   /** Bascule repos strict ↔ fourchette ; la borne basse saisie reste la borne basse. */
   setRestRanged(item: StrengthExerciseItem, ranged: boolean): void {
     const p = item.prescription;
-    p.restSecMax = ranged ? p.restSecMax ?? bumped(p.restSecMin, 30) : null;
+    p.restSecMax = ranged ? (p.restSecMax ?? bumped(p.restSecMin, 30)) : null;
     this.touch();
   }
 
@@ -799,18 +1025,24 @@ export class StrengthSessionEditorComponent implements OnInit, HasAutosave {
    * plus personne ne saisit 720 pour prescrire douze minutes.
    */
   blockMinutes(block: StrengthBlock): number | null {
-    return block.durationSec == null ? null : Math.round((block.durationSec / 60) * 10) / 10;
+    return block.durationSec == null
+      ? null
+      : Math.round((block.durationSec / 60) * 10) / 10;
   }
 
   setBlockMinutes(block: StrengthBlock, minutes: number | null): void {
-    block.durationSec = minutes == null || !Number.isFinite(minutes)
-      ? null
-      : Math.max(0, Math.round(minutes * 60));
+    block.durationSec =
+      minutes == null || !Number.isFinite(minutes)
+        ? null
+        : Math.max(0, Math.round(minutes * 60));
     this.touch();
   }
 
   label(value: string): string {
-    return value.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+    return value
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/^\w/, (c) => c.toUpperCase());
   }
 }
 
@@ -821,5 +1053,9 @@ function bumped(low: number | null | undefined, step: number): number {
 
 /** Comparaison de recherche : sans accents ni casse — « fente » doit trouver « Fente arrière ». */
 function normalize(value: string): string {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 }

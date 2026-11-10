@@ -1,25 +1,50 @@
-import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
+import {
+  CdkDragDrop,
+  DragDropModule,
+  moveItemInArray,
+} from '@angular/cdk/drag-drop';
 import { Observable, defer, forkJoin, of, switchMap, tap } from 'rxjs';
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, HostListener, OnDestroy, OnInit, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import {
-  STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_META,
-  Workout, WorkoutType, WorkoutTypeMeta,
+  STATUS_BADGE,
+  STATUS_LABELS,
+  WORKOUT_TYPE_LABELS,
+  WORKOUT_TYPE_META,
+  Workout,
+  WorkoutType,
+  WorkoutTypeMeta,
 } from '../../core/models/workout.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { CourseService } from '../../core/services/course.service';
 import { SaveToLibraryService } from '../../core/services/save-to-library.service';
 import { StrengthService } from '../../core/services/strength.service';
 import {
-  ScheduledStrength, StrengthPrescriptionView, StrengthSession, StrengthStructure,
+  ScheduledStrength,
+  StrengthPrescriptionView,
+  StrengthSession,
+  StrengthStructure,
 } from '../../core/models/strength.model';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { PaceReferenceService } from '../../core/services/pace-reference.service';
-import { plannedVolume, plannedVolumeLabel } from '../../core/utils/planned-volume';
+import {
+  plannedVolume,
+  plannedVolumeLabel,
+} from '../../core/utils/planned-volume';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { WorkoutService } from '../../core/services/workout.service';
@@ -29,11 +54,17 @@ import { RaceService } from '../../core/services/race.service';
 import { LactateService } from '../../core/services/lactate.service';
 import { RaceObjective } from '../../core/models/race.model';
 import { LactateTest } from '../../core/models/lactate.model';
-import { Unavailability, UnavailabilityReason } from '../../core/models/unavailability.model';
+import {
+  Unavailability,
+  UnavailabilityReason,
+} from '../../core/models/unavailability.model';
 import { MesocycleTemplate } from '../../core/models/mesocycle-template.model';
 import { MesocycleTemplateService } from '../../core/services/mesocycle-template.service';
 import { TrainingGroup } from '../../core/models/training-group.model';
-import { GroupCalendarRow, TrainingGroupService } from '../../core/services/training-group.service';
+import {
+  GroupCalendarRow,
+  TrainingGroupService,
+} from '../../core/services/training-group.service';
 import { MesocycleParams } from '../../core/services/workout.service';
 import { RunDrill } from '../../core/models/run-drill.model';
 import { RunDrillService } from '../../core/services/run-drill.service';
@@ -49,13 +80,22 @@ import { SidePanelComponent } from '../../shared/components/ui';
 import { ZoneBarComponent } from '../../shared/components/zone-bar/zone-bar.component';
 import { Activity } from '../../core/models/activity.model';
 import { ActivityService } from '../../core/services/activity.service';
-import { UndoCommand, UndoStackService } from '../../core/services/undo-stack.service';
+import {
+  UndoCommand,
+  UndoStackService,
+} from '../../core/services/undo-stack.service';
 import { AthleteSwitcherComponent } from '../../shared/components/athlete-switcher/athlete-switcher.component';
 import { ShortcutsOverlayComponent } from '../../shared/components/shortcuts/shortcuts-overlay.component';
 import { shortcutText } from '../../shared/components/shortcuts/shortcuts';
 import { CALENDAR_SHORTCUTS } from './calendar-shortcuts';
 import {
-  CELLS_BY_MODE, CalMode, gridStartFor, groupWeekLabel, mondayOf, periodLabelFor, shiftAnchor,
+  CELLS_BY_MODE,
+  CalMode,
+  gridStartFor,
+  groupWeekLabel,
+  mondayOf,
+  periodLabelFor,
+  shiftAnchor,
 } from './calendar-period';
 import { CalendarSelection, ChipPosition, ChipRef } from './calendar-selection';
 import { SessionStructure } from '../../core/models/course.model';
@@ -160,7 +200,10 @@ interface WeekRow {
   realSessions: number;
 }
 
-const REASON_META: Record<UnavailabilityReason, { label: string; icon: string }> = {
+const REASON_META: Record<
+  UnavailabilityReason,
+  { label: string; icon: string }
+> = {
   INJURY: { label: 'Blessure', icon: 'heart-pulse' },
   ILLNESS: { label: 'Maladie', icon: 'thermometer' },
   VACATION: { label: 'Vacances', icon: 'palmtree' },
@@ -180,16 +223,28 @@ function toIso(d: Date): string {
 
 @Component({
   selector: 'app-calendar',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FormsModule, RouterLink, DragDropModule, DatePipe, IconComponent, HelpHintComponent,
-    SessionLibraryPanelComponent, SidePanelComponent, StrengthPrescriptionViewComponent, ZoneBarComponent,
-    AthleteSwitcherComponent, ShortcutsOverlayComponent,
+    FormsModule,
+    RouterLink,
+    DragDropModule,
+    DatePipe,
+    IconComponent,
+    HelpHintComponent,
+    SessionLibraryPanelComponent,
+    SidePanelComponent,
+    StrengthPrescriptionViewComponent,
+    ZoneBarComponent,
+    AthleteSwitcherComponent,
+    ShortcutsOverlayComponent,
   ],
   host: { '(document:keydown)': 'onKeydown($event)' },
   templateUrl: './calendar.component.html',
-  styleUrls: ['./calendar.component.scss', './calendar-group.scss', './calendar-tools.scss'],
+  styleUrls: [
+    './calendar.component.scss',
+    './calendar-group.scss',
+    './calendar-tools.scss',
+  ],
 })
 export class CalendarComponent implements OnInit, OnDestroy {
   private readonly athleteService = inject(AthleteService);
@@ -244,14 +299,19 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * sont plus affichées ». C'est le manque remonté en bêta : « sur les séances de groupe, juste
    * les copier-coller qui sont pas possible ».</p>
    */
-  readonly clipboard = signal<{ entries: ClipEntry[]; label: string }>({ entries: [], label: '' });
+  readonly clipboard = signal<{ entries: ClipEntry[]; label: string }>({
+    entries: [],
+    label: '',
+  });
   /** Jour survolé : cible implicite de Cmd+V et de N, comme un curseur de tableur. */
   readonly hoveredDate = signal<string | null>(null);
   /**
    * Case survolée en vue groupe : (athlète, jour). Le curseur du mode athlète ne connaît qu'une
    * date — ici, coller demande aussi de savoir chez qui.
    */
-  readonly hoveredCell = signal<{ athleteId: string; date: string } | null>(null);
+  readonly hoveredCell = signal<{ athleteId: string; date: string } | null>(
+    null,
+  );
   /** Plage de jours retenue par un rectangle tracé sur des jours vides. */
   readonly dayRange = signal<string[]>([]);
   readonly shortcutsOpen = signal(false);
@@ -264,7 +324,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
   readonly redoLabel = this.undoStack.redoLabel;
 
   /** Libellé d'un raccourci pour les infobulles et les menus (⌘ ou Ctrl selon la plateforme). */
-  keys(...k: string[]): string { return shortcutText(k); }
+  keys(...k: string[]): string {
+    return shortcutText(k);
+  }
 
   readonly typeLabels = WORKOUT_TYPE_LABELS;
   readonly statusLabels = STATUS_LABELS;
@@ -296,12 +358,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
    */
   volumeLabel(w: Workout): string {
     return plannedVolumeLabel(
-      plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace()));
+      plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace()),
+    );
   }
 
   /** Distance retenue pour les totaux : la cible crédible, ou l'estimation, ou rien. */
   private volumeM(w: Workout): number {
-    return plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace())?.distanceM ?? 0;
+    return (
+      plannedVolume(w.targetDistanceM, w.targetDurationS, this.referencePace())
+        ?.distanceM ?? 0
+    );
   }
   /**
    * Période affichée. « Jour » est né du téléphone : sous 768 px, la grille passe à une colonne
@@ -338,8 +404,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const testByDate = this.groupBy(this.tests(), (t) => t.testDate);
     // Une note de période est un cycle : elle vit en bandeau au-dessus de la semaine, pas en
     // chip sur son premier jour — où elle donnerait à croire qu'elle ne concerne que lui.
-    const noteByDate = this.groupBy(this.notes().filter((n) => !isCycle(n)), (n) => n.noteDate);
-    const activityByDate = this.groupBy(this.activities(), (a) => a.activityDate);
+    const noteByDate = this.groupBy(
+      this.notes().filter((n) => !isCycle(n)),
+      (n) => n.noteDate,
+    );
+    const activityByDate = this.groupBy(
+      this.activities(),
+      (a) => a.activityDate,
+    );
     const unavail = this.unavailabilities();
     const count = CELLS_BY_MODE[this.mode()];
     const start = this.gridStart();
@@ -366,7 +438,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
         tests: testByDate.get(iso) ?? [],
         notes: noteByDate.get(iso) ?? [],
         activities: activityByDate.get(iso) ?? [],
-        unavailability: unavail.find((u) => iso >= u.startDate && iso <= u.endDate) ?? null,
+        unavailability:
+          unavail.find((u) => iso >= u.startDate && iso <= u.endDate) ?? null,
         km,
         sessions,
         conflict: sessions >= 2 && hasKey,
@@ -375,7 +448,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
   });
 
   /** Volume max d'un jour sur la période (pour normaliser les barres de densité). */
-  readonly maxDayKm = computed(() => Math.max(1, ...this.cells().map((c) => c.km)));
+  readonly maxDayKm = computed(() =>
+    Math.max(1, ...this.cells().map((c) => c.km)),
+  );
 
   /**
    * Ordre de parcours des chips dans la grille (jour par jour, course puis force). C'est lui
@@ -386,14 +461,23 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const out: ChipPosition[] = [];
     for (const cell of this.cells()) {
       let index = 0;
-      for (const w of cell.workouts) out.push({ kind: 'course', id: w.id, date: cell.date, index: index++ });
-      for (const st of cell.strength) out.push({ kind: 'strength', id: st.id, date: cell.date, index: index++ });
+      for (const w of cell.workouts)
+        out.push({ kind: 'course', id: w.id, date: cell.date, index: index++ });
+      for (const st of cell.strength)
+        out.push({
+          kind: 'strength',
+          id: st.id,
+          date: cell.date,
+          index: index++,
+        });
     }
     return out;
   });
 
   /** Sélection résolue dans l'ordre de la grille (ce sur quoi agissent les actions groupées). */
-  readonly selected = computed<ChipPosition[]>(() => this.selection.resolve(this.chipOrder()));
+  readonly selected = computed<ChipPosition[]>(() =>
+    this.selection.resolve(this.chipOrder()),
+  );
 
   isSelected(kind: 'course' | 'strength', id: string): boolean {
     return this.selection.has({ kind, id });
@@ -404,7 +488,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * reste premier), Cmd/Ctrl = ajouter au lot, Maj = étendre depuis l'ancre. On n'ouvre jamais
    * une séance pendant qu'on constitue une sélection, ce serait perdre le lot en cours.
    */
-  onChipClick(ev: MouseEvent, kind: 'course' | 'strength', target: Workout | ScheduledStrength): void {
+  onChipClick(
+    ev: MouseEvent,
+    kind: 'course' | 'strength',
+    target: Workout | ScheduledStrength,
+  ): void {
     const ref: ChipRef = { kind, id: target.id };
     if (ev.shiftKey) {
       ev.preventDefault();
@@ -434,8 +522,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /** Jour survolé : cible de Cmd+V et de N. */
-  onDayEnter(date: string): void { this.hoveredDate.set(date); }
-  onDayLeave(date: string): void { if (this.hoveredDate() === date) this.hoveredDate.set(null); }
+  onDayEnter(date: string): void {
+    this.hoveredDate.set(date);
+  }
+  onDayLeave(date: string): void {
+    if (this.hoveredDate() === date) this.hoveredDate.set(null);
+  }
 
   selectAll(): void {
     this.selection.setAll(this.chipOrder());
@@ -446,7 +538,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.dayRange.set([]);
   }
 
-    // --- Mode groupe : la semaine de tous les athlètes d'un groupe ---------------
+  // --- Mode groupe : la semaine de tous les athlètes d'un groupe ---------------
   // Un coach de club planifie par groupe, pas athlète par athlète. Le mode groupe
   // affiche une ligne par athlète × 7 jours, en lecture + déplacement (pas de vue
   // mois : au-delà d'une semaine, la grille devient illisible).
@@ -457,7 +549,15 @@ export class CalendarComponent implements OnInit, OnDestroy {
   readonly groupLoading = signal(false);
 
   /** Les 7 dates de la semaine affichée (en-têtes du mode groupe). */
-  readonly weekDates = computed<{ date: string; label: string; dayNum: number; isToday: boolean; weekend: boolean }[]>(() => {
+  readonly weekDates = computed<
+    {
+      date: string;
+      label: string;
+      dayNum: number;
+      isToday: boolean;
+      weekend: boolean;
+    }[]
+  >(() => {
     const today = toIso(new Date());
     const start = mondayOf(this.anchor());
     return Array.from({ length: 7 }, (_, i) => {
@@ -465,8 +565,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
       d.setDate(start.getDate() + i);
       const iso = toIso(d);
       return {
-        date: iso, label: this.dayNames[i], dayNum: d.getDate(),
-        isToday: iso === today, weekend: i >= 5,
+        date: iso,
+        label: this.dayNames[i],
+        dayNum: d.getDate(),
+        isToday: iso === today,
+        weekend: i >= 5,
       };
     });
   });
@@ -505,23 +608,41 @@ export class CalendarComponent implements OnInit, OnDestroy {
     }
   }
 
-  onGroupChange(): void { this.loadGroup(); }
+  onGroupChange(): void {
+    this.loadGroup();
+  }
 
   loadGroup(): void {
-    if (!this.selectedGroupId) { this.groupRows.set([]); return; }
+    if (!this.selectedGroupId) {
+      this.groupRows.set([]);
+      return;
+    }
     const dates = this.weekDates();
     this.groupLoading.set(true);
-    this.groupService.calendar(this.selectedGroupId, dates[0].date, dates[6].date).subscribe({
-      next: (c) => { this.groupRows.set(c.athletes); this.groupLoading.set(false); },
-      error: () => { this.groupRows.set([]); this.groupLoading.set(false); this.toast.error('Chargement du groupe impossible.'); },
-    });
+    this.groupService
+      .calendar(this.selectedGroupId, dates[0].date, dates[6].date)
+      .subscribe({
+        next: (c) => {
+          this.groupRows.set(c.athletes);
+          this.groupLoading.set(false);
+        },
+        error: () => {
+          this.groupRows.set([]);
+          this.groupLoading.set(false);
+          this.toast.error('Chargement du groupe impossible.');
+        },
+      });
   }
 
   /**
    * Déplacement dans la grille de groupe. Une séance appartient à un athlète : on refuse
    * explicitement le dépôt sur la ligne d'un autre athlète plutôt que de réassigner en douce.
    */
-  onGroupDrop(event: CdkDragDrop<unknown>, row: GroupCalendarRow, targetDate: string): void {
+  onGroupDrop(
+    event: CdkDragDrop<unknown>,
+    row: GroupCalendarRow,
+    targetDate: string,
+  ): void {
     const item = event.item.data as { athleteId?: string } | undefined;
     if (!item) return;
     if (!row.canWrite) {
@@ -529,7 +650,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
       return;
     }
     if (item.athleteId && item.athleteId !== row.athleteId) {
-      this.toast.warning('Une séance ne se déplace pas d’un athlète à un autre.');
+      this.toast.warning(
+        'Une séance ne se déplace pas d’un athlète à un autre.',
+      );
       return;
     }
 
@@ -539,15 +662,30 @@ export class CalendarComponent implements OnInit, OnDestroy {
     // de l'athlète. C'est ce qui manquait pour que le mode groupe soit une vue de travail.
     const refreshGroup = () => this.loadGroup();
     if (rec['category'] === 'TECHNIQUE' || rec['category'] === 'AMPLITUDE') {
-      this.dropDrill(item as unknown as RunDrill, targetDate, row.athleteId, refreshGroup);
+      this.dropDrill(
+        item as unknown as RunDrill,
+        targetDate,
+        row.athleteId,
+        refreshGroup,
+      );
       return;
     }
     if ('structure' in rec) {
-      this.scheduleStrength(item as unknown as StrengthSession, row.athleteId, targetDate, refreshGroup);
+      this.scheduleStrength(
+        item as unknown as StrengthSession,
+        row.athleteId,
+        targetDate,
+        refreshGroup,
+      );
       return;
     }
     if (!('scheduledDate' in rec)) {
-      this.scheduleTemplate(item as unknown as WorkoutTemplate, row.athleteId, targetDate, refreshGroup);
+      this.scheduleTemplate(
+        item as unknown as WorkoutTemplate,
+        row.athleteId,
+        targetDate,
+        refreshGroup,
+      );
       return;
     }
 
@@ -562,7 +700,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
     }
 
     if ('sourceSessionId' in rec) {
-      this.moveGroupStrength(row, item as unknown as ScheduledStrength, targetDate);
+      this.moveGroupStrength(
+        row,
+        item as unknown as ScheduledStrength,
+        targetDate,
+      );
     } else {
       this.moveGroupWorkout(row, item as unknown as Workout, targetDate);
     }
@@ -584,7 +726,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const item = event.item.data as Record<string, unknown> | undefined;
     if (!item || !this.selectedGroupId) return;
     if ('scheduledDate' in item) {
-      this.toast.warning('Glisse une séance de la bibliothèque pour la donner à tout le groupe.');
+      this.toast.warning(
+        'Glisse une séance de la bibliothèque pour la donner à tout le groupe.',
+      );
       return;
     }
     if (item['category'] === 'TECHNIQUE' || item['category'] === 'AMPLITUDE') {
@@ -594,58 +738,100 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const isStrength = 'structure' in item;
     const name = String(item['name'] ?? 'La séance');
     this.groupScheduling.set(true);
-    this.groupService.schedule(this.selectedGroupId, {
-      date: targetDate,
-      templateId: isStrength ? null : (item['id'] as string),
-      strengthSessionId: isStrength ? (item['id'] as string) : null,
-    }).subscribe({
-      next: (r) => {
-        this.groupScheduling.set(false);
-        this.loadGroup();
-        // On annonce ce qui a réellement été fait : un athlète hors du périmètre du coach est
-        // ignoré côté serveur, et le taire ferait croire à une prescription complète.
-        const skipped = r.skipped > 0 ? ` — ${r.skipped} athlète(s) ignoré(s) (lecture seule)` : '';
-        this.toast.success(
-          `${name} planifiée le ${this.fmtDate(targetDate)} pour ${r.athletes} athlète(s)${skipped}`);
-      },
-      error: () => { this.groupScheduling.set(false); this.toast.error('Planification de groupe impossible.'); },
-    });
+    this.groupService
+      .schedule(this.selectedGroupId, {
+        date: targetDate,
+        templateId: isStrength ? null : (item['id'] as string),
+        strengthSessionId: isStrength ? (item['id'] as string) : null,
+      })
+      .subscribe({
+        next: (r) => {
+          this.groupScheduling.set(false);
+          this.loadGroup();
+          // On annonce ce qui a réellement été fait : un athlète hors du périmètre du coach est
+          // ignoré côté serveur, et le taire ferait croire à une prescription complète.
+          const skipped =
+            r.skipped > 0
+              ? ` — ${r.skipped} athlète(s) ignoré(s) (lecture seule)`
+              : '';
+          this.toast.success(
+            `${name} planifiée le ${this.fmtDate(targetDate)} pour ${r.athletes} athlète(s)${skipped}`,
+          );
+        },
+        error: () => {
+          this.groupScheduling.set(false);
+          this.toast.error('Planification de groupe impossible.');
+        },
+      });
   }
 
-  private moveGroupWorkout(row: GroupCalendarRow, w: Workout, targetDate: string): void {
+  private moveGroupWorkout(
+    row: GroupCalendarRow,
+    w: Workout,
+    targetDate: string,
+  ): void {
     if (w.scheduledDate === targetDate) return;
     this.patchGroupRow(row.athleteId, (r) => ({
-      ...r, workouts: r.workouts.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x)),
+      ...r,
+      workouts: r.workouts.map((x) =>
+        x.id === w.id ? { ...x, scheduledDate: targetDate } : x,
+      ),
     }));
     this.workoutService.reschedule(row.athleteId, w.id, targetDate).subscribe({
-      next: () => this.toast.success(`${w.title} déplacée au ${this.fmtDate(targetDate)}`),
+      next: () =>
+        this.toast.success(
+          `${w.title} déplacée au ${this.fmtDate(targetDate)}`,
+        ),
       error: () => {
         this.patchGroupRow(row.athleteId, (r) => ({
-          ...r, workouts: r.workouts.map((x) => (x.id === w.id ? { ...x, scheduledDate: w.scheduledDate } : x)),
+          ...r,
+          workouts: r.workouts.map((x) =>
+            x.id === w.id ? { ...x, scheduledDate: w.scheduledDate } : x,
+          ),
         }));
         this.toast.error('Déplacement impossible.');
       },
     });
   }
 
-  private moveGroupStrength(row: GroupCalendarRow, s: ScheduledStrength, targetDate: string): void {
+  private moveGroupStrength(
+    row: GroupCalendarRow,
+    s: ScheduledStrength,
+    targetDate: string,
+  ): void {
     if (s.scheduledDate === targetDate) return;
     this.patchGroupRow(row.athleteId, (r) => ({
-      ...r, strength: r.strength.map((x) => (x.id === s.id ? { ...x, scheduledDate: targetDate } : x)),
+      ...r,
+      strength: r.strength.map((x) =>
+        x.id === s.id ? { ...x, scheduledDate: targetDate } : x,
+      ),
     }));
-    this.strengthService.rescheduleScheduled(row.athleteId, s.id, targetDate).subscribe({
-      next: () => this.toast.success(`${s.title} déplacée au ${this.fmtDate(targetDate)}`),
-      error: () => {
-        this.patchGroupRow(row.athleteId, (r) => ({
-          ...r, strength: r.strength.map((x) => (x.id === s.id ? { ...x, scheduledDate: s.scheduledDate } : x)),
-        }));
-        this.toast.error('Déplacement impossible.');
-      },
-    });
+    this.strengthService
+      .rescheduleScheduled(row.athleteId, s.id, targetDate)
+      .subscribe({
+        next: () =>
+          this.toast.success(
+            `${s.title} déplacée au ${this.fmtDate(targetDate)}`,
+          ),
+        error: () => {
+          this.patchGroupRow(row.athleteId, (r) => ({
+            ...r,
+            strength: r.strength.map((x) =>
+              x.id === s.id ? { ...x, scheduledDate: s.scheduledDate } : x,
+            ),
+          }));
+          this.toast.error('Déplacement impossible.');
+        },
+      });
   }
 
-  private patchGroupRow(athleteId: string, patch: (r: GroupCalendarRow) => GroupCalendarRow): void {
-    this.groupRows.update((l) => l.map((r) => (r.athleteId === athleteId ? patch(r) : r)));
+  private patchGroupRow(
+    athleteId: string,
+    patch: (r: GroupCalendarRow) => GroupCalendarRow,
+  ): void {
+    this.groupRows.update((l) =>
+      l.map((r) => (r.athleteId === athleteId ? patch(r) : r)),
+    );
   }
 
   /** Ouvre la séance course d'une ligne de groupe (lecture). */
@@ -664,31 +850,53 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Menu contextuel de la grille groupe : sur une chip, sur une case, ou sur « tout le groupe ». */
   readonly groupMenu = signal<{
-    x: number; y: number;
-    athleteId: string | null; athleteName: string; canWrite: boolean; date: string;
-    entry: ClipEntry | null; title: string | null; all: boolean;
+    x: number;
+    y: number;
+    athleteId: string | null;
+    athleteName: string;
+    canWrite: boolean;
+    date: string;
+    entry: ClipEntry | null;
+    title: string | null;
+    all: boolean;
   } | null>(null);
 
-  closeGroupMenu(): void { this.groupMenu.set(null); }
+  closeGroupMenu(): void {
+    this.groupMenu.set(null);
+  }
 
   onGroupCellEnter(row: GroupCalendarRow, date: string): void {
     this.hoveredCell.set({ athleteId: row.athleteId, date });
   }
   onGroupCellLeave(row: GroupCalendarRow, date: string): void {
     const h = this.hoveredCell();
-    if (h && h.athleteId === row.athleteId && h.date === date) this.hoveredCell.set(null);
+    if (h && h.athleteId === row.athleteId && h.date === date)
+      this.hoveredCell.set(null);
   }
 
   /** Clic droit sur une séance de la grille groupe. */
-  openGroupChipMenu(row: GroupCalendarRow, chip: Workout | ScheduledStrength, ev: MouseEvent): void {
+  openGroupChipMenu(
+    row: GroupCalendarRow,
+    chip: Workout | ScheduledStrength,
+    ev: MouseEvent,
+  ): void {
     ev.preventDefault();
     ev.stopPropagation();
     const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
-    this.hoveredCell.set({ athleteId: row.athleteId, date: chip.scheduledDate });
+    this.hoveredCell.set({
+      athleteId: row.athleteId,
+      date: chip.scheduledDate,
+    });
     this.groupMenu.set({
-      x, y, athleteId: row.athleteId, athleteName: `${row.firstName} ${row.lastName}`,
-      canWrite: row.canWrite, date: chip.scheduledDate,
-      entry: this.groupEntry(row, chip), title: chip.title, all: false,
+      x,
+      y,
+      athleteId: row.athleteId,
+      athleteName: `${row.firstName} ${row.lastName}`,
+      canWrite: row.canWrite,
+      date: chip.scheduledDate,
+      entry: this.groupEntry(row, chip),
+      title: chip.title,
+      all: false,
     });
   }
 
@@ -699,8 +907,15 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
     this.hoveredCell.set({ athleteId: row.athleteId, date });
     this.groupMenu.set({
-      x, y, athleteId: row.athleteId, athleteName: `${row.firstName} ${row.lastName}`,
-      canWrite: row.canWrite, date, entry: null, title: null, all: false,
+      x,
+      y,
+      athleteId: row.athleteId,
+      athleteName: `${row.firstName} ${row.lastName}`,
+      canWrite: row.canWrite,
+      date,
+      entry: null,
+      title: null,
+      all: false,
     });
   }
 
@@ -709,13 +924,23 @@ export class CalendarComponent implements OnInit, OnDestroy {
     ev.preventDefault();
     const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
     this.groupMenu.set({
-      x, y, athleteId: null, athleteName: 'Tout le groupe', canWrite: true, date,
-      entry: null, title: null, all: true,
+      x,
+      y,
+      athleteId: null,
+      athleteName: 'Tout le groupe',
+      canWrite: true,
+      date,
+      entry: null,
+      title: null,
+      all: true,
     });
   }
 
   /** Une chip de la grille groupe, en entrée de presse-papier autoportante. */
-  private groupEntry(row: GroupCalendarRow, chip: Workout | ScheduledStrength): ClipEntry {
+  private groupEntry(
+    row: GroupCalendarRow,
+    chip: Workout | ScheduledStrength,
+  ): ClipEntry {
     const strength = chip as ScheduledStrength;
     const isStrength = 'sourceSessionId' in chip;
     return {
@@ -738,18 +963,35 @@ export class CalendarComponent implements OnInit, OnDestroy {
   /** Copie tout ce que porte la case survolée (une journée d'un athlète) — Cmd+C en vue groupe. */
   copyHoveredCell(): void {
     const h = this.hoveredCell();
-    const row = h ? this.groupRows().find((r) => r.athleteId === h.athleteId) : undefined;
-    if (!h || !row) { this.toast.info('Survole la séance d’un athlète pour la copier.'); return; }
-    const chips = [...this.rowWorkouts(row, h.date), ...this.rowStrength(row, h.date)];
-    if (!chips.length) { this.toast.info('Rien à copier sur ce jour.'); return; }
+    const row = h
+      ? this.groupRows().find((r) => r.athleteId === h.athleteId)
+      : undefined;
+    if (!h || !row) {
+      this.toast.info('Survole la séance d’un athlète pour la copier.');
+      return;
+    }
+    const chips = [
+      ...this.rowWorkouts(row, h.date),
+      ...this.rowStrength(row, h.date),
+    ];
+    if (!chips.length) {
+      this.toast.info('Rien à copier sur ce jour.');
+      return;
+    }
     const entries = chips.map((c) => this.groupEntry(row, c));
-    this.putInClipboard(entries, chips.length === 1 ? chips[0].title : `${chips.length} séances`);
+    this.putInClipboard(
+      entries,
+      chips.length === 1 ? chips[0].title : `${chips.length} séances`,
+    );
   }
 
   /** Colle sur une case de la grille groupe (menu contextuel ou Cmd+V sur la case survolée). */
   pasteOnGroupCell(target?: { athleteId: string; date: string }): void {
     const cell = target ?? this.hoveredCell();
-    if (!cell) { this.toast.info('Survole le jour d’un athlète pour coller.'); return; }
+    if (!cell) {
+      this.toast.info('Survole le jour d’un athlète pour coller.');
+      return;
+    }
     const row = this.groupRows().find((r) => r.athleteId === cell.athleteId);
     if (!row) return;
     if (!row.canWrite) {
@@ -758,11 +1000,20 @@ export class CalendarComponent implements OnInit, OnDestroy {
     }
     const entries = this.clipboard().entries;
     if (!entries.length) {
-      this.toast.info(`Presse-papier vide — ${this.keys('mod', 'C')} pour copier.`);
+      this.toast.info(
+        `Presse-papier vide — ${this.keys('mod', 'C')} pour copier.`,
+      );
       return;
     }
-    this.pasteRefs(entries, row.athleteId, cell.date, undefined, 'le collage',
-      (n) => `${n} séance(s) collée(s) chez ${row.firstName} le ${this.fmtDate(cell.date)}`);
+    this.pasteRefs(
+      entries,
+      row.athleteId,
+      cell.date,
+      undefined,
+      'le collage',
+      (n) =>
+        `${n} séance(s) collée(s) chez ${row.firstName} le ${this.fmtDate(cell.date)}`,
+    );
   }
 
   ctxGroupPaste(): void {
@@ -789,17 +1040,23 @@ export class CalendarComponent implements OnInit, OnDestroy {
     if (!m) return;
     const entries = this.clipboard().entries;
     if (!entries.length) {
-      this.toast.info(`Presse-papier vide — ${this.keys('mod', 'C')} pour copier.`);
+      this.toast.info(
+        `Presse-papier vide — ${this.keys('mod', 'C')} pour copier.`,
+      );
       return;
     }
     const rows = this.groupRows().filter((r) => r.canWrite);
     const skipped = this.groupRows().length - rows.length;
-    if (!rows.length) { this.toast.warning('Aucun athlète du groupe n’est modifiable.'); return; }
+    if (!rows.length) {
+      this.toast.warning('Aucun athlète du groupe n’est modifiable.');
+      return;
+    }
 
     const ok = await this.confirm.ask({
       title: 'Coller pour tout le groupe',
-      message: `Donner « ${this.clipboardLabel()} » à ${rows.length} athlète(s) le `
-        + `${this.fmtDate(m.date)} ?`,
+      message:
+        `Donner « ${this.clipboardLabel()} » à ${rows.length} athlète(s) le ` +
+        `${this.fmtDate(m.date)} ?`,
       confirmLabel: 'Coller',
     });
     if (!ok) return;
@@ -808,22 +1065,34 @@ export class CalendarComponent implements OnInit, OnDestroy {
     // défaire d'un geste — pas athlète par athlète.
     const created: Created[] = [];
     const sourcesFor = (athleteId: string) =>
-      this.pasteSources(entries, m.date).map((src) => this.pasteOne(src, athleteId, created));
-    const run = () => defer(() => {
-      created.length = 0;
-      return this.all(rows.flatMap((r) => sourcesFor(r.athleteId)));
-    });
+      this.pasteSources(entries, m.date).map((src) =>
+        this.pasteOne(src, athleteId, created),
+      );
+    const run = () =>
+      defer(() => {
+        created.length = 0;
+        return this.all(rows.flatMap((r) => sourcesFor(r.athleteId)));
+      });
     run().subscribe({
       next: () => {
         this.refreshAll();
-        const note = skipped > 0 ? ` — ${skipped} athlète(s) ignoré(s) (lecture seule)` : '';
-        this.commit({
-          label: 'le collage sur le groupe',
-          undo: () => this.all(created.map((c) => this.removeCreated(c))),
-          redo: () => run(),
-        }, `${this.clipboardLabel()} collée pour ${rows.length} athlète(s)${note}`);
+        const note =
+          skipped > 0
+            ? ` — ${skipped} athlète(s) ignoré(s) (lecture seule)`
+            : '';
+        this.commit(
+          {
+            label: 'le collage sur le groupe',
+            undo: () => this.all(created.map((c) => this.removeCreated(c))),
+            redo: () => run(),
+          },
+          `${this.clipboardLabel()} collée pour ${rows.length} athlète(s)${note}`,
+        );
       },
-      error: () => { this.refreshAll(); this.toast.error('Collage impossible.'); },
+      error: () => {
+        this.refreshAll();
+        this.toast.error('Collage impossible.');
+      },
     });
   }
 
@@ -834,10 +1103,20 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * déplacer — et Alt enfoncé y donnait donc silencieusement le contraire de ce que le curseur
    * annonçait.</p>
    */
-  private copyGroupChip(row: GroupCalendarRow, chip: Workout | ScheduledStrength, date: string): void {
+  private copyGroupChip(
+    row: GroupCalendarRow,
+    chip: Workout | ScheduledStrength,
+    date: string,
+  ): void {
     const entry = this.groupEntry(row, chip);
-    this.pasteRefs([entry], row.athleteId, date, undefined, 'la copie',
-      () => `${chip.title} copiée le ${this.fmtDate(date)}`);
+    this.pasteRefs(
+      [entry],
+      row.athleteId,
+      date,
+      undefined,
+      'la copie',
+      () => `${chip.title} copiée le ${this.fmtDate(date)}`,
+    );
   }
 
   /** Semaines (lignes de 7 jours) + totaux — colonne de droite façon Nolio. */
@@ -848,16 +1127,37 @@ export class CalendarComponent implements OnInit, OnDestroy {
       const days = cells.slice(i, i + 7);
       const km = days.reduce((s, d) => s + d.km, 0);
       const durationS = days.reduce(
-        (s, d) => s + d.workouts.reduce((a, w) => a + (w.targetDurationS ?? 0), 0), 0);
+        (s, d) =>
+          s + d.workouts.reduce((a, w) => a + (w.targetDurationS ?? 0), 0),
+        0,
+      );
       const loadUa = days.reduce(
-        (s, d) => s + d.workouts.reduce((a, w) => a + (w.plannedLoadUa ?? 0), 0), 0);
+        (s, d) =>
+          s + d.workouts.reduce((a, w) => a + (w.plannedLoadUa ?? 0), 0),
+        0,
+      );
       const sessions = days.reduce((s, d) => s + d.sessions, 0);
-      const realKm = days.reduce((s, d) => s + d.activities.reduce((a, x) => a + (x.distanceM ?? 0), 0), 0) / 1000;
-      const realDurationS = days.reduce((s, d) => s + d.activities.reduce((a, x) => a + (x.durationS ?? 0), 0), 0);
+      const realKm =
+        days.reduce(
+          (s, d) =>
+            s + d.activities.reduce((a, x) => a + (x.distanceM ?? 0), 0),
+          0,
+        ) / 1000;
+      const realDurationS = days.reduce(
+        (s, d) => s + d.activities.reduce((a, x) => a + (x.durationS ?? 0), 0),
+        0,
+      );
       const realSessions = days.reduce((s, d) => s + d.activities.length, 0);
       rows.push({
-        days, cycles: this.bandsFor(days), km, durationS, loadUa, sessions,
-        realKm, realDurationS, realSessions,
+        days,
+        cycles: this.bandsFor(days),
+        km,
+        durationS,
+        loadUa,
+        sessions,
+        realKm,
+        realDurationS,
+        realSessions,
       });
     }
     return rows;
@@ -883,12 +1183,19 @@ export class CalendarComponent implements OnInit, OnDestroy {
       if (!isCycle(note)) continue;
       const end = note.endDate!;
       if (note.noteDate > last || end < first) continue;
-      const startCol = note.noteDate <= first ? 0 : days.findIndex((d) => d.date === note.noteDate);
-      const endCol = end >= last ? lastCol : days.findIndex((d) => d.date === end);
+      const startCol =
+        note.noteDate <= first
+          ? 0
+          : days.findIndex((d) => d.date === note.noteDate);
+      const endCol =
+        end >= last ? lastCol : days.findIndex((d) => d.date === end);
       if (startCol < 0 || endCol < 0) continue;
       bands.push({
-        note, startCol, span: endCol - startCol + 1,
-        startsHere: note.noteDate >= first, endsHere: end <= last,
+        note,
+        startCol,
+        span: endCol - startCol + 1,
+        startsHere: note.noteDate >= first,
+        endsHere: end <= last,
       });
     }
     return bands;
@@ -902,7 +1209,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
     return `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}`;
   }
 
-  setView(v: CalView): void { this.view.set(v); }
+  setView(v: CalView): void {
+    this.view.set(v);
+  }
 
   /** Km d'une activité réalisée (pour la pastille). */
   activityKm(a: Activity): string | null {
@@ -912,13 +1221,24 @@ export class CalendarComponent implements OnInit, OnDestroy {
   /** Ouvre l'activité réalisée : la séance rapprochée si elle existe, sinon la liste d'activités. */
   openActivity(a: Activity): void {
     if (a.matchedWorkoutId) {
-      this.router.navigate(['/app/athletes', this.selectedAthleteId, 'workouts', a.matchedWorkoutId]);
+      this.router.navigate([
+        '/app/athletes',
+        this.selectedAthleteId,
+        'workouts',
+        a.matchedWorkoutId,
+      ]);
     } else {
-      this.router.navigate(['/app/athletes', this.selectedAthleteId, 'activities']);
+      this.router.navigate([
+        '/app/athletes',
+        this.selectedAthleteId,
+        'activities',
+      ]);
     }
   }
 
-  typeMeta(type: WorkoutType): TypeMeta { return TYPE_META[type]; }
+  typeMeta(type: WorkoutType): TypeMeta {
+    return TYPE_META[type];
+  }
 
   /**
    * Plage annoncée dans l'en-tête.
@@ -926,9 +1246,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * <p>La grille groupe montre sept jours quel que soit le mode : elle a son libellé propre, sinon
    * l'en-tête annoncerait quatre semaines au-dessus d'une seule.</p>
    */
-  readonly periodLabel = computed(() => this.scopeMode() === 'group'
-    ? groupWeekLabel(this.anchor())
-    : periodLabelFor(this.mode(), this.anchor()));
+  readonly periodLabel = computed(() =>
+    this.scopeMode() === 'group'
+      ? groupWeekLabel(this.anchor())
+      : periodLabelFor(this.mode(), this.anchor()),
+  );
 
   readonly weeklyVolumeKm = computed(() => {
     const m = this.workouts().reduce((s, w) => s + this.volumeM(w), 0);
@@ -937,8 +1259,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Infobulle d'une séance déplacée par l'athlète : d'où elle vient. */
   movedTitle(w: Workout): string {
-    if (!w.originalDate) return 'Déplacée par l\'athlète';
-    const fmt = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    if (!w.originalDate) return "Déplacée par l'athlète";
+    const fmt = new Intl.DateTimeFormat('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
     return `Déplacée par l'athlète — initialement le ${fmt.format(new Date(w.originalDate + 'T00:00:00'))}`;
   }
 
@@ -961,31 +1287,68 @@ export class CalendarComponent implements OnInit, OnDestroy {
         this.loadOverlays();
       }
     });
-    this.strengthService.listAllSessions().subscribe((s) => this.librarySessions.set(s));
-    this.templateService.listAll().subscribe((t) => this.courseTemplates.set(t));
+    this.strengthService
+      .listAllSessions()
+      .subscribe((s) => this.librarySessions.set(s));
+    this.templateService
+      .listAll()
+      .subscribe((t) => this.courseTemplates.set(t));
     this.drillService.list().subscribe((d) => this.drills.set(d));
     // Les trois domaines : le panneau bibliothèque range course, prépa physique et éducatifs, et
     // n'aurait rangé que la course avec le domaine par défaut de l'endpoint.
-    this.categoryService.listAll().subscribe({ next: (c) => this.categories.set(c), error: () => this.categories.set([]) });
+    this.categoryService
+      .listAll()
+      .subscribe({
+        next: (c) => this.categories.set(c),
+        error: () => this.categories.set([]),
+      });
   }
 
   /** Épingle / dé-épingle (optimiste) une séance course depuis le panneau. */
   toggleFavorite(t: WorkoutTemplate): void {
     const next = !t.favorite;
-    this.courseTemplates.update((l) => l.map((x) => (x.id === t.id ? { ...x, favorite: next } : x)));
+    this.courseTemplates.update((l) =>
+      l.map((x) => (x.id === t.id ? { ...x, favorite: next } : x)),
+    );
     this.templateService.setFavorite(t.id, next).subscribe({
-      next: (updated) => this.courseTemplates.update((l) => l.map((x) => (x.id === t.id ? updated : x))),
-      error: () => this.courseTemplates.update((l) => l.map((x) => (x.id === t.id ? { ...x, favorite: !next } : x))),
+      next: (updated) =>
+        this.courseTemplates.update((l) =>
+          l.map((x) => (x.id === t.id ? updated : x)),
+        ),
+      error: () =>
+        this.courseTemplates.update((l) =>
+          l.map((x) => (x.id === t.id ? { ...x, favorite: !next } : x)),
+        ),
     });
   }
 
   /** Objectifs, tests et indisponibilités de l'athlète (listes complètes, filtrées par jour). */
   loadOverlays(): void {
     if (!this.selectedAthleteId) return;
-    this.activityService.list(this.selectedAthleteId).subscribe({ next: (a) => this.activities.set(a), error: () => this.activities.set([]) });
-    this.raceService.list(this.selectedAthleteId).subscribe({ next: (r) => this.objectives.set(r), error: () => this.objectives.set([]) });
-    this.lactateService.list(this.selectedAthleteId).subscribe({ next: (t) => this.tests.set(t), error: () => this.tests.set([]) });
-    this.athleteService.listUnavailabilities(this.selectedAthleteId).subscribe({ next: (u) => this.unavailabilities.set(u), error: () => this.unavailabilities.set([]) });
+    this.activityService
+      .list(this.selectedAthleteId)
+      .subscribe({
+        next: (a) => this.activities.set(a),
+        error: () => this.activities.set([]),
+      });
+    this.raceService
+      .list(this.selectedAthleteId)
+      .subscribe({
+        next: (r) => this.objectives.set(r),
+        error: () => this.objectives.set([]),
+      });
+    this.lactateService
+      .list(this.selectedAthleteId)
+      .subscribe({
+        next: (t) => this.tests.set(t),
+        error: () => this.tests.set([]),
+      });
+    this.athleteService
+      .listUnavailabilities(this.selectedAthleteId)
+      .subscribe({
+        next: (u) => this.unavailabilities.set(u),
+        error: () => this.unavailabilities.set([]),
+      });
     // Allure d'endurance : sans elle, une séance écrite en durée sans allure prescrite n'a
     // aucun volume affichable, et le total de la semaine la compte pour zéro.
     this.paceReference.forAthlete(this.selectedAthleteId).subscribe({
@@ -993,7 +1356,6 @@ export class CalendarComponent implements OnInit, OnDestroy {
       error: () => this.referencePace.set(null),
     });
   }
-
 
   /**
    * Changement d'athlète : la sélection et la pile d'annulation portent sur ce qui est affiché.
@@ -1008,15 +1370,23 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
   shift(step: number): void {
     // Un pas vaut ce qui est affiché : sept jours en groupe, la période choisie sinon.
-    this.anchor.set(this.scopeMode() === 'group'
-      ? new Date(this.anchor().getTime() + step * 7 * 864e5)
-      : shiftAnchor(this.mode(), this.anchor(), step));
+    this.anchor.set(
+      this.scopeMode() === 'group'
+        ? new Date(this.anchor().getTime() + step * 7 * 864e5)
+        : shiftAnchor(this.mode(), this.anchor(), step),
+    );
     this.load();
   }
-  goToday(): void { this.anchor.set(new Date()); this.load(); }
+  goToday(): void {
+    this.anchor.set(new Date());
+    this.load();
+  }
 
   load(): void {
-    if (this.scopeMode() === 'group') { this.loadGroup(); return; }
+    if (this.scopeMode() === 'group') {
+      this.loadGroup();
+      return;
+    }
     if (!this.selectedAthleteId) return;
     const cells = this.cells();
     const from = cells[0].date;
@@ -1032,7 +1402,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
       error: () => this.loading.set(false),
     });
     this.noteService.list(this.selectedAthleteId, from, to).subscribe({
-      next: (n) => this.notes.set(n), error: () => this.notes.set([]),
+      next: (n) => this.notes.set(n),
+      error: () => this.notes.set([]),
     });
     this.loadWeekOutlook(from);
     this.reloadStrength();
@@ -1061,10 +1432,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const cells = this.cells();
     const from = cells[0].date;
     const to = cells[cells.length - 1].date;
-    this.strengthService.scheduledCalendar(this.selectedAthleteId, from, to).subscribe({
-      next: (list) => this.strength.set(list),
-      error: () => this.strength.set([]),
-    });
+    this.strengthService
+      .scheduledCalendar(this.selectedAthleteId, from, to)
+      .subscribe({
+        next: (list) => this.strength.set(list),
+        error: () => this.strength.set([]),
+      });
   }
 
   // Périodisation assistée (mésocycle progressif).
@@ -1110,7 +1483,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
   toggleMeso(): void {
     this.showMeso.update((v) => !v);
     if (this.showMeso() && this.mesoTemplates().length === 0) {
-      this.mesoTemplateService.list().subscribe((t) => this.mesoTemplates.set(t));
+      this.mesoTemplateService
+        .list()
+        .subscribe((t) => this.mesoTemplates.set(t));
     }
     if (this.showMeso() && this.groups().length === 0) {
       this.groupService.list().subscribe((g) => this.groups.set(g));
@@ -1135,22 +1510,29 @@ export class CalendarComponent implements OnInit, OnDestroy {
       return;
     }
     this.mesoSaving.set(true);
-    this.mesoTemplateService.create({
-      name: this.mesoSaveName.trim(),
-      weeks: this.mesoWeeks,
-      increasePct: this.mesoIncrease,
-      deloadEvery: this.mesoDeloadEvery,
-      deloadPct: this.mesoDeloadPct,
-    }).subscribe({
-      next: (t) => {
-        this.mesoTemplates.update((list) => [...list, t].sort((a, b) => a.name.localeCompare(b.name)));
-        this.mesoTemplateId = t.id;
-        this.mesoSaveName = '';
-        this.mesoSaving.set(false);
-        this.toast.success('Modèle de mésocycle enregistré');
-      },
-      error: () => { this.mesoSaving.set(false); this.toast.error('Enregistrement impossible.'); },
-    });
+    this.mesoTemplateService
+      .create({
+        name: this.mesoSaveName.trim(),
+        weeks: this.mesoWeeks,
+        increasePct: this.mesoIncrease,
+        deloadEvery: this.mesoDeloadEvery,
+        deloadPct: this.mesoDeloadPct,
+      })
+      .subscribe({
+        next: (t) => {
+          this.mesoTemplates.update((list) =>
+            [...list, t].sort((a, b) => a.name.localeCompare(b.name)),
+          );
+          this.mesoTemplateId = t.id;
+          this.mesoSaveName = '';
+          this.mesoSaving.set(false);
+          this.toast.success('Modèle de mésocycle enregistré');
+        },
+        error: () => {
+          this.mesoSaving.set(false);
+          this.toast.error('Enregistrement impossible.');
+        },
+      });
   }
 
   /** Génère un mésocycle à partir de la semaine affichée (= semaine type), pour l'athlète ou le groupe. */
@@ -1173,34 +1555,49 @@ export class CalendarComponent implements OnInit, OnDestroy {
     }
 
     if (this.mesoTarget === 'group') {
-      if (!this.mesoGroupId) { this.toast.warning('Choisis un groupe.'); return; }
+      if (!this.mesoGroupId) {
+        this.toast.warning('Choisis un groupe.');
+        return;
+      }
       this.mesoBusy.set(true);
-      this.workoutService.generateMesocycleForGroup(this.mesoGroupId, params).subscribe({
-        next: (r) => {
-          this.mesoBusy.set(false);
-          this.showMeso.set(false);
-          const skip = r.skipped ? `, ${r.skipped} ignoré(s)` : '';
-          this.toast.success(`Mésocycle généré : ${r.created} séance(s) sur ${r.athletes} athlète(s)${skip}`);
-          this.anchor.set(firstStart);
-          this.load();
-        },
-        error: () => { this.mesoBusy.set(false); this.toast.error('Génération impossible.'); },
-      });
+      this.workoutService
+        .generateMesocycleForGroup(this.mesoGroupId, params)
+        .subscribe({
+          next: (r) => {
+            this.mesoBusy.set(false);
+            this.showMeso.set(false);
+            const skip = r.skipped ? `, ${r.skipped} ignoré(s)` : '';
+            this.toast.success(
+              `Mésocycle généré : ${r.created} séance(s) sur ${r.athletes} athlète(s)${skip}`,
+            );
+            this.anchor.set(firstStart);
+            this.load();
+          },
+          error: () => {
+            this.mesoBusy.set(false);
+            this.toast.error('Génération impossible.');
+          },
+        });
       return;
     }
 
     if (!this.selectedAthleteId) return;
     this.mesoBusy.set(true);
-    this.workoutService.generateMesocycle(this.selectedAthleteId, params).subscribe({
-      next: (r) => {
-        this.mesoBusy.set(false);
-        this.showMeso.set(false);
-        this.toast.success(`Mésocycle généré : ${r.created} séance(s)`);
-        this.anchor.set(firstStart);
-        this.load();
-      },
-      error: () => { this.mesoBusy.set(false); this.toast.error('Génération impossible.'); },
-    });
+    this.workoutService
+      .generateMesocycle(this.selectedAthleteId, params)
+      .subscribe({
+        next: (r) => {
+          this.mesoBusy.set(false);
+          this.showMeso.set(false);
+          this.toast.success(`Mésocycle généré : ${r.created} séance(s)`);
+          this.anchor.set(firstStart);
+          this.load();
+        },
+        error: () => {
+          this.mesoBusy.set(false);
+          this.toast.error('Génération impossible.');
+        },
+      });
   }
 
   /**
@@ -1225,7 +1622,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
   /** Titre du sélecteur : une date lisible, ou le nombre de jours visés. */
   readonly pickerLabel = computed(() => {
     const d = this.pickerDates();
-    return d.length > 1 ? `${d.length} jours` : (d[0] ? this.fmtDate(d[0]) : '');
+    return d.length > 1 ? `${d.length} jours` : d[0] ? this.fmtDate(d[0]) : '';
   });
 
   /**
@@ -1240,15 +1637,23 @@ export class CalendarComponent implements OnInit, OnDestroy {
     try {
       const saved = localStorage.getItem(CalendarComponent.LIB_KEY);
       if (saved !== null) return saved === '1';
-    } catch { /* stockage indisponible : on retombe sur le défaut selon la largeur */ }
+    } catch {
+      /* stockage indisponible : on retombe sur le défaut selon la largeur */
+    }
     // Défaut : ouvert sur desktop large, fermé sinon (le mobile reste de la consultation).
     return typeof window !== 'undefined' && window.innerWidth >= 1024;
   }
 
   toggleSidebar(): void {
     this.sidebarOpen.update((v) => !v);
-    try { localStorage.setItem(CalendarComponent.LIB_KEY, this.sidebarOpen() ? '1' : '0'); }
-    catch { /* préférence non persistée, sans gravité */ }
+    try {
+      localStorage.setItem(
+        CalendarComponent.LIB_KEY,
+        this.sidebarOpen() ? '1' : '0',
+      );
+    } catch {
+      /* préférence non persistée, sans gravité */
+    }
   }
 
   /** Le coach peut-il prescrire à l'athlète sélectionné ? (false = lecture seule). */
@@ -1259,8 +1664,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Ouvre le sélecteur de modèle de séance course (planification structurée, en fourchettes). */
   addWorkout(date: string): void {
-    if (!this.selectedAthleteId) { this.toast.error('Sélectionne un athlète.'); return; }
-    if (!this.canWriteSelected()) { this.toast.warning('Lecture seule : tu n’as pas les droits de prescription sur cet athlète.'); return; }
+    if (!this.selectedAthleteId) {
+      this.toast.error('Sélectionne un athlète.');
+      return;
+    }
+    if (!this.canWriteSelected()) {
+      this.toast.warning(
+        'Lecture seule : tu n’as pas les droits de prescription sur cet athlète.',
+      );
+      return;
+    }
     this.pickerDates.set([date]);
   }
 
@@ -1280,25 +1693,54 @@ export class CalendarComponent implements OnInit, OnDestroy {
   noteEnd = '';
   toggleNote(): void {
     this.noteOpen.update((v) => !v);
-    if (!this.noteOpen()) { this.noteText = ''; this.noteEnd = ''; this.noteShared = false; }
+    if (!this.noteOpen()) {
+      this.noteText = '';
+      this.noteEnd = '';
+      this.noteShared = false;
+    }
   }
 
   /** Drop d'un éducatif : crée une courte séance technique avec la gamme attachée à l'échauffement. */
-  private dropDrill(drill: RunDrill, date: string, athleteId = this.selectedAthleteId, refresh = () => this.load()): void {
-    this.workoutService.create(athleteId, {
-      scheduledDate: date, type: 'ENDURANCE', title: 'Technique — ' + drill.name, notes: null, steps: [],
-    }).subscribe({
-      next: (w) => {
-        this.workoutService.updateStructure(athleteId, w.id, {
-          warmup: [{ id: 'wu-' + Math.random().toString(36).slice(2, 8), type: 'warmup', drillIds: [drill.id] }],
-          main: [], cooldown: [],
-        }).subscribe({
-          next: () => { this.toast.success(`${drill.name} planifié le ${this.fmtDate(date)}`); refresh(); },
-          error: () => this.toast.error('Création impossible.'),
-        });
-      },
-      error: () => this.toast.error('Création impossible.'),
-    });
+  private dropDrill(
+    drill: RunDrill,
+    date: string,
+    athleteId = this.selectedAthleteId,
+    refresh = () => this.load(),
+  ): void {
+    this.workoutService
+      .create(athleteId, {
+        scheduledDate: date,
+        type: 'ENDURANCE',
+        title: 'Technique — ' + drill.name,
+        notes: null,
+        steps: [],
+      })
+      .subscribe({
+        next: (w) => {
+          this.workoutService
+            .updateStructure(athleteId, w.id, {
+              warmup: [
+                {
+                  id: 'wu-' + Math.random().toString(36).slice(2, 8),
+                  type: 'warmup',
+                  drillIds: [drill.id],
+                },
+              ],
+              main: [],
+              cooldown: [],
+            })
+            .subscribe({
+              next: () => {
+                this.toast.success(
+                  `${drill.name} planifié le ${this.fmtDate(date)}`,
+                );
+                refresh();
+              },
+              error: () => this.toast.error('Création impossible.'),
+            });
+        },
+        error: () => this.toast.error('Création impossible.'),
+      });
   }
 
   /** Ajoute une note libre sur la date du picker (chip note, CDC §8). */
@@ -1309,16 +1751,25 @@ export class CalendarComponent implements OnInit, OnDestroy {
     // Une fin renseignée fait de la note un cycle : même donnée, autre portée. C'est le seul
     // moyen d'écrire « bloc spécifique » sur cinq semaines sans le répéter cinq fois.
     const endDate = this.noteEnd || null;
-    if (endDate && endDate < date) { this.toast.error('La fin du cycle précède son début.'); return; }
-    this.noteService.create(this.selectedAthleteId,
-      { noteDate: date, endDate, text, shared: this.noteShared }).subscribe({
-      next: () => {
-        this.closePicker();
-        this.toast.success(endDate ? 'Cycle ajouté' : 'Note ajoutée');
-        this.load();
-      },
-      error: () => this.toast.error('Ajout impossible.'),
-    });
+    if (endDate && endDate < date) {
+      this.toast.error('La fin du cycle précède son début.');
+      return;
+    }
+    this.noteService
+      .create(this.selectedAthleteId, {
+        noteDate: date,
+        endDate,
+        text,
+        shared: this.noteShared,
+      })
+      .subscribe({
+        next: () => {
+          this.closePicker();
+          this.toast.success(endDate ? 'Cycle ajouté' : 'Note ajoutée');
+          this.load();
+        },
+        error: () => this.toast.error('Ajout impossible.'),
+      });
   }
 
   // --- Note du calendrier : ouverture, édition, suppression explicite ---------
@@ -1342,22 +1793,48 @@ export class CalendarComponent implements OnInit, OnDestroy {
   saveNote(n: CalendarNote): void {
     const text = this.noteEditText.trim();
     const endDate = this.noteEditEnd || null;
-    if (!text) { this.notePanelOpen.set(false); return; }
-    if (text === n.text && endDate === (n.endDate ?? null)) { this.notePanelOpen.set(false); return; }
-    if (endDate && endDate < n.noteDate) { this.toast.error('La fin du cycle précède son début.'); return; }
-    this.noteService.update(this.selectedAthleteId, n.id, { noteDate: n.noteDate, endDate, text }).subscribe({
-      next: () => { this.notePanelOpen.set(false); this.toast.success('Note enregistrée'); this.load(); },
-      error: () => this.toast.error('Enregistrement impossible.'),
-    });
+    if (!text) {
+      this.notePanelOpen.set(false);
+      return;
+    }
+    if (text === n.text && endDate === (n.endDate ?? null)) {
+      this.notePanelOpen.set(false);
+      return;
+    }
+    if (endDate && endDate < n.noteDate) {
+      this.toast.error('La fin du cycle précède son début.');
+      return;
+    }
+    this.noteService
+      .update(this.selectedAthleteId, n.id, {
+        noteDate: n.noteDate,
+        endDate,
+        text,
+      })
+      .subscribe({
+        next: () => {
+          this.notePanelOpen.set(false);
+          this.toast.success('Note enregistrée');
+          this.load();
+        },
+        error: () => this.toast.error('Enregistrement impossible.'),
+      });
   }
 
   async deleteNote(n: CalendarNote): Promise<void> {
     const ok = await this.confirm.ask({
-      title: 'Supprimer la note ?', message: n.text, confirmLabel: 'Supprimer', danger: true,
+      title: 'Supprimer la note ?',
+      message: n.text,
+      confirmLabel: 'Supprimer',
+      danger: true,
     });
     if (!ok) return;
     this.noteService.delete(this.selectedAthleteId, n.id).subscribe({
-      next: () => { this.notePanelOpen.set(false); this.toast.info('Note supprimée.'); this.load(); },
+      next: () => {
+        this.notePanelOpen.set(false);
+        this.toast.info('Note supprimée.');
+        this.load();
+      },
       error: () => this.toast.error('Suppression impossible.'),
     });
   }
@@ -1366,15 +1843,27 @@ export class CalendarComponent implements OnInit, OnDestroy {
   createAdHoc(): void {
     const date = this.pickerDate();
     if (!date) return;
-    this.workoutService.create(this.selectedAthleteId, {
-      scheduledDate: date, type: 'ENDURANCE', title: 'Séance', notes: null, steps: [],
-    }).subscribe({
-      next: (w) => {
-        this.closePicker();
-        this.router.navigate(['/app/athletes', this.selectedAthleteId, 'workouts', w.id, 'structure']);
-      },
-      error: () => this.toast.error('Création impossible.'),
-    });
+    this.workoutService
+      .create(this.selectedAthleteId, {
+        scheduledDate: date,
+        type: 'ENDURANCE',
+        title: 'Séance',
+        notes: null,
+        steps: [],
+      })
+      .subscribe({
+        next: (w) => {
+          this.closePicker();
+          this.router.navigate([
+            '/app/athletes',
+            this.selectedAthleteId,
+            'workouts',
+            w.id,
+            'structure',
+          ]);
+        },
+        error: () => this.toast.error('Création impossible.'),
+      });
   }
 
   /**
@@ -1387,12 +1876,22 @@ export class CalendarComponent implements OnInit, OnDestroy {
   createAdHocStrength(): void {
     const date = this.pickerDate();
     if (!date || !this.requireWrite()) return;
-    this.strengthService.createAdHocScheduled(this.selectedAthleteId, { date, fieldsPreset: 'AVANCE' })
+    this.strengthService
+      .createAdHocScheduled(this.selectedAthleteId, {
+        date,
+        fieldsPreset: 'AVANCE',
+      })
       .subscribe({
         next: (created) => {
           this.closePicker();
-          this.router.navigate(
-            ['/app/athletes', this.selectedAthleteId, 'pp', 'scheduled', created.id, 'structure']);
+          this.router.navigate([
+            '/app/athletes',
+            this.selectedAthleteId,
+            'pp',
+            'scheduled',
+            created.id,
+            'structure',
+          ]);
         },
         error: () => this.toast.error('Création impossible.'),
       });
@@ -1407,7 +1906,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * Planifie un modèle de séance course chez un athlète à une date.
    * `refresh` dit quelle vue recharger : la grille d'un athlète ou celle du groupe.
    */
-  private scheduleTemplate(t: WorkoutTemplate, athleteId: string, date: string, refresh = () => this.load()): void {
+  private scheduleTemplate(
+    t: WorkoutTemplate,
+    athleteId: string,
+    date: string,
+    refresh = () => this.load(),
+  ): void {
     this.courseService.schedule(athleteId, t.id, { date }).subscribe({
       next: (w) => {
         // Renommer est proposé, jamais imposé. Une modale à chaque dépôt aurait ralenti le
@@ -1432,7 +1936,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * prend une flèche. Renoncer ne touche à rien — la séance reste planifiée, c'est seulement son
    * libellé qui ne change pas.</p>
    */
-  async promptRename(athleteId: string, w: Workout, refresh = () => this.load()): Promise<void> {
+  async promptRename(
+    athleteId: string,
+    w: Workout,
+    refresh = () => this.load(),
+  ): Promise<void> {
     const title = await this.confirm.prompt({
       title: 'Renommer la séance',
       message: `Séance du ${this.fmtDate(w.scheduledDate)}.`,
@@ -1444,21 +1952,35 @@ export class CalendarComponent implements OnInit, OnDestroy {
       return;
     }
     this.workoutService.rename(athleteId, w.id, title).subscribe({
-      next: () => { this.toast.success(`Séance renommée « ${title} ».`); refresh(); },
+      next: () => {
+        this.toast.success(`Séance renommée « ${title} ».`);
+        refresh();
+      },
       error: () => this.toast.error('Renommage impossible.'),
     });
   }
 
   /** Planifie une séance de force chez un athlète à une date. */
-  private scheduleStrength(s: StrengthSession, athleteId: string, date: string, refresh = () => this.reloadStrength()): void {
-    this.strengthService.scheduleSession(athleteId, s.id, { date, fieldsPreset: 'AVANCE' }).subscribe({
-      next: (scheduled) => {
-        const charges = scheduled.chargeSummary ? ` — ${scheduled.chargeSummary}` : '';
-        this.toast.success(`${s.name} planifiée le ${this.fmtDate(date)}${charges}`);
-        refresh();
-      },
-      error: () => this.toast.error('Planification impossible.'),
-    });
+  private scheduleStrength(
+    s: StrengthSession,
+    athleteId: string,
+    date: string,
+    refresh = () => this.reloadStrength(),
+  ): void {
+    this.strengthService
+      .scheduleSession(athleteId, s.id, { date, fieldsPreset: 'AVANCE' })
+      .subscribe({
+        next: (scheduled) => {
+          const charges = scheduled.chargeSummary
+            ? ` — ${scheduled.chargeSummary}`
+            : '';
+          this.toast.success(
+            `${s.name} planifiée le ${this.fmtDate(date)}${charges}`,
+          );
+          refresh();
+        },
+        error: () => this.toast.error('Planification impossible.'),
+      });
   }
 
   // --- Sélection depuis le picker (« + » d'un jour, ou plage tracée à la souris) ---
@@ -1467,14 +1989,23 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   scheduleTemplateOn(t: WorkoutTemplate): void {
     this.scheduleOnPickerDates(
-      (date) => this.courseService.schedule(this.selectedAthleteId, t.id, { date }),
-      'course', t.name);
+      (date) =>
+        this.courseService.schedule(this.selectedAthleteId, t.id, { date }),
+      'course',
+      t.name,
+    );
   }
 
   scheduleStrengthOn(s: StrengthSession): void {
     this.scheduleOnPickerDates(
-      (date) => this.strengthService.scheduleSession(this.selectedAthleteId, s.id, { date, fieldsPreset: 'AVANCE' }),
-      'strength', s.name);
+      (date) =>
+        this.strengthService.scheduleSession(this.selectedAthleteId, s.id, {
+          date,
+          fieldsPreset: 'AVANCE',
+        }),
+      'strength',
+      s.name,
+    );
   }
 
   scheduleDrillOn(d: RunDrill): void {
@@ -1495,20 +2026,36 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     const athleteId = this.selectedAthleteId;
     const created: Created[] = [];
-    const run = () => this.all(dates.map(
-      (d) => schedule(d).pipe(tap((c) => created.push({ kind, id: c.id, athleteId })))));
+    const run = () =>
+      this.all(
+        dates.map((d) =>
+          schedule(d).pipe(
+            tap((c) => created.push({ kind, id: c.id, athleteId })),
+          ),
+        ),
+      );
     run().subscribe({
       next: () => {
         this.refreshAll();
-        this.commit({
-          label: 'la planification',
-          undo: () => this.all(created.map((c) => this.removeCreated(c))),
-          redo: () => defer(() => { created.length = 0; return run(); }),
-        }, dates.length > 1
-          ? `${name} planifiée sur ${dates.length} jours`
-          : `${name} planifiée le ${this.fmtDate(dates[0])}`);
+        this.commit(
+          {
+            label: 'la planification',
+            undo: () => this.all(created.map((c) => this.removeCreated(c))),
+            redo: () =>
+              defer(() => {
+                created.length = 0;
+                return run();
+              }),
+          },
+          dates.length > 1
+            ? `${name} planifiée sur ${dates.length} jours`
+            : `${name} planifiée le ${this.fmtDate(dates[0])}`,
+        );
       },
-      error: () => { this.refreshAll(); this.toast.error('Planification impossible.'); },
+      error: () => {
+        this.refreshAll();
+        this.toast.error('Planification impossible.');
+      },
     });
   }
   openWorkout(w: Workout): void {
@@ -1516,8 +2063,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
     // Vue séance (lecture) ; l'édition est une action délibérée depuis la page.
     this.router.navigate(['/app/athletes', w.athleteId, 'workouts', w.id]);
   }
-  openObjectives(): void { this.router.navigate(['/app/athletes', this.selectedAthleteId, 'races']); }
-  openTests(): void { this.router.navigate(['/app/athletes', this.selectedAthleteId, 'tests']); }
+  openObjectives(): void {
+    this.router.navigate(['/app/athletes', this.selectedAthleteId, 'races']);
+  }
+  openTests(): void {
+    this.router.navigate(['/app/athletes', this.selectedAthleteId, 'tests']);
+  }
 
   // --- Alt + glisser = copier --------------------------------------------------------------
   // Le geste est un standard universel, mais invisible : sans retour pendant le drag, le coach
@@ -1552,13 +2103,19 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   onDrop(event: CdkDragDrop<DayCell>, targetDate: string): void {
-    const data = event.item.data as Workout | StrengthSession | ScheduledStrength | WorkoutTemplate;
+    const data = event.item.data as
+      | Workout
+      | StrengthSession
+      | ScheduledStrength
+      | WorkoutTemplate;
     const rec = data as unknown as Record<string, unknown>;
 
     // Garde-fou UX : pas de planification/déplacement sur un athlète en lecture seule
     // (le backend renverrait 403). Cohérent avec la permission write côté serveur.
     if (!this.canWriteSelected()) {
-      this.toast.warning('Lecture seule : tu n’as pas les droits de prescription sur cet athlète.');
+      this.toast.warning(
+        'Lecture seule : tu n’as pas les droits de prescription sur cet athlète.',
+      );
       return;
     }
 
@@ -1583,13 +2140,21 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     // Séance de force glissée depuis la bibliothèque → planification.
     if ('structure' in rec) {
-      this.scheduleStrength(data as StrengthSession, this.selectedAthleteId, targetDate);
+      this.scheduleStrength(
+        data as StrengthSession,
+        this.selectedAthleteId,
+        targetDate,
+      );
       return;
     }
 
     // Modèle de séance course glissé depuis la bibliothèque → planification.
     if (!('scheduledDate' in rec)) {
-      this.scheduleTemplate(data as WorkoutTemplate, this.selectedAthleteId, targetDate);
+      this.scheduleTemplate(
+        data as WorkoutTemplate,
+        this.selectedAthleteId,
+        targetDate,
+      );
       return;
     }
 
@@ -1604,7 +2169,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     // Réordonnancement au sein d'un même jour (matin / soir).
     if (event.previousContainer === event.container) {
-      this.reorderWithinDay(targetDate, event.previousIndex, event.currentIndex);
+      this.reorderWithinDay(
+        targetDate,
+        event.previousIndex,
+        event.currentIndex,
+      );
       return;
     }
 
@@ -1629,7 +2198,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Rang de la séance dans sa journée (1, 2, 3…), ou `null` si la journée n'est pas ordonnée. */
   orderRank(w: Workout): number | null {
-    return this.orderedDates().has(w.scheduledDate) ? (w.orderIndex ?? 0) + 1 : null;
+    return this.orderedDates().has(w.scheduledDate)
+      ? (w.orderIndex ?? 0) + 1
+      : null;
   }
 
   /** Nombre de séances course posées ce jour-là — l'ordre ne se propose qu'à partir de deux. */
@@ -1654,10 +2225,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
       .map((w) => w.id);
     if (ids.length < 2) return;
     this.workouts.update((l) =>
-      l.map((w) => (w.scheduledDate === date ? { ...w, orderIndex: ids.indexOf(w.id) } : w)));
+      l.map((w) =>
+        w.scheduledDate === date ? { ...w, orderIndex: ids.indexOf(w.id) } : w,
+      ),
+    );
     this.workoutService.reorder(this.selectedAthleteId, date, ids).subscribe({
       next: () => this.toast.success('Ordre défini — ton athlète le verra'),
-      error: () => { this.toast.error('Ordre impossible à définir.'); this.load(); },
+      error: () => {
+        this.toast.error('Ordre impossible à définir.');
+        this.load();
+      },
     });
   }
 
@@ -1667,10 +2244,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.closeDayMenu();
     if (!date) return;
     this.workouts.update((l) =>
-      l.map((w) => (w.scheduledDate === date ? { ...w, orderIndex: 0 } : w)));
+      l.map((w) => (w.scheduledDate === date ? { ...w, orderIndex: 0 } : w)),
+    );
     this.workoutService.clearOrder(this.selectedAthleteId, date).subscribe({
       next: () => this.toast.info('Ordre retiré'),
-      error: () => { this.toast.error('Retrait impossible.'); this.load(); },
+      error: () => {
+        this.toast.error('Retrait impossible.');
+        this.load();
+      },
     });
   }
 
@@ -1680,13 +2261,28 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const dayWorkouts = this.workouts()
       .filter((w) => w.scheduledDate === date)
       .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-    if (from < 0 || to < 0 || from >= dayWorkouts.length || to >= dayWorkouts.length) return;
+    if (
+      from < 0 ||
+      to < 0 ||
+      from >= dayWorkouts.length ||
+      to >= dayWorkouts.length
+    )
+      return;
     moveItemInArray(dayWorkouts, from, to);
     const orderById = new Map(dayWorkouts.map((w, i) => [w.id, i]));
-    this.workouts.update((l) => l.map((w) => (orderById.has(w.id) ? { ...w, orderIndex: orderById.get(w.id)! } : w)));
-    this.workoutService.reorder(this.selectedAthleteId, date, [...orderById.keys()]).subscribe({
-      error: () => { this.toast.error('Réordonnancement impossible.'); this.load(); },
-    });
+    this.workouts.update((l) =>
+      l.map((w) =>
+        orderById.has(w.id) ? { ...w, orderIndex: orderById.get(w.id)! } : w,
+      ),
+    );
+    this.workoutService
+      .reorder(this.selectedAthleteId, date, [...orderById.keys()])
+      .subscribe({
+        error: () => {
+          this.toast.error('Réordonnancement impossible.');
+          this.load();
+        },
+      });
   }
 
   // --- Actions réversibles ------------------------------------------------------------------
@@ -1702,15 +2298,31 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   undoLast(): void {
     this.undoStack.undo().subscribe({
-      next: (label) => { if (label) { this.refreshAll(); this.toast.info(`Annulé : ${label}.`); } },
-      error: () => { this.refreshAll(); this.toast.error('Annulation impossible.'); },
+      next: (label) => {
+        if (label) {
+          this.refreshAll();
+          this.toast.info(`Annulé : ${label}.`);
+        }
+      },
+      error: () => {
+        this.refreshAll();
+        this.toast.error('Annulation impossible.');
+      },
     });
   }
 
   redoLast(): void {
     this.undoStack.redo().subscribe({
-      next: (label) => { if (label) { this.refreshAll(); this.toast.info(`Rétabli : ${label}.`); } },
-      error: () => { this.refreshAll(); this.toast.error('Rétablissement impossible.'); },
+      next: (label) => {
+        if (label) {
+          this.refreshAll();
+          this.toast.info(`Rétabli : ${label}.`);
+        }
+      },
+      error: () => {
+        this.refreshAll();
+        this.toast.error('Rétablissement impossible.');
+      },
     });
   }
 
@@ -1722,7 +2334,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * l'annulation, elle, semblait alors n'avoir aucun effet.</p>
    */
   private refreshAll(): void {
-    if (this.scopeMode() === 'group') { this.loadGroup(); return; }
+    if (this.scopeMode() === 'group') {
+      this.loadGroup();
+      return;
+    }
     this.load();
     this.reloadStrength();
   }
@@ -1734,25 +2349,41 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Replanifie sans toast ni pile : brique de base des commandes d'annulation. */
   private rescheduleTo(workoutId: string, date: string): Observable<unknown> {
-    return this.workoutService.reschedule(this.selectedAthleteId, workoutId, date);
+    return this.workoutService.reschedule(
+      this.selectedAthleteId,
+      workoutId,
+      date,
+    );
   }
 
   /** Déplace une séance vers une date (optimiste + rollback en cas d'échec back). */
   private moveWorkout(w: Workout, targetDate: string): void {
     if (w.scheduledDate === targetDate) return;
     const previous = w.scheduledDate;
-    this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x)));
-    this.workoutService.reschedule(this.selectedAthleteId, w.id, targetDate).subscribe({
-      next: () => this.commit({
-        label: 'le déplacement',
-        undo: () => this.rescheduleTo(w.id, previous),
-        redo: () => this.rescheduleTo(w.id, targetDate),
-      }, `Séance déplacée au ${this.fmtDate(targetDate)}`),
-      error: () => {
-        this.workouts.update((l) => l.map((x) => (x.id === w.id ? { ...x, scheduledDate: previous } : x)));
-        this.toast.error('Déplacement impossible.');
-      },
-    });
+    this.workouts.update((l) =>
+      l.map((x) => (x.id === w.id ? { ...x, scheduledDate: targetDate } : x)),
+    );
+    this.workoutService
+      .reschedule(this.selectedAthleteId, w.id, targetDate)
+      .subscribe({
+        next: () =>
+          this.commit(
+            {
+              label: 'le déplacement',
+              undo: () => this.rescheduleTo(w.id, previous),
+              redo: () => this.rescheduleTo(w.id, targetDate),
+            },
+            `Séance déplacée au ${this.fmtDate(targetDate)}`,
+          ),
+        error: () => {
+          this.workouts.update((l) =>
+            l.map((x) =>
+              x.id === w.id ? { ...x, scheduledDate: previous } : x,
+            ),
+          );
+          this.toast.error('Déplacement impossible.');
+        },
+      });
   }
 
   /**
@@ -1761,26 +2392,43 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * mutable, sinon le second undo viserait une séance qui n'existe plus.
    */
   private copyWorkout(w: Workout, targetDate: string): void {
-    this.workoutService.copy(this.selectedAthleteId, w.id, targetDate).subscribe({
-      next: (copy) => {
-        this.load();
-        const ref = { id: copy.id };
-        this.commit({
-          label: 'la duplication',
-          undo: () => this.workoutService.delete(this.selectedAthleteId, ref.id),
-          redo: () => this.workoutService.copy(this.selectedAthleteId, w.id, targetDate)
-            .pipe(tap((c) => { ref.id = c.id; })),
-        }, `« ${w.title} » dupliquée le ${this.fmtDate(targetDate)}`);
-      },
-      error: () => this.toast.error('Duplication impossible.'),
-    });
+    this.workoutService
+      .copy(this.selectedAthleteId, w.id, targetDate)
+      .subscribe({
+        next: (copy) => {
+          this.load();
+          const ref = { id: copy.id };
+          this.commit(
+            {
+              label: 'la duplication',
+              undo: () =>
+                this.workoutService.delete(this.selectedAthleteId, ref.id),
+              redo: () =>
+                this.workoutService
+                  .copy(this.selectedAthleteId, w.id, targetDate)
+                  .pipe(
+                    tap((c) => {
+                      ref.id = c.id;
+                    }),
+                  ),
+            },
+            `« ${w.title} » dupliquée le ${this.fmtDate(targetDate)}`,
+          );
+        },
+        error: () => this.toast.error('Duplication impossible.'),
+      });
   }
 
   // --- Opérations de semaine (menu contextuel de la colonne de totaux) -----------------------
   // La colonne de totaux est le seul endroit qui parle « semaine » : c'est donc là que vivent
   // les gestes qui portent sur une semaine entière, plutôt que dans une barre d'outils déjà pleine.
 
-  readonly weekMenu = signal<{ start: string; sessions: number; x: number; y: number } | null>(null);
+  readonly weekMenu = signal<{
+    start: string;
+    sessions: number;
+    x: number;
+    y: number;
+  } | null>(null);
   weekMenuTarget = '';
 
   openWeekMenu(week: WeekRow, ev: MouseEvent): void {
@@ -1791,7 +2439,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.weekMenuTarget = this.shiftDate(start, 7);
     this.weekMenu.set({ start, sessions: week.sessions, x, y });
   }
-  closeWeekMenu(): void { this.weekMenu.set(null); }
+  closeWeekMenu(): void {
+    this.weekMenu.set(null);
+  }
 
   // --- Menu contextuel d'un jour -------------------------------------------
   /**
@@ -1800,7 +2450,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * l'était pas : le geste s'arrêtait au milieu, et un coach concluait raisonnablement que le
    * copier-coller n'existait pas. Le jour porte maintenant sa moitié du geste.
    */
-  readonly dayMenu = signal<{ date: string; x: number; y: number } | null>(null);
+  readonly dayMenu = signal<{ date: string; x: number; y: number } | null>(
+    null,
+  );
 
   openDayMenu(date: string, ev: MouseEvent): void {
     ev.preventDefault();
@@ -1812,10 +2464,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.dayMenu.set({ date, x, y });
   }
 
-  closeDayMenu(): void { this.dayMenu.set(null); }
+  closeDayMenu(): void {
+    this.dayMenu.set(null);
+  }
 
   /** Ce que le presse-papier collerait ici, pour le libellé du menu. */
-  clipboardLabel(): string { return this.clipboard().label; }
+  clipboardLabel(): string {
+    return this.clipboard().label;
+  }
 
   ctxPasteHere(): void {
     const m = this.dayMenu();
@@ -1850,13 +2506,24 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const inWeek = (d: string) => d >= start && d <= end;
     const athleteId = this.selectedAthleteId;
     return [
-      ...this.workouts().filter((w) => inWeek(w.scheduledDate)).map((w) => ({
-        kind: 'course' as const, id: w.id, athleteId, date: w.scheduledDate, sourceSessionId: null,
-      })),
-      ...this.strength().filter((x) => inWeek(x.scheduledDate)).map((x) => ({
-        kind: 'strength' as const, id: x.id, athleteId, date: x.scheduledDate,
-        sourceSessionId: x.sourceSessionId ?? null,
-      })),
+      ...this.workouts()
+        .filter((w) => inWeek(w.scheduledDate))
+        .map((w) => ({
+          kind: 'course' as const,
+          id: w.id,
+          athleteId,
+          date: w.scheduledDate,
+          sourceSessionId: null,
+        })),
+      ...this.strength()
+        .filter((x) => inWeek(x.scheduledDate))
+        .map((x) => ({
+          kind: 'strength' as const,
+          id: x.id,
+          athleteId,
+          date: x.scheduledDate,
+          sourceSessionId: x.sourceSessionId ?? null,
+        })),
     ];
   }
 
@@ -1866,15 +2533,22 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * le geste annulable — sur une semaine, c'est une poignée de requêtes.
    */
   async ctxDuplicateWeek(targetStart: string): Promise<void> {
-    const m = this.weekMenu(); if (!m || !targetStart) return;
+    const m = this.weekMenu();
+    if (!m || !targetStart) return;
     this.closeWeekMenu();
     await this.duplicateWeekTo(m.start, targetStart);
   }
 
-  private async duplicateWeekTo(sourceStart: string, targetStart: string): Promise<void> {
+  private async duplicateWeekTo(
+    sourceStart: string,
+    targetStart: string,
+  ): Promise<void> {
     if (!this.requireWrite()) return;
     const refs = this.weekChips(sourceStart);
-    if (!refs.length) { this.toast.info('Aucune séance à copier cette semaine.'); return; }
+    if (!refs.length) {
+      this.toast.info('Aucune séance à copier cette semaine.');
+      return;
+    }
 
     const target = mondayOf(new Date(targetStart + 'T00:00:00'));
     const targetIso = toIso(target);
@@ -1887,17 +2561,28 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     // Origine calée sur le lundi source : une semaine qui commence le mardi doit arriver le
     // mardi de la semaine cible, pas se recoller sur son lundi.
-    this.pasteRefs(refs, this.selectedAthleteId, targetIso, sourceStart, 'la duplication de semaine',
-      (n) => `${n} séance(s) copiée(s) sur la semaine du ${this.fmtDate(targetIso)}`);
+    this.pasteRefs(
+      refs,
+      this.selectedAthleteId,
+      targetIso,
+      sourceStart,
+      'la duplication de semaine',
+      (n) =>
+        `${n} séance(s) copiée(s) sur la semaine du ${this.fmtDate(targetIso)}`,
+    );
     this.anchor.set(target); // on montre le résultat, sinon la copie est invisible
   }
 
   /** Vide la semaine de ses séances course (les indispos et objectifs ne sont pas des séances). */
   async ctxClearWeek(): Promise<void> {
-    const m = this.weekMenu(); if (!m) return;
+    const m = this.weekMenu();
+    if (!m) return;
     this.closeWeekMenu();
     const refs = this.weekChips(m.start);
-    if (!refs.length) { this.toast.info('Cette semaine est déjà vide.'); return; }
+    if (!refs.length) {
+      this.toast.info('Cette semaine est déjà vide.');
+      return;
+    }
     // On passe par la sélection : le lot, la confirmation et l'annulation sont déjà écrits.
     this.selection.setAll(refs);
     await this.deleteSelection();
@@ -1905,35 +2590,63 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Décale toute la semaine de ±1 jour (une compétition avancée, un déplacement, une météo). */
   ctxShiftWeek(days: number): void {
-    const m = this.weekMenu(); if (!m) return;
+    const m = this.weekMenu();
+    if (!m) return;
     this.closeWeekMenu();
     if (!this.requireWrite()) return;
-    const courseIds = new Set(this.weekChips(m.start).filter((r) => r.kind === 'course').map((r) => r.id));
-    const strengthIds = new Set(this.weekChips(m.start).filter((r) => r.kind === 'strength').map((r) => r.id));
-    if (!courseIds.size && !strengthIds.size) { this.toast.info('Aucune séance à décaler.'); return; }
+    const courseIds = new Set(
+      this.weekChips(m.start)
+        .filter((r) => r.kind === 'course')
+        .map((r) => r.id),
+    );
+    const strengthIds = new Set(
+      this.weekChips(m.start)
+        .filter((r) => r.kind === 'strength')
+        .map((r) => r.id),
+    );
+    if (!courseIds.size && !strengthIds.size) {
+      this.toast.info('Aucune séance à décaler.');
+      return;
+    }
 
     // Les dates de départ sont figées ici : rejouer le décalage doit repartir du même état,
     // pas de celui qu'on vient de produire.
     const starts = new Map<string, string>();
-    for (const w of this.workouts()) if (courseIds.has(w.id)) starts.set(w.id, w.scheduledDate);
-    for (const x of this.strength()) if (strengthIds.has(x.id)) starts.set(x.id, x.scheduledDate);
+    for (const w of this.workouts())
+      if (courseIds.has(w.id)) starts.set(w.id, w.scheduledDate);
+    for (const x of this.strength())
+      if (strengthIds.has(x.id)) starts.set(x.id, x.scheduledDate);
 
-    const move = (delta: number) => this.all([
-      ...[...courseIds].map((id) => this.rescheduleTo(id, this.shiftDate(starts.get(id)!, delta))),
-      ...[...strengthIds].map((id) => this.strengthService
-        .rescheduleScheduled(this.selectedAthleteId, id, this.shiftDate(starts.get(id)!, delta))),
-    ]);
+    const move = (delta: number) =>
+      this.all([
+        ...[...courseIds].map((id) =>
+          this.rescheduleTo(id, this.shiftDate(starts.get(id)!, delta)),
+        ),
+        ...[...strengthIds].map((id) =>
+          this.strengthService.rescheduleScheduled(
+            this.selectedAthleteId,
+            id,
+            this.shiftDate(starts.get(id)!, delta),
+          ),
+        ),
+      ]);
 
     move(days).subscribe({
       next: () => {
         this.refreshAll();
-        this.commit({
-          label: 'le décalage de semaine',
-          undo: () => move(0),
-          redo: () => move(days),
-        }, `Semaine décalée de ${days > 0 ? '+' : ''}${days} jour${Math.abs(days) > 1 ? 's' : ''}`);
+        this.commit(
+          {
+            label: 'le décalage de semaine',
+            undo: () => move(0),
+            redo: () => move(days),
+          },
+          `Semaine décalée de ${days > 0 ? '+' : ''}${days} jour${Math.abs(days) > 1 ? 's' : ''}`,
+        );
       },
-      error: () => { this.refreshAll(); this.toast.error('Décalage impossible.'); },
+      error: () => {
+        this.refreshAll();
+        this.toast.error('Décalage impossible.');
+      },
     });
   }
 
@@ -1941,10 +2654,19 @@ export class CalendarComponent implements OnInit, OnDestroy {
   // Tracé sur le fond de la grille : il attrape les chips qu'il croise. S'il n'en attrape aucune,
   // il désigne une PLAGE DE JOURS — le geste naturel pour « pose-moi trois footings ici ».
 
-  readonly marquee = signal<{ x: number; y: number; w: number; h: number } | null>(null);
+  readonly marquee = signal<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
   private marqueeOrigin: { x: number; y: number } | null = null;
   /** Rectangles relevés au début du tracé : ils ne bougent pas pendant le geste. */
-  private marqueeTargets: { ref: ChipRef | null; date: string | null; box: DOMRect }[] = [];
+  private marqueeTargets: {
+    ref: ChipRef | null;
+    date: string | null;
+    box: DOMRect;
+  }[] = [];
   private marqueeCleanup: (() => void) | null = null;
 
   /**
@@ -1956,7 +2678,12 @@ export class CalendarComponent implements OnInit, OnDestroy {
   onGridPointerDown(ev: PointerEvent): void {
     if (ev.button !== 0 || ev.pointerType !== 'mouse') return;
     const el = ev.target as HTMLElement;
-    if (el.closest('.workout-card, .strength-chip, .event-chip, .activity-card, button, a, input, select, textarea')) return;
+    if (
+      el.closest(
+        '.workout-card, .strength-chip, .event-chip, .activity-card, button, a, input, select, textarea',
+      )
+    )
+      return;
 
     this.marqueeOrigin = { x: ev.clientX, y: ev.clientY };
     this.marquee.set({ x: ev.clientX, y: ev.clientY, w: 0, h: 0 });
@@ -1975,13 +2702,27 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /** Position à l'écran des chips et des jours, relevée une fois par tracé. */
-  private snapshotTargets(): { ref: ChipRef | null; date: string | null; box: DOMRect }[] {
-    const out: { ref: ChipRef | null; date: string | null; box: DOMRect }[] = [];
-    for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-chip]'))) {
+  private snapshotTargets(): {
+    ref: ChipRef | null;
+    date: string | null;
+    box: DOMRect;
+  }[] {
+    const out: { ref: ChipRef | null; date: string | null; box: DOMRect }[] =
+      [];
+    for (const el of Array.from(
+      document.querySelectorAll<HTMLElement>('[data-chip]'),
+    )) {
       const [kind, id] = (el.dataset['chip'] ?? '').split(':');
-      if (kind && id) out.push({ ref: { kind: kind as 'course' | 'strength', id }, date: null, box: el.getBoundingClientRect() });
+      if (kind && id)
+        out.push({
+          ref: { kind: kind as 'course' | 'strength', id },
+          date: null,
+          box: el.getBoundingClientRect(),
+        });
     }
-    for (const el of Array.from(document.querySelectorAll<HTMLElement>('[data-day]'))) {
+    for (const el of Array.from(
+      document.querySelectorAll<HTMLElement>('[data-day]'),
+    )) {
       const date = el.dataset['day'];
       if (date) out.push({ ref: null, date, box: el.getBoundingClientRect() });
     }
@@ -1992,8 +2733,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const origin = this.marqueeOrigin;
     if (!origin) return;
     const rect = {
-      x: Math.min(origin.x, ev.clientX), y: Math.min(origin.y, ev.clientY),
-      w: Math.abs(ev.clientX - origin.x), h: Math.abs(ev.clientY - origin.y),
+      x: Math.min(origin.x, ev.clientX),
+      y: Math.min(origin.y, ev.clientY),
+      w: Math.abs(ev.clientX - origin.x),
+      h: Math.abs(ev.clientY - origin.y),
     };
     this.marquee.set(rect);
     // En dessous de quelques pixels, c'est un clic, pas un tracé : on n'écrase pas la sélection.
@@ -2008,13 +2751,21 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /** Traduit le rectangle écran en sélection de chips, ou à défaut en plage de jours. */
-  private applyMarquee(rect: { x: number; y: number; w: number; h: number }): void {
+  private applyMarquee(rect: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }): void {
     const hits: ChipRef[] = [];
     const days: string[] = [];
     for (const t of this.marqueeTargets) {
       const b = t.box;
-      const overlaps = b.right >= rect.x && b.left <= rect.x + rect.w
-        && b.bottom >= rect.y && b.top <= rect.y + rect.h;
+      const overlaps =
+        b.right >= rect.x &&
+        b.left <= rect.x + rect.w &&
+        b.bottom >= rect.y &&
+        b.top <= rect.y + rect.h;
       if (!overlaps) continue;
       if (t.ref) hits.push(t.ref);
       else if (t.date) days.push(t.date);
@@ -2037,10 +2788,17 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const days = new Set(this.dayRange());
     if (!days.size) return;
     const victims: ChipRef[] = [
-      ...this.workouts().filter((w) => days.has(w.scheduledDate)).map((w) => ({ kind: 'course' as const, id: w.id })),
-      ...this.strength().filter((x) => days.has(x.scheduledDate)).map((x) => ({ kind: 'strength' as const, id: x.id })),
+      ...this.workouts()
+        .filter((w) => days.has(w.scheduledDate))
+        .map((w) => ({ kind: 'course' as const, id: w.id })),
+      ...this.strength()
+        .filter((x) => days.has(x.scheduledDate))
+        .map((x) => ({ kind: 'strength' as const, id: x.id })),
     ];
-    if (!victims.length) { this.toast.info('Ces jours sont déjà vides.'); return; }
+    if (!victims.length) {
+      this.toast.info('Ces jours sont déjà vides.');
+      return;
+    }
     this.selection.setAll(victims);
     this.dayRange.set([]);
     await this.deleteSelection();
@@ -2062,10 +2820,16 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   copySelection(): void {
     const entries = this.entriesFor(this.selected());
-    if (!entries.length) { this.toast.info('Rien à copier — sélectionne d’abord une séance.'); return; }
-    const label = entries.length === 1
-      ? (this.selectedWorkouts()[0]?.title ?? this.selectedStrength()[0]?.title ?? '1 séance')
-      : `${entries.length} séances`;
+    if (!entries.length) {
+      this.toast.info('Rien à copier — sélectionne d’abord une séance.');
+      return;
+    }
+    const label =
+      entries.length === 1
+        ? (this.selectedWorkouts()[0]?.title ??
+          this.selectedStrength()[0]?.title ??
+          '1 séance')
+        : `${entries.length} séances`;
     this.putInClipboard(entries, label);
   }
 
@@ -2073,15 +2837,22 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private putInClipboard(entries: ClipEntry[], label: string): void {
     this.clipboard.set({ entries, label });
     this.toast.info(
-      `${label} copiée${entries.length > 1 ? 's' : ''} — ${this.keys('mod', 'V')} pour coller sur un jour.`);
+      `${label} copiée${entries.length > 1 ? 's' : ''} — ${this.keys('mod', 'V')} pour coller sur un jour.`,
+    );
   }
 
   /** Résout des positions de la grille athlète en entrées autoportantes. */
   private entriesFor(picked: readonly ChipPosition[]): ClipEntry[] {
     const strengthById = new Map(this.strength().map((x) => [x.id, x]));
     return picked.map((p) => ({
-      kind: p.kind, id: p.id, athleteId: this.selectedAthleteId, date: p.date,
-      sourceSessionId: p.kind === 'strength' ? (strengthById.get(p.id)?.sourceSessionId ?? null) : null,
+      kind: p.kind,
+      id: p.id,
+      athleteId: this.selectedAthleteId,
+      date: p.date,
+      sourceSessionId:
+        p.kind === 'strength'
+          ? (strengthById.get(p.id)?.sourceSessionId ?? null)
+          : null,
     }));
   }
 
@@ -2091,11 +2862,25 @@ export class CalendarComponent implements OnInit, OnDestroy {
   pasteOn(date: string | null): void {
     const clip = this.clipboard();
     const target = date ?? this.hoveredDate();
-    if (!clip.entries.length) { this.toast.info(`Presse-papier vide — ${this.keys('mod', 'C')} pour copier.`); return; }
-    if (!target) { this.toast.info('Survole un jour pour coller.'); return; }
+    if (!clip.entries.length) {
+      this.toast.info(
+        `Presse-papier vide — ${this.keys('mod', 'C')} pour copier.`,
+      );
+      return;
+    }
+    if (!target) {
+      this.toast.info('Survole un jour pour coller.');
+      return;
+    }
     if (!this.requireWrite()) return;
-    this.pasteRefs(clip.entries, this.selectedAthleteId, target, undefined, 'le collage',
-      (n) => `${n} séance(s) collée(s) le ${this.fmtDate(target)}`);
+    this.pasteRefs(
+      clip.entries,
+      this.selectedAthleteId,
+      target,
+      undefined,
+      'le collage',
+      (n) => `${n} séance(s) collée(s) le ${this.fmtDate(target)}`,
+    );
   }
 
   /**
@@ -2107,27 +2892,40 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * une semaine qui commence le mardi arriverait décalée d'un jour.
    */
   private pasteRefs(
-    entries: ClipEntry[], targetAthleteId: string, target: string, base: string | undefined,
-    label: string, message: (n: number) => string,
+    entries: ClipEntry[],
+    targetAthleteId: string,
+    target: string,
+    base: string | undefined,
+    label: string,
+    message: (n: number) => string,
   ): void {
     const sources = this.pasteSources(entries, target, base);
     if (!sources.length) return;
 
     const created: Created[] = [];
-    const run = () => defer(() => {
-      created.length = 0;
-      return this.all(sources.map((src) => this.pasteOne(src, targetAthleteId, created)));
-    });
+    const run = () =>
+      defer(() => {
+        created.length = 0;
+        return this.all(
+          sources.map((src) => this.pasteOne(src, targetAthleteId, created)),
+        );
+      });
     run().subscribe({
       next: () => {
         this.refreshAll();
-        this.commit({
-          label,
-          undo: () => this.all(created.map((c) => this.removeCreated(c))),
-          redo: () => run(),
-        }, message(sources.length));
+        this.commit(
+          {
+            label,
+            undo: () => this.all(created.map((c) => this.removeCreated(c))),
+            redo: () => run(),
+          },
+          message(sources.length),
+        );
       },
-      error: () => { this.refreshAll(); this.toast.error('Copie impossible.'); },
+      error: () => {
+        this.refreshAll();
+        this.toast.error('Copie impossible.');
+      },
     });
   }
 
@@ -2139,10 +2937,18 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * {@link workouts} ni {@link strength}, et une résolution par ces signaux y répondait
    * invariablement « les séances à copier ne sont plus affichées ».</p>
    */
-  private pasteSources(entries: ClipEntry[], target: string, base?: string):
-    { entry: ClipEntry; date: string }[] {
+  private pasteSources(
+    entries: ClipEntry[],
+    target: string,
+    base?: string,
+  ): { entry: ClipEntry; date: string }[] {
     if (!entries.length) return [];
-    const origin = base ?? entries.reduce((min, e) => (e.date < min ? e.date : min), entries[0].date);
+    const origin =
+      base ??
+      entries.reduce(
+        (min, e) => (e.date < min ? e.date : min),
+        entries[0].date,
+      );
     return entries.map((entry) => ({
       entry,
       date: this.shiftDate(target, this.daysBetween(origin, entry.date)),
@@ -2158,23 +2964,51 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * chez Julie serait faux, et faux silencieusement.</p>
    */
   private pasteOne(
-    src: { entry: ClipEntry; date: string }, targetAthleteId: string, created: Created[],
+    src: { entry: ClipEntry; date: string },
+    targetAthleteId: string,
+    created: Created[],
   ): Observable<unknown> {
     const entry = src.entry;
     if (entry.kind === 'course') {
-      const call = entry.athleteId === targetAthleteId
-        ? this.workoutService.copy(targetAthleteId, entry.id, src.date)
-        : this.workoutService.copyFrom(targetAthleteId, entry.id, src.date);
-      return call.pipe(tap((c) => created.push({ kind: 'course', id: c.id, athleteId: targetAthleteId })));
+      const call =
+        entry.athleteId === targetAthleteId
+          ? this.workoutService.copy(targetAthleteId, entry.id, src.date)
+          : this.workoutService.copyFrom(targetAthleteId, entry.id, src.date);
+      return call.pipe(
+        tap((c) =>
+          created.push({
+            kind: 'course',
+            id: c.id,
+            athleteId: targetAthleteId,
+          }),
+        ),
+      );
     }
     // Une séance de force se recopie depuis la séance affichée, pas depuis son modèle : c'est
     // elle qu'on voit, c'est elle qu'on croit coller. Repasser par la bibliothèque rendait la
     // version d'origine — perdant l'adaptation faite pour l'athlète — et ne pouvait rien coller
     // du tout d'une séance construite directement au calendrier.
-    const call = entry.athleteId === targetAthleteId
-      ? this.strengthService.copyScheduled(targetAthleteId, entry.id, src.date)
-      : this.strengthService.copyScheduledFrom(targetAthleteId, entry.id, src.date);
-    return call.pipe(tap((c) => created.push({ kind: 'strength', id: c.id, athleteId: targetAthleteId })));
+    const call =
+      entry.athleteId === targetAthleteId
+        ? this.strengthService.copyScheduled(
+            targetAthleteId,
+            entry.id,
+            src.date,
+          )
+        : this.strengthService.copyScheduledFrom(
+            targetAthleteId,
+            entry.id,
+            src.date,
+          );
+    return call.pipe(
+      tap((c) =>
+        created.push({
+          kind: 'strength',
+          id: c.id,
+          athleteId: targetAthleteId,
+        }),
+      ),
+    );
   }
 
   private removeCreated(c: Created): Observable<unknown> {
@@ -2186,11 +3020,20 @@ export class CalendarComponent implements OnInit, OnDestroy {
   /** Duplique la sélection sur place (chaque séance sur son propre jour). */
   duplicateSelection(): void {
     const picked = this.selected();
-    if (!picked.length) { this.toast.info('Sélectionne d’abord une séance.'); return; }
+    if (!picked.length) {
+      this.toast.info('Sélectionne d’abord une séance.');
+      return;
+    }
     if (!this.requireWrite()) return;
     // Cible = la date de la première : avec les écarts conservés, chacune retombe chez elle.
-    this.pasteRefs(this.entriesFor(picked), this.selectedAthleteId, picked[0].date, undefined,
-      'la duplication', (n) => `${n} séance(s) dupliquée(s)`);
+    this.pasteRefs(
+      this.entriesFor(picked),
+      this.selectedAthleteId,
+      picked[0].date,
+      undefined,
+      'la duplication',
+      (n) => `${n} séance(s) dupliquée(s)`,
+    );
   }
 
   /** Supprime tout le lot sélectionné, en une seule entrée d'annulation. */
@@ -2203,10 +3046,15 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     const ok = await this.confirm.ask({
       title: total > 1 ? `Supprimer ${total} séances` : 'Supprimer la séance',
-      message: total > 1
-        ? [...workouts.map((w) => w.title), ...strength.map((x) => x.title)].join(' · ')
-        : (workouts[0]?.title ?? strength[0]?.title ?? ''),
-      confirmLabel: 'Supprimer', danger: true,
+      message:
+        total > 1
+          ? [
+              ...workouts.map((w) => w.title),
+              ...strength.map((x) => x.title),
+            ].join(' · ')
+          : (workouts[0]?.title ?? strength[0]?.title ?? ''),
+      confirmLabel: 'Supprimer',
+      danger: true,
     });
     if (!ok) return;
 
@@ -2220,30 +3068,60 @@ export class CalendarComponent implements OnInit, OnDestroy {
       next: (all) => {
         const taken = (all as unknown[]) ?? [];
         const snapshots = taken.slice(0, workouts.length) as CourseSnapshot[];
-        const strengthSnaps = taken.slice(workouts.length) as StrengthSnapshot[];
+        const strengthSnaps = taken.slice(
+          workouts.length,
+        ) as StrengthSnapshot[];
         const courseRefs = workouts.map((w) => ({ id: w.id }));
         const strengthRefs = strength.map((x) => ({ id: x.id }));
 
-        const removeAll = () => this.all([
-          ...courseRefs.map((r) => this.workoutService.delete(this.selectedAthleteId, r.id)),
-          ...strengthRefs.map((r) => this.strengthService.deleteScheduled(this.selectedAthleteId, r.id)),
-        ]);
+        const removeAll = () =>
+          this.all([
+            ...courseRefs.map((r) =>
+              this.workoutService.delete(this.selectedAthleteId, r.id),
+            ),
+            ...strengthRefs.map((r) =>
+              this.strengthService.deleteScheduled(
+                this.selectedAthleteId,
+                r.id,
+              ),
+            ),
+          ]);
 
         removeAll().subscribe({
           next: () => {
             this.selection.clear();
             this.refreshAll();
-            this.commit({
-              label: total > 1 ? 'la suppression du lot' : 'la suppression',
-              undo: () => this.all([
-                ...snapshots.map((snap, i) => this.restore(snap).pipe(tap((c) => { courseRefs[i].id = c.id; }))),
-                ...strengthSnaps.map((snap, i) => this.restoreStrength(snap)
-                  .pipe(tap((c) => { strengthRefs[i].id = c.id; }))),
-              ]),
-              redo: () => removeAll(),
-            }, total > 1 ? `${total} séances supprimées` : `« ${workouts[0]?.title ?? strength[0]?.title }» supprimée`);
+            this.commit(
+              {
+                label: total > 1 ? 'la suppression du lot' : 'la suppression',
+                undo: () =>
+                  this.all([
+                    ...snapshots.map((snap, i) =>
+                      this.restore(snap).pipe(
+                        tap((c) => {
+                          courseRefs[i].id = c.id;
+                        }),
+                      ),
+                    ),
+                    ...strengthSnaps.map((snap, i) =>
+                      this.restoreStrength(snap).pipe(
+                        tap((c) => {
+                          strengthRefs[i].id = c.id;
+                        }),
+                      ),
+                    ),
+                  ]),
+                redo: () => removeAll(),
+              },
+              total > 1
+                ? `${total} séances supprimées`
+                : `« ${workouts[0]?.title ?? strength[0]?.title}» supprimée`,
+            );
           },
-          error: () => { this.refreshAll(); this.toast.error('Suppression impossible.'); },
+          error: () => {
+            this.refreshAll();
+            this.toast.error('Suppression impossible.');
+          },
         });
       },
       error: () => this.toast.error('Suppression impossible.'),
@@ -2253,7 +3131,9 @@ export class CalendarComponent implements OnInit, OnDestroy {
   /** Garde-fou commun : aucune action d'écriture sur un athlète en lecture seule. */
   private requireWrite(): boolean {
     if (this.canWriteSelected()) return true;
-    this.toast.warning('Lecture seule : tu n’as pas les droits de prescription sur cet athlète.');
+    this.toast.warning(
+      'Lecture seule : tu n’as pas les droits de prescription sur cet athlète.',
+    );
     return false;
   }
 
@@ -2268,11 +3148,17 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private daysBetween(from: string, to: string): number {
     const [y1, m1, d1] = from.split('-').map(Number);
     const [y2, m2, d2] = to.split('-').map(Number);
-    return Math.round((new Date(y2, m2 - 1, d2).getTime() - new Date(y1, m1 - 1, d1).getTime()) / 86400000);
+    return Math.round(
+      (new Date(y2, m2 - 1, d2).getTime() -
+        new Date(y1, m1 - 1, d1).getTime()) /
+        86400000,
+    );
   }
 
   // --- Menu contextuel (clic droit) : alternative souris/clavier au glisser-déposer ----------
-  readonly ctxMenu = signal<{ workout: Workout; x: number; y: number } | null>(null);
+  readonly ctxMenu = signal<{ workout: Workout; x: number; y: number } | null>(
+    null,
+  );
   ctxDate = '';
 
   openContextMenu(w: Workout, ev: MouseEvent): void {
@@ -2297,7 +3183,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private suppressNextClick = false;
 
   /** Démarre la détection d'appui long. Ignoré à la souris, qui garde le clic droit. */
-  onChipPointerDown(ev: PointerEvent, target: Workout | ScheduledStrength, kind: 'course' | 'strength'): void {
+  onChipPointerDown(
+    ev: PointerEvent,
+    target: Workout | ScheduledStrength,
+    kind: 'course' | 'strength',
+  ): void {
     if (ev.pointerType === 'mouse' || !this.canWriteSelected()) return;
     this.cancelLongPress();
     this.longPressOrigin = { x: ev.clientX, y: ev.clientY };
@@ -2324,10 +3214,13 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const origin = this.longPressOrigin;
     if (!this.longPressTimer || !origin) return;
     const moved = Math.hypot(ev.clientX - origin.x, ev.clientY - origin.y);
-    if (moved > CalendarComponent.LONG_PRESS_TOLERANCE_PX) this.cancelLongPress();
+    if (moved > CalendarComponent.LONG_PRESS_TOLERANCE_PX)
+      this.cancelLongPress();
   }
 
-  onChipPointerUp(): void { this.cancelLongPress(); }
+  onChipPointerUp(): void {
+    this.cancelLongPress();
+  }
 
   private cancelLongPress(): void {
     if (this.longPressTimer) clearTimeout(this.longPressTimer);
@@ -2346,7 +3239,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
   }
 
   /** Position du menu bornée au viewport : en bord d'écran il sortait du cadre. */
-  private clampToViewport(clientX: number, clientY: number): { x: number; y: number } {
+  private clampToViewport(
+    clientX: number,
+    clientY: number,
+  ): { x: number; y: number } {
     const MENU_W = 220;
     const MENU_H = 260;
     return {
@@ -2354,16 +3250,27 @@ export class CalendarComponent implements OnInit, OnDestroy {
       y: Math.max(8, Math.min(clientY, window.innerHeight - MENU_H - 8)),
     };
   }
-  closeContextMenu(): void { this.ctxMenu.set(null); }
+  closeContextMenu(): void {
+    this.ctxMenu.set(null);
+  }
 
   ctxOpen(): void {
-    const m = this.ctxMenu(); if (!m) return;
-    this.closeContextMenu(); this.openWorkout(m.workout);
+    const m = this.ctxMenu();
+    if (!m) return;
+    this.closeContextMenu();
+    this.openWorkout(m.workout);
   }
   ctxAdapt(): void {
-    const m = this.ctxMenu(); if (!m) return;
+    const m = this.ctxMenu();
+    if (!m) return;
     this.closeContextMenu();
-    this.router.navigate(['/app/athletes', m.workout.athleteId, 'workouts', m.workout.id, 'structure']);
+    this.router.navigate([
+      '/app/athletes',
+      m.workout.athleteId,
+      'workouts',
+      m.workout.id,
+      'structure',
+    ]);
   }
   /**
    * Verse la séance visée dans la bibliothèque, depuis le calendrier.
@@ -2377,19 +3284,22 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * ne pas perdre son travail. La bibliothèque permet de la classer ensuite.</p>
    */
   async ctxSaveToLibrary(): Promise<void> {
-    const m = this.ctxMenu(); if (!m) return;
+    const m = this.ctxMenu();
+    if (!m) return;
     this.closeContextMenu();
     await this.library.promptAndSave(m.workout);
   }
 
   ctxMoveTo(date: string): void {
-    const m = this.ctxMenu(); if (!m) return;
+    const m = this.ctxMenu();
+    if (!m) return;
     this.closeContextMenu();
     if (date) this.moveWorkout(m.workout, date);
   }
   /** Copie la séance visée dans le presse-papier (le menu enseigne le raccourci). */
   ctxCopy(): void {
-    const m = this.ctxMenu(); if (!m) return;
+    const m = this.ctxMenu();
+    if (!m) return;
     this.closeContextMenu();
     this.selection.select({ kind: 'course', id: m.workout.id });
     this.copySelection();
@@ -2397,21 +3307,27 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Duplique la séance visée sur son propre jour. */
   ctxDuplicate(): void {
-    const m = this.ctxMenu(); if (!m) return;
+    const m = this.ctxMenu();
+    if (!m) return;
     this.closeContextMenu();
     this.copyWorkout(m.workout, m.workout.scheduledDate);
   }
 
   ctxCopyTo(date: string): void {
-    const m = this.ctxMenu(); if (!m) return;
+    const m = this.ctxMenu();
+    if (!m) return;
     this.closeContextMenu();
     if (date) this.copyWorkout(m.workout, date);
   }
   async ctxDelete(): Promise<void> {
-    const m = this.ctxMenu(); if (!m) return;
+    const m = this.ctxMenu();
+    if (!m) return;
     this.closeContextMenu();
     const ok = await this.confirm.ask({
-      title: 'Supprimer la séance', message: m.workout.title, confirmLabel: 'Supprimer', danger: true,
+      title: 'Supprimer la séance',
+      message: m.workout.title,
+      confirmLabel: 'Supprimer',
+      danger: true,
     });
     if (!ok) return;
     this.deleteWorkoutWithUndo(m.workout);
@@ -2436,23 +3352,36 @@ export class CalendarComponent implements OnInit, OnDestroy {
   /** Recrée une séance depuis son instantané et renvoie le nouvel identifiant. */
   private restore(snap: CourseSnapshot): Observable<Workout> {
     const w = snap.workout;
-    return this.workoutService.create(this.selectedAthleteId, {
-      scheduledDate: w.scheduledDate,
-      type: w.type,
-      title: w.title,
-      notes: w.notes,
-      targetDistanceM: w.targetDistanceM,
-      targetDurationS: w.targetDurationS,
-      steps: w.steps.map((st) => ({
-        stepType: st.stepType, repetitions: st.repetitions, zone: st.zone,
-        distanceM: st.distanceM, durationS: st.durationS, notes: st.notes,
-      })),
-    }).pipe(
-      switchMap((created) => snap.structure
-        ? this.workoutService.updateStructure(this.selectedAthleteId, created.id, snap.structure)
-          .pipe(switchMap(() => of(created)))
-        : of(created)),
-    );
+    return this.workoutService
+      .create(this.selectedAthleteId, {
+        scheduledDate: w.scheduledDate,
+        type: w.type,
+        title: w.title,
+        notes: w.notes,
+        targetDistanceM: w.targetDistanceM,
+        targetDurationS: w.targetDurationS,
+        steps: w.steps.map((st) => ({
+          stepType: st.stepType,
+          repetitions: st.repetitions,
+          zone: st.zone,
+          distanceM: st.distanceM,
+          durationS: st.durationS,
+          notes: st.notes,
+        })),
+      })
+      .pipe(
+        switchMap((created) =>
+          snap.structure
+            ? this.workoutService
+                .updateStructure(
+                  this.selectedAthleteId,
+                  created.id,
+                  snap.structure,
+                )
+                .pipe(switchMap(() => of(created)))
+            : of(created),
+        ),
+      );
   }
 
   private deleteWorkoutWithUndo(w: Workout): void {
@@ -2461,15 +3390,31 @@ export class CalendarComponent implements OnInit, OnDestroy {
         this.workouts.update((l) => l.filter((x) => x.id !== w.id));
         const ref = { id: w.id };
         this.workoutService.delete(this.selectedAthleteId, ref.id).subscribe({
-          next: () => this.commit({
-            label: 'la suppression',
-            undo: () => this.restore(snap).pipe(tap((created) => { ref.id = created.id; })),
-            redo: () => this.workoutService.delete(this.selectedAthleteId, ref.id),
-          }, `« ${w.title} » supprimée`),
-          error: () => { this.toast.error('Suppression impossible.'); this.load(); },
+          next: () =>
+            this.commit(
+              {
+                label: 'la suppression',
+                undo: () =>
+                  this.restore(snap).pipe(
+                    tap((created) => {
+                      ref.id = created.id;
+                    }),
+                  ),
+                redo: () =>
+                  this.workoutService.delete(this.selectedAthleteId, ref.id),
+              },
+              `« ${w.title} » supprimée`,
+            ),
+          error: () => {
+            this.toast.error('Suppression impossible.');
+            this.load();
+          },
         });
       },
-      error: () => { this.toast.error('Suppression impossible.'); this.load(); },
+      error: () => {
+        this.toast.error('Suppression impossible.');
+        this.load();
+      },
     });
   }
 
@@ -2489,7 +3434,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
   readonly strengthDetail = signal<ScheduledStrength | null>(null);
   readonly strengthRx = signal<StrengthPrescriptionView | null>(null);
   readonly strengthRxLoading = signal(false);
-  readonly strengthMenu = signal<{ session: ScheduledStrength; x: number; y: number } | null>(null);
+  readonly strengthMenu = signal<{
+    session: ScheduledStrength;
+    x: number;
+    y: number;
+  } | null>(null);
   strengthCtxDate = '';
   /** Date de destination d'une copie : distincte du déplacement, qui vide le jour d'origine. */
   strengthCopyDate = '';
@@ -2501,10 +3450,18 @@ export class CalendarComponent implements OnInit, OnDestroy {
     this.strengthRx.set(null);
     this.strengthRxLoading.set(true);
     this.strengthPanelOpen.set(true);
-    this.strengthService.scheduledPrescription(this.selectedAthleteId, s.id).subscribe({
-      next: (rx) => { this.strengthRx.set(rx); this.strengthRxLoading.set(false); },
-      error: () => { this.strengthRxLoading.set(false); this.toast.error('Détail indisponible.'); },
-    });
+    this.strengthService
+      .scheduledPrescription(this.selectedAthleteId, s.id)
+      .subscribe({
+        next: (rx) => {
+          this.strengthRx.set(rx);
+          this.strengthRxLoading.set(false);
+        },
+        error: () => {
+          this.strengthRxLoading.set(false);
+          this.toast.error('Détail indisponible.');
+        },
+      });
   }
 
   openStrengthMenu(s: ScheduledStrength, ev: MouseEvent): void {
@@ -2515,33 +3472,49 @@ export class CalendarComponent implements OnInit, OnDestroy {
     const { x, y } = this.clampToViewport(ev.clientX, ev.clientY);
     this.strengthMenu.set({ session: s, x, y });
   }
-  closeStrengthMenu(): void { this.strengthMenu.set(null); }
+  closeStrengthMenu(): void {
+    this.strengthMenu.set(null);
+  }
 
   ctxStrengthOpen(): void {
-    const m = this.strengthMenu(); if (!m) return;
-    this.closeStrengthMenu(); this.openStrength(m.session);
+    const m = this.strengthMenu();
+    if (!m) return;
+    this.closeStrengthMenu();
+    this.openStrength(m.session);
   }
   ctxStrengthMoveTo(date: string): void {
-    const m = this.strengthMenu(); if (!m) return;
+    const m = this.strengthMenu();
+    if (!m) return;
     this.closeStrengthMenu();
     if (date) this.moveStrength(m.session, date);
   }
   /** Met la séance de renforcement au presse-papier : elle se colle ensuite où l'on veut. */
   ctxStrengthCopy(): void {
-    const m = this.strengthMenu(); if (!m) return;
+    const m = this.strengthMenu();
+    if (!m) return;
     this.closeStrengthMenu();
-    this.putInClipboard([{
-      kind: 'strength', id: m.session.id, athleteId: this.selectedAthleteId,
-      date: m.session.scheduledDate, sourceSessionId: m.session.sourceSessionId ?? null,
-    }], m.session.title);
+    this.putInClipboard(
+      [
+        {
+          kind: 'strength',
+          id: m.session.id,
+          athleteId: this.selectedAthleteId,
+          date: m.session.scheduledDate,
+          sourceSessionId: m.session.sourceSessionId ?? null,
+        },
+      ],
+      m.session.title,
+    );
   }
   ctxStrengthCopyTo(date: string): void {
-    const m = this.strengthMenu(); if (!m) return;
+    const m = this.strengthMenu();
+    if (!m) return;
     this.closeStrengthMenu();
     if (date) this.duplicateStrength(m.session, date);
   }
   ctxStrengthDelete(): void {
-    const m = this.strengthMenu(); if (!m) return;
+    const m = this.strengthMenu();
+    if (!m) return;
     this.closeStrengthMenu();
     this.deleteStrength(m.session);
   }
@@ -2550,18 +3523,40 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private moveStrength(s: ScheduledStrength, targetDate: string): void {
     if (s.scheduledDate === targetDate) return;
     const previous = s.scheduledDate;
-    this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, scheduledDate: targetDate } : x)));
-    this.strengthService.rescheduleScheduled(this.selectedAthleteId, s.id, targetDate).subscribe({
-      next: () => this.commit({
-        label: 'le déplacement',
-        undo: () => this.strengthService.rescheduleScheduled(this.selectedAthleteId, s.id, previous),
-        redo: () => this.strengthService.rescheduleScheduled(this.selectedAthleteId, s.id, targetDate),
-      }, `${s.title} déplacée au ${this.fmtDate(targetDate)}`),
-      error: () => {
-        this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, scheduledDate: previous } : x)));
-        this.toast.error('Déplacement impossible.');
-      },
-    });
+    this.strength.update((l) =>
+      l.map((x) => (x.id === s.id ? { ...x, scheduledDate: targetDate } : x)),
+    );
+    this.strengthService
+      .rescheduleScheduled(this.selectedAthleteId, s.id, targetDate)
+      .subscribe({
+        next: () =>
+          this.commit(
+            {
+              label: 'le déplacement',
+              undo: () =>
+                this.strengthService.rescheduleScheduled(
+                  this.selectedAthleteId,
+                  s.id,
+                  previous,
+                ),
+              redo: () =>
+                this.strengthService.rescheduleScheduled(
+                  this.selectedAthleteId,
+                  s.id,
+                  targetDate,
+                ),
+            },
+            `${s.title} déplacée au ${this.fmtDate(targetDate)}`,
+          ),
+        error: () => {
+          this.strength.update((l) =>
+            l.map((x) =>
+              x.id === s.id ? { ...x, scheduledDate: previous } : x,
+            ),
+          );
+          this.toast.error('Déplacement impossible.');
+        },
+      });
   }
 
   /**
@@ -2572,24 +3567,39 @@ export class CalendarComponent implements OnInit, OnDestroy {
    * construite directement au calendrier. On capture ici de quoi la reconstruire telle quelle.</p>
    */
   private snapshotStrength(s: ScheduledStrength): Observable<StrengthSnapshot> {
-    return this.strengthService.scheduledPrescription(this.selectedAthleteId, s.id).pipe(
-      // Une prescription illisible ne doit pas empêcher la suppression : on restaurera alors
-      // la séance sans son contenu plutôt que de refuser le geste.
-      switchMap((rx) => of({ session: s, structure: rx?.snapshot ?? null })),
-    );
+    return this.strengthService
+      .scheduledPrescription(this.selectedAthleteId, s.id)
+      .pipe(
+        // Une prescription illisible ne doit pas empêcher la suppression : on restaurera alors
+        // la séance sans son contenu plutôt que de refuser le geste.
+        switchMap((rx) => of({ session: s, structure: rx?.snapshot ?? null })),
+      );
   }
 
   /** Repose la séance supprimée sur son jour, contenu compris. */
-  private restoreStrength(snap: StrengthSnapshot): Observable<ScheduledStrength> {
+  private restoreStrength(
+    snap: StrengthSnapshot,
+  ): Observable<ScheduledStrength> {
     const s = snap.session;
-    return this.strengthService.createAdHocScheduled(this.selectedAthleteId, {
-      date: s.scheduledDate, title: s.title, fieldsPreset: 'AVANCE',
-    }).pipe(
-      switchMap((created) => snap.structure
-        ? this.strengthService.updateScheduledStructure(this.selectedAthleteId, created.id, snap.structure)
-          .pipe(switchMap(() => of(created)))
-        : of(created)),
-    );
+    return this.strengthService
+      .createAdHocScheduled(this.selectedAthleteId, {
+        date: s.scheduledDate,
+        title: s.title,
+        fieldsPreset: 'AVANCE',
+      })
+      .pipe(
+        switchMap((created) =>
+          snap.structure
+            ? this.strengthService
+                .updateScheduledStructure(
+                  this.selectedAthleteId,
+                  created.id,
+                  snap.structure,
+                )
+                .pipe(switchMap(() => of(created)))
+            : of(created),
+        ),
+      );
   }
 
   private deleteStrengthWithUndo(s: ScheduledStrength): void {
@@ -2597,16 +3607,37 @@ export class CalendarComponent implements OnInit, OnDestroy {
       next: (snap) => {
         this.strength.update((l) => l.filter((x) => x.id !== s.id));
         const ref = { id: s.id };
-        this.strengthService.deleteScheduled(this.selectedAthleteId, ref.id).subscribe({
-          next: () => this.commit({
-            label: 'la suppression',
-            undo: () => this.restoreStrength(snap).pipe(tap((created) => { ref.id = created.id; })),
-            redo: () => this.strengthService.deleteScheduled(this.selectedAthleteId, ref.id),
-          }, `« ${s.title} » supprimée`),
-          error: () => { this.toast.error('Suppression impossible.'); this.reloadStrength(); },
-        });
+        this.strengthService
+          .deleteScheduled(this.selectedAthleteId, ref.id)
+          .subscribe({
+            next: () =>
+              this.commit(
+                {
+                  label: 'la suppression',
+                  undo: () =>
+                    this.restoreStrength(snap).pipe(
+                      tap((created) => {
+                        ref.id = created.id;
+                      }),
+                    ),
+                  redo: () =>
+                    this.strengthService.deleteScheduled(
+                      this.selectedAthleteId,
+                      ref.id,
+                    ),
+                },
+                `« ${s.title} » supprimée`,
+              ),
+            error: () => {
+              this.toast.error('Suppression impossible.');
+              this.reloadStrength();
+            },
+          });
       },
-      error: () => { this.toast.error('Suppression impossible.'); this.reloadStrength(); },
+      error: () => {
+        this.toast.error('Suppression impossible.');
+        this.reloadStrength();
+      },
     });
   }
 
@@ -2622,8 +3653,14 @@ export class CalendarComponent implements OnInit, OnDestroy {
     if (!this.requireWrite()) return;
     this.strengthPanelOpen.set(false);
     this.closeStrengthMenu();
-    this.router.navigate(
-      ['/app/athletes', this.selectedAthleteId, 'pp', 'scheduled', s.id, 'structure']);
+    this.router.navigate([
+      '/app/athletes',
+      this.selectedAthleteId,
+      'pp',
+      'scheduled',
+      s.id,
+      'structure',
+    ]);
   }
 
   /** Renomme la séance de renforcement planifiée (son modèle de bibliothèque n'y est pour rien). */
@@ -2637,14 +3674,20 @@ export class CalendarComponent implements OnInit, OnDestroy {
       confirmLabel: 'Renommer',
     });
     if (title === null || title === s.title) return;
-    this.strengthService.renameScheduled(this.selectedAthleteId, s.id, title).subscribe({
-      next: (updated) => {
-        this.strength.update((l) => l.map((x) => (x.id === s.id ? { ...x, title: updated.title } : x)));
-        this.strengthDetail.update((d) => (d && d.id === s.id ? { ...d, title: updated.title } : d));
-        this.toast.success(`Séance renommée « ${updated.title} ».`);
-      },
-      error: () => this.toast.error('Renommage impossible.'),
-    });
+    this.strengthService
+      .renameScheduled(this.selectedAthleteId, s.id, title)
+      .subscribe({
+        next: (updated) => {
+          this.strength.update((l) =>
+            l.map((x) => (x.id === s.id ? { ...x, title: updated.title } : x)),
+          );
+          this.strengthDetail.update((d) =>
+            d && d.id === s.id ? { ...d, title: updated.title } : d,
+          );
+          this.toast.success(`Séance renommée « ${updated.title} ».`);
+        },
+        error: () => this.toast.error('Renommage impossible.'),
+      });
   }
 
   /**
@@ -2656,10 +3699,21 @@ export class CalendarComponent implements OnInit, OnDestroy {
   duplicateStrength(s: ScheduledStrength, date: string): void {
     if (!date || !this.requireWrite()) return;
     this.pasteRefs(
-      [{ kind: 'strength', id: s.id, athleteId: this.selectedAthleteId, date: s.scheduledDate,
-         sourceSessionId: s.sourceSessionId ?? null }],
-      this.selectedAthleteId, date, undefined, 'la copie',
-      () => `« ${s.title} » copiée le ${this.fmtDate(date)}`);
+      [
+        {
+          kind: 'strength',
+          id: s.id,
+          athleteId: this.selectedAthleteId,
+          date: s.scheduledDate,
+          sourceSessionId: s.sourceSessionId ?? null,
+        },
+      ],
+      this.selectedAthleteId,
+      date,
+      undefined,
+      'la copie',
+      () => `« ${s.title} » copiée le ${this.fmtDate(date)}`,
+    );
   }
 
   /**
@@ -2672,9 +3726,10 @@ export class CalendarComponent implements OnInit, OnDestroy {
   async saveStrengthToLibrary(s: ScheduledStrength): Promise<void> {
     const common = {
       title: 'Enregistrer dans la bibliothèque',
-      message: 'La structure est recopiée comme nouveau modèle ; la séance de l’athlète n’est pas '
-        + 'modifiée. Les commentaires écrits pour lui restent sur sa séance — un modèle resservira '
-        + 'à d’autres.',
+      message:
+        'La structure est recopiée comme nouveau modèle ; la séance de l’athlète n’est pas ' +
+        'modifiée. Les commentaires écrits pour lui restent sur sa séance — un modèle resservira ' +
+        'à d’autres.',
       promptLabel: 'Nom du modèle',
       initialValue: s.title,
       confirmLabel: 'Ajouter à la bibliothèque',
@@ -2685,34 +3740,44 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
     const answer = choices.length
       ? await this.confirm.promptWithChoice({
-        ...common,
-        selectLabel: 'Catégorie (facultatif)',
-        selectOptions: choices,
-        selectEmptyLabel: 'Sans catégorie',
-      })
-      : await this.confirm.prompt(common).then((text) => (text ? { text, choice: null } : null));
+          ...common,
+          selectLabel: 'Catégorie (facultatif)',
+          selectOptions: choices,
+          selectEmptyLabel: 'Sans catégorie',
+        })
+      : await this.confirm
+          .prompt(common)
+          .then((text) => (text ? { text, choice: null } : null));
     if (!answer?.text) return;
 
-    this.strengthService.saveScheduledAsSession(this.selectedAthleteId, s.id, {
-      name: answer.text, categoryId: answer.choice,
-    }).subscribe({
-      next: (created) => {
-        this.toast.success(`« ${created.name} » ajoutée à ta bibliothèque`);
-        this.strengthService.listAllSessions().subscribe((list) => this.librarySessions.set(list));
-      },
-      error: () => this.toast.error('Enregistrement impossible.'),
-    });
+    this.strengthService
+      .saveScheduledAsSession(this.selectedAthleteId, s.id, {
+        name: answer.text,
+        categoryId: answer.choice,
+      })
+      .subscribe({
+        next: (created) => {
+          this.toast.success(`« ${created.name} » ajoutée à ta bibliothèque`);
+          this.strengthService
+            .listAllSessions()
+            .subscribe((list) => this.librarySessions.set(list));
+        },
+        error: () => this.toast.error('Enregistrement impossible.'),
+      });
   }
 
   async deleteStrength(s: ScheduledStrength): Promise<void> {
     if (!this.canWriteSelected()) {
-      this.toast.warning('Lecture seule : tu n’as pas les droits de prescription sur cet athlète.');
+      this.toast.warning(
+        'Lecture seule : tu n’as pas les droits de prescription sur cet athlète.',
+      );
       return;
     }
     const ok = await this.confirm.ask({
       title: 'Supprimer la séance de renforcement',
       message: `${s.title} — ${this.fmtDate(s.scheduledDate)}`,
-      confirmLabel: 'Supprimer', danger: true,
+      confirmLabel: 'Supprimer',
+      danger: true,
     });
     if (!ok) return;
     this.strengthPanelOpen.set(false);
@@ -2726,7 +3791,8 @@ export class CalendarComponent implements OnInit, OnDestroy {
    */
   private chargeRecap(w: Workout): string {
     const parts: string[] = [];
-    if (w.targetDurationS) parts.push(`~${Math.round(w.targetDurationS / 60)} min`);
+    if (w.targetDurationS)
+      parts.push(`~${Math.round(w.targetDurationS / 60)} min`);
     if (this.volumeLabel(w)) parts.push(this.volumeLabel(w));
     if (w.plannedLoadUa) parts.push(`${w.plannedLoadUa} UA`);
     return parts.length ? ` — ${parts.join(' · ')}` : '';
@@ -2735,8 +3801,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
   /** Date ISO → « mer. 30 juil. » (jamais d'ISO brut à l'écran). */
   fmtDate(iso: string): string {
     const [y, m, d] = iso.split('-').map(Number);
-    return new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })
-      .format(new Date(y, m - 1, d));
+    return new Intl.DateTimeFormat('fr-FR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    }).format(new Date(y, m - 1, d));
   }
 
   /**
@@ -2747,7 +3816,11 @@ export class CalendarComponent implements OnInit, OnDestroy {
   onKeydown(ev: KeyboardEvent): void {
     const el = ev.target as HTMLElement | null;
     // Jamais dans un champ de saisie : Cmd+C doit y copier du texte, pas des séances.
-    if (el && (/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) || el.isContentEditable)) return;
+    if (
+      el &&
+      (/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) || el.isContentEditable)
+    )
+      return;
 
     const mod = ev.metaKey || ev.ctrlKey;
     const key = ev.key.toLowerCase();
@@ -2756,53 +3829,101 @@ export class CalendarComponent implements OnInit, OnDestroy {
       if (key === 'z') {
         ev.preventDefault();
         ev.shiftKey ? this.redoLast() : this.undoLast();
-      } else if (key === 'y') { ev.preventDefault(); this.redoLast(); }
+      } else if (key === 'y') {
+        ev.preventDefault();
+        this.redoLast();
+      }
       // Le même raccourci dans les deux vues. En mode groupe il n'y a pas de sélection : le
       // curseur est la case survolée (un athlète × un jour), comme le jour survolé l'est en mode
       // athlète — et copier y prend toute la journée de cet athlète.
       else if (key === 'c') {
         ev.preventDefault();
-        this.scopeMode() === 'group' ? this.copyHoveredCell() : this.copySelection();
-      }
-      else if (key === 'v') {
+        this.scopeMode() === 'group'
+          ? this.copyHoveredCell()
+          : this.copySelection();
+      } else if (key === 'v') {
         ev.preventDefault();
-        this.scopeMode() === 'group' ? this.pasteOnGroupCell() : this.pasteOn(null);
+        this.scopeMode() === 'group'
+          ? this.pasteOnGroupCell()
+          : this.pasteOn(null);
+      } else if (key === 'd') {
+        ev.preventDefault();
+        this.duplicateSelection();
+      } else if (key === 'a') {
+        ev.preventDefault();
+        this.selectAll();
       }
-      else if (key === 'd') { ev.preventDefault(); this.duplicateSelection(); }
-      else if (key === 'a') { ev.preventDefault(); this.selectAll(); }
       return;
     }
     if (ev.altKey) return;
 
     // « ? » n'a pas la même touche selon la disposition : on se fie au caractère produit.
-    if (ev.key === '?') { ev.preventDefault(); this.shortcutsOpen.set(true); return; }
+    if (ev.key === '?') {
+      ev.preventDefault();
+      this.shortcutsOpen.set(true);
+      return;
+    }
 
     if (ev.key === 'Escape') {
-      if (this.closeAllMenus()) { ev.preventDefault(); return; }
-      if (this.selection.count() || this.dayRange().length) { this.clearSelection(); ev.preventDefault(); }
+      if (this.closeAllMenus()) {
+        ev.preventDefault();
+        return;
+      }
+      if (this.selection.count() || this.dayRange().length) {
+        this.clearSelection();
+        ev.preventDefault();
+      }
       return;
     }
-    if (this.ctxMenu() || this.strengthMenu() || this.weekMenu() || this.groupMenu()) return;
+    if (
+      this.ctxMenu() ||
+      this.strengthMenu() ||
+      this.weekMenu() ||
+      this.groupMenu()
+    )
+      return;
 
     if (ev.key === 'Delete' || ev.key === 'Backspace') {
-      if (this.selection.count()) { ev.preventDefault(); void this.deleteSelection(); }
+      if (this.selection.count()) {
+        ev.preventDefault();
+        void this.deleteSelection();
+      }
       return;
     }
-    if (ev.key === 'ArrowLeft') { this.shift(-1); ev.preventDefault(); }
-    else if (ev.key === 'ArrowRight') { this.shift(1); ev.preventDefault(); }
-    else if (key === 't') { this.goToday(); ev.preventDefault(); }
-    else if (key === 'b') { this.toggleSidebar(); ev.preventDefault(); }
-    else if (key === 'n') {
+    if (ev.key === 'ArrowLeft') {
+      this.shift(-1);
+      ev.preventDefault();
+    } else if (ev.key === 'ArrowRight') {
+      this.shift(1);
+      ev.preventDefault();
+    } else if (key === 't') {
+      this.goToday();
+      ev.preventDefault();
+    } else if (key === 'b') {
+      this.toggleSidebar();
+      ev.preventDefault();
+    } else if (key === 'n') {
       const date = this.hoveredDate();
-      if (date) { this.addWorkout(date); ev.preventDefault(); }
+      if (date) {
+        this.addWorkout(date);
+        ev.preventDefault();
+      }
     }
   }
 
   /** Ferme ce qui est ouvert par-dessus la grille ; vrai si quelque chose s'est fermé. */
   private closeAllMenus(): boolean {
-    const wasOpen = !!(this.ctxMenu() || this.strengthMenu() || this.weekMenu() || this.dayMenu()
-      || this.groupMenu())
-      || this.viewMenuOpen() || this.actionsMenuOpen() || this.pickerDates().length > 0;
+    const wasOpen =
+      !!(
+        this.ctxMenu() ||
+        this.strengthMenu() ||
+        this.weekMenu() ||
+        this.dayMenu() ||
+        this.groupMenu()
+      ) ||
+      this.viewMenuOpen() ||
+      this.actionsMenuOpen() ||
+      this.pickerDates().length > 0;
     this.closeContextMenu();
     this.closeStrengthMenu();
     this.closeWeekMenu();
@@ -2832,18 +3953,23 @@ export class CalendarComponent implements OnInit, OnDestroy {
   private groupByDate(): Map<string, Workout[]> {
     const map = new Map<string, Workout[]>();
     for (const w of this.workouts()) {
-      const arr = map.get(w.scheduledDate) ?? map.set(w.scheduledDate, []).get(w.scheduledDate)!;
+      const arr =
+        map.get(w.scheduledDate) ??
+        map.set(w.scheduledDate, []).get(w.scheduledDate)!;
       arr.push(w);
     }
     // Ordre intra-jour (glisser-déposer) : trie chaque jour par orderIndex.
-    for (const arr of map.values()) arr.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+    for (const arr of map.values())
+      arr.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
     return map;
   }
 
   private groupStrengthByDate(): Map<string, ScheduledStrength[]> {
     const map = new Map<string, ScheduledStrength[]>();
     for (const s of this.strength()) {
-      const arr = map.get(s.scheduledDate) ?? map.set(s.scheduledDate, []).get(s.scheduledDate)!;
+      const arr =
+        map.get(s.scheduledDate) ??
+        map.set(s.scheduledDate, []).get(s.scheduledDate)!;
       arr.push(s);
     }
     return map;

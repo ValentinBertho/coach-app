@@ -1,5 +1,11 @@
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AdminPlatform, PlatformSetting } from '../../core/models/admin.model';
 import { AdminService } from '../../core/services/admin.service';
@@ -19,7 +25,6 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-admin-platform',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SkeletonComponent, IconComponent, RouterLink, DecimalPipe],
   templateUrl: './admin-platform.component.html',
@@ -52,7 +57,11 @@ export class AdminPlatformComponent implements OnInit {
   }
 
   badge(s: PlatformSetting): string {
-    return s.state === 'ON' ? 'badge-success' : s.state === 'PARTIAL' ? 'badge-warning' : 'badge-neutral';
+    return s.state === 'ON'
+      ? 'badge-success'
+      : s.state === 'PARTIAL'
+        ? 'badge-warning'
+        : 'badge-neutral';
   }
 
   /**
@@ -60,7 +69,14 @@ export class AdminPlatformComponent implements OnInit {
    * cache face à une réponse plus ancienne — le champ a été ajouté, pas substitué.
    */
   stateLabel(s: PlatformSetting): string {
-    return s.stateLabel ?? (s.state === 'ON' ? 'Actif' : s.state === 'PARTIAL' ? 'Incomplet' : 'Inactif');
+    return (
+      s.stateLabel ??
+      (s.state === 'ON'
+        ? 'Actif'
+        : s.state === 'PARTIAL'
+          ? 'Incomplet'
+          : 'Inactif')
+    );
   }
 
   /**

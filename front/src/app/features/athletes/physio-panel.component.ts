@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { PhysioService } from '../../core/services/physio.service';
 import { PhysioProfile, Vdot } from '../../core/models/physio.model';
@@ -10,7 +17,6 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-physio-panel',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SkeletonComponent, IconComponent],
   template: `
@@ -18,9 +24,16 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
       <div class="physio-head">
         <h2>Profil physiologique</h2>
         @if (profile()?.discipline; as d) {
-          <span class="discipline-chip" [class.discipline-chip--route]="d === 'ROUTE'"
-                [class.discipline-chip--trail]="d === 'TRAIL'">
-            <app-icon [name]="d === 'TRAIL' ? 'mountain' : 'footprints'" [size]="13" /> {{ d === 'TRAIL' ? 'Trail' : 'Route' }}
+          <span
+            class="discipline-chip"
+            [class.discipline-chip--route]="d === 'ROUTE'"
+            [class.discipline-chip--trail]="d === 'TRAIL'"
+          >
+            <app-icon
+              [name]="d === 'TRAIL' ? 'mountain' : 'footprints'"
+              [size]="13"
+            />
+            {{ d === 'TRAIL' ? 'Trail' : 'Route' }}
           </span>
         }
       </div>
@@ -48,7 +61,9 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
             <div class="seuil-row">
               <span class="seuil-name">VC</span>
               <span class="metric">{{ kmh(profile()?.vcKmh) }}</span>
-              <span class="seuil-fc metric">{{ fc(profile()?.fcMax) }} max</span>
+              <span class="seuil-fc metric"
+                >{{ fc(profile()?.fcMax) }} max</span
+              >
             </div>
           </div>
         </div>
@@ -62,7 +77,9 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
               @for (p of vdot()!.trainingPaces; track p.distance) {
                 @if (p.paceSecPerKm) {
                   <tr>
-                    <td class="allure-dist">{{ trainingPaceLabel(p.distance) }}</td>
+                    <td class="allure-dist">
+                      {{ trainingPaceLabel(p.distance) }}
+                    </td>
                     <td class="metric allure-pace">{{ p.paceLabel }}/km</td>
                     <td class="metric allure-speed">{{ p.speedKmh }} km/h</td>
                   </tr>
@@ -88,7 +105,9 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
             </tbody>
           </table>
         } @else {
-          <p class="empty-hint">Aucune allure : ajoute une performance pour calculer le VDOT.</p>
+          <p class="empty-hint">
+            Aucune allure : ajoute une performance pour calculer le VDOT.
+          </p>
         }
       }
     </div>
@@ -200,12 +219,19 @@ export class PhysioPanelComponent implements OnInit {
       },
       error: () => this.loading.set(false),
     });
-    this.physio.vdot(this.athleteId()).subscribe({ next: (v) => this.vdot.set(v) });
+    this.physio
+      .vdot(this.athleteId())
+      .subscribe({ next: (v) => this.vdot.set(v) });
   }
 
   /** Libellé FR d'une allure d'entraînement (code renvoyé par le serveur). */
   trainingPaceLabel(code: string): string {
-    return { EASY: 'Allure easy (endurance)', THRESHOLD: 'Allure seuil (threshold)' }[code] ?? code;
+    return (
+      {
+        EASY: 'Allure easy (endurance)',
+        THRESHOLD: 'Allure seuil (threshold)',
+      }[code] ?? code
+    );
   }
 
   kmh(value: number | null | undefined): string {

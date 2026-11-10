@@ -1,5 +1,12 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -11,21 +18,36 @@ import {
   CoachFormDashboard,
   FormStatus,
 } from '../../core/services/coach-dashboard.service';
-import { ReadinessGaugeComponent, type FormLevel } from '../../shared/components/physiology';
-import { MetricCardComponent, SegmentedControlComponent, type SegmentOption } from '../../shared/components/ui';
+import {
+  ReadinessGaugeComponent,
+  type FormLevel,
+} from '../../shared/components/physiology';
+import {
+  MetricCardComponent,
+  SegmentedControlComponent,
+  type SegmentOption,
+} from '../../shared/components/ui';
 import { RevealDirective } from '../../shared/directives/reveal.directive';
 
 type Scope = 'all' | 'mine' | 'private' | 'club';
 
 const LEVEL_OF: Record<FormStatus, FormLevel> = {
-  GREEN: 'green', ORANGE: 'orange', RED: 'red', STALE: 'stale',
+  GREEN: 'green',
+  ORANGE: 'orange',
+  RED: 'red',
+  STALE: 'stale',
 };
 /**
  * Criticité de tri. « Sans signal » se place entre le vert et l'orange : ce n'est pas une
  * alerte — on ne sait rien — mais ça mérite d'être vu avant les athlètes qui vont bien, parce
  * que le silence est précisément ce qu'un coach doit aller chercher.
  */
-const SEVERITY: Record<FormStatus, number> = { RED: 3, ORANGE: 2, STALE: 1, GREEN: 0 };
+const SEVERITY: Record<FormStatus, number> = {
+  RED: 3,
+  ORANGE: 2,
+  STALE: 1,
+  GREEN: 0,
+};
 
 /**
  * Cockpit coach (blueprint §7.2) : zone « à surveiller » dominante, KPI rail,
@@ -34,9 +56,16 @@ const SEVERITY: Record<FormStatus, number> = { RED: 3, ORANGE: 2, STALE: 1, GREE
  */
 @Component({
   selector: 'app-dashboard',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink, DatePipe, ReadinessGaugeComponent, MetricCardComponent, SegmentedControlComponent, RevealDirective],
+  imports: [
+    IconComponent,
+    RouterLink,
+    DatePipe,
+    ReadinessGaugeComponent,
+    MetricCardComponent,
+    SegmentedControlComponent,
+    RevealDirective,
+  ],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
 })
@@ -66,16 +95,20 @@ export class DashboardComponent implements OnInit {
   readonly attention = computed<AthleteForm[]>(() =>
     this.allAthletes()
       .filter((a) => a.formStatus !== 'GREEN' || (a.pain ?? 0) >= 4)
-      .sort((a, b) =>
-        SEVERITY[b.formStatus] - SEVERITY[a.formStatus] ||
-        (b.pain ?? 0) - (a.pain ?? 0) ||
-        (b.fatigue ?? 0) - (a.fatigue ?? 0),
+      .sort(
+        (a, b) =>
+          SEVERITY[b.formStatus] - SEVERITY[a.formStatus] ||
+          (b.pain ?? 0) - (a.pain ?? 0) ||
+          (b.fatigue ?? 0) - (a.fatigue ?? 0),
       ),
   );
 
   /** Répartition de la forme sur tout le périmètre. */
   readonly formCounts = computed(() => {
-    const c = { GREEN: 0, ORANGE: 0, RED: 0, STALE: 0 } as Record<FormStatus, number>;
+    const c = { GREEN: 0, ORANGE: 0, RED: 0, STALE: 0 } as Record<
+      FormStatus,
+      number
+    >;
     for (const a of this.allAthletes()) c[a.formStatus]++;
     return c;
   });
@@ -111,7 +144,9 @@ export class DashboardComponent implements OnInit {
     this.load();
   }
 
-  level(status: FormStatus): FormLevel { return LEVEL_OF[status]; }
+  level(status: FormStatus): FormLevel {
+    return LEVEL_OF[status];
+  }
 
   /**
    * Où mène une ligne d'alerte.
@@ -136,7 +171,8 @@ export class DashboardComponent implements OnInit {
   feedbackNote(a: AthleteForm): string {
     if (!a.lastFeedbackDate) return 'Aucun retour';
     const days = Math.floor(
-      (Date.parse(this.todayIso()) - Date.parse(a.lastFeedbackDate)) / 86_400_000,
+      (Date.parse(this.todayIso()) - Date.parse(a.lastFeedbackDate)) /
+        86_400_000,
     );
     if (days <= 0) return "Retour d'aujourd'hui";
     if (days === 1) return "Retour d'hier";

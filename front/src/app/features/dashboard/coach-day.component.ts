@@ -1,10 +1,20 @@
 import { DatePipe, LowerCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AthleteSummary } from '../../core/models/athlete.model';
-import { WORKOUT_TYPE_LABELS, WorkoutType } from '../../core/models/workout.model';
+import {
+  WORKOUT_TYPE_LABELS,
+  WorkoutType,
+} from '../../core/models/workout.model';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import {
@@ -13,7 +23,10 @@ import {
   CoachDaySession,
   FeedbackQueueItem,
 } from '../../core/services/coach-dashboard.service';
-import { ConversationService, ConversationSummary } from '../../core/services/conversation.service';
+import {
+  ConversationService,
+  ConversationSummary,
+} from '../../core/services/conversation.service';
 import { NetworkStatusService } from '../../core/services/network-status.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { CourseService } from '../../core/services/course.service';
@@ -24,7 +37,10 @@ import { WorkoutTemplateService } from '../../core/services/workout-template.ser
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { InstallPromptComponent } from '../../shared/components/install-prompt/install-prompt.component';
 import { PushPromptComponent } from '../../shared/components/push-prompt/push-prompt.component';
-import { ReplySheetComponent, type ReplyTarget } from '../../shared/components/reply-sheet/reply-sheet.component';
+import {
+  ReplySheetComponent,
+  type ReplyTarget,
+} from '../../shared/components/reply-sheet/reply-sheet.component';
 import { injuryLabel } from '../../core/models/injury.model';
 import { Proposal } from '../../core/models/decision.model';
 import { DecisionService } from '../../core/services/decision.service';
@@ -57,10 +73,18 @@ const STAMP_KEY = 'coach-day-loaded-at';
  */
 @Component({
   selector: 'app-coach-day',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe, LowerCasePipe, FormsModule, IconComponent,
-    InstallPromptComponent, PushPromptComponent, ReplySheetComponent, ProposalListComponent],
+  imports: [
+    RouterLink,
+    DatePipe,
+    LowerCasePipe,
+    FormsModule,
+    IconComponent,
+    InstallPromptComponent,
+    PushPromptComponent,
+    ReplySheetComponent,
+    ProposalListComponent,
+  ],
   templateUrl: './coach-day.component.html',
   styleUrl: './coach-day.component.scss',
 })
@@ -110,7 +134,9 @@ export class CoachDayComponent implements OnInit {
   readonly scopeLabel = computed(() => SCOPE_LABELS[this.scope()]);
 
   /** Fils avec des non-lus, les plus récents d'abord — le reste vit dans la boîte de réception. */
-  readonly unread = computed(() => this.conversations().filter((c) => c.unreadCount > 0));
+  readonly unread = computed(() =>
+    this.conversations().filter((c) => c.unreadCount > 0),
+  );
 
   /**
    * Ce qu'on montre de chaque file : les cinq premiers, jamais plus.
@@ -122,12 +148,24 @@ export class CoachDayComponent implements OnInit {
    * tous.</p>
    */
   private static readonly SHOWN = 5;
-  readonly topAlerts = computed(() => this.alerts().slice(0, CoachDayComponent.SHOWN));
-  readonly topReviews = computed(() => this.reviews().slice(0, CoachDayComponent.SHOWN));
-  readonly topUnread = computed(() => this.unread().slice(0, CoachDayComponent.SHOWN));
-  readonly moreAlerts = computed(() => Math.max(0, this.alerts().length - CoachDayComponent.SHOWN));
-  readonly moreReviews = computed(() => Math.max(0, this.reviews().length - CoachDayComponent.SHOWN));
-  readonly moreUnread = computed(() => Math.max(0, this.unread().length - CoachDayComponent.SHOWN));
+  readonly topAlerts = computed(() =>
+    this.alerts().slice(0, CoachDayComponent.SHOWN),
+  );
+  readonly topReviews = computed(() =>
+    this.reviews().slice(0, CoachDayComponent.SHOWN),
+  );
+  readonly topUnread = computed(() =>
+    this.unread().slice(0, CoachDayComponent.SHOWN),
+  );
+  readonly moreAlerts = computed(() =>
+    Math.max(0, this.alerts().length - CoachDayComponent.SHOWN),
+  );
+  readonly moreReviews = computed(() =>
+    Math.max(0, this.reviews().length - CoachDayComponent.SHOWN),
+  );
+  readonly moreUnread = computed(() =>
+    Math.max(0, this.unread().length - CoachDayComponent.SHOWN),
+  );
 
   ngOnInit(): void {
     this.load();
@@ -149,7 +187,9 @@ export class CoachDayComponent implements OnInit {
       next: (created) => {
         this.catchingUp.set(null);
         if (created.length === 0) {
-          this.toast.info('Aucun créneau libre cette semaine, ou la charge ne le permet pas.');
+          this.toast.info(
+            'Aucun créneau libre cette semaine, ou la charge ne le permet pas.',
+          );
           return;
         }
         this.toast.success(`${created.length} report(s) à valider.`);
@@ -197,7 +237,11 @@ export class CoachDayComponent implements OnInit {
         this.failed.set(false);
         this.stampNow();
       },
-      error: () => { this.reviews.set([]); this.loading.set(false); this.failed.set(true); },
+      error: () => {
+        this.reviews.set([]);
+        this.loading.set(false);
+        this.failed.set(true);
+      },
     });
     this.messages.inbox().subscribe({
       next: (c) => this.conversations.set(c),
@@ -217,13 +261,19 @@ export class CoachDayComponent implements OnInit {
 
   setScope(value: Scope): void {
     this.scope.set(value);
-    try { localStorage.setItem(SCOPE_KEY, value); } catch { /* préférence non persistée */ }
+    try {
+      localStorage.setItem(SCOPE_KEY, value);
+    } catch {
+      /* préférence non persistée */
+    }
     this.scopeOpen.set(false);
     this.load();
   }
 
   readonly scopeOpen = signal(false);
-  toggleScope(): void { this.scopeOpen.update((v) => !v); }
+  toggleScope(): void {
+    this.scopeOpen.update((v) => !v);
+  }
   readonly scopes: { value: Scope; label: string }[] = [
     { value: 'mine', label: SCOPE_LABELS.mine },
     { value: 'all', label: SCOPE_LABELS.all },
@@ -248,7 +298,9 @@ export class CoachDayComponent implements OnInit {
   // --- Retours ---------------------------------------------------------------
 
   readonly busy = signal<Set<string>>(new Set());
-  key(it: FeedbackQueueItem): string { return `${it.kind}:${it.sessionId}`; }
+  key(it: FeedbackQueueItem): string {
+    return `${it.kind}:${it.sessionId}`;
+  }
   injury = injuryLabel;
 
   /**
@@ -260,23 +312,33 @@ export class CoachDayComponent implements OnInit {
     if (this.busy().has(k)) return;
     this.busy.update((s) => new Set(s).add(k));
 
-    const call: Observable<unknown> = it.kind === 'STRENGTH'
-      ? this.strength.markScheduledReviewed(it.athleteId, it.sessionId)
-      : this.workouts.markReviewed(it.athleteId, it.sessionId);
+    const call: Observable<unknown> =
+      it.kind === 'STRENGTH'
+        ? this.strength.markScheduledReviewed(it.athleteId, it.sessionId)
+        : this.workouts.markReviewed(it.athleteId, it.sessionId);
 
     call.subscribe({
       next: () => {
         this.reviews.update((l) => l.filter((x) => this.key(x) !== k));
         this.release(k);
-        this.dashboard.refreshPendingReviews().subscribe({ error: () => undefined });
+        this.dashboard
+          .refreshPendingReviews()
+          .subscribe({ error: () => undefined });
         this.toast.success('Retour marqué comme traité');
       },
-      error: () => { this.release(k); this.toast.error('Action impossible.'); },
+      error: () => {
+        this.release(k);
+        this.toast.error('Action impossible.');
+      },
     });
   }
 
   private release(k: string): void {
-    this.busy.update((s) => { const n = new Set(s); n.delete(k); return n; });
+    this.busy.update((s) => {
+      const n = new Set(s);
+      n.delete(k);
+      return n;
+    });
   }
 
   // --- Répondre sans quitter l'écran ----------------------------------------
@@ -287,17 +349,29 @@ export class CoachDayComponent implements OnInit {
 
   replyToAlert(a: CoachAlert): void {
     this.closeMenu();
-    this.replyTo.set({ athleteId: a.athleteId, name: a.athleteName, about: a.title });
+    this.replyTo.set({
+      athleteId: a.athleteId,
+      name: a.athleteName,
+      about: a.title,
+    });
   }
 
   replyToReview(it: FeedbackQueueItem): void {
     this.closeMenu();
-    this.replyTo.set({ athleteId: it.athleteId, name: it.athleteName, about: it.title });
+    this.replyTo.set({
+      athleteId: it.athleteId,
+      name: it.athleteName,
+      about: it.title,
+    });
   }
 
   replyToSession(s: CoachDaySession): void {
     this.closeMenu();
-    this.replyTo.set({ athleteId: s.athleteId, name: s.athleteName, about: s.title });
+    this.replyTo.set({
+      athleteId: s.athleteId,
+      name: s.athleteName,
+      about: s.title,
+    });
   }
 
   /** Un message envoyé peut avoir vidé un non-lu : la section Messages se recharge. */
@@ -337,12 +411,17 @@ export class CoachDayComponent implements OnInit {
 
   confirmMove(s: CoachDaySession): void {
     const target = this.moveDate;
-    if (!target || target === s.scheduledDate) { this.movingId.set(null); return; }
+    if (!target || target === s.scheduledDate) {
+      this.movingId.set(null);
+      return;
+    }
     this.workouts.reschedule(s.athleteId, s.workoutId, target).subscribe({
       next: () => {
         this.movingId.set(null);
         // La séance quitte le jour affiché : on la retire de la liste sans attendre le rechargement.
-        this.sessions.update((l) => l.filter((x) => x.workoutId !== s.workoutId));
+        this.sessions.update((l) =>
+          l.filter((x) => x.workoutId !== s.workoutId),
+        );
         this.toast.success(`${s.title} déplacée au ${frDate(target)}`);
       },
       error: () => this.toast.error('Déplacement impossible.'),
@@ -350,11 +429,22 @@ export class CoachDayComponent implements OnInit {
   }
 
   open(s: CoachDaySession): void {
-    this.router.navigate(['/app/athletes', s.athleteId, 'workouts', s.workoutId]);
+    this.router.navigate([
+      '/app/athletes',
+      s.athleteId,
+      'workouts',
+      s.workoutId,
+    ]);
   }
 
   edit(s: CoachDaySession): void {
-    this.router.navigate(['/app/athletes', s.athleteId, 'workouts', s.workoutId, 'structure']);
+    this.router.navigate([
+      '/app/athletes',
+      s.athleteId,
+      'workouts',
+      s.workoutId,
+      'structure',
+    ]);
   }
 
   /**
@@ -366,15 +456,18 @@ export class CoachDayComponent implements OnInit {
     this.closeMenu();
     const ok = await this.confirm.ask({
       title: 'Supprimer la séance ?',
-      message: `« ${s.title} » du ${frDate(s.scheduledDate)}, chez ${s.athleteName}. `
-        + `Cette suppression est définitive.`,
+      message:
+        `« ${s.title} » du ${frDate(s.scheduledDate)}, chez ${s.athleteName}. ` +
+        `Cette suppression est définitive.`,
       confirmLabel: 'Supprimer',
       danger: true,
     });
     if (!ok) return;
     this.workouts.delete(s.athleteId, s.workoutId).subscribe({
       next: () => {
-        this.sessions.update((l) => l.filter((x) => x.workoutId !== s.workoutId));
+        this.sessions.update((l) =>
+          l.filter((x) => x.workoutId !== s.workoutId),
+        );
         this.toast.success('Séance supprimée');
       },
       error: () => this.toast.error('Suppression impossible.'),
@@ -399,7 +492,9 @@ export class CoachDayComponent implements OnInit {
     return list.filter((t) => t.name.toLowerCase().includes(q)).slice(0, 8);
   });
   private readonly planFilter = signal('');
-  onPlanQuery(): void { this.planFilter.set(this.planQuery); }
+  onPlanQuery(): void {
+    this.planFilter.set(this.planQuery);
+  }
 
   openPlan(): void {
     this.planOpen.set(true);
@@ -427,17 +522,25 @@ export class CoachDayComponent implements OnInit {
 
   /** Planifie un modèle de la bibliothèque : mêmes cibles figées que depuis le calendrier. */
   planTemplate(t: WorkoutTemplate): void {
-    if (!this.planAthleteId) { this.toast.warning('Choisis un athlète.'); return; }
+    if (!this.planAthleteId) {
+      this.toast.warning('Choisis un athlète.');
+      return;
+    }
     this.planning.set(true);
-    this.courses.schedule(this.planAthleteId, t.id, { date: this.planDate }).subscribe({
-      next: () => {
-        this.planning.set(false);
-        this.closePlan();
-        this.toast.success(`${t.name} planifiée le ${frDate(this.planDate)}`);
-        if (this.planDate === this.date()) this.loadDay();
-      },
-      error: () => { this.planning.set(false); this.toast.error('Planification impossible.'); },
-    });
+    this.courses
+      .schedule(this.planAthleteId, t.id, { date: this.planDate })
+      .subscribe({
+        next: () => {
+          this.planning.set(false);
+          this.closePlan();
+          this.toast.success(`${t.name} planifiée le ${frDate(this.planDate)}`);
+          if (this.planDate === this.date()) this.loadDay();
+        },
+        error: () => {
+          this.planning.set(false);
+          this.toast.error('Planification impossible.');
+        },
+      });
   }
 
   /**
@@ -445,19 +548,37 @@ export class CoachDayComponent implements OnInit {
    * cet écran qui mène à un écran de conception — on l'assume, il est explicite.
    */
   planBlank(): void {
-    if (!this.planAthleteId) { this.toast.warning('Choisis un athlète.'); return; }
+    if (!this.planAthleteId) {
+      this.toast.warning('Choisis un athlète.');
+      return;
+    }
     this.planning.set(true);
     const athleteId = this.planAthleteId;
-    this.workouts.create(athleteId, {
-      scheduledDate: this.planDate, type: 'ENDURANCE', title: 'Séance', notes: null, steps: [],
-    }).subscribe({
-      next: (w) => {
-        this.planning.set(false);
-        this.closePlan();
-        this.router.navigate(['/app/athletes', athleteId, 'workouts', w.id, 'structure']);
-      },
-      error: () => { this.planning.set(false); this.toast.error('Création impossible.'); },
-    });
+    this.workouts
+      .create(athleteId, {
+        scheduledDate: this.planDate,
+        type: 'ENDURANCE',
+        title: 'Séance',
+        notes: null,
+        steps: [],
+      })
+      .subscribe({
+        next: (w) => {
+          this.planning.set(false);
+          this.closePlan();
+          this.router.navigate([
+            '/app/athletes',
+            athleteId,
+            'workouts',
+            w.id,
+            'structure',
+          ]);
+        },
+        error: () => {
+          this.planning.set(false);
+          this.toast.error('Création impossible.');
+        },
+      });
   }
 
   // --- Affichage -------------------------------------------------------------
@@ -467,7 +588,12 @@ export class CoachDayComponent implements OnInit {
   }
 
   statusLabel(status: CoachDaySession['status']): string {
-    return { PLANNED: 'Prévu', COMPLETED: 'Réalisé', PARTIAL: 'Partiel', MISSED: 'Manqué' }[status];
+    return {
+      PLANNED: 'Prévu',
+      COMPLETED: 'Réalisé',
+      PARTIAL: 'Partiel',
+      MISSED: 'Manqué',
+    }[status];
   }
 
   /** Extrait d'un commentaire : la ligne reste lisible, le détail est derrière le lien. */
@@ -478,21 +604,36 @@ export class CoachDayComponent implements OnInit {
 
   /** Initiales d'un fil : le titre peut être un nom, un groupe ou le club. */
   initials(title: string): string {
-    return title.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+    return title
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase();
   }
 
   /**
    * « Rien de prévu » n'est pas une erreur : c'est une information, et souvent une bonne. Encore
    * faut-il l'avoir vérifié — un chargement en échec n'autorise pas à annoncer une journée calme.
    */
-  readonly quiet = computed(() =>
-    !this.loading() && !this.failed()
-    && !this.alerts().length && !this.reviews().length && !this.unread().length);
+  readonly quiet = computed(
+    () =>
+      !this.loading() &&
+      !this.failed() &&
+      !this.alerts().length &&
+      !this.reviews().length &&
+      !this.unread().length,
+  );
 
   private stampNow(): void {
     const iso = new Date().toISOString();
     this.lastLoadedAt.set(iso);
-    try { localStorage.setItem(STAMP_KEY, iso); } catch { /* horodatage non persisté */ }
+    try {
+      localStorage.setItem(STAMP_KEY, iso);
+    } catch {
+      /* horodatage non persisté */
+    }
   }
 
   /** « aujourd'hui à 7 h 12 », « hier à 21 h 04 », ou la date pleine au-delà. */
@@ -500,7 +641,10 @@ export class CoachDayComponent implements OnInit {
     const iso = this.lastLoadedAt();
     if (!iso) return '';
     const d = new Date(iso);
-    const heure = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const heure = d.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
     const jour = isoOf(d);
     if (jour === todayIso()) return `aujourd'hui à ${heure}`;
     const hier = new Date();
@@ -518,14 +662,21 @@ const SCOPE_LABELS: Record<Scope, string> = {
 };
 
 function readStamp(): string | null {
-  try { return localStorage.getItem(STAMP_KEY); } catch { return null; }
+  try {
+    return localStorage.getItem(STAMP_KEY);
+  } catch {
+    return null;
+  }
 }
 
 function readScope(): Scope {
   try {
     const v = localStorage.getItem(SCOPE_KEY);
-    if (v === 'all' || v === 'mine' || v === 'private' || v === 'club') return v;
-  } catch { /* stockage indisponible */ }
+    if (v === 'all' || v === 'mine' || v === 'private' || v === 'club')
+      return v;
+  } catch {
+    /* stockage indisponible */
+  }
   return 'mine';
 }
 
@@ -539,6 +690,8 @@ function isoOf(d: Date): string {
 
 function frDate(iso: string): string {
   return new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', {
-    weekday: 'short', day: 'numeric', month: 'short',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
   });
 }

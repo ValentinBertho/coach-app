@@ -1,4 +1,14 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit, inject, input, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  inject,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import * as L from 'leaflet';
 import { ActivityService } from '../../core/services/activity.service';
@@ -6,23 +16,40 @@ import { ActivityService } from '../../core/services/activity.service';
 /** Affiche le tracé GPS d'une activité importée (Leaflet + tuiles OpenStreetMap). */
 @Component({
   selector: 'app-activity-map',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink],
   template: `
     <section class="page-header">
       <div><h1 class="display-sm">Tracé de l'activité</h1></div>
-      <a [routerLink]="['/app/athletes', athleteId(), 'activities']" class="btn btn-ghost">← Activités</a>
+      <a
+        [routerLink]="['/app/athletes', athleteId(), 'activities']"
+        class="btn btn-ghost"
+        >← Activités</a
+      >
     </section>
     @if (empty()) {
-      <div class="card empty-state"><h2>Pas de tracé</h2><p class="field-hint">Cette activité n'a pas de données GPS.</p></div>
+      <div class="card empty-state">
+        <h2>Pas de tracé</h2>
+        <p class="field-hint">Cette activité n'a pas de données GPS.</p>
+      </div>
     }
-    <div class="card map-card" [hidden]="empty()"><div #map class="map"></div></div>
+    <div class="card map-card" [hidden]="empty()">
+      <div #map class="map"></div>
+    </div>
   `,
-  styles: [`
-    .map-card { padding: 0; overflow: hidden; }
-    .map { height: 70vh; width: 100%; border-radius: var(--radius-lg); }
-  `],
+  styles: [
+    `
+      .map-card {
+        padding: 0;
+        overflow: hidden;
+      }
+      .map {
+        height: 70vh;
+        width: 100%;
+        border-radius: var(--radius-lg);
+      }
+    `,
+  ],
 })
 export class ActivityMapComponent implements OnInit, OnDestroy {
   readonly athleteId = input.required<string>();
@@ -36,8 +63,13 @@ export class ActivityMapComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.activityService.route(this.athleteId(), this.activityId()).subscribe({
       next: (pts) => {
-        if (!pts || pts.length === 0) { this.empty.set(true); return; }
-        setTimeout(() => this.draw(pts.map((p) => [p[0], p[1]] as L.LatLngTuple)));
+        if (!pts || pts.length === 0) {
+          this.empty.set(true);
+          return;
+        }
+        setTimeout(() =>
+          this.draw(pts.map((p) => [p[0], p[1]] as L.LatLngTuple)),
+        );
       },
       error: () => this.empty.set(true),
     });
@@ -51,9 +83,14 @@ export class ActivityMapComponent implements OnInit, OnDestroy {
       attribution: '© OpenStreetMap',
       maxZoom: 18,
     }).addTo(this.map);
-    const line = L.polyline(latlngs, { color: '#0e6e78', weight: 4 }).addTo(this.map);
+    const line = L.polyline(latlngs, { color: '#0e6e78', weight: 4 }).addTo(
+      this.map,
+    );
     L.circleMarker(latlngs[0], { color: '#0e9e74', radius: 7 }).addTo(this.map);
-    L.circleMarker(latlngs[latlngs.length - 1], { color: '#e25e3a', radius: 7 }).addTo(this.map);
+    L.circleMarker(latlngs[latlngs.length - 1], {
+      color: '#e25e3a',
+      radius: 7,
+    }).addTo(this.map);
     this.map.fitBounds(line.getBounds(), { padding: [24, 24] });
   }
 

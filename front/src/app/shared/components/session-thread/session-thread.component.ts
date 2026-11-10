@@ -1,5 +1,12 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Message } from '../../../core/models/message.model';
 import { IconComponent } from '../icon/icon.component';
@@ -29,7 +36,6 @@ import { IconComponent } from '../icon/icon.component';
  */
 @Component({
   selector: 'app-session-thread',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DatePipe, FormsModule, IconComponent],
   template: `
@@ -41,26 +47,37 @@ import { IconComponent } from '../icon/icon.component';
         <article class="st-msg st-msg--coach st-msg--head">
           <header class="st-msg__hd">
             <strong>{{ headAuthor }}</strong>
-            @if (headAt) { <span class="field-hint metric">{{ headAt | date: 'd MMM, HH:mm' }}</span> }
+            @if (headAt) {
+              <span class="field-hint metric">{{
+                headAt | date: 'd MMM, HH:mm'
+              }}</span>
+            }
           </header>
           <p class="st-msg__body">{{ headText }}</p>
         </article>
       }
 
       @for (m of messages; track m.id) {
-        <article class="st-msg"
-                 [class.st-msg--coach]="m.senderRole !== 'ATHLETE'"
-                 [class.st-msg--athlete]="m.senderRole === 'ATHLETE'"
-                 [class.st-msg--mine]="isMine(m)">
+        <article
+          class="st-msg"
+          [class.st-msg--coach]="m.senderRole !== 'ATHLETE'"
+          [class.st-msg--athlete]="m.senderRole === 'ATHLETE'"
+          [class.st-msg--mine]="isMine(m)"
+        >
           <header class="st-msg__hd">
             <strong>{{ m.senderName }}</strong>
-            <span class="field-hint metric">{{ m.createdAt | date: 'd MMM, HH:mm' }}</span>
+            <span class="field-hint metric">{{
+              m.createdAt | date: 'd MMM, HH:mm'
+            }}</span>
           </header>
           <p class="st-msg__body">{{ m.body }}</p>
           @if (m.attachmentFilename) {
             <p class="field-hint st-msg__att">
-              <app-icon name="paperclip" [size]="13" /> {{ m.attachmentFilename }}
-              <span class="st-msg__att-hint">— à ouvrir depuis la messagerie</span>
+              <app-icon name="paperclip" [size]="13" />
+              {{ m.attachmentFilename }}
+              <span class="st-msg__att-hint"
+                >— à ouvrir depuis la messagerie</span
+              >
             </p>
           }
         </article>
@@ -72,13 +89,25 @@ import { IconComponent } from '../icon/icon.component';
 
       @if (canReply) {
         <div class="st-reply">
-          <label class="st-reply__lb" [attr.for]="inputId">{{ replyLabel }}</label>
-          <textarea [id]="inputId" class="form-control" rows="2" maxlength="2000"
-                    [ngModel]="draft()" (ngModelChange)="draft.set($event)"
-                    [placeholder]="placeholder"></textarea>
+          <label class="st-reply__lb" [attr.for]="inputId">{{
+            replyLabel
+          }}</label>
+          <textarea
+            [id]="inputId"
+            class="form-control"
+            rows="2"
+            maxlength="2000"
+            [ngModel]="draft()"
+            (ngModelChange)="draft.set($event)"
+            [placeholder]="placeholder"
+          ></textarea>
           <div class="st-reply__actions">
-            <button type="button" class="btn btn-primary btn-sm"
-                    [disabled]="!draft().trim() || sending" (click)="submit()">
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              [disabled]="!draft().trim() || sending"
+              (click)="submit()"
+            >
               {{ sending ? 'Envoi…' : 'Envoyer' }}
             </button>
           </div>
@@ -86,33 +115,76 @@ import { IconComponent } from '../icon/icon.component';
       }
     </div>
   `,
-  styles: [`
-    .st { display: flex; flex-direction: column; gap: .6rem; }
+  styles: [
+    `
+      .st {
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+      }
 
-    .st-msg {
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md, 10px);
-      padding: .6rem .75rem;
-      background: var(--surface, transparent);
-    }
-    /* La couleur dit qui parle, jamais le seul alignement : sur un téléphone étroit, deux bulles
+      .st-msg {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md, 10px);
+        padding: 0.6rem 0.75rem;
+        background: var(--surface, transparent);
+      }
+      /* La couleur dit qui parle, jamais le seul alignement : sur un téléphone étroit, deux bulles
        alignées à droite et à gauche se distinguent mal, et un fil de trois messages se relit. */
-    .st-msg--coach { border-left: 3px solid var(--accent, #0b7); }
-    .st-msg--athlete { border-left: 3px solid var(--brand, #36c); }
-    .st-msg--head { background: color-mix(in srgb, var(--accent, #0b7) 6%, transparent); }
+      .st-msg--coach {
+        border-left: 3px solid var(--accent, #0b7);
+      }
+      .st-msg--athlete {
+        border-left: 3px solid var(--brand, #36c);
+      }
+      .st-msg--head {
+        background: color-mix(in srgb, var(--accent, #0b7) 6%, transparent);
+      }
 
-    .st-msg__hd { display: flex; align-items: baseline; gap: .5rem; margin-bottom: .2rem; }
-    .st-msg__hd strong { font-size: .85rem; }
-    .st-msg__body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-    .st-msg__att { margin: .35rem 0 0; display: flex; align-items: center; gap: .3rem; }
-    .st-msg__att-hint { opacity: .75; }
+      .st-msg__hd {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        margin-bottom: 0.2rem;
+      }
+      .st-msg__hd strong {
+        font-size: 0.85rem;
+      }
+      .st-msg__body {
+        margin: 0;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      .st-msg__att {
+        margin: 0.35rem 0 0;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+      .st-msg__att-hint {
+        opacity: 0.75;
+      }
 
-    .st-empty { margin: 0; }
+      .st-empty {
+        margin: 0;
+      }
 
-    .st-reply { display: flex; flex-direction: column; gap: .4rem; margin-top: .2rem; }
-    .st-reply__lb { font-size: .85rem; font-weight: 600; }
-    .st-reply__actions { display: flex; justify-content: flex-end; }
-  `],
+      .st-reply {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        margin-top: 0.2rem;
+      }
+      .st-reply__lb {
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .st-reply__actions {
+        display: flex;
+        justify-content: flex-end;
+      }
+    `,
+  ],
 })
 export class SessionThreadComponent {
   /** Messages rattachés à la séance, du plus ancien au plus récent. */
@@ -139,7 +211,9 @@ export class SessionThreadComponent {
   readonly draft = signal('');
 
   isMine(m: Message): boolean {
-    return this.viewer === 'ATHLETE' ? m.senderRole === 'ATHLETE' : m.senderRole !== 'ATHLETE';
+    return this.viewer === 'ATHLETE'
+      ? m.senderRole === 'ATHLETE'
+      : m.senderRole !== 'ATHLETE';
   }
 
   submit(): void {

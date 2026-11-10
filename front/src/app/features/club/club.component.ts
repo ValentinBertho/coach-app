@@ -1,9 +1,19 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { AthleteService } from '../../core/services/athlete.service';
 import { AuthService } from '../../core/services/auth.service';
-import { ClubMember, ClubRole, ClubService } from '../../core/services/club.service';
+import {
+  ClubMember,
+  ClubRole,
+  ClubService,
+} from '../../core/services/club.service';
 import { AthleteAccessPanelComponent } from '../../shared/components/athlete-access/athlete-access-panel.component';
 import { ToastService } from '../../core/services/toast.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
@@ -16,9 +26,13 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
 /** Écran Club (s-club) interactif : coachs, rôles, statut privé/club et permissions graduées. */
 @Component({
   selector: 'app-club',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, IconComponent, FormsModule, AthleteAccessPanelComponent],
+  imports: [
+    SkeletonComponent,
+    IconComponent,
+    FormsModule,
+    AthleteAccessPanelComponent,
+  ],
   templateUrl: './club.component.html',
   styleUrl: './club.component.scss',
 })
@@ -40,7 +54,9 @@ export class ClubComponent implements OnInit {
   readonly athleteList = signal<AthleteSummary[]>([]);
   readonly selectedAthlete = signal('');
   readonly roleLabels: Record<string, string> = {
-    OWNER: 'Owner', COACH_PRINCIPAL: 'Coach principal', COACH_ASSISTANT: 'Coach assistant',
+    OWNER: 'Owner',
+    COACH_PRINCIPAL: 'Coach principal',
+    COACH_ASSISTANT: 'Coach assistant',
   };
 
   // Ajout / invitation d'un coach au club.
@@ -55,12 +71,21 @@ export class ClubComponent implements OnInit {
 
   ngOnInit(): void {
     this.clubService.members().subscribe({
-      next: (m) => { this.members.set(m); this.loadingMembers.set(false); },
+      next: (m) => {
+        this.members.set(m);
+        this.loadingMembers.set(false);
+      },
       error: () => this.loadingMembers.set(false),
     });
-    this.athletes.list({ status: 'ACTIVE' }).subscribe((p) => this.athleteList.set(p.content));
-    this.templateService.listAll().subscribe((t) => this.courseTemplates.set(t));
-    this.strengthService.listAllSessions().subscribe((s) => this.strengthSessions.set(s));
+    this.athletes
+      .list({ status: 'ACTIVE' })
+      .subscribe((p) => this.athleteList.set(p.content));
+    this.templateService
+      .listAll()
+      .subscribe((t) => this.courseTemplates.set(t));
+    this.strengthService
+      .listAllSessions()
+      .subscribe((s) => this.strengthSessions.set(s));
   }
 
   addCoach(): void {
@@ -68,25 +93,32 @@ export class ClubComponent implements OnInit {
     if (!email || this.addingCoach()) return;
     this.addingCoach.set(true);
     this.lastInviteUrl.set(null);
-    this.clubService.addCoach(email, this.newCoachRole, this.newCoachName.trim() || undefined).subscribe({
-      next: (r) => {
-        this.addingCoach.set(false);
-        this.newCoachEmail = '';
-        this.newCoachName = '';
-        if (r.invited) {
-          this.lastInviteUrl.set(r.inviteUrl);
-          this.toast.success(`${r.name} invité·e — lien d'activation envoyé par e-mail`);
-        } else {
-          this.toast.success(`${r.name} ajouté au club`);
-        }
-        // Rafraîchir la liste (statut en attente, rôle).
-        this.clubService.members().subscribe((m) => this.members.set(m));
-      },
-      error: (e) => {
-        this.addingCoach.set(false);
-        this.toast.warning(e?.error?.message ?? 'Ajout impossible (déjà membre, ou compte non-coach).');
-      },
-    });
+    this.clubService
+      .addCoach(email, this.newCoachRole, this.newCoachName.trim() || undefined)
+      .subscribe({
+        next: (r) => {
+          this.addingCoach.set(false);
+          this.newCoachEmail = '';
+          this.newCoachName = '';
+          if (r.invited) {
+            this.lastInviteUrl.set(r.inviteUrl);
+            this.toast.success(
+              `${r.name} invité·e — lien d'activation envoyé par e-mail`,
+            );
+          } else {
+            this.toast.success(`${r.name} ajouté au club`);
+          }
+          // Rafraîchir la liste (statut en attente, rôle).
+          this.clubService.members().subscribe((m) => this.members.set(m));
+        },
+        error: (e) => {
+          this.addingCoach.set(false);
+          this.toast.warning(
+            e?.error?.message ??
+              'Ajout impossible (déjà membre, ou compte non-coach).',
+          );
+        },
+      });
   }
 
   /**
@@ -115,7 +147,9 @@ export class ClubComponent implements OnInit {
     if (m.clubRole === 'OWNER') return;
     this.clubService.removeCoach(m.coachId).subscribe({
       next: () => {
-        this.members.update((list) => list.filter((x) => x.coachId !== m.coachId));
+        this.members.update((list) =>
+          list.filter((x) => x.coachId !== m.coachId),
+        );
         this.toast.info(`${m.name} retiré du club.`);
       },
       error: () => this.toast.error('Retrait impossible.'),

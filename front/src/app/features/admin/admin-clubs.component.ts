@@ -1,9 +1,20 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
-import { CLUB_STATUS_LABELS, ClubAdmin, ClubStatus, clubStatusBadge } from '../../core/models/admin.model';
+import {
+  CLUB_STATUS_LABELS,
+  ClubAdmin,
+  ClubStatus,
+  clubStatusBadge,
+} from '../../core/models/admin.model';
 import { AdminService } from '../../core/services/admin.service';
 import { ToastService } from '../../core/services/toast.service';
 import { EmptyStateComponent } from '../../shared/components/empty-state/empty-state.component';
@@ -20,11 +31,15 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-admin-clubs',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SkeletonComponent, FormsModule, PaginatorComponent, RouterLink, IconComponent,
-    EmptyStateComponent, DatePipe,
+    SkeletonComponent,
+    FormsModule,
+    PaginatorComponent,
+    RouterLink,
+    IconComponent,
+    EmptyStateComponent,
+    DatePipe,
   ],
   templateUrl: './admin-clubs.component.html',
   styleUrl: './admin-list.scss',
@@ -91,18 +106,24 @@ export class AdminClubsComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.failed.set(false);
-    this.admin.clubs(this.search || undefined, this.page(), this.filterStatus || undefined).subscribe({
-      next: (p) => {
-        this.clubs.set(p.content);
-        this.totalPages.set(p.totalPages);
-        this.total.set(p.totalElements);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.failed.set(true);
-        this.loading.set(false);
-      },
-    });
+    this.admin
+      .clubs(
+        this.search || undefined,
+        this.page(),
+        this.filterStatus || undefined,
+      )
+      .subscribe({
+        next: (p) => {
+          this.clubs.set(p.content);
+          this.totalPages.set(p.totalPages);
+          this.total.set(p.totalElements);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.failed.set(true);
+          this.loading.set(false);
+        },
+      });
   }
 
   create(): void {

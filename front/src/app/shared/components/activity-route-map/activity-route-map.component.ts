@@ -1,6 +1,13 @@
 import {
-  ChangeDetectionStrategy, Component, ElementRef, OnDestroy,
-  effect, inject, input, signal, viewChild,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  OnDestroy,
+  effect,
+  inject,
+  input,
+  signal,
+  viewChild,
 } from '@angular/core';
 import * as L from 'leaflet';
 import { ActivityService } from '../../../core/services/activity.service';
@@ -21,13 +28,14 @@ import { IconComponent } from '../icon/icon.component';
  */
 @Component({
   selector: 'app-activity-route-map',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
     <div class="rm">
       @if (title()) {
-        <span class="rm-title"><app-icon name="map-pin" [size]="14" /> Carte</span>
+        <span class="rm-title"
+          ><app-icon name="map-pin" [size]="14" /> Carte</span
+        >
       }
       @if (empty()) {
         <p class="field-hint rm-empty">Pas de tracé GPS pour cette sortie.</p>
@@ -36,12 +44,31 @@ import { IconComponent } from '../icon/icon.component';
       }
     </div>
   `,
-  styles: [`
-    .rm { display: flex; flex-direction: column; gap: var(--sp-2); }
-    .rm-title { display: inline-flex; align-items: center; gap: var(--sp-1); font-weight: 700; font-size: var(--text-sm); color: var(--ink); }
-    .rm-canvas { width: 100%; border-radius: var(--radius-md); overflow: hidden; }
-    .rm-empty { margin: 0; }
-  `],
+  styles: [
+    `
+      .rm {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+      }
+      .rm-title {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-1);
+        font-weight: 700;
+        font-size: var(--text-sm);
+        color: var(--ink);
+      }
+      .rm-canvas {
+        width: 100%;
+        border-radius: var(--radius-md);
+        overflow: hidden;
+      }
+      .rm-empty {
+        margin: 0;
+      }
+    `,
+  ],
 })
 export class ActivityRouteMapComponent implements OnDestroy {
   readonly athleteId = input<string | null>(null);
@@ -58,11 +85,14 @@ export class ActivityRouteMapComponent implements OnDestroy {
   private map?: L.Map;
 
   constructor() {
-    effect(() => {
-      const a = this.athleteId();
-      const id = this.activityId();
-      if (id) this.load(a, id);
-    }, { allowSignalWrites: true });
+    effect(
+      () => {
+        const a = this.athleteId();
+        const id = this.activityId();
+        if (id) this.load(a, id);
+      },
+      { allowSignalWrites: true },
+    );
   }
 
   private load(athleteId: string | null, activityId: string): void {
@@ -73,10 +103,15 @@ export class ActivityRouteMapComponent implements OnDestroy {
       : this.portal.activityRoute(activityId);
     request.subscribe({
       next: (pts) => {
-        if (!pts?.length) { this.empty.set(true); return; }
+        if (!pts?.length) {
+          this.empty.set(true);
+          return;
+        }
         // Le canevas n'existe qu'une fois `empty` retombé à faux et le rendu passé : Leaflet
         // exige un élément déjà dans le document, avec une hauteur.
-        setTimeout(() => this.draw(pts.map((p) => [p[0], p[1]] as L.LatLngTuple)));
+        setTimeout(() =>
+          this.draw(pts.map((p) => [p[0], p[1]] as L.LatLngTuple)),
+        );
       },
       error: () => this.empty.set(true),
     });
@@ -87,13 +122,19 @@ export class ActivityRouteMapComponent implements OnDestroy {
     if (!el) return;
     this.map = L.map(el, { attributionControl: true });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap', maxZoom: 18,
+      attribution: '© OpenStreetMap',
+      maxZoom: 18,
     }).addTo(this.map);
-    const line = L.polyline(latlngs, { color: '#0e6e78', weight: 4 }).addTo(this.map);
+    const line = L.polyline(latlngs, { color: '#0e6e78', weight: 4 }).addTo(
+      this.map,
+    );
     // Départ et arrivée nommés par leur couleur : sur une boucle, les deux extrémités se
     // superposent et le sens du parcours devient indevinable sans repère.
     L.circleMarker(latlngs[0], { color: '#0e9e74', radius: 7 }).addTo(this.map);
-    L.circleMarker(latlngs[latlngs.length - 1], { color: '#e25e3a', radius: 7 }).addTo(this.map);
+    L.circleMarker(latlngs[latlngs.length - 1], {
+      color: '#e25e3a',
+      radius: 7,
+    }).addTo(this.map);
     this.map.fitBounds(line.getBounds(), { padding: [24, 24] });
   }
 
@@ -102,5 +143,7 @@ export class ActivityRouteMapComponent implements OnDestroy {
     this.map = undefined;
   }
 
-  ngOnDestroy(): void { this.destroy(); }
+  ngOnDestroy(): void {
+    this.destroy();
+  }
 }

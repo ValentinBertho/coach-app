@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+} from '@angular/core';
 import { Outlook, Trajectory } from '../../../core/models/decision.model';
 import { IconComponent } from '../icon/icon.component';
 
@@ -32,7 +37,6 @@ const OUTLOOK_LABEL: Record<Outlook, string> = {
  */
 @Component({
   selector: 'app-trajectory-banner',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
@@ -57,7 +61,9 @@ const OUTLOOK_LABEL: Record<Outlook, string> = {
           </div>
         }
 
-        @if (t.detail) { <p class="tb__detail">{{ t.detail }}</p> }
+        @if (t.detail) {
+          <p class="tb__detail">{{ t.detail }}</p>
+        }
         @if (t.loadNote) {
           <p class="tb__load">
             <app-icon name="alert-triangle" [size]="15" />
@@ -67,41 +73,90 @@ const OUTLOOK_LABEL: Record<Outlook, string> = {
       </section>
     }
   `,
-  styles: [`
-    .tb {
-      display: flex; flex-direction: column; gap: var(--sp-2);
-      border-left: 4px solid var(--tc, var(--ink-4));
-    }
-    .tb--good    { --tc: var(--success); }
-    .tb--watch   { --tc: var(--warning); }
-    .tb--alert   { --tc: var(--danger); }
-    .tb--neutral { --tc: var(--ink-4); }
+  styles: [
+    `
+      .tb {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+        border-left: 4px solid var(--tc, var(--ink-4));
+      }
+      .tb--good {
+        --tc: var(--success);
+      }
+      .tb--watch {
+        --tc: var(--warning);
+      }
+      .tb--alert {
+        --tc: var(--danger);
+      }
+      .tb--neutral {
+        --tc: var(--ink-4);
+      }
 
-    .tb__hd { display: flex; align-items: center; gap: var(--sp-2); color: var(--tc); }
-    .tb__race { color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-    .tb__countdown {
-      font-weight: 700; color: var(--tc); white-space: nowrap;
-      font-variant-numeric: tabular-nums;
-    }
+      .tb__hd {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        color: var(--tc);
+      }
+      .tb__race {
+        color: var(--ink);
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .tb__countdown {
+        font-weight: 700;
+        color: var(--tc);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
 
-    .tb__headline {
-      margin: 0; font-family: var(--font-display); font-weight: 700;
-      font-size: var(--text-lg); line-height: 1.3; color: var(--ink);
-    }
-    .tb__badges { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
-    .tb__badge {
-      font-size: var(--text-xs); font-weight: 700; letter-spacing: .02em;
-      padding: 2px var(--sp-2); border-radius: var(--radius-full);
-      border: 1px solid var(--tc); color: var(--tc);
-    }
-    .tb__badge--soft { border-color: var(--hairline); color: var(--ink-3); }
+      .tb__headline {
+        margin: 0;
+        font-family: var(--font-display);
+        font-weight: 700;
+        font-size: var(--text-lg);
+        line-height: 1.3;
+        color: var(--ink);
+      }
+      .tb__badges {
+        display: flex;
+        gap: var(--sp-2);
+        flex-wrap: wrap;
+      }
+      .tb__badge {
+        font-size: var(--text-xs);
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        padding: 2px var(--sp-2);
+        border-radius: var(--radius-full);
+        border: 1px solid var(--tc);
+        color: var(--tc);
+      }
+      .tb__badge--soft {
+        border-color: var(--hairline);
+        color: var(--ink-3);
+      }
 
-    .tb__detail { margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
-    .tb__load {
-      margin: 0; display: flex; align-items: flex-start; gap: var(--sp-2);
-      font-size: var(--text-sm); color: var(--warning); font-weight: 600;
-    }
-  `],
+      .tb__detail {
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+      }
+      .tb__load {
+        margin: 0;
+        display: flex;
+        align-items: flex-start;
+        gap: var(--sp-2);
+        font-size: var(--text-sm);
+        color: var(--warning);
+        font-weight: 600;
+      }
+    `,
+  ],
 })
 export class TrajectoryBannerComponent {
   readonly data = input<Trajectory | null>(null);

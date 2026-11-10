@@ -1,9 +1,19 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { TrendChartComponent, type TrendPoint } from '../../shared/components/trend-chart/trend-chart.component';
+import {
+  TrendChartComponent,
+  type TrendPoint,
+} from '../../shared/components/trend-chart/trend-chart.component';
 import { SidePanelComponent } from '../../shared/components/ui';
 import { AthleteService } from '../../core/services/athlete.service';
 import { StrengthService } from '../../core/services/strength.service';
@@ -37,11 +47,16 @@ type Tab = 'exercises' | 'sessions' | 'cycles' | 'tests1rm' | 'analysis';
 
 @Component({
   selector: 'app-strength',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SkeletonComponent, IconComponent, FormsModule, DatePipe, RouterLink, TrendChartComponent,
-    SidePanelComponent, VideoEmbedComponent,
+    SkeletonComponent,
+    IconComponent,
+    FormsModule,
+    DatePipe,
+    RouterLink,
+    TrendChartComponent,
+    SidePanelComponent,
+    VideoEmbedComponent,
   ],
   templateUrl: './strength.component.html',
   styleUrl: './strength.component.scss',
@@ -65,22 +80,45 @@ export class StrengthComponent implements OnInit {
   readonly searchQ = signal('');
   readonly showExerciseForm = signal(false);
   newExercise = {
-    name: '', category: 'FORCE_MAX' as ExerciseCategory, categoryId: '' as string,
-    muscle: '' as MuscleGroup | '', videoUrl: '', imageUrl: '', instructions: '',
+    name: '',
+    category: 'FORCE_MAX' as ExerciseCategory,
+    categoryId: '' as string,
+    muscle: '' as MuscleGroup | '',
+    videoUrl: '',
+    imageUrl: '',
+    instructions: '',
     // Fiche exercice complète (CdC §7.5) : le modèle de données portait déjà ces champs,
     // seule l'UI les ignorait.
-    level: 'INTERMEDIAIRE' as ExerciseLevel, equipment: [] as EquipmentType[],
-    contraindications: '', progressionId: '', regressionId: '',
+    level: 'INTERMEDIAIRE' as ExerciseLevel,
+    equipment: [] as EquipmentType[],
+    contraindications: '',
+    progressionId: '',
+    regressionId: '',
   };
 
   readonly levels: ExerciseLevel[] = ['DEBUTANT', 'INTERMEDIAIRE', 'AVANCE'];
   readonly equipments: EquipmentType[] = [
-    'POIDS_DU_CORPS', 'HALTERES', 'KETTLEBELL', 'BARRE', 'MACHINE', 'ELASTIQUE',
-    'MEDECINE_BALL', 'BOX', 'TRX', 'POULIE', 'LEG_EXTENSION', 'LEG_CURL', 'PRESSE', 'AUTRE'];
+    'POIDS_DU_CORPS',
+    'HALTERES',
+    'KETTLEBELL',
+    'BARRE',
+    'MACHINE',
+    'ELASTIQUE',
+    'MEDECINE_BALL',
+    'BOX',
+    'TRX',
+    'POULIE',
+    'LEG_EXTENSION',
+    'LEG_CURL',
+    'PRESSE',
+    'AUTRE',
+  ];
 
   toggleEquipment(eq: EquipmentType): void {
     const list = this.newExercise.equipment;
-    this.newExercise.equipment = list.includes(eq) ? list.filter((x) => x !== eq) : [...list, eq];
+    this.newExercise.equipment = list.includes(eq)
+      ? list.filter((x) => x !== eq)
+      : [...list, eq];
   }
 
   /** Catégories unifiées du domaine prépa physique (QA1). */
@@ -96,14 +134,15 @@ export class StrengthComponent implements OnInit {
   });
 
   catName(id: string | null): string {
-    return id ? this.catNameById().get(id) ?? '' : '';
+    return id ? (this.catNameById().get(id) ?? '') : '';
   }
 
   /** Exercices filtrés par catégorie unifiée (le filtre enum/muscle reste côté serveur). */
   readonly filteredExercises = computed(() => {
     const f = this.filterCategoryId();
-    return this.exercises().filter((e) =>
-      !f || (f === '__none__' ? !e.categoryId : e.categoryId === f));
+    return this.exercises().filter(
+      (e) => !f || (f === '__none__' ? !e.categoryId : e.categoryId === f),
+    );
   });
 
   // Séances
@@ -137,15 +176,26 @@ export class StrengthComponent implements OnInit {
   assignSessionCategory(s: StrengthSession, categoryId: string): void {
     const next = categoryId || null;
     if (next === (s.categoryId ?? null)) return;
-    this.strength.updateSession(s.id, {
-      name: s.name, notes: s.notes, favorite: s.favorite, categoryId: next,
-    }).subscribe({
-      next: (updated) => {
-        this.sessions.update((list) => list.map((x) => (x.id === s.id ? updated : x)));
-        this.toast.success(next ? `Rangée dans « ${this.catName(next)} »` : 'Sortie de sa catégorie');
-      },
-      error: () => this.toast.error('Rangement impossible.'),
-    });
+    this.strength
+      .updateSession(s.id, {
+        name: s.name,
+        notes: s.notes,
+        favorite: s.favorite,
+        categoryId: next,
+      })
+      .subscribe({
+        next: (updated) => {
+          this.sessions.update((list) =>
+            list.map((x) => (x.id === s.id ? updated : x)),
+          );
+          this.toast.success(
+            next
+              ? `Rangée dans « ${this.catName(next)} »`
+              : 'Sortie de sa catégorie',
+          );
+        },
+        error: () => this.toast.error('Rangement impossible.'),
+      });
   }
 
   // Cycles
@@ -155,8 +205,13 @@ export class StrengthComponent implements OnInit {
   // le vocabulaire du générateur de mésocycle course (progression, décharge) pour ne pas
   // inventer un second modèle mental.
   newCycle = {
-    name: '', weeks: 4, objective: '', sessionIds: [] as string[],
-    increasePct: 2.5, deloadEvery: 4, deloadPct: 60,
+    name: '',
+    weeks: 4,
+    objective: '',
+    sessionIds: [] as string[],
+    increasePct: 2.5,
+    deloadEvery: 4,
+    deloadPct: 60,
   };
   readonly assignDate = signal(new Date().toISOString().slice(0, 10));
 
@@ -166,10 +221,16 @@ export class StrengthComponent implements OnInit {
 
   // Tests directs (4 protocoles)
   readonly tests = signal<StrengthTest[]>([]);
-  newTest = { exerciseId: '', protocol: 'TRUE_1RM' as StrengthTestProtocol, weightKg: 100, reps: 1, durationSec: 5 };
-  readonly protocols: { value: StrengthTestProtocol; label: string }[] =
-    (Object.keys(STRENGTH_TEST_PROTOCOL_LABELS) as StrengthTestProtocol[])
-      .map((value) => ({ value, label: STRENGTH_TEST_PROTOCOL_LABELS[value] }));
+  newTest = {
+    exerciseId: '',
+    protocol: 'TRUE_1RM' as StrengthTestProtocol,
+    weightKg: 100,
+    reps: 1,
+    durationSec: 5,
+  };
+  readonly protocols: { value: StrengthTestProtocol; label: string }[] = (
+    Object.keys(STRENGTH_TEST_PROTOCOL_LABELS) as StrengthTestProtocol[]
+  ).map((value) => ({ value, label: STRENGTH_TEST_PROTOCOL_LABELS[value] }));
 
   // Suivi
   readonly athleteList = signal<AthleteSummary[]>([]);
@@ -179,11 +240,29 @@ export class StrengthComponent implements OnInit {
   readonly loadPoints = signal<StrengthLoadPoint[]>([]);
 
   readonly categories: ExerciseCategory[] = [
-    'FORCE_MAX', 'HYPERTROPHIE', 'PUISSANCE', 'PLIOMETRIE', 'ISOMETRIE',
-    'ENDURANCE_MUSCULAIRE', 'GAINAGE', 'MOBILITE', 'REATHLETISATION', 'PREVENTION'];
+    'FORCE_MAX',
+    'HYPERTROPHIE',
+    'PUISSANCE',
+    'PLIOMETRIE',
+    'ISOMETRIE',
+    'ENDURANCE_MUSCULAIRE',
+    'GAINAGE',
+    'MOBILITE',
+    'REATHLETISATION',
+    'PREVENTION',
+  ];
   readonly muscles: MuscleGroup[] = [
-    'QUADRICEPS', 'ISCHIOS', 'MOLLETS', 'FESSIERS', 'TRONC', 'HAUT_DU_CORPS',
-    'PIED_CHEVILLE', 'HANCHE', 'DOS', 'EPAULE'];
+    'QUADRICEPS',
+    'ISCHIOS',
+    'MOLLETS',
+    'FESSIERS',
+    'TRONC',
+    'HAUT_DU_CORPS',
+    'PIED_CHEVILLE',
+    'HANCHE',
+    'DOS',
+    'EPAULE',
+  ];
   readonly formulas: RmFormula[] = ['NUZZO', 'EPLEY', 'BRZYCKI', 'RIR_BASED'];
 
   ngOnInit(): void {
@@ -192,7 +271,9 @@ export class StrengthComponent implements OnInit {
     this.loadSessions();
     this.loadCycles();
     this.computeRm();
-    this.athletes.list({ page: 0 }).subscribe((p) => this.athleteList.set(p.content));
+    this.athletes
+      .list({ page: 0 })
+      .subscribe((p) => this.athleteList.set(p.content));
   }
 
   private loadStrengthCategories(): void {
@@ -214,30 +295,47 @@ export class StrengthComponent implements OnInit {
 
   /** Réassigne la catégorie unifiée d'un exercice existant (mise à jour sans perte des autres champs). */
   assignExerciseCategory(e: PpExercise, categoryId: string): void {
-    this.strength.updateExercise(e.id, {
-      name: e.name, category: e.category, categoryId: categoryId || null,
-      level: e.level, objective: e.objective,
-      muscleGroups: e.muscleGroups, equipment: e.equipment,
-      videoUrl: e.videoUrl, imageUrl: e.imageUrl, instructions: e.instructions,
-      technicalNotes: e.technicalNotes, contraindications: e.contraindications,
-      progressionId: e.progressionId, regressionId: e.regressionId,
-    }).subscribe((updated) => {
-      this.exercises.update((list) => list.map((x) => (x.id === e.id ? updated : x)));
-    });
+    this.strength
+      .updateExercise(e.id, {
+        name: e.name,
+        category: e.category,
+        categoryId: categoryId || null,
+        level: e.level,
+        objective: e.objective,
+        muscleGroups: e.muscleGroups,
+        equipment: e.equipment,
+        videoUrl: e.videoUrl,
+        imageUrl: e.imageUrl,
+        instructions: e.instructions,
+        technicalNotes: e.technicalNotes,
+        contraindications: e.contraindications,
+        progressionId: e.progressionId,
+        regressionId: e.regressionId,
+      })
+      .subscribe((updated) => {
+        this.exercises.update((list) =>
+          list.map((x) => (x.id === e.id ? updated : x)),
+        );
+      });
   }
 
   // --- Cycles ---
   loadCycles(): void {
     this.loadingCycles.set(true);
     this.strength.listCycles().subscribe({
-      next: (c) => { this.cycles.set(c); this.loadingCycles.set(false); },
+      next: (c) => {
+        this.cycles.set(c);
+        this.loadingCycles.set(false);
+      },
       error: () => this.loadingCycles.set(false),
     });
   }
 
   toggleCycleSession(id: string): void {
     const arr = this.newCycle.sessionIds;
-    this.newCycle.sessionIds = arr.includes(id) ? arr.filter((s) => s !== id) : [...arr, id];
+    this.newCycle.sessionIds = arr.includes(id)
+      ? arr.filter((s) => s !== id)
+      : [...arr, id];
   }
 
   /**
@@ -254,30 +352,52 @@ export class StrengthComponent implements OnInit {
   }
 
   /** Aperçu de la progression, pour que le coach voie ce qu'il programme avant de créer. */
-  readonly cyclePreview = computed<{ week: number; pct: number; deload: boolean }[]>(() => {
+  readonly cyclePreview = computed<
+    { week: number; pct: number; deload: boolean }[]
+  >(() => {
     const c = this.newCycle;
-    return Array.from({ length: Math.max(1, Math.min(c.weeks, 16)) }, (_, i) => {
-      const week = i + 1;
-      return {
-        week,
-        pct: this.weeklyAdjustment(week),
-        deload: c.deloadEvery > 0 && week % c.deloadEvery === 0,
-      };
-    });
+    return Array.from(
+      { length: Math.max(1, Math.min(c.weeks, 16)) },
+      (_, i) => {
+        const week = i + 1;
+        return {
+          week,
+          pct: this.weeklyAdjustment(week),
+          deload: c.deloadEvery > 0 && week % c.deloadEvery === 0,
+        };
+      },
+    );
   });
 
   createCycle(): void {
-    if (!this.newCycle.name.trim() || this.newCycle.sessionIds.length === 0) return;
-    const weeks: CycleWeek[] = Array.from({ length: this.newCycle.weeks }, (_, i) => ({
-      week: i + 1,
-      sessionIds: [...this.newCycle.sessionIds],
-      chargePctAdjustment: this.weeklyAdjustment(i + 1),
-    }));
+    if (!this.newCycle.name.trim() || this.newCycle.sessionIds.length === 0)
+      return;
+    const weeks: CycleWeek[] = Array.from(
+      { length: this.newCycle.weeks },
+      (_, i) => ({
+        week: i + 1,
+        sessionIds: [...this.newCycle.sessionIds],
+        chargePctAdjustment: this.weeklyAdjustment(i + 1),
+      }),
+    );
     this.strength
-      .createCycle({ name: this.newCycle.name, weeks: this.newCycle.weeks, objective: this.newCycle.objective || null, structure: { weeks } })
+      .createCycle({
+        name: this.newCycle.name,
+        weeks: this.newCycle.weeks,
+        objective: this.newCycle.objective || null,
+        structure: { weeks },
+      })
       .subscribe(() => {
         this.toast.success('Cycle créé');
-        this.newCycle = { name: '', weeks: 4, objective: '', sessionIds: [], increasePct: 2.5, deloadEvery: 4, deloadPct: 60 };
+        this.newCycle = {
+          name: '',
+          weeks: 4,
+          objective: '',
+          sessionIds: [],
+          increasePct: 2.5,
+          deloadEvery: 4,
+          deloadPct: 60,
+        };
         this.loadCycles();
       });
   }
@@ -298,15 +418,23 @@ export class StrengthComponent implements OnInit {
     const c = this.assignTarget();
     const a = this.selectedAthlete();
     if (!c) return;
-    if (!a) { this.toast.warning('Choisis un athlète.'); return; }
+    if (!a) {
+      this.toast.warning('Choisis un athlète.');
+      return;
+    }
     this.assigning.set(true);
     this.strength.assignCycle(c.id, a, this.assignDate()).subscribe({
       next: (res) => {
         this.assigning.set(false);
         this.assignPanelOpen.set(false);
-        this.toast.success(`${res.scheduled} séance(s) planifiée(s) — charges ajustées semaine par semaine`);
+        this.toast.success(
+          `${res.scheduled} séance(s) planifiée(s) — charges ajustées semaine par semaine`,
+        );
       },
-      error: () => { this.assigning.set(false); this.toast.error('Assignation impossible.'); },
+      error: () => {
+        this.assigning.set(false);
+        this.toast.error('Assignation impossible.');
+      },
     });
   }
 
@@ -324,7 +452,10 @@ export class StrengthComponent implements OnInit {
         q: this.searchQ() || undefined,
       })
       .subscribe({
-        next: (p) => { this.exercises.set(p.content); this.loadingEx.set(false); },
+        next: (p) => {
+          this.exercises.set(p.content);
+          this.loadingEx.set(false);
+        },
         error: () => this.loadingEx.set(false),
       });
   }
@@ -349,9 +480,18 @@ export class StrengthComponent implements OnInit {
       .subscribe(() => {
         this.toast.success('Exercice créé');
         this.newExercise = {
-          name: '', category: 'FORCE_MAX', categoryId: this.newExercise.categoryId, muscle: '',
-          videoUrl: '', imageUrl: '', instructions: '', level: 'INTERMEDIAIRE', equipment: [],
-          contraindications: '', progressionId: '', regressionId: '',
+          name: '',
+          category: 'FORCE_MAX',
+          categoryId: this.newExercise.categoryId,
+          muscle: '',
+          videoUrl: '',
+          imageUrl: '',
+          instructions: '',
+          level: 'INTERMEDIAIRE',
+          equipment: [],
+          contraindications: '',
+          progressionId: '',
+          regressionId: '',
         };
         this.showExerciseForm.set(false);
         this.loadExercises();
@@ -362,7 +502,10 @@ export class StrengthComponent implements OnInit {
   loadSessions(): void {
     this.loadingSes.set(true);
     this.strength.listAllSessions().subscribe({
-      next: (s) => { this.sessions.set(s); this.loadingSes.set(false); },
+      next: (s) => {
+        this.sessions.set(s);
+        this.loadingSes.set(false);
+      },
       error: () => this.loadingSes.set(false),
     });
   }
@@ -378,14 +521,20 @@ export class StrengthComponent implements OnInit {
   createSession(): void {
     const name = this.newSessionName.trim();
     if (!name) return;
-    this.strength.createSession({ name, categoryId: this.newSessionCategoryId || null }).subscribe({
-      next: (created) => {
-        this.newSessionName = '';
-        this.toast.success('Séance créée — construis la structure');
-        this.router.navigate(['/app/strength/sessions', created.id, 'structure']);
-      },
-      error: () => this.toast.error('Création impossible.'),
-    });
+    this.strength
+      .createSession({ name, categoryId: this.newSessionCategoryId || null })
+      .subscribe({
+        next: (created) => {
+          this.newSessionName = '';
+          this.toast.success('Séance créée — construis la structure');
+          this.router.navigate([
+            '/app/strength/sessions',
+            created.id,
+            'structure',
+          ]);
+        },
+        error: () => this.toast.error('Création impossible.'),
+      });
   }
 
   /** Duplication en cours (évite le double clic, qui créerait deux copies). */
@@ -407,15 +556,22 @@ export class StrengthComponent implements OnInit {
     });
     const name = answer?.trim();
     if (!name || name === s.name) return;
-    this.strength.updateSession(s.id, {
-      name, notes: s.notes, favorite: s.favorite, categoryId: s.categoryId,
-    }).subscribe({
-      next: (updated) => {
-        this.sessions.update((list) => list.map((x) => (x.id === s.id ? updated : x)));
-        this.toast.success('Séance renommée');
-      },
-      error: () => this.toast.error('Renommage impossible.'),
-    });
+    this.strength
+      .updateSession(s.id, {
+        name,
+        notes: s.notes,
+        favorite: s.favorite,
+        categoryId: s.categoryId,
+      })
+      .subscribe({
+        next: (updated) => {
+          this.sessions.update((list) =>
+            list.map((x) => (x.id === s.id ? updated : x)),
+          );
+          this.toast.success('Séance renommée');
+        },
+        error: () => this.toast.error('Renommage impossible.'),
+      });
   }
 
   /**
@@ -431,18 +587,29 @@ export class StrengthComponent implements OnInit {
         this.toast.success(`« ${copy.name} » créée — ajuste la structure`);
         this.router.navigate(['/app/strength/sessions', copy.id, 'structure']);
       },
-      error: () => { this.duplicating.set(false); this.toast.error('Duplication impossible.'); },
+      error: () => {
+        this.duplicating.set(false);
+        this.toast.error('Duplication impossible.');
+      },
     });
   }
 
   // --- Tests 1RM ---
   computeRm(): void {
-    this.strength.calcE1rm({ weight: this.rm.weight, reps: this.rm.reps, formula: this.rm.formula })
+    this.strength
+      .calcE1rm({
+        weight: this.rm.weight,
+        reps: this.rm.reps,
+        formula: this.rm.formula,
+      })
       .subscribe((r) => this.rmResult.set(r));
   }
 
   needsReps(): boolean {
-    return this.newTest.protocol === 'REP_TEST_3_5' || this.newTest.protocol === 'AMRAP_TEST';
+    return (
+      this.newTest.protocol === 'REP_TEST_3_5' ||
+      this.newTest.protocol === 'AMRAP_TEST'
+    );
   }
 
   needsDuration(): boolean {
@@ -451,45 +618,62 @@ export class StrengthComponent implements OnInit {
 
   loadTests(): void {
     const a = this.selectedAthlete();
-    if (!a) { this.tests.set([]); return; }
+    if (!a) {
+      this.tests.set([]);
+      return;
+    }
     this.strength.listTests(a).subscribe((t) => this.tests.set(t));
   }
 
   recordTest(confirmLargeGap = false): void {
     const a = this.selectedAthlete();
-    if (!a) { this.toast.warning('Sélectionne un athlète d\'abord.'); return; }
-    if (!this.newTest.exerciseId) { this.toast.warning('Choisis un exercice.'); return; }
-    this.strength.recordTest(a, {
-      exerciseId: this.newTest.exerciseId,
-      protocol: this.newTest.protocol,
-      weightKg: this.newTest.weightKg,
-      reps: this.needsReps() ? this.newTest.reps : null,
-      durationSec: this.needsDuration() ? this.newTest.durationSec : null,
-      confirmLargeGap,
-    }).subscribe({
-      next: (t) => {
-        this.toast.success(`Test enregistré — e1RM ${t.computedE1rmKg} kg`);
-        this.loadTests();
-      },
-      // 409 : le test s'écarte de plus de 10 % du profil. Le serveur explique l'écart en chiffres ;
-      // on le montre tel quel plutôt que de le reformuler, et on laisse le coach trancher. Un test
-      // mal placé faisait sinon chuter le profil, et toutes les charges prescrites avec lui.
-      error: async (err: { status?: number; error?: { message?: string } }) => {
-        if (err.status !== 409 || confirmLargeGap) return;
-        const ok = await this.confirm.ask({
-          title: 'Écart important avec le 1RM actuel',
-          message: err.error?.message ?? 'Ce test s\'écarte nettement du profil enregistré.',
-          confirmLabel: 'Enregistrer quand même',
-        });
-        if (ok) this.recordTest(true);
-      },
-    });
+    if (!a) {
+      this.toast.warning("Sélectionne un athlète d'abord.");
+      return;
+    }
+    if (!this.newTest.exerciseId) {
+      this.toast.warning('Choisis un exercice.');
+      return;
+    }
+    this.strength
+      .recordTest(a, {
+        exerciseId: this.newTest.exerciseId,
+        protocol: this.newTest.protocol,
+        weightKg: this.newTest.weightKg,
+        reps: this.needsReps() ? this.newTest.reps : null,
+        durationSec: this.needsDuration() ? this.newTest.durationSec : null,
+        confirmLargeGap,
+      })
+      .subscribe({
+        next: (t) => {
+          this.toast.success(`Test enregistré — e1RM ${t.computedE1rmKg} kg`);
+          this.loadTests();
+        },
+        // 409 : le test s'écarte de plus de 10 % du profil. Le serveur explique l'écart en chiffres ;
+        // on le montre tel quel plutôt que de le reformuler, et on laisse le coach trancher. Un test
+        // mal placé faisait sinon chuter le profil, et toutes les charges prescrites avec lui.
+        error: async (err: {
+          status?: number;
+          error?: { message?: string };
+        }) => {
+          if (err.status !== 409 || confirmLargeGap) return;
+          const ok = await this.confirm.ask({
+            title: 'Écart important avec le 1RM actuel',
+            message:
+              err.error?.message ??
+              "Ce test s'écarte nettement du profil enregistré.",
+            confirmLabel: 'Enregistrer quand même',
+          });
+          if (ok) this.recordTest(true);
+        },
+      });
   }
 
   exerciseName(id: string): string {
-    return this.exercises().find((e) => e.id === id)?.name ?? id.slice(0, 8) + '…';
+    return (
+      this.exercises().find((e) => e.id === id)?.name ?? id.slice(0, 8) + '…'
+    );
   }
-
 
   protocolLabel(p: StrengthTestProtocol): string {
     return this.protocols.find((x) => x.value === p)?.label ?? p;
@@ -518,7 +702,9 @@ export class StrengthComponent implements OnInit {
     const a = this.selectedAthlete();
     if (!a) return;
     this.historyExerciseId.set(exerciseId);
-    this.strength.e1rmHistory(a, exerciseId).subscribe((h) => this.history.set(h));
+    this.strength
+      .e1rmHistory(a, exerciseId)
+      .subscribe((h) => this.history.set(h));
   }
 
   /** Exercice dont l'historique est affiché (titre du graphe d'évolution). */
@@ -526,7 +712,10 @@ export class StrengthComponent implements OnInit {
   readonly historyExerciseName = computed(() => {
     const id = this.historyExerciseId();
     if (!id) return '';
-    return this.profile1rm().find((p) => p.exerciseId === id)?.exerciseName || this.exerciseName(id);
+    return (
+      this.profile1rm().find((p) => p.exerciseId === id)?.exerciseName ||
+      this.exerciseName(id)
+    );
   });
 
   /** Historique e1RM en série temporelle : une liste de valeurs ne dit pas si l'athlète progresse. */
@@ -535,11 +724,18 @@ export class StrengthComponent implements OnInit {
   );
 
   label(value: string): string {
-    return value.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+    return value
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/^\w/, (c) => c.toUpperCase());
   }
 }
 
 /** Comparaison de recherche : sans accents ni casse — « fessier » doit trouver « Fessiers ». */
 function normalizeText(value: string): string {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
 }

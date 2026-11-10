@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  output,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -24,7 +32,6 @@ const SNOOZE_MS = 14 * 24 * 3600 * 1000;
  */
 @Component({
   selector: 'app-strava-card',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
@@ -32,13 +39,20 @@ const SNOOZE_MS = 14 * 24 * 3600 * 1000;
       @if (status(); as st) {
         @if (st.connected) {
           <section class="sv sv--on card">
-            <span class="sv-logo sv-logo--on"><app-icon name="watch" [size]="18" /></span>
+            <span class="sv-logo sv-logo--on"
+              ><app-icon name="watch" [size]="18"
+            /></span>
             <div class="sv-txt">
               <strong>Strava connecté</strong>
               <span class="field-hint">{{ lastSyncLabel() }}</span>
             </div>
-            <button type="button" class="btn btn-ghost btn-sm sv-sync" (click)="syncNow()" [disabled]="busy()"
-                    [attr.aria-label]="'Synchroniser mes activités Strava'">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm sv-sync"
+              (click)="syncNow()"
+              [disabled]="busy()"
+              [attr.aria-label]="'Synchroniser mes activités Strava'"
+            >
               <app-icon name="refresh-cw" [size]="15" [class.spin]="busy()" />
               {{ busy() ? 'Synchro…' : 'Synchroniser' }}
             </button>
@@ -49,40 +63,100 @@ const SNOOZE_MS = 14 * 24 * 3600 * 1000;
               <span class="sv-logo"><app-icon name="watch" [size]="18" /></span>
               <div class="sv-txt">
                 <strong>Connecte ta montre</strong>
-                <span class="field-hint">Tes sorties Strava arrivent toutes seules, et ton coach voit ce que tu as vraiment fait.</span>
+                <span class="field-hint"
+                  >Tes sorties Strava arrivent toutes seules, et ton coach voit
+                  ce que tu as vraiment fait.</span
+                >
               </div>
             </div>
             <div class="sv-actions">
-              <button type="button" class="btn btn-accent btn-sm" (click)="connect()" [disabled]="busy()">
+              <button
+                type="button"
+                class="btn btn-accent btn-sm"
+                (click)="connect()"
+                [disabled]="busy()"
+              >
                 <app-icon name="watch" [size]="15" /> Connecter Strava
               </button>
-              <button type="button" class="btn btn-ghost btn-sm" (click)="snooze()">Plus tard</button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                (click)="snooze()"
+              >
+                Plus tard
+              </button>
             </div>
           </section>
         }
       }
     }
   `,
-  styles: [`
-    .sv { display: flex; gap: var(--sp-3); }
-    .sv--on { align-items: center; }
-    .sv--off { flex-direction: column; }
-    .sv-head { display: flex; align-items: flex-start; gap: var(--sp-3); }
-    .sv-logo {
-      display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
-      width: 36px; height: 36px; border-radius: var(--radius-full);
-      background: var(--primary-wash); color: var(--primary);
-    }
-    .sv-logo--on { background: var(--success-bg, var(--primary-wash)); color: var(--success-text, var(--primary)); }
-    .sv-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-    .sv-txt strong { color: var(--ink); }
-    .sv-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
-    .sv-sync { flex-shrink: 0; }
+  styles: [
+    `
+      .sv {
+        display: flex;
+        gap: var(--sp-3);
+      }
+      .sv--on {
+        align-items: center;
+      }
+      .sv--off {
+        flex-direction: column;
+      }
+      .sv-head {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--sp-3);
+      }
+      .sv-logo {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-full);
+        background: var(--primary-wash);
+        color: var(--primary);
+      }
+      .sv-logo--on {
+        background: var(--success-bg, var(--primary-wash));
+        color: var(--success-text, var(--primary));
+      }
+      .sv-txt {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+        flex: 1;
+      }
+      .sv-txt strong {
+        color: var(--ink);
+      }
+      .sv-actions {
+        display: flex;
+        gap: var(--sp-2);
+        flex-wrap: wrap;
+      }
+      .sv-sync {
+        flex-shrink: 0;
+      }
 
-    .spin { animation: sv-spin 900ms linear infinite; }
-    @keyframes sv-spin { to { transform: rotate(360deg); } }
-    @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
-  `],
+      .spin {
+        animation: sv-spin 900ms linear infinite;
+      }
+      @keyframes sv-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .spin {
+          animation: none;
+        }
+      }
+    `,
+  ],
 })
 export class StravaCardComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
@@ -111,11 +185,14 @@ export class StravaCardComponent implements OnInit {
     // Retour d'autorisation Strava (`?strava=connected`) : on ramène les sorties tout de suite.
     // Attendre la synchro automatique, c'est un écran d'accueil vide pendant une heure juste
     // après avoir connecté sa montre — le moment précis où l'athlète vérifie que ça marche.
-    const justConnected = this.route.snapshot.queryParamMap.get('strava') === 'connected';
+    const justConnected =
+      this.route.snapshot.queryParamMap.get('strava') === 'connected';
     if (justConnected) {
       this.router.navigate([], {
-        relativeTo: this.route, queryParams: { strava: null },
-        queryParamsHandling: 'merge', replaceUrl: true,
+        relativeTo: this.route,
+        queryParams: { strava: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
       });
     }
     this.load(justConnected);
@@ -134,8 +211,13 @@ export class StravaCardComponent implements OnInit {
   connect(): void {
     this.busy.set(true);
     this.portal.stravaAuthorizeUrl().subscribe({
-      next: (r) => { window.location.href = r.url; },
-      error: () => { this.busy.set(false); this.toast.error('Strava indisponible pour le moment.'); },
+      next: (r) => {
+        window.location.href = r.url;
+      },
+      error: () => {
+        this.busy.set(false);
+        this.toast.error('Strava indisponible pour le moment.');
+      },
     });
   }
 
@@ -152,7 +234,10 @@ export class StravaCardComponent implements OnInit {
         this.load();
         if (r.imported > 0) this.synced.emit(r.imported);
       },
-      error: () => { this.busy.set(false); this.toast.error('Synchronisation impossible pour le moment.'); },
+      error: () => {
+        this.busy.set(false);
+        this.toast.error('Synchronisation impossible pour le moment.');
+      },
     });
   }
 
@@ -168,9 +253,13 @@ export class StravaCardComponent implements OnInit {
   /** « Synchro auto toutes les heures · dernier import il y a 2 h ». */
   lastSyncLabel(): string {
     const epoch = this.status()?.lastImportEpoch;
-    if (!epoch) return 'Synchro automatique toutes les heures · aucun import pour l’instant';
+    if (!epoch)
+      return 'Synchro automatique toutes les heures · aucun import pour l’instant';
 
-    const minutes = Math.max(0, Math.round((Date.now() - epoch * 1000) / 60000));
+    const minutes = Math.max(
+      0,
+      Math.round((Date.now() - epoch * 1000) / 60000),
+    );
     let ago: string;
     if (minutes < 2) ago = "à l'instant";
     else if (minutes < 60) ago = `il y a ${minutes} min`;

@@ -1,7 +1,18 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { AdminOverview, AdminSignal, StravaWebhookState } from '../../core/models/admin.model';
+import {
+  AdminOverview,
+  AdminSignal,
+  StravaWebhookState,
+} from '../../core/models/admin.model';
 import { AdminService } from '../../core/services/admin.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -22,9 +33,14 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-admin-dashboard',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, SkeletonComponent, DecimalPipe, DatePipe],
+  imports: [
+    RouterLink,
+    IconComponent,
+    SkeletonComponent,
+    DecimalPipe,
+    DatePipe,
+  ],
   templateUrl: './admin-dashboard.component.html',
   styleUrl: './admin-dashboard.component.scss',
 })
@@ -42,7 +58,9 @@ export class AdminDashboardComponent implements OnInit {
   readonly stravaBusy = signal(false);
 
   /** Une liste vide est un résultat : l'écran le dit, plutôt que d'afficher un trou. */
-  readonly hasSignals = computed(() => (this.overview()?.signals.length ?? 0) > 0);
+  readonly hasSignals = computed(
+    () => (this.overview()?.signals.length ?? 0) > 0,
+  );
 
   ngOnInit(): void {
     this.load();
@@ -84,11 +102,19 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   signalIcon(s: AdminSignal): string {
-    return s.severity === 'CRITICAL' ? 'alert-triangle' : s.severity === 'WARNING' ? 'info' : 'lightbulb';
+    return s.severity === 'CRITICAL'
+      ? 'alert-triangle'
+      : s.severity === 'WARNING'
+        ? 'info'
+        : 'lightbulb';
   }
 
   integrationBadge(status: string): string {
-    return status === 'OK' ? 'badge-success' : status === 'WARNING' ? 'badge-warning' : 'badge-neutral';
+    return status === 'OK'
+      ? 'badge-success'
+      : status === 'WARNING'
+        ? 'badge-warning'
+        : 'badge-neutral';
   }
 
   /**
@@ -110,7 +136,9 @@ export class AdminDashboardComponent implements OnInit {
     this.stravaBusy.set(true);
     this.admin.createStravaWebhook().subscribe({
       next: () => {
-        this.toast.success('Abonnement créé — les activités remontent maintenant en direct.');
+        this.toast.success(
+          'Abonnement créé — les activités remontent maintenant en direct.',
+        );
         this.stravaBusy.set(false);
         this.loadStrava();
         this.load();
@@ -122,7 +150,8 @@ export class AdminDashboardComponent implements OnInit {
   async deleteStravaWebhook(id: number): Promise<void> {
     const ok = await this.confirm.ask({
       title: 'Retirer l’abonnement Strava',
-      message: 'Les activités ne remonteront plus que par la synchronisation horaire. Continuer ?',
+      message:
+        'Les activités ne remonteront plus que par la synchronisation horaire. Continuer ?',
       confirmLabel: 'Retirer',
       danger: true,
     });

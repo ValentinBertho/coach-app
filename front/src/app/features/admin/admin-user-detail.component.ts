@@ -1,5 +1,13 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -33,9 +41,14 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-admin-user-detail',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, IconComponent, SkeletonComponent, DatePipe],
+  imports: [
+    FormsModule,
+    RouterLink,
+    IconComponent,
+    SkeletonComponent,
+    DatePipe,
+  ],
   templateUrl: './admin-user-detail.component.html',
   styleUrl: './admin-user-detail.component.scss',
 })
@@ -58,14 +71,21 @@ export class AdminUserDetailComponent implements OnInit {
   readonly roleLabels = ROLE_LABELS;
   readonly statusLabels = USER_STATUS_LABELS;
   readonly statusBadge = userStatusBadge;
-  readonly roles: UserRole[] = ['PLATFORM_ADMIN', 'HEAD_COACH', 'COACH', 'ATHLETE'];
+  readonly roles: UserRole[] = [
+    'PLATFORM_ADMIN',
+    'HEAD_COACH',
+    'COACH',
+    'ATHLETE',
+  ];
 
   /** Brouillon d'édition, séparé de l'affichage : on n'enregistre que ce qui a été touché. */
   draft = { fullName: '', role: 'COACH' as UserRole, clubId: '' };
   clubToAdd = '';
 
   /** Le compte de l'administrateur connecté : la plupart des actions ne s'y appliquent pas. */
-  readonly isSelf = computed(() => this.auth.currentUser()?.id === this.user()?.id);
+  readonly isSelf = computed(
+    () => this.auth.currentUser()?.id === this.user()?.id,
+  );
 
   /**
    * Un compte d'administration ne s'emprunte pas : l'impersonation sert à voir l'application
@@ -80,7 +100,9 @@ export class AdminUserDetailComponent implements OnInit {
   readonly clubsAvailable = computed(() => {
     const u = this.user();
     if (!u) return [];
-    const taken = new Set([u.clubId, ...u.additionalClubs.map((c) => c.id)].filter(Boolean));
+    const taken = new Set(
+      [u.clubId, ...u.additionalClubs.map((c) => c.id)].filter(Boolean),
+    );
     return this.clubs().filter((c) => !taken.has(c.id));
   });
 
@@ -98,7 +120,11 @@ export class AdminUserDetailComponent implements OnInit {
     this.admin.userDetail(this.id()).subscribe({
       next: (u) => {
         this.user.set(u);
-        this.draft = { fullName: u.fullName, role: u.role, clubId: u.clubId ?? '' };
+        this.draft = {
+          fullName: u.fullName,
+          role: u.role,
+          clubId: u.clubId ?? '',
+        };
         this.loading.set(false);
       },
       error: () => {
@@ -138,16 +164,19 @@ export class AdminUserDetailComponent implements OnInit {
     const reason = await this.confirm.prompt({
       title: `Suspendre ${u.fullName || u.email} ?`,
       message:
-        'Le compte ne pourra plus se connecter, et ses sessions ouvertes sont fermées '
-        + 'immédiatement. Ses données restent intactes et la réactivation est possible à tout '
-        + 'moment.',
+        'Le compte ne pourra plus se connecter, et ses sessions ouvertes sont fermées ' +
+        'immédiatement. Ses données restent intactes et la réactivation est possible à tout ' +
+        'moment.',
       confirmLabel: 'Suspendre',
       danger: true,
       promptLabel: 'Motif (facultatif, consigné au journal)',
     });
     if (reason === null) return;
 
-    this.run(this.admin.suspendUser(u.id, reason || undefined), 'Compte suspendu, sessions fermées.');
+    this.run(
+      this.admin.suspendUser(u.id, reason || undefined),
+      'Compte suspendu, sessions fermées.',
+    );
   }
 
   reactivate(): void {
@@ -162,8 +191,8 @@ export class AdminUserDetailComponent implements OnInit {
     const ok = await this.confirm.ask({
       title: 'Fermer toutes les sessions',
       message:
-        `${u.fullName || u.email} sera déconnecté de tous ses appareils et devra se reconnecter. `
-        + 'Le compte reste actif.',
+        `${u.fullName || u.email} sera déconnecté de tous ses appareils et devra se reconnecter. ` +
+        'Le compte reste actif.',
       confirmLabel: 'Fermer les sessions',
     });
     if (!ok) return;
@@ -176,13 +205,16 @@ export class AdminUserDetailComponent implements OnInit {
     const ok = await this.confirm.ask({
       title: 'Réinitialiser la double authentification',
       message:
-        `À faire seulement si ${u.fullName || u.email} a perdu son téléphone ET ses codes de secours, `
-        + 'après avoir vérifié son identité par un autre canal. Ses sessions sont fermées ; il '
-        + 'enregistrera un nouveau téléphone à sa prochaine connexion.',
+        `À faire seulement si ${u.fullName || u.email} a perdu son téléphone ET ses codes de secours, ` +
+        'après avoir vérifié son identité par un autre canal. Ses sessions sont fermées ; il ' +
+        'enregistrera un nouveau téléphone à sa prochaine connexion.',
       confirmLabel: 'Réinitialiser',
     });
     if (!ok) return;
-    this.run(this.admin.resetMfa(u.id), 'Double authentification réinitialisée.');
+    this.run(
+      this.admin.resetMfa(u.id),
+      'Double authentification réinitialisée.',
+    );
   }
 
   async sendPasswordReset(): Promise<void> {
@@ -191,8 +223,8 @@ export class AdminUserDetailComponent implements OnInit {
     const ok = await this.confirm.ask({
       title: 'Envoyer un lien de réinitialisation',
       message:
-        `Un lien valable 2 heures partira à ${u.email}. Tu ne verras pas le nouveau mot de `
-        + "passe : seul son titulaire peut s'en servir.",
+        `Un lien valable 2 heures partira à ${u.email}. Tu ne verras pas le nouveau mot de ` +
+        "passe : seul son titulaire peut s'en servir.",
       confirmLabel: 'Envoyer',
     });
     if (!ok) return;
@@ -255,9 +287,9 @@ export class AdminUserDetailComponent implements OnInit {
     const ok = await this.confirm.ask({
       title: `Voir l'application en tant que ${u.fullName || u.email} ?`,
       message:
-        'Ta session reste ouverte et te sera rendue. Tout ce que tu feras pendant ce temps sera '
-        + "enregistré au nom de cette personne, sans distinction : c'est un outil de lecture. "
-        + "L'ouverture est consignée au journal d'audit.",
+        'Ta session reste ouverte et te sera rendue. Tout ce que tu feras pendant ce temps sera ' +
+        "enregistré au nom de cette personne, sans distinction : c'est un outil de lecture. " +
+        "L'ouverture est consignée au journal d'audit.",
       confirmLabel: 'Voir en tant que',
     });
     if (!ok || this.busy()) return;
@@ -280,9 +312,9 @@ export class AdminUserDetailComponent implements OnInit {
     const ok = await this.confirm.askForText({
       title: 'Supprimer le compte',
       message:
-        `Supprimer ${u.email} efface en cascade son profil, ses séances, ses sorties importées, `
-        + "ses ressentis et ses messages. Cet historique n'a pas de sauvegarde côté utilisateur "
-        + "et ne se reconstitue pas. Une suspension ferme l'accès sans rien détruire.",
+        `Supprimer ${u.email} efface en cascade son profil, ses séances, ses sorties importées, ` +
+        "ses ressentis et ses messages. Cet historique n'a pas de sauvegarde côté utilisateur " +
+        "et ne se reconstitue pas. Une suspension ferme l'accès sans rien détruire.",
       confirmLabel: 'Supprimer définitivement',
       danger: true,
       requiredText: 'SUPPRIMER',

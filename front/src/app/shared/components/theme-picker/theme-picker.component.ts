@@ -1,6 +1,17 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
-import { ThemeService, type ThemePref } from '../../../core/services/theme.service';
-import { SegmentedControlComponent, type SegmentOption } from '../segmented-control/segmented-control.component';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+} from '@angular/core';
+import {
+  ThemeService,
+  type ThemePref,
+} from '../../../core/services/theme.service';
+import {
+  SegmentedControlComponent,
+  type SegmentOption,
+} from '../segmented-control/segmented-control.component';
 
 /**
  * Choix du thème de l'application — clair, sombre, ou celui de l'appareil.
@@ -17,32 +28,53 @@ import { SegmentedControlComponent, type SegmentOption } from '../segmented-cont
  */
 @Component({
   selector: 'app-theme-picker',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SegmentedControlComponent],
   template: `
     <div class="tpick">
-      @if (label()) { <strong class="tpick__lb">{{ label() }}</strong> }
-      @if (hint()) { <span class="field-hint">{{ hint() }}</span> }
+      @if (label()) {
+        <strong class="tpick__lb">{{ label() }}</strong>
+      }
+      @if (hint()) {
+        <span class="field-hint">{{ hint() }}</span>
+      }
       <app-segmented-control
         [options]="options"
         [value]="theme.preference()"
         (valueChange)="set($event)"
-        ariaLabel="Thème de l'application" />
+        ariaLabel="Thème de l'application"
+      />
     </div>
   `,
-  styles: [`
-    .tpick { display: flex; flex-direction: column; gap: var(--sp-1); align-items: flex-start; }
-    .tpick__lb { font-size: var(--text-sm); }
-    /* Cibles tactiles : le contrôle segmenté est calibré pour la souris (36 px), ce qui passe
+  styles: [
+    `
+      .tpick {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-1);
+        align-items: flex-start;
+      }
+      .tpick__lb {
+        font-size: var(--text-sm);
+      }
+      /* Cibles tactiles : le contrôle segmenté est calibré pour la souris (36 px), ce qui passe
        sous le plancher du design system dès qu'on le touche du pouce. */
-    .tpick ::ng-deep .seg { width: 100%; }
-    .tpick ::ng-deep .seg__btn { min-height: 44px; flex: 1; justify-content: center; }
-  `],
+      .tpick ::ng-deep .seg {
+        width: 100%;
+      }
+      .tpick ::ng-deep .seg__btn {
+        min-height: 44px;
+        flex: 1;
+        justify-content: center;
+      }
+    `,
+  ],
 })
 export class ThemePickerComponent {
   readonly label = input<string>('');
-  readonly hint = input<string>('« Système » suit les réglages de ton appareil.');
+  readonly hint = input<string>(
+    '« Système » suit les réglages de ton appareil.',
+  );
 
   readonly theme = inject(ThemeService);
 

@@ -1,8 +1,18 @@
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from '@angular/common/http/testing';
 import { Component, OnInit, input } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { Route, Routes, RouterOutlet, provideRouter, withComponentInputBinding, withRouterConfig } from '@angular/router';
+import {
+  Route,
+  Routes,
+  RouterOutlet,
+  provideRouter,
+  withComponentInputBinding,
+  withRouterConfig,
+} from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { importProvidersFrom } from '@angular/core';
 import { LucideAngularModule } from 'lucide-angular';
@@ -18,11 +28,16 @@ const opened: string[] = [];
 @Component({ standalone: true, template: 'section' })
 class TabStub implements OnInit {
   readonly athleteId = input.required<string>();
-  ngOnInit(): void { opened.push(this.athleteId()); }
+  ngOnInit(): void {
+    opened.push(this.athleteId());
+  }
 }
 
 /** Coquille de l'athlète : elle persiste d'un athlète à l'autre, c'est tout son intérêt. */
-@Component({ standalone: true, imports: [RouterOutlet], template: '<router-outlet />' })
+@Component({
+  imports: [RouterOutlet],
+  template: '<router-outlet />',
+})
 class ShellStub {
   readonly athleteId = input.required<string>();
 }
@@ -41,23 +56,28 @@ class ShellStub {
  * zones de l'athlète précédent.</p>
  */
 describe('routage de la fiche athlète', () => {
-
   describe('formulaire d’édition', () => {
     let http: HttpTestingController;
 
     /** Chemin réel déclaré dans l'application : le test suit la route, il ne la réinvente pas. */
     function editPath(): string {
       const app = routes.find((r) => r.path === 'app');
-      const found = (app?.children ?? []).find((r: Route) => (r.path ?? '').endsWith('/edit'));
-      expect(found).withContext('route d’édition absente de app.routes.ts').toBeDefined();
+      const found = (app?.children ?? []).find((r: Route) =>
+        (r.path ?? '').endsWith('/edit'),
+      );
+      expect(found)
+        .withContext('route d’édition absente de app.routes.ts')
+        .toBeDefined();
       return `app/${found!.path}`;
     }
 
     beforeEach(() => {
       TestBed.configureTestingModule({
         providers: [
-          provideRouter([{ path: editPath(), component: AthleteFormComponent }],
-            withComponentInputBinding()),
+          provideRouter(
+            [{ path: editPath(), component: AthleteFormComponent }],
+            withComponentInputBinding(),
+          ),
           provideHttpClient(),
           provideHttpClientTesting(),
           importProvidersFrom(LucideAngularModule.pick(ICONS)),
@@ -68,10 +88,15 @@ describe('routage de la fiche athlète', () => {
 
     it('se sait en édition quand la route porte un athlète', async () => {
       const harness = await RouterTestingHarness.create();
-      const form = await harness.navigateByUrl('/app/athletes/ath-42/edit', AthleteFormComponent);
+      const form = await harness.navigateByUrl(
+        '/app/athletes/ath-42/edit',
+        AthleteFormComponent,
+      );
 
       expect(form.isEdit)
-        .withContext('sinon l’écran s’intitule « Nouvel athlète » et crée un doublon')
+        .withContext(
+          'sinon l’écran s’intitule « Nouvel athlète » et crée un doublon',
+        )
         .toBeTrue();
       // Et il va chercher CET athlète-là.
       http.expectOne((r) => r.url.endsWith('/athletes/ath-42'));
@@ -79,18 +104,23 @@ describe('routage de la fiche athlète', () => {
   });
 
   describe('changement d’athlète sous la coquille', () => {
-    const shellRoutes: Routes = [{
-      path: 'app/athletes/:athleteId',
-      component: ShellStub,
-      children: [{ path: 'programme', component: TabStub }],
-    }];
+    const shellRoutes: Routes = [
+      {
+        path: 'app/athletes/:athleteId',
+        component: ShellStub,
+        children: [{ path: 'programme', component: TabStub }],
+      },
+    ];
 
     beforeEach(() => {
       opened.length = 0;
       TestBed.configureTestingModule({
         providers: [
-          provideRouter(shellRoutes, withComponentInputBinding(),
-            withRouterConfig({ paramsInheritanceStrategy: 'always' })),
+          provideRouter(
+            shellRoutes,
+            withComponentInputBinding(),
+            withRouterConfig({ paramsInheritanceStrategy: 'always' }),
+          ),
           provideAthleteContextReuse(),
         ],
       });

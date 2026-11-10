@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+  signal,
+} from '@angular/core';
 import { Load } from '../../../core/models/lactate.model';
 import { IconComponent } from '../icon/icon.component';
 
@@ -34,21 +40,30 @@ interface Entry {
  */
 @Component({
   selector: 'app-load-explainer',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
     <div class="lx card">
-      <button type="button" class="lx-toggle" (click)="open.set(!open())" [attr.aria-expanded]="open()">
+      <button
+        type="button"
+        class="lx-toggle"
+        (click)="open.set(!open())"
+        [attr.aria-expanded]="open()"
+      >
         <app-icon name="circle-help" [size]="16" />
         <span>Comprendre ces chiffres</span>
-        <app-icon class="lx-caret" [name]="open() ? 'chevron-up' : 'chevron-down'" [size]="18" />
+        <app-icon
+          class="lx-caret"
+          [name]="open() ? 'chevron-up' : 'chevron-down'"
+          [size]="18"
+        />
       </button>
 
       @if (open()) {
         <p class="lx-intro">
-          Ces quatre repères servent à une seule chose : <strong>progresser sans te blesser</strong>.
-          Ils ne jugent pas ta forme du jour — c'est ton ressenti qui la porte — mais la façon dont
+          Ces quatre repères servent à une seule chose :
+          <strong>progresser sans te blesser</strong>. Ils ne jugent pas ta
+          forme du jour — c'est ton ressenti qui la porte — mais la façon dont
           ta charge d'entraînement évolue d'une semaine à l'autre.
         </p>
 
@@ -59,46 +74,112 @@ interface Entry {
               <dd class="lx-d">
                 <p class="lx-what">{{ e.what }}</p>
                 <p class="lx-how">{{ e.how }}</p>
-                @if (e.yours) { <p class="lx-yours">{{ e.yours }}</p> }
+                @if (e.yours) {
+                  <p class="lx-yours">{{ e.yours }}</p>
+                }
               </dd>
             </div>
           }
         </dl>
 
         <p class="lx-foot field-hint">
-          « UA » veut dire <em>unités arbitraires</em> : la charge d'une séance, c'est son effort
-          perçu multiplié par sa durée en minutes. Un chiffre qui n'a de sens que comparé à tes
-          propres semaines — pas à celles de quelqu'un d'autre.
+          « UA » veut dire <em>unités arbitraires</em> : la charge d'une séance,
+          c'est son effort perçu multiplié par sa durée en minutes. Un chiffre
+          qui n'a de sens que comparé à tes propres semaines — pas à celles de
+          quelqu'un d'autre.
         </p>
       }
     </div>
   `,
-  styles: [`
-    .lx { padding: 0; overflow: hidden; }
-    .lx-toggle {
-      display: flex; align-items: center; gap: var(--sp-2); width: 100%;
-      padding: var(--sp-3) var(--sp-4); min-height: 48px;
-      background: transparent; border: none; cursor: pointer; text-align: left;
-      color: var(--ink); font-weight: 700; font-size: var(--text-sm);
-    }
-    .lx-caret { margin-left: auto; color: var(--ink-4); }
+  styles: [
+    `
+      .lx {
+        padding: 0;
+        overflow: hidden;
+      }
+      .lx-toggle {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        width: 100%;
+        padding: var(--sp-3) var(--sp-4);
+        min-height: 48px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        text-align: left;
+        color: var(--ink);
+        font-weight: 700;
+        font-size: var(--text-sm);
+      }
+      .lx-caret {
+        margin-left: auto;
+        color: var(--ink-4);
+      }
 
-    .lx-intro { margin: 0; padding: 0 var(--sp-4) var(--sp-3); color: var(--ink-2); font-size: var(--text-sm); }
+      .lx-intro {
+        margin: 0;
+        padding: 0 var(--sp-4) var(--sp-3);
+        color: var(--ink-2);
+        font-size: var(--text-sm);
+      }
 
-    .lx-list { margin: 0; padding: 0 var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-3); }
-    .lx-item { border-left: 3px solid var(--hairline); padding-left: var(--sp-3); }
-    .lx-item--good { border-left-color: var(--form-green); }
-    .lx-item--watch { border-left-color: var(--form-orange); }
-    .lx-item--alert { border-left-color: var(--form-red); }
-    .lx-t { margin: 0 0 2px; font-weight: 800; color: var(--ink); font-size: var(--text-sm); }
-    .lx-d { margin: 0; display: flex; flex-direction: column; gap: 2px; }
-    .lx-what { margin: 0; color: var(--ink); font-size: var(--text-sm); }
-    .lx-how { margin: 0; color: var(--ink-3); font-size: var(--text-sm); }
-    /* La lecture de SON chiffre : c'est la ligne qui transforme une définition en information. */
-    .lx-yours { margin: 2px 0 0; color: var(--ink); font-size: var(--text-sm); font-weight: 700; }
+      .lx-list {
+        margin: 0;
+        padding: 0 var(--sp-4) var(--sp-3);
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
+      .lx-item {
+        border-left: 3px solid var(--hairline);
+        padding-left: var(--sp-3);
+      }
+      .lx-item--good {
+        border-left-color: var(--form-green);
+      }
+      .lx-item--watch {
+        border-left-color: var(--form-orange);
+      }
+      .lx-item--alert {
+        border-left-color: var(--form-red);
+      }
+      .lx-t {
+        margin: 0 0 2px;
+        font-weight: 800;
+        color: var(--ink);
+        font-size: var(--text-sm);
+      }
+      .lx-d {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .lx-what {
+        margin: 0;
+        color: var(--ink);
+        font-size: var(--text-sm);
+      }
+      .lx-how {
+        margin: 0;
+        color: var(--ink-3);
+        font-size: var(--text-sm);
+      }
+      /* La lecture de SON chiffre : c'est la ligne qui transforme une définition en information. */
+      .lx-yours {
+        margin: 2px 0 0;
+        color: var(--ink);
+        font-size: var(--text-sm);
+        font-weight: 700;
+      }
 
-    .lx-foot { margin: 0; padding: 0 var(--sp-4) var(--sp-4); }
-  `],
+      .lx-foot {
+        margin: 0;
+        padding: 0 var(--sp-4) var(--sp-4);
+      }
+    `,
+  ],
 })
 export class LoadExplainerComponent {
   readonly load = input.required<Load | null>();
@@ -107,12 +188,7 @@ export class LoadExplainerComponent {
 
   readonly entries = computed<Entry[]>(() => {
     const l = this.load();
-    return [
-      this.acwr(l),
-      this.acute(l),
-      this.chronic(l),
-      this.monotony(l),
-    ];
+    return [this.acwr(l), this.acute(l), this.chronic(l), this.monotony(l)];
   });
 
   /** Le rapport qui dit si la semaine est en rupture avec le mois qui précède. */
@@ -144,8 +220,8 @@ export class LoadExplainerComponent {
     return {
       key: 'acwr',
       title: 'ACWR — le rapport entre ta semaine et ton mois',
-      what: 'Il compare ce que tu as fait ces 7 derniers jours à ta moyenne des 28 derniers. Autrement dit : est-ce que tu en fais soudainement beaucoup plus que d\'habitude ?',
-      how: 'Entre 0,8 et 1,3, la progression est régulière. En dessous, tu es en sous-charge. Au-dessus de 1,5, c\'est le terrain sur lequel les blessures se produisent.',
+      what: "Il compare ce que tu as fait ces 7 derniers jours à ta moyenne des 28 derniers. Autrement dit : est-ce que tu en fais soudainement beaucoup plus que d'habitude ?",
+      how: "Entre 0,8 et 1,3, la progression est régulière. En dessous, tu es en sous-charge. Au-dessus de 1,5, c'est le terrain sur lequel les blessures se produisent.",
       yours,
       tone,
     };
@@ -155,9 +231,11 @@ export class LoadExplainerComponent {
     return {
       key: 'acute',
       title: 'Charge aiguë (7 jours) — ta semaine',
-      what: 'Le total de ce que t\'a coûté ton entraînement sur les 7 derniers jours : chaque séance compte pour son effort perçu multiplié par sa durée.',
-      how: 'Ce chiffre seul ne se juge pas : il n\'a de sens que comparé à ta charge chronique — c\'est précisément ce que fait l\'ACWR juste au-dessus.',
-      yours: l ? `Tu es à ${Math.round(l.acuteLoad7d)} UA sur ${l.sessions7d} séance${l.sessions7d > 1 ? 's' : ''} cette semaine.` : null,
+      what: "Le total de ce que t'a coûté ton entraînement sur les 7 derniers jours : chaque séance compte pour son effort perçu multiplié par sa durée.",
+      how: "Ce chiffre seul ne se juge pas : il n'a de sens que comparé à ta charge chronique — c'est précisément ce que fait l'ACWR juste au-dessus.",
+      yours: l
+        ? `Tu es à ${Math.round(l.acuteLoad7d)} UA sur ${l.sessions7d} séance${l.sessions7d > 1 ? 's' : ''} cette semaine.`
+        : null,
       tone: 'neutral',
     };
   }
@@ -166,9 +244,11 @@ export class LoadExplainerComponent {
     return {
       key: 'chronic',
       title: 'Charge chronique (28 jours) — ton fond de forme',
-      what: 'La même chose, mais lissée sur quatre semaines : c\'est le niveau d\'entraînement que ton corps a appris à encaisser.',
-      how: 'Elle monte lentement, sur des mois. C\'est elle qu\'on cherche à faire progresser — et c\'est aussi elle qui protège : plus elle est haute, plus une grosse semaine passe bien.',
-      yours: l ? `La tienne est à ${Math.round(l.chronicLoad28d)} UA par semaine en moyenne, sur ${l.sessions28d} séances.` : null,
+      what: "La même chose, mais lissée sur quatre semaines : c'est le niveau d'entraînement que ton corps a appris à encaisser.",
+      how: "Elle monte lentement, sur des mois. C'est elle qu'on cherche à faire progresser — et c'est aussi elle qui protège : plus elle est haute, plus une grosse semaine passe bien.",
+      yours: l
+        ? `La tienne est à ${Math.round(l.chronicLoad28d)} UA par semaine en moyenne, sur ${l.sessions28d} séances.`
+        : null,
       tone: 'neutral',
     };
   }
@@ -195,7 +275,7 @@ export class LoadExplainerComponent {
     return {
       key: 'monotony',
       title: 'Monotonie — est-ce que tes semaines se ressemblent trop ?',
-      what: 'Elle regarde si tes journées d\'entraînement se ressemblent toutes. Courir la même chose tous les jours fatigue plus qu\'alterner des jours durs et des jours faciles, à volume égal.',
+      what: "Elle regarde si tes journées d'entraînement se ressemblent toutes. Courir la même chose tous les jours fatigue plus qu'alterner des jours durs et des jours faciles, à volume égal.",
       how: 'En dessous de 1,5, la semaine est bien contrastée. À partir de 2, la routine devient un facteur de fatigue en soi.',
       yours,
       tone,
