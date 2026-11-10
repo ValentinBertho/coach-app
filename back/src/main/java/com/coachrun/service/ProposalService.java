@@ -129,8 +129,9 @@ public class ProposalService {
      * signature humaine qui manque à toute écriture automatique.
      */
     @Transactional
-    public ProposalResponse accept(UUID clubId, UUID proposalId, UUID userId) {
-        AthleteProposal p = require(clubId, proposalId);
+    public ProposalResponse accept(UUID clubId, UUID proposalId, UUID userId,
+                                   java.util.function.Predicate<UUID> canWriteAthlete) {
+        AthleteProposal p = require(clubId, proposalId, canWriteAthlete);
         if (p.getStatus() != ProposalStatus.PENDING) {
             throw new ConflictException("Cette proposition a déjà été traitée.");
         }
@@ -148,8 +149,9 @@ public class ProposalService {
 
     /** Refuse une proposition. Elle reste en base : trois refus de la même suggestion, c'est un signal. */
     @Transactional
-    public ProposalResponse dismiss(UUID clubId, UUID proposalId, UUID userId) {
-        AthleteProposal p = require(clubId, proposalId);
+    public ProposalResponse dismiss(UUID clubId, UUID proposalId, UUID userId,
+                                    java.util.function.Predicate<UUID> canWriteAthlete) {
+        AthleteProposal p = require(clubId, proposalId, canWriteAthlete);
         if (p.getStatus() != ProposalStatus.PENDING) {
             throw new ConflictException("Cette proposition a déjà été traitée.");
         }
@@ -204,7 +206,7 @@ public class ProposalService {
      */
     private void applySessionAdaptation(AthleteProposal p, boolean lighten) {
         Workout w = requireWorkout(p);
-        var prescription = workoutService.prescription(p.getClub().getId(), w.getId());
+        var prescription = workoutService.prescription(p.getClub().getId(), w.getAthlete().getId(), w.getId());
         var snapshot = prescription.snapshot();
         if (snapshot == null) {
             throw new ConflictException("Cette séance n'a pas de structure à adapter.");
@@ -215,7 +217,7 @@ public class ProposalService {
         var adapted = lighten
                 ? adaptationEngine.lighten(snapshot)
                 : adaptationEngine.easy(snapshot, mainDurationS);
-        workoutService.updateStructure(p.getClub().getId(), w.getId(), adapted);
+        workoutService.updateStructure(p.getClub().getId(), w.getAthlete().getId(), w.getId(), adapted);
     }
 
     /** Durée estimée du corps de séance, telle que le calculateur l'a établie. */
@@ -232,12 +234,12 @@ public class ProposalService {
     private void applySessionMove(AthleteProposal p) {
         Workout w = requireWorkout(p);
         LocalDate date = readDate(p, "date");
-        workoutService.reschedule(p.getClub().getId(), w.getId(), date);
+        workoutService.reschedule(p.getClub().getId(), w.getAthlete().getId(), w.getId(), date);
     }
 
     private void applySessionDrop(AthleteProposal p) {
         Workout w = requireWorkout(p);
-        workoutService.delete(p.getClub().getId(), w.getId());
+        workoutService.delete(p.getClub().getId(), w.getAthlete().getId(), w.getId());
     }
 
     /**
@@ -279,8 +281,14 @@ public class ProposalService {
     // Utilitaires
     // ---------------------------------------------------------------------
 
-    private AthleteProposal require(UUID clubId, UUID proposalId) {
+    /**
+     * Accepter une proposition réécrit, déplace ou supprime une séance de l'athlète : il faut le
+     * droit d'écriture sur CET athlète, pas seulement l'appartenance au club. Même réponse
+     * qu'une proposition absente, pour ne rien révéler.
+     */
+    private AthleteProposal require(UUID clubId, UUID proposalId, java.util.function.Predicate<UUID> canWriteAthlete) {
         return repository.findByIdAndClubId(proposalId, clubId)
+                .filter(p -> canWriteAthlete.test(p.getAthlete().getId()))
                 .orElseThrow(() -> new NotFoundException("Proposition introuvable."));
     }
 

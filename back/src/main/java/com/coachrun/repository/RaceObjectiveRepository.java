@@ -19,6 +19,9 @@ public interface RaceObjectiveRepository extends JpaRepository<RaceObjective, UU
 
     Optional<RaceObjective> findByIdAndClubId(UUID id, UUID clubId);
 
+    /** Ressource du club ET de cet athlète : l'athlète de l'URL n'est pas qu'un décor. */
+    Optional<RaceObjective> findByIdAndClubIdAndAthleteId(UUID id, UUID clubId, UUID athleteId);
+
     Optional<RaceObjective> findFirstByAthleteIdAndStatusAndRaceDateGreaterThanEqualOrderByRaceDateAsc(
             UUID athleteId, RaceObjectiveStatus status, LocalDate from);
 

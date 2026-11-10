@@ -87,7 +87,7 @@ public class ReadinessService {
             // Une charge incalculable ne doit pas priver l'athlète de son conseil du matin.
         }
 
-        var prescription = safePrescription(athlete.getClub().getId(), workout.getId());
+        var prescription = safePrescription(athlete.getClub().getId(), workout.getAthlete().getId(), workout.getId());
         Integer hardestRpe = hardestRpe(prescription == null ? null : prescription.snapshot(), workout);
 
         var recommendation = engine.recommend(fatigue, pain, acwr, hardestRpe, true);
@@ -184,9 +184,9 @@ public class ReadinessService {
         return "readiness:" + type + ":" + workoutId;
     }
 
-    private com.coachrun.dto.response.WorkoutPrescriptionResponse safePrescription(UUID clubId, UUID workoutId) {
+    private com.coachrun.dto.response.WorkoutPrescriptionResponse safePrescription(UUID clubId, UUID athleteId, UUID workoutId) {
         try {
-            return workoutService.prescription(clubId, workoutId);
+            return workoutService.prescription(clubId, athleteId, workoutId);
         } catch (RuntimeException e) {
             return null;
         }

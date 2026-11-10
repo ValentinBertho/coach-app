@@ -143,8 +143,8 @@ public class WorkoutService {
                 : 0);
     }
 
-    public WorkoutResponse get(UUID clubId, UUID workoutId) {
-        return WorkoutResponse.from(require(clubId, workoutId));
+    public WorkoutResponse get(UUID clubId, UUID athleteId, UUID workoutId) {
+        return WorkoutResponse.from(require(clubId, athleteId, workoutId));
     }
 
     @Transactional
@@ -205,8 +205,8 @@ public class WorkoutService {
      * qui regroupe le remaniement d'une semaine entière est porté par le service de notification.</p>
      */
     @Transactional
-    public WorkoutResponse update(UUID clubId, UUID workoutId, WorkoutRequest request) {
-        Workout workout = require(clubId, workoutId);
+    public WorkoutResponse update(UUID clubId, UUID athleteId, UUID workoutId, WorkoutRequest request) {
+        Workout workout = require(clubId, athleteId, workoutId);
         boolean wasPlanned = workout.getStatus() == WorkoutStatus.PLANNED;
         String before = signature(workout);
         LocalDate previousDate = workout.getScheduledDate();
@@ -279,8 +279,8 @@ public class WorkoutService {
      * qui est la source du fait constaté.
      */
     @Transactional
-    public WorkoutResponse updateStatus(UUID clubId, UUID workoutId, WorkoutStatus target) {
-        Workout workout = require(clubId, workoutId);
+    public WorkoutResponse updateStatus(UUID clubId, UUID athleteId, UUID workoutId, WorkoutStatus target) {
+        Workout workout = require(clubId, athleteId, workoutId);
         workout.setStatus(target);
         return WorkoutResponse.from(workout);
     }
@@ -291,8 +291,8 @@ public class WorkoutService {
      * <p>C'est le geste par lequel une séance se déplace le plus souvent, et il était muet.</p>
      */
     @Transactional
-    public WorkoutResponse reschedule(UUID clubId, UUID workoutId, java.time.LocalDate date) {
-        Workout workout = require(clubId, workoutId);
+    public WorkoutResponse reschedule(UUID clubId, UUID athleteId, UUID workoutId, java.time.LocalDate date) {
+        Workout workout = require(clubId, athleteId, workoutId);
         boolean moved = workout.getStatus() == WorkoutStatus.PLANNED
                 && !date.equals(workout.getScheduledDate());
         boolean dayChanged = !date.equals(workout.getScheduledDate());
@@ -311,8 +311,8 @@ public class WorkoutService {
      * messagerie. Visible par l'athlète et notifié. Un texte vide efface le commentaire.
      */
     @Transactional
-    public WorkoutResponse setCoachComment(UUID clubId, UUID workoutId, String comment) {
-        Workout workout = require(clubId, workoutId);
+    public WorkoutResponse setCoachComment(UUID clubId, UUID athleteId, UUID workoutId, String comment) {
+        Workout workout = require(clubId, athleteId, workoutId);
         String text = comment == null || comment.isBlank() ? null : comment.trim();
         boolean isNew = text != null && !text.equals(workout.getCoachComment());
         workout.setCoachComment(text);
@@ -353,8 +353,8 @@ public class WorkoutService {
      * même couple (réponse, lecture) qui les alimente tous les deux.</p>
      */
     @Transactional
-    public WorkoutResponse markReplyRead(UUID clubId, UUID workoutId) {
-        Workout workout = require(clubId, workoutId);
+    public WorkoutResponse markReplyRead(UUID clubId, UUID athleteId, UUID workoutId) {
+        Workout workout = require(clubId, athleteId, workoutId);
         if (workout.getAthleteReplyAt() != null && workout.getAthleteReplyReadAt() == null) {
             workout.setAthleteReplyReadAt(java.time.Instant.now());
         }
@@ -382,8 +382,8 @@ public class WorkoutService {
      * calculées — à être écrasée par un client qui ne les aurait pas renvoyées.</p>
      */
     @Transactional
-    public WorkoutResponse rename(UUID clubId, UUID workoutId, String title) {
-        Workout workout = require(clubId, workoutId);
+    public WorkoutResponse rename(UUID clubId, UUID athleteId, UUID workoutId, String title) {
+        Workout workout = require(clubId, athleteId, workoutId);
         String text = title == null ? "" : title.trim();
         if (text.isBlank()) {
             throw new com.coachrun.exception.ApiException(
@@ -398,8 +398,8 @@ public class WorkoutService {
      * contenu de la séance ni le retour lui-même : c'est un accusé de lecture côté coach.
      */
     @Transactional
-    public WorkoutResponse markFeedbackReviewed(UUID clubId, UUID workoutId, boolean reviewed) {
-        Workout workout = require(clubId, workoutId);
+    public WorkoutResponse markFeedbackReviewed(UUID clubId, UUID athleteId, UUID workoutId, boolean reviewed) {
+        Workout workout = require(clubId, athleteId, workoutId);
         workout.setCoachReviewedAt(reviewed ? java.time.Instant.now() : null);
         return WorkoutResponse.from(workout);
     }
@@ -417,8 +417,8 @@ public class WorkoutService {
      * toutes les deux.</p>
      */
     @Transactional
-    public WorkoutResponse acknowledge(UUID clubId, UUID workoutId) {
-        Workout workout = require(clubId, workoutId);
+    public WorkoutResponse acknowledge(UUID clubId, UUID athleteId, UUID workoutId) {
+        Workout workout = require(clubId, athleteId, workoutId);
         boolean first = workout.getCoachAcknowledgedAt() == null;
         java.time.Instant now = java.time.Instant.now();
         workout.setCoachAcknowledgedAt(now);
@@ -635,8 +635,8 @@ public class WorkoutService {
     }
 
     /** Prescription figée d'une séance (snapshot + cibles calculées) — vue coach. */
-    public WorkoutPrescriptionResponse prescription(UUID clubId, UUID workoutId) {
-        return toPrescription(require(clubId, workoutId));
+    public WorkoutPrescriptionResponse prescription(UUID clubId, UUID athleteId, UUID workoutId) {
+        return toPrescription(require(clubId, athleteId, workoutId));
     }
 
     /**
@@ -645,8 +645,8 @@ public class WorkoutService {
      * d'une semaine écoulée est du ménage de calendrier, et ne regarde que le coach.
      */
     @Transactional
-    public void delete(UUID clubId, UUID workoutId) {
-        Workout workout = require(clubId, workoutId);
+    public void delete(UUID clubId, UUID athleteId, UUID workoutId) {
+        Workout workout = require(clubId, athleteId, workoutId);
         // Avant la suppression : la notification a besoin du titre et de la date, et sa trace
         // in-app participe de la même transaction — si l'effacement échoue, elle disparaît avec.
         if (workout.getStatus() == WorkoutStatus.PLANNED
@@ -662,8 +662,8 @@ public class WorkoutService {
      * contenu et la prescription figée à l'identique, en statut {@code PLANNED} et sans retour.
      */
     @Transactional
-    public WorkoutResponse copyToDate(UUID clubId, UUID workoutId, LocalDate date) {
-        Workout w = require(clubId, workoutId);
+    public WorkoutResponse copyToDate(UUID clubId, UUID athleteId, UUID workoutId, LocalDate date) {
+        Workout w = require(clubId, athleteId, workoutId);
         Workout copy = new Workout();
         copy.setClub(w.getClub());
         copy.setAthlete(w.getAthlete());
@@ -838,8 +838,8 @@ public class WorkoutService {
      * athlète sans toucher au modèle de bibliothèque.
      */
     @Transactional
-    public WorkoutPrescriptionResponse updateStructure(UUID clubId, UUID workoutId, SessionStructure structure) {
-        Workout w = require(clubId, workoutId);
+    public WorkoutPrescriptionResponse updateStructure(UUID clubId, UUID athleteId, UUID workoutId, SessionStructure structure) {
+        Workout w = require(clubId, athleteId, workoutId);
         SessionStructure safe = structure == null ? SessionStructure.empty() : structure;
         CalculatedSessionResponse calc =
                 sessionCalculatorService.calculateSession(clubId, w.getAthlete().getId(), safe);
@@ -928,8 +928,13 @@ public class WorkoutService {
         }
     }
 
-    private Workout require(UUID clubId, UUID workoutId) {
-        return workoutRepository.findByIdAndClubId(workoutId, clubId)
+    /**
+     * La séance doit appartenir au club <b>et</b> à l'athlète de l'adresse appelée. Le contrôle
+     * d'accès porte sur cet athlète : sans ce filtre, un coach autorisé sur A pouvait lire ou
+     * modifier une séance de B en passant l'identifiant de B sous l'adresse de A.
+     */
+    private Workout require(UUID clubId, UUID athleteId, UUID workoutId) {
+        return workoutRepository.findByIdAndClubIdAndAthleteId(workoutId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
     }
 

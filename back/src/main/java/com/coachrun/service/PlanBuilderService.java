@@ -60,8 +60,8 @@ public class PlanBuilderService {
     private final ClockService clock;
 
     /** Aperçu de la trame, sans rien écrire. */
-    public PlanPreviewResponse preview(UUID clubId, UUID raceId, PlanFromRaceRequest req) {
-        RaceObjective race = require(clubId, raceId);
+    public PlanPreviewResponse preview(UUID clubId, UUID athleteId, UUID raceId, PlanFromRaceRequest req) {
+        RaceObjective race = require(clubId, athleteId, raceId);
         Plan plan = buildPlan(clubId, race, req);
         LocalDate sourceWeek = sourceWeekStart(req);
 
@@ -82,8 +82,8 @@ public class PlanBuilderService {
      * sans le dire.</p>
      */
     @Transactional
-    public PlanPreviewResponse apply(UUID clubId, UUID raceId, PlanFromRaceRequest req) {
-        RaceObjective race = require(clubId, raceId);
+    public PlanPreviewResponse apply(UUID clubId, UUID athleteId, UUID raceId, PlanFromRaceRequest req) {
+        RaceObjective race = require(clubId, athleteId, raceId);
         Athlete athlete = race.getAthlete();
         Plan plan = buildPlan(clubId, race, req);
         LocalDate sourceWeek = sourceWeekStart(req);
@@ -238,8 +238,9 @@ public class PlanBuilderService {
         return (int) Math.round(value * factor);
     }
 
-    private RaceObjective require(UUID clubId, UUID raceId) {
-        return raceRepository.findByIdAndClubId(raceId, clubId)
+    /** L'objectif doit être celui de l'athlète de l'adresse : c'est sur lui que l'accès est vérifié. */
+    private RaceObjective require(UUID clubId, UUID athleteId, UUID raceId) {
+        return raceRepository.findByIdAndClubIdAndAthleteId(raceId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Course introuvable."));
     }
 }

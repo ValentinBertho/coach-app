@@ -46,13 +46,13 @@ public class UnavailabilityController {
     @PutMapping("/{id}")
     public UnavailabilityResponse update(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                          @PathVariable UUID id, @Valid @RequestBody UnavailabilityRequest request) {
-        return service.update(clubId, id, request);
+        return service.update(clubId, athleteId, id, request);
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID id) {
-        service.delete(clubId, id);
+        service.delete(clubId, athleteId, id);
     }
 }

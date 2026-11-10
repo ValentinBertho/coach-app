@@ -51,15 +51,15 @@ public class RaceObjectiveService {
     }
 
     @Transactional
-    public RaceObjectiveResponse update(UUID clubId, UUID raceId, RaceObjectiveRequest request) {
-        RaceObjective race = require(clubId, raceId);
+    public RaceObjectiveResponse update(UUID clubId, UUID athleteId, UUID raceId, RaceObjectiveRequest request) {
+        RaceObjective race = require(clubId, athleteId, raceId);
         apply(race, request);
         return RaceObjectiveResponse.from(race, clock.today());
     }
 
     @Transactional
-    public void delete(UUID clubId, UUID raceId) {
-        raceRepository.delete(require(clubId, raceId));
+    public void delete(UUID clubId, UUID athleteId, UUID raceId) {
+        raceRepository.delete(require(clubId, athleteId, raceId));
     }
 
     // --- Portail athlète : l'athlète gère ses propres objectifs (CDC §10) -----
@@ -97,8 +97,8 @@ public class RaceObjectiveService {
                 .map(r -> RaceObjectiveResponse.from(r, clock.today()));
     }
 
-    private RaceObjective require(UUID clubId, UUID raceId) {
-        return raceRepository.findByIdAndClubId(raceId, clubId)
+    private RaceObjective require(UUID clubId, UUID athleteId, UUID raceId) {
+        return raceRepository.findByIdAndClubIdAndAthleteId(raceId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Course introuvable."));
     }
 

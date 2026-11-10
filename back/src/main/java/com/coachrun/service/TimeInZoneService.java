@@ -40,9 +40,9 @@ public class TimeInZoneService {
     private final MetricTypeRepository metricTypeRepository;
     private final ObjectMapper objectMapper;
 
-    /** Temps-en-zone pour une activité d'un club (anti-IDOR : activité scopée au club). */
-    public TimeInZoneResponse forActivity(UUID clubId, UUID activityId) {
-        Activity activity = activityRepository.findByIdAndClubId(activityId, clubId)
+    /** Temps-en-zone d'une activité (anti-IDOR : scopée au club ET à l'athlète de l'adresse). */
+    public TimeInZoneResponse forActivity(UUID clubId, UUID athleteId, UUID activityId) {
+        Activity activity = activityRepository.findByIdAndClubIdAndAthleteId(activityId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Activité introuvable."));
         return compute(activity);
     }

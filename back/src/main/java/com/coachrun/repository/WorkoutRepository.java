@@ -64,6 +64,9 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
     @EntityGraph(attributePaths = "steps")
     Optional<Workout> findByIdAndClubId(UUID id, UUID clubId);
 
+    /** Ressource du club ET de cet athlète : l'athlète de l'URL n'est pas qu'un décor. */
+    Optional<Workout> findByIdAndClubIdAndAthleteId(UUID id, UUID clubId, UUID athleteId);
+
     // --- Portail athlète (scoping par athleteId du principal) ---
     @EntityGraph(attributePaths = "steps")
     List<Workout> findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(

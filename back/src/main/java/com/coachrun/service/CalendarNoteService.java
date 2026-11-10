@@ -128,8 +128,8 @@ public class CalendarNoteService {
     }
 
     @Transactional
-    public CalendarNoteResponse update(UUID clubId, UUID noteId, CalendarNoteRequest req) {
-        CalendarNote note = require(clubId, noteId);
+    public CalendarNoteResponse update(UUID clubId, UUID athleteId, UUID noteId, CalendarNoteRequest req) {
+        CalendarNote note = require(clubId, athleteId, noteId);
         note.setNoteDate(req.noteDate());
         note.setEndDate(endDateOf(req));
         note.setText(req.text());
@@ -140,8 +140,8 @@ public class CalendarNoteService {
     }
 
     @Transactional
-    public void delete(UUID clubId, UUID noteId) {
-        noteRepository.delete(require(clubId, noteId));
+    public void delete(UUID clubId, UUID athleteId, UUID noteId) {
+        noteRepository.delete(require(clubId, athleteId, noteId));
     }
 
     /**
@@ -157,8 +157,8 @@ public class CalendarNoteService {
         return req.endDate() == null || req.endDate().isEqual(req.noteDate()) ? null : req.endDate();
     }
 
-    private CalendarNote require(UUID clubId, UUID noteId) {
-        return noteRepository.findByIdAndClubId(noteId, clubId)
+    private CalendarNote require(UUID clubId, UUID athleteId, UUID noteId) {
+        return noteRepository.findByIdAndClubIdAndAthleteId(noteId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Note introuvable."));
     }
 }

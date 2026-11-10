@@ -98,8 +98,8 @@ public class TrajectoryService {
      * quand même mémorisé sur la course.</p>
      */
     @Transactional
-    public TrajectoryResponse recordResult(UUID clubId, UUID raceId, int timeSeconds) {
-        RaceObjective race = raceRepository.findByIdAndClubId(raceId, clubId)
+    public TrajectoryResponse recordResult(UUID clubId, UUID athleteId, UUID raceId, int timeSeconds) {
+        RaceObjective race = raceRepository.findByIdAndClubIdAndAthleteId(raceId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Course introuvable."));
         if (timeSeconds <= 0) {
             throw new ConflictException("Le chrono doit être positif.");

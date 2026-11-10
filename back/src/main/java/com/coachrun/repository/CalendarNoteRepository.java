@@ -39,4 +39,7 @@ public interface CalendarNoteRepository extends JpaRepository<CalendarNote, UUID
                                                  @Param("from") LocalDate from, @Param("to") LocalDate to);
 
     Optional<CalendarNote> findByIdAndClubId(UUID id, UUID clubId);
+
+    /** Ressource du club ET de cet athlète : l'athlète de l'URL n'est pas qu'un décor. */
+    Optional<CalendarNote> findByIdAndClubIdAndAthleteId(UUID id, UUID clubId, UUID athleteId);
 }

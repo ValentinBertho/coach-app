@@ -151,11 +151,15 @@ public class CourseSessionService {
      */
     @Transactional
     public WorkoutResponse copyToAthlete(UUID clubId, UUID targetAthleteId, UUID sourceWorkoutId,
-                                         LocalDate date) {
+                                         LocalDate date,
+                                         java.util.function.Predicate<UUID> canReadSourceAthlete) {
         com.coachrun.entity.Workout source = workoutRepository.findByIdAndClubId(sourceWorkoutId, clubId)
+                // On ne colle que ce qu'on a le droit de lire : la source est vérifiée sur SON
+                // athlète, pas seulement sur le club. Même réponse qu'une séance absente.
+                .filter(w -> canReadSourceAthlete.test(w.getAthlete().getId()))
                 .orElseThrow(() -> new NotFoundException("Séance à copier introuvable."));
         if (source.getAthlete().getId().equals(targetAthleteId)) {
-            return workoutService.copyToDate(clubId, sourceWorkoutId, date);
+            return workoutService.copyToDate(clubId, targetAthleteId, sourceWorkoutId, date);
         }
 
         SessionStructure structure = readStructure(source.getSessionSnapshot());
@@ -184,9 +188,9 @@ public class CourseSessionService {
      * modèle. On recopie ici son snapshot tel quel dans un nouveau modèle du club.
      */
     @Transactional
-    public CourseStructureResponse saveWorkoutAsTemplate(UUID clubId, UUID workoutId,
+    public CourseStructureResponse saveWorkoutAsTemplate(UUID clubId, UUID athleteId, UUID workoutId,
                                                          com.coachrun.dto.request.SaveAsTemplateRequest req) {
-        com.coachrun.entity.Workout w = workoutRepository.findByIdAndClubId(workoutId, clubId)
+        com.coachrun.entity.Workout w = workoutRepository.findByIdAndClubIdAndAthleteId(workoutId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
         // Le modèle reçoit la STRUCTURE de l'adaptation, pas ce qui n'appartenait qu'à l'athlète.
         SessionStructure structure = withoutAthleteNotes(readStructure(w.getSessionSnapshot()));

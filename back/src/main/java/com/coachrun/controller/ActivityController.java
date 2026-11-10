@@ -45,7 +45,7 @@ public class ActivityController {
     @GetMapping("/{activityId}/time-in-zone")
     public TimeInZoneResponse timeInZone(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                          @PathVariable UUID activityId) {
-        return timeInZoneService.forActivity(clubId, activityId);
+        return timeInZoneService.forActivity(clubId, athleteId, activityId);
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
@@ -72,7 +72,7 @@ public class ActivityController {
     @GetMapping("/{activityId}/route")
     public java.util.List<double[]> route(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                           @PathVariable UUID activityId) {
-        return activityService.route(clubId, activityId);
+        return activityService.route(clubId, athleteId, activityId);
     }
 
     /**
@@ -86,21 +86,21 @@ public class ActivityController {
             @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID activityId,
             @org.springframework.web.bind.annotation.RequestParam(required = false)
             com.coachrun.dto.response.ActivityLapsResponse.Kind kind) {
-        return activityService.laps(clubId, activityId, kind);
+        return activityService.laps(clubId, athleteId, activityId, kind);
     }
 
     /** Courbe de la sortie : FC et allure le long de la distance (graphique de séance). */
     @GetMapping("/{activityId}/stream")
     public com.coachrun.dto.response.ActivityStreamResponse stream(
             @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID activityId) {
-        return activityService.streamCurve(clubId, activityId);
+        return activityService.streamCurve(clubId, athleteId, activityId);
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/{activityId}/match/{workoutId}")
     public ActivityResponse match(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                   @PathVariable UUID activityId, @PathVariable UUID workoutId) {
-        return activityService.matchManually(clubId, activityId, workoutId);
+        return activityService.matchManually(clubId, athleteId, activityId, workoutId);
     }
 
     /**
@@ -114,14 +114,14 @@ public class ActivityController {
                                        @RequestBody(required = false) ActivityMatchRequest request) {
         UUID workoutId = request != null ? request.workoutId() : null;
         return workoutId == null
-                ? activityService.unmatch(clubId, activityId)
-                : activityService.matchManually(clubId, activityId, workoutId);
+                ? activityService.unmatch(clubId, athleteId, activityId)
+                : activityService.matchManually(clubId, athleteId, activityId, workoutId);
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/{activityId}/match")
     public ActivityResponse unmatch(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                     @PathVariable UUID activityId) {
-        return activityService.unmatch(clubId, activityId);
+        return activityService.unmatch(clubId, athleteId, activityId);
     }
 }
