@@ -14,7 +14,12 @@ import {
 } from '../models/user.model';
 
 const ACCESS_KEY = 'darilab.accessToken';
-const REFRESH_KEY = 'darilab.refreshToken';
+/**
+ * Ancien emplacement du jeton de rafraîchissement. Il vit désormais dans un cookie `HttpOnly`
+ * posé par le serveur, hors de portée de tout script ; la clé n'est plus lue, seulement effacée
+ * là où une ancienne version l'aurait laissée.
+ */
+const LEGACY_REFRESH_KEY = 'darilab.refreshToken';
 const USER_KEY = 'darilab.user';
 
 /**
@@ -23,7 +28,7 @@ const USER_KEY = 'darilab.user';
  * sienne survive ailleurs — sinon « revenir à mon compte » n'aurait rien à restaurer.
  */
 const IMP_ACCESS_KEY = 'darilab.impersonator.accessToken';
-const IMP_REFRESH_KEY = 'darilab.impersonator.refreshToken';
+const LEGACY_IMP_REFRESH_KEY = 'darilab.impersonator.refreshToken';
 const IMP_USER_KEY = 'darilab.impersonator.user';
 
 function readStoredUser(key: string = USER_KEY): User | null {
@@ -71,24 +76,30 @@ export class AuthService {
   /** Refresh en cours partagé : évite les rafraîchissements concurrents sur une salve de 401. */
   private refreshInFlight: Observable<AuthResponse> | null = null;
 
-  refreshTokenValue(): string | null {
-    return localStorage.getItem(REFRESH_KEY);
+  /**
+   * Une session peut-elle se prolonger ? Oui dès qu'on est connecté, sauf en impersonation : la
+   * session empruntée n'a pas de jeton de rafraîchissement, et le cookie présent est celui de
+   * l'administrateur — le présenter rendrait sa propre session à la place de celle qu'il regarde.
+   */
+  canRefresh(): boolean {
+    return this.token() !== null && !this.isImpersonating();
   }
 
   /**
-   * Rafraîchit silencieusement l'access token via le refresh token (rotation côté serveur).
-   * Partagé entre appelants concurrents. Émet une erreur si aucun refresh token n'est disponible.
+   * Rafraîchit silencieusement l'access token (rotation côté serveur). Le jeton de
+   * rafraîchissement voyage dans un cookie `HttpOnly` : le navigateur le joint seul, ce code ne
+   * le voit jamais. Partagé entre appelants concurrents — deux rotations simultanées du même
+   * jeton seraient prises pour un rejeu, et le serveur fermerait la session.
    */
   refresh(): Observable<AuthResponse> {
     if (this.refreshInFlight) {
       return this.refreshInFlight;
     }
-    const refreshToken = this.refreshTokenValue();
-    if (!refreshToken) {
-      return throwError(() => new Error('Aucun refresh token disponible.'));
+    if (this.isImpersonating()) {
+      return throwError(() => new Error('Une impersonation ne se prolonge pas.'));
     }
     this.refreshInFlight = this.http
-      .post<AuthResponse>(`${this.base}/refresh`, { refreshToken })
+      .post<AuthResponse>(`${this.base}/refresh`, {}, { withCredentials: true })
       .pipe(
         tap((res) => this.applySession(res)),
         shareReplay(1),
@@ -111,7 +122,7 @@ export class AuthService {
    * prochain appel », et l'intercepteur reste le filet de sécurité.</p>
    */
   ensureFreshToken(): void {
-    if (!this.token() || !this.refreshTokenValue()) {
+    if (!this.canRefresh()) {
       return;
     }
     const expiry = this.accessTokenExpiry();
@@ -306,8 +317,11 @@ export class AuthService {
   logout(): void {
     // Révocation côté serveur (best-effort) avant purge locale. L'ordre compte : ces appels
     // doivent partir tant que le jeton est encore lisible par l'intercepteur.
+    // Toujours appelé, même sans jeton d'accès valide : c'est ce qui ferme la session portée par
+    // le cookie et l'efface du navigateur.
+    this.http.post(`${this.base}/logout`, {}, { withCredentials: true })
+      .subscribe({ next: () => {}, error: () => {} });
     if (this.token()) {
-      this.http.post(`${this.base}/logout`, {}).subscribe({ next: () => {}, error: () => {} });
       // Notifications push : l'abonnement du navigateur restait rattaché au compte précédent,
       // donc un appareil partagé continuait d'afficher ses notifications.
       void this.disablePush();
@@ -342,7 +356,7 @@ export class AuthService {
   private clearLocalSession(): void {
     this.forgetImpersonation();
     localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
+    localStorage.removeItem(LEGACY_REFRESH_KEY);
     localStorage.removeItem(USER_KEY);
     // File des retours saisis hors ligne : elle contient des RPE, douleurs et fatigues (données
     // de santé, art. 9). Conservée au logout, elle était rejouée par le compte suivant sur le
@@ -395,11 +409,10 @@ export class AuthService {
   startImpersonation(res: { accessToken: string; user: User }): void {
     const own = this.currentUser();
     const ownAccess = localStorage.getItem(ACCESS_KEY);
-    const ownRefresh = localStorage.getItem(REFRESH_KEY);
     // Deux impersonations d'affilée ne doivent pas écraser la session d'origine par la précédente.
+    // Le cookie de rafraîchissement de l'administrateur, lui, reste en place : rien à mettre de côté.
     if (own && ownAccess && !this.isImpersonating()) {
       localStorage.setItem(IMP_ACCESS_KEY, ownAccess);
-      if (ownRefresh) localStorage.setItem(IMP_REFRESH_KEY, ownRefresh);
       localStorage.setItem(IMP_USER_KEY, JSON.stringify(own));
       this.impersonator.set(own);
     }
@@ -407,7 +420,6 @@ export class AuthService {
     clearFeedbackQueue();
     localStorage.setItem(ACCESS_KEY, res.accessToken);
     // Pas de jeton de rafraîchissement pour une impersonation : elle expire, elle ne se prolonge pas.
-    localStorage.removeItem(REFRESH_KEY);
     localStorage.setItem(USER_KEY, JSON.stringify(res.user));
     this.token.set(res.accessToken);
     this.currentUser.set(res.user);
@@ -426,15 +438,8 @@ export class AuthService {
       this.forgetImpersonation();
       return false;
     }
-    const refresh = localStorage.getItem(IMP_REFRESH_KEY);
-
     clearFeedbackQueue();
     localStorage.setItem(ACCESS_KEY, access);
-    if (refresh) {
-      localStorage.setItem(REFRESH_KEY, refresh);
-    } else {
-      localStorage.removeItem(REFRESH_KEY);
-    }
     localStorage.setItem(USER_KEY, JSON.stringify(user));
     this.token.set(access);
     this.currentUser.set(user);
@@ -444,14 +449,16 @@ export class AuthService {
 
   private forgetImpersonation(): void {
     localStorage.removeItem(IMP_ACCESS_KEY);
-    localStorage.removeItem(IMP_REFRESH_KEY);
+    localStorage.removeItem(LEGACY_IMP_REFRESH_KEY);
     localStorage.removeItem(IMP_USER_KEY);
     this.impersonator.set(null);
   }
 
   private applySession(res: AuthResponse): void {
     localStorage.setItem(ACCESS_KEY, res.accessToken);
-    localStorage.setItem(REFRESH_KEY, res.refreshToken);
+    // Le jeton de rafraîchissement est arrivé dans un cookie HttpOnly ; on efface la copie
+    // qu'une version précédente aurait laissée dans le stockage, lisible par tout script.
+    localStorage.removeItem(LEGACY_REFRESH_KEY);
     localStorage.setItem(USER_KEY, JSON.stringify(res.user));
     this.token.set(res.accessToken);
     this.currentUser.set(res.user);

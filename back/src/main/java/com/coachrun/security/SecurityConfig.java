@@ -38,6 +38,8 @@ public class SecurityConfig {
             "/auth/register",
             "/auth/login",
             "/auth/refresh",
+            // Public pour fermer la session du cookie même quand le jeton d'accès a expiré.
+            "/auth/logout",
             "/actuator/health",
             "/actuator/health/**",
             "/actuator/info",

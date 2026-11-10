@@ -16,7 +16,11 @@ export interface User {
 
 export interface AuthResponse {
   accessToken: string;
-  refreshToken: string;
+  /**
+   * Le jeton de rafraîchissement n'est plus jamais dans le corps : le serveur le dépose dans un
+   * cookie `HttpOnly` que ce code ne peut ni lire ni écrire. Le champ reste `null` à la lecture.
+   */
+  refreshToken?: string | null;
   expiresIn: number;
   user: User;
 }

@@ -1,7 +1,6 @@
 package com.coachrun.controller;
 
 import com.coachrun.dto.request.LoginRequest;
-import com.coachrun.dto.request.RefreshRequest;
 import com.coachrun.dto.request.RegisterRequest;
 import com.coachrun.dto.response.AuthResponse;
 import com.coachrun.dto.request.StreamTokenRequest;
@@ -14,6 +13,7 @@ import com.coachrun.security.TokenBlacklist;
 import com.coachrun.service.AuthService;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -38,6 +38,7 @@ public class AuthController {
     private final JwtService jwtService;
     private final TokenBlacklist tokenBlacklist;
     private final StreamTokenService streamTokens;
+    private final com.coachrun.security.RefreshCookie refreshCookie;
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
@@ -50,9 +51,19 @@ public class AuthController {
         return authService.login(request);
     }
 
+    /**
+     * Rotation de session. Le jeton est lu dans le cookie {@code HttpOnly}, jamais dans le corps :
+     * aucun script de la page n'a besoin de le connaître. Un refus efface le cookie, pour que le
+     * navigateur cesse de présenter un jeton mort.
+     */
     @PostMapping("/refresh")
-    public AuthResponse refresh(@Valid @RequestBody RefreshRequest request) {
-        return authService.refresh(request);
+    public AuthResponse refresh(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            return authService.refresh(refreshCookie.read(request));
+        } catch (com.coachrun.exception.UnauthorizedException e) {
+            response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, refreshCookie.clear());
+            throw e;
+        }
     }
 
     @GetMapping("/me")
@@ -111,8 +122,11 @@ public class AuthController {
      */
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void logout(HttpServletRequest request,
+    public void logout(HttpServletRequest request, HttpServletResponse response,
                        @AuthenticationPrincipal AuthPrincipal principal) {
+        // La session de ce navigateur est fermée même si son jeton d'accès a déjà expiré.
+        authService.closeSession(refreshCookie.read(request));
+        response.addHeader(org.springframework.http.HttpHeaders.SET_COOKIE, refreshCookie.clear());
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")) {
             try {

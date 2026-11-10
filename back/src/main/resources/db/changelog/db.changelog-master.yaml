@@ -217,3 +217,5 @@ databaseChangeLog:
       file: db/changelog/changes/102-strength-session-category.yaml
   - include:
       file: db/changelog/changes/103-audit-log-user-actions.yaml
+  - include:
+      file: db/changelog/changes/104-refresh-tokens-login-attempts.yaml

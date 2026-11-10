@@ -31,3 +31,8 @@ app:
     # notifications sans rien dire. La production, elle, exige des clés explicites : on ne fabrique
     # pas en silence une identité de serveur qui changerait au prochain déploiement.
     auto-generate: ${VAPID_AUTO_GENERATE:true}
+  security:
+    refresh-cookie:
+      # En local, l'API peut être servie en http:// hors localhost (téléphone sur le réseau) :
+      # un cookie Secure n'y serait jamais renvoyé. La production garde Secure (défaut : true).
+      secure: ${REFRESH_COOKIE_SECURE:false}
