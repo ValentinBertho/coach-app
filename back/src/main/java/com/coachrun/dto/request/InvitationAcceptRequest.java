@@ -43,6 +43,6 @@ public record InvitationAcceptRequest(
         String email,
 
         @NotBlank(message = "Un mot de passe est requis pour pouvoir se reconnecter.")
-        @Size(min = 8, max = 100, message = "Le mot de passe doit faire au moins 8 caractères.")
+        @Size(min = 12, max = 100, message = "Le mot de passe doit faire au moins 12 caractères.")
         String password) {
 }

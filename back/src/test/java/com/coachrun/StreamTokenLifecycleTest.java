@@ -44,7 +44,7 @@ class StreamTokenLifecycleTest {
         JsonNode session = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"stream-%s@test.fr","password":"password123","fullName":"C",\
+                                {"email":"stream-%s@test.fr","password":"password1234","fullName":"C",\
                                 "termsAccepted": true, "clubName":"AC %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());

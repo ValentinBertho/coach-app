@@ -187,7 +187,7 @@ class ClubStarterKitTest {
         createdEmails.add(email);
 
         String body = mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"password123\","
+                        .content("{\"email\":\"" + email + "\",\"password\":\"password1234\","
                                 + "\"fullName\":\"Coach Neuf\",\"clubName\":\"Club Neuf "
                                 + UUID.randomUUID() + "\",\"termsAccepted\":true}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();

@@ -36,9 +36,9 @@ type State = 'loading' | 'ok' | 'invalid';
             <div class="form-group">
               <label for="password">Mot de passe</label>
               <input id="password" type="password" class="form-control" formControlName="password"
-                     autocomplete="new-password" placeholder="8 caractères minimum" />
+                     autocomplete="new-password" placeholder="12 caractères minimum" />
               @if (form.controls.password.touched && form.controls.password.invalid) {
-                <span class="error-message">8 caractères minimum.</span>
+                <span class="error-message">12 caractères minimum.</span>
               }
             </div>
             @if (errorMessage(); as message) {
@@ -67,7 +67,7 @@ export class ResetPasswordComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
-    password: ['', [Validators.required, Validators.minLength(8)]],
+    password: ['', [Validators.required, Validators.minLength(12)]],
   });
 
   ngOnInit(): void {
@@ -86,6 +86,13 @@ export class ResetPasswordComponent implements OnInit {
     this.errorMessage.set(null);
     this.auth.resetPassword(this.token(), this.form.getRawValue().password).subscribe({
       next: (res) => {
+        if (res.mfa) {
+          // Compte administrateur : le nouveau mot de passe ne suffit pas, le code est demandé
+          // à la connexion.
+          this.toast.success('Mot de passe mis à jour. Connecte-toi avec ton code de double authentification.');
+          this.router.navigateByUrl('/login');
+          return;
+        }
         this.toast.success('Mot de passe mis à jour');
         this.router.navigateByUrl(this.homeFor(res.user.role));
       },

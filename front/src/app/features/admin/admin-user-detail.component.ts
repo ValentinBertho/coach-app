@@ -170,6 +170,21 @@ export class AdminUserDetailComponent implements OnInit {
     this.run(this.admin.revokeSessions(u.id), 'Sessions fermées.');
   }
 
+  async resetMfa(): Promise<void> {
+    const u = this.user();
+    if (!u) return;
+    const ok = await this.confirm.ask({
+      title: 'Réinitialiser la double authentification',
+      message:
+        `À faire seulement si ${u.fullName || u.email} a perdu son téléphone ET ses codes de secours, `
+        + 'après avoir vérifié son identité par un autre canal. Ses sessions sont fermées ; il '
+        + 'enregistrera un nouveau téléphone à sa prochaine connexion.',
+      confirmLabel: 'Réinitialiser',
+    });
+    if (!ok) return;
+    this.run(this.admin.resetMfa(u.id), 'Double authentification réinitialisée.');
+  }
+
   async sendPasswordReset(): Promise<void> {
     const u = this.user();
     if (!u) return;

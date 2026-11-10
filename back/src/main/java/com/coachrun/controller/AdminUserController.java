@@ -113,6 +113,12 @@ public class AdminUserController {
         return adminUserService.reactivate(id);
     }
 
+    /** Retire le second facteur d'un administrateur (téléphone et codes de secours perdus). */
+    @PostMapping("/{id}/reset-mfa")
+    public AdminUserResponse resetMfa(@PathVariable UUID id) {
+        return adminUserService.resetMfa(id);
+    }
+
     /** Ferme toutes les sessions sans suspendre : « j'ai perdu mon téléphone ». */
     @PostMapping("/{id}/revoke-sessions")
     public AdminUserResponse revokeSessions(@PathVariable UUID id) {

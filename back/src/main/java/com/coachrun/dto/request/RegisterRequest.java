@@ -16,7 +16,7 @@ import jakarta.validation.constraints.Size;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record RegisterRequest(
         @NotBlank @Email String email,
-        @NotBlank @Size(min = 8, max = 100) String password,
+        @NotBlank @Size(min = 12, max = 100) String password,
         @NotBlank @Size(max = 120) String fullName,
         @NotBlank @Size(max = 120) String clubName,
         @jakarta.validation.constraints.AssertTrue(message = "L'acceptation des conditions d'utilisation est requise.")

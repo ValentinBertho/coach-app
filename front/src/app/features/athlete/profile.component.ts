@@ -102,7 +102,7 @@ interface LtPoint { date: string; lt1: number | null; lt2: number | null; }
               <span class="field-label">Nouveau mot de passe</span>
               <input class="form-control" type="password" autocomplete="new-password"
                      [ngModel]="pwdNew()" (ngModelChange)="pwdNew.set($event)" />
-              <span class="field-hint">8 caractères minimum.</span>
+              <span class="field-hint">12 caractères minimum.</span>
             </label>
             <div class="acct__actions">
               <button type="button" class="btn btn-accent" [disabled]="pwdBusy()" (click)="savePassword()">
@@ -650,8 +650,8 @@ export class AthleteProfileComponent implements OnInit {
   savePassword(): void {
     const current = this.pwdCurrent();
     const next = this.pwdNew();
-    if (!current || next.length < 8) {
-      this.toast.warning('Mot de passe actuel requis, nouveau d\'au moins 8 caractères.');
+    if (!current || next.length < 12) {
+      this.toast.warning('Mot de passe actuel requis, nouveau d\'au moins 12 caractères.');
       return;
     }
     this.pwdBusy.set(true);

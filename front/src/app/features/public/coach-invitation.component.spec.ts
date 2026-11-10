@@ -59,7 +59,7 @@ describe('invitation coach', () => {
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
-    component.password = 'password123';
+    component.password = 'password1234';
     component.termsAccepted = true;
     component.accept();
 

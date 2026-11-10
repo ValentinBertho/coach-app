@@ -52,7 +52,7 @@ export class RegisterComponent implements OnInit {
     fullName: ['', [Validators.required, Validators.maxLength(120)]],
     clubName: ['', [Validators.required, Validators.maxLength(120)]],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
+    password: ['', [Validators.required, Validators.minLength(12)]],
     termsAccepted: [false, [Validators.requiredTrue]],
     invitationCode: ['', [Validators.maxLength(120)]],
   });

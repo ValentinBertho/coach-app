@@ -52,6 +52,7 @@ class ImpersonationTest {
                         .content("{\"email\":\"" + email + "\",\"password\":\""
                                 + DemoSeedService.DEMO_PASSWORD + "\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        auth = MfaTestSupport.complete(mvc, context, email, auth);
         return "Bearer " + auth.get("accessToken").asText();
     }
 

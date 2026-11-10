@@ -183,7 +183,7 @@ class AdminUserUsageTest {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(java.util.Map.of(
-                                "email", email, "password", "password123",
+                                "email", email, "password", "password1234",
                                 "fullName", "Coach Usage", "termsAccepted", true,
                                 "clubName", "Usage " + java.util.UUID.randomUUID()))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
@@ -201,6 +201,7 @@ class AdminUserUsageTest {
                         .content("{\"email\":\"" + email + "\",\"password\":\""
                                 + DemoSeedService.DEMO_PASSWORD + "\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        auth = MfaTestSupport.complete(mvc, context, email, auth);
         return "Bearer " + auth.get("accessToken").asText();
     }
 

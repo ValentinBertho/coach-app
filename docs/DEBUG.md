@@ -218,13 +218,13 @@ configuré) : chercher l'identifiant dans la sortie du terminal ou de l'IDE.
 | **Swagger UI** (profil `dev`) | http://localhost:8081/api/swagger-ui.html (Docker) · :8080 (local) |
 | **Health / info / metrics** | `/api/actuator/health`, `/api/actuator/info`, `/api/actuator/metrics` |
 | **Ping** | `/api/public/ping` |
-| **Comptes de démo** | `demo@coachrun.fr` / `password123` (et `admin@`, `coach@`, `athlete@`) |
+| **Comptes de démo** | `demo@coachrun.fr` / `password1234` (et `admin@`, `coach@`, `athlete@`) |
 | **Jeton pour `curl`** | `POST /api/auth/login` → `accessToken`, puis en-tête `Authorization: Bearer …` |
 
 ```bash
 TOKEN=$(curl -s -X POST http://localhost:8081/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"demo@coachrun.fr","password":"password123"}' | jq -r .accessToken)
+  -d '{"email":"demo@coachrun.fr","password":"password1234"}' | jq -r .accessToken)
 curl -s http://localhost:8081/api/clubs/<clubId>/athletes -H "Authorization: Bearer $TOKEN"
 ```
 

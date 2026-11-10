@@ -276,7 +276,7 @@ L'ordre est géré par Compose, sans intervention :
 Le backend est prêt quand les journaux affichent :
 
 ```
-[seed dev] Jeu de démo prêt — connexion : demo@coachrun.fr / password123
+[seed dev] Jeu de démo prêt — connexion : demo@coachrun.fr / password1234
 Darilab 0.2.0 démarré — profil actif : dev · front : http://localhost:4200
 ```
 
@@ -301,7 +301,7 @@ Darilab 0.2.0 démarré — profil actif : dev · front : http://localhost:4200
 
 ## Comptes de démonstration
 
-Mot de passe commun : **`password123`**
+Mot de passe commun : **`password1234`**
 
 | Rôle | Email | Destination |
 |---|---|---|
@@ -309,6 +309,14 @@ Mot de passe commun : **`password123`**
 | Responsable de club | `demo@coachrun.fr` | `/app` |
 | Coach assistant | `coach@coachrun.fr` | `/app` |
 | Athlète | `athlete@coachrun.fr` | `/athlete/today` |
+
+Le compte **admin** demande en plus un code de double authentification. À la première connexion,
+l'écran affiche un QR code à scanner avec une application d'authentification (ou la clé à saisir à
+la main), puis dix codes de secours. Pour repartir de zéro en local :
+`delete from mfa_credentials; delete from mfa_recovery_codes;`.
+
+Une base de démonstration créée avant le 10/11/2026 garde l'ancien mot de passe `password123` : le
+jeu de démo n'est généré qu'une fois.
 
 > Le jeu de démo est **déterministe** (graine fixe) : profils physio, tests lactate, séances course
 > et force structurées, cycles, tests 1RM, charge, objectifs et indisponibilités. Il est produit par

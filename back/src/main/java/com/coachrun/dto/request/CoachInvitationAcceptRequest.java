@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Size;
 /** Acceptation d'une invitation coach : mot de passe (et nom optionnel). */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record CoachInvitationAcceptRequest(
-        @NotBlank @Size(min = 8, max = 100) String password,
+        @NotBlank @Size(min = 12, max = 100) String password,
         String fullName,
         /* Acceptation des CGU / confidentialité (horodatée). Exigée comme à l'inscription : la
            preuve de consentement RGPD ne peut pas dépendre du client qui envoie le champ. */

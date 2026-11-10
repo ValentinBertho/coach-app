@@ -254,6 +254,7 @@ class UserActivityAuditTest {
         JsonNode auth = objectMapper.readTree(
                 login(email, DemoSeedService.DEMO_PASSWORD).andExpect(status().isOk())
                         .andReturn().getResponse().getContentAsString());
+        auth = MfaTestSupport.complete(mvc, context, email, auth);
         return "Bearer " + auth.get("accessToken").asText();
     }
 

@@ -14,7 +14,20 @@ export interface User {
   paceUnit?: PaceUnit;
 }
 
+/**
+ * Mot de passe correct, second facteur attendu (administrateurs). Au premier passage
+ * (`enrollment`), le secret est à enregistrer dans l'application d'authentification.
+ */
+export interface MfaChallenge {
+  challengeToken: string;
+  enrollment: boolean;
+  secret: string | null;
+  otpauthUri: string | null;
+  expiresIn: number;
+}
+
 export interface AuthResponse {
+  /** Absent tant que le second facteur n'est pas relevé (voir `mfa`). */
   accessToken: string;
   /**
    * Le jeton de rafraîchissement n'est plus jamais dans le corps : le serveur le dépose dans un
@@ -23,6 +36,10 @@ export interface AuthResponse {
   refreshToken?: string | null;
   expiresIn: number;
   user: User;
+  /** Défi de double authentification : aucun jeton n'est émis tant qu'il n'est pas relevé. */
+  mfa?: MfaChallenge | null;
+  /** Codes de secours, présents une seule fois : à la fin du premier enrôlement. */
+  recoveryCodes?: string[] | null;
 }
 
 export interface RegisterRequest {

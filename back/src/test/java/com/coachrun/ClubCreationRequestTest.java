@@ -251,7 +251,7 @@ class ClubCreationRequestTest {
     void directRegistrationIsClosedInRequestMode() throws Exception {
         setMode("request");
         String body = """
-                {"email":"direct-%s@test.fr","password":"password123","fullName":"C",
+                {"email":"direct-%s@test.fr","password":"password1234","fullName":"C",
                  "termsAccepted":true,"clubName":"Club Direct"}
                 """.formatted(UUID.randomUUID());
         mockMvc().perform(post("/auth/register")

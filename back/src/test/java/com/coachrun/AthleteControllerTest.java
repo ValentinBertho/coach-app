@@ -49,7 +49,7 @@ class AthleteControllerTest {
 
     private Coach registerCoach(MockMvc mvc, String email) throws Exception {
         String body = """
-                {"email":"%s","password":"password123","fullName":"C","termsAccepted": true, "clubName":"Club %s"}
+                {"email":"%s","password":"password1234","fullName":"C","termsAccepted": true, "clubName":"Club %s"}
                 """.formatted(email, UUID.randomUUID());
         String res = mvc.perform(post("/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated())

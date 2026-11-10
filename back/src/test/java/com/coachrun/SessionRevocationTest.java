@@ -44,7 +44,7 @@ class SessionRevocationTest {
         var response = mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s-%s@test.fr","password":"password123","fullName":"C",\
+                                {"email":"%s-%s@test.fr","password":"password1234","fullName":"C",\
                                 "termsAccepted": true, "clubName":"AC %s"}
                                 """.formatted(prefix, UUID.randomUUID(), UUID.randomUUID())))
                 .andExpect(status().isCreated()).andReturn().getResponse();
@@ -68,7 +68,7 @@ class SessionRevocationTest {
         mvc.perform(post("/auth/change-password")
                         .header("Authorization", "Bearer " + oldAccess)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"currentPassword\":\"password123\",\"newPassword\":\"nouveaumdp456\"}"))
+                        .content("{\"currentPassword\":\"password1234\",\"newPassword\":\"nouveaumdp456\"}"))
                 .andExpect(status().isNoContent());
 
         // L'ancien access token ne passe plus…
@@ -118,7 +118,7 @@ class SessionRevocationTest {
 
         String fresh = objectMapper.readTree(mvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"password123\"}"))
+                        .content("{\"email\":\"" + email + "\",\"password\":\"password1234\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString())
                 .get("accessToken").asText();
 
@@ -137,7 +137,7 @@ class SessionRevocationTest {
         mvc.perform(post("/auth/change-password")
                         .header("Authorization", "Bearer " + access)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"currentPassword\":\"password123\",\"newPassword\":\"nouveaumdp456\"}"))
+                        .content("{\"currentPassword\":\"password1234\",\"newPassword\":\"nouveaumdp456\"}"))
                 .andExpect(status().isNoContent());
 
         JsonNode fresh = objectMapper.readTree(mvc.perform(post("/auth/login")

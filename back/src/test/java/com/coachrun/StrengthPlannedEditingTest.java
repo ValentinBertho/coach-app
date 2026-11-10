@@ -56,7 +56,7 @@ class StrengthPlannedEditingTest {
         JsonNode a = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"pp-%s@test.fr","password":"password123","fullName":"Coach PP","termsAccepted": true, "clubName":"PP %s"}
+                                {"email":"pp-%s@test.fr","password":"password1234","fullName":"Coach PP","termsAccepted": true, "clubName":"PP %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andReturn().getResponse().getContentAsString());
         token = a.get("accessToken").asText();

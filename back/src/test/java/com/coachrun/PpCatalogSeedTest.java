@@ -47,7 +47,7 @@ class PpCatalogSeedTest {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"cat-%s@test.fr","password":"password123","fullName":"C",\
+                                {"email":"cat-%s@test.fr","password":"password1234","fullName":"C",\
                                 "termsAccepted": true, "clubName":"Catalogue %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
