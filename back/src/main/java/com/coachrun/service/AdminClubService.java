@@ -132,7 +132,7 @@ public class AdminClubService {
         audit.record(AdminAuditAction.CLUB_DELETED, AdminAuditTarget.CLUB,
                 club.getId(), club.getName(),
                 coaches + " coach(s) et " + athletes + " athlète(s) supprimés en cascade.");
-        clubRepository.delete(club);
+        clubRepository.hardDelete(club.getId());
         log.warn("Club supprimé par l'administration (club={}, athlètes={}, coachs={})",
                 id, athletes, coaches);
     }

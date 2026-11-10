@@ -144,7 +144,7 @@ public class GdprService {
         audit.record(AdminAuditAction.ATHLETE_DATA_ERASED, AdminAuditTarget.ATHLETE,
                 athleteId, label(athlete),
                 "Effacement complet du dossier (art. 17 — droit à l'oubli)");
-        athleteRepository.deleteById(athleteId);
+        athleteRepository.hardDelete(athleteId);
         log.warn("[RGPD] Données de l'athlète {} supprimées (droit à l'oubli).", athleteId);
     }
 

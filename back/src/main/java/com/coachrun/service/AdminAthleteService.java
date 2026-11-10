@@ -127,7 +127,7 @@ public class AdminAthleteService {
                 a.getId(), a.getFirstName() + " " + a.getLastName(),
                 "Club " + (a.getClub() != null ? a.getClub().getName() : "—")
                         + " — séances, sorties et ressentis supprimés en cascade.");
-        athleteRepository.delete(a);
+        athleteRepository.hardDelete(a.getId());
         log.warn("Athlète supprimé par l'administration (athlete={})", id);
     }
 
