@@ -98,7 +98,7 @@ public class PhysioDetectionService {
 
         try {
             ActivityLapsResponse laps = activityService.laps(
-                    activity.getClub().getId(), activity.getId(), ActivityLapsResponse.Kind.DEVICE);
+                    activity.getClub().getId(), activity.getAthlete().getId(), activity.getId(), ActivityLapsResponse.Kind.DEVICE);
             if (laps != null) {
                 for (var lap : laps.laps()) {
                     if (lap.distanceM() != null && lap.durationS() != null) {

@@ -53,13 +53,13 @@ public class CalendarNoteController {
     @PutMapping("/{noteId}")
     public CalendarNoteResponse update(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                        @PathVariable UUID noteId, @Valid @RequestBody CalendarNoteRequest request) {
-        return noteService.update(clubId, noteId, request);
+        return noteService.update(clubId, athleteId, noteId, request);
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/{noteId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID noteId) {
-        noteService.delete(clubId, noteId);
+        noteService.delete(clubId, athleteId, noteId);
     }
 }

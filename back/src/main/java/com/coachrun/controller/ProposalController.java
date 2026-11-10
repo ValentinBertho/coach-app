@@ -33,6 +33,7 @@ public class ProposalController {
 
     private final ProposalService proposalService;
     private final CoachDashboardService dashboardService;
+    private final com.coachrun.security.AthleteAccessValidator athleteAccessValidator;
 
     /** Propositions en attente sur le périmètre du coach. */
     @GetMapping
@@ -45,13 +46,17 @@ public class ProposalController {
 
     @PostMapping("/{proposalId}/accept")
     public ProposalResponse accept(@PathVariable UUID clubId, @PathVariable UUID proposalId,
-                                   @AuthenticationPrincipal AuthPrincipal principal) {
-        return proposalService.accept(clubId, proposalId, principal.userId());
+                                   @AuthenticationPrincipal AuthPrincipal principal,
+                                   org.springframework.security.core.Authentication authentication) {
+        return proposalService.accept(clubId, proposalId, principal.userId(),
+                athleteId -> athleteAccessValidator.canWrite(authentication, athleteId));
     }
 
     @PostMapping("/{proposalId}/dismiss")
     public ProposalResponse dismiss(@PathVariable UUID clubId, @PathVariable UUID proposalId,
-                                    @AuthenticationPrincipal AuthPrincipal principal) {
-        return proposalService.dismiss(clubId, proposalId, principal.userId());
+                                    @AuthenticationPrincipal AuthPrincipal principal,
+                                    org.springframework.security.core.Authentication authentication) {
+        return proposalService.dismiss(clubId, proposalId, principal.userId(),
+                athleteId -> athleteAccessValidator.canWrite(authentication, athleteId));
     }
 }

@@ -18,6 +18,9 @@ public interface LactateTestRepository extends JpaRepository<LactateTest, UUID> 
     @EntityGraph(attributePaths = "steps")
     Optional<LactateTest> findByIdAndClubId(UUID id, UUID clubId);
 
+    /** Ressource du club ET de cet athlète : l'athlète de l'URL n'est pas qu'un décor. */
+    Optional<LactateTest> findByIdAndClubIdAndAthleteId(UUID id, UUID clubId, UUID athleteId);
+
     /** Détail athlète-scopé avec paliers (portail /me). */
     @EntityGraph(attributePaths = "steps")
     Optional<LactateTest> findByIdAndAthleteId(UUID id, UUID athleteId);

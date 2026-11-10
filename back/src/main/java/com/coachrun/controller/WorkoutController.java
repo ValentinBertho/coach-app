@@ -40,6 +40,7 @@ public class WorkoutController {
     private final com.coachrun.service.ActivityService activityService;
     private final com.coachrun.service.MessageService messageService;
     private final com.coachrun.service.CourseSessionService courseSessionService;
+    private final com.coachrun.security.AthleteAccessValidator athleteAccessValidator;
 
     /** Activité réalisée rapprochée de cette séance (vue « réalisé »), ou 204 si aucune. */
     @GetMapping("/{workoutId}/activity")
@@ -63,14 +64,14 @@ public class WorkoutController {
     @GetMapping("/{workoutId}")
     public WorkoutResponse get(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                @PathVariable UUID workoutId) {
-        return workoutService.get(clubId, workoutId);
+        return workoutService.get(clubId, athleteId, workoutId);
     }
 
     /** Prescription figée (snapshot des blocs + cibles calculées) d'une séance planifiée. */
     @GetMapping("/{workoutId}/prescription")
     public com.coachrun.dto.response.WorkoutPrescriptionResponse prescription(
             @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID workoutId) {
-        return workoutService.prescription(clubId, workoutId);
+        return workoutService.prescription(clubId, athleteId, workoutId);
     }
 
     /**
@@ -82,7 +83,7 @@ public class WorkoutController {
     public com.coachrun.dto.response.WorkoutPrescriptionResponse updateStructure(
             @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID workoutId,
             @RequestBody com.coachrun.dto.session.SessionStructure structure) {
-        return workoutService.updateStructure(clubId, workoutId, structure);
+        return workoutService.updateStructure(clubId, athleteId, workoutId, structure);
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
@@ -97,7 +98,7 @@ public class WorkoutController {
     @PutMapping("/{workoutId}")
     public WorkoutResponse update(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                   @PathVariable UUID workoutId, @Valid @RequestBody WorkoutRequest request) {
-        return workoutService.update(clubId, workoutId, request);
+        return workoutService.update(clubId, athleteId, workoutId, request);
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
@@ -105,7 +106,7 @@ public class WorkoutController {
     public WorkoutResponse reschedule(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                       @PathVariable UUID workoutId,
                                       @Valid @RequestBody WorkoutRescheduleRequest request) {
-        return workoutService.reschedule(clubId, workoutId, request.scheduledDate());
+        return workoutService.reschedule(clubId, athleteId, workoutId, request.scheduledDate());
     }
 
     /**
@@ -117,7 +118,7 @@ public class WorkoutController {
     public WorkoutResponse setCoachComment(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                            @PathVariable UUID workoutId,
                                            @RequestBody java.util.Map<String, String> body) {
-        return workoutService.setCoachComment(clubId, workoutId, body.get("comment"));
+        return workoutService.setCoachComment(clubId, athleteId, workoutId, body.get("comment"));
     }
 
     /**
@@ -129,7 +130,7 @@ public class WorkoutController {
     public WorkoutResponse rename(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                   @PathVariable UUID workoutId,
                                   @Valid @RequestBody com.coachrun.dto.request.WorkoutTitleRequest request) {
-        return workoutService.rename(clubId, workoutId, request.title());
+        return workoutService.rename(clubId, athleteId, workoutId, request.title());
     }
 
     /**
@@ -145,6 +146,9 @@ public class WorkoutController {
             @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID workoutId,
             @org.springframework.security.core.annotation.AuthenticationPrincipal
             com.coachrun.security.AuthPrincipal principal) {
+        // La séance doit être celle de l'athlète de l'adresse : le fil se lit par rattachement,
+        // et l'accès n'est vérifié que sur cet athlète.
+        workoutService.get(clubId, athleteId, workoutId);
         return messageService.workoutThread(principal, workoutId);
     }
 
@@ -156,7 +160,7 @@ public class WorkoutController {
     @PostMapping("/{workoutId}/reply/read")
     public WorkoutResponse markReplyRead(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                          @PathVariable UUID workoutId) {
-        return workoutService.markReplyRead(clubId, workoutId);
+        return workoutService.markReplyRead(clubId, athleteId, workoutId);
     }
 
     /**
@@ -168,7 +172,7 @@ public class WorkoutController {
     public WorkoutResponse markReviewed(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                         @PathVariable UUID workoutId,
                                         @RequestParam(defaultValue = "true") boolean reviewed) {
-        return workoutService.markFeedbackReviewed(clubId, workoutId, reviewed);
+        return workoutService.markFeedbackReviewed(clubId, athleteId, workoutId, reviewed);
     }
 
     /**
@@ -181,7 +185,7 @@ public class WorkoutController {
     @PostMapping("/{workoutId}/acknowledge")
     public WorkoutResponse acknowledge(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                        @PathVariable UUID workoutId) {
-        return workoutService.acknowledge(clubId, workoutId);
+        return workoutService.acknowledge(clubId, athleteId, workoutId);
     }
 
     /** Réordonne les séances d'un même jour (glisser-déposer intra-jour). */
@@ -217,7 +221,7 @@ public class WorkoutController {
     public WorkoutResponse copy(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                 @PathVariable UUID workoutId,
                                 @Valid @RequestBody WorkoutRescheduleRequest request) {
-        return workoutService.copyToDate(clubId, workoutId, request.scheduledDate());
+        return workoutService.copyToDate(clubId, athleteId, workoutId, request.scheduledDate());
     }
 
     /**
@@ -235,9 +239,11 @@ public class WorkoutController {
     @PostMapping("/copy-from")
     @ResponseStatus(HttpStatus.CREATED)
     public WorkoutResponse copyFrom(@PathVariable UUID clubId, @PathVariable UUID athleteId,
-                                    @Valid @RequestBody com.coachrun.dto.request.WorkoutCopyFromRequest request) {
+                                    @Valid @RequestBody com.coachrun.dto.request.WorkoutCopyFromRequest request,
+                                    org.springframework.security.core.Authentication authentication) {
         return courseSessionService.copyToAthlete(
-                clubId, athleteId, request.sourceWorkoutId(), request.scheduledDate());
+                clubId, athleteId, request.sourceWorkoutId(), request.scheduledDate(),
+                source -> athleteAccessValidator.canRead(authentication, source));
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
@@ -245,7 +251,7 @@ public class WorkoutController {
     public WorkoutResponse updateStatus(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                         @PathVariable UUID workoutId,
                                         @Valid @RequestBody WorkoutStatusRequest request) {
-        return workoutService.updateStatus(clubId, workoutId, request.status());
+        return workoutService.updateStatus(clubId, athleteId, workoutId, request.status());
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
@@ -253,7 +259,7 @@ public class WorkoutController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                        @PathVariable UUID workoutId) {
-        workoutService.delete(clubId, workoutId);
+        workoutService.delete(clubId, athleteId, workoutId);
     }
 
     /** Planification en cycles : duplique une semaine de séances vers une autre semaine. */

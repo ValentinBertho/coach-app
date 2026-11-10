@@ -49,9 +49,9 @@ public class ComplianceService {
     private final ComplianceEngine engine;
     private final ObjectMapper objectMapper;
 
-    /** Conformité d'une séance vue par le coach (scopée club). */
-    public ComplianceResponse forCoach(UUID clubId, UUID workoutId) {
-        Workout w = workoutRepository.findByIdAndClubId(workoutId, clubId)
+    /** Conformité d'une séance vue par le coach (scopée club ET athlète de l'adresse). */
+    public ComplianceResponse forCoach(UUID clubId, UUID athleteId, UUID workoutId) {
+        Workout w = workoutRepository.findByIdAndClubIdAndAthleteId(workoutId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
         return compute(w);
     }
@@ -189,10 +189,10 @@ public class ComplianceService {
      */
     private List<RealizedLap> lapsOf(Workout w, Activity activity) {
         ActivityLapsResponse laps = activityService.laps(
-                w.getClub().getId(), activity.getId(), ActivityLapsResponse.Kind.DEVICE);
+                w.getClub().getId(), activity.getAthlete().getId(), activity.getId(), ActivityLapsResponse.Kind.DEVICE);
         if (laps == null || laps.laps().isEmpty()) {
             laps = activityService.laps(
-                    w.getClub().getId(), activity.getId(), ActivityLapsResponse.Kind.SPLIT);
+                    w.getClub().getId(), activity.getAthlete().getId(), activity.getId(), ActivityLapsResponse.Kind.SPLIT);
         }
         if (laps == null || laps.laps().isEmpty()) {
             return List.of();

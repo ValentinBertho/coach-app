@@ -42,6 +42,7 @@ import java.util.UUID;
 public class StrengthScheduleController {
 
     private final StrengthScheduleService scheduleService;
+    private final com.coachrun.security.AthleteAccessValidator athleteAccessValidator;
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @PostMapping("/sessions/{sessionId}/schedule")
@@ -63,7 +64,7 @@ public class StrengthScheduleController {
     @GetMapping("/scheduled/{scheduledId}/prescription")
     public StrengthPrescriptionResponse prescription(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                                      @PathVariable UUID scheduledId) {
-        return scheduleService.prescription(clubId, scheduledId);
+        return scheduleService.prescription(clubId, athleteId, scheduledId);
     }
 
     /** Déplacement d'une séance de force par le coach (glisser-déposer du calendrier). */
@@ -153,9 +154,10 @@ public class StrengthScheduleController {
     @PostMapping("/scheduled/copy-from")
     @ResponseStatus(HttpStatus.CREATED)
     public ScheduledStrengthResponse copyFrom(@PathVariable UUID clubId, @PathVariable UUID athleteId,
-                                              @Valid @RequestBody StrengthCopyFromRequest request) {
+                                              @Valid @RequestBody StrengthCopyFromRequest request,
+                                              org.springframework.security.core.Authentication authentication) {
         return scheduleService.copyToAthlete(clubId, athleteId, request.sourceScheduledId(),
-                request.scheduledDate());
+                request.scheduledDate(), source -> athleteAccessValidator.canRead(authentication, source));
     }
 
     /** Verse dans la bibliothèque une séance de renforcement construite au calendrier. */

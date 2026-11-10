@@ -64,7 +64,7 @@ public class CourseSessionController {
     public CourseStructureResponse saveAsTemplate(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                                   @PathVariable UUID workoutId,
                                                   @Valid @RequestBody SaveAsTemplateRequest request) {
-        return courseSessionService.saveWorkoutAsTemplate(clubId, workoutId, request);
+        return courseSessionService.saveWorkoutAsTemplate(clubId, athleteId, workoutId, request);
     }
 
     /** Assigne la séance au calendrier de l'athlète (snapshot figé + cibles calculées). */

@@ -46,13 +46,13 @@ public class RaceObjectiveController {
     @PutMapping("/{raceId}")
     public RaceObjectiveResponse update(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                         @PathVariable UUID raceId, @Valid @RequestBody RaceObjectiveRequest request) {
-        return raceService.update(clubId, raceId, request);
+        return raceService.update(clubId, athleteId, raceId, request);
     }
 
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
     @DeleteMapping("/{raceId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID raceId) {
-        raceService.delete(clubId, raceId);
+        raceService.delete(clubId, athleteId, raceId);
     }
 }

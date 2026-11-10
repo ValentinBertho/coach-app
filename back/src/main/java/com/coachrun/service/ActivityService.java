@@ -651,9 +651,9 @@ public class ActivityService {
     }
 
     /** Tours d'une activité vue par le coach (scopé club). */
-    public ActivityLapsResponse laps(UUID clubId, UUID activityId,
+    public ActivityLapsResponse laps(UUID clubId, UUID athleteId, UUID activityId,
                                      ActivityLapsResponse.Kind requested) {
-        return laps(require(clubId, activityId), requested);
+        return laps(require(clubId, athleteId, activityId), requested);
     }
 
     /**
@@ -710,8 +710,8 @@ public class ActivityService {
     }
 
     /** Courbe d'une activité vue par le coach (scopé club). */
-    public com.coachrun.dto.response.ActivityStreamResponse streamCurve(UUID clubId, UUID activityId) {
-        return curve(require(clubId, activityId));
+    public com.coachrun.dto.response.ActivityStreamResponse streamCurve(UUID clubId, UUID athleteId, UUID activityId) {
+        return curve(require(clubId, athleteId, activityId));
     }
 
     /**
@@ -844,8 +844,8 @@ public class ActivityService {
     }
 
     /** Détail incluant le tracé GPS décodé. */
-    public java.util.List<double[]> route(UUID clubId, UUID activityId) {
-        Activity a = require(clubId, activityId);
+    public java.util.List<double[]> route(UUID clubId, UUID athleteId, UUID activityId) {
+        Activity a = require(clubId, athleteId, activityId);
         if (a.getRouteJson() == null) {
             return java.util.List.of();
         }
@@ -908,8 +908,8 @@ public class ActivityService {
     }
 
     @Transactional
-    public ActivityResponse matchManually(UUID clubId, UUID activityId, UUID workoutId) {
-        Activity activity = require(clubId, activityId);
+    public ActivityResponse matchManually(UUID clubId, UUID athleteId, UUID activityId, UUID workoutId) {
+        Activity activity = require(clubId, athleteId, activityId);
         return relink(activity, clubId, workoutId);
     }
 
@@ -935,8 +935,8 @@ public class ActivityService {
     }
 
     @Transactional
-    public ActivityResponse unmatch(UUID clubId, UUID activityId) {
-        return relink(require(clubId, activityId), clubId, null);
+    public ActivityResponse unmatch(UUID clubId, UUID athleteId, UUID activityId) {
+        return relink(require(clubId, athleteId, activityId), clubId, null);
     }
 
     /**
@@ -951,7 +951,8 @@ public class ActivityService {
         activity.setManualMatch(true);
         UUID previous = activity.getMatchedWorkoutId();
         if (previous != null && !previous.equals(workoutId)) {
-            workoutRepository.findByIdAndClubId(previous, clubId).ifPresent(w -> {
+            workoutRepository.findByIdAndClubIdAndAthleteId(previous, clubId, activity.getAthlete().getId())
+                    .ifPresent(w -> {
                 // La sortie récupère le ressenti de la séance qu'elle quitte — sans quoi le
                 // détachement effacerait, sans le dire, ce que l'athlète avait décrit.
                 releaseDebrief(activity, w);
@@ -963,7 +964,9 @@ public class ActivityService {
             activity.setStatus(ActivityStatus.UNMATCHED);
             return toResponse(activity);
         }
-        Workout workout = workoutRepository.findByIdAndClubId(workoutId, clubId)
+        // Une sortie ne se rattache qu'à une séance du même athlète, quel que soit l'appelant.
+        Workout workout = workoutRepository
+                .findByIdAndClubIdAndAthleteId(workoutId, clubId, activity.getAthlete().getId())
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
         link(activity, workout);
         return toResponse(activity);
@@ -1132,8 +1135,9 @@ public class ActivityService {
                 .orElse(null);
     }
 
-    private Activity require(UUID clubId, UUID activityId) {
-        return activityRepository.findByIdAndClubId(activityId, clubId)
+    /** L'activité doit être du club <b>et</b> de l'athlète de l'adresse appelée. */
+    private Activity require(UUID clubId, UUID athleteId, UUID activityId) {
+        return activityRepository.findByIdAndClubIdAndAthleteId(activityId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Activité introuvable."));
     }
 

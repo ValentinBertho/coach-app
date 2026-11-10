@@ -124,9 +124,8 @@ public class StrengthScheduleService {
                 .stream().map(ScheduledStrengthResponse::from).toList();
     }
 
-    public StrengthPrescriptionResponse prescription(UUID clubId, UUID scheduledId) {
-        return toPrescription(scheduledRepository.findByIdAndClubId(scheduledId, clubId)
-                .orElseThrow(() -> new NotFoundException("Séance de force introuvable.")));
+    public StrengthPrescriptionResponse prescription(UUID clubId, UUID athleteId, UUID scheduledId) {
+        return toPrescription(require(clubId, athleteId, scheduledId));
     }
 
     /**
@@ -356,8 +355,11 @@ public class StrengthScheduleService {
      */
     @Transactional
     public ScheduledStrengthResponse copyToAthlete(UUID clubId, UUID targetAthleteId, UUID sourceScheduledId,
-                                                   LocalDate date) {
+                                                   LocalDate date,
+                                                   java.util.function.Predicate<UUID> canReadSourceAthlete) {
         ScheduledStrengthSession source = scheduledRepository.findByIdAndClubId(sourceScheduledId, clubId)
+                // La source est vérifiée sur son propre athlète, comme pour la course à pied.
+                .filter(ss -> canReadSourceAthlete.test(ss.getAthlete().getId()))
                 .orElseThrow(() -> new NotFoundException("Séance de force à copier introuvable."));
         if (source.getAthlete().getId().equals(targetAthleteId)) {
             return copyToDate(clubId, targetAthleteId, sourceScheduledId, date);
