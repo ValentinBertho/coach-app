@@ -108,10 +108,22 @@ pg_restore --no-owner -h HOST -U USER -d darilab \
   --table=athlete_1rm_profile mon.dump
 ```
 
-### Test de restauration (à planifier — trimestriel)
-Un backup **non testé n'existe pas**. Restaurer le dernier dump sur une base
-jetable, lancer l'app dessus (`SPRING_PROFILES_ACTIVE=prod`, pointée sur la base
-restaurée) et vérifier `/api/actuator/health = UP` + un parcours clé.
+### Test de restauration — automatique, chaque lundi ✅
+Un backup **non testé n'existe pas**. Le workflow
+[`db-restore-test.yml`](../.github/workflows/db-restore-test.yml) prend le dernier artefact de
+« Sauvegarde BDD », le déchiffre avec `BACKUP_ENCRYPTION_KEY`, le restaure dans un PostgreSQL 18
+jetable, puis vérifie :
+- que comptes et clubs ne sont pas vides (le résumé du job affiche le nombre de lignes des tables
+  clés) ;
+- que la dernière migration restaurée existe dans le dépôt (le dump correspond au code) ;
+- que la sauvegarde a moins de 48 h (avertissement sinon).
+
+Lancement manuel : *Actions → Test de restauration BDD → Run workflow*. Pour être prévenu s'il
+cesse de passer, renseigner `RESTORE_HEARTBEAT_URL` (Better Stack, comme pour la sauvegarde).
+
+Une fois par trimestre, compléter à la main : lancer l'application sur la base restaurée
+(`SPRING_PROFILES_ACTIVE=prod`, vraie `FIELD_ENCRYPTION_KEY`) et ouvrir une fiche athlète, pour
+vérifier que les champs chiffrés se relisent — le job automatique n'a pas cette clé.
 
 > Liquibase pilote le schéma : un dump récent contient déjà le schéma à jour.
 > Avant chaque **déploiement** (qui applique d'éventuelles migrations au démarrage),

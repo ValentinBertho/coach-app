@@ -1,0 +1,147 @@
+# ============================================================================
+# Test de restauration de la sauvegarde — chaque semaine, automatiquement.
+#
+#   Une sauvegarde jamais restaurée n'existe pas : un dump peut être tronqué,
+#   chiffré avec une clé perdue, ou produit par un client trop ancien. Ce job
+#   prend le DERNIER artefact du workflow « Sauvegarde BDD », le déchiffre, le
+#   restaure dans un PostgreSQL 18 jetable et vérifie qu'on y retrouve des
+#   données réelles. Rien n'est écrit en production : le job ne lit que
+#   l'artefact.
+#
+#   Ce qu'il prouve : la clé BACKUP_ENCRYPTION_KEY ouvre bien les dumps, le dump
+#   se restaure sans erreur, les tables clés ne sont pas vides, et le schéma
+#   restauré est celui du code (dernière migration Liquibase connue du dépôt).
+#
+#   Secrets : BACKUP_ENCRYPTION_KEY (déjà requis par la sauvegarde) ;
+#   RESTORE_HEARTBEAT_URL (optionnel) pingué seulement en cas de succès.
+# ============================================================================
+name: Test de restauration BDD
+
+on:
+  schedule:
+    - cron: "0 5 * * 1" # chaque lundi, 05:00 UTC (après la sauvegarde de 02:30)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  restore:
+    name: Restaurer le dernier dump dans une base jetable
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: restore
+          POSTGRES_PASSWORD: restore
+          POSTGRES_DB: darilab_restore
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U restore" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: restore
+      PGPASSWORD: restore
+      PGDATABASE: darilab_restore
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérifier la présence du secret
+        env:
+          ENC_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          [ -n "$ENC_KEY" ] || { echo "::error::Secret BACKUP_ENCRYPTION_KEY manquant."; exit 1; }
+
+      - name: Installer le client PostgreSQL 18 (PGDG)
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] \
+          https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+
+      - name: Télécharger le dernier dump
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN_ID="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow db-backup.yml \
+            --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ] \
+            || { echo "::error::Aucune sauvegarde réussie à restaurer."; exit 1; }
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --dir dump
+          ENC="$(find dump -name '*.dump.enc' | head -n1)"
+          [ -n "$ENC" ] || { echo "::error::Artefact sans fichier .dump.enc."; exit 1; }
+          echo "ENC=$ENC" >> "$GITHUB_ENV"
+          echo "DUMP_NAME=$(basename "$ENC" .enc)" >> "$GITHUB_ENV"
+          # Âge de la sauvegarde : une restauration qui réussit sur un dump d'il y a dix
+          # jours cacherait une sauvegarde arrêtée.
+          CREATED="$(gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" --json createdAt --jq .createdAt)"
+          AGE_H=$(( ( $(date -u +%s) - $(date -u -d "$CREATED" +%s) ) / 3600 ))
+          echo "Dump : $(basename "$ENC") — sauvegarde du $CREATED (${AGE_H} h)"
+          echo "AGE_H=$AGE_H" >> "$GITHUB_ENV"
+          [ "$AGE_H" -le 48 ] || echo "::warning::Dernière sauvegarde réussie vieille de ${AGE_H} h."
+
+      - name: Déchiffrer
+        env:
+          ENC_KEY: ${{ secrets.BACKUP_ENCRYPTION_KEY }}
+        run: |
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+            -in "$ENC" -out restore.dump -pass env:ENC_KEY
+          pg_restore --list restore.dump > /dev/null
+          du -h restore.dump
+
+      - name: Restaurer
+        run: |
+          pg_restore --no-owner --no-privileges --exit-on-error \
+            -d "$PGDATABASE" restore.dump
+
+      - name: Vérifier le contenu restauré
+        run: |
+          set -euo pipefail
+          count() { psql -tAc "select count(*) from $1"; }
+          {
+            echo "### Restauration de \`$DUMP_NAME\` (sauvegarde de ${AGE_H} h)"
+            echo
+            echo "| Table | Lignes |"
+            echo "|---|---|"
+            for t in users clubs athletes workouts activities refresh_tokens databasechangelog; do
+              if psql -tAc "select to_regclass('public.$t')" | grep -q .; then
+                echo "| \`$t\` | $(count "$t") |"
+              else
+                echo "| \`$t\` | absente |"
+              fi
+            done
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          # Une base de production sans comptes ni clubs n'est pas une sauvegarde.
+          [ "$(count users)" -gt 0 ] || { echo "::error::Aucun compte dans la base restaurée."; exit 1; }
+          [ "$(count clubs)" -gt 0 ] || { echo "::error::Aucun club dans la base restaurée."; exit 1; }
+
+      - name: Vérifier que le schéma suit le code
+        run: |
+          set -euo pipefail
+          # Dernière migration appliquée dans la base restaurée…
+          LAST="$(psql -tAc "select filename from databasechangelog order by orderexecuted desc limit 1")"
+          echo "Dernière migration restaurée : $LAST"
+          # …doit exister dans le dépôt : sinon le dump vient d'un autre code, ou d'une branche.
+          test -f "back/src/main/resources/$LAST" \
+            || { echo "::error::Migration $LAST inconnue du dépôt."; exit 1; }
+          echo "Migration restaurée : \`$LAST\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Signaler le succès (heartbeat)
+        env:
+          HEARTBEAT_URL: ${{ secrets.RESTORE_HEARTBEAT_URL }}
+        run: |
+          if [ -z "$HEARTBEAT_URL" ]; then
+            echo "::warning::RESTORE_HEARTBEAT_URL absent — aucune supervision de ce job."
+            exit 0
+          fi
+          curl -fsS --retry 3 --max-time 20 "$HEARTBEAT_URL" > /dev/null
