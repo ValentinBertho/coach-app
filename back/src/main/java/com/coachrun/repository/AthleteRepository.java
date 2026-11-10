@@ -5,6 +5,7 @@ import com.coachrun.entity.enums.AthleteStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -151,4 +152,14 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
     /** Athlètes suivis par un coach : « combien de personnes ce compte encadre-t-il ? ». */
     @Query("select count(a) from Athlete a join a.coaches c where c.id = :coachId")
     long countByCoachId(@Param("coachId") UUID coachId);
+
+    /**
+     * Suppression par requête : la base emporte les lignes filles (ON DELETE CASCADE).
+     * Un {@code delete(entity)} échoue sous Hibernate 6.6 dès qu'une entité chargée dans la même
+     * transaction pointe encore vers la ligne supprimée (TransientObjectException). Les
+     * modifications en attente sont écrites avant, et la session est vidée après.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from Athlete e where e.id = :id")
+    int hardDelete(@Param("id") UUID id);
 }
