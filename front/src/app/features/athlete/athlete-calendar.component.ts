@@ -1,3 +1,5 @@
+import { DecimalPipe } from '@angular/common';
+import { frNumber } from '../../core/utils/number-format';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -137,7 +139,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
 @Component({
   selector: 'app-athlete-calendar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [DecimalPipe, 
     IconComponent,
     IntensityZoneBadgeComponent,
     DataOriginTagComponent,
@@ -381,7 +383,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                   <span class="ses-facts">
                     @if (a.distanceM) {
                       <span class="metric"
-                        >{{ (a.distanceM / 1000).toFixed(1) }} km</span
+                        >{{ a.distanceM / 1000 | number: '1.1-1' }} km</span
                       >
                     }
                     @if (a.durationS) {
@@ -567,7 +569,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
               <span class="ses-facts">
                 @if (a.distanceM) {
                   <span class="metric"
-                    >{{ (a.distanceM / 1000).toFixed(1) }} km</span
+                    >{{ a.distanceM / 1000 | number: '1.1-1' }} km</span
                   >
                 }
                 @if (a.durationS) {
@@ -1904,7 +1906,7 @@ export class AthleteCalendarComponent implements OnInit {
     const bits: string[] = [];
     if (r.distanceM) {
       const km = r.distanceM / 1000;
-      bits.push(`${km === Math.round(km) ? km : km.toFixed(1)} km`);
+      bits.push(`${km === Math.round(km) ? km : frNumber(km, 1)} km`);
     }
     if (r.status === 'UPCOMING' && r.daysUntil > 0) {
       bits.push(r.daysUntil === 1 ? 'demain' : `dans ${r.daysUntil} j`);

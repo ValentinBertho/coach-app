@@ -234,7 +234,7 @@ public class ActivityService {
                                 + "Confirmez si vous avez bien couru deux fois.",
                         sourceLabel(existing.getSource()),
                         existing.getDistanceM() == null ? ""
-                                : String.format(", %.1f km", existing.getDistanceM() / 1000.0)));
+                                : String.format(java.util.Locale.FRANCE, ", %.1f km", existing.getDistanceM() / 1000.0)));
             }
         }
     }

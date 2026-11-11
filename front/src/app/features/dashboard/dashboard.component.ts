@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, LowerCasePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -28,8 +28,12 @@ import {
   type SegmentOption,
 } from '../../shared/components/ui';
 import { RevealDirective } from '../../shared/directives/reveal.directive';
+import {
+  CoachScope,
+  CoachScopeService,
+} from '../../core/services/coach-scope.service';
 
-type Scope = 'all' | 'mine' | 'private' | 'club';
+type Scope = CoachScope;
 
 const LEVEL_OF: Record<FormStatus, FormLevel> = {
   GREEN: 'green',
@@ -58,6 +62,7 @@ const SEVERITY: Record<FormStatus, number> = {
   selector: 'app-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    LowerCasePipe,
     IconComponent,
     RouterLink,
     DatePipe,
@@ -72,6 +77,7 @@ const SEVERITY: Record<FormStatus, number> = {
 export class DashboardComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly dashboardService = inject(CoachDashboardService);
+  private readonly scopeStore = inject(CoachScopeService);
 
   readonly user = this.auth.currentUser;
   readonly data = signal<CoachDashboard | null>(null);
@@ -91,10 +97,22 @@ export class DashboardComponent implements OnInit {
     return f ? [...f.routeAthletes, ...f.trailAthletes] : [];
   });
 
-  /** Athlètes nécessitant une attention : forme non verte ou douleur ≥ 4, triés par criticité. */
+  /**
+   * Athlètes nécessitant une attention : forme orange ou rouge, ou douleur ≥ 4, triés par
+   * criticité.
+   *
+   * <p>Les athlètes « sans signal » n'y sont plus : une carte sans aucune donnée, répétée pour
+   * chaque athlète qui n'a rien renseigné, noyait les deux ou trois qui avaient vraiment mal. Ils
+   * sont comptés à part, sur une ligne ({@link #silent}).</p>
+   */
   readonly attention = computed<AthleteForm[]>(() =>
     this.allAthletes()
-      .filter((a) => a.formStatus !== 'GREEN' || (a.pain ?? 0) >= 4)
+      .filter(
+        (a) =>
+          a.formStatus === 'ORANGE' ||
+          a.formStatus === 'RED' ||
+          (a.pain ?? 0) >= 4,
+      )
       .sort(
         (a, b) =>
           SEVERITY[b.formStatus] - SEVERITY[a.formStatus] ||
@@ -102,6 +120,19 @@ export class DashboardComponent implements OnInit {
           (b.fatigue ?? 0) - (a.fatigue ?? 0),
       ),
   );
+
+  /** Athlètes sans retour récent : on n'en sait rien, ce qui se dit en une ligne. */
+  readonly silent = computed(
+    () => this.allAthletes().filter((a) => a.formStatus === 'STALE').length,
+  );
+
+  readonly scopeLabel = this.scopeStore.label;
+
+  /** « 3 athlètes sans retour récent. » */
+  silentText(): string {
+    const n = this.silent();
+    return n === 1 ? ' 1 athlète sans retour récent.' : ` ${n} athlètes sans retour récent.`;
+  }
 
   /** Répartition de la forme sur tout le périmètre. */
   readonly formCounts = computed(() => {
@@ -113,8 +144,8 @@ export class DashboardComponent implements OnInit {
     return c;
   });
 
-  // --- Périmètre (scope) ---
-  readonly scope = signal<Scope>('all');
+  // --- Périmètre (scope) : le même que « Ma journée » et la pastille du menu ---
+  readonly scope = this.scopeStore.scope;
   readonly scopeOptions: SegmentOption[] = [
     { value: 'all', label: 'Tout le club' },
     { value: 'mine', label: 'Mes athlètes' },
@@ -140,24 +171,13 @@ export class DashboardComponent implements OnInit {
   }
 
   setScope(value: string): void {
-    this.scope.set(value as Scope);
+    this.scopeStore.set(value as Scope);
     this.load();
+    this.dashboardService.refreshPendingReviews().subscribe({ error: () => undefined });
   }
 
   level(status: FormStatus): FormLevel {
     return LEVEL_OF[status];
-  }
-
-  /**
-   * Où mène une ligne d'alerte.
-   *
-   * <p>La ligne menait toujours à la fiche de l'athlète, alors que l'alerte porte déjà le geste
-   * qu'elle appelle — c'est le sens de `SuggestedAction`, que l'écran « Ma journée » utilise
-   * depuis toujours et que le cockpit ignorait. Une réponse d'athlète non lue mène ainsi à la
-   * séance où elle a été écrite, et l'ouvrir vaut lecture.</p>
-   */
-  alertLink(al: CoachAlert): string | unknown[] {
-    return al.action?.link ?? ['/app/athletes', al.athleteId];
   }
 
   /** Note contextuelle pour la jauge (dernier retour). */

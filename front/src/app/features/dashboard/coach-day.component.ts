@@ -9,7 +9,6 @@ import {
   signal,
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { Observable } from 'rxjs';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import {
   WORKOUT_TYPE_LABELS,
@@ -30,7 +29,6 @@ import {
 import { NetworkStatusService } from '../../core/services/network-status.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { CourseService } from '../../core/services/course.service';
-import { StrengthService } from '../../core/services/strength.service';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkoutService } from '../../core/services/workout.service';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
@@ -41,15 +39,17 @@ import {
   ReplySheetComponent,
   type ReplyTarget,
 } from '../../shared/components/reply-sheet/reply-sheet.component';
-import { injuryLabel } from '../../core/models/injury.model';
 import { Proposal } from '../../core/models/decision.model';
 import { DecisionService } from '../../core/services/decision.service';
+import {
+  COACH_SCOPE_LABELS,
+  CoachScope,
+  CoachScopeService,
+} from '../../core/services/coach-scope.service';
+import { FeedbackQueueComponent } from './feedback-queue.component';
 import { ProposalListComponent } from '../../shared/components/proposal-list/proposal-list.component';
 
-type Scope = 'all' | 'mine' | 'private' | 'club';
-
-/** Périmètre retenu entre deux ouvertures : on ne le rechoisit pas chaque matin. */
-const SCOPE_KEY = 'coach-day-scope';
+type Scope = CoachScope;
 
 /** Dernier chargement réussi : sert à dater ce que le cache affiche hors ligne. */
 const STAMP_KEY = 'coach-day-loaded-at';
@@ -84,6 +84,7 @@ const STAMP_KEY = 'coach-day-loaded-at';
     PushPromptComponent,
     ReplySheetComponent,
     ProposalListComponent,
+    FeedbackQueueComponent,
   ],
   templateUrl: './coach-day.component.html',
   styleUrl: './coach-day.component.scss',
@@ -94,19 +95,20 @@ export class CoachDayComponent implements OnInit {
   private readonly workouts = inject(WorkoutService);
   private readonly courses = inject(CourseService);
   private readonly templates = inject(WorkoutTemplateService);
-  private readonly strength = inject(StrengthService);
   private readonly athletes = inject(AthleteService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   readonly network = inject(NetworkStatusService);
   private readonly decisions = inject(DecisionService);
+  private readonly scopeStore = inject(CoachScopeService);
 
   readonly loading = signal(true);
   /** Le dernier chargement a échoué (réseau coupé, serveur muet) : on ne prétend pas que tout va bien. */
   readonly failed = signal(false);
   readonly alerts = signal<CoachAlert[]>([]);
-  readonly reviews = signal<FeedbackQueueItem[]>([]);
+  /** Taille de la file des retours, remontée par la file elle-même (null tant qu'inconnue). */
+  readonly reviewCount = signal<number | null>(null);
   readonly conversations = signal<ConversationSummary[]>([]);
   readonly sessions = signal<CoachDaySession[]>([]);
 
@@ -130,8 +132,9 @@ export class CoachDayComponent implements OnInit {
    */
   readonly lastLoadedAt = signal<string | null>(readStamp());
 
-  readonly scope = signal<Scope>(readScope());
-  readonly scopeLabel = computed(() => SCOPE_LABELS[this.scope()]);
+  /** Périmètre partagé avec le tableau de bord et la pastille du menu. */
+  readonly scope = this.scopeStore.scope;
+  readonly scopeLabel = this.scopeStore.label;
 
   /** Fils avec des non-lus, les plus récents d'abord — le reste vit dans la boîte de réception. */
   readonly unread = computed(() =>
@@ -148,20 +151,17 @@ export class CoachDayComponent implements OnInit {
    * tous.</p>
    */
   private static readonly SHOWN = 5;
+  readonly alertsExpanded = signal(false);
   readonly topAlerts = computed(() =>
-    this.alerts().slice(0, CoachDayComponent.SHOWN),
-  );
-  readonly topReviews = computed(() =>
-    this.reviews().slice(0, CoachDayComponent.SHOWN),
+    this.alertsExpanded()
+      ? this.alerts()
+      : this.alerts().slice(0, CoachDayComponent.SHOWN),
   );
   readonly topUnread = computed(() =>
     this.unread().slice(0, CoachDayComponent.SHOWN),
   );
   readonly moreAlerts = computed(() =>
-    Math.max(0, this.alerts().length - CoachDayComponent.SHOWN),
-  );
-  readonly moreReviews = computed(() =>
-    Math.max(0, this.reviews().length - CoachDayComponent.SHOWN),
+    Math.max(0, this.alerts().length - this.topAlerts().length),
   );
   readonly moreUnread = computed(() =>
     Math.max(0, this.unread().length - CoachDayComponent.SHOWN),
@@ -224,21 +224,17 @@ export class CoachDayComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     const scope = this.scope();
+    // Les retours se chargent dans leur propre composant, sur le même périmètre. L'état de
+    // l'écran (chargé, en échec, hors ligne) suit les alertes, qui viennent du même serveur.
     this.dashboard.alerts(scope).subscribe({
-      next: (a) => this.alerts.set(a),
-      error: () => this.alerts.set([]),
-    });
-    // Sept jours et non quatorze : la file complète a son écran. Ici, c'est ce qui vient
-    // d'arriver — au-delà, on ne « traite » plus, on rattrape.
-    this.dashboard.feedbackQueue(scope, 7).subscribe({
-      next: (f) => {
-        this.reviews.set(f);
+      next: (a) => {
+        this.alerts.set(a);
         this.loading.set(false);
         this.failed.set(false);
         this.stampNow();
       },
       error: () => {
-        this.reviews.set([]);
+        this.alerts.set([]);
         this.loading.set(false);
         this.failed.set(true);
       },
@@ -260,14 +256,12 @@ export class CoachDayComponent implements OnInit {
   }
 
   setScope(value: Scope): void {
-    this.scope.set(value);
-    try {
-      localStorage.setItem(SCOPE_KEY, value);
-    } catch {
-      /* préférence non persistée */
-    }
+    this.scopeStore.set(value);
     this.scopeOpen.set(false);
+    this.alertsExpanded.set(false);
     this.load();
+    // La pastille du menu suit le périmètre : elle doit dire le même chiffre que la file.
+    this.dashboard.refreshPendingReviews().subscribe({ error: () => undefined });
   }
 
   readonly scopeOpen = signal(false);
@@ -275,10 +269,10 @@ export class CoachDayComponent implements OnInit {
     this.scopeOpen.update((v) => !v);
   }
   readonly scopes: { value: Scope; label: string }[] = [
-    { value: 'mine', label: SCOPE_LABELS.mine },
-    { value: 'all', label: SCOPE_LABELS.all },
-    { value: 'private', label: SCOPE_LABELS.private },
-    { value: 'club', label: SCOPE_LABELS.club },
+    { value: 'mine', label: COACH_SCOPE_LABELS.mine },
+    { value: 'all', label: COACH_SCOPE_LABELS.all },
+    { value: 'private', label: COACH_SCOPE_LABELS.private },
+    { value: 'club', label: COACH_SCOPE_LABELS.club },
   ];
 
   shiftDay(days: number): void {
@@ -293,52 +287,6 @@ export class CoachDayComponent implements OnInit {
     this.date.set(todayIso());
     this.closeMenu();
     this.loadDay();
-  }
-
-  // --- Retours ---------------------------------------------------------------
-
-  readonly busy = signal<Set<string>>(new Set());
-  key(it: FeedbackQueueItem): string {
-    return `${it.kind}:${it.sessionId}`;
-  }
-  injury = injuryLabel;
-
-  /**
-   * Marque un retour comme traité. La ligne disparaît tout de suite : sur un téléphone, une
-   * liste qui ne bouge pas après un tap donne l'impression que rien ne s'est passé.
-   */
-  markReviewed(it: FeedbackQueueItem): void {
-    const k = this.key(it);
-    if (this.busy().has(k)) return;
-    this.busy.update((s) => new Set(s).add(k));
-
-    const call: Observable<unknown> =
-      it.kind === 'STRENGTH'
-        ? this.strength.markScheduledReviewed(it.athleteId, it.sessionId)
-        : this.workouts.markReviewed(it.athleteId, it.sessionId);
-
-    call.subscribe({
-      next: () => {
-        this.reviews.update((l) => l.filter((x) => this.key(x) !== k));
-        this.release(k);
-        this.dashboard
-          .refreshPendingReviews()
-          .subscribe({ error: () => undefined });
-        this.toast.success('Retour marqué comme traité');
-      },
-      error: () => {
-        this.release(k);
-        this.toast.error('Action impossible.');
-      },
-    });
-  }
-
-  private release(k: string): void {
-    this.busy.update((s) => {
-      const n = new Set(s);
-      n.delete(k);
-      return n;
-    });
   }
 
   // --- Répondre sans quitter l'écran ----------------------------------------
@@ -622,7 +570,7 @@ export class CoachDayComponent implements OnInit {
       !this.loading() &&
       !this.failed() &&
       !this.alerts().length &&
-      !this.reviews().length &&
+      !this.reviewCount() &&
       !this.unread().length,
   );
 
@@ -654,30 +602,12 @@ export class CoachDayComponent implements OnInit {
   }
 }
 
-const SCOPE_LABELS: Record<Scope, string> = {
-  mine: 'Mes athlètes',
-  all: 'Tout le club',
-  private: 'Mes privés',
-  club: 'Mes athlètes club',
-};
-
 function readStamp(): string | null {
   try {
     return localStorage.getItem(STAMP_KEY);
   } catch {
     return null;
   }
-}
-
-function readScope(): Scope {
-  try {
-    const v = localStorage.getItem(SCOPE_KEY);
-    if (v === 'all' || v === 'mine' || v === 'private' || v === 'club')
-      return v;
-  } catch {
-    /* stockage indisponible */
-  }
-  return 'mine';
 }
 
 function todayIso(): string {

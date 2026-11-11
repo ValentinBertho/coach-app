@@ -1,3 +1,4 @@
+import { frNumber } from '../../../core/utils/number-format';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -261,6 +262,6 @@ export class AcwrIndicatorComponent {
     const v = this.value();
     return v === null
       ? `ACWR en construction, ${this.historyDays()} jours d'historique sur ${this.windowDays()}`
-      : `ACWR ${v.toFixed(2)}, ${this.meta().label}, zone optimale ${this.lowSafe()} à ${this.highSafe()}`;
+      : `ACWR ${frNumber(v, 2)}, ${this.meta().label}, zone optimale ${this.lowSafe()} à ${this.highSafe()}`;
   });
 }

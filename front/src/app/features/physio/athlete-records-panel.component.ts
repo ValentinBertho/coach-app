@@ -8,7 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import {
   TrendChartComponent,
   type TrendPoint,
@@ -38,7 +38,7 @@ const DISTANCES: { value: string; label: string }[] = [
 @Component({
   selector: 'app-athlete-records-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DatePipe, IconComponent, TrendChartComponent],
+  imports: [DecimalPipe, FormsModule, DatePipe, IconComponent, TrendChartComponent],
   template: `
     <section class="card records">
       <header class="rec-head">
@@ -51,7 +51,7 @@ const DISTANCES: { value: string; label: string }[] = [
         </div>
         @if (vdot()?.vdot != null) {
           <span class="vdot-badge"
-            >VDOT <strong class="metric">{{ vdot()!.vdot }}</strong></span
+            >VDOT <strong class="metric">{{ vdot()!.vdot | number: '1.1-1' }}</strong></span
           >
         }
       </header>
@@ -143,7 +143,7 @@ const DISTANCES: { value: string; label: string }[] = [
                   p.dateSet ? (p.dateSet | date: 'd MMM y') : '—'
                 }}</span>
                 @if (p.vdot != null) {
-                  <span class="badge badge-info">VDOT {{ p.vdot }}</span>
+                  <span class="badge badge-info">VDOT {{ p.vdot | number: '1.1-1' }}</span>
                 }
                 <button
                   type="button"

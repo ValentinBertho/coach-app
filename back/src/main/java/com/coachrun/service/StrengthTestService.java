@@ -140,7 +140,7 @@ public class StrengthTestService {
             return;
         }
         String direction = gap > 0 ? "au-dessus" : "en dessous";
-        throw new ApiException(HttpStatus.CONFLICT, String.format(
+        throw new ApiException(HttpStatus.CONFLICT, String.format(java.util.Locale.FRANCE,
                 "Ce test ressort à %.1f kg, soit %.0f %% %s du 1RM actuel (%.1f kg). "
                         + "Vérifiez la charge et l'exercice, puis confirmez pour l'enregistrer.",
                 e1rmKg.doubleValue(), Math.abs(gap) * 100, direction, previous));

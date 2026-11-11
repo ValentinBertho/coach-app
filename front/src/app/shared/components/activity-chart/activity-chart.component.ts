@@ -1,3 +1,4 @@
+import { frNumber } from '../../../core/utils/number-format';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -644,7 +645,7 @@ export class ActivityChartComponent {
       parts.push(
         `allure de ${this.paceLabel(p.min)} à ${this.paceLabel(p.max)} par kilomètre`,
       );
-    const km = ((this.data()?.totalDistanceM ?? 0) / 1000).toFixed(1);
+    const km = frNumber((this.data()?.totalDistanceM ?? 0) / 1000, 1);
     return parts.length
       ? `Courbe sur ${km} km : ${parts.join(', ')}.`
       : 'Courbe de la sortie.';

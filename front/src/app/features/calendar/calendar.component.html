@@ -476,7 +476,7 @@
                même endroit, et aucune des deux à l'endroit où l'œil arrive. La barre reste en
                bas — elle ne dit pas un chiffre, elle compare les jours entre eux. -->
           @if (showPlanned() && day.km > 0) {
-            <span class="day-km metric" [title]="day.km.toFixed(1) + ' km prévus'">{{ day.km.toFixed(0) }} km</span>
+            <span class="day-km metric" [title]="(day.km | number: '1.1-1') + ' km prévus'">{{ day.km | number: '1.0-0' }} km</span>
           }
           @if (day.conflict) {
             <span class="day-flag" title="Charge élevée : plusieurs séances dont une séance clé"><app-icon name="alert-triangle" [size]="11" /> charge</span>
@@ -606,7 +606,7 @@
         </div>
 
         @if (showPlanned() && day.km > 0) {
-          <div class="day-density" [title]="day.km.toFixed(1) + ' km prévus'" aria-hidden="true">
+          <div class="day-density" [title]="(day.km | number: '1.1-1') + ' km prévus'" aria-hidden="true">
             <span class="day-density__bar" [style.width.%]="(day.km / maxDayKm()) * 100"></span>
           </div>
         }
@@ -623,7 +623,7 @@
               <div class="wt-group">
                 @if (showRealized()) { <span class="wt-cap">Prévu</span> }
                 <span class="wt-val metric">{{ fmtDuration(week.durationS) }}</span>
-                <span class="wt-val metric">{{ week.km.toFixed(1) }}<small>km</small></span>
+                <span class="wt-val metric">{{ week.km | number: '1.1-1' }}<small>km</small></span>
                 @if (week.loadUa > 0) {
                   <span class="wt-val metric" title="Charge prévue de la semaine (sRPE)">{{ week.loadUa }}<small>UA</small></span>
                 }
@@ -634,7 +634,7 @@
               <div class="wt-group wt-group--real">
                 @if (showPlanned()) { <span class="wt-cap wt-cap--real">Réalisé</span> }
                 <span class="wt-val metric">{{ fmtDuration(week.realDurationS) }}</span>
-                <span class="wt-val metric">{{ week.realKm.toFixed(1) }}<small>km</small></span>
+                <span class="wt-val metric">{{ week.realKm | number: '1.1-1' }}<small>km</small></span>
                 <span class="wt-lb">{{ week.realSessions }} séance{{ week.realSessions > 1 ? 's' : '' }}</span>
               </div>
             }

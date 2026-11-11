@@ -461,6 +461,7 @@ textarea.form-control { min-height: 80px; padding: var(--sp-3) var(--sp-4); line
 /* --- En-têtes de page ------------------------------------------------------ */
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); margin-bottom: var(--sp-6); flex-wrap: wrap; }
 .page-header h1 { margin: 0; }
+.page-header__actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
 .subtitle { color: var(--ink-3); margin: var(--sp-1) 0 0; }
 
 /* --- Recherche / onglets --------------------------------------------------- */

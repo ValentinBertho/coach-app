@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import {
   ChangeDetectionStrategy,
@@ -69,7 +70,7 @@ const SOURCE_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-workout-feedback-sheet',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [DecimalPipe, 
     FormsModule,
     IconComponent,
     BottomSheetComponent,
@@ -100,7 +101,7 @@ const SOURCE_LABELS: Record<string, string> = {
               </span>
               <span class="fb__matched-vals metric">
                 @if (a.distanceM) {
-                  {{ (a.distanceM / 1000).toFixed(1) }} km
+                  {{ a.distanceM / 1000 | number: '1.1-1' }} km
                 }
                 @if (a.durationS) {
                   · {{ durationLabel(a.durationS) }}

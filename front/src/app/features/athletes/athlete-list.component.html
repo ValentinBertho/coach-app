@@ -3,7 +3,12 @@
     <h1 class="display-sm">Athlètes</h1>
     <p class="subtitle">Gère tes athlètes et leur profil.</p>
   </div>
-  <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
+  <!-- Les groupes n'ont plus d'entrée de menu à eux : ils organisent des athlètes, c'est ici
+       qu'on les cherche. -->
+  <div class="page-header__actions">
+    <a routerLink="/app/groups" class="btn btn-ghost">Groupes</a>
+    <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
+  </div>
 </section>
 
 <div class="search-bar">

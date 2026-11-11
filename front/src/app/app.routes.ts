@@ -164,10 +164,13 @@ export const routes: Routes = [
           import('./features/messages/conversations.component').then((m) => m.ConversationsComponent),
       },
       {
-        // File « retours à traiter » : destination du KPI du cockpit.
+        // L'ancienne file « Retours » : elle vit maintenant dans « Ma journée », la seule boîte de
+        // tri. L'adresse reste servie — notifications, raccourcis et e-mails déjà envoyés y
+        // mènent, parfois avec l'action « Traité » d'une notification (?review=…), que la
+        // redirection conserve.
         path: 'feedback',
-        loadComponent: () =>
-          import('./features/dashboard/feedback-queue.component').then((m) => m.FeedbackQueueComponent),
+        pathMatch: 'full',
+        redirectTo: 'journee',
       },
       {
         // Bibliothèque unique à onglets : les trois écrans existants sont montés tels quels

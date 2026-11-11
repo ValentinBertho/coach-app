@@ -536,7 +536,7 @@ export class HelpCenterComponent {
         .subtitle { color: #6b7280; margin: 0 0 6px; }
         .meta { color: #9aa1ad; font-size: var(--text-xs); margin: 0 0 20px; }
         section { break-inside: avoid; padding: 14px 0; border-top: 1px solid #e6e8ee; }
-        h2 { font-size: 16px; margin: 0 0 2px; color: #2d45d6; }
+        h2 { font-size: 16px; margin: 0 0 2px; color: #0e6e78; }
         .sum { color: #6b7280; font-size: 13px; margin: 0 0 8px; }
         p { margin: 0 0 8px; }
         ul, ol { margin: 0 0 8px; padding-left: 20px; }

@@ -13,8 +13,8 @@
        coûtaient une ligne entière pour un choix qu'on fait une fois. -->
   <div class="cd-scope">
     <button type="button" class="btn btn-ghost btn-sm" (click)="toggleScope()"
-            [attr.aria-expanded]="scopeOpen()" aria-label="Changer de périmètre">
-      <app-icon name="users" [size]="16" /> {{ scopeLabel() }}
+            [attr.aria-expanded]="scopeOpen()">
+      <app-icon name="users" [size]="16" /> <span class="sr-only">Périmètre :</span> {{ scopeLabel() }}
       <app-icon [name]="scopeOpen() ? 'chevron-up' : 'chevron-down'" [size]="14" />
     </button>
     @if (scopeOpen()) {
@@ -93,7 +93,6 @@
       <header class="cd-sec__hd">
         <h2>À traiter maintenant</h2>
         <span class="cd-count">{{ alerts().length }}</span>
-        @if (moreAlerts()) { <a routerLink="/app" class="cd-sec__more">Tout voir</a> }
       </header>
       <ul class="cd-list">
         @for (al of topAlerts(); track $index) {
@@ -129,76 +128,23 @@
         }
       </ul>
       @if (moreAlerts()) {
-        <a routerLink="/app" class="cd-more-link">
-          Et {{ moreAlerts() }} autre{{ moreAlerts() > 1 ? 's' : '' }} sur le tableau de bord
-        </a>
+        <button type="button" class="btn btn-ghost cd-more-btn" (click)="alertsExpanded.set(true)">
+          Afficher {{ moreAlerts() === 1 ? "l'autre alerte" : 'les ' + moreAlerts() + ' autres alertes' }}
+        </button>
       }
     </section>
   }
 
-  <!-- 2. Retours des sept derniers jours. La file complète, elle, a son écran. -->
-  @if (reviews().length) {
-    <section class="cd-sec">
-      <header class="cd-sec__hd">
-        <h2>Retours à traiter</h2>
-        <span class="cd-count">{{ reviews().length }}</span>
-        <a routerLink="/app/feedback" class="cd-sec__more">Tout voir</a>
-      </header>
-      <ul class="cd-list">
-        @for (it of topReviews(); track it.kind + it.sessionId) {
-          <li class="cd-card" [class.cd-card--red]="(it.pain ?? 0) >= 3 || !!it.injuries.length">
-            <div class="cd-card__top">
-              <strong>{{ it.athleteName }}</strong>
-              <span class="field-hint metric">{{ it.sessionDate | date: 'EEE d MMM' }}</span>
-            </div>
-            <span class="cd-card__title">{{ it.title }}</span>
-
-            <div class="cd-badges">
-              @if (it.rpe != null) { <span class="badge badge-neutral">RPE {{ it.rpe }}/10</span> }
-              @if (it.fatigue != null) { <span class="badge badge-neutral">Fatigue {{ it.fatigue }}/10</span> }
-              @if (it.pain != null) {
-                <span class="badge" [class.badge-danger]="it.pain >= 5"
-                      [class.badge-warning]="it.pain >= 3 && it.pain < 5"
-                      [class.badge-neutral]="it.pain < 3">Douleur {{ it.pain }}/10</span>
-              }
-            </div>
-
-            @if (it.injuries.length) {
-              <p class="cd-injuries">
-                <app-icon name="alert-triangle" [size]="14" />
-                @for (i of it.injuries; track $index) { <span>{{ injury(i) }}</span> }
-              </p>
-            }
-            @if (it.comment) { <p class="cd-comment">« {{ excerpt(it.comment) }} »</p> }
-
-            <div class="cd-acts">
-              @if (it.kind === 'COURSE') {
-                <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', it.athleteId, 'workouts', it.sessionId]">
-                  Voir la séance
-                </a>
-              } @else {
-                <a class="btn btn-ghost btn-sm" [routerLink]="['/app/athletes', it.athleteId, 'programme']">
-                  Voir le programme
-                </a>
-              }
-              <button type="button" class="btn btn-ghost btn-sm" (click)="replyToReview(it)">
-                <app-icon name="message-square" [size]="15" /> Répondre
-              </button>
-              <button type="button" class="btn btn-primary btn-sm" (click)="markReviewed(it)"
-                      [disabled]="busy().has(key(it))">
-                <app-icon name="check" [size]="15" /> Traité
-              </button>
-            </div>
-          </li>
-        }
-      </ul>
-      @if (moreReviews()) {
-        <a routerLink="/app/feedback" class="cd-more-link">
-          Et {{ moreReviews() }} retour{{ moreReviews() > 1 ? 's' : '' }} de plus dans la file
-        </a>
-      }
-    </section>
-  }
+  <!-- 2. Retours à traiter : la file entière vit ici, sur le périmètre de l'écran et sur
+       quatorze jours — le même chiffre que la pastille du menu et le tableau de bord. -->
+  <section class="cd-sec" id="retours" aria-labelledby="cd-reviews-title">
+    <header class="cd-sec__hd">
+      <h2 id="cd-reviews-title">Retours à traiter</h2>
+      @if (reviewCount() !== null) { <span class="cd-count">{{ reviewCount() }}</span> }
+    </header>
+    <app-feedback-queue [scope]="scope()" (reply)="replyToReview($event)"
+                        (countChange)="reviewCount.set($event)" />
+  </section>
 
   <!-- 3. Messages non lus : le fil s'ouvre d'un tap, on y répond là-bas. -->
   @if (unread().length) {

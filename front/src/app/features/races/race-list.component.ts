@@ -1,4 +1,4 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -22,7 +22,7 @@ import { PlanPreview, PlanWeek } from '../../core/models/decision.model';
 @Component({
   selector: 'app-race-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [DecimalPipe, 
     SkeletonComponent,
     FormsModule,
     RouterLink,

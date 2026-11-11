@@ -1,10 +1,11 @@
+import { frNumber } from '../../core/utils/number-format';
 import {
   CdkDragDrop,
   DragDropModule,
   moveItemInArray,
 } from '@angular/cdk/drag-drop';
 import { Observable, defer, forkJoin, of, switchMap, tap } from 'rxjs';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -224,7 +225,7 @@ function toIso(d: Date): string {
 @Component({
   selector: 'app-calendar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [DecimalPipe, 
     FormsModule,
     RouterLink,
     DragDropModule,
@@ -1215,7 +1216,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   /** Km d'une activité réalisée (pour la pastille). */
   activityKm(a: Activity): string | null {
-    return a.distanceM ? (a.distanceM / 1000).toFixed(1) : null;
+    return a.distanceM ? frNumber(a.distanceM / 1000, 1) : null;
   }
 
   /** Ouvre l'activité réalisée : la séance rapprochée si elle existe, sinon la liste d'activités. */
@@ -1254,7 +1255,7 @@ export class CalendarComponent implements OnInit, OnDestroy {
 
   readonly weeklyVolumeKm = computed(() => {
     const m = this.workouts().reduce((s, w) => s + this.volumeM(w), 0);
-    return (m / 1000).toFixed(1);
+    return frNumber(m / 1000, 1);
   });
 
   /** Infobulle d'une séance déplacée par l'athlète : d'où elle vient. */

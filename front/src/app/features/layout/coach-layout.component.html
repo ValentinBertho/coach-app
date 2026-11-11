@@ -20,61 +20,68 @@
             [attr.aria-label]="navCollapsed() ? 'Déplier le menu' : 'Replier le menu'">
       <app-icon [name]="navCollapsed() ? 'chevrons-right' : 'chevrons-left'" [size]="16" />
     </button>
-    @if (user()?.clubName && !navCollapsed()) {
-      <span class="badge badge-neutral club-badge">{{ user()?.clubName }}</span>
-    }
 
-    <nav class="snav">
-      <span class="snav-group">Coaching</span>
+    <!-- Sept entrées, pas quinze. Le travail quotidien se fait dans « Ma journée », la seule
+         boîte de tri : alertes, retours, messages et séances du jour, avec le seul compteur de
+         retours de l'application. Tableau de bord, Ma journée et Retours étaient trois portes
+         pour la même tâche, avec trois chiffres différents. Les groupes se gèrent depuis la
+         liste des athlètes ; les réglages du compte vivent dans le menu du compte, en bas. -->
+    <nav class="snav" aria-label="Navigation principale">
+      <a routerLink="/app/journee" routerLinkActive="active" title="Ma journée : ce qui t'attend">
+        <app-icon name="sun" [size]="18" /><span>Ma journée</span>
+        @if (pendingReviews() > 0) {
+          <span class="nav-badge" [attr.aria-label]="pendingReviews() + ' retours à traiter'">{{ badgeText(pendingReviews()) }}</span>
+        }
+      </a>
       <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" title="Tableau de bord">
         <app-icon name="layout-dashboard" [size]="18" /><span>Tableau de bord</span>
       </a>
-      <!-- L'écran du matin : alertes, retours, messages et séances du jour au même endroit.
-           Il est né pour le téléphone, mais il se lit aussi bien ici — d'où son entrée. -->
-      <a routerLink="/app/journee" routerLinkActive="active" title="Ma journée">
-        <app-icon name="sun" [size]="18" /><span>Ma journée</span>
+      <a routerLink="/app/athletes" routerLinkActive="active" [class.active]="inGroups()" title="Athlètes et groupes">
+        <app-icon name="users" [size]="18" /><span>Athlètes</span>
       </a>
-      <!-- L'écran du matin : il était seulement atteignable par un KPI du cockpit. -->
-      <a routerLink="/app/feedback" routerLinkActive="active" title="Retours à traiter">
-        <app-icon name="inbox" [size]="18" /><span>Retours</span>
-        @if (pendingReviews() > 0) {
-          <span class="nav-badge">{{ pendingReviews() > 9 ? '9+' : pendingReviews() }}</span>
-        }
-      </a>
-      <a routerLink="/app/athletes" routerLinkActive="active" title="Athlètes"><app-icon name="users" [size]="18" /><span>Athlètes</span></a>
-      <a routerLink="/app/groups" routerLinkActive="active" title="Groupes"><app-icon name="users-round" [size]="18" /><span>Groupes</span></a>
       <a routerLink="/app/calendar" routerLinkActive="active" title="Calendrier"><app-icon name="calendar" [size]="18" /><span>Calendrier</span></a>
       <a routerLink="/app/messages" routerLinkActive="active" title="Messages">
         <app-icon name="message-square" [size]="18" /><span>Messages</span>
         @if (unreadMessages() > 0) {
-          <span class="nav-badge">{{ unreadMessages() > 9 ? '9+' : unreadMessages() }}</span>
+          <span class="nav-badge" [attr.aria-label]="unreadMessages() + ' messages non lus'">{{ badgeText(unreadMessages()) }}</span>
         }
       </a>
       <a routerLink="/app/library" routerLinkActive="active" title="Bibliothèque (course, prépa physique, éducatifs)"><app-icon name="folder-open" [size]="18" /><span>Bibliothèque</span></a>
-
-      <span class="snav-group">Club</span>
       <a routerLink="/app/club" routerLinkActive="active" title="Club"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
-      <a routerLink="/app/training-zones" routerLinkActive="active" title="Mes zones d'intensité"><app-icon name="target" [size]="18" /><span>Mes zones</span></a>
-
-      <span class="snav-group">Réglages</span>
-      <a routerLink="/app/settings" routerLinkActive="active" title="Paramètres"><app-icon name="settings" [size]="18" /><span>Paramètres</span></a>
-      <!-- L'écran n'était atteignable que par URL directe et par le lien de pied de page des
-           e-mails — soit exactement là où l'on cherche à se désabonner. -->
-      <a routerLink="/app/notifications" routerLinkActive="active" title="Notifications"><app-icon name="bell" [size]="18" /><span>Notifications</span></a>
-      <a routerLink="/app/aide" routerLinkActive="active" title="Aide"><app-icon name="life-buoy" [size]="18" /><span>Aide</span></a>
-      <!-- Canal de support explicite : l'aide se contentait d'inviter à « contacter le support »
-           sans adresse ni lien, et rien dans la navigation ne menait nulle part. Le mailto qui
-           l'avait remplacé supposait un client mail configuré et ne laissait aucune trace : le
-           retour part maintenant en base, avec son contexte technique. -->
-      <button type="button" class="snav-action" (click)="openFeedback()" title="Signaler un problème"><app-icon name="inbox" [size]="18" /><span>Signaler un problème</span></button>
     </nav>
 
+    <!-- Menu du compte : ce qu'on règle une fois, pas ce qu'on fait chaque jour. -->
     <div class="side-user">
-      @if (user(); as u) { <span class="user-name">{{ u.fullName }}</span> }
-      <div class="side-user__actions">
-        <app-push-button />
-        <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Déconnexion</button>
-      </div>
+      @if (accountOpen()) {
+        <div class="account-menu" id="account-menu">
+          <a routerLink="/app/settings" (click)="closeAccount()"><app-icon name="settings" [size]="16" /><span>Paramètres</span></a>
+          <a routerLink="/app/training-zones" (click)="closeAccount()"><app-icon name="target" [size]="16" /><span>Mes zones d'intensité</span></a>
+          <!-- L'écran n'était atteignable que par URL directe et par le lien de pied de page des
+               e-mails — soit exactement là où l'on cherche à se désabonner. -->
+          <a routerLink="/app/notifications" (click)="closeAccount()"><app-icon name="bell" [size]="16" /><span>Notifications</span></a>
+          <a routerLink="/app/aide" (click)="closeAccount()"><app-icon name="life-buoy" [size]="16" /><span>Aide</span></a>
+          <!-- Canal de support explicite : le retour part en base, avec son contexte technique. -->
+          <button type="button" (click)="openFeedback(); closeAccount()"><app-icon name="flag" [size]="16" /><span>Signaler un problème</span></button>
+          <div class="account-menu__ft">
+            <app-push-button />
+            <button type="button" class="btn btn-ghost btn-sm" (click)="logout()">Déconnexion</button>
+          </div>
+        </div>
+      }
+      <button type="button" class="account-btn" (click)="toggleAccount()"
+              [attr.aria-expanded]="accountOpen()" aria-controls="account-menu"
+              [title]="navCollapsed() ? 'Mon compte' : ''">
+        <span class="avatar avatar-sm" aria-hidden="true">{{ initials() }}</span>
+        @if (!navCollapsed()) {
+          <span class="account-btn__id">
+            <span class="user-name">{{ user()?.fullName }}</span>
+            @if (user()?.clubName) { <span class="account-btn__club">{{ user()?.clubName }}</span> }
+          </span>
+          <app-icon [name]="accountOpen() ? 'chevron-down' : 'chevron-up'" [size]="16" />
+        } @else {
+          <span class="sr-only">Mon compte</span>
+        }
+      </button>
     </div>
   </aside>
 
@@ -138,24 +145,19 @@
           <button type="button" class="btn btn-ghost btn-sm" (click)="closeMore()" aria-label="Fermer"><app-icon name="x" [size]="18" /></button>
         </div>
 
-        <span class="snav-group">Coaching</span>
         <a routerLink="/app" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="closeMore()">
           <app-icon name="layout-dashboard" [size]="18" /><span>Tableau de bord</span>
         </a>
-        <a routerLink="/app/calendar" routerLinkActive="active" (click)="closeMore()"><app-icon name="calendar" [size]="18" /><span>Calendrier</span></a>
-        <a routerLink="/app/groups" routerLinkActive="active" (click)="closeMore()"><app-icon name="users-round" [size]="18" /><span>Groupes</span></a>
         <a routerLink="/app/library" routerLinkActive="active" (click)="closeMore()"><app-icon name="folder-open" [size]="18" /><span>Bibliothèque</span></a>
-
-        <span class="snav-group">Club</span>
         <a routerLink="/app/club" routerLinkActive="active" (click)="closeMore()"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
-        <a routerLink="/app/training-zones" routerLinkActive="active" (click)="closeMore()"><app-icon name="target" [size]="18" /><span>Mes zones</span></a>
-
-        <span class="snav-group">Réglages</span>
         <button type="button" class="snav-action" (click)="palette.show(); closeMore()"><app-icon name="search" [size]="18" /><span>Rechercher</span></button>
+
+        <span class="snav-group">Mon compte</span>
         <a routerLink="/app/settings" routerLinkActive="active" (click)="closeMore()"><app-icon name="settings" [size]="18" /><span>Paramètres</span></a>
+        <a routerLink="/app/training-zones" routerLinkActive="active" (click)="closeMore()"><app-icon name="target" [size]="18" /><span>Mes zones d'intensité</span></a>
         <a routerLink="/app/notifications" routerLinkActive="active" (click)="closeMore()"><app-icon name="bell" [size]="18" /><span>Notifications</span></a>
         <a routerLink="/app/aide" routerLinkActive="active" (click)="closeMore()"><app-icon name="life-buoy" [size]="18" /><span>Aide</span></a>
-        <button type="button" class="snav-action" (click)="openFeedback(); closeMore()"><app-icon name="inbox" [size]="18" /><span>Signaler un problème</span></button>
+        <button type="button" class="snav-action" (click)="openFeedback(); closeMore()"><app-icon name="flag" [size]="18" /><span>Signaler un problème</span></button>
 
         <div class="more-sheet__ft">
           <app-push-button />
@@ -165,34 +167,32 @@
     </div>
   }
 
-  <!-- Bottom nav (mobile) : quatre gestes, pas quatre rubriques.
-       « Ma journée » remplace le cockpit (qui n'a jamais été un écran de téléphone), et
-       Retours et Messages — les deux seules entrées à porter un badge, donc du travail en
-       attente — quittent le menu où personne n'allait les chercher. Le calendrier, lui, y
-       entre : il se lit athlète par athlète, ce qui n'est pas un geste du matin. -->
-  <nav class="bottom-nav mobile-only">
+  <!-- Bottom nav (mobile) : quatre gestes, pas quatre rubriques. « Ma journée » porte le seul
+       compteur de retours ; Messages le sien. Retours n'est plus une destination à part : la
+       file vit dans « Ma journée ». -->
+  <nav class="bottom-nav mobile-only" aria-label="Navigation rapide">
     <a routerLink="/app/journee" routerLinkActive="active">
-      <app-icon name="sun" [size]="20" /><span class="bn-lb">Ma journée</span>
-    </a>
-    <a routerLink="/app/feedback" routerLinkActive="active">
       <span class="bn-ic">
-        <app-icon name="inbox" [size]="20" />
+        <app-icon name="sun" [size]="20" />
         @if (pendingReviews() > 0) {
-          <span class="bn-badge">{{ pendingReviews() > 9 ? '9+' : pendingReviews() }}</span>
+          <span class="bn-badge" [attr.aria-label]="pendingReviews() + ' retours à traiter'">{{ badgeText(pendingReviews()) }}</span>
         }
       </span>
-      <span class="bn-lb">Retours</span>
+      <span class="bn-lb">Ma journée</span>
     </a>
     <a routerLink="/app/messages" routerLinkActive="active">
       <span class="bn-ic">
         <app-icon name="message-square" [size]="20" />
         @if (unreadMessages() > 0) {
-          <span class="bn-badge">{{ unreadMessages() > 9 ? '9+' : unreadMessages() }}</span>
+          <span class="bn-badge" [attr.aria-label]="unreadMessages() + ' messages non lus'">{{ badgeText(unreadMessages()) }}</span>
         }
       </span>
       <span class="bn-lb">Messages</span>
     </a>
-    <a routerLink="/app/athletes" routerLinkActive="active">
+    <a routerLink="/app/calendar" routerLinkActive="active">
+      <app-icon name="calendar" [size]="20" /><span class="bn-lb">Calendrier</span>
+    </a>
+    <a routerLink="/app/athletes" routerLinkActive="active" [class.active]="inGroups()">
       <app-icon name="users" [size]="20" /><span class="bn-lb">Athlètes</span>
     </a>
   </nav>
