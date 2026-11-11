@@ -122,6 +122,7 @@ app-install-prompt, app-push-prompt { display: block; margin-bottom: var(--sp-3)
   font-size: var(--text-sm); font-weight: 600; color: var(--primary); text-decoration: none;
 }
 .cd-more-link:hover { text-decoration: underline; }
+.cd-more-btn { width: 100%; margin-top: var(--sp-2); }
 
 .cd-plan-btn { width: 100%; min-height: 48px; margin-top: var(--sp-3); justify-content: center; }
 

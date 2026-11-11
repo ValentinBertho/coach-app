@@ -14,9 +14,17 @@ test('l\'athlète note sa séance et le coach reçoit le retour', async ({ page,
   await page.getByRole('button', { name: /^Séance réalisée/ }).click();
   await expect(page.getByPlaceholder('Tu peux écrire un mot à ton entraîneur ici.')).toBeHidden();
 
-  // Côté coach, dans une autre session : le retour est dans sa file.
+  // Côté coach, dans une autre session : le retour est dans sa boîte de tri, « Ma journée ».
+  // L'ancienne adresse de la file y mène toujours.
   const coach = await (await browser.newContext()).newPage();
   await login(coach, COACH, /\/app/);
   await coach.goto('/app/feedback');
-  await expect(coach.getByText(comment)).toBeVisible();
+  await expect(coach).toHaveURL(/\/app\/journee/);
+  const row = coach.getByRole('listitem').filter({ hasText: comment });
+  await expect(row).toBeVisible();
+
+  // Le coach le coche et le marque traité : il sort de la file.
+  await row.getByRole('checkbox').check();
+  await coach.getByRole('button', { name: 'Marquer traité (1)' }).click();
+  await expect(coach.getByText(comment)).toBeHidden();
 });

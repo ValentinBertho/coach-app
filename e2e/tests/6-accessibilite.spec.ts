@@ -41,7 +41,7 @@ test.describe('Accessibilité', () => {
     ['tableau de bord du coach', '/app'],
     ['calendrier du coach', '/app/calendar'],
     ['liste des athlètes', '/app/athletes'],
-    ['file des retours', '/app/feedback'],
+    ['ma journée du coach (boîte de tri)', '/app/journee'],
   ] as const) {
     test(screen, async ({ page }) => {
       await login(page, COACH, /\/app/);

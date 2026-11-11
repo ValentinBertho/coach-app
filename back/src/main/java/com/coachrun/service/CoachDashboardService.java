@@ -202,6 +202,49 @@ public class CoachDashboardService {
         return marked;
     }
 
+    /**
+     * Marque comme traités les retours <b>sélectionnés</b> par le coach dans la boîte de tri.
+     *
+     * <p>Seuls les retours qui figurent dans la file du coach (même périmètre, même fenêtre)
+     * sont touchés : un identifiant de séance hors de son périmètre est ignoré, pas traité. La
+     * sélection vient du client ; l'autorisation, elle, se refait ici, par construction — on ne
+     * marque que ce que {@link #feedbackQueue} lui aurait montré.</p>
+     *
+     * @param keys retours désignés par « KIND:sessionId » (COURSE ou STRENGTH)
+     * @return nombre de retours effectivement marqués
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public int markFeedbackReviewed(UUID clubId, String scope, UUID coachId, int days,
+                                    java.util.Set<String> keys) {
+        if (keys.isEmpty()) {
+            return 0;
+        }
+        List<Athlete> athletes = athletesInScope(clubId, scope, coachId);
+        if (athletes.isEmpty()) {
+            return 0;
+        }
+        List<UUID> ids = athletes.stream().map(Athlete::getId).toList();
+        java.time.LocalDate since = clock.today().minusDays(windowDays(days));
+        java.time.Instant now = java.time.Instant.now();
+
+        int marked = 0;
+        for (Workout w : workoutRepository.findPendingFeedback(ids, since)) {
+            if (keys.contains("COURSE:" + w.getId())) {
+                w.setCoachReviewedAt(now);
+                marked++;
+            }
+        }
+        for (ScheduledStrengthSession s : strengthRepository.findPendingFeedback(ids, since)) {
+            if (keys.contains("STRENGTH:" + s.getId())) {
+                s.setCoachReviewedAt(now);
+                marked++;
+            }
+        }
+        log.info("Retours sélectionnés marqués comme traités : {} sur {} demandés (club={}, scope={})",
+                marked, keys.size(), clubId, scope);
+        return marked;
+    }
+
     private static String displayName(Athlete a) {
         return (a.getFirstName() + " " + a.getLastName()).trim();
     }

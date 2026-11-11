@@ -44,7 +44,7 @@ const SCREENS: { label: string; link: unknown[]; icon: string }[] = [
   { label: 'Groupes', link: ['/app/groups'], icon: 'users-round' },
   { label: 'Calendrier', link: ['/app/calendar'], icon: 'calendar' },
   { label: 'Messages', link: ['/app/messages'], icon: 'message-square' },
-  { label: 'Retours à traiter', link: ['/app/feedback'], icon: 'check' },
+  { label: 'Retours à traiter', link: ['/app/journee'], icon: 'check' },
   { label: 'Bibliothèque', link: ['/app/library'], icon: 'folder-open' },
   { label: 'Mes zones', link: ['/app/training-zones'], icon: 'target' },
   { label: 'Club', link: ['/app/club'], icon: 'building-2' },
