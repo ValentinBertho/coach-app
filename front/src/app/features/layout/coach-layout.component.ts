@@ -133,6 +133,32 @@ export class CoachLayoutComponent implements OnInit {
     }
   }
 
+  /** Menu du compte (bas du menu latéral) : réglages, aide, signalement, déconnexion. */
+  readonly accountOpen = signal(false);
+  toggleAccount(): void {
+    this.accountOpen.update((v) => !v);
+  }
+  closeAccount(): void {
+    this.accountOpen.set(false);
+  }
+
+  /** Initiales de l'utilisateur, pour le bouton du compte. */
+  initials(): string {
+    const parts = (this.user()?.fullName ?? '').trim().split(/\s+/).filter(Boolean);
+    return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase();
+  }
+
+  /**
+   * Texte d'une pastille de compteur. Le chiffre exact jusqu'à 99 : « 9+ » disait seulement
+   * « beaucoup », et ne correspondait à aucun des chiffres affichés ailleurs.
+   */
+  badgeText(n: number): string {
+    return n > 99 ? '99+' : String(n);
+  }
+
+  /** Les groupes se gèrent depuis la rubrique Athlètes : elle reste allumée sur leurs écrans. */
+  readonly inGroups = signal(false);
+
   /** Panneau « Plus » mobile : donne accès à la nav complète groupée (bottom-nav limitée à 4 slots). */
   readonly moreOpen = signal(false);
   toggleMore(): void {
@@ -154,7 +180,12 @@ export class CoachLayoutComponent implements OnInit {
         filter((e) => e instanceof NavigationEnd),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe(() => this.refreshBadges());
+      .subscribe(() => {
+        this.refreshBadges();
+        this.closeAccount();
+        this.inGroups.set(this.router.url.startsWith('/app/groups'));
+      });
+    this.inGroups.set(this.router.url.startsWith('/app/groups'));
   }
 
   private refreshBadges(): void {

@@ -16,6 +16,8 @@ test.describe('Connexion', () => {
     await login(page, COACH, /\/app/);
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     await expect(page.getByRole('navigation').getByRole('link', { name: 'Calendrier' })).toBeVisible();
+    // La déconnexion vit dans le menu du compte, en bas du menu latéral.
+    await page.getByRole('button', { name: /Coach Démo/ }).click();
     await page.getByRole('button', { name: 'Déconnexion' }).click();
     await expect(page).toHaveURL(/\/login|\/$/);
     // Session vraiment fermée : l'espace coach renvoie à la connexion.
