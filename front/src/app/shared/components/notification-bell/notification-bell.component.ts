@@ -32,7 +32,9 @@ import { SkeletonComponent } from '../skeleton/skeleton.component';
         type="button"
         class="bell-btn"
         (click)="toggle()"
-        [attr.aria-label]="'Notifications'"
+        [attr.aria-label]="notif.unread() > 0
+          ? 'Notifications, ' + (notif.unread() > 9 ? '9+' : notif.unread()) + ' non lue(s)'
+          : 'Notifications'"
         [attr.aria-expanded]="open()"
       >
         <app-icon name="bell" [size]="20" />

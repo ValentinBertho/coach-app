@@ -17,7 +17,8 @@
     <option value="">Tous les statuts</option>
   </select>
   @if (groups().length) {
-    <select class="form-control" style="max-width:200px" [(ngModel)]="filterGroup" (ngModelChange)="goToPage(0)">
+    <select class="form-control" style="max-width:200px" [(ngModel)]="filterGroup" (ngModelChange)="goToPage(0)"
+            aria-label="Filtrer par groupe">
       <option value="">Tous les groupes</option>
       @for (g of groups(); track g.id) { <option [value]="g.id">{{ g.name }}</option> }
     </select>

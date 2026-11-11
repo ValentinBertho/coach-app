@@ -4,7 +4,7 @@
     <div class="brand">
       <!-- Le logo ramène au tableau de bord : convention de toute application, et le seul élément
            permanent du chrome à ne rien faire quand on cliquait dessus. -->
-      <a routerLink="/app" class="brand__home" aria-label="Tableau de bord">
+      <a routerLink="/app" class="brand__home" aria-label="Darilab, tableau de bord">
         <app-logo [size]="30" [showText]="!navCollapsed()" />
       </a>
       @if (!navCollapsed()) {
@@ -84,7 +84,7 @@
          l'activation des notifications et la déconnexion vivent dans le tiroir « Menu » —
          cette barre doit porter l'écran, pas la gestion du compte. -->
     <header class="topbar mobile-only">
-      <a routerLink="/app/journee" class="brand__home" aria-label="Ma journée">
+      <a routerLink="/app/journee" class="brand__home" aria-label="Darilab, ma journée">
         <app-logo [size]="26" [showText]="true" />
       </a>
       <div class="user">

@@ -22,7 +22,7 @@ import { NotificationBellComponent } from '../../shared/components/notification-
     <header class="atop">
       <!-- Le logo ramène chez soi : c'est la convention de toute application, et c'était le seul
            élément permanent de l'écran à ne rien faire. -->
-      <a [routerLink]="home()" class="atop__brand" aria-label="Accueil">
+      <a [routerLink]="home()" class="atop__brand" aria-label="Darilab, accueil">
         <app-logo [size]="28" [showText]="true" />
       </a>
       <!-- Deux contrôles, pas cinq : cette barre doit porter la séance, pas la gestion du compte.
@@ -32,9 +32,9 @@ import { NotificationBellComponent } from '../../shared/components/notification-
         <a
           routerLink="/athlete/profile"
           class="atop__avatar"
-          aria-label="Mon profil"
         >
-          <span class="avatar avatar-sm">{{ initials() }}</span>
+          <span class="sr-only">Mon profil</span>
+          <span class="avatar avatar-sm" aria-hidden="true">{{ initials() }}</span>
         </a>
       </div>
     </header>
