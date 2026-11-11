@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { IconComponent } from '../icon/icon.component';
 import { parseVideoUrl } from '../../../core/utils/video-embed';
@@ -22,7 +29,6 @@ import { parseVideoUrl } from '../../../core/utils/video-embed';
  */
 @Component({
   selector: 'app-video-embed',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   templateUrl: './video-embed.component.html',
@@ -55,5 +61,7 @@ export class VideoEmbedComponent {
     return v ? this.sanitizer.bypassSecurityTrustResourceUrl(v.embedUrl) : null;
   });
 
-  play(): void { this.playing.set(true); }
+  play(): void {
+    this.playing.set(true);
+  }
 }

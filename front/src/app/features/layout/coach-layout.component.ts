@@ -1,6 +1,20 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import {
+  NavigationEnd,
+  Router,
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+} from '@angular/router';
 import { filter } from 'rxjs';
 import { AppBadgeService } from '../../core/services/app-badge.service';
 import { AuthService } from '../../core/services/auth.service';
@@ -24,9 +38,17 @@ import { supportMailto as supportLink } from '../../shared/components/support-li
  */
 @Component({
   selector: 'app-coach-layout',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, LogoComponent, OfflineBannerComponent, PushButtonComponent, IconComponent, NotificationBellComponent],
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    LogoComponent,
+    OfflineBannerComponent,
+    PushButtonComponent,
+    IconComponent,
+    NotificationBellComponent,
+  ],
   templateUrl: './coach-layout.component.html',
   styleUrl: './coach-layout.component.scss',
 })
@@ -92,20 +114,33 @@ export class CoachLayoutComponent implements OnInit {
   readonly navCollapsed = signal(this.readNavPref());
 
   private readNavPref(): boolean {
-    try { return localStorage.getItem(CoachLayoutComponent.NAV_KEY) === '1'; }
-    catch { return false; }
+    try {
+      return localStorage.getItem(CoachLayoutComponent.NAV_KEY) === '1';
+    } catch {
+      return false;
+    }
   }
 
   toggleNav(): void {
     this.navCollapsed.update((v) => !v);
-    try { localStorage.setItem(CoachLayoutComponent.NAV_KEY, this.navCollapsed() ? '1' : '0'); }
-    catch { /* stockage indisponible : préférence non persistée, sans gravité */ }
+    try {
+      localStorage.setItem(
+        CoachLayoutComponent.NAV_KEY,
+        this.navCollapsed() ? '1' : '0',
+      );
+    } catch {
+      /* stockage indisponible : préférence non persistée, sans gravité */
+    }
   }
 
   /** Panneau « Plus » mobile : donne accès à la nav complète groupée (bottom-nav limitée à 4 slots). */
   readonly moreOpen = signal(false);
-  toggleMore(): void { this.moreOpen.update((v) => !v); }
-  closeMore(): void { this.moreOpen.set(false); }
+  toggleMore(): void {
+    this.moreOpen.update((v) => !v);
+  }
+  closeMore(): void {
+    this.moreOpen.set(false);
+  }
 
   ngOnInit(): void {
     if (!this.auth.currentUser()) {
@@ -115,14 +150,21 @@ export class CoachLayoutComponent implements OnInit {
     // un retour vient d'être traité, un nouveau message a pu arriver entre-temps).
     this.refreshBadges();
     this.router.events
-      .pipe(filter((e) => e instanceof NavigationEnd), takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        filter((e) => e instanceof NavigationEnd),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe(() => this.refreshBadges());
   }
 
   private refreshBadges(): void {
     // Le club n'est connu qu'une fois l'utilisateur chargé ; la navigation suivante réessaiera.
     if (!this.auth.clubId()) return;
-    const silent = { error: () => { /* badge absent plutôt que bloquant */ } };
+    const silent = {
+      error: () => {
+        /* badge absent plutôt que bloquant */
+      },
+    };
     this.messages.refreshUnread().subscribe(silent);
     this.dashboard.refreshPendingReviews().subscribe(silent);
   }
@@ -132,8 +174,14 @@ export class CoachLayoutComponent implements OnInit {
     if (this.resending()) return;
     this.resending.set(true);
     this.auth.resendVerification().subscribe({
-      next: () => { this.resending.set(false); this.toast.success('E-mail de vérification renvoyé.'); },
-      error: () => { this.resending.set(false); this.toast.error('Envoi impossible.'); },
+      next: () => {
+        this.resending.set(false);
+        this.toast.success('E-mail de vérification renvoyé.');
+      },
+      error: () => {
+        this.resending.set(false);
+        this.toast.error('Envoi impossible.');
+      },
     });
   }
 

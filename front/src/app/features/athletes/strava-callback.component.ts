@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AthleteService } from '../../core/services/athlete.service';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
@@ -33,14 +39,16 @@ type State = 'working' | 'done' | 'failed';
  */
 @Component({
   selector: 'app-strava-callback',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, IconComponent],
   template: `
     <div class="scb">
       <div class="card scb-card">
         <span class="scb-icon" [class.scb-icon--ko]="state() === 'failed'">
-          <app-icon [name]="state() === 'failed' ? 'alert-triangle' : 'watch'" [size]="24" />
+          <app-icon
+            [name]="state() === 'failed' ? 'alert-triangle' : 'watch'"
+            [size]="24"
+          />
         </span>
         <h1 class="display-sm">Connexion Strava</h1>
         <p class="field-hint">{{ message() }}</p>
@@ -48,7 +56,9 @@ type State = 'working' | 'done' | 'failed';
         @if (state() === 'failed') {
           <div class="scb-actions">
             @if (canRetry()) {
-              <button type="button" class="btn btn-primary" (click)="retry()">Réessayer</button>
+              <button type="button" class="btn btn-primary" (click)="retry()">
+                Réessayer
+              </button>
             }
             <a [routerLink]="backLink()" class="btn btn-ghost">Retour</a>
           </div>
@@ -56,21 +66,50 @@ type State = 'working' | 'done' | 'failed';
       </div>
     </div>
   `,
-  styles: [`
-    .scb { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: var(--sp-4); }
-    .scb-card {
-      max-width: 420px; width: 100%; text-align: center;
-      display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
-    }
-    .scb-card h1 { margin: 0; }
-    .scb-icon {
-      display: inline-flex; align-items: center; justify-content: center;
-      width: 52px; height: 52px; border-radius: var(--radius-full);
-      background: var(--primary-wash); color: var(--primary);
-    }
-    .scb-icon--ko { background: var(--warning-bg); color: var(--warning-text, var(--ink)); }
-    .scb-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; justify-content: center; margin-top: var(--sp-2); }
-  `],
+  styles: [
+    `
+      .scb {
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--sp-4);
+      }
+      .scb-card {
+        max-width: 420px;
+        width: 100%;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--sp-2);
+      }
+      .scb-card h1 {
+        margin: 0;
+      }
+      .scb-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 52px;
+        height: 52px;
+        border-radius: var(--radius-full);
+        background: var(--primary-wash);
+        color: var(--primary);
+      }
+      .scb-icon--ko {
+        background: var(--warning-bg);
+        color: var(--warning-text, var(--ink));
+      }
+      .scb-actions {
+        display: flex;
+        gap: var(--sp-2);
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: var(--sp-2);
+      }
+    `,
+  ],
 })
 export class StravaCallbackComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
@@ -103,11 +142,17 @@ export class StravaCallbackComponent implements OnInit {
     this.authState = params.get('state') ?? pending?.state ?? null;
 
     if (error === 'access_denied') {
-      this.fail("Autorisation refusée côté Strava. Tu peux relancer la connexion quand tu veux.", false);
+      this.fail(
+        'Autorisation refusée côté Strava. Tu peux relancer la connexion quand tu veux.',
+        false,
+      );
       return;
     }
     if (error || !this.code || !this.authState) {
-      this.fail('Connexion annulée ou lien incomplet. Relance la connexion depuis ton espace.', false);
+      this.fail(
+        'Connexion annulée ou lien incomplet. Relance la connexion depuis ton espace.',
+        false,
+      );
       return;
     }
 
@@ -168,7 +213,9 @@ export class StravaCallbackComponent implements OnInit {
       savePendingStravaAuth(this.code, this.authState);
       this.state.set('failed');
       this.canRetry.set(false);
-      this.message.set('Session expirée — reconnecte-toi, la connexion Strava reprendra toute seule.');
+      this.message.set(
+        'Session expirée — reconnecte-toi, la connexion Strava reprendra toute seule.',
+      );
       return;
     }
     // Un code d'autorisation ne s'échange qu'une fois : on ne propose « Réessayer » que si
@@ -179,7 +226,9 @@ export class StravaCallbackComponent implements OnInit {
   private succeed(target: string): void {
     clearPendingStravaAuth();
     this.state.set('done');
-    this.message.set('Compte Strava connecté. Tes sorties vont arriver toutes seules.');
+    this.message.set(
+      'Compte Strava connecté. Tes sorties vont arriver toutes seules.',
+    );
     this.toast.success('Compte Strava connecté');
     this.router.navigateByUrl(target, { replaceUrl: true });
   }

@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -10,7 +15,6 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
  */
 @Component({
   selector: 'app-forgot-password',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, RouterLink, LogoComponent],
   template: `
@@ -19,28 +23,45 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
         <header class="auth-head">
           <app-logo [size]="44" [showText]="false" />
           <h1 class="display-sm">Mot de passe oublié</h1>
-          <p class="field-hint">Indique ton e-mail : on t'enverra un lien de réinitialisation.</p>
+          <p class="field-hint">
+            Indique ton e-mail : on t'enverra un lien de réinitialisation.
+          </p>
         </header>
 
         @if (sent()) {
           <p class="field-hint">
-            Si un compte est associé à cette adresse, un e-mail contenant un lien de
-            réinitialisation vient d'être envoyé. Pense à vérifier tes indésirables.
+            Si un compte est associé à cette adresse, un e-mail contenant un
+            lien de réinitialisation vient d'être envoyé. Pense à vérifier tes
+            indésirables.
           </p>
-          <a class="btn btn-primary btn-lg" routerLink="/login">Retour à la connexion</a>
+          <a class="btn btn-primary btn-lg" routerLink="/login"
+            >Retour à la connexion</a
+          >
         } @else {
           <div class="form-group">
             <label for="email">Email</label>
-            <input id="email" type="email" class="form-control" formControlName="email"
-                   autocomplete="email" placeholder="vous@club.fr" />
+            <input
+              id="email"
+              type="email"
+              class="form-control"
+              formControlName="email"
+              autocomplete="email"
+              placeholder="vous@club.fr"
+            />
             @if (form.controls.email.touched && form.controls.email.invalid) {
               <span class="error-message">Email valide requis.</span>
             }
           </div>
-          <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
+          <button
+            type="submit"
+            class="btn btn-primary btn-lg"
+            [disabled]="submitting()"
+          >
             {{ submitting() ? 'Envoi…' : 'Envoyer le lien' }}
           </button>
-          <p class="auth-switch"><a routerLink="/login">Retour à la connexion</a></p>
+          <p class="auth-switch">
+            <a routerLink="/login">Retour à la connexion</a>
+          </p>
         }
       </form>
     </main>

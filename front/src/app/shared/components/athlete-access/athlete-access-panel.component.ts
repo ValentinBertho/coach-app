@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { IconComponent } from '../icon/icon.component';
 import {
   AthleteAccess,
@@ -19,7 +26,6 @@ import { ToastService } from '../../../core/services/toast.service';
  */
 @Component({
   selector: 'app-athlete-access-panel',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
@@ -27,22 +33,43 @@ import { ToastService } from '../../../core/services/toast.service';
       <div class="ownership">
         <span>Statut :</span>
         @if (acc.ownership === 'CLUB') {
-          <span class="badge badge-success"><app-icon name="building-2" [size]="13" /> Club</span>
+          <span class="badge badge-success"
+            ><app-icon name="building-2" [size]="13" /> Club</span
+          >
         } @else {
-          <span class="badge badge-private"><app-icon name="lock" [size]="13" /> Privé</span>
+          <span class="badge badge-private"
+            ><app-icon name="lock" [size]="13" /> Privé</span
+          >
         }
-        <button type="button" class="btn btn-ghost btn-sm" (click)="toggleOwnership()">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          (click)="toggleOwnership()"
+        >
           Passer en {{ acc.ownership === 'CLUB' ? 'privé' : 'club' }}
         </button>
-        @if (acc.referentName) { <span class="field-hint">Référent : {{ acc.referentName }}</span> }
+        @if (acc.referentName) {
+          <span class="field-hint">Référent : {{ acc.referentName }}</span>
+        }
       </div>
 
       <table class="data-table perm-table">
-        <thead><tr><th>Coach</th><th>Accès actuel</th><th>Accorder</th></tr></thead>
+        <thead>
+          <tr>
+            <th>Coach</th>
+            <th>Accès actuel</th>
+            <th>Accorder</th>
+          </tr>
+        </thead>
         <tbody>
           @for (m of members(); track m.coachId) {
             <tr>
-              <td>{{ m.name }} @if (isReferent(m.coachId)) { <span class="badge badge-info">Référent</span> }</td>
+              <td>
+                {{ m.name }}
+                @if (isReferent(m.coachId)) {
+                  <span class="badge badge-info">Référent</span>
+                }
+              </td>
               <td>
                 @if (isReferent(m.coachId)) {
                   <span class="badge badge-success">Écriture (référent)</span>
@@ -51,8 +78,15 @@ import { ToastService } from '../../../core/services/toast.service';
                        @else if (… ; as p) ne compilant pas. -->
                   @if (permFor(m.coachId); as p) {
                     <span class="badge badge-info">{{ levelLabels[p] }}</span>
-                    <button type="button" class="chip-x" (click)="revoke(m.coachId)"
-                            title="Retirer" aria-label="Retirer"><app-icon name="x" [size]="13" /></button>
+                    <button
+                      type="button"
+                      class="chip-x"
+                      (click)="revoke(m.coachId)"
+                      title="Retirer"
+                      aria-label="Retirer"
+                    >
+                      <app-icon name="x" [size]="13" />
+                    </button>
                   } @else {
                     <span class="field-hint">—</span>
                   }
@@ -62,7 +96,11 @@ import { ToastService } from '../../../core/services/toast.service';
                 @if (!isReferent(m.coachId) && acc.ownership === 'CLUB') {
                   <div class="grant-btns">
                     @for (l of levels; track l) {
-                      <button type="button" class="btn btn-ghost btn-sm" (click)="grant(m.coachId, l)">
+                      <button
+                        type="button"
+                        class="btn btn-ghost btn-sm"
+                        (click)="grant(m.coachId, l)"
+                      >
                         {{ levelLabels[l] }}
                       </button>
                     }
@@ -81,13 +119,35 @@ import { ToastService } from '../../../core/services/toast.service';
       <p class="field-hint">Accès indisponibles pour cet athlète.</p>
     }
   `,
-  styles: [`
-    .ownership { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; margin-bottom: var(--sp-3); }
-    .badge-private { background: #ede9fe; color: #6d28d9; }
-    .perm-table { width: 100%; }
-    .grant-btns { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
-    .chip-x { border: 0; background: none; cursor: pointer; color: var(--ink-3); }
-  `],
+  styles: [
+    `
+      .ownership {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        flex-wrap: wrap;
+        margin-bottom: var(--sp-3);
+      }
+      .badge-private {
+        background: #ede9fe;
+        color: #6d28d9;
+      }
+      .perm-table {
+        width: 100%;
+      }
+      .grant-btns {
+        display: flex;
+        gap: var(--sp-1);
+        flex-wrap: wrap;
+      }
+      .chip-x {
+        border: 0;
+        background: none;
+        cursor: pointer;
+        color: var(--ink-3);
+      }
+    `,
+  ],
 })
 export class AthleteAccessPanelComponent {
   readonly athleteId = input.required<string>();
@@ -100,31 +160,43 @@ export class AthleteAccessPanelComponent {
   readonly loading = signal(true);
 
   readonly levels: PermissionLevel[] = ['READ', 'COMMENT', 'WRITE'];
-  readonly levelLabels: Record<PermissionLevel, string> =
-    { READ: 'Lecture', COMMENT: 'Commentaire', WRITE: 'Écriture' };
+  readonly levelLabels: Record<PermissionLevel, string> = {
+    READ: 'Lecture',
+    COMMENT: 'Commentaire',
+    WRITE: 'Écriture',
+  };
 
   /**
    * Rechargé quand l'athlète change : le panneau est monté sous des écrans qui changent de sujet
    * sans être détruits (le sélecteur du club, la coquille d'un athlète).
    */
-  private readonly load = effect((onCleanup) => {
-    const id = this.athleteId();
-    this.access.set(null);
-    this.loading.set(true);
-    if (!id) {
-      this.loading.set(false);
-      return;
-    }
-    const members = this.clubService.members().subscribe({
-      next: (m) => this.members.set(m),
-      error: () => this.members.set([]),
-    });
-    const access = this.clubService.access(id).subscribe({
-      next: (a) => { this.access.set(a); this.loading.set(false); },
-      error: () => this.loading.set(false),
-    });
-    onCleanup(() => { members.unsubscribe(); access.unsubscribe(); });
-  }, { allowSignalWrites: true });
+  private readonly load = effect(
+    (onCleanup) => {
+      const id = this.athleteId();
+      this.access.set(null);
+      this.loading.set(true);
+      if (!id) {
+        this.loading.set(false);
+        return;
+      }
+      const members = this.clubService.members().subscribe({
+        next: (m) => this.members.set(m),
+        error: () => this.members.set([]),
+      });
+      const access = this.clubService.access(id).subscribe({
+        next: (a) => {
+          this.access.set(a);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false),
+      });
+      onCleanup(() => {
+        members.unsubscribe();
+        access.unsubscribe();
+      });
+    },
+    { allowSignalWrites: true },
+  );
 
   toggleOwnership(): void {
     const current = this.access();
@@ -133,27 +205,39 @@ export class AthleteAccessPanelComponent {
     this.clubService.setOwnership(this.athleteId(), next).subscribe({
       next: (res) => {
         this.access.set(res);
-        this.toast.success(`Athlète ${next === 'CLUB' ? 'rattaché au club' : 'passé en privé'}`);
+        this.toast.success(
+          `Athlète ${next === 'CLUB' ? 'rattaché au club' : 'passé en privé'}`,
+        );
       },
-      error: () => this.toast.warning('Impossible : des permissions actives existent.'),
+      error: () =>
+        this.toast.warning('Impossible : des permissions actives existent.'),
     });
   }
 
   grant(coachId: string, level: PermissionLevel): void {
     this.clubService.grant(this.athleteId(), coachId, level).subscribe({
-      next: (res) => { this.access.set(res); this.toast.success('Permission accordée'); },
+      next: (res) => {
+        this.access.set(res);
+        this.toast.success('Permission accordée');
+      },
       error: () => this.toast.warning('Athlète privé : permission impossible.'),
     });
   }
 
   revoke(coachId: string): void {
     this.clubService.revoke(this.athleteId(), coachId).subscribe({
-      next: (res) => { this.access.set(res); this.toast.info('Permission retirée.'); },
+      next: (res) => {
+        this.access.set(res);
+        this.toast.info('Permission retirée.');
+      },
     });
   }
 
   permFor(coachId: string): PermissionLevel | null {
-    return this.access()?.permissions.find((p) => p.coachId === coachId)?.permission ?? null;
+    return (
+      this.access()?.permissions.find((p) => p.coachId === coachId)
+        ?.permission ?? null
+    );
   }
 
   isReferent(coachId: string): boolean {

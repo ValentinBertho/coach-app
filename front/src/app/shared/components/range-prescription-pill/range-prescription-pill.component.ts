@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+} from '@angular/core';
 import { IconComponent } from '../icon/icon.component';
 
 /**
@@ -20,12 +25,17 @@ import { IconComponent } from '../icon/icon.component';
  */
 @Component({
   selector: 'app-range-prescription-pill',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
-    <span class="rx" [class.rx--invalid]="invalid()" [attr.aria-label]="ariaLabel()">
-      @if (label()) { <span class="rx__label">{{ label() }}</span> }
+    <span
+      class="rx"
+      [class.rx--invalid]="invalid()"
+      [attr.aria-label]="ariaLabel()"
+    >
+      @if (label()) {
+        <span class="rx__label">{{ label() }}</span>
+      }
 
       <span class="rx__range">
         @if (invalid()) {
@@ -38,49 +48,98 @@ import { IconComponent } from '../icon/icon.component';
           <span class="rx__sep" aria-hidden="true">–</span>
           <span class="rx__val">{{ display(max()) }}</span>
         }
-        @if (unit()) { <span class="rx__unit">{{ unit() }}</span> }
+        @if (unit()) {
+          <span class="rx__unit">{{ unit() }}</span>
+        }
       </span>
 
       @if (target() != null) {
-        <span class="rx__chip rx__chip--target" title="Cible">◎ {{ display(target()!) }}</span>
+        <span class="rx__chip rx__chip--target" title="Cible"
+          >◎ {{ display(target()!) }}</span
+        >
       }
       @if (actual() != null) {
         <span
           class="rx__chip rx__chip--actual"
           [class.rx__chip--in]="actualInRange()"
           [class.rx__chip--out]="!actualInRange()"
-          [title]="actualInRange() ? 'Réalisé — dans la fourchette' : 'Réalisé — hors fourchette'"
-        >{{ actualInRange() ? '✓' : '!' }} {{ display(actual()!) }}</span>
+          [title]="
+            actualInRange()
+              ? 'Réalisé — dans la fourchette'
+              : 'Réalisé — hors fourchette'
+          "
+          >{{ actualInRange() ? '✓' : '!' }} {{ display(actual()!) }}</span
+        >
       }
     </span>
   `,
-  styles: [`
-    .rx {
-      display: inline-flex; align-items: center; gap: var(--sp-2);
-      padding: 2px var(--sp-2); border-radius: var(--radius-full);
-      background: var(--paper-sunk); white-space: nowrap;
-      font-size: var(--text-sm);
-    }
-    .rx--invalid { background: var(--warning-bg); }
-    .rx__label { color: var(--ink-3); font-weight: 600; font-size: var(--text-xs); }
-    .rx__range {
-      display: inline-flex; align-items: baseline; gap: 2px;
-      font-family: var(--font-data); font-variant-numeric: tabular-nums;
-      font-weight: 700; color: var(--ink);
-    }
-    .rx__sep { color: var(--ink-3); }
-    .rx__unit { font-family: var(--font-ui); font-weight: 600; color: var(--ink-3); font-size: var(--text-xs); margin-left: 2px; }
-    .rx__warn { color: var(--warning); }
-    .rx__chip {
-      display: inline-flex; align-items: center; gap: 2px;
-      font-family: var(--font-data); font-variant-numeric: tabular-nums;
-      font-size: var(--text-xs); font-weight: 700;
-      padding: 0 var(--sp-2); border-radius: var(--radius-full);
-    }
-    .rx__chip--target { background: var(--primary-wash); color: var(--primary); }
-    .rx__chip--in  { background: var(--success-bg); color: var(--success-text); }
-    .rx__chip--out { background: var(--danger-bg); color: var(--danger-text); }
-  `],
+  styles: [
+    `
+      .rx {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-2);
+        padding: 2px var(--sp-2);
+        border-radius: var(--radius-full);
+        background: var(--paper-sunk);
+        white-space: nowrap;
+        font-size: var(--text-sm);
+      }
+      .rx--invalid {
+        background: var(--warning-bg);
+      }
+      .rx__label {
+        color: var(--ink-3);
+        font-weight: 600;
+        font-size: var(--text-xs);
+      }
+      .rx__range {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 2px;
+        font-family: var(--font-data);
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .rx__sep {
+        color: var(--ink-3);
+      }
+      .rx__unit {
+        font-family: var(--font-ui);
+        font-weight: 600;
+        color: var(--ink-3);
+        font-size: var(--text-xs);
+        margin-left: 2px;
+      }
+      .rx__warn {
+        color: var(--warning);
+      }
+      .rx__chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        font-family: var(--font-data);
+        font-variant-numeric: tabular-nums;
+        font-size: var(--text-xs);
+        font-weight: 700;
+        padding: 0 var(--sp-2);
+        border-radius: var(--radius-full);
+      }
+      .rx__chip--target {
+        background: var(--primary-wash);
+        color: var(--primary);
+      }
+      .rx__chip--in {
+        background: var(--success-bg);
+        color: var(--success-text);
+      }
+      .rx__chip--out {
+        background: var(--danger-bg);
+        color: var(--danger-text);
+      }
+    `,
+  ],
 })
 export class RangePrescriptionPillComponent {
   /** Libellé optionnel (« Allure », « Charge », « Reps »…). */
@@ -99,7 +158,9 @@ export class RangePrescriptionPillComponent {
   readonly format = input<(v: number) => string>((v) => `${v}`);
 
   /** Anti-pattern détecté : prescription à valeur unique. */
-  protected readonly invalid = computed(() => this.min() == null || this.max() == null);
+  protected readonly invalid = computed(
+    () => this.min() == null || this.max() == null,
+  );
 
   /**
    * Fourchette dont les deux bornes coïncident : une valeur prescrite <b>exactement</b> — un
@@ -109,7 +170,9 @@ export class RangePrescriptionPillComponent {
    * <p>À ne pas confondre avec {@link invalid} : là une borne <em>manque</em>, et c'est
    * l'anti-pattern que la pastille doit continuer de signaler.</p>
    */
-  protected readonly exact = computed(() => !this.invalid() && this.min() === this.max());
+  protected readonly exact = computed(
+    () => !this.invalid() && this.min() === this.max(),
+  );
 
   protected readonly actualInRange = computed(() => {
     const a = this.actual();
@@ -124,8 +187,10 @@ export class RangePrescriptionPillComponent {
   }
 
   protected readonly ariaLabel = computed(() => {
-    if (this.invalid()) return `${this.label()} valeur unique (prescription incomplète)`;
-    if (this.exact()) return `${this.label()} ${this.display(this.min())} ${this.unit()}`.trim();
+    if (this.invalid())
+      return `${this.label()} valeur unique (prescription incomplète)`;
+    if (this.exact())
+      return `${this.label()} ${this.display(this.min())} ${this.unit()}`.trim();
     return `${this.label()} de ${this.display(this.min())} à ${this.display(this.max())} ${this.unit()}`.trim();
   });
 }

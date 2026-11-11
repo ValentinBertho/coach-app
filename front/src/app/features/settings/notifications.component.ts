@@ -1,9 +1,17 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { Router } from '@angular/router';
 import { AppNotification } from '../../core/models/notification.model';
 import {
-  NotificationCategory, NotificationPreferences, NotificationService,
+  NotificationCategory,
+  NotificationPreferences,
+  NotificationService,
 } from '../../core/services/notification.service';
 import { PushDevice, PushService } from '../../core/services/push.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -26,25 +34,37 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-notifications',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, SkeletonComponent, DatePipe, PushTestButtonComponent],
+  imports: [
+    IconComponent,
+    SkeletonComponent,
+    DatePipe,
+    PushTestButtonComponent,
+  ],
   template: `
     <section class="page-header">
       <div>
         <h1 class="display-sm">Notifications</h1>
-        <p class="subtitle">Ton historique, et les canaux par lesquels Darilab te joint.</p>
+        <p class="subtitle">
+          Ton historique, et les canaux par lesquels Darilab te joint.
+        </p>
       </div>
       @if (unread() > 0) {
-        <button type="button" class="btn btn-ghost btn-sm" (click)="markAllRead()">Tout marquer lu</button>
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          (click)="markAllRead()"
+        >
+          Tout marquer lu
+        </button>
       }
     </section>
 
     <div class="card">
       <h2>Comment je suis prévenu</h2>
       <p class="field-hint">
-        Le centre de notifications ci-dessous reste toujours actif. Ces deux réglages ne portent
-        que sur les rappels envoyés en dehors de l'app.
+        Le centre de notifications ci-dessous reste toujours actif. Ces deux
+        réglages ne portent que sur les rappels envoyés en dehors de l'app.
       </p>
 
       @if (prefs(); as p) {
@@ -54,13 +74,18 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
             <div class="chan__txt">
               <strong>Notifications push</strong>
               <span class="field-hint">
-                Séance planifiée, retour d'un athlète, rappel de séance. C'est le canal du
-                quotidien — instantané, et sans encombrer ta boîte mail.
+                Séance planifiée, retour d'un athlète, rappel de séance. C'est
+                le canal du quotidien — instantané, et sans encombrer ta boîte
+                mail.
               </span>
             </div>
             <label class="switch">
-              <input type="checkbox" [checked]="p.pushEnabled" (change)="setChannel('push', $event)"
-                     aria-label="Recevoir les notifications push" />
+              <input
+                type="checkbox"
+                [checked]="p.pushEnabled"
+                (change)="setChannel('push', $event)"
+                aria-label="Recevoir les notifications push"
+              />
               <span class="switch__track" aria-hidden="true"></span>
             </label>
           </li>
@@ -69,14 +94,19 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
             <div class="chan__txt">
               <strong>E-mails</strong>
               <span class="field-hint">
-                Uniquement le récapitulatif quotidien d'alertes et les indisponibilités déclarées.
-                Les e-mails de compte (mot de passe, invitations) partent toujours : ils ne sont
-                pas des notifications.
+                Uniquement le récapitulatif quotidien d'alertes et les
+                indisponibilités déclarées. Les e-mails de compte (mot de passe,
+                invitations) partent toujours : ils ne sont pas des
+                notifications.
               </span>
             </div>
             <label class="switch">
-              <input type="checkbox" [checked]="p.emailEnabled" (change)="setChannel('email', $event)"
-                     aria-label="Recevoir les e-mails de notification" />
+              <input
+                type="checkbox"
+                [checked]="p.emailEnabled"
+                (change)="setChannel('email', $event)"
+                aria-label="Recevoir les e-mails de notification"
+              />
               <span class="switch__track" aria-hidden="true"></span>
             </label>
           </li>
@@ -90,21 +120,27 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
       <div class="card">
         <h2>Ce qui me fait sonner</h2>
         <p class="field-hint">
-          Chaque famille peut être coupée séparément. Couper une famille ne fait taire que la
-          notification système : tout continue d'arriver dans l'historique ci-dessous.
+          Chaque famille peut être coupée séparément. Couper une famille ne fait
+          taire que la notification système : tout continue d'arriver dans
+          l'historique ci-dessous.
         </p>
         <ul class="chan">
           @for (c of categories; track c.key) {
             <li class="chan__row">
-              <span class="chan__ic"><app-icon [name]="c.icon" [size]="18" /></span>
+              <span class="chan__ic"
+                ><app-icon [name]="c.icon" [size]="18"
+              /></span>
               <div class="chan__txt">
                 <strong>{{ c.label }}</strong>
                 <span class="field-hint">{{ c.hint }}</span>
               </div>
               <label class="switch">
-                <input type="checkbox" [checked]="!isMuted(c.key)"
-                       (change)="setCategory(c.key, $event)"
-                       [attr.aria-label]="'Recevoir : ' + c.label" />
+                <input
+                  type="checkbox"
+                  [checked]="!isMuted(c.key)"
+                  (change)="setCategory(c.key, $event)"
+                  [attr.aria-label]="'Recevoir : ' + c.label"
+                />
                 <span class="switch__track" aria-hidden="true"></span>
               </label>
             </li>
@@ -115,19 +151,28 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
       <div class="card">
         <h2>Heures de silence</h2>
         <p class="field-hint">
-          Aucune notification système pendant cette plage. Elles restent dans l'historique et
-          s'y retrouvent au réveil. Deux heures identiques désactivent le silence.
+          Aucune notification système pendant cette plage. Elles restent dans
+          l'historique et s'y retrouvent au réveil. Deux heures identiques
+          désactivent le silence.
         </p>
         <div class="quiet">
           <label class="quiet__f">
             <span class="field-hint">De</span>
-            <input type="time" [value]="p.quietStart ?? ''" (change)="setQuiet('start', $event)"
-                   aria-label="Début des heures de silence" />
+            <input
+              type="time"
+              [value]="p.quietStart ?? ''"
+              (change)="setQuiet('start', $event)"
+              aria-label="Début des heures de silence"
+            />
           </label>
           <label class="quiet__f">
             <span class="field-hint">À</span>
-            <input type="time" [value]="p.quietEnd ?? ''" (change)="setQuiet('end', $event)"
-                   aria-label="Fin des heures de silence" />
+            <input
+              type="time"
+              [value]="p.quietEnd ?? ''"
+              (change)="setQuiet('end', $event)"
+              aria-label="Fin des heures de silence"
+            />
           </label>
         </div>
 
@@ -135,14 +180,23 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
              connaît déjà le sien, il suffit de le proposer. -->
         <p class="field-hint tzline">
           Heures interprétées dans le fuseau
-          <strong>{{ p.timezone ?? 'du club' }}</strong>.
+          <strong>{{ p.timezone ?? 'du club' }}</strong
+          >.
           @if (p.timezone !== deviceZone) {
-            <button type="button" class="btn btn-ghost btn-sm" (click)="useDeviceZone()">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              (click)="useDeviceZone()"
+            >
               Utiliser celui de cet appareil ({{ deviceZone }})
             </button>
           }
           @if (p.timezone) {
-            <button type="button" class="btn btn-ghost btn-sm" (click)="useClubZone()">
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm"
+              (click)="useClubZone()"
+            >
               Revenir à celui du club
             </button>
           }
@@ -153,8 +207,9 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
     <div class="card">
       <h2>Mes appareils</h2>
       <p class="field-hint">
-        Les appareils qui reçoivent tes notifications. Retire ceux que tu n'utilises plus —
-        un téléphone revendu reste abonné tant que personne ne l'a retiré.
+        Les appareils qui reçoivent tes notifications. Retire ceux que tu
+        n'utilises plus — un téléphone revendu reste abonné tant que personne ne
+        l'a retiré.
       </p>
       @if (devices() === null) {
         <app-skeleton shape="text" [rows]="2" />
@@ -164,16 +219,25 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
         <ul class="dlist">
           @for (d of devices(); track d.id) {
             <li class="drow">
-              <span class="chan__ic"><app-icon name="smartphone" [size]="18" /></span>
+              <span class="chan__ic"
+                ><app-icon name="smartphone" [size]="18"
+              /></span>
               <div class="chan__txt">
                 <strong>{{ d.label }}</strong>
                 <span class="field-hint">
-                  Ajouté le {{ d.createdAt | date: 'd MMM y' }}@if (d.lastSuccessAt) {
+                  Ajouté le {{ d.createdAt | date: 'd MMM y' }}
+                  @if (d.lastSuccessAt) {
                     · vu {{ d.lastSuccessAt | date: 'd MMM, HH:mm' }}
                   }
                 </span>
               </div>
-              <button type="button" class="btn btn-ghost btn-sm" (click)="removeDevice(d)">Retirer</button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                (click)="removeDevice(d)"
+              >
+                Retirer
+              </button>
             </li>
           }
         </ul>
@@ -184,8 +248,8 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
       <div class="dtest">
         <app-push-test-button />
         <span class="field-hint">
-          Envoie une notification d'essai à tous tes appareils abonnés. Rien n'arrive ? Le message
-          affiché dit à quelle étape ça coince.
+          Envoie une notification d'essai à tous tes appareils abonnés. Rien
+          n'arrive ? Le message affiché dit à quelle étape ça coince.
         </span>
       </div>
     </div>
@@ -198,22 +262,35 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
         <div class="empty-state">
           <app-icon name="bell" [size]="32" />
           <p class="field-hint">
-            Rien pour l'instant. Les alertes de forme et de charge, les retours de séance et les
-            messages de tes athlètes apparaîtront ici.
+            Rien pour l'instant. Les alertes de forme et de charge, les retours
+            de séance et les messages de tes athlètes apparaîtront ici.
           </p>
         </div>
       } @else {
         <ul class="nlist">
           @for (n of items(); track n.id) {
             <li>
-              <button type="button" class="nrow" [class.unread]="!n.read" (click)="open(n)">
-                @if (!n.read) { <span class="dot" aria-hidden="true"></span> }
+              <button
+                type="button"
+                class="nrow"
+                [class.unread]="!n.read"
+                (click)="open(n)"
+              >
+                @if (!n.read) {
+                  <span class="dot" aria-hidden="true"></span>
+                }
                 <span class="nrow__body">
                   <span class="nrow__title">{{ n.title }}</span>
-                  @if (n.body) { <span class="nrow__text">{{ n.body }}</span> }
-                  <span class="nrow__date">{{ n.createdAt | date: 'EEE d MMM, HH:mm' }}</span>
+                  @if (n.body) {
+                    <span class="nrow__text">{{ n.body }}</span>
+                  }
+                  <span class="nrow__date">{{
+                    n.createdAt | date: 'EEE d MMM, HH:mm'
+                  }}</span>
                 </span>
-                @if (n.link) { <app-icon name="chevron-right" [size]="16" /> }
+                @if (n.link) {
+                  <app-icon name="chevron-right" [size]="16" />
+                }
               </button>
             </li>
           }
@@ -221,60 +298,193 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
       }
     </div>
   `,
-  styles: [`
-    .chan { list-style: none; margin: var(--sp-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
-    .chan__row { display: flex; align-items: flex-start; gap: var(--sp-3); }
-    .chan__ic {
-      width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--radius-sm);
-      display: flex; align-items: center; justify-content: center;
-      background: var(--primary-wash); color: var(--primary);
-    }
-    .chan__txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+  styles: [
+    `
+      .chan {
+        list-style: none;
+        margin: var(--sp-3) 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-4);
+      }
+      .chan__row {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--sp-3);
+      }
+      .chan__ic {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-wash);
+        color: var(--primary);
+      }
+      .chan__txt {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+      }
 
-    /* Interrupteur : cible ≥44px, état lisible sans la couleur seule (le pouce se déplace). */
-    .switch { position: relative; flex-shrink: 0; width: 52px; height: 44px; cursor: pointer; }
-    .switch input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
-    .switch__track {
-      position: absolute; top: 11px; left: 0; width: 52px; height: 30px;
-      border-radius: var(--radius-full); background: var(--paper-sunk);
-      border: 1px solid var(--hairline); transition: background var(--duration) var(--ease);
-    }
-    .switch__track::after {
-      content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
-      border-radius: var(--radius-full); background: var(--paper);
-      box-shadow: var(--shadow-sm); transition: transform var(--duration) var(--ease);
-    }
-    .switch input:checked + .switch__track { background: var(--primary); border-color: var(--primary); }
-    .switch input:checked + .switch__track::after { transform: translateX(22px); }
-    .switch input:focus-visible + .switch__track { outline: 2px solid var(--primary); outline-offset: 2px; }
+      /* Interrupteur : cible ≥44px, état lisible sans la couleur seule (le pouce se déplace). */
+      .switch {
+        position: relative;
+        flex-shrink: 0;
+        width: 52px;
+        height: 44px;
+        cursor: pointer;
+      }
+      .switch input {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        cursor: pointer;
+      }
+      .switch__track {
+        position: absolute;
+        top: 11px;
+        left: 0;
+        width: 52px;
+        height: 30px;
+        border-radius: var(--radius-full);
+        background: var(--paper-sunk);
+        border: 1px solid var(--hairline);
+        transition: background var(--duration) var(--ease);
+      }
+      .switch__track::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 22px;
+        height: 22px;
+        border-radius: var(--radius-full);
+        background: var(--paper);
+        box-shadow: var(--shadow-sm);
+        transition: transform var(--duration) var(--ease);
+      }
+      .switch input:checked + .switch__track {
+        background: var(--primary);
+        border-color: var(--primary);
+      }
+      .switch input:checked + .switch__track::after {
+        transform: translateX(22px);
+      }
+      .switch input:focus-visible + .switch__track {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
 
-    .dlist { list-style: none; margin: var(--sp-3) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
-    .drow { display: flex; align-items: flex-start; gap: var(--sp-3); }
-    .dtest { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); margin-top: var(--sp-4); }
+      .dlist {
+        list-style: none;
+        margin: var(--sp-3) 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
+      .drow {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--sp-3);
+      }
+      .dtest {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--sp-2);
+        margin-top: var(--sp-4);
+      }
 
-    .quiet { display: flex; gap: var(--sp-4); margin-top: var(--sp-3); flex-wrap: wrap; }
-    .quiet__f { display: flex; flex-direction: column; gap: 2px; }
-    .tzline { margin-top: var(--sp-3); display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
-    .quiet__f input {
-      min-height: 44px; padding: 0 var(--sp-2); border-radius: var(--radius-sm);
-      border: 1px solid var(--hairline); background: var(--paper); color: inherit;
-      font-size: var(--text-sm);
-    }
+      .quiet {
+        display: flex;
+        gap: var(--sp-4);
+        margin-top: var(--sp-3);
+        flex-wrap: wrap;
+      }
+      .quiet__f {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .tzline {
+        margin-top: var(--sp-3);
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        flex-wrap: wrap;
+      }
+      .quiet__f input {
+        min-height: 44px;
+        padding: 0 var(--sp-2);
+        border-radius: var(--radius-sm);
+        border: 1px solid var(--hairline);
+        background: var(--paper);
+        color: inherit;
+        font-size: var(--text-sm);
+      }
 
-    .nlist { list-style: none; margin: var(--sp-2) 0 0; padding: 0; }
-    .nlist li + li { border-top: 1px solid var(--hairline); }
-    .nrow {
-      display: flex; align-items: center; gap: var(--sp-2); width: 100%;
-      min-height: 44px; padding: var(--sp-3) 0; text-align: left;
-      background: none; border: none; cursor: pointer; color: inherit;
-    }
-    .nrow__body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-    .nrow__title { font-weight: 600; font-size: var(--text-sm); }
-    .nrow__text { font-size: var(--text-sm); color: var(--ink-2); }
-    .nrow__date { font-size: var(--text-xs); color: var(--ink-3); }
-    .nrow.unread .nrow__title { font-weight: 800; }
-    .dot { width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--primary); flex-shrink: 0; }
-  `],
+      .nlist {
+        list-style: none;
+        margin: var(--sp-2) 0 0;
+        padding: 0;
+      }
+      .nlist li + li {
+        border-top: 1px solid var(--hairline);
+      }
+      .nrow {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        width: 100%;
+        min-height: 44px;
+        padding: var(--sp-3) 0;
+        text-align: left;
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: inherit;
+      }
+      .nrow__body {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+      }
+      .nrow__title {
+        font-weight: 600;
+        font-size: var(--text-sm);
+      }
+      .nrow__text {
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+      }
+      .nrow__date {
+        font-size: var(--text-xs);
+        color: var(--ink-3);
+      }
+      .nrow.unread .nrow__title {
+        font-weight: 800;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: var(--radius-full);
+        background: var(--primary);
+        flex-shrink: 0;
+      }
+    `,
+  ],
 })
 export class NotificationsComponent implements OnInit {
   private readonly notif = inject(NotificationService);
@@ -295,33 +505,57 @@ export class NotificationsComponent implements OnInit {
    * `WORKOUT_UPDATED`.
    */
   readonly categories: ReadonlyArray<{
-    key: NotificationCategory; label: string; hint: string; icon: string;
+    key: NotificationCategory;
+    label: string;
+    hint: string;
+    icon: string;
   }> = [
     {
-      key: 'PROGRAMME', label: 'Mon programme', icon: 'calendar',
+      key: 'PROGRAMME',
+      label: 'Mon programme',
+      icon: 'calendar',
       hint: 'Nouvelle séance, plan attribué, séance déplacée ou annulée.',
     },
     {
-      key: 'RAPPELS', label: 'Rappels', icon: 'timer',
-      hint: 'La séance de demain, et « ta séance est finie ? » après l\'effort.',
+      key: 'RAPPELS',
+      label: 'Rappels',
+      icon: 'timer',
+      hint: "La séance de demain, et « ta séance est finie ? » après l'effort.",
     },
     {
-      key: 'MESSAGES', label: 'Messages', icon: 'message-square',
+      key: 'MESSAGES',
+      label: 'Messages',
+      icon: 'message-square',
       hint: 'Messages du fil et retours de séance.',
     },
     {
-      key: 'SUIVI', label: 'Suivi des athlètes', icon: 'activity',
+      key: 'SUIVI',
+      label: 'Suivi des athlètes',
+      icon: 'activity',
       hint: 'Retours, alertes de charge, douleurs signalées, indisponibilités.',
     },
   ];
 
   ngOnInit(): void {
     this.notif.list().subscribe({
-      next: (list) => { this.items.set(list); this.loading.set(false); },
-      error: () => { this.loading.set(false); this.toast.error('Chargement des notifications impossible.'); },
+      next: (list) => {
+        this.items.set(list);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.toast.error('Chargement des notifications impossible.');
+      },
     });
-    this.notif.preferences().subscribe({ next: (p) => this.prefs.set(p), error: () => {} });
-    this.push.devices().subscribe({ next: (d) => this.devices.set(d), error: () => this.devices.set([]) });
+    this.notif
+      .preferences()
+      .subscribe({ next: (p) => this.prefs.set(p), error: () => {} });
+    this.push
+      .devices()
+      .subscribe({
+        next: (d) => this.devices.set(d),
+        error: () => this.devices.set([]),
+      });
   }
 
   /**
@@ -332,9 +566,11 @@ export class NotificationsComponent implements OnInit {
   removeDevice(device: PushDevice): void {
     this.push.removeDevice(device.id).subscribe({
       next: async () => {
-        this.devices.update((list) => (list ?? []).filter((d) => d.id !== device.id));
+        this.devices.update((list) =>
+          (list ?? []).filter((d) => d.id !== device.id),
+        );
         this.toast.success('Appareil retiré');
-        if (await this.push.currentFingerprint() === device.fingerprint) {
+        if ((await this.push.currentFingerprint()) === device.fingerprint) {
           await this.push.forgetLocalSubscription();
         }
       },
@@ -344,7 +580,10 @@ export class NotificationsComponent implements OnInit {
 
   setChannel(channel: 'email' | 'push', event: Event): void {
     const enabled = (event.target as HTMLInputElement).checked;
-    const patch = channel === 'email' ? { emailEnabled: enabled } : { pushEnabled: enabled };
+    const patch =
+      channel === 'email'
+        ? { emailEnabled: enabled }
+        : { pushEnabled: enabled };
     this.notif.savePreferences(patch).subscribe({
       next: (p) => {
         this.prefs.set(p);
@@ -365,8 +604,15 @@ export class NotificationsComponent implements OnInit {
   setCategory(key: NotificationCategory, event: Event): void {
     const wanted = (event.target as HTMLInputElement).checked;
     const current = new Set(this.prefs()?.mutedCategories ?? []);
-    if (wanted) { current.delete(key); } else { current.add(key); }
-    this.save({ mutedCategories: [...current] }, wanted ? 'Notifications réactivées' : 'Notifications coupées');
+    if (wanted) {
+      current.delete(key);
+    } else {
+      current.add(key);
+    }
+    this.save(
+      { mutedCategories: [...current] },
+      wanted ? 'Notifications réactivées' : 'Notifications coupées',
+    );
   }
 
   /** Fuseau de cet appareil, tel que le navigateur le connaît. */
@@ -383,19 +629,26 @@ export class NotificationsComponent implements OnInit {
 
   setQuiet(bound: 'start' | 'end', event: Event): void {
     const value = (event.target as HTMLInputElement).value;
-    this.save(bound === 'start' ? { quietStart: value } : { quietEnd: value }, 'Heures de silence mises à jour');
+    this.save(
+      bound === 'start' ? { quietStart: value } : { quietEnd: value },
+      'Heures de silence mises à jour',
+    );
   }
 
   private save(patch: Partial<NotificationPreferences>, message: string): void {
     this.notif.savePreferences(patch).subscribe({
-      next: (p) => { this.prefs.set(p); this.toast.success(message); },
+      next: (p) => {
+        this.prefs.set(p);
+        this.toast.success(message);
+      },
       error: () => this.toast.error('Enregistrement impossible.'),
     });
   }
 
   markAllRead(): void {
     this.notif.markAllRead().subscribe({
-      next: () => this.items.update((l) => l.map((n) => ({ ...n, read: true }))),
+      next: () =>
+        this.items.update((l) => l.map((n) => ({ ...n, read: true }))),
       error: () => this.toast.error('Action impossible.'),
     });
   }
@@ -403,7 +656,9 @@ export class NotificationsComponent implements OnInit {
   open(n: AppNotification): void {
     if (!n.read) {
       this.notif.markRead(n.id).subscribe({ error: () => {} });
-      this.items.update((l) => l.map((x) => (x.id === n.id ? { ...x, read: true } : x)));
+      this.items.update((l) =>
+        l.map((x) => (x.id === n.id ? { ...x, read: true } : x)),
+      );
     }
     if (n.link) {
       this.router.navigateByUrl(n.link);

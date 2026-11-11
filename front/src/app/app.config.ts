@@ -2,7 +2,7 @@ import { registerLocaleData } from '@angular/common';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import localeFr from '@angular/common/locales/fr';
 import { ApplicationConfig, ErrorHandler, LOCALE_ID, importProvidersFrom } from '@angular/core';
-import * as Sentry from '@sentry/angular-ivy';
+import * as Sentry from '@sentry/angular';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { environment } from '../environments/environment';
 import { provideRouter, withComponentInputBinding, withRouterConfig } from '@angular/router';

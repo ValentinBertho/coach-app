@@ -1,5 +1,11 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
@@ -33,11 +39,15 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-admin-audit',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FormsModule, PaginatorComponent, SkeletonComponent, EmptyStateComponent, IconComponent,
-    RouterLink, DatePipe,
+    FormsModule,
+    PaginatorComponent,
+    SkeletonComponent,
+    EmptyStateComponent,
+    IconComponent,
+    RouterLink,
+    DatePipe,
   ],
   templateUrl: './admin-audit.component.html',
   // La barre de filtres est celle des autres listes : une seule feuille pour cinq écrans.
@@ -74,10 +84,14 @@ export class AdminAuditComponent implements OnInit {
    * la liste plate d'avant plutôt qu'un écran cassé (§4 bis).</p>
    */
   get actionGroups(): { label: string; actions: AdminAuditAction[] }[] {
-    const groups = new Map<string, { label: string; actions: AdminAuditAction[] }>();
+    const groups = new Map<
+      string,
+      { label: string; actions: AdminAuditAction[] }
+    >();
     for (const a of this.actions()) {
       const key = a.scope ?? '';
-      if (!groups.has(key)) groups.set(key, { label: a.scopeLabel ?? '', actions: [] });
+      if (!groups.has(key))
+        groups.set(key, { label: a.scopeLabel ?? '', actions: [] });
       groups.get(key)!.actions.push(a);
     }
     return [...groups.values()];

@@ -1,9 +1,23 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, inject, model, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  model,
+  output,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Injury } from '../../../core/models/injury.model';
-import { MissedReason, Workout, WorkoutStatus } from '../../../core/models/workout.model';
-import { AthletePortalService, WorkoutFeedback } from '../../../core/services/athlete-portal.service';
+import {
+  MissedReason,
+  Workout,
+  WorkoutStatus,
+} from '../../../core/models/workout.model';
+import {
+  AthletePortalService,
+  WorkoutFeedback,
+} from '../../../core/services/athlete-portal.service';
 import { FeedbackQueueService } from '../../../core/services/feedback-queue.service';
 import { NetworkStatusService } from '../../../core/services/network-status.service';
 import { ToastService } from '../../../core/services/toast.service';
@@ -54,11 +68,15 @@ const SOURCE_LABELS: Record<string, string> = {
  */
 @Component({
   selector: 'app-workout-feedback-sheet',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    FormsModule, IconComponent, BottomSheetComponent, PainFatigueSelectorComponent,
-    RpeScaleSelectorComponent, FeelSelectorComponent, InjuryPickerComponent,
+    FormsModule,
+    IconComponent,
+    BottomSheetComponent,
+    PainFatigueSelectorComponent,
+    RpeScaleSelectorComponent,
+    FeelSelectorComponent,
+    InjuryPickerComponent,
   ],
   template: `
     <app-bottom-sheet [(open)]="open" [title]="sheetTitle()">
@@ -77,14 +95,24 @@ const SOURCE_LABELS: Record<string, string> = {
           @if (activity(); as a) {
             <div class="fb__matched">
               <span class="fb__matched-hd">
-                <app-icon name="activity" [size]="14" /> Activité {{ sourceLabel(a.source) }} rapprochée
+                <app-icon name="activity" [size]="14" /> Activité
+                {{ sourceLabel(a.source) }} rapprochée
               </span>
               <span class="fb__matched-vals metric">
-                @if (a.distanceM) { {{ (a.distanceM / 1000).toFixed(1) }} km }
-                @if (a.durationS) { · {{ durationLabel(a.durationS) }} }
-                @if (a.avgHr) { · {{ a.avgHr }} bpm }
+                @if (a.distanceM) {
+                  {{ (a.distanceM / 1000).toFixed(1) }} km
+                }
+                @if (a.durationS) {
+                  · {{ durationLabel(a.durationS) }}
+                }
+                @if (a.avgHr) {
+                  · {{ a.avgHr }} bpm
+                }
               </span>
-              <span class="field-hint">C'était bien cette séance ? Ajoute ton ressenti et valide.</span>
+              <span class="field-hint"
+                >C'était bien cette séance ? Ajoute ton ressenti et
+                valide.</span
+              >
             </div>
           }
 
@@ -109,11 +137,15 @@ const SOURCE_LABELS: Record<string, string> = {
                 @if (workout()?.targetRpe; as target) {
                   <p class="fb__target field-hint">
                     <app-icon name="target" [size]="13" />
-                    Ton coach a prévu un effort autour de <strong>{{ target }}/10</strong>.
-                    Note ce que <em>tu</em> as ressenti — l'écart lui est utile.
+                    Ton coach a prévu un effort autour de
+                    <strong>{{ target }}/10</strong>. Note ce que <em>tu</em> as
+                    ressenti — l'écart lui est utile.
                   </p>
                 }
-                <app-rpe-scale-selector [(value)]="rpe" label="Perception de l'effort" />
+                <app-rpe-scale-selector
+                  [(value)]="rpe"
+                  label="Perception de l'effort"
+                />
               </div>
 
               <div class="fb__card fb__card--split">
@@ -123,9 +155,13 @@ const SOURCE_LABELS: Record<string, string> = {
 
               <div class="fb__card">
                 <span class="fb__card-lb">Commentaire</span>
-                <textarea class="form-control" rows="2"
-                          placeholder="Tu peux écrire un mot à ton entraîneur ici."
-                          [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
+                <textarea
+                  class="form-control"
+                  rows="2"
+                  placeholder="Tu peux écrire un mot à ton entraîneur ici."
+                  [ngModel]="comment()"
+                  (ngModelChange)="comment.set($event)"
+                ></textarea>
               </div>
 
               <div class="fb__card">
@@ -133,29 +169,69 @@ const SOURCE_LABELS: Record<string, string> = {
               </div>
 
               <div class="fb__actions">
-                <button type="button" class="btn btn-accent btn-lg" (click)="submitDone()">Séance réalisée <app-icon name="check" [size]="16" /></button>
-                <button type="button" class="btn btn-ghost" (click)="step.set('partial')">Écourtée</button>
+                <button
+                  type="button"
+                  class="btn btn-accent btn-lg"
+                  (click)="submitDone()"
+                >
+                  Séance réalisée <app-icon name="check" [size]="16" />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-ghost"
+                  (click)="step.set('partial')"
+                >
+                  Écourtée
+                </button>
                 <!-- Sans cette porte de sortie, l'athlète empêché n'avait que le silence — qui
                      ressortait quelques jours plus tard en alerte « séance manquée », sans motif. -->
-                <button type="button" class="btn btn-ghost" (click)="step.set('missed')">Pas faite</button>
+                <button
+                  type="button"
+                  class="btn btn-ghost"
+                  (click)="step.set('missed')"
+                >
+                  Pas faite
+                </button>
               </div>
             }
 
             @case ('partial') {
               <p class="fb__q">Tu as fait combien de temps&nbsp;?</p>
               <p class="field-hint">
-                C'est cette durée qui compte dans ta charge — pas celle qui était prévue.
-                @if (w.targetDurationS) { <br />Prévu&nbsp;: {{ durationLabel(w.targetDurationS) }}. }
+                C'est cette durée qui compte dans ta charge — pas celle qui
+                était prévue.
+                @if (w.targetDurationS) {
+                  <br />Prévu&nbsp;: {{ durationLabel(w.targetDurationS) }}.
+                }
               </p>
               <div class="fb__dur">
-                <input type="number" class="form-control" inputmode="numeric" min="1" max="720"
-                       placeholder="minutes"
-                       [ngModel]="actualMinutes()" (ngModelChange)="actualMinutes.set($event)" />
+                <input
+                  type="number"
+                  class="form-control"
+                  inputmode="numeric"
+                  min="1"
+                  max="720"
+                  placeholder="minutes"
+                  [ngModel]="actualMinutes()"
+                  (ngModelChange)="actualMinutes.set($event)"
+                />
                 <span class="fb__dur-unit">min</span>
               </div>
               <div class="fb__actions">
-                <button type="button" class="btn btn-accent btn-lg" (click)="submitPartial()">Enregistrer <app-icon name="check" [size]="16" /></button>
-                <button type="button" class="btn btn-ghost" (click)="step.set('debrief')">Retour</button>
+                <button
+                  type="button"
+                  class="btn btn-accent btn-lg"
+                  (click)="submitPartial()"
+                >
+                  Enregistrer <app-icon name="check" [size]="16" />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-ghost"
+                  (click)="step.set('debrief')"
+                >
+                  Retour
+                </button>
               </div>
             }
 
@@ -163,20 +239,43 @@ const SOURCE_LABELS: Record<string, string> = {
               <p class="fb__q">Qu'est-ce qui s'est passé&nbsp;?</p>
               <div class="fb__reasons">
                 @for (r of missedReasons; track r.value) {
-                  <button type="button" class="fb__reason" [class.fb__reason--on]="missedReason() === r.value"
-                          (click)="missedReason.set(r.value)">{{ r.label }}</button>
+                  <button
+                    type="button"
+                    class="fb__reason"
+                    [class.fb__reason--on]="missedReason() === r.value"
+                    (click)="missedReason.set(r.value)"
+                  >
+                    {{ r.label }}
+                  </button>
                 }
               </div>
-              <textarea class="form-control" rows="2" placeholder="Un mot pour ton coach ? (optionnel)"
-                        [ngModel]="comment()" (ngModelChange)="comment.set($event)"></textarea>
+              <textarea
+                class="form-control"
+                rows="2"
+                placeholder="Un mot pour ton coach ? (optionnel)"
+                [ngModel]="comment()"
+                (ngModelChange)="comment.set($event)"
+              ></textarea>
               <!-- Une séance sautée pour raison physique est le cas où nommer la blessure sert le
                    plus : c'est le seul motif sur lequel le coach a quelque chose à décider. -->
               <div class="fb__card">
                 <app-injury-picker [(injuries)]="injuries" />
               </div>
               <div class="fb__actions">
-                <button type="button" class="btn btn-accent btn-lg" (click)="submitMissed()">Confirmer <app-icon name="check" [size]="16" /></button>
-                <button type="button" class="btn btn-ghost" (click)="step.set('debrief')">Retour</button>
+                <button
+                  type="button"
+                  class="btn btn-accent btn-lg"
+                  (click)="submitMissed()"
+                >
+                  Confirmer <app-icon name="check" [size]="16" />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-ghost"
+                  (click)="step.set('debrief')"
+                >
+                  Retour
+                </button>
               </div>
             }
           }
@@ -184,67 +283,146 @@ const SOURCE_LABELS: Record<string, string> = {
       }
     </app-bottom-sheet>
   `,
-  styles: [`
-    .fb { display: flex; flex-direction: column; gap: var(--sp-3); }
+  styles: [
+    `
+      .fb {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
 
-    /* Bandeau de rappel : la séance notée, date en tête — la lecture de Nolio, qui met la
+      /* Bandeau de rappel : la séance notée, date en tête — la lecture de Nolio, qui met la
        séance en évidence avant de poser la moindre question. */
-    .fb__lead {
-      display: flex; flex-direction: column; gap: 2px;
-      padding: var(--sp-3); border-radius: var(--radius);
-      background: var(--primary); color: #fff;
-    }
-    .fb__lead-date { font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; }
-    .fb__lead-title { font-size: var(--text-lg); font-weight: 800; }
+      .fb__lead {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: var(--sp-3);
+        border-radius: var(--radius);
+        background: var(--primary);
+        color: #fff;
+      }
+      .fb__lead-date {
+        font-size: var(--text-xs);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        opacity: 0.85;
+      }
+      .fb__lead-title {
+        font-size: var(--text-lg);
+        font-weight: 800;
+      }
 
-    /* Une carte par question : chacune se répond, se saute, et se relit isolément. */
-    .fb__card {
-      display: flex; flex-direction: column; gap: var(--sp-3);
-      padding: var(--sp-3); border-radius: var(--radius);
-      background: var(--paper); border: 1px solid var(--hairline);
-    }
-    .fb__card--split { gap: var(--sp-4); }
-    .fb__card-lb { font-size: var(--text-sm); color: var(--ink-2); font-weight: 700; }
-    /* Le repère du coach précède l'échelle, en retrait : il informe, il ne commande pas. */
-    .fb__target {
-      display: flex; align-items: flex-start; gap: var(--sp-1);
-      margin: 0 0 var(--sp-2);
-    }
-    .fb__target strong { color: var(--ink); }
+      /* Une carte par question : chacune se répond, se saute, et se relit isolément. */
+      .fb__card {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+        padding: var(--sp-3);
+        border-radius: var(--radius);
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+      }
+      .fb__card--split {
+        gap: var(--sp-4);
+      }
+      .fb__card-lb {
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+        font-weight: 700;
+      }
+      /* Le repère du coach précède l'échelle, en retrait : il informe, il ne commande pas. */
+      .fb__target {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--sp-1);
+        margin: 0 0 var(--sp-2);
+      }
+      .fb__target strong {
+        color: var(--ink);
+      }
 
-    .fb__actions { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-2); }
-    .fb__actions .btn { width: 100%; }
+      .fb__actions {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+        margin-top: var(--sp-2);
+      }
+      .fb__actions .btn {
+        width: 100%;
+      }
 
-    .fb__matched {
-      display: flex; flex-direction: column; gap: 2px;
-      padding: var(--sp-3); border-radius: var(--radius);
-      background: var(--primary-wash); border: 1px solid var(--hairline);
-    }
-    .fb__matched-hd {
-      display: inline-flex; align-items: center; gap: var(--sp-1);
-      font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.04em; color: var(--primary);
-    }
-    .fb__matched-vals { font-size: var(--text-lg); font-weight: 800; color: var(--ink); }
+      .fb__matched {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: var(--sp-3);
+        border-radius: var(--radius);
+        background: var(--primary-wash);
+        border: 1px solid var(--hairline);
+      }
+      .fb__matched-hd {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-1);
+        font-size: var(--text-xs);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--primary);
+      }
+      .fb__matched-vals {
+        font-size: var(--text-lg);
+        font-weight: 800;
+        color: var(--ink);
+      }
 
-    .fb__q { margin: 0; font-weight: 700; color: var(--ink); font-size: var(--text-lg); }
+      .fb__q {
+        margin: 0;
+        font-weight: 700;
+        color: var(--ink);
+        font-size: var(--text-lg);
+      }
 
-    .fb__dur { display: flex; align-items: center; gap: var(--sp-2); }
-    .fb__dur .form-control { flex: 1; font-size: var(--text-lg); font-weight: 700; }
-    .fb__dur-unit { font-weight: 700; color: var(--ink-3); }
+      .fb__dur {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+      }
+      .fb__dur .form-control {
+        flex: 1;
+        font-size: var(--text-lg);
+        font-weight: 700;
+      }
+      .fb__dur-unit {
+        font-weight: 700;
+        color: var(--ink-3);
+      }
 
-    .fb__reasons { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
-    .fb__reason {
-      padding: var(--sp-2) var(--sp-3); border-radius: var(--radius);
-      border: 1px solid var(--hairline); background: transparent;
-      color: var(--ink-2); font-weight: 600; font-size: var(--text-sm);
-      min-height: 44px;
-    }
-    .fb__reason--on {
-      background: var(--primary-wash); border-color: var(--primary);
-      color: var(--primary); font-weight: 700;
-    }
-  `],
+      .fb__reasons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-2);
+      }
+      .fb__reason {
+        padding: var(--sp-2) var(--sp-3);
+        border-radius: var(--radius);
+        border: 1px solid var(--hairline);
+        background: transparent;
+        color: var(--ink-2);
+        font-weight: 600;
+        font-size: var(--text-sm);
+        min-height: 44px;
+      }
+      .fb__reason--on {
+        background: var(--primary-wash);
+        border-color: var(--primary);
+        color: var(--primary);
+        font-weight: 700;
+      }
+    `,
+  ],
 })
 export class WorkoutFeedbackSheetComponent {
   private readonly portal = inject(AthletePortalService);
@@ -296,7 +474,11 @@ export class WorkoutFeedbackSheetComponent {
     const w = this.workout();
     if (!w) return '';
     if (!this.isLate()) return 'Aujourd’hui';
-    const fmt = new Intl.DateTimeFormat('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    const fmt = new Intl.DateTimeFormat('fr-FR', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+    });
     return fmt.format(new Date(w.scheduledDate + 'T00:00:00'));
   }
 
@@ -318,7 +500,10 @@ export class WorkoutFeedbackSheetComponent {
    * Dans les deux cas la fatigue et la douleur restent vides : ce sont elles qui portent la
    * forme, et personne ne peut les déduire à la place de l'athlète.
    */
-  openFor(w: Workout, prefill?: { rpe?: number | null; activity?: MatchedActivity | null }): void {
+  openFor(
+    w: Workout,
+    prefill?: { rpe?: number | null; activity?: MatchedActivity | null },
+  ): void {
     this.workout.set(w);
     this.feel.set(w.feel ?? null);
     this.rpe.set(prefill?.rpe ?? w.rpe ?? null);
@@ -418,7 +603,9 @@ export class WorkoutFeedbackSheetComponent {
       this.queue.enqueue(w.id, body);
       this.open.set(false);
       this.saved.emit(optimistic);
-      this.toast.info('Enregistré hors ligne — synchronisé au retour du réseau.');
+      this.toast.info(
+        'Enregistré hors ligne — synchronisé au retour du réseau.',
+      );
       return;
     }
 
@@ -426,7 +613,11 @@ export class WorkoutFeedbackSheetComponent {
       next: (updated) => {
         this.open.set(false);
         this.saved.emit(updated);
-        this.toast.success(body.status === 'MISSED' ? 'Séance marquée non faite' : 'Ressenti enregistré');
+        this.toast.success(
+          body.status === 'MISSED'
+            ? 'Séance marquée non faite'
+            : 'Ressenti enregistré',
+        );
       },
       error: (error: unknown) => {
         // Un serveur qui répond n'est pas un réseau absent.
@@ -443,7 +634,9 @@ export class WorkoutFeedbackSheetComponent {
         this.queue.enqueue(w.id, body);
         this.open.set(false);
         this.saved.emit(optimistic);
-        this.toast.warning('Hors ligne — ressenti mis en file pour synchronisation.');
+        this.toast.warning(
+          'Hors ligne — ressenti mis en file pour synchronisation.',
+        );
       },
     });
   }

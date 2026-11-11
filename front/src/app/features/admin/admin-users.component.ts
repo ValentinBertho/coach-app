@@ -1,5 +1,11 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
@@ -33,11 +39,15 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-admin-users',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SkeletonComponent, FormsModule, PaginatorComponent, RouterLink, IconComponent,
-    EmptyStateComponent, DatePipe,
+    SkeletonComponent,
+    FormsModule,
+    PaginatorComponent,
+    RouterLink,
+    IconComponent,
+    EmptyStateComponent,
+    DatePipe,
   ],
   templateUrl: './admin-users.component.html',
   styleUrl: './admin-list.scss',
@@ -52,7 +62,12 @@ export class AdminUsersComponent implements OnInit {
   readonly roleLabels = ROLE_LABELS;
   readonly statusLabels = USER_STATUS_LABELS;
   readonly statusBadge = userStatusBadge;
-  readonly roles: UserRole[] = ['PLATFORM_ADMIN', 'HEAD_COACH', 'COACH', 'ATHLETE'];
+  readonly roles: UserRole[] = [
+    'PLATFORM_ADMIN',
+    'HEAD_COACH',
+    'COACH',
+    'ATHLETE',
+  ];
   readonly statuses: UserStatus[] = ['ACTIVE', 'INVITED', 'SUSPENDED'];
 
   readonly users = signal<AdminUser[]>([]);
@@ -72,7 +87,13 @@ export class AdminUsersComponent implements OnInit {
   /** '' = indifférent, 'false' = comptes bloqués sur leur e-mail de confirmation. */
   filterVerified: '' | 'true' | 'false' = '';
 
-  draft = { email: '', password: '', fullName: '', role: 'COACH' as UserRole, clubId: '' };
+  draft = {
+    email: '',
+    password: '',
+    fullName: '',
+    role: 'COACH' as UserRole,
+    clubId: '',
+  };
 
   ngOnInit(): void {
     this.searchInput$.pipe(debounceTime(300)).subscribe(() => {
@@ -115,7 +136,13 @@ export class AdminUsersComponent implements OnInit {
   }
 
   get hasFilters(): boolean {
-    return !!(this.search || this.filterRole || this.filterStatus || this.filterClub || this.filterVerified);
+    return !!(
+      this.search ||
+      this.filterRole ||
+      this.filterStatus ||
+      this.filterClub ||
+      this.filterVerified
+    );
   }
 
   goToPage(p: number): void {
@@ -131,7 +158,10 @@ export class AdminUsersComponent implements OnInit {
         role: this.filterRole || undefined,
         status: this.filterStatus || undefined,
         clubId: this.filterClub || undefined,
-        verified: this.filterVerified === '' ? undefined : this.filterVerified === 'true',
+        verified:
+          this.filterVerified === ''
+            ? undefined
+            : this.filterVerified === 'true',
         q: this.search || undefined,
         page: this.page(),
       })
@@ -176,7 +206,13 @@ export class AdminUsersComponent implements OnInit {
       .subscribe({
         next: (u) => {
           this.toast.success('Compte créé.');
-          this.draft = { email: '', password: '', fullName: '', role: 'COACH', clubId: '' };
+          this.draft = {
+            email: '',
+            password: '',
+            fullName: '',
+            role: 'COACH',
+            clubId: '',
+          };
           this.creating.set(false);
           this.saving.set(false);
           void this.router.navigate(['/admin/users', u.id]);

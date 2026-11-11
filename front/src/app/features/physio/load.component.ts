@@ -1,5 +1,12 @@
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { AnalyticsComponent } from '../analytics/analytics.component';
 import { LactateService } from '../../core/services/lactate.service';
 import { Load, LoadSeries } from '../../core/models/lactate.model';
@@ -15,9 +22,15 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-load',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, DecimalPipe, AnalyticsComponent, AcwrIndicatorComponent, MetricCardComponent, LoadChartComponent],
+  imports: [
+    SkeletonComponent,
+    DecimalPipe,
+    AnalyticsComponent,
+    AcwrIndicatorComponent,
+    MetricCardComponent,
+    LoadChartComponent,
+  ],
   templateUrl: './load.component.html',
   styleUrl: './load.component.scss',
 })

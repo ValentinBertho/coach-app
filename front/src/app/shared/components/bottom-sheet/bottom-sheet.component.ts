@@ -22,25 +22,42 @@ import {
  */
 @Component({
   selector: 'app-bottom-sheet',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [A11yModule, IconComponent],
   animations: [
     trigger('backdrop', [
-      transition(':enter', [style({ opacity: 0 }), animate('200ms cubic-bezier(0.32,0.72,0,1)', style({ opacity: 1 }))]),
-      transition(':leave', [animate('160ms cubic-bezier(0.32,0.72,0,1)', style({ opacity: 0 }))]),
+      transition(':enter', [
+        style({ opacity: 0 }),
+        animate('200ms cubic-bezier(0.32,0.72,0,1)', style({ opacity: 1 })),
+      ]),
+      transition(':leave', [
+        animate('160ms cubic-bezier(0.32,0.72,0,1)', style({ opacity: 0 })),
+      ]),
     ]),
     trigger('sheet', [
       transition(':enter', [
         style({ transform: 'translateY(100%)' }),
-        animate('260ms cubic-bezier(0.32,0.72,0,1)', style({ transform: 'translateY(0)' })),
+        animate(
+          '260ms cubic-bezier(0.32,0.72,0,1)',
+          style({ transform: 'translateY(0)' }),
+        ),
       ]),
-      transition(':leave', [animate('200ms cubic-bezier(0.32,0.72,0,1)', style({ transform: 'translateY(100%)' }))]),
+      transition(':leave', [
+        animate(
+          '200ms cubic-bezier(0.32,0.72,0,1)',
+          style({ transform: 'translateY(100%)' }),
+        ),
+      ]),
     ]),
   ],
   template: `
     @if (open()) {
-      <div class="bs__backdrop" @backdrop (click)="dismiss()" aria-hidden="true"></div>
+      <div
+        class="bs__backdrop"
+        @backdrop
+        (click)="dismiss()"
+        aria-hidden="true"
+      ></div>
       <div
         class="bs__panel"
         @sheet
@@ -57,13 +74,22 @@ import {
           class="bs__handle"
           aria-label="Glisser pour fermer"
           (pointerdown)="onDragStart($event)"
-        ><span></span></button>
+        >
+          <span></span>
+        </button>
 
         @if (title()) {
           <header class="bs__head">
             <h3 class="bs__title">{{ title() }}</h3>
             @if (dismissable()) {
-              <button type="button" class="bs__close" aria-label="Fermer" (click)="dismiss()"><app-icon name="x" [size]="16" /></button>
+              <button
+                type="button"
+                class="bs__close"
+                aria-label="Fermer"
+                (click)="dismiss()"
+              >
+                <app-icon name="x" [size]="16" />
+              </button>
             }
           </header>
         }
@@ -72,35 +98,81 @@ import {
       </div>
     }
   `,
-  styles: [`
-    .bs__backdrop { position: fixed; inset: 0; z-index: 500; background: var(--bg-overlay); }
-    .bs__panel {
-      position: fixed; left: 0; right: 0; bottom: 0; z-index: 500;
-      max-height: 88vh; display: flex; flex-direction: column;
-      background: var(--paper); border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-      box-shadow: var(--shadow-lg);
-      padding-bottom: env(safe-area-inset-bottom, 0px);
-      touch-action: none;
-    }
-    .bs__handle {
-      align-self: center; padding: var(--sp-3); border: none; background: transparent; cursor: grab;
-    }
-    .bs__handle span { display: block; width: 40px; height: 5px; border-radius: var(--radius-full); background: var(--ink-4); }
-    .bs__head {
-      display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
-      padding: 0 var(--sp-5) var(--sp-3);
-    }
-    .bs__title { margin: 0; font-size: var(--text-xl); }
-    .bs__close {
-      width: 32px; height: 32px; border-radius: var(--radius-full); border: none;
-      background: var(--paper-sunk); color: var(--ink-2); cursor: pointer; font-size: var(--text-md);
-    }
-    .bs__body { overflow-y: auto; padding: 0 var(--sp-5) var(--sp-5); }
-    @media (min-width: 768px) {
-      /* Sur desktop, centré comme un dialog ancré bas (panneau secondaire ailleurs). */
-      .bs__panel { left: 50%; right: auto; transform: translateX(-50%); width: min(560px, 92vw); border-radius: var(--radius-xl); bottom: var(--sp-6); }
-    }
-  `],
+  styles: [
+    `
+      .bs__backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 500;
+        background: var(--bg-overlay);
+      }
+      .bs__panel {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 500;
+        max-height: 88vh;
+        display: flex;
+        flex-direction: column;
+        background: var(--paper);
+        border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+        box-shadow: var(--shadow-lg);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        touch-action: none;
+      }
+      .bs__handle {
+        align-self: center;
+        padding: var(--sp-3);
+        border: none;
+        background: transparent;
+        cursor: grab;
+      }
+      .bs__handle span {
+        display: block;
+        width: 40px;
+        height: 5px;
+        border-radius: var(--radius-full);
+        background: var(--ink-4);
+      }
+      .bs__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-3);
+        padding: 0 var(--sp-5) var(--sp-3);
+      }
+      .bs__title {
+        margin: 0;
+        font-size: var(--text-xl);
+      }
+      .bs__close {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius-full);
+        border: none;
+        background: var(--paper-sunk);
+        color: var(--ink-2);
+        cursor: pointer;
+        font-size: var(--text-md);
+      }
+      .bs__body {
+        overflow-y: auto;
+        padding: 0 var(--sp-5) var(--sp-5);
+      }
+      @media (min-width: 768px) {
+        /* Sur desktop, centré comme un dialog ancré bas (panneau secondaire ailleurs). */
+        .bs__panel {
+          left: 50%;
+          right: auto;
+          transform: translateX(-50%);
+          width: min(560px, 92vw);
+          border-radius: var(--radius-xl);
+          bottom: var(--sp-6);
+        }
+      }
+    `,
+  ],
 })
 export class BottomSheetComponent {
   readonly open = model(false);

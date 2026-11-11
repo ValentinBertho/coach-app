@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { PushError, PushService } from '../../../core/services/push.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { IconComponent } from '../icon/icon.component';
@@ -23,7 +29,6 @@ const DISMISSED_KEY = 'darilab.push-prompt.dismissed';
  */
 @Component({
   selector: 'app-push-prompt',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
@@ -35,28 +40,67 @@ const DISMISSED_KEY = 'darilab.push-prompt.dismissed';
           <span class="field-hint">{{ lead() }}</span>
         </div>
         <div class="pprompt__act">
-          <button type="button" class="btn btn-primary btn-sm" [disabled]="busy()" (click)="enable()">
+          <button
+            type="button"
+            class="btn btn-primary btn-sm"
+            [disabled]="busy()"
+            (click)="enable()"
+          >
             {{ busy() ? 'Activation…' : 'Activer' }}
           </button>
-          <button type="button" class="btn btn-ghost btn-sm" (click)="dismiss()">Plus tard</button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm"
+            (click)="dismiss()"
+          >
+            Plus tard
+          </button>
         </div>
       </section>
     }
   `,
-  styles: [`
-    .pprompt { display: flex; align-items: flex-start; gap: var(--sp-3); }
-    .pprompt__ic {
-      width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--radius-sm);
-      display: flex; align-items: center; justify-content: center;
-      background: var(--primary-wash); color: var(--primary);
-    }
-    .pprompt__txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-    .pprompt__act { display: flex; flex-direction: column; gap: var(--sp-2); flex-shrink: 0; }
-    @media (max-width: 480px) {
-      .pprompt { flex-wrap: wrap; }
-      .pprompt__act { flex-direction: row; width: 100%; }
-    }
-  `],
+  styles: [
+    `
+      .pprompt {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--sp-3);
+      }
+      .pprompt__ic {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-wash);
+        color: var(--primary);
+      }
+      .pprompt__txt {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+      }
+      .pprompt__act {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+        flex-shrink: 0;
+      }
+      @media (max-width: 480px) {
+        .pprompt {
+          flex-wrap: wrap;
+        }
+        .pprompt__act {
+          flex-direction: row;
+          width: 100%;
+        }
+      }
+    `,
+  ],
 })
 export class PushPromptComponent {
   /** Titre de la carte. Par défaut celui de l'athlète, à qui elle s'adresse d'abord. */
@@ -64,8 +108,9 @@ export class PushPromptComponent {
 
   /** Ce que l'activation apporte, dans les mots de celui qui la lit. */
   readonly lead = input(
-    "La séance de demain, le retour de ton coach, ses messages — sur ton téléphone, sans "
-    + "ouvrir l'application.");
+    'La séance de demain, le retour de ton coach, ses messages — sur ton téléphone, sans ' +
+      "ouvrir l'application.",
+  );
 
   private readonly push = inject(PushService);
   private readonly toast = inject(ToastService);
@@ -84,9 +129,11 @@ export class PushPromptComponent {
       await this.push.enable();
       this.toast.success('Notifications activées sur cet appareil');
     } catch (err) {
-      this.toast.error(err instanceof PushError
-        ? err.message
-        : "Activation impossible — réessaie dans un instant.");
+      this.toast.error(
+        err instanceof PushError
+          ? err.message
+          : 'Activation impossible — réessaie dans un instant.',
+      );
     } finally {
       this.busy.set(false);
     }
@@ -94,11 +141,19 @@ export class PushPromptComponent {
 
   /** Refus mémorisé localement : le réglage reste accessible dans les paramètres. */
   dismiss(): void {
-    try { localStorage.setItem(DISMISSED_KEY, '1'); } catch { /* stockage indisponible */ }
+    try {
+      localStorage.setItem(DISMISSED_KEY, '1');
+    } catch {
+      /* stockage indisponible */
+    }
     this.dismissed.set(true);
   }
 }
 
 function read(key: string): boolean {
-  try { return localStorage.getItem(key) === '1'; } catch { return false; }
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
 }

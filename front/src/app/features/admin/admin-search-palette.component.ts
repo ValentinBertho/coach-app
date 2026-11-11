@@ -1,10 +1,25 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, ViewChild, computed, inject, output, signal } from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  ViewChild,
+  computed,
+  inject,
+  output,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subject, debounceTime, switchMap } from 'rxjs';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { of } from 'rxjs';
-import { AdminSearchHit, AdminSearchResult, ROLE_LABELS, USER_STATUS_LABELS } from '../../core/models/admin.model';
+import {
+  AdminSearchHit,
+  AdminSearchResult,
+  ROLE_LABELS,
+  USER_STATUS_LABELS,
+} from '../../core/models/admin.model';
 import { AdminService } from '../../core/services/admin.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 
@@ -32,7 +47,6 @@ interface Section {
  */
 @Component({
   selector: 'app-admin-search-palette',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, IconComponent],
   templateUrl: './admin-search-palette.component.html',
@@ -59,17 +73,43 @@ export class AdminSearchPaletteComponent implements AfterViewInit {
     const r = this.result();
     if (!r) return [];
     return [
-      { key: 'users', label: 'Comptes', icon: 'user', hits: r.users, total: r.usersTotal, moreRoute: '/admin/users' },
-      { key: 'clubs', label: 'Clubs', icon: 'building-2', hits: r.clubs, total: r.clubsTotal, moreRoute: '/admin/clubs' },
-      { key: 'athletes', label: 'Athlètes', icon: 'footprints', hits: r.athletes, total: r.athletesTotal, moreRoute: '/admin/athletes' },
+      {
+        key: 'users',
+        label: 'Comptes',
+        icon: 'user',
+        hits: r.users,
+        total: r.usersTotal,
+        moreRoute: '/admin/users',
+      },
+      {
+        key: 'clubs',
+        label: 'Clubs',
+        icon: 'building-2',
+        hits: r.clubs,
+        total: r.clubsTotal,
+        moreRoute: '/admin/clubs',
+      },
+      {
+        key: 'athletes',
+        label: 'Athlètes',
+        icon: 'footprints',
+        hits: r.athletes,
+        total: r.athletesTotal,
+        moreRoute: '/admin/athletes',
+      },
     ].filter((s) => s.hits.length > 0);
   });
 
   /** Résultats à plat : c'est cette liste que les flèches parcourent. */
-  readonly flat = computed<AdminSearchHit[]>(() => this.sections().flatMap((s) => s.hits));
+  readonly flat = computed<AdminSearchHit[]>(() =>
+    this.sections().flatMap((s) => s.hits),
+  );
 
   readonly empty = computed(
-    () => !this.loading() && this.query().trim().length >= 2 && this.flat().length === 0,
+    () =>
+      !this.loading() &&
+      this.query().trim().length >= 2 &&
+      this.flat().length === 0,
   );
 
   constructor() {
@@ -142,7 +182,8 @@ export class AdminSearchPaletteComponent implements AfterViewInit {
 
   badgeLabel(section: string, badge: string | null): string {
     if (!badge) return '';
-    if (section === 'users') return this.roleLabels[badge as keyof typeof this.roleLabels] ?? badge;
+    if (section === 'users')
+      return this.roleLabels[badge as keyof typeof this.roleLabels] ?? badge;
     if (badge === 'ACTIVE') return 'Actif';
     if (badge === 'SUSPENDED') return 'Suspendu';
     if (badge === 'PAUSED') return 'En pause';
@@ -156,7 +197,9 @@ export class AdminSearchPaletteComponent implements AfterViewInit {
   }
 
   openList(route: string): void {
-    void this.router.navigate([route], { queryParams: { q: this.query().trim() } });
+    void this.router.navigate([route], {
+      queryParams: { q: this.query().trim() },
+    });
     this.close();
   }
 

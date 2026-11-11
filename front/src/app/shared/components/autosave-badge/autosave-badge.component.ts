@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  computed,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { Autosave } from '../../../core/services/autosave';
 import { IconComponent } from '../icon/icon.component';
 
@@ -13,29 +21,56 @@ import { IconComponent } from '../icon/icon.component';
  */
 @Component({
   selector: 'app-autosave-badge',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
-    <span class="asb" [class]="'asb--' + autosave().state()" role="status" aria-live="polite">
+    <span
+      class="asb"
+      [class]="'asb--' + autosave().state()"
+      role="status"
+      aria-live="polite"
+    >
       @switch (autosave().state()) {
-        @case ('saving') { <app-icon name="refresh-cw" [size]="13" /> <span>Enregistrement…</span> }
-        @case ('saved') { <app-icon name="check" [size]="13" /> <span>Enregistré · {{ ago() }}</span> }
-        @case ('dirty') { <app-icon name="circle" [size]="9" /> <span>Non enregistré</span> }
-        @case ('error') { <app-icon name="alert-triangle" [size]="13" /> <span>Échec de l'enregistrement</span> }
+        @case ('saving') {
+          <app-icon name="refresh-cw" [size]="13" />
+          <span>Enregistrement…</span>
+        }
+        @case ('saved') {
+          <app-icon name="check" [size]="13" />
+          <span>Enregistré · {{ ago() }}</span>
+        }
+        @case ('dirty') {
+          <app-icon name="circle" [size]="9" /> <span>Non enregistré</span>
+        }
+        @case ('error') {
+          <app-icon name="alert-triangle" [size]="13" />
+          <span>Échec de l'enregistrement</span>
+        }
       }
     </span>
   `,
-  styles: [`
-    .asb {
-      display: inline-flex; align-items: center; gap: var(--sp-1);
-      font-size: var(--text-sm); font-weight: 600; color: var(--ink-3);
-      white-space: nowrap;
-    }
-    .asb--saved { color: var(--success); }
-    .asb--dirty { color: var(--warning); }
-    .asb--error { color: var(--danger); }
-  `],
+  styles: [
+    `
+      .asb {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-1);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        color: var(--ink-3);
+        white-space: nowrap;
+      }
+      .asb--saved {
+        color: var(--success);
+      }
+      .asb--dirty {
+        color: var(--warning);
+      }
+      .asb--error {
+        color: var(--danger);
+      }
+    `,
+  ],
 })
 export class AutosaveBadgeComponent {
   readonly autosave = input.required<Autosave>();

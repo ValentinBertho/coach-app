@@ -1,5 +1,12 @@
 import { DragDropModule } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../icon/icon.component';
@@ -7,7 +14,11 @@ import { WorkoutTemplate } from '../../../core/models/workout-template.model';
 import { StrengthSession } from '../../../core/models/strength.model';
 import { RunDrill } from '../../../core/models/run-drill.model';
 import {
-  CategoryDomain, SessionCategory, categoryOptions, categoryPath, categoryWithDescendants,
+  CategoryDomain,
+  SessionCategory,
+  categoryOptions,
+  categoryPath,
+  categoryWithDescendants,
 } from '../../../core/models/session-category.model';
 
 /** Les trois familles de la bibliothèque, plus le « tout » qui n'en exclut aucune. */
@@ -15,15 +26,21 @@ export type LibraryFamily = 'all' | 'course' | 'strength' | 'drill';
 
 /** Une famille et son domaine de catégories — la correspondance est faite une seule fois. */
 const FAMILY_DOMAIN: Record<'course' | 'strength' | 'drill', CategoryDomain> = {
-  course: 'COURSE', strength: 'STRENGTH', drill: 'DRILL',
+  course: 'COURSE',
+  strength: 'STRENGTH',
+  drill: 'DRILL',
 };
 
 const FAMILY_LABEL: Record<'course' | 'strength' | 'drill', string> = {
-  course: 'Course', strength: 'Prépa physique', drill: 'Éducatifs',
+  course: 'Course',
+  strength: 'Prépa physique',
+  drill: 'Éducatifs',
 };
 
 const FAMILY_ICON: Record<'course' | 'strength' | 'drill', string> = {
-  course: 'footprints', strength: 'dumbbell', drill: 'graduation-cap',
+  course: 'footprints',
+  strength: 'dumbbell',
+  drill: 'graduation-cap',
 };
 
 /**
@@ -82,7 +99,6 @@ interface CategoryChoice {
  */
 @Component({
   selector: 'app-session-library-panel',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, RouterLink, DragDropModule, IconComponent],
   templateUrl: './session-library-panel.component.html',
@@ -112,7 +128,8 @@ export class SessionLibraryPanelComponent {
 
   /** Infobulle des items : le clic ne fait pas la même chose selon le mode. */
   readonly itemHint = computed(() =>
-    this.pickMode() ? 'Planifier cette séance' : 'Consulter la séance');
+    this.pickMode() ? 'Planifier cette séance' : 'Consulter la séance',
+  );
 
   // --- Filtres ---------------------------------------------------------------
 
@@ -128,7 +145,11 @@ export class SessionLibraryPanelComponent {
   readonly families: { value: LibraryFamily; label: string; icon: string }[] = [
     { value: 'all', label: 'Tout', icon: 'library' },
     { value: 'course', label: FAMILY_LABEL.course, icon: FAMILY_ICON.course },
-    { value: 'strength', label: FAMILY_LABEL.strength, icon: FAMILY_ICON.strength },
+    {
+      value: 'strength',
+      label: FAMILY_LABEL.strength,
+      icon: FAMILY_ICON.strength,
+    },
     { value: 'drill', label: FAMILY_LABEL.drill, icon: FAMILY_ICON.drill },
   ];
 
@@ -146,36 +167,57 @@ export class SessionLibraryPanelComponent {
   }
 
   /** Un filtre est posé (recherche comprise) : c'est ce qui ouvre les accordéons. */
-  readonly filtersActive = computed(() =>
-    !!this.search().trim() || this.family() !== 'all' || !!this.categoryId());
+  readonly filtersActive = computed(
+    () =>
+      !!this.search().trim() || this.family() !== 'all' || !!this.categoryId(),
+  );
 
   // --- Pipeline : tous les items → recherche → famille → catégorie -----------
 
   private readonly allItems = computed<LibItem[]>(() => [
     ...this.courseTemplates().map((t) => ({
-      id: t.id, name: t.name, kind: 'course' as const, favorite: !!t.favorite,
-      useCount: t.useCount ?? 0, categoryId: t.categoryId ?? null, data: t,
+      id: t.id,
+      name: t.name,
+      kind: 'course' as const,
+      favorite: !!t.favorite,
+      useCount: t.useCount ?? 0,
+      categoryId: t.categoryId ?? null,
+      data: t,
     })),
     ...this.strengthSessions().map((s) => ({
-      id: s.id, name: s.name, kind: 'strength' as const, favorite: !!s.favorite,
-      useCount: s.useCount ?? 0, categoryId: s.categoryId ?? null, data: s,
+      id: s.id,
+      name: s.name,
+      kind: 'strength' as const,
+      favorite: !!s.favorite,
+      useCount: s.useCount ?? 0,
+      categoryId: s.categoryId ?? null,
+      data: s,
     })),
     ...this.drills().map((d) => ({
-      id: d.id, name: d.name, kind: 'drill' as const, favorite: false,
-      useCount: 0, categoryId: d.categoryId ?? null, data: d,
+      id: d.id,
+      name: d.name,
+      kind: 'drill' as const,
+      favorite: false,
+      useCount: 0,
+      categoryId: d.categoryId ?? null,
+      data: d,
     })),
   ]);
 
   /** Ce que la recherche laisse passer, toutes familles confondues. */
   private readonly searched = computed(() => {
     const q = normalize(this.search());
-    return q ? this.allItems().filter((i) => normalize(i.name).includes(q)) : this.allItems();
+    return q
+      ? this.allItems().filter((i) => normalize(i.name).includes(q))
+      : this.allItems();
   });
 
   /** Puis la famille : c'est le premier tri, celui qui divise la bibliothèque par trois. */
   private readonly scoped = computed(() => {
     const f = this.family();
-    return f === 'all' ? this.searched() : this.searched().filter((i) => i.kind === f);
+    return f === 'all'
+      ? this.searched()
+      : this.searched().filter((i) => i.kind === f);
   });
 
   /** Et enfin la catégorie, sous-catégories comprises — « Seuil » contient « Seuil long ». */
@@ -211,22 +253,29 @@ export class SessionLibraryPanelComponent {
     const items = this.scoped();
     if (!items.length) return [];
     const all = this.categories();
-    const kinds = this.family() === 'all'
-      ? (['course', 'strength', 'drill'] as const)
-      : ([this.family()] as ('course' | 'strength' | 'drill')[]);
+    const kinds =
+      this.family() === 'all'
+        ? (['course', 'strength', 'drill'] as const)
+        : ([this.family()] as ('course' | 'strength' | 'drill')[]);
 
     const out: CategoryChoice[] = [];
     for (const kind of kinds) {
       const ofKind = items.filter((i) => i.kind === kind);
       if (!ofKind.length) continue;
       const domain = FAMILY_DOMAIN[kind];
-      for (const opt of categoryOptions(all.filter((c) => c.domain === domain))) {
+      for (const opt of categoryOptions(
+        all.filter((c) => c.domain === domain),
+      )) {
         const ids = categoryWithDescendants(all, opt.category.id);
-        const count = ofKind.filter((i) => !!i.categoryId && ids.has(i.categoryId)).length;
+        const count = ofKind.filter(
+          (i) => !!i.categoryId && ids.has(i.categoryId),
+        ).length;
         if (!count) continue;
         // Une même racine peut exister dans deux arbres (« Force » côté course et côté prépa
         // physique) : sans le préfixe, le menu proposerait deux fois la même ligne.
-        const name = opt.depth ? categoryPath(all, opt.category.id) : opt.category.name;
+        const name = opt.depth
+          ? categoryPath(all, opt.category.id)
+          : opt.category.name;
         out.push({
           id: opt.category.id,
           label: kinds.length > 1 ? `${FAMILY_LABEL[kind]} · ${name}` : name,
@@ -236,14 +285,21 @@ export class SessionLibraryPanelComponent {
     }
     const none = items.filter((i) => !i.categoryId).length;
     if (none) {
-      out.push({ id: SessionLibraryPanelComponent.NO_CATEGORY, label: 'Sans catégorie', count: none });
+      out.push({
+        id: SessionLibraryPanelComponent.NO_CATEGORY,
+        label: 'Sans catégorie',
+        count: none,
+      });
     }
     return out;
   });
 
   /** Libellé du filtre actif, pour le bandeau qui dit ce qu'on regarde. */
-  readonly activeCategoryLabel = computed(() =>
-    this.categoryChoices().find((c) => c.id === this.categoryId())?.label ?? '');
+  readonly activeCategoryLabel = computed(
+    () =>
+      this.categoryChoices().find((c) => c.id === this.categoryId())?.label ??
+      '',
+  );
 
   // --- Groupes affichés ------------------------------------------------------
 
@@ -266,13 +322,19 @@ export class SessionLibraryPanelComponent {
         byCat.set(key, [...(byCat.get(key) ?? []), i]);
       }
       const domain = FAMILY_DOMAIN[kind];
-      for (const opt of categoryOptions(all.filter((c) => c.domain === domain))) {
+      for (const opt of categoryOptions(
+        all.filter((c) => c.domain === domain),
+      )) {
         const inCat = byCat.get(opt.category.id);
         if (!inCat?.length) continue;
         out.push({
           key: `${kind}:${opt.category.id}`,
-          name: opt.depth ? categoryPath(all, opt.category.id) : opt.category.name,
-          kind, icon: FAMILY_ICON[kind], items: inCat,
+          name: opt.depth
+            ? categoryPath(all, opt.category.id)
+            : opt.category.name,
+          kind,
+          icon: FAMILY_ICON[kind],
+          items: inCat,
         });
       }
       const none = byCat.get(SessionLibraryPanelComponent.NO_CATEGORY);
@@ -281,8 +343,13 @@ export class SessionLibraryPanelComponent {
           key: `${kind}:${SessionLibraryPanelComponent.NO_CATEGORY}`,
           // Un groupe unique n'a pas à s'appeler « Sans catégorie » : tant que la famille n'est
           // pas rangée, c'est simplement sa bibliothèque.
-          name: byCat.size === 1 ? FAMILY_LABEL[kind] : `${FAMILY_LABEL[kind]} · sans catégorie`,
-          kind, icon: FAMILY_ICON[kind], items: none,
+          name:
+            byCat.size === 1
+              ? FAMILY_LABEL[kind]
+              : `${FAMILY_LABEL[kind]} · sans catégorie`,
+          kind,
+          icon: FAMILY_ICON[kind],
+          items: none,
         });
       }
     }
@@ -291,31 +358,38 @@ export class SessionLibraryPanelComponent {
 
   /** Favoris (épinglés) visibles — course uniquement, c'est là que l'épingle existe. */
   readonly favorites = computed(() =>
-    this.visible().filter((i) => i.kind === 'course' && i.favorite));
+    this.visible().filter((i) => i.kind === 'course' && i.favorite),
+  );
 
   /** Séances les plus utilisées (hors favoris), top 6 — l'accès « je refais la même ». */
   readonly frequent = computed(() =>
     this.visible()
       .filter((i) => i.kind === 'course' && !i.favorite && i.useCount > 0)
       .sort((a, b) => b.useCount - a.useCount)
-      .slice(0, 6));
+      .slice(0, 6),
+  );
 
   readonly resultCount = computed(() => this.visible().length);
   readonly totalCount = computed(() => this.allItems().length);
 
   /** Le panneau est vide parce qu'on a filtré, et non parce que la bibliothèque l'est. */
-  readonly filteredToNothing = computed(() => this.filtersActive() && this.resultCount() === 0);
+  readonly filteredToNothing = computed(
+    () => this.filtersActive() && this.resultCount() === 0,
+  );
 
   // --- Émission du clic, selon la famille de l'item --------------------------
 
   select(item: LibItem): void {
-    if (item.kind === 'course') this.courseSelect.emit(item.data as WorkoutTemplate);
-    else if (item.kind === 'strength') this.strengthSelect.emit(item.data as StrengthSession);
+    if (item.kind === 'course')
+      this.courseSelect.emit(item.data as WorkoutTemplate);
+    else if (item.kind === 'strength')
+      this.strengthSelect.emit(item.data as StrengthSession);
     else this.drillSelect.emit(item.data as RunDrill);
   }
 
   toggleFavorite(item: LibItem): void {
-    if (item.kind === 'course') this.favoriteToggle.emit(item.data as WorkoutTemplate);
+    if (item.kind === 'course')
+      this.favoriteToggle.emit(item.data as WorkoutTemplate);
   }
 
   // --- Repli des accordéons (mémorisé entre sessions) -----------------------
@@ -326,7 +400,9 @@ export class SessionLibraryPanelComponent {
     try {
       const raw = localStorage.getItem(SessionLibraryPanelComponent.KEY);
       if (raw) return new Set<string>(JSON.parse(raw));
-    } catch { /* stockage indisponible : tout déplié par défaut */ }
+    } catch {
+      /* stockage indisponible : tout déplié par défaut */
+    }
     return new Set();
   }
 
@@ -343,7 +419,8 @@ export class SessionLibraryPanelComponent {
 
   toggleGroup(key: string): void {
     const s = new Set(this.collapsed());
-    if (s.has(key)) s.delete(key); else s.add(key);
+    if (s.has(key)) s.delete(key);
+    else s.add(key);
     this.persistCollapsed(s);
   }
 
@@ -363,12 +440,20 @@ export class SessionLibraryPanelComponent {
 
   private persistCollapsed(s: Set<string>): void {
     this.collapsed.set(s);
-    try { localStorage.setItem(SessionLibraryPanelComponent.KEY, JSON.stringify([...s])); }
-    catch { /* préférence non persistée, sans gravité */ }
+    try {
+      localStorage.setItem(
+        SessionLibraryPanelComponent.KEY,
+        JSON.stringify([...s]),
+      );
+    } catch {
+      /* préférence non persistée, sans gravité */
+    }
   }
 
   /** Drop de retour dans la bibliothèque : aucune action, l'élément reprend sa place. */
-  onNoop(): void { /* no-op */ }
+  onNoop(): void {
+    /* no-op */
+  }
 }
 
 /** Comparaison de recherche : sans accents ni casse — « fractionne » doit trouver « Fractionné ». */

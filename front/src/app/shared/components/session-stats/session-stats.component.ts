@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+  signal,
+} from '@angular/core';
 import { formatPace } from '../../../core/utils/pace';
 import { IconComponent } from '../icon/icon.component';
 
@@ -52,15 +58,19 @@ interface Stat {
  */
 @Component({
   selector: 'app-session-stats',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
     <div class="ss">
       @if (hasPlanned()) {
-        <button type="button" class="ss-toggle" (click)="showPlanned.set(!showPlanned())"
-                [attr.aria-pressed]="showPlanned()">
-          <app-icon [name]="showPlanned() ? 'eye' : 'eye-off'" [size]="15" /> Prévu
+        <button
+          type="button"
+          class="ss-toggle"
+          (click)="showPlanned.set(!showPlanned())"
+          [attr.aria-pressed]="showPlanned()"
+        >
+          <app-icon [name]="showPlanned() ? 'eye' : 'eye-off'" [size]="15" />
+          Prévu
         </button>
       }
 
@@ -73,7 +83,12 @@ interface Stat {
               <span class="ss-planned metric">({{ s.planned }})</span>
             }
             @if (showPlanned() && s.delta) {
-              <span class="ss-delta" [class.pos]="s.deltaSign > 0" [class.neg]="s.deltaSign < 0">{{ s.delta }}</span>
+              <span
+                class="ss-delta"
+                [class.pos]="s.deltaSign > 0"
+                [class.neg]="s.deltaSign < 0"
+                >{{ s.delta }}</span
+              >
             }
           </div>
         }
@@ -82,41 +97,102 @@ interface Stat {
       @if (secondary().length) {
         <div class="ss-sec">
           @for (s of secondary(); track s.label) {
-            <span class="ss-sec-item"><span class="ss-sec-lb">{{ s.label }}</span> <span class="metric">{{ s.value }}</span></span>
+            <span class="ss-sec-item"
+              ><span class="ss-sec-lb">{{ s.label }}</span>
+              <span class="metric">{{ s.value }}</span></span
+            >
           }
         </div>
       }
     </div>
   `,
-  styles: [`
-    .ss { display: flex; flex-direction: column; gap: var(--sp-3); }
-    .ss-toggle {
-      align-self: flex-end;
-      display: inline-flex; align-items: center; gap: var(--sp-1);
-      min-height: 36px; padding: 0 var(--sp-2);
-      border: none; background: transparent; color: var(--primary);
-      font-size: var(--text-sm); font-weight: 700; cursor: pointer;
-    }
+  styles: [
+    `
+      .ss {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
+      .ss-toggle {
+        align-self: flex-end;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-1);
+        min-height: 36px;
+        padding: 0 var(--sp-2);
+        border: none;
+        background: transparent;
+        color: var(--primary);
+        font-size: var(--text-sm);
+        font-weight: 700;
+        cursor: pointer;
+      }
 
-    .ss-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3) var(--sp-2); }
-    @media (min-width: 640px) { .ss-grid { grid-template-columns: repeat(4, 1fr); } }
-    .ss-cell { display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center; }
-    .ss-lb { font-size: var(--text-xs); color: var(--ink-3); font-weight: 600; }
-    .ss-v { font-size: var(--text-xl); font-weight: 800; color: var(--ink); line-height: 1.15; }
-    /* Le prévu vit sous le réalisé, en retrait : présent pour comparer, jamais concurrent. */
-    .ss-planned { font-size: var(--text-sm); color: var(--ink-4); font-weight: 600; }
-    .ss-delta { font-size: var(--text-xs); font-weight: 700; color: var(--ink-3); }
-    .ss-delta.pos { color: var(--form-green); }
-    .ss-delta.neg { color: var(--form-orange); }
+      .ss-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--sp-3) var(--sp-2);
+      }
+      @media (min-width: 640px) {
+        .ss-grid {
+          grid-template-columns: repeat(4, 1fr);
+        }
+      }
+      .ss-cell {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1px;
+        text-align: center;
+      }
+      .ss-lb {
+        font-size: var(--text-xs);
+        color: var(--ink-3);
+        font-weight: 600;
+      }
+      .ss-v {
+        font-size: var(--text-xl);
+        font-weight: 800;
+        color: var(--ink);
+        line-height: 1.15;
+      }
+      /* Le prévu vit sous le réalisé, en retrait : présent pour comparer, jamais concurrent. */
+      .ss-planned {
+        font-size: var(--text-sm);
+        color: var(--ink-4);
+        font-weight: 600;
+      }
+      .ss-delta {
+        font-size: var(--text-xs);
+        font-weight: 700;
+        color: var(--ink-3);
+      }
+      .ss-delta.pos {
+        color: var(--form-green);
+      }
+      .ss-delta.neg {
+        color: var(--form-orange);
+      }
 
-    .ss-sec {
-      display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4);
-      padding-top: var(--sp-3); border-top: 1px solid var(--hairline);
-      justify-content: center;
-    }
-    .ss-sec-item { font-size: var(--text-sm); color: var(--ink); font-weight: 700; }
-    .ss-sec-lb { color: var(--ink-3); font-weight: 600; }
-  `],
+      .ss-sec {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-2) var(--sp-4);
+        padding-top: var(--sp-3);
+        border-top: 1px solid var(--hairline);
+        justify-content: center;
+      }
+      .ss-sec-item {
+        font-size: var(--text-sm);
+        color: var(--ink);
+        font-weight: 700;
+      }
+      .ss-sec-lb {
+        color: var(--ink-3);
+        font-weight: 600;
+      }
+    `,
+  ],
 })
 export class SessionStatsComponent {
   readonly realized = input.required<RealizedStats>();
@@ -137,8 +213,10 @@ export class SessionStatsComponent {
     // L'allure prévue n'a de sens que si la distance prévue en a une : quand celle-ci est
     // estimée depuis la durée, la diviser par la durée redonnerait l'allure de référence, qui
     // n'a jamais été prescrite.
-    const plannedPace = p?.durationS && p?.distanceM && !p.distanceIndicative
-      ? Math.round((p.durationS * 1000) / p.distanceM) : null;
+    const plannedPace =
+      p?.durationS && p?.distanceM && !p.distanceIndicative
+        ? Math.round((p.durationS * 1000) / p.distanceM)
+        : null;
 
     return [
       {
@@ -150,12 +228,21 @@ export class SessionStatsComponent {
       {
         label: 'Distance',
         value: r.distanceM ? km(r.distanceM) : '—',
-        planned: p?.distanceM ? (p.distanceIndicative ? `≈ ${km(p.distanceM)}` : km(p.distanceM)) : null,
+        planned: p?.distanceM
+          ? p.distanceIndicative
+            ? `≈ ${km(p.distanceM)}`
+            : km(p.distanceM)
+          : null,
         // Pas d'écart contre une estimation : « −1,4 km » sous une distance prévue elle-même
         // approchée ferait passer une incertitude pour un manquement.
         ...(p?.distanceIndicative
           ? { delta: null, deltaSign: 0 as const }
-          : delta(r.distanceM, p?.distanceM ?? null, (d) => `${d > 0 ? '+' : '−'}${(Math.abs(d) / 1000).toFixed(2).replace('.', ',')} km`)),
+          : delta(
+              r.distanceM,
+              p?.distanceM ?? null,
+              (d) =>
+                `${d > 0 ? '+' : '−'}${(Math.abs(d) / 1000).toFixed(2).replace('.', ',')} km`,
+            )),
       },
       {
         label: 'Dénivelé +',
@@ -178,11 +265,15 @@ export class SessionStatsComponent {
   readonly secondary = computed(() => {
     const r = this.realized();
     const out: { label: string; value: string }[] = [];
-    if (r.avgHr != null) out.push({ label: 'FC moy.', value: `${r.avgHr} bpm` });
+    if (r.avgHr != null)
+      out.push({ label: 'FC moy.', value: `${r.avgHr} bpm` });
     if (r.maxHr != null) out.push({ label: 'FC max', value: `${r.maxHr} bpm` });
-    if (r.avgCadence != null) out.push({ label: 'Cadence', value: `${r.avgCadence} ppm` });
-    if (r.avgPowerW != null) out.push({ label: 'Puissance', value: `${r.avgPowerW} W` });
-    if (r.calories != null) out.push({ label: 'Calories', value: `${r.calories} kcal` });
+    if (r.avgCadence != null)
+      out.push({ label: 'Cadence', value: `${r.avgCadence} ppm` });
+    if (r.avgPowerW != null)
+      out.push({ label: 'Puissance', value: `${r.avgPowerW} W` });
+    if (r.calories != null)
+      out.push({ label: 'Calories', value: `${r.calories} kcal` });
     return out;
   });
 }

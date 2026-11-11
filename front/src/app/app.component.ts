@@ -25,8 +25,19 @@ import { ImpersonationBannerComponent } from './shared/components/impersonation-
  */
 @Component({
   selector: 'app-root',
-  standalone: true,
-  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent, CommandPaletteComponent, UpdateBannerComponent, CelebrationOverlayComponent, FeedbackPanelComponent, PushOnboardingComponent, InstallGuideComponent, ImpersonationBannerComponent],
+  imports: [
+    RouterOutlet,
+    ToastComponent,
+    ConfirmDialogComponent,
+    HelpSearchOverlayComponent,
+    CommandPaletteComponent,
+    UpdateBannerComponent,
+    CelebrationOverlayComponent,
+    FeedbackPanelComponent,
+    PushOnboardingComponent,
+    InstallGuideComponent,
+    ImpersonationBannerComponent,
+  ],
   template: `
     <!-- Avant tout le reste : une session empruntée doit se voir dès le premier pixel, sur les
          deux coquilles comme sur les écrans qui n'en ont pas. -->
@@ -79,6 +90,8 @@ export class AppComponent {
       if (document.visibilityState === 'visible') this.auth.ensureFreshToken();
     };
     document.addEventListener('visibilitychange', onVisible);
-    this.destroyRef.onDestroy(() => document.removeEventListener('visibilitychange', onVisible));
+    this.destroyRef.onDestroy(() =>
+      document.removeEventListener('visibilitychange', onVisible),
+    );
   }
 }

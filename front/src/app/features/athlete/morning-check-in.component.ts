@@ -1,5 +1,16 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, output, signal } from '@angular/core';
-import { AthletePortalService, DailyCheckIn } from '../../core/services/athlete-portal.service';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  output,
+  signal,
+} from '@angular/core';
+import {
+  AthletePortalService,
+  DailyCheckIn,
+} from '../../core/services/athlete-portal.service';
 import { CelebrationService } from '../../core/services/celebration.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -14,9 +25,27 @@ interface Slider {
 }
 
 const SLIDERS: Slider[] = [
-  { key: 'sleep', label: 'Sommeil', low: 'mauvais', high: 'excellent', invert: true },
-  { key: 'fatigue', label: 'Fatigue', low: 'frais', high: 'épuisé', invert: false },
-  { key: 'pain', label: 'Douleur', low: 'aucune', high: 'forte', invert: false },
+  {
+    key: 'sleep',
+    label: 'Sommeil',
+    low: 'mauvais',
+    high: 'excellent',
+    invert: true,
+  },
+  {
+    key: 'fatigue',
+    label: 'Fatigue',
+    low: 'frais',
+    high: 'épuisé',
+    invert: false,
+  },
+  {
+    key: 'pain',
+    label: 'Douleur',
+    low: 'aucune',
+    high: 'forte',
+    invert: false,
+  },
 ];
 
 /**
@@ -35,7 +64,6 @@ const SLIDERS: Slider[] = [
  */
 @Component({
   selector: 'app-morning-check-in',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
@@ -47,8 +75,12 @@ const SLIDERS: Slider[] = [
             <app-icon name="check" [size]="16" />
             <span class="ci__recap-txt">Check-in du matin enregistré</span>
             <span class="ci__recap-vals metric">
-              @if (fatigue() !== null) { fatigue {{ fatigue() }} }
-              @if (pain() !== null) { · douleur {{ pain() }} }
+              @if (fatigue() !== null) {
+                fatigue {{ fatigue() }}
+              }
+              @if (pain() !== null) {
+                · douleur {{ pain() }}
+              }
             </span>
             <app-icon name="chevron-right" [size]="16" />
           </button>
@@ -56,11 +88,20 @@ const SLIDERS: Slider[] = [
           <header class="ci__hd">
             <div>
               <strong class="ci__title">Comment tu te sens ce matin ?</strong>
-              <span class="field-hint">Trois curseurs, dix secondes. Ton coach voit ta forme avant ta séance.</span>
+              <span class="field-hint"
+                >Trois curseurs, dix secondes. Ton coach voit ta forme avant ta
+                séance.</span
+              >
             </div>
             @if (!saved()) {
-              <button type="button" class="ci__close" aria-label="Masquer le check-in"
-                      (click)="dismissed.set(true)"><app-icon name="x" [size]="16" /></button>
+              <button
+                type="button"
+                class="ci__close"
+                aria-label="Masquer le check-in"
+                (click)="dismissed.set(true)"
+              >
+                <app-icon name="x" [size]="16" />
+              </button>
             }
           </header>
 
@@ -69,92 +110,196 @@ const SLIDERS: Slider[] = [
               <div class="ci__slider">
                 <div class="ci__slider-hd">
                   <label [attr.for]="'ci-' + s.key">{{ s.label }}</label>
-                  <output class="ci__val metric" [attr.for]="'ci-' + s.key">{{ valueOf(s.key) ?? '—' }}</output>
+                  <output class="ci__val metric" [attr.for]="'ci-' + s.key">{{
+                    valueOf(s.key) ?? '—'
+                  }}</output>
                 </div>
-                <input type="range" min="0" max="10" step="1" class="ci__range"
-                       [id]="'ci-' + s.key"
-                       [value]="valueOf(s.key) ?? 5"
-                       [class.ci__range--inverted]="s.invert"
-                       [attr.aria-valuetext]="(valueOf(s.key) ?? 5) + ' sur 10'"
-                       (input)="onSlide(s.key, $event)" />
-                <div class="ci__ends"><span>{{ s.low }}</span><span>{{ s.high }}</span></div>
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="1"
+                  class="ci__range"
+                  [id]="'ci-' + s.key"
+                  [value]="valueOf(s.key) ?? 5"
+                  [class.ci__range--inverted]="s.invert"
+                  [attr.aria-valuetext]="(valueOf(s.key) ?? 5) + ' sur 10'"
+                  (input)="onSlide(s.key, $event)"
+                />
+                <div class="ci__ends">
+                  <span>{{ s.low }}</span
+                  ><span>{{ s.high }}</span>
+                </div>
               </div>
             }
           </div>
 
-          <button type="button" class="btn btn-accent ci__submit" [disabled]="saving() || !touched()"
-                  (click)="save()">
-            {{ saving() ? 'Enregistrement…' : (saved() ? 'Mettre à jour' : 'Enregistrer') }}
+          <button
+            type="button"
+            class="btn btn-accent ci__submit"
+            [disabled]="saving() || !touched()"
+            (click)="save()"
+          >
+            {{
+              saving()
+                ? 'Enregistrement…'
+                : saved()
+                  ? 'Mettre à jour'
+                  : 'Enregistrer'
+            }}
           </button>
         }
       </section>
     }
   `,
-  styles: [`
-    .ci { display: flex; flex-direction: column; gap: var(--sp-3); }
-    .ci--done { border-color: var(--success); }
-    .ci__hd { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-2); }
-    .ci__title { display: block; color: var(--ink); }
-    .ci__close {
-      min-width: 44px; min-height: 44px; flex-shrink: 0;
-      display: inline-flex; align-items: center; justify-content: center;
-      border: none; background: transparent; color: var(--ink-3); cursor: pointer;
-    }
+  styles: [
+    `
+      .ci {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
+      .ci--done {
+        border-color: var(--success);
+      }
+      .ci__hd {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--sp-2);
+      }
+      .ci__title {
+        display: block;
+        color: var(--ink);
+      }
+      .ci__close {
+        min-width: 44px;
+        min-height: 44px;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        color: var(--ink-3);
+        cursor: pointer;
+      }
 
-    .ci__recap {
-      display: flex; align-items: center; gap: var(--sp-2); width: 100%;
-      min-height: 44px; padding: 0; text-align: left;
-      border: none; background: transparent; color: var(--success); cursor: pointer;
-      font-weight: 700; font-size: var(--text-sm);
-    }
-    .ci__recap-txt { flex: 1; min-width: 0; }
-    .ci__recap-vals { color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+      .ci__recap {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        width: 100%;
+        min-height: 44px;
+        padding: 0;
+        text-align: left;
+        border: none;
+        background: transparent;
+        color: var(--success);
+        cursor: pointer;
+        font-weight: 700;
+        font-size: var(--text-sm);
+      }
+      .ci__recap-txt {
+        flex: 1;
+        min-width: 0;
+      }
+      .ci__recap-vals {
+        color: var(--ink-3);
+        font-weight: 600;
+        white-space: nowrap;
+      }
 
-    .ci__sliders { display: flex; flex-direction: column; gap: var(--sp-4); }
-    .ci__slider { display: flex; flex-direction: column; gap: var(--sp-1); }
-    .ci__slider-hd { display: flex; align-items: baseline; justify-content: space-between; }
-    .ci__slider-hd label { font-weight: 700; color: var(--ink); font-size: var(--text-sm); }
-    .ci__val { font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums; }
+      .ci__sliders {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-4);
+      }
+      .ci__slider {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-1);
+      }
+      .ci__slider-hd {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+      }
+      .ci__slider-hd label {
+        font-weight: 700;
+        color: var(--ink);
+        font-size: var(--text-sm);
+      }
+      .ci__val {
+        font-weight: 800;
+        color: var(--primary);
+        font-variant-numeric: tabular-nums;
+      }
 
-    /* Pouce large : le curseur doit s'attraper à moitié réveillé, sans viser.
+      /* Pouce large : le curseur doit s'attraper à moitié réveillé, sans viser.
        appearance:none sur l'input lui-même est OBLIGATOIRE : sans lui, WebKit/Blink ignorent
        ::-webkit-slider-runnable-track et ::-webkit-slider-thumb et rendent le curseur natif
        (pouce d'environ 16 px, bleu système). C'est ce qui se passait sous Chrome, Edge et tout
        iOS ; Firefox, lui, applique ::-moz-range-* sans cette condition — d'où deux rendus
        différents pour le même composant. */
-    .ci__range {
-      appearance: none; -webkit-appearance: none;
-      width: 100%; height: 44px; background: transparent; cursor: pointer;
-    }
-    .ci__range::-webkit-slider-runnable-track {
-      height: 6px; border-radius: var(--radius-full); background: var(--paper-sunk);
-    }
-    .ci__range::-webkit-slider-thumb {
-      -webkit-appearance: none; appearance: none;
-      width: 28px; height: 28px; margin-top: -11px;
-      border-radius: var(--radius-full); border: 2px solid var(--paper);
-      background: var(--primary); box-shadow: var(--shadow-sm);
-    }
-    .ci__range::-moz-range-track {
-      height: 6px; border-radius: var(--radius-full); background: var(--paper-sunk);
-    }
-    .ci__range::-moz-range-thumb {
-      width: 28px; height: 28px;
-      border-radius: var(--radius-full); border: 2px solid var(--paper);
-      background: var(--primary); box-shadow: var(--shadow-sm);
-    }
+      .ci__range {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 100%;
+        height: 44px;
+        background: transparent;
+        cursor: pointer;
+      }
+      .ci__range::-webkit-slider-runnable-track {
+        height: 6px;
+        border-radius: var(--radius-full);
+        background: var(--paper-sunk);
+      }
+      .ci__range::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 28px;
+        height: 28px;
+        margin-top: -11px;
+        border-radius: var(--radius-full);
+        border: 2px solid var(--paper);
+        background: var(--primary);
+        box-shadow: var(--shadow-sm);
+      }
+      .ci__range::-moz-range-track {
+        height: 6px;
+        border-radius: var(--radius-full);
+        background: var(--paper-sunk);
+      }
+      .ci__range::-moz-range-thumb {
+        width: 28px;
+        height: 28px;
+        border-radius: var(--radius-full);
+        border: 2px solid var(--paper);
+        background: var(--primary);
+        box-shadow: var(--shadow-sm);
+      }
 
-    /* Le sommeil se lit à l'envers des deux autres (10 = au mieux) : la couleur le dit,
+      /* Le sommeil se lit à l'envers des deux autres (10 = au mieux) : la couleur le dit,
        les libellés d'extrémités le confirment — jamais la couleur seule. */
-    .ci__range--inverted::-webkit-slider-thumb { background: var(--accent); }
-    .ci__range--inverted::-moz-range-thumb { background: var(--accent); }
+      .ci__range--inverted::-webkit-slider-thumb {
+        background: var(--accent);
+      }
+      .ci__range--inverted::-moz-range-thumb {
+        background: var(--accent);
+      }
 
-    .ci__ends {
-      display: flex; justify-content: space-between;
-      font-size: var(--text-xs); color: var(--ink-3);
-    }
-    .ci__submit { width: 100%; }
-  `],
+      .ci__ends {
+        display: flex;
+        justify-content: space-between;
+        font-size: var(--text-xs);
+        color: var(--ink-3);
+      }
+      .ci__submit {
+        width: 100%;
+      }
+    `,
+  ],
 })
 export class MorningCheckInComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
@@ -181,7 +326,8 @@ export class MorningCheckInComponent implements OnInit {
 
   /** Rien à envoyer tant qu'aucun curseur n'a bougé : pas de 5/5/5 fantôme. */
   protected readonly touched = computed(
-    () => this.sleep() !== null || this.fatigue() !== null || this.pain() !== null,
+    () =>
+      this.sleep() !== null || this.fatigue() !== null || this.pain() !== null,
   );
 
   ngOnInit(): void {
@@ -202,28 +348,42 @@ export class MorningCheckInComponent implements OnInit {
   }
 
   protected valueOf(key: Slider['key']): number | null {
-    return { sleep: this.sleep(), fatigue: this.fatigue(), pain: this.pain() }[key];
+    return { sleep: this.sleep(), fatigue: this.fatigue(), pain: this.pain() }[
+      key
+    ];
   }
 
   protected onSlide(key: Slider['key'], event: Event): void {
     const value = Number((event.target as HTMLInputElement).value);
-    ({ sleep: this.sleep, fatigue: this.fatigue, pain: this.pain })[key].set(value);
+    ({ sleep: this.sleep, fatigue: this.fatigue, pain: this.pain })[key].set(
+      value,
+    );
   }
 
   protected save(): void {
     if (this.saving()) return;
     this.saving.set(true);
-    this.portal.saveCheckIn({ sleep: this.sleep(), fatigue: this.fatigue(), pain: this.pain() })
+    this.portal
+      .saveCheckIn({
+        sleep: this.sleep(),
+        fatigue: this.fatigue(),
+        pain: this.pain(),
+      })
       .subscribe({
         next: (c) => {
           this.saving.set(false);
           this.apply(c);
           this.saved_.emit();
-          this.celebration.celebrate({ title: 'Check-in enregistré', emoji: '☀️' });
+          this.celebration.celebrate({
+            title: 'Check-in enregistré',
+            emoji: '☀️',
+          });
         },
         error: () => {
           this.saving.set(false);
-          this.toast.error('Check-in non enregistré. Réessaie dans un instant.');
+          this.toast.error(
+            'Check-in non enregistré. Réessaie dans un instant.',
+          );
         },
       });
   }

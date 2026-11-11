@@ -9,13 +9,24 @@ import { LucideAngularModule } from 'lucide-angular';
  */
 @Component({
   selector: 'app-icon',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [LucideAngularModule],
-  template: `<lucide-icon [name]="name()" [size]="size()" [strokeWidth]="strokeWidth()" />`,
-  styles: [`
-    :host { display: inline-flex; align-items: center; justify-content: center; line-height: 0; vertical-align: -0.125em; }
-  `],
+  template: `<lucide-icon
+    [name]="name()"
+    [size]="size()"
+    [strokeWidth]="strokeWidth()"
+  />`,
+  styles: [
+    `
+      :host {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 0;
+        vertical-align: -0.125em;
+      }
+    `,
+  ],
 })
 export class IconComponent {
   /** Nom kebab-case de l'icône Lucide (ex. "trending-up"). */

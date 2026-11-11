@@ -1,6 +1,12 @@
 import { HttpClient } from '@angular/common/http';
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { environment } from '../../../environments/environment';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -21,13 +27,20 @@ interface BetaFeedback {
   createdAt: string;
 }
 
-interface Page<T> { content: T[]; totalElements: number; }
+interface Page<T> {
+  content: T[];
+  totalElements: number;
+}
 
 const KIND_LABELS: Record<FeedbackKind, string> = {
-  BUG: 'Bug', IDEA: 'Idée', QUESTION: 'Question',
+  BUG: 'Bug',
+  IDEA: 'Idée',
+  QUESTION: 'Question',
 };
 const KIND_BADGES: Record<FeedbackKind, string> = {
-  BUG: 'badge-danger', IDEA: 'badge-info', QUESTION: 'badge-neutral',
+  BUG: 'badge-danger',
+  IDEA: 'badge-info',
+  QUESTION: 'badge-neutral',
 };
 
 /**
@@ -42,19 +55,25 @@ const KIND_BADGES: Record<FeedbackKind, string> = {
  */
 @Component({
   selector: 'app-admin-feedback',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DatePipe, IconComponent],
   template: `
     <header class="page-head">
       <div>
         <h1>Retours de bêta</h1>
-        <p class="subtitle">Ce que les testeurs signalent depuis l'application.</p>
+        <p class="subtitle">
+          Ce que les testeurs signalent depuis l'application.
+        </p>
       </div>
       <div class="filters" role="group" aria-label="Filtrer par statut">
         @for (f of filters; track f.value) {
-          <button type="button" class="btn btn-sm" [class.btn-primary]="filter() === f.value"
-                  [class.btn-ghost]="filter() !== f.value" (click)="setFilter(f.value)">
+          <button
+            type="button"
+            class="btn btn-sm"
+            [class.btn-primary]="filter() === f.value"
+            [class.btn-ghost]="filter() !== f.value"
+            (click)="setFilter(f.value)"
+          >
             {{ f.label }}
           </button>
         }
@@ -68,26 +87,46 @@ const KIND_BADGES: Record<FeedbackKind, string> = {
       <div class="card alert alert-danger fb-error">
         <div>
           <strong>Les retours n'ont pas pu être chargés.</strong>
-          <p class="field-hint">Rien n'est affiché : un écran vide ferait croire à zéro retour.</p>
+          <p class="field-hint">
+            Rien n'est affiché : un écran vide ferait croire à zéro retour.
+          </p>
         </div>
-        <button type="button" class="btn btn-primary btn-sm" (click)="reload()">Réessayer</button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="reload()">
+          Réessayer
+        </button>
       </div>
     } @else if (items().length === 0) {
       <div class="card empty">
         <app-icon name="inbox" [size]="28" />
-        <p><strong>Aucun retour {{ filter() === 'NEW' ? 'à traiter' : '' }}.</strong></p>
-        <p class="field-hint">Les retours envoyés depuis l'application arrivent ici.</p>
+        <p>
+          <strong
+            >Aucun retour {{ filter() === 'NEW' ? 'à traiter' : '' }}.</strong
+          >
+        </p>
+        <p class="field-hint">
+          Les retours envoyés depuis l'application arrivent ici.
+        </p>
       </div>
     } @else {
       <ul class="fb-list">
         @for (f of items(); track f.id) {
           <li class="card fb">
             <div class="fb__head">
-              <span class="badge" [class]="kindBadges[f.kind]">{{ kindLabels[f.kind] }}</span>
-              <span class="fb__who">{{ f.authorName || 'Compte supprimé' }}</span>
-              <span class="fb__when">{{ f.createdAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+              <span class="badge" [class]="kindBadges[f.kind]">{{
+                kindLabels[f.kind]
+              }}</span>
+              <span class="fb__who">{{
+                f.authorName || 'Compte supprimé'
+              }}</span>
+              <span class="fb__when">{{
+                f.createdAt | date: 'dd/MM/yyyy HH:mm'
+              }}</span>
               @if (f.status === 'NEW') {
-                <button type="button" class="btn btn-sm btn-ghost" (click)="markHandled(f)">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-ghost"
+                  (click)="markHandled(f)"
+                >
                   Marquer traité
                 </button>
               } @else {
@@ -96,36 +135,138 @@ const KIND_BADGES: Record<FeedbackKind, string> = {
             </div>
             <p class="fb__msg">{{ f.message }}</p>
             <dl class="fb__ctx">
-              @if (f.page) { <div><dt>Page</dt><dd>{{ f.page }}</dd></div> }
-              @if (f.appVersion) { <div><dt>Version</dt><dd>{{ f.appVersion }}</dd></div> }
-              @if (f.correlationId) { <div><dt>Erreur</dt><dd class="mono">{{ f.correlationId }}</dd></div> }
-              @if (f.userAgent) { <div class="ua"><dt>Navigateur</dt><dd>{{ f.userAgent }}</dd></div> }
+              @if (f.page) {
+                <div>
+                  <dt>Page</dt>
+                  <dd>{{ f.page }}</dd>
+                </div>
+              }
+              @if (f.appVersion) {
+                <div>
+                  <dt>Version</dt>
+                  <dd>{{ f.appVersion }}</dd>
+                </div>
+              }
+              @if (f.correlationId) {
+                <div>
+                  <dt>Erreur</dt>
+                  <dd class="mono">{{ f.correlationId }}</dd>
+                </div>
+              }
+              @if (f.userAgent) {
+                <div class="ua">
+                  <dt>Navigateur</dt>
+                  <dd>{{ f.userAgent }}</dd>
+                </div>
+              }
             </dl>
           </li>
         }
       </ul>
     }
   `,
-  styles: [`
-    .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-5); }
-    .filters { display: flex; gap: var(--sp-2); }
-    .fb-error { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); }
-    .empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); padding: var(--sp-7); color: var(--ink-3); text-align: center; }
-    .empty p { margin: 0; }
-    .fb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
-    .fb { padding: var(--sp-4); }
-    .fb__head { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-3); }
-    .fb__who { font-weight: 600; color: var(--ink); }
-    .fb__when { color: var(--ink-3); font-size: var(--text-sm); margin-right: auto; }
-    .fb__msg { margin: 0 0 var(--sp-3); white-space: pre-wrap; color: var(--ink); }
-    .fb__ctx { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); margin: 0; padding-top: var(--sp-3); border-top: 1px solid var(--hairline); }
-    .fb__ctx div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-    .fb__ctx dt { color: var(--ink-3); font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-    .fb__ctx dd { margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
-    .fb__ctx .ua { flex-basis: 100%; }
-    .fb__ctx .ua dd { overflow-wrap: anywhere; }
-    .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-  `],
+  styles: [
+    `
+      .page-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--sp-4);
+        flex-wrap: wrap;
+        margin-bottom: var(--sp-5);
+      }
+      .filters {
+        display: flex;
+        gap: var(--sp-2);
+      }
+      .fb-error {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-4);
+      }
+      .empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--sp-2);
+        padding: var(--sp-7);
+        color: var(--ink-3);
+        text-align: center;
+      }
+      .empty p {
+        margin: 0;
+      }
+      .fb-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
+      .fb {
+        padding: var(--sp-4);
+      }
+      .fb__head {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-3);
+        flex-wrap: wrap;
+        margin-bottom: var(--sp-3);
+      }
+      .fb__who {
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .fb__when {
+        color: var(--ink-3);
+        font-size: var(--text-sm);
+        margin-right: auto;
+      }
+      .fb__msg {
+        margin: 0 0 var(--sp-3);
+        white-space: pre-wrap;
+        color: var(--ink);
+      }
+      .fb__ctx {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-2) var(--sp-5);
+        margin: 0;
+        padding-top: var(--sp-3);
+        border-top: 1px solid var(--hairline);
+      }
+      .fb__ctx div {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-width: 0;
+      }
+      .fb__ctx dt {
+        color: var(--ink-3);
+        font-size: var(--text-2xs);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .fb__ctx dd {
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+      }
+      .fb__ctx .ua {
+        flex-basis: 100%;
+      }
+      .fb__ctx .ua dd {
+        overflow-wrap: anywhere;
+      }
+      .mono {
+        font-family: var(--font-mono);
+        font-variant-numeric: tabular-nums;
+      }
+    `,
+  ],
 })
 export class AdminFeedbackComponent implements OnInit {
   private readonly http = inject(HttpClient);
@@ -167,8 +308,15 @@ export class AdminFeedbackComponent implements OnInit {
     const f = this.filter();
     const url = f === 'ALL' ? this.base : `${this.base}?status=${f}`;
     this.http.get<Page<BetaFeedback>>(url).subscribe({
-      next: (p) => { this.items.set(p.content ?? []); this.loading.set(false); },
-      error: () => { this.items.set([]); this.failed.set(true); this.loading.set(false); },
+      next: (p) => {
+        this.items.set(p.content ?? []);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.items.set([]);
+        this.failed.set(true);
+        this.loading.set(false);
+      },
     });
   }
 

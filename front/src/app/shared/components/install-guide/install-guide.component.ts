@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { PwaInstallService } from '../../../core/services/pwa-install.service';
 import { isInstalledApp } from '../../../core/utils/installed-app';
 import { BottomSheetComponent } from '../bottom-sheet/bottom-sheet.component';
@@ -25,8 +33,12 @@ export type InstallPlatform = 'ios' | 'android' | null;
  * (Facebook, Instagram, LinkedIn…) n'offrent pas l'ajout à l'écran d'accueil : décrire un geste
  * impossible ferait plus de mal que de bien.</p>
  */
-export function detectInstallPlatform(userAgent: string, maxTouchPoints: number): InstallPlatform {
-  if (/FBAN|FBAV|Instagram|LinkedInApp|Line\/|; wv\)/.test(userAgent)) return null;
+export function detectInstallPlatform(
+  userAgent: string,
+  maxTouchPoints: number,
+): InstallPlatform {
+  if (/FBAN|FBAV|Instagram|LinkedInApp|Line\/|; wv\)/.test(userAgent))
+    return null;
   if (/iPhone|iPad|iPod/.test(userAgent)) return 'ios';
   if (/Macintosh/.test(userAgent) && maxTouchPoints > 1) return 'ios';
   if (/Android/.test(userAgent)) return 'android';
@@ -56,72 +68,126 @@ export function detectInstallPlatform(userAgent: string, maxTouchPoints: number)
  */
 @Component({
   selector: 'app-install-guide',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BottomSheetComponent, IconComponent],
   template: `
-    <app-bottom-sheet [open]="visible()" (openChange)="!$event && later()" title="Ajouter à l'écran d'accueil">
+    <app-bottom-sheet
+      [open]="visible()"
+      (openChange)="!$event && later()"
+      title="Ajouter à l'écran d'accueil"
+    >
       <div class="ig">
         <p class="ig__lead">
-          Cette application s'utilise comme une app. Ajoute-la à ton écran d'accueil pour
-          l'ouvrir d'un tap, en plein écran{{ platform() === 'ios' ? ', et recevoir les notifications' : '' }}.
+          Cette application s'utilise comme une app. Ajoute-la à ton écran
+          d'accueil pour l'ouvrir d'un tap, en plein écran{{
+            platform() === 'ios' ? ', et recevoir les notifications' : ''
+          }}.
         </p>
 
         @if (platform() === 'android' && pwa.canInstall()) {
-          <button type="button" class="btn btn-primary ig__cta" (click)="install()">
+          <button
+            type="button"
+            class="btn btn-primary ig__cta"
+            (click)="install()"
+          >
             <app-icon name="download" [size]="16" /> Installer l'application
           </button>
         } @else {
           <ol class="ig__steps">
             @if (platform() === 'ios') {
               <li>
-                <span class="ig__ic"><app-icon name="share" [size]="20" /></span>
-                <span>Touche le bouton <strong>Partager</strong> de ton navigateur</span>
+                <span class="ig__ic"
+                  ><app-icon name="share" [size]="20"
+                /></span>
+                <span
+                  >Touche le bouton <strong>Partager</strong> de ton
+                  navigateur</span
+                >
               </li>
               <li>
-                <span class="ig__ic"><app-icon name="square-plus" [size]="20" /></span>
+                <span class="ig__ic"
+                  ><app-icon name="square-plus" [size]="20"
+                /></span>
                 <span>Choisis <strong>« Sur l'écran d'accueil »</strong></span>
               </li>
             } @else {
               <li>
-                <span class="ig__ic"><app-icon name="ellipsis-vertical" [size]="20" /></span>
+                <span class="ig__ic"
+                  ><app-icon name="ellipsis-vertical" [size]="20"
+                /></span>
                 <span>Ouvre le <strong>menu</strong> de ton navigateur</span>
               </li>
               <li>
-                <span class="ig__ic"><app-icon name="square-plus" [size]="20" /></span>
-                <span>Choisis <strong>« Ajouter à l'écran d'accueil »</strong> ou <strong>« Installer l'application »</strong></span>
+                <span class="ig__ic"
+                  ><app-icon name="square-plus" [size]="20"
+                /></span>
+                <span
+                  >Choisis <strong>« Ajouter à l'écran d'accueil »</strong> ou
+                  <strong>« Installer l'application »</strong></span
+                >
               </li>
             }
           </ol>
         }
 
-        <button type="button" class="btn btn-ghost ig__later" (click)="later()">Plus tard</button>
+        <button type="button" class="btn btn-ghost ig__later" (click)="later()">
+          Plus tard
+        </button>
       </div>
     </app-bottom-sheet>
   `,
-  styles: [`
-    .ig { display: flex; flex-direction: column; gap: var(--sp-4); }
-    .ig__lead { margin: 0; color: var(--ink-2); }
-    .ig__steps {
-      list-style: none; margin: 0; padding: 0;
-      display: flex; flex-direction: column; gap: var(--sp-3);
-      border-top: 1px solid var(--hairline); padding-top: var(--sp-4);
-    }
-    .ig__steps li { display: flex; align-items: center; gap: var(--sp-3); }
-    .ig__ic {
-      width: 40px; height: 40px; flex-shrink: 0; border-radius: var(--radius-sm);
-      display: flex; align-items: center; justify-content: center;
-      background: var(--primary-wash); color: var(--primary);
-    }
-    .ig__cta, .ig__later { width: 100%; min-height: 46px; }
-  `],
+  styles: [
+    `
+      .ig {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-4);
+      }
+      .ig__lead {
+        margin: 0;
+        color: var(--ink-2);
+      }
+      .ig__steps {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+        border-top: 1px solid var(--hairline);
+        padding-top: var(--sp-4);
+      }
+      .ig__steps li {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-3);
+      }
+      .ig__ic {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-wash);
+        color: var(--primary);
+      }
+      .ig__cta,
+      .ig__later {
+        width: 100%;
+        min-height: 46px;
+      }
+    `,
+  ],
 })
 export class InstallGuideComponent implements OnInit {
   readonly pwa = inject(PwaInstallService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly platform = signal<InstallPlatform>(
-    detectInstallPlatform(navigator.userAgent, navigator.maxTouchPoints ?? 0));
+    detectInstallPlatform(navigator.userAgent, navigator.maxTouchPoints ?? 0),
+  );
   private readonly snoozed = signal(isSnoozed(Date.now()));
   /** Passe à vrai après le délai d'apparition : rien ne s'affiche avant. */
   private readonly ready = signal(false);
@@ -132,7 +198,9 @@ export class InstallGuideComponent implements OnInit {
     this.destroyRef.onDestroy(() => clearTimeout(timer));
   }
 
-  readonly visible = computed(() => this.ready() && !this.snoozed() && !!this.platform());
+  readonly visible = computed(
+    () => this.ready() && !this.snoozed() && !!this.platform(),
+  );
 
   async install(): Promise<void> {
     await this.pwa.promptInstall();
@@ -142,7 +210,11 @@ export class InstallGuideComponent implements OnInit {
 
   later(): void {
     if (this.snoozed()) return;
-    try { localStorage.setItem(SNOOZED_AT_KEY, String(Date.now())); } catch { /* stockage indisponible */ }
+    try {
+      localStorage.setItem(SNOOZED_AT_KEY, String(Date.now()));
+    } catch {
+      /* stockage indisponible */
+    }
     this.snoozed.set(true);
   }
 }

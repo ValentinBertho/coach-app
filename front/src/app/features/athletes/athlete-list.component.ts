@@ -1,12 +1,27 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
-import { ATHLETE_LEVEL_LABELS, AthleteLevel, AthleteStatus, AthleteSummary } from '../../core/models/athlete.model';
+import {
+  ATHLETE_LEVEL_LABELS,
+  AthleteLevel,
+  AthleteStatus,
+  AthleteSummary,
+} from '../../core/models/athlete.model';
 import { TrainingGroup } from '../../core/models/training-group.model';
 import { AthleteService } from '../../core/services/athlete.service';
 import { TrainingGroupService } from '../../core/services/training-group.service';
-import { AthleteForm, CoachDashboardService, FormStatus } from '../../core/services/coach-dashboard.service';
+import {
+  AthleteForm,
+  CoachDashboardService,
+  FormStatus,
+} from '../../core/services/coach-dashboard.service';
 import { PaginatorComponent } from '../../shared/components/paginator/paginator.component';
 import { FormPillComponent } from '../../shared/components/form-pill/form-pill.component';
 import type { FormLevel } from '../../shared/components/physiology';
@@ -14,14 +29,23 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
 
 type ListState = 'loading' | 'ready' | 'error';
 
-const LEVEL_OF: Record<FormStatus, FormLevel> =
-    { GREEN: 'green', ORANGE: 'orange', RED: 'red', STALE: 'stale' };
+const LEVEL_OF: Record<FormStatus, FormLevel> = {
+  GREEN: 'green',
+  ORANGE: 'orange',
+  RED: 'red',
+  STALE: 'stale',
+};
 
 @Component({
   selector: 'app-athlete-list',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, RouterLink, FormsModule, PaginatorComponent, FormPillComponent],
+  imports: [
+    SkeletonComponent,
+    RouterLink,
+    FormsModule,
+    PaginatorComponent,
+    FormPillComponent,
+  ],
   templateUrl: './athlete-list.component.html',
   styleUrl: './athletes.scss',
 })
@@ -48,7 +72,14 @@ export class AthleteListComponent implements OnInit {
    */
   private readonly formByAthlete = signal<Map<string, AthleteForm>>(new Map());
 
-  formOf(athleteId: string): { level: FormLevel; fatigue: number | null; pain: number | null; stale: boolean } | null {
+  formOf(
+    athleteId: string,
+  ): {
+    level: FormLevel;
+    fatigue: number | null;
+    pain: number | null;
+    stale: boolean;
+  } | null {
     const f = this.formByAthlete().get(athleteId);
     if (!f) return null;
     return {
@@ -66,9 +97,15 @@ export class AthleteListComponent implements OnInit {
     });
     this.groupService.list().subscribe((g) => this.groups.set(g));
     this.dashboardService.form('all').subscribe({
-      next: (f) => this.formByAthlete.set(
-        new Map([...f.routeAthletes, ...f.trailAthletes].map((a) => [a.id, a]))),
-      error: () => { /* pastille absente plutôt que liste bloquée */ },
+      next: (f) =>
+        this.formByAthlete.set(
+          new Map(
+            [...f.routeAthletes, ...f.trailAthletes].map((a) => [a.id, a]),
+          ),
+        ),
+      error: () => {
+        /* pastille absente plutôt que liste bloquée */
+      },
     });
     this.load();
   }
@@ -84,19 +121,21 @@ export class AthleteListComponent implements OnInit {
 
   load(): void {
     this.state.set('loading');
-    this.athleteService.list({
-      q: this.search || undefined,
-      groupId: this.filterGroup || undefined,
-      status: this.filterStatus || undefined,
-      page: this.page(),
-    }).subscribe({
-      next: (page) => {
-        this.athletes.set(page.content);
-        this.totalPages.set(page.totalPages);
-        this.state.set('ready');
-      },
-      error: () => this.state.set('error'),
-    });
+    this.athleteService
+      .list({
+        q: this.search || undefined,
+        groupId: this.filterGroup || undefined,
+        status: this.filterStatus || undefined,
+        page: this.page(),
+      })
+      .subscribe({
+        next: (page) => {
+          this.athletes.set(page.content);
+          this.totalPages.set(page.totalPages);
+          this.state.set('ready');
+        },
+        error: () => this.state.set('error'),
+      });
   }
 
   /** Un filtre est actif dès qu'il restreint : « Actifs » est le défaut, pas une restriction subie. */
@@ -116,13 +155,19 @@ export class AthleteListComponent implements OnInit {
   }
 
   statusLabel(status: string): string {
-    return { ACTIVE: 'Actif', PAUSED: 'En pause', ARCHIVED: 'Archivé' }[status] ?? status;
+    return (
+      { ACTIVE: 'Actif', PAUSED: 'En pause', ARCHIVED: 'Archivé' }[status] ??
+      status
+    );
   }
 
   statusClass(status: string): string {
     return (
-      { ACTIVE: 'badge-success', PAUSED: 'badge-warning', ARCHIVED: 'badge-neutral' }[status] ??
-      'badge-neutral'
+      {
+        ACTIVE: 'badge-success',
+        PAUSED: 'badge-warning',
+        ARCHIVED: 'badge-neutral',
+      }[status] ?? 'badge-neutral'
     );
   }
 }

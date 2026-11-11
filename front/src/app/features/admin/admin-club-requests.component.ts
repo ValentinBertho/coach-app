@@ -1,6 +1,12 @@
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { environment } from '../../../environments/environment';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -59,7 +65,6 @@ const STATUS_BADGES: Record<ClubRequestStatus, string> = {
  */
 @Component({
   selector: 'app-admin-club-requests',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DatePipe, IconComponent],
   template: `
@@ -67,14 +72,19 @@ const STATUS_BADGES: Record<ClubRequestStatus, string> = {
       <div>
         <h1>Demandes de club</h1>
         <p class="subtitle">
-          Qui demande à entrer, et ce qu'on en fait. La validation ouvre le club et envoie au
-          coach son lien d'accès.
+          Qui demande à entrer, et ce qu'on en fait. La validation ouvre le club
+          et envoie au coach son lien d'accès.
         </p>
       </div>
       <div class="filters" role="group" aria-label="Filtrer par statut">
         @for (f of filters; track f.value) {
-          <button type="button" class="btn btn-sm" [class.btn-primary]="filter() === f.value"
-                  [class.btn-ghost]="filter() !== f.value" (click)="setFilter(f.value)">
+          <button
+            type="button"
+            class="btn btn-sm"
+            [class.btn-primary]="filter() === f.value"
+            [class.btn-ghost]="filter() !== f.value"
+            (click)="setFilter(f.value)"
+          >
             {{ f.label }}
           </button>
         }
@@ -89,13 +99,23 @@ const STATUS_BADGES: Record<ClubRequestStatus, string> = {
         <div>
           <strong>{{ a.request.clubName }} est ouvert.</strong>
           <p class="field-hint">
-            {{ a.mailSent
-              ? 'Le lien d’accès est parti à ' + a.request.email + '. Copiez-le ci-dessous si l’e-mail n’arrive pas.'
-              : 'L’envoi d’e-mails est désactivé sur cette instance : transmettez ce lien vous-même à ' + a.request.email + '.' }}
+            {{
+              a.mailSent
+                ? 'Le lien d’accès est parti à ' +
+                  a.request.email +
+                  '. Copiez-le ci-dessous si l’e-mail n’arrive pas.'
+                : 'L’envoi d’e-mails est désactivé sur cette instance : transmettez ce lien vous-même à ' +
+                  a.request.email +
+                  '.'
+            }}
           </p>
           <code class="acr-link">{{ a.activationUrl }}</code>
         </div>
-        <button type="button" class="btn btn-ghost btn-sm" (click)="copyLink(a.activationUrl)">
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          (click)="copyLink(a.activationUrl)"
+        >
           <app-icon name="copy" [size]="15" /> Copier
         </button>
       </div>
@@ -108,15 +128,26 @@ const STATUS_BADGES: Record<ClubRequestStatus, string> = {
       <div class="card alert alert-danger acr-error">
         <div>
           <strong>Les demandes n'ont pas pu être chargées.</strong>
-          <p class="field-hint">Rien n'est affiché : un écran vide ferait croire à zéro demande.</p>
+          <p class="field-hint">
+            Rien n'est affiché : un écran vide ferait croire à zéro demande.
+          </p>
         </div>
-        <button type="button" class="btn btn-primary btn-sm" (click)="load()">Réessayer</button>
+        <button type="button" class="btn btn-primary btn-sm" (click)="load()">
+          Réessayer
+        </button>
       </div>
     } @else if (items().length === 0) {
       <div class="card empty">
         <app-icon name="inbox" [size]="28" />
-        <p><strong>Aucune demande {{ filter() === 'PENDING' ? 'en attente' : '' }}.</strong></p>
-        <p class="field-hint">Les demandes déposées depuis la page « Créer mon club » arrivent ici.</p>
+        <p>
+          <strong
+            >Aucune demande
+            {{ filter() === 'PENDING' ? 'en attente' : '' }}.</strong
+          >
+        </p>
+        <p class="field-hint">
+          Les demandes déposées depuis la page « Créer mon club » arrivent ici.
+        </p>
       </div>
     } @else {
       <ul class="acr-list">
@@ -124,14 +155,29 @@ const STATUS_BADGES: Record<ClubRequestStatus, string> = {
           <li class="card acr">
             <div class="acr__head">
               <strong class="acr__club">{{ r.clubName }}</strong>
-              <span class="badge" [class]="statusBadges[r.status]">{{ statusLabels[r.status] }}</span>
-              <span class="acr__when">{{ r.createdAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+              <span class="badge" [class]="statusBadges[r.status]">{{
+                statusLabels[r.status]
+              }}</span>
+              <span class="acr__when">{{
+                r.createdAt | date: 'dd/MM/yyyy HH:mm'
+              }}</span>
             </div>
 
             <dl class="acr__who">
-              <div><dt>Demandeur</dt><dd>{{ r.fullName }}</dd></div>
-              <div><dt>E-mail</dt><dd>{{ r.email }}</dd></div>
-              @if (r.phone) { <div><dt>Téléphone</dt><dd>{{ r.phone }}</dd></div> }
+              <div>
+                <dt>Demandeur</dt>
+                <dd>{{ r.fullName }}</dd>
+              </div>
+              <div>
+                <dt>E-mail</dt>
+                <dd>{{ r.email }}</dd>
+              </div>
+              @if (r.phone) {
+                <div>
+                  <dt>Téléphone</dt>
+                  <dd>{{ r.phone }}</dd>
+                </div>
+              }
             </dl>
 
             @if (r.message) {
@@ -140,19 +186,39 @@ const STATUS_BADGES: Record<ClubRequestStatus, string> = {
 
             @if (r.status === 'PENDING') {
               <div class="acr__actions">
-                <button type="button" class="btn btn-ghost btn-sm" [disabled]="busy() === r.id"
-                        (click)="reject(r)">Refuser</button>
-                <button type="button" class="btn btn-primary btn-sm" [disabled]="busy() === r.id"
-                        (click)="approve(r)">
-                  {{ busy() === r.id ? 'Traitement…' : 'Valider et ouvrir le club' }}
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm"
+                  [disabled]="busy() === r.id"
+                  (click)="reject(r)"
+                >
+                  Refuser
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  [disabled]="busy() === r.id"
+                  (click)="approve(r)"
+                >
+                  {{
+                    busy() === r.id
+                      ? 'Traitement…'
+                      : 'Valider et ouvrir le club'
+                  }}
                 </button>
               </div>
             } @else {
               <p class="field-hint acr__verdict">
                 {{ statusLabels[r.status] }}
-                @if (r.reviewedAt) { le {{ r.reviewedAt | date: 'dd/MM/yyyy' }} }
-                @if (r.reviewedByEmail) { par {{ r.reviewedByEmail }} }
-                @if (r.reviewNote) { — « {{ r.reviewNote }} » }
+                @if (r.reviewedAt) {
+                  le {{ r.reviewedAt | date: 'dd/MM/yyyy' }}
+                }
+                @if (r.reviewedByEmail) {
+                  par {{ r.reviewedByEmail }}
+                }
+                @if (r.reviewNote) {
+                  — « {{ r.reviewNote }} »
+                }
               </p>
             }
           </li>
@@ -160,26 +226,118 @@ const STATUS_BADGES: Record<ClubRequestStatus, string> = {
       </ul>
     }
   `,
-  styles: [`
-    .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-5); }
-    .filters { display: flex; gap: var(--sp-2); }
-    .acr-error, .acr-approved { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); margin-bottom: var(--sp-4); }
-    .acr-link { display: block; margin-top: var(--sp-2); font-family: var(--font-mono); font-size: var(--text-sm); overflow-wrap: anywhere; }
-    .empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); padding: var(--sp-7); color: var(--ink-3); text-align: center; }
-    .empty p { margin: 0; }
-    .acr-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
-    .acr { padding: var(--sp-4); }
-    .acr__head { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-3); }
-    .acr__club { font-size: var(--text-lg); color: var(--ink); }
-    .acr__when { color: var(--ink-3); font-size: var(--text-sm); margin-left: auto; }
-    .acr__who { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-5); margin: 0 0 var(--sp-3); }
-    .acr__who div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-    .acr__who dt { color: var(--ink-3); font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
-    .acr__who dd { margin: 0; font-size: var(--text-sm); color: var(--ink-2); overflow-wrap: anywhere; }
-    .acr__msg { margin: 0 0 var(--sp-3); white-space: pre-wrap; color: var(--ink); }
-    .acr__actions { display: flex; justify-content: flex-end; gap: var(--sp-2); padding-top: var(--sp-3); border-top: 1px solid var(--hairline); }
-    .acr__verdict { padding-top: var(--sp-3); border-top: 1px solid var(--hairline); margin: 0; }
-  `],
+  styles: [
+    `
+      .page-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--sp-4);
+        flex-wrap: wrap;
+        margin-bottom: var(--sp-5);
+      }
+      .filters {
+        display: flex;
+        gap: var(--sp-2);
+      }
+      .acr-error,
+      .acr-approved {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-4);
+        margin-bottom: var(--sp-4);
+      }
+      .acr-link {
+        display: block;
+        margin-top: var(--sp-2);
+        font-family: var(--font-mono);
+        font-size: var(--text-sm);
+        overflow-wrap: anywhere;
+      }
+      .empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--sp-2);
+        padding: var(--sp-7);
+        color: var(--ink-3);
+        text-align: center;
+      }
+      .empty p {
+        margin: 0;
+      }
+      .acr-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
+      .acr {
+        padding: var(--sp-4);
+      }
+      .acr__head {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-3);
+        flex-wrap: wrap;
+        margin-bottom: var(--sp-3);
+      }
+      .acr__club {
+        font-size: var(--text-lg);
+        color: var(--ink);
+      }
+      .acr__when {
+        color: var(--ink-3);
+        font-size: var(--text-sm);
+        margin-left: auto;
+      }
+      .acr__who {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-2) var(--sp-5);
+        margin: 0 0 var(--sp-3);
+      }
+      .acr__who div {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        min-width: 0;
+      }
+      .acr__who dt {
+        color: var(--ink-3);
+        font-size: var(--text-2xs);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .acr__who dd {
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+        overflow-wrap: anywhere;
+      }
+      .acr__msg {
+        margin: 0 0 var(--sp-3);
+        white-space: pre-wrap;
+        color: var(--ink);
+      }
+      .acr__actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--sp-2);
+        padding-top: var(--sp-3);
+        border-top: 1px solid var(--hairline);
+      }
+      .acr__verdict {
+        padding-top: var(--sp-3);
+        border-top: 1px solid var(--hairline);
+        margin: 0;
+      }
+    `,
+  ],
 })
 export class AdminClubRequestsComponent implements OnInit {
   private readonly http = inject(HttpClient);
@@ -221,7 +379,8 @@ export class AdminClubRequestsComponent implements OnInit {
     this.loading.set(true);
     this.failed.set(false);
     const f = this.filter();
-    const params = f === 'ALL' ? new HttpParams() : new HttpParams().set('status', f);
+    const params =
+      f === 'ALL' ? new HttpParams() : new HttpParams().set('status', f);
     this.http.get<Page<ClubCreationRequest>>(this.base, { params }).subscribe({
       next: (p) => {
         this.items.set(p.content ?? []);
@@ -239,22 +398,24 @@ export class AdminClubRequestsComponent implements OnInit {
     const ok = await this.confirm.ask({
       title: 'Valider ' + r.clubName,
       message:
-        `Le club sera créé et ${r.fullName} recevra un lien pour choisir son mot de passe `
-        + `à l'adresse ${r.email}. Continuer ?`,
+        `Le club sera créé et ${r.fullName} recevra un lien pour choisir son mot de passe ` +
+        `à l'adresse ${r.email}. Continuer ?`,
       confirmLabel: 'Valider et ouvrir',
     });
     if (!ok) return;
 
     this.busy.set(r.id);
-    this.http.post<ApprovalResult>(`${this.base}/${r.id}/approve`, {}).subscribe({
-      next: (result) => {
-        this.lastApproval.set(result);
-        this.toast.success(`${r.clubName} est ouvert.`);
-        this.busy.set(null);
-        this.load();
-      },
-      error: () => this.busy.set(null),
-    });
+    this.http
+      .post<ApprovalResult>(`${this.base}/${r.id}/approve`, {})
+      .subscribe({
+        next: (result) => {
+          this.lastApproval.set(result);
+          this.toast.success(`${r.clubName} est ouvert.`);
+          this.busy.set(null);
+          this.load();
+        },
+        error: () => this.busy.set(null),
+      });
   }
 
   async reject(r: ClubCreationRequest): Promise<void> {
@@ -263,8 +424,8 @@ export class AdminClubRequestsComponent implements OnInit {
     const note = await this.confirm.prompt({
       title: 'Refuser ' + r.clubName,
       message:
-        `Ce motif sera envoyé à ${r.email}. Laissez vide pour refuser sans explication — `
-        + `le demandeur ne saura alors pas quoi corriger.`,
+        `Ce motif sera envoyé à ${r.email}. Laissez vide pour refuser sans explication — ` +
+        `le demandeur ne saura alors pas quoi corriger.`,
       confirmLabel: 'Refuser',
       promptLabel: 'Motif du refus',
       danger: true,
@@ -272,14 +433,16 @@ export class AdminClubRequestsComponent implements OnInit {
     if (note === null) return;
 
     this.busy.set(r.id);
-    this.http.post<ClubCreationRequest>(`${this.base}/${r.id}/reject`, { note }).subscribe({
-      next: () => {
-        this.toast.success('Demande refusée.');
-        this.busy.set(null);
-        this.load();
-      },
-      error: () => this.busy.set(null),
-    });
+    this.http
+      .post<ClubCreationRequest>(`${this.base}/${r.id}/reject`, { note })
+      .subscribe({
+        next: () => {
+          this.toast.success('Demande refusée.');
+          this.busy.set(null);
+          this.load();
+        },
+        error: () => this.busy.set(null),
+      });
   }
 
   copyLink(url: string): void {
@@ -287,7 +450,10 @@ export class AdminClubRequestsComponent implements OnInit {
       () => this.toast.success('Lien copié.'),
       // Le presse-papiers peut être refusé (contexte non sécurisé, permission) : le lien reste
       // affiché à l'écran, il est toujours sélectionnable à la main.
-      () => this.toast.error('Copie refusée par le navigateur — sélectionnez le lien à la main.'),
+      () =>
+        this.toast.error(
+          'Copie refusée par le navigateur — sélectionnez le lien à la main.',
+        ),
     );
   }
 }

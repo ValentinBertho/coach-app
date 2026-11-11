@@ -1,5 +1,11 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
@@ -28,11 +34,15 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-admin-athletes',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    SkeletonComponent, FormsModule, RouterLink, PaginatorComponent, EmptyStateComponent,
-    IconComponent, DatePipe,
+    SkeletonComponent,
+    FormsModule,
+    RouterLink,
+    PaginatorComponent,
+    EmptyStateComponent,
+    IconComponent,
+    DatePipe,
   ],
   templateUrl: './admin-athletes.component.html',
   styleUrl: './admin-list.scss',
@@ -130,15 +140,19 @@ export class AdminAthletesComponent implements OnInit {
 
   /** Vrai si le lien d'invitation ne mène plus nulle part. */
   inviteExpired(a: AdminAthlete): boolean {
-    return !!a.invitationPending && !!a.inviteExpiresAt && new Date(a.inviteExpiresAt) < new Date();
+    return (
+      !!a.invitationPending &&
+      !!a.inviteExpiresAt &&
+      new Date(a.inviteExpiresAt) < new Date()
+    );
   }
 
   async resendInvitation(a: AdminAthlete): Promise<void> {
     const ok = await this.confirm.ask({
       title: 'Renvoyer l’invitation',
       message:
-        `Un nouveau lien sera généré pour ${a.firstName} ${a.lastName} et le précédent cessera de `
-        + 'fonctionner. Il partira par e-mail si une adresse est connue.',
+        `Un nouveau lien sera généré pour ${a.firstName} ${a.lastName} et le précédent cessera de ` +
+        'fonctionner. Il partira par e-mail si une adresse est connue.',
       confirmLabel: 'Renvoyer',
     });
     if (!ok) return;
@@ -150,7 +164,7 @@ export class AdminAthletesComponent implements OnInit {
         this.toast.success(
           link.emailSent
             ? 'Invitation renvoyée par e-mail.'
-            : "Lien régénéré. Aucune adresse connue : à transmettre à la main depuis les invitations.",
+            : 'Lien régénéré. Aucune adresse connue : à transmettre à la main depuis les invitations.',
         );
         this.load();
       },
@@ -162,10 +176,10 @@ export class AdminAthletesComponent implements OnInit {
     const ok = await this.confirm.askForText({
       title: 'Supprimer l’athlète',
       message:
-        `Supprimer ${a.firstName} ${a.lastName} efface ses séances, ses sorties importées et ses `
-        + "ressentis. Cet historique n'a pas de sauvegarde côté utilisateur et ne se reconstitue "
-        + 'pas. Passer l’athlète en « archivé » depuis sa fiche le retire des listes sans rien '
-        + 'détruire.',
+        `Supprimer ${a.firstName} ${a.lastName} efface ses séances, ses sorties importées et ses ` +
+        "ressentis. Cet historique n'a pas de sauvegarde côté utilisateur et ne se reconstitue " +
+        'pas. Passer l’athlète en « archivé » depuis sa fiche le retire des listes sans rien ' +
+        'détruire.',
       confirmLabel: 'Supprimer définitivement',
       danger: true,
       requiredText: 'SUPPRIMER',

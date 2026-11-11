@@ -1,6 +1,18 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
-import { MailDay, MailKindVolume, MailLogEntry, MailStats } from '../../core/models/admin.model';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
+import {
+  MailDay,
+  MailKindVolume,
+  MailLogEntry,
+  MailStats,
+} from '../../core/models/admin.model';
 import { AdminService } from '../../core/services/admin.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -32,7 +44,6 @@ interface Bar {
  */
 @Component({
   selector: 'app-admin-mail',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DatePipe, DecimalPipe, IconComponent],
   templateUrl: './admin-mail.component.html',
@@ -51,8 +62,14 @@ export class AdminMailComponent implements OnInit {
 
   ngOnInit(): void {
     this.admin.mailStats().subscribe({
-      next: (s) => { this.stats.set(s); this.loading.set(false); },
-      error: () => { this.loading.set(false); this.toast.error('Statistiques indisponibles.'); },
+      next: (s) => {
+        this.stats.set(s);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.toast.error('Statistiques indisponibles.');
+      },
     });
     this.admin.mailLog().subscribe({
       next: (p) => this.log.set(p.content),
@@ -153,7 +170,9 @@ export class AdminMailComponent implements OnInit {
   readonly quotaY = computed(() => {
     const s = this.stats();
     if (!s) return 0;
-    return this.chartHeight - (s.dailyQuota / this.scaleMax()) * this.chartHeight;
+    return (
+      this.chartHeight - (s.dailyQuota / this.scaleMax()) * this.chartHeight
+    );
   });
 
   /** Résumé lu par un lecteur d'écran : un graphique n'est jamais la seule voie d'accès. */
@@ -172,7 +191,11 @@ export class AdminMailComponent implements OnInit {
   // --- Répartition ------------------------------------------------------------
 
   readonly kindTotal = computed(() =>
-    Math.max(1, (this.stats()?.byKind ?? []).reduce((n, k) => n + k.count, 0)));
+    Math.max(
+      1,
+      (this.stats()?.byKind ?? []).reduce((n, k) => n + k.count, 0),
+    ),
+  );
 
   share(kind: MailKindVolume): number {
     return Math.round((kind.count / this.kindTotal()) * 100);

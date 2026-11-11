@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, ElementRef, inject, signal, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -15,9 +22,13 @@ type Step = 'password' | 'code' | 'recovery';
 
 @Component({
   selector: 'app-login',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LogoComponent, FocusProbeComponent],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    LogoComponent,
+    FocusProbeComponent,
+  ],
   templateUrl: './login.component.html',
   styleUrl: './auth.scss',
 })
@@ -37,7 +48,8 @@ export class LoginComponent {
   readonly qrCode = signal<string | null>(null);
   readonly recoveryCodes = signal<string[]>([]);
 
-  private readonly codeInput = viewChild<ElementRef<HTMLInputElement>>('codeInput');
+  private readonly codeInput =
+    viewChild<ElementRef<HTMLInputElement>>('codeInput');
 
   readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -78,26 +90,31 @@ export class LoginComponent {
     }
     this.submitting.set(true);
     this.errorMessage.set(null);
-    this.auth.verifyMfa(challenge.challengeToken, this.codeForm.getRawValue().code.trim()).subscribe({
-      next: (res) => {
-        this.submitting.set(false);
-        if (res.recoveryCodes?.length) {
-          this.recoveryCodes.set(res.recoveryCodes);
-          this.step.set('recovery');
-          return;
-        }
-        this.done();
-      },
-      error: (err) => {
-        this.submitting.set(false);
-        this.codeForm.reset();
-        if (err instanceof HttpErrorResponse && err.status === 410) {
-          // Défi expiré ou épuisé : retour au mot de passe, avec le message du serveur.
-          this.backToPassword();
-        }
-        this.errorMessage.set(authErrorMessage(err));
-      },
-    });
+    this.auth
+      .verifyMfa(
+        challenge.challengeToken,
+        this.codeForm.getRawValue().code.trim(),
+      )
+      .subscribe({
+        next: (res) => {
+          this.submitting.set(false);
+          if (res.recoveryCodes?.length) {
+            this.recoveryCodes.set(res.recoveryCodes);
+            this.step.set('recovery');
+            return;
+          }
+          this.done();
+        },
+        error: (err) => {
+          this.submitting.set(false);
+          this.codeForm.reset();
+          if (err instanceof HttpErrorResponse && err.status === 410) {
+            // Défi expiré ou épuisé : retour au mot de passe, avec le message du serveur.
+            this.backToPassword();
+          }
+          this.errorMessage.set(authErrorMessage(err));
+        },
+      });
   }
 
   backToPassword(): void {

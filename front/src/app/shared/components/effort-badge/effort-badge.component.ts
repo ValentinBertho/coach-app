@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+} from '@angular/core';
 import { DataOriginTagComponent } from '../data-origin-tag/data-origin-tag.component';
 
 /** Référentiel d'effort (aligné sur strength.model EffortRefType). */
@@ -21,7 +26,6 @@ export type EffortKind = 'RPE' | 'RIR';
  */
 @Component({
   selector: 'app-effort-badge',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DataOriginTagComponent],
   template: `
@@ -30,7 +34,10 @@ export type EffortKind = 'RPE' | 'RIR';
 
       <span class="eb__scale" aria-hidden="true">
         @for (i of ticks(); track i) {
-          <span class="eb__tick" [class.eb__tick--on]="i <= prescribedFill()"></span>
+          <span
+            class="eb__tick"
+            [class.eb__tick--on]="i <= prescribedFill()"
+          ></span>
         }
       </span>
 
@@ -41,32 +48,67 @@ export type EffortKind = 'RPE' | 'RIR';
           class="eb__actual"
           [class.eb__actual--over]="overshoot()"
           [class.eb__actual--in]="!overshoot()"
-        >{{ actual() }}</span>
+          >{{ actual() }}</span
+        >
         <app-data-origin-tag origin="saisi" [compact]="true" />
       }
     </span>
   `,
-  styles: [`
-    .eb {
-      display: inline-flex; align-items: center; gap: var(--sp-2);
-      padding: 2px var(--sp-2); border-radius: var(--radius-full);
-      background: var(--paper-sunk); white-space: nowrap; font-size: var(--text-sm);
-    }
-    .eb__kind { font-size: var(--text-xs); font-weight: 800; color: var(--ink-3); letter-spacing: 0.03em; }
-    .eb__scale { display: inline-flex; align-items: center; gap: 2px; }
-    .eb__tick { width: 5px; height: 12px; border-radius: 2px; background: color-mix(in srgb, var(--ink-4) 45%, transparent); }
-    .eb__tick--on { background: var(--energy); }
-    .eb__rx {
-      font-family: var(--font-data); font-variant-numeric: tabular-nums;
-      font-weight: 700; color: var(--ink);
-    }
-    .eb__actual {
-      font-family: var(--font-data); font-variant-numeric: tabular-nums; font-weight: 800;
-      padding: 0 var(--sp-2); border-radius: var(--radius-full);
-    }
-    .eb__actual--in { background: var(--success-bg); color: var(--success-text); }
-    .eb__actual--over { background: var(--danger-bg); color: var(--danger-text); }
-  `],
+  styles: [
+    `
+      .eb {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-2);
+        padding: 2px var(--sp-2);
+        border-radius: var(--radius-full);
+        background: var(--paper-sunk);
+        white-space: nowrap;
+        font-size: var(--text-sm);
+      }
+      .eb__kind {
+        font-size: var(--text-xs);
+        font-weight: 800;
+        color: var(--ink-3);
+        letter-spacing: 0.03em;
+      }
+      .eb__scale {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .eb__tick {
+        width: 5px;
+        height: 12px;
+        border-radius: 2px;
+        background: color-mix(in srgb, var(--ink-4) 45%, transparent);
+      }
+      .eb__tick--on {
+        background: var(--energy);
+      }
+      .eb__rx {
+        font-family: var(--font-data);
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .eb__actual {
+        font-family: var(--font-data);
+        font-variant-numeric: tabular-nums;
+        font-weight: 800;
+        padding: 0 var(--sp-2);
+        border-radius: var(--radius-full);
+      }
+      .eb__actual--in {
+        background: var(--success-bg);
+        color: var(--success-text);
+      }
+      .eb__actual--over {
+        background: var(--danger-bg);
+        color: var(--danger-text);
+      }
+    `,
+  ],
 })
 export class EffortBadgeComponent {
   /** RPE ou RIR. */
@@ -79,8 +121,12 @@ export class EffortBadgeComponent {
   readonly actual = input<number | null>(null);
 
   /** Échelle max selon le référentiel. */
-  protected readonly scaleMax = computed(() => (this.kind() === 'RPE' ? 10 : 5));
-  protected readonly ticks = computed(() => Array.from({ length: this.scaleMax() }, (_, i) => i + 1));
+  protected readonly scaleMax = computed(() =>
+    this.kind() === 'RPE' ? 10 : 5,
+  );
+  protected readonly ticks = computed(() =>
+    Array.from({ length: this.scaleMax() }, (_, i) => i + 1),
+  );
 
   /**
    * Remplissage de l'échelle = intensité d'effort. RPE : remplit jusqu'à max.

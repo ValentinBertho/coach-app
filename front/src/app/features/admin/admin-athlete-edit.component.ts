@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AthleteRequest } from '../../core/models/athlete.model';
@@ -19,7 +26,6 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-admin-athlete-edit',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SkeletonComponent, ReactiveFormsModule, RouterLink, IconComponent],
   templateUrl: './admin-athlete-edit.component.html',
@@ -40,7 +46,11 @@ export class AdminAthleteEditComponent implements OnInit {
   readonly clubName = signal<string | null>(null);
 
   readonly statusLabels = ATHLETE_STATUS_LABELS;
-  readonly statuses: (keyof typeof ATHLETE_STATUS_LABELS)[] = ['ACTIVE', 'PAUSED', 'ARCHIVED'];
+  readonly statuses: (keyof typeof ATHLETE_STATUS_LABELS)[] = [
+    'ACTIVE',
+    'PAUSED',
+    'ARCHIVED',
+  ];
 
   readonly form = this.fb.group({
     firstName: ['', [Validators.required]],
