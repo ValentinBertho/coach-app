@@ -26,6 +26,8 @@ import java.util.UUID;
 public class DailyCheckInService {
 
     private final DailyCheckInRepository repository;
+
+    private final ClockService clock;
     private final AthleteRepository athleteRepository;
     private final com.coachrun.security.HealthDataConsentValidator consentValidator;
     private final NotificationService notificationService;
@@ -46,7 +48,7 @@ public class DailyCheckInService {
      * saisie quotidienne dont personne ne voit le résultat est le meilleur moyen qu'elle s'arrête.</p>
      */
     public List<DailyCheckInResponse> history(UUID athleteId, int days) {
-        LocalDate since = LocalDate.now().minusDays(Math.max(1, Math.min(days, 90)));
+        LocalDate since = clock.today().minusDays(Math.max(1, Math.min(days, 90)));
         return repository.findByAthleteIdOrderByCheckDateDesc(athleteId).stream()
                 .filter(c -> !c.getCheckDate().isBefore(since))
                 .map(DailyCheckInResponse::of)

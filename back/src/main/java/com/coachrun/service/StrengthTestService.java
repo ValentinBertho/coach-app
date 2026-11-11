@@ -40,6 +40,8 @@ import java.util.UUID;
 public class StrengthTestService {
 
     private final StrengthTestRepository testRepository;
+
+    private final ClockService clock;
     private final AthleteRepository athleteRepository;
     private final PpExerciseRepository exerciseRepository;
     private final Athlete1rmProfileRepository profileRepository;
@@ -86,7 +88,7 @@ public class StrengthTestService {
         test.setAthlete(athlete);
         test.setExerciseId(req.exerciseId());
         test.setProtocol(req.protocol());
-        test.setTestDate(Optional.ofNullable(req.testDate()).orElse(LocalDate.now()));
+        test.setTestDate(Optional.ofNullable(req.testDate()).orElse(clock.today()));
         test.setWeightKg(BigDecimal.valueOf(req.weightKg()));
         test.setReps(req.reps());
         test.setDurationSec(req.durationSec());

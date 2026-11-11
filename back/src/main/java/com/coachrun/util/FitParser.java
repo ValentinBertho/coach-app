@@ -4,6 +4,7 @@ import com.coachrun.dto.response.ActivityLapsResponse;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,6 +48,7 @@ public final class FitParser {
     private static final String INVALID = "Fichier FIT illisible.";
 
     private final byte[] c;
+    private final ZoneId zone;
     private final Map<Integer, MessageDef> definitions = new HashMap<>();
     private final List<ActivityTrack.Point> points = new ArrayList<>();
     private final List<ActivityLapsResponse.Lap> laps = new ArrayList<>();
@@ -68,7 +70,8 @@ public final class FitParser {
     /** Dernier horodatage vu, base des en-têtes à horodatage compressé. */
     private long lastTimestamp;
 
-    private FitParser(byte[] content) {
+    private FitParser(byte[] content, ZoneId zone) {
+        this.zone = zone;
         this.c = content;
     }
 
@@ -82,10 +85,15 @@ public final class FitParser {
     }
 
     public static ActivityTrack.ParsedActivity parse(byte[] content) {
+        return parse(content, ZoneOffset.UTC);
+    }
+
+    /** @param zone fuseau dans lequel l'heure de départ devient une date civile (cf. GpxParser) */
+    public static ActivityTrack.ParsedActivity parse(byte[] content, ZoneId zone) {
         if (!looksLikeFit(content)) {
             throw new IllegalArgumentException(INVALID);
         }
-        return new FitParser(content).decode();
+        return new FitParser(content, zone).decode();
     }
 
     private ActivityTrack.ParsedActivity decode() {
@@ -321,7 +329,7 @@ public final class FitParser {
 
         Instant first = points.isEmpty() ? null : points.get(0).time();
         Instant start = sessionStart != null ? sessionStart : first;
-        LocalDate date = start != null ? start.atZone(ZoneOffset.UTC).toLocalDate() : LocalDate.now();
+        LocalDate date = start != null ? start.atZone(zone).toLocalDate() : LocalDate.now(zone);
 
         Integer distanceM = sessionDistanceM;
         if (distanceM == null && lastRecordDistanceM != null) {
