@@ -881,9 +881,10 @@
      L'ancien éditeur « par zones » (valeurs sèches) a été retiré au profit du modèle unique DARI Lab. -->
 @if (pickerDate(); as date) {
   <div class="picker-overlay" (click)="closePicker()">
-    <div class="picker" (click)="$event.stopPropagation()">
+    <div class="picker" role="dialog" aria-modal="true" aria-labelledby="picker-title"
+         (click)="$event.stopPropagation()">
       <header class="picker__head">
-        <h3>Planifier une séance — {{ pickerLabel() }}</h3>
+        <h3 id="picker-title">Planifier une séance — {{ pickerLabel() }}</h3>
         <button type="button" class="btn btn-ghost btn-sm" (click)="closePicker()">Fermer</button>
       </header>
       <button type="button" class="picker__item picker__adhoc" (click)="createAdHoc()">

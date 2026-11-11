@@ -132,10 +132,10 @@ export interface MonthWeek {
               [class.cell--empty]="
                 day.chips.length === 0 && day.races.length === 0
               "
-              [attr.aria-label]="ariaFor(day)"
               (click)="dayPicked.emit(day.date)"
             >
-              <span class="cell-n">{{ day.dayNum }}</span>
+              <span class="sr-only">{{ ariaFor(day) }}</span>
+              <span class="cell-n" aria-hidden="true">{{ day.dayNum }}</span>
               @if (day.unavailable) {
                 <span class="cell-off"
                   ><app-icon name="ban" [size]="11"
@@ -147,6 +147,7 @@ export interface MonthWeek {
               @for (r of day.races; track $index) {
                 <span
                   class="race"
+                  aria-hidden="true"
                   [class.race--past]="r.past"
                   [title]="r.title"
                 >
@@ -154,7 +155,7 @@ export interface MonthWeek {
                   <span class="race-p">{{ r.priority }}</span>
                 </span>
               }
-              <span class="cell-items">
+              <span class="cell-items" aria-hidden="true">
                 @for (c of day.chips.slice(0, 2); track $index) {
                   <span
                     class="chip"

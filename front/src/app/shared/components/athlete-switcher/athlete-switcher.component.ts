@@ -40,13 +40,13 @@ import { IconComponent } from '../icon/icon.component';
         (click)="toggle()"
         [attr.aria-expanded]="open()"
         aria-haspopup="listbox"
-        [attr.aria-label]="'Athlète : ' + (selectedLabel() || 'aucun')"
       >
+        <span class="sr-only">Athlète :</span>
         @if (variant() === 'title') {
           <h1 class="display-sm">{{ selectedLabel() }}</h1>
         } @else {
           @if (selected(); as a) {
-            <span class="avatar avatar-sm"
+            <span class="avatar avatar-sm" aria-hidden="true"
               >{{ a.firstName[0] }}{{ a.lastName[0] }}</span
             >
           }
