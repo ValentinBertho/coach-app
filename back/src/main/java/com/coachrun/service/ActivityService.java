@@ -46,6 +46,7 @@ public class ActivityService {
      * ce service, et une injection directe fermerait le cycle de dépendances au démarrage.
      */
     private final org.springframework.beans.factory.ObjectProvider<PhysioDetectionService> physioDetection;
+    private final ClockService clock;
 
     private final ActivityRepository activityRepository;
     private final ActivityExclusionRepository exclusionRepository;
@@ -792,7 +793,7 @@ public class ActivityService {
                                             String filename, byte[] bytes, boolean confirmDuplicate) {
         com.coachrun.util.ActivityTrack.ParsedActivity parsed;
         try {
-            parsed = com.coachrun.util.ActivityFileParser.parse(bytes);
+            parsed = com.coachrun.util.ActivityFileParser.parse(bytes, clock.zone());
         } catch (IllegalArgumentException ex) {
             throw new com.coachrun.exception.ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
                     ex.getMessage());

@@ -43,6 +43,8 @@ import java.util.UUID;
 public class ProgressionService {
 
     private final ScheduledStrengthSessionRepository scheduledRepository;
+
+    private final ClockService clock;
     private final StrengthResultRepository resultRepository;
     private final PpExerciseRepository exerciseRepository;
     private final AthleteRepository athleteRepository;
@@ -70,7 +72,7 @@ public class ProgressionService {
         List<AlertResponse> out = new ArrayList<>();
         for (ScheduledStrengthSession s : scheduledRepository
                 .findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
-                        athleteId, since, LocalDate.now())) {
+                        athleteId, since, clock.today())) {
             if (!s.isCompleted()) {
                 continue;
             }

@@ -93,6 +93,7 @@ public class DemoSeedService {
             "Running Club Lyon", "Trail Académie Annecy", "Marathon Team Paris"};
 
     private final ClubRepository clubRepository;
+    private final ClockService clock;
     private final UserRepository userRepository;
     private final AthleteRepository athleteRepository;
     private final WorkoutRepository workoutRepository;
@@ -306,7 +307,7 @@ public class DemoSeedService {
         }
         // Test lactate complet pour l'athlète démo.
         lactateTestService.create(club.getId(), demoAthlete.getId(), new LactateTestRequest(
-                TestType.LACTATE, LocalDate.now().minusDays(30), "Test de terrain sur piste",
+                TestType.LACTATE, clock.today().minusDays(30), "Test de terrain sur piste",
                 BigDecimal.valueOf(0.8), 60, 188, true, List.of(
                 lactateStep(3.0, 130, 1.0), lactateStep(3.3, 140, 1.2), lactateStep(3.6, 150, 1.8),
                 lactateStep(3.9, 160, 3.0), lactateStep(4.2, 170, 5.5), lactateStep(4.5, 178, 8.0))));
@@ -315,7 +316,7 @@ public class DemoSeedService {
     /** Enregistre un record (le VDOT et les allures dérivées sont recalculés par le service). */
     private void seedRecord(Club club, Athlete a, RunDistance distance, int seconds, int daysAgo) {
         physioService.addPerformance(club.getId(), a.getId(),
-                new PerformanceRequest(distance, seconds, LocalDate.now().minusDays(daysAgo)));
+                new PerformanceRequest(distance, seconds, clock.today().minusDays(daysAgo)));
     }
 
     private BigDecimal round2(double value) {
@@ -370,7 +371,7 @@ public class DemoSeedService {
 
         // Assignation de la séance de force au calendrier de l'athlète démo (cette semaine).
         strengthScheduleService.schedule(club.getId(), demoAthlete.getId(), session.getId(),
-                LocalDate.now().plusDays(2), com.coachrun.entity.enums.FieldsPreset.AVANCE);
+                clock.today().plusDays(2), com.coachrun.entity.enums.FieldsPreset.AVANCE);
 
         // Historique e1RM (courbe de progression) sur le Squat.
         int[] daysAgo = {70, 45, 20, 5};
@@ -402,7 +403,7 @@ public class DemoSeedService {
         for (int i = 0; i < loadDaysAgo.length; i++) {
             StrengthLoadTracking load = new StrengthLoadTracking();
             load.setAthlete(demoAthlete);
-            load.setSessionDate(LocalDate.now().minusDays(loadDaysAgo[i]));
+            load.setSessionDate(clock.today().minusDays(loadDaysAgo[i]));
             load.setMechanicalLoad(BigDecimal.valueOf(meca[i]));
             load.setMetabolicLoad(BigDecimal.valueOf(metab[i]));
             strengthLoadRepository.save(load);
@@ -416,7 +417,7 @@ public class DemoSeedService {
         t.setAthlete(athlete);
         t.setExerciseId(exerciseId);
         t.setProtocol(protocol);
-        t.setTestDate(LocalDate.now().minusDays(daysAgo));
+        t.setTestDate(clock.today().minusDays(daysAgo));
         t.setWeightKg(BigDecimal.valueOf(weightKg));
         t.setReps(reps);
         t.setComputedE1rmKg(BigDecimal.valueOf(e1rm));
@@ -760,7 +761,7 @@ public class DemoSeedService {
      * du cockpit coach (pastilles de forme, alertes, charge, analytics).
      */
     private void seedTraining(Club club, Athlete athlete, int peakFatigue, int peakPain) {
-        LocalDate monday = LocalDate.now().with(java.time.DayOfWeek.MONDAY).minusWeeks(2);
+        LocalDate monday = clock.today().with(java.time.DayOfWeek.MONDAY).minusWeeks(2);
         WorkoutType[] week = {
                 WorkoutType.ENDURANCE, WorkoutType.INTERVALS, WorkoutType.RECOVERY,
                 WorkoutType.TEMPO, WorkoutType.REST, WorkoutType.LONG_RUN, WorkoutType.RECOVERY};
@@ -779,7 +780,7 @@ public class DemoSeedService {
             w.setTitle(titleFor(type));
             w.setTargetDistanceM(distanceFor(type));
             w.setTargetDurationS(distanceFor(type) / 3); // ~allure indicative
-            w.setStatus(date.isBefore(LocalDate.now())
+            w.setStatus(date.isBefore(clock.today())
                     ? (random.nextInt(6) == 0 ? WorkoutStatus.MISSED : WorkoutStatus.COMPLETED)
                     : WorkoutStatus.PLANNED);
             if (w.getStatus() == WorkoutStatus.COMPLETED) {
@@ -802,7 +803,7 @@ public class DemoSeedService {
             lastCompleted.setPain(peakPain);
         }
         // une activité non rattachée
-        Activity orphan = baseActivity(club, athlete, LocalDate.now().minusDays(3));
+        Activity orphan = baseActivity(club, athlete, clock.today().minusDays(3));
         orphan.setStatus(ActivityStatus.UNMATCHED);
         orphan.setTitle("Sortie libre");
         activityRepository.save(orphan);
@@ -810,7 +811,7 @@ public class DemoSeedService {
 
     /** Semaine planifiée sans retour (athlète « silencieux » → alerte de suivi). */
     private void seedPlannedWeek(Club club, Athlete athlete) {
-        LocalDate monday = LocalDate.now().with(java.time.DayOfWeek.MONDAY).minusWeeks(1);
+        LocalDate monday = clock.today().with(java.time.DayOfWeek.MONDAY).minusWeeks(1);
         WorkoutType[] week = {WorkoutType.ENDURANCE, WorkoutType.TEMPO, WorkoutType.LONG_RUN};
         for (int i = 0; i < week.length; i++) {
             Workout w = new Workout();
@@ -833,8 +834,8 @@ public class DemoSeedService {
         com.coachrun.entity.AthleteUnavailability u = new com.coachrun.entity.AthleteUnavailability();
         u.setClub(club);
         u.setAthlete(athlete);
-        u.setStartDate(LocalDate.now().plusDays(startOffset));
-        u.setEndDate(LocalDate.now().plusDays(endOffset));
+        u.setStartDate(clock.today().plusDays(startOffset));
+        u.setEndDate(clock.today().plusDays(endOffset));
         u.setReason(reason);
         u.setNotes(notes);
         unavailabilityRepository.save(u);
@@ -846,7 +847,7 @@ public class DemoSeedService {
         race.setAthlete(athlete);
         race.setName(name);
         race.setDistanceM(distanceM);
-        race.setRaceDate(LocalDate.now().plusDays(daysAhead));
+        race.setRaceDate(clock.today().plusDays(daysAhead));
         race.setPriority(RacePriority.A);
         race.setStatus(RaceObjectiveStatus.UPCOMING);
         raceRepository.save(race);

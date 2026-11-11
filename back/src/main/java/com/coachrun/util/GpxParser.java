@@ -10,6 +10,7 @@ import java.io.ByteArrayInputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,6 +28,14 @@ public final class GpxParser {
     }
 
     public static ActivityTrack.ParsedActivity parse(byte[] content) {
+        return parse(content, ZoneOffset.UTC);
+    }
+
+    /**
+     * @param zone fuseau dans lequel l'heure de départ devient une date civile : une sortie partie
+     *             à 0 h 30 à Paris est du jour même, alors qu'en UTC elle tombe la veille
+     */
+    public static ActivityTrack.ParsedActivity parse(byte[] content, ZoneId zone) {
         List<ActivityTrack.Point> points = readPoints(content);
         if (points.isEmpty()) {
             throw new IllegalArgumentException("Fichier sans points GPS exploitables.");
@@ -36,7 +45,7 @@ public final class GpxParser {
         Instant last = points.get(points.size() - 1).time();
         Integer durationS = (first != null && last != null)
                 ? (int) Duration.between(first, last).getSeconds() : null;
-        LocalDate date = first != null ? first.atZone(ZoneOffset.UTC).toLocalDate() : LocalDate.now();
+        LocalDate date = first != null ? first.atZone(zone).toLocalDate() : LocalDate.now(zone);
 
         List<ActivityTrack.Point> positioned = ActivityTrack.positioned(points);
         String declared = readDeclaredSport(content);

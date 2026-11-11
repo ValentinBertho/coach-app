@@ -55,6 +55,8 @@ import java.util.UUID;
 public class GdprService {
 
     private final AthleteRepository athleteRepository;
+
+    private final ClockService clock;
     private final WorkoutRepository workoutRepository;
     private final ActivityRepository activityRepository;
     private final DailyCheckInRepository dailyCheckInRepository;
@@ -85,7 +87,7 @@ public class GdprService {
         // remarquerait nulle part (cf. AdminAuditService#recordDetached).
         audit.recordDetached(AdminAuditAction.PERSONAL_DATA_EXPORTED, AdminAuditTarget.ATHLETE,
                 athleteId, label(athlete), "Dossier complet (art. 20 — portabilité)");
-        LocalDate today = LocalDate.now();
+        LocalDate today = clock.today();
 
         var workouts = workoutRepository.findByAthleteIdOrderByScheduledDateAsc(athleteId)
                 .stream().map(WorkoutResponse::from).toList();

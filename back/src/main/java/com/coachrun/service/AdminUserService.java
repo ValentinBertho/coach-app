@@ -60,6 +60,8 @@ import java.util.UUID;
 public class AdminUserService {
 
     private final UserRepository userRepository;
+
+    private final ClockService clock;
     private final ClubRepository clubRepository;
     private final AthleteRepository athleteRepository;
     private final PushSubscriptionRepository pushSubscriptionRepository;
@@ -189,9 +191,9 @@ public class AdminUserService {
                     user.getLastLoginAt(), user.getLastSeenAt(), null, null, null);
         }
         UUID athleteId = user.getAthlete().getId();
-        LocalDate since = LocalDate.now().minusDays(USAGE_WINDOW_DAYS);
+        LocalDate since = clock.today().minusDays(USAGE_WINDOW_DAYS);
         long done = workoutRepository.countByAthleteIdInAndStatusAndScheduledDateBetween(
-                List.of(athleteId), WorkoutStatus.COMPLETED, since, LocalDate.now().plusDays(1));
+                List.of(athleteId), WorkoutStatus.COMPLETED, since, clock.today().plusDays(1));
         long imported = activityRepository.countByAthleteIdAndActivityDateAfter(athleteId, since);
         return new AdminUserUsageResponse.EngagementInfo(
                 user.getLastLoginAt(), user.getLastSeenAt(), done, imported,
