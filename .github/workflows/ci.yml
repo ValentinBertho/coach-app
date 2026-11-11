@@ -157,3 +157,101 @@ jobs:
         env:
           CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
         run: npm test
+
+  # --------------------------------------------------------------------------
+  # Bout en bout : l'application complète (back + jeu de démonstration + front)
+  # parcourue par Playwright — 5 parcours clés et contrôle d'accessibilité (axe).
+  # Voir e2e/README.md.
+  # --------------------------------------------------------------------------
+  e2e:
+    name: Bout en bout (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: coachrun
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            front/package-lock.json
+            e2e/package-lock.json
+
+      - name: Build du back
+        working-directory: back
+        run: mvn -B -ntp package -DskipTests
+
+      # Profil dev : jeu de démonstration chargé au démarrage. Plafonds de requêtes coupés —
+      # la suite se connecte une vingtaine de fois en une minute depuis la même adresse ; le
+      # rate limiting a ses propres tests côté back.
+      - name: Démarrage du back
+        working-directory: back
+        env:
+          SPRING_PROFILES_ACTIVE: dev
+          RATE_LIMIT_ENABLED: "false"
+          LOG_LEVEL_APP: INFO
+        run: |
+          nohup java -jar target/coachrun-back.jar > ../back.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS http://localhost:8080/api/actuator/health | grep -q '"status":"UP"' && exit 0
+            sleep 3
+          done
+          echo "❌ Le back n'a pas démarré"; tail -100 ../back.log; exit 1
+
+      - name: Démarrage du front
+        working-directory: front
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: "true"
+        run: |
+          npm ci
+          nohup npx ng serve --proxy-config proxy.conf.json > ../front.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS -o /dev/null http://localhost:4200 && exit 0
+            sleep 3
+          done
+          echo "❌ Le front n'a pas démarré"; tail -100 ../front.log; exit 1
+
+      - name: Installation de Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Parcours clés et accessibilité
+        working-directory: e2e
+        run: npx playwright test
+
+      - name: Rapport en cas d'échec
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-rapport
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+            back.log
+            front.log
+          retention-days: 7
