@@ -8,7 +8,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Activity } from '../../core/models/activity.model';
@@ -74,7 +74,7 @@ const SOURCE_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-athlete-workout-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [DecimalPipe, 
     DatePipe,
     RouterLink,
     IconComponent,
@@ -342,7 +342,7 @@ const SOURCE_LABELS: Record<string, string> = {
                       </span>
                       <span class="wd-pick-kpi metric">
                         @if (a.distanceM) {
-                          {{ (a.distanceM / 1000).toFixed(1) }} km
+                          {{ a.distanceM / 1000 | number: '1.1-1' }} km
                         }
                         @if (a.durationS) {
                           · {{ durationLabel(a.durationS) }}

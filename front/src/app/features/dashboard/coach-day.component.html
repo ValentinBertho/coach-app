@@ -13,8 +13,8 @@
        coûtaient une ligne entière pour un choix qu'on fait une fois. -->
   <div class="cd-scope">
     <button type="button" class="btn btn-ghost btn-sm" (click)="toggleScope()"
-            [attr.aria-expanded]="scopeOpen()" aria-label="Changer de périmètre">
-      <app-icon name="users" [size]="16" /> {{ scopeLabel() }}
+            [attr.aria-expanded]="scopeOpen()">
+      <app-icon name="users" [size]="16" /> <span class="sr-only">Périmètre :</span> {{ scopeLabel() }}
       <app-icon [name]="scopeOpen() ? 'chevron-up' : 'chevron-down'" [size]="14" />
     </button>
     @if (scopeOpen()) {

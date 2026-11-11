@@ -34,7 +34,7 @@
         Total :
         @if (t.durationLabel) { <strong>{{ t.durationLabel }}</strong> }
         @if (t.durationLabel && t.distanceKm) { · }
-        @if (t.distanceKm) { <strong>{{ t.distanceKm.toFixed(1) }} km</strong> }
+        @if (t.distanceKm) { <strong>{{ t.distanceKm | number: '1.1-1' }} km</strong> }
       </span>
     }
     <app-autosave-badge [autosave]="autosave" />

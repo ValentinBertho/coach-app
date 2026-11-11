@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -38,7 +39,7 @@ const OUTLOOK_LABEL: Record<Outlook, string> = {
 @Component({
   selector: 'app-trajectory-banner',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent],
+  imports: [DecimalPipe, IconComponent],
   template: `
     @if (data(); as t) {
       <section class="tb card" [class]="'tb--' + tone()">
@@ -55,7 +56,7 @@ const OUTLOOK_LABEL: Record<Outlook, string> = {
             <span class="tb__badge">{{ label() }}</span>
             @if (t.vdotGap !== null && t.vdotGap > 0) {
               <span class="tb__badge tb__badge--soft metric">
-                VDOT {{ t.currentVdot }} → {{ t.requiredVdot }}
+                VDOT {{ t.currentVdot | number: '1.1-1' }} → {{ t.requiredVdot | number: '1.1-1' }}
               </span>
             }
           </div>

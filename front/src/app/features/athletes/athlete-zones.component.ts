@@ -1,3 +1,4 @@
+import { frNumber } from '../../core/utils/number-format';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -658,16 +659,16 @@ export class AthleteZonesComponent implements OnInit {
     const p = this.physioProfile();
     if (!p) return [];
     const out: { label: string; value: string }[] = [];
-    if (p.vdot != null) out.push({ label: 'VDOT', value: p.vdot.toFixed(1) });
+    if (p.vdot != null) out.push({ label: 'VDOT', value: frNumber(p.vdot, 1) });
     if (p.fcMax != null) out.push({ label: 'FC max', value: `${p.fcMax} bpm` });
     if (p.fcLt2 != null)
       out.push({ label: 'FC seuil', value: `${p.fcLt2} bpm` });
     if (p.lt2Kmh != null)
-      out.push({ label: 'LT2', value: `${p.lt2Kmh.toFixed(1)} km/h` });
+      out.push({ label: 'LT2', value: `${frNumber(p.lt2Kmh, 1)} km/h` });
     if (p.vcKmh != null)
-      out.push({ label: 'VC', value: `${p.vcKmh.toFixed(1)} km/h` });
+      out.push({ label: 'VC', value: `${frNumber(p.vcKmh, 1)} km/h` });
     if (p.lt1Kmh != null)
-      out.push({ label: 'LT1', value: `${p.lt1Kmh.toFixed(1)} km/h` });
+      out.push({ label: 'LT1', value: `${frNumber(p.lt1Kmh, 1)} km/h` });
     return out;
   });
 

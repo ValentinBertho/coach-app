@@ -31,7 +31,7 @@ export const PRESCRIPTION_REF_SHORT: Record<PrescriptionRef, string> = {
   PCT_PACE_5KM: '5 km',
   PCT_PACE_10KM: '10 km',
   PCT_PACE_15KM: '15 km',
-  PCT_PACE_SEMI: 'semi',
+  PCT_PACE_SEMI: 'semi-marathon',
   PCT_PACE_MARATHON: 'marathon',
 };
 

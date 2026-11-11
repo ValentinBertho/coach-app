@@ -334,7 +334,7 @@ const SOURCE_LABEL: Record<string, string> = {
             />
             <app-metric-card
               label="Monotonie"
-              [value]="l.monotony != null ? l.monotony.toFixed(2) : '—'"
+              [value]="l.monotony != null ? (l.monotony | number: '1.2-2') : '—'"
               origin="calcule"
               [tone]="(l.monotony ?? 0) >= 2 ? 'alert' : 'neutral'"
             />

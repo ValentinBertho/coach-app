@@ -5,7 +5,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
@@ -31,7 +31,7 @@ const DISTANCES: { value: string; label: string }[] = [
 @Component({
   selector: 'app-athlete-performances',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DatePipe, FormsModule, RouterLink, IconComponent],
+  imports: [DecimalPipe, DatePipe, FormsModule, RouterLink, IconComponent],
   template: `
     <div class="perfs">
       <header class="perfs-top">
@@ -107,7 +107,7 @@ const DISTANCES: { value: string; label: string }[] = [
               </span>
             </div>
             @if (p.vdot != null) {
-              <span class="badge badge-info">VDOT {{ p.vdot }}</span>
+              <span class="badge badge-info">VDOT {{ p.vdot | number: '1.1-1' }}</span>
             }
           </article>
         }

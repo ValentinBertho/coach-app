@@ -1,3 +1,4 @@
+import { DecimalPipe } from '@angular/common';
 import {
   CdkDragDrop,
   DragDropModule,
@@ -189,7 +190,7 @@ function applyUnit(
 @Component({
   selector: 'app-session-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [DecimalPipe, 
     FormsModule,
     RouterLink,
     DragDropModule,

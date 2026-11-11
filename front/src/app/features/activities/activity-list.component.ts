@@ -1,3 +1,4 @@
+import { frNumber } from '../../core/utils/number-format';
 import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -188,13 +189,13 @@ export class ActivityListComponent implements OnInit {
   }
 
   km(m: number | null): string {
-    return m != null ? (m / 1000).toFixed(1) + ' km' : '—';
+    return m != null ? frNumber(m / 1000, 1) + ' km' : '—';
   }
 
   delta(m: number | null): string {
     if (m == null) return '';
     const sign = m > 0 ? '+' : '';
-    return `${sign}${(m / 1000).toFixed(1)} km`;
+    return `${sign}${frNumber(m / 1000, 1)} km`;
   }
 }
 

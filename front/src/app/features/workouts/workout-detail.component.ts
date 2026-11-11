@@ -18,7 +18,7 @@ import {
   WorkoutStatus,
 } from '../../core/models/workout.model';
 import { WorkoutService } from '../../core/services/workout.service';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
@@ -76,7 +76,7 @@ type State = 'loading' | 'ready' | 'error';
 @Component({
   selector: 'app-workout-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
+  imports: [DecimalPipe, 
     IconComponent,
     RouterLink,
     FormsModule,

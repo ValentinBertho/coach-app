@@ -245,6 +245,14 @@ public class CoachDashboardService {
         return marked;
     }
 
+    /**
+     * Ratio en écriture française, deux décimales : « 1,38 », pas « 1.38 », ni « 1.3833 » qu'un
+     * {@code Double} concaténé pouvait donner.
+     */
+    static String decimalFr(double value) {
+        return String.format(java.util.Locale.FRANCE, "%.2f", value);
+    }
+
     private static String displayName(Athlete a) {
         return (a.getFirstName() + " " + a.getLastName()).trim();
     }
@@ -437,20 +445,20 @@ public class CoachDashboardService {
                 Double ratio = load.ratio();
                 if (ratio != null && ratio > 1.5) {
                     alerts.add(alert(a, name, discipline, "RED", "ACWR_HIGH",
-                            "Charge en forte hausse", "ACWR " + ratio + " (> 1,5 : risque de blessure)."));
+                            "Charge en forte hausse", "ACWR " + decimalFr(ratio) + " (> 1,5 : risque de blessure)."));
                 } else if (ratio != null && ratio >= 1.3) {
                     alerts.add(alert(a, name, discipline, "ORANGE", "ACWR_HIGH",
-                            "Charge en hausse", "ACWR " + ratio + " (zone de vigilance)."));
+                            "Charge en hausse", "ACWR " + decimalFr(ratio) + " (zone de vigilance)."));
                 } else if (ratio != null && ratio < 0.8 && load.sessions28d() > 0
                         && unavailable.isEmpty()) {
                     // Une charge qui retombe pendant une coupure déclarée n'est pas un
                     // désentraînement subi : c'est le plan.
                     alerts.add(alert(a, name, discipline, "ORANGE", "ACWR_LOW",
-                            "Charge en baisse", "ACWR " + ratio + " (désentraînement possible)."));
+                            "Charge en baisse", "ACWR " + decimalFr(ratio) + " (désentraînement possible)."));
                 }
                 if (load.monotony() != null && load.monotony() >= 2.0) {
                     alerts.add(alert(a, name, discipline, "ORANGE", "MONOTONY",
-                            "Monotonie élevée", "Monotonie " + load.monotony() + " (manque de variété)."));
+                            "Monotonie élevée", "Monotonie " + decimalFr(load.monotony()) + " (manque de variété)."));
                 }
             } catch (RuntimeException ignored) {
                 // un calcul de charge en échec ne doit pas masquer les autres alertes

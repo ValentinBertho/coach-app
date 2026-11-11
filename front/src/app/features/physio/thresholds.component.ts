@@ -1,3 +1,4 @@
+import { frNumber } from '../../core/utils/number-format';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -490,7 +491,7 @@ export class ThresholdsComponent implements OnInit {
           });
           if (apply) {
             this.toast.success(
-              `VC ${r.vcKmh.toFixed(1)} km/h appliquée au profil`,
+              `VC ${frNumber(r.vcKmh, 1)} km/h appliquée au profil`,
             );
             this.load();
           }
@@ -506,7 +507,7 @@ export class ThresholdsComponent implements OnInit {
   fmtSpeed(kmh: number | null | undefined): string {
     if (kmh == null) return '—';
     return this.speedUnit() === 'kmh'
-      ? `${kmh.toFixed(1)} km/h`
+      ? `${frNumber(kmh, 1)} km/h`
       : `${this.paceOf(kmh)} /km`;
   }
 

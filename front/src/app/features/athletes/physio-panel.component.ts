@@ -1,3 +1,5 @@
+import { DecimalPipe } from '@angular/common';
+import { frNumber } from '../../core/utils/number-format';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -18,7 +20,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
 @Component({
   selector: 'app-physio-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, IconComponent],
+  imports: [DecimalPipe, SkeletonComponent, IconComponent],
   template: `
     <div class="card physio-card">
       <div class="physio-head">
@@ -44,7 +46,7 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
         <div class="physio-grid">
           <div class="vdot-tile">
             <span class="stat-label">VDOT</span>
-            <span class="metric vdot-value">{{ profile()?.vdot ?? '—' }}</span>
+            <span class="metric vdot-value">{{ profile()?.vdot != null ? (profile()!.vdot | number: '1.1-1') : '—' }}</span>
           </div>
 
           <div class="seuils">
@@ -228,14 +230,14 @@ export class PhysioPanelComponent implements OnInit {
   trainingPaceLabel(code: string): string {
     return (
       {
-        EASY: 'Allure easy (endurance)',
-        THRESHOLD: 'Allure seuil (threshold)',
+        EASY: 'Endurance fondamentale',
+        THRESHOLD: 'Seuil',
       }[code] ?? code
     );
   }
 
   kmh(value: number | null | undefined): string {
-    return value ? `${value} km/h` : '—';
+    return value ? `${frNumber(value, 1)} km/h` : '—';
   }
 
   fc(value: number | null | undefined): string {

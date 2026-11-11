@@ -26,7 +26,7 @@ const DISTANCE_LABELS: Record<string, string> = {
   '5km': '5 km',
   '10km': '10 km',
   '15km': '15 km',
-  semi: 'Semi',
+  semi: 'Semi-marathon',
   marathon: 'Marathon',
 };
 
