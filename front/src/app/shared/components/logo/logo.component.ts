@@ -1,8 +1,17 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
+/** Compteur d'instances : chaque logo porte son propre identifiant de dégradé. */
+let nextId = 0;
+
 /**
- * Logo CoachRun : mark (squircle dégradé + stride) + wordmark optionnel.
- * Cohérent avec branding/icon-master.svg et les icônes PWA.
+ * Logo Darilab : mark (squircle dégradé + stride) + wordmark optionnel.
+ * Cohérent avec branding/icon-master.svg et les icônes PWA, dans la couleur de la marque
+ * (pétrole) : le mark était resté bleu-indigo après le passage du design system au pétrole.
+ *
+ * <p>L'identifiant du dégradé est propre à chaque instance. Il était codé en dur (`crbg`) : avec
+ * deux logos dans la page (menu latéral de bureau, masqué, et barre mobile), le second
+ * `url(#crbg)` résolvait vers le premier, dont le SVG était dans un conteneur `display: none` :
+ * sur téléphone, le carré disparaissait et il ne restait que le point vert.</p>
  */
 @Component({
   selector: 'app-logo',
@@ -13,11 +22,11 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
       <svg class="mark" [attr.width]="size()" [attr.height]="size()" viewBox="0 0 1024 1024"
            fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <defs>
-          <linearGradient id="crbg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stop-color="#3D5AFE"/><stop offset="1" stop-color="#2D45D6"/>
+          <linearGradient [attr.id]="gradientId" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#12808B"/><stop offset="1" stop-color="#0A4F58"/>
           </linearGradient>
         </defs>
-        <rect width="1024" height="1024" rx="232" fill="url(#crbg)"/>
+        <rect width="1024" height="1024" rx="232" [attr.fill]="'url(#' + gradientId + ')'"/>
         <path d="M250 720 C 420 700, 540 580, 770 360" stroke="#fff" stroke-width="76" stroke-linecap="round" fill="none"/>
         <path d="M250 560 L 360 560" stroke="#fff" stroke-width="40" stroke-linecap="round" opacity="0.55"/>
         <path d="M250 640 L 320 640" stroke="#fff" stroke-width="40" stroke-linecap="round" opacity="0.35"/>
@@ -45,4 +54,5 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 export class LogoComponent {
   readonly size = input(32);
   readonly showText = input(true);
+  protected readonly gradientId = `darilab-logo-${nextId++}`;
 }
