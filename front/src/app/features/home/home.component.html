@@ -35,7 +35,7 @@
 
       @if (!isAuthenticated()) {
         <a routerLink="/" fragment="presentation" class="hero-video-link">
-          <app-icon name="play" [size]="16" /> Voir DARI Lab en une minute
+          <app-icon name="play" [size]="16" /> Voir DARI Lab en action
         </a>
       }
 
@@ -61,10 +61,10 @@
       <!-- preload="none" : rien ne se télécharge tant que personne n'appuie sur lecture. Servie
            hors de /assets pour que le service worker ne s'interpose pas dans la lecture. -->
       <video controls preload="none" playsinline poster="video/presentation-coachs-poster.webp"
-             width="1280" height="720" aria-label="Présentation de DARI Lab en une minute">
+             width="1280" height="720" aria-label="Présentation de DARI Lab en vidéo">
         <source src="video/presentation-coachs.mp4" type="video/mp4" />
       </video>
-      <figcaption class="field-hint">DARI Lab en une minute.</figcaption>
+      <figcaption class="field-hint">DARI Lab en action, filmé dans l’outil (1 min 37).</figcaption>
     </figure>
 
     @for (row of tour; track row.img; let odd = $odd) {

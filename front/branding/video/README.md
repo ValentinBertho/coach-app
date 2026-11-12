@@ -3,7 +3,29 @@
 Tout part des captures du jeu de démonstration (`docs/captures`, script `e2e/captures`). Après une
 évolution visible de l'interface : refaire les captures, puis ces trois étapes.
 
-## 1. La vidéo (1920 × 1080, ~73 s)
+## 1. La vidéo « en action » (1920 × 1080, ~1 min 37) — celle de la page d'accueil
+
+L'application filmée pour de vrai par Playwright : curseur, clics, glisser-déposer, saisie, et
+le téléphone de l'athlète. Il faut la pile de dev lancée (back en profil dev, front sur :4200) sur
+une base **fraîche** : le tournage modifie les données (demande acceptée, message envoyé…).
+
+```bash
+cd front/branding/video/film
+# 1. tourner les plans (tous, ou seulement ceux qu'on cite)
+NODE_PATH=../../../../e2e/node_modules node shoot.mjs /tmp/film
+NODE_PATH=../../../../e2e/node_modules node shoot.mjs /tmp/film coach-seance athlete-retour
+# 2. monter : cartes d'ouverture et de fin, titres, cadre du téléphone, fondus
+NODE_PATH=../../../../e2e/node_modules node montage.mjs /tmp/film /tmp/presentation-coachs.mp4
+# avec une musique libre de droits :
+NODE_PATH=../../../../e2e/node_modules node montage.mjs /tmp/film /tmp/presentation-coachs.mp4 --musique piste.mp3
+```
+
+- `recorder.mjs` : les outils de tournage (curseur visible, clic, glisser, saisie, défilement,
+  enregistrement image par image à 30 i/s).
+- `shoot.mjs` : un plan par geste montré (`PLANS`), chacun dans un nouvel onglet connecté.
+- `montage.mjs` : l'ordre des plans et leurs titres (`STORY`).
+
+## 1 bis. L'ancienne vidéo animée à partir des captures (~73 s)
 
 `presentation.html` décrit les scènes (texte, écran, zoom). Chaque image est calculée par
 `render(t)` puis assemblée par ffmpeg : le rendu est exact et identique à chaque fois.
