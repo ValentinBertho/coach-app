@@ -5,9 +5,18 @@
 > Le coach prescrit des séances **en fourchettes** calculées pour chaque athlète ; l'athlète
 > suit son programme, renseigne ses retours, et les deux communiquent en temps réel.
 >
-> Monorepo **Angular 17 (front) + Spring Boot 3 / Java 21 (back) + PostgreSQL**.
+> Monorepo **Angular 21 (front) + Spring Boot 3 / Java 21 (back) + PostgreSQL**.
 > Construit sur la base technique CoachRun, réorienté selon le cahier des charges DARI Lab
 > (la stack Next.js/Supabase du CDC d'origine est volontairement remplacée par Spring/Angular).
+
+<p align="center">
+  <img src="docs/captures/ordinateur/10-tableau-de-bord.jpg" alt="Tableau de bord du coach" width="72%">
+  <img src="docs/captures/telephone/01-aujourdhui.jpg" alt="L'athlète sur son téléphone" width="20%">
+</p>
+
+**En images** : [guide du coach](docs/guides/GUIDE-COACH.md) ·
+[guide de l'athlète](docs/guides/GUIDE-ATHLETE.md) · [toutes les captures](docs/captures/)
+(régénérées par [`e2e/captures`](e2e/captures/README.md)).
 
 ---
 

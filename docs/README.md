@@ -22,6 +22,17 @@
 | [`OPERATIONS.md`](./OPERATIONS.md) | L'**exploitation** : Sentry, sauvegardes, Actuator, CI | À chaque changement de procédure |
 | [`BETA-LAUNCH-RUNBOOK.md`](./BETA-LAUNCH-RUNBOOK.md) | La **checklist de mise en service** de la bêta, pas à pas | Pendant la mise en service |
 
+## Guides d'utilisation — pour les coachs et les athlètes
+
+| Document | Pour qui |
+|---|---|
+| [`guides/GUIDE-COACH.md`](./guides/GUIDE-COACH.md) | Le coach qui découvre l'outil : une semaine de travail, écran par écran |
+| [`guides/GUIDE-ATHLETE.md`](./guides/GUIDE-ATHLETE.md) | L'athlète sur son téléphone |
+
+Leurs images viennent de [`captures/`](./captures/), produites par le script
+[`e2e/captures`](../e2e/captures/README.md) sur le jeu de démonstration : **à relancer après
+chaque évolution visible.**
+
 ## Plans — ce qu'on a décidé de faire, et dans quel ordre
 
 | Document | Angle | État |
