@@ -36,6 +36,7 @@
               "src/apple-touch-icon.png",
               "src/assets",
               "src/video",
+              "src/guides",
               "src/manifest.webmanifest"
             ],
             "styles": [
@@ -153,6 +154,7 @@
               "src/apple-touch-icon.png",
               "src/assets",
               "src/video",
+              "src/guides",
               "src/manifest.webmanifest"
             ],
             "styles": [

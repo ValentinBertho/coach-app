@@ -49,15 +49,29 @@ import {
             >
               <app-icon name="search" [size]="15" /> Rechercher
             </button>
-            <button
-              type="button"
-              class="btn btn-ghost btn-sm"
-              (click)="exportPdf()"
-            >
-              <app-icon name="download" [size]="15" /> PDF
-            </button>
+            <!-- Sur la page publique, le guide illustré (bouton plus bas) remplace cet export texte. -->
+            @if (!publicPage()) {
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                (click)="exportPdf()"
+              >
+                <app-icon name="download" [size]="15" /> PDF
+              </button>
+            }
           </div>
         </div>
+        @if (publicPage()) {
+          <nav class="help-public" aria-label="Choisir le guide">
+            <a routerLink="/aide" class="btn btn-sm" [class.btn-primary]="effectiveAudience() === 'coach'"
+               [class.btn-ghost]="effectiveAudience() !== 'coach'">Pour les coachs</a>
+            <a routerLink="/aide/athlete" class="btn btn-sm" [class.btn-primary]="effectiveAudience() === 'athlete'"
+               [class.btn-ghost]="effectiveAudience() !== 'athlete'">Pour les athlètes</a>
+            <a [href]="illustratedGuide()" class="btn btn-secondary btn-sm help-public__pdf" download>
+              <app-icon name="download" [size]="15" /> Guide illustré (PDF)
+            </a>
+          </nav>
+        }
         <div class="help-title">
           <span class="help-ic"><app-icon name="life-buoy" [size]="22" /></span>
           <div>
@@ -157,7 +171,9 @@ import {
 
       <p class="help-foot field-hint">
         Une question sans réponse ici ?
-        @if (effectiveAudience() === 'athlete') {
+        @if (publicPage()) {
+          Écris-nous depuis la page <a routerLink="/support">Support</a>.
+        } @else if (effectiveAudience() === 'athlete') {
           Écris à ton coach depuis l'onglet
           <a routerLink="/athlete/messages">Messages</a>.
         } @else {
@@ -192,6 +208,16 @@ import {
         align-items: center;
         justify-content: space-between;
         gap: var(--sp-2);
+      }
+      .help-public {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--sp-2);
+        margin-top: var(--sp-3);
+      }
+      .help-public__pdf {
+        margin-left: auto;
       }
       .help-bar__actions {
         display: flex;
@@ -382,6 +408,8 @@ export class HelpCenterComponent {
 
   /** Public cible, fourni par la route (`data.audience`). */
   readonly audience = input<HelpAudience | undefined>(undefined);
+  /** Page publique `/aide` (sans compte) : retour à l'accueil, choix du guide, PDF illustré. */
+  readonly publicPage = input(false);
   /** Section à ouvrir directement, fournie par la route (`?section=`). */
   readonly section = input<string | undefined>(undefined);
 
@@ -454,7 +482,13 @@ export class HelpCenterComponent {
         : 'info';
   }
 
+  /** Le guide illustré (captures d'écran), fabriqué par branding/guides/generate-guides.mjs. */
+  illustratedGuide(): string {
+    return this.effectiveAudience() === 'athlete' ? '/guides/guide-athlete.pdf' : '/guides/guide-coach.pdf';
+  }
+
   backLink(): string {
+    if (this.publicPage()) return '/';
     switch (this.effectiveAudience()) {
       case 'athlete':
         return '/athlete/today';
