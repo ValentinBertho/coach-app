@@ -48,9 +48,14 @@ public class PublicCoachDirectoryController {
      * <p>{@code remote} vaut « propose le distanciel » quand il est vrai, « propose le présentiel »
      * quand il est faux, et « peu importe » quand il est absent : les deux modes se cumulent chez
      * un même coach, et un booléen qui exclurait l'autre écarterait ceux qui font les deux.</p>
+     *
+     * <p>{@code q} est la recherche libre (nom, ville, spécialité, mots de la présentation) ;
+     * {@code sort} l'ordre choisi par le visiteur, le mélange du jour par défaut.</p>
      */
     @GetMapping("/coaches")
     public PageResponse<PublicCoachSummaryResponse> search(
+            @RequestParam(required = false) String q,
+            @RequestParam(defaultValue = "DEFAULT") CoachDirectoryService.DirectorySort sort,
             @RequestParam(required = false) Discipline discipline,
             @RequestParam(required = false) CoachSpecialty specialty,
             @RequestParam(required = false) String language,
@@ -61,8 +66,10 @@ public class PublicCoachDirectoryController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
         return directory.search(new CoachDirectoryService.DirectoryQuery(
+                // Borné : la recherche se fait en mémoire, mot par mot, sur chaque fiche.
+                q != null && q.length() > 80 ? q.substring(0, 80) : q,
                 discipline, specialty, language, city, remote, maxMonthlyCents, acceptingOnly),
-                Math.max(0, page), Math.min(Math.max(1, size), 48));
+                sort, Math.max(0, page), Math.min(Math.max(1, size), 48));
     }
 
     /**

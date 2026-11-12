@@ -1,7 +1,7 @@
 import { importProvidersFrom } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { LucideAngularModule } from 'lucide-angular';
 import { ICONS } from '../../app.config';
@@ -137,5 +137,76 @@ describe('annuaire — un visiteur ne tombe jamais sur un cul-de-sac', () => {
   it('affiche le tarif d’entrée du coach', () => {
     const host = start([coach]);
     expect(host.textContent).toContain('à partir de 90 € / mois');
+  });
+
+  /**
+   * La recherche libre attend la fin de la frappe : une requête par lettre userait pour rien le
+   * plafonnement de l'annuaire.
+   */
+  it('cherche le texte saisi, une seule fois, après la frappe', fakeAsync(() => {
+    const host = start([coach]);
+    const input = host.querySelector('#dir-q') as HTMLInputElement;
+
+    for (const typed of ['l', 'ly', 'lyon']) {
+      input.value = typed;
+      input.dispatchEvent(new Event('input'));
+    }
+    http.expectNone((r) => r.url.endsWith('/public/coaches'));
+    tick(300);
+
+    const req = http.expectOne((r) => r.url.endsWith('/public/coaches'));
+    expect(req.request.params.get('q')).toBe('lyon');
+    req.flush(page([coach]));
+  }));
+
+  /** Une recherche libre sans résultat est un cul-de-sac comme un autre : même repli. */
+  it('retombe aussi sur des coachs disponibles quand le texte cherché ne rend rien', fakeAsync(() => {
+    const host = start([coach]);
+    const input = host.querySelector('#dir-q') as HTMLInputElement;
+    input.value = 'zzz';
+    input.dispatchEvent(new Event('input'));
+    tick(300);
+    http.expectOne((r) => r.url.endsWith('/public/coaches')).flush(page([]));
+    http.expectOne((r) => r.url.endsWith('/public/coach-suggestions')).flush(page([coach]));
+    fixture.detectChanges();
+
+    expect(host.textContent).toContain('Aucun coach ne correspond');
+    expect(host.querySelectorAll('.dir__card').length).toBe(1);
+    expect(host.querySelector('.dir__sort'))
+      .withContext('on ne propose pas de trier un repli').toBeNull();
+  }));
+
+  it('relance la recherche dans l’ordre choisi', () => {
+    const host = start([coach]);
+    const select = host.querySelector('.dir__sort-select') as HTMLSelectElement;
+    select.value = 'PRICE';
+    select.dispatchEvent(new Event('change'));
+
+    const req = http.expectOne((r) => r.url.endsWith('/public/coaches'));
+    expect(req.request.params.get('sort')).toBe('PRICE');
+    req.flush(page([coach]));
+  });
+
+  /** Au-delà de douze coachs, la suite doit rester atteignable. */
+  it('charge la page suivante à la demande, tant qu’il en reste', () => {
+    fixture.detectChanges();
+    http.expectOne((r) => r.url.endsWith('/public/coach-facets')).flush(facets);
+    http.expectOne((r) => r.url.endsWith('/public/coaches'))
+      .flush({ content: [coach], page: 0, size: 12, totalElements: 2, totalPages: 2 });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent).toContain('2 coachs');
+
+    (host.querySelector('.dir__more button') as HTMLButtonElement).click();
+    const req = http.expectOne((r) => r.url.endsWith('/public/coaches'));
+    expect(req.request.params.get('page')).toBe('1');
+    req.flush({
+      content: [{ ...coach, slug: 'paul-martin', name: 'Paul Martin' }],
+      page: 1, size: 12, totalElements: 2, totalPages: 2,
+    });
+    fixture.detectChanges();
+
+    expect(host.querySelectorAll('.dir__card').length).toBe(2);
+    expect(host.querySelector('.dir__more')).withContext('plus rien à charger').toBeNull();
   });
 });

@@ -1,11 +1,15 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal,
+} from '@angular/core';
 import { Meta, Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import {
   CoachDirectoryService,
   CoachFacets,
   CoachSummary,
+  DIRECTORY_SORTS,
   DirectoryFilters,
+  DirectorySort,
   FacetValue,
 } from '../../core/services/coach-directory.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -51,6 +55,16 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
           tarifs. Vous choisissez, vous demandez ; c'est le coach qui accepte.
         </p>
       </section>
+
+      <!-- La recherche libre vit hors du bloc des facettes : elle doit rester utilisable même
+           quand celles-ci n'ont pas pu être chargées. -->
+      <form class="dir__search" role="search" (submit)="$event.preventDefault(); searchNow()">
+        <label class="sr-only" for="dir-q">Rechercher un coach</label>
+        <app-icon name="search" [size]="18" />
+        <input id="dir-q" type="search" class="dir__search-input" autocomplete="off"
+               placeholder="Un nom, une ville, une spécialité…" maxlength="80"
+               [value]="filters().q ?? ''" (input)="onQuery($any($event.target).value)" />
+      </form>
 
       @if (facets(); as f) {
         <section class="dir__filters" aria-label="Filtres">
@@ -119,15 +133,30 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
           <div class="card dir__empty">
             <app-icon name="search" [size]="28" />
             <div>
-              <strong>Aucun coach ne correspond à cette combinaison.</strong>
+              <strong>Aucun coach ne correspond à cette recherche.</strong>
               <p class="field-hint">
                 Nous démarrons : l'annuaire compte encore peu de coachs. Voici ceux qui prennent
                 des athlètes en ce moment.
               </p>
             </div>
             <button type="button" class="btn btn-secondary btn-sm" (click)="clearFilters()">
-              Effacer les filtres
+              Effacer la recherche
             </button>
+          </div>
+        }
+
+        @if (results().length) {
+          <div class="dir__bar">
+            <p class="dir__total" aria-live="polite">{{ totalLabel() }}</p>
+            <label class="dir__sort">
+              <span>Trier par</span>
+              <select class="dir__sort-select" [value]="sort()"
+                      (change)="setSort($any($event.target).value)">
+                @for (o of sorts; track o.value) {
+                  <option [value]="o.value" [selected]="o.value === sort()">{{ o.label }}</option>
+                }
+              </select>
+            </label>
           </div>
         }
 
@@ -170,6 +199,14 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
               </li>
             }
           </ul>
+          @if (!empty() && results().length < total()) {
+            <div class="dir__more">
+              <button type="button" class="btn btn-secondary" [disabled]="loadingMore()"
+                      (click)="loadMore()">
+                {{ loadingMore() ? 'Chargement…' : 'Voir plus de coachs' }}
+              </button>
+            </div>
+          }
         } @else if (!empty()) {
           <div class="card dir__empty">
             <app-icon name="inbox" [size]="28" />
@@ -188,6 +225,14 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
     .dir__brand { text-decoration: none; }
     .dir__hero { margin-bottom: var(--sp-8); }
     .dir__hero .lead { color: var(--ink-2); max-width: 60ch; }
+    .dir__search { display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-4); margin-bottom: var(--sp-5); border: 1px solid var(--hairline); border-radius: var(--radius-full); background: var(--paper); color: var(--ink-3); max-width: 560px; }
+    .dir__search:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-wash); }
+    .dir__search-input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: var(--text-md, 1rem); padding: var(--sp-3) 0; min-height: 44px; }
+    .dir__bar { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-3); }
+    .dir__total { margin: 0; color: var(--ink-2); font-size: var(--text-sm); }
+    .dir__sort { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--ink-3); font-size: var(--text-sm); }
+    .dir__sort-select { border: 1px solid var(--hairline); border-radius: var(--radius-md); background: var(--paper); color: var(--ink); font: inherit; font-size: var(--text-sm); padding: var(--sp-2) var(--sp-3); min-height: 36px; }
+    .dir__more { display: flex; justify-content: center; margin-top: var(--sp-5); }
     .dir__filters { display: flex; flex-direction: column; gap: var(--sp-4); margin-bottom: var(--sp-6); }
     .dir__legend { display: block; font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-3); margin-bottom: var(--sp-2); }
     .dir__chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
@@ -221,6 +266,17 @@ export class CoachDirectoryComponent implements OnInit {
   private readonly service = inject(CoachDirectoryService);
   private readonly title = inject(Title);
   private readonly meta = inject(Meta);
+  private readonly destroyRef = inject(DestroyRef);
+
+  readonly sorts = DIRECTORY_SORTS;
+  readonly sort = signal<DirectorySort>('DEFAULT');
+  /** Le nombre de coachs que la recherche rend en tout, au-delà de la page chargée. */
+  readonly total = signal(0);
+  readonly loadingMore = signal(false);
+  private page = 0;
+  private queryTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Numérote les recherches : une réponse en retard ne doit pas écraser la plus récente. */
+  private searchSeq = 0;
 
   readonly facets = signal<CoachFacets | null>(null);
   readonly results = signal<CoachSummary[]>([]);
@@ -250,6 +306,9 @@ export class CoachDirectoryComponent implements OnInit {
     // erreur non traitée ici faisait aussi échouer le pré-rendu quand l'API est injoignable.
     this.service.facets().subscribe({ next: (f) => this.facets.set(f), error: () => this.facets.set(null) });
     this.load();
+    this.destroyRef.onDestroy(() => {
+      if (this.queryTimer) clearTimeout(this.queryTimer);
+    });
   }
 
   toggleFilter(key: keyof DirectoryFilters, value: string): void {
@@ -261,6 +320,48 @@ export class CoachDirectoryComponent implements OnInit {
   clearFilters(): void {
     this.filters.set({});
     this.load();
+  }
+
+  /**
+   * La saisie libre, avec un court délai : une requête par lettre tapée userait pour rien le
+   * plafonnement propre à l'annuaire.
+   */
+  onQuery(value: string): void {
+    this.filters.set({ ...this.filters(), q: value.trim() ? value : null });
+    if (this.queryTimer) clearTimeout(this.queryTimer);
+    this.queryTimer = setTimeout(() => this.load(), 300);
+  }
+
+  /** Entrée : on n'attend pas le délai. */
+  searchNow(): void {
+    if (this.queryTimer) clearTimeout(this.queryTimer);
+    this.queryTimer = null;
+    this.load();
+  }
+
+  setSort(value: DirectorySort): void {
+    this.sort.set(value);
+    this.load();
+  }
+
+  totalLabel(): string {
+    const n = this.total();
+    return n > 1 ? `${n} coachs` : `${n} coach`;
+  }
+
+  loadMore(): void {
+    const seq = this.searchSeq;
+    this.loadingMore.set(true);
+    this.service.search(this.filters(), this.page + 1, 12, this.sort()).subscribe({
+      next: (page) => {
+        if (seq !== this.searchSeq) return;
+        this.page = page.page;
+        this.results.set([...this.results(), ...page.content]);
+        this.total.set(page.totalElements);
+        this.loadingMore.set(false);
+      },
+      error: () => this.loadingMore.set(false),
+    });
   }
 
   /** Ce que dit un filtre désactivé : pourquoi il l'est, et non qu'il n'existe pas. */
@@ -277,10 +378,15 @@ export class CoachDirectoryComponent implements OnInit {
   }
 
   private load(): void {
+    const seq = ++this.searchSeq;
+    this.page = 0;
     this.loading.set(true);
-    this.service.search(this.filters()).subscribe({
+    this.loadingMore.set(false);
+    this.service.search(this.filters(), 0, 12, this.sort()).subscribe({
       next: (page) => {
+        if (seq !== this.searchSeq) return;
         this.results.set(page.content);
+        this.total.set(page.totalElements);
         this.loading.set(false);
         // Le repli n'est chargé que s'il va servir : une requête de plus sur chaque recherche
         // fructueuse n'apporterait rien.
@@ -292,7 +398,9 @@ export class CoachDirectoryComponent implements OnInit {
         }
       },
       error: () => {
+        if (seq !== this.searchSeq) return;
         this.results.set([]);
+        this.total.set(0);
         this.loading.set(false);
       },
     });

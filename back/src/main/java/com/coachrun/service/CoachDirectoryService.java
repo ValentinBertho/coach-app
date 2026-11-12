@@ -89,6 +89,18 @@ public class CoachDirectoryService {
      * fiche non publiée : le filtre de visibilité est appliqué en premier et n'est pas paramétrable.</p>
      */
     public PageResponse<PublicCoachSummaryResponse> search(DirectoryQuery query, int page, int size) {
+        return search(query, DirectorySort.DEFAULT, page, size);
+    }
+
+    /**
+     * Cherche dans l'annuaire, dans l'ordre demandé.
+     *
+     * <p>Quel que soit le tri, ceux qui acceptent des athlètes passent devant, et le mélange du
+     * jour départage les égalités : trier par prix ne doit ni remonter une fiche fermée, ni
+     * redonner aux premiers inscrits la tête de chaque palier de prix.</p>
+     */
+    public PageResponse<PublicCoachSummaryResponse> search(DirectoryQuery query, DirectorySort sort,
+                                                           int page, int size) {
         List<CoachProfile> visible = profileRepository.findByStatusIn(VISIBLE,
                 org.springframework.data.domain.PageRequest.of(0, MAX_MATCHES)).getContent();
         if (visible.size() == MAX_MATCHES) {
@@ -100,7 +112,7 @@ public class CoachDirectoryService {
                 .filter(query::matches)
                 .filter(p -> withinBudget(p, query.maxMonthlyCents()))
                 .toList();
-        List<CoachProfile> ordered = order(matches);
+        List<CoachProfile> ordered = order(matches, sort == null ? DirectorySort.DEFAULT : sort);
 
         int from = Math.min(page * size, ordered.size());
         int to = Math.min(from + size, ordered.size());
@@ -120,7 +132,7 @@ public class CoachDirectoryService {
      * fonctionné. L'écran appelle cette route en connaissance de cause, et dit pourquoi.</p>
      */
     public PageResponse<PublicCoachSummaryResponse> fallback(int size) {
-        return search(new DirectoryQuery(null, null, null, null, null, null, true), 0, size);
+        return search(new DirectoryQuery(null, null, null, null, null, null, null, true), 0, size);
     }
 
     public PublicCoachDetailResponse bySlug(String slug) {
@@ -187,12 +199,46 @@ public class CoachDirectoryService {
      * journée — sans quoi feuilleter ferait réapparaître des fiches déjà vues et en sauterait
      * d'autres — et il tourne le lendemain.</p>
      */
-    private List<CoachProfile> order(List<CoachProfile> matches) {
+    private List<CoachProfile> order(List<CoachProfile> matches, DirectorySort sort) {
         List<CoachProfile> shuffled = new ArrayList<>(matches);
         Collections.shuffle(shuffled, new Random(clock.today().toEpochDay()));
+        // Les tris sont stables : chacun ne déplace que ce qu'il distingue, et le mélange du jour
+        // reste l'ordre des fiches qu'il laisse à égalité.
+        Comparator<CoachProfile> chosen = switch (sort) {
+            case DEFAULT -> null;
+            // Sans tarif mensuel comparable, une fiche passe après celles qui en annoncent un :
+            // « du moins cher au plus cher » ne peut pas la placer, et la mettre en tête ferait
+            // croire qu'elle est gratuite.
+            case PRICE -> Comparator.comparing((CoachProfile p) -> fromMonthlyCents(p.getId()),
+                    Comparator.nullsLast(Comparator.naturalOrder()));
+            case EXPERIENCE -> Comparator.comparing(CoachProfile::getExperienceYears,
+                    Comparator.nullsLast(Comparator.reverseOrder()));
+            case RESPONSE -> Comparator.comparing(CoachProfile::getMedianResponseHours,
+                    Comparator.nullsLast(Comparator.naturalOrder()));
+        };
+        if (chosen != null) {
+            shuffled.sort(chosen);
+        }
         shuffled.sort(Comparator.comparing(
                 (CoachProfile p) -> p.getStatus().acceptsRequests() ? 0 : 1));
         return shuffled;
+    }
+
+    /**
+     * Les ordres que le visiteur peut choisir.
+     *
+     * <p>Pas de « mieux notés » : il n'y a pas d'avis. Pas de « plus récents » non plus, pour la
+     * raison donnée en tête de classe — l'ancienneté d'inscription n'est pas une qualité.</p>
+     */
+    public enum DirectorySort {
+        /** Le mélange du jour. */
+        DEFAULT,
+        /** Du tarif mensuel « à partir de » le plus bas au plus élevé. */
+        PRICE,
+        /** Du plus expérimenté au moins expérimenté (années déclarées). */
+        EXPERIENCE,
+        /** Du délai de réponse médian le plus court au plus long. */
+        RESPONSE
     }
 
     /**
@@ -300,6 +346,13 @@ public class CoachDirectoryService {
      * facettes coûterait plus à écrire et à relire qu'il ne rapporte à cette échelle.</p>
      */
     public record DirectoryQuery(
+            /**
+             * Recherche libre : un nom, une ville, une spécialité, un mot de la présentation.
+             *
+             * <p>Chaque mot doit se retrouver quelque part dans la fiche, sans égard pour la casse
+             * ni les accents — « evry » trouve « Évry », « prepa » trouve « Préparation ».</p>
+             */
+            String q,
             Discipline discipline,
             CoachSpecialty specialty,
             String language,
@@ -318,6 +371,9 @@ public class CoachDirectoryService {
             Boolean acceptingOnly) {
 
         boolean matches(CoachProfile p) {
+            if (!matchesText(p)) {
+                return false;
+            }
             if (discipline != null && !p.getDisciplines().contains(discipline)) {
                 return false;
             }
@@ -341,6 +397,35 @@ public class CoachDirectoryService {
                 return false;
             }
             return !Boolean.TRUE.equals(acceptingOnly) || p.getStatus().acceptsRequests();
+        }
+
+        private boolean matchesText(CoachProfile p) {
+            if (!StringUtils.hasText(q)) {
+                return true;
+            }
+            String haystack = fold(String.join(" ",
+                    p.getCoach() != null && p.getCoach().getFullName() != null
+                            ? p.getCoach().getFullName() : "",
+                    p.getHeadline() != null ? p.getHeadline() : "",
+                    p.getBio() != null ? p.getBio() : "",
+                    p.getCity() != null ? p.getCity() : "",
+                    p.getSpecialties().stream().map(CoachSpecialty::label)
+                            .collect(java.util.stream.Collectors.joining(" ")),
+                    p.getDisciplines().stream().map(CoachDirectoryService::disciplineLabel)
+                            .collect(java.util.stream.Collectors.joining(" "))));
+            for (String word : fold(q).trim().split("\\s+")) {
+                if (!word.isEmpty() && !haystack.contains(word)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /** Minuscules, sans accents : ce qu'un visiteur tape rarement comme c'est écrit. */
+        private static String fold(String text) {
+            return java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD)
+                    .replaceAll("\\p{M}", "")
+                    .toLowerCase(Locale.ROOT);
         }
     }
 }

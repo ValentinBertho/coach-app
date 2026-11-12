@@ -68,7 +68,19 @@ export interface CoachFacets {
   accepting: number;
 }
 
+/** Les ordres proposés au visiteur, alignés sur `DirectorySort` côté serveur. */
+export type DirectorySort = 'DEFAULT' | 'PRICE' | 'EXPERIENCE' | 'RESPONSE';
+
+export const DIRECTORY_SORTS: ReadonlyArray<{ value: DirectorySort; label: string }> = [
+  { value: 'DEFAULT', label: 'Sélection du jour' },
+  { value: 'PRICE', label: 'Tarif croissant' },
+  { value: 'EXPERIENCE', label: 'Les plus expérimentés' },
+  { value: 'RESPONSE', label: 'Réponse la plus rapide' },
+];
+
 export interface DirectoryFilters {
+  /** Recherche libre : nom, ville, spécialité, mots de la présentation. */
+  q?: string | null;
   discipline?: string | null;
   specialty?: string | null;
   language?: string | null;
@@ -96,8 +108,13 @@ export class CoachDirectoryService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiUrl;
 
-  search(filters: DirectoryFilters, page = 0, size = 12): Observable<Page<CoachSummary>> {
+  search(
+    filters: DirectoryFilters, page = 0, size = 12, sort: DirectorySort = 'DEFAULT',
+  ): Observable<Page<CoachSummary>> {
     let params = new HttpParams().set('page', page).set('size', size);
+    if (sort !== 'DEFAULT') {
+      params = params.set('sort', sort);
+    }
     for (const [key, value] of Object.entries(filters)) {
       if (value !== null && value !== undefined && value !== '') {
         params = params.set(key, String(value));

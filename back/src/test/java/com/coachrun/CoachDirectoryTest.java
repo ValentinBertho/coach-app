@@ -169,6 +169,86 @@ class CoachDirectoryTest {
         assertThat(first.get("slug").asText()).isNotBlank();
     }
 
+    /**
+     * La recherche libre : ce qu'un visiteur tape, pas ce que la base contient à la lettre.
+     *
+     * <p>Sans égard pour la casse ni les accents, sur le nom, la ville, la spécialité et la
+     * présentation ; tous les mots doivent s'y retrouver.</p>
+     */
+    @Test
+    void freeTextFindsACoachByCityNameOrSpecialty() throws Exception {
+        publishProfile();
+
+        assertThat(listedWith("q", "lyon")).as("la ville, sans majuscule").isTrue();
+        assertThat(listedWith("q", "MARATHON lyon")).as("deux mots, tous deux présents").isTrue();
+        assertThat(listedWith("q", "route et trail")).as("les mots de l'accroche").isTrue();
+        assertThat(listedWith("q", "lyon triathlon")).as("un mot absent écarte la fiche").isFalse();
+        assertThat(listedWith("q", "zzzintrouvable")).isFalse();
+        assertThat(listedWith("q", "   ")).as("une recherche vide ne filtre rien").isTrue();
+    }
+
+    /** « evry » doit trouver « Évry » : personne ne tape les accents dans un champ de recherche. */
+    @Test
+    void freeTextIgnoresAccents() throws Exception {
+        completeProfile();
+        mvc.perform(put("/me/coach-profile").header("Authorization", coachBearer)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .content("{\"headline\":\"Préparation trail\",\"bio\":\"" + "x".repeat(130) + "\","
+                                + "\"disciplines\":[\"ROUTE\"],\"specialties\":[\"MARATHON\"],"
+                                + "\"levels\":[],\"languages\":[\"fr\"],\"city\":\"Évry\","
+                                + "\"country\":\"FR\",\"remote\":true,\"inPerson\":false,"
+                                + "\"experienceYears\":12}"))
+                .andExpect(status().isOk());
+        submit();
+        publish();
+
+        assertThat(listedWith("q", "evry")).isTrue();
+        assertThat(listedWith("q", "preparation")).isTrue();
+    }
+
+    /**
+     * Le tri par prix range du moins cher au plus cher, sans jamais faire passer une fiche fermée
+     * devant une fiche ouverte, et place en dernier celles qui n'annoncent pas de tarif mensuel.
+     */
+    @Test
+    void sortingByPriceKeepsOpenProfilesFirstAndUnpricedOnesLast() throws Exception {
+        publishProfile();
+
+        JsonNode rows = json(mvc.perform(get("/public/coaches").param("sort", "PRICE").param("size", "48"))
+                .andExpect(status().isOk())).get("content");
+        assertThat(rows.size()).isGreaterThanOrEqualTo(1);
+        boolean closedSeen = false;
+        Integer previous = null;
+        boolean unpricedSeen = false;
+        for (JsonNode row : rows) {
+            boolean accepting = row.get("acceptingAthletes").asBoolean();
+            if (!accepting && !closedSeen) {
+                // Le classement repart de zéro dans le groupe des fiches fermées.
+                closedSeen = true;
+                previous = null;
+                unpricedSeen = false;
+            }
+            assertThat(accepting && closedSeen).as("une fiche ouverte après une fiche fermée").isFalse();
+            if (row.get("fromMonthlyCents").isNull()) {
+                unpricedSeen = true;
+            } else {
+                assertThat(unpricedSeen).as("un tarif après une fiche sans tarif").isFalse();
+                int price = row.get("fromMonthlyCents").asInt();
+                if (previous != null) {
+                    assertThat(price).isGreaterThanOrEqualTo(previous);
+                }
+                previous = price;
+            }
+        }
+    }
+
+    /** Un tri inconnu est une requête mal formée, pas un tri par défaut silencieux. */
+    @Test
+    void anUnknownSortIsRejected() throws Exception {
+        mvc.perform(get("/public/coaches").param("sort", "NOTE")).andExpect(status().isBadRequest());
+    }
+
     // ------------------------------------------------------------------ utilitaires
 
     private long searchTotal(String... params) throws Exception {
@@ -190,8 +270,16 @@ class CoachDirectoryTest {
      * publié un coach.</p>
      */
     private boolean listedInDirectory() throws Exception {
-        JsonNode page = json(mvc.perform(get("/public/coaches").param("size", "48"))
-                .andExpect(status().isOk()));
+        return listedWith();
+    }
+
+    /** Idem, avec des critères de recherche. */
+    private boolean listedWith(String... params) throws Exception {
+        var request = get("/public/coaches").param("size", "48");
+        for (int i = 0; i < params.length; i += 2) {
+            request = request.param(params[i], params[i + 1]);
+        }
+        JsonNode page = json(mvc.perform(request).andExpect(status().isOk()));
         for (JsonNode row : page.get("content")) {
             if (slug().equals(row.get("slug").asText())) {
                 return true;
