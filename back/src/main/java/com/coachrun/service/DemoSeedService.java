@@ -150,6 +150,7 @@ public class DemoSeedService {
     private final com.coachrun.repository.CoachCertificationRepository coachCertificationRepository;
     private final com.coachrun.repository.AthleteAccountRepository athleteAccountRepository;
     private final com.coachrun.repository.CoachingRequestRepository coachingRequestRepository;
+    private final ConversationService conversationService;
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
@@ -344,6 +345,290 @@ public class DemoSeedService {
         // `nina` n'a volontairement aucune demande : c'est le compte avec lequel on parcourt
         // l'annuaire et on en dépose une soi-même.
         return nina != null;
+    }
+
+    // ----------------------------------------------------------------------
+
+    /** Prénom et nom de la coach de démonstration (compte {@link #HEAD_COACH_EMAIL}). */
+    public static final String SHOWCASE_COACH_NAME = "Claire Vasseur";
+    public static final String SHOWCASE_ASSISTANT_NAME = "Hugo Perrin";
+    public static final String SHOWCASE_PROSPECT_EMAIL = "lea@coachrun.fr";
+
+    /**
+     * La couche « présentation » : ce qui fait du club de démo une histoire qu'on peut montrer.
+     *
+     * <h2>Pourquoi elle est séparée</h2>
+     *
+     * <p>Même raison que {@link #seedHub()} : {@code seed()} nourrit toute la suite de tests, qui
+     * compte des retours, des noms et des fils. Cette couche ne tourne qu'au démarrage en profil
+     * {@code dev} — c'est-à-dire là où l'on fait des démonstrations, des captures et des vidéos.</p>
+     *
+     * <h2>Ce qu'elle corrige dans ce que voit un visiteur</h2>
+     *
+     * <ul>
+     *   <li>« Bonjour Coach Démo » : la coach et son assistant ont un vrai nom ;</li>
+     *   <li>plus d'une centaine de « retours à traiter » : seuls ceux des deux derniers jours
+     *       restent ouverts, comme chez une coach qui suit ses athlètes ;</li>
+     *   <li>une messagerie vide : les messages du jeu de base n'étaient rattachés à aucun fil, donc
+     *       invisibles ; de vraies conversations sont créées ;</li>
+     *   <li>un calendrier vide après la semaine en cours : deux semaines sont planifiées ;</li>
+     *   <li>une coach absente de l'annuaire et sans demande : elle a sa fiche publique et une
+     *       demande l'attend ;</li>
+     *   <li>un annuaire de deux noms : quatre coachs de plus.</li>
+     * </ul>
+     *
+     * <p>Idempotente : ne fait rien si la fiche publique de la coach existe déjà.</p>
+     *
+     * @return vrai si des données ont été créées
+     */
+    @Transactional
+    public boolean seedShowcase() {
+        User head = userRepository.findByEmailIgnoreCase(HEAD_COACH_EMAIL).orElse(null);
+        if (head == null || head.getClub() == null
+                || coachProfileRepository.findByCoachId(head.getId()).isPresent()) {
+            return false;
+        }
+        Club club = head.getClub();
+        LocalDate today = clock.today();
+
+        // --- De vrais noms.
+        head.setFullName(SHOWCASE_COACH_NAME);
+        userRepository.save(head);
+        userRepository.findByEmailIgnoreCase(COACH_EMAIL).ifPresent(u -> {
+            u.setFullName(SHOWCASE_ASSISTANT_NAME);
+            userRepository.save(u);
+        });
+        // Le modèle « hérité » sert à tester une migration ; en démonstration, il s'appelle
+        // comme une séance.
+        jdbcTemplate.update("update workout_templates set name = ? where club_id = ? and name = ?",
+                "Endurance active 1 h", club.getId(), "Séance héritée (réf + %)");
+
+        List<Athlete> athletes = athleteRepository.findByClubIdOrderByLastNameAsc(club.getId());
+
+        // --- Les retours : la coach a tout vu, sauf ceux d'hier et d'aujourd'hui de cinq
+        //     athlètes — une matinée normale, pas une pile de cent.
+        java.sql.Timestamp seen = java.sql.Timestamp.from(Instant.now().minus(1, ChronoUnit.DAYS));
+        workoutRepository.flush();
+        for (int i = 0; i < athletes.size(); i++) {
+            LocalDate before = i < 5 ? today.minusDays(1) : today.plusDays(1);
+            jdbcTemplate.update("update workouts set coach_reviewed_at = ? where athlete_id = ? "
+                            + "and status = 'COMPLETED' and scheduled_date < ? "
+                            + "and coach_reviewed_at is null",
+                    seen, athletes.get(i).getId(), java.sql.Date.valueOf(before));
+        }
+        Athlete star = athletes.stream()
+                .filter(a -> ATHLETE_EMAIL.equalsIgnoreCase(a.getEmail()))
+                .findFirst().orElse(null);
+
+        // --- Deux semaines planifiées pour chacun : le calendrier ne s'arrête plus à vendredi.
+        LocalDate nextMonday = today.with(java.time.DayOfWeek.MONDAY).plusWeeks(1);
+        WorkoutType[] week = {
+                WorkoutType.ENDURANCE, WorkoutType.INTERVALS, WorkoutType.RECOVERY,
+                WorkoutType.TEMPO, WorkoutType.REST, WorkoutType.LONG_RUN, WorkoutType.REST};
+        for (Athlete a : athletes) {
+            if (a.getInviteToken() != null) {
+                continue;   // pas encore arrivé : rien à lui planifier
+            }
+            for (int d = 0; d < 14; d++) {
+                WorkoutType type = week[d % 7];
+                if (type == WorkoutType.REST) {
+                    continue;
+                }
+                Workout w = new Workout();
+                w.setClub(club);
+                w.setAthlete(a);
+                w.setScheduledDate(nextMonday.plusDays(d));
+                w.setType(type);
+                w.setTitle(titleFor(type));
+                w.setTargetDistanceM(distanceFor(type));
+                w.setTargetDurationS(distanceFor(type) / 3);
+                w.setStatus(WorkoutStatus.PLANNED);
+                w.replaceSteps(stepsFor(type));
+                workoutRepository.save(w);
+            }
+        }
+
+        // --- Des conversations : avec l'athlète connectable et trois autres.
+        if (star != null) {
+            User starUser = userRepository.findByEmailIgnoreCase(ATHLETE_EMAIL).orElse(null);
+            conversation(star, head, starUser, new String[][]{
+                    {"C", "Salut ! J'ai regardé ta sortie longue de dimanche : allure très régulière, "
+                            + "c'est exactement ce qu'on cherchait.", "50"},
+                    {"A", "Merci ! Les 5 derniers km étaient durs mais j'ai tenu l'allure.", "49"},
+                    {"C", "C'est normal à ce stade de la préparation. Cette semaine on allège un peu "
+                            + "avant le bloc spécifique marathon.", "48"},
+                    {"A", "Top. Je peux décaler la séance de seuil à jeudi ? J'ai un déplacement "
+                            + "mardi.", "3"},
+                    {"C", "Aucun souci, je l'ai déplacée dans ton calendrier. Bon déplacement !", "2"},
+                    {"A", "Parfait, merci Claire 🙏", "1"}});
+        }
+        String[][][] threads = {
+                {{"A", "Petite douleur au tendon d'Achille après le fractionné d'hier, rien de "
+                        + "grave je pense.", "20"},
+                 {"C", "Merci de me le dire tout de suite. On remplace la séance de demain par du "
+                        + "vélo ou un footing très souple, et tu me redis jeudi.", "18"}},
+                {{"C", "Bravo pour ton record sur 10 km ce week-end ! 🎉", "30"},
+                 {"A", "Merci ! Je ne pensais pas passer sous les 45 minutes aussi vite.", "29"}},
+                {{"A", "Je pars en vacances du 20 au 27, je pourrai courir mais sans montre.", "6"}}};
+        int t = 0;
+        for (Athlete a : athletes) {
+            if (t >= threads.length) {
+                break;
+            }
+            if (a == star || a.getInviteToken() != null || a.getEmail() != null) {
+                continue;
+            }
+            // Un compte pour écrire : un athlète sans compte ne peut pas envoyer de message.
+            String email = slugify(a.getFirstName() + "." + a.getLastName()) + "@coachrun.fr";
+            a.setEmail(email);
+            athleteRepository.save(a);
+            User user = userRepository.save(account(email,
+                    a.getFirstName() + " " + a.getLastName(), UserRole.ATHLETE, club, a));
+            conversation(a, head, user, threads[t++]);
+        }
+        // Le groupe et le club ont chacun un message, pour que leurs fils ne s'ouvrent pas vides.
+        groupRepository.findAll().stream()
+                .filter(g -> g.getClub() != null && g.getClub().getId().equals(club.getId()))
+                .findFirst()
+                .ifPresent(g -> post(conversationService.group(g.getId()), club, null, head,
+                        "Sortie longue collective dimanche 9 h au parc de la Tête d'Or. "
+                                + "Allure footing, on regroupe tous les 5 km !", 26));
+        post(conversationService.club(club.getId()), club, null, head,
+                "Bienvenue aux trois nouveaux du mois ! Pensez à remplir votre profil et vos "
+                        + "disponibilités.", 72);
+
+        // --- La coach dans l'annuaire, avec une demande qui l'attend.
+        CoachProfile profile = new CoachProfile();
+        profile.setCoach(head);
+        profile.setSlug(slugify(SHOWCASE_COACH_NAME));
+        profile.setHeadline("Coach route, du premier 10 km au marathon");
+        profile.setBio("Entraîneuse au Running Club Lyon depuis neuf ans. J'accompagne une "
+                + "quinzaine de coureurs, sur place et à distance : un plan construit autour de "
+                + "votre semaine, ajusté chaque lundi selon vos retours.");
+        profile.setCity("Lyon");
+        profile.setCountry("FR");
+        profile.setExperienceYears(9);
+        profile.getDisciplines().add(Discipline.ROUTE);
+        profile.getSpecialties().addAll(Set.of(CoachSpecialty.MARATHON,
+                CoachSpecialty.SEMI_MARATHON, CoachSpecialty.CINQ_DIX_KM, CoachSpecialty.DEBUTANT));
+        profile.getLanguages().add("fr");
+        profile.setInPerson(true);
+        profile.setMedianResponseHours(4);
+        profile.setStatus(CoachProfileStatus.PUBLISHED);
+        profile.setSubmittedAt(Instant.now().minus(30, ChronoUnit.DAYS));
+        profile.setPublishedAt(Instant.now().minus(29, ChronoUnit.DAYS));
+        profile = coachProfileRepository.save(profile);
+        offer(profile, "Suivi mensuel", "Plan sur mesure, ajusté chaque semaine, messagerie.",
+                7500, OfferPeriodicity.MONTHLY, 0);
+        offer(profile, "Objectif semi ou marathon", "12 à 16 semaines jusqu'au jour J.",
+                39000, OfferPeriodicity.ONE_OFF, 1);
+        certification(profile, "DEJEPS Athlétisme", "Ministère des Sports", 2016);
+
+        AthleteAccount lea = hubAthlete(SHOWCASE_PROSPECT_EMAIL, "Léa", "Garnier", 31,
+                "Courir mon premier semi-marathon en moins de 2 heures.");
+        CoachingRequest request = new CoachingRequest();
+        request.setAthleteAccount(lea);
+        request.setCoach(head);
+        request.setStatus(CoachingRequestStatus.PENDING);
+        request.setMessage("Bonjour Claire, je cours trois fois par semaine depuis un an et je "
+                + "voudrais préparer le semi de Lyon en octobre. J'habite Villeurbanne, des "
+                + "séances sur place de temps en temps seraient idéales.");
+        request.setExpiresAt(Instant.now().plus(13, ChronoUnit.DAYS));
+        coachingRequestRepository.save(request);
+
+        // --- Quatre coachs de plus : l'annuaire a de quoi chercher et trier.
+        CoachProfile antoine = independentCoach("antoine@coachrun.fr", "Antoine Leclerc",
+                "Débuter et progresser sur 5 et 10 km",
+                "Ancien coureur de demi-fond, je fais aimer la course à ceux qui commencent. "
+                        + "Trois séances par semaine, jamais plus que ce que votre vie permet.",
+                "Bordeaux", 4, Set.of(Discipline.ROUTE),
+                Set.of(CoachSpecialty.DEBUTANT, CoachSpecialty.CINQ_DIX_KM,
+                        CoachSpecialty.REPRISE_DU_SPORT),
+                Set.of(AthleteLevel.BEGINNER, AthleteLevel.INTERMEDIATE));
+        antoine.setMedianResponseHours(6);
+        offer(antoine, "Premiers pas", "Plan de 8 semaines pour courir 30 minutes sans s'arrêter.",
+                4500, OfferPeriodicity.ONE_OFF, 0);
+        offer(antoine, "Suivi mensuel", "Plan hebdomadaire et un appel par mois.",
+                6000, OfferPeriodicity.MONTHLY, 1);
+
+        CoachProfile camille = independentCoach("camille@coachrun.fr", "Camille Roussel",
+                "Trail et montagne autour d'Annecy",
+                "Guide et coach trail. Je prépare aux formats de 20 à 80 km, avec un vrai travail "
+                        + "de descente et de renforcement.",
+                "Annecy", 8, Set.of(Discipline.TRAIL),
+                Set.of(CoachSpecialty.TRAIL, CoachSpecialty.ULTRA,
+                        CoachSpecialty.PREPARATION_PHYSIQUE),
+                Set.of(AthleteLevel.INTERMEDIATE, AthleteLevel.ADVANCED));
+        camille.setInPerson(true);
+        camille.setMedianResponseHours(12);
+        offer(camille, "Prépa trail", "Plan, renforcement et stratégie de course.",
+                9500, OfferPeriodicity.MONTHLY, 0);
+        certification(camille, "DE Accompagnateur en montagne", "Ministère des Sports", 2017);
+
+        CoachProfile yanis = independentCoach("yanis@coachrun.fr", "Yanis Benali",
+                "Piste, cross et performance",
+                "Entraîneur de demi-fond en club, je suis aussi des athlètes confirmés à distance "
+                        + "qui veulent descendre leurs chronos du 1 500 m au semi.",
+                "Paris", 11, Set.of(Discipline.ROUTE),
+                Set.of(CoachSpecialty.PISTE, CoachSpecialty.CROSS, CoachSpecialty.CINQ_DIX_KM),
+                Set.of(AthleteLevel.ADVANCED, AthleteLevel.ELITE));
+        yanis.setMedianResponseHours(3);
+        offer(yanis, "Suivi performance", "Plan individualisé, analyse des séances chaque semaine.",
+                12000, OfferPeriodicity.MONTHLY, 0);
+        certification(yanis, "DESJEPS Athlétisme", "Ministère des Sports", 2012);
+
+        CoachProfile elodie = independentCoach("elodie@coachrun.fr", "Élodie Marchand",
+                "Course et triathlon, reprise après grossesse",
+                "Triathlète et coach, j'accompagne surtout des femmes qui reprennent la course "
+                        + "après une grossesse ou une longue pause.",
+                "Marseille", 6, Set.of(Discipline.ROUTE),
+                Set.of(CoachSpecialty.TRIATHLON, CoachSpecialty.REPRISE_DU_SPORT,
+                        CoachSpecialty.SEMI_MARATHON),
+                Set.of(AthleteLevel.BEGINNER, AthleteLevel.INTERMEDIATE, AthleteLevel.ADVANCED));
+        elodie.setMedianResponseHours(24);
+        offer(elodie, "Reprise accompagnée", "Trois mois pour revenir à son niveau.",
+                8000, OfferPeriodicity.MONTHLY, 0);
+
+        log.info("[seed démo] Présentation prête — coach : {} ({}), demande en attente de {}",
+                SHOWCASE_COACH_NAME, HEAD_COACH_EMAIL, SHOWCASE_PROSPECT_EMAIL);
+        return true;
+    }
+
+    /**
+     * Un fil coach ↔ athlète. Chaque ligne : auteur ("C" coach, "A" athlète), texte, il y a combien
+     * d'heures. Rien n'est marqué lu : la boîte de réception de la coach montre ce qui l'attend.
+     */
+    private void conversation(Athlete athlete, User coach, User athleteUser, String[][] lines) {
+        com.coachrun.entity.Conversation c =
+                conversationService.athleteCoach(athlete.getId(), coach.getId());
+        for (String[] line : lines) {
+            post(c, athlete.getClub(), athlete, "C".equals(line[0]) ? coach : athleteUser,
+                    line[1], Integer.parseInt(line[2]));
+        }
+    }
+
+    /** Un message daté de {@code hoursAgo} heures. */
+    private com.coachrun.entity.Message post(com.coachrun.entity.Conversation c, Club club,
+                                             Athlete athlete, User sender, String body,
+                                             int hoursAgo) {
+        com.coachrun.entity.Message m = new com.coachrun.entity.Message();
+        m.setClub(club);
+        m.setAthlete(athlete);
+        m.setConversation(c);
+        m.setSenderUserId(sender.getId());
+        m.setSenderRole(sender.getRole());
+        m.setSenderName(sender.getFullName());
+        m.setBody(body);
+        // Écrit tout de suite : la date est réécrite en SQL juste après, et un INSERT resté en
+        // attente jusqu'à la fin de la transaction l'écraserait.
+        m = messageRepository.saveAndFlush(m);
+        Instant at = Instant.now().minus(hoursAgo, ChronoUnit.HOURS);
+        jdbcTemplate.update("update messages set created_at = ? where id = ?",
+                java.sql.Timestamp.from(at), m.getId());
+        if (c.getLastMessageAt() == null || c.getLastMessageAt().isBefore(at)) {
+            c.setLastMessageAt(at);
+        }
+        return m;
     }
 
     /** Un coach qui exerce seul : son espace porte son nom, pas celui d'un club. */

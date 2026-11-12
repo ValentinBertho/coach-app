@@ -10,7 +10,7 @@ test('l\'athlète écrit à son coach, qui lit le message', async ({ page, brows
   // qui rouvre le fil s'il existe déjà.
   await page.getByRole('button', { name: 'Nouveau message' }).click();
   await page.getByRole('dialog', { name: 'Nouveau message' })
-    .getByRole('button', { name: /Coach Démo/ }).first().click();
+    .getByRole('button', { name: /Claire Vasseur/ }).first().click();
   await page.getByPlaceholder('Ton message…').fill(text);
   await page.getByRole('button', { name: 'Envoyer' }).click();
   await expect(page.getByText(text, { exact: true })).toBeVisible();

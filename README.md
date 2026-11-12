@@ -5,9 +5,18 @@
 > Le coach prescrit des séances **en fourchettes** calculées pour chaque athlète ; l'athlète
 > suit son programme, renseigne ses retours, et les deux communiquent en temps réel.
 >
-> Monorepo **Angular 17 (front) + Spring Boot 3 / Java 21 (back) + PostgreSQL**.
+> Monorepo **Angular 21 (front) + Spring Boot 3 / Java 21 (back) + PostgreSQL**.
 > Construit sur la base technique CoachRun, réorienté selon le cahier des charges DARI Lab
 > (la stack Next.js/Supabase du CDC d'origine est volontairement remplacée par Spring/Angular).
+
+<p align="center">
+  <img src="docs/captures/ordinateur/10-tableau-de-bord.jpg" alt="Tableau de bord du coach" width="72%">
+  <img src="docs/captures/telephone/01-aujourdhui.jpg" alt="L'athlète sur son téléphone" width="20%">
+</p>
+
+**En images** : [guide du coach](docs/guides/GUIDE-COACH.md) ·
+[guide de l'athlète](docs/guides/GUIDE-ATHLETE.md) · [toutes les captures](docs/captures/)
+(régénérées par [`e2e/captures`](e2e/captures/README.md)).
 
 ---
 
@@ -308,9 +317,24 @@ Mot de passe commun : **`password1234`**
 | Rôle | Email | Destination |
 |---|---|---|
 | Admin plateforme | `admin@coachrun.fr` | `/admin` |
-| Responsable de club | `demo@coachrun.fr` | `/app` |
-| Coach assistant | `coach@coachrun.fr` | `/app` |
-| Athlète | `athlete@coachrun.fr` | `/athlete/today` |
+| Responsable de club — **Claire Vasseur**, la coach des démonstrations | `demo@coachrun.fr` | `/app` |
+| Coach assistant — Hugo Perrin | `coach@coachrun.fr` | `/app` |
+| Athlète — Chloé Dubois | `athlete@coachrun.fr` | `/athlete/today` |
+
+### La couche « présentation »
+
+Au démarrage en profil `dev`, `seedShowcase()` fait du club une histoire qu'on peut montrer (démo,
+captures, vidéo) :
+
+- Claire Vasseur a **sa fiche dans l'annuaire** et **une demande qui l'attend** (Léa Garnier,
+  `lea@coachrun.fr`) ;
+- des **conversations** avec quatre athlètes, plus un message dans le groupe et un dans le club ;
+- les **deux semaines suivantes** sont planifiées pour chaque athlète ;
+- seuls **quelques retours récents** restent à traiter (et non plus d'une centaine) ;
+- **quatre coachs de plus** dans l'annuaire : Antoine (Bordeaux), Camille (Annecy), Yanis (Paris),
+  Élodie (Marseille).
+
+Comme `seedHub()`, elle ne tourne pas dans la suite de tests (sauf `ShowcaseDemoSeedTest`).
 
 ### Le hub — coachs indépendants et athlètes sans club
 
