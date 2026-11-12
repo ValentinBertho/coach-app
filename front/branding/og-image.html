@@ -1,0 +1,53 @@
+<!doctype html>
+<!--
+  Image de partage (Open Graph), 1200×630. Source de src/assets/og-image.png :
+  node branding/generate-og-image.mjs
+  Mêmes couleurs, polices et logo que l'application (styles.scss, icon-master.svg).
+-->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Archivo'; src: url('../src/assets/fonts/archivo-latin.woff2') format('woff2'); font-weight: 100 900; }
+  @font-face { font-family: 'IBM Plex Sans'; src: url('../src/assets/fonts/ibm-plex-sans-latin.woff2') format('woff2'); font-weight: 100 700; }
+  html, body { margin: 0; }
+  body {
+    width: 1200px; height: 630px; box-sizing: border-box; overflow: hidden; position: relative;
+    padding: 84px 96px;
+    background:
+      radial-gradient(70% 70% at 18% 0%, rgba(18, 133, 145, 0.30) 0%, transparent 60%),
+      radial-gradient(60% 70% at 95% 100%, rgba(47, 179, 192, 0.28) 0%, transparent 62%),
+      linear-gradient(165deg, #0f2125 0%, #081316 78%);
+    color: #eef6f6; font-family: 'IBM Plex Sans', sans-serif;
+  }
+  .brand { display: flex; align-items: center; gap: 24px; }
+  .brand svg { width: 96px; height: 96px; }
+  .word { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 60px; letter-spacing: -0.02em; }
+  .word span { color: #2fb3c0; }
+  h1 { font-family: 'Archivo', sans-serif; font-weight: 800; font-size: 66px; line-height: 1.06; letter-spacing: -0.025em; margin: 72px 0 26px; max-width: 980px; }
+  h1 em { font-style: normal; background: linear-gradient(120deg, #8fdbe3 0%, #2fb3c0 55%, #6ee7d0 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  p { margin: 0; font-size: 28px; color: rgba(238, 246, 246, 0.72); }
+  .zones { position: absolute; right: 96px; bottom: 56px; display: flex; gap: 10px; }
+  .zones i { display: block; width: 44px; height: 14px; border-radius: 7px; }
+</style>
+</head>
+<body>
+  <div class="brand">
+    <svg viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#12808B"/><stop offset="1" stop-color="#0A4F58"/></linearGradient></defs>
+      <rect width="1024" height="1024" rx="232" fill="url(#bg)"/>
+      <path d="M250 720 C 420 700, 540 580, 770 360" stroke="#FFFFFF" stroke-width="76" stroke-linecap="round" fill="none"/>
+      <path d="M250 560 L 360 560" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" opacity="0.55"/>
+      <path d="M250 640 L 320 640" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" opacity="0.35"/>
+      <circle cx="788" cy="338" r="86" fill="#16C47F"/>
+      <circle cx="788" cy="338" r="86" stroke="#FFFFFF" stroke-width="22" fill="none"/>
+    </svg>
+    <span class="word">Dari<span>lab</span></span>
+  </div>
+  <h1>Trouve ton coach de course&nbsp;à&nbsp;pied.<br><em>Ou tes prochains athlètes.</em></h1>
+  <p>Annuaire de coachs · plans structurés · suivi du réalisé · import Strava</p>
+  <div class="zones">
+    <i style="background:#7c8aa5"></i><i style="background:#16c47f"></i><i style="background:#f2b807"></i><i style="background:#ff8a1e"></i><i style="background:#ef4444"></i>
+  </div>
+</body>
+</html>

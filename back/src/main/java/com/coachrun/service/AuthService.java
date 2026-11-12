@@ -107,9 +107,13 @@ public class AuthService {
         return toAuthResponse(user);
     }
 
-    /** Confirme l'adresse e-mail à partir du jeton de vérification (lien d'inscription). */
+    /**
+     * Confirme l'adresse e-mail à partir du jeton de vérification (lien d'inscription).
+     *
+     * @return l'identifiant du compte confirmé, pour ce qui doit suivre la vérification
+     */
     @Transactional
-    public void verifyEmail(String token) {
+    public UUID verifyEmail(String token) {
         User user = userRepository.findByVerifyToken(token)
                 .filter(u -> u.getVerifyExpiresAt() != null
                         && u.getVerifyExpiresAt().isAfter(java.time.Instant.now()))
@@ -121,6 +125,7 @@ public class AuthService {
         audit.recordDetached(AdminAuditService.Actor.of(user),
                 AdminAuditAction.EMAIL_VERIFIED, AdminAuditTarget.USER,
                 user.getId(), user.getEmail(), null);
+        return user.getId();
     }
 
     /**

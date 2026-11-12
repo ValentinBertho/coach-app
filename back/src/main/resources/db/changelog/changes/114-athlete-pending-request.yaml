@@ -1,0 +1,29 @@
+# ============================================================================
+# 114 — La demande de coaching préparée à l'inscription.
+#
+#   Un visiteur qui clique « Demander à être coaché » n'a pas de compte. Avant,
+#   il s'inscrivait, confirmait son e-mail, puis devait retrouver le coach et
+#   refaire sa demande : trois occasions de le perdre. Désormais il écrit son
+#   message dans le formulaire d'inscription, et la demande part d'elle-même à
+#   la confirmation de l'adresse.
+#
+#   La garde « e-mail vérifié avant toute demande » ne bouge pas — le coach ne
+#   reçoit toujours rien d'une adresse que personne ne contrôle. Entre-temps,
+#   le message attend ici.
+#
+#   Deux colonnes sur le compte plutôt qu'une table : il n'y a jamais qu'une
+#   demande préparée par compte, elle ne vit que quelques minutes, et elle
+#   disparaît à l'envoi. Le slug plutôt qu'une clé étrangère : c'est par lui que
+#   la demande sera soumise, avec les mêmes contrôles de visibilité qu'une
+#   demande ordinaire.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 114-athlete-pending-request
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: athlete_accounts
+            columns:
+              - column: { name: pending_request_coach_slug, type: VARCHAR(140) }
+              - column: { name: pending_request_message, type: VARCHAR(2000) }

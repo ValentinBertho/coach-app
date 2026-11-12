@@ -328,8 +328,9 @@ export class AuthService {
   }
 
   /** Confirme l'adresse e-mail à partir du jeton reçu par e-mail. */
-  verifyEmail(token: string): Observable<{ verified: boolean }> {
-    return this.http.post<{ verified: boolean }>(`${environment.apiUrl}/public/verify-email/${token}`, {});
+  /** `requestSentTo` : le coach à qui vient de partir la demande préparée à l'inscription. */
+  verifyEmail(token: string): Observable<{ verified: boolean; requestSentTo?: string }> {
+    return this.http.post<{ verified: boolean; requestSentTo?: string }>(`${environment.apiUrl}/public/verify-email/${token}`, {});
   }
 
   /** Renvoie l'e-mail de vérification au compte courant. */

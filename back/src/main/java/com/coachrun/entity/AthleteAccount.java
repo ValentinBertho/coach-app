@@ -111,6 +111,18 @@ public class AthleteAccount extends BaseEntity {
     @Column(name = "looking_for_coach", nullable = false)
     private boolean lookingForCoach = true;
 
+    /**
+     * La demande préparée à l'inscription, en attente de la confirmation de l'e-mail.
+     *
+     * <p>Renseignés ensemble ou pas du tout, et vidés dès que la demande est partie (ou n'a pas pu
+     * partir) : ce n'est pas un historique, c'est une salle d'attente de quelques minutes.</p>
+     */
+    @Column(name = "pending_request_coach_slug", length = 140)
+    private String pendingRequestCoachSlug;
+
+    @Column(name = "pending_request_message", length = 2000)
+    private String pendingRequestMessage;
+
     @Column(name = "terms_accepted_at")
     private Instant termsAcceptedAt;
 

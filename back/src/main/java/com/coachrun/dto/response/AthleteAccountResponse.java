@@ -20,12 +20,18 @@ public record AthleteAccountResponse(
         String city,
         String country,
         String goal,
-        boolean lookingForCoach) {
+        boolean lookingForCoach,
+        /** La demande préparée à l'inscription, tant que l'e-mail n'est pas confirmé ; sinon nul. */
+        PendingRequest pendingRequest) {
 
-    public static AthleteAccountResponse from(AthleteAccount a) {
+    /** Ce que l'athlète doit pouvoir relire : à qui, et quoi. */
+    public record PendingRequest(String coachSlug, String coachName, String message) {
+    }
+
+    public static AthleteAccountResponse from(AthleteAccount a, PendingRequest pendingRequest) {
         return new AthleteAccountResponse(
                 a.getId(), a.getFirstName(), a.getLastName(), a.getBirthDate(), a.getSex(),
                 a.getDiscipline(), a.getLevel(), a.getCity(), a.getCountry(), a.getGoal(),
-                a.isLookingForCoach());
+                a.isLookingForCoach(), pendingRequest);
     }
 }

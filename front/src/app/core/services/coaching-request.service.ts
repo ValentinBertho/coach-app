@@ -39,6 +39,9 @@ export interface AthleteRegistration {
   lastName: string;
   birthDate: string;
   goal?: string | null;
+  /** Le coach que le visiteur venait de choisir ; la demande part à la confirmation de l'e-mail. */
+  coachSlug?: string | null;
+  requestMessage?: string | null;
   termsAccepted: boolean;
   healthDataConsent: boolean;
 }
@@ -55,6 +58,8 @@ export interface AthleteAccount {
   country: string | null;
   goal: string | null;
   lookingForCoach: boolean;
+  /** La demande préparée à l'inscription, tant que l'e-mail n'est pas confirmé ; sinon nulle. */
+  pendingRequest: { coachSlug: string; coachName: string | null; message: string } | null;
 }
 
 /**

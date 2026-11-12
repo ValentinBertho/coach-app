@@ -33,10 +33,18 @@ type State = 'loading' | 'ok' | 'invalid';
           }
           @case ('ok') {
             <span class="badge badge-success">E-mail confirmé</span>
-            <p class="field-hint">Ton adresse est vérifiée. Merci !</p>
-            <a class="btn btn-primary btn-lg" routerLink="/app"
-              >Accéder à mon espace</a
-            >
+            @if (requestSentTo(); as coach) {
+              <!-- La demande écrite à l'inscription vient de partir : c'est ce que la personne
+                   attendait de ce clic, bien plus que la confirmation elle-même. -->
+              <p class="field-hint">
+                Votre demande est partie chez <strong>{{ coach }}</strong>. Vous serez prévenu
+                de sa réponse.
+              </p>
+              <a class="btn btn-primary btn-lg" routerLink="/athlete/demandes">Voir ma demande</a>
+            } @else {
+              <p class="field-hint">Ton adresse est vérifiée. Merci !</p>
+              <a class="btn btn-primary btn-lg" [routerLink]="home()">Accéder à mon espace</a>
+            }
           }
           @case ('invalid') {
             <span class="badge badge-danger">Lien invalide</span>
@@ -57,10 +65,17 @@ export class VerifyEmailComponent implements OnInit {
   private readonly auth = inject(AuthService);
 
   readonly state = signal<State>('loading');
+  readonly requestSentTo = signal<string | null>(null);
+
+  /** L'accueil du rôle réel : un athlète n'a rien à faire sous /app. */
+  home(): string {
+    return this.auth.isAuthenticated() ? this.auth.homeRoute() : '/login';
+  }
 
   ngOnInit(): void {
     this.auth.verifyEmail(this.token()).subscribe({
-      next: () => {
+      next: (res) => {
+        this.requestSentTo.set(res.requestSentTo ?? null);
         this.auth.markEmailVerified();
         this.state.set('ok');
       },
