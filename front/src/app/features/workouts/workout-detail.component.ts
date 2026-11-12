@@ -284,6 +284,8 @@ export class WorkoutDetailComponent implements OnInit {
   /** Prescription course en fourchettes (snapshot + cibles calculées) — affichage prioritaire. */
   readonly courseRx = signal<WorkoutPrescription | null>(null);
   readonly courseRxHasContent = computed(() => {
+    // Illisible : la carte reste, c'est elle qui porte l'avertissement.
+    if (this.courseRx()?.unreadable) return true;
     const c = this.courseRx()?.calculated;
     return !!c && c.warmup.length + c.main.length + c.cooldown.length > 0;
   });

@@ -307,6 +307,8 @@ public class TrainingPlanService {
         try {
             return objectMapper.readValue(json, new TypeReference<List<PlanItemDto>>() { });
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(TrainingPlanService.class,
+                    "contenu d'un plan d'entraînement illisible, plan rendu vide", e);
             return List.of();
         }
     }

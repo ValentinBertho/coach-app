@@ -891,11 +891,15 @@ public class WorkoutService {
     }
 
     private WorkoutPrescriptionResponse toPrescription(Workout w) {
-        SessionStructure snapshot = readJson(w.getSessionSnapshot(), SessionStructure.class);
-        CalculatedSessionResponse calculated = readJson(w.getCalculatedPaces(), CalculatedSessionResponse.class);
+        SessionStructure snapshot = readJson(w.getSessionSnapshot(), SessionStructure.class,
+                "prescription de la séance " + w.getId());
+        CalculatedSessionResponse calculated = readJson(w.getCalculatedPaces(), CalculatedSessionResponse.class,
+                "cibles calculées de la séance " + w.getId());
+        // Enregistrée mais illisible : ce n'est pas une séance sans contenu, et l'écran le dit.
+        boolean unreadable = snapshot == null && StringUtils.hasText(w.getSessionSnapshot());
         SessionStructure safe = snapshot == null ? SessionStructure.empty() : snapshot;
         return new WorkoutPrescriptionResponse(w.getTitle(), safe, calculated,
-                resolveDrills(safe, w.getClub().getId()));
+                resolveDrills(safe, w.getClub().getId()), unreadable);
     }
 
     /** Résout les éducatifs (gammes) référencés par les blocs du snapshot, scopés au club. */
@@ -917,13 +921,18 @@ public class WorkoutService {
                 .toList();
     }
 
-    private <T> T readJson(String json, Class<T> type) {
+    /**
+     * Relit une donnée enregistrée en JSON. Illisible, elle vaut {@code null} pour l'appelant —
+     * mais l'échec est tracé, avec de quoi retrouver la ligne.
+     */
+    private <T> T readJson(String json, Class<T> type, String what) {
         if (!StringUtils.hasText(json)) {
             return null;
         }
         try {
             return objectMapper.readValue(json, type);
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(WorkoutService.class, what + " illisible", e);
             return null;
         }
     }

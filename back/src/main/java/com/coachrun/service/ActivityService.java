@@ -79,6 +79,8 @@ public class ActivityService {
             return objectMapper.readValue(a.getRouteJson(),
                     new com.fasterxml.jackson.core.type.TypeReference<java.util.List<double[]>>() { });
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(ActivityService.class,
+                    "tracé GPS illisible pour la sortie " + a.getId() + ", carte rendue vide", e);
             return java.util.List.of();
         }
     }
@@ -298,15 +300,19 @@ public class ActivityService {
         if (extras.route() != null && !extras.route().isEmpty()) {
             try {
                 activity.setRouteJson(objectMapper.writeValueAsString(extras.route()));
-            } catch (Exception ignored) {
-                // tracé optionnel
+            } catch (Exception e) {
+                // Le tracé est optionnel : la sortie s'enregistre sans lui, mais on le sait.
+                com.coachrun.util.SwallowedError.report(ActivityService.class,
+                        "tracé GPS non enregistré à l'import d'une sortie (sérialisation)", e);
             }
         }
         if (extras.stream() != null && !extras.stream().isEmpty()) {
             try {
                 activity.setStreamJson(objectMapper.writeValueAsString(extras.stream()));
-            } catch (Exception ignored) {
-                // flux optionnel
+            } catch (Exception e) {
+                // Le flux est optionnel : la sortie s'enregistre sans lui, mais on le sait.
+                com.coachrun.util.SwallowedError.report(ActivityService.class,
+                        "flux (FC, allure) non enregistré à l'import d'une sortie (sérialisation)", e);
             }
         }
         applyLaps(activity, extras.laps());
@@ -324,8 +330,10 @@ public class ActivityService {
         try {
             activity.setLapsJson(objectMapper.writeValueAsString(
                     new ActivityLapsResponse(ActivityLapsResponse.Kind.DEVICE, laps)));
-        } catch (Exception ignored) {
-            // tours optionnels
+        } catch (Exception e) {
+            // Les tours sont optionnels : la sortie s'enregistre sans eux, mais on le sait.
+            com.coachrun.util.SwallowedError.report(ActivityService.class,
+                    "tours non enregistrés à l'import d'une sortie (sérialisation)", e);
         }
     }
 
@@ -737,6 +745,8 @@ public class ActivityService {
             return objectMapper.readValue(a.getStreamJson(),
                     new com.fasterxml.jackson.core.type.TypeReference<java.util.List<int[]>>() { });
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(ActivityService.class,
+                    "flux (FC, allure) illisible pour la sortie " + a.getId() + ", courbes rendues vides", e);
             return java.util.List.of();
         }
     }
@@ -825,14 +835,18 @@ public class ActivityService {
         activity.setStatus(ActivityStatus.IMPORTED);
         try {
             activity.setRouteJson(objectMapper.writeValueAsString(parsed.route()));
-        } catch (Exception ignored) {
-            // tracé optionnel
+        } catch (Exception e) {
+            // Le tracé est optionnel : la sortie s'enregistre sans lui, mais on le sait.
+            com.coachrun.util.SwallowedError.report(ActivityService.class,
+                    "tracé GPS non enregistré à l'import d'une sortie (sérialisation)", e);
         }
         if (parsed.stream() != null && !parsed.stream().isEmpty()) {
             try {
                 activity.setStreamJson(objectMapper.writeValueAsString(parsed.stream()));
-            } catch (Exception ignored) {
-                // flux optionnel
+            } catch (Exception e) {
+                // Le flux est optionnel : la sortie s'enregistre sans lui, mais on le sait.
+                com.coachrun.util.SwallowedError.report(ActivityService.class,
+                        "flux (FC, allure) non enregistré à l'import d'une sortie (sérialisation)", e);
             }
         }
         // Les tours d'un TCX : c'est là que le fractionné est lisible tel qu'il a été couru.
@@ -854,6 +868,8 @@ public class ActivityService {
             return objectMapper.readValue(a.getRouteJson(),
                     new com.fasterxml.jackson.core.type.TypeReference<java.util.List<double[]>>() { });
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(ActivityService.class,
+                    "tracé GPS illisible pour la sortie " + a.getId() + ", carte rendue vide", e);
             return java.util.List.of();
         }
     }

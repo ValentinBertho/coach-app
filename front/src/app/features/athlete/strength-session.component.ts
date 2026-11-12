@@ -236,6 +236,11 @@ export class StrengthSessionComponent implements OnInit {
         });
         this.portal.ppPrescription(id).subscribe({
           next: (rx) => {
+            // Prescription illisible : pas de parcours de saisie sur une séance qui paraît vide.
+            if (rx.unreadable) {
+              this.state.set('error');
+              return;
+            }
             this.exercises.set(this.buildSets(rx));
             this.state.set('ready');
           },

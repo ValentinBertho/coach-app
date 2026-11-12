@@ -15,6 +15,8 @@ public record StrengthPrescriptionResponse(
         String title,
         StrengthStructure snapshot,
         CalculatedStrengthResponse calculated,
-        JsonNode requiredFields
+        JsonNode requiredFields,
+        /** La prescription enregistrée n'a pas pu être relue : le {@code snapshot} vide n'est pas une séance vide. */
+        boolean unreadable
 ) {
 }

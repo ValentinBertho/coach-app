@@ -293,10 +293,11 @@ public class AuthService {
         }
         loginAttempts.recordSuccess(request.email());
         // Dernière connexion : sans elle, le back-office ne pouvait pas distinguer un compte
-        // abandonné d'un compte en cours d'usage avant de proposer de le supprimer. Écriture par
-        // suivi d'entité — d'où le @Transactional sur cette méthode, la classe étant en lecture
-        // seule (un appel interne ne repasserait pas par le proxy, donc rien ne serait écrit).
-        user.setLastLoginAt(java.time.Instant.now());
+        // abandonné d'un compte en cours d'usage avant de proposer de le supprimer. Écriture
+        // directe, sans toucher à la version de l'entité : deux connexions simultanées sur le
+        // même compte ne se gênent plus. Le @Transactional de cette méthode reste nécessaire, la
+        // classe étant en lecture seule.
+        userRepository.touchLastLogin(user.getId(), java.time.Instant.now());
         auditLogin(AdminAuditAction.LOGIN_SUCCEEDED, user, request.email(), null);
         return toAuthResponse(user);
     }
@@ -401,7 +402,7 @@ public class AuthService {
         if (verified.usedRecoveryCode()) {
             auditLogin(AdminAuditAction.MFA_RECOVERY_CODE_USED, user, user.getEmail(), null);
         }
-        user.setLastLoginAt(java.time.Instant.now());
+        userRepository.touchLastLogin(user.getId(), java.time.Instant.now());
         auditLogin(AdminAuditAction.LOGIN_SUCCEEDED, user, user.getEmail(), "Avec second facteur");
         AuthResponse session = openSession(user);
         return verified.enrolledNow()

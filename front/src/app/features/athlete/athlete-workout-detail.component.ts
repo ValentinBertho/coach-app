@@ -584,6 +584,8 @@ export class AthleteWorkoutDetailComponent implements OnInit {
   readonly typeLabels = WORKOUT_TYPE_LABELS;
 
   readonly prescriptionHasContent = computed(() => {
+    // Illisible : la carte reste, c'est elle qui porte l'avertissement.
+    if (this.prescription()?.unreadable) return true;
     const c = this.prescription()?.calculated;
     return !!c && c.warmup.length + c.main.length + c.cooldown.length > 0;
   });

@@ -232,6 +232,9 @@ public class RecoveryService {
             var load = loadService.load(athlete.getClub().getId(), athlete.getId());
             return load.ratio() == null || load.ratio() <= 1.4;
         } catch (RuntimeException e) {
+            com.coachrun.util.SwallowedError.report(RecoveryService.class,
+                    "calcul de charge en échec pour l'athlète " + athlete.getId()
+                            + ", rattrapage proposé sans garde-fou de charge", e);
             return true;
         }
     }

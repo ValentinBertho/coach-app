@@ -110,8 +110,11 @@ public class WeekOutlookService {
                 if (max != null) {
                     return max;
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
                 // Snapshot illisible : on retombe sur le type, comme pour une séance sans structure.
+                com.coachrun.util.SwallowedError.report(WeekOutlookService.class,
+                        "prescription illisible pour la séance " + w.getId()
+                                + ", difficulté estimée d'après le type", e);
             }
         }
         return switch (w.getType()) {

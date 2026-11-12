@@ -168,6 +168,8 @@ public class TimeInZoneService {
         try {
             return objectMapper.readValue(json, new TypeReference<List<int[]>>() { });
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(TimeInZoneService.class,
+                    "flux d'une sortie illisible, temps en zone non calculé", e);
             return List.of();
         }
     }

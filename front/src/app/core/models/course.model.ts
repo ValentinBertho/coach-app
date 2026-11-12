@@ -248,4 +248,9 @@ export interface WorkoutPrescription {
   calculated: CalculatedSession | null;
   /** Éducatifs référencés par les blocs, résolus (nom, vidéo). */
   drills?: CourseDrill[] | null;
+  /**
+   * La prescription enregistrée n'a pas pu être relue par le serveur : le contenu vide qui
+   * l'accompagne n'est pas une séance vide, et l'écran doit le dire.
+   */
+  unreadable?: boolean;
 }

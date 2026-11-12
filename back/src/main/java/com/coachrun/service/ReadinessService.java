@@ -83,8 +83,11 @@ public class ReadinessService {
         Double acwr = null;
         try {
             acwr = loadService.load(athlete.getClub().getId(), athleteId).ratio();
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException e) {
             // Une charge incalculable ne doit pas priver l'athlète de son conseil du matin.
+            com.coachrun.util.SwallowedError.report(ReadinessService.class,
+                    "calcul de charge en échec pour l'athlète " + athleteId
+                            + ", conseil du jour donné sans la charge", e);
         }
 
         var prescription = safePrescription(athlete.getClub().getId(), workout.getAthlete().getId(), workout.getId());
@@ -188,6 +191,9 @@ public class ReadinessService {
         try {
             return workoutService.prescription(clubId, athleteId, workoutId);
         } catch (RuntimeException e) {
+            com.coachrun.util.SwallowedError.report(ReadinessService.class,
+                    "prescription indisponible pour la séance " + workoutId
+                            + ", conseil du jour donné sans elle", e);
             return null;
         }
     }

@@ -206,6 +206,8 @@ export interface StrengthPrescriptionView {
   snapshot: StrengthStructure;
   calculated: CalculatedStrength | null;
   requiredFields: Record<string, boolean> | null;
+  /** La prescription enregistrée n'a pas pu être relue : le contenu vide n'est pas une séance vide. */
+  unreadable?: boolean;
 }
 
 /**

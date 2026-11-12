@@ -460,8 +460,11 @@ public class CoachDashboardService {
                     alerts.add(alert(a, name, discipline, "ORANGE", "MONOTONY",
                             "Monotonie élevée", "Monotonie " + decimalFr(load.monotony()) + " (manque de variété)."));
                 }
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException e) {
                 // un calcul de charge en échec ne doit pas masquer les autres alertes
+                com.coachrun.util.SwallowedError.report(CoachDashboardService.class,
+                        "calcul de charge en échec pour l'athlète " + a.getId()
+                                + ", alertes de charge absentes du tableau de bord", e);
             }
 
             // --- Force : douleur, RPE proche de l'échec, RIR nul, charge sous la prescription ---
@@ -478,8 +481,11 @@ public class CoachDashboardService {
                             "HIGH".equals(sa.level()) ? "RED" : "ORANGE",
                             "STRENGTH_" + sa.code(), "Renforcement — " + sa.exerciseName(), sa.message()));
                 }
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException e) {
                 // un snapshot de séance illisible ne doit pas masquer les autres alertes
+                com.coachrun.util.SwallowedError.report(CoachDashboardService.class,
+                        "alertes de renforcement en échec pour l'athlète " + a.getId()
+                                + ", absentes du tableau de bord", e);
             }
 
             // --- Séances manquées (14 derniers jours) ---
