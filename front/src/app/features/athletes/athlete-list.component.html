@@ -3,7 +3,12 @@
     <h1 class="display-sm">Athlètes</h1>
     <p class="subtitle">Gère tes athlètes et leur profil.</p>
   </div>
-  <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
+  <!-- Les groupes n'ont plus d'entrée de menu à eux : ils organisent des athlètes, c'est ici
+       qu'on les cherche. -->
+  <div class="page-header__actions">
+    <a routerLink="/app/groups" class="btn btn-ghost">Groupes</a>
+    <a routerLink="/app/athletes/new" class="btn btn-primary">+ Nouvel athlète</a>
+  </div>
 </section>
 
 <div class="search-bar">
@@ -17,7 +22,8 @@
     <option value="">Tous les statuts</option>
   </select>
   @if (groups().length) {
-    <select class="form-control" style="max-width:200px" [(ngModel)]="filterGroup" (ngModelChange)="goToPage(0)">
+    <select class="form-control" style="max-width:200px" [(ngModel)]="filterGroup" (ngModelChange)="goToPage(0)"
+            aria-label="Filtrer par groupe">
       <option value="">Tous les groupes</option>
       @for (g of groups(); track g.id) { <option [value]="g.id">{{ g.name }}</option> }
     </select>

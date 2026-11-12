@@ -58,14 +58,14 @@ public record CoachingRequestResponse(
          */
         UUID createdAthleteId) {
 
-    public static CoachingRequestResponse of(CoachingRequest r, String coachSlug) {
+    public static CoachingRequestResponse of(CoachingRequest r, String coachSlug, LocalDate today) {
         AthleteAccount a = r.getAthleteAccount();
         return new CoachingRequestResponse(
                 r.getId(),
                 r.getStatus(),
                 r.getStatus().label(),
                 a.getFirstName() + " " + a.getLastName(),
-                age(a.getBirthDate()),
+                age(a.getBirthDate(), today),
                 a.getDiscipline(),
                 a.getLevel(),
                 a.getCity(),
@@ -84,7 +84,7 @@ public record CoachingRequestResponse(
                 r.getCreatedAthleteId());
     }
 
-    private static Integer age(LocalDate birthDate) {
-        return birthDate == null ? null : Period.between(birthDate, LocalDate.now()).getYears();
+    private static Integer age(LocalDate birthDate, LocalDate today) {
+        return birthDate == null ? null : Period.between(birthDate, today).getYears();
     }
 }

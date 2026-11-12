@@ -33,6 +33,17 @@ public class StrengthSession extends BaseEntity {
     @Column(name = "notes", length = 2048)
     private String notes;
 
+    /**
+     * Catégorie de rangement, dans l'arbre unifié du club (domaine STRENGTH).
+     *
+     * <p>Course et éducatifs en portaient une depuis l'unification des catégories ; la prépa
+     * physique non. Sa bibliothèque s'affichait donc en une seule liste à plat, qu'on ne pouvait
+     * ni filtrer ni replier — le défaut que remonte le terrain dès quelques dizaines de séances.</p>
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private SessionCategory category;
+
     @Column(name = "is_favorite", nullable = false)
     private boolean favorite = false;
 

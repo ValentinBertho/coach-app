@@ -1,5 +1,12 @@
 import { HttpClient } from '@angular/common/http';
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { environment } from '../../../environments/environment';
@@ -20,39 +27,59 @@ type State = 'loading' | 'ok' | 'invalid';
  */
 @Component({
   selector: 'app-invitation',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, LogoComponent, RouterLink],
   template: `
     <main class="invite-page">
       <div class="card invite-card">
         @switch (state()) {
-          @case ('loading') { <p>Vérification de l'invitation…</p> }
+          @case ('loading') {
+            <p>Vérification de l'invitation…</p>
+          }
           @case ('ok') {
             <app-logo [size]="44" [showText]="false" />
             <span class="badge badge-info">{{ info()?.clubName }}</span>
             <h1 class="display-sm">Bienvenue {{ info()?.athleteFirstName }}</h1>
             <p class="field-hint">
-              Ton coach t'invite à rejoindre Darilab. Choisis tes identifiants pour
-              accéder à ton espace et te reconnecter quand tu le souhaites.
+              Ton coach t'invite à rejoindre Darilab. Choisis tes identifiants
+              pour accéder à ton espace et te reconnecter quand tu le souhaites.
             </p>
             <div class="field">
               <label class="field-label" for="inv-email">E-mail</label>
-              <input id="inv-email" type="email" class="input" autocomplete="email"
-                     [(ngModel)]="email" placeholder="vous@exemple.com" />
+              <input
+                id="inv-email"
+                type="email"
+                class="input"
+                autocomplete="email"
+                [(ngModel)]="email"
+                placeholder="vous@exemple.com"
+              />
             </div>
             <div class="field">
               <label class="field-label" for="inv-pass">Mot de passe</label>
-              <input id="inv-pass" type="password" class="input" autocomplete="new-password"
-                     [(ngModel)]="password" placeholder="8 caractères minimum" />
-              <p class="field-hint">8 caractères minimum.</p>
+              <input
+                id="inv-pass"
+                type="password"
+                class="input"
+                autocomplete="new-password"
+                [(ngModel)]="password"
+                placeholder="12 caractères minimum"
+              />
+              <p class="field-hint">12 caractères minimum.</p>
             </div>
             <label class="consent">
               <input type="checkbox" [(ngModel)]="consent" />
-              <span>J'accepte la collecte de mes <strong>données physiologiques</strong> (FC, allure, ressenti)
+              <span
+                >J'accepte la collecte de mes
+                <strong>données physiologiques</strong> (FC, allure, ressenti)
                 pour le suivi de mon entraînement (RGPD, art. 9) — voir la
-                <a routerLink="/legal/confidentialite" target="_blank">politique de confidentialité</a>.
-                <em class="consent-note">Tu pourras le retirer à tout moment depuis ton profil.</em></span>
+                <a routerLink="/legal/confidentialite" target="_blank"
+                  >politique de confidentialité</a
+                >.
+                <em class="consent-note"
+                  >Tu pourras le retirer à tout moment depuis ton profil.</em
+                ></span
+              >
             </label>
             <!--
               Acceptation des CGU. Elle manquait côté athlète : seuls les coachs l'accordaient,
@@ -62,35 +89,97 @@ type State = 'loading' | 'ok' | 'invalid';
             -->
             <label class="consent">
               <input type="checkbox" [(ngModel)]="terms" />
-              <span>J'accepte les
-                <a routerLink="/legal/cgu" target="_blank">conditions générales d'utilisation</a>,
-                dont l'avertissement santé : Darilab est un outil d'entraînement et ne remplace
-                pas un avis médical.</span>
+              <span
+                >J'accepte les
+                <a routerLink="/legal/cgu" target="_blank"
+                  >conditions générales d'utilisation</a
+                >, dont l'avertissement santé : Darilab est un outil
+                d'entraînement et ne remplace pas un avis médical.</span
+              >
             </label>
-            @if (error()) { <p class="field-error">{{ error() }}</p> }
-            <button type="button" class="btn btn-primary btn-lg" [disabled]="joining() || !canSubmit()" (click)="accept()">
+            @if (error()) {
+              <p class="field-error">{{ error() }}</p>
+            }
+            <button
+              type="button"
+              class="btn btn-primary btn-lg"
+              [disabled]="joining() || !canSubmit()"
+              (click)="accept()"
+            >
               {{ joining() ? 'Connexion…' : 'Accéder à mon espace' }}
             </button>
           }
           @case ('invalid') {
             <span class="badge badge-danger">Lien invalide</span>
             <h1 class="display-sm">Invitation expirée</h1>
-            <p class="field-hint">Ce lien d'invitation n'est plus valide. Demandes-en un nouveau à ton coach.</p>
+            <p class="field-hint">
+              Ce lien d'invitation n'est plus valide. Demandes-en un nouveau à
+              ton coach.
+            </p>
           }
         }
       </div>
     </main>
   `,
-  styles: [`
-    .invite-page { min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: var(--sp-4); background-color: var(--night); background-image: var(--mesh); }
-    .invite-card { max-width: 440px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); border-radius: var(--radius-xl); box-shadow: var(--shadow-lg); }
-    .field { width: 100%; text-align: left; display: flex; flex-direction: column; gap: var(--sp-1); }
-    .field-error { color: var(--danger); font-size: var(--text-sm); margin: 0; }
-    .consent { display: flex; gap: var(--sp-2); text-align: left; font-size: var(--text-sm); color: var(--ink-2); align-items: flex-start; }
-    .consent input { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; }
-    .consent-note { display: block; margin-top: 2px; color: var(--ink-3); font-style: normal; font-size: var(--text-xs); }
-    .btn-lg { width: 100%; }
-  `],
+  styles: [
+    `
+      .invite-page {
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--sp-4);
+        background-color: var(--night);
+        background-image: var(--mesh);
+      }
+      .invite-card {
+        max-width: 440px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--sp-3);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-lg);
+      }
+      .field {
+        width: 100%;
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-1);
+      }
+      .field-error {
+        color: var(--danger);
+        font-size: var(--text-sm);
+        margin: 0;
+      }
+      .consent {
+        display: flex;
+        gap: var(--sp-2);
+        text-align: left;
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+        align-items: flex-start;
+      }
+      .consent input {
+        margin-top: 3px;
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
+      .consent-note {
+        display: block;
+        margin-top: 2px;
+        color: var(--ink-3);
+        font-style: normal;
+        font-size: var(--text-xs);
+      }
+      .btn-lg {
+        width: 100%;
+      }
+    `,
+  ],
 })
 export class InvitationComponent implements OnInit {
   readonly token = input.required<string>();
@@ -108,13 +197,19 @@ export class InvitationComponent implements OnInit {
   password = '';
 
   canSubmit(): boolean {
-    return this.consent && this.terms
-      && this.email.trim().length > 0 && this.password.length >= 8;
+    return (
+      this.consent &&
+      this.terms &&
+      this.email.trim().length > 0 &&
+      this.password.length >= 12
+    );
   }
 
   ngOnInit(): void {
     this.http
-      .get<InvitationInfo>(`${environment.apiUrl}/public/invitations/${this.token()}`)
+      .get<InvitationInfo>(
+        `${environment.apiUrl}/public/invitations/${this.token()}`,
+      )
       .subscribe({
         next: (info) => {
           this.info.set(info);
@@ -129,14 +224,23 @@ export class InvitationComponent implements OnInit {
     if (!this.canSubmit()) return;
     this.error.set(null);
     this.joining.set(true);
-    this.auth.acceptInvitation(
-      this.token(), this.consent, this.terms, this.email.trim(), this.password,
-    ).subscribe({
-      next: () => this.router.navigate(['/athlete/today']),
-      error: (err) => {
-        this.joining.set(false);
-        this.error.set(err?.error?.message ?? 'Impossible de finaliser. Vérifie tes identifiants.');
-      },
-    });
+    this.auth
+      .acceptInvitation(
+        this.token(),
+        this.consent,
+        this.terms,
+        this.email.trim(),
+        this.password,
+      )
+      .subscribe({
+        next: () => this.router.navigate(['/athlete/today']),
+        error: (err) => {
+          this.joining.set(false);
+          this.error.set(
+            err?.error?.message ??
+              'Impossible de finaliser. Vérifie tes identifiants.',
+          );
+        },
+      });
   }
 }

@@ -1,27 +1,21 @@
-# Front
+# Front — DARI Lab (Angular 17, standalone)
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 17.3.17.
+Ce fichier ne double pas la documentation du dépôt. Tout est ailleurs :
 
-## Development server
+- **Démarrer, variables d'environnement, architecture** : [`../README.md`](../README.md)
+- **Design system** (tokens, composants, états) : [`../docs/Design.md`](../docs/Design.md)
+- **Conventions de code** : [`../docs/Claude.md`](../docs/Claude.md)
+- **Débogage** : [`../docs/DEBUG.md`](../docs/DEBUG.md)
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+## Les commandes, sans détour
 
-## Code scaffolding
+| Commande | Ce qu'elle fait |
+|---|---|
+| `npm start` | Serveur de dev sur `http://localhost:4200`, proxy API via `proxy.conf.json` |
+| `npm run start:pwa` | Build `pwa` servi en statique — **le seul moyen de tester le service worker**, l'installation et le push |
+| `npm run build` | Build de production dans `dist/` |
+| `npm test` | Tests unitaires, une passe, Chrome headless |
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
-
-## Build
-
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
-
-## Running unit tests
-
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+Il n'y a **pas** de tests de bout en bout (`ng e2e` n'est pas configuré) ; c'est un manque assumé,
+tracé dans [`../docs/PLAN-CONFORMITE-BETA-2026-08.md`](../docs/PLAN-CONFORMITE-BETA-2026-08.md)
+(V3-16).

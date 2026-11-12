@@ -10,6 +10,45 @@
 }
 .slp-search .form-control { padding-left: calc(var(--sp-2) + 20px); }
 
+/* Premier tri : les familles, en puces. Elles doivent tenir dans une colonne étroite — le
+   panneau fait ~260 px — d'où l'enroulement et le libellé qui s'efface avant le compte. */
+.slp-families { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin-bottom: var(--sp-2); }
+.slp-chip {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--hairline); border-radius: var(--radius-full);
+  background: var(--paper); color: var(--ink-2);
+  font-size: var(--text-xs); font-weight: 700; cursor: pointer;
+  transition: background var(--duration) var(--ease), color var(--duration) var(--ease),
+              border-color var(--duration) var(--ease);
+}
+.slp-chip:hover { color: var(--ink); border-color: var(--ink-4); }
+.slp-chip.on {
+  background: var(--primary-wash); color: var(--primary); border-color: var(--primary);
+}
+.slp-chip__n { font-family: var(--font-data); font-size: var(--text-2xs); color: var(--ink-3); }
+.slp-chip.on .slp-chip__n { color: inherit; }
+
+/* Second tri : la catégorie */
+.slp-cat { margin-bottom: var(--sp-2); }
+.slp-cat .form-control { font-size: var(--text-sm); padding-block: var(--sp-1); }
+
+/* Ce qu'on regarde en ce moment, et la sortie de secours */
+.slp-active {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2); margin-bottom: var(--sp-2);
+  border-radius: var(--radius-sm); background: var(--paper-sunk);
+  font-size: var(--text-xs); color: var(--ink-3);
+}
+.slp-active--tools { background: transparent; padding-inline: var(--sp-1); }
+.slp-active__txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slp-clear {
+  display: inline-flex; align-items: center; gap: var(--sp-1); flex: none;
+  border: none; background: none; padding: 0; cursor: pointer;
+  color: var(--ink-2); font-size: var(--text-xs); font-weight: 700;
+}
+.slp-clear:hover { color: var(--primary); }
+
 /* Accordéon de catégorie */
 .slp-group { border-top: 1px solid var(--hairline); }
 .slp-group:first-of-type { border-top: none; }

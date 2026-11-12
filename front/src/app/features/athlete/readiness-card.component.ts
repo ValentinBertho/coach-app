@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { Advice, Readiness } from '../../core/models/decision.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -31,7 +40,6 @@ const ACTION_LABELS: Record<Advice, string> = {
  */
 @Component({
   selector: 'app-readiness-card',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
@@ -43,7 +51,9 @@ const ACTION_LABELS: Record<Advice, string> = {
             <strong class="rc__title">{{ r.title }}</strong>
           </header>
 
-          @if (r.reason) { <p class="rc__reason">{{ r.reason }}</p> }
+          @if (r.reason) {
+            <p class="rc__reason">{{ r.reason }}</p>
+          }
 
           <!-- Prévu / proposé, côte à côte : on n'accepte pas une adaptation qu'on ne voit pas. -->
           @if (r.adaptedSummary && r.plannedSummary) {
@@ -53,65 +63,135 @@ const ACTION_LABELS: Record<Advice, string> = {
               <span class="rc__to">{{ r.adaptedSummary }}</span>
             </div>
           } @else if (r.plannedSummary) {
-            <p class="rc__planned">Prévu : <span class="metric">{{ r.plannedSummary }}</span></p>
+            <p class="rc__planned">
+              Prévu : <span class="metric">{{ r.plannedSummary }}</span>
+            </p>
           }
 
           @if (r.pendingRequest) {
             <p class="rc__sent">
               <app-icon name="check" [size]="15" />
-              Demande envoyée à ton coach — ta séance ne change pas tant qu'il n'a pas répondu.
+              Demande envoyée à ton coach — ta séance ne change pas tant qu'il
+              n'a pas répondu.
             </p>
           } @else if (actionLabel()) {
             <div class="rc__actions">
-              <button type="button" class="btn btn-accent btn-sm" [disabled]="busy()"
-                      (click)="request(r.advice)">
+              <button
+                type="button"
+                class="btn btn-accent btn-sm"
+                [disabled]="busy()"
+                (click)="request(r.advice)"
+              >
                 {{ busy() ? 'Envoi…' : actionLabel() }}
               </button>
-              <button type="button" class="btn btn-ghost btn-sm" (click)="dismissed.set(true)">
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                (click)="dismissed.set(true)"
+              >
                 Je fais comme prévu
               </button>
             </div>
-            <p class="rc__note">C'est ton coach qui décide : cela lui envoie une demande.</p>
+            <p class="rc__note">
+              C'est ton coach qui décide : cela lui envoie une demande.
+            </p>
           }
         </section>
       }
     }
   `,
-  styles: [`
-    .rc {
-      display: flex; flex-direction: column; gap: var(--sp-2);
-      border-left: 4px solid var(--lc, var(--ink-4));
-    }
-    .rc--green  { --lc: var(--form-green, var(--success)); }
-    .rc--orange { --lc: var(--form-orange, var(--warning)); }
-    .rc--red    { --lc: var(--form-red, var(--danger)); }
-    .rc--stale  { --lc: var(--ink-3); }
+  styles: [
+    `
+      .rc {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+        border-left: 4px solid var(--lc, var(--ink-4));
+      }
+      .rc--green {
+        --lc: var(--form-green, var(--success));
+      }
+      .rc--orange {
+        --lc: var(--form-orange, var(--warning));
+      }
+      .rc--red {
+        --lc: var(--form-red, var(--danger));
+      }
+      .rc--stale {
+        --lc: var(--ink-3);
+      }
 
-    .rc__hd { display: flex; align-items: center; gap: var(--sp-2); }
-    .rc__dot {
-      width: 10px; height: 10px; border-radius: 50%; background: var(--lc); flex-shrink: 0;
-    }
-    .rc__title { color: var(--ink); font-size: var(--text-lg); }
-    .rc__reason { margin: 0; color: var(--ink-2); font-size: var(--text-sm); }
+      .rc__hd {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+      }
+      .rc__dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--lc);
+        flex-shrink: 0;
+      }
+      .rc__title {
+        color: var(--ink);
+        font-size: var(--text-lg);
+      }
+      .rc__reason {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: var(--text-sm);
+      }
 
-    .rc__diff {
-      display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
-      padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-sm);
-      background: var(--paper-sunk, var(--canvas));
-      font-family: var(--font-mono); font-size: var(--text-sm);
-    }
-    .rc__from { color: var(--ink-3); text-decoration: line-through; }
-    .rc__to { color: var(--ink); font-weight: 600; }
-    .rc__planned { margin: 0; font-size: var(--text-sm); color: var(--ink-2); }
+      .rc__diff {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        flex-wrap: wrap;
+        padding: var(--sp-2) var(--sp-3);
+        border-radius: var(--radius-sm);
+        background: var(--paper-sunk, var(--canvas));
+        font-family: var(--font-mono);
+        font-size: var(--text-sm);
+      }
+      .rc__from {
+        color: var(--ink-3);
+        text-decoration: line-through;
+      }
+      .rc__to {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .rc__planned {
+        margin: 0;
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+      }
 
-    .rc__actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-1); }
-    .rc__actions .btn { min-height: 44px; }
-    .rc__note, .rc__sent {
-      margin: 0; font-size: var(--text-xs); color: var(--ink-3);
-      display: flex; align-items: center; gap: var(--sp-1);
-    }
-    .rc__sent { color: var(--success); font-weight: 600; }
-  `],
+      .rc__actions {
+        display: flex;
+        gap: var(--sp-2);
+        flex-wrap: wrap;
+        margin-top: var(--sp-1);
+      }
+      .rc__actions .btn {
+        min-height: 44px;
+      }
+      .rc__note,
+      .rc__sent {
+        margin: 0;
+        font-size: var(--text-xs);
+        color: var(--ink-3);
+        display: flex;
+        align-items: center;
+        gap: var(--sp-1);
+      }
+      .rc__sent {
+        color: var(--success);
+        font-weight: 600;
+      }
+    `,
+  ],
 })
 export class ReadinessCardComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);

@@ -6,5 +6,5 @@ import jakarta.validation.constraints.Size;
 
 /** Redéfinition du mot de passe via un lien de réinitialisation. */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record PasswordResetRequest(@NotBlank @Size(min = 8, max = 100) String password) {
+public record PasswordResetRequest(@NotBlank @Size(min = 12, max = 100) String password) {
 }

@@ -1,10 +1,19 @@
+import { frNumber } from '../../core/utils/number-format';
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
   ACTIVITY_STATUS_BADGE,
   ACTIVITY_STATUS_LABELS,
+  activityCategoryLabel,
   Activity,
 } from '../../core/models/activity.model';
 import { Workout } from '../../core/models/workout.model';
@@ -17,9 +26,15 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
 
 @Component({
   selector: 'app-activity-list',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, ReactiveFormsModule, RouterLink, DatePipe, ActivityLapsComponent, TimeInZoneBarComponent],
+  imports: [
+    SkeletonComponent,
+    ReactiveFormsModule,
+    RouterLink,
+    DatePipe,
+    ActivityLapsComponent,
+    TimeInZoneBarComponent,
+  ],
   templateUrl: './activity-list.component.html',
   styleUrl: './activity-list.component.scss',
 })
@@ -49,6 +64,14 @@ export class ActivityListComponent implements OnInit {
    */
   hasDetail(a: Activity): boolean {
     return a.source === 'FILE' || a.source === 'STRAVA';
+  }
+
+  /**
+   * Catégorie de la sortie, au niveau de détail que la source a donné : « Vélo gravel » plutôt
+   * que « Vélo ». Vide quand elle n'a rien déclaré — l'appelant retombe alors sur la provenance.
+   */
+  sportLabel(a: Activity): string {
+    return activityCategoryLabel(a);
   }
 
   toggleZones(id: string): void {
@@ -84,17 +107,21 @@ export class ActivityListComponent implements OnInit {
       return;
     }
     this.submitting.set(true);
-    this.activityService.import(this.athleteId(), this.form.getRawValue() as never).subscribe({
-      next: (a) => {
-        this.toast.success(
-          a.status === 'MATCHED' ? 'Activité importée et rapprochée' : 'Activité importée.'
-        );
-        this.form.reset();
-        this.submitting.set(false);
-        this.load();
-      },
-      error: () => this.submitting.set(false),
-    });
+    this.activityService
+      .import(this.athleteId(), this.form.getRawValue() as never)
+      .subscribe({
+        next: (a) => {
+          this.toast.success(
+            a.status === 'MATCHED'
+              ? 'Activité importée et rapprochée'
+              : 'Activité importée.',
+          );
+          this.form.reset();
+          this.submitting.set(false);
+          this.load();
+        },
+        error: () => this.submitting.set(false),
+      });
   }
 
   onFile(event: Event): void {
@@ -103,11 +130,17 @@ export class ActivityListComponent implements OnInit {
     if (!file) return;
     this.activityService.importFile(this.athleteId(), file).subscribe({
       next: (a) => {
-        this.toast.success(a.status === 'MATCHED' ? 'Fichier importé et rapproché' : 'Fichier importé.');
+        this.toast.success(
+          a.status === 'MATCHED'
+            ? 'Fichier importé et rapproché'
+            : 'Fichier importé.',
+        );
         input.value = '';
         this.load();
       },
-      error: () => { input.value = ''; },
+      error: () => {
+        input.value = '';
+      },
     });
   }
 
@@ -120,9 +153,14 @@ export class ActivityListComponent implements OnInit {
     this.matchOpen.set(a.id);
     this.matchCandidates.set([]);
     this.workoutService
-      .calendar(this.athleteId(), shiftDate(a.activityDate, -3), shiftDate(a.activityDate, 3))
+      .calendar(
+        this.athleteId(),
+        shiftDate(a.activityDate, -3),
+        shiftDate(a.activityDate, 3),
+      )
       .subscribe({
-        next: (ws) => this.matchCandidates.set(ws.filter((w) => w.status === 'PLANNED')),
+        next: (ws) =>
+          this.matchCandidates.set(ws.filter((w) => w.status === 'PLANNED')),
         error: () => this.matchCandidates.set([]),
       });
   }
@@ -151,13 +189,13 @@ export class ActivityListComponent implements OnInit {
   }
 
   km(m: number | null): string {
-    return m != null ? (m / 1000).toFixed(1) + ' km' : '—';
+    return m != null ? frNumber(m / 1000, 1) + ' km' : '—';
   }
 
   delta(m: number | null): string {
     if (m == null) return '';
     const sign = m > 0 ? '+' : '';
-    return `${sign}${(m / 1000).toFixed(1)} km`;
+    return `${sign}${frNumber(m / 1000, 1)} km`;
   }
 }
 

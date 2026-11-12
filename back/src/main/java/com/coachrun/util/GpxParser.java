@@ -1,5 +1,6 @@
 package com.coachrun.util;
 
+import com.coachrun.entity.enums.ActivitySport;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -9,6 +10,7 @@ import java.io.ByteArrayInputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +28,14 @@ public final class GpxParser {
     }
 
     public static ActivityTrack.ParsedActivity parse(byte[] content) {
+        return parse(content, ZoneOffset.UTC);
+    }
+
+    /**
+     * @param zone fuseau dans lequel l'heure de départ devient une date civile : une sortie partie
+     *             à 0 h 30 à Paris est du jour même, alors qu'en UTC elle tombe la veille
+     */
+    public static ActivityTrack.ParsedActivity parse(byte[] content, ZoneId zone) {
         List<ActivityTrack.Point> points = readPoints(content);
         if (points.isEmpty()) {
             throw new IllegalArgumentException("Fichier sans points GPS exploitables.");
@@ -35,14 +45,70 @@ public final class GpxParser {
         Instant last = points.get(points.size() - 1).time();
         Integer durationS = (first != null && last != null)
                 ? (int) Duration.between(first, last).getSeconds() : null;
-        LocalDate date = first != null ? first.atZone(ZoneOffset.UTC).toLocalDate() : LocalDate.now();
+        LocalDate date = first != null ? first.atZone(zone).toLocalDate() : LocalDate.now(zone);
 
         List<ActivityTrack.Point> positioned = ActivityTrack.positioned(points);
+        String declared = readDeclaredSport(content);
         return new ActivityTrack.ParsedActivity(date,
                 ActivityTrack.distanceM(positioned), durationS,
                 ActivityTrack.elevationGainM(points), ActivityTrack.avgHr(points),
                 ActivityTrack.downsample(positioned), ActivityTrack.buildStream(points),
-                readTcxLaps(content));
+                readTcxLaps(content), ActivitySport.fromXmlLabel(declared), declared);
+    }
+
+    /**
+     * Sport déclaré par le fichier : attribut {@code Sport} de l'{@code <Activity>} d'un TCX
+     * («&nbsp;Running&nbsp;», «&nbsp;Biking&nbsp;»), ou balise {@code <type>} de la trace d'un GPX.
+     *
+     * <p>Les deux arrivaient déjà dans le fichier et n'étaient pas lus. Sans eux, une sortie à
+     * vélo importée à la main n'est qu'une date, une distance et une durée — de quoi aller se
+     * rapprocher du fractionné prescrit le même jour.</p>
+     *
+     * <p>Le libellé est rendu <b>tel quel</b> : c'est lui qui s'affichera, et le traduire en
+     * famille ici reviendrait à jeter ce qu'on est venu chercher. Un libellé qu'on ne sait pas
+     * classer — « Pickleball » — vaut mieux que rien : il ne dira rien au rapprochement, mais il
+     * dira quelque chose au coach.</p>
+     *
+     * <p>Deux exceptions rendent {@code null} : l'absence de déclaration, et le «&nbsp;Other&nbsp;»
+     * d'un TCX — les montres y rangent tout ce qu'elles ne savent pas nommer, course à pied
+     * comprise, et l'afficher tel quel serait annoncer une information là où il n'y en a pas.</p>
+     */
+    private static String readDeclaredSport(byte[] content) {
+        try {
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            dbf.setNamespaceAware(false);
+            var doc = dbf.newDocumentBuilder().parse(new ByteArrayInputStream(content));
+
+            List<String> declared = new ArrayList<>();
+            NodeList activities = doc.getElementsByTagName("Activity");
+            for (int i = 0; i < activities.getLength(); i++) {
+                declared.add(((Element) activities.item(i)).getAttribute("Sport"));
+            }
+            NodeList types = doc.getElementsByTagName("type");
+            for (int i = 0; i < types.getLength(); i++) {
+                declared.add(types.item(i).getTextContent());
+            }
+
+            // Un libellé qu'on sait classer d'abord : sur un TCX multisport, c'est celui qui
+            // décrit l'activité plutôt que le « Other » d'une transition.
+            return declared.stream().map(GpxParser::cleaned).filter(java.util.Objects::nonNull)
+                    .filter(l -> ActivitySport.fromXmlLabel(l) != null)
+                    .findFirst()
+                    .orElseGet(() -> declared.stream().map(GpxParser::cleaned)
+                            .filter(java.util.Objects::nonNull).findFirst().orElse(null));
+        } catch (Exception e) {
+            return null; // le sport est un bonus : son absence n'invalide pas le fichier
+        }
+    }
+
+    /** Libellé exploitable, ou {@code null} : ni vide, ni le « Other » qui ne nomme rien. */
+    private static String cleaned(String label) {
+        if (label == null || label.isBlank()) {
+            return null;
+        }
+        String trimmed = label.trim();
+        return trimmed.equalsIgnoreCase("other") ? null : trimmed;
     }
 
     /**

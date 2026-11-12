@@ -40,7 +40,7 @@ public class LactateTestController {
     @GetMapping("/{testId}")
     public LactateTestResponse get(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                    @PathVariable UUID testId) {
-        return testService.get(clubId, testId);
+        return testService.get(clubId, athleteId, testId);
     }
 
     /** Détection temps réel des seuils sans persistance (UI de saisie). */
@@ -63,6 +63,6 @@ public class LactateTestController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                        @PathVariable UUID testId) {
-        testService.delete(clubId, testId);
+        testService.delete(clubId, athleteId, testId);
     }
 }

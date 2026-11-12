@@ -22,6 +22,14 @@ public interface PpExerciseRepository extends JpaRepository<PpExercise, UUID> {
     boolean existsByClubId(UUID clubId);
 
     /**
+     * Les exercices d'un lot d'identifiants, dans le périmètre du club.
+     *
+     * <p>Sert la fiche d'exécution servie à l'athlète : on ne lui ouvre jamais la bibliothèque du
+     * club, seulement les exercices que sa propre séance contient.</p>
+     */
+    java.util.List<PpExercise> findByClubIdAndIdIn(UUID clubId, java.util.Collection<UUID> ids);
+
+    /**
      * Recherche filtrable (catégorie, niveau, groupe musculaire, matériel, texte). Les enums
      * nuls désactivent le filtre ; {@code q} est toujours lié à "" (jamais null) — cf. RAF (piège
      * du paramètre null typé bytea sur PostgreSQL).

@@ -21,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -96,6 +97,90 @@ class UnifiedCategoryTest {
                         .content("{\"name\":\"Montées de genoux\",\"category\":\"TECHNIQUE\",\"categoryId\":\"" + catId + "\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         assertThat(drill.get("categoryId").asText()).isEqualTo(catId);
+    }
+
+    /**
+     * Une séance de prépa physique se range comme le reste de la bibliothèque.
+     *
+     * <p>Course et éducatifs portaient leur catégorie depuis l'unification ; les séances de force
+     * non. Le panneau bibliothèque du calendrier les affichait donc en une seule liste à plat —
+     * « quand la bibliothèque contient énormément de séances il faut beaucoup scroller ». Un
+     * filtre par catégorie n'avait rien à filtrer tant que ce rattachement n'existait pas.</p>
+     */
+    @Test
+    void strengthSessionIsFiledUnderAStrengthCategory() throws Exception {
+        String catId = strengthCategory("Bas du corps");
+
+        JsonNode created = objectMapper.readTree(mvc.perform(post("/clubs/{c}/pp/sessions", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Full body\",\"categoryId\":\"" + catId + "\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        assertThat(created.get("categoryId").asText()).isEqualTo(catId);
+
+        // Relue depuis la bibliothèque, elle a bien gardé son rangement.
+        JsonNode reread = objectMapper.readTree(mvc.perform(
+                        get("/clubs/{c}/pp/sessions/{s}", clubId, created.get("id").asText())
+                                .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(reread.get("categoryId").asText()).isEqualTo(catId);
+    }
+
+    /** Et elle en sort : {@code null} est un choix — « sans catégorie » — pas une absence d'ordre. */
+    @Test
+    void strengthSessionLeavesItsCategoryWhenAsked() throws Exception {
+        String catId = strengthCategory("Bas du corps");
+        String id = objectMapper.readTree(mvc.perform(post("/clubs/{c}/pp/sessions", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Full body\",\"categoryId\":\"" + catId + "\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        JsonNode updated = objectMapper.readTree(mvc.perform(
+                        put("/clubs/{c}/pp/sessions/{s}", clubId, id)
+                                .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"name\":\"Full body\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(updated.hasNonNull("categoryId")).isFalse();
+    }
+
+    /** La copie se range où était l'originale : c'est là qu'on ira la chercher. */
+    @Test
+    void duplicatingAStrengthSessionKeepsItsCategory() throws Exception {
+        String catId = strengthCategory("Bas du corps");
+        String id = objectMapper.readTree(mvc.perform(post("/clubs/{c}/pp/sessions", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Full body\",\"categoryId\":\"" + catId + "\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
+
+        JsonNode copy = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/pp/sessions/{s}/duplicate", clubId, id).header("Authorization", bearer))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        assertThat(copy.get("categoryId").asText()).isEqualTo(catId);
+    }
+
+    /** Une catégorie d'un autre arbre est refusée : rangée là, la séance serait introuvable. */
+    @Test
+    void strengthSessionRejectsCategoryFromWrongDomain() throws Exception {
+        JsonNode courseCat = objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/session-categories", clubId).header("Authorization", bearer)
+                                .contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Seuil\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+
+        mvc.perform(post("/clubs/{c}/pp/sessions", clubId)
+                        .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Full body\",\"categoryId\":\""
+                                + courseCat.get("id").asText() + "\"}"))
+                .andExpect(status().isNotFound());
+    }
+
+    private String strengthCategory(String name) throws Exception {
+        return objectMapper.readTree(mvc.perform(
+                        post("/clubs/{c}/session-categories?domain=STRENGTH", clubId)
+                                .header("Authorization", bearer).contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"name\":\"" + name + "\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("id").asText();
     }
 
     @Test

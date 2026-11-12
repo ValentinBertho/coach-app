@@ -19,6 +19,12 @@ public record WorkoutPrescriptionResponse(
         SessionStructure snapshot,
         CalculatedSessionResponse calculated,
         /** Éducatifs (gammes) référencés par les blocs, résolus pour l'affichage (nom, vidéo). */
-        java.util.List<RunDrillResponse> drills
+        java.util.List<RunDrillResponse> drills,
+        /**
+         * La prescription enregistrée n'a pas pu être relue. Le {@code snapshot} est alors vide,
+         * mais ce n'est pas une séance sans contenu : l'écran doit le dire au lieu d'afficher une
+         * séance vide, que le coach prendrait pour un oubli et l'athlète pour un repos.
+         */
+        boolean unreadable
 ) {
 }

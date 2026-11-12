@@ -46,6 +46,7 @@ public class MessageService {
 
     private final AthleteAccessValidator accessValidator;
     private final ConversationService conversationService;
+    private final com.coachrun.repository.WorkoutRepository workoutRepository;
     private final com.coachrun.repository.CoachAthleteRelationRepository relationRepository;
 
     // --- Côté coach (scopé club) ---
@@ -123,6 +124,27 @@ public class MessageService {
                 .orElseGet(List::of);
     }
 
+    /**
+     * Le fil d'une séance : les messages qui lui sont rattachés, du plus ancien au plus récent.
+     *
+     * <p>Il n'y a pas de second canal. Ce sont les mêmes messages que la messagerie, lus par leur
+     * rattachement plutôt que par leur fil — la séance devient une <b>vue</b> de la conversation,
+     * pas une conversation de plus. Un coach qui pose sa question sur la séance lit la réponse au
+     * même endroit ; l'échange reste par ailleurs entier dans la boîte de réception.</p>
+     *
+     * <p>Le cloisonnement suit celui des fils : un message écrit dans le fil privé de l'athlète
+     * avec un autre coach n'apparaît pas ici. Les messages antérieurs au modèle de conversations
+     * (sans fil) passent : ils appartiennent au binôme, et le contrôle d'accès à l'athlète a déjà
+     * eu lieu à l'entrée.</p>
+     */
+    public List<MessageResponse> workoutThread(AuthPrincipal principal, UUID workoutId) {
+        return messageRepository.findByWorkoutIdOrderByCreatedAtAsc(workoutId).stream()
+                .filter(m -> m.getConversation() == null
+                        || conversationService.canRead(principal, m.getConversation()))
+                .map(MessageResponse::from)
+                .toList();
+    }
+
     /** Profondeur par défaut d'un fil : de quoi couvrir plusieurs semaines d'échanges. */
     public static final int DEFAULT_THREAD_LIMIT = 100;
 
@@ -186,7 +208,39 @@ public class MessageService {
         // Le flux temps réel est indexé par FIL et non plus par athlète : deux coachs qui suivent
         // le même athlète ne doivent pas voir passer les messages de l'autre.
         streamService.broadcast(conversation.getId(), MessageResponse.from(saved));
+        markSessionThread(saved);
         notificationService.notifyNewMessage(saved);
+    }
+
+    /**
+     * Un message qui parle d'une séance laisse sa trace <b>sur la séance</b>.
+     *
+     * <p>Le rattachement {@code workoutId} existait sans que personne ne le relise : l'athlète
+     * répondait depuis sa fiche de séance, sa réponse filait dans la messagerie, et la séance
+     * commentée n'en gardait rien. Le coach n'avait donc aucun endroit où voir qu'on lui avait
+     * répondu — ni la séance qu'il avait commentée, ni son cockpit. C'est le défaut signalé en
+     * bêta : une question posée le lundi, une réponse arrivée le soir même, découverte le jeudi.</p>
+     *
+     * <p>Deux sens, deux effets. La réponse d'un <b>athlète</b> ouvre une attente sur la séance
+     * (et rouvre celle qu'une réponse précédente avait refermée : un deuxième message est un
+     * deuxième message). Le message d'un <b>coach</b> la referme — répondre, c'est avoir lu.</p>
+     *
+     * <p>Silencieux si la séance n'existe pas ou n'appartient pas à cet athlète : un fil ne doit
+     * jamais échouer parce que la séance dont il parlait a été supprimée entre-temps.</p>
+     */
+    private void markSessionThread(Message saved) {
+        if (saved.getWorkoutId() == null || saved.getAthlete() == null) {
+            return;
+        }
+        workoutRepository.findByIdAndAthleteId(saved.getWorkoutId(), saved.getAthlete().getId())
+                .ifPresent(w -> {
+                    if (saved.getSenderRole() == com.coachrun.entity.enums.UserRole.ATHLETE) {
+                        w.setAthleteReplyAt(saved.getCreatedAt());
+                        w.setAthleteReplyReadAt(null);
+                    } else if (w.getAthleteReplyAt() != null && w.getAthleteReplyReadAt() == null) {
+                        w.setAthleteReplyReadAt(java.time.Instant.now());
+                    }
+                });
     }
 
     // --- Pièces jointes ---

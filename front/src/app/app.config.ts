@@ -2,7 +2,7 @@ import { registerLocaleData, isPlatformBrowser } from '@angular/common';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import localeFr from '@angular/common/locales/fr';
 import { PLATFORM_ID, ApplicationConfig, ErrorHandler, LOCALE_ID, importProvidersFrom, inject } from '@angular/core';
-import * as Sentry from '@sentry/angular-ivy';
+import * as Sentry from '@sentry/angular';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { environment } from '../environments/environment';
 import { provideRouter, withComponentInputBinding, withRouterConfig } from '@angular/router';
@@ -18,7 +18,7 @@ import {
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Save,
   LayoutGrid, List, PanelLeft, Menu, GripVertical, ChevronDown, ChevronUp, Type,
   LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck, Eye, Trash2, Plus, Ellipsis, Inbox, ArrowLeft, ArrowRight, ChevronLeft, RotateCcw, Square, GripHorizontal,
-  EyeOff, MapPin, LineChart, Sun, WifiOff, Mail, DoorOpen,
+  EyeOff, MapPin, LineChart, Sun, WifiOff, Mail, DoorOpen, Tablet, Monitor, Share, SquarePlus, EllipsisVertical,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -44,7 +44,7 @@ export const ICONS = {
   Move, Hand, PartyPopper, Circle, Activity, ChevronRight, ChevronsLeft, ChevronsRight, Copy, Save,
   LayoutGrid, List, PanelLeft, Menu, GripVertical, ChevronDown, ChevronUp, Type,
   LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck, Eye, Trash2, Plus, Ellipsis, Inbox, ArrowLeft, ArrowRight, ChevronLeft, RotateCcw, Square, GripHorizontal,
-  EyeOff, MapPin, LineChart, Sun, WifiOff, Mail, DoorOpen,
+  EyeOff, MapPin, LineChart, Sun, WifiOff, Mail, DoorOpen, Tablet, Monitor, Share, SquarePlus, EllipsisVertical,
 };
 
 export const appConfig: ApplicationConfig = {

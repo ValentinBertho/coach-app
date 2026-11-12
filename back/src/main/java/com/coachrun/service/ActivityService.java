@@ -25,10 +25,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -46,6 +46,7 @@ public class ActivityService {
      * ce service, et une injection directe fermerait le cycle de dépendances au démarrage.
      */
     private final org.springframework.beans.factory.ObjectProvider<PhysioDetectionService> physioDetection;
+    private final ClockService clock;
 
     private final ActivityRepository activityRepository;
     private final ActivityExclusionRepository exclusionRepository;
@@ -78,6 +79,8 @@ public class ActivityService {
             return objectMapper.readValue(a.getRouteJson(),
                     new com.fasterxml.jackson.core.type.TypeReference<java.util.List<double[]>>() { });
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(ActivityService.class,
+                    "tracé GPS illisible pour la sortie " + a.getId() + ", carte rendue vide", e);
             return java.util.List.of();
         }
     }
@@ -142,6 +145,8 @@ public class ActivityService {
         activity.setDurationS(request.durationS());
         activity.setAvgHr(request.avgHr());
         activity.setElevationGainM(request.elevationGainM());
+        activity.setSport(request.sport());
+        activity.setSportDetail(request.sportDetail());
         activity.setStatus(ActivityStatus.IMPORTED);
         applyExtras(activity, extras);
 
@@ -231,7 +236,7 @@ public class ActivityService {
                                 + "Confirmez si vous avez bien couru deux fois.",
                         sourceLabel(existing.getSource()),
                         existing.getDistanceM() == null ? ""
-                                : String.format(", %.1f km", existing.getDistanceM() / 1000.0)));
+                                : String.format(java.util.Locale.FRANCE, ", %.1f km", existing.getDistanceM() / 1000.0)));
             }
         }
     }
@@ -295,15 +300,19 @@ public class ActivityService {
         if (extras.route() != null && !extras.route().isEmpty()) {
             try {
                 activity.setRouteJson(objectMapper.writeValueAsString(extras.route()));
-            } catch (Exception ignored) {
-                // tracé optionnel
+            } catch (Exception e) {
+                // Le tracé est optionnel : la sortie s'enregistre sans lui, mais on le sait.
+                com.coachrun.util.SwallowedError.report(ActivityService.class,
+                        "tracé GPS non enregistré à l'import d'une sortie (sérialisation)", e);
             }
         }
         if (extras.stream() != null && !extras.stream().isEmpty()) {
             try {
                 activity.setStreamJson(objectMapper.writeValueAsString(extras.stream()));
-            } catch (Exception ignored) {
-                // flux optionnel
+            } catch (Exception e) {
+                // Le flux est optionnel : la sortie s'enregistre sans lui, mais on le sait.
+                com.coachrun.util.SwallowedError.report(ActivityService.class,
+                        "flux (FC, allure) non enregistré à l'import d'une sortie (sérialisation)", e);
             }
         }
         applyLaps(activity, extras.laps());
@@ -321,8 +330,10 @@ public class ActivityService {
         try {
             activity.setLapsJson(objectMapper.writeValueAsString(
                     new ActivityLapsResponse(ActivityLapsResponse.Kind.DEVICE, laps)));
-        } catch (Exception ignored) {
-            // tours optionnels
+        } catch (Exception e) {
+            // Les tours sont optionnels : la sortie s'enregistre sans eux, mais on le sait.
+            com.coachrun.util.SwallowedError.report(ActivityService.class,
+                    "tours non enregistrés à l'import d'une sortie (sérialisation)", e);
         }
     }
 
@@ -649,9 +660,9 @@ public class ActivityService {
     }
 
     /** Tours d'une activité vue par le coach (scopé club). */
-    public ActivityLapsResponse laps(UUID clubId, UUID activityId,
+    public ActivityLapsResponse laps(UUID clubId, UUID athleteId, UUID activityId,
                                      ActivityLapsResponse.Kind requested) {
-        return laps(require(clubId, activityId), requested);
+        return laps(require(clubId, athleteId, activityId), requested);
     }
 
     /**
@@ -708,8 +719,8 @@ public class ActivityService {
     }
 
     /** Courbe d'une activité vue par le coach (scopé club). */
-    public com.coachrun.dto.response.ActivityStreamResponse streamCurve(UUID clubId, UUID activityId) {
-        return curve(require(clubId, activityId));
+    public com.coachrun.dto.response.ActivityStreamResponse streamCurve(UUID clubId, UUID athleteId, UUID activityId) {
+        return curve(require(clubId, athleteId, activityId));
     }
 
     /**
@@ -734,6 +745,8 @@ public class ActivityService {
             return objectMapper.readValue(a.getStreamJson(),
                     new com.fasterxml.jackson.core.type.TypeReference<java.util.List<int[]>>() { });
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(ActivityService.class,
+                    "flux (FC, allure) illisible pour la sortie " + a.getId() + ", courbes rendues vides", e);
             return java.util.List.of();
         }
     }
@@ -767,6 +780,8 @@ public class ActivityService {
         activity.setDurationS(request.durationS());
         activity.setAvgHr(request.avgHr());
         activity.setElevationGainM(request.elevationGainM());
+        activity.setSport(request.sport());
+        activity.setSportDetail(request.sportDetail());
         activity.setStatus(ActivityStatus.IMPORTED);
         autoMatch(athleteId, activity);
         activity = activityRepository.save(activity);
@@ -788,7 +803,7 @@ public class ActivityService {
                                             String filename, byte[] bytes, boolean confirmDuplicate) {
         com.coachrun.util.ActivityTrack.ParsedActivity parsed;
         try {
-            parsed = com.coachrun.util.ActivityFileParser.parse(bytes);
+            parsed = com.coachrun.util.ActivityFileParser.parse(bytes, clock.zone());
         } catch (IllegalArgumentException ex) {
             throw new com.coachrun.exception.ApiException(org.springframework.http.HttpStatus.BAD_REQUEST,
                     ex.getMessage());
@@ -813,17 +828,25 @@ public class ActivityService {
         // ses points. Sans elle, une sortie importée s'affichait sans cardio là où la même sortie
         // remontée par Strava en avait une.
         activity.setAvgHr(parsed.avgHr());
+        // Le sport déclaré par la montre : c'est lui qui empêche une séance de renforcement ou
+        // une sortie à vélo d'aller se rapprocher du fractionné prescrit le même jour.
+        activity.setSport(parsed.sport());
+        activity.setSportDetail(parsed.sportDetail());
         activity.setStatus(ActivityStatus.IMPORTED);
         try {
             activity.setRouteJson(objectMapper.writeValueAsString(parsed.route()));
-        } catch (Exception ignored) {
-            // tracé optionnel
+        } catch (Exception e) {
+            // Le tracé est optionnel : la sortie s'enregistre sans lui, mais on le sait.
+            com.coachrun.util.SwallowedError.report(ActivityService.class,
+                    "tracé GPS non enregistré à l'import d'une sortie (sérialisation)", e);
         }
         if (parsed.stream() != null && !parsed.stream().isEmpty()) {
             try {
                 activity.setStreamJson(objectMapper.writeValueAsString(parsed.stream()));
-            } catch (Exception ignored) {
-                // flux optionnel
+            } catch (Exception e) {
+                // Le flux est optionnel : la sortie s'enregistre sans lui, mais on le sait.
+                com.coachrun.util.SwallowedError.report(ActivityService.class,
+                        "flux (FC, allure) non enregistré à l'import d'une sortie (sérialisation)", e);
             }
         }
         // Les tours d'un TCX : c'est là que le fractionné est lisible tel qu'il a été couru.
@@ -836,8 +859,8 @@ public class ActivityService {
     }
 
     /** Détail incluant le tracé GPS décodé. */
-    public java.util.List<double[]> route(UUID clubId, UUID activityId) {
-        Activity a = require(clubId, activityId);
+    public java.util.List<double[]> route(UUID clubId, UUID athleteId, UUID activityId) {
+        Activity a = require(clubId, athleteId, activityId);
         if (a.getRouteJson() == null) {
             return java.util.List.of();
         }
@@ -845,6 +868,8 @@ public class ActivityService {
             return objectMapper.readValue(a.getRouteJson(),
                     new com.fasterxml.jackson.core.type.TypeReference<java.util.List<double[]>>() { });
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(ActivityService.class,
+                    "tracé GPS illisible pour la sortie " + a.getId() + ", carte rendue vide", e);
             return java.util.List.of();
         }
     }
@@ -900,8 +925,8 @@ public class ActivityService {
     }
 
     @Transactional
-    public ActivityResponse matchManually(UUID clubId, UUID activityId, UUID workoutId) {
-        Activity activity = require(clubId, activityId);
+    public ActivityResponse matchManually(UUID clubId, UUID athleteId, UUID activityId, UUID workoutId) {
+        Activity activity = require(clubId, athleteId, activityId);
         return relink(activity, clubId, workoutId);
     }
 
@@ -927,8 +952,8 @@ public class ActivityService {
     }
 
     @Transactional
-    public ActivityResponse unmatch(UUID clubId, UUID activityId) {
-        return relink(require(clubId, activityId), clubId, null);
+    public ActivityResponse unmatch(UUID clubId, UUID athleteId, UUID activityId) {
+        return relink(require(clubId, athleteId, activityId), clubId, null);
     }
 
     /**
@@ -937,9 +962,14 @@ public class ActivityService {
      * détachement, l'ancienne séance restait COMPLETED alors que plus rien ne l'atteste.
      */
     private ActivityResponse relink(Activity activity, UUID clubId, UUID workoutId) {
+        // Tout ce qui passe par ici vient d'un coach ou d'un athlète : l'arbitrage automatique
+        // ne reviendra plus dessus, y compris pour un détachement — « cette sortie n'est aucune
+        // de mes séances » est une réponse, et l'import suivant n'a pas à la rediscuter.
+        activity.setManualMatch(true);
         UUID previous = activity.getMatchedWorkoutId();
         if (previous != null && !previous.equals(workoutId)) {
-            workoutRepository.findByIdAndClubId(previous, clubId).ifPresent(w -> {
+            workoutRepository.findByIdAndClubIdAndAthleteId(previous, clubId, activity.getAthlete().getId())
+                    .ifPresent(w -> {
                 // La sortie récupère le ressenti de la séance qu'elle quitte — sans quoi le
                 // détachement effacerait, sans le dire, ce que l'athlète avait décrit.
                 releaseDebrief(activity, w);
@@ -951,7 +981,9 @@ public class ActivityService {
             activity.setStatus(ActivityStatus.UNMATCHED);
             return toResponse(activity);
         }
-        Workout workout = workoutRepository.findByIdAndClubId(workoutId, clubId)
+        // Une sortie ne se rattache qu'à une séance du même athlète, quel que soit l'appelant.
+        Workout workout = workoutRepository
+                .findByIdAndClubIdAndAthleteId(workoutId, clubId, activity.getAthlete().getId())
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
         link(activity, workout);
         return toResponse(activity);
@@ -977,49 +1009,115 @@ public class ActivityService {
         }
     }
 
+    /**
+     * Rapproche la sortie qui vient d'arriver de la séance qu'elle réalise, s'il y en a une.
+     *
+     * <h2>Pourquoi l'ordre d'arrivée ne décide plus</h2>
+     *
+     * <p>Une séance déjà rapprochée était définitivement prise : la première sortie importée qui
+     * franchissait le seuil gardait la séance, quelle que soit celle qui arrivait ensuite. C'est
+     * l'ordre de synchronisation qui tranchait, pas les chiffres — et sur une journée à cinq
+     * sorties, cet ordre n'a aucun rapport avec ce que l'athlète a fait.</p>
+     *
+     * <p><b>Et quand rien ne correspond, rien n'est rattaché.</b> Il n'y a plus de repli « la
+     * seule séance de la journée, faute de mieux » : rattacher sur la seule foi de la date
+     * revenait à donner la séance à la première sortie importée ce jour-là, qui n'est pas
+     * forcément celle qui l'a réalisée. Une sortie « non rattachée » se corrige d'un geste et se
+     * voit ; une séance déclarée faite par la mauvaise sortie fausse le prévu/réalisé sans que
+     * personne ne s'en aperçoive.</p>
+     *
+     * <p>Une séance tenue par une sortie <b>moins bien placée</b> redevient donc disponible, et
+     * la sortie délogée repart « non rattachée » — avec son ressenti, que le détachement lui
+     * rend. Deux choses restent intouchables : un rapprochement décidé <b>à la main</b> (voir
+     * {@link Activity#isManualMatch()}), parce qu'une personne s'est prononcée et que l'import
+     * suivant n'a pas à la contredire, et une séance dont la sortie tenante est à peu près aussi
+     * bonne : il faut battre la tenante <b>franchement</b> (cf. {@link #REARBITRATION_MARGIN}),
+     * sans quoi l'affichage se mettrait à dépendre de quelques millièmes de score.</p>
+     */
     private void autoMatch(UUID athleteId, Activity activity) {
         List<Workout> window = workoutRepository
                 .findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
                         athleteId, activity.getActivityDate().minusDays(1), activity.getActivityDate().plusDays(1));
-        // Une séance qui porte déjà une sortie n'est plus disponible : sans ce tri, la deuxième
-        // sortie de la journée viendrait déloger la première.
-        Set<UUID> taken = window.isEmpty() ? Set.of()
-                : new HashSet<>(activityRepository.findMatchedWorkoutIdsIn(
-                        window.stream().map(Workout::getId).toList()));
-        List<Workout> candidates = window.stream().filter(w -> !taken.contains(w.getId())).toList();
+        if (window.isEmpty()) {
+            activity.setStatus(ActivityStatus.UNMATCHED);
+            return;
+        }
+        Map<UUID, Activity> holders = incumbents(window);
+        List<Workout> candidates = window.stream()
+                .filter(w -> availableFor(activity, w, holders))
+                .toList();
 
         Optional<Workout> best = matchingService.findBestMatch(activity, candidates);
         if (best.isEmpty()) {
-            best = loneSessionOfTheDay(activity, window, taken);
-        }
-        if (best.isPresent()) {
-            link(activity, best.get());
-        } else {
             activity.setStatus(ActivityStatus.UNMATCHED);
+            return;
         }
+        Activity incumbent = holders.get(best.get().getId());
+        if (incumbent != null) {
+            evict(incumbent, best.get());
+        }
+        link(activity, best.get());
+    }
+
+    /** Les sorties déjà rapprochées des séances de la fenêtre, indexées par séance. */
+    private Map<UUID, Activity> incumbents(List<Workout> window) {
+        Map<UUID, Activity> byWorkout = new HashMap<>();
+        for (Activity a : activityRepository.findByMatchedWorkoutIdIn(
+                window.stream().map(Workout::getId).toList())) {
+            byWorkout.put(a.getMatchedWorkoutId(), a);
+        }
+        return byWorkout;
     }
 
     /**
-     * Repli : la seule séance de la journée, quand rien ne permet de la comparer à la sortie.
+     * De combien la prétendante doit dépasser la tenante pour lui prendre la séance.
      *
-     * <p>La garde décisive se pose <b>ici</b> et pas dans l'algorithme de score, parce qu'elle
-     * demande de connaître la journée entière — séances déjà rapprochées comprises. Compter les
-     * seules séances encore libres reviendrait à dire « la seule séance <i>restante</i> », ce qui
-     * n'est pas la même chose : une journée à deux séances dont la première est déjà prise
-     * laisserait la seconde attraper n'importe quelle sortie, alors que le choix y est justement
-     * arbitraire.</p>
+     * <p>Une marge, et pas une simple inégalité stricte, pour deux raisons. Un écart de quelques
+     * millièmes ne décrit rien de réel — deux footings de 10,1 et 10,2 km réalisent aussi bien la
+     * séance du jour, et faire dépendre l'affichage de cet écart-là revient à le faire dépendre du
+     * hasard. Et surtout : les sorties rapprochées <b>avant</b> l'existence de
+     * {@link Activity#isManualMatch()} portent toutes {@code false}, y compris celles qu'un coach
+     * avait corrigées à la main. La marge limite les dégâts de cette zone d'ombre aux cas où la
+     * nouvelle venue est franchement meilleure.</p>
      */
-    private Optional<Workout> loneSessionOfTheDay(Activity activity, List<Workout> window,
-                                                  Set<UUID> taken) {
-        List<Workout> sameDay = window.stream()
-                .filter(w -> activity.getActivityDate().equals(w.getScheduledDate()))
-                .toList();
-        if (sameDay.size() != 1) {
-            return Optional.empty();
+    private static final double REARBITRATION_MARGIN = 0.05;
+
+    /**
+     * Cette séance est-elle à prendre ? Libre, tenue par une sortie qui ne peut plus la réaliser
+     * du tout, ou tenue par une sortie que celle-ci bat <b>franchement</b>.
+     *
+     * <p>Le premier cas est celui que corrige cette version : une séance de renforcement tenant un
+     * fractionné de course obtient désormais une confiance nulle, et doit rendre la séance à la
+     * première sortie qui peut vraiment l'avoir réalisée — sans attendre d'être battue d'une
+     * marge, qu'un zéro rend d'ailleurs facile à franchir.</p>
+     */
+    private boolean availableFor(Activity activity, Workout workout, Map<UUID, Activity> holders) {
+        Activity holder = holders.get(workout.getId());
+        if (holder == null) {
+            return true;
         }
-        Workout only = sameDay.get(0);
-        return !taken.contains(only.getId()) && matchingService.canFallBackOn(activity, only)
-                ? Optional.of(only) : Optional.empty();
+        if (holder.isManualMatch()) {
+            return false;
+        }
+        double challenger = matchingService.confidence(activity, workout);
+        double incumbent = matchingService.confidence(holder, workout);
+        return incumbent == 0.0 ? challenger > 0.0 : challenger >= incumbent + REARBITRATION_MARGIN;
+    }
+
+    /**
+     * La sortie délogée redevient « non rattachée », et reprend le ressenti de la séance qu'elle
+     * quitte — exactement comme un détachement manuel. La séance repasse {@code PLANNED} le temps
+     * que la nouvelle sortie la reprenne, sans quoi {@link #link} laisserait en place le statut
+     * déduit de la mauvaise sortie.
+     */
+    private void evict(Activity incumbent, Workout workout) {
+        releaseDebrief(incumbent, workout);
+        incumbent.setMatchedWorkoutId(null);
+        incumbent.setStatus(ActivityStatus.UNMATCHED);
+        workout.setStatus(WorkoutStatus.PLANNED);
+        activityRepository.save(incumbent);
+        log.info("Sortie {} détachée de la séance {} au profit d'une meilleure correspondance",
+                incumbent.getId(), workout.getId());
     }
 
     private void link(Activity activity, Workout workout) {
@@ -1054,8 +1152,9 @@ public class ActivityService {
                 .orElse(null);
     }
 
-    private Activity require(UUID clubId, UUID activityId) {
-        return activityRepository.findByIdAndClubId(activityId, clubId)
+    /** L'activité doit être du club <b>et</b> de l'athlète de l'adresse appelée. */
+    private Activity require(UUID clubId, UUID athleteId, UUID activityId) {
+        return activityRepository.findByIdAndClubIdAndAthleteId(activityId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Activité introuvable."));
     }
 

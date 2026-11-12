@@ -16,7 +16,7 @@
 **Ce sur quoi il s'appuie.** Le modèle de domaine (44 entités), les 27 types de notification, les
 écrans des deux rôles, et les documents existants : le cahier des charges (périmètre promis, avec
 sa priorisation MoSCoW), `PLAN-EVOLUTION-2026-08` (construit sur le tableau public de demandes de
-Nolio), `AUDIT-FONCTIONNEL-2026-08` (les dettes métier) et l'analyse concurrentielle. Chaque manque
+Nolio), `AUDIT-FONCTIONNEL-2026-08` (les dettes métier, depuis retiré — cf. `PLAN-CONFORMITE-BETA-2026-08`) et l'analyse concurrentielle. Chaque manque
 énoncé ici a été **vérifié dans le code**, pas déduit d'un document.
 
 **Ce qui lui manque, et qu'aucune lecture de code ne remplacera.** Je n'ai parlé à aucun coach, vu

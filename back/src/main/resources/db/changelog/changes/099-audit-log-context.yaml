@@ -1,0 +1,40 @@
+# ============================================================================
+# 099 — Ce que le journal d'audit ne disait pas encore.
+#
+#   Le journal répondait à « qui, quoi, quand, sur quoi ». Il manquait trois
+#   choses qu'on cherche précisément le jour où l'on ouvre un journal.
+#
+#   1. DE QUEL DROIT. Le rôle de l'acteur n'était pas figé. Un compte
+#      rétrogradé six mois plus tard rendait illisible tout ce qu'il avait
+#      fait : « jean@… a supprimé ce club » sans dire qu'il était
+#      PLATFORM_ADMIN à cet instant laisse ouverte la seule question qui
+#      compte en cas de litige.
+#
+#   2. QUI ÉTAIT VRAIMENT AUX COMMANDES. C'est le trou que le code nommait
+#      lui-même (ImpersonationService : « écrire depuis un compte emprunté
+#      laisse une trace indiscernable de celle de son titulaire »). Le jeton
+#      d'impersonation porte le claim `imp` depuis toujours, mais il n'était
+#      lu nulle part : une action faite par un administrateur au nom d'un
+#      coach était consignée comme celle du coach. Un journal qui attribue un
+#      geste à quelqu'un qui ne l'a pas fait est pire qu'un journal muet.
+#
+#   3. PAR OÙ. La méthode et le chemin HTTP, pour recouper une ligne avec les
+#      journaux applicatifs et savoir quel endpoint a servi.
+#
+#   Additif : cinq colonnes nouvelles, nullables, aucune ligne existante
+#   modifiée. Les entrées antérieures les laissent vides — ce qui est exact :
+#   on ne sait pas, et on ne prétend pas savoir.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 099-audit-log-context
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: admin_audit_log
+            columns:
+              - column: { name: actor_role, type: VARCHAR(32) }
+              - column: { name: impersonator_user_id, type: UUID }
+              - column: { name: impersonator_email, type: VARCHAR(255) }
+              - column: { name: request_method, type: VARCHAR(8) }
+              - column: { name: request_path, type: VARCHAR(255) }

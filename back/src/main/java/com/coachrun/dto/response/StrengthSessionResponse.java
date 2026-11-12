@@ -13,12 +13,14 @@ public record StrengthSessionResponse(
         boolean favorite,
         boolean archived,
         int useCount,
+        /** Catégorie de rangement (arbre unifié du club), ou {@code null}. */
+        UUID categoryId,
         StrengthStructure structure
 ) {
 
     public static StrengthSessionResponse of(StrengthSession s, StrengthStructure structure) {
         return new StrengthSessionResponse(
                 s.getId(), s.getName(), s.getNotes(), s.isFavorite(), s.isArchived(),
-                s.getUseCount(), structure);
+                s.getUseCount(), s.getCategory() == null ? null : s.getCategory().getId(), structure);
     }
 }

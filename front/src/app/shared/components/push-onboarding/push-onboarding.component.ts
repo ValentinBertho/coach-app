@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { PushError, PushService } from '../../../core/services/push.service';
 import { ToastService } from '../../../core/services/toast.service';
@@ -42,56 +50,104 @@ const APPEAR_DELAY_MS = 1_500;
  */
 @Component({
   selector: 'app-push-onboarding',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
     @if (visible()) {
       <div class="po-backdrop" role="presentation">
-        <section class="po card" role="dialog" aria-modal="true" aria-labelledby="po-title">
+        <section
+          class="po card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="po-title"
+        >
           <span class="po__ic"><app-icon name="bell" [size]="26" /></span>
           <h2 id="po-title">Ne rien manquer</h2>
           <p class="po__txt">{{ pitch() }}</p>
           <div class="po__act">
-            <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="enable()">
+            <button
+              type="button"
+              class="btn btn-primary"
+              [disabled]="busy()"
+              (click)="enable()"
+            >
               {{ busy() ? 'Activation…' : 'Activer les notifications' }}
             </button>
-            <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="later()">
+            <button
+              type="button"
+              class="btn btn-ghost"
+              [disabled]="busy()"
+              (click)="later()"
+            >
               Plus tard
             </button>
           </div>
-          <p class="po__foot field-hint">Modifiable à tout moment dans tes réglages.</p>
+          <p class="po__foot field-hint">
+            Modifiable à tout moment dans tes réglages.
+          </p>
         </section>
       </div>
     }
   `,
-  styles: [`
-    .po-backdrop {
-      position: fixed; inset: 0; z-index: 1200;
-      background: var(--bg-overlay, rgba(0, 0, 0, 0.5));
-      display: flex; align-items: center; justify-content: center;
-      padding: var(--sp-4);
-      animation: fadeIn var(--duration) var(--ease);
-    }
-    .po {
-      width: 100%; max-width: 380px; text-align: center;
-      display: flex; flex-direction: column; align-items: center; gap: var(--sp-3);
-      animation: slideInUp var(--duration) var(--ease);
-      /* Sous la barre d'état et au-dessus de la barre d'onglets : la fenêtre est centrée, mais
+  styles: [
+    `
+      .po-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1200;
+        background: var(--bg-overlay, rgba(0, 0, 0, 0.5));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: var(--sp-4);
+        animation: fadeIn var(--duration) var(--ease);
+      }
+      .po {
+        width: 100%;
+        max-width: 380px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--sp-3);
+        animation: slideInUp var(--duration) var(--ease);
+        /* Sous la barre d'état et au-dessus de la barre d'onglets : la fenêtre est centrée, mais
          sur un petit écran elle doit rester entièrement atteignable au pouce. */
-      margin-block: max(var(--sp-4), env(safe-area-inset-top, 0px)) var(--sp-4);
-    }
-    .po__ic {
-      width: 56px; height: 56px; border-radius: var(--radius-full);
-      display: flex; align-items: center; justify-content: center;
-      background: var(--primary-wash); color: var(--primary);
-    }
-    .po h2 { margin: 0; }
-    .po__txt { margin: 0; color: var(--ink-2); }
-    .po__act { display: flex; flex-direction: column; gap: var(--sp-2); width: 100%; }
-    .po__act .btn { width: 100%; min-height: 46px; }
-    .po__foot { margin: 0; }
-  `],
+        margin-block: max(var(--sp-4), env(safe-area-inset-top, 0px))
+          var(--sp-4);
+      }
+      .po__ic {
+        width: 56px;
+        height: 56px;
+        border-radius: var(--radius-full);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-wash);
+        color: var(--primary);
+      }
+      .po h2 {
+        margin: 0;
+      }
+      .po__txt {
+        margin: 0;
+        color: var(--ink-2);
+      }
+      .po__act {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+        width: 100%;
+      }
+      .po__act .btn {
+        width: 100%;
+        min-height: 46px;
+      }
+      .po__foot {
+        margin: 0;
+      }
+    `,
+  ],
 })
 export class PushOnboardingComponent implements OnInit {
   private readonly push = inject(PushService);
@@ -117,19 +173,23 @@ export class PushOnboardingComponent implements OnInit {
    * Quatre conditions, toutes nécessaires : une session ouverte (sans compte, il n'y a personne à
    * qui rattacher l'abonnement), un appareil capable, pas déjà abonné, et la question jamais posée.
    */
-  readonly visible = computed(() =>
-    this.ready()
-    && !this.asked()
-    && this.auth.isAuthenticated()
-    && this.push.available
-    && !this.push.subscribed());
+  readonly visible = computed(
+    () =>
+      this.ready() &&
+      !this.asked() &&
+      this.auth.isAuthenticated() &&
+      this.push.available &&
+      !this.push.subscribed(),
+  );
 
   /** Ce que la personne va réellement recevoir, selon ce qu'elle fait dans le produit. */
-  readonly pitch = computed(() => this.auth.isCoach()
-    ? 'Les retours de tes athlètes, leurs messages et les alertes de charge — sur ton téléphone, '
-      + 'sans ouvrir l’application.'
-    : 'La séance de demain, le retour de ton coach, ses messages — sur ton téléphone, sans ouvrir '
-      + 'l’application.');
+  readonly pitch = computed(() =>
+    this.auth.isCoach()
+      ? 'Les retours de tes athlètes, leurs messages et les alertes de charge — sur ton téléphone, ' +
+        'sans ouvrir l’application.'
+      : 'La séance de demain, le retour de ton coach, ses messages — sur ton téléphone, sans ouvrir ' +
+        'l’application.',
+  );
 
   async enable(): Promise<void> {
     this.busy.set(true);
@@ -137,9 +197,11 @@ export class PushOnboardingComponent implements OnInit {
       await this.push.enable();
       this.toast.success('Notifications activées sur cet appareil');
     } catch (err) {
-      this.toast.error(err instanceof PushError
-        ? err.message
-        : 'Activation impossible — réessaie dans un instant.');
+      this.toast.error(
+        err instanceof PushError
+          ? err.message
+          : 'Activation impossible — réessaie dans un instant.',
+      );
     } finally {
       this.busy.set(false);
       // Posée une fois, quelle qu'ait été l'issue : une invitation qui revient est une nuisance,

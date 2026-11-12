@@ -22,10 +22,11 @@ import { NotificationBellComponent } from './notification-bell.component';
 describe('panneau de la cloche de notifications', () => {
   /** Reproduit une barre supérieure : la cloche à ~60 px du bord droit, l'avatar après elle. */
   @Component({
-    standalone: true,
     imports: [NotificationBellComponent],
     template: `
-      <header style="display:flex; justify-content:flex-end; padding: 12px 16px;">
+      <header
+        style="display:flex; justify-content:flex-end; padding: 12px 16px;"
+      >
         <app-notification-bell />
         <span style="width:44px; height:44px;"></span>
       </header>
@@ -45,7 +46,9 @@ describe('panneau de la cloche de notifications', () => {
     TestBed.configureTestingModule({
       imports: [HostComponent],
       providers: [
-        provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
         importProvidersFrom(LucideAngularModule.pick({ Bell, Settings })),
       ],
     });
@@ -70,8 +73,12 @@ describe('panneau de la cloche de notifications', () => {
   it('se place sous la cloche, jamais par-dessus', async () => {
     const { fixture, bell } = await openBell();
 
-    const button = (fixture.nativeElement as HTMLElement).querySelector('.bell-btn')!;
-    expect(bell.anchorTop()).toBeGreaterThanOrEqual(button.getBoundingClientRect().bottom);
+    const button = (fixture.nativeElement as HTMLElement).querySelector(
+      '.bell-btn',
+    )!;
+    expect(bell.anchorTop()).toBeGreaterThanOrEqual(
+      button.getBoundingClientRect().bottom,
+    );
   });
 
   it('se replace quand la fenêtre change de taille (rotation du téléphone)', async () => {

@@ -202,16 +202,36 @@ databaseChangeLog:
   - include:
       file: db/changelog/changes/095-strava-rename-optin.yaml
   - include:
-      file: db/changelog/changes/096-coach-athlete-relation-end.yaml
+      file: db/changelog/changes/096-activity-sport.yaml
   - include:
-      file: db/changelog/changes/097-club-solo-practice.yaml
+      file: db/changelog/changes/097-activity-sport-detail.yaml
   - include:
-      file: db/changelog/changes/098-coach-profiles.yaml
+      file: db/changelog/changes/098-workout-athlete-reply.yaml
   - include:
-      file: db/changelog/changes/099-coach-photos.yaml
+      file: db/changelog/changes/099-audit-log-context.yaml
   - include:
-      file: db/changelog/changes/100-athlete-accounts.yaml
+      file: db/changelog/changes/100-user-client-context.yaml
   - include:
-      file: db/changelog/changes/101-coaching-requests.yaml
+      file: db/changelog/changes/101-strength-result-distance.yaml
   - include:
-      file: db/changelog/changes/102-coach-profile-reports.yaml
+      file: db/changelog/changes/102-strength-session-category.yaml
+  - include:
+      file: db/changelog/changes/103-audit-log-user-actions.yaml
+  - include:
+      file: db/changelog/changes/104-refresh-tokens-login-attempts.yaml
+  - include:
+      file: db/changelog/changes/105-admin-mfa.yaml
+  - include:
+      file: db/changelog/changes/106-coach-athlete-relation-end.yaml
+  - include:
+      file: db/changelog/changes/107-club-solo-practice.yaml
+  - include:
+      file: db/changelog/changes/108-coach-profiles.yaml
+  - include:
+      file: db/changelog/changes/109-coach-photos.yaml
+  - include:
+      file: db/changelog/changes/110-athlete-accounts.yaml
+  - include:
+      file: db/changelog/changes/111-coaching-requests.yaml
+  - include:
+      file: db/changelog/changes/112-coach-profile-reports.yaml

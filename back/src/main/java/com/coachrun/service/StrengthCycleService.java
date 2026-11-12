@@ -121,6 +121,8 @@ public class StrengthCycleService {
         try {
             return objectMapper.readValue(json, CycleStructure.class);
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(StrengthCycleService.class,
+                    "structure de cycle de force illisible, cycle rendu vide", e);
             return new CycleStructure(List.of());
         }
     }

@@ -7,6 +7,8 @@ public enum AdminAuditTarget {
     CLUB("Club"),
     ATHLETE("Athlète"),
     INVITATION("Invitation"),
+    /** Ajoutée avec les gestes de coaching : un plan supprimé n'est ni un compte ni un club. */
+    TRAINING_PLAN("Plan d'entraînement"),
     PLATFORM("Plateforme");
 
     private final String label;

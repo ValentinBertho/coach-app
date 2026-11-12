@@ -1,0 +1,38 @@
+# ============================================================================
+# 096 — Le sport d'une sortie, et la trace d'un rapprochement décidé à la main.
+#
+#   `sport` : une sortie n'avait en base qu'une date, une distance et une durée.
+#   Trois nombres dans lesquels on cherchait à reconnaître la séance prescrite —
+#   et qu'une séance de musculation ou une sortie à vélo remplissent tout aussi
+#   bien. Le sport arrivait pourtant déjà : Strava l'envoie (« GravelRide »,
+#   « WeightTraining »), le FIT le déclare, le TCX le porte en attribut. Il
+#   était lu puis jeté. Résultat observé en bêta : sur une journée à cinq
+#   sorties, c'est la séance de renforcement de 29 minutes qui a été rapprochée
+#   du fractionné prescrit, devant le fractionné réellement couru.
+#
+#   NULL = « la source n'a rien déclaré » — saisie manuelle, et toute sortie
+#   importée avant cette colonne. L'absence n'affirme rien : le rapprochement
+#   se comporte alors exactement comme avant.
+#
+#   `manual_match` : un rapprochement décidé par un humain (coach ou athlète)
+#   ne doit pas être défait par l'import suivant. L'arbitrage automatique, qui
+#   peut désormais reprendre une séance à une sortie moins bien placée, s'arrête
+#   à cette colonne.
+#
+#   Additif : deux colonnes nouvelles, aucune ligne existante modifiée.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 096-activity-sport
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: activities
+            columns:
+              - column: { name: sport, type: VARCHAR(16) }
+              - column:
+                  name: manual_match
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

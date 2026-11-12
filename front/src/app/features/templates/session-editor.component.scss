@@ -106,6 +106,19 @@
 .add-rec { display: inline-flex; align-items: center; gap: 4px; margin: var(--sp-2) 0 0 34px; background: transparent; border: 1px dashed var(--line); border-radius: var(--radius-md); color: var(--ink-3); padding: var(--sp-1) var(--sp-3); font-size: var(--text-sm); font-weight: 600; cursor: pointer; }
 .add-rec:hover { border-color: var(--dari-teal); color: var(--dari-teal); }
 
+/* --- Enchaînement : plusieurs allures dans une même répétition -------------- */
+/* Les étapes sont décalées et reliées par un filet vertical : c'est ce qui dit, sans un mot,
+   qu'elles se courent l'une APRÈS l'autre à l'intérieur d'une même répétition — et non qu'elles
+   sont trois blocs de plus dans la séance. */
+.chain-tag { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 800; color: var(--dari-teal); background: color-mix(in srgb, var(--dari-teal) 10%, transparent); border-radius: var(--radius-full); padding: 2px var(--sp-2); }
+.chain { margin: var(--sp-3) 0 0 34px; padding-left: var(--sp-3); border-left: 2px solid color-mix(in srgb, var(--dari-teal) 35%, transparent); display: flex; flex-direction: column; gap: var(--sp-3); }
+.chain-step { display: flex; flex-direction: column; }
+.chain-row { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; }
+.chain-idx { min-width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-full); background: var(--paper-sunk); border: 1px solid var(--hairline); font-family: var(--font-data); font-size: var(--text-xs); font-weight: 800; color: var(--ink-3); }
+.chain .block-cible, .chain .rec, .chain .add-rec { margin-left: 0; }
+.chain-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.chain-actions .add-rec { margin: 0; }
+
 /* --- Ajout guidé (gros chips par type) ------------------------------------- */
 .add-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-1); }
 .add-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); background: var(--paper); color: var(--ink-1); border-radius: var(--radius-full); padding: var(--sp-2) var(--sp-3); font-size: var(--text-sm); font-weight: 700; cursor: pointer; transition: border-color var(--duration) var(--ease), background var(--duration) var(--ease); }

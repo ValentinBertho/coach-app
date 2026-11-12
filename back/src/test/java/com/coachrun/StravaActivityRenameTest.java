@@ -48,7 +48,7 @@ class StravaActivityRenameTest {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"rename-%s@test.fr","password":"password123","fullName":"C","termsAccepted":true,"clubName":"AC rename %s"}
+                                {"email":"rename-%s@test.fr","password":"password1234","fullName":"C","termsAccepted":true,"clubName":"AC rename %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         token = auth.get("accessToken").asText();

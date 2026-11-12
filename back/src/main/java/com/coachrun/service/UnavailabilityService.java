@@ -135,8 +135,8 @@ public class UnavailabilityService {
     }
 
     @Transactional
-    public UnavailabilityResponse update(UUID clubId, UUID id, UnavailabilityRequest req) {
-        AthleteUnavailability u = require(clubId, id);
+    public UnavailabilityResponse update(UUID clubId, UUID athleteId, UUID id, UnavailabilityRequest req) {
+        AthleteUnavailability u = require(clubId, athleteId, id);
         // Requalifier une absence en blessure, c'est collecter une donnée de santé : même règle
         // qu'à la création, sinon la garde se contourne par une modification.
         if (isMedical(req)) {
@@ -147,12 +147,12 @@ public class UnavailabilityService {
     }
 
     @Transactional
-    public void delete(UUID clubId, UUID id) {
-        repository.delete(require(clubId, id));
+    public void delete(UUID clubId, UUID athleteId, UUID id) {
+        repository.delete(require(clubId, athleteId, id));
     }
 
-    private AthleteUnavailability require(UUID clubId, UUID id) {
-        return repository.findByIdAndClubId(id, clubId)
+    private AthleteUnavailability require(UUID clubId, UUID athleteId, UUID id) {
+        return repository.findByIdAndClubIdAndAthleteId(id, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Indisponibilité introuvable."));
     }
 

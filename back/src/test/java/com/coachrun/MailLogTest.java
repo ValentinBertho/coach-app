@@ -80,7 +80,7 @@ class MailLogTest {
                         .content("{\"email\":\"" + email + "\",\"password\":\""
                                 + DemoSeedService.DEMO_PASSWORD + "\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        return objectMapper.readTree(body).get("accessToken").asText();
+        return MfaTestSupport.complete(mvc, context, email, objectMapper.readTree(body)).get("accessToken").asText();
     }
 
     @Test

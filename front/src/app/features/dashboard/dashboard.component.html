@@ -55,32 +55,26 @@
   </section>
 } @else {
 
-<!-- ===== Zone 0 : alertes actionnables (pilotage par exception) ===== -->
-@if (alerts().length) {
-  <section class="cockpit-zone">
-    <header class="zone-head">
-      <h2>Alertes à traiter</h2>
-      <span class="zone-count">{{ alerts().length }}</span>
-    </header>
-    <ul class="alert-list">
-      @for (al of alerts(); track $index) {
-        <li>
-          <a class="alert-row card-interactive" [routerLink]="['/app/athletes', al.athleteId]">
-            <span class="alert-dot" [class.alert-dot--red]="al.severity === 'RED'"
-                  [class.alert-dot--orange]="al.severity === 'ORANGE'"></span>
-            <div class="alert-body">
-              <div class="alert-line">
-                <strong>{{ al.athleteName }}</strong>
-                <span class="alert-title">{{ al.title }}</span>
-              </div>
-              <span class="field-hint">{{ al.detail }}</span>
-            </div>
-            <span class="alert-go"><app-icon name="arrow-right" [size]="16" /></span>
-          </a>
-        </li>
-      }
-    </ul>
-  </section>
+<!-- ===== Zone 0 : ce qui attend une décision ===== -->
+<!-- Les alertes et les retours se traitent dans « Ma journée », la seule boîte de tri. Le cockpit
+     les listait aussi, avec son propre compteur : deux endroits pour la même tâche. Il dit
+     maintenant combien, et y mène. -->
+@if (data(); as d) {
+  @if (alerts().length || d.sessionsToReview) {
+    <a routerLink="/app/journee" class="card card-interactive triage-link">
+      <span class="triage-link__ic"><app-icon name="inbox" [size]="20" /></span>
+      <span class="triage-link__body">
+        <strong>
+          @if (alerts().length) { {{ alerts().length }} alerte{{ alerts().length > 1 ? 's' : '' }} }
+          @if (alerts().length && d.sessionsToReview) { et }
+          @if (d.sessionsToReview) { {{ d.sessionsToReview }} retour{{ d.sessionsToReview > 1 ? 's' : '' }} }
+          à traiter
+        </strong>
+        <span class="field-hint">Dans Ma journée, sur {{ scopeLabel() | lowercase }}.</span>
+      </span>
+      <app-icon name="arrow-right" [size]="18" />
+    </a>
+  }
 }
 
 <!-- ===== Zone 1 : à surveiller aujourd'hui (priorité) ===== -->
@@ -94,6 +88,7 @@
     @if (attention().length) {
       <p class="zone-lead">
         {{ attention().length === 1 ? '1 athlète mérite' : attention().length + ' athlètes méritent' }} ton attention.
+        @if (silent()) { <span class="field-hint">{{ silentText() }}</span> }
       </p>
       <div class="attention-grid">
         @for (a of attention(); track a.id) {
@@ -122,8 +117,8 @@
       <div class="card zone-ok">
         <span class="zone-ok__icon"><app-icon name="check" [size]="20" /></span>
         <div>
-          <strong>Tout le monde est en forme</strong>
-          <p class="field-hint">Aucun signal de fatigue ou de douleur à traiter sur ton périmètre.</p>
+          <strong>Aucun signal de fatigue ou de douleur</strong>
+          <p class="field-hint">Rien à surveiller sur ton périmètre.@if (silent()) { {{ silentText() }}}</p>
         </div>
       </div>
     }
@@ -138,7 +133,7 @@
     <header class="zone-head"><h2>Vue d'ensemble</h2></header>
     <div class="kpi-rail">
       <a routerLink="/app/athletes" [appReveal]="0"><app-metric-card label="Athlètes actifs" [value]="d.activeAthletes" /></a>
-      <a routerLink="/app/feedback" [appReveal]="70">
+      <a routerLink="/app/journee" [appReveal]="70">
         <app-metric-card label="Retours à traiter" [value]="d.sessionsToReview"
           [tone]="d.sessionsToReview > 0 ? 'alert' : 'neutral'" />
       </a>

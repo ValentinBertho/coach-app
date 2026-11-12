@@ -4,6 +4,7 @@ import com.coachrun.dto.response.ActivityLapsResponse;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,6 +48,7 @@ public final class FitParser {
     private static final String INVALID = "Fichier FIT illisible.";
 
     private final byte[] c;
+    private final ZoneId zone;
     private final Map<Integer, MessageDef> definitions = new HashMap<>();
     private final List<ActivityTrack.Point> points = new ArrayList<>();
     private final List<ActivityLapsResponse.Lap> laps = new ArrayList<>();
@@ -57,6 +59,10 @@ public final class FitParser {
     private Integer sessionDurationS;
     private Integer sessionAscentM;
     private Integer sessionAvgHr;
+    private com.coachrun.entity.enums.ActivitySport sessionSport;
+    /** Codes bruts du message de session : c'est leur couple qui nomme la catégorie exacte. */
+    private Integer sessionSportCode;
+    private Integer sessionSubSportCode;
 
     /** Distance cumulée du dernier point : repli quand le message de session manque. */
     private Double lastRecordDistanceM;
@@ -64,7 +70,8 @@ public final class FitParser {
     /** Dernier horodatage vu, base des en-têtes à horodatage compressé. */
     private long lastTimestamp;
 
-    private FitParser(byte[] content) {
+    private FitParser(byte[] content, ZoneId zone) {
+        this.zone = zone;
         this.c = content;
     }
 
@@ -78,10 +85,15 @@ public final class FitParser {
     }
 
     public static ActivityTrack.ParsedActivity parse(byte[] content) {
+        return parse(content, ZoneOffset.UTC);
+    }
+
+    /** @param zone fuseau dans lequel l'heure de départ devient une date civile (cf. GpxParser) */
+    public static ActivityTrack.ParsedActivity parse(byte[] content, ZoneId zone) {
         if (!looksLikeFit(content)) {
             throw new IllegalArgumentException(INVALID);
         }
-        return new FitParser(content).decode();
+        return new FitParser(content, zone).decode();
     }
 
     private ActivityTrack.ParsedActivity decode() {
@@ -285,7 +297,17 @@ public final class FitParser {
                 case 9 -> sessionDistanceM = (int) Math.round(v / 100.0);
                 case 16 -> sessionAvgHr = positive(v);
                 case 22 -> sessionAscentM = positive(v);
-                default -> { /* sport, calories, vitesse moyenne… : dérivables ou inutiles */ }
+                // Le sport déclaré par la montre. Il était explicitement ignoré ici — « dérivable
+                // ou inutile ». Il ne l'était pas : c'est la seule chose qui distingue, dans le
+                // fichier, une séance de renforcement d'un fractionné de même durée.
+                case 5 -> {
+                    sessionSportCode = (int) Math.round(v);
+                    sessionSport = com.coachrun.entity.enums.ActivitySport.fromFit(sessionSportCode);
+                }
+                // Le sous-sport : c'est lui qui dit « trail » là où le sport ne dit que
+                // « course », et « eau libre » là où il ne dit que « natation ».
+                case 6 -> sessionSubSportCode = (int) Math.round(v);
+                default -> { /* calories, vitesse moyenne… : dérivables ou inutiles */ }
             }
         }
         Double duration = timer != null ? timer : elapsed;
@@ -307,7 +329,7 @@ public final class FitParser {
 
         Instant first = points.isEmpty() ? null : points.get(0).time();
         Instant start = sessionStart != null ? sessionStart : first;
-        LocalDate date = start != null ? start.atZone(ZoneOffset.UTC).toLocalDate() : LocalDate.now();
+        LocalDate date = start != null ? start.atZone(zone).toLocalDate() : LocalDate.now(zone);
 
         Integer distanceM = sessionDistanceM;
         if (distanceM == null && lastRecordDistanceM != null) {
@@ -332,7 +354,9 @@ public final class FitParser {
                 ActivityTrack.downsample(positioned), ActivityTrack.buildStream(points),
                 // Un tour unique n'en est pas un : la montre a enregistré la sortie d'un bloc.
                 // Même règle que le TCX, pour que les deux formats se lisent pareil.
-                laps.size() > 1 ? List.copyOf(laps) : List.of());
+                laps.size() > 1 ? List.copyOf(laps) : List.of(),
+                sessionSport,
+                com.coachrun.entity.enums.ActivitySport.fitLabel(sessionSportCode, sessionSubSportCode));
     }
 
     // --- Lecture bas niveau ------------------------------------------------

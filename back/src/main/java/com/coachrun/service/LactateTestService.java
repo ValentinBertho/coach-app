@@ -54,8 +54,8 @@ public class LactateTestService {
                 .toList();
     }
 
-    public LactateTestResponse get(UUID clubId, UUID testId) {
-        return LactateTestResponse.from(requireTest(clubId, testId));
+    public LactateTestResponse get(UUID clubId, UUID athleteId, UUID testId) {
+        return LactateTestResponse.from(requireTest(clubId, athleteId, testId));
     }
 
     /** Liste — variante athlète-scopée (portail /me, lecture seule). */
@@ -117,8 +117,8 @@ public class LactateTestService {
     }
 
     @Transactional
-    public void delete(UUID clubId, UUID testId) {
-        testRepository.delete(requireTest(clubId, testId));
+    public void delete(UUID clubId, UUID athleteId, UUID testId) {
+        testRepository.delete(requireTest(clubId, athleteId, testId));
     }
 
     // --- Helpers --------------------------------------------------------------
@@ -154,8 +154,8 @@ public class LactateTestService {
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
     }
 
-    private LactateTest requireTest(UUID clubId, UUID testId) {
-        return testRepository.findByIdAndClubId(testId, clubId)
+    private LactateTest requireTest(UUID clubId, UUID athleteId, UUID testId) {
+        return testRepository.findByIdAndClubIdAndAthleteId(testId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Test introuvable."));
     }
 }

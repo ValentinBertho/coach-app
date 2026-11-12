@@ -1,0 +1,36 @@
+# ============================================================================
+# 102 — FK catégorie (nullable) sur strength_sessions.
+#
+#   La bibliothèque de prépa physique n'avait aucun rangement : course et
+#   éducatifs portaient leur catégorie de l'arbre unifié (cf. 048), les séances
+#   de force non. Dans le panneau latéral du calendrier, elles s'affichaient donc
+#   en UNE seule liste à plat — « quand la bibliothèque contient énormément de
+#   séances il faut beaucoup scroller » (retour d'un coach bêta). Un filtre par
+#   catégorie n'avait rien à filtrer tant que cette colonne n'existait pas.
+#
+#   Additif, non destructif : colonne nullable, aucune ligne existante modifiée —
+#   les séances d'avant restent « sans catégorie », ce qu'elles sont.
+#   ON DELETE SET NULL : supprimer une catégorie détache les séances sans les
+#   supprimer, exactement comme pour les exercices et les éducatifs.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 102-strength-sessions-category-fk
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: strength_sessions
+            columns:
+              - column: { name: category_id, type: UUID }
+        - addForeignKeyConstraint:
+            constraintName: fk_strength_sessions_category
+            baseTableName: strength_sessions
+            baseColumnNames: category_id
+            referencedTableName: session_categories
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - createIndex:
+            indexName: idx_strength_sessions_category
+            tableName: strength_sessions
+            columns:
+              - column: { name: category_id }

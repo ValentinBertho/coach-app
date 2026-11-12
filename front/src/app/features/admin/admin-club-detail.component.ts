@@ -1,5 +1,12 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
@@ -27,9 +34,14 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-admin-club-detail',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, RouterLink, IconComponent, SkeletonComponent, DatePipe],
+  imports: [
+    FormsModule,
+    RouterLink,
+    IconComponent,
+    SkeletonComponent,
+    DatePipe,
+  ],
   templateUrl: './admin-club-detail.component.html',
   styleUrl: './admin-club-detail.component.scss',
 })
@@ -78,14 +90,19 @@ export class AdminClubDetailComponent implements OnInit {
     const c = this.club();
     if (!c || !this.draft.name.trim()) return;
     this.busy.set(true);
-    this.admin.updateClub(c.id, { name: this.draft.name.trim(), status: this.draft.status }).subscribe({
-      next: () => {
-        this.toast.success('Club mis à jour.');
-        this.busy.set(false);
-        this.load();
-      },
-      error: () => this.busy.set(false),
-    });
+    this.admin
+      .updateClub(c.id, {
+        name: this.draft.name.trim(),
+        status: this.draft.status,
+      })
+      .subscribe({
+        next: () => {
+          this.toast.success('Club mis à jour.');
+          this.busy.set(false);
+          this.load();
+        },
+        error: () => this.busy.set(false),
+      });
   }
 
   async toggleStatus(): Promise<void> {
@@ -96,8 +113,8 @@ export class AdminClubDetailComponent implements OnInit {
       const ok = await this.confirm.ask({
         title: `Suspendre « ${c.name} » ?`,
         message:
-          `${c.coaches} coach(s) et ${c.athletes} athlète(s) sont rattachés à ce club. `
-          + 'Aucune donnée n\'est détruite ; le club est simplement marqué suspendu.',
+          `${c.coaches} coach(s) et ${c.athletes} athlète(s) sont rattachés à ce club. ` +
+          "Aucune donnée n'est détruite ; le club est simplement marqué suspendu.",
         confirmLabel: 'Suspendre',
         danger: true,
       });
@@ -105,7 +122,10 @@ export class AdminClubDetailComponent implements OnInit {
     }
     this.busy.set(true);
     this.admin
-      .updateClub(c.id, { name: c.name, status: suspending ? 'SUSPENDED' : 'ACTIVE' })
+      .updateClub(c.id, {
+        name: c.name,
+        status: suspending ? 'SUSPENDED' : 'ACTIVE',
+      })
       .subscribe({
         next: () => {
           this.toast.success(suspending ? 'Club suspendu.' : 'Club réactivé.');
@@ -122,10 +142,10 @@ export class AdminClubDetailComponent implements OnInit {
     const ok = await this.confirm.askForText({
       title: `Supprimer « ${c.name} » ?`,
       message:
-        `Cette suppression efface en cascade ${c.coaches} compte(s) coach, ${c.athletes} `
-        + `athlète(s), ${c.workouts} séance(s) prescrite(s) et ${c.activities} sortie(s) `
-        + "importée(s). Cet historique n'a pas de sauvegarde côté utilisateur et ne se "
-        + 'reconstitue pas. Une suspension ferme l\'accès sans rien détruire.',
+        `Cette suppression efface en cascade ${c.coaches} compte(s) coach, ${c.athletes} ` +
+        `athlète(s), ${c.workouts} séance(s) prescrite(s) et ${c.activities} sortie(s) ` +
+        "importée(s). Cet historique n'a pas de sauvegarde côté utilisateur et ne se " +
+        "reconstitue pas. Une suspension ferme l'accès sans rien détruire.",
       confirmLabel: 'Supprimer définitivement',
       danger: true,
       requiredText: 'SUPPRIMER',

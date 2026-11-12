@@ -6,7 +6,7 @@ import { AuthService } from '../../core/services/auth.service';
 const DESTINATIONS: Record<string, { coach: string; athlete: string }> = {
   journee: { coach: '/app/journee', athlete: '/athlete/today' },
   messages: { coach: '/app/messages', athlete: '/athlete/messages' },
-  retours: { coach: '/app/feedback', athlete: '/athlete/today' },
+  retours: { coach: '/app/journee', athlete: '/athlete/today' },
 };
 
 /**

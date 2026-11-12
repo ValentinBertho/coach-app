@@ -1,0 +1,44 @@
+:host { display: block; }
+
+.ve { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+/* Le cadre garde le ratio 16/9 avant comme après le clic : la fiche ne saute pas au chargement. */
+.ve__frame, .ve__poster {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.ve__frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+.ve__poster {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-1);
+  border: 1px dashed var(--hairline);
+  background: var(--paper-sunk);
+  color: var(--ink-2); cursor: pointer;
+  transition: border-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.ve__poster:hover { border-color: var(--primary); color: var(--primary); }
+.ve__play {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border-radius: var(--radius-full);
+  background: var(--primary); color: var(--paper);
+}
+.ve__label { font-size: var(--text-sm); font-weight: 700; }
+.ve__host { font-size: var(--text-2xs); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em; }
+
+.ve__out {
+  align-self: flex-start;
+  font-size: var(--text-xs); font-weight: 600; color: var(--ink-3); text-decoration: none;
+}
+.ve__out:hover { color: var(--primary); }
+.ve__out--alone { display: inline-flex; align-items: center; gap: var(--sp-1); }
+
+/* Version compacte : une ligne cliquable, pour les listes et le sélecteur d'exercice. */
+.ve--compact .ve__poster {
+  aspect-ratio: auto; flex-direction: row; justify-content: flex-start;
+  gap: var(--sp-2); padding: var(--sp-2);
+}
+.ve--compact .ve__play { width: 28px; height: 28px; }
+.ve--compact .ve__host { margin-left: auto; }

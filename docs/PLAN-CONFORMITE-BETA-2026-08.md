@@ -1,10 +1,10 @@
 # Plan de mise en conformité — ouverture de DARI Lab Training en bêta ouverte
 
-> **Ce document ne réaudite rien.** Il synthétise `AUDIT-FONCTIONNEL-2026-08.md` (métier),
-> `AUDIT-BETA-OUVERTE-2026-08.md` (technique), les points restés ouverts de
-> `AUDIT-TECHNIQUE-2026-08.md`, et ceux des deux audits de juillet — bêta ouverte et préparation à
-> la bêta — depuis retirés du dépôt une fois clos (leur texte reste dans l'historique git).
-> Chaque ligne est écrite pour devenir un ticket.
+> **Ce document ne réaudite rien.** Il synthétise cinq audits — `AUDIT-FONCTIONNEL-2026-08`
+> (métier), `AUDIT-BETA-OUVERTE-2026-08` et `AUDIT-TECHNIQUE-2026-08` (technique), et les deux
+> audits de juillet, bêta ouverte et préparation à la bêta. **Tous les cinq ont depuis été retirés
+> du dépôt une fois clos** (leur texte reste dans l'historique git) : ce plan est donc désormais le
+> **seul porteur** de leur reliquat ouvert. Chaque ligne est écrite pour devenir un ticket.
 >
 > Les points qui n'ont **pas** été creusés sont listés au §6 plutôt que devinés.
 

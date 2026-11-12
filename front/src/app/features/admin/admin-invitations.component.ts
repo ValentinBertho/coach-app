@@ -1,5 +1,12 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { InvitationAdmin } from '../../core/models/admin.model';
 import { AdminService } from '../../core/services/admin.service';
@@ -21,9 +28,15 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
  */
 @Component({
   selector: 'app-admin-invitations',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, EmptyStateComponent, PaginatorComponent, IconComponent, RouterLink, DatePipe],
+  imports: [
+    SkeletonComponent,
+    EmptyStateComponent,
+    PaginatorComponent,
+    IconComponent,
+    RouterLink,
+    DatePipe,
+  ],
   templateUrl: './admin-invitations.component.html',
   styleUrls: ['./admin-list.scss', './admin-invitations.component.scss'],
 })
@@ -43,7 +56,9 @@ export class AdminInvitationsComponent implements OnInit {
   /** Dernier lien régénéré, gardé à l'écran pour pouvoir le copier. */
   readonly lastLink = signal<{ athleteId: string; url: string } | null>(null);
 
-  readonly expiredCount = computed(() => this.invitations().filter((i) => this.expired(i)).length);
+  readonly expiredCount = computed(
+    () => this.invitations().filter((i) => this.expired(i)).length,
+  );
 
   ngOnInit(): void {
     this.load();
@@ -81,8 +96,8 @@ export class AdminInvitationsComponent implements OnInit {
     const ok = await this.confirm.ask({
       title: 'Renvoyer l’invitation',
       message:
-        `Un nouveau lien sera généré pour ${inv.firstName} ${inv.lastName}, valable 14 jours. `
-        + 'Le lien précédent cessera de fonctionner — c’est voulu : il a pu circuler.',
+        `Un nouveau lien sera généré pour ${inv.firstName} ${inv.lastName}, valable 14 jours. ` +
+        'Le lien précédent cessera de fonctionner — c’est voulu : il a pu circuler.',
       confirmLabel: 'Renvoyer',
     });
     if (!ok) return;
@@ -112,7 +127,9 @@ export class AdminInvitationsComponent implements OnInit {
       await navigator.clipboard.writeText(url);
       this.toast.success('Lien copié.');
     } catch {
-      this.toast.warning('Copie impossible depuis ce navigateur — sélectionne le lien à la main.');
+      this.toast.warning(
+        'Copie impossible depuis ce navigateur — sélectionne le lien à la main.',
+      );
     }
   }
 
@@ -120,8 +137,8 @@ export class AdminInvitationsComponent implements OnInit {
     const ok = await this.confirm.ask({
       title: 'Révoquer l’invitation',
       message:
-        `Le lien de ${inv.firstName} ${inv.lastName} cessera de fonctionner. L'athlète et ses `
-        + "données restent en place : seule l'invitation est annulée.",
+        `Le lien de ${inv.firstName} ${inv.lastName} cessera de fonctionner. L'athlète et ses ` +
+        "données restent en place : seule l'invitation est annulée.",
       confirmLabel: 'Révoquer',
       danger: true,
     });

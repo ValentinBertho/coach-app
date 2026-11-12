@@ -63,13 +63,13 @@ class RegistrationModeTest {
     }
 
     private RegisterRequest request(String email, String invitationCode) {
-        return new RegisterRequest(email, "password123", "Coach Test", "Club Test",
+        return new RegisterRequest(email, "password1234", "Coach Test", "Club Test",
                 false, true, invitationCode);
     }
 
     /** Inscription d'un coach indépendant : ni club ni nom d'activité. */
     private RegisterRequest soloRequest(String email, String workspaceName) {
-        return new RegisterRequest(email, "password123", "Marie Dupont", workspaceName,
+        return new RegisterRequest(email, "password1234", "Marie Dupont", workspaceName,
                 true, true, null);
     }
 
@@ -146,7 +146,7 @@ class RegistrationModeTest {
         mode("open", "");
 
         assertThatThrownBy(() -> authService.register(
-                new RegisterRequest("sans.nom@darilab.app", "password123", "Jean Dupont", null,
+                new RegisterRequest("sans.nom@darilab.app", "password1234", "Jean Dupont", null,
                         false, true, null)))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("nom du club est requis");

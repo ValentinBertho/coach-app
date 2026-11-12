@@ -71,6 +71,16 @@ export interface Workout {
    */
   coachAcknowledgedAt: string | null;
   /**
+   * Quand l'athlète a répondu, **sur cette séance**, au mot de son coach. Optionnel : des PWA
+   * tournent encore sur un front antérieur au champ (cf. Claude.md §4 bis).
+   */
+  athleteReplyAt?: string | null;
+  /**
+   * Quand un coach a lu cette réponse. Nul avec `athleteReplyAt` renseigné = une réponse qui
+   * attend — c'est ce couple que remontent la pastille de la séance et l'alerte du cockpit.
+   */
+  athleteReplyReadAt?: string | null;
+  /**
    * L'athlète a déplacé cette séance lui-même. Renvoyé par l'API depuis toujours, mais absent du
    * modèle : le coach n'avait donc aucun signal, ni notification, quand sa semaine était
    * réorganisée.
@@ -152,6 +162,19 @@ export const STATUS_LABELS: Record<WorkoutStatus, string> = {
   PARTIAL: 'Partiel',
   MISSED: 'Manqué',
 };
+
+/**
+ * La séance a-t-elle **eu lieu** ?
+ *
+ * `PARTIAL` compte : « écourtée » veut dire courue, plus court que prévu — il y a donc un réalisé
+ * à montrer. `MISSED` ne compte pas : rien n'a été couru, il n'y a rien à ouvrir. Distinct de
+ * {@link needsFeedback}, qui répond à « peut-elle encore recevoir un ressenti ? » — les deux se
+ * recouvrent sur `PARTIAL` sans dire la même chose, et les confondre enverrait une séance manquée
+ * vers un détail vide.
+ */
+export function isRealised(w: Pick<Workout, 'status'>): boolean {
+  return w.status === 'COMPLETED' || w.status === 'PARTIAL';
+}
 
 /**
  * La séance est-elle encore ouverte au ressenti de l'athlète ?

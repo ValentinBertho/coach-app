@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+} from '@angular/core';
 import { IconComponent } from '../icon/icon.component';
 
 /**
@@ -11,7 +16,13 @@ import { IconComponent } from '../icon/icon.component';
  *  - alerte  : seuil critique dépassé
  *  - fait    : complété / validé
  */
-export type DataOrigin = 'saisi' | 'calcule' | 'estime' | 'mesure' | 'alerte' | 'fait';
+export type DataOrigin =
+  | 'saisi'
+  | 'calcule'
+  | 'estime'
+  | 'mesure'
+  | 'alerte'
+  | 'fait';
 
 interface OriginMeta {
   readonly icon: string;
@@ -20,12 +31,20 @@ interface OriginMeta {
 }
 
 const ORIGIN_META: Record<DataOrigin, OriginMeta> = {
-  saisi:   { icon: 'pencil',         label: 'Saisi',   cssVar: 'var(--origin-saisi)' },
-  calcule: { icon: 'cog',            label: 'Calculé', cssVar: 'var(--origin-calcule)' },
-  estime:  { icon: 'activity',       label: 'Estimé',  cssVar: 'var(--origin-estime)' },
-  mesure:  { icon: 'flask-conical',  label: 'Mesuré',  cssVar: 'var(--origin-mesure)' },
-  alerte:  { icon: 'alert-triangle', label: 'Alerte',  cssVar: 'var(--origin-alerte)' },
-  fait:    { icon: 'check',          label: 'Fait',    cssVar: 'var(--origin-fait)' },
+  saisi: { icon: 'pencil', label: 'Saisi', cssVar: 'var(--origin-saisi)' },
+  calcule: { icon: 'cog', label: 'Calculé', cssVar: 'var(--origin-calcule)' },
+  estime: { icon: 'activity', label: 'Estimé', cssVar: 'var(--origin-estime)' },
+  mesure: {
+    icon: 'flask-conical',
+    label: 'Mesuré',
+    cssVar: 'var(--origin-mesure)',
+  },
+  alerte: {
+    icon: 'alert-triangle',
+    label: 'Alerte',
+    cssVar: 'var(--origin-alerte)',
+  },
+  fait: { icon: 'check', label: 'Fait', cssVar: 'var(--origin-fait)' },
 };
 
 /**
@@ -38,7 +57,6 @@ const ORIGIN_META: Record<DataOrigin, OriginMeta> = {
  */
 @Component({
   selector: 'app-data-origin-tag',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
@@ -55,21 +73,37 @@ const ORIGIN_META: Record<DataOrigin, OriginMeta> = {
       }
     </span>
   `,
-  styles: [`
-    .origin {
-      display: inline-flex; align-items: center; gap: var(--sp-1);
-      padding: 1px var(--sp-2); border-radius: var(--radius-full);
-      font-size: var(--text-xs); font-weight: 700; line-height: 1.5;
-      letter-spacing: 0.01em;
-      color: var(--c);
-      background: color-mix(in srgb, var(--c) 12%, transparent);
-      border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
-      white-space: nowrap;
-    }
-    .origin--compact { padding: 1px; width: 18px; height: 18px; justify-content: center; }
-    .origin__icon { font-size: 0.8em; }
-    .origin__label { font-variant-caps: all-small-caps; }
-  `],
+  styles: [
+    `
+      .origin {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-1);
+        padding: 1px var(--sp-2);
+        border-radius: var(--radius-full);
+        font-size: var(--text-xs);
+        font-weight: 700;
+        line-height: 1.5;
+        letter-spacing: 0.01em;
+        color: var(--c);
+        background: color-mix(in srgb, var(--c) 12%, transparent);
+        border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
+        white-space: nowrap;
+      }
+      .origin--compact {
+        padding: 1px;
+        width: 18px;
+        height: 18px;
+        justify-content: center;
+      }
+      .origin__icon {
+        font-size: 0.8em;
+      }
+      .origin__label {
+        font-variant-caps: all-small-caps;
+      }
+    `,
+  ],
 })
 export class DataOriginTagComponent {
   /** Provenance de la donnée. */

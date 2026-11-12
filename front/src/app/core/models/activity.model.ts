@@ -4,6 +4,123 @@ export type ActivitySource = 'MANUAL' | 'FILE' | 'STRAVA' | 'GARMIN' | 'COROS';
 export type ActivityStatus = 'IMPORTED' | 'MATCHED' | 'UNMATCHED';
 
 /**
+ * Sport d'une sortie, tel que la montre ou Strava le déclare. `null` = non déclaré (saisie
+ * manuelle, et tout ce qui a été importé avant l'existence du champ).
+ *
+ * C'est lui qui empêche le rapprochement automatique de confondre une séance de renforcement ou
+ * une sortie à vélo avec le fractionné prescrit le même jour : sans lui, ces trois sorties
+ * n'étaient qu'une date, une distance et une durée.
+ */
+export type ActivitySport = 'RUN' | 'RIDE' | 'SWIM' | 'STRENGTH' | 'WALK' | 'OTHER';
+
+/** Libellés FR des sports (le code reste en anglais, cf. convention README). */
+export const ACTIVITY_SPORT_LABELS: Record<ActivitySport, string> = {
+  RUN: 'Course à pied',
+  RIDE: 'Vélo',
+  SWIM: 'Natation',
+  STRENGTH: 'Renforcement',
+  WALK: 'Marche',
+  OTHER: 'Autre',
+};
+
+/** Libellé FR d'un sport, ou chaîne vide quand la source n'a rien déclaré. */
+export function activitySportLabel(sport: ActivitySport | null | undefined): string {
+  return sport ? ACTIVITY_SPORT_LABELS[sport] ?? '' : '';
+}
+
+/**
+ * Libellés FR des **catégories exactes** déclarées par les sources — le type Strava
+ * (`GravelRide`), le sport FIT nommé (`trail_running`), l'attribut TCX (`Biking`).
+ *
+ * La clé est normalisée (minuscules, sans séparateur) : `GravelRide`, `gravel_ride` et
+ * `Gravel Ride` désignent la même chose et ne méritent pas trois entrées. La table n'a pas
+ * vocation à être exhaustive — Strava en ajoute au fil de l'eau — et ce n'est pas grave :
+ * un type absent s'affiche quand même, simplement en anglais mis en forme.
+ */
+const ACTIVITY_CATEGORY_LABELS: Record<string, string> = {
+  // Course à pied
+  run: 'Course à pied', running: 'Course à pied',
+  trailrun: 'Trail', trailrunning: 'Trail',
+  virtualrun: 'Course virtuelle', treadmill: 'Tapis de course',
+  indoorrunning: 'Course en salle', streetrunning: 'Course sur route',
+  trackrunning: 'Course sur piste',
+  // Marche
+  walk: 'Marche', walking: 'Marche', hike: 'Randonnée', hiking: 'Randonnée',
+  casualwalking: 'Marche', speedwalking: 'Marche rapide', indoorwalking: 'Marche en salle',
+  snowshoe: 'Raquettes', snowshoeing: 'Raquettes',
+  // Vélo
+  ride: 'Vélo', cycling: 'Vélo', biking: 'Vélo',
+  gravelride: 'Vélo gravel', gravelcycling: 'Vélo gravel',
+  mountainbikeride: 'VTT', mountainbiking: 'VTT',
+  roadcycling: 'Vélo route', cyclocross: 'Cyclo-cross',
+  ebikeride: 'Vélo électrique', ebiking: 'Vélo électrique',
+  emountainbikeride: 'VTT électrique', ebikefitness: 'Vélo électrique',
+  virtualride: 'Vélo virtuel', indoorcycling: 'Home-trainer', spin: 'Home-trainer',
+  trackcycling: 'Piste', handcycle: 'Handbike', handcycling: 'Handbike',
+  velomobile: 'Vélomobile', bmx: 'BMX',
+  // Natation
+  swim: 'Natation', swimming: 'Natation',
+  lapswimming: 'Natation en bassin', openwater: 'Nage en eau libre',
+  // Renforcement et salle
+  weighttraining: 'Musculation', strengthtraining: 'Musculation',
+  crossfit: 'CrossFit', workout: 'Séance libre', training: 'Entraînement',
+  hiit: 'HIIT', highintensityintervaltraining: 'HIIT',
+  yoga: 'Yoga', pilates: 'Pilates', flexibilitytraining: 'Souplesse',
+  cardiotraining: 'Cardio', fitnessequipment: 'Appareil de cardio',
+  elliptical: 'Elliptique', stairstepper: 'Escalier', stairclimbing: 'Escalier',
+  rowing: 'Aviron', indoorrowing: 'Rameur', virtualrow: 'Rameur virtuel',
+  boxing: 'Boxe',
+  // Neige, eau, autres
+  alpineski: 'Ski alpin', alpineskiing: 'Ski alpin',
+  backcountryski: 'Ski de randonnée', nordicski: 'Ski de fond',
+  crosscountryskiing: 'Ski de fond', rollerski: 'Ski-roues',
+  snowboard: 'Snowboard', snowboarding: 'Snowboard', downhill: 'Descente',
+  iceskate: 'Patin à glace', iceskating: 'Patin à glace',
+  inlineskate: 'Roller', inlineskating: 'Roller', skateboard: 'Skateboard',
+  kayaking: 'Kayak', canoeing: 'Canoë', paddling: 'Pagaie',
+  standuppaddling: 'Paddle', standuppaddleboarding: 'Paddle',
+  surfing: 'Surf', windsurf: 'Planche à voile', windsurfing: 'Planche à voile',
+  kitesurf: 'Kitesurf', kitesurfing: 'Kitesurf', sail: 'Voile', sailing: 'Voile',
+  diving: 'Plongée', rockclimbing: 'Escalade', mountaineering: 'Alpinisme',
+  golf: 'Golf', soccer: 'Football', tennis: 'Tennis', badminton: 'Badminton',
+  squash: 'Squash', tabletennis: 'Tennis de table', pickleball: 'Pickleball',
+  wheelchair: 'Fauteuil roulant', virtualactivity: 'Activité virtuelle',
+};
+
+/**
+ * Catégorie d'une sortie, telle qu'elle s'affiche : la plus précise dont on dispose.
+ *
+ * La famille (`sport`) sert au rapprochement — elle doit être grossière pour ça. Mais un coach
+ * qui lit « Vélo » là où son athlète a fait du gravel lit une information appauvrie, et un
+ * « Pickleball » que la famille ne sait pas ranger n'a aucune raison de disparaître de l'écran.
+ * On affiche donc le libellé exact quand la source en a donné un, la famille sinon.
+ *
+ * Un type que la table ne traduit pas n'est pas perdu pour autant : il est mis en forme tel
+ * quel (« Pickleball », « Gravel Ride »). Afficher l'anglais vaut mieux que masquer le fait.
+ */
+export function activityCategoryLabel(
+  a: Pick<Activity, 'sport' | 'sportDetail'>,
+): string {
+  const detail = a.sportDetail?.trim();
+  if (!detail) {
+    return activitySportLabel(a.sport);
+  }
+  const known = ACTIVITY_CATEGORY_LABELS[detail.toLowerCase().replace(/[^a-z0-9]/gi, '')];
+  return known ?? humanizeCategory(detail);
+}
+
+/** « GravelRide » → « Gravel ride », « trail_running » → « Trail running ». */
+function humanizeCategory(raw: string): string {
+  const words = raw
+    .replace(/[_-]+/g, ' ')
+    // Coupe le chameau sans couper les sigles : « EBikeRide » → « E Bike Ride ».
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .trim()
+    .toLowerCase();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : '';
+}
+
+/**
  * Sources dont une sortie peut <b>revenir toute seule</b> : elles se synchronisent. Une saisie
  * manuelle ou un fichier déposé à la main ne reviennent que si quelqu'un les redépose — proposer
  * « ne plus jamais importer » là-dessus n'aurait rien à empêcher.
@@ -32,6 +149,13 @@ export interface Activity {
   athleteId: string;
   source: ActivitySource;
   activityDate: string;
+  /** Sport déclaré par la source, ou `null` si elle n'a rien dit. */
+  sport: ActivitySport | null;
+  /**
+   * Catégorie exacte déclarée par la source (« GravelRide », « trail_running »), quand `sport`
+   * n'en garde que la famille. C'est elle qu'on affiche — cf. {@link activityCategoryLabel}.
+   */
+  sportDetail: string | null;
   title: string | null;
   distanceM: number | null;
   durationS: number | null;
@@ -98,6 +222,12 @@ export interface ActivityImportRequest {
   durationS?: number | null;
   avgHr?: number | null;
   elevationGainM?: number | null;
+  /**
+   * Sport de la sortie. Facultatif : `null` signifie « non déclaré », et le rapprochement se
+   * comporte alors comme avant l'existence du champ. Le renseigner sur une séance de
+   * renforcement saisie à la main l'empêche d'aller se rattacher au fractionné du jour.
+   */
+  sport?: ActivitySport | null;
 }
 
 export const ACTIVITY_STATUS_LABELS: Record<ActivityStatus, string> = {

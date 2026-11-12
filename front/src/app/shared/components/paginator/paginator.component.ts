@@ -1,27 +1,57 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+  output,
+} from '@angular/core';
 import { IconComponent } from '../icon/icon.component';
 
 /** Pagination serveur réutilisable (page 0-based). */
 @Component({
   selector: 'app-paginator',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
     @if (totalPages() > 1) {
       <nav class="paginator">
-        <button type="button" class="btn btn-ghost btn-sm" [disabled]="page() === 0"
-                (click)="go(page() - 1)"><app-icon name="arrow-left" [size]="15" /> Précédent</button>
-        <span class="pg-label metric">{{ page() + 1 }} / {{ totalPages() }}</span>
-        <button type="button" class="btn btn-ghost btn-sm" [disabled]="isLast()"
-                (click)="go(page() + 1)">Suivant <app-icon name="arrow-right" [size]="15" /></button>
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          [disabled]="page() === 0"
+          (click)="go(page() - 1)"
+        >
+          <app-icon name="arrow-left" [size]="15" /> Précédent
+        </button>
+        <span class="pg-label metric"
+          >{{ page() + 1 }} / {{ totalPages() }}</span
+        >
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm"
+          [disabled]="isLast()"
+          (click)="go(page() + 1)"
+        >
+          Suivant <app-icon name="arrow-right" [size]="15" />
+        </button>
       </nav>
     }
   `,
-  styles: [`
-    .paginator { display: flex; align-items: center; justify-content: center; gap: var(--sp-3); margin-top: var(--sp-5); }
-    .pg-label { color: var(--ink-3); font-size: var(--text-sm); }
-  `],
+  styles: [
+    `
+      .paginator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--sp-3);
+        margin-top: var(--sp-5);
+      }
+      .pg-label {
+        color: var(--ink-3);
+        font-size: var(--text-sm);
+      }
+    `,
+  ],
 })
 export class PaginatorComponent {
   readonly page = input(0);

@@ -1,0 +1,32 @@
+# ============================================================================
+# 097 — La catégorie exacte de la sortie, telle que la source la déclare.
+#
+#   La colonne `sport` (096) range chaque sortie dans une famille — course,
+#   vélo, natation, renforcement, marche, autre — et c'est ce qu'il faut au
+#   rapprochement : il a besoin de savoir ce qui ne peut PAS réaliser la séance
+#   prescrite, pas de connaître le catalogue Strava.
+#
+#   Mais ranger, c'est perdre. « GravelRide » devenait RIDE, « TrailRun »
+#   devenait RUN, et un type que la liste ne connaissait pas devenait NULL :
+#   l'information arrivait, était lue une fois pour choisir la famille, puis
+#   disparaissait. Un coach qui ouvre la sortie de son athlète y lisait « Vélo »
+#   là où Strava disait « gravel », et rien du tout pour un « Pickleball ».
+#
+#   Cette colonne garde le libellé d'origine à côté de la famille. Les deux ne
+#   servent pas à la même chose et ne doivent pas être confondues : la famille
+#   décide du rapprochement, le libellé s'affiche. Le second ne pilote rien —
+#   c'est ce qui permet de l'accepter tel quel, sans avoir à connaître d'avance
+#   tout ce que Strava et les montres sauront un jour déclarer.
+#
+#   NULL = la source n'a rien nommé (saisie manuelle, historique). Additif :
+#   colonne nouvelle, aucune ligne existante modifiée.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 097-activity-sport-detail
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: activities
+            columns:
+              - column: { name: sport_detail, type: VARCHAR(64) }

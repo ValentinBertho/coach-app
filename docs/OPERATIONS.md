@@ -108,10 +108,22 @@ pg_restore --no-owner -h HOST -U USER -d darilab \
   --table=athlete_1rm_profile mon.dump
 ```
 
-### Test de restauration (à planifier — trimestriel)
-Un backup **non testé n'existe pas**. Restaurer le dernier dump sur une base
-jetable, lancer l'app dessus (`SPRING_PROFILES_ACTIVE=prod`, pointée sur la base
-restaurée) et vérifier `/api/actuator/health = UP` + un parcours clé.
+### Test de restauration — automatique, chaque lundi ✅
+Un backup **non testé n'existe pas**. Le workflow
+[`db-restore-test.yml`](../.github/workflows/db-restore-test.yml) prend le dernier artefact de
+« Sauvegarde BDD », le déchiffre avec `BACKUP_ENCRYPTION_KEY`, le restaure dans un PostgreSQL 18
+jetable, puis vérifie :
+- que comptes et clubs ne sont pas vides (le résumé du job affiche le nombre de lignes des tables
+  clés) ;
+- que la dernière migration restaurée existe dans le dépôt (le dump correspond au code) ;
+- que la sauvegarde a moins de 48 h (avertissement sinon).
+
+Lancement manuel : *Actions → Test de restauration BDD → Run workflow*. Pour être prévenu s'il
+cesse de passer, renseigner `RESTORE_HEARTBEAT_URL` (Better Stack, comme pour la sauvegarde).
+
+Une fois par trimestre, compléter à la main : lancer l'application sur la base restaurée
+(`SPRING_PROFILES_ACTIVE=prod`, vraie `FIELD_ENCRYPTION_KEY`) et ouvrir une fiche athlète, pour
+vérifier que les champs chiffrés se relisent — le job automatique n'a pas cette clé.
 
 > Liquibase pilote le schéma : un dump récent contient déjà le schéma à jour.
 > Avant chaque **déploiement** (qui applique d'éventuelles migrations au démarrage),
@@ -206,6 +218,10 @@ assumées, et les déclarer fait qu'une **nouvelle** dépendance CommonJS, elle,
   contre un PostgreSQL éphémère (valide les migrations via `/actuator/health`).
 - **Frontend** : `npm ci`, build AOT prod, tests Karma headless.
 
+- **Tag de déploiement** ([`deploy-tag.yml`](../.github/workflows/deploy-tag.yml)) : quand la CI
+  de `main` est verte, le commit reçoit un tag annoté `prod-AAAA-MM-JJ-HHMM-<sha7>` (heure UTC),
+  dont le message liste les fusions depuis le tag précédent. Voir §6 bis pour s'en servir.
+
 ---
 
 ## 6. Check-list de mise en production
@@ -232,6 +248,32 @@ assumées, et les déclarer fait qu'une **nouvelle** dépendance CommonJS, elle,
 - [ ] Logs centralisés + rétention.
 - [ ] Dépendances surveillées (Dependabot/Snyk).
 - [ ] HTTPS + en-têtes proxy (déjà : `forward-headers-strategy: framework`).
+
+---
+
+## 6 bis. Quelle version tourne, et comment revenir en arrière
+
+Railway et Vercel déploient chaque commit poussé sur `main`. Chaque mise en production porte un
+tag `prod-…` (cf. §5).
+
+```bash
+git fetch --tags
+git tag --list 'prod-*' --sort=-creatordate | head      # les dernières mises en production
+git show prod-2026-11-10-1503-b7f879f --stat              # ce qu'elle contenait
+```
+
+**Revenir à la version précédente** (le code seulement) :
+
+1. Railway → service backend → *Deployments* → choisir le déploiement du commit du tag
+   précédent → **Redeploy**. Faire de même sur Vercel (*Deployments* → *Promote to Production*).
+2. Ensuite, dans le dépôt, annuler la fusion fautive par `git revert -m 1 <commit de fusion>` dans
+   une PR, pour que `main` redise la vérité ; le prochain push retaguera.
+
+⚠️ **Les migrations Liquibase ne reviennent pas en arrière.** Une version antérieure démarre sur
+un schéma plus récent : c'est sans risque tant que les migrations sont additives (nouvelles
+tables ou colonnes facultatives), ce qui est la règle du projet. Si une migration a supprimé ou
+renommé quelque chose, revenir en arrière demande une restauration de base (§2), pas un
+redéploiement.
 
 ---
 
@@ -444,6 +486,40 @@ MAIL_LOG_RETENTION_DAYS=180  # le journal porte des adresses : il se purge. 0 d�
 Le journal ne remonte qu'aux envois postérieurs à sa mise en service, et rien n'est consigné tant
 que `MAIL_ENABLED=false`. L'écriture est **hors transaction métier** : un journal en panne ne fait
 jamais échouer l'action qui a déclenché l'envoi.
+
+### 8.6 Le journal d'audit — ce qu'il garde, ce qu'il purge
+
+`/admin/audit` ne consigne plus seulement les gestes du back-office. Il porte aussi ce que font
+les utilisateurs quand c'est important, rangé en quatre **familles** qui servent de filtre :
+
+| Famille | Ce qu'elle consigne |
+|---|---|
+| **Administration** | Les gestes du back-office : comptes, clubs, plateforme, emprunts d'identité. |
+| **Sécurité des accès** | Connexions réussies, échouées et bloquées, déconnexions, mots de passe, adresses e-mail, inscriptions, invitations acceptées. |
+| **Données personnelles** | Consentement santé donné ou retiré, export de dossier, droit à l'oubli, montre branchée ou débranchée. |
+| **Coaching** | Athlète créé, archivé, invité ; coach entré ou sorti d'un club ; plan supprimé. |
+
+Ce qui reste **hors** du journal, délibérément : les séances, les messages, les commentaires, les
+imports d'activité. Ils se comptent en milliers par jour, se lisent déjà dans le produit, et les
+noyer avec le reste reviendrait à n'avoir plus de journal du tout.
+
+Le résumé d'une ligne est composé par le code à partir de champs sûrs. **Aucune donnée de santé,
+aucun mot de passe, aucun jeton n'y transite** — un échec de connexion consigne l'adresse saisie
+et le motif, jamais le mot de passe présenté.
+
+```bash
+AUDIT_ACCESS_RETENTION_DAYS=365  # traces d'accès uniquement. 0 désactive la purge
+AUDIT_PURGE_CRON="0 15 4 * * *"  # la nuit, sous verrou, comme les autres purges
+```
+
+La purge ne touche **que la famille « sécurité des accès »** : ce sont des données de connexion,
+qui se bornent, et les seules dont le volume l'exige. Les gestes d'administration, les exercices
+de droits RGPD et les gestes de coaching ne sont jamais purgés — ce sont eux qu'on vient chercher
+des années plus tard.
+
+Deux lectures restent volontairement **limitées à l'administration** : le bandeau « dernières
+actions » du tableau de bord et le compteur « actions d'administration (7 j) ». Sans cela, une
+journée d'usage ordinaire les remplirait de connexions et ils cesseraient de servir.
 
 ---
 

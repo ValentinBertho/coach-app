@@ -17,6 +17,8 @@ public interface AthleteUnavailabilityRepository extends JpaRepository<AthleteUn
 
     Optional<AthleteUnavailability> findByIdAndClubId(UUID id, UUID clubId);
 
+    Optional<AthleteUnavailability> findByIdAndClubIdAndAthleteId(UUID id, UUID clubId, UUID athleteId);
+
     List<AthleteUnavailability> findByAthleteIdAndEndDateGreaterThanEqualOrderByStartDateAsc(
             UUID athleteId, LocalDate from);
 

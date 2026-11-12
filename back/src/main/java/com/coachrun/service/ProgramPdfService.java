@@ -44,6 +44,8 @@ public class ProgramPdfService {
     private static final Color MUTED = new Color(0x6B, 0x72, 0x80);
 
     private final AthleteRepository athleteRepository;
+
+    private final ClockService clock;
     private final WorkoutService workoutService;
     private final StrengthScheduleService strengthScheduleService;
 
@@ -131,7 +133,7 @@ public class ProgramPdfService {
         doc.add(table);
 
         Paragraph foot = new Paragraph(
-                "Généré le " + fmt(LocalDate.now()) + " · " + items.size() + " séance(s)",
+                "Généré le " + fmt(clock.today()) + " · " + items.size() + " séance(s)",
                 FontFactory.getFont(FontFactory.HELVETICA, 9, MUTED));
         foot.setSpacingBefore(18);
         doc.add(foot);

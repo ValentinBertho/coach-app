@@ -1,6 +1,8 @@
 package com.coachrun;
 
+import com.coachrun.security.RefreshCookie;
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.servlet.http.Cookie;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,14 +37,19 @@ class SessionRevocationTest {
         return MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
     }
 
+    /** Jeton de rafraîchissement de la dernière session ouverte, lu dans son cookie. */
+    private String lastRefreshCookie;
+
     private JsonNode register(MockMvc mvc, String prefix) throws Exception {
-        return objectMapper.readTree(mvc.perform(post("/auth/register")
+        var response = mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"%s-%s@test.fr","password":"password123","fullName":"C",\
+                                {"email":"%s-%s@test.fr","password":"password1234","fullName":"C",\
                                 "termsAccepted": true, "clubName":"AC %s"}
                                 """.formatted(prefix, UUID.randomUUID(), UUID.randomUUID())))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+                .andExpect(status().isCreated()).andReturn().getResponse();
+        lastRefreshCookie = response.getCookie(RefreshCookie.NAME).getValue();
+        return objectMapper.readTree(response.getContentAsString());
     }
 
     @Test
@@ -50,7 +57,7 @@ class SessionRevocationTest {
         MockMvc mvc = mockMvc();
         JsonNode session = register(mvc, "rev");
         String oldAccess = session.get("accessToken").asText();
-        String oldRefresh = session.get("refreshToken").asText();
+        String oldRefresh = lastRefreshCookie;
 
         // Le jeton fonctionne avant le changement.
         mvc.perform(get("/auth/me").header("Authorization", "Bearer " + oldAccess))
@@ -61,16 +68,14 @@ class SessionRevocationTest {
         mvc.perform(post("/auth/change-password")
                         .header("Authorization", "Bearer " + oldAccess)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"currentPassword\":\"password123\",\"newPassword\":\"nouveaumdp456\"}"))
+                        .content("{\"currentPassword\":\"password1234\",\"newPassword\":\"nouveaumdp456\"}"))
                 .andExpect(status().isNoContent());
 
         // L'ancien access token ne passe plus…
         mvc.perform(get("/auth/me").header("Authorization", "Bearer " + oldAccess))
                 .andExpect(status().isUnauthorized());
         // …et l'ancien refresh token non plus : c'est lui qui vivait 30 jours.
-        mvc.perform(post("/auth/refresh")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"refreshToken\":\"" + oldRefresh + "\"}"))
+        mvc.perform(post("/auth/refresh").cookie(new Cookie(RefreshCookie.NAME, oldRefresh)))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -86,7 +91,7 @@ class SessionRevocationTest {
         MockMvc mvc = mockMvc();
         JsonNode session = register(mvc, "logout");
         String access = session.get("accessToken").asText();
-        String refresh = session.get("refreshToken").asText();
+        String refresh = lastRefreshCookie;
 
         // Une seconde d'écart : le « iat » d'un JWT n'a pas de précision plus fine.
         Thread.sleep(1100);
@@ -95,9 +100,7 @@ class SessionRevocationTest {
 
         mvc.perform(get("/auth/me").header("Authorization", "Bearer " + access))
                 .andExpect(status().isUnauthorized());
-        mvc.perform(post("/auth/refresh")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"refreshToken\":\"" + refresh + "\"}"))
+        mvc.perform(post("/auth/refresh").cookie(new Cookie(RefreshCookie.NAME, refresh)))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -115,7 +118,7 @@ class SessionRevocationTest {
 
         String fresh = objectMapper.readTree(mvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"password123\"}"))
+                        .content("{\"email\":\"" + email + "\",\"password\":\"password1234\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString())
                 .get("accessToken").asText();
 
@@ -134,7 +137,7 @@ class SessionRevocationTest {
         mvc.perform(post("/auth/change-password")
                         .header("Authorization", "Bearer " + access)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"currentPassword\":\"password123\",\"newPassword\":\"nouveaumdp456\"}"))
+                        .content("{\"currentPassword\":\"password1234\",\"newPassword\":\"nouveaumdp456\"}"))
                 .andExpect(status().isNoContent());
 
         JsonNode fresh = objectMapper.readTree(mvc.perform(post("/auth/login")
@@ -148,12 +151,16 @@ class SessionRevocationTest {
     }
 
     /**
-     * Le jeton en paramètre de requête n'est accepté que là où l'en-tête est impossible (SSE,
-     * pièce jointe ouverte dans un onglet). Partout ailleurs il fuit dans les journaux d'accès,
-     * l'historique du navigateur et le Referer.
+     * Le jeton de session n'est plus accepté dans une URL, <b>nulle part</b> — pas même sur un
+     * flux, où il l'était.
+     *
+     * <p>Il vaut une heure sur toute l'API. Placé dans une URL, il se retrouve dans les journaux
+     * d'accès du relais, dans l'historique du navigateur et dans le {@code Referer} de la page
+     * suivante. Les deux routes qui ne peuvent pas porter d'en-tête ont désormais leur propre
+     * jeton (cf. {@code StreamTokenLifecycleTest}).</p>
      */
     @Test
-    void queryParameterTokenIsRejectedOnOrdinaryRoutes() throws Exception {
+    void theSessionTokenIsNeverAcceptedInTheUrl() throws Exception {
         MockMvc mvc = mockMvc();
         String access = register(mvc, "qp").get("accessToken").asText();
 
@@ -161,9 +168,10 @@ class SessionRevocationTest {
                 .andExpect(status().isUnauthorized());
         mvc.perform(get("/me/today").param("access_token", access))
                 .andExpect(status().isUnauthorized());
-
-        // Sur un flux, il reste accepté : EventSource ne peut pas porter d'en-tête.
         mvc.perform(get("/notifications/stream").param("access_token", access))
-                .andExpect(status().is2xxSuccessful());
+                .andExpect(status().isUnauthorized());
+        // Le nouveau paramètre n'ouvre pas non plus la porte à un JWT : ce n'en est pas un.
+        mvc.perform(get("/notifications/stream").param("stream_token", access))
+                .andExpect(status().isUnauthorized());
     }
 }

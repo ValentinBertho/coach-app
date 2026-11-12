@@ -95,4 +95,86 @@ describe('AuthService', () => {
     expect(service.currentUser()).toBeNull();
     expect(localStorage.getItem(USER_KEY)).toBeNull();
   });
+  /**
+   * Le jeton de rafraîchissement ne passe plus par le stockage du navigateur (audit du
+   * 10/11/2026) : le serveur le dépose dans un cookie HttpOnly, hors de portée de tout script.
+   */
+  describe('jeton de rafraîchissement en cookie', () => {
+    const session = { accessToken: 'acc', refreshToken: null, expiresIn: 3600, user: { id: 'u', email: 'u@darilab.app' } };
+
+    it('ne range rien d’autre que le jeton d’accès, et efface une ancienne copie du refresh', () => {
+      localStorage.setItem(REFRESH_KEY, 'ancien-refresh');
+      create();
+
+      service.login({ email: 'u@darilab.app', password: 'x' } as never).subscribe();
+      const req = http.expectOne((r) => r.url.endsWith('/auth/login'));
+      req.flush(session);
+
+      expect(localStorage.getItem(ACCESS_KEY)).toBe('acc');
+      expect(localStorage.getItem(REFRESH_KEY)).toBeNull();
+    });
+
+    it('rafraîchit avec le cookie, sans jeton dans le corps', () => {
+      localStorage.setItem(ACCESS_KEY, 'acc');
+      create();
+
+      service.refresh().subscribe();
+      const req = http.expectOne((r) => r.url.endsWith('/auth/refresh'));
+      expect(req.request.withCredentials).toBeTrue();
+      expect(req.request.body).toEqual({});
+      req.flush({ ...session, accessToken: 'neuf' });
+
+      expect(service.token()).toBe('neuf');
+    });
+
+    it('ne prolonge pas une impersonation (le cookie présent est celui de l’administrateur)', () => {
+      localStorage.setItem(ACCESS_KEY, 'acc');
+      localStorage.setItem(USER_KEY, JSON.stringify({ id: 'admin', email: 'a@darilab.app' }));
+      create();
+      service.startImpersonation({ accessToken: 'emprunte', user: { id: 'u' } as never });
+
+      expect(service.canRefresh()).toBeFalse();
+      let failed = false;
+      service.refresh().subscribe({ error: () => { failed = true; } });
+      http.expectNone((r) => r.url.endsWith('/auth/refresh'));
+      expect(failed).toBeTrue();
+    });
+
+    it('ferme la session du cookie au logout même sans jeton d’accès', () => {
+      create();
+      service.logout();
+      const req = http.expectOne((r) => r.url.endsWith('/auth/logout'));
+      expect(req.request.withCredentials).toBeTrue();
+      req.flush({});
+    });
+  });
+
+  /** Double authentification des administrateurs (audit du 10/11/2026). */
+  describe('double authentification', () => {
+    const challenge = {
+      accessToken: null, refreshToken: null, expiresIn: 0, user: null,
+      mfa: { challengeToken: 'defi', enrollment: false, secret: null, otpauthUri: null, expiresIn: 300 },
+    };
+
+    it('un défi n’ouvre aucune session', () => {
+      create();
+      service.login({ email: 'a@darilab.app', password: 'x' } as never).subscribe();
+      http.expectOne((r) => r.url.endsWith('/auth/login')).flush(challenge);
+
+      expect(localStorage.getItem(ACCESS_KEY)).toBeNull();
+      expect(service.token()).toBeNull();
+      expect(service.currentUser()).toBeNull();
+    });
+
+    it('le code juste ouvre la session, cookie compris', () => {
+      create();
+      service.verifyMfa('defi', '123456').subscribe();
+      const req = http.expectOne((r) => r.url.endsWith('/auth/mfa/verify'));
+      expect(req.request.body).toEqual({ challengeToken: 'defi', code: '123456' });
+      expect(req.request.withCredentials).toBeTrue();
+      req.flush({ accessToken: 'acc', expiresIn: 900, user: { id: 'a', email: 'a@darilab.app' } });
+
+      expect(service.token()).toBe('acc');
+    });
+  });
 });

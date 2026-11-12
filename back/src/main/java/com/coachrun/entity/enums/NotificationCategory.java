@@ -48,7 +48,7 @@ public enum NotificationCategory {
             // Le « vu » du coach est un mot adressé à l'athlète, pas un signal de suivi : il se
             // règle avec les messages, sans quoi couper les alertes de suivi couperait aussi la
             // seule reconnaissance que l'athlète reçoit de son coach.
-            case "NEW_MESSAGE", "COACH_COMMENT", "COACH_ACK" -> MESSAGES;
+            case "NEW_MESSAGE", "COACH_COMMENT", "COACH_ACK", "WORKOUT_REPLY" -> MESSAGES;
             default -> SUIVI;
         };
     }

@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
 import { PushError, PushService } from '../../../core/services/push.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { IconComponent } from '../icon/icon.component';
@@ -13,13 +18,18 @@ import { IconComponent } from '../icon/icon.component';
  */
 @Component({
   selector: 'app-push-button',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
     @if (push.available && !push.subscribed()) {
-      <button type="button" class="btn btn-ghost btn-sm" [disabled]="busy()" (click)="enable()">
-        <app-icon name="bell" [size]="15" /> {{ busy() ? 'Activation…' : 'Notifications' }}
+      <button
+        type="button"
+        class="btn btn-ghost btn-sm"
+        [disabled]="busy()"
+        (click)="enable()"
+      >
+        <app-icon name="bell" [size]="15" />
+        {{ busy() ? 'Activation…' : 'Notifications' }}
       </button>
     }
   `,
@@ -41,9 +51,11 @@ export class PushButtonComponent {
       await this.push.enable();
       this.toast.success('Notifications activées sur cet appareil');
     } catch (err) {
-      this.toast.error(err instanceof PushError
-        ? err.message
-        : "Activation impossible — réessaie dans un instant.");
+      this.toast.error(
+        err instanceof PushError
+          ? err.message
+          : 'Activation impossible — réessaie dans un instant.',
+      );
     } finally {
       this.busy.set(false);
     }

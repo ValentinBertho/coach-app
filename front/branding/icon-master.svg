@@ -1,8 +1,8 @@
 <svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#3D5AFE"/>
-      <stop offset="1" stop-color="#2D45D6"/>
+      <stop offset="0" stop-color="#12808B"/>
+      <stop offset="1" stop-color="#0A4F58"/>
     </linearGradient>
   </defs>
   <!-- App icon background (squircle, safe for maskable) -->

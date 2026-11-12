@@ -76,6 +76,28 @@ public class CoachDashboardController {
                 dashboardService.markAllFeedbackReviewed(clubId, scope, principal.userId(), days));
     }
 
+    /**
+     * Marque comme traités les retours sélectionnés dans la boîte de tri. Ceux qui ne sont pas
+     * dans la file du coach (périmètre, fenêtre) sont ignorés.
+     *
+     * @return {@code {"marked": n}}
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/feedback/review")
+    public java.util.Map<String, Integer> markFeedbackReviewed(
+            @PathVariable UUID clubId,
+            @RequestParam(defaultValue = "all") String scope,
+            @RequestParam(defaultValue = "14") int days,
+            @jakarta.validation.Valid @org.springframework.web.bind.annotation.RequestBody
+            com.coachrun.dto.request.FeedbackReviewRequest request,
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        java.util.Set<String> keys = new java.util.HashSet<>();
+        for (var item : request.items()) {
+            keys.add(item.kind() + ":" + item.sessionId());
+        }
+        return java.util.Map.of("marked",
+                dashboardService.markFeedbackReviewed(clubId, scope, principal.userId(), days, keys));
+    }
+
     /** File d'alertes actionnables (douleur, charge, séances manquées, silence), triées par gravité. */
     @GetMapping("/alerts")
     public java.util.List<com.coachrun.dto.response.CoachAlertResponse> alerts(

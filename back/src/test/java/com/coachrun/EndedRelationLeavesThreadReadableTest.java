@@ -71,7 +71,7 @@ class EndedRelationLeavesThreadReadableTest {
         acceptCoachingRequest(slug);
         // Le jeton d'inscription a été émis AVANT que la fiche existe : il porte encore
         // `athleteId = null`. On se reconnecte, comme le fait l'application.
-        athleteBearer = bearer(athleteEmail, "password123");
+        athleteBearer = bearer(athleteEmail, "password1234");
 
         JsonNode me = json(mvc.perform(get("/me").header("Authorization", athleteBearer)));
         athleteId = me.get("athleteId").asText();
@@ -191,7 +191,7 @@ class EndedRelationLeavesThreadReadableTest {
                         .characterEncoding(StandardCharsets.UTF_8)
                         .content("{\"note\":\"Je change d'objectif.\"}"))
                 .andExpect(status().isNoContent());
-        athleteBearer = bearer(athleteEmail, "password123");
+        athleteBearer = bearer(athleteEmail, "password1234");
     }
 
     private ResultActions postMessage(String bearer, String body) throws Exception {

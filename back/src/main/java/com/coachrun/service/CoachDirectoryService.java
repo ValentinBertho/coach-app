@@ -80,6 +80,7 @@ public class CoachDirectoryService {
     private final CoachCertificationRepository certificationRepository;
     private final CoachPhotoRepository photoRepository;
     private final CoachResponsivenessService responsiveness;
+    private final ClockService clock;
 
     /**
      * Cherche dans l'annuaire.
@@ -188,7 +189,7 @@ public class CoachDirectoryService {
      */
     private List<CoachProfile> order(List<CoachProfile> matches) {
         List<CoachProfile> shuffled = new ArrayList<>(matches);
-        Collections.shuffle(shuffled, new Random(LocalDate.now().toEpochDay()));
+        Collections.shuffle(shuffled, new Random(clock.today().toEpochDay()));
         shuffled.sort(Comparator.comparing(
                 (CoachProfile p) -> p.getStatus().acceptsRequests() ? 0 : 1));
         return shuffled;

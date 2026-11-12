@@ -1,5 +1,6 @@
 package com.coachrun.util;
 
+import java.text.Normalizer;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -22,6 +23,18 @@ import java.util.Optional;
  * « Morning Run avec Paul » est un nom écrit par un athlète et doit survivre intact. En cas de
  * doute, on ne reconnaît rien — le pire cas de cette classe est l'inaction, jamais l'écrasement.</p>
  *
+ * <h2>Comparer des titres, pas des octets</h2>
+ *
+ * <p>Les gabarits sont écrits <b>sans accent et avec une apostrophe droite</b>, et le titre reçu
+ * est ramené à cette forme avant comparaison ({@link #normalize}). Ce n'est pas de la coquetterie :
+ * la version précédente comparait les chaînes telles quelles, et il fallait énumérer à la main
+ * chaque variante — « l'après-midi » et « l'apres-midi », « randonnée » et « randonnee ».
+ * Une liste qu'il faut penser à compléter finit par être incomplète, et c'est exactement ce qui
+ * est arrivé en bêta : « Course à pied en soirée » (le « Evening Run » d'un compte Strava en
+ * français) n'y figurait pas, donc la sortie passait pour nommée par l'athlète et gardait son
+ * titre — alors que la même sortie sur un compte en anglais était bien renommée. L'apostrophe
+ * typographique « l’après-midi », que Strava emploie, échouait pour la même raison.</p>
+ *
  * <h2>Les langues</h2>
  *
  * <p>Strava nomme dans la langue du compte de l'athlète, pas dans celle de l'application. Les
@@ -34,9 +47,9 @@ public final class StravaAutoName {
     /**
      * Sports reconnus, et le libellé français qui sert à composer un titre de repli.
      *
-     * <p>La clé est le mot tel que Strava l'écrit ; la valeur est ce qu'on affichera. Deux
-     * entrées peuvent pointer vers le même libellé — « Run » et « Course à pied » désignent la
-     * même chose dans deux langues.</p>
+     * <p>La clé est le mot tel que Strava l'écrit, <b>normalisé</b> ; la valeur est ce qu'on
+     * affichera, accentué. Deux entrées peuvent pointer vers le même libellé — « Run » et
+     * « Course a pied » désignent la même chose dans deux langues.</p>
      */
     private static final Map<String, String> SPORTS = new LinkedHashMap<>();
 
@@ -48,10 +61,20 @@ public final class StravaAutoName {
     /**
      * Moments en français. Strava les place <b>après</b> le sport (« Course à pied le matin »),
      * là où l'anglais les place avant (« Morning Run ») — d'où les deux formes essayées.
+     *
+     * <p>Plusieurs tournures désignent le même moment selon le sport et la version de Strava
+     * (« le soir » / « en soirée », « la nuit » / « de nuit ») : on accepte celles que Strava
+     * produit réellement, et rien de plus. La tentation est d'en ajouter « au cas où », mais une
+     * tournure de trop n'est pas gratuite : « Sortie du soir » est un titre qu'un athlète écrit,
+     * et le reconnaître à tort l'écraserait — chez nous <b>et</b> sur Strava, sans retour. Le
+     * pire cas de cette classe doit rester l'inaction.</p>
      */
     private static final String[] FR_MOMENTS = {
-            "le matin", "le midi", "l'après-midi", "l'apres-midi", "le soir", "la nuit",
-            "matinale", "matinal",
+            "le matin", "matinale", "matinal",
+            "le midi",
+            "l'apres-midi", "de l'apres-midi",
+            "le soir", "en soiree",
+            "la nuit", "de nuit",
     };
 
     private static final String[] EN_SPORTS = {
@@ -60,40 +83,33 @@ public final class StravaAutoName {
     };
 
     private static final String[] FR_SPORTS = {
-            "course à pied", "course a pied", "sortie à vélo", "sortie a velo", "sortie vélo",
-            "sortie velo", "natation", "marche", "randonnée", "randonnee", "séance",
-            "seance", "musculation", "vélo elliptique", "velo elliptique", "aviron", "yoga",
+            "course a pied", "sortie a velo", "sortie velo", "natation", "marche",
+            "randonnee", "seance", "musculation", "velo elliptique", "aviron", "yoga",
             "sortie", "footing",
     };
 
     static {
         SPORTS.put("run", "Course à pied");
         SPORTS.put("virtual run", "Course à pied");
-        SPORTS.put("course à pied", "Course à pied");
         SPORTS.put("course a pied", "Course à pied");
         SPORTS.put("footing", "Course à pied");
         SPORTS.put("ride", "Vélo");
         SPORTS.put("e-bike ride", "Vélo");
         SPORTS.put("virtual ride", "Vélo");
-        SPORTS.put("sortie à vélo", "Vélo");
         SPORTS.put("sortie a velo", "Vélo");
-        SPORTS.put("sortie vélo", "Vélo");
         SPORTS.put("sortie velo", "Vélo");
         SPORTS.put("swim", "Natation");
         SPORTS.put("natation", "Natation");
         SPORTS.put("walk", "Marche");
         SPORTS.put("marche", "Marche");
         SPORTS.put("hike", "Randonnée");
-        SPORTS.put("randonnée", "Randonnée");
         SPORTS.put("randonnee", "Randonnée");
         SPORTS.put("workout", "Séance");
-        SPORTS.put("séance", "Séance");
         SPORTS.put("seance", "Séance");
         SPORTS.put("sortie", "Sortie");
         SPORTS.put("weight training", "Musculation");
         SPORTS.put("musculation", "Musculation");
         SPORTS.put("elliptical", "Vélo elliptique");
-        SPORTS.put("vélo elliptique", "Vélo elliptique");
         SPORTS.put("velo elliptique", "Vélo elliptique");
         SPORTS.put("rowing", "Aviron");
         SPORTS.put("aviron", "Aviron");
@@ -101,6 +117,24 @@ public final class StravaAutoName {
     }
 
     private StravaAutoName() {
+    }
+
+    /**
+     * Ramène un titre à la forme dans laquelle les gabarits sont écrits : minuscules, sans
+     * accent, apostrophe droite, espaces normalisés.
+     *
+     * <p>Les accents et l'apostrophe typographique ne distinguent aucun titre de bonne foi d'un
+     * titre généré — les ignorer ne peut donc pas faire reconnaître à tort un nom choisi, alors
+     * que les prendre au pied de la lettre faisait manquer des noms générés.</p>
+     */
+    private static String normalize(String value) {
+        String apostrophes = value.trim()
+                .replace('’', '\'')   // ’ apostrophe typographique, celle de Strava
+                .replace('‘', '\'')
+                .replace('´', '\'');  // ´ accent aigu employé comme apostrophe
+        String flat = Normalizer.normalize(apostrophes, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}+", "");
+        return flat.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
     }
 
     /**
@@ -113,7 +147,7 @@ public final class StravaAutoName {
         if (title == null || title.isBlank()) {
             return Optional.empty();
         }
-        String normalized = title.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+        String normalized = normalize(title);
 
         for (String sport : EN_SPORTS) {
             for (String moment : EN_MOMENTS) {

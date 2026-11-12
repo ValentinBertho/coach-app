@@ -1,4 +1,4 @@
-import { bootstrapApplication } from '@angular/platform-browser';
+import { BootstrapContext, bootstrapApplication } from '@angular/platform-browser';
 import { AppComponent } from './app/app.component';
 import { config } from './app/app.config.server';
 
@@ -38,6 +38,8 @@ if (typeof globalThis.localStorage === 'undefined') {
   Object.defineProperty(globalThis, 'sessionStorage', { value: memoryStorage, configurable: true });
 }
 
-const bootstrap = () => bootstrapApplication(AppComponent, config);
+// Depuis Angular 20, le rendu côté serveur fournit un contexte par requête : sans lui, deux pages
+// pré-rendues partageraient la même plateforme.
+const bootstrap = (context: BootstrapContext) => bootstrapApplication(AppComponent, config, context);
 
 export default bootstrap;

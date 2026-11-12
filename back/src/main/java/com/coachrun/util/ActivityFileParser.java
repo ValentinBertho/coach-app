@@ -27,14 +27,19 @@ public final class ActivityFileParser {
      *                                  est destiné à l'utilisateur final
      */
     public static ActivityTrack.ParsedActivity parse(byte[] content) {
+        return parse(content, java.time.ZoneOffset.UTC);
+    }
+
+    /** @param zone fuseau dans lequel l'heure de départ devient la date de l'activité */
+    public static ActivityTrack.ParsedActivity parse(byte[] content, java.time.ZoneId zone) {
         if (content == null || content.length == 0) {
             throw new IllegalArgumentException("Fichier vide.");
         }
         if (FitParser.looksLikeFit(content)) {
-            return FitParser.parse(content);
+            return FitParser.parse(content, zone);
         }
         if (looksLikeXml(content)) {
-            return GpxParser.parse(content);
+            return GpxParser.parse(content, zone);
         }
         throw new IllegalArgumentException(
                 "Format non reconnu. Formats acceptés : " + SUPPORTED_EXTENSIONS + ".");

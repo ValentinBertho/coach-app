@@ -1,9 +1,22 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
-import { AthleteZoneMetric, AthleteZoneSheet } from '../../core/models/athlete-zone-sheet.model';
+import {
+  AthleteZoneMetric,
+  AthleteZoneSheet,
+} from '../../core/models/athlete-zone-sheet.model';
 import { PhysioProfile } from '../../core/models/physio.model';
-import { ZoneAnchor, ZONE_ANCHOR_LABELS } from '../../core/models/training-zone.model';
+import {
+  ZoneAnchor,
+  ZONE_ANCHOR_LABELS,
+} from '../../core/models/training-zone.model';
 import { formatMetricRange } from '../../core/utils/metric-format';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
@@ -24,17 +37,23 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
  */
 @Component({
   selector: 'app-athlete-zones',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, SkeletonComponent, DataOriginTagComponent],
+  imports: [
+    RouterLink,
+    IconComponent,
+    SkeletonComponent,
+    DataOriginTagComponent,
+  ],
   template: `
     <div class="az">
       <header class="az-top">
-        <a routerLink="/athlete/progress" class="btn btn-ghost btn-sm">← Progrès</a>
+        <a routerLink="/athlete/progress" class="btn btn-ghost btn-sm"
+          >← Progrès</a
+        >
         <h1 class="display-sm">Mes zones</h1>
         <p class="subtitle">
-          Tes allures et fréquences cardiaques de travail, zone par zone. Ton coach les règle ;
-          elles se recalculent à chaque test.
+          Tes allures et fréquences cardiaques de travail, zone par zone. Ton
+          coach les règle ; elles se recalculent à chaque test.
         </p>
       </header>
 
@@ -48,7 +67,10 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
           </div>
           <div class="refs-row">
             @for (r of anchors(); track r.label) {
-              <span class="ref"><span class="ref-k">{{ r.label }}</span><span class="ref-v metric">{{ r.value }}</span></span>
+              <span class="ref"
+                ><span class="ref-k">{{ r.label }}</span
+                ><span class="ref-v metric">{{ r.value }}</span></span
+              >
             }
           </div>
         </section>
@@ -60,17 +82,24 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
         <div class="card empty">
           <h2>Aucune zone</h2>
           <p class="field-hint">
-            Ton coach n'a pas encore défini d'échelle de zones. Elle apparaîtra ici dès qu'il l'aura
-            réglée.
+            Ton coach n'a pas encore défini d'échelle de zones. Elle apparaîtra
+            ici dès qu'il l'aura réglée.
           </p>
         </div>
       } @else {
         @for (z of zones(); track z.zoneId) {
-          <article class="card zone" [style.--zone-color]="z.color || 'var(--ink-4)'">
+          <article
+            class="card zone"
+            [style.--zone-color]="z.color || 'var(--ink-4)'"
+          >
             <header class="zone-hd">
               <h2 class="zone-n">{{ z.name }}</h2>
-              @if (z.description) { <p class="zone-d field-hint">{{ z.description }}</p> }
-              @if (sharedRule(z); as r) { <p class="zone-r field-hint">{{ r }}</p> }
+              @if (z.description) {
+                <p class="zone-d field-hint">{{ z.description }}</p>
+              }
+              @if (sharedRule(z); as r) {
+                <p class="zone-r field-hint">{{ r }}</p>
+              }
             </header>
 
             @if (valued(z).length) {
@@ -81,69 +110,182 @@ import { DataOriginTagComponent } from '../../shared/components/physiology';
                       {{ m.name }}
                       @if (m.source === 'MANUAL') {
                         <span class="m-src" title="Valeur fixée par ton coach">
-                          <app-icon name="pencil" [size]="12" /> réglée par ton coach
+                          <app-icon name="pencil" [size]="12" /> réglée par ton
+                          coach
                         </span>
                       }
                     </dt>
                     <dd class="metric">{{ range(m) }}</dd>
                     @if (!sharedRule(z)) {
-                      @if (rule(m); as r) { <p class="m-rule field-hint">{{ r }}</p> }
+                      @if (rule(m); as r) {
+                        <p class="m-rule field-hint">{{ r }}</p>
+                      }
                     }
                   </div>
                 }
               </dl>
             } @else {
               <p class="field-hint zone-empty">
-                Pas encore de valeur pour cette zone — il manque une mesure à ton profil.
+                Pas encore de valeur pour cette zone — il manque une mesure à
+                ton profil.
               </p>
             }
           </article>
         }
 
         <p class="foot field-hint">
-          Une valeur te semble fausse ? Elle vient de ton profil et de tes tests —
+          Une valeur te semble fausse ? Elle vient de ton profil et de tes tests
+          —
           <a routerLink="/athlete/performances">tes performances</a> et
-          <a routerLink="/athlete/profile">ton profil</a> les portent. Parles-en à ton coach, lui
-          seul règle l'échelle.
+          <a routerLink="/athlete/profile">ton profil</a> les portent. Parles-en
+          à ton coach, lui seul règle l'échelle.
         </p>
       }
     </div>
   `,
-  styles: [`
-    /* padding-top : safe-area de la coquille athlète (PWA) — sinon le titre passe sous l'heure. */
-    .az { max-width: 560px; margin-inline: auto; padding: var(--sp-4); padding-top: max(var(--sp-4), var(--safe-top, 0px)); display: flex; flex-direction: column; gap: var(--sp-3); }
-    .az-top { display: flex; flex-direction: column; gap: var(--sp-1); align-items: flex-start; }
-    .az-top h1 { margin: 0; }
-    .subtitle { color: var(--ink-3); margin: 0; }
-    .empty { text-align: center; }
+  styles: [
+    `
+      /* padding-top : safe-area de la coquille athlète (PWA) — sinon le titre passe sous l'heure. */
+      .az {
+        max-width: 560px;
+        margin-inline: auto;
+        padding: var(--sp-4);
+        padding-top: max(var(--sp-4), var(--safe-top, 0px));
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
+      .az-top {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-1);
+        align-items: flex-start;
+      }
+      .az-top h1 {
+        margin: 0;
+      }
+      .subtitle {
+        color: var(--ink-3);
+        margin: 0;
+      }
+      .empty {
+        text-align: center;
+      }
 
-    .refs { display: flex; flex-direction: column; gap: var(--sp-2); }
-    .refs-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
-    .refs-lb { font-weight: 700; color: var(--ink-2); font-size: var(--text-sm); }
-    .refs-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
-    .ref { display: inline-flex; align-items: baseline; gap: 6px; padding: 4px 10px; border-radius: var(--radius-full); background: var(--paper-sunk); }
-    .ref-k { font-size: var(--text-xs); color: var(--ink-3); }
-    .ref-v { font-weight: 800; font-variant-numeric: tabular-nums; }
+      .refs {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+      }
+      .refs-hd {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-2);
+      }
+      .refs-lb {
+        font-weight: 700;
+        color: var(--ink-2);
+        font-size: var(--text-sm);
+      }
+      .refs-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-2);
+      }
+      .ref {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: var(--radius-full);
+        background: var(--paper-sunk);
+      }
+      .ref-k {
+        font-size: var(--text-xs);
+        color: var(--ink-3);
+      }
+      .ref-v {
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
 
-    /* Le liseré porte la couleur de la zone : c'est le seul repère qui relie cette carte à la
+      /* Le liseré porte la couleur de la zone : c'est le seul repère qui relie cette carte à la
        bande de couleur vue sur la séance et sur le calendrier. */
-    .zone { padding: 0; overflow: hidden; border-left: 4px solid var(--zone-color); }
-    .zone-hd { padding: var(--sp-3) var(--sp-4) 0; }
-    .zone-n { margin: 0; font-size: var(--text-lg); }
-    .zone-d { margin: 2px 0 0; }
-    .zone-r { margin: 2px 0 0; }
-    .zone-empty { padding: var(--sp-2) var(--sp-4) var(--sp-3); margin: 0; }
+      .zone {
+        padding: 0;
+        overflow: hidden;
+        border-left: 4px solid var(--zone-color);
+      }
+      .zone-hd {
+        padding: var(--sp-3) var(--sp-4) 0;
+      }
+      .zone-n {
+        margin: 0;
+        font-size: var(--text-lg);
+      }
+      .zone-d {
+        margin: 2px 0 0;
+      }
+      .zone-r {
+        margin: 2px 0 0;
+      }
+      .zone-empty {
+        padding: var(--sp-2) var(--sp-4) var(--sp-3);
+        margin: 0;
+      }
 
-    .mlist { margin: 0; padding: var(--sp-2) var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
-    .m { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: var(--sp-2) var(--sp-3); padding-top: var(--sp-2); border-top: 1px solid var(--hairline); }
-    .m:first-child { border-top: none; padding-top: 0; }
-    .m dt { color: var(--ink-2); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-    .m dd { margin: 0; font-weight: 800; font-size: var(--text-lg); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-    .m-rule { grid-column: 1 / -1; margin: 0; }
-    .m-src { display: inline-flex; align-items: center; gap: 3px; font-size: var(--text-2xs); color: var(--ink-3); }
+      .mlist {
+        margin: 0;
+        padding: var(--sp-2) var(--sp-4) var(--sp-3);
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+      }
+      .m {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: baseline;
+        gap: var(--sp-2) var(--sp-3);
+        padding-top: var(--sp-2);
+        border-top: 1px solid var(--hairline);
+      }
+      .m:first-child {
+        border-top: none;
+        padding-top: 0;
+      }
+      .m dt {
+        color: var(--ink-2);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+      .m dd {
+        margin: 0;
+        font-weight: 800;
+        font-size: var(--text-lg);
+        font-variant-numeric: tabular-nums;
+        text-align: right;
+        white-space: nowrap;
+      }
+      .m-rule {
+        grid-column: 1 / -1;
+        margin: 0;
+      }
+      .m-src {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: var(--text-2xs);
+        color: var(--ink-3);
+      }
 
-    .foot { margin: 0; }
-  `],
+      .foot {
+        margin: 0;
+      }
+    `,
+  ],
 })
 export class AthleteZonesComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
@@ -168,9 +310,16 @@ export class AthleteZonesComponent implements OnInit {
       }
     }
     const out: { label: string; value: string }[] = [];
-    const push = (a: ZoneAnchor, v: number | null | undefined, unit: string) => {
+    const push = (
+      a: ZoneAnchor,
+      v: number | null | undefined,
+      unit: string,
+    ) => {
       if (used.has(a) && v != null) {
-        out.push({ label: ZONE_ANCHOR_LABELS[a], value: `${this.oneDecimal(v)}${unit}` });
+        out.push({
+          label: ZONE_ANCHOR_LABELS[a],
+          value: `${this.oneDecimal(v)}${unit}`,
+        });
       }
     };
     push('LT1', p.lt1Kmh, ' km/h');
@@ -183,8 +332,14 @@ export class AthleteZonesComponent implements OnInit {
 
   ngOnInit(): void {
     this.portal.zones().subscribe({
-      next: (z) => { this.zones.set(z); this.loading.set(false); },
-      error: () => { this.zones.set([]); this.loading.set(false); },
+      next: (z) => {
+        this.zones.set(z);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.zones.set([]);
+        this.loading.set(false);
+      },
     });
     // Le profil n'est qu'un complément d'explication : son absence ne doit pas priver l'athlète
     // de son échelle, d'où deux appels indépendants plutôt qu'un forkJoin.

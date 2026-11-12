@@ -1,7 +1,16 @@
 import { DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { Performance, Vdot, VdotPaceItem } from '../../../core/models/physio.model';
+import {
+  Performance,
+  Vdot,
+  VdotPaceItem,
+} from '../../../core/models/physio.model';
 import { DataOriginTagComponent } from '../data-origin-tag/data-origin-tag.component';
 import { IconComponent } from '../icon/icon.component';
 
@@ -17,7 +26,7 @@ const DISTANCE_LABELS: Record<string, string> = {
   '5km': '5 km',
   '10km': '10 km',
   '15km': '15 km',
-  semi: 'Semi',
+  semi: 'Semi-marathon',
   marathon: 'Marathon',
 };
 
@@ -54,7 +63,6 @@ interface RecordRow {
  */
 @Component({
   selector: 'app-vdot-paces-panel',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DecimalPipe, RouterLink, IconComponent, DataOriginTagComponent],
   template: `
@@ -75,8 +83,9 @@ interface RecordRow {
         <!-- Sans chrono, rien n'est calculable : on dit quoi faire plutôt que d'afficher un
              tableau vide, qui se lirait comme une panne. -->
         <p class="field-hint vpp-empty">
-          Aucun chrono de référence. Ajoute un record (1500 m, 5 km, 10 km, semi, marathon…)
-          pour obtenir le VDOT, les allures d'équivalence et les allures d'entraînement.
+          Aucun chrono de référence. Ajoute un record (1500 m, 5 km, 10 km,
+          semi, marathon…) pour obtenir le VDOT, les allures d'équivalence et
+          les allures d'entraînement.
         </p>
         @if (manageLink(); as link) {
           <a class="btn btn-primary btn-sm" [routerLink]="link">
@@ -92,7 +101,9 @@ interface RecordRow {
                 <li>
                   <span class="vpp-d">{{ r.label }}</span>
                   <span class="vpp-t metric">{{ r.time }}</span>
-                  @if (r.dateSet) { <span class="field-hint vpp-when">{{ r.dateSet }}</span> }
+                  @if (r.dateSet) {
+                    <span class="field-hint vpp-when">{{ r.dateSet }}</span>
+                  }
                 </li>
               }
             </ul>
@@ -102,15 +113,20 @@ interface RecordRow {
         <div class="vpp-block">
           <h3 class="vpp-h3">Allures d'équivalence</h3>
           <p class="field-hint vpp-note">
-            Ce que ces chronos impliquent sur les autres distances, à VDOT constant.
+            Ce que ces chronos impliquent sur les autres distances, à VDOT
+            constant.
           </p>
           <ul class="vpp-paces">
             @for (p of paces(); track p.distance) {
               <li>
                 <span class="vpp-d">{{ label(p.distance) }}</span>
-                <span class="vpp-p metric">{{ p.paceLabel }}<small> /km</small></span>
+                <span class="vpp-p metric"
+                  >{{ p.paceLabel }}<small> /km</small></span
+                >
                 @if (p.speedKmh != null) {
-                  <span class="field-hint vpp-kmh">{{ p.speedKmh | number: '1.1-1' }} km/h</span>
+                  <span class="field-hint vpp-kmh"
+                    >{{ p.speedKmh | number: '1.1-1' }} km/h</span
+                  >
                 }
               </li>
             }
@@ -124,9 +140,13 @@ interface RecordRow {
               @for (p of trainingPaces(); track p.distance) {
                 <li>
                   <span class="vpp-d">{{ trainingLabel(p.distance) }}</span>
-                  <span class="vpp-p metric">{{ p.paceLabel }}<small> /km</small></span>
+                  <span class="vpp-p metric"
+                    >{{ p.paceLabel }}<small> /km</small></span
+                  >
                   @if (p.speedKmh != null) {
-                    <span class="field-hint vpp-kmh">{{ p.speedKmh | number: '1.1-1' }} km/h</span>
+                    <span class="field-hint vpp-kmh"
+                      >{{ p.speedKmh | number: '1.1-1' }} km/h</span
+                    >
                   }
                 </li>
               }
@@ -140,30 +160,103 @@ interface RecordRow {
       }
     </section>
   `,
-  styles: [`
-    .vpp { padding: var(--sp-4); }
-    .card-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
-    .card-hd h2 { margin: 0; }
-    .vpp-hd-right { display: flex; align-items: center; gap: var(--sp-3); }
-    .vpp-vdot { color: var(--ink-2); font-size: var(--text-sm); }
-    .vpp-vdot strong { font-size: var(--text-lg); color: var(--ink); margin-left: var(--sp-1); }
-    .vpp-empty { margin: var(--sp-3) 0; line-height: 1.5; }
-    .vpp-block { margin-top: var(--sp-4); }
-    .vpp-h3 { margin: 0 0 var(--sp-1); font-size: var(--text-sm); color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.03em; }
-    .vpp-note { margin: 0 0 var(--sp-2); }
-    .vpp-records, .vpp-paces { list-style: none; margin: 0; padding: 0; }
-    .vpp-records li, .vpp-paces li { display: flex; align-items: baseline; gap: var(--sp-3); padding: var(--sp-2) 0; border-top: 1px solid var(--hairline); }
-    .vpp-records li:first-child, .vpp-paces li:first-child { border-top: none; }
-    .vpp-d { min-width: 9.5rem; color: var(--ink-2); }
-    .vpp-t, .vpp-p { color: var(--ink); font-variant-numeric: tabular-nums; }
-    .vpp-p small { color: var(--ink-3); font-weight: 400; }
-    .vpp-when, .vpp-kmh { margin-left: auto; }
-    .vpp-edit { display: inline-block; margin-top: var(--sp-4); font-size: var(--text-sm); }
-    @media (max-width: 480px) {
-      .vpp-d { min-width: 7rem; }
-      .vpp-when, .vpp-kmh { display: none; }
-    }
-  `],
+  styles: [
+    `
+      .vpp {
+        padding: var(--sp-4);
+      }
+      .card-hd {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-3);
+        flex-wrap: wrap;
+      }
+      .card-hd h2 {
+        margin: 0;
+      }
+      .vpp-hd-right {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-3);
+      }
+      .vpp-vdot {
+        color: var(--ink-2);
+        font-size: var(--text-sm);
+      }
+      .vpp-vdot strong {
+        font-size: var(--text-lg);
+        color: var(--ink);
+        margin-left: var(--sp-1);
+      }
+      .vpp-empty {
+        margin: var(--sp-3) 0;
+        line-height: 1.5;
+      }
+      .vpp-block {
+        margin-top: var(--sp-4);
+      }
+      .vpp-h3 {
+        margin: 0 0 var(--sp-1);
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .vpp-note {
+        margin: 0 0 var(--sp-2);
+      }
+      .vpp-records,
+      .vpp-paces {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .vpp-records li,
+      .vpp-paces li {
+        display: flex;
+        align-items: baseline;
+        gap: var(--sp-3);
+        padding: var(--sp-2) 0;
+        border-top: 1px solid var(--hairline);
+      }
+      .vpp-records li:first-child,
+      .vpp-paces li:first-child {
+        border-top: none;
+      }
+      .vpp-d {
+        min-width: 9.5rem;
+        color: var(--ink-2);
+      }
+      .vpp-t,
+      .vpp-p {
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .vpp-p small {
+        color: var(--ink-3);
+        font-weight: 400;
+      }
+      .vpp-when,
+      .vpp-kmh {
+        margin-left: auto;
+      }
+      .vpp-edit {
+        display: inline-block;
+        margin-top: var(--sp-4);
+        font-size: var(--text-sm);
+      }
+      @media (max-width: 480px) {
+        .vpp-d {
+          min-width: 7rem;
+        }
+        .vpp-when,
+        .vpp-kmh {
+          display: none;
+        }
+      }
+    `,
+  ],
 })
 export class VdotPacesPanelComponent {
   /** Le VDOT et ses allures, tels que rendus par {@code GET .../vdot}. */
@@ -176,9 +269,13 @@ export class VdotPacesPanelComponent {
   readonly heading = input('Records & allures');
 
   readonly vdotValue = computed(() => this.vdot()?.vdot ?? null);
-  readonly hasVdot = computed(() => this.vdotValue() != null && this.paces().length > 0);
+  readonly hasVdot = computed(
+    () => this.vdotValue() != null && this.paces().length > 0,
+  );
   readonly paces = computed<VdotPaceItem[]>(() => this.vdot()?.paces ?? []);
-  readonly trainingPaces = computed<VdotPaceItem[]>(() => this.vdot()?.trainingPaces ?? []);
+  readonly trainingPaces = computed<VdotPaceItem[]>(
+    () => this.vdot()?.trainingPaces ?? [],
+  );
 
   /**
    * Un chrono par distance : le meilleur. Un athlète en saisit plusieurs sur la même distance au

@@ -132,7 +132,7 @@ describe('inscription — le formulaire suit le régime du serveur', () => {
     (host.querySelector('#fullName') as HTMLInputElement).dispatchEvent(new Event('input'));
     (host.querySelector('#email') as HTMLInputElement).value = 'marie@exemple.fr';
     (host.querySelector('#email') as HTMLInputElement).dispatchEvent(new Event('input'));
-    (host.querySelector('#password') as HTMLInputElement).value = 'password123';
+    (host.querySelector('#password') as HTMLInputElement).value = 'password1234';
     (host.querySelector('#password') as HTMLInputElement).dispatchEvent(new Event('input'));
     (host.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
     fixture.detectChanges();

@@ -244,7 +244,7 @@ class StravaRenameOnStravaTest {
     }
 
     private static StravaActivity stravaActivity(long id, String name) {
-        return new StravaActivity(id, name, "Run", 12000.0, 3600, 120.0,
+        return new StravaActivity(id, name, "Run", "Run", 12000.0, 3600, 120.0,
                 145.0, 178.0, 3.3, 88.0, 240.0, 620.0, 90.0, "b123", 0, 1,
                 null, NO_WORKOUT_DAY, NO_WORKOUT_DAY + "Z");
     }

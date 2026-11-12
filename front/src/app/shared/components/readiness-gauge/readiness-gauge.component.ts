@@ -1,17 +1,22 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+} from '@angular/core';
 import { DataOriginTagComponent } from '../data-origin-tag/data-origin-tag.component';
 
 /** Niveau d'état de forme, calculé par le backend (source de vérité). */
 export type FormLevel = 'green' | 'orange' | 'red' | 'stale';
 
 const LEVEL_META: Record<FormLevel, { label: string; cssVar: string }> = {
-  green:  { label: 'Bonne forme',   cssVar: 'var(--form-green)' },
-  orange: { label: 'À surveiller',  cssVar: 'var(--form-orange)' },
-  red:    { label: 'Vigilance',     cssVar: 'var(--form-red)' },
+  green: { label: 'Bonne forme', cssVar: 'var(--form-green)' },
+  orange: { label: 'À surveiller', cssVar: 'var(--form-orange)' },
+  red: { label: 'Vigilance', cssVar: 'var(--form-red)' },
   // Ni vert ni rouge : l'athlète n'a rien déclaré depuis assez longtemps pour qu'on puisse
   // dire quoi que ce soit de son état. Le peindre en vert donnait une assurance que
   // personne n'avait fournie ; le laisser en rouge accusait un signal périmé.
-  stale:  { label: 'Sans signal',   cssVar: 'var(--ink-3)' },
+  stale: { label: 'Sans signal', cssVar: 'var(--ink-3)' },
 };
 
 /**
@@ -27,11 +32,15 @@ const LEVEL_META: Record<FormLevel, { label: string; cssVar: string }> = {
  */
 @Component({
   selector: 'app-readiness-gauge',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DataOriginTagComponent],
   template: `
-    <div class="rg" [style.--lc]="meta().cssVar" role="group" [attr.aria-label]="'État de forme : ' + meta().label">
+    <div
+      class="rg"
+      [style.--lc]="meta().cssVar"
+      role="group"
+      [attr.aria-label]="'État de forme : ' + meta().label"
+    >
       <div class="rg__head">
         <span class="rg__dot" aria-hidden="true"></span>
         <span class="rg__label">{{ meta().label }}</span>
@@ -41,11 +50,15 @@ const LEVEL_META: Record<FormLevel, { label: string; cssVar: string }> = {
       <!-- Entrées du calcul, toujours visibles : jamais le RPE seul. -->
       <ul class="rg__inputs">
         @if (fatigue() != null) {
-          <li><span class="rg__k">Fatigue</span><span class="rg__v">{{ fatigue() }}<small>/10</small></span></li>
+          <li>
+            <span class="rg__k">Fatigue</span
+            ><span class="rg__v">{{ fatigue() }}<small>/10</small></span>
+          </li>
         }
         @if (pain() != null) {
           <li [class.rg__alert]="(pain() ?? 0) >= 4">
-            <span class="rg__k">Douleur</span><span class="rg__v">{{ pain() }}<small>/10</small></span>
+            <span class="rg__k">Douleur</span
+            ><span class="rg__v">{{ pain() }}<small>/10</small></span>
           </li>
         }
         @if (acwr() != null) {
@@ -56,33 +69,84 @@ const LEVEL_META: Record<FormLevel, { label: string; cssVar: string }> = {
         }
       </ul>
 
-      @if (note()) { <p class="rg__note">{{ note() }}</p> }
+      @if (note()) {
+        <p class="rg__note">{{ note() }}</p>
+      }
     </div>
   `,
-  styles: [`
-    .rg {
-      display: flex; flex-direction: column; gap: var(--sp-2);
-      padding: var(--sp-3) var(--sp-4);
-      border-radius: var(--radius);
-      background: var(--paper);
-      border: 1px solid var(--hairline);
-      border-left: 4px solid var(--lc);
-    }
-    .rg__head { display: flex; align-items: center; gap: var(--sp-2); }
-    .rg__dot { width: 12px; height: 12px; border-radius: 50%; background: var(--lc); flex-shrink: 0; }
-    .rg__label { font-weight: 700; color: var(--ink); font-size: var(--text-lg); }
-    .rg__origin { margin-left: auto; }
-    .rg__inputs {
-      display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4);
-      list-style: none; margin: 0; padding: 0;
-    }
-    .rg__inputs li { display: inline-flex; align-items: baseline; gap: var(--sp-1); }
-    .rg__k { color: var(--ink-3); font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
-    .rg__v { font-family: var(--font-data); font-variant-numeric: tabular-nums; font-weight: 700; color: var(--ink); }
-    .rg__v small { color: var(--ink-3); font-weight: 600; }
-    .rg__alert .rg__v, .rg__alert .rg__k { color: var(--danger-text); }
-    .rg__note { margin: 0; color: var(--ink-3); font-size: var(--text-sm); }
-  `],
+  styles: [
+    `
+      .rg {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+        padding: var(--sp-3) var(--sp-4);
+        border-radius: var(--radius);
+        background: var(--paper);
+        border: 1px solid var(--hairline);
+        border-left: 4px solid var(--lc);
+      }
+      .rg__head {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+      }
+      .rg__dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--lc);
+        flex-shrink: 0;
+      }
+      .rg__label {
+        font-weight: 700;
+        color: var(--ink);
+        font-size: var(--text-lg);
+      }
+      .rg__origin {
+        margin-left: auto;
+      }
+      .rg__inputs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-2) var(--sp-4);
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .rg__inputs li {
+        display: inline-flex;
+        align-items: baseline;
+        gap: var(--sp-1);
+      }
+      .rg__k {
+        color: var(--ink-3);
+        font-size: var(--text-xs);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .rg__v {
+        font-family: var(--font-data);
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .rg__v small {
+        color: var(--ink-3);
+        font-weight: 600;
+      }
+      .rg__alert .rg__v,
+      .rg__alert .rg__k {
+        color: var(--danger-text);
+      }
+      .rg__note {
+        margin: 0;
+        color: var(--ink-3);
+        font-size: var(--text-sm);
+      }
+    `,
+  ],
 })
 export class ReadinessGaugeComponent {
   /** Niveau calculé par le backend (source de vérité). */

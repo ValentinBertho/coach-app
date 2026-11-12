@@ -239,6 +239,8 @@ public class WorkoutTemplateService {
         try {
             return objectMapper.readValue(json, new TypeReference<List<WorkoutStepRequest>>() { });
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(WorkoutTemplateService.class,
+                    "étapes d'un modèle de séance illisibles, modèle rendu vide", e);
             return List.of();
         }
     }

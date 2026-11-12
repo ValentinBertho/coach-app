@@ -83,11 +83,14 @@ public class ReadinessService {
         Double acwr = null;
         try {
             acwr = loadService.load(athlete.getClub().getId(), athleteId).ratio();
-        } catch (RuntimeException ignored) {
+        } catch (RuntimeException e) {
             // Une charge incalculable ne doit pas priver l'athlète de son conseil du matin.
+            com.coachrun.util.SwallowedError.report(ReadinessService.class,
+                    "calcul de charge en échec pour l'athlète " + athleteId
+                            + ", conseil du jour donné sans la charge", e);
         }
 
-        var prescription = safePrescription(athlete.getClub().getId(), workout.getId());
+        var prescription = safePrescription(athlete.getClub().getId(), workout.getAthlete().getId(), workout.getId());
         Integer hardestRpe = hardestRpe(prescription == null ? null : prescription.snapshot(), workout);
 
         var recommendation = engine.recommend(fatigue, pain, acwr, hardestRpe, true);
@@ -184,10 +187,13 @@ public class ReadinessService {
         return "readiness:" + type + ":" + workoutId;
     }
 
-    private com.coachrun.dto.response.WorkoutPrescriptionResponse safePrescription(UUID clubId, UUID workoutId) {
+    private com.coachrun.dto.response.WorkoutPrescriptionResponse safePrescription(UUID clubId, UUID athleteId, UUID workoutId) {
         try {
-            return workoutService.prescription(clubId, workoutId);
+            return workoutService.prescription(clubId, athleteId, workoutId);
         } catch (RuntimeException e) {
+            com.coachrun.util.SwallowedError.report(ReadinessService.class,
+                    "prescription indisponible pour la séance " + workoutId
+                            + ", conseil du jour donné sans elle", e);
             return null;
         }
     }
@@ -228,14 +234,32 @@ public class ReadinessService {
     }
 
     private String blockLabel(CourseBlock b) {
-        String volume = b.distanceM() != null ? formatDistance(b.distanceM())
-                : b.durationS() != null ? (b.durationS() / 60) + " min"
-                : null;
+        String volume = b.isChain() ? chainVolume(b) : simpleVolume(b);
         if (volume == null) {
             return null;
         }
         int reps = b.repCount();
         return reps > 1 ? reps + " × " + volume : volume;
+    }
+
+    private String simpleVolume(CourseBlock b) {
+        return b.distanceM() != null ? formatDistance(b.distanceM())
+                : b.durationS() != null ? (b.durationS() / 60) + " min"
+                : null;
+    }
+
+    /**
+     * « (200 m / 400 m) » — les étapes d'un enchaînement, séparées comme un coach les écrit. Sans
+     * ce cas, le bloc n'avait ni distance ni durée à lui et le résumé de la séance sautait la
+     * partie qui en fait tout l'intérêt.
+     */
+    private String chainVolume(CourseBlock b) {
+        List<String> parts = b.stepList().stream()
+                .map(st -> st.distanceM() != null ? formatDistance(st.distanceM())
+                        : st.durationS() != null ? (st.durationS() / 60) + " min" : null)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return parts.isEmpty() ? null : "(" + String.join(" / ", parts) + ")";
     }
 
     private String formatDistance(int m) {

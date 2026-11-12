@@ -1,6 +1,7 @@
 package com.coachrun.entity;
 
 import com.coachrun.entity.enums.ActivitySource;
+import com.coachrun.entity.enums.ActivitySport;
 import com.coachrun.entity.enums.ActivityStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -46,6 +47,33 @@ public class Activity extends BaseEntity {
 
     @Column(name = "activity_date", nullable = false)
     private LocalDate activityDate;
+
+    /**
+     * Sport déclaré par la source (Strava, FIT, TCX), ou {@code null} quand elle ne l'a pas dit —
+     * saisie manuelle, et toute sortie importée avant l'existence de cette colonne.
+     *
+     * <p>C'est ce qui empêche le rapprochement automatique de confondre une séance de musculation
+     * ou une sortie à vélo avec le fractionné prescrit le même jour : sans lui, ces trois sorties
+     * n'étaient qu'une date, une distance et une durée.</p>
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sport", length = 16)
+    private ActivitySport sport;
+
+    /**
+     * La catégorie <b>exacte</b> déclarée par la source — « GravelRide », « TrailRun »,
+     * « trail_running » — quand {@link #sport} n'en garde que la famille.
+     *
+     * <p>Ranger, c'est perdre : un gravel et une sortie route deviennent tous deux
+     * {@code RIDE}, un trail et un 10 km sur piste tous deux {@code RUN}. La famille est ce
+     * qu'il faut au rapprochement, le libellé est ce qu'il faut à l'écran — et ils sont gardés
+     * séparément parce qu'ils ne servent pas à la même chose.</p>
+     *
+     * <p>Ce champ ne pilote <b>rien</b> : c'est ce qui permet de l'accepter tel quel, sans avoir
+     * à connaître d'avance tout ce que Strava et les montres sauront un jour déclarer.</p>
+     */
+    @Column(name = "sport_detail", length = 64)
+    private String sportDetail;
 
     @Column(name = "title")
     private String title;
@@ -120,6 +148,17 @@ public class Activity extends BaseEntity {
 
     @Column(name = "matched_workout_id")
     private UUID matchedWorkoutId;
+
+    /**
+     * Ce rapprochement (ou ce détachement) a été décidé par un humain — coach ou athlète.
+     *
+     * <p>L'arbitrage automatique peut désormais reprendre une séance à une sortie moins bien
+     * placée quand une meilleure arrive après elle. Sans ce drapeau, il déferait aussi la
+     * correction que quelqu'un venait de faire à la main : l'import suivant aurait le dernier
+     * mot sur une personne qui, elle, était là.</p>
+     */
+    @Column(name = "manual_match", nullable = false)
+    private boolean manualMatch = false;
 
     /**
      * Date à laquelle l'athlète a été invité à confirmer le ressenti de la séance rapprochée.

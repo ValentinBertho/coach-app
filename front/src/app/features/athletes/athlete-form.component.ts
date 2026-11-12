@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -11,7 +18,6 @@ import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.com
 
 @Component({
   selector: 'app-athlete-form',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SkeletonComponent, IconComponent, ReactiveFormsModule, RouterLink],
   templateUrl: './athlete-form.component.html',
@@ -84,7 +90,9 @@ export class AthleteFormComponent implements OnInit {
     this.submitting.set(true);
     const payload = this.toRequest();
     const id = this.athleteId();
-    const call = id ? this.athleteService.update(id, payload) : this.athleteService.create(payload);
+    const call = id
+      ? this.athleteService.update(id, payload)
+      : this.athleteService.create(payload);
 
     call.subscribe({
       next: (athlete) => {

@@ -1,10 +1,19 @@
 import { DatePipe, LowerCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { Observable } from 'rxjs';
 import { AthleteSummary } from '../../core/models/athlete.model';
-import { WORKOUT_TYPE_LABELS, WorkoutType } from '../../core/models/workout.model';
+import {
+  WORKOUT_TYPE_LABELS,
+  WorkoutType,
+} from '../../core/models/workout.model';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
 import { AuthService } from '../../core/services/auth.service';
 import { AthleteService } from '../../core/services/athlete.service';
@@ -14,27 +23,33 @@ import {
   CoachDaySession,
   FeedbackQueueItem,
 } from '../../core/services/coach-dashboard.service';
-import { ConversationService, ConversationSummary } from '../../core/services/conversation.service';
+import {
+  ConversationService,
+  ConversationSummary,
+} from '../../core/services/conversation.service';
 import { NetworkStatusService } from '../../core/services/network-status.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { CourseService } from '../../core/services/course.service';
-import { StrengthService } from '../../core/services/strength.service';
 import { ToastService } from '../../core/services/toast.service';
 import { WorkoutService } from '../../core/services/workout.service';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { InstallPromptComponent } from '../../shared/components/install-prompt/install-prompt.component';
 import { PushPromptComponent } from '../../shared/components/push-prompt/push-prompt.component';
-import { ReplySheetComponent, type ReplyTarget } from '../../shared/components/reply-sheet/reply-sheet.component';
-import { injuryLabel } from '../../core/models/injury.model';
+import {
+  ReplySheetComponent,
+  type ReplyTarget,
+} from '../../shared/components/reply-sheet/reply-sheet.component';
 import { Proposal } from '../../core/models/decision.model';
 import { DecisionService } from '../../core/services/decision.service';
+import {
+  CoachScope,
+  CoachScopeService,
+} from '../../core/services/coach-scope.service';
+import { FeedbackQueueComponent } from './feedback-queue.component';
 import { ProposalListComponent } from '../../shared/components/proposal-list/proposal-list.component';
 
-type Scope = 'all' | 'mine' | 'private' | 'club';
-
-/** Périmètre retenu entre deux ouvertures : on ne le rechoisit pas chaque matin. */
-const SCOPE_KEY = 'coach-day-scope';
+type Scope = CoachScope;
 
 /** Dernier chargement réussi : sert à dater ce que le cache affiche hors ligne. */
 const STAMP_KEY = 'coach-day-loaded-at';
@@ -58,10 +73,19 @@ const STAMP_KEY = 'coach-day-loaded-at';
  */
 @Component({
   selector: 'app-coach-day',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, DatePipe, LowerCasePipe, FormsModule, IconComponent,
-    InstallPromptComponent, PushPromptComponent, ReplySheetComponent, ProposalListComponent],
+  imports: [
+    RouterLink,
+    DatePipe,
+    LowerCasePipe,
+    FormsModule,
+    IconComponent,
+    InstallPromptComponent,
+    PushPromptComponent,
+    ReplySheetComponent,
+    ProposalListComponent,
+    FeedbackQueueComponent,
+  ],
   templateUrl: './coach-day.component.html',
   styleUrl: './coach-day.component.scss',
 })
@@ -72,19 +96,20 @@ export class CoachDayComponent implements OnInit {
   private readonly workouts = inject(WorkoutService);
   private readonly courses = inject(CourseService);
   private readonly templates = inject(WorkoutTemplateService);
-  private readonly strength = inject(StrengthService);
   private readonly athletes = inject(AthleteService);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
   readonly network = inject(NetworkStatusService);
   private readonly decisions = inject(DecisionService);
+  private readonly scopeStore = inject(CoachScopeService);
 
   readonly loading = signal(true);
   /** Le dernier chargement a échoué (réseau coupé, serveur muet) : on ne prétend pas que tout va bien. */
   readonly failed = signal(false);
   readonly alerts = signal<CoachAlert[]>([]);
-  readonly reviews = signal<FeedbackQueueItem[]>([]);
+  /** Taille de la file des retours, remontée par la file elle-même (null tant qu'inconnue). */
+  readonly reviewCount = signal<number | null>(null);
   readonly conversations = signal<ConversationSummary[]>([]);
   readonly sessions = signal<CoachDaySession[]>([]);
 
@@ -108,12 +133,14 @@ export class CoachDayComponent implements OnInit {
    */
   readonly lastLoadedAt = signal<string | null>(readStamp());
 
-  readonly scope = signal<Scope>(readScope());
-  readonly scopeLabel = computed(() =>
-    (this.auth.soloPractice() ? SOLO_SCOPE_LABELS : SCOPE_LABELS)[this.scope()]);
+  /** Périmètre partagé avec le tableau de bord et la pastille du menu. */
+  readonly scope = this.scopeStore.scope;
+  readonly scopeLabel = this.scopeStore.label;
 
   /** Fils avec des non-lus, les plus récents d'abord — le reste vit dans la boîte de réception. */
-  readonly unread = computed(() => this.conversations().filter((c) => c.unreadCount > 0));
+  readonly unread = computed(() =>
+    this.conversations().filter((c) => c.unreadCount > 0),
+  );
 
   /**
    * Ce qu'on montre de chaque file : les cinq premiers, jamais plus.
@@ -125,12 +152,21 @@ export class CoachDayComponent implements OnInit {
    * tous.</p>
    */
   private static readonly SHOWN = 5;
-  readonly topAlerts = computed(() => this.alerts().slice(0, CoachDayComponent.SHOWN));
-  readonly topReviews = computed(() => this.reviews().slice(0, CoachDayComponent.SHOWN));
-  readonly topUnread = computed(() => this.unread().slice(0, CoachDayComponent.SHOWN));
-  readonly moreAlerts = computed(() => Math.max(0, this.alerts().length - CoachDayComponent.SHOWN));
-  readonly moreReviews = computed(() => Math.max(0, this.reviews().length - CoachDayComponent.SHOWN));
-  readonly moreUnread = computed(() => Math.max(0, this.unread().length - CoachDayComponent.SHOWN));
+  readonly alertsExpanded = signal(false);
+  readonly topAlerts = computed(() =>
+    this.alertsExpanded()
+      ? this.alerts()
+      : this.alerts().slice(0, CoachDayComponent.SHOWN),
+  );
+  readonly topUnread = computed(() =>
+    this.unread().slice(0, CoachDayComponent.SHOWN),
+  );
+  readonly moreAlerts = computed(() =>
+    Math.max(0, this.alerts().length - this.topAlerts().length),
+  );
+  readonly moreUnread = computed(() =>
+    Math.max(0, this.unread().length - CoachDayComponent.SHOWN),
+  );
 
   ngOnInit(): void {
     this.load();
@@ -152,7 +188,9 @@ export class CoachDayComponent implements OnInit {
       next: (created) => {
         this.catchingUp.set(null);
         if (created.length === 0) {
-          this.toast.info('Aucun créneau libre cette semaine, ou la charge ne le permet pas.');
+          this.toast.info(
+            'Aucun créneau libre cette semaine, ou la charge ne le permet pas.',
+          );
           return;
         }
         this.toast.success(`${created.length} report(s) à valider.`);
@@ -187,20 +225,20 @@ export class CoachDayComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     const scope = this.scope();
+    // Les retours se chargent dans leur propre composant, sur le même périmètre. L'état de
+    // l'écran (chargé, en échec, hors ligne) suit les alertes, qui viennent du même serveur.
     this.dashboard.alerts(scope).subscribe({
-      next: (a) => this.alerts.set(a),
-      error: () => this.alerts.set([]),
-    });
-    // Sept jours et non quatorze : la file complète a son écran. Ici, c'est ce qui vient
-    // d'arriver — au-delà, on ne « traite » plus, on rattrape.
-    this.dashboard.feedbackQueue(scope, 7).subscribe({
-      next: (f) => {
-        this.reviews.set(f);
+      next: (a) => {
+        this.alerts.set(a);
         this.loading.set(false);
         this.failed.set(false);
         this.stampNow();
       },
-      error: () => { this.reviews.set([]); this.loading.set(false); this.failed.set(true); },
+      error: () => {
+        this.alerts.set([]);
+        this.loading.set(false);
+        this.failed.set(true);
+      },
     });
     this.messages.inbox().subscribe({
       next: (c) => this.conversations.set(c),
@@ -219,20 +257,20 @@ export class CoachDayComponent implements OnInit {
   }
 
   setScope(value: Scope): void {
-    this.scope.set(value);
-    try { localStorage.setItem(SCOPE_KEY, value); } catch { /* préférence non persistée */ }
+    this.scopeStore.set(value);
     this.scopeOpen.set(false);
+    this.alertsExpanded.set(false);
     this.load();
+    // La pastille du menu suit le périmètre : elle doit dire le même chiffre que la file.
+    this.dashboard.refreshPendingReviews().subscribe({ error: () => undefined });
   }
 
   readonly scopeOpen = signal(false);
-  toggleScope(): void { this.scopeOpen.update((v) => !v); }
-  readonly scopes: { value: Scope; label: string }[] = [
-    { value: 'mine', label: SCOPE_LABELS.mine },
-    { value: 'all', label: SCOPE_LABELS.all },
-    { value: 'private', label: SCOPE_LABELS.private },
-    { value: 'club', label: SCOPE_LABELS.club },
-  ];
+  toggleScope(): void {
+    this.scopeOpen.update((v) => !v);
+  }
+  readonly scopes = this.scopeStore.options;
+  readonly scopeChoosable = this.scopeStore.choosable;
 
   shiftDay(days: number): void {
     const d = new Date(this.date() + 'T12:00:00');
@@ -248,40 +286,6 @@ export class CoachDayComponent implements OnInit {
     this.loadDay();
   }
 
-  // --- Retours ---------------------------------------------------------------
-
-  readonly busy = signal<Set<string>>(new Set());
-  key(it: FeedbackQueueItem): string { return `${it.kind}:${it.sessionId}`; }
-  injury = injuryLabel;
-
-  /**
-   * Marque un retour comme traité. La ligne disparaît tout de suite : sur un téléphone, une
-   * liste qui ne bouge pas après un tap donne l'impression que rien ne s'est passé.
-   */
-  markReviewed(it: FeedbackQueueItem): void {
-    const k = this.key(it);
-    if (this.busy().has(k)) return;
-    this.busy.update((s) => new Set(s).add(k));
-
-    const call: Observable<unknown> = it.kind === 'STRENGTH'
-      ? this.strength.markScheduledReviewed(it.athleteId, it.sessionId)
-      : this.workouts.markReviewed(it.athleteId, it.sessionId);
-
-    call.subscribe({
-      next: () => {
-        this.reviews.update((l) => l.filter((x) => this.key(x) !== k));
-        this.release(k);
-        this.dashboard.refreshPendingReviews().subscribe({ error: () => undefined });
-        this.toast.success('Retour marqué comme traité');
-      },
-      error: () => { this.release(k); this.toast.error('Action impossible.'); },
-    });
-  }
-
-  private release(k: string): void {
-    this.busy.update((s) => { const n = new Set(s); n.delete(k); return n; });
-  }
-
   // --- Répondre sans quitter l'écran ----------------------------------------
   // « Répondre » menait au fil de l'athlète, donc hors de la file en cours de traitement : on
   // perdait sa place pour écrire une phrase. La feuille écrit dans le même fil, ici.
@@ -290,17 +294,29 @@ export class CoachDayComponent implements OnInit {
 
   replyToAlert(a: CoachAlert): void {
     this.closeMenu();
-    this.replyTo.set({ athleteId: a.athleteId, name: a.athleteName, about: a.title });
+    this.replyTo.set({
+      athleteId: a.athleteId,
+      name: a.athleteName,
+      about: a.title,
+    });
   }
 
   replyToReview(it: FeedbackQueueItem): void {
     this.closeMenu();
-    this.replyTo.set({ athleteId: it.athleteId, name: it.athleteName, about: it.title });
+    this.replyTo.set({
+      athleteId: it.athleteId,
+      name: it.athleteName,
+      about: it.title,
+    });
   }
 
   replyToSession(s: CoachDaySession): void {
     this.closeMenu();
-    this.replyTo.set({ athleteId: s.athleteId, name: s.athleteName, about: s.title });
+    this.replyTo.set({
+      athleteId: s.athleteId,
+      name: s.athleteName,
+      about: s.title,
+    });
   }
 
   /** Un message envoyé peut avoir vidé un non-lu : la section Messages se recharge. */
@@ -340,12 +356,17 @@ export class CoachDayComponent implements OnInit {
 
   confirmMove(s: CoachDaySession): void {
     const target = this.moveDate;
-    if (!target || target === s.scheduledDate) { this.movingId.set(null); return; }
+    if (!target || target === s.scheduledDate) {
+      this.movingId.set(null);
+      return;
+    }
     this.workouts.reschedule(s.athleteId, s.workoutId, target).subscribe({
       next: () => {
         this.movingId.set(null);
         // La séance quitte le jour affiché : on la retire de la liste sans attendre le rechargement.
-        this.sessions.update((l) => l.filter((x) => x.workoutId !== s.workoutId));
+        this.sessions.update((l) =>
+          l.filter((x) => x.workoutId !== s.workoutId),
+        );
         this.toast.success(`${s.title} déplacée au ${frDate(target)}`);
       },
       error: () => this.toast.error('Déplacement impossible.'),
@@ -353,11 +374,22 @@ export class CoachDayComponent implements OnInit {
   }
 
   open(s: CoachDaySession): void {
-    this.router.navigate(['/app/athletes', s.athleteId, 'workouts', s.workoutId]);
+    this.router.navigate([
+      '/app/athletes',
+      s.athleteId,
+      'workouts',
+      s.workoutId,
+    ]);
   }
 
   edit(s: CoachDaySession): void {
-    this.router.navigate(['/app/athletes', s.athleteId, 'workouts', s.workoutId, 'structure']);
+    this.router.navigate([
+      '/app/athletes',
+      s.athleteId,
+      'workouts',
+      s.workoutId,
+      'structure',
+    ]);
   }
 
   /**
@@ -369,15 +401,18 @@ export class CoachDayComponent implements OnInit {
     this.closeMenu();
     const ok = await this.confirm.ask({
       title: 'Supprimer la séance ?',
-      message: `« ${s.title} » du ${frDate(s.scheduledDate)}, chez ${s.athleteName}. `
-        + `Cette suppression est définitive.`,
+      message:
+        `« ${s.title} » du ${frDate(s.scheduledDate)}, chez ${s.athleteName}. ` +
+        `Cette suppression est définitive.`,
       confirmLabel: 'Supprimer',
       danger: true,
     });
     if (!ok) return;
     this.workouts.delete(s.athleteId, s.workoutId).subscribe({
       next: () => {
-        this.sessions.update((l) => l.filter((x) => x.workoutId !== s.workoutId));
+        this.sessions.update((l) =>
+          l.filter((x) => x.workoutId !== s.workoutId),
+        );
         this.toast.success('Séance supprimée');
       },
       error: () => this.toast.error('Suppression impossible.'),
@@ -402,7 +437,9 @@ export class CoachDayComponent implements OnInit {
     return list.filter((t) => t.name.toLowerCase().includes(q)).slice(0, 8);
   });
   private readonly planFilter = signal('');
-  onPlanQuery(): void { this.planFilter.set(this.planQuery); }
+  onPlanQuery(): void {
+    this.planFilter.set(this.planQuery);
+  }
 
   openPlan(): void {
     this.planOpen.set(true);
@@ -430,17 +467,25 @@ export class CoachDayComponent implements OnInit {
 
   /** Planifie un modèle de la bibliothèque : mêmes cibles figées que depuis le calendrier. */
   planTemplate(t: WorkoutTemplate): void {
-    if (!this.planAthleteId) { this.toast.warning('Choisis un athlète.'); return; }
+    if (!this.planAthleteId) {
+      this.toast.warning('Choisis un athlète.');
+      return;
+    }
     this.planning.set(true);
-    this.courses.schedule(this.planAthleteId, t.id, { date: this.planDate }).subscribe({
-      next: () => {
-        this.planning.set(false);
-        this.closePlan();
-        this.toast.success(`${t.name} planifiée le ${frDate(this.planDate)}`);
-        if (this.planDate === this.date()) this.loadDay();
-      },
-      error: () => { this.planning.set(false); this.toast.error('Planification impossible.'); },
-    });
+    this.courses
+      .schedule(this.planAthleteId, t.id, { date: this.planDate })
+      .subscribe({
+        next: () => {
+          this.planning.set(false);
+          this.closePlan();
+          this.toast.success(`${t.name} planifiée le ${frDate(this.planDate)}`);
+          if (this.planDate === this.date()) this.loadDay();
+        },
+        error: () => {
+          this.planning.set(false);
+          this.toast.error('Planification impossible.');
+        },
+      });
   }
 
   /**
@@ -448,19 +493,37 @@ export class CoachDayComponent implements OnInit {
    * cet écran qui mène à un écran de conception — on l'assume, il est explicite.
    */
   planBlank(): void {
-    if (!this.planAthleteId) { this.toast.warning('Choisis un athlète.'); return; }
+    if (!this.planAthleteId) {
+      this.toast.warning('Choisis un athlète.');
+      return;
+    }
     this.planning.set(true);
     const athleteId = this.planAthleteId;
-    this.workouts.create(athleteId, {
-      scheduledDate: this.planDate, type: 'ENDURANCE', title: 'Séance', notes: null, steps: [],
-    }).subscribe({
-      next: (w) => {
-        this.planning.set(false);
-        this.closePlan();
-        this.router.navigate(['/app/athletes', athleteId, 'workouts', w.id, 'structure']);
-      },
-      error: () => { this.planning.set(false); this.toast.error('Création impossible.'); },
-    });
+    this.workouts
+      .create(athleteId, {
+        scheduledDate: this.planDate,
+        type: 'ENDURANCE',
+        title: 'Séance',
+        notes: null,
+        steps: [],
+      })
+      .subscribe({
+        next: (w) => {
+          this.planning.set(false);
+          this.closePlan();
+          this.router.navigate([
+            '/app/athletes',
+            athleteId,
+            'workouts',
+            w.id,
+            'structure',
+          ]);
+        },
+        error: () => {
+          this.planning.set(false);
+          this.toast.error('Création impossible.');
+        },
+      });
   }
 
   // --- Affichage -------------------------------------------------------------
@@ -470,7 +533,12 @@ export class CoachDayComponent implements OnInit {
   }
 
   statusLabel(status: CoachDaySession['status']): string {
-    return { PLANNED: 'Prévu', COMPLETED: 'Réalisé', PARTIAL: 'Partiel', MISSED: 'Manqué' }[status];
+    return {
+      PLANNED: 'Prévu',
+      COMPLETED: 'Réalisé',
+      PARTIAL: 'Partiel',
+      MISSED: 'Manqué',
+    }[status];
   }
 
   /** Extrait d'un commentaire : la ligne reste lisible, le détail est derrière le lien. */
@@ -481,21 +549,36 @@ export class CoachDayComponent implements OnInit {
 
   /** Initiales d'un fil : le titre peut être un nom, un groupe ou le club. */
   initials(title: string): string {
-    return title.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
+    return title
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase();
   }
 
   /**
    * « Rien de prévu » n'est pas une erreur : c'est une information, et souvent une bonne. Encore
    * faut-il l'avoir vérifié — un chargement en échec n'autorise pas à annoncer une journée calme.
    */
-  readonly quiet = computed(() =>
-    !this.loading() && !this.failed()
-    && !this.alerts().length && !this.reviews().length && !this.unread().length);
+  readonly quiet = computed(
+    () =>
+      !this.loading() &&
+      !this.failed() &&
+      !this.alerts().length &&
+      !this.reviewCount() &&
+      !this.unread().length,
+  );
 
   private stampNow(): void {
     const iso = new Date().toISOString();
     this.lastLoadedAt.set(iso);
-    try { localStorage.setItem(STAMP_KEY, iso); } catch { /* horodatage non persisté */ }
+    try {
+      localStorage.setItem(STAMP_KEY, iso);
+    } catch {
+      /* horodatage non persisté */
+    }
   }
 
   /** « aujourd'hui à 7 h 12 », « hier à 21 h 04 », ou la date pleine au-delà. */
@@ -503,7 +586,10 @@ export class CoachDayComponent implements OnInit {
     const iso = this.lastLoadedAt();
     if (!iso) return '';
     const d = new Date(iso);
-    const heure = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const heure = d.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
     const jour = isoOf(d);
     if (jour === todayIso()) return `aujourd'hui à ${heure}`;
     const hier = new Date();
@@ -513,34 +599,12 @@ export class CoachDayComponent implements OnInit {
   }
 }
 
-const SCOPE_LABELS: Record<Scope, string> = {
-  mine: 'Mes athlètes',
-  all: 'Tout le club',
-  private: 'Mes privés',
-  club: 'Mes athlètes club',
-};
-
-/**
- * Chez un coach indépendant, « tout le club » désigne ses athlètes et rien d'autre : les trois
- * autres périmètres n'ont pas d'objet, et le mot décrit une organisation qui n'existe pas.
- */
-const SOLO_SCOPE_LABELS: Record<Scope, string> = {
-  mine: 'Mes athlètes',
-  all: 'Mes athlètes',
-  private: 'Mes athlètes',
-  club: 'Mes athlètes',
-};
-
 function readStamp(): string | null {
-  try { return localStorage.getItem(STAMP_KEY); } catch { return null; }
-}
-
-function readScope(): Scope {
   try {
-    const v = localStorage.getItem(SCOPE_KEY);
-    if (v === 'all' || v === 'mine' || v === 'private' || v === 'club') return v;
-  } catch { /* stockage indisponible */ }
-  return 'mine';
+    return localStorage.getItem(STAMP_KEY);
+  } catch {
+    return null;
+  }
 }
 
 function todayIso(): string {
@@ -553,6 +617,8 @@ function isoOf(d: Date): string {
 
 function frDate(iso: string): string {
   return new Date(iso + 'T12:00:00').toLocaleDateString('fr-FR', {
-    weekday: 'short', day: 'numeric', month: 'short',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
   });
 }

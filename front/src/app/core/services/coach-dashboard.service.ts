@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import { Injury } from '../models/injury.model';
 import { RaceObjective } from '../models/race.model';
 import { AuthService } from './auth.service';
+import { CoachScopeService } from './coach-scope.service';
 
 export interface CoachDashboard {
   activeAthletes: number;
@@ -105,6 +106,7 @@ export interface CoachAlert {
 export class CoachDashboardService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
+  private readonly scopes = inject(CoachScopeService);
 
   /**
    * Retours à traiter, partagé (badge de l'entrée de nav « Retours »), sur le modèle exact
@@ -121,11 +123,12 @@ export class CoachDashboardService {
   }
 
   /**
-   * Rafraîchit le compteur du badge. Toujours sur le périmètre complet : le badge de nav dit
-   * « il te reste du travail », il ne doit pas dépendre du filtre choisi ailleurs.
+   * Rafraîchit le compteur du badge, sur le périmètre choisi par le coach : c'est le même
+   * chiffre que la file de « Ma journée » et le KPI du tableau de bord. Il lisait tout le club
+   * quand la file lisait « mes athlètes » — deux chiffres pour une même question.
    */
   refreshPendingReviews(): Observable<number> {
-    return this.get('all').pipe(
+    return this.get(this.scopes.scope()).pipe(
       map((d) => d.sessionsToReview),
       tap((n) => this.pendingReviews.set(n)),
     );
@@ -161,6 +164,23 @@ export class CoachDashboardService {
     return this.http.post<{ marked: number }>(
       `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard/feedback/review-all`,
       {},
+      { params },
+    );
+  }
+
+  /**
+   * Marque comme traités les retours sélectionnés. Le serveur ignore ceux qui ne sont pas dans
+   * la file du coach (périmètre, fenêtre).
+   */
+  markFeedbackReviewed(
+    items: Pick<FeedbackQueueItem, 'kind' | 'sessionId'>[],
+    scope: 'all' | 'mine' | 'private' | 'club' = 'all',
+    days = 14,
+  ): Observable<{ marked: number }> {
+    const params = new HttpParams().set('scope', scope).set('days', days);
+    return this.http.post<{ marked: number }>(
+      `${environment.apiUrl}/clubs/${this.auth.clubId()}/dashboard/feedback/review`,
+      { items: items.map((i) => ({ kind: i.kind, sessionId: i.sessionId })) },
       { params },
     );
   }

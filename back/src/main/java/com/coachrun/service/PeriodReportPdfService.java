@@ -63,6 +63,8 @@ public class PeriodReportPdfService {
             List.of("TEST", "RECORD", "RACE", "UNAVAILABILITY", "STRENGTH_TEST");
 
     private final AthleteRepository athleteRepository;
+
+    private final ClockService clock;
     private final AthleteTimelineService timelineService;
     private final AnalyticsService analyticsService;
     private final AthleteLoadService loadService;
@@ -163,6 +165,8 @@ public class PeriodReportPdfService {
                     String.format(FR, "%.0f %% facile · %.0f %% seuil · %.0f %% intense",
                             d.domain1Pct(), d.domain2Pct(), d.domain3Pct())));
         } catch (RuntimeException e) {
+            com.coachrun.util.SwallowedError.report(PeriodReportPdfService.class,
+                    "calcul de charge en échec dans un bilan PDF, section remplacée par une mention", e);
             doc.add(muted("Charge non calculable sur cette période."));
         }
     }
@@ -192,7 +196,7 @@ public class PeriodReportPdfService {
         }
         doc.add(table);
 
-        Paragraph foot = new Paragraph("Généré le " + fmt(LocalDate.now()),
+        Paragraph foot = new Paragraph("Généré le " + fmt(clock.today()),
                 FontFactory.getFont(FontFactory.HELVETICA, 9, MUTED));
         foot.setSpacingBefore(18);
         doc.add(foot);

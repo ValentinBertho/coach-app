@@ -54,3 +54,13 @@
 .gg-cell--all.cdk-drop-list-dragging, .gg-cell--all:hover { border-color: var(--primary); }
 .gg-cell--all:hover .gg-all-hint { color: var(--primary); }
 .gg-cell--busy { opacity: 0.5; pointer-events: none; }
+
+/* --- Copier-coller en vue groupe -----------------------------------------
+   La case survolée est le curseur du geste : Cmd+C copie sa journée, Cmd+V y colle. Sans repère
+   visuel, le raccourci agissait sur une case que le coach ne pouvait pas désigner. */
+.gg-cell--hover { outline: 1px dashed color-mix(in srgb, var(--primary) 55%, transparent); }
+
+/* Un « Coller » grisé dit qu'il n'y a rien dans le presse-papier ; le retirer laisserait croire
+   que le geste n'existe pas — exactement le malentendu qu'on corrige ici. */
+.ctx-item:disabled { opacity: 0.45; cursor: not-allowed; }
+.ctx-title--note { font-weight: 600; color: var(--ink-3); white-space: normal; }

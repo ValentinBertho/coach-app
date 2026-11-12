@@ -7,6 +7,11 @@
 > Un athlète crée son compte seul, parcourt un annuaire de coachs, demande à être coaché, le coach
 > accepte — et la relation bascule dans l'outil existant sans rupture.
 
+> **Note d'intégration (12 novembre 2026).** La branche du hub a été fusionnée avec la version
+> courante (sécurisation de novembre, Angular 21, Spring Boot 3.5). Ses sept migrations portaient
+> les numéros 096 à 102, déjà pris en production : elles sont renumérotées **106 à 112**, et les
+> numéros cités ci-dessous suivent cette renumérotation.
+
 ---
 
 ## 0. La réponse courte
@@ -18,11 +23,11 @@ côté athlète, la vitrine côté coach, et le geste qui les relie**.
 
 | Brique du hub | État | Où ça coince |
 |---|---|---|
-| Un athlète crée son compte seul | ✅ **Livré** (lot 1) | `athlete_accounts` (migration 100), `/inscription-athlete`, âge minimum 16 ans |
+| Un athlète crée son compte seul | ✅ **Livré** (lot 1) | `athlete_accounts` (migration 110), `/inscription-athlete`, âge minimum 16 ans |
 | Un coach s'inscrit sans club | 🟡 Possible, mais mal dit | `clubName` est `@NotBlank` (`RegisterRequest:21`) ; le club implicite existe déjà |
 | Profil coach public (spécialités, tarifs, diplômes) | ✅ **Livré** (lot 2) | `coach_profiles`, `coach_offers`, `coach_certifications` + validation en back-office |
 | Annuaire / recherche de coachs | ✅ **Livré** (lot 3) | `/public/coaches`, facettes comptées, repli anti-cul-de-sac, fiche publique `/coachs/{slug}` |
-| Demande de coaching (athlète → coach) | ✅ **Livré** (lot 4) | `coaching_requests` (migration 101), une question / une réponse, aucune coordonnée avant accord |
+| Demande de coaching (athlète → coach) | ✅ **Livré** (lot 4) | `coaching_requests` (migration 111), une question / une réponse, aucune coordonnée avant accord |
 | Acceptation ⇒ relation de travail | ✅ **Livré** (lot 4) | Transaction atomique : fiche, relation privée, consentement reporté |
 | Travailler ensemble une fois liés | ✅ **Complet** | Rien à faire : c'est le produit actuel |
 | Échanger avant la relation | ✅ **Tranché** (décision 5) | Une question, une réponse, portées par la demande — `ConversationService` reste intact |
@@ -220,7 +225,7 @@ de « la relation référente a été close » (→ refus) : ne déclencher `clu
 `existsByAthleteIdAndReferentTrue` est faux, et faire porter à la relation une date de fin explicite
 plutôt qu'un simple booléen (§4.1). *Effort : S. À faire avant tout le reste.*
 
-> ✅ **Livré** — lot 0, `AthleteAccessValidator.java`, migration 096, cinq tests de non-régression.
+> ✅ **Livré** — lot 0, `AthleteAccessValidator.java`, migration 106, cinq tests de non-régression.
 > La correction a été validée en reproduisant d'abord le défaut : sans elle,
 > `EndedRelationRevokesAccessTest` échoue en `403 attendu, 200 obtenu`.
 
@@ -268,7 +273,7 @@ indépendant du hub, chacun de ces mots décrit une organisation qui n'existe pa
 `AUDIT-COACH-INDEPENDANT` §2 proposait déjà la parade — une question à l'inscription et un drapeau
 sur `Club` — et elle restait la bonne ; le hub la rendait obligatoire au lieu d'agréable.
 
-> ✅ **Livré** — lot 5, migration 097 (`clubs.solo_practice`, `club_creation_request.solo_practice`).
+> ✅ **Livré** — lot 5, migration 107 (`clubs.solo_practice`, `club_creation_request.solo_practice`).
 > L'inscription pose la question d'abord (« En club / En indépendant ») dans les deux régimes,
 > direct et sur demande ; le nom devient facultatif pour un indépendant et l'espace prend alors le
 > sien. L'entrée « Club » disparaît de sa navigation, le badge d'en-tête cesse de répéter son nom,
@@ -510,7 +515,7 @@ moment de valider la fiche, pas à décerner un label.
 > par la file** (la porte d'entrée est le garde-fou, la suspension le recours) ; une fiche
 > **en attente est gelée** (sinon l'administrateur validerait un texte changé entre-temps).
 >
-> **La photo est livrée** (migration 099, table `coach_photos`). Le serveur ne conserve jamais le
+> **La photo est livrée** (migration 109, table `coach_photos`). Le serveur ne conserve jamais le
 > fichier reçu : il le décode, le réduit à 512 px de côté et le ré-encode en JPEG. Ce n'est pas
 > cosmétique — une photo prise au téléphone porte les coordonnées GPS du lieu de la prise de vue,
 > souvent le domicile, et l'annuaire est public : la republier telle quelle aurait diffusé
@@ -694,15 +699,15 @@ Huit lots. Les quatre premiers font un hub qui fonctionne ; les quatre suivants 
 
 | Lot | Contenu | Effort | Dépend de |
 |---|---|---|---|
-| **0 — Solder la dette d'accès** ✅ | Correction de `clubLevelFallback` (§2.5) **et** de la clé d'idempotence du backfill (§2.5 bis) ; `ended_at` / `ended_by_user_id` / `end_reason` sur la relation (migration 096) ; `EndedRelationRevokesAccessTest`, 5 cas | **S** | — |
-| **1 — Le compte athlète autoporté** ✅ | `athlete_accounts` (migration 100), `/public/athlete-registration`, contrôle des 16 ans, `athletes.athlete_account_id`, navigation réduite tant qu'aucun coach n'a accepté | **M** | 0 |
-| **2 — La vitrine coach** ✅ | `coach_profiles`, `coach_certifications` (sans `verified`), `coach_offers` (migration 098), `coach_photos` (099, ré-encodage qui efface l'EXIF) ; cycle `DRAFT → PENDING → PUBLISHED ⇄ CLOSED` ; éditeur `/app/vitrine` ; file de validation `/admin/coach-profiles` | **M** | — |
+| **0 — Solder la dette d'accès** ✅ | Correction de `clubLevelFallback` (§2.5) **et** de la clé d'idempotence du backfill (§2.5 bis) ; `ended_at` / `ended_by_user_id` / `end_reason` sur la relation (migration 106) ; `EndedRelationRevokesAccessTest`, 5 cas | **S** | — |
+| **1 — Le compte athlète autoporté** ✅ | `athlete_accounts` (migration 110), `/public/athlete-registration`, contrôle des 16 ans, `athletes.athlete_account_id`, navigation réduite tant qu'aucun coach n'a accepté | **M** | 0 |
+| **2 — La vitrine coach** ✅ | `coach_profiles`, `coach_certifications` (sans `verified`), `coach_offers` (migration 108), `coach_photos` (109, ré-encodage qui efface l'EXIF) ; cycle `DRAFT → PENDING → PUBLISHED ⇄ CLOSED` ; éditeur `/app/vitrine` ; file de validation `/admin/coach-profiles` | **M** | — |
 | **3 — L'annuaire** ✅ | `GET /public/coaches`, `/public/coach-facets` (comptes à zéro compris), `/public/coach-suggestions` (repli), `/public/coaches/{slug}` ; écrans `/coachs` et `/coachs/{slug}` ; bucket `public-directory` (photos exclues) | **M** | 2 |
-| **4 — La mise en relation** ✅ | `coaching_requests` (migration 101), les deux files, l'acceptation transactionnelle (§4.2), les notifications, et la fin de relation des deux côtés (`POST /me/coach/end`, `POST /clubs/{c}/athletes/{a}/end-relation`) sur le socle du lot 0 | **L** | 1, 2, 0 |
+| **4 — La mise en relation** ✅ | `coaching_requests` (migration 111), les deux files, l'acceptation transactionnelle (§4.2), les notifications, et la fin de relation des deux côtés (`POST /me/coach/end`, `POST /clubs/{c}/athletes/{a}/end-relation`) sur le socle du lot 0 | **L** | 1, 2, 0 |
 | — | *↑ **Ici, le hub est utilisable de bout en bout.** ↑* | | |
-| **5 — Le vocabulaire indépendant** ✅ | Question à l'inscription (les deux régimes), drapeau `solo_practice` (migration 097) levé automatiquement à l'arrivée d'un second coach, navigation, périmètres, bilan hebdo, back-office | **S** | — |
+| **5 — Le vocabulaire indépendant** ✅ | Question à l'inscription (les deux régimes), drapeau `solo_practice` (migration 107) levé automatiquement à l'arrivée d'un second coach, navigation, périmètres, bilan hebdo, back-office | **S** | — |
 | **6 — Le multi-espace** ✅ | `GET /me/clubs`, sélecteur d'espace dans l'en-tête (branché sur `AuthService.clubId()`, donc sans toucher aux ~40 appelants), et correction du périmètre qui ignorait les clubs additionnels — tableau de bord, alertes et bilan hebdomadaire | **M** | — |
-| **7 — Acquisition et confiance** ✅ | Signaux factuels mesurés (délai médian de réponse, taux de réponse), signalement d'une fiche (migration 102) et sa file d'arbitrage, balises de partage **et pré-rendu** des pages publiques et des fiches publiées, cf. ci-dessous | **M** | 3 |
+| **7 — Acquisition et confiance** ✅ | Signaux factuels mesurés (délai médian de réponse, taux de réponse), signalement d'une fiche (migration 112) et sa file d'arbitrage, balises de partage **et pré-rendu** des pages publiques et des fiches publiées, cf. ci-dessous | **M** | 3 |
 | **8 — Avis, puis tarification** | Avis réservés aux relations terminées ≥ N semaines ; encaissement à décider séparément | **L** | 4, et du recul d'usage |
 
 ### La sortie, livrée — et la question qu'elle a soulevée

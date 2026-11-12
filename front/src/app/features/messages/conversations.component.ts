@@ -1,14 +1,26 @@
 import { DatePipe } from '@angular/common';
 import {
-  ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit,
-  computed, effect, inject, signal, viewChild,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  computed,
+  effect,
+  inject,
+  signal,
+  viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Message } from '../../core/models/message.model';
+import { SseStream } from '../../core/services/stream-token.service';
 import { AuthService } from '../../core/services/auth.service';
 import {
-  ConversationKind, ConversationService, ConversationSummary, Recipient,
+  ConversationKind,
+  ConversationService,
+  ConversationSummary,
+  Recipient,
 } from '../../core/services/conversation.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -36,7 +48,6 @@ const KIND_ICONS: Record<ConversationKind, string> = {
  */
 @Component({
   selector: 'app-conversations',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, DatePipe, IconComponent, SkeletonComponent],
   templateUrl: './conversations.component.html',
@@ -71,7 +82,9 @@ export class ConversationsComponent implements OnInit, OnDestroy {
   readonly kindIcons = KIND_ICONS;
   readonly me = this.auth.currentUser;
 
-  readonly current = computed(() => this.list().find((c) => c.id === this.openId()) ?? null);
+  readonly current = computed(
+    () => this.list().find((c) => c.id === this.openId()) ?? null,
+  );
   readonly canPost = computed(() => this.current()?.canPost ?? false);
 
   readonly filteredRecipients = computed(() => {
@@ -86,7 +99,7 @@ export class ConversationsComponent implements OnInit, OnDestroy {
     this.searchTerm.set(value);
   }
 
-  private stream?: EventSource;
+  private stream?: SseStream;
 
   /**
    * Écran étroit : la liste et le fil n'y tiennent pas côte à côte.
@@ -97,7 +110,10 @@ export class ConversationsComponent implements OnInit, OnDestroy {
    * en avait d'autres.</p>
    */
   private isNarrow(): boolean {
-    return typeof window !== 'undefined' && window.matchMedia('(max-width: 860px)').matches;
+    return (
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 860px)').matches
+    );
   }
 
   constructor() {
@@ -113,7 +129,11 @@ export class ConversationsComponent implements OnInit, OnDestroy {
     this.reload(this.route.snapshot.queryParamMap.get('c'));
     if (this.route.snapshot.queryParamMap.get('reply') === '1') {
       // Arrivée depuis l'action « Répondre » d'une notification.
-      setTimeout(() => document.querySelector<HTMLInputElement>('.composer input')?.focus(), 200);
+      setTimeout(
+        () =>
+          document.querySelector<HTMLInputElement>('.composer input')?.focus(),
+        200,
+      );
     }
   }
 
@@ -128,10 +148,13 @@ export class ConversationsComponent implements OnInit, OnDestroy {
         this.loading.set(false);
         // Un fil explicitement demandé (notification, lien partagé) s'ouvre toujours. Sinon, on
         // n'ouvre d'office que sur deux colonnes, là où le panneau resterait vide.
-        const asked = openId && list.some((c) => c.id === openId) ? openId : null;
-        const target = asked ?? (this.isNarrow()
-          ? null
-          : list.find((c) => c.unreadCount > 0)?.id ?? list[0]?.id ?? null);
+        const asked =
+          openId && list.some((c) => c.id === openId) ? openId : null;
+        const target =
+          asked ??
+          (this.isNarrow()
+            ? null
+            : (list.find((c) => c.unreadCount > 0)?.id ?? list[0]?.id ?? null));
         if (target) {
           this.select(target);
         }
@@ -155,7 +178,11 @@ export class ConversationsComponent implements OnInit, OnDestroy {
 
     // L'URL porte le fil ouvert : rafraîchir la page, ou revenir depuis une notification,
     // retombe sur la même conversation.
-    this.router.navigate([], { relativeTo: this.route, queryParams: { c: id }, replaceUrl: true });
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { c: id },
+      replaceUrl: true,
+    });
 
     this.conversations.messages(id).subscribe({
       next: (messages) => {
@@ -170,7 +197,8 @@ export class ConversationsComponent implements OnInit, OnDestroy {
     this.conversations.markRead(id).subscribe({
       next: () => {
         this.list.update((list) =>
-          list.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)));
+          list.map((c) => (c.id === id ? { ...c, unreadCount: 0 } : c)),
+        );
         this.conversations.refreshUnread().subscribe({ error: () => {} });
       },
       error: () => {},
@@ -188,7 +216,11 @@ export class ConversationsComponent implements OnInit, OnDestroy {
     this.stream?.close();
     this.openId.set(null);
     this.messages.set([]);
-    this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {},
+      replaceUrl: true,
+    });
   }
 
   private append(m: Message): void {
@@ -210,13 +242,22 @@ export class ConversationsComponent implements OnInit, OnDestroy {
         this.append(m);
         this.draft = '';
         this.sending.set(false);
-        this.list.update((list) => list.map((c) => (c.id === id
-          ? { ...c, lastMessage: m.body, lastMessageAt: m.createdAt, lastSenderName: m.senderName }
-          : c)));
+        this.list.update((list) =>
+          list.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  lastMessage: m.body,
+                  lastMessageAt: m.createdAt,
+                  lastSenderName: m.senderName,
+                }
+              : c,
+          ),
+        );
       },
       error: () => {
         this.sending.set(false);
-        this.toast.error("Message non envoyé.");
+        this.toast.error('Message non envoyé.');
       },
     });
   }
@@ -237,9 +278,11 @@ export class ConversationsComponent implements OnInit, OnDestroy {
     this.pickerOpen.set(false);
     this.conversations.open(r.kind, r.id).subscribe({
       next: (conversation) => {
-        this.list.update((list) => list.some((c) => c.id === conversation.id)
-          ? list
-          : [conversation, ...list]);
+        this.list.update((list) =>
+          list.some((c) => c.id === conversation.id)
+            ? list
+            : [conversation, ...list],
+        );
         this.select(conversation.id);
       },
       error: () => this.toast.error('Conversation impossible à ouvrir.'),

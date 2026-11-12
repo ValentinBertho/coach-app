@@ -160,3 +160,46 @@
     outline-offset: 2px;
   }
 }
+
+/* Double authentification (administrateurs). */
+.mfa-enrol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  text-align: center;
+}
+.mfa-qr {
+  border-radius: var(--radius);
+  background: #fff;
+  padding: var(--sp-2);
+}
+.mfa-secret {
+  font-size: var(--text-sm);
+  letter-spacing: 0.05em;
+  word-break: break-all;
+  user-select: all;
+}
+.mfa-code {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+/* Deux colonnes seulement quand elles tiennent : sur téléphone, les codes se chevauchaient. */
+.mfa-recovery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: center;
+  font-size: var(--text-sm);
+}
+
+/* Liens dans une phrase (« Pas encore de compte ? Créer un club ») : soulignés. La couleur seule
+   ne suffit pas à les distinguer du texte qui les entoure (WCAG 1.4.1). */
+.auth-switch a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

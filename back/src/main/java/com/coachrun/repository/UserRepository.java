@@ -18,6 +18,21 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmailIgnoreCase(String email);
 
     /**
+     * Date de dernière connexion, écrite sans passer par l'entité.
+     *
+     * <p>Par l'entité, cette écriture incrémentait sa version : deux connexions simultanées sur
+     * le même compte (téléphone et ordinateur, ou une application qui se relance) se
+     * marchaient dessus, et la seconde recevait une erreur 500 pour une date dont l'ordre exact
+     * n'importe à personne. Une mise à jour directe ne se compare à aucune version : la dernière
+     * écrite gagne.</p>
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(
+            "update User u set u.lastLoginAt = :at where u.id = :userId")
+    int touchLastLogin(@org.springframework.data.repository.query.Param("userId") UUID userId,
+                       @org.springframework.data.repository.query.Param("at") java.time.Instant at);
+
+    /**
      * Les deux dates qui périment un jeton — changement de mot de passe et déconnexion — en une
      * seule lecture. Le filtre JWT s'exécute à chaque requête authentifiée : deux requêtes là où
      * une projection suffit se paieraient sur toute la surface de l'API.
@@ -106,6 +121,28 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("update User u set u.lastSeenAt = :seenAt where u.id = :userId")
     void touchLastSeen(@Param("userId") UUID userId,
                        @Param("seenAt") java.time.Instant seenAt);
+
+    /**
+     * Même écriture, avec ce que le client dit de lui : son {@code User-Agent} et la version du
+     * front qu'il fait tourner.
+     *
+     * <p>Une seconde méthode plutôt qu'un paramètre nullable sur la première : un client qui
+     * n'annonce rien ne doit pas <b>effacer</b> ce qu'on savait de sa visite précédente. Les
+     * appels sans contexte gardent donc la forme d'origine, et celle-ci n'est employée que
+     * lorsqu'il y a réellement quelque chose à écrire.</p>
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("""
+            update User u
+               set u.lastSeenAt = :seenAt,
+                   u.lastUserAgent = coalesce(:userAgent, u.lastUserAgent),
+                   u.lastAppVersion = coalesce(:appVersion, u.lastAppVersion)
+             where u.id = :userId
+            """)
+    void touchLastSeenWithClient(@Param("userId") UUID userId,
+                                 @Param("seenAt") java.time.Instant seenAt,
+                                 @Param("userAgent") String userAgent,
+                                 @Param("appVersion") String appVersion);
 
     long countByRoleAndStatus(UserRole role, UserStatus status);
 

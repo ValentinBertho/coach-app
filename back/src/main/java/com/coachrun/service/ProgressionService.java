@@ -15,6 +15,7 @@ import com.coachrun.entity.PpExercise;
 import com.coachrun.entity.ScheduledStrengthSession;
 import com.coachrun.entity.StrengthResult;
 import com.coachrun.entity.enums.ExerciseCategory;
+import com.coachrun.entity.enums.VolumeType;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.PpExerciseRepository;
@@ -42,6 +43,8 @@ import java.util.UUID;
 public class ProgressionService {
 
     private final ScheduledStrengthSessionRepository scheduledRepository;
+
+    private final ClockService clock;
     private final StrengthResultRepository resultRepository;
     private final PpExerciseRepository exerciseRepository;
     private final AthleteRepository athleteRepository;
@@ -69,7 +72,7 @@ public class ProgressionService {
         List<AlertResponse> out = new ArrayList<>();
         for (ScheduledStrengthSession s : scheduledRepository
                 .findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
-                        athleteId, since, LocalDate.now())) {
+                        athleteId, since, clock.today())) {
             if (!s.isCompleted()) {
                 continue;
             }
@@ -119,7 +122,7 @@ public class ProgressionService {
             boolean isReath = exercise != null && exercise.getCategory() == ExerciseCategory.REATHLETISATION;
 
             StrengthPrescription p = prescriptions.get(exerciseId);
-            int targetReps = p != null && p.repsFixed() != null ? p.repsFixed() : Integer.MAX_VALUE;
+            int targetReps = targetReps(p);
             Integer targetRir = p != null ? p.rirMin() : null;
             double currentCharge = currentChargeByExercise.getOrDefault(exerciseId, 0.0);
             Double reference = prescribedCharge(scheduled, exerciseId);
@@ -133,6 +136,22 @@ public class ProgressionService {
         }
 
         return new ProgressionResponse(scheduled.getId(), progressions, alerts);
+    }
+
+    /**
+     * Répétitions à atteindre pour que la charge monte : la valeur exacte prescrite, ou le
+     * <b>haut</b> de la fourchette quand elle en est une — « 8 à 10 » se progresse à 10, pas à 8.
+     *
+     * <p>{@code MAX_VALUE} = jamais atteint, donc jamais de suggestion de montée : c'est le cas
+     * d'un exercice prescrit en durée ou en distance, où les répétitions ne veulent rien dire, et
+     * d'un exercice sans volume prescrit du tout.</p>
+     */
+    private int targetReps(StrengthPrescription p) {
+        if (p == null || p.effectiveVolumeType() != VolumeType.REPS) {
+            return Integer.MAX_VALUE;
+        }
+        Integer target = p.repsFixed() != null ? p.repsFixed() : p.repsMax();
+        return target == null ? Integer.MAX_VALUE : target;
     }
 
     /**
@@ -165,8 +184,11 @@ public class ProgressionService {
                     }
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             // Charges calculées illisibles : pas de référence, l'alerte de charge ne se déclenche pas.
+            com.coachrun.util.SwallowedError.report(ProgressionService.class,
+                    "charges calculées illisibles pour la séance de force " + scheduled.getId()
+                            + ", alerte de charge désactivée", e);
         }
         return null;
     }
@@ -185,8 +207,10 @@ public class ProgressionService {
                     }
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             // Snapshot illisible : pas de prescription cible, suggestion/alertes dégradées.
+            com.coachrun.util.SwallowedError.report(ProgressionService.class,
+                    "prescription d'une séance de force illisible, suggestions et alertes dégradées", e);
         }
         return map;
     }

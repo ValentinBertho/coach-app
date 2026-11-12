@@ -12,6 +12,7 @@ public record StrengthResultRequest(
         BigDecimal chargeKg,
         Integer repsDone,
         Integer durationSecDone,
+        Integer distanceMDone,
         BigDecimal rpeDone,
         Integer rirDone,
         Integer pain,

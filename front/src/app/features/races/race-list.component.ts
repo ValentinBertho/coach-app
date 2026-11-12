@@ -1,5 +1,12 @@
-import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import { DatePipe, DecimalPipe } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { RaceObjective } from '../../core/models/race.model';
@@ -14,9 +21,14 @@ import { PlanPreview, PlanWeek } from '../../core/models/decision.model';
 
 @Component({
   selector: 'app-race-list',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [SkeletonComponent, FormsModule, RouterLink, DatePipe, SidePanelComponent],
+  imports: [DecimalPipe, 
+    SkeletonComponent,
+    FormsModule,
+    RouterLink,
+    DatePipe,
+    SidePanelComponent,
+  ],
   templateUrl: './race-list.component.html',
   styleUrl: './race-list.component.scss',
 })
@@ -34,7 +46,8 @@ export class RaceListComponent implements OnInit {
    * ne pense un marathon en « 42195 m » ni un objectif en « 10800 s ».
    */
   draft = {
-    name: '', raceDate: '',
+    name: '',
+    raceDate: '',
     km: null as number | null,
     targetTime: '',
     priority: 'B' as 'A' | 'B' | 'C',
@@ -101,18 +114,25 @@ export class RaceListComponent implements OnInit {
           this.planOpen.set(false);
           this.toast.success(
             `${p.createdSessions} séance(s) posée(s)` +
-              (p.skippedWeeks ? `, ${p.skippedWeeks} semaine(s) laissée(s) vide(s)` : ''));
+              (p.skippedWeeks
+                ? `, ${p.skippedWeeks} semaine(s) laissée(s) vide(s)`
+                : ''),
+          );
         },
         error: () => {
           this.planBusy.set(false);
-          this.toast.error('La semaine de référence est vide : construis-la d\'abord.');
+          this.toast.error(
+            "La semaine de référence est vide : construis-la d'abord.",
+          );
         },
       });
   }
 
   /** Barre proportionnelle au volume, plafonnée pour rester lisible sur un panneau étroit. */
   barWidth(w: PlanWeek): number {
-    return w.skipped ? 0 : Math.min(100, Math.round((w.volumeFactor / 1.6) * 100));
+    return w.skipped
+      ? 0
+      : Math.min(100, Math.round((w.volumeFactor / 1.6) * 100));
   }
 
   factorLabel(w: PlanWeek): string {
@@ -140,18 +160,22 @@ export class RaceListComponent implements OnInit {
       return;
     }
     this.resultBusy.set(true);
-    this.decisions.recordRaceResult(this.athleteId(), race.id, seconds).subscribe({
-      next: () => {
-        this.resultBusy.set(false);
-        this.resultOpen.set(false);
-        this.toast.success('Chrono enregistré — VDOT, allures et zones mis à jour.');
-        this.load();
-      },
-      error: () => {
-        this.resultBusy.set(false);
-        this.toast.error('Enregistrement impossible.');
-      },
-    });
+    this.decisions
+      .recordRaceResult(this.athleteId(), race.id, seconds)
+      .subscribe({
+        next: () => {
+          this.resultBusy.set(false);
+          this.resultOpen.set(false);
+          this.toast.success(
+            'Chrono enregistré — VDOT, allures et zones mis à jour.',
+          );
+          this.load();
+        },
+        error: () => {
+          this.resultBusy.set(false);
+          this.toast.error('Enregistrement impossible.');
+        },
+      });
   }
 
   ngOnInit(): void {
@@ -161,7 +185,10 @@ export class RaceListComponent implements OnInit {
   load(): void {
     this.loading.set(true);
     this.raceService.list(this.athleteId()).subscribe({
-      next: (r) => { this.races.set(r); this.loading.set(false); },
+      next: (r) => {
+        this.races.set(r);
+        this.loading.set(false);
+      },
       error: () => this.loading.set(false),
     });
   }
@@ -176,17 +203,26 @@ export class RaceListComponent implements OnInit {
       this.toast.warning('Chrono visé invalide — attendu hh:mm:ss (ou mm:ss).');
       return;
     }
-    this.raceService.create(this.athleteId(), {
-      name: this.draft.name,
-      raceDate: this.draft.raceDate,
-      distanceM: this.draft.km != null ? Math.round(this.draft.km * 1000) : null,
-      targetTimeS,
-      priority: this.draft.priority,
-    }).subscribe(() => {
-      this.toast.success('Objectif ajouté');
-      this.draft = { name: '', raceDate: '', km: null, targetTime: '', priority: 'B' };
-      this.load();
-    });
+    this.raceService
+      .create(this.athleteId(), {
+        name: this.draft.name,
+        raceDate: this.draft.raceDate,
+        distanceM:
+          this.draft.km != null ? Math.round(this.draft.km * 1000) : null,
+        targetTimeS,
+        priority: this.draft.priority,
+      })
+      .subscribe(() => {
+        this.toast.success('Objectif ajouté');
+        this.draft = {
+          name: '',
+          raceDate: '',
+          km: null,
+          targetTime: '',
+          priority: 'B',
+        };
+        this.load();
+      });
   }
 
   /** « hh:mm:ss », « mm:ss » ou un nombre de minutes → secondes ; null si inexploitable. */
@@ -196,25 +232,42 @@ export class RaceListComponent implements OnInit {
 
   async remove(r: RaceObjective): Promise<void> {
     const ok = await this.confirm.ask({
-      title: 'Supprimer l’objectif', message: `Supprimer « ${r.name} » ?`, confirmLabel: 'Supprimer', danger: true,
+      title: 'Supprimer l’objectif',
+      message: `Supprimer « ${r.name} » ?`,
+      confirmLabel: 'Supprimer',
+      danger: true,
     });
     if (!ok) return;
-    this.raceService.delete(this.athleteId(), r.id).subscribe(() => { this.toast.success('Supprimé.'); this.load(); });
+    this.raceService.delete(this.athleteId(), r.id).subscribe(() => {
+      this.toast.success('Supprimé.');
+      this.load();
+    });
   }
 
   countdown(r: RaceObjective): string {
-    return r.daysUntil > 0 ? `J-${r.daysUntil}` : r.daysUntil === 0 ? "Jour J" : 'passée';
+    return r.daysUntil > 0
+      ? `J-${r.daysUntil}`
+      : r.daysUntil === 0
+        ? 'Jour J'
+        : 'passée';
   }
 
   priorityClass(p: string): string {
-    return { A: 'badge-danger', B: 'badge-info', C: 'badge-neutral' }[p] ?? 'badge-neutral';
+    return (
+      { A: 'badge-danger', B: 'badge-info', C: 'badge-neutral' }[p] ??
+      'badge-neutral'
+    );
   }
   priorityLabel(p: string): string {
-    return { A: 'A — majeur', B: 'B — intermédiaire', C: 'C — préparation' }[p] ?? p;
+    return (
+      { A: 'A — majeur', B: 'B — intermédiaire', C: 'C — préparation' }[p] ?? p
+    );
   }
 
   statusLabel(s: string): string {
-    return { UPCOMING: 'À venir', DONE: 'Courue', CANCELLED: 'Annulée' }[s] ?? s;
+    return (
+      { UPCOMING: 'À venir', DONE: 'Courue', CANCELLED: 'Annulée' }[s] ?? s
+    );
   }
 
   /** Chrono visé formaté h:mm:ss ou m:ss. */

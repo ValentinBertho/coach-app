@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -14,7 +21,6 @@ type State = 'loading' | 'ok' | 'invalid';
  */
 @Component({
   selector: 'app-reset-password',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, RouterLink, LogoComponent],
   template: `
@@ -26,26 +32,50 @@ type State = 'loading' | 'ok' | 'invalid';
         </header>
 
         @switch (state()) {
-          @case ('loading') { <p class="field-hint">Vérification du lien…</p> }
+          @case ('loading') {
+            <p class="field-hint">Vérification du lien…</p>
+          }
           @case ('invalid') {
-            <p class="field-hint">Ce lien de réinitialisation est invalide ou expiré.</p>
-            <a class="btn btn-primary btn-lg" routerLink="/forgot-password">Demander un nouveau lien</a>
+            <p class="field-hint">
+              Ce lien de réinitialisation est invalide ou expiré.
+            </p>
+            <a class="btn btn-primary btn-lg" routerLink="/forgot-password"
+              >Demander un nouveau lien</a
+            >
           }
           @case ('ok') {
-            <p class="field-hint">Choisis un nouveau mot de passe pour ton compte.</p>
+            <p class="field-hint">
+              Choisis un nouveau mot de passe pour ton compte.
+            </p>
             <div class="form-group">
               <label for="password">Mot de passe</label>
-              <input id="password" type="password" class="form-control" formControlName="password"
-                     autocomplete="new-password" placeholder="8 caractères minimum" />
-              @if (form.controls.password.touched && form.controls.password.invalid) {
-                <span class="error-message">8 caractères minimum.</span>
+              <input
+                id="password"
+                type="password"
+                class="form-control"
+                formControlName="password"
+                autocomplete="new-password"
+                placeholder="12 caractères minimum"
+              />
+              @if (
+                form.controls.password.touched && form.controls.password.invalid
+              ) {
+                <span class="error-message">12 caractères minimum.</span>
               }
             </div>
             @if (errorMessage(); as message) {
               <p class="auth-error" role="alert">{{ message }}</p>
             }
-            <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
-              {{ submitting() ? 'Enregistrement…' : 'Réinitialiser et se connecter' }}
+            <button
+              type="submit"
+              class="btn btn-primary btn-lg"
+              [disabled]="submitting()"
+            >
+              {{
+                submitting()
+                  ? 'Enregistrement…'
+                  : 'Réinitialiser et se connecter'
+              }}
             </button>
           }
         }
@@ -67,7 +97,7 @@ export class ResetPasswordComponent implements OnInit {
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
-    password: ['', [Validators.required, Validators.minLength(8)]],
+    password: ['', [Validators.required, Validators.minLength(12)]],
   });
 
   ngOnInit(): void {
@@ -84,25 +114,40 @@ export class ResetPasswordComponent implements OnInit {
     }
     this.submitting.set(true);
     this.errorMessage.set(null);
-    this.auth.resetPassword(this.token(), this.form.getRawValue().password).subscribe({
-      next: (res) => {
-        this.toast.success('Mot de passe mis à jour');
-        this.router.navigateByUrl(this.homeFor(res.user.role));
-      },
-      error: (err) => {
-        this.submitting.set(false);
-        // Un 404 signifie bien « lien périmé » ; un 429 ou un 400 racontent autre chose, et
-        // renvoyer l'utilisateur vers « demander un nouveau lien » l'enverrait dans le mur.
-        if (err?.status === 404) {
-          this.state.set('invalid');
-          return;
-        }
-        this.errorMessage.set(authErrorMessage(err));
-      },
-    });
+    this.auth
+      .resetPassword(this.token(), this.form.getRawValue().password)
+      .subscribe({
+        next: (res) => {
+          if (res.mfa) {
+            // Compte administrateur : le nouveau mot de passe ne suffit pas, le code est demandé
+            // à la connexion.
+            this.toast.success(
+              'Mot de passe mis à jour. Connecte-toi avec ton code de double authentification.',
+            );
+            this.router.navigateByUrl('/login');
+            return;
+          }
+          this.toast.success('Mot de passe mis à jour');
+          this.router.navigateByUrl(this.homeFor(res.user.role));
+        },
+        error: (err) => {
+          this.submitting.set(false);
+          // Un 404 signifie bien « lien périmé » ; un 429 ou un 400 racontent autre chose, et
+          // renvoyer l'utilisateur vers « demander un nouveau lien » l'enverrait dans le mur.
+          if (err?.status === 404) {
+            this.state.set('invalid');
+            return;
+          }
+          this.errorMessage.set(authErrorMessage(err));
+        },
+      });
   }
 
   private homeFor(role: string): string {
-    return role === 'PLATFORM_ADMIN' ? '/admin' : role === 'ATHLETE' ? '/athlete/today' : '/app';
+    return role === 'PLATFORM_ADMIN'
+      ? '/admin'
+      : role === 'ATHLETE'
+        ? '/athlete/today'
+        : '/app';
   }
 }

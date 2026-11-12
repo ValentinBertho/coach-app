@@ -1,8 +1,19 @@
+import { frNumber } from '../../../core/utils/number-format';
 import {
-  ChangeDetectionStrategy, Component, ElementRef, computed, effect, inject, input, signal,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
   viewChild,
 } from '@angular/core';
-import { ActivityStream, ActivityStreamPoint } from '../../../core/models/activity.model';
+import {
+  ActivityStream,
+  ActivityStreamPoint,
+} from '../../../core/models/activity.model';
 import { ActivityService } from '../../../core/services/activity.service';
 import { AthletePortalService } from '../../../core/services/athlete-portal.service';
 import { formatPace } from '../../../core/utils/pace';
@@ -57,7 +68,6 @@ const PAD_B = 18;
  */
 @Component({
   selector: 'app-activity-chart',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
@@ -65,42 +75,76 @@ const PAD_B = 18;
       <div class="ch-skel"></div>
     } @else if (!points().length) {
       <p class="field-hint ch-empty">
-        Pas de courbe pour cette sortie — il y faut un enregistrement de montre (FC ou allure
-        seconde par seconde), qu'une saisie manuelle n'a pas.
+        Pas de courbe pour cette sortie — il y faut un enregistrement de montre
+        (FC ou allure seconde par seconde), qu'une saisie manuelle n'a pas.
       </p>
     } @else {
       <div class="ch">
         <div class="ch-hd">
-          <span class="ch-title"><app-icon name="line-chart" [size]="14" /> Graphique</span>
+          <span class="ch-title"
+            ><app-icon name="line-chart" [size]="14" /> Graphique</span
+          >
           <div class="ch-legend">
             @if (hr(); as h) {
-              <button type="button" class="ch-key ch-key--hr" [class.is-off]="!showHr()"
-                      (click)="showHr.set(!showHr())">
+              <button
+                type="button"
+                class="ch-key ch-key--hr"
+                [class.is-off]="!showHr()"
+                (click)="showHr.set(!showHr())"
+              >
                 FC <span class="metric">{{ h.min }}–{{ h.max }}</span> bpm
               </button>
             }
             @if (pace(); as p) {
-              <button type="button" class="ch-key ch-key--pace" [class.is-off]="!showPace()"
-                      (click)="showPace.set(!showPace())">
-                Allure <span class="metric">{{ paceLabel(p.min) }}–{{ paceLabel(p.max) }}</span>
+              <button
+                type="button"
+                class="ch-key ch-key--pace"
+                [class.is-off]="!showPace()"
+                (click)="showPace.set(!showPace())"
+              >
+                Allure
+                <span class="metric"
+                  >{{ paceLabel(p.min) }}–{{ paceLabel(p.max) }}</span
+                >
               </button>
             }
           </div>
         </div>
 
-        <svg #svg [attr.viewBox]="'0 0 ' + viewW + ' ' + viewH" preserveAspectRatio="none"
-             role="img" [attr.aria-label]="ariaLabel()"
-             class="ch-svg" [class.is-brushing]="brushing()"
-             (pointerdown)="onBrushStart($event)" (pointermove)="onBrushMove($event)"
-             (pointerup)="onBrushEnd($event)" (pointercancel)="onBrushEnd($event)">
+        <svg
+          #svg
+          [attr.viewBox]="'0 0 ' + viewW + ' ' + viewH"
+          preserveAspectRatio="none"
+          role="img"
+          [attr.aria-label]="ariaLabel()"
+          class="ch-svg"
+          [class.is-brushing]="brushing()"
+          (pointerdown)="onBrushStart($event)"
+          (pointermove)="onBrushMove($event)"
+          (pointerup)="onBrushEnd($event)"
+          (pointercancel)="onBrushEnd($event)"
+        >
           <!-- Graduations kilométriques : sans elles, un pic « vers le milieu » ne se rattache à
                aucun moment de la séance. -->
           @for (t of ticks(); track t.x) {
-            <line class="ch-grid" [attr.x1]="t.x" [attr.x2]="t.x" [attr.y1]="padT" [attr.y2]="viewH - padB" />
-            <text class="ch-tick" [attr.x]="t.x" [attr.y]="viewH - 5">{{ t.label }}</text>
+            <line
+              class="ch-grid"
+              [attr.x1]="t.x"
+              [attr.x2]="t.x"
+              [attr.y1]="padT"
+              [attr.y2]="viewH - padB"
+            />
+            <text class="ch-tick" [attr.x]="t.x" [attr.y]="viewH - 5">
+              {{ t.label }}
+            </text>
           }
-          <line class="ch-axis" [attr.x1]="padL" [attr.x2]="viewW - padR"
-                [attr.y1]="viewH - padB" [attr.y2]="viewH - padB" />
+          <line
+            class="ch-axis"
+            [attr.x1]="padL"
+            [attr.x2]="viewW - padR"
+            [attr.y1]="viewH - padB"
+            [attr.y2]="viewH - padB"
+          />
 
           @if (showPace() && pace(); as p) {
             <path class="ch-line ch-line--pace" [attr.d]="p.path" />
@@ -112,18 +156,37 @@ const PAD_B = 18;
           <!-- Portion sélectionnée : un voile plutôt qu'un cadre, pour que la courbe reste
                lisible dessous — c'est elle qu'on regarde, la sélection ne fait que la borner. -->
           @if (brush(); as b) {
-            <rect class="ch-brush" [attr.x]="b.x1" [attr.width]="b.x2 - b.x1"
-                  [attr.y]="padT" [attr.height]="viewH - padT - padB" />
-            <line class="ch-brush-edge" [attr.x1]="b.x1" [attr.x2]="b.x1"
-                  [attr.y1]="padT" [attr.y2]="viewH - padB" />
-            <line class="ch-brush-edge" [attr.x1]="b.x2" [attr.x2]="b.x2"
-                  [attr.y1]="padT" [attr.y2]="viewH - padB" />
+            <rect
+              class="ch-brush"
+              [attr.x]="b.x1"
+              [attr.width]="b.x2 - b.x1"
+              [attr.y]="padT"
+              [attr.height]="viewH - padT - padB"
+            />
+            <line
+              class="ch-brush-edge"
+              [attr.x1]="b.x1"
+              [attr.x2]="b.x1"
+              [attr.y1]="padT"
+              [attr.y2]="viewH - padB"
+            />
+            <line
+              class="ch-brush-edge"
+              [attr.x1]="b.x2"
+              [attr.x2]="b.x2"
+              [attr.y1]="padT"
+              [attr.y2]="viewH - padB"
+            />
           }
 
           <!-- Bornes de l'axe FC, à gauche : une courbe sans échelle ne se compare à rien. -->
           @if (showHr() && hr(); as h) {
-            <text class="ch-ax-lb" [attr.x]="4" [attr.y]="padT + 8">{{ h.max }}</text>
-            <text class="ch-ax-lb" [attr.x]="4" [attr.y]="viewH - padB - 2">{{ h.min }}</text>
+            <text class="ch-ax-lb" [attr.x]="4" [attr.y]="padT + 8">
+              {{ h.max }}
+            </text>
+            <text class="ch-ax-lb" [attr.x]="4" [attr.y]="viewH - padB - 2">
+              {{ h.min }}
+            </text>
           }
         </svg>
 
@@ -136,13 +199,21 @@ const PAD_B = 18;
           <div class="ch-sel">
             <span class="ch-sel__range metric">{{ rangeLabel() }}</span>
             <span class="ch-sel__vals metric">
-              {{ kmLabel(st.distanceM) }}<small>km</small>
-              · {{ durationLabel(st.durationS) }}
-              @if (st.paceSPerKm !== null) { · {{ paceLabel(st.paceSPerKm) }}<small>/km</small> }
-              @if (st.avgHr !== null) { · {{ st.avgHr }}<small>bpm</small> }
+              {{ kmLabel(st.distanceM) }}<small>km</small> ·
+              {{ durationLabel(st.durationS) }}
+              @if (st.paceSPerKm !== null) {
+                · {{ paceLabel(st.paceSPerKm) }}<small>/km</small>
+              }
+              @if (st.avgHr !== null) {
+                · {{ st.avgHr }}<small>bpm</small>
+              }
             </span>
-            <button type="button" class="ch-sel__x" (click)="clearBrush()"
-                    aria-label="Effacer la sélection">
+            <button
+              type="button"
+              class="ch-sel__x"
+              (click)="clearBrush()"
+              aria-label="Effacer la sélection"
+            >
               <app-icon name="x" [size]="14" />
             </button>
           </div>
@@ -154,62 +225,184 @@ const PAD_B = 18;
       </div>
     }
   `,
-  styles: [`
-    .ch { display: flex; flex-direction: column; gap: var(--sp-2); }
-    .ch-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); flex-wrap: wrap; }
-    .ch-title { display: inline-flex; align-items: center; gap: var(--sp-1); font-weight: 700; font-size: var(--text-sm); color: var(--ink); }
-    .ch-legend { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
-    .ch-key {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 2px var(--sp-2); border-radius: var(--radius-full);
-      border: 1px solid var(--hairline); background: var(--paper);
-      font-size: var(--text-xs); font-weight: 700; color: var(--ink-2); cursor: pointer;
-    }
-    .ch-key::before { content: ''; width: 10px; height: 3px; border-radius: 2px; background: currentColor; }
-    .ch-key--hr { color: var(--zone-5); }
-    .ch-key--pace { color: var(--primary); }
-    /* Éteindre une série plutôt que la retirer : la place réservée ne bouge pas sous le doigt. */
-    .ch-key.is-off { color: var(--ink-4); opacity: 0.7; }
+  styles: [
+    `
+      .ch {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+      }
+      .ch-hd {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-2);
+        flex-wrap: wrap;
+      }
+      .ch-title {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-1);
+        font-weight: 700;
+        font-size: var(--text-sm);
+        color: var(--ink);
+      }
+      .ch-legend {
+        display: flex;
+        gap: var(--sp-2);
+        flex-wrap: wrap;
+      }
+      .ch-key {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px var(--sp-2);
+        border-radius: var(--radius-full);
+        border: 1px solid var(--hairline);
+        background: var(--paper);
+        font-size: var(--text-xs);
+        font-weight: 700;
+        color: var(--ink-2);
+        cursor: pointer;
+      }
+      .ch-key::before {
+        content: '';
+        width: 10px;
+        height: 3px;
+        border-radius: 2px;
+        background: currentColor;
+      }
+      .ch-key--hr {
+        color: var(--zone-5);
+      }
+      .ch-key--pace {
+        color: var(--primary);
+      }
+      /* Éteindre une série plutôt que la retirer : la place réservée ne bouge pas sous le doigt. */
+      .ch-key.is-off {
+        color: var(--ink-4);
+        opacity: 0.7;
+      }
 
-    .ch svg { width: 100%; height: 160px; overflow: visible; }
-    .ch-grid { stroke: var(--hairline); stroke-width: 1; }
-    .ch-axis { stroke: var(--hairline); stroke-width: 1; }
-    /* 11 px : le plancher de lisibilité du produit vaut aussi pour les axes d'un graphique. */
-    .ch-tick, .ch-ax-lb { fill: var(--ink-4); font-size: 11px; font-family: var(--font-data); }
-    .ch-tick { text-anchor: middle; }
-    .ch-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-    .ch-line--hr { stroke: var(--zone-5); }
-    .ch-line--pace { stroke: var(--primary); }
+      .ch svg {
+        width: 100%;
+        height: 160px;
+        overflow: visible;
+      }
+      .ch-grid {
+        stroke: var(--hairline);
+        stroke-width: 1;
+      }
+      .ch-axis {
+        stroke: var(--hairline);
+        stroke-width: 1;
+      }
+      /* 11 px : le plancher de lisibilité du produit vaut aussi pour les axes d'un graphique. */
+      .ch-tick,
+      .ch-ax-lb {
+        fill: var(--ink-4);
+        font-size: 11px;
+        font-family: var(--font-data);
+      }
+      .ch-tick {
+        text-anchor: middle;
+      }
+      .ch-line {
+        fill: none;
+        stroke-width: 2;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+        vector-effect: non-scaling-stroke;
+      }
+      .ch-line--hr {
+        stroke: var(--zone-5);
+      }
+      .ch-line--pace {
+        stroke: var(--primary);
+      }
 
-    /* pan-y : le brossage est horizontal, le défilement de la page reste vertical. Sans cela,
+      /* pan-y : le brossage est horizontal, le défilement de la page reste vertical. Sans cela,
        sur mobile, tout glissement sur le graphique ferait défiler la page au lieu de sélectionner
        — ou, avec touch-action: none, la page deviendrait impossible à faire défiler depuis le
        graphique. */
-    .ch-svg { touch-action: pan-y; cursor: crosshair; }
-    .ch-svg.is-brushing { cursor: col-resize; }
-    .ch-brush { fill: var(--primary); opacity: 0.14; }
-    .ch-brush-edge { stroke: var(--primary); stroke-width: 1; vector-effect: non-scaling-stroke; }
+      .ch-svg {
+        touch-action: pan-y;
+        cursor: crosshair;
+      }
+      .ch-svg.is-brushing {
+        cursor: col-resize;
+      }
+      .ch-brush {
+        fill: var(--primary);
+        opacity: 0.14;
+      }
+      .ch-brush-edge {
+        stroke: var(--primary);
+        stroke-width: 1;
+        vector-effect: non-scaling-stroke;
+      }
 
-    .ch-sel {
-      display: flex; align-items: center; gap: var(--sp-2);
-      padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-sm);
-      background: var(--paper-sunk); border: 1px solid var(--hairline);
-      font-size: var(--text-sm);
-    }
-    .ch-sel__range { color: var(--ink-3); flex-shrink: 0; }
-    .ch-sel__vals { color: var(--ink); font-weight: 600; flex: 1; min-width: 0; }
-    .ch-sel__vals small { font-weight: 500; color: var(--ink-3); margin-left: 1px; }
-    .ch-sel__x {
-      display: inline-flex; align-items: center; justify-content: center;
-      min-width: 28px; min-height: 28px; flex-shrink: 0;
-      border: none; background: transparent; color: var(--ink-3); cursor: pointer;
-    }
-    .ch-hint { margin: 0; }
+      .ch-sel {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+        padding: var(--sp-2) var(--sp-3);
+        border-radius: var(--radius-sm);
+        background: var(--paper-sunk);
+        border: 1px solid var(--hairline);
+        font-size: var(--text-sm);
+      }
+      .ch-sel__range {
+        color: var(--ink-3);
+        flex-shrink: 0;
+      }
+      .ch-sel__vals {
+        color: var(--ink);
+        font-weight: 600;
+        flex: 1;
+        min-width: 0;
+      }
+      .ch-sel__vals small {
+        font-weight: 500;
+        color: var(--ink-3);
+        margin-left: 1px;
+      }
+      .ch-sel__x {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        min-height: 28px;
+        flex-shrink: 0;
+        border: none;
+        background: transparent;
+        color: var(--ink-3);
+        cursor: pointer;
+      }
+      .ch-hint {
+        margin: 0;
+      }
 
-    .ch-skel { height: 160px; border-radius: var(--radius-md); background: var(--paper-sunk); animation: ch-pulse 1.2s ease-in-out infinite; }
-    @keyframes ch-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }
-    .ch-empty { margin: 0; }
-  `],
+      .ch-skel {
+        height: 160px;
+        border-radius: var(--radius-md);
+        background: var(--paper-sunk);
+        animation: ch-pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes ch-pulse {
+        0%,
+        100% {
+          opacity: 0.5;
+        }
+        50% {
+          opacity: 0.9;
+        }
+      }
+      .ch-empty {
+        margin: 0;
+      }
+    `,
+  ],
 })
 export class ActivityChartComponent {
   /**
@@ -234,7 +427,9 @@ export class ActivityChartComponent {
   protected readonly padT = PAD_T;
   protected readonly padB = PAD_B;
 
-  readonly points = computed<ActivityStreamPoint[]>(() => this.data()?.points ?? []);
+  readonly points = computed<ActivityStreamPoint[]>(
+    () => this.data()?.points ?? [],
+  );
 
   private readonly svg = viewChild<ElementRef<SVGSVGElement>>('svg');
 
@@ -248,7 +443,11 @@ export class ActivityChartComponent {
   readonly stats = computed<SelectionStats | null>(() => {
     const b = this.brush();
     if (!b) return null;
-    return selectionStats(this.points(), this.distanceAt(b.x1), this.distanceAt(b.x2));
+    return selectionStats(
+      this.points(),
+      this.distanceAt(b.x1),
+      this.distanceAt(b.x2),
+    );
   });
 
   /** « km 2,4 → 5,1 » : où l'on est dans la sortie, pas seulement combien on y a couru. */
@@ -337,11 +536,14 @@ export class ActivityChartComponent {
   }
 
   constructor() {
-    effect(() => {
-      const a = this.athleteId();
-      const id = this.activityId();
-      if (id) this.fetch(a, id);
-    }, { allowSignalWrites: true });
+    effect(
+      () => {
+        const a = this.athleteId();
+        const id = this.activityId();
+        if (id) this.fetch(a, id);
+      },
+      { allowSignalWrites: true },
+    );
   }
 
   private fetch(athleteId: string | null, activityId: string): void {
@@ -350,8 +552,14 @@ export class ActivityChartComponent {
       ? this.activityService.stream(athleteId, activityId)
       : this.portal.activityStream(activityId);
     request.subscribe({
-      next: (d) => { this.data.set(d); this.loading.set(false); },
-      error: () => { this.data.set(null); this.loading.set(false); },
+      next: (d) => {
+        this.data.set(d);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.data.set(null);
+        this.loading.set(false);
+      },
     });
   }
 
@@ -363,9 +571,14 @@ export class ActivityChartComponent {
    * allure rapide, et doit monter sur le graphique. Sans cette inversion, un fractionné se lit
    * à l'envers — les répétitions plongent et les récupérations culminent.
    */
-  readonly pace = computed<Series | null>(() => this.series((p) => p.paceSPerKm, true));
+  readonly pace = computed<Series | null>(() =>
+    this.series((p) => p.paceSPerKm, true),
+  );
 
-  private series(pick: (p: ActivityStreamPoint) => number | null, invert: boolean): Series | null {
+  private series(
+    pick: (p: ActivityStreamPoint) => number | null,
+    invert: boolean,
+  ): Series | null {
     const pts = this.points();
     const values = pts.map(pick).filter((v): v is number => v != null && v > 0);
     if (values.length < 2) return null;
@@ -383,12 +596,13 @@ export class ActivityChartComponent {
     let pen = false;
     for (const p of pts) {
       const v = pick(p);
-      if (v == null || v <= 0) { pen = false; continue; }
+      if (v == null || v <= 0) {
+        pen = false;
+        continue;
+      }
       const x = PAD_L + (Math.min(p.distanceM, total) / total) * width;
       const ratio = (v - min) / span;
-      const y = invert
-        ? PAD_T + ratio * height
-        : PAD_T + (1 - ratio) * height;
+      const y = invert ? PAD_T + ratio * height : PAD_T + (1 - ratio) * height;
       path += `${pen ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)} `;
       pen = true;
     }
@@ -404,7 +618,8 @@ export class ActivityChartComponent {
     const total = this.data()?.totalDistanceM ?? 0;
     if (total < 1000) return [];
     const km = total / 1000;
-    const stepKm = km <= 10 ? Math.max(1, Math.round(km / 5)) : km <= 25 ? 5 : 10;
+    const stepKm =
+      km <= 10 ? Math.max(1, Math.round(km / 5)) : km <= 25 ? 5 : 10;
     const width = VIEW_W - PAD_L - PAD_R;
     const out: Tick[] = [];
     for (let d = stepKm; d <= km; d += stepKm) {
@@ -422,9 +637,15 @@ export class ActivityChartComponent {
     const parts: string[] = [];
     const h = this.hr();
     const p = this.pace();
-    if (h) parts.push(`fréquence cardiaque de ${h.min} à ${h.max} battements par minute`);
-    if (p) parts.push(`allure de ${this.paceLabel(p.min)} à ${this.paceLabel(p.max)} par kilomètre`);
-    const km = ((this.data()?.totalDistanceM ?? 0) / 1000).toFixed(1);
+    if (h)
+      parts.push(
+        `fréquence cardiaque de ${h.min} à ${h.max} battements par minute`,
+      );
+    if (p)
+      parts.push(
+        `allure de ${this.paceLabel(p.min)} à ${this.paceLabel(p.max)} par kilomètre`,
+      );
+    const km = frNumber((this.data()?.totalDistanceM ?? 0) / 1000, 1);
     return parts.length
       ? `Courbe sur ${km} km : ${parts.join(', ')}.`
       : 'Courbe de la sortie.';

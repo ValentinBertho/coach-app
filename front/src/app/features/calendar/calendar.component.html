@@ -134,7 +134,7 @@
               Tout sélectionner <kbd class="ctx-kbd">{{ keys('mod','A') }}</kbd>
             </button>
             <button type="button" class="ctx-item" (click)="pasteOn(hoveredDate()); actionsMenuOpen.set(false)"
-                    [disabled]="clipboard().refs.length === 0">
+                    [disabled]="clipboard().entries.length === 0">
               Coller <kbd class="ctx-kbd">{{ keys('mod','V') }}</kbd>
             </button>
           </div>
@@ -279,7 +279,11 @@
           <h3>Bibliothèque</h3>
           <button type="button" class="icon-btn" (click)="toggleSidebar()" title="Masquer la bibliothèque"><app-icon name="x" [size]="15" /></button>
         </div>
-        <p class="field-hint">Glisse une séance sur la ligne d'un athlète pour la lui planifier.</p>
+        <p class="field-hint">
+          Glisse une séance sur la ligne d'un athlète pour la lui planifier.
+          Clic droit sur une séance déjà posée pour la copier, puis sur une case — ou sur
+          « tout le groupe » — pour la coller.
+        </p>
 
         <app-session-library-panel
           [courseTemplates]="courseTemplates()"
@@ -310,7 +314,8 @@
           <div class="gg-cell gg-cell--all" [class.today]="d.isToday"
                [class.gg-cell--busy]="groupScheduling()"
                cdkDropList (cdkDropListDropped)="onGroupAllDrop($event, d.date)"
-               title="Déposer une séance ici la planifie pour tout le groupe">
+               (contextmenu)="openGroupAllMenu(d.date, $event)"
+               title="Déposer une séance ici la planifie pour tout le groupe — clic droit pour y coller le presse-papier">
             <span class="gg-all-hint">+ tout le groupe</span>
           </div>
         }
@@ -327,12 +332,17 @@
 
           @for (d of weekDates(); track d.date) {
             <div class="gg-cell" [class.today]="d.isToday" [class.weekend]="d.weekend"
-                 cdkDropList (cdkDropListDropped)="onGroupDrop($event, row, d.date)">
+                 [class.gg-cell--hover]="hoveredCell()?.athleteId === row.athleteId && hoveredCell()?.date === d.date"
+                 cdkDropList (cdkDropListDropped)="onGroupDrop($event, row, d.date)"
+                 (mouseenter)="onGroupCellEnter(row, d.date)" (mouseleave)="onGroupCellLeave(row, d.date)"
+                 (contextmenu)="openGroupCellMenu(row, d.date, $event)">
               @for (w of rowWorkouts(row, d.date); track w.id) {
-                <button type="button" class="workout-card gg-chip"
+                <button type="button" class="workout-card gg-chip" data-chip
                         [class.workout-card--key]="typeMeta(w.type).key"
                         [style.--type-color]="typeMeta(w.type).color"
                         cdkDrag [cdkDragData]="w" [cdkDragDisabled]="!row.canWrite"
+                        (cdkDragStarted)="onDragStarted($event)" (cdkDragEnded)="onDragEnded()"
+                        (contextmenu)="openGroupChipMenu(row, w, $event)"
                         (click)="openGroupWorkout(row, w)">
                   <span class="wc-head">
                     <app-icon class="wc-type" [name]="typeMeta(w.type).icon" [size]="12" />
@@ -345,9 +355,11 @@
                 </button>
               }
               @for (s of rowStrength(row, d.date); track s.id) {
-                <div class="strength-chip gg-chip" [class.done]="s.completed"
+                <div class="strength-chip gg-chip" data-chip [class.done]="s.completed"
                      [style.--type-color]="typeMeta('STRENGTH').color"
-                     cdkDrag [cdkDragData]="s" [cdkDragDisabled]="!row.canWrite" [title]="s.title">
+                     cdkDrag [cdkDragData]="s" [cdkDragDisabled]="!row.canWrite"
+                     (cdkDragStarted)="onDragStarted($event)" (cdkDragEnded)="onDragEnded()"
+                     (contextmenu)="openGroupChipMenu(row, s, $event)" [title]="s.title">
                   <app-icon class="sc-icon" name="dumbbell" [size]="12" />
                   <span class="sc-title">{{ s.title }}</span>
                 </div>
@@ -358,6 +370,43 @@
       }
     </div>
     </div>
+
+    <!-- Menu contextuel de la vue groupe : la moitié découvrable du copier-coller.
+         Le geste existait au clavier en mode athlète et nulle part ici — un coach de club en
+         concluait raisonnablement qu'il n'existait pas (« sur les séances de groupe, juste les
+         copier-coller qui sont pas possible »). -->
+    @if (groupMenu(); as gm) {
+      <div class="ctx-backdrop" (click)="closeGroupMenu()" (contextmenu)="$event.preventDefault(); closeGroupMenu()"></div>
+      <div class="ctx-menu" [style.left.px]="gm.x" [style.top.px]="gm.y" (click)="$event.stopPropagation()">
+        <span class="ctx-title">{{ gm.athleteName }} · {{ fmtDate(gm.date) }}</span>
+
+        @if (gm.entry) {
+          <button type="button" class="ctx-item" (click)="ctxGroupCopy()">
+            <app-icon name="copy" [size]="14" /> Copier « {{ gm.title }} »
+            <kbd class="ctx-kbd">{{ keys('mod','C') }}</kbd>
+          </button>
+          <div class="ctx-sep"></div>
+        }
+
+        @if (gm.all) {
+          <button type="button" class="ctx-item" (click)="ctxGroupPasteAll()"
+                  [disabled]="!clipboardLabel()">
+            <app-icon name="users-round" [size]="14" />
+            {{ clipboardLabel() ? 'Coller « ' + clipboardLabel() + ' » pour tout le groupe' : 'Coller pour tout le groupe (presse-papier vide)' }}
+          </button>
+        } @else {
+          <button type="button" class="ctx-item" (click)="ctxGroupPaste()"
+                  [disabled]="!clipboardLabel() || !gm.canWrite">
+            <app-icon name="copy" [size]="14" />
+            {{ clipboardLabel() ? 'Coller « ' + clipboardLabel() + ' » ici' : 'Coller ici (presse-papier vide)' }}
+            <kbd class="ctx-kbd">{{ keys('mod','V') }}</kbd>
+          </button>
+          @if (!gm.canWrite) {
+            <span class="ctx-title ctx-title--note">Lecture seule sur cet athlète.</span>
+          }
+        }
+      </div>
+    }
   }
 } @else if (athletes().length === 0 && !lockedToAthlete()) {
   <div class="card empty-state">
@@ -427,7 +476,7 @@
                même endroit, et aucune des deux à l'endroit où l'œil arrive. La barre reste en
                bas — elle ne dit pas un chiffre, elle compare les jours entre eux. -->
           @if (showPlanned() && day.km > 0) {
-            <span class="day-km metric" [title]="day.km.toFixed(1) + ' km prévus'">{{ day.km.toFixed(0) }} km</span>
+            <span class="day-km metric" [title]="(day.km | number: '1.1-1') + ' km prévus'">{{ day.km | number: '1.0-0' }} km</span>
           }
           @if (day.conflict) {
             <span class="day-flag" title="Charge élevée : plusieurs séances dont une séance clé"><app-icon name="alert-triangle" [size]="11" /> charge</span>
@@ -557,7 +606,7 @@
         </div>
 
         @if (showPlanned() && day.km > 0) {
-          <div class="day-density" [title]="day.km.toFixed(1) + ' km prévus'" aria-hidden="true">
+          <div class="day-density" [title]="(day.km | number: '1.1-1') + ' km prévus'" aria-hidden="true">
             <span class="day-density__bar" [style.width.%]="(day.km / maxDayKm()) * 100"></span>
           </div>
         }
@@ -574,7 +623,7 @@
               <div class="wt-group">
                 @if (showRealized()) { <span class="wt-cap">Prévu</span> }
                 <span class="wt-val metric">{{ fmtDuration(week.durationS) }}</span>
-                <span class="wt-val metric">{{ week.km.toFixed(1) }}<small>km</small></span>
+                <span class="wt-val metric">{{ week.km | number: '1.1-1' }}<small>km</small></span>
                 @if (week.loadUa > 0) {
                   <span class="wt-val metric" title="Charge prévue de la semaine (sRPE)">{{ week.loadUa }}<small>UA</small></span>
                 }
@@ -585,7 +634,7 @@
               <div class="wt-group wt-group--real">
                 @if (showPlanned()) { <span class="wt-cap wt-cap--real">Réalisé</span> }
                 <span class="wt-val metric">{{ fmtDuration(week.realDurationS) }}</span>
-                <span class="wt-val metric">{{ week.realKm.toFixed(1) }}<small>km</small></span>
+                <span class="wt-val metric">{{ week.realKm | number: '1.1-1' }}<small>km</small></span>
                 <span class="wt-lb">{{ week.realSessions }} séance{{ week.realSessions > 1 ? 's' : '' }}</span>
               </div>
             }
@@ -670,10 +719,29 @@
   <div class="ctx-menu" [style.left.px]="m.x" [style.top.px]="m.y" (click)="$event.stopPropagation()">
     <span class="ctx-title">{{ m.session.title }}</span>
     <button type="button" class="ctx-item" (click)="ctxStrengthOpen()"><app-icon name="dumbbell" [size]="14" /> Voir le détail</button>
+    <!-- Modifier le contenu sans créer de séance : le geste qui manquait à la prépa physique. -->
+    @if (!m.session.completed) {
+      <button type="button" class="ctx-item" (click)="editStrength(m.session)">
+        <app-icon name="pencil" [size]="14" /> Modifier le contenu
+      </button>
+    }
+    <button type="button" class="ctx-item" (click)="closeStrengthMenu(); renameStrength(m.session)">
+      <app-icon name="type" [size]="14" /> Renommer
+    </button>
     <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item" (click)="ctxStrengthCopy()">
+      <app-icon name="copy" [size]="14" /> Copier <kbd class="ctx-kbd">{{ keys('mod', 'C') }}</kbd>
+    </button>
     <label class="ctx-field">Déplacer vers
       <input type="date" class="form-control" [ngModel]="strengthCtxDate" (ngModelChange)="ctxStrengthMoveTo($event)" />
     </label>
+    <label class="ctx-field">Copier vers
+      <input type="date" class="form-control" [ngModel]="strengthCopyDate" (ngModelChange)="ctxStrengthCopyTo($event)" />
+    </label>
+    <div class="ctx-sep"></div>
+    <button type="button" class="ctx-item" (click)="closeStrengthMenu(); saveStrengthToLibrary(m.session)">
+      <app-icon name="library" [size]="14" /> Enregistrer comme modèle
+    </button>
     <div class="ctx-sep"></div>
     <button type="button" class="ctx-item danger" (click)="ctxStrengthDelete()"><app-icon name="ban" [size]="14" /> Supprimer</button>
   </div>
@@ -730,7 +798,12 @@
         <div class="sd__fb">
           @if (s.sessionFatigue != null) { <span>Fatigue <strong class="metric">{{ s.sessionFatigue }}/10</strong></span> }
           @if (s.sessionPain != null) { <span>Douleur <strong class="metric">{{ s.sessionPain }}/10</strong></span> }
+          @if (s.sessionRpe != null) { <span>RPE <strong class="metric">{{ s.sessionRpe }}/10</strong></span> }
         </div>
+        <!-- Le retour écrit de l'athlète : la course l'affichait, la prépa physique le jetait. -->
+        @if (s.sessionComment) {
+          <blockquote class="sd__comment">{{ s.sessionComment }}</blockquote>
+        }
       }
 
       @if (strengthRxLoading()) {
@@ -740,7 +813,23 @@
       }
 
       @if (canWriteSelected()) {
-        <div class="sd__actions">
+        <!-- Modifier le contenu de CETTE séance, sans toucher au modèle ni en créer une autre.
+             Une séance déjà faite garde la sienne : la réécrire fausserait le prévu / réalisé. -->
+        <div class="sd__actions sd__actions--split">
+          @if (!s.completed) {
+            <button type="button" class="btn btn-primary btn-sm" (click)="editStrength(s)">
+              <app-icon name="pencil" [size]="15" /> Modifier le contenu
+            </button>
+          }
+          <button type="button" class="btn btn-ghost btn-sm" (click)="renameStrength(s)">
+            <app-icon name="type" [size]="15" /> Renommer
+          </button>
+        </div>
+        <div class="sd__actions sd__actions--split">
+          <button type="button" class="btn btn-ghost btn-sm" (click)="saveStrengthToLibrary(s)"
+                  title="Verser cette séance dans la bibliothèque">
+            <app-icon name="library" [size]="15" /> Enregistrer comme modèle
+          </button>
           <button type="button" class="btn btn-ghost btn-sm" (click)="deleteStrength(s)">
             <app-icon name="ban" [size]="15" /> Supprimer du calendrier
           </button>
@@ -792,14 +881,21 @@
      L'ancien éditeur « par zones » (valeurs sèches) a été retiré au profit du modèle unique DARI Lab. -->
 @if (pickerDate(); as date) {
   <div class="picker-overlay" (click)="closePicker()">
-    <div class="picker" (click)="$event.stopPropagation()">
+    <div class="picker" role="dialog" aria-modal="true" aria-labelledby="picker-title"
+         (click)="$event.stopPropagation()">
       <header class="picker__head">
-        <h3>Planifier une séance — {{ pickerLabel() }}</h3>
+        <h3 id="picker-title">Planifier une séance — {{ pickerLabel() }}</h3>
         <button type="button" class="btn btn-ghost btn-sm" (click)="closePicker()">Fermer</button>
       </header>
       <button type="button" class="picker__item picker__adhoc" (click)="createAdHoc()">
-        <span class="picker__name"><app-icon name="plus" [size]="15" /> Séance vierge (ad hoc)</span>
+        <span class="picker__name"><app-icon name="plus" [size]="15" /> Séance de course vierge</span>
         <span class="picker__type">construire la structure</span>
+      </button>
+      <!-- Le même chemin court pour la prépa physique : construire un modèle de bibliothèque pour
+           une séance improvisée était le détour le plus coûteux du module force. -->
+      <button type="button" class="picker__item picker__adhoc" (click)="createAdHocStrength()">
+        <span class="picker__name"><app-icon name="dumbbell" [size]="15" /> Séance de renforcement vierge</span>
+        <span class="picker__type">blocs et exercices à composer</span>
       </button>
       @if (noteOpen()) {
         <div class="picker__note">

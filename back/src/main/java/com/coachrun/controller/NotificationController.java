@@ -33,7 +33,13 @@ public class NotificationController {
     private final UserNotificationService notificationService;
     private final com.coachrun.service.NotificationStreamService streamService;
 
-    /** Flux temps réel (SSE) du compteur de non-lues. Token via ?access_token= (EventSource). */
+    /**
+     * Flux temps réel (SSE) du compteur de non-lues.
+     *
+     * <p>{@code EventSource} ne sait pas poser d'en-tête : l'authentification passe par un jeton
+     * de flux à usage unique en paramètre {@code stream_token} (cf. {@code StreamTokenService}),
+     * jamais par le jeton de session.</p>
+     */
     @GetMapping("/stream")
     public org.springframework.web.servlet.mvc.method.annotation.SseEmitter stream(
             @AuthenticationPrincipal AuthPrincipal principal) {

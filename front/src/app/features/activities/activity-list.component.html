@@ -55,7 +55,10 @@
         <div class="a-main">
           <span class="badge" [class]="statusBadge[a.status]">{{ statusLabels[a.status] }}</span>
           <div>
-            <div class="a-title">{{ a.title || 'Activité' }} · {{ a.source }}</div>
+            <!-- Le sport, quand la source l'a déclaré : c'est ce qui explique, sans avoir à
+                 l'ouvrir, qu'une sortie à vélo ou une séance de renforcement du même jour ne se
+                 soit pas rattachée à la séance de course prescrite. -->
+            <div class="a-title">{{ a.title || 'Activité' }} · {{ sportLabel(a) || a.source }}</div>
             <div class="field-hint">{{ a.activityDate | date: 'EEE d MMM y' }}</div>
             <!-- Ressenti porté par la sortie elle-même. Sur une sortie hors programme — course,
                  footing improvisé — c'est le seul mot de l'athlète : il n'y a pas de séance

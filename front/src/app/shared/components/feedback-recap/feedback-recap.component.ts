@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+} from '@angular/core';
 import { Injury, injuryLabel } from '../../../core/models/injury.model';
 import { FEEL_COLORS, feelLabel } from '../feel-scale';
 import { rpeLabel } from '../rpe-scale';
@@ -20,7 +25,6 @@ import { IconComponent } from '../icon/icon.component';
  */
 @Component({
   selector: 'app-feedback-recap',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
@@ -29,7 +33,9 @@ import { IconComponent } from '../icon/icon.component';
         <div class="fr-cell">
           <span class="fr-lb">Sensation</span>
           @if (feel() != null) {
-            <span class="fr-v" [style.color]="feelColor()">{{ feelWord() }}</span>
+            <span class="fr-v" [style.color]="feelColor()">{{
+              feelWord()
+            }}</span>
           } @else {
             <span class="fr-none">Pas de réponse</span>
           }
@@ -44,7 +50,9 @@ import { IconComponent } from '../icon/icon.component';
                  une séance prévue à 6 et ressentie à 9 dit quelque chose que ni l'un ni l'autre
                  des deux chiffres ne dit seul. -->
             @if (rpeGap(); as gap) {
-              <span class="fr-gap" [class.fr-gap--over]="gap.over">{{ gap.text }}</span>
+              <span class="fr-gap" [class.fr-gap--over]="gap.over">{{
+                gap.text
+              }}</span>
             }
           } @else {
             <span class="fr-none">Pas de réponse</span>
@@ -73,12 +81,17 @@ import { IconComponent } from '../icon/icon.component';
 
       @if (injuries().length) {
         <div class="fr-inj">
-          <span class="fr-inj-hd"><app-icon name="alert-triangle" [size]="14" /> Blessure déclarée</span>
+          <span class="fr-inj-hd"
+            ><app-icon name="alert-triangle" [size]="14" /> Blessure
+            déclarée</span
+          >
           <ul class="fr-inj-list">
             @for (i of injuries(); track $index) {
               <li>
                 {{ label(i) }}
-                @if (i.note) { <em>« {{ i.note }} »</em> }
+                @if (i.note) {
+                  <em>« {{ i.note }} »</em>
+                }
               </li>
             }
           </ul>
@@ -90,43 +103,102 @@ import { IconComponent } from '../icon/icon.component';
       }
     </div>
   `,
-  styles: [`
-    .fr { display: flex; flex-direction: column; gap: var(--sp-3); }
-    .fr-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); }
-    .fr-cell {
-      display: flex; flex-direction: column; gap: 2px;
-      padding: var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius);
-    }
-    .fr-gap { font-size: var(--text-xs); font-weight: 700; color: var(--ink-3); }
-    /* Au-dessus du prévu : la séance a coûté plus cher qu'annoncé, c'est le cas qui alerte. */
-    .fr-gap--over { color: var(--warning); }
-    .fr-lb { font-size: var(--text-sm); font-weight: 700; color: var(--ink); }
-    .fr-v { font-size: var(--text-lg); font-weight: 800; color: var(--ink); }
-    .fr-v small { font-size: var(--text-sm); color: var(--ink-4); font-weight: 600; }
-    .fr-sub { font-size: var(--text-xs); color: var(--ink-3); }
-    .fr-none { font-size: var(--text-sm); color: var(--ink-3); }
+  styles: [
+    `
+      .fr {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
+      .fr-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--sp-2);
+      }
+      .fr-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: var(--sp-3);
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius);
+      }
+      .fr-gap {
+        font-size: var(--text-xs);
+        font-weight: 700;
+        color: var(--ink-3);
+      }
+      /* Au-dessus du prévu : la séance a coûté plus cher qu'annoncé, c'est le cas qui alerte. */
+      .fr-gap--over {
+        color: var(--warning);
+      }
+      .fr-lb {
+        font-size: var(--text-sm);
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .fr-v {
+        font-size: var(--text-lg);
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .fr-v small {
+        font-size: var(--text-sm);
+        color: var(--ink-4);
+        font-weight: 600;
+      }
+      .fr-sub {
+        font-size: var(--text-xs);
+        color: var(--ink-3);
+      }
+      .fr-none {
+        font-size: var(--text-sm);
+        color: var(--ink-3);
+      }
 
-    .fr-inj {
-      display: flex; flex-direction: column; gap: var(--sp-1);
-      padding: var(--sp-3); border-radius: var(--radius);
-      background: color-mix(in srgb, var(--form-red) 10%, var(--paper));
-      border: 1px solid color-mix(in srgb, var(--form-red) 35%, transparent);
-    }
-    .fr-inj-hd {
-      display: inline-flex; align-items: center; gap: var(--sp-1);
-      font-size: var(--text-xs); font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.04em; color: var(--form-red);
-    }
-    .fr-inj-list { margin: 0; padding-left: var(--sp-4); color: var(--ink); font-size: var(--text-sm); font-weight: 700; }
-    .fr-inj-list em { display: block; font-weight: 500; color: var(--ink-2); }
+      .fr-inj {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-1);
+        padding: var(--sp-3);
+        border-radius: var(--radius);
+        background: color-mix(in srgb, var(--form-red) 10%, var(--paper));
+        border: 1px solid color-mix(in srgb, var(--form-red) 35%, transparent);
+      }
+      .fr-inj-hd {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-1);
+        font-size: var(--text-xs);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--form-red);
+      }
+      .fr-inj-list {
+        margin: 0;
+        padding-left: var(--sp-4);
+        color: var(--ink);
+        font-size: var(--text-sm);
+        font-weight: 700;
+      }
+      .fr-inj-list em {
+        display: block;
+        font-weight: 500;
+        color: var(--ink-2);
+      }
 
-    .fr-comment {
-      margin: 0; padding: var(--sp-3);
-      border-left: 3px solid var(--primary); background: var(--paper-sunk);
-      border-radius: 0 var(--radius) var(--radius) 0;
-      color: var(--ink); font-style: italic;
-    }
-  `],
+      .fr-comment {
+        margin: 0;
+        padding: var(--sp-3);
+        border-left: 3px solid var(--primary);
+        background: var(--paper-sunk);
+        border-radius: 0 var(--radius) var(--radius) 0;
+        color: var(--ink);
+        font-style: italic;
+      }
+    `,
+  ],
 })
 export class FeedbackRecapComponent {
   readonly feel = input<number | null>(null);
@@ -153,18 +225,35 @@ export class FeedbackRecapComponent {
     }
     const delta = actual - target;
     const sign = delta > 0 ? '+' : '−';
-    return { text: `Prévu ${target}/10 · ${sign}${Math.abs(delta)}`, over: delta > 0 };
+    return {
+      text: `Prévu ${target}/10 · ${sign}${Math.abs(delta)}`,
+      over: delta > 0,
+    };
   });
 
   /** Rien de déclaré du tout : l'appelant s'en sert pour afficher son propre message. */
-  readonly empty = computed(() =>
-    this.feel() == null && this.rpe() == null && this.fatigue() == null
-    && this.pain() == null && !this.injuries().length && !this.comment());
+  readonly empty = computed(
+    () =>
+      this.feel() == null &&
+      this.rpe() == null &&
+      this.fatigue() == null &&
+      this.pain() == null &&
+      !this.injuries().length &&
+      !this.comment(),
+  );
 
-  protected feelWord(): string { return capitalize(feelLabel(this.feel())); }
-  protected rpeWord(): string { return rpeLabel(this.rpe()); }
-  protected feelColor(): string { return FEEL_COLORS[this.feel() ?? 0] ?? 'var(--ink)'; }
-  protected label(i: Injury): string { return injuryLabel(i); }
+  protected feelWord(): string {
+    return capitalize(feelLabel(this.feel()));
+  }
+  protected rpeWord(): string {
+    return rpeLabel(this.rpe());
+  }
+  protected feelColor(): string {
+    return FEEL_COLORS[this.feel() ?? 0] ?? 'var(--ink)';
+  }
+  protected label(i: Injury): string {
+    return injuryLabel(i);
+  }
 }
 
 function capitalize(text: string): string {

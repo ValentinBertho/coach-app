@@ -1,0 +1,29 @@
+@if (video(); as v) {
+  <div class="ve" [class.ve--compact]="compact()">
+    @if (playing()) {
+      <div class="ve__frame">
+        <iframe [src]="safeSrc()" [title]="'Démonstration — ' + (title() || v.label)"
+                loading="lazy" referrerpolicy="strict-origin-when-cross-origin"
+                allow="accelerometer; autoplay; encrypted-media; picture-in-picture; fullscreen"
+                allowfullscreen></iframe>
+      </div>
+    } @else {
+      <!-- Vignette locale : pas d'image distante non plus, sans quoi l'hébergeur saurait déjà
+           que l'athlète a ouvert sa séance. -->
+      <button type="button" class="ve__poster" (click)="play()"
+              [attr.aria-label]="'Voir la démonstration de ' + (title() || 'l’exercice')">
+        <span class="ve__play"><app-icon name="play" [size]="compact() ? 16 : 22" /></span>
+        <span class="ve__label">Voir la démonstration</span>
+        <span class="ve__host">{{ v.label }}</span>
+      </button>
+    }
+    <a class="ve__out" [href]="v.watchUrl" target="_blank" rel="noopener noreferrer">
+      Ouvrir sur {{ v.label }} ↗
+    </a>
+  </div>
+} @else if (externalOnly()) {
+  <!-- Hébergeur non reconnu : le lien reste, l'intégration non. -->
+  <a class="ve__out ve__out--alone" [href]="url()" target="_blank" rel="noopener noreferrer">
+    <app-icon name="play" [size]="14" /> Vidéo démo ↗
+  </a>
+}

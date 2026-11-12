@@ -180,9 +180,9 @@
       <div class="form-group">
         <label for="password">Mot de passe</label>
         <input id="password" type="password" class="form-control" formControlName="password"
-               autocomplete="new-password" placeholder="8 caractères minimum" />
+               autocomplete="new-password" placeholder="12 caractères minimum" />
         @if (form.controls.password.touched && form.controls.password.invalid) {
-          <span class="error-message">8 caractères minimum.</span>
+          <span class="error-message">12 caractères minimum.</span>
         }
       </div>
 

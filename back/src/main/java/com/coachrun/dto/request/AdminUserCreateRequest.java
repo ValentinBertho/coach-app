@@ -13,7 +13,7 @@ import java.util.UUID;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AdminUserCreateRequest(
         @NotBlank @Email String email,
-        @NotBlank @Size(min = 8, max = 100) String password,
+        @NotBlank @Size(min = 12, max = 100) String password,
         @NotBlank @Size(max = 120) String fullName,
         @NotNull UserRole role,
         UUID clubId) {

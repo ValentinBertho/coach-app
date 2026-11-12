@@ -1,5 +1,7 @@
 package com.coachrun.service;
 
+import com.coachrun.entity.enums.AdminAuditAction;
+import com.coachrun.entity.enums.AdminAuditTarget;
 import com.coachrun.dto.response.AthleteAccessResponse;
 import com.coachrun.dto.response.AthleteAccessResponse.PermissionEntry;
 import com.coachrun.dto.response.ClubMemberResponse;
@@ -54,6 +56,12 @@ public class ClubMembershipService {
     private final UserRepository userRepository;
     private final ClubRepository clubRepository;
     private final NotificationService notificationService;
+    /**
+     * Journal. Entrer et sortir du club sont les deux gestes qui déplacent un accès : un coach
+     * ajouté voit les athlètes du club, un coach retiré cesse de les voir. Les permissions fines
+     * posées ensuite restent hors du journal — elles se lisent sur la fiche de l'athlète.
+     */
+    private final AdminAuditService audit;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -128,6 +136,10 @@ public class ClubMembershipService {
             log.info("Espace {} : second coach rattaché, le mode indépendant est levé", clubId);
         }
 
+        audit.record(AdminAuditAction.COACH_INVITED, AdminAuditTarget.USER,
+                coach.getId(), coach.getEmail(),
+                "Club « " + club.getName() + " », rôle " + effectiveRole
+                        + (invited ? " — invitation envoyée" : " — compte déjà existant"));
         return new CoachInviteResponse(coach.getId(), coach.getFullName(), effectiveRole, invited, inviteUrl);
     }
 
@@ -184,6 +196,10 @@ public class ClubMembershipService {
         if (coach.getClub() == null || !clubId.equals(coach.getClub().getId())) {
             coach.getAdditionalClubs().removeIf(c -> c.getId().equals(clubId));
         }
+        audit.record(AdminAuditAction.COACH_REMOVED, AdminAuditTarget.USER,
+                coach.getId(), coach.getEmail(),
+                "Club « " + member.getClub().getName() + " », rôle " + member.getClubRole()
+                        + " — accès aux athlètes du club retiré");
     }
 
     public AthleteAccessResponse access(UUID athleteId) {

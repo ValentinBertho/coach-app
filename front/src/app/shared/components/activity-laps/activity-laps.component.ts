@@ -1,5 +1,18 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
-import { ActivityLap, ActivityLaps, LAP_KIND_LABELS, LapKind } from '../../../core/models/activity.model';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
+import {
+  ActivityLap,
+  ActivityLaps,
+  LAP_KIND_LABELS,
+  LapKind,
+} from '../../../core/models/activity.model';
 import { ActivityService } from '../../../core/services/activity.service';
 import { AthletePortalService } from '../../../core/services/athlete-portal.service';
 import { formatPace } from '../../../core/utils/pace';
@@ -31,7 +44,6 @@ interface LapAverages {
  */
 @Component({
   selector: 'app-activity-laps',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
@@ -41,10 +53,15 @@ interface LapAverages {
       <div class="laps">
         <div class="laps-hd">
           <span class="laps-title">
-            <app-icon [name]="isDevice() ? 'timer' : 'footprints'" [size]="14" />
+            <app-icon
+              [name]="isDevice() ? 'timer' : 'footprints'"
+              [size]="14"
+            />
             Sections
           </span>
-          <span class="field-hint">{{ laps().length }} {{ isDevice() ? 'tours' : 'km' }}</span>
+          <span class="field-hint"
+            >{{ laps().length }} {{ isDevice() ? 'tours' : 'km' }}</span
+          >
         </div>
 
         <!-- Onglets uniquement quand la sortie sait produire les deux découpes : un onglet qui
@@ -52,9 +69,16 @@ interface LapAverages {
         @if (kinds().length > 1) {
           <div class="laps-tabs" role="tablist">
             @for (k of kinds(); track k) {
-              <button type="button" class="laps-tab" role="tab"
-                      [class.is-on]="current() === k" [attr.aria-selected]="current() === k"
-                      (click)="switchTo(k)">{{ kindLabels[k] }}</button>
+              <button
+                type="button"
+                class="laps-tab"
+                role="tab"
+                [class.is-on]="current() === k"
+                [attr.aria-selected]="current() === k"
+                (click)="switchTo(k)"
+              >
+                {{ kindLabels[k] }}
+              </button>
             }
           </div>
         }
@@ -74,12 +98,17 @@ interface LapAverages {
                   <span class="lap-bar" aria-hidden="true">
                     <span class="lap-fill" [style.width.%]="barWidth(l)"></span>
                   </span>
-                  <span class="lap-pace metric">{{ paceLabel(l) }}<small>/km</small></span>
+                  <span class="lap-pace metric"
+                    >{{ paceLabel(l) }}<small>/km</small></span
+                  >
                 </span>
                 <span class="lap-meta">
                   <span class="metric">{{ durLabel(l) }}</span>
                   @if (l.avgHr != null) {
-                    <span class="metric"><app-icon name="heart-pulse" [size]="11" /> {{ l.avgHr }}</span>
+                    <span class="metric"
+                      ><app-icon name="heart-pulse" [size]="11" />
+                      {{ l.avgHr }}</span
+                    >
                   }
                   @if (l.avgCadence != null) {
                     <span class="metric">{{ l.avgCadence }} ppm</span>
@@ -98,9 +127,15 @@ interface LapAverages {
           <div class="lap-avg">
             <span class="lap-avg-lb">Moyennes</span>
             <span class="lap-avg-vals metric">
-              @if (avg.paceSPerKm) { {{ paceOf(avg.paceSPerKm) }}<small>/km</small> }
-              @if (avg.avgHr != null) { · {{ avg.avgHr }} bpm }
-              @if (avg.elevationGainM) { · +{{ avg.elevationGainM }} m }
+              @if (avg.paceSPerKm) {
+                {{ paceOf(avg.paceSPerKm) }}<small>/km</small>
+              }
+              @if (avg.avgHr != null) {
+                · {{ avg.avgHr }} bpm
+              }
+              @if (avg.elevationGainM) {
+                · +{{ avg.elevationGainM }} m
+              }
             </span>
           </div>
         }
@@ -110,65 +145,199 @@ interface LapAverages {
             @if (kinds().length > 1) {
               Découpe au kilomètre, calculée depuis le tracé.
             } @else {
-              Ta montre n'a pas découpé cette sortie en tours : voici la découpe au kilomètre,
-              calculée depuis le tracé.
+              Ta montre n'a pas découpé cette sortie en tours : voici la découpe
+              au kilomètre, calculée depuis le tracé.
             }
           </p>
         }
       </div>
     } @else {
       <p class="laps-empty field-hint">
-        Pas de découpage disponible (sortie saisie à la main, ou trop courte pour un kilomètre).
+        Pas de découpage disponible (sortie saisie à la main, ou trop courte
+        pour un kilomètre).
       </p>
     }
   `,
-  styles: [`
-    .laps { display: flex; flex-direction: column; gap: var(--sp-2); }
-    .laps-hd { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
-    .laps-title { display: inline-flex; align-items: center; gap: var(--sp-1); font-weight: 700; font-size: var(--text-sm); color: var(--ink); }
+  styles: [
+    `
+      .laps {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+      }
+      .laps-hd {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--sp-2);
+      }
+      .laps-title {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-1);
+        font-weight: 700;
+        font-size: var(--text-sm);
+        color: var(--ink);
+      }
 
-    .laps-tabs { display: flex; gap: var(--sp-1); border-bottom: 1px solid var(--hairline); }
-    .laps-tab {
-      min-height: 40px; padding: var(--sp-1) var(--sp-3);
-      border: none; border-bottom: 2px solid transparent; background: transparent;
-      color: var(--ink-3); font-size: var(--text-sm); font-weight: 600; cursor: pointer;
-    }
-    .laps-tab.is-on { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+      .laps-tabs {
+        display: flex;
+        gap: var(--sp-1);
+        border-bottom: 1px solid var(--hairline);
+      }
+      .laps-tab {
+        min-height: 40px;
+        padding: var(--sp-1) var(--sp-3);
+        border: none;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--ink-3);
+        font-size: var(--text-sm);
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .laps-tab.is-on {
+        color: var(--primary);
+        border-bottom-color: var(--primary);
+        font-weight: 700;
+      }
 
-    .lap-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
-    .lap {
-      display: flex; align-items: flex-start; gap: var(--sp-2);
-      padding: var(--sp-2) 0; border-top: 1px solid var(--hairline);
-      font-size: var(--text-sm); color: var(--ink-2);
-    }
-    .lap:first-child { border-top: none; }
-    .lap-n { color: var(--ink-4); font-weight: 700; min-width: 16px; text-align: right; line-height: 1.5; }
-    .lap-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-    .lap-top { display: flex; align-items: center; gap: var(--sp-2); }
-    .lap-dist { color: var(--ink-3); min-width: 54px; flex-shrink: 0; }
-    .lap-bar { flex: 1; min-width: 24px; height: 8px; border-radius: var(--radius-full); background: var(--paper-sunk); overflow: hidden; }
-    .lap-fill { display: block; height: 100%; border-radius: var(--radius-full); background: var(--primary); }
-    .lap-pace { font-weight: 800; color: var(--ink); flex-shrink: 0; white-space: nowrap; }
-    .lap-pace small { font-weight: 600; color: var(--ink-4); font-size: var(--text-2xs); }
-    .lap-meta { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); color: var(--ink-3); font-size: var(--text-xs); }
-    .lap-meta span { display: inline-flex; align-items: center; gap: 3px; }
-    /* Le tour le plus rapide se repère sans compter : c'est le repère de lecture d'un fractionné. */
-    .lap--fastest .lap-fill { background: var(--accent); }
-    .lap--fastest .lap-pace { color: var(--accent); }
+      .lap-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .lap {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--sp-2);
+        padding: var(--sp-2) 0;
+        border-top: 1px solid var(--hairline);
+        font-size: var(--text-sm);
+        color: var(--ink-2);
+      }
+      .lap:first-child {
+        border-top: none;
+      }
+      .lap-n {
+        color: var(--ink-4);
+        font-weight: 700;
+        min-width: 16px;
+        text-align: right;
+        line-height: 1.5;
+      }
+      .lap-body {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .lap-top {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-2);
+      }
+      .lap-dist {
+        color: var(--ink-3);
+        min-width: 54px;
+        flex-shrink: 0;
+      }
+      .lap-bar {
+        flex: 1;
+        min-width: 24px;
+        height: 8px;
+        border-radius: var(--radius-full);
+        background: var(--paper-sunk);
+        overflow: hidden;
+      }
+      .lap-fill {
+        display: block;
+        height: 100%;
+        border-radius: var(--radius-full);
+        background: var(--primary);
+      }
+      .lap-pace {
+        font-weight: 800;
+        color: var(--ink);
+        flex-shrink: 0;
+        white-space: nowrap;
+      }
+      .lap-pace small {
+        font-weight: 600;
+        color: var(--ink-4);
+        font-size: var(--text-2xs);
+      }
+      .lap-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-1) var(--sp-3);
+        color: var(--ink-3);
+        font-size: var(--text-xs);
+      }
+      .lap-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+      }
+      /* Le tour le plus rapide se repère sans compter : c'est le repère de lecture d'un fractionné. */
+      .lap--fastest .lap-fill {
+        background: var(--accent);
+      }
+      .lap--fastest .lap-pace {
+        color: var(--accent);
+      }
 
-    .lap-avg {
-      display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2);
-      padding: var(--sp-2) var(--sp-3); border-radius: var(--radius);
-      background: var(--paper-sunk);
-    }
-    .lap-avg-lb { font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); }
-    .lap-avg-vals { font-weight: 800; color: var(--ink); font-size: var(--text-sm); }
-    .lap-avg-vals small { font-weight: 600; color: var(--ink-4); font-size: var(--text-2xs); }
+      .lap-avg {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--sp-2);
+        padding: var(--sp-2) var(--sp-3);
+        border-radius: var(--radius);
+        background: var(--paper-sunk);
+      }
+      .lap-avg-lb {
+        font-size: var(--text-xs);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--ink-3);
+      }
+      .lap-avg-vals {
+        font-weight: 800;
+        color: var(--ink);
+        font-size: var(--text-sm);
+      }
+      .lap-avg-vals small {
+        font-weight: 600;
+        color: var(--ink-4);
+        font-size: var(--text-2xs);
+      }
 
-    .laps-foot, .laps-empty { margin: 0; }
-    .lap-skel { height: 96px; border-radius: var(--radius-md); background: var(--paper-sunk); animation: lap-pulse 1.2s ease-in-out infinite; }
-    @keyframes lap-pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 0.9; } }
-  `],
+      .laps-foot,
+      .laps-empty {
+        margin: 0;
+      }
+      .lap-skel {
+        height: 96px;
+        border-radius: var(--radius-md);
+        background: var(--paper-sunk);
+        animation: lap-pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes lap-pulse {
+        0%,
+        100% {
+          opacity: 0.5;
+        }
+        50% {
+          opacity: 0.9;
+        }
+      }
+    `,
+  ],
 })
 export class ActivityLapsComponent {
   /**
@@ -200,13 +369,17 @@ export class ActivityLapsComponent {
 
   /** Allure du tour le plus rapide (s/km) : origine de l'échelle des barres. */
   readonly fastest = computed(() => {
-    const paces = this.laps().map((l) => l.paceSPerKm).filter((p): p is number => p != null && p > 0);
+    const paces = this.laps()
+      .map((l) => l.paceSPerKm)
+      .filter((p): p is number => p != null && p > 0);
     return paces.length ? Math.min(...paces) : null;
   });
 
   /** Allure du tour le plus lent : borne haute de l'échelle. */
   private readonly slowest = computed(() => {
-    const paces = this.laps().map((l) => l.paceSPerKm).filter((p): p is number => p != null && p > 0);
+    const paces = this.laps()
+      .map((l) => l.paceSPerKm)
+      .filter((p): p is number => p != null && p > 0);
     return paces.length ? Math.max(...paces) : null;
   });
 
@@ -227,25 +400,34 @@ export class ActivityLapsComponent {
     for (const l of laps) {
       if (l.distanceM) distanceM += l.distanceM;
       if (l.durationS) durationS += l.durationS;
-      if (l.avgHr != null) { hrSum += l.avgHr; hrCount++; }
+      if (l.avgHr != null) {
+        hrSum += l.avgHr;
+        hrCount++;
+      }
       if (l.elevationGainM) elevation += l.elevationGainM;
     }
     return {
       distanceM,
       durationS,
-      paceSPerKm: distanceM > 0 && durationS > 0 ? Math.round((durationS * 1000) / distanceM) : null,
+      paceSPerKm:
+        distanceM > 0 && durationS > 0
+          ? Math.round((durationS * 1000) / distanceM)
+          : null,
       avgHr: hrCount ? Math.round(hrSum / hrCount) : null,
       elevationGainM: elevation || null,
     };
   });
 
   constructor() {
-    effect(() => {
-      const a = this.athleteId();
-      const id = this.activityId();
-      const kind = this.requested();
-      if (id) this.fetch(a, id, kind);
-    }, { allowSignalWrites: true });
+    effect(
+      () => {
+        const a = this.athleteId();
+        const id = this.activityId();
+        const kind = this.requested();
+        if (id) this.fetch(a, id, kind);
+      },
+      { allowSignalWrites: true },
+    );
   }
 
   /** Bascule d'onglet : c'est le serveur qui recalcule la découpe, pas l'écran. */
@@ -254,14 +436,24 @@ export class ActivityLapsComponent {
     this.requested.set(kind);
   }
 
-  private fetch(athleteId: string | null, activityId: string, kind: LapKind | null): void {
+  private fetch(
+    athleteId: string | null,
+    activityId: string,
+    kind: LapKind | null,
+  ): void {
     this.loading.set(true);
     const request = athleteId
       ? this.activityService.laps(athleteId, activityId, kind ?? undefined)
       : this.portal.activityLaps(activityId, kind ?? undefined);
     request.subscribe({
-      next: (d) => { this.data.set(d); this.loading.set(false); },
-      error: () => { this.data.set(null); this.loading.set(false); },
+      next: (d) => {
+        this.data.set(d);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.data.set(null);
+        this.loading.set(false);
+      },
     });
   }
 
@@ -282,7 +474,10 @@ export class ActivityLapsComponent {
   distLabel(l: ActivityLap): string {
     if (l.distanceM == null) return '—';
     if (l.distanceM < 1000) return `${l.distanceM} m`;
-    const km = (l.distanceM / 1000).toFixed(2).replace(/\.?0+$/, '').replace('.', ',');
+    const km = (l.distanceM / 1000)
+      .toFixed(2)
+      .replace(/\.?0+$/, '')
+      .replace('.', ',');
     return `${km} km`;
   }
 
@@ -300,7 +495,8 @@ export class ActivityLapsComponent {
     if (s == null || s <= 0) return '—';
     const m = Math.floor(s / 60);
     const sec = s % 60;
-    if (m >= 60) return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
+    if (m >= 60)
+      return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
     return `${m}:${String(sec).padStart(2, '0')}`;
   }
 }

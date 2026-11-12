@@ -87,4 +87,31 @@ describe('prescription-format — volume d’un bloc', () => {
       expect(formatBlockSets({ reps: 8, sets: 2 })).toBe('');
     });
   });
+
+  describe('enchaînements', () => {
+    /**
+     * « 8 × (200 m / 400 m) » — la séance que le coach ne pouvait pas écrire, et qu'il faut
+     * maintenant savoir relire. Les parenthèses sont indispensables : « 8 × 200 m / 400 m » se
+     * lit comme une division.
+     */
+    it('écrit les allures enchaînées entre parenthèses', () => {
+      expect(formatBlockSets({ reps: 8, steps: [{ distanceM: 200 }, { distanceM: 400 }] }))
+        .toBe('8 × (200 m / 400 m)');
+    });
+
+    it('mélange distances et durées comme elles ont été saisies', () => {
+      expect(formatBlockSets({ reps: 6, steps: [{ durationS: 30 }, { distanceM: 400 }] }))
+        .toBe('6 × (30 s / 400 m)');
+    });
+
+    /** Les étapes priment sur le volume du bloc : lui n'en porte plus depuis la conversion. */
+    it('ignore le volume du bloc quand il porte des allures', () => {
+      expect(formatBlockSets({ distanceM: 1000, reps: 4, steps: [{ distanceM: 200 }] }))
+        .toBe('4 × (200 m)');
+    });
+
+    it('laisse un bloc simple exactement comme avant', () => {
+      expect(formatBlockSets({ distanceM: 1000, reps: 6, steps: [] })).toBe('6 × 1 km');
+    });
+  });
 });

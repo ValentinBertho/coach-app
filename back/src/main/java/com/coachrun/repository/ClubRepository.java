@@ -2,6 +2,9 @@ package com.coachrun.repository;
 
 import com.coachrun.entity.Club;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
 
 import java.util.UUID;
 
@@ -42,4 +45,14 @@ public interface ClubRepository extends JpaRepository<Club, UUID> {
             com.coachrun.entity.enums.ClubStatus status,
             @org.springframework.data.repository.query.Param("q") String q,
             org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * Suppression par requête : la base emporte les lignes filles (ON DELETE CASCADE).
+     * Un {@code delete(entity)} échoue sous Hibernate 6.6 dès qu'une entité chargée dans la même
+     * transaction pointe encore vers la ligne supprimée (TransientObjectException). Les
+     * modifications en attente sont écrites avant, et la session est vidée après.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from Club e where e.id = :id")
+    int hardDelete(@Param("id") UUID id);
 }

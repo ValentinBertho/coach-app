@@ -335,6 +335,51 @@ class CoachingRequestFlowTest {
                 .andExpect(status().isForbidden());
     }
 
+    /**
+     * Autorisation croisée (même famille que {@code CrossAthleteAuthorizationTest}) : une demande
+     * adressée à un coach ne se traite que par lui. Un confrère du même espace qui devine son
+     * identifiant ne peut ni l'accepter, ni la refuser, ni y poser sa question — et la réponse
+     * est celle d'une demande inexistante, pour ne rien révéler.
+     */
+    @Test
+    void anotherCoachCannotActOnARequestAddressedToSomeoneElse() throws Exception {
+        String athlete = registerAthlete("nina@exemple.fr");
+        String requestId = submitRequest(athlete);
+        String colleague = bearer(DemoSeedService.COACH_EMAIL);
+
+        mvc.perform(post("/me/received-requests/{id}/accept", requestId)
+                .header("Authorization", colleague)).andExpect(status().isNotFound());
+        mvc.perform(post("/me/received-requests/{id}/decline", requestId)
+                .header("Authorization", colleague)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"note\":\"non\"}"))
+                .andExpect(status().isNotFound());
+        mvc.perform(post("/me/received-requests/{id}/ask", requestId)
+                .header("Authorization", colleague)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"note\":\"Disponible le mardi ?\"}"))
+                .andExpect(status().isNotFound());
+
+        JsonNode mine = json(mvc.perform(get("/me/coaching-requests").header("Authorization", athlete)));
+        assertThat(mine.get(0).get("status").asText()).isEqualTo("PENDING");
+        assertThat(mine.get(0).get("coachQuestion").isNull()).isTrue();
+    }
+
+    /** Seul le coach référent met fin au suivi : un confrère, même autorisé en écriture, non. */
+    @Test
+    void onlyTheReferentCoachCanEndTheCoaching() throws Exception {
+        String athlete = registerAthlete("nina@exemple.fr");
+        acceptRequestFrom(athlete);
+        JsonNode me = json(mvc.perform(get("/me").header("Authorization", athlete)));
+        String clubId = me.get("clubId").asText();
+        String athleteId = me.get("athleteId").asText();
+
+        mvc.perform(post("/clubs/{c}/athletes/{a}/end-relation", clubId, athleteId)
+                        .header("Authorization", bearer(DemoSeedService.COACH_EMAIL)))
+                .andExpect(status().is4xxClientError());
+
+        assertThat(json(mvc.perform(get("/me").header("Authorization", athlete)))
+                .get("athleteId").isNull()).as("le suivi continue").isFalse();
+    }
+
     /** Parti, l'athlète peut solliciter à nouveau : sortir ne doit pas fermer la porte. */
     @Test
     void leavingLetsTheAthleteAskAgain() throws Exception {

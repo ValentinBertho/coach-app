@@ -48,22 +48,36 @@ assistant), et athlète (PWA mobile).
   (échauffement / corps / retour au calme) en **fourchettes** (% LT1/LT2/VC/allures) avec
   **calculateur live** par athlète. Chaque bloc se prescrit **par zone** du club ou, d'un clic, en
   **fourchette de % sur mesure** (« 6 × 1000 à 102–106 % de VC ») quand aucune bande nommée ne
-  convient. Identité (nom, titre, catégorie) éditable dans l'éditeur ;
+  convient. Un bloc peut **enchaîner plusieurs allures dans une même répétition** —
+  « 8 × (200 m / 400 m), 100 m de récup entre chaque » — chacune avec sa cible et sa
+  récupération, là où un bloc ne portait qu'un volume et qu'une allure.
+  Identité (nom, titre, catégorie) éditable dans l'éditeur ;
   volumes saisis dans **l'unité de son choix** (sec / min / h · m / km) ; blocs pré-remplis ;
   **éducatifs de course** (gammes technique/amplitude) attachables aux blocs. Affichage
   **cartes compactes ↔ liste dense** avec recherche et filtre par catégorie.
 - **Calendrier** multi-types (course / force / test / objectif / indispo) avec drag & drop et
   snapshot figé de la prescription. Une séance construite directement dans le calendrier
   s'**enregistre comme nouveau modèle** de bibliothèque en un geste.
-  **Bibliothèque latérale repliable** (semaine pleine largeur) ;
-  les actions d'écriture (planifier, dupliquer la semaine, mésocycle) sont **désactivées sur un
+  **Bibliothèque latérale repliable** (semaine pleine largeur), qui se **trie avant de se lire** :
+  puces de **famille** (course · prépa physique · éducatifs) puis **menu de catégories** — chacun
+  portant son compte, et ne proposant que ce qui rapporterait quelque chose. Une catégorie parente
+  inclut ses sous-catégories, la recherche ignore les accents, et un filtre ou une recherche
+  **ouvre les accordéons repliés** (un résultat caché derrière un repli était le pire des deux
+  mondes). « Tout replier » ramène une grosse bibliothèque à un écran.
+  Les actions d'écriture (planifier, dupliquer la semaine, mésocycle) sont **désactivées sur un
   athlète en lecture seule** (cohérent avec la permission `write`).
+  La **vue groupe** (une ligne par athlète × 7 jours) porte le **même copier-coller** que la vue
+  athlète — clic droit, Ctrl/Cmd+C · V sur la case survolée, Alt + glisser — et le geste que seule
+  elle peut offrir : **coller la même séance pour tout le groupe**. Une séance collée chez un
+  **autre** athlète voit ses cibles **recalculées pour lui** : la structure du coach est reprise,
+  jamais les allures de la personne d'origine.
 - **Zones d'entraînement paramétrables** : le coach nomme ses zones, leurs métriques et leurs
   règles de calcul (ancre + %), et peut entretenir **plusieurs modèles de zones** (route / trail,
   débutant / confirmé…) qu'il applique athlète par athlète ; les cibles se recalculent seules
   quand une valeur de référence change.
 - **Dashboard coach** : tableaux Route/Trail, **pastilles de forme** (fatigue + douleur, jamais RPE),
-  portée mes athlètes / privés / club.
+  portée mes athlètes / privés / club. Les **réponses d'athlètes non lues** y ouvrent la file
+  d'alertes et mènent d'un clic à la séance concernée.
 - **Portail athlète** (PWA, offline-friendly) : ouvre sur un **calendrier mensuel visuel** — une
   case par jour, durée et distance de chaque séance, couleur par type, sortie réalisée
   distinguée du prescrit ; un jour se touche pour son détail. Puis séance du jour **avec cibles en fourchettes**
@@ -71,7 +85,10 @@ assistant), et athlète (PWA mobile).
   de séance (jamais de modification/suppression), **mes activités** (saisie manuelle + import FIT/GPX/TCX),
   **mes objectifs** (CRUD A/B/C) et **connexion de sa montre** (Strava) directement côté athlète.
   L'agenda se lit en **prévu / réalisé / les deux** : les sorties qui n'étaient pas au programme
-  y apparaissent, marquées comme telles. Chaque sortie s'ouvre sur son tracé, son temps en zone
+  y apparaissent, marquées comme telles. Un clic y mène **en un geste** à ce qu'on cherche : une
+  séance déjà faite et une sortie rattachée ouvrent directement la fiche de la séance — prévu,
+  réalisé et écart au même endroit. Une séance encore à faire garde sa feuille du prévu, qui
+  répond au pouce sans quitter l'agenda ; une sortie hors programme reste sur la sienne. Chaque sortie s'ouvre sur son tracé, son temps en zone
   et son **détail tour par tour** — les tours de la montre quand elle en a pris (les répétitions
   d'un fractionné), des splits kilométriques calculés sinon. L'athlète **corrige, note et
   supprime** ses sorties : RPE et mot au coach vivent sur la sortie elle-même, seul endroit
@@ -79,10 +96,48 @@ assistant), et athlète (PWA mobile).
   en lecture seule).
 
 ### Module préparation physique (force)
-- **Bibliothèque d'exercices** (catégories, groupes musculaires, matériel, vidéo, progression/régression).
+- **Bibliothèque d'exercices** (catégories, groupes musculaires, matériel, vidéo, progression/régression)
+  et **bibliothèque de séances rangée en catégories** — course et éducatifs en portaient une, la
+  prépa physique non : ses séances s'empilaient en une liste à plat que ni le panneau du calendrier
+  ni l'écran de bibliothèque ne pouvaient trier. La catégorie se donne à la création, se change
+  d'un menu sur la fiche, suit la duplication, et se propose au moment de verser une séance du
+  calendrier en bibliothèque.
 - **Éditeur de structure de séance** : blocs typés + **formats avancés** (Classique, EMOM, AMRAP,
-  For Time, Circuit, Isométrie, Pliométrie) et **types de série** (drop-set, super-set, myo-reps,
-  cluster, iso) avec prescription complète (charge **et** effort indépendants, tempo, repos).
+  For Time, Circuit, Isométrie, Pliométrie — durée saisie **en minutes**) et **types de série**
+  (drop-set, super-set, myo-reps, cluster, iso) avec prescription complète (charge **et** effort
+  indépendants, tempo, repos). Le volume d'un exercice se compte **en répétitions, en durée ou en
+  distance** — une planche se tient en secondes, un porté du fermier se parcourt en mètres —
+  chacun en **valeur exacte ou en fourchette**, avec la **latéralité** (les deux côtés, alterné
+  gauche/droite, ou par côté), un **repos strict ou en fourchette**, et un **commentaire par
+  exercice** que l'athlète lit au moment de le faire. Le choix des exercices se fait dans un
+  panneau **rangé par catégorie** (celles du coach d'abord, le type d'exercice à défaut) avec
+  recherche, là où une liste déroulante à plat alignait toute la bibliothèque sans ordre.
+  L'athlète saisit son retour **dans l'unité prescrite** (reps, secondes ou mètres).
+- **Composer une séance sans passer par le décor** : une séance vide demande « par quoi
+  commences-tu ? » et propose ses **sections en un clic**
+  (échauffement · activation · principal · accessoires · retour au calme) — le clic qui choisit la
+  section ouvre aussi le choix des exercices. **Chaque section donne ses propres valeurs** aux
+  exercices qu'on y pose — un échauffement ne naît plus à 70–80 % du 1RM, un
+  retour au calme se compte en secondes. Les **séries × répétitions se règlent sur la carte**, au
+  clavier ; le panneau latéral garde le reste (tempo, latéralité, drop-set). Un **bloc ou un
+  exercice se duplique** (« le même circuit, une seconde fois »), et le choix du format (EMOM,
+  AMRAP, Circuit…) attend qu'on le demande au lieu d'être la première question posée.
+- **La démonstration se regarde dans l'application** : lien YouTube / Vimeo reconnu, reconstruit en
+  URL d'intégration (jamais recopié), et lu **au clic seulement** — aucune requête ne part vers
+  l'hébergeur tant que personne ne l'a demandé, et YouTube est appelé sur son domaine sans cookie.
+  Un hébergeur non reconnu reste un lien externe. Côté **athlète**, la séance guidée affiche enfin
+  la vidéo, les **consignes d'exécution** et les **contre-indications** de chaque exercice — elles
+  étaient écrites dans le catalogue depuis toujours et ne sortaient jamais de l'écran du coach.
+- **Une séance de renfo se travaille sur le calendrier**, comme une séance de course : on la pose
+  **vierge sur son jour** (« Séance de renforcement vierge ») sans créer d'abord un modèle de
+  bibliothèque ; on **modifie son contenu directement** — blocs, séries, charges — sans en créer
+  une nouvelle et sans toucher au modèle, qui sert d'autres athlètes ; on la **renomme**, on la
+  **copie-colle** d'un jour, d'un athlète ou d'un groupe à l'autre, et on la **verse en
+  bibliothèque** quand elle mérite d'être gardée. Le copier-coller duplique la séance
+  **affichée** (son snapshot) : une séance adaptée reste adaptée, et une séance construite au
+  calendrier — qui n'a aucun modèle — se copie comme les autres. Chez un **autre** athlète, les
+  charges sont **recalculées avec son 1RM** : la structure du coach voyage, jamais les kilos de
+  quelqu'un d'autre.
 - **Calcul de charge (1RM)** : méthode **Nuzzo** par défaut + Epley / Brzycki / RIR-based,
   zones de travail Lacourpaille.
 - **Tests 1RM** (4 protocoles : 1RM direct, rep-test 3–5, AMRAP, isométrie MVC) → mise à jour
@@ -93,14 +148,37 @@ assistant), et athlète (PWA mobile).
 
 ### Communication & données
 - **Messagerie temps réel** (Server-Sent Events) coach ↔ athlète, avec **pièces jointes** (images / PDF).
+- **Fil de séance** : le commentaire du coach et les réponses qu'il appelle se lisent **sur la
+  séance**, des deux côtés. Ce n'est pas un second canal — ce sont les messages de la messagerie
+  lus par leur rattachement (`Message.workoutId`), si bien que l'échange reste entier dans la
+  boîte de réception. Une réponse d'athlète marque la séance comme **en attente** jusqu'à ce
+  qu'un coach l'ouvre : elle déclenche une notification qui mène à la séance (et non à la
+  messagerie), s'affiche dans les alertes du cockpit et revient dans le digest de 7 h.
+  Le mot du coach, lui, retombe sur l'**e-mail** quand aucun appareil n'est joignable — sans quoi
+  une question posée à quelqu'un sans push n'annonçait rien du tout.
 - **Objectifs A/B/C** (gérables par le coach **et** par l'athlète) et **indisponibilités**
   (blessure / maladie / vacances).
 - **Sync Strava** (OAuth) **initiée par l'athlète** (l'intégration est d'abord côté athlète, CDC §12),
   import automatique des activités avec déduplication ; le coach voit l'état en lecture seule. Import
   fichier **FIT / GPX / TCX** — le FIT est le format natif Garmin et COROS, décodé sans dépendance
-  externe (totaux de la montre, tours et vitesse mesurée compris) — et **saisie manuelle** d'une
-  sortie par l'athlète. La **synchronisation automatique** Garmin / COROS reste à venir : demandes
-  d'accès déposées, l'import FIT en tient lieu en attendant.
+  externe (totaux de la montre, tours, **sport et sous-sport déclarés** et vitesse mesurée
+  compris) — et
+  **saisie manuelle** d'une sortie par l'athlète. La **synchronisation automatique** Garmin / COROS
+  reste à venir : demandes d'accès déposées, l'import FIT en tient lieu en attendant.
+- **Catégorie de la sortie conservée** : la famille (course / vélo / natation / renforcement /
+  marche) sert au rapprochement, mais le **type exact déclaré par la source** est gardé et affiché
+  — « Vélo gravel », « Trail », « Nage en eau libre » plutôt qu'un « Vélo » ou « Course à pied »
+  qui appauvrit. Un type inconnu de l'application s'affiche quand même, mis en forme.
+- **Rapprochement prévu / réalisé** : une sortie importée retrouve la séance qu'elle réalise à
+  partir du **sport** (une séance de renforcement ou une sortie à vélo ne réalisent pas un
+  fractionné de course), de la **date**, du **volume** (distance *et* durée) et de la
+  **ressemblance des titres** — un athlète qui nomme sa sortie « 8*(200/400) » désigne sa séance
+  mieux que n'importe quel chiffre. Sur une journée à plusieurs sorties, la séance revient à la
+  **meilleure** d'entre elles quel que soit l'ordre de synchronisation ; un rapprochement décidé
+  à la main par le coach ou l'athlète n'est jamais défait par un import ultérieur.
+  **Sans preuve, rien n'est rattaché** : la date seule ne rapproche jamais, et une sortie laissée
+  « non rattachée » — qui se corrige d'un geste — vaut mieux qu'une séance déclarée réalisée par
+  la mauvaise sortie, qui fausse silencieusement le prévu/réalisé et la charge.
 - **Export PDF** du programme d'un athlète.
 - Notifications e-mail (Resend) et push (Web Push / VAPID).
 
@@ -133,7 +211,7 @@ unitairement et **source de vérité** (recalcul à la sauvegarde, équivalent d
 |---|---|
 | **Frontend** | Angular 17 (standalone components, signals, control-flow `@if`/`@for`, OnPush), PWA, TypeScript 5.4, Leaflet (cartes) |
 | **Backend** | Spring Boot 3.2.5, Java 21, API REST (~295 endpoints), Springdoc/OpenAPI |
-| **Base de données** | PostgreSQL 18 · **Liquibase** (85 changelogs versionnés, 96 changesets) |
+| **Base de données** | PostgreSQL 18 · **Liquibase** (103 changelogs versionnés, 120 changesets) |
 | **Auth** | JWT (access tokens) + liens magiques d'invitation athlète · `@PreAuthorize` multi-tenant |
 | **Sécurité** | AES-256-GCM (données santé + jetons OAuth chiffrés au repos), CSP, CORS allowlist, rate-limiting |
 | **Intégrations** | Strava (OAuth), import FIT/GPX/TCX (décodeurs maison), e-mail Resend, Web Push (VAPID), export PDF (OpenPDF) |
@@ -198,7 +276,7 @@ L'ordre est géré par Compose, sans intervention :
 Le backend est prêt quand les journaux affichent :
 
 ```
-[seed dev] Jeu de démo prêt — connexion : demo@coachrun.fr / password123
+[seed dev] Jeu de démo prêt — connexion : demo@coachrun.fr / password1234
 Darilab 0.2.0 démarré — profil actif : dev · front : http://localhost:4200
 ```
 
@@ -216,11 +294,14 @@ Darilab 0.2.0 démarré — profil actif : dev · front : http://localhost:4200
 > Le navigateur n'appelle **jamais** le port 8081 : le front est construit avec `apiUrl = '/api'`
 > et nginx relaie vers le backend. Le port 8081 n'existe que pour vos propres appels directs.
 
+> 🐞 **Poser des points d'arrêt** (dans le conteneur, ou depuis IntelliJ / VS Code) :
+> [`docs/DEBUG.md`](./docs/DEBUG.md).
+
 ---
 
 ## Comptes de démonstration
 
-Mot de passe commun : **`password123`**
+Mot de passe commun : **`password1234`**
 
 ### Le club de démonstration
 
@@ -248,6 +329,13 @@ club qu'ils n'ont pas.
 > toute la suite de tests, où des fiches publiées changeraient ce que voit l'annuaire dans chaque
 > classe. Ils apparaissent donc au **démarrage** en profil `dev` — après un `git pull`, il faut
 > relancer le backend pour les voir.
+Le compte **admin** demande en plus un code de double authentification. À la première connexion,
+l'écran affiche un QR code à scanner avec une application d'authentification (ou la clé à saisir à
+la main), puis dix codes de secours. Pour repartir de zéro en local :
+`delete from mfa_credentials; delete from mfa_recovery_codes;`.
+
+Une base de démonstration créée avant le 10/11/2026 garde l'ancien mot de passe `password123` : le
+jeu de démo n'est généré qu'une fois.
 
 > Le jeu de démo est **déterministe** (graine fixe) : profils physio, tests lactate, séances course
 > et force structurées, cycles, tests 1RM, charge, objectifs et indisponibilités. Il est produit par
@@ -448,10 +536,21 @@ cd front && npm run build
 
 - **Chiffrement au repos** des données sensibles (mesures de santé : lactate, douleur… ; jetons OAuth)
   en **AES-256-GCM** avec IV aléatoire par valeur (`EncryptionService` + converters JPA).
-- **JWT** stateless, TTL court, en-tête `Authorization: Bearer`.
+- **JWT** stateless, TTL court, en-tête `Authorization: Bearer` — **et jamais dans une URL**.
+- **Jetons de flux** (`StreamTokenService`) pour les deux seules requêtes qui ne peuvent pas porter
+  d'en-tête : l'ouverture d'un `EventSource` et celle d'une pièce jointe dans un onglet. Le client
+  les demande sur `POST /auth/stream-token` (avec l'en-tête, donc), juste avant l'usage ; ils valent
+  **une minute, un seul usage, une seule portée** (`STREAM` ou `ATTACHMENT`) et n'ouvrent aucune
+  autre route ni aucune écriture. Ils remplacent le `?access_token=<JWT>` d'avant, qui déposait une
+  session d'une heure dans les journaux d'accès du relais, l'historique de navigation et le
+  `Referer`. Les vignettes de pièces jointes, elles, sont chargées par le code applicatif avec
+  l'en-tête : leur URL ne porte plus rien du tout.
 - **Garde-fou au démarrage** (`StartupSecretsValidator`) : l'application **refuse de démarrer en prod**
   si `JWT_SECRET` ou `FIELD_ENCRYPTION_KEY` sont laissés à leurs valeurs par défaut.
-- **En-têtes** : Content-Security-Policy, `frame-options: deny`, `object-src 'none'`.
+- **En-têtes** : Content-Security-Policy, `frame-options: deny`, `object-src 'none'`. La CSP du
+  front n'ouvre `frame-src` qu'aux **deux domaines de lecture vidéo** (YouTube sans cookie, Vimeo),
+  et le lecteur n'est monté qu'au clic de l'athlète : une séance ouverte ne déclenche aucune
+  requête tierce.
 - **CORS** restreint à une allowlist · **rate-limiting** par fenêtre fixe.
 - **Anti-IDOR** : toute route club passe par `@clubAccessValidator` (privé / club / permissions).
 - **Traçabilité de l'administration** : toute mutation `/admin/**` est consignée dans
@@ -497,6 +596,26 @@ Toutes confirmées, toutes journalisées. Aucune ne demande d'accès à la base.
 | Renvoyer une invitation athlète | Régénère le lien (14 j) et l'envoie ; le lien est aussi rendu à l'écran pour un athlète sans adresse connue. |
 | Voir en tant que | Session au nom d'un coach ou d'un athlète, sans rafraîchissement, jamais sur un compte d'administration. |
 
+### Fiche d'un compte : comment il utilise l'application
+
+La fiche disait **qui** était le compte et **ce qu'on lui avait fait**. Elle ne disait rien de son
+usage — or c'est ce qui décide de la réponse à un ticket. Quatre blocs :
+
+| Bloc | Ce qu'on y lit |
+|---|---|
+| **Avec quoi** | Mobile / Tablette / Ordinateur, système et navigateur, dérivés du dernier `User-Agent` vu. Et la **version du front qu'il fait tourner**, comparée à celle que sert le serveur : le service worker peut laisser un téléphone des jours en arrière, et c'est la première chose à vérifier sur un « ça ne marche pas ». |
+| **Ce qui peut l'atteindre** | **Joignable ou non** — la seule question qui compte, et elle ne se déduit d'aucun champ isolé : il faut un appareil abonné *et* la préférence active. Plus le détail : préférences push/e-mail, familles coupées, appareils abonnés avec leur plateforme et leur dernier push reçu, adresse vérifiée. |
+| **Sa montre** | Strava connecté ou non, depuis quand, dernier import, renommage demandé — et si **Strava a réellement accordé l'écriture** (`activity:write`), distinct du consentement coché dans Darilab : c'est la confusion la plus fréquente au support. |
+| **Signes de vie** | Dernière connexion, dernière visite, et pour un athlète : séances réalisées et sorties importées sur 30 jours, dernier retour de séance. Nuls pour un coach — la question ne se pose pas pour lui, et un zéro se lirait comme un reproche. |
+
+La capture ne coûte rien : le `User-Agent` et l'en-tête `X-App-Version` sont notés par l'écriture
+de « dernière visite », déjà limitée à une fois par quart d'heure et par compte. On stocke la
+**matière brute** et jamais le verdict : « mobile ou ordinateur » se recalcule à la lecture, si
+bien qu'affiner la règle requalifie tout l'historique sans réécrire une seule ligne (§4 bis).
+
+**Aucune donnée de santé** : le bloc compte des séances et des sorties, il ne rend ni RPE, ni
+douleur, ni fatigue, ni commentaire.
+
 ### Journal d'audit (`admin_audit_log`)
 
 Toute mutation d'administration y laisse une trace : acteur (identifiant **et** e-mail recopié, pour
@@ -504,6 +623,20 @@ survivre à la suppression de son propre compte), action, cible, résumé, adres
 **Aucune donnée de santé, aucun mot de passe, aucun jeton** n'y transite — le résumé est composé par
 le code, jamais recopié d'une saisie libre. Les modifications de profil athlète sont consignées
 « dont des données physiologiques » **sans les valeurs**.
+
+Chaque ligne porte aussi le contexte qu'on cherche toujours après coup :
+
+- **De quel droit** — le **rôle de l'acteur au moment du geste**, figé comme son e-mail. Un rôle
+  change ; afficher celui d'aujourd'hui en face d'une action d'il y a six mois raconterait autre chose.
+- **Qui vraiment** — l'**administrateur derrière une session empruntée**. Le jeton d'impersonation
+  portait ce renseignement depuis l'origine sans que rien ne le lise : une action faite au nom d'un
+  utilisateur était indiscernable des siennes. Toute **écriture** en session empruntée est désormais
+  consignée (`IMPERSONATED_WRITE`), signalée comme sensible, et retrouvée en cherchant l'adresse de
+  l'administrateur. Les **lectures** ne le sont pas — voir l'application comme l'utilisateur est
+  l'usage revendiqué, et les journaliser noierait les écritures.
+- **Par où** — méthode et chemin HTTP (jamais la chaîne de requête, qui porte des saisies ; jamais
+  le corps, qui porte du ressenti) et le navigateur, enregistré depuis l'origine et affiché
+  seulement maintenant.
 
 > ⚠️ **Rétention à trancher.** Contrairement au journal d'e-mails (purgé à 180 jours), le journal
 > d'audit n'a **pas** de purge automatique : il porte des adresses e-mail et des adresses IP, donc
@@ -567,16 +700,15 @@ Procédure pas-à-pas (ordre de déploiement, variables, CORS, redirect URIs) :
 ## Limites connues & pistes d'amélioration
 
 Transparence sur ce qui reste à durcir (détail et priorisation dans
-[`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md) pour
-l'exploitation, [`docs/AUDIT-BETA-OUVERTE-2026-08.md`](./docs/AUDIT-BETA-OUVERTE-2026-08.md) pour
-le produit et les parcours) :
+[`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md), qui porte
+aussi bien l'exploitation que le reliquat produit des audits d'août depuis retirés) :
 
 - **Tests sur PG réel** : les assertions tournent sur H2 (mode PostgreSQL) ; **Testcontainers**
   fermerait le risque H2↔PG (le CI ne fait qu'un smoke de démarrage sur PG).
 - **Couverture front** : tests unitaires/e2e à étoffer (pas de Playwright/Cypress).
 - **SSE mono-instance** : les émetteurs sont en mémoire → nécessite Redis pub/sub pour le multi-pod.
-- **Jeton en query param** pour le flux SSE et le téléchargement des pièces jointes → à remplacer par
-  des jetons courts signés.
+  Le registre des **jetons de flux** (`StreamTokenService`) l'est aussi, au même titre que la liste
+  noire des jetons révoqués : à externaliser avant tout passage à plusieurs instances.
 - **Import Strava** par polling (webhook à venir) — le `state` OAuth est désormais signé (HMAC, TTL 10 min).
 - **Pagination** à généraliser sur les listes non bornées (fil de messages, résultats…).
 - **Pièces jointes en base** (`bytea`) → stockage objet (S3) à plus grande échelle.
@@ -595,19 +727,21 @@ le produit et les parcours) :
 | [`docs/Design.md`](./docs/Design.md) | design system (tokens, composants, états) |
 | [`docs/Claude.md`](./docs/Claude.md) | conventions de code (IA & humains) |
 | [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md) | déploiement Railway/Vercel + variables |
+| [`docs/DEBUG.md`](./docs/DEBUG.md) | **mémo de débogage : points d'arrêt en Docker, IntelliJ et VS Code, journaux, correlationId** |
 | [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | **exploitation : Sentry, sauvegardes BDD, Actuator, CI (pas-à-pas)** |
 | [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md) | **runbook de mise en service : Resend, Sentry, uptime, backups (pas-à-pas)** |
 | [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md) | **plan de mise en conformité** : vagues 0 à 3, check-lists légale/RGPD et opérationnelle, recommandation GO/NO-GO |
 | [`docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md`](./docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md) | **analyse concurrentielle Nolio** : fonctionnalités, UX, UI, ergonomie, verdict, maturité, feuille de route |
-| [`docs/AUDIT-FONCTIONNEL-2026-08.md`](./docs/AUDIT-FONCTIONNEL-2026-08.md) | audit métier : parcours coach/athlète sur un mésocycle réel (prescription, charge, alertes, blessure, force) |
-| [`docs/AUDIT-BETA-OUVERTE-2026-08.md`](./docs/AUDIT-BETA-OUVERTE-2026-08.md) | audit de bêta ouverte : second passage (builds exécutés, consentement santé, autorisations club, plafonds SSE et e-mail) |
-| [`docs/AUDIT-PRODUIT-WAHOU-2026-08.md`](./docs/AUDIT-PRODUIT-WAHOU-2026-08.md) | **audit produit / UX / métier** : les dix évolutions de la couche de décision, et la contrainte qui les gouverne — rien n'est appliqué sans validation humaine |
-| [`docs/AUDIT-TECHNIQUE-2026-08.md`](./docs/AUDIT-TECHNIQUE-2026-08.md) | audit technique : chemin push, consentement santé, gestion d'erreurs |
-| [`docs/AUDIT-PWA-COACH-2026-08.md`](./docs/AUDIT-PWA-COACH-2026-08.md) | audit PWA mobile côté coach (les trois vagues sont livrées) |
+| [`docs/AUDIT-ADMIN-2026-08.md`](./docs/AUDIT-ADMIN-2026-08.md) | audit du back-office `/admin` : P0/P1 livrés, **P2 encore ouvert** (§3) |
 | [`docs/AUDIT-COACH-INDEPENDANT-2026-08.md`](./docs/AUDIT-COACH-INDEPENDANT-2026-08.md) | audit du coach indépendant : athlètes privés, multi-club |
 | [`docs/PLAN-EVOLUTION-2026-08.md`](./docs/PLAN-EVOLUTION-2026-08.md) · [`docs/PLAN-PRODUIT-2026-08.md`](./docs/PLAN-PRODUIT-2026-08.md) | plans d'évolution : ce que le marché réclame, et ce que le modèle de domaine empêche |
 | [`docs/DEMANDES-API-GARMIN-COROS.md`](./docs/DEMANDES-API-GARMIN-COROS.md) | dossiers d'accès aux API montres (Garmin fermé, COROS ouvert) |
-| [`docs/archive/`](./docs/archive/) | historique non maintenu : blueprint UX (encore cité par des composants), wireframes, deux audits de juillet |
+| [`docs/archive/`](./docs/archive/) | historique non maintenu : le seul blueprint UX, gardé parce que trois fichiers front le citent encore |
+
+> Les audits d'août clos — produit/UX, PWA coach, fonctionnel, technique et bêta ouverte — ont été
+> **retirés du dépôt** une fois leurs constats livrés : leur reliquat vit dans
+> `docs/PLAN-CONFORMITE-BETA-2026-08.md`, leur texte dans l'historique git. `docs/README.md` dit
+> pour chacun ce qu'il est devenu.
 
 > **Aide utilisateur intégrée** : chaque espace dispose d'un **centre d'aide** adapté à son profil
 > (athlète `/athlete/help`, coach `/app/aide`, admin `/admin/aide`), avec **recherche globale**

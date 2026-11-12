@@ -183,10 +183,13 @@ export const routes: Routes = [
           import('./features/messages/conversations.component').then((m) => m.ConversationsComponent),
       },
       {
-        // File « retours à traiter » : destination du KPI du cockpit.
+        // L'ancienne file « Retours » : elle vit maintenant dans « Ma journée », la seule boîte de
+        // tri. L'adresse reste servie — notifications, raccourcis et e-mails déjà envoyés y
+        // mènent, parfois avec l'action « Traité » d'une notification (?review=…), que la
+        // redirection conserve.
         path: 'feedback',
-        loadComponent: () =>
-          import('./features/dashboard/feedback-queue.component').then((m) => m.FeedbackQueueComponent),
+        pathMatch: 'full',
+        redirectTo: 'journee',
       },
       {
         // Bibliothèque unique à onglets : les trois écrans existants sont montés tels quels
@@ -297,6 +300,18 @@ export const routes: Routes = [
         path: 'athletes/:athleteId/workouts/:workoutId',
         loadComponent: () =>
           import('./features/workouts/workout-detail.component').then((m) => m.WorkoutDetailComponent),
+      },
+      {
+        // Modifier le contenu d'une séance de renforcement DÉJÀ posée au calendrier — le pendant
+        // force de l'adaptation d'une séance course. Sans lui, ajuster une série supposait de
+        // retoucher le modèle de bibliothèque (qui sert d'autres athlètes) ou, en pratique, de
+        // créer une séance de plus.
+        path: 'athletes/:athleteId/pp/scheduled/:scheduledId/structure',
+        canDeactivate: [unsavedChangesGuard],
+        loadComponent: () =>
+          import('./features/strength/strength-session-editor.component').then(
+            (m) => m.StrengthSessionEditorComponent
+          ),
       },
       {
         path: 'athletes/:athleteId/activities/:activityId/map',

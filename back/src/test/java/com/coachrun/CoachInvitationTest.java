@@ -85,11 +85,11 @@ class CoachInvitationTest {
         // du client qui pense à envoyer le champ.
         mvc.perform(post("/public/coach-invitations/{t}/accept", token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"password\":\"password123\"}"))
+                        .content("{\"password\":\"password1234\"}"))
                 .andExpect(status().isBadRequest());
         mvc.perform(post("/public/coach-invitations/{t}/accept", token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"password\":\"password123\",\"termsAccepted\":false}"))
+                        .content("{\"password\":\"password1234\",\"termsAccepted\":false}"))
                 .andExpect(status().isBadRequest());
         // Et un mot de passe trop court est refusé, comme à l'inscription.
         mvc.perform(post("/public/coach-invitations/{t}/accept", token)
@@ -101,13 +101,13 @@ class CoachInvitationTest {
         JsonNode accepted = objectMapper.readTree(mvc.perform(
                         post("/public/coach-invitations/{t}/accept", token)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"password\":\"password123\",\"termsAccepted\":true}"))
+                                .content("{\"password\":\"password1234\",\"termsAccepted\":true}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertThat(accepted.get("accessToken").asText()).isNotEmpty();
 
         // Le compte est désormais actif : connexion possible.
         mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"new.coach@darilab.app\",\"password\":\"password123\"}"))
+                        .content("{\"email\":\"new.coach@darilab.app\",\"password\":\"password1234\"}"))
                 .andExpect(status().isOk());
 
         // Le lien d'invitation n'est plus valide.
@@ -145,7 +145,7 @@ class CoachInvitationTest {
         String token = tokenOf(invite("actif@darilab.app", "Coach Actif"));
         mvc.perform(post("/public/coach-invitations/{t}/accept", token)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"password\":\"password123\",\"termsAccepted\":true}"))
+                        .content("{\"password\":\"password1234\",\"termsAccepted\":true}"))
                 .andExpect(status().isOk());
 
         mvc.perform(post("/clubs/{c}/members/{coach}/resend-invite", clubId, coachIdOf("Coach Actif"))

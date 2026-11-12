@@ -79,6 +79,7 @@ public class CoachingRequestService {
     private final UserRepository userRepository;
     private final AthleteAccountService accountService;
     private final NotificationService notificationService;
+    private final ClockService clock;
 
     // ---------------------------------------------------------------- côté athlète
 
@@ -350,7 +351,7 @@ public class CoachingRequestService {
     private CoachingRequestResponse render(CoachingRequest r) {
         String slug = profileRepository.findByCoachId(r.getCoach().getId())
                 .map(CoachProfile::getSlug).orElse(null);
-        return CoachingRequestResponse.of(r, slug);
+        return CoachingRequestResponse.of(r, slug, clock.today());
     }
 
     private static String truncate(String value, int max) {

@@ -156,6 +156,29 @@ public class Workout extends BaseEntity {
     @Column(name = "coach_comment_read_at")
     private java.time.Instant coachCommentReadAt;
 
+    /**
+     * Quand l'athlète a répondu, sur cette séance, au mot de son coach. Nul = il n'a rien répondu
+     * <b>ici</b> (il a pu écrire dans la messagerie, ce fil-là a sa propre boîte de réception).
+     *
+     * <p>Miroir exact de {@link #coachCommentAt} dans l'autre sens. Il manquait, et son absence
+     * était le trou de la boucle : le coach posait sa question <b>sur la séance</b>, la réponse
+     * partait <b>dans la messagerie</b>, et la séance commentée ne portait plus aucune trace de
+     * l'échange. Un coach bêta a attendu trois jours une réponse qui était arrivée le soir même.</p>
+     */
+    @Column(name = "athlete_reply_at")
+    private java.time.Instant athleteReplyAt;
+
+    /**
+     * Quand un coach a lu cette réponse. Nul avec {@link #athleteReplyAt} renseigné = une réponse
+     * <b>en attente</b>, et c'est ce couple que remontent la pastille de la séance, l'alerte du
+     * cockpit et le digest du matin.
+     *
+     * <p>Remis à nul à chaque nouvelle réponse, comme {@link #coachCommentReadAt} : une deuxième
+     * réponse est un deuxième message, pas une correction de la première.</p>
+     */
+    @Column(name = "athlete_reply_read_at")
+    private java.time.Instant athleteReplyReadAt;
+
     // --- Calendrier DARI Lab : déplacement athlète + snapshot figé -----------
 
     /** L'athlète a déplacé la séance (il peut déplacer, jamais modifier le contenu). */

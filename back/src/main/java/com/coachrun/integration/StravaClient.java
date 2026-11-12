@@ -334,6 +334,12 @@ public class StravaClient {
             Long id,
             String name,
             String type,
+            /**
+             * Type détaillé, arrivé après {@code type} et plus précis que lui (« GravelRide » là
+             * où {@code type} dit « Ride »). Absent des réponses anciennes : {@code type} reste
+             * le repli.
+             */
+            @JsonProperty("sport_type") String sportType,
             Double distance,
             @JsonProperty("moving_time") Integer movingTime,
             @JsonProperty("total_elevation_gain") Double totalElevationGain,

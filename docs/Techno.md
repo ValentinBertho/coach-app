@@ -76,6 +76,9 @@ Controller (routing, validation, autorisation, mapping DTO) → Service (métier
 ### Patterns
 Multi-tenant scoping (`clubId`) · Machine à états (Workout/Plan) · Notification trigger centralisé · Sync idempotente (dédup par `externalId`) · Queue + retry (emails, imports) · Optimistic locking (`@Version`) · Encrypted converter (données de santé) · Module gating · Soft-archive per-tenant.
 
+### Invariant de la couche de décision
+**Le produit ne modifie jamais une séance, ni un profil, tout seul.** Les moteurs (`engine/`) calculent, détectent et **proposent** ; ils ne persistent rien. Une adaptation de séance rendue par `SessionAdaptationEngine` est un objet en mémoire, une valeur physiologique repérée par `PhysioDetectionEngine` est une proposition — seule une action humaine (coach, ou athlète pour ce qui le concerne) les fait entrer en base. Un plan est l'engagement d'un coach, pas une variable que l'application ajuste pendant la nuit. Cette contrainte a structuré toute la couche de décision : tout nouveau moteur s'y conforme, et la javadoc de chacun rappelle ce qu'il refuse de faire.
+
 ### Gestion de l'état
 - **Back** : stateless, état en DB.
 - **Front** : pas de store global ; données chargées en `ngOnInit()` via services ; brouillons (éditeur de séance/plan) en `localStorage` ; `BehaviorSubject` pour auth/modules/athlète courant _(hypothèse)_.

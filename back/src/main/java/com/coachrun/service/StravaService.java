@@ -6,6 +6,8 @@ import com.coachrun.dto.response.StravaStatusResponse;
 import com.coachrun.entity.Athlete;
 import com.coachrun.entity.DeviceConnection;
 import com.coachrun.entity.enums.ActivitySource;
+import com.coachrun.entity.enums.AdminAuditAction;
+import com.coachrun.entity.enums.AdminAuditTarget;
 import com.coachrun.entity.enums.DeviceProvider;
 import com.coachrun.exception.ApiException;
 import com.coachrun.exception.ConflictException;
@@ -70,6 +72,8 @@ public class StravaService {
     private final ActivityService activityService;
     private final com.coachrun.security.OAuthStateCodec stateCodec;
     private final NotificationService notificationService;
+    /** Journal : brancher et débrancher une montre, pas les imports qu'elle déclenche ensuite. */
+    private final AdminAuditService audit;
 
     public StravaStatusResponse status(UUID clubId, UUID athleteId) {
         requireAthlete(clubId, athleteId);
@@ -125,6 +129,13 @@ public class StravaService {
         }
         connectionRepository.save(conn);
         log.info("Strava connecté pour l'athlète {}", athleteId);
+        // Brancher une montre ouvre un flux permanent de données d'effort depuis un compte tiers,
+        // et le débrancher l'arrête : les deux gestes se posent et se contestent. Aucun jeton
+        // OAuth n'entre au journal — seulement l'identifiant public du compte Strava.
+        audit.record(AdminAuditAction.DEVICE_CONNECTED, AdminAuditTarget.ATHLETE,
+                athleteId, athleteLabel(athlete),
+                "Strava" + (conn.getProviderAthleteId() != null
+                        ? " (compte " + conn.getProviderAthleteId() + ")" : ""));
         return status(clubId, athleteId);
     }
 
@@ -284,9 +295,18 @@ public class StravaService {
 
     @Transactional
     public void disconnect(UUID clubId, UUID athleteId) {
-        requireAthlete(clubId, athleteId);
+        Athlete athlete = requireAthlete(clubId, athleteId);
         connectionRepository.findByAthleteIdAndProvider(athleteId, PROVIDER)
-                .ifPresent(connectionRepository::delete);
+                .ifPresent(conn -> {
+                    connectionRepository.delete(conn);
+                    audit.record(AdminAuditAction.DEVICE_DISCONNECTED, AdminAuditTarget.ATHLETE,
+                            athleteId, athleteLabel(athlete), "Strava — jetons supprimés");
+                });
+    }
+
+    /** Libellé de cible pour le journal. */
+    private static String athleteLabel(Athlete athlete) {
+        return athlete == null ? null : (athlete.getFirstName() + " " + athlete.getLastName()).trim();
     }
 
     // --- Portail athlète : l'athlète connecte SA propre montre (CDC §12) -------
@@ -365,6 +385,16 @@ public class StravaService {
                 a.movingTime(),
                 a.averageHeartrate() != null ? (int) Math.round(a.averageHeartrate()) : null,
                 a.totalElevationGain() != null ? (int) Math.round(a.totalElevationGain()) : null,
+                // Le sport, que Strava envoyait déjà et qu'on jetait. « GravelRide »,
+                // « WeightTraining » : sans lui, ces sorties n'étaient qu'une date, une distance
+                // et une durée — et l'une d'elles a emporté le fractionné prescrit du jour.
+                // `sport_type` est le champ moderne (plus granulaire) ; `type` est son aîné, que
+                // Strava renvoie toujours, et qui sert de repli.
+                com.coachrun.entity.enums.ActivitySport.fromStrava(
+                        a.sportType() != null ? a.sportType() : a.type()),
+                // Et le type lui-même, non résumé : « GravelRide » dit à un coach ce que « Vélo »
+                // ne dit pas, et c'est la seule occasion de le garder — il n'est envoyé qu'ici.
+                a.sportType() != null ? a.sportType() : a.type(),
                 // Jamais de confirmation automatique : si la sortie est déjà en base sous une
                 // autre provenance (trace GPX importée à la main), la synchro doit l'écarter,
                 // pas en créer une seconde copie.

@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  inject,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { Ping } from '../../core/models/ping.model';
 import { PingService } from '../../core/services/ping.service';
@@ -15,7 +21,6 @@ type PingState = 'loading' | 'ok' | 'error';
  */
 @Component({
   selector: 'app-api-status',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, IconComponent],
   template: `
@@ -23,18 +28,24 @@ type PingState = 'loading' | 'ok' | 'error';
       <header class="page-header">
         <div>
           <h1 class="display-sm">État de l'API</h1>
-          <p class="subtitle">Vérification de bout en bout que le front atteint le back.</p>
+          <p class="subtitle">
+            Vérification de bout en bout que le front atteint le back.
+          </p>
         </div>
       </header>
 
       <div class="card api-card">
         @switch (state()) {
           @case ('loading') {
-            <p class="api-line"><span class="dot dot-load"></span> Connexion à l'API…</p>
+            <p class="api-line">
+              <span class="dot dot-load"></span> Connexion à l'API…
+            </p>
           }
           @case ('ok') {
             <p class="api-line api-line--ok">
-              <app-icon name="check" [size]="16" /> API en ligne · v{{ ping()?.version }}
+              <app-icon name="check" [size]="16" /> API en ligne · v{{
+                ping()?.version
+              }}
             </p>
           }
           @case ('error') {
@@ -51,13 +62,37 @@ type PingState = 'loading' | 'ok' | 'error';
       <p class="field-hint"><a routerLink="/dev/ui-kit">← UI Kit</a></p>
     </div>
   `,
-  styles: [`
-    .api-card { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; }
-    .api-line { display: inline-flex; align-items: center; gap: var(--sp-2); margin: 0; font-weight: 700; color: var(--ink-2); }
-    .api-line--ok { color: var(--success); }
-    .api-line--err { color: var(--danger); }
-    .dot { width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--ink-4); }
-  `],
+  styles: [
+    `
+      .api-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-4);
+        flex-wrap: wrap;
+      }
+      .api-line {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-2);
+        margin: 0;
+        font-weight: 700;
+        color: var(--ink-2);
+      }
+      .api-line--ok {
+        color: var(--success);
+      }
+      .api-line--err {
+        color: var(--danger);
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: var(--radius-full);
+        background: var(--ink-4);
+      }
+    `,
+  ],
 })
 export class ApiStatusComponent implements OnInit {
   private readonly pingService = inject(PingService);
@@ -65,12 +100,17 @@ export class ApiStatusComponent implements OnInit {
   readonly state = signal<PingState>('loading');
   readonly ping = signal<Ping | null>(null);
 
-  ngOnInit(): void { this.checkApi(); }
+  ngOnInit(): void {
+    this.checkApi();
+  }
 
   checkApi(): void {
     this.state.set('loading');
     this.pingService.ping().subscribe({
-      next: (ping) => { this.ping.set(ping); this.state.set('ok'); },
+      next: (ping) => {
+        this.ping.set(ping);
+        this.state.set('ok');
+      },
       // Le toast d'erreur est déjà émis par l'intercepteur global.
       error: () => this.state.set('error'),
     });

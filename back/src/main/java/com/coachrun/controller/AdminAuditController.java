@@ -3,6 +3,7 @@ package com.coachrun.controller;
 import com.coachrun.dto.response.AdminAuditResponse;
 import com.coachrun.dto.response.PageResponse;
 import com.coachrun.entity.enums.AdminAuditAction;
+import com.coachrun.entity.enums.AdminAuditScope;
 import com.coachrun.entity.enums.AdminAuditTarget;
 import com.coachrun.service.AdminAuditService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,23 +38,43 @@ public class AdminAuditController {
     @GetMapping
     public PageResponse<AdminAuditResponse> list(
             @RequestParam(required = false) AdminAuditAction action,
+            @RequestParam(required = false) AdminAuditScope scope,
             @RequestParam(required = false) AdminAuditTarget targetType,
             @RequestParam(required = false) UUID actorUserId,
             @RequestParam(required = false) UUID targetId,
             @RequestParam(required = false) Integer days,
             @RequestParam(required = false) String q,
             @PageableDefault(size = 50) Pageable pageable) {
-        return adminAuditService.search(action, targetType, actorUserId, targetId, days, q, pageable);
+        return adminAuditService.search(action, scope, targetType, actorUserId, targetId, days, q, pageable);
     }
 
-    /** Vocabulaire du journal, pour peupler les filtres sans le dupliquer côté front. */
+    /**
+     * Vocabulaire du journal, pour peupler les filtres sans le dupliquer côté front.
+     *
+     * <p>{@code scope} et {@code scopeLabel} <b>s'ajoutent</b> aux champs existants : un front en
+     * cache qui les ignore continue d'afficher une liste plate d'actions, exactement comme avant
+     * (Claude.md §4 bis — les réponses s'enrichissent, elles ne se réduisent pas).</p>
+     */
     @GetMapping("/actions")
     public List<ActionOption> actions() {
         return java.util.Arrays.stream(AdminAuditAction.values())
-                .map(a -> new ActionOption(a.name(), a.label(), a.sensitive()))
+                .map(a -> new ActionOption(a.name(), a.label(), a.sensitive(),
+                        a.scope().name(), a.scope().label()))
                 .toList();
     }
 
-    public record ActionOption(String value, String label, boolean sensitive) {
+    /** Les familles du journal, pour le filtre de portée. */
+    @GetMapping("/scopes")
+    public List<ScopeOption> scopes() {
+        return java.util.Arrays.stream(AdminAuditScope.values())
+                .map(s -> new ScopeOption(s.name(), s.label()))
+                .toList();
+    }
+
+    public record ActionOption(String value, String label, boolean sensitive,
+                               String scope, String scopeLabel) {
+    }
+
+    public record ScopeOption(String value, String label) {
     }
 }

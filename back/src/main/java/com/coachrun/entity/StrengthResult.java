@@ -47,6 +47,10 @@ public class StrengthResult extends BaseEntity {
     @Column(name = "duration_sec_done")
     private Integer durationSecDone;
 
+    /** Distance parcourue (m) quand l'exercice se prescrit en distance (porté, traîneau). */
+    @Column(name = "distance_m_done")
+    private Integer distanceMDone;
+
     @Column(name = "rpe_done", precision = 3, scale = 1)
     private BigDecimal rpeDone;
 

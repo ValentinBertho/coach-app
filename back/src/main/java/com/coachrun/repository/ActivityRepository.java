@@ -16,6 +16,9 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
 
     Optional<Activity> findByIdAndClubId(UUID id, UUID clubId);
 
+    /** Ressource du club ET de cet athlète : l'athlète de l'URL n'est pas qu'un décor. */
+    Optional<Activity> findByIdAndClubIdAndAthleteId(UUID id, UUID clubId, UUID athleteId);
+
     List<Activity> findByClubIdAndAthleteIdOrderByActivityDateDesc(UUID clubId, UUID athleteId);
 
     List<Activity> findByAthleteIdOrderByActivityDateDesc(UUID athleteId);
@@ -66,8 +69,17 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
     @Query("select a.matchedWorkoutId from Activity a where a.matchedWorkoutId in :workoutIds")
     List<UUID> findMatchedWorkoutIdsIn(@Param("workoutIds") Collection<UUID> workoutIds);
 
+    /**
+     * Les sorties elles-mêmes, et non leurs seuls identifiants de séance : l'arbitrage a besoin
+     * de <b>comparer</b> la prétendante à la tenante, ce qui suppose de connaître la seconde.
+     */
+    List<Activity> findByMatchedWorkoutIdIn(Collection<UUID> workoutIds);
+
     // --- Administration (cross-club) ---
     long countByActivityDateAfter(java.time.LocalDate date);
+
+    /** Sorties importées par un athlète depuis une date — signe de vie de sa montre. */
+    long countByAthleteIdAndActivityDateAfter(UUID athleteId, java.time.LocalDate date);
 
     long countByClubIdAndActivityDateAfter(UUID clubId, java.time.LocalDate date);
 

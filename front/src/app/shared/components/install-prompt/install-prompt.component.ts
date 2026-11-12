@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { PwaInstallService } from '../../../core/services/pwa-install.service';
 import { isInstalledApp } from '../../../core/utils/installed-app';
 import { IconComponent } from '../icon/icon.component';
@@ -25,19 +31,20 @@ const DISMISSED_KEY = 'darilab.install-prompt.dismissed';
  */
 @Component({
   selector: 'app-install-prompt',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent],
   template: `
     @if (visible()) {
       <section class="iprompt card">
-        <span class="iprompt__ic"><app-icon name="download" [size]="18" /></span>
+        <span class="iprompt__ic"
+          ><app-icon name="download" [size]="18"
+        /></span>
         <div class="iprompt__txt">
           <strong>{{ title() }}</strong>
           @if (iOS()) {
             <span class="field-hint">
-              {{ lead() }} Touche <strong>Partager</strong> en bas de Safari, puis
-              « <strong>Sur l'écran d'accueil</strong> ».
+              {{ lead() }} Touche <strong>Partager</strong> en bas de Safari,
+              puis « <strong>Sur l'écran d'accueil</strong> ».
             </span>
           } @else {
             <span class="field-hint">{{ lead() }}</span>
@@ -45,33 +52,74 @@ const DISMISSED_KEY = 'darilab.install-prompt.dismissed';
         </div>
         <div class="iprompt__act">
           @if (pwa.canInstall()) {
-            <button type="button" class="btn btn-primary btn-sm" (click)="install()">Installer</button>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm"
+              (click)="install()"
+            >
+              Installer
+            </button>
           }
-          <button type="button" class="btn btn-ghost btn-sm" (click)="dismiss()">Plus tard</button>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm"
+            (click)="dismiss()"
+          >
+            Plus tard
+          </button>
         </div>
       </section>
     }
   `,
-  styles: [`
-    .iprompt { display: flex; align-items: flex-start; gap: var(--sp-3); }
-    .iprompt__ic {
-      width: 36px; height: 36px; flex-shrink: 0; border-radius: var(--radius-sm);
-      display: flex; align-items: center; justify-content: center;
-      background: var(--primary-wash); color: var(--primary);
-    }
-    .iprompt__txt { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-    .iprompt__act { display: flex; flex-direction: column; gap: var(--sp-2); flex-shrink: 0; }
-    @media (max-width: 480px) {
-      .iprompt { flex-wrap: wrap; }
-      .iprompt__act { flex-direction: row; width: 100%; }
-    }
-  `],
+  styles: [
+    `
+      .iprompt {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--sp-3);
+      }
+      .iprompt__ic {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--primary-wash);
+        color: var(--primary);
+      }
+      .iprompt__txt {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+      }
+      .iprompt__act {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+        flex-shrink: 0;
+      }
+      @media (max-width: 480px) {
+        .iprompt {
+          flex-wrap: wrap;
+        }
+        .iprompt__act {
+          flex-direction: row;
+          width: 100%;
+        }
+      }
+    `,
+  ],
 })
 export class InstallPromptComponent {
-  readonly title = input("Garder Darilab à portée de pouce");
+  readonly title = input('Garder Darilab à portée de pouce');
   readonly lead = input(
-    "Installée sur ton écran d'accueil, l'application s'ouvre d'un tap — et c'est la seule "
-    + 'façon de recevoir les notifications sur iPhone.');
+    "Installée sur ton écran d'accueil, l'application s'ouvre d'un tap — et c'est la seule " +
+      'façon de recevoir les notifications sur iPhone.',
+  );
 
   readonly pwa = inject(PwaInstallService);
   private readonly dismissed = signal(read(DISMISSED_KEY));
@@ -95,11 +143,19 @@ export class InstallPromptComponent {
   }
 
   dismiss(): void {
-    try { localStorage.setItem(DISMISSED_KEY, '1'); } catch { /* stockage indisponible */ }
+    try {
+      localStorage.setItem(DISMISSED_KEY, '1');
+    } catch {
+      /* stockage indisponible */
+    }
     this.dismissed.set(true);
   }
 }
 
 function read(key: string): boolean {
-  try { return localStorage.getItem(key) === '1'; } catch { return false; }
+  try {
+    return localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
 }

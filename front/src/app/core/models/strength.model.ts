@@ -20,6 +20,18 @@ export type BlockType = 'ECHAUFFEMENT' | 'ACTIVATION' | 'PRINCIPAL' | 'ACCESSOIR
 export type BlockFormat =
   | 'CLASSIQUE' | 'EMOM' | 'AMRAP' | 'FOR_TIME' | 'CIRCUIT' | 'ISOMETRIE' | 'PLIOMETRIE';
 
+/**
+ * Ce que compte une série : des répétitions, une durée, ou une distance. Une planche ne se
+ * prescrit pas en reps, un porté du fermier non plus.
+ */
+export type VolumeType = 'REPS' | 'DUREE' | 'DISTANCE';
+
+/**
+ * Latéralité : « 3 × 8 » sur une fente ne dit pas la même chose selon qu'on compte 8 en tout,
+ * 8 par jambe, ou 8 en alternant — et l'athlète n'avait aucun moyen de le deviner.
+ */
+export type SideMode = 'BILATERAL' | 'ALTERNE' | 'PAR_COTE';
+
 export interface PpExercise {
   id: string;
   name: string;
@@ -84,13 +96,24 @@ export interface StrengthPrescription {
   rirMin?: number | null;
   rirMax?: number | null;
   sets?: number | null;
+  /** Unité du volume ; absente sur les prescriptions d'avant, qui se lisent en répétitions. */
+  volumeType?: VolumeType | null;
   repsFixed?: number | null;
   repsMin?: number | null;
   repsMax?: number | null;
+  /** Durée d'une série (s) : valeur exacte, ou borne basse d'une fourchette. */
   durationSec?: number | null;
+  durationSecMax?: number | null;
+  /** Distance d'une série (m) : valeur exacte, ou borne basse d'une fourchette. */
+  distanceM?: number | null;
+  distanceMMax?: number | null;
+  plyoContacts?: number | null;
+  sideMode?: SideMode | null;
   tempo?: string | null;
+  /** Repos entre séries (s) : `restSecMax` absent = repos strict, sinon fourchette. */
   restSecMin?: number | null;
   restSecMax?: number | null;
+  maxPainAllowed?: number | null;
 }
 
 export interface StrengthExerciseItem {
@@ -124,6 +147,13 @@ export interface StrengthSession {
   favorite: boolean;
   archived: boolean;
   useCount: number;
+  /**
+   * Catégorie de rangement (arbre unifié du club, domaine STRENGTH), ou `null`.
+   *
+   * <p>Course et éducatifs en portaient une ; la prépa physique non — sa bibliothèque s'affichait
+   * donc en une seule liste à plat, qu'aucun filtre ne pouvait trier.</p>
+   */
+  categoryId: string | null;
   structure: StrengthStructure;
 }
 
@@ -171,9 +201,30 @@ export interface CalculatedStrength {
  * Servie à l'identique côté coach (calendrier) et côté athlète (portail).
  */
 export interface StrengthPrescriptionView {
+  /** Titre de la séance planifiée : l'éditeur l'affiche et le renomme sans relire le calendrier. */
+  title?: string;
   snapshot: StrengthStructure;
   calculated: CalculatedStrength | null;
   requiredFields: Record<string, boolean> | null;
+  /** La prescription enregistrée n'a pas pu être relue : le contenu vide n'est pas une séance vide. */
+  unreadable?: boolean;
+}
+
+/**
+ * Le « comment on fait » d'un exercice, lu en direct depuis la bibliothèque du club.
+ *
+ * <p>Séparé de la prescription à dessein : la prescription est un contrat figé au moment de la
+ * planification, la démonstration une référence qui doit pouvoir être corrigée après coup — et
+ * profiter alors aux séances déjà posées.</p>
+ */
+export interface ExerciseGuidance {
+  id: string;
+  name: string;
+  videoUrl: string | null;
+  imageUrl: string | null;
+  instructions: string | null;
+  technicalNotes: string | null;
+  contraindications: string | null;
 }
 
 export interface ScheduledStrength {
@@ -187,6 +238,10 @@ export interface ScheduledStrength {
   completed: boolean;
   sessionFatigue: number | null;
   sessionPain: number | null;
+  /** RPE séance donné par l'athlète à la validation. */
+  sessionRpe?: number | null;
+  /** Le mot laissé au coach en fin de séance. */
+  sessionComment?: string | null;
   /** Résumé des charges calculées, renseigné à la planification (CdC §8). */
   chargeSummary?: string | null;
   /** Date du « vu 👏 » du coach sur le débrief ; null tant qu'il n'a pas eu lieu. */
@@ -289,6 +344,10 @@ export interface StrengthResultEntry {
   setNumber: number;
   chargeKg: number | null;
   repsDone: number | null;
+  /** Durée réalisée (s) d'une série prescrite en durée. */
+  durationSecDone?: number | null;
+  /** Distance réalisée (m) d'une série prescrite en distance. */
+  distanceMDone?: number | null;
   rirDone?: number | null;
   rpeDone?: number | null;
   pain?: number | null;

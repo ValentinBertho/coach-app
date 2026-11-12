@@ -58,7 +58,7 @@ public class DecisionController {
     @GetMapping("/workouts/{workoutId}/compliance")
     public ComplianceResponse compliance(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                          @PathVariable UUID workoutId) {
-        return complianceService.forCoach(clubId, workoutId);
+        return complianceService.forCoach(clubId, athleteId, workoutId);
     }
 
     /**
@@ -95,7 +95,7 @@ public class DecisionController {
     public PlanPreviewResponse planPreview(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                            @PathVariable UUID raceId,
                                            @Valid @RequestBody PlanFromRaceRequest request) {
-        return planBuilderService.preview(clubId, raceId, request);
+        return planBuilderService.preview(clubId, athleteId, raceId, request);
     }
 
     /** Pose le plan dans le calendrier. Geste explicite, jamais un effet de bord de l'aperçu. */
@@ -105,7 +105,7 @@ public class DecisionController {
     public PlanPreviewResponse planApply(@PathVariable UUID clubId, @PathVariable UUID athleteId,
                                          @PathVariable UUID raceId,
                                          @Valid @RequestBody PlanFromRaceRequest request) {
-        return planBuilderService.apply(clubId, raceId, request);
+        return planBuilderService.apply(clubId, athleteId, raceId, request);
     }
 
     /**
@@ -119,7 +119,7 @@ public class DecisionController {
                                                            @PathVariable UUID athleteId,
                                                            @PathVariable UUID raceId,
                                                            @Valid @RequestBody RaceResultRequest request) {
-        TrajectoryResponse t = trajectoryService.recordResult(clubId, raceId, request.timeSeconds());
+        TrajectoryResponse t = trajectoryService.recordResult(clubId, athleteId, raceId, request.timeSeconds());
         return t == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(t);
     }
 

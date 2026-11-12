@@ -21,7 +21,7 @@ import jakarta.validation.constraints.Size;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record RegisterRequest(
         @NotBlank @Email String email,
-        @NotBlank @Size(min = 8, max = 100) String password,
+        @NotBlank @Size(min = 12, max = 100) String password,
         @NotBlank @Size(max = 120) String fullName,
         @Size(max = 120) String clubName,
         /** Le coach exerce en indépendant : pas de club à nommer, et on ne lui en parlera pas. */

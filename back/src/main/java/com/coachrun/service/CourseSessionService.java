@@ -47,7 +47,7 @@ public class CourseSessionService {
     @Transactional
     public CourseStructureResponse getStructure(UUID clubId, UUID templateId) {
         WorkoutTemplate t = require(clubId, templateId);
-        return CourseStructureResponse.of(t, zoneMapper.withZones(clubId, readStructure(t.getStructureJson())));
+        return CourseStructureResponse.of(t, zoneMapper.withZones(clubId, readStructure(t.getStructureJson(), "structure du modèle de séance " + t.getId())));
     }
 
     /**
@@ -86,7 +86,7 @@ public class CourseSessionService {
         }
         // Payload de renommage seul : la structure absente laisse les blocs en place.
         SessionStructure structure = req.structure() == null
-                ? readStructure(t.getStructureJson())
+                ? readStructure(t.getStructureJson(), "structure du modèle de séance " + t.getId())
                 : req.structure();
         t.setStructureJson(writeStructure(structure));
         return CourseStructureResponse.of(t, structure);
@@ -95,7 +95,7 @@ public class CourseSessionService {
     /** Calcule toute la séance pour un athlète donné (allures/FC/RPE par bloc + totaux). */
     public CalculatedSessionResponse calculateForAthlete(UUID clubId, UUID athleteId, UUID templateId) {
         WorkoutTemplate t = require(clubId, templateId);
-        return calculatorService.calculateSession(clubId, athleteId, readStructure(t.getStructureJson()));
+        return calculatorService.calculateSession(clubId, athleteId, readStructure(t.getStructureJson(), "structure du modèle de séance " + t.getId()));
     }
 
     /**
@@ -105,7 +105,7 @@ public class CourseSessionService {
     @Transactional
     public WorkoutResponse scheduleForAthlete(UUID clubId, UUID athleteId, UUID templateId, LocalDate date) {
         WorkoutTemplate t = require(clubId, templateId);
-        SessionStructure structure = readStructure(t.getStructureJson());
+        SessionStructure structure = readStructure(t.getStructureJson(), "structure du modèle de séance " + t.getId());
         CalculatedSessionResponse calc = calculatorService.calculateSession(clubId, athleteId, structure);
 
         String snapshotJson = writeStructure(structure);
@@ -123,17 +123,77 @@ public class CourseSessionService {
     }
 
     /**
+     * Copie une séance <b>déjà planifiée</b> sur le calendrier d'un <b>autre</b> athlète, en
+     * recalculant ses cibles pour lui.
+     *
+     * <p><b>Pourquoi ce chemin existe.</b> Le copier-coller du calendrier ne savait recopier une
+     * séance que chez son propre athlète, et la vue groupe n'en avait donc aucun : un coach de
+     * club qui voulait donner à Julie le fractionné qu'il venait d'écrire pour Marc n'avait que
+     * le glisser-déposer depuis la bibliothèque — ce qui suppose que la séance y soit, et ne dit
+     * rien de l'adaptation faite pour Marc ce jour-là. C'est le manque remonté en bêta :
+     * « sur les séances de groupe, juste les copier-coller qui sont pas possible ».
+     *
+     * <p><b>Pourquoi on recalcule au lieu de recopier.</b> {@code calculatedPaces} est figé
+     * <b>pour l'athlète source</b> : « 6 × 1000 à 102–106 % de VC » vaut 3'42–3'34 chez Marc et
+     * autre chose chez Julie. Recopier le snapshot tel quel donnerait à Julie les allures de
+     * Marc — silencieusement, et sur toute la prescription. On reprend donc la <b>structure</b>
+     * (les fourchettes, qui sont la prescription du coach) et on la recalcule pour la cible,
+     * exactement comme le ferait la même séance sortie de la bibliothèque.</p>
+     *
+     * <p>Chez le <b>même</b> athlète, rien ne change : on délègue à la copie existante, qui
+     * reprend la prescription figée à l'identique — une adaptation faite pour lui doit se
+     * dupliquer telle quelle, pas se recalculer sur des valeurs de référence qui ont pu bouger
+     * depuis.</p>
+     *
+     * <p>Sans structure enregistrée (séance ancienne, ou saisie en volume simple), il n'y a rien
+     * à recalculer : on recopie les volumes et le titre. Mieux vaut une séance nue chez le bon
+     * athlète qu'un refus.</p>
+     */
+    @Transactional
+    public WorkoutResponse copyToAthlete(UUID clubId, UUID targetAthleteId, UUID sourceWorkoutId,
+                                         LocalDate date,
+                                         java.util.function.Predicate<UUID> canReadSourceAthlete) {
+        com.coachrun.entity.Workout source = workoutRepository.findByIdAndClubId(sourceWorkoutId, clubId)
+                // On ne colle que ce qu'on a le droit de lire : la source est vérifiée sur SON
+                // athlète, pas seulement sur le club. Même réponse qu'une séance absente.
+                .filter(w -> canReadSourceAthlete.test(w.getAthlete().getId()))
+                .orElseThrow(() -> new NotFoundException("Séance à copier introuvable."));
+        if (source.getAthlete().getId().equals(targetAthleteId)) {
+            return workoutService.copyToDate(clubId, targetAthleteId, sourceWorkoutId, date);
+        }
+
+        SessionStructure structure = readStructure(source.getSessionSnapshot(), "prescription de la séance " + source.getId());
+        boolean empty = structure.warmup().isEmpty() && structure.main().isEmpty()
+                && structure.cooldown().isEmpty();
+        if (empty) {
+            return workoutService.createPrescribed(clubId, targetAthleteId, new PrescribedWorkout(
+                    date, source.getType(), source.getTitle(), source.getNotes(),
+                    source.getTargetDistanceM(), source.getTargetDurationS(), source.getTargetRpe(),
+                    source.getSourceTemplateId(), null, null, null));
+        }
+
+        CalculatedSessionResponse calc =
+                calculatorService.calculateSession(clubId, targetAthleteId, structure);
+        Integer distance = calc.totalDistanceM() != null ? calc.totalDistanceM() : source.getTargetDistanceM();
+        Integer duration = calc.totalDurationS() != null ? calc.totalDurationS() : source.getTargetDurationS();
+        return workoutService.createPrescribed(clubId, targetAthleteId, new PrescribedWorkout(
+                date, source.getType(), source.getTitle(), source.getNotes(),
+                distance, duration, source.getTargetRpe(), source.getSourceTemplateId(),
+                writeStructure(structure), writeJson(calc), plannedLoadEngine.compute(calc)));
+    }
+
+    /**
      * Verse dans la bibliothèque une séance construite directement au calendrier. Une séance
      * improvisée pour un athlète se retrouvait sans issue : la refaire de zéro pour en garder un
      * modèle. On recopie ici son snapshot tel quel dans un nouveau modèle du club.
      */
     @Transactional
-    public CourseStructureResponse saveWorkoutAsTemplate(UUID clubId, UUID workoutId,
+    public CourseStructureResponse saveWorkoutAsTemplate(UUID clubId, UUID athleteId, UUID workoutId,
                                                          com.coachrun.dto.request.SaveAsTemplateRequest req) {
-        com.coachrun.entity.Workout w = workoutRepository.findByIdAndClubId(workoutId, clubId)
+        com.coachrun.entity.Workout w = workoutRepository.findByIdAndClubIdAndAthleteId(workoutId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
         // Le modèle reçoit la STRUCTURE de l'adaptation, pas ce qui n'appartenait qu'à l'athlète.
-        SessionStructure structure = withoutAthleteNotes(readStructure(w.getSessionSnapshot()));
+        SessionStructure structure = withoutAthleteNotes(readStructure(w.getSessionSnapshot(), "prescription de la séance " + w.getId()));
 
         WorkoutTemplate t = new WorkoutTemplate();
         t.setClub(w.getClub());
@@ -189,7 +249,17 @@ public class CourseSessionService {
                         b.id(), b.type(), b.reps(), b.distanceM(), b.durationS(),
                         b.prescription(), b.recovery(), b.rpe(),
                         null,
-                        b.drillIds(), b.sets(), b.setRecovery()))
+                        b.drillIds(), b.sets(), b.setRecovery(), stripStepNotes(b.stepList())))
+                .toList();
+    }
+
+    /** Même règle à l'étage des étapes : la structure passe, les mots écrits pour quelqu'un non. */
+    private java.util.List<com.coachrun.dto.session.CourseStep> stripStepNotes(
+            java.util.List<com.coachrun.dto.session.CourseStep> steps) {
+        return steps.stream()
+                .map(st -> new com.coachrun.dto.session.CourseStep(
+                        st.id(), st.distanceM(), st.durationS(), st.prescription(),
+                        st.recovery(), st.rpe(), null))
                 .toList();
     }
 
@@ -214,13 +284,15 @@ public class CourseSessionService {
         }
     }
 
-    private SessionStructure readStructure(String json) {
+    /** Relit une structure enregistrée ; illisible, elle est rendue vide, et l'échec est tracé. */
+    private SessionStructure readStructure(String json, String what) {
         if (!StringUtils.hasText(json)) {
             return SessionStructure.empty();
         }
         try {
             return objectMapper.readValue(json, SessionStructure.class);
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(CourseSessionService.class, what + " illisible, rendue vide", e);
             return SessionStructure.empty();
         }
     }

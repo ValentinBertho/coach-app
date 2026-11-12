@@ -44,6 +44,19 @@ export const CALENDAR_SHORTCUTS: readonly ShortcutGroup[] = [
     ],
   },
   {
+    // Le copier-coller n'existait pas en vue groupe — c'est le manque remonté en bêta par un
+    // coach de club. Il y a désormais les mêmes gestes, avec la case survolée (athlète × jour)
+    // pour curseur, plus celui que seule cette vue peut offrir : donner la séance à tout le monde.
+    title: 'Vue groupe',
+    items: [
+      { keys: ['mod', 'C'], label: 'Copier la journée de l’athlète survolé' },
+      { keys: ['mod', 'V'], label: 'Coller sur la case survolée' },
+      { keys: ['clic droit'], label: 'Menu d’une séance ou d’une case : copier, coller' },
+      { keys: ['clic droit'], label: '« Tout le groupe » : coller pour chaque athlète' },
+      { keys: ['Alt', 'glisser'], label: 'Copier au lieu de déplacer' },
+    ],
+  },
+  {
     title: 'Annulation',
     items: [
       { keys: ['mod', 'Z'], label: 'Annuler la dernière action' },

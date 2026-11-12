@@ -1,4 +1,6 @@
 <main class="auth-page">
+  @switch (step()) {
+  @case ('password') {
   <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
     <header class="auth-head">
       <app-logo [size]="44" [showText]="false" />
@@ -45,6 +47,79 @@
       Vous cherchez un coach ? <a routerLink="/inscription-athlete">Créer un compte athlète</a>
     </p>
   </form>
+  }
+
+  @case ('code') {
+  <form class="card auth-card" [formGroup]="codeForm" (ngSubmit)="submitCode()">
+    <header class="auth-head">
+      <app-logo [size]="44" [showText]="false" />
+      <h1 class="display-sm">Double authentification</h1>
+      @if (challenge()?.enrollment) {
+        <p class="field-hint">
+          Les comptes administrateur demandent un second facteur. Scanne ce QR code avec ton
+          application d'authentification (1Password, Google Authenticator, Authy, Bitwarden…),
+          puis saisis le code à six chiffres qu'elle affiche.
+        </p>
+      } @else {
+        <p class="field-hint">Saisis le code à six chiffres de ton application d'authentification.</p>
+      }
+    </header>
+
+    @if (challenge()?.enrollment) {
+      <div class="mfa-enrol">
+        @if (qrCode(); as qr) {
+          <img class="mfa-qr" [src]="qr" width="200" height="200" alt="QR code à scanner avec l'application d'authentification" />
+        }
+        <p class="field-hint">Ou saisis cette clé à la main :</p>
+        <code class="mfa-secret" data-testid="mfa-secret">{{ groupedSecret(challenge()?.secret ?? null) }}</code>
+        @if (challenge()?.otpauthUri; as uri) {
+          <a class="auth-switch" [href]="uri">Ouvrir dans l'application (sur ce téléphone)</a>
+        }
+      </div>
+    }
+
+    <div class="form-group">
+      <label for="code">Code</label>
+      <input #codeInput id="code" class="form-control mfa-code" formControlName="code"
+             inputmode="numeric" autocomplete="one-time-code" placeholder="123456" />
+      @if (!challenge()?.enrollment) {
+        <span class="field-hint">Téléphone perdu ? Saisis un de tes codes de secours à la place.</span>
+      }
+    </div>
+
+    @if (errorMessage(); as message) {
+      <p class="auth-error" role="alert">{{ message }}</p>
+    }
+
+    <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
+      {{ submitting() ? 'Vérification…' : 'Valider' }}
+    </button>
+    <p class="auth-switch">
+      <button type="button" class="btn btn-ghost btn-sm" (click)="backToPassword()">Revenir au mot de passe</button>
+    </p>
+  </form>
+  }
+
+  @case ('recovery') {
+  <section class="card auth-card" aria-labelledby="recovery-title">
+    <header class="auth-head">
+      <app-logo [size]="44" [showText]="false" />
+      <h1 id="recovery-title" class="display-sm">Codes de secours</h1>
+      <p class="field-hint">
+        Garde-les dans ton gestionnaire de mots de passe ou sur papier. Chacun ouvre une seule
+        connexion si tu perds ton téléphone. <strong>Ils ne seront plus jamais affichés.</strong>
+      </p>
+    </header>
+    <ol class="mfa-recovery" data-testid="recovery-codes">
+      @for (code of recoveryCodes(); track code) {
+        <li><code>{{ code }}</code></li>
+      }
+    </ol>
+    <button type="button" class="btn btn-ghost btn-lg" (click)="copyRecoveryCodes()">Copier les codes</button>
+    <button type="button" class="btn btn-primary btn-lg" (click)="continueAfterRecovery()">C'est noté, continuer</button>
+  </section>
+  }
+  }
 </main>
 
 <!-- Sonde de diagnostic, invisible sans ?debug=1 sur l'URL. Elle sert à mesurer sur l'appareil

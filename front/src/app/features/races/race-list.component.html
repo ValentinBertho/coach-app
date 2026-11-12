@@ -48,7 +48,7 @@
 
         <dl class="obj-stats">
           @if (r.distanceM) {
-            <div><dt>Distance</dt><dd class="metric">{{ (r.distanceM / 1000).toFixed(1) }}<small>km</small></dd></div>
+            <div><dt>Distance</dt><dd class="metric">{{ r.distanceM / 1000 | number: '1.1-1' }}<small>km</small></dd></div>
           }
           @if (targetTime(r.targetTimeS); as tt) {
             <div><dt>Chrono visé</dt><dd class="metric">{{ tt }}</dd></div>

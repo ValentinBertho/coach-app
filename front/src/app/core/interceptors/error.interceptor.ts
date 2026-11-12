@@ -20,6 +20,7 @@ const SILENT_PATTERNS = [/\/auth\/refresh$/, /\/auth\/me$/];
  */
 const FORM_HANDLED_PATTERNS = [
   /\/auth\/login$/,
+  /\/auth\/mfa\/verify$/,
   /\/auth\/register$/,
   /\/auth\/change-password$/,
   /\/oauth-callback/,
@@ -136,7 +137,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         network.reportApiSuccess();
       }
       // 401 sur une route protégée : rafraîchir puis rejouer une fois avant d'abandonner.
-      if (error.status === 401 && !callerHandles && auth.token() && auth.refreshTokenValue()) {
+      if (error.status === 401 && !callerHandles && auth.canRefresh()) {
         return auth.refresh().pipe(
           // Le catchError est placé ICI, sur le rafraîchissement seul, et non après le rejeu.
           // En aval, il attrapait aussi l'échec de la requête rejouée : un 500, un 404 ou une

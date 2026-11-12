@@ -150,6 +150,58 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 
 ---
 
+## 4 ter. Une version par déploiement, et elle n'avance que dans un sens
+
+> **La règle, en une phrase : rien ne part en production sans un numéro de version nouveau, plus
+> grand que le précédent, et porté par les *trois* endroits qui le déclarent.**
+
+**Les trois endroits.** `front/package.json`, `back/pom.xml`, et `front/src/environments/*.ts`
+(`appVersion`). Le troisième s'oublie — il l'a été : il annonçait encore `0.3.0` quand les deux
+autres étaient passés à `0.4.0`. C'est pourtant celui qui se voit le plus : il part dans l'en-tête
+`X-App-Version` de chaque requête, sert de `release` à Sentry, et s'écrit dans les e-mails de
+support. Un `appVersion` figé rend indécidable un « ça marchait hier », puisque tous les
+événements portent alors la même version. Les variantes (`-dev`, `-pwa`, `-docker`) suivent le
+même numéro, avec leur suffixe.
+
+**Pourquoi c'est une règle et pas une habitude.** Le front est une **PWA avec service worker** :
+des téléphones tournent sur une version antérieure pendant des jours (§4 bis). Le jour où un
+athlète dit « ça ne marche pas », la première question est « tu es sur quelle version ? » — et
+elle n'a de réponse que si chaque déploiement en porte une, distincte. Deux déploiements qui
+partagent un numéro rendent un rapport de bug ininterprétable et une régression impossible à
+dater : on ne sait plus si le défaut est arrivé avec le correctif ou avec celui d'avant.
+
+**Le numéro se réfléchit, il ne s'incrémente pas machinalement.** Format `MAJEUR.MINEUR.CORRECTIF`,
+et c'est **le contenu du déploiement** qui décide lequel bouge :
+
+| On incrémente | Quand le déploiement… | Exemples réels |
+|---|---|---|
+| **CORRECTIF** (`0.4.0` → `0.4.1`) | corrige un comportement sans rien ajouter ni changer de contrat | un gabarit Strava non reconnu, un NPE dans une notification, un libellé faux |
+| **MINEUR** (`0.4.1` → `0.5.0`) | ajoute une capacité visible, une migration, un champ d'API, un écran | le fil de séance, le copier-coller en vue groupe, l'enrichissement du journal d'audit |
+| **MAJEUR** (`0.x` → `1.0.0`) | rompt un contrat que quelqu'un consomme, ou marque un jalon produit décidé **par une personne** | sortie de bêta, refonte d'une API publique |
+
+Le majeur ne se décide **jamais** seul : il se propose, il ne s'applique pas.
+
+**Les invariants, dans l'ordre où ils comptent.**
+
+1. **Jamais en arrière, jamais à l'identique.** Un numéro déjà déployé est brûlé, même si le
+   déploiement a été annulé : on repart au-dessus, on ne réutilise pas. Vérifier avant d'écrire
+   (`git log -p --follow front/package.json | grep version`, ou les tags) plutôt que de supposer.
+2. **Les trois endroits disent la même chose.** Un front 0.5.0 en face d'un back 0.4.2 ne se
+   diagnostique pas, et un `appVersion` en retard sur `package.json` ment à Sentry et au support.
+   Vérifier les trois : `grep -rn "appVersion" front/src/environments/*.ts`, `package.json`, `pom.xml`.
+3. **Le bump fait partie du changement, pas d'un commit à part.** Il voyage dans le commit ou la
+   PR qu'il décrit, sans quoi il s'oublie — et un déploiement sans bump est précisément le cas
+   qu'on cherche à rendre impossible.
+4. **Un seul bump par déploiement.** Plusieurs correctifs livrés ensemble ne font qu'un numéro ;
+   c'est le déploiement qu'on numérote, pas le commit.
+
+**Ce qu'on écrit à côté du numéro.** Une ligne dans « [État actuel](#état-actuel) », en bas de ce
+fichier : ce que la version **apporte**, en une phrase compréhensible par quelqu'un qui n'a pas lu
+le diff. Un numéro sans phrase ne sert qu'à trier ; c'est la phrase qui répond à « qu'est-ce qui a
+changé depuis lundi ? ».
+
+---
+
 ## 5. Conventions de code (identiques au socle technique)
 
 ### Backend (Java / Spring Boot)
@@ -187,10 +239,20 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 - **Multi-tenant par URL** : `/clubs/{clubId}/athletes/{athleteId}/workouts/...` ; coach solo = club implicite.
 - **Calendrier comme objet central** : le plan d'entraînement est une grille semaine × jour de `Workout`. Glisser-déposer pour replanifier (réutiliser le pattern drag&drop de l'agenda source, snap au jour).
 - **Prévu vs Réalisé** : chaque `Workout` (planifié) peut être rapproché (`MATCHED`) d'une `Activity` (importée) → écart distance/temps/allure affiché.
+- **Le rapprochement commence par le sport, pas par les chiffres** : une sortie n'est pas qu'une date, une distance et une durée. `MatchingService` écarte d'abord ce qui ne peut pas réaliser la séance — une séance de renforcement ou une sortie à vélo en face d'un fractionné de course — puis seulement compare des volumes. Un sport `null` (saisie manuelle, historique d'avant la colonne) ne bloque rien : l'absence de déclaration n'est pas une déclaration d'incompatibilité. La ressemblance des **titres** ne peut que rapporter des points, jamais en retirer : la plupart des sorties portent un nom composé par Strava, qui ne prouve rien, alors qu'un « 8*(200/400) » écrit par l'athlète désigne sa séance mieux qu'aucun chiffre.
+- **Sans preuve, rien n'est rattaché** : le rapprochement automatique exige des **volumes qui concordent** (`MIN_VOLUME_AGREEMENT`) ou un **titre qui désigne la séance**. La date n'est pas une preuve — elle est vraie de toutes les sorties de la journée — et le score, qui sert à dire *laquelle*, ne doit jamais dire « oui » à lui seul. Il n'y a donc plus de repli « la seule séance du jour, faute de mieux » : il donnait la séance à la première sortie importée ce jour-là. Une sortie « non rattachée » se corrige d'un geste et se voit ; une séance déclarée faite par la mauvaise sortie fausse silencieusement le prévu/réalisé, le volume de la semaine et la charge.
+- **Ranger, c'est perdre — alors on garde les deux** : `Activity.sport` est la famille (elle décide du rapprochement, elle doit être grossière), `Activity.sportDetail` est la catégorie exacte déclarée par la source (elle s'affiche, elle ne pilote rien). C'est ce découplage qui permet d'accepter `sportDetail` tel quel, sans connaître d'avance tout ce que Strava et les montres sauront un jour déclarer — un type non traduit s'affiche mis en forme plutôt que de disparaître.
+- **La séance revient à la meilleure sortie du jour, pas à la première importée** : `ActivityService#autoMatch` peut reprendre une séance à une sortie moins bien placée quand une meilleure arrive derrière elle (la délogée repart `UNMATCHED`, avec son ressenti). Sans quoi c'est l'ordre de synchronisation qui trancherait — et il n'a aucun rapport avec ce que l'athlète a fait. Deux choses restent intouchables : un rapprochement décidé **à la main** (`Activity#manualMatch`), parce qu'une personne s'est prononcée, et l'égalité, où le premier arrivé reste faute de raison de bouger.
+- **Un bloc de séance porte un volume et une allure — ou plusieurs, en enchaînement** : `CourseBlock.steps` décrit les efforts qui se succèdent **dans** une répétition (« 8 × (200 m / 400 m), 100 m de récup entre chaque »), chacun avec sa propre cible et sa propre récupération. Un bloc enchaîné n'a **pas** de cible à son niveau : moyenner un 200 lancé et un 400 en résistance ne décrirait ni l'un ni l'autre. `steps` vide = bloc simple, et c'est ce que vaut toute séance écrite avant : leurs totaux ne bougent pas d'un mètre.
 - **Séance structurée** : éditeur d'étapes (`WorkoutStep`) répétables, avec cibles par zone (FC/allure/puissance). Bibliothèque de `WorkoutTemplate` applicable en un clic (comme les « templates OR » du socle).
 - **Machine à états** : `Workout` (PLANNED→COMPLETED/PARTIAL/MISSED), `TrainingPlan` (DRAFT→ACTIVE→…). Mutation refusée si transition interdite.
 - **Notifications centralisées** : `NotificationTriggerService` (push + email) sur séance commentée, plan publié, objectif J-7, alerte surcharge — gardé par toggles + consentement + idempotence.
 - **Le calendrier remanié se notifie, toujours et une seule fois** : tout chemin par lequel le coach **ajoute, déplace, réécrit ou supprime** une séance de l'athlète — course *et* renforcement, structure comprise — passe par `NotificationService`. Trois gardes systématiques : séance encore à faire, pas dans le passé, et **changement réel** (enregistrer sans rien toucher ne notifie pas). Modification, déplacement et annulation partagent le type `WORKOUT_UPDATED` et une anti-rafale de 30 min : remanier une semaine est un seul geste pour le coach, ce doit en rester un pour l'athlète.
+- **Une question posée quelque part se répond au même endroit** : le commentaire du coach vit sur la séance (`Workout.coachComment`), la réponse de l'athlète vit dans la messagerie (`Message.workoutId`) — et les deux se lisent **sur la séance**, des deux côtés. Un second canal propre à la séance aurait donné au coach deux boîtes à surveiller, c'est-à-dire une de trop ; c'est pourquoi le fil de séance est une **vue** de la messagerie, jamais une copie. La réponse laisse en revanche une trace sur la séance (`athleteReplyAt` / `athleteReplyReadAt`, miroir exact de `coachCommentAt` / `coachCommentReadAt`) : sans elle, rien ne pouvait dire au coach qu'on lui avait répondu, et une réponse arrivée le soir même se découvrait trois jours plus tard.
+- **Un message qui parle d'une séance mène à la séance** : type `WORKOUT_REPLY`, lien vers la fiche, et une destination par séance — ce qui rend son anti-rafale utile (elle dédoublonne deux réponses sur la *même* séance) là où celle de la messagerie, une seule destination pour tout un fil, avalait la réponse derrière n'importe quel autre message. Le couple (a répondu, personne n'a lu) alimente ensuite **une seule** mécanique : l'alerte du cockpit, l'écran « Ma journée » et le digest de 7 h la lisent tous les trois.
+- **L'e-mail reste le repli, mais il doit exister** : sur un iPhone où l'application n'est pas installée, le push système n'existe pas. Tout flux qui porte un **mot adressé à quelqu'un** (message, commentaire de séance, réponse) retombe donc sur l'e-mail quand aucun appareil n'est joignable — trois portes fermées d'abord : catégorie coupée dans les préférences, appareil joignable, e-mail refusé. Sans ce repli, le commentaire de séance n'annonçait strictement rien.
+- **Copier une séance chez un autre athlète recalcule ses cibles** : `calculatedPaces` est figé pour l'athlète source. La copie inter-athlètes (`CourseSessionService#copyToAthlete`) reprend la **structure** — les fourchettes, qui sont la prescription du coach — et la recalcule pour la cible ; chez le *même* athlète, on duplique au contraire la prescription figée telle quelle, parce que c'est l'adaptation faite pour lui.
+- **Un presse-papier autoportant** : les entrées du calendrier portent leur origine (athlète, date, modèle de force), pas seulement un identifiant. Résoudre une référence en relisant les signaux de la grille liait le geste à une vue — la vue groupe n'en avait donc aucun.
 - **Un effort, un ressenti** : une sortie rapprochée et sa séance décrivent la même heure de course. Le ressenti (sensation, RPE, fatigue, douleur, commentaire, blessure) appartient à la **séance** dès qu'il y en a une ; la sortie n'en garde aucune copie, et toute lecture d'activité passe par `ActivityService#toResponse`, qui rend celui de la séance. Le rapprochement et le détachement le **transfèrent** (`adoptDebrief` / `releaseDebrief`) : changer de porteur ne doit jamais faire disparaître ce que l'athlète a écrit. Les six champs ne sont énumérés qu'à un seul endroit (`Debrief`) — deux copies d'une même liste finissent toujours par diverger, et c'est précisément la divergence qu'on corrige.
 - **Un statut est une déclaration, et une déclaration se corrige** : `WorkoutStatus` n'a plus de transition interdite. La machine à états refusait PARTIAL → COMPLETED, donc refusait à un athlète de corriger son propre retour, alors que le même résultat s'obtenait en deux temps via PLANNED. Une garde qu'on contourne d'un clic ne protège rien.
 - **Hors ligne ≠ refusé** : la file de synchronisation (`FeedbackQueueService`) n'accueille que ce que le **réseau** a empêché de partir (statut HTTP 0). Un 4xx est une réponse : on ne le rejoue pas, on l'affiche. Toute erreur y était mise en file, ce qui annonçait « enregistré hors ligne » à quelqu'un dont le retour venait d'être rejeté, et le rejouait à chaque reconnexion.
@@ -209,7 +271,7 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 ✅ Chiffrer au repos les données de santé (FC repos, HRV, poids, pathologies) comme le socle chiffre IBAN/VIN.
 ✅ Valider les transitions d'état avant mutation.
 ✅ Toast sur chaque action ; libellés FR ; statuts traduits.
-✅ Incrémenter la version à chaque session (`package.json` + `pom.xml`) et tenir à jour « État actuel ».
+✅ **Un numéro de version nouveau et plus grand à chaque déploiement**, le même dans `package.json`, `pom.xml` **et `environments/*.ts`** (`appVersion`), choisi selon §4 ter — et « État actuel » mis à jour dans la foulée.
 ✅ Migration **additive et nullable** ; corriger une donnée fausse par une règle de **lecture**, pas par un `UPDATE` (§4 bis).
 ✅ Champ ajouté à une réponse d'API rendu **optionnel côté TypeScript** — des PWA tournent encore sur l'ancien front.
 ✅ Tolérer l'ancien format en relisant du JSON stocké : `@JsonIgnoreProperties`, valeur par défaut, repli explicite.
@@ -255,7 +317,7 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
 6. **Front** : `xxx.model.ts` (nouveau champ **optionnel**) → `xxx.service.ts` → composants `list/detail/form` standalone, routes lazy + guard.
 7. **UX** : toasts, skeletons/empty-state, badges de statut, responsive ≤768px.
 8. **Non-régression** : un athlète créé avant ce changement lit-il encore ses écrans sans erreur ?
-9. **Versionner** + mettre à jour « État actuel ».
+9. **Versionner** selon §4 ter (correctif / mineur / majeur, jamais en arrière, les deux fichiers alignés) + mettre à jour « État actuel ».
 
 ### Exemples de premières features à livrer (MVP coaching)
 1. CRUD athlètes + profil physiologique (zones FC/allure) + invitation par lien.
@@ -282,6 +344,25 @@ Annotation backend `@RequiresModule(Module.X)` + interceptor → 403 si module d
    déjà avant le changement (worktree sur la base : `git worktree add … <commit>`). Corriger le code si c'est
    une régression, le test s'il dépendait d'un contexte instable — jamais l'inverse par confort.
 9. **Git** : branche dédiée, commits clairs, push/PR uniquement sur demande.
+
+---
+
+## État actuel
+
+> Une ligne par version déployée, la plus récente en haut (§4 ter). On y écrit ce que la version
+> **apporte**, pas ce qu'elle touche : la phrase doit se comprendre sans avoir lu le diff, parce
+> que c'est elle qui répond à « qu'est-ce qui a changé depuis lundi ? » et à « tu es sur quelle
+> version ? ».
+>
+> Le tableau commence à 0.3.1 : les versions antérieures n'ont pas été journalisées, et on ne les
+> reconstitue pas de mémoire — un historique inventé est pire qu'un historique qui commence tard.
+
+| Version | Ce qu'elle apporte |
+|---|---|
+| **0.5.0** | Le **journal ne regarde plus seulement le back-office** : il consigne aussi ce que font les utilisateurs quand c'est important — connexions réussies, échouées et bloquées, mots de passe, changements d'adresse, consentements santé, exports et effacements RGPD, montres branchées, athlètes créés, archivés ou invités, coachs entrés et sortis d'un club, plans supprimés. Un filtre de **famille** (administration / accès / données personnelles / coaching) garde l'écran lisible, et le tableau de bord continue de ne montrer que l'administration. Les traces d'accès se **purgent au bout d'un an** ; les gestes d'administration et les exercices de droits RGPD, jamais. |
+| **0.4.1** | Depuis l'agenda de l'athlète, une séance **déjà réalisée** et une **sortie rattachée** ouvrent directement la fiche de la séance — prévu, réalisé et écart au même endroit — au lieu d'une feuille du prévu ou de la liste des sorties, qui demandaient toutes deux un second geste. |
+| **0.4.0** | Le **back-office voit l'usage** : chaque fiche de compte dit sur quoi la personne travaille (mobile / ordinateur), quelle version du front elle fait tourner, si un push peut réellement l'atteindre, si sa montre est branchée, et ses signes de vie. Le **journal d'audit** dit de quel droit (rôle figé au moment du geste), qui vraiment (écritures en session empruntée consignées avec l'administrateur derrière) et par où (appel HTTP, navigateur). |
+| **0.3.1** | Le **fil de séance** : la question du coach et la réponse de l'athlète se lisent sur la séance, avec alerte au cockpit et notification qui mène à la séance. Le **copier-coller en vue groupe**, y compris « coller pour tout le groupe », avec recalcul des cibles chez l'athlète cible. Reconnaissance des noms Strava français du soir (« Course à pied en soirée »). |
 
 ---
 

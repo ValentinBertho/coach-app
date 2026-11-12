@@ -42,6 +42,7 @@ import java.util.UUID;
 public class StrengthSessionService {
 
     private final StrengthSessionRepository sessionRepository;
+    private final SessionCategoryService categoryService;
     private final Athlete1rmProfileRepository profileRepository;
     private final AthleteRepository athleteRepository;
     private final ClubRepository clubRepository;
@@ -86,9 +87,32 @@ public class StrengthSessionService {
         copy.setClub(source.getClub());
         copy.setName(source.getName() + " (copie)");
         copy.setNotes(source.getNotes());
+        // La copie se range où était l'originale : c'est là qu'on ira la chercher.
+        copy.setCategory(source.getCategory());
         copy.setStructureJson(source.getStructureJson());
         StrengthSession saved = sessionRepository.save(copy);
         return StrengthSessionResponse.of(saved, readStructure(saved.getStructureJson()));
+    }
+
+    /**
+     * Crée un modèle de bibliothèque à partir d'une structure déjà écrite ailleurs — typiquement
+     * une séance construite directement au calendrier d'un athlète, que le coach veut garder.
+     *
+     * <p>Distinct de {@link #create} : celui-là ouvre une séance vide à remplir, celui-ci verse
+     * une séance qui existe déjà. Les faire passer par le même chemin aurait obligé l'appelant à
+     * créer puis réécrire, avec un modèle vide visible entre les deux.</p>
+     */
+    @Transactional
+    public StrengthSessionResponse createFromStructure(UUID clubId, String name, String notes,
+                                                       UUID categoryId, StrengthStructure structure) {
+        StrengthStructure safe = structure == null ? StrengthStructure.empty() : structure;
+        StrengthSession s = new StrengthSession();
+        s.setClub(clubRepository.getReferenceById(clubId));
+        s.setName(name.trim());
+        s.setNotes(notes);
+        s.setCategory(resolveCategory(clubId, categoryId));
+        s.setStructureJson(writeStructure(safe));
+        return StrengthSessionResponse.of(sessionRepository.save(s), safe);
     }
 
     @Transactional
@@ -148,6 +172,25 @@ public class StrengthSessionService {
         if (req.favorite() != null) {
             s.setFavorite(req.favorite());
         }
+        s.setCategory(resolveCategory(s.getClub().getId(), req.categoryId()));
+    }
+
+    /**
+     * Catégorie de rangement du club, ou {@code null}.
+     *
+     * <p>Le {@code null} est une valeur, pas une absence de consigne : c'est ainsi qu'on
+     * <b>retire</b> une séance d'une catégorie. Un identifiant qui ne serait pas une catégorie de
+     * prépa physique de ce club est refusé plutôt qu'ignoré — ranger silencieusement ailleurs
+     * vaudrait perdre la séance.</p>
+     */
+    private com.coachrun.entity.SessionCategory resolveCategory(UUID clubId, UUID categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+        // Domaine imposé, comme pour les exercices : une séance de force rangée dans une catégorie
+        // de course disparaîtrait des deux écrans — chacun ne liste que l'arbre de son domaine.
+        return categoryService.requireForDomain(
+                clubId, categoryId, com.coachrun.entity.enums.CategoryDomain.STRENGTH);
     }
 
     private StrengthSession require(UUID clubId, UUID id) {
@@ -170,6 +213,8 @@ public class StrengthSessionService {
         try {
             return objectMapper.readValue(json, StrengthStructure.class);
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(StrengthSessionService.class,
+                    "structure d'un modèle de séance de force illisible, modèle rendu vide", e);
             return StrengthStructure.empty();
         }
     }

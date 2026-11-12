@@ -246,7 +246,9 @@ export class CoachDirectoryComponent implements OnInit {
       content: 'Des coachs de course à pied et de préparation physique, avec leurs spécialités et '
         + "leurs tarifs. Vous choisissez, vous demandez ; c'est le coach qui accepte.",
     });
-    this.service.facets().subscribe({ next: (f) => this.facets.set(f) });
+    // Sans facettes, l'annuaire reste utilisable : les filtres ne s'affichent simplement pas. Une
+    // erreur non traitée ici faisait aussi échouer le pré-rendu quand l'API est injoignable.
+    this.service.facets().subscribe({ next: (f) => this.facets.set(f), error: () => this.facets.set(null) });
     this.load();
   }
 
@@ -283,7 +285,10 @@ export class CoachDirectoryComponent implements OnInit {
         // Le repli n'est chargé que s'il va servir : une requête de plus sur chaque recherche
         // fructueuse n'apporterait rien.
         if (page.content.length === 0 && this.hasFilters() && this.suggestions().length === 0) {
-          this.service.suggestions().subscribe({ next: (s) => this.suggestions.set(s.content) });
+          this.service.suggestions().subscribe({
+            next: (s) => this.suggestions.set(s.content),
+            error: () => this.suggestions.set([]),
+          });
         }
       },
       error: () => {

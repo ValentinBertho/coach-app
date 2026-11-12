@@ -1,11 +1,25 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal, viewChild } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  input,
+  signal,
+  viewChild,
+} from '@angular/core';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Activity } from '../../core/models/activity.model';
 import { WorkoutPrescription } from '../../core/models/course.model';
 import {
-  STATUS_BADGE, STATUS_LABELS, WORKOUT_TYPE_LABELS, WORKOUT_TYPE_META, Workout, needsFeedback,
+  STATUS_BADGE,
+  STATUS_LABELS,
+  WORKOUT_TYPE_LABELS,
+  WORKOUT_TYPE_META,
+  Workout,
+  needsFeedback,
 } from '../../core/models/workout.model';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { MessageService } from '../../core/services/message.service';
@@ -18,12 +32,18 @@ import { ActivityRouteMapComponent } from '../../shared/components/activity-rout
 import { CoursePrescriptionViewComponent } from '../../shared/components/course-prescription-view/course-prescription-view.component';
 import { FeedbackRecapComponent } from '../../shared/components/feedback-recap/feedback-recap.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
-import { PlannedStats, RealizedStats, SessionStatsComponent } from '../../shared/components/session-stats/session-stats.component';
+import {
+  PlannedStats,
+  RealizedStats,
+  SessionStatsComponent,
+} from '../../shared/components/session-stats/session-stats.component';
 import { TimeInZoneBarComponent } from '../../shared/components/time-in-zone-bar/time-in-zone-bar.component';
 import { BottomSheetComponent } from '../../shared/components/ui';
 import { ComplianceVerdictComponent } from '../../shared/components/compliance-verdict/compliance-verdict.component';
 import { Compliance } from '../../core/models/decision.model';
 import { WorkoutFeedbackSheetComponent } from '../../shared/components/workout-feedback-sheet/workout-feedback-sheet.component';
+import { SessionThreadComponent } from '../../shared/components/session-thread/session-thread.component';
+import { Message } from '../../core/models/message.model';
 
 type State = 'loading' | 'ready' | 'error';
 
@@ -53,26 +73,43 @@ const SOURCE_LABELS: Record<string, string> = {
  */
 @Component({
   selector: 'app-athlete-workout-detail',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    DatePipe, RouterLink, IconComponent, SessionStatsComponent, ActivityChartComponent,
-    ActivityLapsComponent, ActivityRouteMapComponent, TimeInZoneBarComponent,
-    FeedbackRecapComponent, CoursePrescriptionViewComponent, WorkoutFeedbackSheetComponent,
+  imports: [DecimalPipe, 
+    DatePipe,
+    RouterLink,
+    IconComponent,
+    SessionStatsComponent,
+    ActivityChartComponent,
+    ActivityLapsComponent,
+    ActivityRouteMapComponent,
+    TimeInZoneBarComponent,
+    FeedbackRecapComponent,
+    CoursePrescriptionViewComponent,
+    WorkoutFeedbackSheetComponent,
     ComplianceVerdictComponent,
-    BottomSheetComponent, FormsModule,
+    SessionThreadComponent,
+    BottomSheetComponent,
+    FormsModule,
   ],
   template: `
     @switch (state()) {
       @case ('loading') {
-        <div class="wd"><div class="card"><div class="skeleton" style="height:140px"></div></div></div>
+        <div class="wd">
+          <div class="card">
+            <div class="skeleton" style="height:140px"></div>
+          </div>
+        </div>
       }
       @case ('error') {
         <div class="wd">
           <div class="card empty">
             <h2>Séance introuvable</h2>
-            <p class="field-hint">Elle a peut-être été retirée de ton programme.</p>
-            <a routerLink="/athlete/calendar" class="btn btn-primary btn-sm">Mon agenda</a>
+            <p class="field-hint">
+              Elle a peut-être été retirée de ton programme.
+            </p>
+            <a routerLink="/athlete/calendar" class="btn btn-primary btn-sm"
+              >Mon agenda</a
+            >
           </div>
         </div>
       }
@@ -83,13 +120,23 @@ const SOURCE_LABELS: Record<string, string> = {
               <a routerLink="/athlete/calendar" class="wd-back">
                 <app-icon name="arrow-left" [size]="18" /> Agenda
               </a>
-              <span class="wd-date metric">{{ w.scheduledDate | date: 'EEEE d MMMM y' }}</span>
+              <span class="wd-date metric">{{
+                w.scheduledDate | date: 'EEEE d MMMM y'
+              }}</span>
               <h1 class="wd-title">{{ w.title }}</h1>
               <div class="wd-tags">
-                <span class="badge" [class]="statusBadge[w.status]">{{ statusLabels[w.status] }}</span>
-                <span class="wd-type"><app-icon [name]="typeIcon()" [size]="14" /> {{ typeLabels[w.type] }}</span>
+                <span class="badge" [class]="statusBadge[w.status]">{{
+                  statusLabels[w.status]
+                }}</span>
+                <span class="wd-type"
+                  ><app-icon [name]="typeIcon()" [size]="14" />
+                  {{ typeLabels[w.type] }}</span
+                >
                 @if (activity(); as a) {
-                  <span class="wd-src"><app-icon name="watch" [size]="14" /> {{ sourceLabel(a.source) }}</span>
+                  <span class="wd-src"
+                    ><app-icon name="watch" [size]="14" />
+                    {{ sourceLabel(a.source) }}</span
+                  >
                 }
               </div>
             </header>
@@ -97,13 +144,24 @@ const SOURCE_LABELS: Record<string, string> = {
             <!-- 1. Ce que ça a donné. Réalisé en grand, prévu juste en dessous. -->
             @if (activity(); as a) {
               <section class="card">
-                <app-session-stats [realized]="realized()!" [planned]="planned()" />
+                <app-session-stats
+                  [realized]="realized()!"
+                  [planned]="planned()"
+                />
                 <!-- Le rapprochement se trompe — deux sorties le même jour, une séance déplacée —
                      et son erreur était sans recours côté athlète : seul le coach pouvait la
                      défaire. C'est pourtant l'athlète qui sait ce qu'il a couru. -->
                 <div class="wd-match">
-                  <span class="field-hint">Sortie {{ sourceLabel(a.source) }} rattachée à cette séance.</span>
-                  <button type="button" class="btn btn-ghost btn-sm" (click)="detach(a)" [disabled]="matching()">
+                  <span class="field-hint"
+                    >Sortie {{ sourceLabel(a.source) }} rattachée à cette
+                    séance.</span
+                  >
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm"
+                    (click)="detach(a)"
+                    [disabled]="matching()"
+                  >
                     <app-icon name="x" [size]="15" /> Ce n'est pas la bonne
                   </button>
                 </div>
@@ -111,16 +169,25 @@ const SOURCE_LABELS: Record<string, string> = {
             } @else {
               <section class="card wd-nodata">
                 <p class="field-hint">
-                  Aucune sortie n'est encore rattachée à cette séance. Importe ta trace ou
-                  connecte ta montre, et les chiffres viendront se poser ici.
+                  Aucune sortie n'est encore rattachée à cette séance. Importe
+                  ta trace ou connecte ta montre, et les chiffres viendront se
+                  poser ici.
                 </p>
                 <div class="wd-nodata-actions">
                   @if (attachable().length) {
-                    <button type="button" class="btn btn-primary btn-sm" (click)="pickOpen.set(true)">
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm"
+                      (click)="pickOpen.set(true)"
+                    >
                       <app-icon name="plus" [size]="15" /> Rattacher une sortie
                     </button>
                   }
-                  <a routerLink="/athlete/activities" class="btn btn-ghost btn-sm">Mes activités</a>
+                  <a
+                    routerLink="/athlete/activities"
+                    class="btn btn-ghost btn-sm"
+                    >Mes activités</a
+                  >
                 </div>
               </section>
             }
@@ -150,18 +217,30 @@ const SOURCE_LABELS: Record<string, string> = {
             <section class="card">
               <div class="wd-block-hd">
                 <h2 class="wd-h2">Mon débrief</h2>
-                <button type="button" class="btn btn-ghost btn-sm" (click)="openDebrief()">
-                  <app-icon name="pencil" [size]="15" /> {{ hasFeedback() ? 'Modifier' : 'Débriefer' }}
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm"
+                  (click)="openDebrief()"
+                >
+                  <app-icon name="pencil" [size]="15" />
+                  {{ hasFeedback() ? 'Modifier' : 'Débriefer' }}
                 </button>
               </div>
               @if (hasFeedback()) {
-                <app-feedback-recap [feel]="w.feel" [rpe]="w.rpe" [targetRpe]="w.targetRpe" [fatigue]="w.fatigue"
-                                    [pain]="w.pain" [injuries]="w.injuries"
-                                    [comment]="w.athleteComment" />
+                <app-feedback-recap
+                  [feel]="w.feel"
+                  [rpe]="w.rpe"
+                  [targetRpe]="w.targetRpe"
+                  [fatigue]="w.fatigue"
+                  [pain]="w.pain"
+                  [injuries]="w.injuries"
+                  [comment]="w.athleteComment"
+                />
               } @else {
                 <p class="field-hint">
-                  Tu n'as pas encore débriefé cette séance. Ton coach n'a que les chiffres de ta
-                  montre — c'est ton ressenti qui lui dit comment adapter la suite.
+                  Tu n'as pas encore débriefé cette séance. Ton coach n'a que
+                  les chiffres de ta montre — c'est ton ressenti qui lui dit
+                  comment adapter la suite.
                 </p>
               }
             </section>
@@ -171,50 +250,47 @@ const SOURCE_LABELS: Record<string, string> = {
             @if (w.coachAcknowledgedAt && !w.coachComment) {
               <section class="card wd-ack">
                 <p class="wd-ack__txt">👏 Ton coach a vu ta séance</p>
-                <span class="field-hint metric">{{ w.coachAcknowledgedAt | date: 'd MMM, HH:mm' }}</span>
+                <span class="field-hint metric">{{
+                  w.coachAcknowledgedAt | date: 'd MMM, HH:mm'
+                }}</span>
               </section>
             }
 
-            @if (w.coachComment) {
+            <!--
+              Le fil de la séance. Il remplace le couple « mot du coach + champ de réponse
+              à usage unique » : une fois la réponse envoyée, l'ancien écran n'affichait plus
+              qu'un « Réponse envoyée » et un lien vers la messagerie — l'athlète ne pouvait
+              ni se relire, ni voir que son coach avait répondu, et le coach, lui, ne voyait
+              rien du tout sur la séance qu'il avait commentée.
+
+              La réponse part toujours dans le fil de messagerie, rattachée à la séance :
+              un second canal se serait désynchronisé du premier. Ce qui change, c'est qu'elle
+              se lit aussi ici, là où la question a été posée.
+            -->
+            @if (w.coachComment || thread().length) {
               <section class="card wd-coach">
                 <div class="wd-block-hd">
-                  <h2 class="wd-h2">Le mot de ton coach</h2>
-                  @if (w.coachCommentAt) {
-                    <span class="field-hint metric">{{ w.coachCommentAt | date: 'd MMM, HH:mm' }}</span>
-                  }
+                  <h2 class="wd-h2">Le fil de cette séance</h2>
                 </div>
-                <blockquote class="wd-quote">{{ w.coachComment }}</blockquote>
 
-                <!--
-                  Répondre depuis la séance, pas depuis la messagerie. Le coach pose sa question
-                  ici — « tu te sentais facile sur les allures ? » — et exiger d'aller rouvrir un
-                  fil, retrouver de quelle sortie il parlait et recontextualiser à la main est
-                  précisément ce qui fait qu'on ne répond pas.
+                <app-session-thread
+                  [messages]="thread()"
+                  [headText]="w.coachComment"
+                  [headAt]="w.coachCommentAt"
+                  headAuthor="Ton coach"
+                  viewer="ATHLETE"
+                  [sending]="replyBusy()"
+                  replyLabel="Répondre à ton coach"
+                  placeholder="Ta réponse à ton coach…"
+                  inputId="wd-reply"
+                  (send)="sendReply($event)"
+                />
 
-                  La réponse part malgré tout dans le fil de messagerie, rattachée à la séance :
-                  un second canal de conversation se serait désynchronisé du premier, et le coach
-                  aurait eu deux endroits où regarder.
-                -->
-                @if (replySent()) {
-                  <p class="wd-reply-done field-hint">
-                    <app-icon name="check" [size]="14" /> Réponse envoyée à ton coach.
-                    <a routerLink="/athlete/messages">Voir la conversation</a>
-                  </p>
-                } @else {
-                  <div class="wd-reply">
-                    <label class="wd-reply__lb" for="wd-reply">Répondre</label>
-                    <textarea id="wd-reply" class="form-control" rows="2"
-                              [ngModel]="reply()" (ngModelChange)="reply.set($event)"
-                              placeholder="Ta réponse à ton coach…"></textarea>
-                    <div class="wd-reply__actions">
-                      <button type="button" class="btn btn-primary btn-sm"
-                              [disabled]="!reply().trim() || replyBusy()"
-                              (click)="sendReply()">
-                        {{ replyBusy() ? 'Envoi…' : 'Envoyer' }}
-                      </button>
-                    </div>
-                  </div>
-                }
+                <p class="wd-reply-done field-hint">
+                  <app-icon name="message-square" [size]="14" />
+                  Ta réponse arrive aussi dans
+                  <a routerLink="/athlete/messages">tes messages</a>.
+                </p>
               </section>
             }
 
@@ -252,82 +328,224 @@ const SOURCE_LABELS: Record<string, string> = {
               <ul class="wd-pick">
                 @for (a of attachable(); track a.id) {
                   <li>
-                    <button type="button" class="wd-pick-row" (click)="attach(a)" [disabled]="matching()">
+                    <button
+                      type="button"
+                      class="wd-pick-row"
+                      (click)="attach(a)"
+                      [disabled]="matching()"
+                    >
                       <span class="wd-pick-id">
                         <strong>{{ a.title || 'Sortie' }}</strong>
-                        <span class="field-hint">{{ a.activityDate | date: 'EEEE d MMMM' }}</span>
+                        <span class="field-hint">{{
+                          a.activityDate | date: 'EEEE d MMMM'
+                        }}</span>
                       </span>
                       <span class="wd-pick-kpi metric">
-                        @if (a.distanceM) { {{ (a.distanceM / 1000).toFixed(1) }} km }
-                        @if (a.durationS) { · {{ durationLabel(a.durationS) }} }
+                        @if (a.distanceM) {
+                          {{ a.distanceM / 1000 | number: '1.1-1' }} km
+                        }
+                        @if (a.durationS) {
+                          · {{ durationLabel(a.durationS) }}
+                        }
                       </span>
                     </button>
                   </li>
                 }
               </ul>
             } @else {
-              <p class="field-hint">Aucune sortie libre autour de cette date.</p>
+              <p class="field-hint">
+                Aucune sortie libre autour de cette date.
+              </p>
             }
           </app-bottom-sheet>
         }
       }
     }
   `,
-  styles: [`
-    /* padding-top : safe-area de la coquille athlète (PWA) — sinon le titre passe sous l'heure. */
-    .wd { max-width: 560px; margin-inline: auto; padding: var(--sp-4); padding-top: max(var(--sp-4), var(--safe-top, 0px)); display: flex; flex-direction: column; gap: var(--sp-3); }
+  styles: [
+    `
+      /* padding-top : safe-area de la coquille athlète (PWA) — sinon le titre passe sous l'heure. */
+      .wd {
+        max-width: 560px;
+        margin-inline: auto;
+        padding: var(--sp-4);
+        padding-top: max(var(--sp-4), var(--safe-top, 0px));
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+      }
 
-    .wd-head { display: flex; flex-direction: column; gap: var(--sp-1); }
-    .wd-back { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--primary); font-weight: 700; text-decoration: none; min-height: 44px; }
-    .wd-date { font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); font-weight: 700; }
-    .wd-title { margin: 0; font-size: var(--text-2xl); font-weight: 800; color: var(--ink); }
-    .wd-tags { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-1); }
-    .wd-type { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-sm); font-weight: 700; color: var(--tc); }
-    .wd-src { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-sm); color: var(--ink-3); }
+      .wd-head {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-1);
+      }
+      .wd-back {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--sp-1);
+        color: var(--primary);
+        font-weight: 700;
+        text-decoration: none;
+        min-height: 44px;
+      }
+      .wd-date {
+        font-size: var(--text-xs);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--ink-3);
+        font-weight: 700;
+      }
+      .wd-title {
+        margin: 0;
+        font-size: var(--text-2xl);
+        font-weight: 800;
+        color: var(--ink);
+      }
+      .wd-tags {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--sp-2);
+        margin-top: var(--sp-1);
+      }
+      .wd-type {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: var(--text-sm);
+        font-weight: 700;
+        color: var(--tc);
+      }
+      .wd-src {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: var(--text-sm);
+        color: var(--ink-3);
+      }
 
-    .wd-block-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-2); }
-    .wd-h2 { margin: 0; font-size: var(--text-md); font-weight: 700; color: var(--ink); }
-    .wd-notes { margin: 0; color: var(--ink-2); white-space: pre-wrap; }
-    .wd-nodata { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
-    .wd-nodata-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+      .wd-block-hd {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-2);
+        margin-bottom: var(--sp-2);
+      }
+      .wd-h2 {
+        margin: 0;
+        font-size: var(--text-md);
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .wd-notes {
+        margin: 0;
+        color: var(--ink-2);
+        white-space: pre-wrap;
+      }
+      .wd-nodata {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--sp-2);
+      }
+      .wd-nodata-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--sp-2);
+      }
 
-    .wd-match {
-      display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
-      flex-wrap: wrap; margin-top: var(--sp-3);
-      padding-top: var(--sp-3); border-top: 1px solid var(--hairline);
-    }
+      .wd-match {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-2);
+        flex-wrap: wrap;
+        margin-top: var(--sp-3);
+        padding-top: var(--sp-3);
+        border-top: 1px solid var(--hairline);
+      }
 
-    .wd-pick { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-    .wd-pick-row {
-      display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
-      width: 100%; min-height: 56px; padding: var(--sp-3);
-      border: 1px solid var(--hairline); border-radius: var(--radius);
-      background: var(--paper); cursor: pointer; text-align: left;
-    }
-    .wd-pick-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-    .wd-pick-id strong { color: var(--ink); }
-    .wd-pick-id .field-hint { text-transform: capitalize; }
-    .wd-pick-kpi { font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+      .wd-pick {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-2);
+      }
+      .wd-pick-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--sp-3);
+        width: 100%;
+        min-height: 56px;
+        padding: var(--sp-3);
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius);
+        background: var(--paper);
+        cursor: pointer;
+        text-align: left;
+      }
+      .wd-pick-id {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .wd-pick-id strong {
+        color: var(--ink);
+      }
+      .wd-pick-id .field-hint {
+        text-transform: capitalize;
+      }
+      .wd-pick-kpi {
+        font-weight: 700;
+        color: var(--ink-2);
+        white-space: nowrap;
+      }
 
-    .wd-coach { border-left: 3px solid var(--primary); }
-    .wd-quote { margin: 0; color: var(--ink); font-style: italic; }
+      .wd-coach {
+        border-left: 3px solid var(--primary);
+      }
 
-    /* La réponse est sous la citation, séparée d'un filet : on lit d'abord, on répond ensuite. */
-    .wd-reply { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--hairline); }
-    .wd-reply__lb { font-size: var(--text-sm); font-weight: 700; color: var(--ink-2); }
-    .wd-reply__actions { display: flex; justify-content: flex-end; }
-    .wd-reply-done { display: flex; align-items: center; gap: var(--sp-1); margin: var(--sp-3) 0 0; padding-top: var(--sp-3); border-top: 1px solid var(--hairline); }
-    .wd-reply-done a { color: var(--primary); }
-    /* Plus léger que le mot du coach : c'est une attention, pas une consigne. */
-    .wd-ack {
-      border-left: 3px solid var(--primary);
-      display: flex; align-items: baseline; justify-content: space-between;
-      gap: var(--sp-3); flex-wrap: wrap;
-    }
-    .wd-ack__txt { margin: 0; font-weight: 700; color: var(--primary); }
+      /* La réponse est sous la citation, séparée d'un filet : on lit d'abord, on répond ensuite. */
+      .wd-reply-done {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-1);
+        margin: var(--sp-3) 0 0;
+        padding-top: var(--sp-3);
+        border-top: 1px solid var(--hairline);
+      }
+      .wd-reply-done a {
+        color: var(--primary);
+      }
+      /* Plus léger que le mot du coach : c'est une attention, pas une consigne. */
+      .wd-ack {
+        border-left: 3px solid var(--primary);
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--sp-3);
+        flex-wrap: wrap;
+      }
+      .wd-ack__txt {
+        margin: 0;
+        font-weight: 700;
+        color: var(--primary);
+      }
 
-    .empty { text-align: center; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
-  `],
+      .empty {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--sp-2);
+      }
+    `,
+  ],
 })
 export class AthleteWorkoutDetailComponent implements OnInit {
   /** Lié par le routeur (`withComponentInputBinding`). */
@@ -338,6 +556,8 @@ export class AthleteWorkoutDetailComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly messages = inject(MessageService);
   private readonly feedbackSheet = viewChild(WorkoutFeedbackSheetComponent);
+  /** Le fil affiché, pour vider sa saisie une fois l'envoi confirmé — jamais avant. */
+  private readonly threadView = viewChild(SessionThreadComponent);
 
   /** Mon allure d'endurance, seule base admise pour estimer un volume écrit en durée. */
   readonly referencePace = signal<number | null>(null);
@@ -346,9 +566,9 @@ export class AthleteWorkoutDetailComponent implements OnInit {
   readonly workout = signal<Workout | null>(null);
 
   /** Réponse en cours de saisie au mot du coach, et son état d'envoi. */
-  readonly reply = signal('');
   readonly replyBusy = signal(false);
-  readonly replySent = signal(false);
+  /** Le fil de la séance : les messages de la messagerie rattachés à cette séance. */
+  readonly thread = signal<Message[]>([]);
   readonly activity = signal<Activity | null>(null);
   readonly prescription = signal<WorkoutPrescription | null>(null);
 
@@ -364,8 +584,10 @@ export class AthleteWorkoutDetailComponent implements OnInit {
   readonly typeLabels = WORKOUT_TYPE_LABELS;
 
   readonly prescriptionHasContent = computed(() => {
+    // Illisible : la carte reste, c'est elle qui porte l'avertissement.
+    if (this.prescription()?.unreadable) return true;
     const c = this.prescription()?.calculated;
-    return !!c && (c.warmup.length + c.main.length + c.cooldown.length) > 0;
+    return !!c && c.warmup.length + c.main.length + c.cooldown.length > 0;
   });
 
   /**
@@ -376,8 +598,14 @@ export class AthleteWorkoutDetailComponent implements OnInit {
   readonly hasFeedback = computed(() => {
     const w = this.workout();
     if (!w) return false;
-    return w.feel != null || w.rpe != null || w.fatigue != null || w.pain != null
-      || !!w.athleteComment || (w.injuries?.length ?? 0) > 0;
+    return (
+      w.feel != null ||
+      w.rpe != null ||
+      w.fatigue != null ||
+      w.pain != null ||
+      !!w.athleteComment ||
+      (w.injuries?.length ?? 0) > 0
+    );
   });
 
   readonly realized = computed<RealizedStats | null>(() => {
@@ -411,7 +639,10 @@ export class AthleteWorkoutDetailComponent implements OnInit {
     // mètres) et annonçait « 0,1 km » pour une heure de course. On préfère un ordre de grandeur
     // tiré de l'allure d'endurance de l'athlète, affiché comme tel.
     const volume = plannedVolume(
-      calc?.totalDistanceM ?? w.targetDistanceM ?? null, durationS, this.referencePace());
+      calc?.totalDistanceM ?? w.targetDistanceM ?? null,
+      durationS,
+      this.referencePace(),
+    );
     return {
       durationS,
       distanceM: volume?.distanceM ?? null,
@@ -419,26 +650,31 @@ export class AthleteWorkoutDetailComponent implements OnInit {
     };
   });
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+  }
 
   /**
    * Envoie la réponse au coach, rattachée à cette séance.
    *
    * <p>Elle part dans le fil de messagerie plutôt que dans un canal propre à la séance : ouvrir
    * un second fil aurait donné au coach deux endroits où regarder, et c'est exactement ainsi
-   * qu'un message se perd.</p>
+   * qu'un message se perd. Ce qui a changé, c'est qu'elle reste <b>aussi</b> visible ici — et
+   * qu'elle laisse sur la séance une trace que le coach voit sans ouvrir sa boîte.</p>
    */
-  sendReply(): void {
-    const body = this.reply().trim();
-    if (!body || this.replyBusy()) {
+  sendReply(body: string): void {
+    const text = body.trim();
+    if (!text || this.replyBusy()) {
       return;
     }
     this.replyBusy.set(true);
-    this.messages.mySend(body, this.workoutId()).subscribe({
-      next: () => {
+    this.messages.mySend(text, this.workoutId()).subscribe({
+      next: (m) => {
         this.replyBusy.set(false);
-        this.replySent.set(true);
-        this.reply.set('');
+        // On ajoute le message localement plutôt que de recharger : le fil est court, et
+        // rejouer la requête ferait clignoter ce que l'athlète vient d'écrire.
+        this.thread.update((l) => [...l, m]);
+        this.threadView()?.clear();
         this.toast.success('Réponse envoyée à ton coach.');
       },
       error: () => {
@@ -459,7 +695,9 @@ export class AthleteWorkoutDetailComponent implements OnInit {
         // est silencieux — ne pas avoir marqué un message comme lu n'est pas une panne qui
         // mérite d'interrompre quelqu'un venu regarder sa séance.
         if (w.coachComment && !w.coachCommentReadAt) {
-          this.portal.readCoachComment(id).subscribe({ error: () => undefined });
+          this.portal
+            .readCoachComment(id)
+            .subscribe({ error: () => undefined });
         }
       },
       error: () => this.state.set('error'),
@@ -478,6 +716,12 @@ export class AthleteWorkoutDetailComponent implements OnInit {
       next: (c) => this.compliance.set(c),
       error: () => this.compliance.set(null),
     });
+    // Le fil de la séance. Silencieux en cas d'échec : une séance reste parfaitement lisible
+    // sans son fil, et un athlète venu voir sa sortie n'a pas à être interrompu pour ça.
+    this.messages.myWorkoutThread(id).subscribe({
+      next: (t) => this.thread.set(t),
+      error: () => this.thread.set([]),
+    });
     this.paceReference.mine().subscribe({
       next: (p) => this.referencePace.set(p),
       error: () => this.referencePace.set(null),
@@ -494,9 +738,14 @@ export class AthleteWorkoutDetailComponent implements OnInit {
     if (!w) return;
     const a = this.activity();
     this.feedbackSheet()?.openFor(w, {
-      activity: a ? {
-        source: a.source, distanceM: a.distanceM, durationS: a.durationS, avgHr: a.avgHr,
-      } : null,
+      activity: a
+        ? {
+            source: a.source,
+            distanceM: a.distanceM,
+            durationS: a.durationS,
+            avgHr: a.avgHr,
+          }
+        : null,
     });
   }
 
@@ -526,7 +775,11 @@ export class AthleteWorkoutDetailComponent implements OnInit {
     const window = AthleteWorkoutDetailComponent.PICK_WINDOW_DAYS * 86_400_000;
     return this.activities()
       .filter((a) => !a.matchedWorkoutId)
-      .filter((a) => Math.abs(new Date(a.activityDate + 'T00:00:00').getTime() - day) <= window)
+      .filter(
+        (a) =>
+          Math.abs(new Date(a.activityDate + 'T00:00:00').getTime() - day) <=
+          window,
+      )
       .sort((a, b) => b.activityDate.localeCompare(a.activityDate));
   });
 
@@ -540,7 +793,10 @@ export class AthleteWorkoutDetailComponent implements OnInit {
         this.toast.success('Sortie rattachée à ta séance');
         this.load();
       },
-      error: () => { this.matching.set(false); this.toast.error('Rattachement impossible.'); },
+      error: () => {
+        this.matching.set(false);
+        this.toast.error('Rattachement impossible.');
+      },
     });
   }
 
@@ -554,7 +810,10 @@ export class AthleteWorkoutDetailComponent implements OnInit {
         this.toast.info('Sortie détachée');
         this.load();
       },
-      error: () => { this.matching.set(false); this.toast.error('Détachement impossible.'); },
+      error: () => {
+        this.matching.set(false);
+        this.toast.error('Détachement impossible.');
+      },
     });
   }
 
@@ -563,7 +822,8 @@ export class AthleteWorkoutDetailComponent implements OnInit {
     const h = Math.floor(seconds / 3600);
     const m = Math.floor((seconds % 3600) / 60);
     const s = seconds % 60;
-    return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+    return h
+      ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
       : `${m}:${String(s).padStart(2, '0')}`;
   }
 

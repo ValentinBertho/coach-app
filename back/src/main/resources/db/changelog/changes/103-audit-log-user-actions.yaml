@@ -1,0 +1,35 @@
+# ============================================================================
+# 103 — Le journal cesse de ne regarder que le back-office.
+#
+#   Il consignait sept gestes d'administration. Il consigne maintenant aussi ce
+#   que font les utilisateurs quand c'est important : connexions (réussies,
+#   échouées, bloquées), mots de passe, changements d'adresse, consentements
+#   santé, exports et effacements RGPD, montres branchées, athlètes créés,
+#   archivés, invités, coachs entrés et sortis d'un club, plans supprimés.
+#
+#   AUCUNE COLONNE NOUVELLE. Les nouvelles valeurs sont des constantes de
+#   `action` (lue en VARCHAR) et de `target_type` ; la famille d'une action
+#   (administration / sécurité / données personnelles / coaching) se DÉDUIT de
+#   l'action et ne se stocke pas — ce qui la rend juste pour les lignes déjà en
+#   base, qui portent toutes des gestes d'administration.
+#
+#   Ce que la migration apporte, donc : un index. Le volume change d'ordre de
+#   grandeur (une journée de connexions dépasse une année de back-office) et
+#   trois lectures filtrent désormais sur `action` — le bandeau « dernières
+#   actions » du tableau de bord, le compteur hebdomadaire, et la purge des
+#   traces d'accès. Toutes trois trient ou bornent par `occurred_at` : l'index
+#   composite les sert d'un seul parcours.
+#
+#   Additif : un index, aucune colonne, aucune donnée touchée.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 103-audit-log-action-occurred-at
+      author: coachrun
+      changes:
+        - createIndex:
+            tableName: admin_audit_log
+            indexName: idx_admin_audit_action_occurred_at
+            columns:
+              - column: { name: action }
+              - column: { name: occurred_at, descending: true }

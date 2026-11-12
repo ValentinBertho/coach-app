@@ -1,0 +1,78 @@
+# ============================================================================
+# Un tag git par mise en production.
+#
+#   Railway (API) et Vercel (front) déploient chaque commit poussé sur main.
+#   Sans repère, « quelle version tournait mardi soir ? » ou « vers quoi
+#   revenir ? » se lisait en croisant deux tableaux de bord. Ce workflow pose
+#   un tag annoté sur le commit dès que la CI de main est verte :
+#
+#     prod-AAAA-MM-JJ-HHMM-<sha7>     (heure UTC)
+#
+#   Le tag dit « ce commit a été poussé en production et ses tests passaient ».
+#   Il ne prouve pas que l'hébergeur a fini son déploiement : le tableau de
+#   bord Railway reste la référence en cas de déploiement en échec.
+#
+#   Revenir en arrière : cf. docs/OPERATIONS.md §6 bis.
+# ============================================================================
+name: Tag de déploiement
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    name: Taguer la version en production
+    # Seulement un push sur main (pas une PR dont la branche s'appellerait main) et une CI verte.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Poser le tag
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          # Une CI relancée sur un commit déjà tagué ne crée pas de second tag.
+          if git tag --points-at "$SHA" | grep -q '^prod-'; then
+            echo "Déjà tagué : $(git tag --points-at "$SHA" | grep '^prod-')"
+            exit 0
+          fi
+          TAG="prod-$(date -u +%Y-%m-%d-%H%M)-${SHA:0:7}"
+          PREVIOUS="$(git tag --list 'prod-*' --sort=-creatordate | head -n1 || true)"
+          {
+            echo "Mise en production du $(date -u '+%d/%m/%Y à %H:%M') UTC"
+            echo
+            if [ -n "$PREVIOUS" ]; then
+              echo "Depuis $PREVIOUS :"
+              git log --first-parent --format='- %s' "$PREVIOUS..$SHA" | head -n 50
+            else
+              git log -1 --format='- %s' "$SHA"
+            fi
+          } > /tmp/tag-message.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -F /tmp/tag-message.txt "$SHA"
+          git push origin "refs/tags/$TAG"
+          {
+            echo "### Tag posé : \`$TAG\`"
+            echo
+            sed 's/^/    /' /tmp/tag-message.txt
+          } >> "$GITHUB_STEP_SUMMARY"

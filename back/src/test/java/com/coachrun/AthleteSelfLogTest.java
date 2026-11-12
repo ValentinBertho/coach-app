@@ -40,7 +40,7 @@ class AthleteSelfLogTest {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"coach-%s@test.fr","password":"password123","fullName":"C","termsAccepted": true, "clubName":"SL %s"}
+                                {"email":"coach-%s@test.fr","password":"password1234","fullName":"C","termsAccepted": true, "clubName":"SL %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andReturn().getResponse().getContentAsString());
         String coach = "Bearer " + auth.get("accessToken").asText();

@@ -247,7 +247,7 @@ class ActivityLapsEndpointTest {
         JsonNode auth = objectMapper.readTree(mvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"email":"laps-%s@test.fr","password":"password123","fullName":"C","termsAccepted": true, "clubName":"LAP %s"}
+                                {"email":"laps-%s@test.fr","password":"password1234","fullName":"C","termsAccepted": true, "clubName":"LAP %s"}
                                 """.formatted(UUID.randomUUID(), UUID.randomUUID())))
                 .andReturn().getResponse().getContentAsString());
         String coach = "Bearer " + auth.get("accessToken").asText();

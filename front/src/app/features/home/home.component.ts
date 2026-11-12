@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+} from '@angular/core';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -12,7 +18,6 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
  */
 @Component({
   selector: 'app-home',
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent, RouterLink, LogoComponent, InstallButtonComponent],
   templateUrl: './home.component.html',

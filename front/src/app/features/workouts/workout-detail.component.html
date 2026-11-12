@@ -32,7 +32,7 @@
             </div>
             <div class="stat">
               <span class="stat__lb">Distance</span>
-              <span class="stat__v metric">@if (st.distanceKm) { {{ st.distanceKm.toFixed(2) }} <small>km</small> } @else { — }</span>
+              <span class="stat__v metric">@if (st.distanceKm) { {{ st.distanceKm | number: '1.2-2' }} <small>km</small> } @else { — }</span>
             </div>
             <div class="stat">
               <span class="stat__lb">Allure</span>
@@ -60,7 +60,7 @@
                 <span class="zdist-item">
                   <span class="zdist-dot" [style.background]="s.color"></span>
                   {{ s.name }}
-                  <span class="zdist-time metric">{{ fmtDuration(s.durationS) }} · {{ s.pct.toFixed(0) }}%</span>
+                  <span class="zdist-time metric">{{ fmtDuration(s.durationS) }} · {{ s.pct | number: '1.0-0' }} %</span>
                 </span>
               }
             </div>
@@ -204,6 +204,37 @@
             <button type="button" class="btn btn-ghost btn-sm" (click)="startEditComment()">
               <app-icon name="pencil" [size]="15" /> Commenter cette séance
             </button>
+          }
+
+          <!--
+            La suite de l'échange, sur la séance.
+
+            Le coach posait sa question ici et la réponse partait dans la messagerie : il fallait
+            l'y aller chercher, retrouver la conversation, puis deviner de quelle sortie on
+            parlait. Le plus souvent il ne la voyait pas du tout — c'est le défaut remonté en
+            bêta, une réponse arrivée le soir même et découverte trois jours plus tard.
+
+            Ce ne sont pas des messages d'un canal à part : ce sont ceux de la messagerie
+            rattachés à cette séance. Répondre d'ici écrit dans le même fil.
+          -->
+          @if (thread().length || w.athleteReplyAt) {
+            <div class="cc-thread">
+              <h3 class="cc-thread__h">
+                La suite
+                @if (w.athleteReplyAt && !w.athleteReplyReadAt) {
+                  <span class="badge badge-warning">Réponse non lue</span>
+                }
+              </h3>
+              <app-session-thread
+                [messages]="thread()"
+                viewer="COACH"
+                [sending]="sendingReply()"
+                replyLabel="Répondre à l'athlète"
+                placeholder="Ta réponse…"
+                inputId="wd-coach-reply"
+                emptyLabel="Pas encore de réponse."
+                (send)="sendReply($event)" />
+            </div>
           }
         </section>
       </div>

@@ -38,6 +38,10 @@ public class SecurityConfig {
             "/auth/register",
             "/auth/login",
             "/auth/refresh",
+            // Second facteur : le mot de passe est déjà vérifié, aucun jeton d'accès n'existe encore.
+            "/auth/mfa/verify",
+            // Public pour fermer la session du cookie même quand le jeton d'accès a expiré.
+            "/auth/logout",
             "/actuator/health",
             "/actuator/health/**",
             "/actuator/info",

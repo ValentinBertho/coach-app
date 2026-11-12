@@ -59,7 +59,7 @@ public class LogContextFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         MDC.put(REQUEST_ID, newRequestId());
         MDC.put(METHOD, request.getMethod());
-        // Sans la chaîne de requête : elle peut porter un access_token (SSE, pièces jointes).
+        // Sans la chaîne de requête : elle peut porter un jeton (SSE, pièces jointes).
         MDC.put(PATH, request.getRequestURI());
         try {
             filterChain.doFilter(request, response);

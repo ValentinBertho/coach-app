@@ -11,6 +11,7 @@ import { UpdateService } from './core/services/update.service';
 import { CelebrationOverlayComponent } from './shared/components/celebration/celebration-overlay.component';
 import { ConfirmDialogComponent } from './shared/components/confirm-dialog/confirm-dialog.component';
 import { FeedbackPanelComponent } from './shared/components/feedback-panel/feedback-panel.component';
+import { InstallGuideComponent } from './shared/components/install-guide/install-guide.component';
 import { PushOnboardingComponent } from './shared/components/push-onboarding/push-onboarding.component';
 import { ToastComponent } from './shared/components/toast/toast.component';
 import { UpdateBannerComponent } from './shared/components/update-banner/update-banner.component';
@@ -25,8 +26,19 @@ import { ImpersonationBannerComponent } from './shared/components/impersonation-
  */
 @Component({
   selector: 'app-root',
-  standalone: true,
-  imports: [RouterOutlet, ToastComponent, ConfirmDialogComponent, HelpSearchOverlayComponent, CommandPaletteComponent, UpdateBannerComponent, CelebrationOverlayComponent, FeedbackPanelComponent, PushOnboardingComponent, ImpersonationBannerComponent],
+  imports: [
+    RouterOutlet,
+    ToastComponent,
+    ConfirmDialogComponent,
+    HelpSearchOverlayComponent,
+    CommandPaletteComponent,
+    UpdateBannerComponent,
+    CelebrationOverlayComponent,
+    FeedbackPanelComponent,
+    PushOnboardingComponent,
+    InstallGuideComponent,
+    ImpersonationBannerComponent,
+  ],
   template: `
     <!-- Avant tout le reste : une session empruntée doit se voir dès le premier pixel, sur les
          deux coquilles comme sur les écrans qui n'en ont pas. -->
@@ -45,6 +57,9 @@ import { ImpersonationBannerComponent } from './shared/components/impersonation-
          parce qu'elle ne dépend d'aucun écran : celui qui vient d'installer n'en connaît encore
          aucun, et c'est précisément ce que les invitations existantes supposaient. -->
     <app-push-onboarding />
+    <!-- Son pendant côté navigateur : sur mobile, explique comment ajouter l'application à
+         l'écran d'accueil. Jamais en même temps que la précédente, qui suppose l'app installée. -->
+    <app-install-guide />
   `,
 })
 export class AppComponent {
@@ -86,6 +101,8 @@ export class AppComponent {
       if (document.visibilityState === 'visible') this.auth.ensureFreshToken();
     };
     document.addEventListener('visibilitychange', onVisible);
-    this.destroyRef.onDestroy(() => document.removeEventListener('visibilitychange', onVisible));
+    this.destroyRef.onDestroy(() =>
+      document.removeEventListener('visibilitychange', onVisible),
+    );
   }
 }

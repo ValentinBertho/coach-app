@@ -19,6 +19,7 @@ public record StrengthResultExportResponse(
         BigDecimal chargeKg,
         Integer repsDone,
         Integer durationSecDone,
+        Integer distanceMDone,
         BigDecimal rpeDone,
         Integer rirDone,
         Integer pain,
@@ -30,7 +31,8 @@ public record StrengthResultExportResponse(
                 r.getId(),
                 r.getScheduledSession() == null ? null : r.getScheduledSession().getId(),
                 r.getExerciseId(), r.getSetNumber(), r.getChargeKg(),
-                r.getRepsDone(), r.getDurationSecDone(), r.getRpeDone(), r.getRirDone(),
+                r.getRepsDone(), r.getDurationSecDone(), r.getDistanceMDone(),
+                r.getRpeDone(), r.getRirDone(),
                 r.getPain(), r.getComment(), r.getCreatedAt());
     }
 }
