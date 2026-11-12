@@ -331,6 +331,9 @@ public class AuthService {
      * révocation d'une session rejouée tienne. Les causes de refus sont journalisées par
      * {@link com.coachrun.security.RefreshTokenService#rotate}.</p>
      */
+    // En écriture, et sans annulation sur refus : la révocation de toutes les sessions ci-dessous
+    // doit tenir alors même que la méthode refuse (même piège de lecture seule que closeSession).
+    @Transactional(noRollbackFor = UnauthorizedException.class)
     public AuthResponse refresh(String rawRefreshToken) {
         var rotation = refreshTokens.rotate(rawRefreshToken);
         User user = userRepository.findById(rotation.userId())
@@ -412,7 +415,14 @@ public class AuthService {
                 : session;
     }
 
-    /** Déconnexion d'une session précise (celle du cookie), sans toucher aux autres appareils. */
+    /**
+     * Déconnexion d'une session précise (celle du cookie), sans toucher aux autres appareils.
+     *
+     * <p>Transaction en écriture explicite : la classe est en lecture seule par défaut, et
+     * PostgreSQL y refusait la révocation (500 au logout, session laissée ouverte). Couvert par
+     * {@code LogoutOnPostgresTest}.</p>
+     */
+    @Transactional
     public void closeSession(String rawRefreshToken) {
         refreshTokens.revokeSession(rawRefreshToken);
     }
