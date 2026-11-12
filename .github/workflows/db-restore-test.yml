@@ -78,7 +78,10 @@ jobs:
           [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ] \
             || { echo "::error::Aucune sauvegarde réussie à restaurer."; exit 1; }
           gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --dir dump
-          ENC="$(find dump -name '*.dump.enc' | head -n1)"
+          # -type f : l'artefact porte le nom du fichier, et `gh run download --dir` range chaque
+          # artefact dans un dossier à son nom. Sans ce filtre, `find` rendait d'abord le dossier
+          # « ….dump.enc », et le déchiffrement échouait sur « Is a directory ».
+          ENC="$(find dump -type f -name '*.dump.enc' | head -n1)"
           [ -n "$ENC" ] || { echo "::error::Artefact sans fichier .dump.enc."; exit 1; }
           echo "ENC=$ENC" >> "$GITHUB_ENV"
           echo "DUMP_NAME=$(basename "$ENC" .enc)" >> "$GITHUB_ENV"
