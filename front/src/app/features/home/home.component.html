@@ -33,6 +33,12 @@
         }
       </div>
 
+      @if (!isAuthenticated()) {
+        <a routerLink="/" fragment="presentation" class="hero-video-link">
+          <app-icon name="play" [size]="16" /> Voir DARI Lab en action
+        </a>
+      }
+
       <div class="zones-preview">
         <span class="zone-tag zone-z1">Z1</span>
         <span class="zone-tag zone-z2">Z2</span>
@@ -40,6 +46,59 @@
         <span class="zone-tag zone-z4">Z4</span>
         <span class="zone-tag zone-z5">Z5</span>
       </div>
+    </div>
+  </section>
+
+  <!-- L'outil du coach, montré plutôt que décrit : de vrais écrans, issus du jeu de démonstration
+       (script e2e/captures). Les images se régénèrent avec lui ; cf. branding/video/README.md. -->
+  <section class="tour container-wide" id="presentation" aria-labelledby="tour-title">
+    <span class="badge badge-neutral">Pour les coachs</span>
+    <h2 id="tour-title" class="display-sm">L'outil du coach, en vrai</h2>
+    <p class="tour-lead">Le plan, le suivi, la messagerie et la montre de tes athlètes au même endroit.
+      Voilà ce que tu vois chaque matin.</p>
+
+    <figure class="tour-video">
+      <!-- preload="none" : rien ne se télécharge tant que personne n'appuie sur lecture. Servie
+           hors de /assets pour que le service worker ne s'interpose pas dans la lecture. -->
+      <video controls preload="none" playsinline poster="video/presentation-coachs-poster.webp"
+             width="1280" height="720" aria-label="Présentation de DARI Lab en vidéo">
+        <source src="video/presentation-coachs.mp4" type="video/mp4" />
+      </video>
+      <figcaption class="field-hint">DARI Lab en action, filmé dans l’outil (1 min 37).</figcaption>
+    </figure>
+
+    @for (row of tour; track row.img; let odd = $odd) {
+      <article class="tour-row" [class.tour-row--flip]="odd">
+        <div class="tour-text">
+          <span class="tour-ic"><app-icon [name]="row.icon" [size]="20" /></span>
+          <h3>{{ row.title }}</h3>
+          <p>{{ row.text }}</p>
+        </div>
+        <div class="tour-shot">
+          <img [src]="'assets/landing/' + row.img + '.webp'" [alt]="row.alt"
+               width="1440" height="900" loading="lazy" decoding="async" />
+        </div>
+      </article>
+    }
+
+    <article class="tour-row tour-row--phones">
+      <div class="tour-text">
+        <span class="tour-ic"><app-icon name="smartphone" [size]="20" /></span>
+        <h3>Tes athlètes ont tout sur leur téléphone</h3>
+        <p>Leur séance du jour avec ses allures cibles, leur mois, la conversation avec toi.
+          Leur retour en trente secondes : effort, fatigue, douleur, un mot. Leurs sorties Strava
+          se rattachent seules au plan.</p>
+      </div>
+      <div class="tour-phones">
+        <img src="assets/landing/tel-aujourdhui.webp" alt="La séance du jour sur le téléphone de l'athlète" width="420" height="933" loading="lazy" decoding="async" />
+        <img src="assets/landing/tel-calendrier.webp" alt="Le calendrier du mois de l'athlète" width="420" height="933" loading="lazy" decoding="async" />
+        <img src="assets/landing/tel-messages.webp" alt="La conversation entre l'athlète et sa coach" width="420" height="933" loading="lazy" decoding="async" />
+      </div>
+    </article>
+
+    <div class="tour-cta">
+      <a routerLink="/register" class="btn btn-primary btn-lg">Créer mon espace coach</a>
+      <span class="field-hint">Gratuit. Invite les athlètes que tu suis déjà.</span>
     </div>
   </section>
 
@@ -110,24 +169,6 @@
         <a routerLink="/register" class="btn btn-secondary">Créer mon espace coach</a>
       </article>
     </div>
-  </section>
-
-  <section class="features container-wide" aria-label="L'outil du coach">
-    <article class="card card-interactive feature">
-      <span class="feature-ic"><app-icon name="calendar" [size]="22" /></span>
-      <h3>Calendrier & séances</h3>
-      <p class="field-hint">Planifie des séances structurées par étapes et zones, semaine après semaine.</p>
-    </article>
-    <article class="card card-interactive feature">
-      <span class="feature-ic"><app-icon name="watch" [size]="22" /></span>
-      <h3>Prévu vs réalisé</h3>
-      <p class="field-hint">Importe les activités et rapproche-les automatiquement des séances prévues.</p>
-    </article>
-    <article class="card card-interactive feature">
-      <span class="feature-ic"><app-icon name="smartphone" [size]="22" /></span>
-      <h3>Espace athlète</h3>
-      <p class="field-hint">Tes athlètes voient leur séance du jour et notent leur ressenti en un tap.</p>
-    </article>
   </section>
 
   <!-- Les réponses suivent le produit tel qu'il est : chaque phrase ici a son équivalent dans le
