@@ -1,5 +1,7 @@
 package com.coachrun.dto.request;
 
+import com.coachrun.dto.CoachLinks;
+import jakarta.validation.Valid;
 import com.coachrun.entity.enums.AthleteLevel;
 import com.coachrun.entity.enums.CoachSpecialty;
 import com.coachrun.entity.enums.Discipline;
@@ -33,5 +35,7 @@ public record CoachProfileRequest(
         boolean remote,
         boolean inPerson,
         @Min(0) @Max(70) Integer experienceYears,
-        @Min(1) @Max(500) Integer capacityMax) {
+        @Min(1) @Max(500) Integer capacityMax,
+        /** Site et réseaux. Absent = aucun lien (un ancien client qui ne les envoie pas les efface). */
+        @Valid CoachLinks links) {
 }

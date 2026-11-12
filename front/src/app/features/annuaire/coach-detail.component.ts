@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Meta, Title } from '@angular/platform-browser';
 import { AuthService } from '../../core/services/auth.service';
@@ -6,7 +6,7 @@ import { CoachingRequestService } from '../../core/services/coaching-request.ser
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { CoachDetail, CoachDirectoryService, REPORT_REASONS } from '../../core/services/coach-directory.service';
-import { CoachOffer } from '../../core/services/coach-profile.service';
+import { CoachOffer, filledLinks } from '../../core/services/coach-profile.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 
@@ -77,6 +77,22 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
                   }
                 </p>
               }
+
+              @if (links().length) {
+                <!-- noopener noreferrer : la page d'en face n'a ni à tenir une référence sur
+                     celle-ci, ni à savoir d'où vient le visiteur. nofollow : la fiche ne prête
+                     pas son référencement à ce qu'un coach y déclare. -->
+                <ul class="cd__links" aria-label="Site et réseaux">
+                  @for (l of links(); track l.label) {
+                    <li>
+                      <a [href]="l.url" target="_blank" rel="noopener noreferrer nofollow"
+                         class="cd__link">
+                        {{ l.label }} <app-icon name="external-link" [size]="14" />
+                      </a>
+                    </li>
+                  }
+                </ul>
+              }
             </div>
           </section>
 
@@ -135,8 +151,12 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
                    l'athlète se fait une opinion, c'est ici que la réserve doit se lire. -->
               <p class="field-hint cd__declared">
                 <app-icon name="info" [size]="14" />
-                Ces diplômes sont <strong>déclarés par le coach</strong>. La plateforme ne les a pas
-                vérifiés auprès des organismes qui les délivrent.
+                <!-- Un seul enfant texte : en flex, le <strong> devenait une colonne à part et
+                     la phrase se lisait en trois morceaux. -->
+                <span>
+                  Ces diplômes sont <strong>déclarés par le coach</strong>. La plateforme ne les a
+                  pas vérifiés auprès des organismes qui les délivrent.
+                </span>
               </p>
             </section>
           }
@@ -228,6 +248,9 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
     .cd__ident h1 { margin: 0 0 var(--sp-1); }
     .cd__headline { margin: 0 0 var(--sp-2); color: var(--ink-2); font-style: italic; }
     .cd__meta { margin: 0 0 var(--sp-2); color: var(--ink-3); font-size: var(--text-sm); }
+    .cd__links { list-style: none; display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: var(--sp-3) 0 0; padding: 0; }
+    .cd__link { display: inline-flex; align-items: center; gap: var(--sp-1); padding: var(--sp-1) var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius-full); color: var(--ink-2); font-size: var(--text-sm); text-decoration: none; min-height: 32px; }
+    .cd__link:hover { border-color: var(--primary-light); color: var(--primary); }
     .cd__signals { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); margin: var(--sp-2) 0 0; font-size: var(--text-sm); color: var(--ink-2); }
     .cd__block { padding: var(--sp-5); margin-bottom: var(--sp-4); }
     .cd__title { font-size: var(--text-lg); margin: 0 0 var(--sp-3); }
@@ -261,6 +284,7 @@ export class CoachDetailComponent implements OnInit {
   private readonly meta = inject(Meta);
 
   readonly coach = signal<CoachDetail | null>(null);
+  readonly links = computed(() => filledLinks(this.coach()?.links));
   readonly loading = signal(true);
   readonly sending = signal(false);
 

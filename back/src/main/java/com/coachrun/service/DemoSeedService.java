@@ -282,6 +282,8 @@ public class DemoSeedService {
                 9000, OfferPeriodicity.MONTHLY, 0);
         offer(sarah, "Préparation marathon", "16 semaines, du bilan à la ligne d'arrivée.",
                 48000, OfferPeriodicity.ONE_OFF, 1);
+        // Un domaine réservé (.example) : le jeu de démonstration ne doit pointer chez personne.
+        sarah.setWebsiteUrl("https://sarah-lemoine.example");
         certification(sarah, "BEES 1er degré athlétisme", "Ministère des Sports", 2013);
         certification(sarah, "Coach FFA — Running", "Fédération Française d'Athlétisme", 2018);
 

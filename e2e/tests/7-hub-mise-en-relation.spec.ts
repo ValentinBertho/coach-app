@@ -24,6 +24,24 @@ test('un visiteur trouve une coach dans l\'annuaire public, sans compte', async 
   await expect(page.getByText('Demander à être coaché').first()).toBeVisible();
 });
 
+test('la recherche libre et le tri de l\'annuaire répondent', async ({ page }) => {
+  await skipInstallGuide(page);
+  await page.goto('/coachs');
+  await expect(page.getByText('Sarah Lemoine').first()).toBeVisible();
+
+  // « grenoble », sans majuscule : seul le coach de Grenoble reste.
+  await page.getByRole('searchbox', { name: 'Rechercher un coach' }).fill('grenoble');
+  await expect(page.getByText('Malik Fournier').first()).toBeVisible();
+  await expect(page.getByText('Sarah Lemoine')).toHaveCount(0);
+  await expect(page.getByText('1 coach', { exact: true })).toBeVisible();
+
+  // Recherche effacée, tri par tarif : la formule à 90 € passe devant celle à 110 €.
+  await page.getByRole('searchbox', { name: 'Rechercher un coach' }).fill('');
+  await expect(page.getByText('Sarah Lemoine').first()).toBeVisible();
+  await page.getByLabel('Trier par').selectOption('PRICE');
+  await expect(page.locator('.dir__name').first()).toHaveText('Sarah Lemoine');
+});
+
 test('la coach accepte la demande, et l\'athlète entre dans son espace d\'entraînement', async ({ page, browser }) => {
   // Avant : sans coach, l'athlète n'a que l'annuaire et ses demandes.
   const athlete = await (await browser.newContext()).newPage();

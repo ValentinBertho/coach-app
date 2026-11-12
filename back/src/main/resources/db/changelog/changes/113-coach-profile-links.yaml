@@ -1,0 +1,22 @@
+# ============================================================================
+# 113 — Les liens d'une fiche coach : site web et réseaux.
+#
+#   Quatre colonnes plutôt qu'une table : la liste est fermée (chaque réseau a
+#   son domaine vérifié à l'enregistrement, cf. CoachLinks) et elle se lit
+#   toujours avec la fiche. Une table « liens » au type libre inviterait
+#   exactement ce que la vérification par domaine écarte.
+#
+#   Toutes nullables : aucun lien n'est exigé pour publier une fiche.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 113-coach-profile-links
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: coach_profiles
+            columns:
+              - column: { name: website_url, type: VARCHAR(300) }
+              - column: { name: instagram_url, type: VARCHAR(300) }
+              - column: { name: strava_url, type: VARCHAR(300) }
+              - column: { name: youtube_url, type: VARCHAR(300) }

@@ -28,6 +28,30 @@ export interface CoachOffer {
   position: number;
 }
 
+/** Site et réseaux d'un coach. Le serveur n'accepte que du https, et chaque réseau sur son domaine. */
+export interface CoachLinks {
+  website: string | null;
+  instagram: string | null;
+  strava: string | null;
+  youtube: string | null;
+}
+
+/** L'ordre et le libellé d'affichage des liens, partagés par l'éditeur, la fiche et l'arbitrage. */
+export const COACH_LINK_KINDS: ReadonlyArray<{ key: keyof CoachLinks; label: string; placeholder: string }> = [
+  { key: 'website', label: 'Site web', placeholder: 'https://mon-site.fr' },
+  { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/moncompte' },
+  { key: 'strava', label: 'Strava', placeholder: 'https://www.strava.com/athletes/…' },
+  { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@machaine' },
+];
+
+/** Les liens renseignés, dans l'ordre d'affichage. */
+export function filledLinks(links: CoachLinks | null | undefined): Array<{ label: string; url: string }> {
+  if (!links) return [];
+  return COACH_LINK_KINDS
+    .map((k) => ({ label: k.label, url: links[k.key] }))
+    .filter((l): l is { label: string; url: string } => !!l.url);
+}
+
 export interface CoachProfile {
   id: string;
   slug: string;
@@ -61,6 +85,7 @@ export interface CoachProfile {
   photoUrl: string | null;
   certifications: CoachCertification[];
   offers: CoachOffer[];
+  links: CoachLinks | null;
   /** Ce qui manque pour soumettre. Vide = la fiche est prête. */
   missing: string[];
 }
@@ -78,6 +103,7 @@ export interface CoachProfileForm {
   inPerson: boolean;
   experienceYears: number | null;
   capacityMax: number | null;
+  links: CoachLinks;
 }
 
 export interface VocabularyEntry {

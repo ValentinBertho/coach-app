@@ -46,6 +46,7 @@ describe('vitrine — l’éditeur montre l’état réel de la fiche', () => {
     photoUrl: null,
     certifications: [],
     offers: [],
+    links: null,
     missing: [],
   };
 

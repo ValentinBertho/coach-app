@@ -235,3 +235,5 @@ databaseChangeLog:
       file: db/changelog/changes/111-coaching-requests.yaml
   - include:
       file: db/changelog/changes/112-coach-profile-reports.yaml
+  - include:
+      file: db/changelog/changes/113-coach-profile-links.yaml

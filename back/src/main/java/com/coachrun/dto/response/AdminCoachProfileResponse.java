@@ -1,5 +1,6 @@
 package com.coachrun.dto.response;
 
+import com.coachrun.dto.CoachLinks;
 import com.coachrun.entity.CoachProfile;
 import com.coachrun.entity.enums.CoachProfileStatus;
 import com.coachrun.entity.enums.CoachSpecialty;
@@ -37,7 +38,9 @@ public record AdminCoachProfileResponse(
         /** Une fiche se valide aussi sur sa photo : l'écran d'arbitrage doit la montrer. */
         String photoUrl,
         List<CoachCertificationResponse> certifications,
-        List<CoachOfferResponse> offers) {
+        List<CoachOfferResponse> offers,
+        /** Les liens se valident avec le reste : c'est vers eux que la fiche enverra le public. */
+        CoachLinks links) {
 
     public static AdminCoachProfileResponse of(CoachProfile p,
                                                String reviewedByEmail,
@@ -63,6 +66,7 @@ public record AdminCoachProfileResponse(
                 p.getReviewNote(),
                 photoUrl,
                 certifications,
-                offers);
+                offers,
+                CoachLinks.of(p));
     }
 }

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
+  COACH_LINK_KINDS,
   CoachOffer,
   CoachProfile,
   CoachProfileService,
@@ -216,6 +217,25 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
             </div>
           </div>
 
+          <!-- Facultatifs. Ils n'apparaissent que sur la fiche, pas dans la liste de l'annuaire. -->
+          <div class="cp-links" formGroupName="links">
+            <span class="cp-links__legend">Site et réseaux <span class="field-hint">(facultatif)</span></span>
+            <div class="cp-row">
+              @for (k of linkKinds; track k.key) {
+                <div class="form-group">
+                  <label [for]="'link-' + k.key">{{ k.label }}</label>
+                  <input [id]="'link-' + k.key" type="url" class="form-control" maxlength="300"
+                         [formControlName]="k.key" [placeholder]="k.placeholder"
+                         autocomplete="off" inputmode="url" />
+                </div>
+              }
+            </div>
+            <span class="field-hint">
+              Ce qu'un athlète regarde pour savoir à qui il a affaire. Votre e-mail et votre
+              téléphone, eux, ne sont jamais affichés.
+            </span>
+          </div>
+
           <button type="submit" class="btn btn-secondary" [disabled]="saving() || frozen()">
             {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
           </button>
@@ -357,6 +377,8 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
     .cp-chip:hover { border-color: var(--primary-light); }
     .cp-chip.selected { border-color: var(--primary); background: var(--primary-wash); color: var(--primary); font-weight: 600; }
     .cp-chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .cp-links { margin-bottom: var(--sp-4); }
+    .cp-links__legend { display: block; font-weight: 600; margin-bottom: var(--sp-2); }
     .cp-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
     @media (max-width: 640px) { .cp-row { grid-template-columns: 1fr; } }
     .cp-block { padding: var(--sp-5); margin-bottom: var(--sp-4); }
@@ -436,7 +458,10 @@ export class CoachProfileComponent implements OnInit {
     inPerson: [false],
     experienceYears: [null as number | null],
     capacityMax: [null as number | null],
+    links: this.fb.nonNullable.group({ website: [''], instagram: [''], strava: [''], youtube: [''] }),
   });
+
+  readonly linkKinds = COACH_LINK_KINDS;
 
   readonly offerForm = this.fb.nonNullable.group({
     name: ['', [Validators.required, Validators.maxLength(120)]],
@@ -493,6 +518,12 @@ export class CoachProfileComponent implements OnInit {
       inPerson: v.inPerson,
       experienceYears: v.experienceYears,
       capacityMax: v.capacityMax,
+      links: {
+        website: v.links.website.trim() || null,
+        instagram: v.links.instagram.trim() || null,
+        strava: v.links.strava.trim() || null,
+        youtube: v.links.youtube.trim() || null,
+      },
       disciplines: [...s['disciplines']],
       specialties: [...s['specialties']],
       levels: [...s['levels']],
@@ -503,9 +534,11 @@ export class CoachProfileComponent implements OnInit {
         this.saving.set(false);
         this.toast.success('Fiche enregistrée');
       },
-      error: () => {
+      error: (e) => {
         this.saving.set(false);
-        this.toast.error("La fiche n'a pas pu être enregistrée");
+        // Quand le serveur explique son refus (« Lien « Instagram » invalide… »), l'intercepteur
+        // d'erreurs l'a déjà affiché : un second message, générique, le recouvrirait.
+        if (!e?.error?.message) this.toast.error("La fiche n'a pas pu être enregistrée");
       },
     });
   }
@@ -687,6 +720,12 @@ export class CoachProfileComponent implements OnInit {
       inPerson: p.inPerson,
       experienceYears: p.experienceYears,
       capacityMax: p.capacityMax,
+      links: {
+        website: p.links?.website ?? '',
+        instagram: p.links?.instagram ?? '',
+        strava: p.links?.strava ?? '',
+        youtube: p.links?.youtube ?? '',
+      },
     });
     this.sets.set({
       disciplines: new Set(p.disciplines),

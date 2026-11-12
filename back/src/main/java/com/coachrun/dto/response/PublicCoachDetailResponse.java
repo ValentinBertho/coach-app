@@ -1,5 +1,6 @@
 package com.coachrun.dto.response;
 
+import com.coachrun.dto.CoachLinks;
 import com.coachrun.entity.CoachProfile;
 import com.coachrun.entity.enums.AthleteLevel;
 import com.coachrun.entity.enums.CoachSpecialty;
@@ -50,7 +51,9 @@ public record PublicCoachDetailResponse(
         List<CoachCertificationResponse> certifications,
         /** Toujours vrai : les diplômes sont déclaratifs, et l'écran doit le dire. */
         boolean certificationsDeclared,
-        List<CoachOfferResponse> offers) {
+        List<CoachOfferResponse> offers,
+        /** Site et réseaux : sur la fiche seulement, jamais dans la liste de résultats. */
+        CoachLinks links) {
 
     public static PublicCoachDetailResponse of(CoachProfile p,
                                                String photoUrl,
@@ -79,6 +82,7 @@ public record PublicCoachDetailResponse(
                 p.getStatus().acceptsRequests(),
                 certifications,
                 true,
-                offers);
+                offers,
+                CoachLinks.of(p));
     }
 }

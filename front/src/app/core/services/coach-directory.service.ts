@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { CoachCertification, CoachOffer } from './coach-profile.service';
+import { CoachCertification, CoachLinks, CoachOffer } from './coach-profile.service';
 
 export interface CoachSummary {
   slug: string;
@@ -41,6 +41,8 @@ export interface CoachDetail extends CoachSummary {
   /** Toujours vrai : les diplômes sont déclaratifs, et l'écran doit le dire. */
   certificationsDeclared: boolean;
   offers: CoachOffer[];
+  /** Site et réseaux : sur la fiche seulement, jamais dans la liste. */
+  links: CoachLinks | null;
 }
 
 /** Les motifs de signalement, alignés sur `CoachReportReason` côté serveur. */
@@ -68,7 +70,19 @@ export interface CoachFacets {
   accepting: number;
 }
 
+/** Les ordres proposés au visiteur, alignés sur `DirectorySort` côté serveur. */
+export type DirectorySort = 'DEFAULT' | 'PRICE' | 'EXPERIENCE' | 'RESPONSE';
+
+export const DIRECTORY_SORTS: ReadonlyArray<{ value: DirectorySort; label: string }> = [
+  { value: 'DEFAULT', label: 'Sélection du jour' },
+  { value: 'PRICE', label: 'Tarif croissant' },
+  { value: 'EXPERIENCE', label: 'Les plus expérimentés' },
+  { value: 'RESPONSE', label: 'Réponse la plus rapide' },
+];
+
 export interface DirectoryFilters {
+  /** Recherche libre : nom, ville, spécialité, mots de la présentation. */
+  q?: string | null;
   discipline?: string | null;
   specialty?: string | null;
   language?: string | null;
@@ -96,8 +110,13 @@ export class CoachDirectoryService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiUrl;
 
-  search(filters: DirectoryFilters, page = 0, size = 12): Observable<Page<CoachSummary>> {
+  search(
+    filters: DirectoryFilters, page = 0, size = 12, sort: DirectorySort = 'DEFAULT',
+  ): Observable<Page<CoachSummary>> {
     let params = new HttpParams().set('page', page).set('size', size);
+    if (sort !== 'DEFAULT') {
+      params = params.set('sort', sort);
+    }
     for (const [key, value] of Object.entries(filters)) {
       if (value !== null && value !== undefined && value !== '') {
         params = params.set(key, String(value));

@@ -44,6 +44,7 @@ describe('fiche publique d’un coach', () => {
     certifications: [],
     certificationsDeclared: true,
     offers: [],
+    links: null,
   };
 
   beforeEach(() => {
@@ -153,5 +154,25 @@ describe('fiche publique d’un coach', () => {
   it('renseigne le titre de la page avec le nom du coach', () => {
     start();
     expect(document.title).toContain('Marie Dupont');
+  });
+
+  /**
+   * Les liens d'un coach mènent hors de la plateforme : ils s'ouvrent à part, sans donner à la
+   * page d'en face de prise sur celle-ci, et un réseau non renseigné ne laisse pas de lien mort.
+   */
+  it('affiche les liens renseignés, et seulement eux, ouverts à part', () => {
+    const host = start({
+      links: { website: null, instagram: 'https://instagram.com/marie', strava: null, youtube: null },
+    });
+    const anchors = Array.from(host.querySelectorAll<HTMLAnchorElement>('.cd__link'));
+    expect(anchors.length).toBe(1);
+    expect(anchors[0].textContent).toContain('Instagram');
+    expect(anchors[0].getAttribute('href')).toBe('https://instagram.com/marie');
+    expect(anchors[0].target).toBe('_blank');
+    expect(anchors[0].rel).toContain('noopener');
+  });
+
+  it('ne montre aucun bloc de liens quand le coach n’en a pas', () => {
+    expect(start().querySelector('.cd__links')).toBeNull();
   });
 });
