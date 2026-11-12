@@ -6,8 +6,8 @@
       @if (isAuthenticated()) {
         <a [routerLink]="home()" class="btn btn-primary btn-sm">Mon espace</a>
       } @else {
-        <a routerLink="/coachs" class="btn btn-ghost btn-sm">Trouver un coach</a>
-        <a routerLink="/inscription-athlete" class="btn btn-ghost btn-sm">Je suis athlète</a>
+        <a routerLink="/coachs" class="btn btn-ghost btn-sm top-optional-sm">Trouver un coach</a>
+        <a routerLink="/" fragment="comment-ca-marche" class="btn btn-ghost btn-sm top-optional">Comment ça marche</a>
         <a routerLink="/login" class="btn btn-ghost btn-sm">Connexion</a>
         <a routerLink="/register" class="btn btn-primary btn-sm">Créer mon espace</a>
       }
@@ -19,8 +19,8 @@
       <span class="badge badge-info">Coaching course à pied</span>
       <h1 class="display-lg">Entraîne. Suis.<br /><span class="grad">Progresse.</span></h1>
       <p class="lead">
-        La plateforme moderne et mobile-first pour prescrire l'entraînement, suivre le réalisé
-        et piloter la charge de tes athlètes — alternative simple et abordable à Nolio.
+        Trouve le coach qui te correspond, ou rejoins la plateforme pour accompagner tes
+        athlètes : plans, suivi du réalisé et de la charge, sur ton téléphone.
       </p>
       <div class="cta">
         @if (isAuthenticated()) {
@@ -43,7 +43,76 @@
     </div>
   </section>
 
-  <section class="features container-wide">
+  <!-- Deux publics, deux portes : l'athlète qui cherche un coach, le coach qui cherche des
+       athlètes et un outil. Chacun doit trouver sa colonne sans lire celle de l'autre. -->
+  <section class="how container-wide" id="comment-ca-marche" aria-labelledby="how-title">
+    <h2 id="how-title" class="display-sm how-title">Comment ça marche</h2>
+    <div class="how-cols">
+      <article class="card how-col">
+        <span class="badge badge-info">Tu es athlète</span>
+        <ol class="how-steps">
+          <li>
+            <span class="how-ic"><app-icon name="search" [size]="20" /></span>
+            <div>
+              <strong>Trouve ton coach</strong>
+              <p class="field-hint">Parcours l'annuaire par spécialité, ville ou tarif. Chaque fiche
+                montre le parcours du coach, ses formules et ses prix.</p>
+            </div>
+          </li>
+          <li>
+            <span class="how-ic"><app-icon name="message-square" [size]="20" /></span>
+            <div>
+              <strong>Envoie ta demande</strong>
+              <p class="field-hint">Quelques lignes sur ton objectif. Le coach accepte, refuse ou
+                te pose une question ; rien n'est engagé tant qu'il n'a pas répondu.</p>
+            </div>
+          </li>
+          <li>
+            <span class="how-ic"><app-icon name="calendar" [size]="20" /></span>
+            <div>
+              <strong>Entraîne-toi</strong>
+              <p class="field-hint">Ta séance du jour sur ton téléphone, tes sorties Strava
+                rapprochées du plan, ton ressenti en un geste.</p>
+            </div>
+          </li>
+        </ol>
+        <a routerLink="/coachs" class="btn btn-primary">Trouver un coach</a>
+      </article>
+
+      <article class="card how-col">
+        <span class="badge badge-neutral">Tu es coach</span>
+        <ol class="how-steps">
+          <li>
+            <span class="how-ic"><app-icon name="rocket" [size]="20" /></span>
+            <div>
+              <strong>Crée ton espace</strong>
+              <p class="field-hint">Seul ou en club. Invite les athlètes que tu suis déjà : ils
+                gardent leurs habitudes, tu gagnes un outil.</p>
+            </div>
+          </li>
+          <li>
+            <span class="how-ic"><app-icon name="shield-check" [size]="20" /></span>
+            <div>
+              <strong>Publie ta fiche</strong>
+              <p class="field-hint">Présentation, spécialités, formules. L'équipe la relit avant
+                qu'elle apparaisse dans l'annuaire.</p>
+            </div>
+          </li>
+          <li>
+            <span class="how-ic"><app-icon name="inbox" [size]="20" /></span>
+            <div>
+              <strong>Reçois des demandes</strong>
+              <p class="field-hint">Tu lis le message, tu poses une question si besoin, tu
+                acceptes : l'athlète arrive dans ton espace, prêt à être planifié.</p>
+            </div>
+          </li>
+        </ol>
+        <a routerLink="/register" class="btn btn-secondary">Créer mon espace coach</a>
+      </article>
+    </div>
+  </section>
+
+  <section class="features container-wide" aria-label="L'outil du coach">
     <article class="card card-interactive feature">
       <span class="feature-ic"><app-icon name="calendar" [size]="22" /></span>
       <h3>Calendrier & séances</h3>
@@ -61,11 +130,66 @@
     </article>
   </section>
 
+  <!-- Les réponses suivent le produit tel qu'il est : chaque phrase ici a son équivalent dans le
+       code (validation des fiches, 14 jours, 5 demandes, 16 ans, consentement santé). Une FAQ
+       qui promet plus que l'outil ne fait est pire que pas de FAQ. -->
+  <section class="faq container-narrow" id="faq" aria-labelledby="faq-title">
+    <h2 id="faq-title" class="display-sm">Questions fréquentes</h2>
+
+    <details class="faq-item">
+      <summary>Combien ça coûte ?</summary>
+      <p>Créer un compte, athlète comme coach, est gratuit. Le coaching lui-même se règle
+        directement avec ton coach, au tarif affiché sur sa fiche : aucun paiement ne passe par
+        la plateforme.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Les coachs sont-ils vérifiés ?</summary>
+      <p>Chaque fiche est relue par l'équipe avant d'apparaître dans l'annuaire. Les diplômes, en
+        revanche, sont déclarés par les coachs et ne sont pas vérifiés auprès des organismes : la
+        fiche l'indique. Si quelque chose te paraît inexact, chaque fiche permet de la signaler.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Que se passe-t-il après ma demande ?</summary>
+      <p>Le coach la reçoit et y répond : il accepte, refuse en te disant pourquoi, ou te pose une
+        question. Sans réponse sous 14 jours, la demande expire ; ce n'est pas un refus, tu peux le
+        solliciter de nouveau. Tu peux avoir jusqu'à 5 demandes en attente à la fois.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Faut-il un compte pour contacter un coach ?</summary>
+      <p>Oui, mais tu le crées en écrivant ta demande, dans le même formulaire. Elle part dès que tu
+        as confirmé ton adresse e-mail : le coach doit pouvoir te répondre.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Qui voit mes données ?</summary>
+      <p>Ton e-mail et ton téléphone ne sont jamais publiés, ni ceux des coachs. Avant d'accepter,
+        un coach voit ton nom, ton âge, ta ville, ton niveau et ton objectif. Tes données de santé
+        (ressenti, douleurs, fatigue) ne sont partagées qu'avec le coach que tu choisis, et
+        seulement si tu y consens.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Et si je veux changer de coach ?</summary>
+      <p>Tu peux mettre fin au coaching à tout moment depuis « Mes demandes ». Ton coach n'a alors
+        plus accès à ton suivi ; ton historique reste chez lui, et tu peux en chercher un autre.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Y a-t-il un âge minimum ?</summary>
+      <p>L'inscription directe est ouverte à partir de 16 ans. En dessous, c'est le club ou le
+        coach qui crée l'accès de l'athlète.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Je suis coach : comment apparaître dans l'annuaire ?</summary>
+      <p>Crée ton espace, puis remplis « Ma fiche publique » : présentation, spécialités, au moins
+        une formule. Tu la soumets, l'équipe la relit, et elle est publiée. Tu peux ensuite fermer
+        ta fiche aux nouvelles demandes quand tu es complet.</p>
+    </details>
+  </section>
+
   <!-- Pas d'état de l'API ici : un prospect n'a pas à savoir qu'une API existe, et
        « API injoignable » sur la page d'accueil tue la crédibilité. La sonde vit sous /dev/api. -->
   <footer class="landing-foot container-wide">
     <span class="muted">© Darilab</span>
     <nav class="landing-foot-links">
+      <a routerLink="/" fragment="faq">FAQ</a>
       <a routerLink="/support">Support</a>
       <a routerLink="/legal/confidentialite">Confidentialité</a>
       <a routerLink="/legal/mentions-legales">Mentions légales</a>

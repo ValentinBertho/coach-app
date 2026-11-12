@@ -17,7 +17,8 @@
   font-size: var(--text-xl);
   color: var(--primary);
 }
-.top-actions { display: flex; gap: var(--sp-2); }
+.top-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; justify-content: flex-end; }
+.topbar { gap: var(--sp-3); }
 
 /* Hero sombre « night track » + aurora mesh */
 .hero {
@@ -73,17 +74,45 @@
 /* Features */
 .features {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
   gap: var(--sp-4);
   padding-block: var(--sp-12);
+  width: 100%;
+  box-sizing: border-box;
 }
 .feature { display: flex; flex-direction: column; gap: var(--sp-2); }
 .feature-ic { font-size: 28px; }
 .feature h3 { margin: 0; }
 
+/* Comment ça marche */
+.how { width: 100%; box-sizing: border-box; padding-block: var(--sp-12) 0; scroll-margin-top: var(--sp-4); }
+.how-title { text-align: center; margin: 0 0 var(--sp-6); }
+.how-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: var(--sp-4); }
+.how-col { display: flex; flex-direction: column; gap: var(--sp-4); align-items: flex-start; }
+.how-col .btn { margin-top: auto; }
+.how-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
+.how-steps li { display: flex; gap: var(--sp-3); align-items: flex-start; }
+.how-steps strong { display: block; color: var(--ink); }
+.how-steps p { margin: var(--sp-1) 0 0; }
+.how-ic { flex: 0 0 auto; width: 36px; height: 36px; border-radius: var(--radius-md); background: var(--primary-wash); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; }
+
+/* FAQ */
+.faq { padding-block: 0 var(--sp-12); scroll-margin-top: var(--sp-4); width: 100%; }
+.faq h2 { text-align: center; margin: 0 0 var(--sp-5); }
+.faq-item { border-bottom: 1px solid var(--hairline); }
+.faq-item summary { cursor: pointer; padding: var(--sp-4) 0; font-weight: 600; color: var(--ink); list-style: none; display: flex; justify-content: space-between; gap: var(--sp-3); }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: '+'; color: var(--ink-3); font-weight: 400; }
+.faq-item[open] summary::after { content: '−'; }
+.faq-item p { margin: 0 0 var(--sp-4); color: var(--ink-2); line-height: 1.6; }
+
 /* Footer / statut API */
 .landing-foot {
   margin-top: auto;
+  /* Élément d'une colonne flex : sans largeur explicite, `margin-inline: auto` le réduisait
+     à son contenu et le pied de page se tassait au centre. */
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -108,5 +137,12 @@
 .muted { color: var(--ink-4); }
 
 @media (max-width: 768px) {
+  .top-optional { display: none; }
   .hero { padding: var(--sp-12) var(--sp-4); margin-inline: var(--sp-2); }
+}
+
+/* Sur un téléphone, « Trouver un coach » est déjà le second bouton du bandeau : le doublon en
+   haut faisait déborder la barre, et toute la page avec elle. */
+@media (max-width: 480px) {
+  .top-optional-sm { display: none; }
 }

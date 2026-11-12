@@ -5,7 +5,9 @@ import { PLATFORM_ID, ApplicationConfig, ErrorHandler, LOCALE_ID, importProvider
 import * as Sentry from '@sentry/angular';
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { environment } from '../environments/environment';
-import { provideRouter, withComponentInputBinding, withRouterConfig } from '@angular/router';
+import {
+  provideRouter, withComponentInputBinding, withInMemoryScrolling, withRouterConfig,
+} from '@angular/router';
 import { provideAthleteContextReuse } from './core/routing/athlete-context-reuse.strategy';
 import { provideServiceWorker } from '@angular/service-worker';
 import {
@@ -84,6 +86,9 @@ export const appConfig: ApplicationConfig = {
       routes,
       withComponentInputBinding(),
       withRouterConfig({ paramsInheritanceStrategy: 'always' }),
+      // Pour les ancres de l'accueil (« Comment ça marche », « FAQ ») : sans cette option, un
+      // lien avec fragment change l'adresse sans faire défiler. Inerte sur les routes sans ancre.
+      withInMemoryScrolling({ anchorScrolling: 'enabled' }),
     ),
     // ... et comme elles n'ont que cet héritage pour savoir de qui elles parlent, elles sont
     // recréées quand il change : sans cela, changer d'athlète depuis le bandeau renommait
