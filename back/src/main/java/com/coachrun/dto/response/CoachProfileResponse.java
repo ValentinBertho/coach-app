@@ -1,5 +1,6 @@
 package com.coachrun.dto.response;
 
+import com.coachrun.dto.CoachLinks;
 import com.coachrun.entity.CoachProfile;
 import com.coachrun.entity.enums.AthleteLevel;
 import com.coachrun.entity.enums.CoachProfileStatus;
@@ -55,6 +56,7 @@ public record CoachProfileResponse(
         String photoUrl,
         List<CoachCertificationResponse> certifications,
         List<CoachOfferResponse> offers,
+        CoachLinks links,
         /** Ce qui manque pour soumettre. Vide = la fiche est prête. */
         List<String> missing) {
 
@@ -91,6 +93,7 @@ public record CoachProfileResponse(
                 photoUrl,
                 certifications,
                 offers,
+                CoachLinks.of(p),
                 missing);
     }
 }

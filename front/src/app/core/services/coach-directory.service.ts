@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { CoachCertification, CoachOffer } from './coach-profile.service';
+import { CoachCertification, CoachLinks, CoachOffer } from './coach-profile.service';
 
 export interface CoachSummary {
   slug: string;
@@ -41,6 +41,8 @@ export interface CoachDetail extends CoachSummary {
   /** Toujours vrai : les diplômes sont déclaratifs, et l'écran doit le dire. */
   certificationsDeclared: boolean;
   offers: CoachOffer[];
+  /** Site et réseaux : sur la fiche seulement, jamais dans la liste. */
+  links: CoachLinks | null;
 }
 
 /** Les motifs de signalement, alignés sur `CoachReportReason` côté serveur. */

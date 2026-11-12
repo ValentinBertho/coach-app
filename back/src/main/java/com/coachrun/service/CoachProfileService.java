@@ -1,5 +1,6 @@
 package com.coachrun.service;
 
+import com.coachrun.dto.CoachLinks;
 import com.coachrun.dto.request.CoachCertificationRequest;
 import com.coachrun.dto.request.CoachOfferRequest;
 import com.coachrun.dto.request.CoachProfileRequest;
@@ -107,6 +108,11 @@ public class CoachProfileService {
         profile.setInPerson(request.inPerson());
         profile.setExperienceYears(request.experienceYears());
         profile.setCapacityMax(request.capacityMax());
+        CoachLinks links = (request.links() == null ? CoachLinks.NONE : request.links()).normalized();
+        profile.setWebsiteUrl(links.website());
+        profile.setInstagramUrl(links.instagram());
+        profile.setStravaUrl(links.strava());
+        profile.setYoutubeUrl(links.youtube());
         // Une fiche refusée qu'on retravaille repart propre : garder le motif l'aurait affiché
         // au-dessus d'un texte qui ne lui correspond plus.
         if (profile.getStatus() == CoachProfileStatus.DRAFT) {

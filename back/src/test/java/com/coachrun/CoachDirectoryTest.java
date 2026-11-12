@@ -249,6 +249,50 @@ class CoachDirectoryTest {
         mvc.perform(get("/public/coaches").param("sort", "NOTE")).andExpect(status().isBadRequest());
     }
 
+    /**
+     * Les liens du coach figurent sur sa fiche, et seulement là : la liste de résultats est ce
+     * qu'on aspire page par page, et elle ne doit rien porter qui mène hors de la plateforme.
+     */
+    @Test
+    void socialLinksShowOnTheProfileButNeverInTheList() throws Exception {
+        saveProfile("\"links\":{\"website\":\"https://sarah-coach.example\","
+                + "\"instagram\":\"instagram.com/sarah.court\",\"strava\":\"  \"}");
+        submit();
+        publish();
+
+        JsonNode links = json(mvc.perform(get("/public/coaches/{slug}", slug()))
+                .andExpect(status().isOk())).get("links");
+        assertThat(links.get("website").asText()).isEqualTo("https://sarah-coach.example");
+        assertThat(links.get("instagram").asText())
+                .as("une adresse recopiée sans https:// est complétée")
+                .isEqualTo("https://instagram.com/sarah.court");
+        assertThat(links.get("strava").isNull()).as("un champ vide n'est pas un lien").isTrue();
+
+        String list = body(mvc.perform(get("/public/coaches").param("size", "48"))
+                .andExpect(status().isOk()));
+        assertThat(list).doesNotContain("sarah-coach.example").doesNotContain("sarah.court");
+    }
+
+    /**
+     * Chaque réseau n'accepte que son domaine, et rien d'autre que du https : sinon l'icône
+     * Instagram d'une fiche validée pourrait mener n'importe où.
+     */
+    @Test
+    void aSocialLinkMustPointToItsOwnNetwork() throws Exception {
+        for (String bad : new String[] {
+                "\"instagram\":\"https://evil.example/instagram.com/sarah\"",
+                "\"instagram\":\"https://instagram.com.evil.example/sarah\"",
+                "\"instagram\":\"https://instagram.com\"",
+                "\"strava\":\"http://www.strava.com/athletes/1\"",
+                "\"website\":\"javascript:alert(1)\"",
+                "\"youtube\":\"https://user@youtube.com/@sarah\"" }) {
+            mvc.perform(profilePut("\"links\":{" + bad + "}"))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(profilePut("\"links\":{\"strava\":\"https://www.strava.com/athletes/1\","
+                + "\"youtube\":\"https://youtu.be/abc\"}")).andExpect(status().isOk());
+    }
+
     // ------------------------------------------------------------------ utilitaires
 
     private long searchTotal(String... params) throws Exception {
@@ -295,15 +339,24 @@ class CoachDirectoryTest {
     }
 
     private void completeProfile() throws Exception {
-        mvc.perform(put("/me/coach-profile").header("Authorization", coachBearer)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .characterEncoding(StandardCharsets.UTF_8)
-                        .content("{\"headline\":\"Coach route et trail\",\"bio\":\"" + "x".repeat(130) + "\","
-                                + "\"disciplines\":[\"ROUTE\"],\"specialties\":[\"MARATHON\"],"
-                                + "\"levels\":[],\"languages\":[\"fr\"],\"city\":\"Lyon\","
-                                + "\"country\":\"FR\",\"remote\":true,\"inPerson\":false,"
-                                + "\"experienceYears\":12}"))
-                .andExpect(status().isOk());
+        saveProfile(null);
+    }
+
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder profilePut(
+            String extraJson) {
+        return put("/me/coach-profile").header("Authorization", coachBearer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .characterEncoding(StandardCharsets.UTF_8)
+                .content("{\"headline\":\"Coach route et trail\",\"bio\":\"" + "x".repeat(130) + "\","
+                        + "\"disciplines\":[\"ROUTE\"],\"specialties\":[\"MARATHON\"],"
+                        + "\"levels\":[],\"languages\":[\"fr\"],\"city\":\"Lyon\","
+                        + "\"country\":\"FR\",\"remote\":true,\"inPerson\":false,"
+                        + "\"experienceYears\":12" + (extraJson == null ? "" : "," + extraJson) + "}");
+    }
+
+    /** La fiche de référence, avec d'éventuels champs en plus, et sa formule mensuelle. */
+    private void saveProfile(String extraJson) throws Exception {
+        mvc.perform(profilePut(extraJson)).andExpect(status().isOk());
         mvc.perform(post("/me/coach-profile/offers").header("Authorization", coachBearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .characterEncoding(StandardCharsets.UTF_8)

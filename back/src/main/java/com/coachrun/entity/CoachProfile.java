@@ -167,4 +167,20 @@ public class CoachProfile extends BaseEntity {
      */
     @Column(name = "median_response_hours")
     private Integer medianResponseHours;
+
+    /**
+     * Site et réseaux affichés sur la fiche — toujours en {@code https}, et chaque réseau sur son
+     * propre domaine : c'est {@link com.coachrun.dto.CoachLinks#normalized()} qui le garantit.
+     */
+    @Column(name = "website_url", length = 300)
+    private String websiteUrl;
+
+    @Column(name = "instagram_url", length = 300)
+    private String instagramUrl;
+
+    @Column(name = "strava_url", length = 300)
+    private String stravaUrl;
+
+    @Column(name = "youtube_url", length = 300)
+    private String youtubeUrl;
 }

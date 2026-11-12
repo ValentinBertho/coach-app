@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { environment } from '../../../environments/environment';
+import { CoachLinks, filledLinks } from '../../core/services/coach-profile.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
@@ -44,6 +45,7 @@ interface AdminCoachProfile {
   photoUrl: string | null;
   certifications: Certification[];
   offers: Offer[];
+  links: CoachLinks | null;
 }
 
 interface Page<T> {
@@ -127,6 +129,18 @@ const STATUS_BADGES: Record<CoachProfileStatus, string> = {
             @if (p.headline) { <p class="acp__headline">« {{ p.headline }} »</p> }
             @if (p.bio) { <p class="acp__bio">{{ p.bio }}</p> }
 
+            <!-- Affichés en clair, et non derrière un libellé : c'est l'adresse qu'on valide. -->
+            @if (linksOf(p).length) {
+              <ul class="acp__links">
+                @for (l of linksOf(p); track l.label) {
+                  <li>
+                    <strong>{{ l.label }}</strong>
+                    <a [href]="l.url" target="_blank" rel="noopener noreferrer">{{ l.url }}</a>
+                  </li>
+                }
+              </ul>
+            }
+
             @if (p.specialties.length) {
               <p class="acp__tags">
                 @for (s of p.specialties; track s) { <span class="badge badge-neutral">{{ s }}</span> }
@@ -205,6 +219,9 @@ const STATUS_BADGES: Record<CoachProfileStatus, string> = {
     .acp__who dt { color: var(--ink-3); font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
     .acp__who dd { margin: 0; font-size: var(--text-sm); color: var(--ink-2); overflow-wrap: anywhere; }
     .acp__headline { margin: 0 0 var(--sp-2); color: var(--ink); font-style: italic; }
+    .acp__links { list-style: none; margin: 0 0 var(--sp-3); padding: 0; font-size: var(--text-sm); display: flex; flex-direction: column; gap: var(--sp-1); }
+    .acp__links strong { display: inline-block; min-width: 90px; color: var(--ink-3); font-weight: 600; }
+    .acp__links a { word-break: break-all; }
     .acp__bio { margin: 0 0 var(--sp-3); white-space: pre-wrap; color: var(--ink-2); font-size: var(--text-sm); }
     .acp__tags { display: flex; flex-wrap: wrap; gap: var(--sp-1); margin: 0 0 var(--sp-3); }
     .acp__sub { margin-bottom: var(--sp-3); }
@@ -221,6 +238,10 @@ export class AdminCoachProfilesComponent implements OnInit {
   private readonly base = `${environment.apiUrl}/admin/coach-profiles`;
 
   readonly badges = STATUS_BADGES;
+
+  linksOf(p: AdminCoachProfile): Array<{ label: string; url: string }> {
+    return filledLinks(p.links);
+  }
   readonly items = signal<AdminCoachProfile[]>([]);
   readonly loading = signal(true);
   /** Identifiant de la fiche en cours de traitement, pour ne bloquer que ses boutons. */
