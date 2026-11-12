@@ -37,5 +37,11 @@ public class DevSeedConfig implements CommandLineRunner {
                     DemoSeedService.SOLO_COACH_EMAIL, DemoSeedService.HUB_ATHLETE_EMAIL,
                     DemoSeedService.DEMO_PASSWORD);
         }
+        // La couche de présentation (vrais noms, messagerie, semaines planifiées, coach dans
+        // l'annuaire) : ce qu'on montre en démonstration, en capture et en vidéo.
+        if (demoSeedService.seedShowcase()) {
+            log.info("[seed dev] Présentation prête — coach : {} ({})",
+                    DemoSeedService.SHOWCASE_COACH_NAME, DemoSeedService.HEAD_COACH_EMAIL);
+        }
     }
 }

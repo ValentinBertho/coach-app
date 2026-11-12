@@ -35,11 +35,12 @@ test('la recherche libre et le tri de l\'annuaire répondent', async ({ page }) 
   await expect(page.getByText('Sarah Lemoine')).toHaveCount(0);
   await expect(page.getByText('1 coach', { exact: true })).toBeVisible();
 
-  // Recherche effacée, tri par tarif : la formule à 90 € passe devant celle à 110 €.
+  // Recherche effacée, tri par tarif : le suivi mensuel le moins cher (Antoine, 60 €) passe
+  // devant tous les autres.
   await page.getByRole('searchbox', { name: 'Rechercher un coach' }).fill('');
   await expect(page.getByText('Sarah Lemoine').first()).toBeVisible();
   await page.getByLabel('Trier par').selectOption('PRICE');
-  await expect(page.locator('.dir__name').first()).toHaveText('Sarah Lemoine');
+  await expect(page.locator('.dir__name').first()).toHaveText('Antoine Leclerc');
 });
 
 test('la coach accepte la demande, et l\'athlète entre dans son espace d\'entraînement', async ({ page, browser }) => {
