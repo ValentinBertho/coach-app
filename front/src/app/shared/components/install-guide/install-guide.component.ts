@@ -186,7 +186,10 @@ export class InstallGuideComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly platform = signal<InstallPlatform>(
-    detectInstallPlatform(navigator.userAgent, navigator.maxTouchPoints ?? 0),
+    // Au prérendu (Node), `navigator` n'existe pas : aucune plateforme, donc aucun guide.
+    typeof navigator === 'undefined'
+      ? null
+      : detectInstallPlatform(navigator.userAgent, navigator.maxTouchPoints ?? 0),
   );
   private readonly snoozed = signal(isSnoozed(Date.now()));
   /** Passe à vrai après le délai d'apparition : rien ne s'affiche avant. */
