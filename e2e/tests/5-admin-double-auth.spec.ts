@@ -10,6 +10,8 @@ test('l\'administrateur s\'enrôle en double authentification, puis se reconnect
 
   // Premier passage sur une base neuve : enrôlement, le secret est affiché.
   const secret = (await page.getByTestId('mfa-secret').textContent())!.trim();
+  // Le QR code doit s'afficher : un import CommonJS mal résolu le faisait disparaître sans bruit.
+  await expect(page.getByRole('img', { name: /QR code/ })).toBeVisible();
   expect(secret).toMatch(/^[A-Z2-7 ]+$/);
 
   await page.locator('#code').fill('000000');
