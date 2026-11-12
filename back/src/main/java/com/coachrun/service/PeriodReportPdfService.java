@@ -165,6 +165,8 @@ public class PeriodReportPdfService {
                     String.format(FR, "%.0f %% facile · %.0f %% seuil · %.0f %% intense",
                             d.domain1Pct(), d.domain2Pct(), d.domain3Pct())));
         } catch (RuntimeException e) {
+            com.coachrun.util.SwallowedError.report(PeriodReportPdfService.class,
+                    "calcul de charge en échec dans un bilan PDF, section remplacée par une mention", e);
             doc.add(muted("Charge non calculable sur cette période."));
         }
     }

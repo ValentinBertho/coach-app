@@ -70,7 +70,12 @@ interface BlockRow {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RangePrescriptionPillComponent, EffortBadgeComponent],
   template: `
-    @if (blocks().length) {
+    @if (prescription()?.unreadable) {
+      <p class="alert alert-danger" role="alert" style="margin: 0;">
+        Le contenu prévu de cette séance n'a pas pu être relu. Ce n'est pas une séance
+        vide : l'incident a été enregistré.
+      </p>
+    } @else if (blocks().length) {
       <div class="spv">
         @for (b of blocks(); track b.id) {
           <section class="spv__block">

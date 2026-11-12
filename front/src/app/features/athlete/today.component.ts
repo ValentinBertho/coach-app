@@ -207,6 +207,7 @@ export class TodayComponent implements OnInit {
 
   /** La prescription course d'une séance a-t-elle du contenu calculé à afficher ? */
   rxHasContent(workoutId: string): boolean {
+    if (this.courseRx()[workoutId]?.unreadable) return true;
     const c = this.courseRx()[workoutId]?.calculated;
     return !!c && c.warmup.length + c.main.length + c.cooldown.length > 0;
   }

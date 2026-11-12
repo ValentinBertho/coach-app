@@ -47,7 +47,7 @@ public class CourseSessionService {
     @Transactional
     public CourseStructureResponse getStructure(UUID clubId, UUID templateId) {
         WorkoutTemplate t = require(clubId, templateId);
-        return CourseStructureResponse.of(t, zoneMapper.withZones(clubId, readStructure(t.getStructureJson())));
+        return CourseStructureResponse.of(t, zoneMapper.withZones(clubId, readStructure(t.getStructureJson(), "structure du modèle de séance " + t.getId())));
     }
 
     /**
@@ -86,7 +86,7 @@ public class CourseSessionService {
         }
         // Payload de renommage seul : la structure absente laisse les blocs en place.
         SessionStructure structure = req.structure() == null
-                ? readStructure(t.getStructureJson())
+                ? readStructure(t.getStructureJson(), "structure du modèle de séance " + t.getId())
                 : req.structure();
         t.setStructureJson(writeStructure(structure));
         return CourseStructureResponse.of(t, structure);
@@ -95,7 +95,7 @@ public class CourseSessionService {
     /** Calcule toute la séance pour un athlète donné (allures/FC/RPE par bloc + totaux). */
     public CalculatedSessionResponse calculateForAthlete(UUID clubId, UUID athleteId, UUID templateId) {
         WorkoutTemplate t = require(clubId, templateId);
-        return calculatorService.calculateSession(clubId, athleteId, readStructure(t.getStructureJson()));
+        return calculatorService.calculateSession(clubId, athleteId, readStructure(t.getStructureJson(), "structure du modèle de séance " + t.getId()));
     }
 
     /**
@@ -105,7 +105,7 @@ public class CourseSessionService {
     @Transactional
     public WorkoutResponse scheduleForAthlete(UUID clubId, UUID athleteId, UUID templateId, LocalDate date) {
         WorkoutTemplate t = require(clubId, templateId);
-        SessionStructure structure = readStructure(t.getStructureJson());
+        SessionStructure structure = readStructure(t.getStructureJson(), "structure du modèle de séance " + t.getId());
         CalculatedSessionResponse calc = calculatorService.calculateSession(clubId, athleteId, structure);
 
         String snapshotJson = writeStructure(structure);
@@ -162,7 +162,7 @@ public class CourseSessionService {
             return workoutService.copyToDate(clubId, targetAthleteId, sourceWorkoutId, date);
         }
 
-        SessionStructure structure = readStructure(source.getSessionSnapshot());
+        SessionStructure structure = readStructure(source.getSessionSnapshot(), "prescription de la séance " + source.getId());
         boolean empty = structure.warmup().isEmpty() && structure.main().isEmpty()
                 && structure.cooldown().isEmpty();
         if (empty) {
@@ -193,7 +193,7 @@ public class CourseSessionService {
         com.coachrun.entity.Workout w = workoutRepository.findByIdAndClubIdAndAthleteId(workoutId, clubId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Séance introuvable."));
         // Le modèle reçoit la STRUCTURE de l'adaptation, pas ce qui n'appartenait qu'à l'athlète.
-        SessionStructure structure = withoutAthleteNotes(readStructure(w.getSessionSnapshot()));
+        SessionStructure structure = withoutAthleteNotes(readStructure(w.getSessionSnapshot(), "prescription de la séance " + w.getId()));
 
         WorkoutTemplate t = new WorkoutTemplate();
         t.setClub(w.getClub());
@@ -284,13 +284,15 @@ public class CourseSessionService {
         }
     }
 
-    private SessionStructure readStructure(String json) {
+    /** Relit une structure enregistrée ; illisible, elle est rendue vide, et l'échec est tracé. */
+    private SessionStructure readStructure(String json, String what) {
         if (!StringUtils.hasText(json)) {
             return SessionStructure.empty();
         }
         try {
             return objectMapper.readValue(json, SessionStructure.class);
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(CourseSessionService.class, what + " illisible, rendue vide", e);
             return SessionStructure.empty();
         }
     }

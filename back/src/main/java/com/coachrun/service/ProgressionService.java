@@ -184,8 +184,11 @@ public class ProgressionService {
                     }
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             // Charges calculées illisibles : pas de référence, l'alerte de charge ne se déclenche pas.
+            com.coachrun.util.SwallowedError.report(ProgressionService.class,
+                    "charges calculées illisibles pour la séance de force " + scheduled.getId()
+                            + ", alerte de charge désactivée", e);
         }
         return null;
     }
@@ -204,8 +207,10 @@ public class ProgressionService {
                     }
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
             // Snapshot illisible : pas de prescription cible, suggestion/alertes dégradées.
+            com.coachrun.util.SwallowedError.report(ProgressionService.class,
+                    "prescription d'une séance de force illisible, suggestions et alertes dégradées", e);
         }
         return map;
     }

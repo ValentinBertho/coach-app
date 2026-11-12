@@ -206,7 +206,8 @@ public class StrengthScheduleService {
             throw new com.coachrun.exception.ConflictException(
                     "Cette séance est déjà faite : sa charge ne se modifie plus.");
         }
-        StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class);
+        StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class,
+                "prescription de la séance de force " + ss.getId());
         if (snapshot == null) {
             throw new NotFoundException("Cette séance n'a pas de prescription.");
         }
@@ -280,7 +281,8 @@ public class StrengthScheduleService {
         StrengthStructure safe = structure == null ? StrengthStructure.empty() : structure;
         CalculatedStrengthResponse calc = strengthSessionService.previewForAthlete(clubId, athleteId, safe);
 
-        boolean wasEmpty = isEmpty(readJson(ss.getSessionSnapshot(), StrengthStructure.class));
+        boolean wasEmpty = isEmpty(readJson(ss.getSessionSnapshot(), StrengthStructure.class,
+                "prescription de la séance de force " + ss.getId()));
         String before = ss.getSessionSnapshot();
         ss.setSessionSnapshot(writeJson(safe));
         ss.setCalculatedCharges(writeJson(calc));
@@ -366,7 +368,8 @@ public class StrengthScheduleService {
         }
         Athlete target = athleteRepository.findByIdAndClubMembership(targetAthleteId, clubId)
                 .orElseThrow(() -> new NotFoundException("Athlète introuvable."));
-        StrengthStructure snapshot = readJson(source.getSessionSnapshot(), StrengthStructure.class);
+        StrengthStructure snapshot = readJson(source.getSessionSnapshot(), StrengthStructure.class,
+                "prescription de la séance de force " + source.getId());
         StrengthStructure safe = snapshot == null ? StrengthStructure.empty() : snapshot;
         CalculatedStrengthResponse calc =
                 strengthSessionService.previewForAthlete(clubId, targetAthleteId, safe);
@@ -431,7 +434,8 @@ public class StrengthScheduleService {
     public StrengthSessionResponse saveAsLibrarySession(UUID clubId, UUID athleteId, UUID scheduledId,
                                                         String name, String notes, UUID categoryId) {
         ScheduledStrengthSession ss = require(clubId, athleteId, scheduledId);
-        StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class);
+        StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class,
+                "prescription de la séance de force " + ss.getId());
         return strengthSessionService.createFromStructure(
                 clubId, name, notes, categoryId, withoutCoachNotes(snapshot));
     }
@@ -509,7 +513,8 @@ public class StrengthScheduleService {
     public List<ExerciseGuidanceResponse> exerciseGuidanceForAthlete(UUID athleteId, UUID scheduledId) {
         ScheduledStrengthSession ss = scheduledRepository.findByIdAndAthleteId(scheduledId, athleteId)
                 .orElseThrow(() -> new NotFoundException("Séance de force introuvable."));
-        StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class);
+        StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class,
+                "prescription de la séance de force " + ss.getId());
         if (snapshot == null) {
             return List.of();
         }
@@ -654,11 +659,14 @@ public class StrengthScheduleService {
     }
 
     private StrengthPrescriptionResponse toPrescription(ScheduledStrengthSession ss) {
-        StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class);
-        CalculatedStrengthResponse calc = readJson(ss.getCalculatedCharges(), CalculatedStrengthResponse.class);
+        StrengthStructure snapshot = readJson(ss.getSessionSnapshot(), StrengthStructure.class,
+                "prescription de la séance de force " + ss.getId());
+        CalculatedStrengthResponse calc = readJson(ss.getCalculatedCharges(), CalculatedStrengthResponse.class,
+                "charges calculées de la séance de force " + ss.getId());
         JsonNode required = readTree(ss.getRequiredFields());
+        boolean unreadable = snapshot == null && StringUtils.hasText(ss.getSessionSnapshot());
         return new StrengthPrescriptionResponse(ss.getTitle(),
-                snapshot == null ? StrengthStructure.empty() : snapshot, calc, required);
+                snapshot == null ? StrengthStructure.empty() : snapshot, calc, required, unreadable);
     }
 
     private String writeJson(Object value) {
@@ -669,13 +677,15 @@ public class StrengthScheduleService {
         }
     }
 
-    private <T> T readJson(String json, Class<T> type) {
+    /** Relit une donnée enregistrée ; illisible, elle vaut {@code null}, et l'échec est tracé. */
+    private <T> T readJson(String json, Class<T> type, String what) {
         if (!StringUtils.hasText(json)) {
             return null;
         }
         try {
             return objectMapper.readValue(json, type);
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(StrengthScheduleService.class, what + " illisible", e);
             return null;
         }
     }
@@ -687,6 +697,8 @@ public class StrengthScheduleService {
         try {
             return objectMapper.readTree(json);
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(StrengthScheduleService.class,
+                    "champs requis d'une séance de force illisibles", e);
             return null;
         }
     }

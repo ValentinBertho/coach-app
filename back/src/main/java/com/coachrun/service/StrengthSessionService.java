@@ -213,6 +213,8 @@ public class StrengthSessionService {
         try {
             return objectMapper.readValue(json, StrengthStructure.class);
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(StrengthSessionService.class,
+                    "structure d'un modèle de séance de force illisible, modèle rendu vide", e);
             return StrengthStructure.empty();
         }
     }

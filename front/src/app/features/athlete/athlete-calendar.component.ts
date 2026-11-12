@@ -662,6 +662,11 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
               class="skeleton"
               style="height: 72px; border-radius: var(--radius);"
             ></div>
+          } @else if (detailPrescription()?.unreadable) {
+            <p class="alert alert-danger" role="alert">
+              Le contenu prévu de cette séance n'a pas pu être relu. Ce n'est pas une
+              séance vide : l'incident a été enregistré.
+            </p>
           } @else if (detailGroups().length > 0) {
             @for (g of detailGroups(); track g.section) {
               <section class="grp">

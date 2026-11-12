@@ -166,6 +166,9 @@ public class StrengthProgressionService {
         try {
             return objectMapper.readValue(session.getSessionSnapshot(), StrengthStructure.class);
         } catch (Exception e) {
+            com.coachrun.util.SwallowedError.report(StrengthProgressionService.class,
+                    "prescription illisible pour la séance de force " + session.getId()
+                            + ", progression non calculée", e);
             return null;
         }
     }

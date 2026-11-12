@@ -17,6 +17,21 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmailIgnoreCase(String email);
 
     /**
+     * Date de dernière connexion, écrite sans passer par l'entité.
+     *
+     * <p>Par l'entité, cette écriture incrémentait sa version : deux connexions simultanées sur
+     * le même compte (téléphone et ordinateur, ou une application qui se relance) se
+     * marchaient dessus, et la seconde recevait une erreur 500 pour une date dont l'ordre exact
+     * n'importe à personne. Une mise à jour directe ne se compare à aucune version : la dernière
+     * écrite gagne.</p>
+     */
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(
+            "update User u set u.lastLoginAt = :at where u.id = :userId")
+    int touchLastLogin(@org.springframework.data.repository.query.Param("userId") UUID userId,
+                       @org.springframework.data.repository.query.Param("at") java.time.Instant at);
+
+    /**
      * Les deux dates qui périment un jeton — changement de mot de passe et déconnexion — en une
      * seule lecture. Le filtre JWT s'exécute à chaque requête authentifiée : deux requêtes là où
      * une projection suffit se paieraient sur toute la surface de l'API.

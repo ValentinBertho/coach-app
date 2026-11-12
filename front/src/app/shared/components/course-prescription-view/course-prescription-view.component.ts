@@ -39,7 +39,12 @@ interface Section {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RangePrescriptionPillComponent],
   template: `
-    @if (hasContent()) {
+    @if (prescription()?.unreadable) {
+      <p class="alert alert-danger cpv__unreadable" role="alert">
+        Le contenu prévu de cette séance n'a pas pu être relu. Ce n'est pas une séance
+        vide : l'incident a été enregistré.
+      </p>
+    } @else if (hasContent()) {
       <div class="cpv">
         @for (sec of sections; track sec.key) {
           @if (entries(sec.key).length) {
@@ -378,6 +383,9 @@ interface Section {
         background: var(--warning-bg);
         padding: 2px 8px;
         border-radius: var(--radius-full);
+      }
+      .cpv__unreadable {
+        margin: 0;
       }
       .cpv__legend {
         margin: 0;

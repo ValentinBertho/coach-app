@@ -194,6 +194,9 @@ public class TrajectoryService {
             }
             return null;
         } catch (RuntimeException e) {
+            com.coachrun.util.SwallowedError.report(TrajectoryService.class,
+                    "calcul de charge en échec pour l'athlète " + athlete.getId()
+                            + ", trajectoire donnée sans commentaire de charge", e);
             return null;
         }
     }
