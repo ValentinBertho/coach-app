@@ -18,6 +18,7 @@ import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.CoachOfferRepository;
 import com.coachrun.repository.CoachProfileRepository;
+import com.coachrun.repository.AthleteAccountRepository;
 import com.coachrun.repository.CoachingRequestRepository;
 import com.coachrun.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ import org.springframework.util.StringUtils;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -78,6 +80,7 @@ public class CoachingRequestService {
     private final CoachAthleteRelationRepository relationRepository;
     private final UserRepository userRepository;
     private final AthleteAccountService accountService;
+    private final AthleteAccountRepository accountRepository;
     private final NotificationService notificationService;
     private final ClockService clock;
 
@@ -173,11 +176,49 @@ public class CoachingRequestService {
         request.setOfferAmountCents(offer.getAmountCents());
     }
 
+    /**
+     * Envoie la demande préparée à l'inscription, maintenant que l'e-mail est confirmé.
+     *
+     * <p>Appelée juste après la vérification de l'adresse, dans une transaction <b>à part</b> :
+     * une demande qui ne peut pas partir ne doit pas défaire une vérification réussie.</p>
+     *
+     * <p>Elle passe par {@link #submit} et subit donc toutes ses gardes — fiche visible, coach qui
+     * prend des athlètes, plafonds, unicité. Si l'une d'elles refuse (le coach a fermé sa fiche
+     * entre-temps), le brouillon est abandonné : le rejouer à chaque visite ne le ferait pas
+     * passer, et son texte reste lisible dans l'objectif du compte.</p>
+     *
+     * @return le nom du coach à qui la demande vient de partir, s'il y en avait une
+     */
+    @Transactional
+    public Optional<String> sendPendingAfterVerification(UUID userId) {
+        AthleteAccount account = accountRepository.findByUserId(userId).orElse(null);
+        if (account == null || account.getPendingRequestCoachSlug() == null
+                || !account.getUser().isEmailVerified()) {
+            return Optional.empty();
+        }
+        String slug = account.getPendingRequestCoachSlug();
+        String message = account.getPendingRequestMessage();
+        account.setPendingRequestCoachSlug(null);
+        account.setPendingRequestMessage(null);
+        try {
+            CoachingRequestResponse sent = submit(userId,
+                    new CoachingRequestSubmission(slug, null, message), null, null);
+            return Optional.ofNullable(sent.coachName());
+        } catch (ApiException e) {
+            log.info("Demande préparée à l'inscription non envoyée (user={}, coach={}) : {}",
+                    userId, slug, e.getMessage());
+            return Optional.empty();
+        }
+    }
+
     // Écriture : la lecture fait d'abord expirer les demandes échues. En lecture seule,
     // PostgreSQL refuse l'UPDATE et la liste répondait 500 (H2, en test, ne le refuse pas).
     @Transactional
     public List<CoachingRequestResponse> myRequests(UUID userId) {
         AthleteAccount account = accountService.require(userId);
+        // Filet : si l'envoi qui suit la vérification de l'e-mail n'a pas eu lieu (requête
+        // interrompue), la demande préparée part à la première ouverture de cette liste.
+        sendPendingAfterVerification(userId);
         requestRepository.expireOverdue(clock.instant());
         return requestRepository.findByAthleteAccountIdOrderByCreatedAtDesc(account.getId())
                 .stream().map(this::render).toList();

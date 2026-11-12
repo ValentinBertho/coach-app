@@ -2,11 +2,19 @@
   <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
     <header class="auth-head">
       <app-logo [size]="44" [showText]="false" />
-      <h1 class="display-sm">Créer mon compte athlète</h1>
-      <p class="field-hint">
-        Vous n'avez pas besoin d'un coach pour commencer : créez votre compte, parcourez
-        l'annuaire, et demandez à celui qui vous convient de vous suivre.
-      </p>
+      @if (coach(); as c) {
+        <h1 class="display-sm">Demander à {{ c.name }} de vous coacher</h1>
+        <p class="field-hint">
+          Un seul formulaire : votre compte et votre demande. Elle partira chez {{ c.name }}
+          dès que vous aurez confirmé votre adresse e-mail.
+        </p>
+      } @else {
+        <h1 class="display-sm">Créer mon compte athlète</h1>
+        <p class="field-hint">
+          Vous n'avez pas besoin d'un coach pour commencer : créez votre compte, parcourez
+          l'annuaire, et demandez à celui qui vous convient de vous suivre.
+        </p>
+      }
     </header>
 
     <div class="form-group">
@@ -59,12 +67,26 @@
       }
     </div>
 
-    <div class="form-group">
-      <label for="goal">Votre objectif <span class="reg-optional">(facultatif)</span></label>
-      <textarea id="goal" class="form-control" formControlName="goal" rows="3"
-                placeholder="Finir mon premier marathon au printemps, je reviens d'une blessure…"></textarea>
-      <span class="field-hint">C'est la première chose qu'un coach lira de vous.</span>
-    </div>
+    @if (coach(); as c) {
+      <!-- Le message remplace l'objectif : c'est la même chose dite une fois, et le serveur
+           s'en sert comme objectif du compte si aucun n'est saisi. -->
+      <div class="form-group">
+        <label for="requestMessage">Votre message à {{ c.name }}</label>
+        <textarea id="requestMessage" class="form-control" formControlName="requestMessage" rows="4"
+                  placeholder="Mon objectif, mon niveau, mes disponibilités, une blessure récente…"></textarea>
+        <span class="field-hint">Quelques lignes : c'est sur ce mot que {{ c.name }} décidera.</span>
+        @if (form.controls.requestMessage.touched && form.controls.requestMessage.invalid) {
+          <span class="error-message">Quelques lignes au moins (20 caractères).</span>
+        }
+      </div>
+    } @else {
+      <div class="form-group">
+        <label for="goal">Votre objectif <span class="reg-optional">(facultatif)</span></label>
+        <textarea id="goal" class="form-control" formControlName="goal" rows="3"
+                  placeholder="Finir mon premier marathon au printemps, je reviens d'une blessure…"></textarea>
+        <span class="field-hint">C'est la première chose qu'un coach lira de vous.</span>
+      </div>
+    }
 
     <!-- Deux consentements distincts : l'un régit l'usage du service, l'autre autorise le
          traitement de données de santé. Les fondre priverait le second de sa clarté. -->
@@ -102,7 +124,7 @@
     }
 
     <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
-      {{ submitting() ? 'Création…' : 'Créer mon compte' }}
+      {{ submitting() ? 'Création…' : (coach() ? 'Créer mon compte et envoyer ma demande' : 'Créer mon compte') }}
     </button>
 
     <p class="auth-switch">

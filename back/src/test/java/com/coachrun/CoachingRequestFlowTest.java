@@ -483,7 +483,114 @@ class CoachingRequestFlowTest {
                 .header("Authorization", coachBearer)).andExpect(status().isOk());
     }
 
+    /**
+     * Le visiteur écrit sa demande <b>en s'inscrivant</b> ; elle part d'elle-même quand il confirme
+     * son e-mail.
+     *
+     * <p>Avant, il s'inscrivait, confirmait, puis devait retrouver le coach et refaire sa demande.
+     * La garde ne bouge pas pour autant : tant que l'adresse n'est pas confirmée, le coach ne
+     * reçoit rien.</p>
+     */
+    @Test
+    void aRequestWrittenAtSignupLeavesWhenTheEmailIsVerified() throws Exception {
+        String email = "inscription-" + java.util.UUID.randomUUID() + "@exemple.fr";
+        String athlete = registerWithRequest(email, slug,
+                "Je prépare mon premier marathon pour avril et je cherche un suivi hebdomadaire.")
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        athlete = "Bearer " + objectMapper.readTree(athlete).get("accessToken").asText();
+
+        // Avant la confirmation : la demande attend, visible de l'athlète, invisible du coach.
+        JsonNode account = json(mvc.perform(get("/me/account").header("Authorization", athlete))
+                .andExpect(status().isOk()));
+        assertThat(account.get("pendingRequest").get("coachSlug").asText()).isEqualTo(slug);
+        assertThat(account.get("pendingRequest").get("coachName").asText()).isNotBlank();
+        assertThat(json(mvc.perform(get("/me/coaching-requests").header("Authorization", athlete))
+                .andExpect(status().isOk())).size()).isZero();
+        assertThat(body(mvc.perform(get("/me/received-requests").header("Authorization", coachBearer))
+                .andExpect(status().isOk())))
+                .as("rien n'arrive au coach d'une adresse non confirmée")
+                .doesNotContain("premier marathon pour avril");
+
+        String token = userRepository.findByEmailIgnoreCase(email).orElseThrow().getVerifyToken();
+        JsonNode verified = json(mvc.perform(post("/public/verify-email/{token}", token))
+                .andExpect(status().isOk()));
+        assertThat(verified.get("verified").asBoolean()).isTrue();
+        assertThat(verified.get("requestSentTo").asText())
+                .as("l'écran doit pouvoir dire à qui la demande est partie").isNotBlank();
+
+        JsonNode mine = json(mvc.perform(get("/me/coaching-requests").header("Authorization", athlete))
+                .andExpect(status().isOk()));
+        assertThat(mine.size()).isEqualTo(1);
+        assertThat(mine.get(0).get("status").asText()).isEqualTo("PENDING");
+        assertThat(mine.get(0).get("message").asText()).contains("premier marathon pour avril");
+        assertThat(body(mvc.perform(get("/me/received-requests").header("Authorization", coachBearer))
+                .andExpect(status().isOk()))).contains("premier marathon pour avril");
+        assertThat(json(mvc.perform(get("/me/account").header("Authorization", athlete)))
+                .get("pendingRequest").isNull())
+                .as("partie, la demande n'attend plus").isTrue();
+    }
+
+    /**
+     * Une demande jointe à l'inscription est vérifiée avant de créer le compte : le visiteur est
+     * encore devant son formulaire, c'est le seul moment où le lui dire sert à quelque chose.
+     */
+    @Test
+    void aSignupRequestIsCheckedBeforeTheAccountIsCreated() throws Exception {
+        String tooShort = "court-" + java.util.UUID.randomUUID() + "@exemple.fr";
+        registerWithRequest(tooShort, slug, "Bonjour").andExpect(status().isBadRequest());
+        assertThat(userRepository.findByEmailIgnoreCase(tooShort)).isEmpty();
+
+        String unknown = "inconnu-" + java.util.UUID.randomUUID() + "@exemple.fr";
+        registerWithRequest(unknown, "personne-de-ce-nom",
+                "Je prépare mon premier marathon pour avril.").andExpect(status().isNotFound());
+        assertThat(userRepository.findByEmailIgnoreCase(unknown)).isEmpty();
+    }
+
+    /**
+     * Le coach ferme sa fiche entre l'inscription et la confirmation : la vérification de l'e-mail
+     * réussit quand même, aucune demande ne part, et rien ne reste en attente.
+     */
+    @Test
+    void aSignupRequestThatCanNoLongerLeaveDoesNotBlockTheVerification() throws Exception {
+        String email = "tard-" + java.util.UUID.randomUUID() + "@exemple.fr";
+        String athlete = "Bearer " + objectMapper.readTree(registerWithRequest(email, slug,
+                "Je prépare mon premier marathon pour avril.")
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString())
+                .get("accessToken").asText();
+        mvc.perform(post("/me/coach-profile/accepting").param("accepting", "false")
+                .header("Authorization", coachBearer)).andExpect(status().isOk());
+
+        String token = userRepository.findByEmailIgnoreCase(email).orElseThrow().getVerifyToken();
+        JsonNode verified = json(mvc.perform(post("/public/verify-email/{token}", token))
+                .andExpect(status().isOk()));
+        assertThat(verified.get("verified").asBoolean()).isTrue();
+        assertThat(verified.has("requestSentTo")).isFalse();
+        assertThat(userRepository.findByEmailIgnoreCase(email).orElseThrow().isEmailVerified()).isTrue();
+        JsonNode account = json(mvc.perform(get("/me/account").header("Authorization", athlete)));
+        assertThat(account.get("pendingRequest").isNull()).isTrue();
+        assertThat(account.get("goal").asText())
+                .as("le texte n'est pas perdu : il reste l'objectif du compte")
+                .contains("premier marathon");
+
+        mvc.perform(post("/me/coach-profile/accepting").param("accepting", "true")
+                .header("Authorization", coachBearer)).andExpect(status().isOk());
+    }
+
     // ------------------------------------------------------------------ utilitaires
+
+    private org.springframework.test.web.servlet.ResultActions registerWithRequest(
+            String email, String coachSlug, String message) throws Exception {
+        return mvc.perform(post("/public/athlete-registration")
+                .contentType(MediaType.APPLICATION_JSON)
+                .characterEncoding(StandardCharsets.UTF_8)
+                .content("{\"email\":\"" + email + "\",\"password\":\"password1234\","
+                        + "\"firstName\":\"Nina\",\"lastName\":\"Roy\","
+                        + "\"birthDate\":\"" + LocalDate.now().minusYears(28) + "\","
+                        + "\"coachSlug\":\"" + coachSlug + "\","
+                        + "\"requestMessage\":\"" + message + "\","
+                        + "\"termsAccepted\":true,\"healthDataConsent\":true}"));
+    }
 
     /** Envoie une demande et la fait accepter : le point de départ des tests de sortie. */
     private void acceptRequestFrom(String athleteBearer) throws Exception {

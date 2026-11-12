@@ -29,6 +29,12 @@ public record AthleteRegistrationRequest(
         @NotBlank @Size(max = 120) String lastName,
         @NotNull @Past LocalDate birthDate,
         @Size(max = 1000) String goal,
+        /**
+         * Le coach que le visiteur venait de choisir, et le mot qu'il lui adresse. Facultatifs ;
+         * renseignés, la demande part d'elle-même à la confirmation de l'e-mail.
+         */
+        @Size(max = 140) String coachSlug,
+        @Size(max = 2000) String requestMessage,
         @AssertTrue(message = "L'acceptation des conditions d'utilisation est requise.")
         boolean termsAccepted,
         @AssertTrue(message = "Le consentement au traitement des données de santé est requis.")

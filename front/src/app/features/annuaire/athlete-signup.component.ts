@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { CoachDirectoryService } from '../../core/services/coach-directory.service';
 import { CoachingRequestService } from '../../core/services/coaching-request.service';
 import { ToastService } from '../../core/services/toast.service';
 import { authErrorMessage } from '../../core/utils/auth-error';
@@ -28,12 +29,23 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
   templateUrl: './athlete-signup.component.html',
   styleUrl: '../auth/auth.scss',
 })
-export class AthleteSignupComponent {
+export class AthleteSignupComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly service = inject(CoachingRequestService);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly directory = inject(CoachDirectoryService);
+
+  /**
+   * Le coach que le visiteur venait de choisir sur l'annuaire (`?coach=slug`), s'il y en a un.
+   *
+   * <p>Sa demande s'écrit ici, dans le même formulaire : avant, il fallait s'inscrire, confirmer
+   * son e-mail, retrouver la fiche et tout recommencer. Elle part d'elle-même à la confirmation
+   * de l'adresse.</p>
+   */
+  readonly coach = signal<{ slug: string; name: string } | null>(null);
 
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -45,9 +57,26 @@ export class AthleteSignupComponent {
     password: ['', [Validators.required, Validators.minLength(12)]],
     birthDate: ['', [Validators.required]],
     goal: ['', [Validators.maxLength(1000)]],
+    requestMessage: ['', [Validators.maxLength(2000)]],
     termsAccepted: [false, [Validators.requiredTrue]],
     healthDataConsent: [false, [Validators.requiredTrue]],
   });
+
+  ngOnInit(): void {
+    const slug = this.route.snapshot.queryParamMap.get('coach');
+    if (!slug) return;
+    // Une fiche introuvable ou fermée n'empêche pas de s'inscrire : on retombe simplement sur
+    // l'inscription sans demande, plutôt que de bloquer le visiteur sur un lien périmé.
+    this.directory.bySlug(slug).subscribe({
+      next: (c) => {
+        if (!c.acceptingAthletes) return;
+        this.coach.set({ slug: c.slug, name: c.name });
+        this.form.controls.requestMessage.addValidators([Validators.required, Validators.minLength(20)]);
+        this.form.controls.requestMessage.updateValueAndValidity();
+      },
+      error: () => this.coach.set(null),
+    });
+  }
 
   submit(): void {
     if (this.form.invalid) {
@@ -56,15 +85,26 @@ export class AthleteSignupComponent {
     }
     this.submitting.set(true);
     this.errorMessage.set(null);
-    const v = this.form.getRawValue();
-    this.service.register(v).subscribe({
+    const { requestMessage, ...v } = this.form.getRawValue();
+    const coach = this.coach();
+    this.service.register({
+      ...v,
+      coachSlug: coach?.slug ?? null,
+      requestMessage: coach ? requestMessage.trim() : null,
+    }).subscribe({
       next: () => {
         // Le serveur rend déjà une session ; on se connecte pour la même raison qu'un coach après
         // inscription — renvoyer vers la page de connexion ferait retaper ce qu'on vient de saisir.
         this.auth.login({ email: v.email, password: v.password }).subscribe({
           next: () => {
-            this.toast.success('Bienvenue — trouvez le coach qui vous convient');
-            this.router.navigate(['/coachs']);
+            if (coach) {
+              // L'écran des demandes dit ce qui reste à faire : confirmer l'e-mail.
+              this.toast.success(`Compte créé — confirmez votre e-mail pour que ${coach.name} reçoive votre demande`);
+              this.router.navigate(['/athlete/demandes']);
+            } else {
+              this.toast.success('Bienvenue — trouvez le coach qui vous convient');
+              this.router.navigate(['/coachs']);
+            }
           },
           error: () => this.router.navigate(['/login']),
         });

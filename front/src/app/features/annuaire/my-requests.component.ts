@@ -3,7 +3,9 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ConfirmService } from '../../core/services/confirm.service';
-import { CoachingRequest, CoachingRequestService } from '../../core/services/coaching-request.service';
+import {
+  AthleteAccount, CoachingRequest, CoachingRequestService,
+} from '../../core/services/coaching-request.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 
@@ -48,9 +50,27 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
       </section>
     }
 
+    <!-- La demande écrite à l'inscription : tant que l'e-mail n'est pas confirmé, elle attend
+         ici, et l'athlète doit savoir ce qui la retient. -->
+    @if (pending(); as p) {
+      <section class="card mr-pending" role="status">
+        <app-icon name="mail" [size]="22" />
+        <div>
+          <strong>Confirmez votre e-mail pour que votre demande parte.</strong>
+          <p class="field-hint">
+            Votre message à {{ p.coachName ?? 'ce coach' }} est prêt. Il partira dès que vous
+            aurez cliqué sur le lien reçu par e-mail.
+          </p>
+          <p class="mr__msg">« {{ p.message }} »</p>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" [disabled]="resent()"
+                (click)="resend()">{{ resent() ? 'E-mail renvoyé' : "Renvoyer l'e-mail" }}</button>
+      </section>
+    }
+
     @if (loading()) {
       <p class="mr-loading">Chargement…</p>
-    } @else if (!requests().length) {
+    } @else if (!requests().length && !pending()) {
       <div class="card mr-empty">
         <app-icon name="search" [size]="28" />
         <div>
@@ -121,6 +141,9 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
     .mr-current { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-4); margin-bottom: var(--sp-4); flex-wrap: wrap; }
     .mr-current > div { flex: 1; min-width: 240px; }
     .mr-current p { margin: var(--sp-1) 0 0; }
+    .mr-pending { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-4); margin-bottom: var(--sp-4); border-color: var(--primary-light); background: var(--primary-wash); flex-wrap: wrap; color: var(--primary); }
+    .mr-pending > div { flex: 1; min-width: 220px; color: var(--ink); }
+    .mr-pending p { margin: var(--sp-1) 0 0; }
     .mr-empty { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-5); flex-wrap: wrap; }
     .mr-empty > div { flex: 1; min-width: 200px; }
     .mr-empty p { margin: var(--sp-1) 0 0; }
@@ -147,6 +170,8 @@ export class MyRequestsComponent implements OnInit {
   readonly requests = signal<CoachingRequest[]>([]);
   readonly loading = signal(true);
   readonly busy = signal<string | null>(null);
+  readonly pending = signal<AthleteAccount['pendingRequest']>(null);
+  readonly resent = signal(false);
 
   /** L'athlète a un coach dès lors qu'il a une fiche : elle naît de l'acceptation. */
   readonly hasCoach = computed(() => !!this.auth.currentUser()?.athleteId);
@@ -238,11 +263,26 @@ export class MyRequestsComponent implements OnInit {
     });
   }
 
+  resend(): void {
+    this.auth.resendVerification().subscribe({
+      next: () => {
+        this.resent.set(true);
+        this.toast.success('E-mail de confirmation renvoyé');
+      },
+    });
+  }
+
   private load(): void {
     this.service.mine().subscribe({
       next: (list) => {
         this.requests.set(list);
         this.loading.set(false);
+        // Après la liste, pas en parallèle : la lire envoie la demande préparée quand l'e-mail
+        // vient d'être confirmé, et le bandeau ne doit pas annoncer une demande déjà partie.
+        this.service.account().subscribe({
+          next: (a) => this.pending.set(a.pendingRequest ?? null),
+          error: () => this.pending.set(null),
+        });
       },
       error: () => this.loading.set(false),
     });

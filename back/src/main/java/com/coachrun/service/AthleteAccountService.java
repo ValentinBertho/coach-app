@@ -5,6 +5,7 @@ import com.coachrun.dto.request.AthleteRegistrationRequest;
 import com.coachrun.dto.response.AthleteAccountResponse;
 import com.coachrun.dto.response.AuthResponse;
 import com.coachrun.entity.AthleteAccount;
+import com.coachrun.entity.CoachProfile;
 import com.coachrun.entity.User;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.entity.enums.UserStatus;
@@ -12,6 +13,7 @@ import com.coachrun.exception.ApiException;
 import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.NotFoundException;
 import com.coachrun.repository.AthleteAccountRepository;
+import com.coachrun.repository.CoachProfileRepository;
 import com.coachrun.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +63,7 @@ public class AthleteAccountService {
     private final NotificationService notificationService;
     private final ClockService clock;
     private final AuthService authService;
+    private final CoachProfileRepository profileRepository;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -82,6 +85,7 @@ public class AthleteAccountService {
             throw new ConflictException("Un compte existe déjà avec cet email.");
         }
         requireMinimumAge(request.birthDate());
+        PendingDraft draft = pendingDraft(request);
 
         User user = new User();
         user.setEmail(email);
@@ -104,6 +108,16 @@ public class AthleteAccountService {
         account.setLastName(request.lastName().trim());
         account.setBirthDate(request.birthDate());
         account.setGoal(trimToNull(request.goal()));
+        if (draft != null) {
+            account.setPendingRequestCoachSlug(draft.coachSlug());
+            account.setPendingRequestMessage(draft.message());
+            // Sans objectif saisi, le mot adressé au coach en tient lieu : c'est la même chose
+            // dite une fois, et il restera sur le compte si la demande ne peut pas partir.
+            if (account.getGoal() == null) {
+                account.setGoal(draft.message().length() > 1000
+                        ? draft.message().substring(0, 1000) : draft.message());
+            }
+        }
         account.setLookingForCoach(true);
         account.setTermsAcceptedAt(Instant.now());
         account.setHealthDataConsentAt(Instant.now());
@@ -115,8 +129,52 @@ public class AthleteAccountService {
         return authService.tokensFor(user);
     }
 
+    /**
+     * La demande jointe à l'inscription, vérifiée <b>avant</b> de créer le compte.
+     *
+     * <p>Refuser ici plutôt qu'à l'envoi : le visiteur est encore devant son formulaire et peut
+     * corriger. Découvrir après la confirmation de l'e-mail que le message était trop court, ce
+     * serait le lui dire quand il n'est plus là pour le lire.</p>
+     */
+    private PendingDraft pendingDraft(AthleteRegistrationRequest request) {
+        if (!StringUtils.hasText(request.coachSlug())) {
+            return null;
+        }
+        String message = request.requestMessage() == null ? "" : request.requestMessage().trim();
+        if (message.length() < 20) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Votre message au coach est trop court : quelques lignes sur votre objectif "
+                            + "et votre contexte.");
+        }
+        // Mêmes mots que l'annuaire : « pas publiée » et « n'existe pas » ne se distinguent pas.
+        CoachProfile profile = profileRepository.findBySlug(request.coachSlug().trim())
+                .filter(p -> p.getStatus().isVisible())
+                .orElseThrow(() -> new NotFoundException("Ce coach n'existe pas ou n'est plus publié."));
+        if (!profile.getStatus().acceptsRequests()) {
+            throw new ConflictException(profile.getCoach().getFullName()
+                    + " ne prend pas de nouveaux athlètes en ce moment.");
+        }
+        return new PendingDraft(profile.getSlug(), message);
+    }
+
+    private record PendingDraft(String coachSlug, String message) {
+    }
+
+    private AthleteAccountResponse render(AthleteAccount account) {
+        AthleteAccountResponse.PendingRequest pending = null;
+        if (StringUtils.hasText(account.getPendingRequestCoachSlug())) {
+            String slug = account.getPendingRequestCoachSlug();
+            pending = new AthleteAccountResponse.PendingRequest(slug,
+                    profileRepository.findBySlug(slug)
+                            .filter(p -> p.getStatus().isVisible())
+                            .map(p -> p.getCoach().getFullName()).orElse(null),
+                    account.getPendingRequestMessage());
+        }
+        return AthleteAccountResponse.from(account, pending);
+    }
+
     public AthleteAccountResponse myAccount(UUID userId) {
-        return AthleteAccountResponse.from(require(userId));
+        return render(require(userId));
     }
 
     @Transactional
@@ -141,7 +199,7 @@ public class AthleteAccountService {
         // annoncé sous l'ancien dans les demandes qu'il envoie et les fils qu'il ouvre.
         User user = account.getUser();
         user.setFullName((account.getFirstName() + " " + account.getLastName()).trim());
-        return AthleteAccountResponse.from(account);
+        return render(account);
     }
 
     /** Le compte de cet utilisateur, ou 404 — un coach n'en a pas, et n'a pas à en avoir. */
