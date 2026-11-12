@@ -150,11 +150,11 @@ class HubDemoSeedTest {
     }
 
     private String bearer(String email) throws Exception {
-        return "Bearer " + json(mvc.perform(post("/auth/login")
+        return "Bearer " + MfaTestSupport.complete(mvc, context, email, json(mvc.perform(post("/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .characterEncoding(StandardCharsets.UTF_8)
                 .content("{\"email\":\"" + email + "\",\"password\":\""
                         + DemoSeedService.DEMO_PASSWORD + "\"}"))
-                .andExpect(status().isOk())).get("accessToken").asText();
+                .andExpect(status().isOk()))).get("accessToken").asText();
     }
 }

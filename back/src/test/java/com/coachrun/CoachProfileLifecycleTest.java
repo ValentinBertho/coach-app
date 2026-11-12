@@ -235,6 +235,6 @@ class CoachProfileLifecycleTest {
                                 + DemoSeedService.DEMO_PASSWORD + "\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse()
                 .getContentAsString(java.nio.charset.StandardCharsets.UTF_8));
-        return "Bearer " + res.get("accessToken").asText();
+        return "Bearer " + MfaTestSupport.complete(mvc, context, email, res).get("accessToken").asText();
     }
 }

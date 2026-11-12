@@ -388,6 +388,9 @@ class CoachingRequestFlowTest {
         mvc.perform(post("/me/coach/end").header("Authorization", athlete))
                 .andExpect(status().isNoContent());
 
+        // La sortie ferme les sessions : on se reconnecte. Réutiliser l'ancien jeton ne passait
+        // que lorsqu'il avait été émis dans la même seconde que la fermeture.
+        athlete = bearerFor("nina@exemple.fr");
         mvc.perform(post("/me/coaching-requests").header("Authorization", athlete)
                         .contentType(MediaType.APPLICATION_JSON)
                         .characterEncoding(StandardCharsets.UTF_8)
@@ -514,7 +517,7 @@ class CoachingRequestFlowTest {
         JsonNode res = json(mvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .characterEncoding(StandardCharsets.UTF_8)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"password123\"}"))
+                        .content("{\"email\":\"" + email + "\",\"password\":\"password1234\"}"))
                 .andExpect(status().isOk()));
         return "Bearer " + res.get("accessToken").asText();
     }
@@ -548,7 +551,7 @@ class CoachingRequestFlowTest {
     }
 
     private String registrationBody(String email, LocalDate birthDate) {
-        return "{\"email\":\"" + email + "\",\"password\":\"password123\","
+        return "{\"email\":\"" + email + "\",\"password\":\"password1234\","
                 + "\"firstName\":\"Nina\",\"lastName\":\"Roy\","
                 + "\"birthDate\":\"" + birthDate + "\","
                 + "\"goal\":\"Finir mon premier marathon au printemps\","
@@ -596,6 +599,6 @@ class CoachingRequestFlowTest {
                                 + DemoSeedService.DEMO_PASSWORD + "\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse()
                 .getContentAsString(StandardCharsets.UTF_8));
-        return "Bearer " + res.get("accessToken").asText();
+        return "Bearer " + MfaTestSupport.complete(mvc, context, email, res).get("accessToken").asText();
     }
 }

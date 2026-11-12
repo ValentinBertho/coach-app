@@ -37,7 +37,7 @@ test('la coach accepte la demande, et l\'athlète entre dans son espace d\'entra
   await expect(page.getByRole('heading', { level: 1, name: 'Demandes de coaching' })).toBeVisible();
   await expect(page.getByText('Tom Bertrand')).toBeVisible();
   await page.getByRole('button', { name: 'Accepter' }).first().click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Accepter' }).click();
+  await page.locator('.dialog').getByRole('button', { name: 'Accepter' }).click();
   await expect(page.getByText(/Tom Bertrand fait maintenant partie de vos athlètes/)).toBeVisible();
 
   // Après : nouvelle connexion, la navigation complète est là.

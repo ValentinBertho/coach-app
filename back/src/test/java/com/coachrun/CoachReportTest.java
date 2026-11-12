@@ -226,7 +226,7 @@ class CoachReportTest {
                 .characterEncoding(StandardCharsets.UTF_8)
                 .content("{\"email\":\"" + email + "\",\"password\":\"" + DemoSeedService.DEMO_PASSWORD + "\"}"))
                 .andExpect(status().isOk()));
-        return "Bearer " + body.get("accessToken").asText();
+        return "Bearer " + MfaTestSupport.complete(mvc, context, email, body).get("accessToken").asText();
     }
 
     /** Une fiche publiée : sans elle, il n'y a rien à signaler. */

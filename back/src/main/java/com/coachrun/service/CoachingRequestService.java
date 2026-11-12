@@ -173,9 +173,12 @@ public class CoachingRequestService {
         request.setOfferAmountCents(offer.getAmountCents());
     }
 
+    // Écriture : la lecture fait d'abord expirer les demandes échues. En lecture seule,
+    // PostgreSQL refuse l'UPDATE et la liste répondait 500 (H2, en test, ne le refuse pas).
+    @Transactional
     public List<CoachingRequestResponse> myRequests(UUID userId) {
         AthleteAccount account = accountService.require(userId);
-        requestRepository.expireOverdue(Instant.now());
+        requestRepository.expireOverdue(clock.instant());
         return requestRepository.findByAthleteAccountIdOrderByCreatedAtDesc(account.getId())
                 .stream().map(this::render).toList();
     }
@@ -209,8 +212,11 @@ public class CoachingRequestService {
 
     // ---------------------------------------------------------------- côté coach
 
+    // Écriture : la lecture fait d'abord expirer les demandes échues. En lecture seule,
+    // PostgreSQL refuse l'UPDATE et la liste répondait 500 (H2, en test, ne le refuse pas).
+    @Transactional
     public List<CoachingRequestResponse> received(UUID coachId) {
-        requestRepository.expireOverdue(Instant.now());
+        requestRepository.expireOverdue(clock.instant());
         return requestRepository.findByCoachIdOrderByCreatedAtDesc(coachId)
                 .stream().map(this::render).toList();
     }

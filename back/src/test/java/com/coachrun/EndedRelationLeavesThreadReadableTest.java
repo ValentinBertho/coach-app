@@ -210,7 +210,7 @@ class EndedRelationLeavesThreadReadableTest {
         JsonNode res = json(mvc.perform(post("/public/athlete-registration")
                         .contentType(MediaType.APPLICATION_JSON)
                         .characterEncoding(StandardCharsets.UTF_8)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"password123\","
+                        .content("{\"email\":\"" + email + "\",\"password\":\"password1234\","
                                 + "\"firstName\":\"Lena\",\"lastName\":\"Martin\","
                                 + "\"birthDate\":\"" + java.time.LocalDate.now().minusYears(28) + "\","
                                 + "\"goal\":\"Finir mon premier marathon au printemps\","
@@ -244,11 +244,11 @@ class EndedRelationLeavesThreadReadableTest {
     }
 
     private String bearer(String email, String password) throws Exception {
-        return "Bearer " + json(mvc.perform(post("/auth/login")
+        return "Bearer " + MfaTestSupport.complete(mvc, context, email, json(mvc.perform(post("/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .characterEncoding(StandardCharsets.UTF_8)
                 .content("{\"email\":\"" + email + "\",\"password\":\"" + password + "\"}"))
-                .andExpect(status().isOk())).get("accessToken").asText();
+                .andExpect(status().isOk()))).get("accessToken").asText();
     }
 
     private String publishCoachProfile() throws Exception {

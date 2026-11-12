@@ -24,7 +24,7 @@ import java.time.LocalDate;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record AthleteRegistrationRequest(
         @NotBlank @Email @Size(max = 255) String email,
-        @NotBlank @Size(min = 8, max = 100) String password,
+        @NotBlank @Size(min = 12, max = 100, message = "Le mot de passe doit faire au moins 12 caractères.") String password,
         @NotBlank @Size(max = 120) String firstName,
         @NotBlank @Size(max = 120) String lastName,
         @NotNull @Past LocalDate birthDate,

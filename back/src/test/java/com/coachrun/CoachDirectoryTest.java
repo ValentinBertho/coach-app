@@ -257,6 +257,6 @@ class CoachDirectoryTest {
                                 + DemoSeedService.DEMO_PASSWORD + "\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse()
                 .getContentAsString(StandardCharsets.UTF_8));
-        return "Bearer " + res.get("accessToken").asText();
+        return "Bearer " + MfaTestSupport.complete(mvc, context, email, res).get("accessToken").asText();
     }
 }

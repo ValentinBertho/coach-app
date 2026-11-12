@@ -42,7 +42,7 @@ export class AthleteSignupComponent {
     firstName: ['', [Validators.required, Validators.maxLength(120)]],
     lastName: ['', [Validators.required, Validators.maxLength(120)]],
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(8)]],
+    password: ['', [Validators.required, Validators.minLength(12)]],
     birthDate: ['', [Validators.required]],
     goal: ['', [Validators.maxLength(1000)]],
     termsAccepted: [false, [Validators.requiredTrue]],
