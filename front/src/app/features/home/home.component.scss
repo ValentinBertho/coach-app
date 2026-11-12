@@ -67,22 +67,87 @@
   border-color: rgba(255, 255, 255, 0.2);
 }
 .btn-on-dark:hover { background: rgba(255, 255, 255, 0.08); }
+.hero-video-link {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  color: var(--night-text-2); font-weight: 600; text-decoration: none;
+}
+.hero-video-link:hover { color: var(--night-text); text-decoration: underline; }
 
 .zones-preview { display: flex; gap: var(--sp-2); margin-top: var(--sp-4); animation: floaty 5s ease-in-out infinite; }
 .hero-inner { position: relative; z-index: 1; }
 
-/* Features */
-.features {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
-  gap: var(--sp-4);
-  padding-block: var(--sp-12);
+/* L'outil du coach, en vrai : vidéo puis écrans réels, en rangées alternées */
+.tour {
   width: 100%;
   box-sizing: border-box;
+  padding-block: var(--sp-12);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sp-3);
 }
-.feature { display: flex; flex-direction: column; gap: var(--sp-2); }
-.feature-ic { font-size: 28px; }
-.feature h3 { margin: 0; }
+.tour { scroll-margin-top: var(--sp-4); }
+.tour h2 { margin: 0; }
+.tour-lead { margin: 0; max-width: 620px; color: var(--ink-2); font-size: var(--text-lg); }
+.tour-video {
+  margin: var(--sp-6) 0 var(--sp-8);
+  width: 100%;
+  max-width: 1040px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.tour-video video {
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-xl);
+  background: var(--night);
+  box-shadow: var(--shadow-night);
+}
+.tour-row {
+  width: 100%;
+  max-width: 1160px;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--sp-8);
+  align-items: center;
+  text-align: left;
+  padding-block: var(--sp-6);
+}
+.tour-row--flip .tour-text { order: 2; }
+.tour-text { display: flex; flex-direction: column; gap: var(--sp-3); }
+.tour-text h3 { margin: 0; font-size: var(--text-xl); color: var(--ink); }
+.tour-text p { margin: 0; color: var(--ink-2); line-height: 1.6; }
+.tour-ic {
+  width: 40px; height: 40px; border-radius: var(--radius-md);
+  background: var(--primary-wash); color: var(--primary);
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.tour-shot {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  box-shadow: 0 24px 60px rgba(8, 19, 22, 0.16);
+  background: var(--paper);
+}
+.tour-shot img { display: block; width: 100%; height: auto; }
+.tour-phones { display: flex; gap: var(--sp-4); justify-content: center; }
+.tour-phones img {
+  width: 30%;
+  max-width: 200px;
+  height: auto;
+  border-radius: 22px;
+  border: 6px solid #0b1416;
+  box-shadow: 0 20px 50px rgba(8, 19, 22, 0.25);
+}
+.tour-phones img:nth-child(2) { transform: translateY(-16px); }
+.tour-cta { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); margin-top: var(--sp-6); }
+
+@media (max-width: 860px) {
+  .tour-row { grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); }
+  .tour-row--flip .tour-text { order: 0; }
+}
 
 /* Comment ça marche */
 .how { width: 100%; box-sizing: border-box; padding-block: var(--sp-12) 0; scroll-margin-top: var(--sp-4); }
