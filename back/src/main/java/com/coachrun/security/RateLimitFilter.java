@@ -71,9 +71,22 @@ public class RateLimitFilter extends OncePerRequestFilter {
      */
     public static final String REFRESH_BUCKET = "auth-refresh";
 
+    /**
+     * Bucket de l'annuaire public.
+     *
+     * <p>Séparé du seuil général parce que les deux usages n'ont rien à voir : vingt requêtes par
+     * minute suffisent à décourager le devinage d'un mot de passe, elles ne suffisent pas à
+     * feuilleter des résultats en changeant de filtre. Séparé aussi des routes authentifiées, parce
+     * que ce visiteur n'a pas de jeton : le compte se fait par IP, et derrière un NAT d'opérateur
+     * toute une cohorte partage l'adresse — d'où un plafond large, mais qui existe. Recopier
+     * l'annuaire coach par coach est le premier geste de qui veut démarcher nos coachs.</p>
+     */
+    public static final String DIRECTORY_BUCKET = "public-directory";
+
     private final FixedWindowRateLimiter limiter;
     private final FixedWindowRateLimiter loginLimiter;
     private final FixedWindowRateLimiter refreshLimiter;
+    private final FixedWindowRateLimiter directoryLimiter;
     private final FixedWindowRateLimiter authenticatedLimiter;
     private final FixedWindowRateLimiter liveLimiter;
     private final FixedWindowRateLimiter emailLimiter;
@@ -85,6 +98,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                            @Value("${app.rate-limit.window-seconds:60}") int windowSeconds,
                            @Value("${app.rate-limit.login-max-requests:5}") int loginMaxRequests,
                            @Value("${app.rate-limit.refresh-max-requests:60}") int refreshMaxRequests,
+                           @Value("${app.rate-limit.directory-max-requests:90}") int directoryMax,
                            @Value("${app.rate-limit.authenticated-max-requests:300}") int authenticatedMax,
                            @Value("${app.rate-limit.live-max-requests:120}") int liveMax,
                            @Value("${app.rate-limit.email-max-requests:3}") int emailMax,
@@ -98,6 +112,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         // Rafraîchissement : large, parce qu'il est légitime et fréquent. Il reste borné — un
         // jeton rejoué est de toute façon refusé par la rotation et la liste noire.
         this.refreshLimiter = new FixedWindowRateLimiter(refreshMaxRequests, Duration.ofSeconds(windowSeconds));
+        // Annuaire public : large — changer de filtre, feuilleter, ouvrir des fiches est l'usage
+        // normal — mais borné, l'aspiration ne devant pas se faire au rythme du serveur.
+        this.directoryLimiter =
+                new FixedWindowRateLimiter(directoryMax, Duration.ofSeconds(windowSeconds));
         // Plafond global : large (une navigation soutenue reste très en dessous), mais il existe.
         this.authenticatedLimiter =
                 new FixedWindowRateLimiter(authenticatedMax, Duration.ofSeconds(windowSeconds));
@@ -152,6 +170,26 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (uri.endsWith("/api/feedback")) {
             return "beta-feedback";
         }
+        // Le signalement d'une fiche : écriture de texte libre en base par un visiteur anonyme.
+        // Testé AVANT l'annuaire, qui l'attraperait sinon — et le plafond de l'annuaire est calibré
+        // pour de la lecture (90/min), soit très au-dessus de ce qu'on veut concéder à un dépôt.
+        // Il retombe donc sur le seuil général, comme la demande de création de club ; le reste de
+        // la protection est applicative (CoachReportService, plafonds par fiche et par jour).
+        if (uri.contains("/public/coaches") && uri.endsWith("/report")) {
+            return "coach-report";
+        }
+        // L'annuaire public : la seule route de lecture ouverte à un visiteur anonyme, donc la
+        // seule qu'on puisse aspirer.
+        //
+        // Les PHOTOS en sont exclues, et ce n'est pas un oubli : une page de douze résultats
+        // déclenche douze requêtes d'image pour une seule requête de recherche. Les compter dans
+        // le même seau ferait sauter le quota au bout de deux pages, et le symptôme serait des
+        // vignettes cassées au hasard — le genre de défaut qu'on ne relie jamais à un plafond.
+        // Elles sont immuables et servies avec un cache de trente jours : leur coût est marginal.
+        if ((uri.contains("/public/coaches") || uri.contains("/public/coach-"))
+                && !uri.contains("/public/coach-photos")) {
+            return DIRECTORY_BUCKET;
+        }
         return null;
     }
 
@@ -202,7 +240,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         return uri.endsWith("/auth/register")
                 || uri.endsWith("/public/password-reset")
-                || uri.endsWith("/public/club-requests");
+                || uri.endsWith("/public/club-requests")
+                // L'inscription libre d'un athlète : ouverte à tout visiteur et suivie d'un
+                // e-mail de vérification. Sans ce plafond, une seule adresse IP pourrait vider
+                // le quota d'envoi quotidien — et il porte aussi les réinitialisations de mot de
+                // passe et les invitations, précisément les envois qu'on ne peut pas perdre.
+                || uri.endsWith("/public/athlete-registration");
     }
 
     /**
@@ -246,6 +289,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 applicable = loginLimiter;
             } else if (REFRESH_BUCKET.equals(bucket)) {
                 applicable = refreshLimiter;
+            } else if (DIRECTORY_BUCKET.equals(bucket)) {
+                applicable = directoryLimiter;
             } else {
                 applicable = limiter;
             }
@@ -375,6 +420,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
     void purgeExpiredWindows() {
         limiter.purgeExpired();
         loginLimiter.purgeExpired();
+        directoryLimiter.purgeExpired();
         refreshLimiter.purgeExpired();
         authenticatedLimiter.purgeExpired();
         // Les deux seaux horaires manquaient à l'appel : leurs tables, indexées sur des clés que

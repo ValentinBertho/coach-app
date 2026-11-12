@@ -13,6 +13,11 @@ COPY . .
 # Build de production (optimisation, hachage, service worker) SANS le DSN Sentry de production :
 # une stack locale n'a rien à écrire dans le projet d'erreurs des utilisateurs réels.
 # Cf. front/src/environments/environment.docker.ts.
+#
+# PRERENDER_API_ORIGIN n'est volontairement pas fourni ici : au moment où cette image se
+# construit, l'API de la pile Docker n'écoute pas encore. Le script de collecte le dit et
+# poursuit avec les seules pages statiques — c'est exactement le repli pour lequel il est écrit.
+# Une pile locale n'a de toute façon pas de liens partagés à faire prévisualiser.
 RUN npm run build:docker
 
 # --- Stage 2 : runtime (nginx) ---------------------------------------------

@@ -55,6 +55,25 @@ export const routes: Routes = [
       import('./features/public/coach-invitation.component').then((m) => m.CoachInvitationComponent),
   },
   {
+    // L'inscription libre d'un athlète. Publique, et distincte de /register qui ouvre un espace
+    // de coach : ce sont deux métiers, deux formulaires et deux consentements.
+    path: 'inscription-athlete',
+    loadComponent: () =>
+      import('./features/annuaire/athlete-signup.component').then((m) => m.AthleteSignupComponent),
+  },
+  {
+    // L'annuaire public. Sans garde : c'est la vitrine, et demander un compte pour la voir
+    // reviendrait à en demander un pour savoir s'il y a une raison d'en créer un.
+    path: 'coachs',
+    loadComponent: () =>
+      import('./features/annuaire/coach-directory.component').then((m) => m.CoachDirectoryComponent),
+  },
+  {
+    path: 'coachs/:slug',
+    loadComponent: () =>
+      import('./features/annuaire/coach-detail.component').then((m) => m.CoachDetailComponent),
+  },
+  {
     // Pages légales publiques : confidentialite | mentions-legales | cgu.
     path: 'legal/:page',
     loadComponent: () =>
@@ -232,6 +251,20 @@ export const routes: Routes = [
         path: 'club',
         loadComponent: () =>
           import('./features/club/club.component').then((m) => m.ClubComponent),
+      },
+      {
+        // Les demandes reçues : la contrepartie de la vitrine. Sans cet écran, publier une fiche
+        // ferait arriver des demandes que personne ne verrait.
+        path: 'demandes',
+        loadComponent: () =>
+          import('./features/vitrine/coach-requests.component').then((m) => m.CoachRequestsComponent),
+      },
+      {
+        // La vitrine du coach : ce qu'un athlète lit avant de le choisir. Sous /app et non dans
+        // les paramètres — ce n'est pas un réglage, c'est une page qu'on écrit.
+        path: 'vitrine',
+        loadComponent: () =>
+          import('./features/vitrine/coach-profile.component').then((m) => m.CoachProfileComponent),
       },
       {
         path: 'training-zones',
@@ -421,6 +454,13 @@ export const routes: Routes = [
           import('./features/athlete/athlete-performances.component').then((m) => m.AthletePerformancesComponent),
       },
       {
+        // « Mes demandes » : où en est chaque sollicitation, et ce qu'on attend de l'athlète —
+        // il peut y avoir une question sans réponse, et c'est alors lui qui bloque.
+        path: 'demandes',
+        loadComponent: () =>
+          import('./features/annuaire/my-requests.component').then((m) => m.MyRequestsComponent),
+      },
+      {
         path: 'profile',
         loadComponent: () =>
           import('./features/athlete/profile.component').then((m) => m.AthleteProfileComponent),
@@ -487,6 +527,25 @@ export const routes: Routes = [
         path: 'invitations',
         loadComponent: () =>
           import('./features/admin/admin-invitations.component').then((m) => m.AdminInvitationsComponent),
+      },
+      {
+        // La file des fiches coachs, à côté de celle des demandes de club : même geste — regarder,
+        // décider, motiver — et l'équipe n'a pas deux écrans à apprendre.
+        path: 'coach-profiles',
+        loadComponent: () =>
+          import('./features/admin/admin-coach-profiles.component').then(
+            (m) => m.AdminCoachProfilesComponent,
+          ),
+      },
+      {
+        // La file des signalements. Séparée de celle des fiches, et pas par commodité : clore un
+        // signalement ne retire pas une fiche, et deux écrans distincts empêchent le geste de tri
+        // de glisser vers la sanction.
+        path: 'coach-reports',
+        loadComponent: () =>
+          import('./features/admin/admin-coach-reports.component').then(
+            (m) => m.AdminCoachReportsComponent,
+          ),
       },
       {
         // Demandes de création de club : en régime « sur demande », c'est le seul endroit d'où

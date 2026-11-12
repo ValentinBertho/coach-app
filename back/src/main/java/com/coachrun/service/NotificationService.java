@@ -30,6 +30,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -1090,6 +1091,95 @@ public class NotificationService {
     }
 
     /**
+     * Les files d'arbitrage qui attendent l'équipe, une fois par jour.
+     *
+     * <h2>Le silence que cet envoi rompt</h2>
+     *
+     * <p>Les trois files du back-office étaient <b>passives</b> : rien ne disait qu'elles
+     * contenaient du travail. L'unique e-mail parti sur une demande de club est un accusé de
+     * réception <em>au demandeur</em>. Un coach inscrit vendredi soir attendait donc qu'on pense à
+     * regarder — et, depuis le lot 7, une fiche accusée de porter un faux diplôme restait publiée
+     * pendant ce temps.</p>
+     *
+     * <h2>Pourquoi un digest et non un envoi par événement</h2>
+     *
+     * <p>Le signalement est ouvert aux visiteurs sans compte : un e-mail par signalement se
+     * déclencherait donc sur commande. Le plan d'envoi est à cent messages par jour et il porte
+     * aussi les réinitialisations de mot de passe et les invitations — c'est-à-dire les envois
+     * qu'on ne peut pas perdre. Un message quotidien est borné par construction.</p>
+     *
+     * <p>L'âge du plus ancien signalement est dit dans l'objet quand il dépasse deux jours. C'est
+     * le seul chiffre qui distingue une file qui tourne d'une file qui dérape, et le mettre dans
+     * l'objet le fait lire sans ouvrir.</p>
+     */
+    public void notifyModerationQueue(User admin, ModerationQueueService.ModerationSummary summary) {
+        if (admin == null || summary == null || !summary.hasWork()) {
+            return;
+        }
+
+        List<String> parts = new ArrayList<>();
+        if (summary.pendingClubRequests() > 0) {
+            parts.add(plural(summary.pendingClubRequests(), "demande de club", "demandes de club"));
+        }
+        if (summary.pendingCoachProfiles() > 0) {
+            parts.add(plural(summary.pendingCoachProfiles(), "fiche coach", "fiches coachs"));
+        }
+        if (summary.openReports() > 0) {
+            parts.add(plural(summary.openReports(), "signalement", "signalements"));
+        }
+        String what = String.join(", ", parts);
+
+        notifyUser(admin, "MODERATION_QUEUE", "Files à traiter", what, what, "/admin/coach-profiles");
+
+        if (admin.getEmail() == null || !admin.isNotifyEmailEnabled()) {
+            return;
+        }
+
+        Long age = summary.oldestReportAgeDays();
+        boolean stale = age != null && age >= 2;
+        String subject = stale
+                // L'urgence dans l'objet : un signalement qui dort est le seul de ces trois cas
+                // qui laisse en ligne quelque chose que quelqu'un conteste.
+                ? "Signalement en attente depuis " + plural(age, "jour", "jours") + " — Darilab"
+                : what + " à traiter sur Darilab";
+
+        StringBuilder items = new StringBuilder();
+        if (summary.pendingClubRequests() > 0) {
+            items.append(queueLine(summary.pendingClubRequests(), "demande de club",
+                    "demandes de club", "/admin/club-requests"));
+        }
+        if (summary.pendingCoachProfiles() > 0) {
+            items.append(queueLine(summary.pendingCoachProfiles(), "fiche coach à valider",
+                    "fiches coachs à valider", "/admin/coach-profiles"));
+        }
+        if (summary.openReports() > 0) {
+            items.append(queueLine(summary.openReports(), "signalement",
+                    "signalements", "/admin/coach-reports"));
+        }
+
+        String html = "<p>Bonjour,</p><p>Ce qui attend un arbitrage ce matin :</p><ul>"
+                + items + "</ul>"
+                + (stale
+                        ? "<p><strong>Le plus ancien signalement attend depuis "
+                                + plural(age, "jour", "jours")
+                                + ".</strong> Une fiche contestée reste publiée tant qu'elle n'a pas"
+                                + " été regardée.</p>"
+                        : "")
+                + cta("Ouvrir le back-office", frontendUrl + "/admin/coach-profiles");
+        send(admin.getEmail(), subject, html, Audience.ADMIN, MailKind.MODERATION_DIGEST);
+    }
+
+    /** « 1 signalement » / « 3 signalements » — le compte et son mot, accordés. */
+    private static String plural(long count, String singular, String plural) {
+        return count + " " + (count > 1 ? plural : singular);
+    }
+
+    private String queueLine(long count, String singular, String plural, String path) {
+        return "<li><a href=\"" + frontendUrl + path + "\">"
+                + esc(plural(count, singular, plural)) + "</a></li>";
+    }
+
+    /**
      * Bilan de la semaine de l'athlète, le dimanche soir → <b>in-app + push, sans e-mail</b>.
      *
      * <p>Le premier message du produit qui ne réclame rien. Tout le reste est événementiel — une
@@ -1150,7 +1240,11 @@ public class NotificationService {
                 + (recap.upcomingRaces() > 0
                         ? " · " + recap.upcomingRaces() + " course"
                                 + (recap.upcomingRaces() > 1 ? "s" : "") + " en vue" : "");
-        notifyUser(coach, "WEEKLY_RECAP", "Ta semaine de club", body, "/app/journee");
+        // « de club » n'a de sens que pour un coach qui en a un : pour un indépendant, le bilan
+        // porte sur ses athlètes, et le mot décrit une organisation qui n'existe pas.
+        String title = coach.getClub() != null && coach.getClub().isSoloPractice()
+                ? "Ta semaine" : "Ta semaine de club";
+        notifyUser(coach, "WEEKLY_RECAP", title, body, "/app/journee");
 
         if (coach.getEmail() == null || !coach.isNotifyEmailEnabled()) {
             return;
@@ -1474,6 +1568,90 @@ public class NotificationService {
         return enabled;
     }
 
+    // ================================================================================
+    // Mise en relation (hub) — les quatre moments où quelqu'un attend une réponse.
+    //
+    // Notification in-app seulement, sans e-mail : ces événements sont fréquents dans une place de
+    // marché active, et le quota d'envoi de la bêta porte déjà les vérifications d'adresse, les
+    // réinitialisations et les invitations — ceux qu'on ne peut pas perdre. L'e-mail viendra quand
+    // le plan d'envoi le permettra.
+    // ================================================================================
+
+    /**
+     * Un coaching vient de prendre fin.
+     *
+     * <p>Le motif n'est transmis que s'il a été écrit : personne n'est tenu de se justifier pour
+     * partir. Le message ne dramatise pas et ne prend pas parti — c'est une fin de collaboration,
+     * pas un incident.</p>
+     *
+     * @param byAthlete vrai quand c'est l'athlète qui a mis fin à la relation
+     */
+    public void notifyCoachingEnded(User target, String otherName, boolean byAthlete, String reason) {
+        if (target == null) {
+            return;
+        }
+        String body = byAthlete
+                ? otherName + " a mis fin à votre collaboration."
+                : otherName + " a mis fin à votre collaboration. Vous pouvez chercher un autre coach.";
+        if (reason != null && !reason.isBlank()) {
+            body = body + " Motif : " + reason;
+        }
+        notifyUser(target, "COACHING_ENDED", "Fin de collaboration", body,
+                byAthlete ? "/app/athletes" : "/coachs");
+    }
+
+    /** Une demande vient d'arriver : c'est ce qui fait ouvrir la file au coach. */
+    public void notifyCoachingRequestReceived(User coach, String athleteName) {
+        if (coach == null) {
+            return;
+        }
+        notifyUser(coach, "COACHING_REQUEST",
+                "Nouvelle demande de coaching",
+                athleteName + " aimerait que vous le coachiez.",
+                "/app/demandes");
+    }
+
+    /** Le coach a posé sa question : sans notification, l'athlète ne saurait pas qu'on l'attend. */
+    public void notifyCoachingRequestQuestion(User athleteUser, String coachName) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_REQUEST",
+                "Une question sur votre demande",
+                coachName + " vous demande une précision avant de décider.",
+                "/athlete/demandes");
+    }
+
+    /**
+     * Demande acceptée. C'est la notification la plus importante du hub : elle annonce que
+     * l'athlète a un coach, et que son espace vient de changer de nature.
+     */
+    public void notifyCoachingRequestAccepted(User athleteUser, String coachName) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_REQUEST",
+                "Votre demande est acceptée",
+                coachName + " vous suit désormais. Votre espace d'entraînement est ouvert.",
+                "/athlete/calendar");
+    }
+
+    /**
+     * Demande refusée, avec son motif s'il y en a un.
+     *
+     * <p>Le motif est repris tel quel : un refus sans un mot est une porte close, et l'athlète
+     * redemande la semaine suivante sans savoir ce qui n'allait pas.</p>
+     */
+    public void notifyCoachingRequestDeclined(User athleteUser, String coachName, String reason) {
+        if (athleteUser == null) {
+            return;
+        }
+        String body = coachName + " n'a pas retenu votre demande."
+                + (reason == null || reason.isBlank() ? "" : " Motif : " + reason);
+        notifyUser(athleteUser, "COACHING_REQUEST", "Réponse à votre demande", body,
+                "/athlete/demandes");
+    }
+
     /**
      * Accusé de réception d'une demande de création de club.
      *
@@ -1481,18 +1659,24 @@ public class NotificationService {
      * devant un formulaire qui s'est vidé, sans savoir si sa demande est partie. C'est le moment
      * où l'on perd les gens.</p>
      */
-    public void notifyClubRequestReceived(String email, String fullName, String clubName) {
+    public void notifyClubRequestReceived(String email, String fullName, String clubName,
+                                          boolean soloPractice) {
         if (email == null) {
             return;
         }
+        // Le premier message que reçoit un coach indépendant ne doit pas lui parler d'un club
+        // qu'il n'a pas : c'est ce que le lot « vocabulaire indépendant » corrige à l'écran, et
+        // l'e-mail part du même formulaire.
+        String what = soloPractice ? "d'ouverture de votre espace" : "de création du club";
         String html = "<p>Bonjour " + esc(fullName) + ",</p>"
-                + "<p>Nous avons bien reçu votre demande de création du club <strong>"
+                + "<p>Nous avons bien reçu votre demande " + what + " <strong>"
                 + esc(clubName) + "</strong> sur Darilab.</p>"
                 + "<p>Chaque demande est étudiée à la main : c'est ce qui nous permet de garder "
                 + "la plateforme saine pendant la bêta. Vous recevrez un e-mail dès qu'elle aura "
                 + "été examinée — inutile de la renvoyer entre-temps.</p>";
-        send(email, "Votre demande de club Darilab est bien enregistrée", html, Audience.COACH,
-                MailKind.CLUB_REQUEST);
+        send(email, soloPractice ? "Votre demande Darilab est bien enregistrée"
+                                 : "Votre demande de club Darilab est bien enregistrée",
+                html, Audience.COACH, MailKind.CLUB_REQUEST);
     }
 
     /**
@@ -1502,17 +1686,20 @@ public class NotificationService {
      * que le demandeur est bien le titulaire de l'adresse déposée.</p>
      */
     public void notifyClubRequestApproved(String email, String fullName, String clubName,
-                                          String activationUrl) {
+                                          String activationUrl, boolean soloPractice) {
         if (email == null) {
             return;
         }
+        String what = soloPractice ? "Votre espace" : "Votre club";
         String html = "<p>Bonjour " + esc(fullName) + ",</p>"
-                + "<p>Votre club <strong>" + esc(clubName) + "</strong> est ouvert sur Darilab. "
+                + "<p>" + what + " <strong>" + esc(clubName) + "</strong> est ouvert sur Darilab. "
                 + "Il ne reste qu'à choisir votre mot de passe pour y entrer.</p>"
-                + cta("Choisir mon mot de passe et ouvrir mon club", activationUrl)
+                + cta(soloPractice ? "Choisir mon mot de passe et ouvrir mon espace"
+                                   : "Choisir mon mot de passe et ouvrir mon club", activationUrl)
                 + "<p>Ce lien expire dans 7 jours. Passé ce délai, « mot de passe oublié » depuis "
                 + "la page de connexion en renverra un nouveau.</p>";
-        send(email, "Votre club Darilab est ouvert", html, Audience.COACH, MailKind.CLUB_REQUEST);
+        send(email, soloPractice ? "Votre espace Darilab est ouvert" : "Votre club Darilab est ouvert",
+                html, Audience.COACH, MailKind.CLUB_REQUEST);
     }
 
     /**
@@ -1523,19 +1710,21 @@ public class NotificationService {
      * close, et le candidat redépose la même demande la semaine suivante.</p>
      */
     public void notifyClubRequestRejected(String email, String fullName, String clubName,
-                                          String reason) {
+                                          String reason, boolean soloPractice) {
         if (email == null) {
             return;
         }
+        String what = soloPractice ? "d'ouverture de votre espace" : "de création du club";
         String html = "<p>Bonjour " + esc(fullName) + ",</p>"
-                + "<p>Votre demande de création du club <strong>" + esc(clubName)
+                + "<p>Votre demande " + what + " <strong>" + esc(clubName)
                 + "</strong> n'a pas été retenue.</p>"
                 + (reason == null || reason.isBlank()
                 ? ""
                 : "<p><strong>Motif :</strong> " + esc(reason) + "</p>")
                 + "<p>Si cette décision vous paraît tenir à un malentendu, répondez à cet e-mail : "
                 + "nous réexaminerons votre demande.</p>";
-        send(email, "Votre demande de club Darilab", html, Audience.COACH, MailKind.CLUB_REQUEST);
+        send(email, soloPractice ? "Votre demande Darilab" : "Votre demande de club Darilab",
+                html, Audience.COACH, MailKind.CLUB_REQUEST);
     }
 
     /**

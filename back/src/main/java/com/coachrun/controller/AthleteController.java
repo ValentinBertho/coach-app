@@ -53,7 +53,7 @@ public class AthleteController {
             @RequestParam(required = false) String q,
             @PageableDefault(size = 20, sort = "lastName") Pageable pageable,
             @AuthenticationPrincipal AuthPrincipal principal) {
-        return athleteService.list(clubId, status, groupId, q, pageable, principal.userId());
+        return athleteService.list(clubId, status, groupId, q, pageable, principal);
     }
 
     @GetMapping("/{athleteId}")

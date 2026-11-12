@@ -146,12 +146,18 @@ export class DashboardComponent implements OnInit {
 
   // --- Périmètre (scope) : le même que « Ma journée » et la pastille du menu ---
   readonly scope = this.scopeStore.scope;
-  readonly scopeOptions: SegmentOption[] = [
-    { value: 'all', label: 'Tout le club' },
-    { value: 'mine', label: 'Mes athlètes' },
-    { value: 'private', label: 'Privés' },
-    { value: 'club', label: 'Club' },
-  ];
+  // Un coach indépendant n'a qu'un périmètre : le sélecteur disparaît (cf. CoachScopeService).
+  readonly scopeOptions = computed<SegmentOption[]>(() =>
+    this.scopeStore.choosable()
+      ? [
+          { value: 'all', label: 'Tout le club' },
+          { value: 'mine', label: 'Mes athlètes' },
+          { value: 'private', label: 'Privés' },
+          { value: 'club', label: 'Club' },
+        ]
+      : [],
+  );
+  readonly showScope = this.scopeStore.choosable;
 
   ngOnInit(): void {
     this.load();

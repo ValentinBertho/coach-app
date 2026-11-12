@@ -11,6 +11,7 @@
 
   <!-- Le périmètre est un réglage, pas un onglet : quatre segments en permanence sur 375 px
        coûtaient une ligne entière pour un choix qu'on fait une fois. -->
+  @if (scopeChoosable()) {
   <div class="cd-scope">
     <button type="button" class="btn btn-ghost btn-sm" (click)="toggleScope()"
             [attr.aria-expanded]="scopeOpen()">
@@ -19,7 +20,7 @@
     </button>
     @if (scopeOpen()) {
       <div class="cd-scope__menu">
-        @for (s of scopes; track s.value) {
+        @for (s of scopes(); track s.value) {
           <button type="button" [class.active]="scope() === s.value" (click)="setScope(s.value)">
             {{ s.label }}
             @if (scope() === s.value) { <app-icon name="check" [size]="15" /> }
@@ -28,6 +29,7 @@
       </div>
     }
   </div>
+  }
 </section>
 
 <!-- L'installation avant les notifications : sur iPhone, la seconde dépend de la première. -->

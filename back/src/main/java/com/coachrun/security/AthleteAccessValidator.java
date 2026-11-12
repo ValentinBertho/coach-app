@@ -35,6 +35,20 @@ import java.util.UUID;
  * Un athlète <strong>privé</strong> ({@code club == null} sur la relation référente) n'est jamais
  * accessible à un autre coach, quelles que soient les permissions ou le rôle club. Le
  * {@code PLATFORM_ADMIN} a un accès transverse ; un compte {@code ATHLETE} n'a aucun accès coach.
+ *
+ * <p><b>Relation close et athlète historique ne sont pas la même chose.</b> Un athlète créé avant
+ * le modèle multi-coach n'a aucune relation référente et reste joignable par les coachs de son club
+ * — sans ce repli, tout athlète non backfillé serait devenu inaccessible. Un athlète dont la
+ * relation référente a été <em>close</em> se présentait exactement pareil, et bénéficiait donc du
+ * même repli : le coach qu'on venait d'en détacher récupérait l'écriture par l'accès club. Pour un
+ * coach indépendant, dont le club porte la fiche de tous ses athlètes, la fin de relation n'aurait
+ * ainsi rien retiré du tout. Les deux cas se distinguent par l'existence d'une relation référente,
+ * active ou close ({@code existsByAthleteIdAndReferentTrue}).</p>
+ *
+ * <p><b>Après une relation close, l'ancien coach garde la lecture.</b> Il a écrit cet historique,
+ * la décision produit le lui laisse attaché, et le lui retirer aurait fait de la fiche une donnée
+ * morte : l'athlète repart vers l'annuaire, et plus personne ne pourrait l'ouvrir. L'écriture, en
+ * revanche, est bien perdue — on ne prescrit pas à quelqu'un qu'on ne suit plus.</p>
  */
 @Component("athleteAccessValidator")
 public class AthleteAccessValidator {
@@ -90,12 +104,32 @@ public class AthleteAccessValidator {
         CoachAthleteRelation referent =
                 relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athleteId).orElse(null);
 
-        // Athlète hors modèle multi-coach (legacy / avant backfill) : on retombe sur l'accès
-        // club-level historique pour ne JAMAIS verrouiller. L'enforcement fin (privé, permissions)
-        // s'applique dès qu'une relation référent existe — la création d'athlète et le backfill
-        // la créent désormais systématiquement.
+        // Pas de relation référente ACTIVE : deux situations très différentes se présentent ici
+        // de la même façon, et les confondre revenait à ne jamais pouvoir retirer un coach.
+        //
+        //   1. L'athlète n'a JAMAIS eu de référent (données antérieures au modèle multi-coach,
+        //      avant backfill). On retombe sur l'accès club historique pour ne pas le verrouiller.
+        //   2. Sa relation référente a été CLOSE. Le coach détaché ne doit plus rien voir — or le
+        //      repli lui rendait l'écriture par l'accès club, et le lui rendait précisément dans
+        //      le cas nominal du coach indépendant, dont le club est celui qui porte la fiche de
+        //      tous ses athlètes. Clore une relation n'aurait alors retiré aucun accès.
+        //
+        // C'est l'existence d'une relation référente — active ou close — qui les sépare.
         if (referent == null) {
-            return clubLevelFallback(coachId, athleteId);
+            if (!relationRepository.existsByAthleteIdAndReferentTrue(athleteId)) {
+                return clubLevelFallback(coachId, athleteId);   // jamais de référent ⇒ repli
+            }
+            // La relation a été close. Le coach qui n'a jamais suivi cet athlète ne voit rien ;
+            // celui qui l'a suivi garde la LECTURE de la fiche qu'il a tenue.
+            //
+            // Sans cette nuance, clore une relation rendait la fiche illisible par tout le monde —
+            // l'athlète étant reparti vers l'annuaire et son ancien coach forclos — soit un
+            // historique d'entraînement conservé pour personne. Or c'est lui qui l'a écrit, et
+            // c'est à lui qu'il reste attaché. L'écriture, elle, est bien perdue : on ne prescrit
+            // pas à quelqu'un qu'on ne suit plus.
+            return relationRepository.findByCoachIdAndAthleteIdAndReferentTrue(coachId, athleteId)
+                    .map(closed -> PermissionLevel.READ)
+                    .or(Optional::empty);
         }
 
         // Un athlète privé n'est jamais partagé : aucun accès hors référent.
@@ -162,9 +196,14 @@ public class AthleteAccessValidator {
     }
 
     /**
-     * Accès de repli pour un athlète sans relation référent (données antérieures au modèle
-     * multi-coach) : un coach du même club que l'athlète conserve l'accès complet qu'il avait
-     * avant ce durcissement. Sans cela, tout athlète non backfillé deviendrait inaccessible.
+     * Accès de repli pour un athlète qui n'a <b>jamais</b> eu de relation référente (données
+     * antérieures au modèle multi-coach) : un coach du même club conserve l'accès complet qu'il
+     * avait avant ce durcissement. Sans cela, tout athlète non backfillé serait devenu inaccessible.
+     *
+     * <p>L'appelant doit avoir vérifié qu'aucune relation référente n'a jamais existé. Appliqué à
+     * un athlète dont la relation a été close, ce repli rendrait l'écriture au coach qu'on vient
+     * d'en détacher — c'était le défaut, et la garde est chez l'appelant parce que c'est là que la
+     * distinction est disponible.</p>
      */
     private Optional<PermissionLevel> clubLevelFallback(UUID coachId, UUID athleteId) {
         Athlete athlete = athleteRepository.findById(athleteId).orElse(null);

@@ -1,4 +1,5 @@
-import { Injectable, NgZone, computed, signal } from '@angular/core';
+import { PLATFORM_ID, Injectable, NgZone, computed, inject, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { Subject } from 'rxjs';
 
 /**
@@ -19,7 +20,17 @@ import { Subject } from 'rxjs';
  */
 @Injectable({ providedIn: 'root' })
 export class NetworkStatusService {
-  readonly online = signal<boolean>(navigator.onLine);
+  /**
+   * Vrai côté navigateur, faux au pré-rendu.
+   *
+   * <p>`navigator` et `window` n'existent pas dans Node, où les fiches coachs sont fabriquées à la
+   * compilation : sans cette garde, le service levait avant d'avoir rendu quoi que ce soit. On se
+   * déclare en ligne — une page fabriquée hors ligne n'a pas de sens, et le bandeau de panne n'a
+   * rien à faire dans un fichier statique servi à tout le monde.</p>
+   */
+  private readonly inBrowser = isPlatformBrowser(inject(PLATFORM_ID));
+
+  readonly online = signal<boolean>(this.inBrowser ? navigator.onLine : true);
   readonly reconnected$ = new Subject<void>();
 
   /**
@@ -37,6 +48,9 @@ export class NetworkStatusService {
   );
 
   constructor(zone: NgZone) {
+    if (!this.inBrowser) {
+      return;
+    }
     window.addEventListener('online', () =>
       zone.run(() => {
         this.online.set(true);

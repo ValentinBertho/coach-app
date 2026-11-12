@@ -115,7 +115,10 @@ public class WeeklyRecapScheduler {
     @Transactional
     public int athleteRecapsForClub(UUID clubId, LocalDate from, LocalDate to) {
         int sent = 0;
-        for (Athlete athlete : athleteRepository.findByClubIdOrderByLastNameAsc(clubId)) {
+        // Rattachement additionnel compris : un athlète rattaché à un second club recevait son
+        // bilan depuis son club principal seulement, et le coach du second ne voyait jamais sa
+        // semaine passer.
+        for (Athlete athlete : athleteRepository.findByClubMembershipOrderByLastNameAsc(clubId)) {
             WeeklyRecapService.AthleteRecap recap = recapService.forAthlete(athlete.getId(), from, to);
             // Une semaine sans rien : pas de séance prévue, pas un kilomètre. Envoyer « 0 km, 0
             // séance sur 0 » à quelqu'un qui n'a pas couru n'est pas un bilan, c'est un reproche.
@@ -132,7 +135,7 @@ public class WeeklyRecapScheduler {
     /** @return le nombre de coachs effectivement notifiés. */
     @Transactional
     public int coachRecapsForClub(UUID clubId, LocalDate from, LocalDate to) {
-        List<Athlete> athletes = athleteRepository.findByClubIdOrderByLastNameAsc(clubId);
+        List<Athlete> athletes = athleteRepository.findByClubMembershipOrderByLastNameAsc(clubId);
         if (athletes.isEmpty()) {
             return 0;
         }

@@ -1,4 +1,5 @@
-import { Injectable, NgZone, signal } from '@angular/core';
+import { PLATFORM_ID, Injectable, NgZone, inject, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -15,6 +16,12 @@ export class PwaInstallService {
   private deferred: BeforeInstallPromptEvent | null = null;
 
   constructor(zone: NgZone) {
+    // `window` n'existe pas au pré-rendu des fiches coachs, fabriquées dans Node à la
+    // compilation. Rien à faire là-bas de toute façon : on n'installe pas une application depuis
+    // un fichier HTML en train d'être écrit, et `canInstall` reste donc à faux.
+    if (!isPlatformBrowser(inject(PLATFORM_ID))) {
+      return;
+    }
     window.addEventListener('beforeinstallprompt', (e: Event) => {
       e.preventDefault();
       this.deferred = e as BeforeInstallPromptEvent;

@@ -7,16 +7,19 @@ import com.coachrun.entity.enums.ClubRole;
 import com.coachrun.entity.enums.ClubStatus;
 import com.coachrun.entity.enums.UserRole;
 import com.coachrun.entity.enums.UserStatus;
+import com.coachrun.exception.ApiException;
 import com.coachrun.repository.ClubMemberRepository;
 import com.coachrun.repository.ClubRepository;
 import com.coachrun.repository.UserRepository;
 import com.coachrun.util.SlugUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -44,23 +47,27 @@ public class ClubProvisioningService {
     private final ClubStarterKitService starterKitService;
 
     /**
-     * Crée le club et son coach propriétaire.
+     * Crée l'espace de travail et son coach propriétaire.
      *
-     * @param clubName      nom du club, tel que saisi
+     * @param clubName      nom de la structure, tel que saisi ; peut être vide pour un indépendant,
+     *                      auquel cas l'espace prend le nom du coach
      * @param fullName      nom du coach
      * @param email         adresse du coach, déjà contrôlée comme libre par l'appelant
      * @param passwordHash  empreinte du mot de passe choisi, ou d'un secret aléatoire quand le
      *                      coach n'en a pas encore posé (il en choisira un par le lien reçu)
      * @param emailVerified vrai quand l'appelant sait déjà que l'adresse appartient au coach
-     * @return le compte propriétaire créé, rattaché à son club
+     * @param soloPractice  vrai pour un coach indépendant : même espace, autre vocabulaire
+     * @return le compte propriétaire créé, rattaché à son espace
      */
     @Transactional
     public User openClub(String clubName, String fullName, String email,
-                         String passwordHash, boolean emailVerified) {
+                         String passwordHash, boolean emailVerified, boolean soloPractice) {
+        String name = workspaceName(clubName, fullName, soloPractice);
         Club club = new Club();
-        club.setName(clubName.trim());
-        club.setSlug(uniqueSlug(clubName));
+        club.setName(name);
+        club.setSlug(uniqueSlug(name));
         club.setStatus(ClubStatus.ACTIVE);
+        club.setSoloPractice(soloPractice);
         club = clubRepository.save(club);
 
         User user = new User();
@@ -86,6 +93,30 @@ public class ClubProvisioningService {
 
         installStarterKit(club.getId());
         return user;
+    }
+
+    /**
+     * Le nom de l'espace : celui qu'on a saisi, ou celui du coach.
+     *
+     * <p>Un indépendant n'a pas de club à nommer. Lui en réclamer un le forçait à en inventer un,
+     * ou à y mettre son propre nom — ce que fait désormais ce repli, mais sans le lui demander.
+     * Le champ reste offert : beaucoup d'indépendants exercent sous un nom d'activité, et c'est
+     * celui-là qu'ils veulent voir.</p>
+     *
+     * <p>Pour un club, le nom reste exigé. Le refus est un 400 explicite plutôt qu'un
+     * {@code @NotBlank} sur le DTO : la règle dépend d'un autre champ de la même requête, et une
+     * annotation ne sait pas dire « obligatoire, sauf si ».</p>
+     */
+    public static String workspaceName(String submitted, String fullName, boolean soloPractice) {
+        if (StringUtils.hasText(submitted)) {
+            return submitted.trim();
+        }
+        if (soloPractice) {
+            return fullName.trim();
+        }
+        throw new ApiException(HttpStatus.BAD_REQUEST,
+                "Le nom du club est requis. Si vous coachez en indépendant, "
+                        + "choisissez « En indépendant » : le nom devient facultatif.");
     }
 
     /**

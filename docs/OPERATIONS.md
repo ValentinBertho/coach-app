@@ -171,7 +171,32 @@ Sentry est **inactif tant que le DSN est vide** (no-op).
 ### 3.4 Bonnes pratiques
 - Configurer une **alerte** Sentry (e-mail/Slack) sur *« a new issue is created »* et sur les pics.
 - Renseigner `appVersion` / `SENTRY_ENV` pour filtrer par **release** et **environnement**.
-- `tracesSampleRate` est à `0.1` (10 %) pour le suivi de performance — ajuster selon le volume.
+- **Le suivi de performance est désactivé côté front**, et c'est un arbitrage mesuré : le traçage
+  navigateur pèse ~42 ko bruts (~12 ko transférés) dans le paquet initial, payés par chaque athlète
+  sur téléphone au premier chargement, pour des relevés de temps de navigation que personne n'avait
+  encore ouverts. **La capture d'erreurs, elle, reste entière** — c'est la seule fenêtre sur ce qui
+  casse en production.
+  Pour le réactiver (`front/src/main.ts`) : `tracesSampleRate: 0.1` et
+  `integrations: [Sentry.browserTracingIntegration()]`. Le budget de paquet en rendra le coût
+  visible immédiatement.
+
+### 3.5 Les budgets de paquet, et pourquoi ils sont où ils sont
+
+`angular.json` refuse le build au-delà d'un seuil, et avertit avant. Les valeurs ne sont pas
+décoratives : un seuil qu'on dépasse à chaque build cesse d'être lu, et c'est ainsi qu'on laisse
+passer autre chose.
+
+| Budget | Avertit | Refuse | Mesure actuelle |
+|---|---|---|---|
+| Paquet initial | 620 ko | 750 ko | **599 ko** (170 ko transférés) |
+| Feuille de style d'un composant | 15 ko | 20 ko | 13,5 ko (calendrier) |
+
+Le calendrier est l'écran le plus dense du produit (446 lignes, 150 sélecteurs) : sa feuille est
+grosse mais légitime. Le seuil a été posé juste au-dessus plutôt que de réécrire l'écran principal
+du coach pour gagner trois kilo-octets.
+
+`allowedCommonJsDependencies` déclare `leaflet` et `localforage` : ces deux-là sont connues et
+assumées, et les déclarer fait qu'une **nouvelle** dépendance CommonJS, elle, avertira.
 
 ---
 
@@ -272,6 +297,14 @@ par `@PreAuthorize` sur les routes `/clubs/{clubId}/athletes/{athleteId}/**`
 - `PLATFORM_ADMIN` a un accès transverse ; un compte `ATHLETE` n'emprunte jamais ces routes
   (il passe par `/me/**`).
 
+**Athlètes privés et liste du club.** Un athlète venu du hub est créé **privé** — sa relation
+référente porte `club_id IS NULL` — parce que l'annuaire lui a promis qu'il choisissait *un coach*,
+pas un club. Cette promesse vaut désormais aussi pour la **liste** des athlètes : les collègues du
+référent ne l'y voient pas. `PLATFORM_ADMIN` garde sa vue transverse, comme sur la fiche.
+
+Conséquence à connaître si un coach s'en étonne : dans un club à plusieurs coachs, la liste n'est
+plus la même pour tout le monde. Ce n'est pas un défaut d'affichage.
+
 **Membres du club.** L'inscription crée le coach comme **membre `OWNER`** de son club. Via la page
 Club (`POST /clubs/{clubId}/members`), on **ajoute un coach par e-mail** : s'il a déjà un compte, il
 est rattaché immédiatement (accès tenant) ; sinon un **compte coach en attente** est créé et un lien
@@ -279,6 +312,103 @@ d'invitation est généré (envoyé par e-mail si configuré, sinon renvoyé dan
 **accepte** via `/public/coach-invitations/{token}` (définit son mot de passe → compte actif + session).
 Retrait via `DELETE …/members/{coachId}` (l'`OWNER` est protégé). Les permissions par athlète
 (read/comment/write) et le statut privé/club se gèrent ensuite sur la même page.
+
+---
+
+## 7 bis. Les trois files du matin
+
+Depuis l'ouverture du hub, l'exploitation quotidienne tient dans trois écrans d'administration.
+Aucun n'est automatisable, et c'est délibéré : chacun décide de la place d'une personne réelle sur
+la plateforme.
+
+| Écran | Ce qui y arrive | Ce qu'on y fait |
+|---|---|---|
+| `Admin › Demandes de club` | Un coach demande à créer son espace | Ouvrir, ou refuser avec un motif |
+| `Admin › Fiches coachs` | Une fiche soumise à publication | Publier, ou renvoyer avec ce qu'il faut corriger |
+| `Admin › Signalements` | Une fiche contestée par un visiteur | Clore avec ou sans suite ; suspendre reste un geste séparé |
+
+**Les signalements demandent trois précautions.**
+
+1. **Clore n'est pas sanctionner.** Le bouton qui retire une fiche de l'annuaire vit sur
+   `Admin › Fiches coachs`, pas ici. Retirer une fiche puis clore le signalement fait deux gestes,
+   dans cet ordre.
+2. **Un signalement anonyme est recevable, et se pèse comme tel.** L'écran dit lequel l'est. Il ne
+   faut pas confondre « anonyme » et « sans valeur » : sur un diplôme inexact, celui qui sait est
+   souvent un confrère qui n'a aucune raison d'avoir un compte.
+3. **Le nombre de signalements ouverts sur la même fiche est affiché sur chaque ligne.** C'est le
+   seul chiffre qui compte pour prioriser — un signalement isolé et le cinquième sur le même coach
+   ne se lisent pas de la même façon. Aucun seuil ne déclenche quoi que ce soit automatiquement.
+
+Le coach signalé **n'est pas notifié**. Le contacter, s'il y a lieu, fait partie de l'arbitrage ;
+c'est un geste humain, hors application.
+
+Plafonds côté serveur, pour que la file reste lisible : trois signalements par adresse IP et par
+fiche, dix par adresse et par jour (`CoachReportService`).
+
+---
+
+## 7 ter. Le pré-rendu des fiches coachs
+
+### Le problème qu'il résout
+
+L'application se construit dans le navigateur : `/coachs/marie-dupont` servait un `index.html`
+vide, que le JavaScript remplissait ensuite. Un navigateur exécute ce JavaScript ; **les robots
+d'aperçu de lien n'en font rien**. WhatsApp, Slack, LinkedIn et iMessage lisent le HTML brut et
+s'arrêtent là — ils affichaient donc le titre générique de la page d'accueil sous le lien d'un
+coach. À dix coachs, le bouche-à-oreille est le seul canal d'acquisition, et c'était celui-là qui
+était cassé.
+
+Le pré-rendu fabrique **à la compilation** un vrai fichier HTML par page, déjà rempli.
+
+### Ce qu'il faut savoir pour exploiter
+
+**Une variable d'environnement, et c'est tout** — à définir sur Vercel (et sur toute autre chaîne
+de compilation) :
+
+```
+PRERENDER_API_ORIGIN = https://coach-app-production-5674.up.railway.app
+```
+
+C'est une **origine** : protocole et hôte, **sans `/api`**. Le `/api` est ajouté par
+l'application ; l'inclure produit `…/api/api/…`, qui répond 404 et fait retomber les fiches sur le
+titre générique — sans casser la compilation, donc en silence. C'est le piège de ce dispositif.
+
+**Sans cette variable, la compilation réussit quand même** : seules les pages statiques (accueil,
+annuaire, mentions légales, support) sont pré-rendues, et le script l'écrit en clair dans la
+sortie. C'est délibéré — sans cette clémence, une API en maintenance empêcherait de déployer une
+correction de style sur le site.
+
+### La limite, à surveiller
+
+Ces fichiers sont **figés à la compilation**. Un coach qui publie sa fiche après le déploiement
+n'est pas pré-rendu : sa page fonctionne normalement dans un navigateur, mais l'aperçu d'un lien
+partagé restera générique **jusqu'au déploiement suivant**.
+
+- À dix coachs : tenable, on redéploie de temps en temps.
+- Bien avant cent : il faudra déclencher un redéploiement automatique quand un administrateur
+  publie une fiche (Vercel Deploy Hook appelé depuis `CoachProfileService.approve`).
+
+### Le service worker n'y touche pas, et c'est voulu
+
+`ngsw-config.json` ne préchargeait que `/index.html`, nommément — pas un motif `/**/*.html`. Les
+fichiers pré-rendus des fiches ne sont donc **pas** mis en cache, et aucun visiteur ne peut se voir
+servir une fiche périmée par le service worker.
+
+Un utilisateur qui a déjà installé la PWA reçoit, lui, la coquille `/index.html` depuis son cache
+et l'application se construit dans son navigateur comme avant : même page à l'arrivée. Le
+pré-rendu sert les robots d'aperçu et la première visite — exactement ceux qui n'ont pas de cache.
+Élargir le préchargement à `/**/*.html` casserait cette propriété : à ne pas faire.
+
+### Vérifier que ça marche
+
+Après un déploiement, la commande suivante doit renvoyer le nom du coach et non « Darilab » :
+
+```bash
+curl -s https://www.darilab.app/coachs/<slug> | grep -o '<title>[^<]*</title>'
+```
+
+Le même contrôle passe par les débogueurs d'aperçu de Facebook, LinkedIn ou Slack, qui montrent ce
+que verra réellement quelqu'un à qui l'on partage le lien.
 
 ---
 

@@ -29,5 +29,13 @@ public class DevSeedConfig implements CommandLineRunner {
             log.info("[seed dev] Jeu de démo prêt — connexion : {} / {}",
                     DemoSeedService.HEAD_COACH_EMAIL, DemoSeedService.DEMO_PASSWORD);
         }
+        // Le hub à part : `seed()` est appelé par toute la suite de tests, où des fiches coachs
+        // publiées changeraient ce que voit l'annuaire dans chaque classe. Ici, en dev, on veut au
+        // contraire pouvoir ouvrir l'annuaire et y trouver quelqu'un.
+        if (demoSeedService.seedHub()) {
+            log.info("[seed dev] Hub prêt — annuaire : {}, athlète sans coach : {} (mot de passe {})",
+                    DemoSeedService.SOLO_COACH_EMAIL, DemoSeedService.HUB_ATHLETE_EMAIL,
+                    DemoSeedService.DEMO_PASSWORD);
+        }
     }
 }

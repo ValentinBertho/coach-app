@@ -17,7 +17,10 @@ import jakarta.validation.constraints.Size;
 public record ClubCreationRequestSubmission(
         @NotBlank @Email @Size(max = 255) String email,
         @NotBlank @Size(max = 120) String fullName,
-        @NotBlank @Size(max = 120) String clubName,
+        /** Nom de la structure ; facultatif pour un indépendant (cf. {@code soloPractice}). */
+        @Size(max = 120) String clubName,
+        /** Le candidat exerce en indépendant : la validation ouvrira un espace solo. */
+        boolean soloPractice,
         @Size(max = 40) String phone,
         @Size(max = 2000) String message,
         @AssertTrue(message = "L'acceptation des conditions d'utilisation est requise.")

@@ -1,4 +1,5 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { AuthService } from './auth.service';
 
 /** Périmètre de lecture d'un coach : tout le club, ses athlètes, ses privés, ses athlètes club. */
 export type CoachScope = 'all' | 'mine' | 'private' | 'club';
@@ -24,8 +25,34 @@ const LEGACY_KEY = 'coach-day-scope';
  */
 @Injectable({ providedIn: 'root' })
 export class CoachScopeService {
+  private readonly auth = inject(AuthService);
+
   readonly scope = signal<CoachScope>(readScope());
-  readonly label = computed(() => COACH_SCOPE_LABELS[this.scope()]);
+
+  /**
+   * Chez un coach indépendant, les quatre périmètres rendent la même liste : ses athlètes.
+   * « Tout le club », « Privés » et « Club » décriraient une organisation qui n'existe pas.
+   */
+  readonly solo = computed(() => this.auth.soloPractice());
+
+  readonly label = computed(() =>
+    this.solo() ? COACH_SCOPE_LABELS.mine : COACH_SCOPE_LABELS[this.scope()],
+  );
+
+  /** Périmètres proposés. Un indépendant n'en a qu'un. */
+  readonly options = computed<{ value: CoachScope; label: string }[]>(() =>
+    this.solo()
+      ? [{ value: this.scope(), label: COACH_SCOPE_LABELS.mine }]
+      : [
+          { value: 'mine', label: COACH_SCOPE_LABELS.mine },
+          { value: 'all', label: COACH_SCOPE_LABELS.all },
+          { value: 'private', label: COACH_SCOPE_LABELS.private },
+          { value: 'club', label: COACH_SCOPE_LABELS.club },
+        ],
+  );
+
+  /** Un seul périmètre possible : le sélecteur n'aurait rien à sélectionner. */
+  readonly choosable = computed(() => this.options().length > 1);
 
   set(value: CoachScope): void {
     this.scope.set(value);

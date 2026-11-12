@@ -6,8 +6,10 @@
       @if (isAuthenticated()) {
         <a [routerLink]="home()" class="btn btn-primary btn-sm">Mon espace</a>
       } @else {
+        <a routerLink="/coachs" class="btn btn-ghost btn-sm">Trouver un coach</a>
+        <a routerLink="/inscription-athlete" class="btn btn-ghost btn-sm">Je suis athlète</a>
         <a routerLink="/login" class="btn btn-ghost btn-sm">Connexion</a>
-        <a routerLink="/register" class="btn btn-primary btn-sm">Créer mon club</a>
+        <a routerLink="/register" class="btn btn-primary btn-sm">Créer mon espace</a>
       }
     </nav>
   </header>
@@ -24,8 +26,10 @@
         @if (isAuthenticated()) {
           <a [routerLink]="home()" class="btn btn-primary btn-lg">Accéder à mon espace</a>
         } @else {
-          <a routerLink="/register" class="btn btn-primary btn-lg">Créer mon club gratuitement</a>
-          <a routerLink="/login" class="btn btn-ghost btn-lg btn-on-dark">Se connecter</a>
+          <a routerLink="/register" class="btn btn-primary btn-lg">Créer mon espace gratuitement</a>
+          <!-- La seule porte d'entrée pour un athlète qui n'a pas encore de coach : sans ce lien,
+               l'annuaire n'existerait que pour qui en connaît l'adresse. -->
+          <a routerLink="/coachs" class="btn btn-ghost btn-lg btn-on-dark">Trouver un coach</a>
         }
       </div>
 

@@ -15,6 +15,7 @@ import {
   WorkoutType,
 } from '../../core/models/workout.model';
 import { WorkoutTemplate } from '../../core/models/workout-template.model';
+import { AuthService } from '../../core/services/auth.service';
 import { AthleteService } from '../../core/services/athlete.service';
 import {
   CoachAlert,
@@ -42,7 +43,6 @@ import {
 import { Proposal } from '../../core/models/decision.model';
 import { DecisionService } from '../../core/services/decision.service';
 import {
-  COACH_SCOPE_LABELS,
   CoachScope,
   CoachScopeService,
 } from '../../core/services/coach-scope.service';
@@ -90,6 +90,7 @@ const STAMP_KEY = 'coach-day-loaded-at';
   styleUrl: './coach-day.component.scss',
 })
 export class CoachDayComponent implements OnInit {
+  private readonly auth = inject(AuthService);
   private readonly dashboard = inject(CoachDashboardService);
   private readonly messages = inject(ConversationService);
   private readonly workouts = inject(WorkoutService);
@@ -268,12 +269,8 @@ export class CoachDayComponent implements OnInit {
   toggleScope(): void {
     this.scopeOpen.update((v) => !v);
   }
-  readonly scopes: { value: Scope; label: string }[] = [
-    { value: 'mine', label: COACH_SCOPE_LABELS.mine },
-    { value: 'all', label: COACH_SCOPE_LABELS.all },
-    { value: 'private', label: COACH_SCOPE_LABELS.private },
-    { value: 'club', label: COACH_SCOPE_LABELS.club },
-  ];
+  readonly scopes = this.scopeStore.options;
+  readonly scopeChoosable = this.scopeStore.choosable;
 
   shiftDay(days: number): void {
     const d = new Date(this.date() + 'T12:00:00');

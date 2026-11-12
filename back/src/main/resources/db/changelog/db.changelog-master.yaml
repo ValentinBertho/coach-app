@@ -221,3 +221,17 @@ databaseChangeLog:
       file: db/changelog/changes/104-refresh-tokens-login-attempts.yaml
   - include:
       file: db/changelog/changes/105-admin-mfa.yaml
+  - include:
+      file: db/changelog/changes/106-coach-athlete-relation-end.yaml
+  - include:
+      file: db/changelog/changes/107-club-solo-practice.yaml
+  - include:
+      file: db/changelog/changes/108-coach-profiles.yaml
+  - include:
+      file: db/changelog/changes/109-coach-photos.yaml
+  - include:
+      file: db/changelog/changes/110-athlete-accounts.yaml
+  - include:
+      file: db/changelog/changes/111-coaching-requests.yaml
+  - include:
+      file: db/changelog/changes/112-coach-profile-reports.yaml

@@ -47,13 +47,33 @@
         }
       </a>
       <a routerLink="/app/library" routerLinkActive="active" title="Bibliothèque (course, prépa physique, éducatifs)"><app-icon name="folder-open" [size]="18" /><span>Bibliothèque</span></a>
-      <a routerLink="/app/club" routerLinkActive="active" title="Club"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
+      <!-- Un indépendant n'a pas de club : l'écran ne contiendrait que lui-même. Il réapparaît
+           dès qu'un second coach rejoint l'espace (le serveur lève alors le mode indépendant). -->
+      @if (!solo()) {
+        <a routerLink="/app/club" routerLinkActive="active" title="Club"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
+      }
+      <!-- Les demandes de coaching venues de l'annuaire : une file à traiter, donc dans le menu
+           principal. La fiche publique, elle, se règle une fois : elle vit dans le menu du compte. -->
+      <a routerLink="/app/demandes" routerLinkActive="active" title="Demandes de coaching"><app-icon name="inbox" [size]="18" /><span>Demandes</span></a>
     </nav>
 
     <!-- Menu du compte : ce qu'on règle une fois, pas ce qu'on fait chaque jour. -->
     <div class="side-user">
       @if (accountOpen()) {
         <div class="account-menu" id="account-menu">
+          <!-- Le sélecteur d'espace n'apparaît qu'à partir de deux : un choix unique n'est pas un
+               choix, et l'immense majorité des coachs n'ont qu'un espace. -->
+          @if (showClubSwitcher()) {
+            <label class="club-switch">
+              <select class="club-switch__select" aria-label="Espace de travail" [value]="auth.clubId()"
+                      (change)="switchClub($any($event.target).value)">
+                @for (c of myClubs(); track c.id) {
+                  <option [value]="c.id">{{ c.name }} — {{ c.roleLabel }}</option>
+                }
+              </select>
+            </label>
+          }
+          <a routerLink="/app/vitrine" (click)="closeAccount()"><app-icon name="star" [size]="16" /><span>Ma fiche publique</span></a>
           <a routerLink="/app/settings" (click)="closeAccount()"><app-icon name="settings" [size]="16" /><span>Paramètres</span></a>
           <a routerLink="/app/training-zones" (click)="closeAccount()"><app-icon name="target" [size]="16" /><span>Mes zones d'intensité</span></a>
           <!-- L'écran n'était atteignable que par URL directe et par le lien de pied de page des
@@ -75,7 +95,7 @@
         @if (!navCollapsed()) {
           <span class="account-btn__id">
             <span class="user-name">{{ user()?.fullName }}</span>
-            @if (user()?.clubName) { <span class="account-btn__club">{{ user()?.clubName }}</span> }
+            @if (workspaceBadge()) { <span class="account-btn__club">{{ activeClubName() }}</span> }
           </span>
           <app-icon [name]="accountOpen() ? 'chevron-down' : 'chevron-up'" [size]="16" />
         } @else {
@@ -149,10 +169,24 @@
           <app-icon name="layout-dashboard" [size]="18" /><span>Tableau de bord</span>
         </a>
         <a routerLink="/app/library" routerLinkActive="active" (click)="closeMore()"><app-icon name="folder-open" [size]="18" /><span>Bibliothèque</span></a>
-        <a routerLink="/app/club" routerLinkActive="active" (click)="closeMore()"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
+        @if (!solo()) {
+          <a routerLink="/app/club" routerLinkActive="active" (click)="closeMore()"><app-icon name="building-2" [size]="18" /><span>Club</span></a>
+        }
+        <a routerLink="/app/demandes" routerLinkActive="active" (click)="closeMore()"><app-icon name="inbox" [size]="18" /><span>Demandes</span></a>
         <button type="button" class="snav-action" (click)="palette.show(); closeMore()"><app-icon name="search" [size]="18" /><span>Rechercher</span></button>
 
         <span class="snav-group">Mon compte</span>
+        @if (showClubSwitcher()) {
+          <label class="club-switch">
+            <select class="club-switch__select" aria-label="Espace de travail" [value]="auth.clubId()"
+                    (change)="switchClub($any($event.target).value)">
+              @for (c of myClubs(); track c.id) {
+                <option [value]="c.id">{{ c.name }} — {{ c.roleLabel }}</option>
+              }
+            </select>
+          </label>
+        }
+        <a routerLink="/app/vitrine" routerLinkActive="active" (click)="closeMore()"><app-icon name="star" [size]="18" /><span>Ma fiche publique</span></a>
         <a routerLink="/app/settings" routerLinkActive="active" (click)="closeMore()"><app-icon name="settings" [size]="18" /><span>Paramètres</span></a>
         <a routerLink="/app/training-zones" routerLinkActive="active" (click)="closeMore()"><app-icon name="target" [size]="18" /><span>Mes zones d'intensité</span></a>
         <a routerLink="/app/notifications" routerLinkActive="active" (click)="closeMore()"><app-icon name="bell" [size]="18" /><span>Notifications</span></a>

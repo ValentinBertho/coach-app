@@ -1,4 +1,5 @@
-import { Injectable, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { Injectable, inject, signal } from '@angular/core';
 
 export type ThemePref = 'light' | 'dark' | 'system';
 
@@ -29,6 +30,19 @@ export class ThemeService {
   private readonly media = typeof matchMedia !== 'undefined'
     ? matchMedia('(prefers-color-scheme: dark)') : null;
 
+  /**
+   * Le document par injection plutôt que le global `document`.
+   *
+   * <p>Les fiches coachs sont pré-rendues dans Node à la compilation, où le global n'existe pas :
+   * le service levait là-bas avant que quoi que ce soit ne soit rendu. Le jeton, lui, est fourni
+   * des deux côtés — Angular donne au rendu serveur son propre DOM. Le thème est donc réellement
+   * posé sur la page fabriquée, au lieu d'être simplement sauté.</p>
+   *
+   * <p>C'est la même prudence que `matchMedia` et `localStorage` juste au-dessus, qui étaient déjà
+   * gainés ; seul `document` ne l'était pas.</p>
+   */
+  private readonly document = inject(DOCUMENT);
+
   /** À appeler une fois au démarrage de l'app. */
   init(): void {
     this.apply(this.preference());
@@ -47,7 +61,7 @@ export class ThemeService {
   private apply(pref: ThemePref): void {
     const dark = pref === 'dark' || (pref === 'system' && !!this.media?.matches);
     this.effective.set(dark ? 'dark' : 'light');
-    const root = document.documentElement;
+    const root = this.document.documentElement;
     if (dark) root.setAttribute('data-theme', 'dark');
     else root.removeAttribute('data-theme');
   }

@@ -90,14 +90,15 @@ public class AuthService {
                 passwordEncoder.encode(request.password()),
                 // E-mail à vérifier : on n'enferme pas le coach hors de son espace, mais on
                 // l'invite à confirmer.
-                false);
+                false,
+                request.soloPractice());
         user.setVerifyToken(randomToken());
         user.setVerifyExpiresAt(java.time.Instant.now().plus(7, java.time.temporal.ChronoUnit.DAYS));
 
         notificationService.notifyEmailVerification(user.getEmail(), user.getFullName(),
                 frontendUrl + "/verify-email/" + user.getVerifyToken());
-        log.info("Nouveau coach inscrit (club={}, e-mail à vérifier)",
-                user.getClub() != null ? user.getClub().getId() : null);
+        log.info("Nouveau coach inscrit (espace={}, indépendant={}, e-mail à vérifier)",
+                user.getClub() != null ? user.getClub().getId() : null, request.soloPractice());
         audit.recordDetached(AdminAuditService.Actor.of(user),
                 AdminAuditAction.ACCOUNT_REGISTERED, AdminAuditTarget.USER,
                 user.getId(), user.getEmail(),
@@ -330,6 +331,9 @@ public class AuthService {
      * révocation d'une session rejouée tienne. Les causes de refus sont journalisées par
      * {@link com.coachrun.security.RefreshTokenService#rotate}.</p>
      */
+    // En écriture, et sans annulation sur refus : la révocation de toutes les sessions ci-dessous
+    // doit tenir alors même que la méthode refuse (même piège de lecture seule que closeSession).
+    @Transactional(noRollbackFor = UnauthorizedException.class)
     public AuthResponse refresh(String rawRefreshToken) {
         var rotation = refreshTokens.rotate(rawRefreshToken);
         User user = userRepository.findById(rotation.userId())
@@ -411,7 +415,14 @@ public class AuthService {
                 : session;
     }
 
-    /** Déconnexion d'une session précise (celle du cookie), sans toucher aux autres appareils. */
+    /**
+     * Déconnexion d'une session précise (celle du cookie), sans toucher aux autres appareils.
+     *
+     * <p>Transaction en écriture explicite : la classe est en lecture seule par défaut, et
+     * PostgreSQL y refusait la révocation (500 au logout, session laissée ouverte). Couvert par
+     * {@code LogoutOnPostgresTest}.</p>
+     */
+    @Transactional
     public void closeSession(String rawRefreshToken) {
         refreshTokens.revokeSession(rawRefreshToken);
     }
@@ -615,6 +626,18 @@ public class AuthService {
         return userRepository.findById(userId)
                 .map(UserResponse::from)
                 .orElseThrow(() -> new UnauthorizedException("Session invalide."));
+    }
+
+    /**
+     * Les jetons d'un compte qui vient d'être créé ailleurs.
+     *
+     * <p>Exposé pour l'inscription libre d'un athlète, qui crée son compte dans son propre service
+     * — le sien n'ouvre ni club ni fiche, et n'a donc rien à faire ici — mais doit rendre une
+     * session comme n'importe quelle inscription. Fabriquer les jetons en double aurait fini par
+     * produire deux durées de vie différentes.</p>
+     */
+    public AuthResponse tokensFor(User user) {
+        return toAuthResponse(user);
     }
 
     /**

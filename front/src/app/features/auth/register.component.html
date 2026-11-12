@@ -27,12 +27,30 @@
     <form class="card auth-card" [formGroup]="requestForm" (ngSubmit)="submitRequest()">
       <header class="auth-head">
         <app-logo [size]="44" [showText]="false" />
-        <h1 class="display-sm">Créer mon club</h1>
+        <h1 class="display-sm">{{ solo() ? 'Ouvrir mon espace' : 'Créer mon club' }}</h1>
         <p class="field-hint">
-          La bêta est ouverte, et chaque club est validé à la main. Dites-nous qui vous êtes :
+          La bêta est ouverte, et chaque demande est validée à la main. Dites-nous qui vous êtes :
           nous revenons vers vous par e-mail.
         </p>
       </header>
+
+      <!-- La première question, avant tout le reste : elle décide du vocabulaire de l'écran, et
+           de celui que le coach lira ensuite dans toute l'application. -->
+      <div class="form-group practice-choice">
+        <span class="practice-legend">Vous coachez</span>
+        <div class="practice-options" role="radiogroup" aria-label="Vous coachez">
+          <button type="button" class="practice-option" [class.selected]="!solo()"
+                  role="radio" [attr.aria-checked]="!solo()" (click)="setPractice(false)">
+            <strong>En club</strong>
+            <span>Une structure, un ou plusieurs coachs</span>
+          </button>
+          <button type="button" class="practice-option" [class.selected]="solo()"
+                  role="radio" [attr.aria-checked]="solo()" (click)="setPractice(true)">
+            <strong>En indépendant</strong>
+            <span>Vos athlètes, à votre compte</span>
+          </button>
+        </div>
+      </div>
 
       <div class="form-group">
         <label for="req-fullName">Votre nom</label>
@@ -44,9 +62,12 @@
       </div>
 
       <div class="form-group">
-        <label for="req-clubName">Nom du club</label>
+        <label for="req-clubName">{{ solo() ? 'Nom de votre activité' : 'Nom du club' }}</label>
         <input id="req-clubName" type="text" class="form-control" formControlName="clubName"
-               placeholder="Running Club Lyon" />
+               [placeholder]="solo() ? 'Atelier Foulée (facultatif)' : 'Running Club Lyon'" />
+        @if (solo()) {
+          <span class="field-hint">Facultatif : sans nom d'activité, votre espace prendra le vôtre.</span>
+        }
         @if (requestForm.controls.clubName.touched && requestForm.controls.clubName.invalid) {
           <span class="error-message">Nom du club requis.</span>
         }
@@ -55,7 +76,7 @@
       <div class="form-group">
         <label for="req-email">Email</label>
         <input id="req-email" type="email" class="form-control" formControlName="email"
-               autocomplete="email" placeholder="vous@club.fr" />
+               autocomplete="email" placeholder="vous@exemple.fr" />
         <span class="field-hint">C'est à cette adresse que partira la réponse.</span>
         @if (requestForm.controls.email.touched && requestForm.controls.email.invalid) {
           <span class="error-message">Email valide requis.</span>
@@ -104,9 +125,27 @@
     <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
       <header class="auth-head">
         <app-logo [size]="44" [showText]="false" />
-        <h1 class="display-sm">Créer ton club</h1>
+        <h1 class="display-sm">{{ solo() ? 'Ouvrir mon espace' : 'Créer ton club' }}</h1>
         <p class="field-hint">Quelques secondes pour démarrer le coaching.</p>
       </header>
+
+      <!-- La première question, avant tout le reste : elle décide du vocabulaire de l'écran, et
+           de celui que le coach lira ensuite dans toute l'application. -->
+      <div class="form-group practice-choice">
+        <span class="practice-legend">Vous coachez</span>
+        <div class="practice-options" role="radiogroup" aria-label="Vous coachez">
+          <button type="button" class="practice-option" [class.selected]="!solo()"
+                  role="radio" [attr.aria-checked]="!solo()" (click)="setPractice(false)">
+            <strong>En club</strong>
+            <span>Une structure, un ou plusieurs coachs</span>
+          </button>
+          <button type="button" class="practice-option" [class.selected]="solo()"
+                  role="radio" [attr.aria-checked]="solo()" (click)="setPractice(true)">
+            <strong>En indépendant</strong>
+            <span>Vos athlètes, à votre compte</span>
+          </button>
+        </div>
+      </div>
 
       <div class="form-group">
         <label for="fullName">Ton nom</label>
@@ -118,9 +157,12 @@
       </div>
 
       <div class="form-group">
-        <label for="clubName">Nom du club</label>
+        <label for="clubName">{{ solo() ? 'Nom de ton activité' : 'Nom du club' }}</label>
         <input id="clubName" type="text" class="form-control" formControlName="clubName"
-               placeholder="Running Club Lyon" />
+               [placeholder]="solo() ? 'Atelier Foulée (facultatif)' : 'Running Club Lyon'" />
+        @if (solo()) {
+          <span class="field-hint">Facultatif : sans nom d'activité, ton espace prendra le tien.</span>
+        }
         @if (form.controls.clubName.touched && form.controls.clubName.invalid) {
           <span class="error-message">Nom du club requis.</span>
         }
@@ -129,7 +171,7 @@
       <div class="form-group">
         <label for="email">Email</label>
         <input id="email" type="email" class="form-control" formControlName="email"
-               autocomplete="email" placeholder="vous@club.fr" />
+               autocomplete="email" placeholder="vous@exemple.fr" />
         @if (form.controls.email.touched && form.controls.email.invalid) {
           <span class="error-message">Email valide requis.</span>
         }
@@ -176,7 +218,7 @@
       }
 
       <button type="submit" class="btn btn-primary btn-lg" [disabled]="submitting()">
-        {{ submitting() ? 'Création…' : 'Créer mon club' }}
+        {{ submitting() ? 'Création…' : (solo() ? 'Ouvrir mon espace' : 'Créer mon club') }}
       </button>
 
       <p class="auth-switch">

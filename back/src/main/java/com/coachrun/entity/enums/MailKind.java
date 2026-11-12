@@ -35,6 +35,16 @@ public enum MailKind {
     /** Digest d'alertes du coach, une fois par jour à 7 h. Routine. */
     ALERT_DIGEST(false),
 
+    /**
+     * Les files d'arbitrage qui attendent l'équipe, une fois par jour. Routine.
+     *
+     * <p>Un digest et non un e-mail par événement, et c'est une décision de sûreté autant que de
+     * confort : le signalement est ouvert aux visiteurs anonymes, si bien qu'un envoi par
+     * signalement se déclencherait sur commande. Le plan d'envoi est à cent messages par jour, et
+     * il porte aussi les réinitialisations de mot de passe.</p>
+     */
+    MODERATION_DIGEST(false),
+
     /** Rappel de séance du lendemain, quand aucun appareil ne peut être joint. Routine. */
     WORKOUT_REMINDER(false),
 
@@ -73,6 +83,7 @@ public enum MailKind {
             case ATHLETE_INVITATION -> "Invitation athlète";
             case CLUB_REQUEST -> "Demande de club";
             case ALERT_DIGEST -> "Digest d'alertes";
+            case MODERATION_DIGEST -> "Files de modération";
             case WORKOUT_REMINDER -> "Rappel de séance";
             case MESSAGE -> "Message";
             case UNAVAILABILITY -> "Indisponibilité";
