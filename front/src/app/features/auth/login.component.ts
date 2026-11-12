@@ -7,6 +7,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { captureException } from '@sentry/angular';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -156,10 +157,16 @@ export class LoginComponent {
   private async renderQr(uri: string): Promise<void> {
     try {
       // Chargé à la demande : seuls les administrateurs, une fois, en ont besoin.
-      const { toDataURL } = await import('qrcode');
+      // `qrcode` est un module CommonJS : une fois empaqueté, ses fonctions sont sous `default`
+      // et l'export nommé arrivait `undefined`. Le QR code n'apparaissait donc jamais.
+      const mod = await import('qrcode');
+      const toDataURL = mod.toDataURL ?? mod.default?.toDataURL;
       this.qrCode.set(await toDataURL(uri, { margin: 1, width: 200 }));
-    } catch {
-      this.qrCode.set(null); // le secret reste affiché en clair
+    } catch (error) {
+      // Le secret reste affiché en clair, mais l'échec ne doit plus passer inaperçu.
+      console.error('QR code de double authentification impossible à générer', error);
+      captureException(error);
+      this.qrCode.set(null);
     }
   }
 
