@@ -57,6 +57,13 @@ function readStoredUser(key: string = USER_KEY): User | null {
   }
 }
 
+/** Domaine des adresses des espaces d'essai (cf. TrialService côté serveur). */
+export const TRIAL_EMAIL_SUFFIX = '.essai.invalid';
+
+export function isTrialEmail(email: string | null | undefined): boolean {
+  return !!email && email.toLowerCase().endsWith(TRIAL_EMAIL_SUFFIX);
+}
+
 /**
  * État d'authentification (stateless côté front : JWT en localStorage).
  * Expose des signals `token` / `currentUser` consommés par les guards et l'UI.
@@ -242,6 +249,38 @@ export class AuthService {
   isCoach(): boolean {
     const role = this.currentUser()?.role;
     return role === 'COACH' || role === 'HEAD_COACH' || role === 'PLATFORM_ADMIN';
+  }
+
+  /**
+   * Compte d'un espace d'essai (« Essayer sans inscription ») : il se reconnaît à son adresse,
+   * fictive et propre à l'essai. Alimente le bandeau d'essai et masque ce qui n'y a pas de sens.
+   */
+  readonly isTrial = computed(() => isTrialEmail(this.currentUser()?.email));
+
+  /** L'essai sans inscription est-il ouvert sur cette instance ? */
+  trialStatus(): Observable<{ enabled: boolean }> {
+    return this.http.get<{ enabled: boolean }>(`${environment.apiUrl}/public/trial`);
+  }
+
+  /**
+   * Ouvre un espace d'essai jetable, rempli comme la démonstration, et y connecte le visiteur en
+   * tant que coach. Supprimé avec tout son contenu au bout de 24 heures.
+   */
+  startTrial(): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(`${environment.apiUrl}/public/trial`, {})
+      .pipe(tap((res) => this.applySession(res)));
+  }
+
+  /** Dans un essai : passe du côté coach au côté athlète, ou l'inverse. */
+  switchTrialSide(): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>(`${environment.apiUrl}/trial/switch`, {})
+      .pipe(tap((res) => {
+        // Le club actif mémorisé appartient à la session d'avant.
+        this.setActiveClub(null);
+        this.applySession(res);
+      }));
   }
 
   register(request: RegisterRequest): Observable<AuthResponse> {

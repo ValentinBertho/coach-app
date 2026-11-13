@@ -45,6 +45,17 @@ public class Club extends BaseEntity {
     private boolean soloPractice = false;
 
     /**
+     * Espace d'essai jetable : date à laquelle il est supprimé (cf. {@code TrialService}).
+     * Nulle pour tout vrai club.
+     */
+    @Column(name = "trial_expires_at")
+    private java.time.Instant trialExpiresAt;
+
+    public boolean isTrial() {
+        return trialExpiresAt != null;
+    }
+
+    /**
      * Bornes des domaines d'intensité par défaut, appliquées aux NOUVEAUX athlètes du club.
      * Les athlètes existants gardent les leurs : un réglage de défaut ne réécrit jamais
      * rétroactivement des valeurs déjà personnalisées.

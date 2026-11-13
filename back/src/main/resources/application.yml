@@ -79,6 +79,14 @@ app:
   timezone: ${APP_TIMEZONE:Europe/Paris}
   cors:
     origins: ${CORS_ORIGINS:http://localhost:4200}
+  # « Essayer sans inscription » : un club d'essai jetable par visiteur, rempli comme la
+  # démonstration, supprimé avec tout son contenu à l'échéance (cf. TrialService).
+  trial:
+    enabled: ${TRIAL_ENABLED:true}
+    lifetime-hours: ${TRIAL_LIFETIME_HOURS:24}
+    # Plafond d'essais ouverts en même temps (protège la base) et essais par adresse IP et par heure.
+    max-active: ${TRIAL_MAX_ACTIVE:200}
+    per-ip-per-hour: ${TRIAL_PER_IP_PER_HOUR:3}
   sse:
     # Battement de cœur des flux temps réel (badge de notifications, messagerie). Un flux
     # silencieux ne se distingue pas d'un flux mort : le relais de production coupait toutes les

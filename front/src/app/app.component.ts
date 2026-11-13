@@ -18,6 +18,7 @@ import { UpdateBannerComponent } from './shared/components/update-banner/update-
 import { HelpSearchOverlayComponent } from './features/help/help-search-overlay.component';
 import { CommandPaletteComponent } from './features/search/command-palette.component';
 import { ImpersonationBannerComponent } from './shared/components/impersonation-banner/impersonation-banner.component';
+import { TrialBannerComponent } from './shared/components/trial-banner/trial-banner.component';
 
 /**
  * Shell applicatif : router-outlet + toasts + célébration + confirmation + recherche globale
@@ -38,11 +39,14 @@ import { ImpersonationBannerComponent } from './shared/components/impersonation-
     PushOnboardingComponent,
     InstallGuideComponent,
     ImpersonationBannerComponent,
+    TrialBannerComponent,
   ],
   template: `
     <!-- Avant tout le reste : une session empruntée doit se voir dès le premier pixel, sur les
          deux coquilles comme sur les écrans qui n'en ont pas. -->
     <app-impersonation-banner />
+    <!-- Espace d'essai : jetable, il doit le dire partout, et offrir l'autre côté de l'app. -->
+    <app-trial-banner />
     <router-outlet />
     <app-toast />
     <app-celebration-overlay />

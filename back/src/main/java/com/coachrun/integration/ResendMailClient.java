@@ -48,6 +48,12 @@ public class ResendMailClient {
      */
     public void send(String to, String subject, String html, String text,
                      String replyTo, String listUnsubscribe) {
+        // Domaine réservé, jamais délivrable : les comptes des espaces d'essai et du jeu de
+        // démonstration. Rien à envoyer, et rien à décompter du quota d'envoi.
+        if (to != null && to.toLowerCase().endsWith(".invalid")) {
+            log.debug("E-mail non envoyé : adresse non délivrable ({})", to);
+            return;
+        }
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("from", from);
         body.put("to", List.of(to));

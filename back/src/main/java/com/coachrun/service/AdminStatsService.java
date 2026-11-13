@@ -25,7 +25,7 @@ public class AdminStatsService {
 
     public AdminStatsResponse stats() {
         return new AdminStatsResponse(
-                clubRepository.count(),
+                clubRepository.countByTrialExpiresAtIsNull(),
                 userRepository.countByRole(UserRole.HEAD_COACH),
                 userRepository.countByRole(UserRole.COACH),
                 athleteRepository.count(),

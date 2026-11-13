@@ -33,10 +33,11 @@ public interface ClubRepository extends JpaRepository<Club, UUID> {
 
     long countByCreatedAtAfter(java.time.Instant since);
 
-    /** Recherche filtrée du back-office : nom ou slug, et statut facultatif. */
+    /** Recherche filtrée du back-office : nom ou slug, et statut facultatif. Sans les essais. */
     @org.springframework.data.jpa.repository.Query("""
             select c from Club c
-            where (:status is null or c.status = :status)
+            where c.trialExpiresAt is null
+              and (:status is null or c.status = :status)
               and (:q = '' or lower(c.name) like lower(concat('%', :q, '%'))
                    or lower(c.slug) like lower(concat('%', :q, '%')))
             """)
@@ -45,6 +46,16 @@ public interface ClubRepository extends JpaRepository<Club, UUID> {
             com.coachrun.entity.enums.ClubStatus status,
             @org.springframework.data.repository.query.Param("q") String q,
             org.springframework.data.domain.Pageable pageable);
+
+    /** Les vrais clubs, sans les espaces d'essai (compteurs de l'administration). */
+    long countByTrialExpiresAtIsNull();
+
+    /** Espaces d'essai encore ouverts (plafond de {@code TrialService}). */
+    long countByTrialExpiresAtAfter(java.time.Instant now);
+
+    /** Espaces d'essai arrivés à échéance, à supprimer. */
+    @Query("select c.id from Club c where c.trialExpiresAt is not null and c.trialExpiresAt < :now")
+    java.util.List<UUID> findIdsByTrialExpiresAtBefore(@Param("now") java.time.Instant now);
 
     /**
      * Suppression par requête : la base emporte les lignes filles (ON DELETE CASCADE).

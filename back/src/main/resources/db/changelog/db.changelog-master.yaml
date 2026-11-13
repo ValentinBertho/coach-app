@@ -239,3 +239,5 @@ databaseChangeLog:
       file: db/changelog/changes/113-coach-profile-links.yaml
   - include:
       file: db/changelog/changes/114-athlete-pending-request.yaml
+  - include:
+      file: db/changelog/changes/115-club-trial.yaml
