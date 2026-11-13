@@ -103,4 +103,16 @@ describe('carte Garmin (côté athlète)', () => {
     const el = render(garmin({ permissions: ['ACTIVITY_EXPORT'], canSendWorkouts: false }));
     expect(el.textContent).not.toContain('Envoyer mes séances maintenant');
   });
+
+  it('dit que les sorties arrivent toutes seules quand le partage est accordé', () => {
+    const el = render(garmin());
+    expect(el.querySelector('[data-testid="garmin-activities"]')?.textContent)
+      .toContain('arrivent toutes seules');
+  });
+
+  it('prévient quand le partage des activités a été refusé', () => {
+    const el = render(garmin({ permissions: ['WORKOUT_IMPORT'], canImportActivities: false }));
+    expect(el.querySelector('[data-testid="garmin-activities"]')?.textContent)
+      .toContain("Tu n'as pas autorisé le partage de tes activités");
+  });
 });

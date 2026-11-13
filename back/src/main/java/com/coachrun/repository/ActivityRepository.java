@@ -37,6 +37,8 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
     /** Même lecture depuis le portail athlète, qui n'a que son propre identifiant à porter. */
     Optional<Activity> findByAthleteIdAndMatchedWorkoutId(UUID athleteId, UUID workoutId);
 
+    Optional<Activity> findByAthleteIdAndSourceAndExternalId(UUID athleteId, com.coachrun.entity.enums.ActivitySource source, String externalId);
+
     /** Déduplication des imports (cf. contrainte UNIQUE athlete/source/external_id). */
     boolean existsByAthleteIdAndSourceAndExternalId(UUID athleteId, ActivitySource source, String externalId);
 

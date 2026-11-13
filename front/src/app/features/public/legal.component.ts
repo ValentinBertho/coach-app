@@ -93,8 +93,9 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
                 <strong>Garmin Connect</strong> — la connexion se fait par autorisation Garmin
                 (OAuth), où vous choisissez les permissions accordées. Les séances course que
                 votre coach vous prescrit pour les 14 prochains jours sont envoyées dans votre
-                calendrier Garmin, puis sur votre montre ; l'import de vos activités arrive
-                prochainement.
+                calendrier Garmin, puis sur votre montre. Si vous partagez vos activités,
+                chaque sortie enregistrée par votre montre est importée automatiquement dans
+                Darilab dès sa synchronisation avec Garmin Connect.
               </li>
               <li>
                 <strong>COROS</strong> — intégration en préparation. En attendant, vous pouvez

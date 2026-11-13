@@ -200,6 +200,22 @@ import { ActivityExclusion } from '../../core/models/activity.model';
           </p>
         }
 
+        @if (g.configured && g.connected) {
+          @if (g.canImportActivities) {
+            <p class="field-hint" data-testid="garmin-activities">
+              Tes sorties arrivent toutes seules dans Darilab dès que ta montre se
+              synchronise avec Garmin Connect. Si Strava les reçoit aussi, elles ne sont
+              pas comptées deux fois.
+            </p>
+          } @else {
+            <p class="field-hint warn" data-testid="garmin-activities">
+              Tu n'as pas autorisé le partage de tes activités : elles n'arriveront pas
+              depuis Garmin. Active-le dans Garmin Connect (Paramètres du compte,
+              applications connectées) ou reconnecte ton compte.
+            </p>
+          }
+        }
+
         @if (g.configured && g.connected && !g.canSendWorkouts) {
           <p class="field-hint warn">
             Tu n'as pas autorisé l'import d'entraînements : tes séances ne
