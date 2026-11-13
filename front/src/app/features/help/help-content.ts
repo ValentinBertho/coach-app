@@ -381,14 +381,16 @@ const COACH: HelpGuide = {
       id: 'integrations',
       icon: 'watch',
       title: 'Intégrations & export',
-      summary: 'Strava (côté athlète), import FIT/GPX/TCX, export PDF du programme.',
+      summary: 'Strava, Garmin et COROS (côté athlète), import FIT/GPX/TCX, export PDF du programme.',
       blocks: [
         { kind: 'list', items: [
-          'Strava : la connexion est initiée par l\'athlète (depuis son espace) ; tu vois l\'état en lecture seule.',
+          'Strava, Garmin et COROS : la connexion est initiée par l\'athlète, depuis Synchronisation dans son espace.',
+          'Garmin et COROS : les séances des 14 prochains jours partent sur la montre de l\'athlète, et ses sorties reviennent automatiquement. Garmin reçoit aussi le renforcement ; COROS, seulement la course.',
+          'COROS ne permet pas de supprimer une séance envoyée : une séance retirée ou déplacée y reste, marquée « Annulée par ton coach ».',
           'Import de fichiers FIT, GPX et TCX, et saisie manuelle d\'activités côté athlète.',
           'Export PDF du programme d\'un athlète pour un partage hors-ligne.',
         ] },
-        { kind: 'callout', tone: 'info', text: 'La synchronisation automatique Garmin et COROS n\'est pas encore ouverte. En attendant, l\'export FIT de leurs applications s\'importe tel quel : c\'est le format natif de ces montres, avec les totaux qu\'elles ont mesurés.' },
+        { kind: 'callout', tone: 'info', text: 'Pour une autre montre, l\'export FIT de son application s\'importe tel quel : c\'est le format natif des montres, avec les totaux qu\'elles ont mesurés.' },
       ],
     },
     {
