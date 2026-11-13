@@ -93,6 +93,11 @@ describe('renommage sur Strava (côté athlète)', () => {
 
   function flushLoad(s: StravaStatus): void {
     http.expectOne((r) => r.url.endsWith('/me/strava')).flush(s);
+    // La carte Garmin se charge à côté : non configurée ici, elle reste hors de propos.
+    http.expectOne((r) => r.url.endsWith('/me/garmin')).flush({
+      configured: false, connected: false, providerUserId: null, permissions: [],
+      canSendWorkouts: false, canImportActivities: false,
+    });
     http.expectOne((r) => r.url.endsWith('/me/activity-exclusions')).flush([]);
   }
 
