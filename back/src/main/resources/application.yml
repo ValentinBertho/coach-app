@@ -208,7 +208,7 @@ app:
     client-secret: ${GARMIN_CLIENT_SECRET:}
     # Doit être identique à l'« OAuth redirect URL » déclarée dans le portail Garmin.
     redirect-uri: ${GARMIN_REDIRECT_URI:http://localhost:4200/app/garmin/callback}
-    # Secret placé dans l'adresse de notification déclarée chez Garmin (?token=…) : Garmin ne
+    # Secret placé dans l'adresse de notification déclarée chez Garmin (…/webhook/<jeton>) : Garmin ne
     # signe pas ses notifications. Non renseigné, toutes sont ignorées.
     webhook-token: ${GARMIN_WEBHOOK_TOKEN:}
   admin:

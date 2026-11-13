@@ -66,4 +66,37 @@ class GarminWebhookTest {
         verify(garminService, after(300).never()).handleDeregistration(anyString());
         verify(garminService, never()).handlePermissionsChange(anyString(), any());
     }
+
+    // --- Adresse déclarée chez Garmin : le jeton dans le chemin ---
+
+    @Test
+    void leJetonDansLeCheminEstAccepte() throws Exception {
+        GarminWebhookService service = org.mockito.Mockito.mock(GarminWebhookService.class);
+        org.mockito.Mockito.when(service.verifies("secret-convenu")).thenReturn(true);
+        var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders
+                .standaloneSetup(new com.coachrun.controller.GarminWebhookController(service)).build();
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/public/garmin/webhook/secret-convenu")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"deregistrations\":[{\"userId\":\"u-9\"}]}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+
+        verify(service).accept(org.mockito.ArgumentMatchers.argThat(b -> b != null && b.containsKey("deregistrations")));
+    }
+
+    @Test
+    void unMauvaisJetonDansLeCheminEstIgnoreMaisAcquitte() throws Exception {
+        GarminWebhookService service = org.mockito.Mockito.mock(GarminWebhookService.class);
+        var mvc = org.springframework.test.web.servlet.setup.MockMvcBuilders
+                .standaloneSetup(new com.coachrun.controller.GarminWebhookController(service)).build();
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/public/garmin/webhook/mauvais")
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                        .content("{\"deregistrations\":[{\"userId\":\"u-9\"}]}"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+
+        verify(service, never()).accept(any());
+    }
 }

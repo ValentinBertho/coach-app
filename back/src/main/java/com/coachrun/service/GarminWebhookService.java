@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
  * travail se fait ici, sur un exécuteur dédié.</p>
  *
  * <p>Garmin ne signe pas ses notifications. L'adresse déclarée dans son outil de configuration
- * porte donc un jeton secret ({@code GARMIN_WEBHOOK_TOKEN}) : sans lui, une notification est
+ * porte donc un jeton secret ({@code GARMIN_WEBHOOK_TOKEN}, en dernier segment du chemin) : sans lui, une notification est
  * ignorée — sinon n'importe qui connaissant un identifiant Garmin pourrait déconnecter un
  * athlète.</p>
  *
