@@ -1309,7 +1309,13 @@ public class DemoSeedService {
             LocalDate date = monday.plusDays(d);
             WorkoutType type = week[d % 7];
             if (type == WorkoutType.REST) {
-                continue;
+                // Le vendredi est jour de repos, sauf aujourd'hui : « Aujourd'hui » de l'athlète ne
+                // s'ouvre jamais sur « aucune séance », ni en démo ni dans les tests de bout en
+                // bout (qui échouaient tous les vendredis).
+                if (!date.equals(clock.today())) {
+                    continue;
+                }
+                type = WorkoutType.ENDURANCE;
             }
             Workout w = new Workout();
             w.setClub(club);
