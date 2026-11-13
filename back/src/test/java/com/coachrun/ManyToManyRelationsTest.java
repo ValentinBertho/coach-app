@@ -55,11 +55,21 @@ class ManyToManyRelationsTest {
         JsonNode athletes = objectMapper.readTree(mvc.perform(
                         get("/clubs/{c}/athletes?size=50", clubId).header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        String athleteId = athletes.get("content").get(0).get("id").asText();
-
-        JsonNode detail = objectMapper.readTree(mvc.perform(
-                        get("/clubs/{c}/athletes/{a}", clubId, athleteId).header("Authorization", bearer))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        // L'ordre de la liste (tri par nom) départage mal les homonymes et diffère entre H2 et
+        // PostgreSQL : on cherche l'athlète suivi plutôt que de supposer qu'il est le premier.
+        String athleteId = null;
+        JsonNode detail = null;
+        for (JsonNode a : athletes.get("content")) {
+            JsonNode d = objectMapper.readTree(mvc.perform(
+                            get("/clubs/{c}/athletes/{a}", clubId, a.get("id").asText()).header("Authorization", bearer))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+            if (d.get("coaches") != null && !d.get("coaches").isEmpty()) {
+                athleteId = a.get("id").asText();
+                detail = d;
+                break;
+            }
+        }
+        assertThat(athleteId).as("au moins un athlète du seed a un coach").isNotNull();
         assertThat(detail.get("coaches")).isNotEmpty();          // plusieurs coachs possibles
         assertThat(detail.get("clubs").size()).isGreaterThanOrEqualTo(1);
 
