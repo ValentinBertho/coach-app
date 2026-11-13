@@ -41,11 +41,11 @@ public class DeviceConnection extends BaseEntity {
     private String providerAthleteId;
 
     @Convert(converter = EncryptedStringConverter.class)
-    @Column(name = "access_token", nullable = false)
+    @Column(name = "access_token", nullable = false, columnDefinition = "text")
     private String accessToken;
 
     @Convert(converter = EncryptedStringConverter.class)
-    @Column(name = "refresh_token", nullable = false)
+    @Column(name = "refresh_token", nullable = false, columnDefinition = "text")
     private String refreshToken;
 
     /** Expiration de l'access token (epoch seconds). */

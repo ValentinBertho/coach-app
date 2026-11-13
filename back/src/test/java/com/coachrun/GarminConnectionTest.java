@@ -102,8 +102,8 @@ class GarminConnectionTest {
         assertThat(st.get("canImportActivities").asBoolean()).isTrue();
 
         var conn = connectionRepository.findByAthleteIdAndProvider(athleteId, DeviceProvider.GARMIN).orElseThrow();
-        assertThat(conn.getAccessToken()).isEqualTo("acc-1");
-        assertThat(conn.getRefreshToken()).isEqualTo("ref-1");
+        assertThat(conn.getAccessToken()).isEqualTo(ACCESS);
+        assertThat(conn.getRefreshToken()).isEqualTo(REFRESH);
     }
 
     @Test
@@ -128,12 +128,12 @@ class GarminConnectionTest {
     @Test
     void seDeconnecterRetireAussiLEnregistrementChezGarmin() throws Exception {
         connect(List.of("WORKOUT_IMPORT"));
-        when(garminClient.deleteRegistration("acc-1")).thenReturn(true);
+        when(garminClient.deleteRegistration(ACCESS)).thenReturn(true);
 
         mvc.perform(delete("/me/garmin").header("Authorization", athleteBearer))
                 .andExpect(status().isNoContent());
 
-        verify(garminClient).deleteRegistration("acc-1");
+        verify(garminClient).deleteRegistration(ACCESS);
         assertThat(connectionRepository.findByAthleteIdAndProvider(athleteId, DeviceProvider.GARMIN)).isEmpty();
     }
 
@@ -162,12 +162,20 @@ class GarminConnectionTest {
         assertThat(garminService.handleDeregistration("inconnu")).isZero();
     }
 
+    /**
+     * Des jetons de la taille de ceux de Garmin : des JWT de plus de mille caractères, plus
+     * longs encore une fois chiffrés en base. Avec « acc-1 », le test passait alors que la
+     * vraie connexion échouait (colonnes VARCHAR(512) dépassées → 409).
+     */
+    private static final String ACCESS = "eyJhbGciOiJSUzI1NiJ9." + "a".repeat(1400) + ".sig";
+    private static final String REFRESH = "eyJyZWZyZXNoIjp0cnVlfQ." + "r".repeat(900) + ".sig";
+
     private void connect(List<String> permissions) throws Exception {
         String state = stateCodec.issue(athleteId);
         when(garminClient.exchangeCode(eq("auth-code"), eq(stateCodec.pkceVerifier(state))))
-                .thenReturn(new TokenResponse("acc-1", "ref-1", 86400L, 7775998L, "PARTNER_READ"));
-        when(garminClient.userId("acc-1")).thenReturn(GARMIN_USER);
-        when(garminClient.permissions("acc-1")).thenReturn(permissions);
+                .thenReturn(new TokenResponse(ACCESS, REFRESH, 86400L, 7775998L, "PARTNER_READ"));
+        when(garminClient.userId(ACCESS)).thenReturn(GARMIN_USER);
+        when(garminClient.permissions(ACCESS)).thenReturn(permissions);
         mvc.perform(post("/me/garmin/connect").header("Authorization", athleteBearer)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"code\":\"auth-code\",\"state\":\"" + state + "\"}"))
