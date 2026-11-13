@@ -34,9 +34,20 @@
       </div>
 
       @if (!isAuthenticated()) {
-        <a routerLink="/" fragment="presentation" class="hero-video-link">
-          <app-icon name="play" [size]="16" /> Voir DARI Lab en action
-        </a>
+        <div class="hero-links">
+          <a routerLink="/" fragment="presentation" class="hero-video-link">
+            <app-icon name="play" [size]="16" /> Voir DARI Lab en action
+          </a>
+          <!-- Un espace rien qu'à soi, rempli comme la démonstration, effacé au bout de 24 h. -->
+          <button type="button" class="hero-video-link hero-trial" [disabled]="trialStarting()"
+                  (click)="startTrial()">
+            <app-icon name="rocket" [size]="16" />
+            {{ trialStarting() ? 'Préparation de votre espace d\'essai…' : 'Essayer sans inscription' }}
+          </button>
+        </div>
+        @if (trialError(); as err) {
+          <p class="hero-trial-error" role="alert">{{ err }}</p>
+        }
       }
 
       <div class="zones-preview">
@@ -98,7 +109,11 @@
 
     <div class="tour-cta">
       <a routerLink="/register" class="btn btn-primary btn-lg">Créer mon espace coach</a>
-      <span class="field-hint">Gratuit. Invite les athlètes que tu suis déjà.</span>
+      <button type="button" class="btn btn-secondary btn-lg" [disabled]="trialStarting()" (click)="startTrial()">
+        {{ trialStarting() ? 'Préparation…' : 'Essayer sans inscription' }}
+      </button>
+      <span class="field-hint">Gratuit. Invite les athlètes que tu suis déjà. L'essai ne demande rien
+        et s'efface seul au bout de 24 heures.</span>
     </div>
   </section>
 

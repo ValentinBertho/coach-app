@@ -1,0 +1,24 @@
+# ============================================================================
+# 115 — Les espaces d'essai jetables.
+#
+#   Un visiteur de l'accueil peut essayer l'outil sans s'inscrire : un club lui
+#   est créé, rempli comme le club de démonstration, et supprimé à la date
+#   ci-dessous (cf. TrialService). Nulle pour tous les vrais clubs : c'est elle,
+#   et elle seule, qui distingue un essai.
+#
+#   Index : le nettoyage cherche les essais expirés toutes les heures.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 115-club-trial
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: clubs
+            columns:
+              - column: { name: trial_expires_at, type: TIMESTAMP WITH TIME ZONE }
+        - createIndex:
+            tableName: clubs
+            indexName: idx_clubs_trial_expires_at
+            columns:
+              - column: { name: trial_expires_at }

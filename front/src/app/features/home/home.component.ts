@@ -4,7 +4,9 @@ import {
   OnInit,
   computed,
   inject,
+  signal,
 } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -36,6 +38,10 @@ export class HomeComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly isAuthenticated = this.auth.isAuthenticated;
+
+  /** « Essayer sans inscription » : création de l'espace d'essai en cours, ou son échec. */
+  readonly trialStarting = signal(false);
+  readonly trialError = signal<string | null>(null);
 
   /** La visite de l'outil du coach : un écran réel par promesse. */
   readonly tour: readonly TourRow[] = [
@@ -88,6 +94,25 @@ export class HomeComponent implements OnInit {
    * « Aujourd'hui » pour un athlète et sur le cockpit pour un coach, au lieu d'exiger un clic
    * sur un bouton qui, avant ce correctif, menait tout le monde au même endroit.
    */
+  /**
+   * Ouvre un espace d'essai jetable (rempli comme la démonstration) et y entre côté coach.
+   * Quelques secondes : le bouton le dit pendant ce temps.
+   */
+  startTrial(): void {
+    if (this.trialStarting()) return;
+    this.trialStarting.set(true);
+    this.trialError.set(null);
+    this.auth.startTrial().subscribe({
+      next: () => void this.router.navigateByUrl(this.auth.homeRoute()),
+      error: (e: HttpErrorResponse) => {
+        this.trialStarting.set(false);
+        this.trialError.set(e.status === 429 || e.status === 403
+          ? (e.error?.message ?? 'L\'essai n\'est pas disponible pour le moment.')
+          : 'L\'essai n\'a pas pu s\'ouvrir. Réessayez dans un instant.');
+      },
+    });
+  }
+
   ngOnInit(): void {
     if (this.auth.isAuthenticated()) {
       this.router.navigateByUrl(this.auth.homeRoute(), { replaceUrl: true });

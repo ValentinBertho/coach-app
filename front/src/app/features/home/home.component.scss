@@ -72,6 +72,11 @@
   color: var(--night-text-2); font-weight: 600; text-decoration: none;
 }
 .hero-video-link:hover { color: var(--night-text); text-decoration: underline; }
+.hero-links { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-5); }
+/* Le lien d'essai a l'allure d'un lien, mais c'est une action : un bouton sans habillage. */
+.hero-trial { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; cursor: pointer; }
+.hero-trial:disabled { cursor: progress; opacity: .8; text-decoration: none; }
+.hero-trial-error { margin: var(--sp-2) 0 0; color: #ffd2cc; font-size: var(--text-sm); }
 
 .zones-preview { display: flex; gap: var(--sp-2); margin-top: var(--sp-4); animation: floaty 5s ease-in-out infinite; }
 .hero-inner { position: relative; z-index: 1; }

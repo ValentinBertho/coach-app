@@ -51,6 +51,7 @@ public class SecurityConfig {
     };
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final com.coachrun.trial.TrialGuardFilter trialGuardFilter;
     private final CorsProperties corsProperties;
 
     @Bean
@@ -99,7 +100,10 @@ public class SecurityConfig {
                         .frameOptions(org.springframework.security.config.annotation.web.configurers.HeadersConfigurer.FrameOptionsConfig::deny)
                         .permissionsPolicy(pp -> pp.policy(
                                 "geolocation=(), microphone=(), camera=()")))
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                // Ce qu'un espace d'essai n'a pas le droit de faire : une fois le compte connu.
+                .addFilterAfter(trialGuardFilter,
+                        org.springframework.security.web.access.intercept.AuthorizationFilter.class);
 
         return http.build();
     }

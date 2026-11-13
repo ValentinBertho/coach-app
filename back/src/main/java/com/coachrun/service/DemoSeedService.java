@@ -157,6 +157,21 @@ public class DemoSeedService {
 
     private final Random random = new Random(42);
 
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
+
+    /**
+     * Pendant la création d'un espace d'essai : le domaine qui remplace celui de chaque adresse
+     * du jeu de démonstration (« demo@coachrun.fr » → « demo@&lt;essai&gt;.essai.invalid »), et
+     * le mot de passe, tiré au hasard, de ses comptes. Nuls le reste du temps.
+     *
+     * <p>Le service est un singleton : ces deux champs, comme {@link #random}, ne sont modifiés
+     * que sous le verrou de {@link #seedTrialClub}.</p>
+     */
+    private String trialDomain;
+    /** Pendant {@link #seedTrialClub} : le mot de passe haché des comptes de l'essai. */
+    private String trialPassword;
+
     public boolean isSeeded() {
         return userRepository.existsByEmailIgnoreCase(ADMIN_EMAIL);
     }
@@ -388,13 +403,25 @@ public class DemoSeedService {
                 || coachProfileRepository.findByCoachId(head.getId()).isPresent()) {
             return false;
         }
-        Club club = head.getClub();
+        showcaseClub(head, head.getClub());
+        showcaseDirectory(head);
+        log.info("[seed démo] Présentation prête — coach : {} ({}), demande en attente de {}",
+                SHOWCASE_COACH_NAME, HEAD_COACH_EMAIL, SHOWCASE_PROSPECT_EMAIL);
+        return true;
+    }
+
+    /**
+     * Ce qui, dans la présentation, ne concerne que le club : vrais noms, retours déjà lus,
+     * semaines planifiées, conversations. C'est aussi ce que reçoit un espace d'essai
+     * ({@link #seedTrialClub}) : l'annuaire, lui, n'a pas à voir passer les essais.
+     */
+    private void showcaseClub(User head, Club club) {
         LocalDate today = clock.today();
 
         // --- De vrais noms.
         head.setFullName(SHOWCASE_COACH_NAME);
         userRepository.save(head);
-        userRepository.findByEmailIgnoreCase(COACH_EMAIL).ifPresent(u -> {
+        userRepository.findByEmailIgnoreCase(mail(COACH_EMAIL)).ifPresent(u -> {
             u.setFullName(SHOWCASE_ASSISTANT_NAME);
             userRepository.save(u);
         });
@@ -417,7 +444,7 @@ public class DemoSeedService {
                     seen, athletes.get(i).getId(), java.sql.Date.valueOf(before));
         }
         Athlete star = athletes.stream()
-                .filter(a -> ATHLETE_EMAIL.equalsIgnoreCase(a.getEmail()))
+                .filter(a -> mail(ATHLETE_EMAIL).equalsIgnoreCase(a.getEmail()))
                 .findFirst().orElse(null);
 
         // --- Deux semaines planifiées pour chacun : le calendrier ne s'arrête plus à vendredi.
@@ -450,7 +477,7 @@ public class DemoSeedService {
 
         // --- Des conversations : avec l'athlète connectable et trois autres.
         if (star != null) {
-            User starUser = userRepository.findByEmailIgnoreCase(ATHLETE_EMAIL).orElse(null);
+            User starUser = userRepository.findByEmailIgnoreCase(mail(ATHLETE_EMAIL)).orElse(null);
             conversation(star, head, starUser, new String[][]{
                     {"C", "Salut ! J'ai regardé ta sortie longue de dimanche : allure très régulière, "
                             + "c'est exactement ce qu'on cherchait.", "50"},
@@ -479,7 +506,7 @@ public class DemoSeedService {
                 continue;
             }
             // Un compte pour écrire : un athlète sans compte ne peut pas envoyer de message.
-            String email = slugify(a.getFirstName() + "." + a.getLastName()) + "@coachrun.fr";
+            String email = mail(slugify(a.getFirstName() + "." + a.getLastName()) + "@coachrun.fr");
             a.setEmail(email);
             athleteRepository.save(a);
             User user = userRepository.save(account(email,
@@ -487,8 +514,7 @@ public class DemoSeedService {
             conversation(a, head, user, threads[t++]);
         }
         // Le groupe et le club ont chacun un message, pour que leurs fils ne s'ouvrent pas vides.
-        groupRepository.findAll().stream()
-                .filter(g -> g.getClub() != null && g.getClub().getId().equals(club.getId()))
+        groupRepository.findByClubIdOrderByNameAsc(club.getId()).stream()
                 .findFirst()
                 .ifPresent(g -> post(conversationService.group(g.getId()), club, null, head,
                         "Sortie longue collective dimanche 9 h au parc de la Tête d'Or. "
@@ -496,7 +522,10 @@ public class DemoSeedService {
         post(conversationService.club(club.getId()), club, null, head,
                 "Bienvenue aux trois nouveaux du mois ! Pensez à remplir votre profil et vos "
                         + "disponibilités.", 72);
+    }
 
+    /** La coach dans l'annuaire, avec une demande qui l'attend, et quatre confrères. */
+    private void showcaseDirectory(User head) {
         // --- La coach dans l'annuaire, avec une demande qui l'attend.
         CoachProfile profile = new CoachProfile();
         profile.setCoach(head);
@@ -588,10 +617,55 @@ public class DemoSeedService {
         elodie.setMedianResponseHours(24);
         offer(elodie, "Reprise accompagnée", "Trois mois pour revenir à son niveau.",
                 8000, OfferPeriodicity.MONTHLY, 0);
+    }
 
-        log.info("[seed démo] Présentation prête — coach : {} ({}), demande en attente de {}",
-                SHOWCASE_COACH_NAME, HEAD_COACH_EMAIL, SHOWCASE_PROSPECT_EMAIL);
-        return true;
+    /** Une adresse du jeu de démonstration, transposée dans le domaine de l'essai en cours. */
+    private String mail(String email) {
+        return trialDomain == null ? email : email.replaceAll("@.*$", "@" + trialDomain);
+    }
+
+    /** Les deux comptes d'un espace d'essai : la coach, et l'athlète dont on peut prendre la place. */
+    public record TrialAccounts(Club club, User coach, User athlete) {}
+
+    /**
+     * Un espace d'essai jetable : un club complet, rempli comme celui de Claire Vasseur (athlètes,
+     * séances, bibliothèque, charge, conversations), avec ses propres comptes.
+     *
+     * <p>Rien n'en sort : les adresses sont en {@code .invalid} (domaine réservé, jamais
+     * délivrable), les mots de passe sont tirés au hasard et jamais montrés — on y entre par la
+     * session que rend {@code TrialService} — et la fiche publique de l'annuaire n'est pas créée.</p>
+     *
+     * <p>Sérialisé : le générateur pseudo-aléatoire et le domaine de l'essai sont des champs du
+     * singleton. Une création prend une à deux secondes ; le débit est de toute façon borné en
+     * amont (limite par adresse IP et plafond d'essais actifs).</p>
+     *
+     * @param tag        identifiant de l'essai, repris dans les adresses et le slug du club
+     * @param expiresAt  date de suppression du club
+     */
+    @Transactional
+    public synchronized TrialAccounts seedTrialClub(String tag, Instant expiresAt) {
+        trialDomain = tag + ".essai.invalid";
+        // Un mot de passe que personne ne connaît (on n'entre dans un essai que par sa session), haché
+        // une seule fois : chaque hachage coûte, et l'essai crée une dizaine de comptes.
+        trialPassword = passwordEncoder.encode(UUID.randomUUID().toString());
+        try {
+            random.setSeed(42);
+            Club club = new Club();
+            club.setName("Running Club Lyon");
+            club.setSlug("essai-" + tag);
+            club.setStatus(ClubStatus.ACTIVE);
+            club.setTrialExpiresAt(expiresAt);
+            club = clubRepository.save(club);
+            seedClub(club, true);
+            workoutRepository.flush();
+            User head = userRepository.findByEmailIgnoreCase(mail(HEAD_COACH_EMAIL)).orElseThrow();
+            showcaseClub(head, club);
+            User athlete = userRepository.findByEmailIgnoreCase(mail(ATHLETE_EMAIL)).orElseThrow();
+            return new TrialAccounts(club, head, athlete);
+        } finally {
+            trialDomain = null;
+            trialPassword = null;
+        }
     }
 
     /**
@@ -718,8 +792,8 @@ public class DemoSeedService {
     private void seedClub(Club club, boolean isPrimary) {
         // Coachs
         if (isPrimary) {
-            userRepository.save(account(HEAD_COACH_EMAIL, "Coach Démo", UserRole.HEAD_COACH, club, null));
-            userRepository.save(account(COACH_EMAIL, "Assistant Coach", UserRole.COACH, club, null));
+            userRepository.save(account(mail(HEAD_COACH_EMAIL), "Coach Démo", UserRole.HEAD_COACH, club, null));
+            userRepository.save(account(mail(COACH_EMAIL), "Assistant Coach", UserRole.COACH, club, null));
         } else {
             String slug = club.getSlug();
             userRepository.save(account("head-" + slug + "@coachrun.fr", randomName(true), UserRole.HEAD_COACH, club, null));
@@ -759,12 +833,12 @@ public class DemoSeedService {
         // Compte athlète connectable (uniquement sur le club principal)
         if (isPrimary) {
             Athlete demoAthlete = athletes.get(1);
-            demoAthlete.setEmail(ATHLETE_EMAIL);
-            User athleteUser = account(ATHLETE_EMAIL,
+            demoAthlete.setEmail(mail(ATHLETE_EMAIL));
+            User athleteUser = account(mail(ATHLETE_EMAIL),
                     demoAthlete.getFirstName() + " " + demoAthlete.getLastName(),
                     UserRole.ATHLETE, club, demoAthlete);
             athleteUser = userRepository.save(athleteUser);
-            User headCoach = userRepository.findByEmailIgnoreCase(HEAD_COACH_EMAIL).orElse(null);
+            User headCoach = userRepository.findByEmailIgnoreCase(mail(HEAD_COACH_EMAIL)).orElse(null);
             // États de forme variés pour une démo réaliste du cockpit (vert / orange / rouge).
             seedTraining(club, demoAthlete, 4, 0);                  // sain
             seedTraining(club, athletes.get(2), 9, 1);             // fatigue élevée + charge → rouge
@@ -789,6 +863,18 @@ public class DemoSeedService {
                 seedMessage(club, demoAthlete, athleteUser, "Merci coach, je me sens en forme.");
             }
             // Données DARI Lab : physiologie (VDOT, seuils), test lactate, préparation physique.
+            if (trialDomain != null) {
+                // Essai : ce qui précède (des centaines de séances) est écrit puis lâché par la
+                // session. Sinon chacune des quelque cent requêtes de seedPhysio repasse toutes ces
+                // entités en revue avant de partir : sept secondes d'attente pour le visiteur.
+                entityManager.flush();
+                entityManager.clear();
+                List<UUID> ids = athletes.stream().map(Athlete::getId).toList();
+                UUID demoId = demoAthlete.getId();
+                athletes = new ArrayList<>(ids.stream().map(id -> athleteRepository.findById(id).orElseThrow()).toList());
+                demoAthlete = athletes.stream().filter(a -> a.getId().equals(demoId)).findFirst().orElseThrow();
+                club = clubRepository.findById(club.getId()).orElseThrow();
+            }
             seedPhysio(club, athletes, demoAthlete);
             // Modèle de fractionné prescrit par zones (après le seed physio → zones du club en place).
             seedZoneBasedTemplate(club, warmupDrillId);
@@ -965,8 +1051,8 @@ public class DemoSeedService {
 
     /** Multi-coach DARI Lab : rôles club, coach référent, statut privé/club, permission accordée. */
     private void seedClubMembership(Club club, List<Athlete> athletes, Athlete demoAthlete) {
-        User owner = userRepository.findByEmailIgnoreCase(HEAD_COACH_EMAIL).orElse(null);
-        User assistant = userRepository.findByEmailIgnoreCase(COACH_EMAIL).orElse(null);
+        User owner = userRepository.findByEmailIgnoreCase(mail(HEAD_COACH_EMAIL)).orElse(null);
+        User assistant = userRepository.findByEmailIgnoreCase(mail(COACH_EMAIL)).orElse(null);
         if (owner == null || assistant == null) {
             return;
         }
@@ -1446,7 +1532,7 @@ public class DemoSeedService {
         u.setFullName(fullName);
         u.setRole(role);
         u.setStatus(UserStatus.ACTIVE);
-        u.setPasswordHash(passwordEncoder.encode(DEMO_PASSWORD));
+        u.setPasswordHash(trialPassword != null ? trialPassword : passwordEncoder.encode(DEMO_PASSWORD));
         u.setClub(club);
         u.setAthlete(athlete);
         return u;
@@ -1466,8 +1552,8 @@ public class DemoSeedService {
             default -> AthleteStatus.ACTIVE;
         });
         if (index % 4 != 0) { // ~75 % avec email
-            a.setEmail(a.getFirstName().toLowerCase() + "." + a.getLastName().toLowerCase()
-                    + index + "@example.fr");
+            a.setEmail(mail(a.getFirstName().toLowerCase() + "." + a.getLastName().toLowerCase()
+                    + index + "@example.fr"));
         }
         // Consentement au traitement des données de santé : le jeu de démo contient des tests de
         // lactate, des douleurs et des indisponibilités médicales, que le serveur refuse

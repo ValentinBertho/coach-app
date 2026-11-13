@@ -375,7 +375,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * {@code trustedProxyHops} relais de confiance (Vercel puis Railway), l'adresse à retenir est
      * la n-ième en partant de la fin.</p>
      */
-    private String clientIp(HttpServletRequest request) {
+    /**
+     * Adresse du client, en tenant compte des relais déclarés. Publique pour les plafonds tenus
+     * hors de ce filtre (création d'un espace d'essai).
+     */
+    public String clientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded == null || forwarded.isBlank()) {
             return request.getRemoteAddr();

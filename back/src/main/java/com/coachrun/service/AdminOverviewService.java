@@ -136,7 +136,7 @@ public class AdminOverviewService {
 
     private AdminOverviewResponse.Counts counts() {
         return new AdminOverviewResponse.Counts(
-                clubRepository.count(),
+                clubRepository.countByTrialExpiresAtIsNull(),
                 clubRepository.countByStatus(ClubStatus.ACTIVE),
                 clubRepository.countByStatus(ClubStatus.SUSPENDED),
                 userRepository.count(),
