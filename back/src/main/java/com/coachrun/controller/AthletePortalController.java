@@ -61,6 +61,7 @@ public class AthletePortalController {
     private final com.coachrun.service.TrainingPlanService trainingPlanService;
     private final com.coachrun.service.StravaService stravaService;
     private final com.coachrun.service.GarminService garminService;
+    private final com.coachrun.service.CorosService corosService;
     private final com.coachrun.service.ProposalService proposalService;
     private final com.coachrun.service.ReadinessService readinessService;
     private final com.coachrun.service.ComplianceService complianceService;
@@ -823,6 +824,35 @@ public class AthletePortalController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void garminDisconnect(@AuthenticationPrincipal AuthPrincipal principal) {
         garminService.disconnectForAthlete(principal.athleteId());
+    }
+
+    // --- COROS (via COROS MCP, côté athlète : je relie MON compte COROS) ---
+
+    /** Statut de ma connexion COROS. */
+    @GetMapping("/coros")
+    public com.coachrun.dto.response.CorosStatusResponse corosStatus(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return corosService.statusForAthlete(principal.athleteId());
+    }
+
+    /** URL de consentement COROS (OAuth 2.0 PKCE) à ouvrir dans le navigateur. */
+    @GetMapping("/coros/authorize")
+    public java.util.Map<String, String> corosAuthorize(@AuthenticationPrincipal AuthPrincipal principal) {
+        return java.util.Map.of("url", corosService.authorizeUrlForAthlete(principal.athleteId()));
+    }
+
+    /** Finalise ma connexion COROS avec le code d'autorisation et le state signé. */
+    @PostMapping("/coros/connect")
+    public com.coachrun.dto.response.CorosStatusResponse corosConnect(
+            @AuthenticationPrincipal AuthPrincipal principal, @RequestBody java.util.Map<String, String> body) {
+        return corosService.connectForAthlete(principal.athleteId(), body.get("code"), body.get("state"));
+    }
+
+    /** Je déconnecte mon compte COROS (jetons effacés ici). */
+    @DeleteMapping("/coros")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void corosDisconnect(@AuthenticationPrincipal AuthPrincipal principal) {
+        corosService.disconnectForAthlete(principal.athleteId());
     }
 
     /** Mes indisponibilités en cours ou à venir. */

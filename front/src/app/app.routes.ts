@@ -167,6 +167,20 @@ export const routes: Routes = [
       import('./features/athlete/garmin-callback.component').then((m) => m.GarminCallbackComponent),
   },
   {
+    /**
+     * Retour du consentement COROS, mêmes règles que Garmin : `app/coros/callback` est l'adresse
+     * de retour envoyée à COROS (COROS_REDIRECT_URI) ; `coros/callback` sert à la reprise.
+     */
+    path: 'app/coros/callback',
+    loadComponent: () =>
+      import('./features/athlete/coros-callback.component').then((m) => m.CorosCallbackComponent),
+  },
+  {
+    path: 'coros/callback',
+    loadComponent: () =>
+      import('./features/athlete/coros-callback.component').then((m) => m.CorosCallbackComponent),
+  },
+  {
     path: 'app',
     // coachGuard, pas authGuard : ce dernier laissait entrer un athlète connecté.
     canActivate: [coachGuard],

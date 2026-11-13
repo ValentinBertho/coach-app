@@ -45,6 +45,9 @@ describe('carte Garmin (côté athlète)', () => {
       renameOnStrava: false, canRenameOnStrava: false,
     });
     http.expectOne((r) => r.url.endsWith('/me/garmin')).flush(g);
+    http.expectOne((r) => r.url.endsWith('/me/coros')).flush({
+      configured: false, connected: false, providerUserId: null, region: null,
+    });
     http.expectOne((r) => r.url.endsWith('/me/activity-exclusions')).flush([]);
     fixture.detectChanges();
     return fixture;

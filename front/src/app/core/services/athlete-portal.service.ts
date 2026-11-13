@@ -19,6 +19,7 @@ import { Injury } from '../models/injury.model';
 import { MissedReason, Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
 import { StravaStatus } from '../models/strava.model';
 import { GarminStatus } from '../models/garmin.model';
+import { CorosStatus } from '../models/coros.model';
 import {
   Advice, Compliance, Proposal, Readiness, Timeline, Trajectory, WeekOutlook,
 } from '../models/decision.model';
@@ -366,6 +367,20 @@ export class AthletePortalService {
   }
   garminDisconnect(): Observable<void> {
     return this.http.delete<void>(`${this.base}/garmin`);
+  }
+
+  // --- COROS (via COROS MCP, côté athlète : je relie MON compte COROS) ---
+  corosStatus(): Observable<CorosStatus> {
+    return this.http.get<CorosStatus>(`${this.base}/coros`);
+  }
+  corosAuthorizeUrl(): Observable<{ url: string }> {
+    return this.http.get<{ url: string }>(`${this.base}/coros/authorize`);
+  }
+  corosConnect(code: string, state: string): Observable<CorosStatus> {
+    return this.http.post<CorosStatus>(`${this.base}/coros/connect`, { code, state });
+  }
+  corosDisconnect(): Observable<void> {
+    return this.http.delete<void>(`${this.base}/coros`);
   }
 
   // --- Phase 2 « Mon histoire » (lecture seule) ---
