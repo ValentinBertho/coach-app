@@ -59,6 +59,8 @@ public class CorosService {
      * et celui-ci a besoin de lui pour le statut et la déconnexion.
      */
     private final ObjectProvider<CorosWorkoutSyncService> workoutSync;
+    /** Même raison : l'import des sorties dépend de ce service pour ses jetons. */
+    private final ObjectProvider<CorosActivityService> activityImport;
 
     public CorosStatusResponse statusForAthlete(UUID athleteId) {
         requireAthlete(athleteId);
@@ -72,7 +74,8 @@ public class CorosService {
                 conn != null ? conn.getProviderAthleteId() : null,
                 conn != null ? CorosMcpClient.regionOf(conn.getApiBaseUrl()) : null,
                 summary.workoutsOnCoros(),
-                summary.workoutsInError());
+                summary.workoutsInError(),
+                conn != null ? activityImport.getObject().importedCount(athleteId) : 0);
     }
 
     /** J'envoie maintenant mes séances à venir sur ma montre (sans attendre la passe planifiée). */
@@ -83,6 +86,19 @@ public class CorosService {
         connectionRepository.findByAthleteIdAndProvider(athleteId, PROVIDER)
                 .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "Compte COROS non connecté."));
         workoutSync.getObject().syncAthlete(athleteId);
+        return statusForAthlete(athleteId);
+    }
+
+    /**
+     * J'importe maintenant mes sorties COROS (sans attendre la passe horaire). Sans transaction
+     * englobante : chaque sortie a la sienne, et un doublon refusé ne doit pas annuler les autres.
+     */
+    public CorosStatusResponse syncActivitiesForAthlete(UUID athleteId) {
+        requireAthlete(athleteId);
+        requireConfigured();
+        connectionRepository.findByAthleteIdAndProvider(athleteId, PROVIDER)
+                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "Compte COROS non connecté."));
+        activityImport.getObject().importAthlete(athleteId);
         return statusForAthlete(athleteId);
     }
 
@@ -162,6 +178,7 @@ public class CorosService {
             }
             // COROS ne permet pas de retirer les séances déjà posées : on oublie seulement leur suivi.
             workoutSync.getObject().forgetAthlete(athleteId);
+            activityImport.getObject().forgetAthlete(athleteId);
             connectionRepository.delete(conn);
             audit.record(AdminAuditAction.DEVICE_DISCONNECTED, AdminAuditTarget.ATHLETE,
                     athleteId, athleteLabel(athlete),
