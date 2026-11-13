@@ -8,6 +8,10 @@ public record CorosStatusResponse(
         /** Identifiant COROS de l'utilisateur, opaque ; null si COROS ne l'a pas fourni. */
         String providerUserId,
         /** Serveur régional COROS du compte : « EU », « US », « CN », ou null si inconnu. */
-        String region
+        String region,
+        /** Séances à venir actuellement dans son calendrier COROS (hors annulées). */
+        long workoutsOnCoros,
+        /** Séances à venir dont l'envoi a échoué (elles seront retentées). */
+        long workoutsInError
 ) {
 }

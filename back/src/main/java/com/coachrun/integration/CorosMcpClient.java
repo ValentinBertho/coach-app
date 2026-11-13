@@ -228,6 +228,35 @@ public class CorosMcpClient {
                 "arguments", arguments == null ? Map.of() : arguments));
     }
 
+    /**
+     * Schéma d'entrée d'un outil, lu dans {@code tools/list} : c'est le seul endroit où COROS
+     * décrit l'objet {@code course}. Null si l'outil n'est pas exposé.
+     */
+    public JsonNode toolInputSchema(Endpoints e, String accessToken, String tool) {
+        rpc(e, accessToken, 1, "initialize", Map.of(
+                "protocolVersion", PROTOCOL_VERSION,
+                "capabilities", Map.of(),
+                "clientInfo", Map.of("name", CLIENT_NAME, "version", "1.0.0")));
+        String cursor = null;
+        for (int page = 0; page < 10; page++) {
+            Map<String, Object> params = cursor == null ? Map.of() : Map.of("cursor", cursor);
+            JsonNode result = rpc(e, accessToken, 2 + page, "tools/list", params);
+            if (result == null) {
+                return null;
+            }
+            for (JsonNode t : result.path("tools")) {
+                if (tool.equals(t.path("name").asText())) {
+                    return t.get("inputSchema");
+                }
+            }
+            cursor = text(result, "nextCursor");
+            if (cursor == null) {
+                return null;
+            }
+        }
+        return null;
+    }
+
     private JsonNode rpc(Endpoints e, String accessToken, int id, String method, Map<String, Object> params) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("jsonrpc", "2.0");
