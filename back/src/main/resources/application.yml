@@ -211,6 +211,9 @@ app:
     # Secret placé dans l'adresse de notification déclarée chez Garmin (…/webhook/<jeton>) : Garmin ne
     # signe pas ses notifications. Non renseigné, toutes sont ignorées.
     webhook-token: ${GARMIN_WEBHOOK_TOKEN:}
+    # Envoi des séances course des 14 prochains jours vers le calendrier Garmin des athlètes reliés.
+    # Aucun appel Garmin tant qu'une séance ne change pas : la fréquence ne coûte pas de quota.
+    workout-sync-cron: ${GARMIN_WORKOUT_SYNC_CRON:0 */15 * * * *}
   admin:
     # Compte PLATFORM_ADMIN créé au premier démarrage en production (cf. PlatformAdminBootstrap).
     # Sans lui, /admin est inatteignable : ni révocation d'invitation, ni suppression de compte

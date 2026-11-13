@@ -241,3 +241,5 @@ databaseChangeLog:
       file: db/changelog/changes/114-athlete-pending-request.yaml
   - include:
       file: db/changelog/changes/115-club-trial.yaml
+  - include:
+      file: db/changelog/changes/116-garmin-workout-sync.yaml

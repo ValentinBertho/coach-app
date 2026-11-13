@@ -1,0 +1,56 @@
+# ============================================================================
+# 116 — Les séances envoyées dans le calendrier Garmin d'un athlète.
+#
+#   Une ligne par séance Darilab déposée chez Garmin (Training API) : l'entraînement
+#   créé là-bas, sa planification, et l'empreinte du contenu envoyé. L'empreinte
+#   permet de ne rappeler Garmin que si la séance a changé (quota Starter :
+#   200 appels par athlète et par jour).
+#
+#   workout_id est NULLABLE, et ON DELETE SET NULL : quand le coach supprime une
+#   séance, la ligne doit survivre — c'est elle qui dit quel entraînement retirer
+#   de la montre à la synchronisation suivante. Sans elle, une séance supprimée
+#   ici resterait affichée là-bas.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 116-garmin-workout-sync
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: garmin_workout_syncs
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: athlete_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: workout_id, type: UUID }
+              - column: { name: scheduled_date, type: DATE, constraints: { nullable: false } }
+              - column: { name: garmin_workout_id, type: BIGINT }
+              - column: { name: garmin_schedule_id, type: BIGINT }
+              - column: { name: content_hash, type: VARCHAR(64) }
+              - column: { name: last_error, type: VARCHAR(500) }
+        - addForeignKeyConstraint:
+            constraintName: fk_garmin_workout_syncs_athlete
+            baseTableName: garmin_workout_syncs
+            baseColumnNames: athlete_id
+            referencedTableName: athletes
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_garmin_workout_syncs_workout
+            baseTableName: garmin_workout_syncs
+            baseColumnNames: workout_id
+            referencedTableName: workouts
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - createIndex:
+            tableName: garmin_workout_syncs
+            indexName: idx_garmin_workout_syncs_athlete
+            columns:
+              - column: { name: athlete_id }
+        - createIndex:
+            tableName: garmin_workout_syncs
+            indexName: idx_garmin_workout_syncs_workout
+            columns:
+              - column: { name: workout_id }

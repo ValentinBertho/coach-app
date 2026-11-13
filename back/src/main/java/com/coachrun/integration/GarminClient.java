@@ -13,7 +13,11 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Client OAuth 2.0 PKCE + « partner gateway » du Garmin Connect Developer Program.
@@ -125,6 +129,64 @@ public class GarminClient {
             log.warn("Suppression de l'enregistrement Garmin refusée : {}", e.getMessage());
             return false;
         }
+    }
+
+    // --- Training API ------------------------------------------------------------------------
+
+    /**
+     * Crée un entraînement dans le compte Garmin de l'utilisateur.
+     *
+     * <p>Attention à l'adresse : la création passe par {@code /workoutportal/workout/v2}, alors
+     * que lecture, modification et suppression passent par {@code /training-api/workout/v2}.
+     * C'est ce que décrit la spécification Training API V2.</p>
+     *
+     * @return l'identifiant Garmin de l'entraînement créé
+     */
+    public Long createWorkout(String accessToken, Map<String, Object> workout) {
+        JsonNode r = api.post().uri("/workoutportal/workout/v2")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(workout)
+                .retrieve().body(JsonNode.class);
+        return idOf(r, "workoutId");
+    }
+
+    /** Supprime un entraînement (et, avec lui, sa planification). */
+    public void deleteWorkout(String accessToken, long workoutId) {
+        api.delete().uri("/training-api/workout/v2/{id}", workoutId)
+                .header("Authorization", "Bearer " + accessToken)
+                .retrieve().toBodilessEntity();
+    }
+
+    /**
+     * Planifie un entraînement à une date : c'est ce qui le fait apparaître dans le calendrier
+     * Garmin Connect, puis sur la montre à la synchronisation suivante.
+     *
+     * @return l'identifiant de la planification
+     */
+    public Long scheduleWorkout(String accessToken, long workoutId, LocalDate date) {
+        JsonNode r = api.post().uri("/training-api/schedule/")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of("workoutId", workoutId, "date", date.toString()))
+                .retrieve().body(JsonNode.class);
+        return idOf(r, "scheduleId");
+    }
+
+    /** La spécification ne précise pas le corps de réponse : un nombre nu, ou un objet portant l'id. */
+    private static Long idOf(JsonNode r, String field) {
+        if (r == null || r.isNull()) {
+            return null;
+        }
+        if (r.isNumber()) {
+            return r.asLong();
+        }
+        if (r.isTextual() && r.asText().matches("\\d+")) {
+            return Long.valueOf(r.asText());
+        }
+        JsonNode id = r.get(field);
+        return id != null && id.canConvertToLong() ? id.asLong()
+                : id != null && id.isTextual() && id.asText().matches("\\d+") ? Long.valueOf(id.asText()) : null;
     }
 
     private MultiValueMap<String, String> baseForm(String grantType) {

@@ -360,6 +360,10 @@ export class AthletePortalService {
   garminConnect(code: string, state: string): Observable<GarminStatus> {
     return this.http.post<GarminStatus>(`${this.base}/garmin/connect`, { code, state });
   }
+  /** J'envoie maintenant mes séances à venir dans mon calendrier Garmin. */
+  garminSyncWorkouts(): Observable<GarminStatus> {
+    return this.http.post<GarminStatus>(`${this.base}/garmin/sync-workouts`, {});
+  }
   garminDisconnect(): Observable<void> {
     return this.http.delete<void>(`${this.base}/garmin`);
   }

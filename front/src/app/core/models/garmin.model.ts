@@ -10,4 +10,8 @@ export interface GarminStatus {
   canSendWorkouts: boolean;
   /** Garmin nous autorise à recevoir ses activités. */
   canImportActivities: boolean;
+  /** Séances à venir actuellement dans son calendrier Garmin. */
+  workoutsOnGarmin: number;
+  /** Séances à venir dont l'envoi a échoué (retentées automatiquement). */
+  workoutsInError: number;
 }

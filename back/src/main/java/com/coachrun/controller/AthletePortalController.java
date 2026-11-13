@@ -811,6 +811,13 @@ public class AthletePortalController {
         return garminService.connectForAthlete(principal.athleteId(), body.get("code"), body.get("state"));
     }
 
+    /** J'envoie maintenant mes séances à venir dans mon calendrier Garmin. */
+    @PostMapping("/garmin/sync-workouts")
+    public com.coachrun.dto.response.GarminStatusResponse garminSyncWorkouts(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return garminService.syncWorkoutsForAthlete(principal.athleteId());
+    }
+
     /** Je déconnecte mon compte Garmin (Darilab disparaît aussi de mon compte Garmin Connect). */
     @DeleteMapping("/garmin")
     @ResponseStatus(HttpStatus.NO_CONTENT)
