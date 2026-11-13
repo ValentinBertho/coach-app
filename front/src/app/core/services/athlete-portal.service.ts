@@ -18,6 +18,7 @@ import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
 import { Injury } from '../models/injury.model';
 import { MissedReason, Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
 import { StravaStatus } from '../models/strava.model';
+import { GarminStatus } from '../models/garmin.model';
 import {
   Advice, Compliance, Proposal, Readiness, Timeline, Trajectory, WeekOutlook,
 } from '../models/decision.model';
@@ -347,6 +348,20 @@ export class AthletePortalService {
   /** J'accepte — ou je retire — le renommage de mes sorties sur mon propre compte Strava. */
   stravaSetRenameOnStrava(enabled: boolean): Observable<StravaStatus> {
     return this.http.put<StravaStatus>(`${this.base}/strava/rename-on-strava`, { enabled });
+  }
+
+  // --- Garmin Connect (côté athlète : je relie MON compte Garmin) ---
+  garminStatus(): Observable<GarminStatus> {
+    return this.http.get<GarminStatus>(`${this.base}/garmin`);
+  }
+  garminAuthorizeUrl(): Observable<{ url: string }> {
+    return this.http.get<{ url: string }>(`${this.base}/garmin/authorize`);
+  }
+  garminConnect(code: string, state: string): Observable<GarminStatus> {
+    return this.http.post<GarminStatus>(`${this.base}/garmin/connect`, { code, state });
+  }
+  garminDisconnect(): Observable<void> {
+    return this.http.delete<void>(`${this.base}/garmin`);
   }
 
   // --- Phase 2 « Mon histoire » (lecture seule) ---

@@ -27,6 +27,8 @@ public class OAuthStateCodec {
     /** Domaine de signature : un state ne peut pas être confondu avec un autre HMAC du même secret. */
     private static final String DOMAIN = "oauth-state:";
     private static final long TTL_SECONDS = 600;
+    /** Domaine du verifier PKCE : distinct de celui de la signature, les deux HMAC ne se confondent pas. */
+    private static final String PKCE_DOMAIN = "oauth-pkce-verifier:";
 
     private final byte[] secret;
 
@@ -70,6 +72,37 @@ public class OAuthStateCodec {
         }
         if (!parts[0].equals(String.valueOf(expectedAthleteId))) {
             throw invalid();
+        }
+    }
+
+    /**
+     * {@code code_verifier} PKCE dérivé du {@code state} : HMAC du state sous un domaine dédié.
+     *
+     * <p>Le verifier doit être retrouvé au retour d'autorisation, sans jamais transiter par le
+     * navigateur. Le dériver du state signé évite une table de verifiers en attente : le state
+     * est public (il passe dans l'URL), mais son HMAC ne peut être calculé qu'avec le secret du
+     * serveur. 32 octets en base64url sans remplissage donnent 43 caractères, le minimum exigé
+     * par la RFC 7636, tous dans l'alphabet autorisé.</p>
+     */
+    public String pkceVerifier(String state) {
+        try {
+            Mac mac = Mac.getInstance(HMAC_ALGO);
+            mac.init(new SecretKeySpec(secret, HMAC_ALGO));
+            byte[] raw = mac.doFinal((PKCE_DOMAIN + state).getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(raw);
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
+            throw new IllegalStateException("HMAC indisponible", e);
+        }
+    }
+
+    /** {@code code_challenge} S256 : base64url(sha256(verifier)), sans remplissage. */
+    public static String pkceChallenge(String verifier) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(verifier.getBytes(StandardCharsets.US_ASCII));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 indisponible", e);
         }
     }
 

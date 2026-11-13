@@ -90,9 +90,15 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
                 Strava (OAuth) ; vos activités sont ensuite importées automatiquement.
               </li>
               <li>
-                <strong>Garmin et COROS</strong> — intégrations en préparation. En attendant, vous
-                pouvez importer un fichier <strong>GPX ou TCX</strong> exporté depuis votre compte,
-                ou saisir une sortie à la main, depuis <em>Mes activités</em>.
+                <strong>Garmin Connect</strong> — la connexion se fait par autorisation Garmin
+                (OAuth), où vous choisissez les permissions accordées. L'envoi des séances
+                prescrites vers votre montre et l'import de vos activités arrivent
+                progressivement.
+              </li>
+              <li>
+                <strong>COROS</strong> — intégration en préparation. En attendant, vous pouvez
+                importer un fichier <strong>GPX ou TCX</strong> exporté depuis votre compte, ou
+                saisir une sortie à la main, depuis <em>Mes activités</em>.
               </li>
             </ul>
             <p>

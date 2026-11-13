@@ -60,4 +60,30 @@ class OAuthStateCodecTest {
         String foreign = new OAuthStateCodec("another-secret-entirely-different!").issue(athleteId);
         assertThatThrownBy(() -> codec.verify(foreign, athleteId)).isInstanceOf(ApiException.class);
     }
+
+    // --- PKCE (Garmin) ---
+
+    @Test
+    void pkceChallengeFollowsRfc7636() {
+        // Vecteur de l'annexe B de la RFC 7636.
+        assertThat(OAuthStateCodec.pkceChallenge("dBjftJeZ4CVP-mJ92K9cnkwDjtHf2G6r0DXNDb9q7GQ"))
+                .isEqualTo("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");
+    }
+
+    @Test
+    void pkceVerifierIsStablePerStateAndValidLength() {
+        String state = codec.issue(UUID.randomUUID());
+        String verifier = codec.pkceVerifier(state);
+
+        assertThat(verifier).isEqualTo(codec.pkceVerifier(state));
+        assertThat(verifier).hasSize(43).matches("[A-Za-z0-9_-]+");
+        assertThat(codec.pkceVerifier(codec.issue(UUID.randomUUID()))).isNotEqualTo(verifier);
+    }
+
+    @Test
+    void pkceVerifierCannotBeComputedWithoutTheSecret() {
+        String state = codec.issue(UUID.randomUUID());
+        assertThat(new OAuthStateCodec("another-secret-entirely-different!").pkceVerifier(state))
+                .isNotEqualTo(codec.pkceVerifier(state));
+    }
 }

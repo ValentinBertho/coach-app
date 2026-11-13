@@ -60,6 +60,7 @@ public class AthletePortalController {
     private final com.coachrun.service.LactateTestService lactateTestService;
     private final com.coachrun.service.TrainingPlanService trainingPlanService;
     private final com.coachrun.service.StravaService stravaService;
+    private final com.coachrun.service.GarminService garminService;
     private final com.coachrun.service.ProposalService proposalService;
     private final com.coachrun.service.ReadinessService readinessService;
     private final com.coachrun.service.ComplianceService complianceService;
@@ -786,6 +787,35 @@ public class AthletePortalController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void stravaDisconnect(@AuthenticationPrincipal AuthPrincipal principal) {
         stravaService.disconnectForAthlete(principal.athleteId());
+    }
+
+    // --- Garmin Connect (côté athlète : je relie MON compte Garmin) ---
+
+    /** Statut de ma connexion Garmin et permissions accordées. */
+    @GetMapping("/garmin")
+    public com.coachrun.dto.response.GarminStatusResponse garminStatus(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return garminService.statusForAthlete(principal.athleteId());
+    }
+
+    /** URL de consentement Garmin (OAuth 2.0 PKCE) à ouvrir dans le navigateur. */
+    @GetMapping("/garmin/authorize")
+    public java.util.Map<String, String> garminAuthorize(@AuthenticationPrincipal AuthPrincipal principal) {
+        return java.util.Map.of("url", garminService.authorizeUrlForAthlete(principal.athleteId()));
+    }
+
+    /** Finalise ma connexion Garmin avec le code d'autorisation et le state signé. */
+    @PostMapping("/garmin/connect")
+    public com.coachrun.dto.response.GarminStatusResponse garminConnect(
+            @AuthenticationPrincipal AuthPrincipal principal, @RequestBody java.util.Map<String, String> body) {
+        return garminService.connectForAthlete(principal.athleteId(), body.get("code"), body.get("state"));
+    }
+
+    /** Je déconnecte mon compte Garmin (Darilab disparaît aussi de mon compte Garmin Connect). */
+    @DeleteMapping("/garmin")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void garminDisconnect(@AuthenticationPrincipal AuthPrincipal principal) {
+        garminService.disconnectForAthlete(principal.athleteId());
     }
 
     /** Mes indisponibilités en cours ou à venir. */

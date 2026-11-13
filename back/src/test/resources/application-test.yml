@@ -33,3 +33,6 @@ app:
     # par principe. Renseigné ici plutôt que par @SpringBootTest(properties=…), qui forkerait un
     # second contexte — et rejouerait Liquibase sur la base H2 partagée du profil.
     webhook-verify-token: jeton-de-test
+  garmin:
+    # Même raison que pour Strava : le jeton du webhook doit être testable sans contexte dédié.
+    webhook-token: jeton-garmin-de-test
