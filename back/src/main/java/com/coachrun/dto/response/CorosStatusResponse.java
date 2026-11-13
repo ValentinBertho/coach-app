@@ -12,6 +12,8 @@ public record CorosStatusResponse(
         /** Séances à venir actuellement dans son calendrier COROS (hors annulées). */
         long workoutsOnCoros,
         /** Séances à venir dont l'envoi a échoué (elles seront retentées). */
-        long workoutsInError
+        long workoutsInError,
+        /** Sorties créées dans Darilab depuis son compte COROS. */
+        long activitiesImported
 ) {
 }

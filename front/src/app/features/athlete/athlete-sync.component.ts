@@ -259,8 +259,8 @@ import { ActivityExclusion } from '../../core/models/activity.model';
           </div>
         }
       }
-      <!-- COROS (via COROS MCP) : liaison du compte. L'envoi des séances et l'import des sorties
-           viendront ensuite ; tant que l'intégration n'est pas ouverte, la carte reste « Bientôt ». -->
+      <!-- COROS (via COROS MCP) : envoi des séances sur la montre et import des sorties. Tant que
+           l'intégration n'est pas ouverte, la carte reste « Bientôt ». -->
       @if (coros(); as c) {
         @if (c.configured) {
           <article class="card prov" data-testid="coros-card">
@@ -277,6 +277,16 @@ import { ActivityExclusion } from '../../core/models/activity.model';
                     Aucune séance à venir dans ton calendrier COROS
                   }
                   · envoi automatique toutes les 15 min
+                </span>
+                <span class="field-hint" data-testid="coros-activities">
+                  @if (c.activitiesImported > 0) {
+                    {{ c.activitiesImported }}
+                    {{ c.activitiesImported > 1 ? 'sorties importées' : 'sortie importée' }}
+                    depuis COROS
+                  } @else {
+                    Aucune sortie importée depuis COROS pour l’instant
+                  }
+                  · import automatique toutes les heures
                 </span>
               } @else {
                 <span class="field-hint">Non connecté</span>
@@ -311,6 +321,14 @@ import { ActivityExclusion } from '../../core/models/activity.model';
                 (click)="syncCorosWorkouts()"
               >
                 {{ busy() ? 'Envoi…' : 'Envoyer mes séances maintenant' }}
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                [disabled]="busy()"
+                (click)="syncCorosActivities()"
+              >
+                Importer mes sorties maintenant
               </button>
               <button
                 type="button"
@@ -758,11 +776,32 @@ export class AthleteSyncComponent implements OnInit {
     });
   }
 
+  syncCorosActivities(): void {
+    const before = this.coros()?.activitiesImported ?? 0;
+    this.busy.set(true);
+    this.portal.corosSyncActivities().subscribe({
+      next: (c) => {
+        this.coros.set(c);
+        this.busy.set(false);
+        const added = c.activitiesImported - before;
+        this.toast.success(
+          added > 0
+            ? `${added} ${added > 1 ? 'sorties importées' : 'sortie importée'} depuis COROS.`
+            : 'Aucune nouvelle sortie COROS.',
+        );
+      },
+      error: () => {
+        this.busy.set(false);
+        this.toast.error('Import impossible pour le moment.');
+      },
+    });
+  }
+
   async disconnectCoros(): Promise<void> {
     const ok = await this.confirm.ask({
       title: 'Déconnecter COROS ?',
       message:
-        "Darilab n'aura plus accès à ton compte COROS et n'y enverra plus de séances (celles déjà envoyées y restent). Pour retirer aussi l'autorisation côté COROS, passe par l'app COROS.",
+        "Darilab n'aura plus accès à ton compte COROS : plus d'envoi de séances ni d'import de sorties (ce qui est déjà envoyé ou importé reste). Pour retirer aussi l'autorisation côté COROS, passe par l'app COROS.",
       confirmLabel: 'Déconnecter',
       danger: true,
     });

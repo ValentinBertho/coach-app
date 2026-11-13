@@ -10,4 +10,6 @@ export interface CorosStatus {
   workoutsOnCoros: number;
   /** Séances à venir dont l'envoi a échoué (retentées automatiquement). */
   workoutsInError: number;
+  /** Sorties créées dans Darilab depuis son compte COROS. */
+  activitiesImported: number;
 }

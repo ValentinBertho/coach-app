@@ -16,7 +16,7 @@ describe('carte COROS (côté athlète)', () => {
 
   const coros = (over: Partial<CorosStatus> = {}): CorosStatus => ({
     configured: true, connected: false, providerUserId: null, region: null,
-    workoutsOnCoros: 0, workoutsInError: 0, ...over,
+    workoutsOnCoros: 0, workoutsInError: 0, activitiesImported: 0, ...over,
   });
 
   beforeEach(() => {
@@ -83,6 +83,14 @@ describe('carte COROS (côté athlète)', () => {
     expect(el.querySelector('[data-testid="coros-errors"]')).toBeNull();
   });
 
+  it('affiche les sorties importées depuis COROS', () => {
+    const el = render(coros({ connected: true, activitiesImported: 5 }));
+    expect(el.querySelector('[data-testid="coros-activities"]')?.textContent).toContain(
+      '5 sorties importées depuis COROS',
+    );
+    expect(el.textContent).toContain('Importer mes sorties maintenant');
+  });
+
   it('signale les séances en échec', () => {
     const el = render(coros({ connected: true, workoutsOnCoros: 1, workoutsInError: 2 }));
     expect(el.querySelector('[data-testid="coros-errors"]')?.textContent).toContain('2');
@@ -109,5 +117,28 @@ describe('carte COROS (côté athlète)', () => {
     req.flush(coros({ connected: true, workoutsOnCoros: 4 }));
     fixture.detectChanges();
     expect(fixture.componentInstance.coros()?.workoutsOnCoros).toBe(4);
+  });
+
+  it('importe les sorties à la demande', () => {
+    const fixture = TestBed.createComponent(AthleteSyncComponent);
+    fixture.detectChanges();
+    http.expectOne((r) => r.url.endsWith('/me/strava')).flush({
+      configured: true, connected: false, providerAthleteId: null, lastImportEpoch: null,
+      renameOnStrava: false, canRenameOnStrava: false,
+    });
+    http.expectOne((r) => r.url.endsWith('/me/garmin')).flush({
+      configured: false, connected: false, providerUserId: null, permissions: [],
+      canSendWorkouts: false, canImportActivities: false, workoutsOnGarmin: 0, workoutsInError: 0,
+    });
+    http.expectOne((r) => r.url.endsWith('/me/coros')).flush(coros({ connected: true, activitiesImported: 1 }));
+    http.expectOne((r) => r.url.endsWith('/me/activity-exclusions')).flush([]);
+    fixture.detectChanges();
+
+    fixture.componentInstance.syncCorosActivities();
+    const req = http.expectOne((r) => r.url.endsWith('/me/coros/sync-activities'));
+    expect(req.request.method).toBe('POST');
+    req.flush(coros({ connected: true, activitiesImported: 3 }));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.coros()?.activitiesImported).toBe(3);
   });
 });

@@ -228,6 +228,37 @@ public class CorosMcpClient {
                 "arguments", arguments == null ? Map.of() : arguments));
     }
 
+    /** Taille maximale d'un FIT téléchargé : une sortie de 24 h tient largement en dessous. */
+    static final int FIT_MAX_BYTES = 25 * 1024 * 1024;
+
+    /**
+     * Télécharge un fichier FIT depuis un lien donné par COROS. Le lien est d'ordinaire signé :
+     * on l'appelle d'abord tel quel, puis avec le jeton de l'athlète s'il est refusé.
+     *
+     * @throws IllegalArgumentException si le lien n'est pas en https ou le fichier trop gros
+     */
+    public byte[] downloadFit(String url, String accessToken) {
+        java.net.URI uri = java.net.URI.create(url);
+        if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null) {
+            throw new IllegalArgumentException("Lien de téléchargement COROS refusé (https attendu).");
+        }
+        byte[] body;
+        try {
+            body = http.get().uri(uri).retrieve().body(byte[].class);
+        } catch (org.springframework.web.client.RestClientResponseException ex) {
+            int status = ex.getStatusCode().value();
+            if (status != 401 && status != 403) {
+                throw ex;
+            }
+            body = http.get().uri(uri).header("Authorization", "Bearer " + accessToken)
+                    .retrieve().body(byte[].class);
+        }
+        if (body != null && body.length > FIT_MAX_BYTES) {
+            throw new IllegalArgumentException("Fichier COROS trop volumineux.");
+        }
+        return body;
+    }
+
     /**
      * Schéma d'entrée d'un outil, lu dans {@code tools/list} : c'est le seul endroit où COROS
      * décrit l'objet {@code course}. Null si l'outil n'est pas exposé.

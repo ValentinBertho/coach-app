@@ -251,3 +251,5 @@ databaseChangeLog:
       file: db/changelog/changes/119-coros-connection.yaml
   - include:
       file: db/changelog/changes/120-coros-workout-sync.yaml
+  - include:
+      file: db/changelog/changes/121-coros-activity-import.yaml

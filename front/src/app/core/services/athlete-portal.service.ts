@@ -383,6 +383,9 @@ export class AthletePortalService {
   corosSyncWorkouts(): Observable<CorosStatus> {
     return this.http.post<CorosStatus>(`${this.base}/coros/sync-workouts`, {});
   }
+  corosSyncActivities(): Observable<CorosStatus> {
+    return this.http.post<CorosStatus>(`${this.base}/coros/sync-activities`, {});
+  }
   corosDisconnect(): Observable<void> {
     return this.http.delete<void>(`${this.base}/coros`);
   }
