@@ -66,7 +66,7 @@ class OAuthStateCodecTest {
     @Test
     void pkceChallengeFollowsRfc7636() {
         // Vecteur de l'annexe B de la RFC 7636.
-        assertThat(OAuthStateCodec.pkceChallenge("dBjftJeZ4CVP-mJ92K9cnkwDjtHf2G6r0DXNDb9q7GQ"))
+        assertThat(OAuthStateCodec.pkceChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
                 .isEqualTo("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");
     }
 

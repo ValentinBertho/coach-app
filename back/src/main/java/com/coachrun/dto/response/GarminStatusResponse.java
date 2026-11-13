@@ -21,6 +21,12 @@ public record GarminStatusResponse(
         boolean canSendWorkouts,
 
         /** Garmin nous autorise à recevoir ses activités ({@code ACTIVITY_EXPORT}). */
-        boolean canImportActivities
+        boolean canImportActivities,
+
+        /** Séances à venir actuellement présentes dans son calendrier Garmin. */
+        long workoutsOnGarmin,
+
+        /** Séances à venir dont l'envoi a échoué (elles seront retentées). */
+        long workoutsInError
 ) {
 }

@@ -160,8 +160,8 @@ import { ActivityExclusion } from '../../core/models/activity.model';
         }
       }
 
-      <!-- Garmin : la liaison seule pour l'instant. L'envoi des séances vers la montre et
-           l'import des activités s'appuieront sur les permissions affichées ici. -->
+      <!-- Garmin : les séances course des 14 prochains jours partent dans le calendrier Garmin
+           (puis sur la montre) si l'athlète a accordé l'import d'entraînements. -->
       @if (garmin(); as g) {
         <article class="card prov" data-testid="garmin-card">
           <span class="prov-logo"><app-icon name="watch" [size]="22" /></span>
@@ -169,11 +169,19 @@ import { ActivityExclusion } from '../../core/models/activity.model';
             <strong>Garmin Connect</strong>
             @if (!g.configured) {
               <span class="field-hint">Indisponible sur ce serveur.</span>
+            } @else if (g.connected && g.canSendWorkouts) {
+              <span class="field-hint" data-testid="garmin-summary">
+                @if (g.workoutsOnGarmin > 0) {
+                  {{ g.workoutsOnGarmin }}
+                  {{ g.workoutsOnGarmin > 1 ? 'séances à venir' : 'séance à venir' }}
+                  dans ton calendrier Garmin
+                } @else {
+                  Aucune séance à venir dans ton calendrier Garmin
+                }
+                · envoi automatique toutes les 15 min
+              </span>
             } @else if (g.connected) {
-              <span class="field-hint"
-                >Compte relié. Tes séances arriveront bientôt dans ton
-                calendrier Garmin.</span
-              >
+              <span class="field-hint">Compte relié.</span>
             } @else {
               <span class="field-hint">Non connecté</span>
             }
@@ -182,6 +190,15 @@ import { ActivityExclusion } from '../../core/models/activity.model';
             <span class="badge badge-success">Connecté</span>
           }
         </article>
+
+        @if (g.configured && g.connected && g.canSendWorkouts && g.workoutsInError > 0) {
+          <p class="field-hint warn" data-testid="garmin-errors">
+            {{ g.workoutsInError }}
+            {{ g.workoutsInError > 1 ? 'séances n’ont' : 'séance n’a' }} pas pu
+            être envoyée{{ g.workoutsInError > 1 ? 's' : '' }} sur ta montre.
+            Darilab réessaie tout seul ; si ça persiste, préviens ton coach.
+          </p>
+        }
 
         @if (g.configured && g.connected && !g.canSendWorkouts) {
           <p class="field-hint warn">
@@ -195,6 +212,16 @@ import { ActivityExclusion } from '../../core/models/activity.model';
         @if (g.configured) {
           <div class="sync-actions">
             @if (g.connected) {
+              @if (g.canSendWorkouts) {
+                <button
+                  type="button"
+                  class="btn btn-primary btn-sm"
+                  [disabled]="busy()"
+                  (click)="syncGarminWorkouts()"
+                >
+                  {{ busy() ? 'Envoi…' : 'Envoyer mes séances maintenant' }}
+                </button>
+              }
               <button
                 type="button"
                 class="btn btn-ghost btn-sm"
@@ -551,6 +578,25 @@ export class AthleteSyncComponent implements OnInit {
         window.location.href = r.url;
       },
       error: () => this.toast.error('Garmin indisponible sur ce serveur.'),
+    });
+  }
+
+  syncGarminWorkouts(): void {
+    this.busy.set(true);
+    this.portal.garminSyncWorkouts().subscribe({
+      next: (g) => {
+        this.garmin.set(g);
+        this.busy.set(false);
+        this.toast.success(
+          g.workoutsInError > 0
+            ? 'Envoi terminé, avec des séances en échec.'
+            : 'Tes séances sont à jour dans Garmin Connect.',
+        );
+      },
+      error: () => {
+        this.busy.set(false);
+        this.toast.error('Envoi impossible pour le moment.');
+      },
     });
   }
 

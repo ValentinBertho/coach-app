@@ -15,6 +15,7 @@ import com.coachrun.repository.DeviceConnectionRepository;
 import com.coachrun.security.OAuthStateCodec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,18 +58,28 @@ public class GarminService {
     private final AthleteRepository athleteRepository;
     private final OAuthStateCodec stateCodec;
     private final AdminAuditService audit;
+    /**
+     * Fournisseur paresseux : le service d'envoi des séances dépend de celui-ci (jetons), et
+     * celui-ci a besoin de lui à la déconnexion. Résolu à l'usage, le cycle n'existe pas.
+     */
+    private final ObjectProvider<GarminWorkoutSyncService> workoutSync;
 
     public GarminStatusResponse statusForAthlete(UUID athleteId) {
         requireAthlete(athleteId);
         DeviceConnection conn = connectionRepository.findByAthleteIdAndProvider(athleteId, PROVIDER).orElse(null);
         List<String> permissions = conn != null ? permissionsOf(conn) : List.of();
+        GarminWorkoutSyncService.Summary summary = conn != null
+                ? workoutSync.getObject().summary(athleteId)
+                : new GarminWorkoutSyncService.Summary(0, 0);
         return new GarminStatusResponse(
                 client.isConfigured(),
                 conn != null,
                 conn != null ? conn.getProviderAthleteId() : null,
                 permissions,
                 permissions.contains(WORKOUT_IMPORT),
-                permissions.contains(ACTIVITY_EXPORT));
+                permissions.contains(ACTIVITY_EXPORT),
+                summary.workoutsOnGarmin(),
+                summary.workoutsInError());
     }
 
     /**
@@ -147,14 +158,40 @@ public class GarminService {
      * Connect alors qu'il croit l'avoir retiré. L'échec de cet appel n'empêche pas la
      * déconnexion locale — les jetons sont effacés quoi qu'il arrive.
      */
+    /** J'envoie maintenant mes séances à venir sur ma montre (sans attendre la passe planifiée). */
+    @Transactional
+    public GarminStatusResponse syncWorkoutsForAthlete(UUID athleteId) {
+        requireAthlete(athleteId);
+        requireConfigured();
+        DeviceConnection conn = connectionRepository.findByAthleteIdAndProvider(athleteId, PROVIDER)
+                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "Compte Garmin non connecté."));
+        if (!permissionsOf(conn).contains(WORKOUT_IMPORT)) {
+            throw new ApiException(HttpStatus.CONFLICT,
+                    "Garmin n'autorise pas l'import d'entraînements sur ce compte.");
+        }
+        workoutSync.getObject().syncAthlete(athleteId);
+        return statusForAthlete(athleteId);
+    }
+
     @Transactional
     public void disconnectForAthlete(UUID athleteId) {
         Athlete athlete = requireAthlete(athleteId);
         connectionRepository.findByAthleteIdAndProvider(athleteId, PROVIDER).ifPresent(conn -> {
             boolean remote = false;
+            String token = null;
             if (client.isConfigured()) {
                 try {
-                    remote = client.deleteRegistration(freshAccessToken(conn));
+                    token = freshAccessToken(conn);
+                } catch (RuntimeException e) {
+                    log.warn("Jeton Garmin indisponible pour l'athlète {} : {}", athleteId, e.getMessage());
+                }
+            }
+            // D'abord retirer de sa montre les séances à venir que nous y avions mises : après la
+            // désinscription, nous n'en aurions plus le droit et elles y resteraient.
+            workoutSync.getObject().removeAllForAthlete(athleteId, token);
+            if (token != null) {
+                try {
+                    remote = client.deleteRegistration(token);
                 } catch (RuntimeException e) {
                     log.warn("Désinscription Garmin impossible pour l'athlète {} : {}", athleteId, e.getMessage());
                 }
@@ -178,6 +215,8 @@ public class GarminService {
                 .findAthleteIdsByProviderAndProviderAthleteId(PROVIDER, garminUserId);
         for (UUID athleteId : athleteIds) {
             connectionRepository.findByAthleteIdAndProvider(athleteId, PROVIDER).ifPresent(conn -> {
+                // Plus aucun droit sur son compte : on oublie seulement ce que nous y avions envoyé.
+                workoutSync.getObject().removeAllForAthlete(athleteId, null);
                 connectionRepository.delete(conn);
                 Athlete athlete = conn.getAthlete();
                 audit.record(AdminAuditAction.DEVICE_DISCONNECTED, AdminAuditTarget.ATHLETE,

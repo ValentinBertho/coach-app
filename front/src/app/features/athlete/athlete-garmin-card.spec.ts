@@ -18,7 +18,7 @@ describe('carte Garmin (côté athlète)', () => {
   const garmin = (over: Partial<GarminStatus> = {}): GarminStatus => ({
     configured: true, connected: true, providerUserId: 'g-1',
     permissions: ['WORKOUT_IMPORT', 'ACTIVITY_EXPORT'],
-    canSendWorkouts: true, canImportActivities: true, ...over,
+    canSendWorkouts: true, canImportActivities: true, workoutsOnGarmin: 0, workoutsInError: 0, ...over,
   });
 
   beforeEach(() => {
@@ -34,6 +34,10 @@ describe('carte Garmin (côté athlète)', () => {
   afterEach(() => http.verify());
 
   function render(g: GarminStatus): HTMLElement {
+    return renderFixture(g).nativeElement as HTMLElement;
+  }
+
+  function renderFixture(g: GarminStatus) {
     const fixture = TestBed.createComponent(AthleteSyncComponent);
     fixture.detectChanges();
     http.expectOne((r) => r.url.endsWith('/me/strava')).flush({
@@ -43,7 +47,7 @@ describe('carte Garmin (côté athlète)', () => {
     http.expectOne((r) => r.url.endsWith('/me/garmin')).flush(g);
     http.expectOne((r) => r.url.endsWith('/me/activity-exclusions')).flush([]);
     fixture.detectChanges();
-    return fixture.nativeElement as HTMLElement;
+    return fixture;
   }
 
   it('propose la connexion quand le compte n’est pas relié', () => {
@@ -67,5 +71,36 @@ describe('carte Garmin (côté athlète)', () => {
     const el = render(garmin({ configured: false, connected: false }));
     expect(el.textContent).toContain('Indisponible sur ce serveur.');
     expect(el.textContent).not.toContain('Connecter Garmin');
+  });
+
+  it('dit combien de séances sont sur la montre', () => {
+    const el = render(garmin({ workoutsOnGarmin: 3 }));
+    expect(el.querySelector('[data-testid="garmin-summary"]')?.textContent)
+      .toContain('3 séances à venir');
+  });
+
+  it('signale les envois en échec', () => {
+    const el = render(garmin({ workoutsOnGarmin: 2, workoutsInError: 1 }));
+    expect(el.querySelector('[data-testid="garmin-errors"]')?.textContent)
+      .toContain('pas pu');
+  });
+
+  it('« Envoyer mes séances maintenant » appelle le serveur et affiche son bilan', () => {
+    const fixture = renderFixture(garmin());
+    const button = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('button'),
+    ).find((b) => b.textContent?.includes('Envoyer mes séances maintenant'));
+    expect(button).withContext('bouton d’envoi').toBeTruthy();
+    button!.click();
+    const req = http.expectOne((r) => r.url.endsWith('/me/garmin/sync-workouts'));
+    expect(req.request.method).toBe('POST');
+    req.flush(garmin({ workoutsOnGarmin: 5 }));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('5 séances à venir');
+  });
+
+  it('ne propose pas l’envoi sans la permission d’import d’entraînements', () => {
+    const el = render(garmin({ permissions: ['ACTIVITY_EXPORT'], canSendWorkouts: false }));
+    expect(el.textContent).not.toContain('Envoyer mes séances maintenant');
   });
 });
