@@ -13,11 +13,12 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { StravaStatus } from '../../core/models/strava.model';
 import { GarminStatus } from '../../core/models/garmin.model';
+import { CorosStatus } from '../../core/models/coros.model';
 import { ActivityExclusion } from '../../core/models/activity.model';
 
 /**
  * Synchronisation des montres (athlète) — CDC §12 : l'intégration est d'abord côté athlète.
- * Je connecte MA montre, l'import est ensuite automatique. Strava et Garmin ; COROS à venir.
+ * Je connecte MA montre, l'import est ensuite automatique. Strava, Garmin et COROS (liaison du compte).
  */
 @Component({
   selector: 'app-athlete-sync',
@@ -258,13 +259,64 @@ import { ActivityExclusion } from '../../core/models/activity.model';
           </div>
         }
       }
-      <div class="card prov disabled">
-        <span class="prov-logo"><app-icon name="watch" [size]="22" /></span>
-        <div class="prov-info">
-          <strong>COROS</strong><span class="field-hint">Bientôt</span>
+      <!-- COROS (via COROS MCP) : liaison du compte. L'envoi des séances et l'import des sorties
+           viendront ensuite ; tant que l'intégration n'est pas ouverte, la carte reste « Bientôt ». -->
+      @if (coros(); as c) {
+        @if (c.configured) {
+          <article class="card prov" data-testid="coros-card">
+            <span class="prov-logo"><app-icon name="watch" [size]="22" /></span>
+            <div class="prov-info">
+              <strong>COROS</strong>
+              @if (c.connected) {
+                <span class="field-hint" data-testid="coros-summary">
+                  Compte relié. L'envoi de tes séances sur ta montre arrive bientôt.
+                </span>
+              } @else {
+                <span class="field-hint">Non connecté</span>
+              }
+            </div>
+            @if (c.connected) {
+              <span class="badge badge-success">Connecté</span>
+            }
+          </article>
+          <div class="sync-actions">
+            @if (c.connected) {
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                [disabled]="busy()"
+                (click)="disconnectCoros()"
+              >
+                Déconnecter COROS
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="btn btn-accent btn-sm"
+                (click)="connectCoros()"
+              >
+                <app-icon name="watch" [size]="15" /> Connecter COROS
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="card prov disabled" data-testid="coros-soon">
+            <span class="prov-logo"><app-icon name="watch" [size]="22" /></span>
+            <div class="prov-info">
+              <strong>COROS</strong><span class="field-hint">Bientôt</span>
+            </div>
+            <span class="badge badge-neutral">Bientôt</span>
+          </div>
+        }
+      } @else {
+        <div class="card prov disabled" data-testid="coros-soon">
+          <span class="prov-logo"><app-icon name="watch" [size]="22" /></span>
+          <div class="prov-info">
+            <strong>COROS</strong><span class="field-hint">Bientôt</span>
+          </div>
+          <span class="badge badge-neutral">Bientôt</span>
         </div>
-        <span class="badge badge-neutral">Bientôt</span>
-      </div>
+      }
 
       <!-- Les sorties écartées pour de bon. Sans cet écran, une case cochée par erreur serait
            sans recours : la sortie ne reviendrait plus et rien ne dirait pourquoi. Elle n'apparaît
@@ -503,6 +555,8 @@ export class AthleteSyncComponent implements OnInit {
   readonly status = signal<StravaStatus | null>(null);
   /** Ma connexion Garmin ; null tant qu'elle n'est pas chargée ou si le serveur ne répond pas. */
   readonly garmin = signal<GarminStatus | null>(null);
+  /** Ma connexion COROS ; null tant qu'elle n'est pas chargée ou si le serveur ne répond pas. */
+  readonly coros = signal<CorosStatus | null>(null);
   readonly busy = signal(false);
   /** Les sorties que j'ai écartées pour de bon. */
   readonly excluded = signal<ActivityExclusion[]>([]);
@@ -551,6 +605,10 @@ export class AthleteSyncComponent implements OnInit {
     this.portal.garminStatus().subscribe({
       next: (g) => this.garmin.set(g),
       error: () => this.garmin.set(null),
+    });
+    this.portal.corosStatus().subscribe({
+      next: (c) => this.coros.set(c),
+      error: () => this.coros.set(null),
     });
     // Indépendant du statut Strava : des sorties peuvent rester masquées après une déconnexion,
     // et c'est justement là qu'on vient chercher pourquoi elles ne reviennent pas.
@@ -632,6 +690,40 @@ export class AthleteSyncComponent implements OnInit {
       next: () => {
         this.busy.set(false);
         this.toast.info('Garmin déconnecté.');
+        this.load();
+      },
+      error: () => {
+        this.busy.set(false);
+        this.toast.error('Déconnexion impossible.');
+      },
+    });
+  }
+
+  connectCoros(): void {
+    this.portal.corosAuthorizeUrl().subscribe({
+      next: (r) => {
+        window.location.href = r.url;
+      },
+      error: () => this.toast.error('COROS indisponible pour le moment.'),
+    });
+  }
+
+  async disconnectCoros(): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Déconnecter COROS ?',
+      message:
+        "Darilab n'aura plus accès à ton compte COROS. Pour retirer aussi l'autorisation côté COROS, passe par l'app COROS. Tes activités déjà importées sont conservées.",
+      confirmLabel: 'Déconnecter',
+      danger: true,
+    });
+    if (!ok) {
+      return;
+    }
+    this.busy.set(true);
+    this.portal.corosDisconnect().subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.toast.info('COROS déconnecté.');
         this.load();
       },
       error: () => {

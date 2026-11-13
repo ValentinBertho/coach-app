@@ -55,6 +55,20 @@ public class DeviceConnection extends BaseEntity {
     @Column(name = "scope", length = 255)
     private String scope;
 
+    /**
+     * Serveur régional qui a émis les jetons (COROS : {@code https://mcpeu.coros.com}…). Les
+     * jetons ne valent que là. Null pour Strava et Garmin, dont l'adresse est fixe.
+     */
+    @Column(name = "api_base_url", length = 255)
+    private String apiBaseUrl;
+
+    /**
+     * Client OAuth qui a obtenu les jetons, quand il est enregistré dynamiquement (COROS) :
+     * le rafraîchissement doit présenter le même. Null pour Strava et Garmin.
+     */
+    @Column(name = "client_id", length = 255)
+    private String clientId;
+
     @Column(name = "last_import_epoch")
     private Long lastImportEpoch;
 

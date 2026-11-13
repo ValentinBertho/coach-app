@@ -1,0 +1,13 @@
+package com.coachrun.dto.response;
+
+/** État de la connexion COROS d'un athlète. */
+public record CorosStatusResponse(
+        /** L'intégration est ouverte sur ce serveur ({@code app.coros.enabled}). */
+        boolean configured,
+        boolean connected,
+        /** Identifiant COROS de l'utilisateur, opaque ; null si COROS ne l'a pas fourni. */
+        String providerUserId,
+        /** Serveur régional COROS du compte : « EU », « US », « CN », ou null si inconnu. */
+        String region
+) {
+}

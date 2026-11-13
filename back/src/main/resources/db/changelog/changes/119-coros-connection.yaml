@@ -1,0 +1,47 @@
+# ============================================================================
+# 119 — Connexion COROS (COROS MCP, OAuth 2.0 avec enregistrement dynamique).
+#
+#   COROS n'attribue pas d'identifiant d'application : chaque application
+#   s'enregistre elle-même auprès du serveur OAuth (RFC 7591) et reçoit un
+#   client_id public, sans secret. Ce client_id est propre à un serveur
+#   régional COROS (Europe, États-Unis, Chine) et à une adresse de retour :
+#   on le garde dans oauth_client_registrations pour ne pas se réenregistrer
+#   à chaque connexion.
+#
+#   Les jetons d'un athlète ne valent que sur le serveur régional qui les a
+#   émis, avec le client_id qui les a demandés : device_connections porte
+#   donc ces deux informations (api_base_url, client_id). Colonnes nullables,
+#   inutilisées par Strava et Garmin.
+#
+#   Additif : une table nouvelle, deux colonnes nullables, aucune ligne
+#   existante modifiée.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 119-coros-connection
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: oauth_client_registrations
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP WITH TIME ZONE, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: provider, type: VARCHAR(16), constraints: { nullable: false } }
+              - column: { name: issuer, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: redirect_uri, type: VARCHAR(255), constraints: { nullable: false } }
+              - column: { name: client_id, type: VARCHAR(255), constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: oauth_client_registrations
+            constraintName: uq_oauth_client_registration
+            columnNames: provider, issuer, redirect_uri
+        - addColumn:
+            tableName: device_connections
+            columns:
+              - column:
+                  name: api_base_url
+                  type: VARCHAR(255)
+              - column:
+                  name: client_id
+                  type: VARCHAR(255)

@@ -201,6 +201,15 @@ app:
     # Secret partagé avec Strava, redonné lors de cette validation. Non renseigné, aucune validation
     # n'est acceptée — donc pas d'abonnement possible : c'est volontaire.
     webhook-verify-token: ${STRAVA_WEBHOOK_VERIFY_TOKEN:}
+  coros:
+    # COROS MCP (OAuth 2.0, client enregistré dynamiquement : pas d'identifiant à demander à COROS).
+    # Fermé par défaut : la carte COROS reste « Bientôt » tant que COROS_ENABLED n'est pas à true.
+    enabled: ${COROS_ENABLED:false}
+    # Passerelle mondiale ; elle désigne le serveur régional (mcpeu, mcpus, mcpcn). Pour forcer une
+    # région, mettre directement ce serveur (ex. https://mcpeu.coros.com).
+    gateway-url: ${COROS_GATEWAY_URL:https://mcp.coros.com}
+    # Adresse de retour envoyée à COROS à l'enregistrement du client et à chaque autorisation.
+    redirect-uri: ${COROS_REDIRECT_URI:http://localhost:4200/app/coros/callback}
   garmin:
     # Garmin Connect Developer Program (OAuth 2.0 PKCE). Non renseigné : la carte Garmin s'affiche
     # « indisponible » et rien d'autre ne change.
