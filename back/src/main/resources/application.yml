@@ -209,7 +209,9 @@ app:
     # région, mettre directement ce serveur (ex. https://mcpeu.coros.com).
     gateway-url: ${COROS_GATEWAY_URL:https://mcp.coros.com}
     # Adresse de retour envoyée à COROS à l'enregistrement du client et à chaque autorisation.
-    redirect-uri: ${COROS_REDIRECT_URI:http://localhost:4200/app/coros/callback}
+    # Par défaut, déduite de FRONTEND_URL : COROS accepte n'importe quelle adresse (client
+    # enregistré dynamiquement), il n'y a donc rien à déclarer ailleurs.
+    redirect-uri: ${COROS_REDIRECT_URI:${app.frontend-url}/app/coros/callback}
     # Envoi des séances course des 14 prochains jours vers le calendrier COROS des athlètes reliés.
     # Aucun appel COROS tant qu'une séance ne change pas.
     workout-sync-cron: ${COROS_WORKOUT_SYNC_CRON:0 */15 * * * *}
