@@ -231,7 +231,7 @@ Voir § 6 — et surtout, **l'adresse contient le préfixe `/api`**.
 | `GARMIN_CLIENT_ID` / `GARMIN_CLIENT_SECRET` | back | App Garmin Connect Developer Program **[OPT — Intégrations]** — sans elles, la carte Garmin de *Synchronisation* affiche « indisponible » | portail Garmin (Apps → votre app) |
 | `GARMIN_REDIRECT_URI` | back | Doit être **identique** à l'« OAuth redirect URL » déclarée chez Garmin | `https://www.darilab.app/app/garmin/callback` |
 | `GARMIN_WEBHOOK_TOKEN` | back | Secret placé dans l'adresse de notification déclarée dans `apis.garmin.com/tools/endpoints`, **la même** pour Deregistration, User Permissions, Activities et Activity Details : `https://www.darilab.app/api/public/garmin/webhook/<valeur>` (jeton dans le **chemin** : l'outil Garmin supprime les paramètres `?token=`). Garmin ne signe pas ses notifications ; sans ce jeton, elles sont toutes ignorées | `openssl rand -hex 32` |
-| `GARMIN_WORKOUT_SYNC_CRON` | back | **[OPT]** Fréquence d'envoi des séances course des 14 prochains jours vers le calendrier Garmin (défaut : toutes les 15 min). Aucun appel Garmin tant qu'une séance ne change pas | `0 */15 * * * *` |
+| `GARMIN_WORKOUT_SYNC_CRON` | back | **[OPT]** Fréquence d'envoi des séances course et de renforcement des 14 prochains jours vers le calendrier Garmin (défaut : toutes les 15 min). Aucun appel Garmin tant qu'une séance ne change pas | `0 */15 * * * *` |
 | `GARMIN_*` / `COROS_*` | back | OAuth Garmin / Coros **[OPT]** | — |
 | `STORAGE_TYPE` | back | `local` ou `s3` **[DÉFAUT local]** | `s3` |
 | `S3_ENDPOINT` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_PUBLIC_URL` | back | Stockage FIT/GPX **[OPT]** | R2 / S3 |

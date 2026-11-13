@@ -286,7 +286,7 @@ public final class GarminWorkoutMapper {
 
     /** Numérote tous les pas dans l'ordre de lecture, répétitions comprises. */
     @SuppressWarnings("unchecked")
-    private static void number(List<Map<String, Object>> steps, int[] counter) {
+    static void number(List<Map<String, Object>> steps, int[] counter) {
         for (Map<String, Object> s : steps) {
             s.put("stepOrder", ++counter[0]);
             Object children = s.get("steps");
@@ -297,7 +297,7 @@ public final class GarminWorkoutMapper {
     }
 
     @SuppressWarnings("unchecked")
-    private static int count(List<Map<String, Object>> steps) {
+    static int count(List<Map<String, Object>> steps) {
         int n = 0;
         for (Map<String, Object> s : steps) {
             n++;

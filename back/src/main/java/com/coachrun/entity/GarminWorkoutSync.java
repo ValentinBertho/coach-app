@@ -31,6 +31,10 @@ public class GarminWorkoutSync extends BaseEntity {
     @Column(name = "workout_id")
     private UUID workoutId;
 
+    /** Séance de renforcement d'origine ; null si elle a été supprimée, ou si c'est une séance course. */
+    @Column(name = "strength_session_id")
+    private UUID strengthSessionId;
+
     /** Date à laquelle l'entraînement est planifié chez Garmin. */
     @Column(name = "scheduled_date", nullable = false)
     private LocalDate scheduledDate;

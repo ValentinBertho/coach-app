@@ -1,0 +1,29 @@
+# ============================================================================
+# 117 — Les séances de renforcement rejoignent le calendrier Garmin.
+#
+#   Une séance de renfo planifiée vit dans scheduled_strength_sessions, pas dans
+#   workouts : la ligne de suivi Garmin porte donc l'une OU l'autre référence.
+#   Même règle que pour workout_id (cf. 116) : ON DELETE SET NULL, pour que la
+#   ligne survive à la suppression et dise quel entraînement retirer de la montre.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 117-garmin-strength-sync
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: garmin_workout_syncs
+            columns:
+              - column: { name: strength_session_id, type: UUID }
+        - addForeignKeyConstraint:
+            constraintName: fk_garmin_workout_syncs_strength
+            baseTableName: garmin_workout_syncs
+            baseColumnNames: strength_session_id
+            referencedTableName: scheduled_strength_sessions
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - createIndex:
+            tableName: garmin_workout_syncs
+            indexName: idx_garmin_workout_syncs_strength
+            columns:
+              - column: { name: strength_session_id }
