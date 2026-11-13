@@ -848,6 +848,13 @@ public class AthletePortalController {
         return corosService.connectForAthlete(principal.athleteId(), body.get("code"), body.get("state"));
     }
 
+    /** J'envoie maintenant mes séances à venir dans mon calendrier COROS. */
+    @PostMapping("/coros/sync-workouts")
+    public com.coachrun.dto.response.CorosStatusResponse corosSyncWorkouts(
+            @AuthenticationPrincipal AuthPrincipal principal) {
+        return corosService.syncWorkoutsForAthlete(principal.athleteId());
+    }
+
     /** Je déconnecte mon compte COROS (jetons effacés ici). */
     @DeleteMapping("/coros")
     @ResponseStatus(HttpStatus.NO_CONTENT)

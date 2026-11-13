@@ -100,6 +100,7 @@ describe('renommage sur Strava (côté athlète)', () => {
     });
     http.expectOne((r) => r.url.endsWith('/me/coros')).flush({
       configured: false, connected: false, providerUserId: null, region: null,
+      workoutsOnCoros: 0, workoutsInError: 0,
     });
     http.expectOne((r) => r.url.endsWith('/me/activity-exclusions')).flush([]);
   }

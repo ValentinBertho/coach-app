@@ -379,6 +379,10 @@ export class AthletePortalService {
   corosConnect(code: string, state: string): Observable<CorosStatus> {
     return this.http.post<CorosStatus>(`${this.base}/coros/connect`, { code, state });
   }
+  /** J'envoie maintenant mes séances à venir dans mon calendrier COROS. */
+  corosSyncWorkouts(): Observable<CorosStatus> {
+    return this.http.post<CorosStatus>(`${this.base}/coros/sync-workouts`, {});
+  }
   corosDisconnect(): Observable<void> {
     return this.http.delete<void>(`${this.base}/coros`);
   }

@@ -269,7 +269,14 @@ import { ActivityExclusion } from '../../core/models/activity.model';
               <strong>COROS</strong>
               @if (c.connected) {
                 <span class="field-hint" data-testid="coros-summary">
-                  Compte relié. L'envoi de tes séances sur ta montre arrive bientôt.
+                  @if (c.workoutsOnCoros > 0) {
+                    {{ c.workoutsOnCoros }}
+                    {{ c.workoutsOnCoros > 1 ? 'séances à venir' : 'séance à venir' }}
+                    dans ton calendrier COROS
+                  } @else {
+                    Aucune séance à venir dans ton calendrier COROS
+                  }
+                  · envoi automatique toutes les 15 min
                 </span>
               } @else {
                 <span class="field-hint">Non connecté</span>
@@ -279,8 +286,32 @@ import { ActivityExclusion } from '../../core/models/activity.model';
               <span class="badge badge-success">Connecté</span>
             }
           </article>
+          @if (c.connected && c.workoutsInError > 0) {
+            <p class="field-hint warn" data-testid="coros-errors">
+              {{ c.workoutsInError }}
+              {{ c.workoutsInError > 1 ? 'séances n’ont' : 'séance n’a' }} pas pu
+              être envoyée{{ c.workoutsInError > 1 ? 's' : '' }} sur ta montre.
+              Darilab réessaie tout seul ; si ça persiste, préviens ton coach.
+            </p>
+          }
+          @if (c.connected) {
+            <p class="field-hint" data-testid="coros-cancel-hint">
+              Tes séances course des 14 prochains jours partent sur ta montre COROS. Si ton
+              coach en retire ou en déplace une, elle reste dans ton calendrier COROS marquée
+              « Annulée par ton coach » : COROS ne nous permet pas de la supprimer, tu peux
+              l’effacer dans l’app COROS.
+            </p>
+          }
           <div class="sync-actions">
             @if (c.connected) {
+              <button
+                type="button"
+                class="btn btn-primary btn-sm"
+                [disabled]="busy()"
+                (click)="syncCorosWorkouts()"
+              >
+                {{ busy() ? 'Envoi…' : 'Envoyer mes séances maintenant' }}
+              </button>
               <button
                 type="button"
                 class="btn btn-ghost btn-sm"
@@ -708,11 +739,30 @@ export class AthleteSyncComponent implements OnInit {
     });
   }
 
+  syncCorosWorkouts(): void {
+    this.busy.set(true);
+    this.portal.corosSyncWorkouts().subscribe({
+      next: (c) => {
+        this.coros.set(c);
+        this.busy.set(false);
+        this.toast.success(
+          c.workoutsInError > 0
+            ? 'Envoi terminé, avec des séances en échec.'
+            : 'Tes séances sont à jour dans COROS.',
+        );
+      },
+      error: () => {
+        this.busy.set(false);
+        this.toast.error('Envoi impossible pour le moment.');
+      },
+    });
+  }
+
   async disconnectCoros(): Promise<void> {
     const ok = await this.confirm.ask({
       title: 'Déconnecter COROS ?',
       message:
-        "Darilab n'aura plus accès à ton compte COROS. Pour retirer aussi l'autorisation côté COROS, passe par l'app COROS. Tes activités déjà importées sont conservées.",
+        "Darilab n'aura plus accès à ton compte COROS et n'y enverra plus de séances (celles déjà envoyées y restent). Pour retirer aussi l'autorisation côté COROS, passe par l'app COROS.",
       confirmLabel: 'Déconnecter',
       danger: true,
     });

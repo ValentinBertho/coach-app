@@ -20,6 +20,7 @@ import java.time.Instant;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,8 +34,8 @@ import org.springframework.web.client.RestClientException;
  * MCP n'ouvre l'accès qu'aux données de l'utilisateur qui autorise ; c'est exactement notre
  * modèle (un jeton par athlète, le coach voit ensuite ce que Darilab en a tiré).</p>
  *
- * <p>Cette classe ne fait que la liaison — enregistrement du client, consentement, jetons,
- * déconnexion. L'envoi des séances et l'import des sorties s'appuieront sur
+ * <p>Cette classe fait la liaison — enregistrement du client, consentement, jetons,
+ * déconnexion. L'envoi des séances ({@link CorosWorkoutSyncService}) s'appuie sur
  * {@link #freshAccessToken(DeviceConnection)} et {@link #endpointsOf(DeviceConnection)}.</p>
  */
 @Slf4j
@@ -53,15 +54,36 @@ public class CorosService {
     private final AthleteRepository athleteRepository;
     private final OAuthStateCodec stateCodec;
     private final AdminAuditService audit;
+    /**
+     * Fournisseur paresseux, comme pour Garmin : le service d'envoi dépend de celui-ci (jetons),
+     * et celui-ci a besoin de lui pour le statut et la déconnexion.
+     */
+    private final ObjectProvider<CorosWorkoutSyncService> workoutSync;
 
     public CorosStatusResponse statusForAthlete(UUID athleteId) {
         requireAthlete(athleteId);
         DeviceConnection conn = connectionRepository.findByAthleteIdAndProvider(athleteId, PROVIDER).orElse(null);
+        CorosWorkoutSyncService.Summary summary = conn != null
+                ? workoutSync.getObject().summary(athleteId)
+                : new CorosWorkoutSyncService.Summary(0, 0);
         return new CorosStatusResponse(
                 client.isConfigured(),
                 conn != null,
                 conn != null ? conn.getProviderAthleteId() : null,
-                conn != null ? CorosMcpClient.regionOf(conn.getApiBaseUrl()) : null);
+                conn != null ? CorosMcpClient.regionOf(conn.getApiBaseUrl()) : null,
+                summary.workoutsOnCoros(),
+                summary.workoutsInError());
+    }
+
+    /** J'envoie maintenant mes séances à venir sur ma montre (sans attendre la passe planifiée). */
+    @Transactional
+    public CorosStatusResponse syncWorkoutsForAthlete(UUID athleteId) {
+        requireAthlete(athleteId);
+        requireConfigured();
+        connectionRepository.findByAthleteIdAndProvider(athleteId, PROVIDER)
+                .orElseThrow(() -> new ApiException(HttpStatus.CONFLICT, "Compte COROS non connecté."));
+        workoutSync.getObject().syncAthlete(athleteId);
+        return statusForAthlete(athleteId);
     }
 
     /**
@@ -138,6 +160,8 @@ public class CorosService {
                     log.warn("Révocation COROS impossible pour l'athlète {} : {}", athleteId, ex.getMessage());
                 }
             }
+            // COROS ne permet pas de retirer les séances déjà posées : on oublie seulement leur suivi.
+            workoutSync.getObject().forgetAthlete(athleteId);
             connectionRepository.delete(conn);
             audit.record(AdminAuditAction.DEVICE_DISCONNECTED, AdminAuditTarget.ATHLETE,
                     athleteId, athleteLabel(athlete),
