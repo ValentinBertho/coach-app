@@ -65,6 +65,32 @@ public enum ActivitySport {
         return KNOWN_NON_RUN.stream().anyMatch(t::contains) ? OTHER : null;
     }
 
+    /**
+     * Type d'activité Garmin (Activity API, annexe A : {@code RUNNING}, {@code TRAIL_RUNNING},
+     * {@code LAP_SWIMMING}, {@code STRENGTH_TRAINING}…). Mêmes familles que Strava, avec les
+     * quelques noms propres à Garmin qui ne s'y devinent pas ; {@code MULTI_SPORT} et les types
+     * inconnus restent {@code null}.
+     */
+    public static ActivitySport fromGarmin(String type) {
+        if (type == null || type.isBlank()) {
+            return null;
+        }
+        String t = type.toLowerCase(Locale.ROOT);
+        if (t.contains("multi_sport") || t.contains("transition")) {
+            return null;
+        }
+        if (t.contains("fitness_equipment") || t.contains("hiit")) {
+            return STRENGTH;
+        }
+        if (t.contains("rucking") || t.contains("hiking")) {
+            return WALK;
+        }
+        if (t.contains("cardio") || t.contains("mobility") || t.contains("breathwork")) {
+            return OTHER;
+        }
+        return fromStrava(type);
+    }
+
     private static final java.util.List<String> KNOWN_NON_RUN = java.util.List.of(
             "workout", "yoga", "pilates", "elliptical", "stairstepper", "rowing", "row",
             "ski", "snowboard", "skate", "surf", "kayak", "canoe", "sail", "golf",

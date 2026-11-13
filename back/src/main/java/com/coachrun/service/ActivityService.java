@@ -263,10 +263,103 @@ public class ActivityService {
     private String sourceLabel(ActivitySource source) {
         return switch (source) {
             case STRAVA -> "importée de Strava";
+            case GARMIN -> "importée de Garmin";
             case FILE -> "importée d'un fichier";
             case MANUAL -> "saisie à la main";
             default -> "déjà importée";
         };
+    }
+
+    /**
+     * La sortie déjà enregistrée ce jour-là qui ressemble à celle-ci au point d'être la même
+     * (mêmes tolérances que le refus de doublon), quelle que soit sa provenance.
+     *
+     * <p>Sert à la montre connectée deux fois — Garmin directement, et Strava qui relaie la même
+     * montre : la seconde copie ne doit pas entrer, mais elle peut compléter la première.</p>
+     */
+    @Transactional(readOnly = true)
+    public Optional<UUID> findSameOuting(UUID athleteId, java.time.LocalDate date,
+                                         Integer distanceM, Integer durationS) {
+        if (date == null) {
+            return Optional.empty();
+        }
+        return activityRepository.findByAthleteIdAndActivityDateBetween(athleteId, date, date).stream()
+                .filter(existing -> looksLikeSameOuting(existing, distanceM, durationS))
+                .map(Activity::getId)
+                .findFirst();
+    }
+
+    /** Identifiant de la sortie déjà importée depuis cette source sous cet identifiant externe. */
+    @Transactional(readOnly = true)
+    public Optional<UUID> findImported(UUID athleteId, ActivitySource source, String externalId) {
+        if (externalId == null) {
+            return Optional.empty();
+        }
+        return activityRepository.findByAthleteIdAndSourceAndExternalId(athleteId, source, externalId)
+                .map(Activity::getId);
+    }
+
+    /**
+     * Complète une sortie existante avec ce qu'une autre copie de la même sortie apporte, <b>sans
+     * jamais rien écraser</b> : seuls les champs vides sont remplis. Le titre, le rapprochement,
+     * le ressenti et les corrections de l'athlète restent tels quels.
+     *
+     * <p>Cas typique : le résumé Garmin arrive d'abord (sans tracé), puis ses détails ; ou Strava
+     * a importé la sortie avant Garmin, sans les tours de la montre.</p>
+     *
+     * @return {@code true} si quelque chose a été ajouté
+     */
+    @Transactional
+    public boolean completeWith(UUID activityId, Integer avgHr, Integer elevationGainM, ImportExtras extras) {
+        Activity a = activityRepository.findById(activityId).orElse(null);
+        if (a == null || extras == null) {
+            return false;
+        }
+        boolean changed = false;
+        if (a.getAvgHr() == null && avgHr != null) {
+            a.setAvgHr(avgHr);
+            changed = true;
+        }
+        if (a.getElevationGainM() == null && elevationGainM != null) {
+            a.setElevationGainM(elevationGainM);
+            changed = true;
+        }
+        if (a.getMaxHr() == null && extras.maxHr() != null) {
+            a.setMaxHr(extras.maxHr());
+            changed = true;
+        }
+        if (a.getAvgCadence() == null && extras.avgCadence() != null) {
+            a.setAvgCadence(extras.avgCadence());
+            changed = true;
+        }
+        if (a.getCalories() == null && extras.calories() != null) {
+            a.setCalories(extras.calories());
+            changed = true;
+        }
+        ImportExtras missingOnly = new ImportExtras(null, null, null, null,
+                a.getRouteJson() == null ? extras.route() : null,
+                a.getStreamJson() == null ? extras.stream() : null,
+                a.getLapsJson() == null ? extras.laps() : null);
+        String route = a.getRouteJson();
+        String stream = a.getStreamJson();
+        String laps = a.getLapsJson();
+        Integer maxHr = a.getMaxHr();
+        Integer cadence = a.getAvgCadence();
+        Integer power = a.getAvgPowerW();
+        Integer calories = a.getCalories();
+        applyExtras(a, missingOnly);
+        // applyExtras pose aussi les capteurs : on remet ceux qu'on vient de décider.
+        a.setMaxHr(maxHr);
+        a.setAvgCadence(cadence);
+        a.setAvgPowerW(power);
+        a.setCalories(calories);
+        changed |= !java.util.Objects.equals(route, a.getRouteJson())
+                || !java.util.Objects.equals(stream, a.getStreamJson())
+                || !java.util.Objects.equals(laps, a.getLapsJson());
+        if (changed) {
+            activityRepository.save(a);
+        }
+        return changed;
     }
 
     /**

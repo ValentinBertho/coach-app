@@ -28,7 +28,9 @@ import java.util.concurrent.TimeUnit;
  * ignorée — sinon n'importe qui connaissant un identifiant Garmin pourrait déconnecter un
  * athlète.</p>
  *
- * <p>Étape 1 : désinscriptions et changements de permissions. Les activités s'ajouteront ici.</p>
+ * <p>Désinscriptions, changements de permissions, et sorties ({@code activities} pour le résumé,
+ * {@code activityDetails} pour le tracé, la FC et les tours). Toutes peuvent être déclarées à la
+ * même adresse : c'est la clé du corps qui dit de quoi il s'agit.</p>
  */
 @Slf4j
 @Service
@@ -37,12 +39,15 @@ public class GarminWebhookService {
     private static final int QUEUE_CAPACITY = 500;
 
     private final GarminService garminService;
+    private final GarminActivityService activityService;
     private final byte[] expectedToken;
     private volatile ThreadPoolExecutor executor;
 
     public GarminWebhookService(GarminService garminService,
+                                GarminActivityService activityService,
                                 @Value("${app.garmin.webhook-token:}") String webhookToken) {
         this.garminService = garminService;
+        this.activityService = activityService;
         this.expectedToken = StringUtils.hasText(webhookToken)
                 ? webhookToken.getBytes(StandardCharsets.UTF_8) : null;
     }
@@ -73,6 +78,20 @@ public class GarminWebhookService {
                 enqueue(() -> garminService.handlePermissionsChange(userId, permissions));
             }
         }
+        enqueueActivities(items(body.get("activities")), false);
+        enqueueActivities(items(body.get("activityDetails")), true);
+    }
+
+    /** Une tâche par utilisateur Garmin : ses sorties d'un même lot partent dans une seule notification. */
+    private void enqueueActivities(List<Map<String, Object>> list, boolean details) {
+        Map<String, List<Map<String, Object>>> byUser = new java.util.LinkedHashMap<>();
+        for (Map<String, Object> item : list) {
+            String userId = text(item.get("userId"));
+            if (userId != null) {
+                byUser.computeIfAbsent(userId, k -> new ArrayList<>()).add(item);
+            }
+        }
+        byUser.forEach((userId, items) -> enqueue(() -> activityService.handle(userId, items, details)));
     }
 
     private void enqueue(Runnable task) {
