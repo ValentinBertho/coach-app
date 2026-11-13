@@ -316,7 +316,11 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
               qu'il n'a pas accepté votre demande.<br />
               <strong>Données d'appareils connectés</strong> : si vous connectez volontairement
               votre compte Strava, les activités sportives associées sont importées ; les jetons
-              d'accès sont chiffrés au repos.<br />
+              d'accès sont chiffrés au repos. Si vous connectez votre compte
+              <strong>Garmin Connect</strong>, DARI Lab y importe vos activités (durée, distance,
+              allure, fréquence cardiaque, tracé) pour les comparer aux séances prescrites, et y
+              envoie les séances que votre coach vous a prescrites afin qu'elles apparaissent sur
+              votre montre. Ces données ne servent qu'au suivi entre vous et votre coach.<br />
               <strong>Retours envoyés depuis l'application</strong> : lorsque vous utilisez
               « Signaler un problème », votre message est enregistré avec le contexte technique
               nécessaire à son traitement — écran concerné, version de l'application, navigateur
@@ -330,7 +334,10 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
               à des fins de suivi d'entraînement (consentement explicite, révocable) ; envoyer les
               emails fonctionnels — invitations, rappels de séance, alertes coach (exécution du
               contrat) ; assurer la sécurité et corriger les erreurs (intérêt légitime). Aucune
-              donnée n'est vendue ni utilisée à des fins publicitaires.
+              donnée n'est vendue ni utilisée à des fins publicitaires. Aucune donnée — en
+              particulier aucune donnée issue de Garmin — n'est traitée par un système
+              d'intelligence artificielle, ni utilisée pour entraîner, évaluer ou améliorer un
+              modèle d'IA.
             </p>
 
             <h2>4. Destinataires et sous-traitants</h2>
@@ -366,6 +373,12 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
                 personnelles y sont désactivées (<code>send-default-pii: false</code>).</li>
               <li><strong>Strava</strong> — uniquement si vous connectez votre compte, pour
                 importer vos activités.</li>
+              <li><strong>Garmin</strong> (Garmin Ltd. et ses filiales) — uniquement si vous
+                connectez votre compte Garmin Connect, pour importer vos activités et y envoyer
+                vos séances prescrites. Les données reçues de Garmin sont stockées chez Railway
+                comme le reste du Service ; elles ne sont ni vendues ni cédées à un tiers. Vous
+                pouvez couper la liaison à tout moment depuis <em>Synchronisation</em> ou depuis
+                votre compte Garmin Connect.</li>
               <li><strong>Service de notification de votre navigateur</strong> (Google, Mozilla
                 ou Apple selon le navigateur) — si vous activez les notifications push. Le
                 contenu des notifications est chiffré de bout en bout ; ces services acheminent
