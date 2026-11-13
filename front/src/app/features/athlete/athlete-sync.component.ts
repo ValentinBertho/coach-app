@@ -161,7 +161,7 @@ import { ActivityExclusion } from '../../core/models/activity.model';
         }
       }
 
-      <!-- Garmin : les séances course des 14 prochains jours partent dans le calendrier Garmin
+      <!-- Garmin : les séances course et renfo des 14 prochains jours partent dans le calendrier Garmin
            (puis sur la montre) si l'athlète a accordé l'import d'entraînements. -->
       @if (garmin(); as g) {
         <article class="card prov" data-testid="garmin-card">

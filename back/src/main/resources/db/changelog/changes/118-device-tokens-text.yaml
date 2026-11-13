@@ -1,0 +1,29 @@
+# ============================================================================
+# 118 — Jetons d'appareil sans limite de longueur.
+#
+#   access_token / refresh_token étaient en VARCHAR(512), taillés pour Strava
+#   (jetons de 40 caractères). Garmin délivre des JWT de plus de mille
+#   caractères, encore allongés d'un tiers une fois chiffrés en base : la
+#   connexion Garmin échouait sur « valeur trop longue » (409 à l'écran).
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 118-device-tokens-text
+      author: coachrun
+      changes:
+        - modifyDataType:
+            tableName: device_connections
+            columnName: access_token
+            newDataType: TEXT
+        - modifyDataType:
+            tableName: device_connections
+            columnName: refresh_token
+            newDataType: TEXT
+        - addNotNullConstraint:
+            tableName: device_connections
+            columnName: access_token
+            columnDataType: TEXT
+        - addNotNullConstraint:
+            tableName: device_connections
+            columnName: refresh_token
+            columnDataType: TEXT

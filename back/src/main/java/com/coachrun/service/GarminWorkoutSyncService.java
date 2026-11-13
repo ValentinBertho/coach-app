@@ -1,16 +1,21 @@
 package com.coachrun.service;
 
 import com.coachrun.dto.response.CalculatedSessionResponse;
+import com.coachrun.dto.response.CalculatedStrengthResponse;
+import com.coachrun.dto.strength.StrengthStructure;
 import com.coachrun.entity.DeviceConnection;
 import com.coachrun.entity.GarminWorkoutSync;
+import com.coachrun.entity.ScheduledStrengthSession;
 import com.coachrun.entity.Workout;
 import com.coachrun.entity.enums.DeviceProvider;
 import com.coachrun.entity.enums.WorkoutStatus;
 import com.coachrun.entity.enums.WorkoutType;
 import com.coachrun.integration.GarminClient;
+import com.coachrun.integration.GarminStrengthMapper;
 import com.coachrun.integration.GarminWorkoutMapper;
 import com.coachrun.repository.DeviceConnectionRepository;
 import com.coachrun.repository.GarminWorkoutSyncRepository;
+import com.coachrun.repository.ScheduledStrengthSessionRepository;
 import com.coachrun.repository.WorkoutRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -30,9 +35,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 /**
- * Envoi des séances course prescrites dans le calendrier Garmin de l'athlète (Training API).
+ * Envoi des séances prescrites dans le calendrier Garmin de l'athlète (Training API) : les
+ * séances course ({@link Workout}) et les séances de renforcement planifiées
+ * ({@link ScheduledStrengthSession}).
  *
  * <h2>Une réconciliation, pas des événements</h2>
  *
@@ -68,6 +76,7 @@ public class GarminWorkoutSyncService {
     private final DeviceConnectionRepository connectionRepository;
     private final GarminWorkoutSyncRepository syncRepository;
     private final WorkoutRepository workoutRepository;
+    private final ScheduledStrengthSessionRepository strengthRepository;
     private final ClockService clock;
     private final ObjectMapper objectMapper;
 
@@ -79,6 +88,29 @@ public class GarminWorkoutSyncService {
         static Result skippedResult() {
             return new Result(0, 0, 0, 0, true);
         }
+    }
+
+    /** Une séance de renforcement éligible à l'envoi ? Planifiée dans l'horizon, pas encore faite. */
+    public static boolean eligible(ScheduledStrengthSession ss, LocalDate today) {
+        return !ss.isCompleted()
+                && ss.getScheduledDate() != null
+                && !ss.getScheduledDate().isBefore(today)
+                && ss.getScheduledDate().isBefore(today.plusDays(WINDOW_DAYS));
+    }
+
+    /**
+     * Ce qui doit être chez Garmin : une séance course ou une séance de renfo, sa date, et de
+     * quoi construire l'entraînement (paresseusement : seulement si l'empreinte l'exige).
+     */
+    private record Planned(String key, UUID workoutId, UUID strengthSessionId, LocalDate date,
+                           Supplier<Map<String, Object>> payload) {
+    }
+
+    private static String key(GarminWorkoutSync row) {
+        if (row.getWorkoutId() != null) {
+            return "W:" + row.getWorkoutId();
+        }
+        return row.getStrengthSessionId() != null ? "S:" + row.getStrengthSessionId() : null;
     }
 
     /** Une séance course éligible à l'envoi ? */
@@ -124,11 +156,19 @@ public class GarminWorkoutSyncService {
             return new Result(0, 0, 0, 1, false);
         }
 
-        Map<UUID, Workout> wanted = new HashMap<>();
+        Map<String, Planned> wanted = new java.util.LinkedHashMap<>();
         for (Workout w : workoutRepository.findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
                 athleteId, today, today.plusDays(WINDOW_DAYS - 1))) {
             if (eligible(w, today)) {
-                wanted.put(w.getId(), w);
+                wanted.put("W:" + w.getId(), new Planned("W:" + w.getId(), w.getId(), null,
+                        w.getScheduledDate(), () -> GarminWorkoutMapper.toGarmin(sourceOf(w))));
+            }
+        }
+        for (ScheduledStrengthSession ss : strengthRepository.findByAthleteIdAndScheduledDateBetweenOrderByScheduledDateAsc(
+                athleteId, today, today.plusDays(WINDOW_DAYS - 1))) {
+            if (eligible(ss, today)) {
+                wanted.put("S:" + ss.getId(), new Planned("S:" + ss.getId(), null, ss.getId(),
+                        ss.getScheduledDate(), () -> GarminStrengthMapper.toGarmin(strengthSourceOf(ss))));
             }
         }
 
@@ -138,9 +178,10 @@ public class GarminWorkoutSyncService {
         int failed = 0;
 
         // 1. Ce qui est chez Garmin et ne devrait plus y être, ou qui a changé.
-        Map<UUID, GarminWorkoutSync> kept = new HashMap<>();
+        Map<String, GarminWorkoutSync> kept = new HashMap<>();
         for (GarminWorkoutSync row : syncRepository.findByAthleteId(athleteId)) {
-            Workout w = row.getWorkoutId() != null ? wanted.get(row.getWorkoutId()) : null;
+            String rowKey = key(row);
+            Planned w = rowKey != null ? wanted.get(rowKey) : null;
             if (w == null) {
                 if (row.getScheduledDate().isBefore(today)) {
                     syncRepository.delete(row); // passée : elle reste dans l'historique Garmin
@@ -158,22 +199,22 @@ public class GarminWorkoutSyncService {
                 }
                 continue;
             }
-            kept.put(w.getId(), row);
+            kept.put(w.key(), row);
         }
 
         // 2. Ce qui doit y être : créé, ou recréé si le contenu a changé.
-        for (Workout w : wanted.values()) {
-            GarminWorkoutSync row = kept.get(w.getId());
+        for (Planned w : wanted.values()) {
+            GarminWorkoutSync row = kept.get(w.key());
             Map<String, Object> payload;
             try {
-                payload = GarminWorkoutMapper.toGarmin(sourceOf(w));
+                payload = w.payload().get();
             } catch (IllegalArgumentException e) {
                 row = row != null ? row : newRow(athleteId, w);
                 failed++;
                 markError(row, e.getMessage());
                 continue;
             }
-            String hash = hash(payload, w.getScheduledDate());
+            String hash = hash(payload, w.date());
             if (row != null && row.getGarminWorkoutId() != null && hash.equals(row.getContentHash())) {
                 continue; // inchangée : aucun appel
             }
@@ -193,11 +234,11 @@ public class GarminWorkoutSyncService {
                 // planification échoue juste après.
                 row.setGarminWorkoutId(garminId);
                 row.setGarminScheduleId(null);
-                row.setScheduledDate(w.getScheduledDate());
+                row.setScheduledDate(w.date());
                 row.setContentHash(null);
                 syncRepository.save(row);
 
-                row.setGarminScheduleId(client.scheduleWorkout(token, garminId, w.getScheduledDate()));
+                row.setGarminScheduleId(client.scheduleWorkout(token, garminId, w.date()));
                 row.setContentHash(hash);
                 row.setLastError(null);
                 syncRepository.save(row);
@@ -291,12 +332,31 @@ public class GarminWorkoutSyncService {
         row.setGarminScheduleId(null);
     }
 
-    private GarminWorkoutSync newRow(UUID athleteId, Workout w) {
+    private GarminWorkoutSync newRow(UUID athleteId, Planned w) {
         GarminWorkoutSync row = new GarminWorkoutSync();
         row.setAthleteId(athleteId);
-        row.setWorkoutId(w.getId());
-        row.setScheduledDate(w.getScheduledDate());
+        row.setWorkoutId(w.workoutId());
+        row.setStrengthSessionId(w.strengthSessionId());
+        row.setScheduledDate(w.date());
         return row;
+    }
+
+    private GarminStrengthMapper.Source strengthSourceOf(ScheduledStrengthSession ss) {
+        return new GarminStrengthMapper.Source(ss.getTitle(),
+                readJson(ss.getSessionSnapshot(), StrengthStructure.class, ss.getId()),
+                readJson(ss.getCalculatedCharges(), CalculatedStrengthResponse.class, ss.getId()));
+    }
+
+    private <T> T readJson(String json, Class<T> type, UUID id) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(json, type);
+        } catch (Exception e) {
+            log.debug("Contenu illisible pour la séance de renfo {}", id);
+            return null;
+        }
     }
 
     private void markError(GarminWorkoutSync row, String message) {

@@ -91,7 +91,7 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
               </li>
               <li>
                 <strong>Garmin Connect</strong> — la connexion se fait par autorisation Garmin
-                (OAuth), où vous choisissez les permissions accordées. Les séances course que
+                (OAuth), où vous choisissez les permissions accordées. Les séances (course et renforcement) que
                 votre coach vous prescrit pour les 14 prochains jours sont envoyées dans votre
                 calendrier Garmin, puis sur votre montre. Si vous partagez vos activités,
                 chaque sortie enregistrée par votre montre est importée automatiquement dans

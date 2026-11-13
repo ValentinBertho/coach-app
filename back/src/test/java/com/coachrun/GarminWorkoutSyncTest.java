@@ -70,6 +70,8 @@ class GarminWorkoutSyncTest {
     @Autowired private GarminService garminService;
     @Autowired private ClockService clock;
     @Autowired private EntityManager em;
+    @Autowired private com.coachrun.repository.ScheduledStrengthSessionRepository strengthRepository;
+    @Autowired private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     @MockBean private GarminClient garminClient;
 
     private Athlete athlete;
@@ -227,7 +229,66 @@ class GarminWorkoutSyncTest {
         assertThat(syncRepository.findByAthleteId(athlete.getId())).isEmpty();
     }
 
+    // --- Renforcement ---
+
+    @Test
+    void uneSeanceDeRenfoPartEnStrengthTraining() throws Exception {
+        var ss = strength("Renfo bas du corps", today.plusDays(3));
+
+        syncService.syncAthlete(athlete.getId());
+
+        verify(garminClient).createWorkout(eq("acc"), argThat(m -> m != null
+                && "Renfo bas du corps".equals(m.get("workoutName"))
+                && "STRENGTH_TRAINING".equals(m.get("sport"))));
+        GarminWorkoutSync row = syncRepository.findByAthleteId(athlete.getId()).stream()
+                .filter(r -> ss.getId().equals(r.getStrengthSessionId())).findFirst().orElseThrow();
+        verify(garminClient).scheduleWorkout("acc", row.getGarminWorkoutId(), today.plusDays(3));
+        assertThat(row.getWorkoutId()).isNull();
+    }
+
+    @Test
+    void uneSeanceDeRenfoFaiteOuSupprimeeQuitteLaMontre() throws Exception {
+        var faite = strength("Renfo A", today.plusDays(1));
+        var supprimee = strength("Renfo B", today.plusDays(2));
+        syncService.syncAthlete(athlete.getId());
+        long idA = rowForStrength(faite.getId()).getGarminWorkoutId();
+        long idB = rowForStrength(supprimee.getId()).getGarminWorkoutId();
+        clearInvocations(garminClient);
+
+        faite.setCompleted(true);
+        strengthRepository.saveAndFlush(faite);
+        strengthRepository.delete(supprimee);
+        strengthRepository.flush();
+        em.clear();
+        syncService.syncAthlete(athlete.getId());
+
+        verify(garminClient).deleteWorkout("acc", idA);
+        verify(garminClient).deleteWorkout("acc", idB);
+    }
+
     // --- Outils ---
+
+    private com.coachrun.entity.ScheduledStrengthSession strength(String title, LocalDate date) throws Exception {
+        var p = new com.coachrun.dto.strength.StrengthPrescription(null, 60.0, 60.0, null, null, null, null, null,
+                null, null, 3, com.coachrun.entity.enums.VolumeType.REPS, 8, null, null, null, null, null, null,
+                null, null, null, 90, 90, null);
+        var structure = new com.coachrun.dto.strength.StrengthStructure(List.of(new com.coachrun.dto.strength.StrengthBlock(
+                "b1", com.coachrun.entity.enums.BlockType.PRINCIPAL, com.coachrun.entity.enums.BlockFormat.CLASSIQUE,
+                null, null, null, null,
+                List.of(new com.coachrun.dto.strength.StrengthExerciseItem(null, "Squat arrière", null, p, null, null)))));
+        var ss = new com.coachrun.entity.ScheduledStrengthSession();
+        ss.setClub(athlete.getClub());
+        ss.setAthlete(athlete);
+        ss.setTitle(title);
+        ss.setSessionSnapshot(objectMapper.writeValueAsString(structure));
+        ss.setScheduledDate(date);
+        return strengthRepository.saveAndFlush(ss);
+    }
+
+    private GarminWorkoutSync rowForStrength(UUID id) {
+        return syncRepository.findByAthleteId(athlete.getId()).stream()
+                .filter(r -> id.equals(r.getStrengthSessionId())).findFirst().orElseThrow();
+    }
 
     private void connect(List<String> permissions) {
         DeviceConnection c = connectionRepository

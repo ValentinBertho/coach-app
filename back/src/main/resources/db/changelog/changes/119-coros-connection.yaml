@@ -1,5 +1,5 @@
 # ============================================================================
-# 117 — Connexion COROS (COROS MCP, OAuth 2.0 avec enregistrement dynamique).
+# 119 — Connexion COROS (COROS MCP, OAuth 2.0 avec enregistrement dynamique).
 #
 #   COROS n'attribue pas d'identifiant d'application : chaque application
 #   s'enregistre elle-même auprès du serveur OAuth (RFC 7591) et reçoit un
@@ -18,7 +18,7 @@
 # ============================================================================
 databaseChangeLog:
   - changeSet:
-      id: 117-coros-connection
+      id: 119-coros-connection
       author: coachrun
       changes:
         - createTable:

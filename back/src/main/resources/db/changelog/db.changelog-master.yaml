@@ -244,4 +244,8 @@ databaseChangeLog:
   - include:
       file: db/changelog/changes/116-garmin-workout-sync.yaml
   - include:
-      file: db/changelog/changes/117-coros-connection.yaml
+      file: db/changelog/changes/117-garmin-strength-sync.yaml
+  - include:
+      file: db/changelog/changes/118-device-tokens-text.yaml
+  - include:
+      file: db/changelog/changes/119-coros-connection.yaml
