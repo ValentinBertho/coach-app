@@ -36,6 +36,8 @@ import { writeFileSync } from 'node:fs';
 const STATIC_ROUTES = [
   '/',
   '/coachs',
+  '/aide',
+  '/aide/athlete',
   '/inscription-athlete',
   '/legal/cgu',
   '/legal/confidentialite',

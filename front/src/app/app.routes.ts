@@ -90,6 +90,21 @@ export const routes: Routes = [
       import('./features/public/legal.component').then((m) => m.LegalComponent),
   },
   {
+    // Aide publique, sans compte : le même contenu que le centre d'aide de l'application, plus
+    // les guides illustrés en PDF. C'est la page à donner à un coach qu'on invite, et celle que
+    // lit un athlète qui n'a pas encore reçu son invitation.
+    path: 'aide',
+    data: { audience: 'coach', publicPage: true },
+    loadComponent: () =>
+      import('./features/help/help-center.component').then((m) => m.HelpCenterComponent),
+  },
+  {
+    path: 'aide/athlete',
+    data: { audience: 'athlete', publicPage: true },
+    loadComponent: () =>
+      import('./features/help/help-center.component').then((m) => m.HelpCenterComponent),
+  },
+  {
     // Raccourcis de l'écran d'accueil (manifeste `shortcuts`). Le manifeste est unique pour les
     // deux métiers : ces chemins neutres décident de la destination selon le rôle connecté.
     path: 'go/:target',
