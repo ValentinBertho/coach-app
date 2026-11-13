@@ -14,6 +14,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { authErrorMessage } from '../../core/utils/auth-error';
 import { readPendingStravaAuth } from '../../core/services/strava-pending.storage';
+import { readPendingGarminAuth } from '../../core/services/garmin-pending.storage';
 import { MfaChallenge } from '../../core/models/user.model';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 import { FocusProbeComponent } from './focus-probe.component';
@@ -172,10 +173,14 @@ export class LoginComponent {
 
   private done(): void {
     this.toast.success('Connexion réussie');
-    // Autorisation Strava mise en attente (retour d'OAuth hors PWA, où la session manquait) :
+    // Autorisation Strava ou Garmin mise en attente (retour d'OAuth hors PWA, où la session manquait) :
     // on reprend la finalisation avant d'envoyer l'utilisateur chez lui.
     this.router.navigateByUrl(
-      readPendingStravaAuth() ? '/strava/callback' : this.auth.homeRoute(),
+      readPendingStravaAuth()
+        ? '/strava/callback'
+        : readPendingGarminAuth()
+          ? '/garmin/callback'
+          : this.auth.homeRoute(),
     );
   }
 }

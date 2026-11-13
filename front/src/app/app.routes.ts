@@ -152,6 +152,21 @@ export const routes: Routes = [
       import('./features/athletes/strava-callback.component').then((m) => m.StravaCallbackComponent),
   },
   {
+    /**
+     * Retour du consentement Garmin Connect, hors coquille et sans garde de rôle pour la même
+     * raison que Strava ci-dessus. `app/garmin/callback` est l'« OAuth redirect URL » déclarée
+     * dans le portail Garmin ; `garmin/callback` sert à la reprise après connexion.
+     */
+    path: 'app/garmin/callback',
+    loadComponent: () =>
+      import('./features/athlete/garmin-callback.component').then((m) => m.GarminCallbackComponent),
+  },
+  {
+    path: 'garmin/callback',
+    loadComponent: () =>
+      import('./features/athlete/garmin-callback.component').then((m) => m.GarminCallbackComponent),
+  },
+  {
     path: 'app',
     // coachGuard, pas authGuard : ce dernier laissait entrer un athlète connecté.
     canActivate: [coachGuard],

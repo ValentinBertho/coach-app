@@ -12,11 +12,12 @@ import { ToastService } from '../../core/services/toast.service';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { StravaStatus } from '../../core/models/strava.model';
+import { GarminStatus } from '../../core/models/garmin.model';
 import { ActivityExclusion } from '../../core/models/activity.model';
 
 /**
  * Synchronisation des montres (athlète) — CDC §12 : l'intégration est d'abord côté athlète.
- * Je connecte MA montre, l'import est ensuite automatique. Garmin/COROS à venir.
+ * Je connecte MA montre, l'import est ensuite automatique. Strava et Garmin ; COROS à venir.
  */
 @Component({
   selector: 'app-athlete-sync',
@@ -159,13 +160,61 @@ import { ActivityExclusion } from '../../core/models/activity.model';
         }
       }
 
-      <div class="card prov disabled">
-        <span class="prov-logo"><app-icon name="watch" [size]="22" /></span>
-        <div class="prov-info">
-          <strong>Garmin Connect</strong><span class="field-hint">Bientôt</span>
-        </div>
-        <span class="badge badge-neutral">Bientôt</span>
-      </div>
+      <!-- Garmin : la liaison seule pour l'instant. L'envoi des séances vers la montre et
+           l'import des activités s'appuieront sur les permissions affichées ici. -->
+      @if (garmin(); as g) {
+        <article class="card prov" data-testid="garmin-card">
+          <span class="prov-logo"><app-icon name="watch" [size]="22" /></span>
+          <div class="prov-info">
+            <strong>Garmin Connect</strong>
+            @if (!g.configured) {
+              <span class="field-hint">Indisponible sur ce serveur.</span>
+            } @else if (g.connected) {
+              <span class="field-hint"
+                >Compte relié. Tes séances arriveront bientôt dans ton
+                calendrier Garmin.</span
+              >
+            } @else {
+              <span class="field-hint">Non connecté</span>
+            }
+          </div>
+          @if (g.configured && g.connected) {
+            <span class="badge badge-success">Connecté</span>
+          }
+        </article>
+
+        @if (g.configured && g.connected && !g.canSendWorkouts) {
+          <p class="field-hint warn">
+            Tu n'as pas autorisé l'import d'entraînements : tes séances ne
+            pourront pas être envoyées sur ta montre. Active-le dans Garmin
+            Connect (Paramètres du compte, applications connectées) ou
+            reconnecte ton compte.
+          </p>
+        }
+
+        @if (g.configured) {
+          <div class="sync-actions">
+            @if (g.connected) {
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm"
+                [disabled]="busy()"
+                (click)="disconnectGarmin()"
+              >
+                Déconnecter Garmin
+              </button>
+            } @else {
+              <button
+                type="button"
+                class="btn btn-accent btn-sm"
+                (click)="connectGarmin()"
+              >
+                <app-icon name="watch" [size]="15" /> Connecter Garmin
+              </button>
+            }
+          </div>
+        }
+      }
       <div class="card prov disabled">
         <span class="prov-logo"><app-icon name="watch" [size]="22" /></span>
         <div class="prov-info">
@@ -409,6 +458,8 @@ export class AthleteSyncComponent implements OnInit {
 
   readonly loading = signal(true);
   readonly status = signal<StravaStatus | null>(null);
+  /** Ma connexion Garmin ; null tant qu'elle n'est pas chargée ou si le serveur ne répond pas. */
+  readonly garmin = signal<GarminStatus | null>(null);
   readonly busy = signal(false);
   /** Les sorties que j'ai écartées pour de bon. */
   readonly excluded = signal<ActivityExclusion[]>([]);
@@ -454,6 +505,10 @@ export class AthleteSyncComponent implements OnInit {
         this.loading.set(false);
       },
     });
+    this.portal.garminStatus().subscribe({
+      next: (g) => this.garmin.set(g),
+      error: () => this.garmin.set(null),
+    });
     // Indépendant du statut Strava : des sorties peuvent rester masquées après une déconnexion,
     // et c'est justement là qu'on vient chercher pourquoi elles ne reviennent pas.
     this.portal.excludedActivities().subscribe({
@@ -486,6 +541,40 @@ export class AthleteSyncComponent implements OnInit {
         this.busy.set(false);
         this.toast.error('Action impossible.');
         this.load();
+      },
+    });
+  }
+
+  connectGarmin(): void {
+    this.portal.garminAuthorizeUrl().subscribe({
+      next: (r) => {
+        window.location.href = r.url;
+      },
+      error: () => this.toast.error('Garmin indisponible sur ce serveur.'),
+    });
+  }
+
+  async disconnectGarmin(): Promise<void> {
+    const ok = await this.confirm.ask({
+      title: 'Déconnecter Garmin ?',
+      message:
+        'Darilab sera aussi retiré de ton compte Garmin Connect. Tes activités déjà importées sont conservées.',
+      confirmLabel: 'Déconnecter',
+      danger: true,
+    });
+    if (!ok) {
+      return;
+    }
+    this.busy.set(true);
+    this.portal.garminDisconnect().subscribe({
+      next: () => {
+        this.busy.set(false);
+        this.toast.info('Garmin déconnecté.');
+        this.load();
+      },
+      error: () => {
+        this.busy.set(false);
+        this.toast.error('Déconnexion impossible.');
       },
     });
   }
