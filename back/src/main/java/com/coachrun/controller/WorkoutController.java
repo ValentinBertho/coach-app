@@ -134,6 +134,19 @@ public class WorkoutController {
     }
 
     /**
+     * Consignes de la séance pour CET athlète (notes libres + effort attendu). Le modèle de
+     * bibliothèque dont la séance est issue n'est pas modifié.
+     */
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    @PatchMapping("/{workoutId}/instructions")
+    public com.coachrun.dto.response.WorkoutPrescriptionResponse updateInstructions(
+            @PathVariable UUID clubId, @PathVariable UUID athleteId, @PathVariable UUID workoutId,
+            @Valid @RequestBody com.coachrun.dto.request.WorkoutInstructionsRequest request) {
+        return workoutService.updateInstructions(clubId, athleteId, workoutId,
+                request.notes(), request.targetRpe());
+    }
+
+    /**
      * Le fil de la séance : le commentaire du coach a une suite, et elle se lit ici.
      *
      * <p>Ce ne sont pas des messages d'un canal à part — ce sont ceux de la messagerie rattachés

@@ -394,6 +394,34 @@ public class WorkoutService {
     }
 
     /**
+     * Consignes d'une séance planifiée pour son athlète : notes libres et effort attendu.
+     *
+     * <p><b>Pourquoi une route à part.</b> L'éditeur d'adaptation affichait ces deux champs mais
+     * n'enregistrait que la structure et le titre : une consigne écrite « pour Chloé » disparaissait
+     * sans un mot. Elle ne touche que cette séance — le modèle de bibliothèque d'où elle vient
+     * reste tel quel.</p>
+     *
+     * <p>L'athlète est prévenu aux mêmes conditions qu'une adaptation : séance encore à faire, pas
+     * passée, et contenu réellement changé (l'auto-sauvegarde renvoie souvent la même chose).</p>
+     */
+    @Transactional
+    public WorkoutPrescriptionResponse updateInstructions(UUID clubId, UUID athleteId, UUID workoutId,
+                                                         String notes, Integer targetRpe) {
+        Workout w = require(clubId, athleteId, workoutId);
+        String text = notes == null || notes.isBlank() ? null : notes;
+        Integer rpe = targetRpe == null || targetRpe == 0 ? null : targetRpe;
+        boolean changed = !java.util.Objects.equals(text, w.getNotes())
+                || !java.util.Objects.equals(rpe, w.getTargetRpe());
+        w.setNotes(text);
+        w.setTargetRpe(rpe);
+        if (changed && w.getStatus() == WorkoutStatus.PLANNED
+                && !w.getScheduledDate().isBefore(clock.today())) {
+            notificationService.notifyWorkoutChanged(w, false);
+        }
+        return toPrescription(w);
+    }
+
+    /**
      * Marque le retour de l'athlète comme traité (file « retours à traiter »). N'altère ni le
      * contenu de la séance ni le retour lui-même : c'est un accusé de lecture côté coach.
      */
@@ -898,7 +926,7 @@ public class WorkoutService {
         // Enregistrée mais illisible : ce n'est pas une séance sans contenu, et l'écran le dit.
         boolean unreadable = snapshot == null && StringUtils.hasText(w.getSessionSnapshot());
         SessionStructure safe = snapshot == null ? SessionStructure.empty() : snapshot;
-        return new WorkoutPrescriptionResponse(w.getTitle(), safe, calculated,
+        return new WorkoutPrescriptionResponse(w.getTitle(), w.getNotes(), w.getTargetRpe(), safe, calculated,
                 resolveDrills(safe, w.getClub().getId()), unreadable);
     }
 

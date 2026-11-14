@@ -16,6 +16,14 @@ public record WorkoutPrescriptionResponse(
          * décrit l'ancienne.</p>
          */
         String title,
+        /**
+         * Notes de la séance (intention, consignes) telles que l'athlète les lit. Recopiées du
+         * modèle à l'assignation, puis propres à cette séance : l'éditeur d'adaptation les
+         * affiche et les réécrit sans toucher à la bibliothèque.
+         */
+        String notes,
+        /** Effort attendu sur la séance entière (1–10), nul quand rien n'est annoncé. */
+        Integer targetRpe,
         SessionStructure snapshot,
         CalculatedSessionResponse calculated,
         /** Éducatifs (gammes) référencés par les blocs, résolus pour l'affichage (nom, vidéo). */

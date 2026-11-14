@@ -113,8 +113,9 @@ public class CourseSessionService {
         Integer distance = calc.totalDistanceM() != null ? calc.totalDistanceM() : t.getTargetDistanceM();
         Integer duration = calc.totalDurationS() != null ? calc.totalDurationS() : t.getTargetDurationS();
 
-        t.setUseCount(t.getUseCount() + 1);
-        t.setLastUsedAt(Instant.now());
+        // Compteur d'usage par requête directe : le modèle n'est pas modifié, sa date de
+        // modification ne doit pas bouger (voir WorkoutTemplateRepository#markUsed).
+        templateRepository.markUsed(t.getId(), Instant.now());
 
         PrescribedWorkout data = new PrescribedWorkout(
                 date, t.getType(), t.getTitle(), t.getNotes(), distance, duration, t.getTargetRpe(),
