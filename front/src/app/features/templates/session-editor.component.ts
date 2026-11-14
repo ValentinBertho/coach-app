@@ -955,7 +955,9 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     { value: 's', label: 'sec' },
     { value: 'min', label: 'min' },
     { value: 'h', label: 'h' },
-    { value: 'm', label: 'm' },
+    // « mètres » en toutes lettres : « m » se lisait « minutes », et des « 3 × 10' » se sont
+    // retrouvés enregistrés à 10 mètres.
+    { value: 'm', label: 'mètres' },
     { value: 'km', label: 'km' },
   ];
 
@@ -977,6 +979,15 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
       this.recUnit()[b.id] ??
       naturalUnit(r?.durationS ?? null, r?.distanceM ?? null, 's')
     );
+  }
+
+  /**
+   * Distance trop courte pour être voulue (moins de 100 m) : presque toujours des minutes ou des
+   * secondes saisies dans l'unité « mètres ». Signalé sous le champ, jamais corrigé à l'insu du
+   * coach.
+   */
+  suspiciousDistance(b: PrescribedUnit): boolean {
+    return b.distanceM != null && b.distanceM > 0 && b.distanceM < 100 && b.durationS == null;
   }
 
   /** Valeur du bloc dans son unité d'affichage. */
