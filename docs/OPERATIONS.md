@@ -296,6 +296,26 @@ redéploiement.
   coaching. Les essais sont exclus des listes et des compteurs d'administration.
 - **Fermer l'offre** : `TRIAL_ENABLED=false` et redéployer.
 
+## 6 ter bis. Formulaires publics et robots
+
+Inscription (coach, athlète), demande de club, mot de passe oublié et signalement de fiche sont
+gardés par `PublicFormGuardFilter`, en plus des plafonds par adresse IP :
+
+- **Piège à robots** : un champ invisible (`X-Form-Trap`) et une durée minimale de remplissage
+  (`X-Form-Elapsed`, 2 s, `FORM_GUARD_MIN_FILL_MS`). Le robot lit « Envoi trop rapide » ; un
+  humain trop rapide renvoie et passe. Sans ces en-têtes (ancien front en cache), la requête passe.
+- **Plafonds quotidiens globaux**, toutes adresses confondues : 40 inscriptions et demandes de club
+  (`FORM_GUARD_SIGNUP_DAILY_MAX`), 20 mots de passe oubliés (`FORM_GUARD_PASSWORD_RESET_DAILY_MAX`).
+  Ils gardent une réserve du quota d'envoi (100 e-mails/jour) pour les invitations. Leur
+  dépassement journalise une **erreur** « Plafond quotidien atteint » : c'est le signe d'une vague
+  automatisée. En cas de lancement légitime (salon, newsletter), relever la variable.
+- **Comptes jamais confirmés** : un compte athlète inscrit seul, jamais confirmé, sans connexion
+  ni demande depuis 7 jours (`UNVERIFIED_RETENTION_DAYS`) est supprimé chaque nuit à 4 h 23
+  (`purgeUnverifiedAccounts`). Les comptes coach ne sont jamais concernés.
+- Désactivés avec `RATE_LIMIT_ENABLED=false` (tests de bout en bout).
+- Étape suivante si des robots passent quand même : Cloudflare Turnstile (captcha gratuit,
+  généralement invisible ; compte Cloudflare et mention dans la politique de confidentialité).
+
 ## 6 quater. Montres connectées
 
 Activation, quotas et diagnostic de Strava, Garmin et COROS :

@@ -11,6 +11,7 @@ import { RegistrationMode } from '../../core/models/user.model';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { authErrorMessage } from '../../core/utils/auth-error';
+import { FormTrap, FormTrapComponent } from '../../shared/forms/form-trap';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 
 /**
@@ -37,7 +38,7 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
 @Component({
   selector: 'app-register',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LogoComponent],
+  imports: [ReactiveFormsModule, RouterLink, LogoComponent, FormTrapComponent],
   templateUrl: './register.component.html',
   styleUrl: './auth.scss',
 })
@@ -46,6 +47,9 @@ export class RegisterComponent implements OnInit {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+
+  /** Piège à robots, partagé par les deux formulaires : un seul est affiché. */
+  readonly trap = new FormTrap();
 
   readonly submitting = signal(false);
   /** Message d'erreur du serveur, rendu à côté du formulaire (e-mail déjà utilisé, 429…). */
@@ -128,7 +132,7 @@ export class RegisterComponent implements OnInit {
     }
     this.submitting.set(true);
     this.errorMessage.set(null);
-    this.auth.register({ ...this.form.getRawValue(), soloPractice: this.solo() }).subscribe({
+    this.auth.register({ ...this.form.getRawValue(), soloPractice: this.solo() }, this.trap).subscribe({
       next: () => {
         this.toast.success(this.solo() ? 'Espace créé, bienvenue sur Darilab'
                                        : 'Club créé, bienvenue sur Darilab');
@@ -149,7 +153,7 @@ export class RegisterComponent implements OnInit {
     this.submitting.set(true);
     this.errorMessage.set(null);
     const value = { ...this.requestForm.getRawValue(), soloPractice: this.solo() };
-    this.auth.submitClubRequest(value).subscribe({
+    this.auth.submitClubRequest(value, this.trap).subscribe({
       next: () => {
         // Retenus avant de basculer l'écran : l'accusé de réception les rappelle, et c'est ce
         // qui permet au candidat de vérifier qu'il n'a pas fait de faute dans son adresse.

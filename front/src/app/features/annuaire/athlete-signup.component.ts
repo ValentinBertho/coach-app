@@ -6,6 +6,7 @@ import { CoachDirectoryService } from '../../core/services/coach-directory.servi
 import { CoachingRequestService } from '../../core/services/coaching-request.service';
 import { ToastService } from '../../core/services/toast.service';
 import { authErrorMessage } from '../../core/utils/auth-error';
+import { FormTrap, FormTrapComponent } from '../../shared/forms/form-trap';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
 
 /**
@@ -25,7 +26,7 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
   selector: 'app-athlete-signup',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LogoComponent],
+  imports: [ReactiveFormsModule, RouterLink, LogoComponent, FormTrapComponent],
   templateUrl: './athlete-signup.component.html',
   styleUrl: '../auth/auth.scss',
 })
@@ -47,6 +48,7 @@ export class AthleteSignupComponent implements OnInit {
    */
   readonly coach = signal<{ slug: string; name: string } | null>(null);
 
+  readonly trap = new FormTrap();
   readonly submitting = signal(false);
   readonly errorMessage = signal<string | null>(null);
 
@@ -91,7 +93,7 @@ export class AthleteSignupComponent implements OnInit {
       ...v,
       coachSlug: coach?.slug ?? null,
       requestMessage: coach ? requestMessage.trim() : null,
-    }).subscribe({
+    }, this.trap).subscribe({
       next: () => {
         // Le serveur rend déjà une session ; on se connecte pour la même raison qu'un coach après
         // inscription — renvoyer vers la page de connexion ferait retaper ce qu'on vient de saisir.

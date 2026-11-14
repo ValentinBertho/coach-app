@@ -25,6 +25,7 @@
     </div>
   } @else if (mode() === 'REQUEST') {
     <form class="card auth-card" [formGroup]="requestForm" (ngSubmit)="submitRequest()">
+      <app-form-trap [trap]="trap" />
       <header class="auth-head">
         <app-logo [size]="44" [showText]="false" />
         <h1 class="display-sm">{{ solo() ? 'Ouvrir mon espace' : 'Créer mon club' }}</h1>
@@ -123,6 +124,7 @@
     </form>
   } @else {
     <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
+      <app-form-trap [trap]="trap" />
       <header class="auth-head">
         <app-logo [size]="44" [showText]="false" />
         <h1 class="display-sm">{{ solo() ? 'Ouvrir mon espace' : 'Créer ton club' }}</h1>

@@ -1,3 +1,4 @@
+import { FormTrap } from '../../shared/forms/form-trap';
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
@@ -73,8 +74,9 @@ export class CoachingRequestService {
   private readonly http = inject(HttpClient);
   private readonly base = environment.apiUrl;
 
-  register(body: AthleteRegistration): Observable<unknown> {
-    return this.http.post(`${this.base}/public/athlete-registration`, body);
+  register(body: AthleteRegistration, trap?: FormTrap): Observable<unknown> {
+    return this.http.post(`${this.base}/public/athlete-registration`, body,
+      { headers: trap?.headers() });
   }
 
   account(): Observable<AthleteAccount> {

@@ -9,6 +9,7 @@ import { CoachDetail, CoachDirectoryService, REPORT_REASONS } from '../../core/s
 import { CoachOffer, filledLinks } from '../../core/services/coach-profile.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
+import { FormTrap, FormTrapComponent } from '../../shared/forms/form-trap';
 
 /**
  * La fiche publique d'un coach.
@@ -27,7 +28,7 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
   selector: 'app-coach-detail',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, LogoComponent],
+  imports: [RouterLink, IconComponent, LogoComponent, FormTrapComponent],
   template: `
     <div class="cd">
       <header class="cd__head">
@@ -198,6 +199,7 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
                 Les diplômes affichés ici sont déclarés par le coach et ne sont pas vérifiés par la
                 plateforme. Si quelque chose vous paraît inexact ou déplacé, dites-le.
               </p>
+              <app-form-trap [trap]="trap" />
               <div class="form-group">
                 <label for="report-reason">Motif</label>
                 <select id="report-reason" class="form-control" [value]="reportReason()"
@@ -292,6 +294,8 @@ export class CoachDetailComponent implements OnInit {
   /** Hors du gabarit : une apostrophe dans une interpolation Angular casse la compilation. */
   readonly detailsPlaceholder =
     'Quelques phrases suffisent, mais elles sont nécessaires : sans détail, un signalement ne peut pas être traité.';
+  /** Piège à robots du signalement, seul formulaire de la fiche. */
+  readonly trap = new FormTrap();
   readonly reportOpen = signal(false);
   readonly reportReason = signal(REPORT_REASONS[0].value);
   readonly reportDetails = signal('');
@@ -404,7 +408,7 @@ export class CoachDetailComponent implements OnInit {
       return;
     }
     this.reporting.set(true);
-    this.service.report(c.slug, this.reportReason(), details).subscribe({
+    this.service.report(c.slug, this.reportReason(), details, this.trap).subscribe({
       next: () => {
         this.reporting.set(false);
         this.reported.set(true);

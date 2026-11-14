@@ -1,3 +1,4 @@
+import { FormTrap } from '../../shared/forms/form-trap';
 import { HttpClient } from '@angular/common/http';
 import { Injectable, Injector, computed, inject, signal } from '@angular/core';
 import { Observable, finalize, shareReplay, tap, throwError } from 'rxjs';
@@ -283,9 +284,9 @@ export class AuthService {
       }));
   }
 
-  register(request: RegisterRequest): Observable<AuthResponse> {
+  register(request: RegisterRequest, trap?: FormTrap): Observable<AuthResponse> {
     return this.http
-      .post<AuthResponse>(`${this.base}/register`, request)
+      .post<AuthResponse>(`${this.base}/register`, request, { headers: trap?.headers() })
       .pipe(tap((res) => this.applySession(res)));
   }
 
@@ -304,8 +305,9 @@ export class AuthService {
    * Dépôt d'une demande de création de club. N'ouvre aucune session : rien n'est créé tant qu'un
    * administrateur n'a pas validé.
    */
-  submitClubRequest(request: ClubCreationRequestSubmission): Observable<void> {
-    return this.http.post<void>(`${environment.apiUrl}/public/club-requests`, request);
+  submitClubRequest(request: ClubCreationRequestSubmission, trap?: FormTrap): Observable<void> {
+    return this.http.post<void>(`${environment.apiUrl}/public/club-requests`, request,
+      { headers: trap?.headers() });
   }
 
   /**
@@ -350,8 +352,9 @@ export class AuthService {
   }
 
   /** Demande de réinitialisation de mot de passe (réponse identique quel que soit le compte). */
-  forgotPassword(email: string): Observable<{ ok: boolean }> {
-    return this.http.post<{ ok: boolean }>(`${environment.apiUrl}/public/password-reset`, { email });
+  forgotPassword(email: string, trap?: FormTrap): Observable<{ ok: boolean }> {
+    return this.http.post<{ ok: boolean }>(`${environment.apiUrl}/public/password-reset`, { email },
+      { headers: trap?.headers() });
   }
 
   /** Valide un lien de réinitialisation. */

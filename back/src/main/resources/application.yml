@@ -87,6 +87,17 @@ app:
     # Plafond d'essais ouverts en même temps (protège la base) et essais par adresse IP et par heure.
     max-active: ${TRIAL_MAX_ACTIVE:200}
     per-ip-per-hour: ${TRIAL_PER_IP_PER_HOUR:3}
+  # Formulaires publics (PublicFormGuardFilter) : piège à robots et plafonds quotidiens globaux.
+  form-guard:
+    # Un formulaire envoyé moins de N ms après son affichage est refusé (un humain relance).
+    min-fill-ms: ${FORM_GUARD_MIN_FILL_MS:2000}
+    # Toutes adresses IP confondues, par jour. Le quota d'envoi (100/jour) est partagé avec les
+    # invitations : ces deux plafonds lui gardent une réserve même sous une vague de robots.
+    signup-daily-max: ${FORM_GUARD_SIGNUP_DAILY_MAX:40}
+    password-reset-daily-max: ${FORM_GUARD_PASSWORD_RESET_DAILY_MAX:20}
+  # Comptes d'athlète inscrits seuls et jamais confirmés : supprimés après ce délai.
+  account:
+    unverified-retention-days: ${UNVERIFIED_RETENTION_DAYS:7}
   sse:
     # Battement de cœur des flux temps réel (badge de notifications, messagerie). Un flux
     # silencieux ne se distingue pas d'un flux mort : le relais de production coupait toutes les

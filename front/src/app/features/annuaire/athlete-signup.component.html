@@ -1,5 +1,6 @@
 <main class="auth-page">
   <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
+    <app-form-trap [trap]="trap" />
     <header class="auth-head">
       <app-logo [size]="44" [showText]="false" />
       @if (coach(); as c) {

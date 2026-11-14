@@ -242,6 +242,8 @@ Rien ici n'a d'effet sur le démarrage : on les pose après, une fois l'instance
 | `COROS_ACTIVITY_IMPORT_CRON` | back | **[OPT]** Fréquence d'import des sorties COROS des athlètes reliés (défaut : toutes les heures, à la 7e minute). Premier import : 30 derniers jours. COROS limite les fichiers FIT à 50 par athlète et par 24 h : une sortie déjà arrivée par Strava ou Garmin n'est pas téléchargée | `0 7 * * * *` |
 | `TRIAL_ENABLED` | back | « Essayer sans inscription » sur la page d'accueil **[DÉFAUT true]**. `false` ferme l'offre : le bouton répond « pas disponible pour le moment » | `true` |
 | `TRIAL_LIFETIME_HOURS` | back | Durée de vie d'un espace d'essai avant suppression complète **[DÉFAUT 24]** | `24` |
+| `FORM_GUARD_SIGNUP_DAILY_MAX` / `FORM_GUARD_PASSWORD_RESET_DAILY_MAX` | back | Plafonds quotidiens globaux des formulaires publics : inscriptions et demandes de club **[DÉFAUT 40]**, mots de passe oubliés **[DÉFAUT 20]** (cf. OPERATIONS §6 ter bis) | `40`, `20` |
+| `FORM_GUARD_MIN_FILL_MS` / `UNVERIFIED_RETENTION_DAYS` | back | Durée minimale de remplissage d'un formulaire public **[DÉFAUT 2000]** ; jours avant suppression d'un compte athlète jamais confirmé **[DÉFAUT 7]** | `2000`, `7` |
 | `TRIAL_MAX_ACTIVE` / `TRIAL_PER_IP_PER_HOUR` | back | Plafonds : essais ouverts en même temps **[DÉFAUT 200]**, essais par adresse IP et par heure **[DÉFAUT 3]** | `200`, `3` |
 | `STORAGE_TYPE` | back | `local` ou `s3` **[DÉFAUT local]** | `s3` |
 | `S3_ENDPOINT` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_PUBLIC_URL` | back | Stockage FIT/GPX **[OPT]** | R2 / S3 |
