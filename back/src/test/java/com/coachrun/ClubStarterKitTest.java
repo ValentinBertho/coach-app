@@ -1,12 +1,17 @@
 package com.coachrun;
 
+import com.coachrun.dto.session.SessionStructure;
+import com.coachrun.dto.strength.StrengthStructure;
 import com.coachrun.entity.Club;
+import com.coachrun.entity.StrengthSession;
 import com.coachrun.entity.WorkoutTemplate;
 import com.coachrun.entity.enums.CategoryDomain;
 import com.coachrun.entity.enums.ClubStatus;
 import com.coachrun.repository.ClubMemberRepository;
 import com.coachrun.repository.ClubRepository;
+import com.coachrun.repository.PpExerciseRepository;
 import com.coachrun.repository.RunDrillRepository;
+import com.coachrun.repository.StrengthSessionRepository;
 import com.coachrun.repository.SessionCategoryRepository;
 import com.coachrun.repository.TrainingZoneRepository;
 import com.coachrun.repository.UserRepository;
@@ -63,6 +68,8 @@ class ClubStarterKitTest {
     @Autowired private UserRepository userRepository;
     @Autowired private WebApplicationContext context;
     @Autowired private ObjectMapper objectMapper;
+    @Autowired private StrengthSessionRepository strengthSessionRepository;
+    @Autowired private PpExerciseRepository exerciseRepository;
 
     /** Tout ce que ce test a commité, à défaire une fois le cas passé. */
     private final List<UUID> createdClubs = new ArrayList<>();
@@ -82,6 +89,11 @@ class ClubStarterKitTest {
         return templateRepository.findByClubId(clubId, PageRequest.of(0, 50)).getContent();
     }
 
+    private List<StrengthSession> strengthSessions(UUID clubId) {
+        return strengthSessionRepository.findAll().stream()
+                .filter(s -> s.getClub().getId().equals(clubId)).toList();
+    }
+
     @AfterEach
     void cleanUp() {
         for (String email : createdEmails) {
@@ -92,6 +104,10 @@ class ClubStarterKitTest {
         }
         for (UUID clubId : createdClubs) {
             templateRepository.deleteAll(templates(clubId));
+            strengthSessionRepository.deleteAll(strengthSessions(clubId));
+            exerciseRepository.deleteAll(exerciseRepository.findByClubId(clubId));
+            categoryRepository.deleteAll(categoryRepository
+                    .findByClubIdAndDomainOrderBySortOrderAscNameAsc(clubId, CategoryDomain.STRENGTH));
             drillRepository.deleteAll(drillRepository.findByClubIdOrderByCategoryAscNameAsc(clubId));
             categoryRepository.deleteAll(categoryRepository
                     .findByClubIdAndDomainOrderBySortOrderAscNameAsc(clubId, CategoryDomain.COURSE));
@@ -112,7 +128,35 @@ class ClubStarterKitTest {
         assertThat(categoryRepository.findByClubIdAndDomainOrderBySortOrderAscNameAsc(
                 clubId, CategoryDomain.COURSE)).hasSize(6);
         assertThat(drillRepository.findByClubIdOrderByCategoryAscNameAsc(clubId)).hasSize(6);
-        assertThat(templates(clubId)).hasSize(11);
+        assertThat(templates(clubId)).hasSize(23);
+        assertThat(strengthSessions(clubId)).hasSize(3);
+    }
+
+    /**
+     * Chaque séance posée doit se relire avec les mêmes modèles que l'éditeur : un JSON écrit à la
+     * main qui ne se désérialise pas donnerait une séance qu'on ne peut ni ouvrir ni planifier.
+     */
+    @Test
+    void everySessionReadsBackAsAValidStructure() throws Exception {
+        UUID clubId = freshClub();
+        starterKit.install(clubId);
+
+        for (WorkoutTemplate t : templates(clubId)) {
+            SessionStructure s = objectMapper.readValue(t.getStructureJson(), SessionStructure.class);
+            assertThat(s.main()).as(t.getName()).isNotEmpty();
+        }
+        List<StrengthSession> pp = strengthSessions(clubId);
+        assertThat(pp).extracting(StrengthSession::getName).containsExactlyInAnyOrder(
+                "Renforcement coureur 30 min", "Gainage 15 min", "Prévention pied-cheville 15 min");
+        for (StrengthSession s : pp) {
+            StrengthStructure structure = objectMapper.readValue(s.getStructureJson(), StrengthStructure.class);
+            assertThat(structure.blocks()).as(s.getName()).isNotEmpty();
+            assertThat(structure.blocks()).allSatisfy(b -> {
+                assertThat(b.exercises()).isNotEmpty();
+                assertThat(b.exercises()).allSatisfy(e -> assertThat(e.exerciseId()).isNotNull());
+            });
+            assertThat(s.getCategory()).as(s.getName()).isNotNull();
+        }
     }
 
     /**
@@ -198,7 +242,7 @@ class ClubStarterKitTest {
         assertThat(categoryRepository.findByClubIdAndDomainOrderBySortOrderAscNameAsc(
                 clubId, CategoryDomain.COURSE)).hasSize(6);
         assertThat(drillRepository.findByClubIdOrderByCategoryAscNameAsc(clubId)).hasSize(6);
-        assertThat(templates(clubId)).hasSize(11);
+        assertThat(templates(clubId)).hasSize(23);
         // Les zones sont posées par le jeu de départ lui-même : sans elles, les séances n'auraient
         // aucune prescription à porter.
         assertThat(zoneRepository.existsByClubId(clubId)).isTrue();

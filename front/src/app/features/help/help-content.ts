@@ -232,6 +232,7 @@ const COACH: HelpGuide = {
       blocks: [
         { kind: 'text', text: 'Connecte-toi depuis la page de connexion. Si un bandeau t\'invite à confirmer ton e-mail, fais-le : cela sécurise ton compte et active les notifications.' },
         { kind: 'text', text: 'Ton espace est organisé autour du tableau de bord (tes athlètes, leur état de forme, les prochaines courses) et d\'une navigation latérale : Athlètes, Groupes, Calendrier, Messages, Bibliothèque (course, prépa physique, éducatifs), Club, Paramètres.' },
+        { kind: 'callout', tone: 'tip', text: 'Ton espace n\'est pas vide à l\'ouverture : zones d\'intensité, 23 séances de course types (footing, seuil, VMA, over-under, spécifiques 10 km, semi et marathon, tests), 6 éducatifs, le catalogue d\'exercices et 3 séances de prépa physique (renforcement, gainage, prévention pied-cheville) sont déjà posés. Modifie-les ou supprime-les librement.' },
         { kind: 'callout', tone: 'info', text: 'Coach indépendant ou club : le fonctionnement est le même. Un coach solo correspond à un « club » à un seul membre — tes données sont toujours cloisonnées.' },
       ],
     },
