@@ -21,6 +21,9 @@ public interface PpExerciseRepository extends JpaRepository<PpExercise, UUID> {
     /** Le club a-t-il déjà une bibliothèque ? Garde d'idempotence du seed de catalogue. */
     boolean existsByClubId(UUID clubId);
 
+    /** Tous les exercices du club — sert au jeu de départ, qui retrouve son catalogue par nom. */
+    java.util.List<PpExercise> findByClubId(UUID clubId);
+
     /**
      * Les exercices d'un lot d'identifiants, dans le périmètre du club.
      *
