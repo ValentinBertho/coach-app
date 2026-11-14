@@ -3,6 +3,9 @@
 > Pour les athlètes suivis par un coach sur DARI Lab. Les images viennent du compte de
 > démonstration (`athlete@coachrun.fr`, Chloé Dubois).
 
+> **En vidéo** : le tutoriel athlète (1 min 30, au format téléphone) est en tête de l'aide de
+> l'application, Profil → Aide & guide.
+
 DARI Lab s'utilise sur le téléphone, comme une application : depuis le navigateur, « Ajouter à
 l'écran d'accueil » l'installe et active les notifications.
 

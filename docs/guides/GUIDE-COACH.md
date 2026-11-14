@@ -4,6 +4,9 @@
 > (`demo@coachrun.fr`, Claire Vasseur) et se régénèrent avec
 > [`e2e/captures`](../../e2e/captures/README.md).
 
+> **En vidéo** : le tutoriel coach (2 min 20) reprend ce guide écran par écran ; il est en tête de
+> l'aide de l'application.
+
 DARI Lab réunit au même endroit ce qu'un coach de course à pied fait habituellement dans quatre
 outils : le tableur du plan, la messagerie, la montre de l'athlète et le carnet où l'on note ses
 retours. Ce guide suit une semaine de coach, dans l'ordre où on l'utilise.
