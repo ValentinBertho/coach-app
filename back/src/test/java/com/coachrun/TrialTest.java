@@ -181,6 +181,13 @@ class TrialTest {
                 .andExpect(status().isForbidden());
         mvc.perform(delete("/me").header("Authorization", bearer(athlete)))
                 .andExpect(status().isForbidden());
+        // Relier une vraie montre : ses séances partiraient sur l'appareil d'un inconnu.
+        mvc.perform(post("/me/garmin/connect").header("Authorization", bearer(athlete))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/me/coros/connect").header("Authorization", bearer(athlete))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isForbidden());
 
         // Ce qu'on vient essayer marche : lire l'agenda, la bibliothèque.
         mvc.perform(get("/clubs/{c}/athletes/{a}/workouts", club, athleteId)

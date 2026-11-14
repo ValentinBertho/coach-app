@@ -76,6 +76,15 @@ séances de la bibliothèque, on les copie-colle d'un jour ou d'un athlète à l
 duplique une semaine entière. Une séance copiée chez un autre athlète voit ses allures
 **recalculées pour lui**.
 
+En **vue groupe**, une ligne par athlète : une séance collée pour tout le groupe donne à chacun
+ses propres allures, et « Adapter la structure » ajuste la séance d'un seul athlète.
+
+### Sur la montre de l'athlète
+
+Si l'athlète a relié **Garmin** ou **COROS** (en bêta), les séances des 14 prochains jours partent
+sur sa montre et suivent vos modifications dans le quart d'heure. Garmin reçoit la course et le
+renforcement, COROS la course. Avec **Strava**, ses sorties remontent et se rattachent au plan.
+
 ### La bibliothèque de séances
 
 ![Bibliothèque de séances](../captures/ordinateur/19-bibliotheque.jpg)
@@ -116,3 +125,10 @@ Un athlète qui vous trouve dans l'annuaire vous envoie une demande avec son obj
 message. Vous acceptez, vous refusez, ou vous posez d'abord une question. Une demande acceptée
 fait entrer l'athlète dans votre espace, prêt à être planifié. Vos coordonnées ne sont jamais
 affichées : tout passe par la demande.
+
+---
+
+## Essayer avant de s'inscrire
+
+Sur la page d'accueil, « Essayer sans inscription » ouvre un espace rempli comme celui de ce
+guide, côté coach et côté athlète. Il s'efface seul au bout de 24 heures.

@@ -112,16 +112,16 @@ const ATHLETE: HelpGuide = {
       id: 'sorties',
       icon: 'footprints',
       title: 'Mes sorties',
-      summary: 'Enregistrer une course : à la main, par fichier de montre, ou via Strava.',
+      summary: 'Enregistrer une course : à la main, par fichier, ou depuis ta montre (Strava, Garmin, COROS).',
       blocks: [
         { kind: 'text', text: 'L\'onglet « Sorties » regroupe tes activités réelles. Trois façons de les ajouter :' },
         { kind: 'list', items: [
           'À la main : « Ajouter une sortie » → date, distance, durée, dénivelé.',
           'Par fichier : « Importer un fichier » (formats FIT, GPX et TCX) — le tracé s\'affiche sur une carte.',
-          'Automatiquement : connecte Strava et tes sorties s\'importent toutes seules.',
+          'Automatiquement : relie Strava, Garmin ou COROS et tes sorties arrivent toutes seules, sans doublon.',
         ] },
-        { kind: 'text', text: 'Pour connecter ta montre, le plus simple est la carte Strava de ton écran d\'accueil (« Connecter Strava ») ; tu la retrouves aussi dans Profil → « Gérer mes connexions ». L\'import se fait ensuite tout seul, toutes les heures, avec déduplication — donc pas de doublon.' },
-        { kind: 'text', text: 'Tu viens de rentrer de sortie et tu ne veux pas attendre ? La même carte porte un bouton « Synchroniser » qui va chercher tes dernières activités immédiatement.' },
+        { kind: 'text', text: 'Pour relier ta montre : Profil → « Gérer mes connexions ». Avec Garmin ou COROS, c\'est aussi dans l\'autre sens : les séances de tes 14 prochains jours partent sur ta montre (course et renforcement pour Garmin, course pour COROS). Garmin et COROS sont en bêta : si quelque chose cloche, dis-le à ton coach.' },
+        { kind: 'text', text: 'Tu viens de rentrer de sortie et tu ne veux pas attendre ? « Synchroniser » (Strava) ou « Importer mes sorties maintenant » (COROS) va chercher tes dernières activités immédiatement. Garmin, lui, envoie la sortie dès que ta montre s\'est synchronisée.' },
         { kind: 'text', text: 'Tes sorties sont classées par mois, de la plus récente à la plus ancienne, comme ton historique. Touche l\'une d\'elles pour l\'ouvrir : tu y trouves le tracé, le temps passé par zone, et le détail tour par tour — l\'allure, le temps et la FC de chaque répétition. Si ta montre n\'a pas découpé la sortie en tours, le détail est présenté au kilomètre.' },
         { kind: 'text', text: 'Une sortie ouverte se corrige et se note : « Modifier / noter » permet de changer le titre, de poser ton effort perçu (RPE) et de laisser un mot à ton coach. C\'est surtout utile sur une sortie qui n\'était pas au programme — une course, un footing improvisé : sans séance prescrite pour l\'accueillir, c\'est le seul endroit où ton ressenti peut s\'écrire. Tu peux aussi supprimer une sortie en double ou saisie par erreur.' },
         { kind: 'callout', tone: 'info', text: 'Sur une sortie venue de ta montre, la distance, la durée et le dénivelé ne se modifient pas : ce sont des mesures, et c\'est sur elles que ton coach lit ta charge. Le titre, le RPE et le commentaire restent à toi.' },
@@ -190,7 +190,7 @@ const ATHLETE: HelpGuide = {
       title: 'Profil & confidentialité',
       summary: 'Tes connexions, tes données (RGPD), la suppression de compte.',
       blocks: [
-        { kind: 'text', text: 'Depuis l\'onglet « Profil », tu gères tes connexions (montre/Strava) et tes données personnelles.' },
+        { kind: 'text', text: 'Depuis l\'onglet « Profil », tu gères tes connexions (Strava, Garmin, COROS) et tes données personnelles.' },
         { kind: 'list', items: [
           'Exporter mes données : télécharge l\'ensemble de tes données au format JSON (portabilité RGPD).',
           'Supprimer mon compte : efface définitivement ton profil, tes séances et tes activités.',
@@ -209,6 +209,8 @@ const ATHLETE: HelpGuide = {
         { kind: 'text', text: 'Je n\'ai pas d\'allures d\'entraînement. — Ajoute un chrono récent dans « Mes performances » : le calcul se fait aussitôt.' },
         { kind: 'text', text: 'Je n\'ai pas de notifications sur iPhone. — Installe d\'abord l\'app sur ton écran d\'accueil (Partager → Ajouter à l\'écran d\'accueil), puis autorise les notifications.' },
         { kind: 'text', text: 'L\'app marche-t-elle sans réseau ? — Oui pour consulter ta séance et noter ton retour : tout se synchronise au retour de la connexion.' },
+        { kind: 'text', text: 'Ma séance n\'est pas sur ma montre. — Synchronise ta montre avec son application (Garmin Connect ou COROS). Seules les séances des 14 prochains jours sont envoyées ; avec Garmin, vérifie aussi que tu as autorisé l\'envoi d\'entraînements. Une erreur s\'affiche sinon sur la carte de ta montre, dans « Gérer mes connexions ».' },
+        { kind: 'text', text: 'Une séance « Annulée par ton coach » reste sur ma montre COROS. — COROS ne permet pas de retirer une séance envoyée : ton coach l\'a supprimée ou déplacée, ignore-la.' },
       ],
     },
   ],
@@ -320,6 +322,7 @@ const COACH: HelpGuide = {
           'Replanifiez par glisser-déposer ; la prescription est figée en snapshot au moment de la planification.',
           'Dupliquez une semaine entière ou appliquez un mésocycle d\'un coup.',
           'Vues semaine et mois ; le drag & drop est conservé entre les deux.',
+          'Vue groupe : une ligne par athlète. Colle une séance pour tout le groupe : chacun reçoit ses propres allures. « Adapter la structure » ajuste ensuite la séance d\'un seul athlète.',
         ] },
         { kind: 'callout', tone: 'info', text: 'Sur un athlète que tu consultes en lecture seule, les actions d\'écriture (planifier, dupliquer) sont désactivées — cohérent avec tes permissions.' },
       ],
@@ -384,7 +387,7 @@ const COACH: HelpGuide = {
       summary: 'Strava, Garmin et COROS (côté athlète), import FIT/GPX/TCX, export PDF du programme.',
       blocks: [
         { kind: 'list', items: [
-          'Strava, Garmin et COROS : la connexion est initiée par l\'athlète, depuis Synchronisation dans son espace.',
+          'Strava, Garmin et COROS : la connexion est faite par l\'athlète, depuis Profil → « Gérer mes connexions ». Garmin et COROS sont en bêta.',
           'Garmin et COROS : les séances des 14 prochains jours partent sur la montre de l\'athlète, et ses sorties reviennent automatiquement. Garmin reçoit aussi le renforcement ; COROS, seulement la course.',
           'COROS ne permet pas de supprimer une séance envoyée : une séance retirée ou déplacée y reste, marquée « Annulée par ton coach ».',
           'Import de fichiers FIT, GPX et TCX, et saisie manuelle d\'activités côté athlète.',
@@ -412,6 +415,7 @@ const COACH: HelpGuide = {
         { kind: 'text', text: 'Je n\'ai pas de test lactate pour cet athlète. — Les prescriptions en seuils utilisent automatiquement le VDOT (à partir d\'un chrono). Saisis au moins une performance récente.' },
         { kind: 'text', text: 'Pourquoi certaines actions sont-elles grisées ? — Tu consultes probablement un athlète en lecture seule. L\'écriture (planifier, dupliquer) dépend de tes permissions sur cet athlète.' },
         { kind: 'text', text: 'La pastille de forme s\'appuie-t-elle sur le RPE ? — Non, jamais. Elle combine fatigue et douleur uniquement.' },
+        { kind: 'text', text: 'Mes séances arrivent-elles sur la montre de l\'athlète ? — Oui s\'il a relié Garmin ou COROS (en bêta) : les 14 prochains jours, mis à jour toutes les 15 minutes. Avec Strava, seules ses sorties remontent.' },
       ],
     },
   ],
@@ -432,7 +436,7 @@ const ADMIN: HelpGuide = {
       summary: 'Périmètre et responsabilités de l\'admin plateforme.',
       blocks: [
         { kind: 'text', text: 'L\'administrateur plateforme supervise l\'ensemble des clubs et des comptes. Il n\'entraîne pas d\'athlète : il assure le bon fonctionnement, le support et la conformité.' },
-        { kind: 'callout', tone: 'warn', text: 'Tes actions sont transverses à tous les clubs. Manipule les suppressions de clubs, de comptes et la réinitialisation de démo avec prudence.' },
+        { kind: 'callout', tone: 'warn', text: 'Tes actions sont transverses à tous les clubs. Manipule les suppressions de clubs et de comptes avec prudence : elles sont définitives.' },
       ],
     },
     {
@@ -441,7 +445,7 @@ const ADMIN: HelpGuide = {
       title: 'Tableau de bord & supervision',
       summary: 'Vue d\'ensemble : clubs, utilisateurs, athlètes, activité.',
       blocks: [
-        { kind: 'text', text: 'Le tableau de bord admin donne les volumes clés (clubs, coachs, athlètes, invitations) et sert de point d\'entrée vers chaque section de gestion.' },
+        { kind: 'text', text: 'Le tableau de bord admin montre d\'abord les anomalies à traiter (plafond d\'e-mails, comptes bloqués, invitations expirées, demandes de club en attente), puis les volumes et l\'usage. « Configuration » dit quelles intégrations sont actives (Strava, Garmin, COROS, e-mail, push), sans jamais afficher un secret.' },
       ],
     },
     {
@@ -484,11 +488,12 @@ const ADMIN: HelpGuide = {
     {
       id: 'demo',
       icon: 'refresh-cw',
-      title: 'Démo & réinitialisation',
-      summary: 'Recharger un jeu de démonstration propre — hors production.',
+      title: 'Démo & essais',
+      summary: 'Espaces d\'essai jetables et jeu de démonstration.',
       blocks: [
-        { kind: 'text', text: 'En environnement de démonstration, tu peux réinitialiser les données pour repartir d\'un jeu propre et déterministe (profils, tests, séances, charge, objectifs).' },
-        { kind: 'callout', tone: 'warn', text: 'La réinitialisation purge toutes les données. Elle est strictement interdite en production (refusée par le serveur) et désactivée par défaut ailleurs.' },
+        { kind: 'text', text: '« Essayer sans inscription », sur la page d\'accueil, ouvre pour chaque visiteur un espace rempli comme la démonstration. Il est supprimé avec tout son contenu au bout de 24 heures. Ces espaces n\'apparaissent ni dans les listes ni dans les compteurs d\'administration.' },
+        { kind: 'text', text: 'Un espace d\'essai ne peut ni inviter, ni relier une montre, ni envoyer de notification, ni écrire à un coach de l\'annuaire. L\'offre se ferme par la variable TRIAL_ENABLED.' },
+        { kind: 'callout', tone: 'info', text: 'Le jeu de démonstration complet n\'existe qu\'en environnement de développement. Aucune réinitialisation n\'est possible depuis l\'administration : une plateforme qui accueille de vrais clubs n\'a pas de bouton pour les effacer.' },
       ],
     },
     {

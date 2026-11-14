@@ -25,7 +25,18 @@ déplacée à un autre jour.
 ## Après la séance
 
 Un retour en trente secondes : l'effort perçu de 1 à 10, la fatigue, la douleur et un mot pour
-votre coach. Si votre montre est reliée (Strava), la sortie se rattache seule à la séance prévue.
+votre coach. Si votre montre est reliée, la sortie se rattache seule à la séance prévue.
+
+## Votre montre
+
+**Profil → Gérer mes connexions** : reliez Strava, Garmin ou COROS.
+
+- **Strava** : vos sorties arrivent toutes seules.
+- **Garmin** et **COROS** (en bêta) : vos sorties arrivent, et les séances des 14 prochains jours
+  partent sur votre montre (course et renforcement pour Garmin, course pour COROS).
+- **Autre montre** : « Importer un fichier » (FIT, GPX ou TCX) dans vos sorties.
+
+Une séance que votre coach retire reste sur une montre COROS, marquée « Annulée par ton coach ».
 
 ## Messages
 

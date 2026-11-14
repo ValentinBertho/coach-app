@@ -118,10 +118,13 @@ Poser les variables d'environnement ci-dessus, puis redéployer.
 - Back-office → **Tableau de bord** : les anomalies actionnables (plafond d'e-mails, comptes
   bloqués, demandes de club en attente) y remontent en premier.
 
-### Étape 6 — activer le webhook Strava
+### Étape 6 — brancher les montres
 
-Le webhook n'a aucun effet sur le démarrage : il se pose après, une fois l'instance joignable.
-Voir § 6 — et surtout, **l'adresse contient le préfixe `/api`**.
+Rien ici n'a d'effet sur le démarrage : on les pose après, une fois l'instance joignable.
+
+- **Strava** : webhook, § 6 — **l'adresse contient le préfixe `/api`**.
+- **Garmin** et **COROS** : [`INTEGRATIONS-MONTRES.md`](./INTEGRATIONS-MONTRES.md), « Activer en
+  production ».
 
 ---
 
@@ -237,6 +240,9 @@ Voir § 6 — et surtout, **l'adresse contient le préfixe `/api`**.
 | `COROS_GATEWAY_URL` | back | **[OPT]** Passerelle COROS (défaut `https://mcp.coros.com`), ou un serveur régional pour forcer une région | `https://mcpeu.coros.com` |
 | `COROS_WORKOUT_SYNC_CRON` | back | **[OPT]** Fréquence d'envoi des séances course des 14 prochains jours vers le calendrier COROS (défaut : toutes les 15 min). Aucun appel COROS tant qu'une séance ne change pas. COROS ne permet pas de supprimer une séance : une séance retirée est réécrite « Annulée par ton coach » | `0 */15 * * * *` |
 | `COROS_ACTIVITY_IMPORT_CRON` | back | **[OPT]** Fréquence d'import des sorties COROS des athlètes reliés (défaut : toutes les heures, à la 7e minute). Premier import : 30 derniers jours. COROS limite les fichiers FIT à 50 par athlète et par 24 h : une sortie déjà arrivée par Strava ou Garmin n'est pas téléchargée | `0 7 * * * *` |
+| `TRIAL_ENABLED` | back | « Essayer sans inscription » sur la page d'accueil **[DÉFAUT true]**. `false` ferme l'offre : le bouton répond « pas disponible pour le moment » | `true` |
+| `TRIAL_LIFETIME_HOURS` | back | Durée de vie d'un espace d'essai avant suppression complète **[DÉFAUT 24]** | `24` |
+| `TRIAL_MAX_ACTIVE` / `TRIAL_PER_IP_PER_HOUR` | back | Plafonds : essais ouverts en même temps **[DÉFAUT 200]**, essais par adresse IP et par heure **[DÉFAUT 3]** | `200`, `3` |
 | `STORAGE_TYPE` | back | `local` ou `s3` **[DÉFAUT local]** | `s3` |
 | `S3_ENDPOINT` / `S3_BUCKET` / `S3_ACCESS_KEY` / `S3_SECRET_KEY` / `S3_PUBLIC_URL` | back | Stockage FIT/GPX **[OPT]** | R2 / S3 |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | back | Push WebPush **[PROD-REQUIS]** — « séance planifiée » et « commentaire du coach » partent en push **sans repli e-mail** : sans clés, ces notifications ne partent nulle part, et aucun appareil ne peut même s'abonner. En local, une paire est fabriquée automatiquement (cf. § Notifications push) | `npx web-push generate-vapid-keys` |

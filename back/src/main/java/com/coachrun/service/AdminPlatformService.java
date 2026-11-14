@@ -62,6 +62,18 @@ public class AdminPlatformService {
     @Value("${app.strava.webhook-verify-token:}")
     private String stravaVerifyToken;
 
+    @Value("${app.garmin.client-id:}")
+    private String garminClientId;
+
+    @Value("${app.garmin.client-secret:}")
+    private String garminClientSecret;
+
+    @Value("${app.garmin.webhook-token:}")
+    private String garminWebhookToken;
+
+    @Value("${app.coros.enabled:false}")
+    private boolean corosEnabled;
+
     @Value("${app.debrief.enabled:true}")
     private boolean debriefEnabled;
 
@@ -91,6 +103,22 @@ public class AdminPlatformService {
      * code n'accepte plus personne, et une valeur mal orthographiée ne correspond à aucun
      * régime.</p>
      */
+    /** Garmin : l'application ouvre la connexion, le jeton du webhook fait revenir les sorties. */
+    private Setting garminSetting() {
+        boolean app = StringUtils.hasText(garminClientId) && StringUtils.hasText(garminClientSecret);
+        boolean webhook = StringUtils.hasText(garminWebhookToken);
+        return new Setting("garmin", "Garmin Connect (bêta)",
+                !app ? Setting.OFF : webhook ? Setting.ON : Setting.PARTIAL,
+                !app ? "Non configuré" : webhook ? "Configuré" : "Sans webhook",
+                !app
+                        ? "La carte Garmin affiche « indisponible »."
+                        : webhook
+                        ? "Les athlètes peuvent relier Garmin : séances envoyées, sorties reçues."
+                        : "Les séances partent, mais aucune notification Garmin n'est acceptée : "
+                        + "les sorties ne reviennent pas.",
+                "GARMIN_CLIENT_ID / GARMIN_CLIENT_SECRET / GARMIN_WEBHOOK_TOKEN");
+    }
+
     private Setting registrationSetting() {
         RegistrationMode mode = RegistrationMode.parse(registrationMode);
         if (mode == null) {
@@ -157,6 +185,17 @@ public class AdminPlatformService {
                                 : "Remontée horaire seulement. Un seul abonnement par application "
                                 + "Strava : il se pose depuis l'instance qui doit recevoir le flux.",
                         "STRAVA_WEBHOOK_CALLBACK_URL / STRAVA_WEBHOOK_VERIFY_TOKEN"),
+
+                garminSetting(),
+
+                new Setting("coros", "COROS (bêta)",
+                        corosEnabled ? Setting.ON : Setting.OFF,
+                        corosEnabled ? "Ouvert" : "Fermé",
+                        corosEnabled
+                                ? "Les athlètes peuvent relier COROS : séances course envoyées, "
+                                + "sorties importées toutes les heures."
+                                : "La carte COROS affiche « Bientôt ».",
+                        "COROS_ENABLED"),
 
                 new Setting("push", "Notifications push",
                         vapidKeys.isConfigured() ? Setting.ON : Setting.OFF,
