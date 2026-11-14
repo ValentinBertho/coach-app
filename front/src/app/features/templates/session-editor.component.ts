@@ -990,6 +990,14 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     return b.distanceM != null && b.distanceM > 0 && b.distanceM < 100 && b.durationS == null;
   }
 
+  /**
+   * Distance hors de portée d'une course (plus de 100 km) : des mètres saisis dans l'unité
+   * « km » (« 1000 » pour un 1000 m devenait 1000 km).
+   */
+  hugeDistance(b: PrescribedUnit): boolean {
+    return b.distanceM != null && b.distanceM > 100_000;
+  }
+
   /** Valeur du bloc dans son unité d'affichage. */
   volumeValue(b: PrescribedUnit): number | null {
     return toUnit(b.durationS, b.distanceM, this.unitOf(b));

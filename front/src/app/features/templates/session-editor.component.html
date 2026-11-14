@@ -195,6 +195,9 @@
             @if (suspiciousDistance(b)) {
               <span class="vol-warn" role="note">{{ b.distanceM }} mètres ? Pour des minutes, choisis « min ».</span>
             }
+            @if (hugeDistance(b)) {
+              <span class="vol-warn" role="note">{{ volumeText(b) }} km ? Pour des mètres, choisis « mètres ».</span>
+            }
 
             <!-- Intensité : une zone du club, ou une fourchette en % écrite pour cette séance.
                  Un « 6×1000 à 102–106 % de VC » ne rentre dans aucune bande nommée, et les zones
