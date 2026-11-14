@@ -98,9 +98,13 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
                 Darilab dès sa synchronisation avec Garmin Connect.
               </li>
               <li>
-                <strong>COROS</strong> — intégration en préparation. En attendant, vous pouvez
-                importer un fichier <strong>GPX ou TCX</strong> exporté depuis votre compte, ou
-                saisir une sortie à la main, depuis <em>Mes activités</em>.
+                <strong>COROS</strong> — la connexion se fait par autorisation COROS (OAuth).
+                Les séances de course à pied que votre coach vous prescrit pour les 14 prochains
+                jours sont envoyées dans votre calendrier COROS, puis sur votre montre. COROS ne
+                permet pas de supprimer une séance déjà envoyée : si votre coach en retire ou en
+                déplace une, elle reste dans votre calendrier marquée « Annulée par ton coach ».
+                Vos sorties enregistrées par la montre sont importées automatiquement, toutes les
+                heures.
               </li>
             </ul>
             <p>
@@ -328,7 +332,10 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
               <strong>Garmin Connect</strong>, DARI Lab y importe vos activités (durée, distance,
               allure, fréquence cardiaque, tracé) pour les comparer aux séances prescrites, et y
               envoie les séances que votre coach vous a prescrites afin qu'elles apparaissent sur
-              votre montre. Ces données ne servent qu'au suivi entre vous et votre coach.<br />
+              votre montre. Il en va de même si vous connectez votre compte <strong>COROS</strong> :
+              DARI Lab importe vos activités (fichier de la montre : durée, distance, allure,
+              fréquence cardiaque, tracé) et envoie vos séances de course dans votre calendrier
+              COROS. Ces données ne servent qu'au suivi entre vous et votre coach.<br />
               <strong>Retours envoyés depuis l'application</strong> : lorsque vous utilisez
               « Signaler un problème », votre message est enregistré avec le contexte technique
               nécessaire à son traitement — écran concerné, version de l'application, navigateur
@@ -343,7 +350,7 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
               emails fonctionnels — invitations, rappels de séance, alertes coach (exécution du
               contrat) ; assurer la sécurité et corriger les erreurs (intérêt légitime). Aucune
               donnée n'est vendue ni utilisée à des fins publicitaires. Aucune donnée — en
-              particulier aucune donnée issue de Garmin — n'est traitée par un système
+              particulier aucune donnée issue de Garmin ou de COROS — n'est traitée par un système
               d'intelligence artificielle, ni utilisée pour entraîner, évaluer ou améliorer un
               modèle d'IA.
             </p>
@@ -387,6 +394,11 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
                 comme le reste du Service ; elles ne sont ni vendues ni cédées à un tiers. Vous
                 pouvez couper la liaison à tout moment depuis <em>Synchronisation</em> ou depuis
                 votre compte Garmin Connect.</li>
+              <li><strong>COROS</strong> (COROS Wearables Inc.) — uniquement si vous connectez
+                votre compte COROS, pour importer vos activités et y envoyer vos séances de course
+                prescrites. Les données reçues de COROS sont stockées chez Railway comme le reste
+                du Service ; elles ne sont ni vendues ni cédées à un tiers. Vous pouvez couper la
+                liaison à tout moment depuis <em>Synchronisation</em>.</li>
               <li><strong>Service de notification de votre navigateur</strong> (Google, Mozilla
                 ou Apple selon le navigateur) — si vous activez les notifications push. Le
                 contenu des notifications est chiffré de bout en bout ; ces services acheminent
