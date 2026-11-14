@@ -47,6 +47,7 @@
 /* Unité de saisie (sec/min/h · m/km) : un sélecteur discret, intégré au champ de volume. */
 .vol-unit { border: none; background: none; color: var(--ink-2); font-size: var(--text-sm); font-weight: 600; cursor: pointer; min-height: 38px; padding: 0 var(--sp-1); }
 .vol-unit:focus { outline: none; }
+.vol-warn { flex-basis: 100%; font-size: var(--text-xs); font-weight: 600; color: var(--warning-text); }
 .vol-switch { border: none; background: none; color: var(--ink-4); cursor: pointer; display: inline-flex; align-items: center; padding: var(--sp-1); border-radius: var(--radius-sm); }
 .vol-switch:hover { background: var(--paper-sunk); color: var(--ink-2); }
 

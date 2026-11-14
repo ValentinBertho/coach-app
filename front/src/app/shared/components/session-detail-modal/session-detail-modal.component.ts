@@ -9,6 +9,8 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { forkJoin, of } from 'rxjs';
+import { catchError, map, switchMap } from 'rxjs/operators';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../icon/icon.component';
 import {
@@ -20,12 +22,15 @@ import {
   CourseBlock,
   CourseStep,
   CourseStructureResponse,
+  PRESCRIPTION_REF_SHORT,
+  PrescriptionRef,
   courseBlockTypeLabel,
   isChainBlock,
 } from '../../../core/models/course.model';
 import { TrainingZone } from '../../../core/models/training-zone.model';
 import { CourseService } from '../../../core/services/course.service';
 import { TrainingZoneService } from '../../../core/services/training-zone.service';
+import { ZoneSetService } from '../../../core/services/zone-set.service';
 import {
   formatBlockSets,
   formatBlockVolume,
@@ -347,6 +352,7 @@ export class SessionDetailModalComponent {
 
   private readonly course = inject(CourseService);
   private readonly zoneService = inject(TrainingZoneService);
+  private readonly zoneSetService = inject(ZoneSetService);
 
   readonly loading = signal(true);
   readonly data = signal<CourseStructureResponse | null>(null);
@@ -373,12 +379,7 @@ export class SessionDetailModalComponent {
   });
 
   constructor() {
-    this.zoneService
-      .list()
-      .subscribe({
-        next: (z) => this.zones.set(z),
-        error: () => this.zones.set([]),
-      });
+    this.loadZones();
     effect(
       () => {
         const id = this.templateId();
@@ -400,6 +401,31 @@ export class SessionDetailModalComponent {
         this.loading.set(false);
       },
     });
+  }
+
+  /**
+   * Zones de <b>tous</b> les modèles du club, pas seulement du jeu par défaut : une séance de
+   * bibliothèque peut viser une zone d'un autre modèle (route / trail…), et la chercher dans le
+   * seul jeu par défaut l'affichait « Zone », sans nom ni couleur.
+   */
+  private loadZones(): void {
+    const byDefault = this.zoneService.list().pipe(catchError(() => of([] as TrainingZone[])));
+    const others = this.zoneSetService.list().pipe(
+      catchError(() => of([])),
+      switchMap((sets) => {
+        const extra = sets.filter((s) => !s.isDefault);
+        return extra.length
+          ? forkJoin(
+              extra.map((s) =>
+                this.zoneService
+                  .list({ setId: s.id })
+                  .pipe(catchError(() => of([] as TrainingZone[]))),
+              ),
+            ).pipe(map((lists) => lists.flat()))
+          : of([] as TrainingZone[]);
+      }),
+    );
+    forkJoin([byDefault, others]).subscribe(([d, o]) => this.zones.set([...d, ...o]));
   }
 
   blocks(key: Section['key']): CourseBlock[] {
@@ -452,10 +478,15 @@ export class SessionDetailModalComponent {
     } | null;
   }): string {
     const p = b.prescription;
-    if (p?.zoneId) return this.zoneById().get(p.zoneId)?.name ?? 'Zone';
-    if (p?.ref && p.minPct != null && p.maxPct != null)
-      return `${p.minPct}–${p.maxPct} % ${p.ref.replace('PCT_', '')}`;
-    return '—';
+    const zone = p?.zoneId ? this.zoneById().get(p.zoneId) : undefined;
+    if (zone) return zone.name;
+    // Zone introuvable (supprimée, ou modèle illisible) : la fourchette d'origine, si le bloc
+    // la porte encore, dit mieux la cible qu'un « Zone » anonyme.
+    if (p?.ref && p.minPct != null && p.maxPct != null) {
+      const ref = PRESCRIPTION_REF_SHORT[p.ref as PrescriptionRef] ?? p.ref;
+      return `${p.minPct}–${p.maxPct} % ${ref}`;
+    }
+    return p?.zoneId ? 'Zone introuvable' : '—';
   }
 
   zoneColor(b: { prescription?: { zoneId?: string | null } | null }): string {
@@ -468,7 +499,7 @@ export class SessionDetailModalComponent {
     prescription?: { hrZoneId?: string | null } | null;
   }): string | null {
     const id = b.prescription?.hrZoneId;
-    return id ? (this.zoneById().get(id)?.name ?? 'Zone') : null;
+    return id ? (this.zoneById().get(id)?.name ?? 'zone introuvable') : null;
   }
 
   hrZoneColor(b: {
