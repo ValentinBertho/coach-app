@@ -56,6 +56,38 @@ NODE_PATH=../e2e/node_modules node branding/video/render-video.mjs /tmp/presenta
 Pour vérifier une scène sans tout rendre : ouvrir `presentation.html` dans un navigateur et appeler
 `render(12.5)` dans la console.
 
+## 1 ter. Les deux tutoriels de prise en main (coach ~2 min 20, athlète ~1 min 30)
+
+Un tutoriel par profil, montré en tête de l'aide (`/app/aide`, `/athlete/help`, `/aide`,
+`/aide/athlete`) : chaque étape a un numéro, un titre et une phrase d'explication, sans voix.
+Coach en 1920 × 1080 (ordinateur), athlète en 1080 × 1920 (vertical, pour le téléphone).
+
+Le tournage veut une base **fraîche** et le back démarré avec des identifiants factices, pour que
+les cartes « Connecter Strava / Garmin / COROS » s'affichent sur l'écran de synchronisation :
+
+```bash
+# back : base neuve, puis
+STRAVA_CLIENT_ID=0 STRAVA_CLIENT_SECRET=x GARMIN_CLIENT_ID=demo GARMIN_CLIENT_SECRET=x COROS_ENABLED=true \
+  java -jar target/coachrun-back.jar --spring.profiles.active=dev
+cd front/branding/video/film
+NODE_PATH=../../../../e2e/node_modules node tutoriels-tournage.mjs /tmp/tuto          # 24 plans
+NODE_PATH=../../../../e2e/node_modules node tutoriels-montage.mjs coach   /tmp/tuto /tmp/tutoriel-coach.mp4 --musique
+NODE_PATH=../../../../e2e/node_modules node tutoriels-montage.mjs athlete /tmp/tuto /tmp/tutoriel-athlete.mp4 --musique
+```
+
+`--musique` compose le thème du projet (`musique/compose.py`) à la durée exacte de la vidéo, plus
+bas que dans la vidéo de présentation. Les textes de chaque étape sont dans `tutoriels-montage.mjs`
+(`COACH.story`, `ATHLETE.story`). Versions web :
+
+```bash
+ffmpeg -i /tmp/tutoriel-coach.mp4 -vf scale=1280:720 -c:v libx264 -preset slow -crf 27 -pix_fmt yuv420p \
+  -c:a aac -b:a 96k -movflags +faststart src/video/tutoriel-coach.mp4
+ffmpeg -i /tmp/tutoriel-athlete.mp4 -vf scale=720:1280 -c:v libx264 -preset slow -crf 28 -pix_fmt yuv420p \
+  -c:a aac -b:a 96k -movflags +faststart src/video/tutoriel-athlete.mp4
+ffmpeg -ss 2.5 -i /tmp/tutoriel-coach.mp4 -frames:v 1 -vf scale=1280:720 -c:v libwebp -quality 80 src/video/tutoriel-coach-poster.webp
+ffmpeg -ss 2.5 -i /tmp/tutoriel-athlete.mp4 -frames:v 1 -vf scale=720:1280 -c:v libwebp -quality 80 src/video/tutoriel-athlete-poster.webp
+```
+
 ## 2. La version web, servie par la page d'accueil
 
 Servie depuis `src/video/` (publié en `/video/`), **hors de `/assets`** : le service worker ne

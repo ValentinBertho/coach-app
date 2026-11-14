@@ -81,6 +81,25 @@ import {
         </div>
       </header>
 
+      <!-- Le tutoriel vidéo du profil : tous les écrans, filmés sur le compte de démonstration
+           (branding/video/film/tutoriels-*.mjs). preload="none" : rien n'est téléchargé tant
+           qu'on ne lance pas la lecture, l'aide reste légère sur un téléphone en 4G. -->
+      @if (tutorial(); as t) {
+        <section class="help-video card" [class.help-video--vertical]="t.vertical" aria-labelledby="help-video-title">
+          <div class="help-video__head">
+            <span class="hs-ic"><app-icon name="play" [size]="18" /></span>
+            <span class="hs-txt">
+              <strong id="help-video-title">{{ t.title }}</strong>
+              <span class="hs-sum">{{ t.summary }}</span>
+            </span>
+          </div>
+          <video class="help-video__player" controls preload="none" playsinline
+                 [attr.poster]="t.poster" [attr.aria-label]="t.title">
+            <source [src]="t.src" type="video/mp4" />
+          </video>
+        </section>
+      }
+
       <div class="help-search">
         <app-icon name="search" [size]="16" />
         <input
@@ -223,6 +242,33 @@ import {
         display: flex;
         align-items: center;
         gap: var(--sp-2);
+      }
+      .help-video {
+        display: flex;
+        flex-direction: column;
+        gap: var(--sp-3);
+        padding: var(--sp-4);
+      }
+      .help-video__head {
+        display: flex;
+        align-items: center;
+        gap: var(--sp-3);
+      }
+      .help-video__player {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        border-radius: var(--radius-md, 10px);
+        background: #081316;
+      }
+      /* Le tutoriel athlète est vertical (fait pour le téléphone) : sur un grand écran, il ne
+         doit pas occuper trois hauteurs de page. */
+      .help-video--vertical .help-video__player {
+        aspect-ratio: 9 / 16;
+        width: auto;
+        max-width: 100%;
+        max-height: 78vh;
+        margin-inline: auto;
       }
       .help-title {
         display: flex;
@@ -481,6 +527,30 @@ export class HelpCenterComponent {
         ? 'alert-triangle'
         : 'info';
   }
+
+  /** Le tutoriel vidéo du profil (aucun pour l'administration). */
+  readonly tutorial = computed(() => {
+    switch (this.effectiveAudience()) {
+      case 'coach':
+        return {
+          title: 'Le tutoriel en vidéo',
+          summary: 'Tout ce que vous pouvez faire sur Darilab, en 2 min 20.',
+          src: '/video/tutoriel-coach.mp4',
+          poster: '/video/tutoriel-coach-poster.webp',
+          vertical: false,
+        };
+      case 'athlete':
+        return {
+          title: 'Le tutoriel en vidéo',
+          summary: 'Ton appli en 1 min 30 : ta séance, ton retour, tes progrès, ta montre.',
+          src: '/video/tutoriel-athlete.mp4',
+          poster: '/video/tutoriel-athlete-poster.webp',
+          vertical: true,
+        };
+      default:
+        return null;
+    }
+  });
 
   /** Le guide illustré (captures d'écran), fabriqué par branding/guides/generate-guides.mjs. */
   illustratedGuide(): string {
