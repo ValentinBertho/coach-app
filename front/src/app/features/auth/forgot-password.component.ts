@@ -8,6 +8,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { LogoComponent } from '../../shared/components/logo/logo.component';
+import { FormTrap, FormTrapComponent } from '../../shared/forms/form-trap';
 
 /**
  * Demande de réinitialisation de mot de passe. La réponse est volontairement identique
@@ -16,10 +17,11 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
 @Component({
   selector: 'app-forgot-password',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, RouterLink, LogoComponent],
+  imports: [ReactiveFormsModule, RouterLink, LogoComponent, FormTrapComponent],
   template: `
     <main class="auth-page">
       <form class="card auth-card" [formGroup]="form" (ngSubmit)="submit()">
+        <app-form-trap [trap]="trap" />
         <header class="auth-head">
           <app-logo [size]="44" [showText]="false" />
           <h1 class="display-sm">Mot de passe oublié</h1>
@@ -52,6 +54,9 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
               <span class="error-message">Email valide requis.</span>
             }
           </div>
+          @if (errorMessage(); as message) {
+            <p class="error-message" role="alert">{{ message }}</p>
+          }
           <button
             type="submit"
             class="btn btn-primary btn-lg"
@@ -72,8 +77,10 @@ export class ForgotPasswordComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
 
+  readonly trap = new FormTrap();
   readonly submitting = signal(false);
   readonly sent = signal(false);
+  readonly errorMessage = signal<string | null>(null);
 
   readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -85,9 +92,20 @@ export class ForgotPasswordComponent {
       return;
     }
     this.submitting.set(true);
-    this.auth.forgotPassword(this.form.getRawValue().email).subscribe({
+    this.errorMessage.set(null);
+    this.auth.forgotPassword(this.form.getRawValue().email, this.trap).subscribe({
       next: () => this.sent.set(true),
-      error: () => this.sent.set(true), // réponse identique : ne révèle pas l'existence
+      error: (err) => {
+        // Envoi refusé avant tout traitement (trop rapide, plafond atteint) : aucun e-mail n'est
+        // parti, et afficher « envoyé » laisserait attendre un lien qui n'arrivera pas. Ces refus
+        // ne disent rien de l'existence du compte.
+        if (err?.status === 400 || err?.status === 429) {
+          this.submitting.set(false);
+          this.errorMessage.set(err?.error?.message ?? 'Réessayez dans un instant.');
+          return;
+        }
+        this.sent.set(true); // réponse identique : ne révèle pas l'existence
+      },
     });
   }
 }

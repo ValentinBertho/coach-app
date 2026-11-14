@@ -414,7 +414,8 @@ type LegalPage = 'confidentialite' | 'mentions-legales' | 'cgu' | 'support';
               Les données sont conservées tant que votre compte est actif. Un compte resté
               <strong>inactif pendant 24 mois</strong> (aucune connexion) est supprimé après un
               e-mail de préavis. À la suppression du compte, les données sont effacées sans délai
-              (suppression en cascade). Les sauvegardes techniques sont purgées selon leur cycle
+              (suppression en cascade). Un compte athlète dont l'adresse e-mail n'a
+              <strong>jamais été confirmée</strong> est supprimé au bout de 7 jours. Les sauvegardes techniques sont purgées selon leur cycle
               de rotation (14 jours), et les retours envoyés depuis l'application sont conservés
               12 mois après traitement.
             </p>

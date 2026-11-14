@@ -1,3 +1,4 @@
+import { FormTrap } from '../../shared/forms/form-trap';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
@@ -155,9 +156,10 @@ export class CoachDirectoryService {
    * <p>Réponse vide : elle ne renvoie pas l'objet créé, pour ne pas donner au signalant de quoi
    * suivre un arbitrage qui contient des éléments sur le coach.</p>
    */
-  report(slug: string, reason: string, details: string): Observable<void> {
+  report(slug: string, reason: string, details: string, trap?: FormTrap): Observable<void> {
     return this.http.post<void>(
-      `${this.base}/public/coaches/${slug}/report`, { reason, details });
+      `${this.base}/public/coaches/${slug}/report`, { reason, details },
+      { headers: trap?.headers() });
   }
 
   photoSrc(photoUrl: string | null): string | null {
