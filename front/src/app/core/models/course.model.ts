@@ -244,6 +244,10 @@ export interface CourseDrill {
 export interface WorkoutPrescription {
   /** Titre de la séance planifiée, tel que l'athlète le voit. */
   title: string | null;
+  /** Notes de la séance (intention, consignes), propres à cette séance. */
+  notes?: string | null;
+  /** Effort attendu sur la séance entière (1–10), nul quand rien n'est annoncé. */
+  targetRpe?: number | null;
   snapshot: SessionStructure;
   calculated: CalculatedSession | null;
   /** Éducatifs référencés par les blocs, résolus (nom, vidéo). */

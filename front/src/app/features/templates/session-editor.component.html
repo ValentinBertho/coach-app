@@ -549,6 +549,10 @@
 <!-- Encart d'écriture libre : intention de séance, consignes, ressenti attendu. -->
 <section class="card free-note">
   <label for="sess-notes" class="fn-label">Notes de séance <span class="field-hint">(écriture libre)</span></label>
+  @if (isWorkout()) {
+    <!-- Même mention que sur les blocs : ici, ce qu'on écrit ne vaut que pour cette séance. -->
+    <p class="field-hint">{{ noteScopeLabel() }}. Le modèle de bibliothèque n'est pas modifié.</p>
+  }
   <textarea id="sess-notes" class="form-control" rows="4"
             [ngModel]="notes()" (ngModelChange)="setNotes($event)"
             placeholder="Intention de la séance, consignes, ressenti attendu, variantes…"></textarea>

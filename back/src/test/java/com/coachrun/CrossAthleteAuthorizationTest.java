@@ -163,6 +163,7 @@ class CrossAthleteAuthorizationTest {
                 new Call(HttpMethod.PATCH, base + "/workouts/" + workoutB + "/reschedule", date),
                 new Call(HttpMethod.PATCH, base + "/workouts/" + workoutB + "/coach-comment", "{\"comment\":\"x\"}"),
                 new Call(HttpMethod.PATCH, base + "/workouts/" + workoutB + "/title", "{\"title\":\"Piraté\"}"),
+                new Call(HttpMethod.PATCH, base + "/workouts/" + workoutB + "/instructions", "{\"notes\":\"Piraté\"}"),
                 new Call(HttpMethod.POST, base + "/workouts/" + workoutB + "/reply/read", null),
                 new Call(HttpMethod.PATCH, base + "/workouts/" + workoutB + "/reviewed?reviewed=true", null),
                 new Call(HttpMethod.POST, base + "/workouts/" + workoutB + "/acknowledge", null),

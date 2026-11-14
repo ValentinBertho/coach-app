@@ -649,6 +649,9 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
           next: (p) => {
             this.title.set(p.title ?? '');
             this.persistedTitle = this.title();
+            this.notes.set(p.notes ?? '');
+            this.targetRpe.set(p.targetRpe ?? null);
+            this.persistedInstructions = this.instructionsKey();
             this.structure.set(
               p.snapshot ?? { warmup: [], main: [], cooldown: [] },
             );
@@ -1721,6 +1724,17 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
    */
   private persistedTitle = '';
 
+  /**
+   * Dernières consignes (notes + effort attendu) enregistrées sur la séance planifiée. Même
+   * raison que le titre : n'envoyer que ce qui a réellement changé, sans quoi chaque frappe
+   * dans un bloc réécrirait les consignes — et préviendrait l'athlète pour rien.
+   */
+  private persistedInstructions = '';
+
+  private instructionsKey(): string {
+    return JSON.stringify([this.notes(), this.targetRpe() ?? 0]);
+  }
+
   private persist() {
     if (this.isWorkout()) {
       const structure$ = this.workoutService.updateStructure(
@@ -1728,13 +1742,35 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
         this.workoutId(),
         this.structure(),
       );
+      // Notes et effort attendu : propres à CETTE séance, le modèle n'est pas touché. Ils
+      // étaient affichés ici sans jamais être enregistrés — une consigne écrite pour l'athlète
+      // disparaissait sans un mot.
+      const instructions = this.instructionsKey();
+      const notes = this.notes();
+      const rpe = this.targetRpe() ?? 0;
+      const withInstructions$ =
+        instructions === this.persistedInstructions
+          ? structure$
+          : structure$.pipe(
+              switchMap(() =>
+                this.workoutService.updateInstructions(
+                  this.athleteId(),
+                  this.workoutId(),
+                  notes,
+                  rpe,
+                ),
+              ),
+              tap(() => {
+                this.persistedInstructions = instructions;
+              }),
+            );
       const title = this.title().trim();
       // Un titre vidé n'efface pas celui de la séance : le serveur refuse un libellé vide, et
       // une séance sans nom ne se lit ni au calendrier ni côté athlète.
       if (!title || title === this.persistedTitle) {
-        return structure$;
+        return withInstructions$;
       }
-      return structure$.pipe(
+      return withInstructions$.pipe(
         switchMap(() =>
           this.workoutService.rename(this.athleteId(), this.workoutId(), title),
         ),

@@ -53,6 +53,22 @@ export class WorkoutService {
     return this.http.patch<Workout>(`${this.base(athleteId)}/${workoutId}/title`, { title });
   }
 
+  /**
+   * Consignes de la séance pour cet athlète (notes libres + effort attendu). Ne touche ni la
+   * structure ni le modèle de bibliothèque. Texte vide = notes effacées, RPE 0 = annonce effacée.
+   */
+  updateInstructions(
+    athleteId: string,
+    workoutId: string,
+    notes: string,
+    targetRpe: number,
+  ): Observable<WorkoutPrescription> {
+    return this.http.patch<WorkoutPrescription>(
+      `${this.base(athleteId)}/${workoutId}/instructions`,
+      { notes, targetRpe },
+    );
+  }
+
   updateStatus(athleteId: string, workoutId: string, status: WorkoutStatus): Observable<Workout> {
     return this.http.patch<Workout>(`${this.base(athleteId)}/${workoutId}/status`, { status });
   }
