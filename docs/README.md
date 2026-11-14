@@ -19,7 +19,8 @@
 | [`Claude.md`](./Claude.md) | Les **conventions de code**, pour les humains comme pour les agents | Quand une convention change |
 | [`DEPLOIEMENT.md`](./DEPLOIEMENT.md) | Le déploiement Railway / Vercel et les variables d'environnement | À chaque changement d'infra |
 | [`DEBUG.md`](./DEBUG.md) | Le **débogage au quotidien** : points d'arrêt en Docker (JDWP 5005), IntelliJ, VS Code, niveaux de journaux, `correlationId` | Quand l'outillage de développement change |
-| [`OPERATIONS.md`](./OPERATIONS.md) | L'**exploitation** : Sentry, sauvegardes, Actuator, CI | À chaque changement de procédure |
+| [`OPERATIONS.md`](./OPERATIONS.md) | L'**exploitation** : sauvegardes, Sentry, journaux, CI, version en ligne, essais jetables | À chaque changement de procédure |
+| [`INTEGRATIONS-MONTRES.md`](./INTEGRATIONS-MONTRES.md) | **Strava, Garmin, COROS** : ce qui circule, limites, activation, diagnostic, reste à valider avant la fin de la bêta | À chaque évolution d'une intégration |
 | [`BETA-LAUNCH-RUNBOOK.md`](./BETA-LAUNCH-RUNBOOK.md) | La **checklist de mise en service** de la bêta, pas à pas | Pendant la mise en service |
 
 ## Guides d'utilisation — pour les coachs et les athlètes
@@ -59,7 +60,6 @@ reste à faire** ; les autres ont été retirés (voir plus bas).
 | Document | Angle | État |
 |---|---|---|
 | [`ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md`](./ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md) | **Concurrence** : comparaison à Nolio (fonctionnalités, UX, UI, ergonomie), verdict, maturité estimée, feuille de route | 🟡 Août 2026. ⚠️ Le volet Nolio repose sur de la recherche web, **pas sur une prise en main** — `nolio.io` est inaccessible depuis l'environnement d'analyse. À revalider par un essai réel |
-| [`DEMANDES-API-GARMIN-COROS.md`](./DEMANDES-API-GARMIN-COROS.md) | Les deux dossiers d'accès aux API de montres, et ce qu'ils exigent | 🔴 Contrainte externe : le programme développeur **Garmin est fermé** (ni liste d'attente ni date) ; **COROS est ouvert**, c'est la seule porte praticable |
 
 ## Archive — historique, plus maintenu
 
@@ -121,13 +121,20 @@ dans les documents de pilotage ci-dessus.
   ligne à ligne par `PLAN-CONFORMITE-BETA` (V0-09 à V0-11, V1-09, vague 3) et par
   `BETA-LAUNCH-RUNBOOK`
 
+*Novembre 2026 :*
+
+- `DEMANDES-API-GARMIN-COROS.md` — les dossiers d'accès aux API de montres. Garmin a ouvert
+  l'accès le 13/11/2026 et COROS est relié par COROS MCP sans dossier : les deux intégrations sont
+  livrées et décrites dans `INTEGRATIONS-MONTRES.md`
+
 Tout cela reste lisible dans l'historique git : `git log --diff-filter=D -- docs/`.
 
 ---
 
 ## Où trouver la documentation *utilisateur*
 
-Elle n'est pas ici : elle vit **dans l'application**, par rôle —
-athlète `/athlete/help`, coach `/app/aide`, admin `/admin/aide`. Le contenu est éditable sans
-toucher au rendu dans
-[`front/src/app/features/help/help-content.ts`](../front/src/app/features/help/help-content.ts).
+Elle vit **dans l'application**, par rôle : athlète `/athlete/help`, coach `/app/aide`, admin
+`/admin/aide`, et sans compte sur `/aide` avec les guides PDF. Contenu éditable sans toucher au
+rendu dans [`help-content.ts`](../front/src/app/features/help/help-content.ts). Les guides PDF se
+régénèrent depuis `guides/*.md` : `cd front && node branding/guides/generate-guides.mjs`
+(Playwright requis).

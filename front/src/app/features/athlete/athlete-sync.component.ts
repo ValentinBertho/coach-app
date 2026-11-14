@@ -32,8 +32,8 @@ import { ActivityExclusion } from '../../core/models/activity.model';
         >
         <h1 class="display-sm">Synchronisation</h1>
         <p class="subtitle">
-          Connecte ta montre : tes activités s'importent toutes seules, chaque
-          heure.
+          Relie ta montre : tes sorties arrivent toutes seules et, avec Garmin ou
+          COROS, tes séances partent sur ta montre.
         </p>
       </header>
 

@@ -1391,14 +1391,18 @@ public class DemoSeedService {
                 WorkoutType.ENDURANCE, WorkoutType.INTERVALS, WorkoutType.RECOVERY,
                 WorkoutType.TEMPO, WorkoutType.REST, WorkoutType.LONG_RUN, WorkoutType.RECOVERY};
         Workout lastCompleted = null;
-        for (int d = 0; d < 19; d++) {
+        // Jusqu'à vendredi de la semaine en cours au moins, et toujours jusqu'à aujourd'hui : le
+        // samedi et le dimanche, « Aujourd'hui » de l'athlète s'ouvrait sur « aucune séance ».
+        LocalDate today = clock.today();
+        int days = Math.max(19, (int) ChronoUnit.DAYS.between(monday, today) + 1);
+        for (int d = 0; d < days; d++) {
             LocalDate date = monday.plusDays(d);
             WorkoutType type = week[d % 7];
             if (type == WorkoutType.REST) {
-                // Le vendredi est jour de repos, sauf aujourd'hui : « Aujourd'hui » de l'athlète ne
-                // s'ouvre jamais sur « aucune séance », ni en démo ni dans les tests de bout en
-                // bout (qui échouaient tous les vendredis).
-                if (!date.equals(clock.today())) {
+                // Le vendredi est jour de repos, sauf aujourd'hui et hier : l'athlète a toujours
+                // une séance du jour, et la coach un retour récent à lire (le samedi, il n'y en
+                // avait aucun). Les tests de bout en bout en dépendent, quel que soit le jour.
+                if (!date.equals(today) && !date.equals(today.minusDays(1))) {
                     continue;
                 }
                 type = WorkoutType.ENDURANCE;

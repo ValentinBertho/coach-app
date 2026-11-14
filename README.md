@@ -1,13 +1,12 @@
-# DARI Lab Training — plateforme de coaching physiologique
+# DARI Lab — coaching course à pied et préparation physique
 
-> Application SaaS de coaching **course à pied + préparation physique**, pilotée par la
-> physiologie (seuils lactiques, VDOT, domaines d'intensité, 1RM, charge interne).
-> Le coach prescrit des séances **en fourchettes** calculées pour chaque athlète ; l'athlète
-> suit son programme, renseigne ses retours, et les deux communiquent en temps réel.
+> Le coach prescrit des séances **en fourchettes** calculées pour chaque athlète à partir de sa
+> physiologie (seuils lactiques, VDOT, vitesse critique, domaines d'intensité, 1RM). L'athlète suit
+> son programme sur son téléphone, envoie ses retours, et ses sorties reviennent seules de sa
+> montre.
 >
-> Monorepo **Angular 21 (front) + Spring Boot 3 / Java 21 (back) + PostgreSQL**.
-> Construit sur la base technique CoachRun, réorienté selon le cahier des charges DARI Lab
-> (la stack Next.js/Supabase du CDC d'origine est volontairement remplacée par Spring/Angular).
+> Monorepo **Angular 21 (PWA) + Spring Boot 3.5 / Java 21 + PostgreSQL 18**. Production :
+> [www.darilab.app](https://www.darilab.app).
 
 <p align="center">
   <img src="docs/captures/ordinateur/10-tableau-de-bord.jpg" alt="Tableau de bord du coach" width="72%">
@@ -15,202 +14,126 @@
 </p>
 
 **En images** : [guide du coach](docs/guides/GUIDE-COACH.md) ·
-[guide de l'athlète](docs/guides/GUIDE-ATHLETE.md) · [toutes les captures](docs/captures/)
-(régénérées par [`e2e/captures`](e2e/captures/README.md)).
+[guide de l'athlète](docs/guides/GUIDE-ATHLETE.md) · [captures](docs/captures/) ·
+**Documentation** : [index `docs/`](docs/README.md)
 
 ---
 
 ## Sommaire
 
-- [Aperçu fonctionnel](#aperçu-fonctionnel)
-- [Moteurs de calcul](#moteurs-de-calcul-le-cœur-métier)
+- [Fonctionnalités](#fonctionnalités)
+- [Moteurs de calcul](#moteurs-de-calcul)
 - [Stack technique](#stack-technique)
 - [Démarrage rapide (Docker)](#démarrage-rapide-docker)
 - [Comptes de démonstration](#comptes-de-démonstration)
-- [Commandes Docker utiles](#commandes-docker-utiles)
-- [Base de données](#base-de-données-migrations--réinitialisation)
-- [Problèmes courants](#problèmes-courants)
-- [Développement local](#développement-local-sans-docker)
+- [Développement sans Docker](#développement-sans-docker)
+- [Base de données](#base-de-données)
+- [Tests et CI](#tests-et-ci)
 - [Structure du dépôt](#structure-du-dépôt)
-- [Qualité, tests & CI](#qualité-tests--ci)
-- [Sécurité & RGPD](#sécurité--rgpd)
-- [Back-office d'administration](#back-office-dadministration)
-- [Variables d'environnement](#variables-denvironnement)
-- [Déploiement](#déploiement)
-- [Limites connues & pistes](#limites-connues--pistes-damélioration)
-- [Documentation](#documentation)
+- [Sécurité et RGPD](#sécurité-et-rgpd)
+- [Configuration et déploiement](#configuration-et-déploiement)
+- [Limites connues](#limites-connues)
 - [Conventions](#conventions)
 
 ---
 
-## Aperçu fonctionnel
+## Fonctionnalités
 
-L'application sert **trois rôles** : administrateur plateforme, coach (responsable de club ou
-assistant), et athlète (PWA mobile).
+Trois espaces : **coach** (`/app`, seul ou en club, avec adjoints et permissions), **athlète**
+(`/athlete`, PWA mobile) et **administrateur plateforme** (`/admin`).
 
-### Module course à pied
-- **Profil physiologique** par athlète : performances de référence → **VDOT**, allures
-  d'équivalence **et allures d'entraînement** (easy ≈ 70 % VDOT, seuil ≈ 88 %), seuils
-  **LT1/LT2** et **vitesse critique** saisis directement (ou calculés par le test de VC, FC
-  moyenne des efforts comprise), **domaines d'intensité** (1/2/3), FC de seuil.
-- **Bibliothèque de séances** + catégories **et sous-catégories**, **éditeur de structure unique**
-  (échauffement / corps / retour au calme) en **fourchettes** (% LT1/LT2/VC/allures) avec
-  **calculateur live** par athlète. Chaque bloc se prescrit **par zone** du club ou, d'un clic, en
-  **fourchette de % sur mesure** (« 6 × 1000 à 102–106 % de VC ») quand aucune bande nommée ne
-  convient. Un bloc peut **enchaîner plusieurs allures dans une même répétition** —
-  « 8 × (200 m / 400 m), 100 m de récup entre chaque » — chacune avec sa cible et sa
-  récupération, là où un bloc ne portait qu'un volume et qu'une allure.
-  Identité (nom, titre, catégorie) éditable dans l'éditeur ;
-  volumes saisis dans **l'unité de son choix** (sec / min / h · m / km) ; blocs pré-remplis ;
-  **éducatifs de course** (gammes technique/amplitude) attachables aux blocs. Affichage
-  **cartes compactes ↔ liste dense** avec recherche et filtre par catégorie.
-- **Calendrier** multi-types (course / force / test / objectif / indispo) avec drag & drop et
-  snapshot figé de la prescription. Une séance construite directement dans le calendrier
-  s'**enregistre comme nouveau modèle** de bibliothèque en un geste.
-  **Bibliothèque latérale repliable** (semaine pleine largeur), qui se **trie avant de se lire** :
-  puces de **famille** (course · prépa physique · éducatifs) puis **menu de catégories** — chacun
-  portant son compte, et ne proposant que ce qui rapporterait quelque chose. Une catégorie parente
-  inclut ses sous-catégories, la recherche ignore les accents, et un filtre ou une recherche
-  **ouvre les accordéons repliés** (un résultat caché derrière un repli était le pire des deux
-  mondes). « Tout replier » ramène une grosse bibliothèque à un écran.
-  Les actions d'écriture (planifier, dupliquer la semaine, mésocycle) sont **désactivées sur un
-  athlète en lecture seule** (cohérent avec la permission `write`).
-  La **vue groupe** (une ligne par athlète × 7 jours) porte le **même copier-coller** que la vue
-  athlète — clic droit, Ctrl/Cmd+C · V sur la case survolée, Alt + glisser — et le geste que seule
-  elle peut offrir : **coller la même séance pour tout le groupe**. Une séance collée chez un
-  **autre** athlète voit ses cibles **recalculées pour lui** : la structure du coach est reprise,
-  jamais les allures de la personne d'origine.
-- **Zones d'entraînement paramétrables** : le coach nomme ses zones, leurs métriques et leurs
-  règles de calcul (ancre + %), et peut entretenir **plusieurs modèles de zones** (route / trail,
-  débutant / confirmé…) qu'il applique athlète par athlète ; les cibles se recalculent seules
-  quand une valeur de référence change.
-- **Dashboard coach** : tableaux Route/Trail, **pastilles de forme** (fatigue + douleur, jamais RPE),
-  portée mes athlètes / privés / club. Les **réponses d'athlètes non lues** y ouvrent la file
-  d'alertes et mènent d'un clic à la séance concernée.
-- **Portail athlète** (PWA, offline-friendly) : ouvre sur un **calendrier mensuel visuel** — une
-  case par jour, durée et distance de chaque séance, couleur par type, sortie réalisée
-  distinguée du prescrit ; un jour se touche pour son détail. Puis séance du jour **avec cibles en fourchettes**
-  (allure/FC/RPE) et éducatifs liés, retour (RPE / fatigue / douleur / commentaire), **déplacement**
-  de séance (jamais de modification/suppression), **mes activités** (saisie manuelle + import FIT/GPX/TCX),
-  **mes objectifs** (CRUD A/B/C) et **connexion de sa montre** (Strava) directement côté athlète.
-  L'agenda se lit en **prévu / réalisé / les deux** : les sorties qui n'étaient pas au programme
-  y apparaissent, marquées comme telles. Un clic y mène **en un geste** à ce qu'on cherche : une
-  séance déjà faite et une sortie rattachée ouvrent directement la fiche de la séance — prévu,
-  réalisé et écart au même endroit. Une séance encore à faire garde sa feuille du prévu, qui
-  répond au pouce sans quitter l'agenda ; une sortie hors programme reste sur la sienne. Chaque sortie s'ouvre sur son tracé, son temps en zone
-  et son **détail tour par tour** — les tours de la montre quand elle en a pris (les répétitions
-  d'un fractionné), des splits kilométriques calculés sinon. L'athlète **corrige, note et
-  supprime** ses sorties : RPE et mot au coach vivent sur la sortie elle-même, seul endroit
-  possible quand aucune séance prescrite ne les porte (les mesures d'une montre, elles, restent
-  en lecture seule).
+### Course à pied
+- **Profil physiologique** : performances → VDOT et allures d'entraînement ; LT1/LT2, vitesse
+  critique (saisies ou calculées par test), domaines d'intensité, FC de seuil.
+- **Zones paramétrables** : plusieurs modèles par club (route, trail, débutant…), appliqués
+  athlète par athlète ; les cibles se recalculent quand une référence change.
+- **Bibliothèque et éditeur de séances** : échauffement / corps / retour au calme, prescrits par
+  zone ou en fourchette de % (« 6 × 1000 m à 102–106 % VC »), répétitions à plusieurs allures,
+  éducatifs attachables, calculateur en direct par athlète.
+- **Calendrier** (course, force, test, objectif, indisponibilité) : glisser-déposer, copier-coller,
+  semaine dupliquée, mésocycle, plan construit depuis l'objectif. Prescription figée à la
+  planification.
+- **Planification de groupe** : une ligne par athlète ; une séance collée pour tout le groupe est
+  **recalculée pour chacun** ; « Adapter la structure » ajuste la séance d'un seul athlète.
 
-### Module préparation physique (force)
-- **Bibliothèque d'exercices** (catégories, groupes musculaires, matériel, vidéo, progression/régression)
-  et **bibliothèque de séances rangée en catégories** — course et éducatifs en portaient une, la
-  prépa physique non : ses séances s'empilaient en une liste à plat que ni le panneau du calendrier
-  ni l'écran de bibliothèque ne pouvaient trier. La catégorie se donne à la création, se change
-  d'un menu sur la fiche, suit la duplication, et se propose au moment de verser une séance du
-  calendrier en bibliothèque.
-- **Éditeur de structure de séance** : blocs typés + **formats avancés** (Classique, EMOM, AMRAP,
-  For Time, Circuit, Isométrie, Pliométrie — durée saisie **en minutes**) et **types de série**
-  (drop-set, super-set, myo-reps, cluster, iso) avec prescription complète (charge **et** effort
-  indépendants, tempo, repos). Le volume d'un exercice se compte **en répétitions, en durée ou en
-  distance** — une planche se tient en secondes, un porté du fermier se parcourt en mètres —
-  chacun en **valeur exacte ou en fourchette**, avec la **latéralité** (les deux côtés, alterné
-  gauche/droite, ou par côté), un **repos strict ou en fourchette**, et un **commentaire par
-  exercice** que l'athlète lit au moment de le faire. Le choix des exercices se fait dans un
-  panneau **rangé par catégorie** (celles du coach d'abord, le type d'exercice à défaut) avec
-  recherche, là où une liste déroulante à plat alignait toute la bibliothèque sans ordre.
-  L'athlète saisit son retour **dans l'unité prescrite** (reps, secondes ou mètres).
-- **Composer une séance sans passer par le décor** : une séance vide demande « par quoi
-  commences-tu ? » et propose ses **sections en un clic**
-  (échauffement · activation · principal · accessoires · retour au calme) — le clic qui choisit la
-  section ouvre aussi le choix des exercices. **Chaque section donne ses propres valeurs** aux
-  exercices qu'on y pose — un échauffement ne naît plus à 70–80 % du 1RM, un
-  retour au calme se compte en secondes. Les **séries × répétitions se règlent sur la carte**, au
-  clavier ; le panneau latéral garde le reste (tempo, latéralité, drop-set). Un **bloc ou un
-  exercice se duplique** (« le même circuit, une seconde fois »), et le choix du format (EMOM,
-  AMRAP, Circuit…) attend qu'on le demande au lieu d'être la première question posée.
-- **La démonstration se regarde dans l'application** : lien YouTube / Vimeo reconnu, reconstruit en
-  URL d'intégration (jamais recopié), et lu **au clic seulement** — aucune requête ne part vers
-  l'hébergeur tant que personne ne l'a demandé, et YouTube est appelé sur son domaine sans cookie.
-  Un hébergeur non reconnu reste un lien externe. Côté **athlète**, la séance guidée affiche enfin
-  la vidéo, les **consignes d'exécution** et les **contre-indications** de chaque exercice — elles
-  étaient écrites dans le catalogue depuis toujours et ne sortaient jamais de l'écran du coach.
-- **Une séance de renfo se travaille sur le calendrier**, comme une séance de course : on la pose
-  **vierge sur son jour** (« Séance de renforcement vierge ») sans créer d'abord un modèle de
-  bibliothèque ; on **modifie son contenu directement** — blocs, séries, charges — sans en créer
-  une nouvelle et sans toucher au modèle, qui sert d'autres athlètes ; on la **renomme**, on la
-  **copie-colle** d'un jour, d'un athlète ou d'un groupe à l'autre, et on la **verse en
-  bibliothèque** quand elle mérite d'être gardée. Le copier-coller duplique la séance
-  **affichée** (son snapshot) : une séance adaptée reste adaptée, et une séance construite au
-  calendrier — qui n'a aucun modèle — se copie comme les autres. Chez un **autre** athlète, les
-  charges sont **recalculées avec son 1RM** : la structure du coach voyage, jamais les kilos de
-  quelqu'un d'autre.
-- **Calcul de charge (1RM)** : méthode **Nuzzo** par défaut + Epley / Brzycki / RIR-based,
-  zones de travail Lacourpaille.
-- **Tests 1RM** (4 protocoles : 1RM direct, rep-test 3–5, AMRAP, isométrie MVC) → mise à jour
-  auto du profil 1RM (`tested` prévaut sur l'estimé).
-- **Cycles de force** (progression multi-semaines) assignables au calendrier.
-- **Progression automatique + alertes coach** (règles DARI Lab §6.7 / §6.8).
-- **Suivi & analyse** : courbes e1RM, **charge mécanique / métabolique (UA)**.
+### Préparation physique
+- Bibliothèque d'exercices (consignes, contre-indications, vidéo YouTube/Vimeo lue au clic) et de
+  séances rangées par catégorie.
+- Formats Classique, EMOM, AMRAP, For Time, Circuit, Isométrie, Pliométrie ; drop-set, super-set,
+  myo-reps, cluster ; volume en répétitions, durée ou distance, latéralité, tempo, repos.
+- Charges calculées depuis le 1RM (Nuzzo par défaut, Epley, Brzycki, RIR), tests 1RM
+  (4 protocoles), cycles de force, progression automatique et alertes coach.
+- Une séance se crée, se modifie et se copie directement sur le calendrier ; chez un autre athlète,
+  les charges sont recalculées avec **son** 1RM.
 
-### Communication & données
-- **Messagerie temps réel** (Server-Sent Events) coach ↔ athlète, avec **pièces jointes** (images / PDF).
-- **Fil de séance** : le commentaire du coach et les réponses qu'il appelle se lisent **sur la
-  séance**, des deux côtés. Ce n'est pas un second canal — ce sont les messages de la messagerie
-  lus par leur rattachement (`Message.workoutId`), si bien que l'échange reste entier dans la
-  boîte de réception. Une réponse d'athlète marque la séance comme **en attente** jusqu'à ce
-  qu'un coach l'ouvre : elle déclenche une notification qui mène à la séance (et non à la
-  messagerie), s'affiche dans les alertes du cockpit et revient dans le digest de 7 h.
-  Le mot du coach, lui, retombe sur l'**e-mail** quand aucun appareil n'est joignable — sans quoi
-  une question posée à quelqu'un sans push n'annonçait rien du tout.
-- **Objectifs A/B/C** (gérables par le coach **et** par l'athlète) et **indisponibilités**
-  (blessure / maladie / vacances).
-- **Sync Strava** (OAuth) **initiée par l'athlète** (l'intégration est d'abord côté athlète, CDC §12),
-  import automatique des activités avec déduplication ; le coach voit l'état en lecture seule. Import
-  fichier **FIT / GPX / TCX** — le FIT est le format natif Garmin et COROS, décodé sans dépendance
-  externe (totaux de la montre, tours, **sport et sous-sport déclarés** et vitesse mesurée
-  compris) — et
-  **saisie manuelle** d'une sortie par l'athlète. La **synchronisation automatique** Garmin / COROS
-  reste à venir : demandes d'accès déposées, l'import FIT en tient lieu en attendant.
-- **Catégorie de la sortie conservée** : la famille (course / vélo / natation / renforcement /
-  marche) sert au rapprochement, mais le **type exact déclaré par la source** est gardé et affiché
-  — « Vélo gravel », « Trail », « Nage en eau libre » plutôt qu'un « Vélo » ou « Course à pied »
-  qui appauvrit. Un type inconnu de l'application s'affiche quand même, mis en forme.
-- **Rapprochement prévu / réalisé** : une sortie importée retrouve la séance qu'elle réalise à
-  partir du **sport** (une séance de renforcement ou une sortie à vélo ne réalisent pas un
-  fractionné de course), de la **date**, du **volume** (distance *et* durée) et de la
-  **ressemblance des titres** — un athlète qui nomme sa sortie « 8*(200/400) » désigne sa séance
-  mieux que n'importe quel chiffre. Sur une journée à plusieurs sorties, la séance revient à la
-  **meilleure** d'entre elles quel que soit l'ordre de synchronisation ; un rapprochement décidé
-  à la main par le coach ou l'athlète n'est jamais défait par un import ultérieur.
-  **Sans preuve, rien n'est rattaché** : la date seule ne rapproche jamais, et une sortie laissée
-  « non rattachée » — qui se corrige d'un geste — vaut mieux qu'une séance déclarée réalisée par
-  la mauvaise sortie, qui fausse silencieusement le prévu/réalisé et la charge.
-- **Export PDF** du programme d'un athlète.
-- Notifications e-mail (Resend) et push (Web Push / VAPID).
+### Suivi
+- **Retour de séance** en trente secondes (RPE, fatigue, douleur, commentaire) et **check-in** du
+  matin. Pastille de forme calculée sur fatigue et douleur, **jamais sur le RPE**.
+- **Prévu / réalisé** : chaque sortie importée est rapprochée de sa séance (sport, date, volume,
+  titre) ; sans preuve suffisante, rien n'est rattaché. Score de réalisation bloc par bloc.
+- **Charge** : sRPE, ATL/CTL, ACWR course + force, monotonie, charge mécanique / métabolique.
+- **Tableau de bord** et **« Ma journée »** : athlètes à surveiller, retours à lire, alertes.
+- Export PDF du programme et du bilan d'un athlète.
+
+### Montres et sorties
+
+| Source | Statut | Ce qui circule |
+|---|---|---|
+| **Strava** | En production | Sorties importées (webhook + filet horaire), renommage optionnel sur Strava |
+| **Garmin Connect** | **Bêta** — accès Garmin obtenu le 13/11/2026, premier test réel en cours | Séances course **et** renforcement des 14 prochains jours envoyées sur la montre ; sorties reçues dès leur synchronisation |
+| **COROS** | **Bêta** — activée par `COROS_ENABLED` | Séances course des 14 prochains jours envoyées sur la montre ; sorties importées toutes les heures |
+| **Fichier** | En production | Import FIT, GPX, TCX (décodeurs maison) et saisie manuelle |
+
+La connexion est toujours faite **par l'athlète**. Une même sortie arrivée par deux sources n'est
+comptée qu'une fois. Détails, limites et exploitation :
+[`docs/INTEGRATIONS-MONTRES.md`](docs/INTEGRATIONS-MONTRES.md).
+
+### Communication
+- **Messagerie temps réel** (SSE) : conversation par athlète, fil de groupe et de club, pièces
+  jointes. Les échanges sur une séance se lisent aussi **sur la séance**.
+- Notifications **push** (Web Push / VAPID) et **e-mail** (Resend), heures calmes, digest coach
+  de 7 h, bilans hebdomadaires.
+
+### Hub : annuaire et mise en relation
+- **Annuaire public** des coachs (`/coachs`) : recherche, filtres, tri, fiche publique relue par
+  l'équipe avant publication.
+- **Demande de coaching** écrite dès l'inscription de l'athlète ; le coach accepte, refuse ou pose
+  une question. Coordonnées jamais exposées. Fin de relation à tout moment.
+- Compte athlète **autonome**, sans club ni invitation.
+
+### Découverte
+- **Essayer sans inscription** (page d'accueil) : un espace coach jetable par visiteur, rempli
+  comme la démonstration, côté coach et côté athlète, **effacé au bout de 24 h**.
+- **Aide** par rôle avec recherche et liens contextuels, aide publique (`/aide`) et guides PDF
+  illustrés, vidéo de présentation.
+
+### Administration
+Centre de pilotage `/admin` (double authentification obligatoire) : anomalies actionnables,
+comptes, clubs, athlètes, invitations, demandes de club, fiches coachs à relire, e-mails,
+configuration réelle de l'instance, **journal d'audit**. Gestes de support journalisés (renvoi de
+vérification, lien de mot de passe, fermeture des sessions, suspension, « voir en tant que »)
+sans jamais accéder à la base ni voir un mot de passe.
 
 ---
 
-## Moteurs de calcul (le cœur métier)
+## Moteurs de calcul
 
 Toute la physiologie vit dans des **moteurs Java purs** (`com.coachrun.engine`), testés
-unitairement et **source de vérité** (recalcul à la sauvegarde, équivalent des triggers Supabase).
+unitairement, recalculés à la sauvegarde.
 
 | Moteur | Entrées → sorties | Référence |
 |---|---|---|
 | `VdotEngine` | performances → VDOT + allures | Daniels / Riegel `T2 = T1·(D2/D1)^1.06` |
 | `LactateThresholdEngine` | paliers lactate → LT1 / LT2 | LT1 = baseline + 0,5 ; LT2 = Dmax modifié |
-| `IntensityDomainEngine` | vitesse/FC + profil → domaine 1/2/3 | priorité physio (LT1/LT2), fallback FC |
-| `SessionCalculatorEngine` | bloc + profil → allure/FC/RPE/durée | prescription en **fourchettes** min–max |
-| `LoadEngine` | sRPE (RPE×durée) → ATL/CTL/ratio/monotonie | ACWR unifié course + force |
-| `FormStatusEngine` | fatigue + douleur → statut de forme | **jamais** le RPE (principe DARI Lab) |
-| `OneRmEngine` | charge/reps/(rir\|rpe) → e1RM + zones | **Nuzzo** par défaut (constante 104.9) |
-| `StrengthChargeEngine` | prescription + 1RM → charges cibles (kg) | arrondi au palier 2,5 kg |
-| `StrengthLoadEngine` | séries réalisées → charge méca / métab (UA) | méca = Σ(charge×reps×%1RM)/100 ; métab = sRPE |
-| `ProgressionEngine` | résultats vs prescription → suggestion + alertes | +2,5/+5 kg ; alertes douleur/RPE/RIR/charge |
-| `PaceUtil` | conversions d'allure | utilitaire |
+| `IntensityDomainEngine` | vitesse/FC + profil → domaine 1/2/3 | physio (LT1/LT2), repli FC |
+| `SessionCalculatorEngine` | bloc + profil → allure/FC/RPE/durée | fourchettes min–max |
+| `LoadEngine` | sRPE → ATL/CTL/ratio/monotonie | ACWR course + force |
+| `FormStatusEngine` | fatigue + douleur → forme | **jamais** le RPE |
+| `OneRmEngine` | charge/reps/(RIR\|RPE) → e1RM + zones | Nuzzo (104,9) par défaut |
+| `StrengthChargeEngine` | prescription + 1RM → charges (kg) | palier 2,5 kg |
+| `StrengthLoadEngine` | séries réalisées → charge méca / métab (UA) | Σ(charge×reps×%1RM)/100 ; sRPE |
+| `ProgressionEngine` | réalisé vs prescrit → suggestion + alertes | +2,5/+5 kg ; douleur/RPE/RIR |
+| `ComplianceEngine`, `PhysioDetectionEngine`, `TrajectoryEngine`, `SessionAdaptationEngine`, `PlanBuilderEngine`, `WeekOutlookEngine` | couche de décision : réalisation, détection physio, projection, adaptation, plan depuis l'objectif | **le produit ne modifie jamais une séance seul** |
 
 ---
 
@@ -218,572 +141,191 @@ unitairement et **source de vérité** (recalcul à la sauvegarde, équivalent d
 
 | Couche | Techno |
 |---|---|
-| **Frontend** | Angular 17 (standalone components, signals, control-flow `@if`/`@for`, OnPush), PWA, TypeScript 5.4, Leaflet (cartes) |
-| **Backend** | Spring Boot 3.2.5, Java 21, API REST (~295 endpoints), Springdoc/OpenAPI |
-| **Base de données** | PostgreSQL 18 · **Liquibase** (103 changelogs versionnés, 120 changesets) |
-| **Auth** | JWT (access tokens) + liens magiques d'invitation athlète · `@PreAuthorize` multi-tenant |
-| **Sécurité** | AES-256-GCM (données santé + jetons OAuth chiffrés au repos), CSP, CORS allowlist, rate-limiting |
-| **Intégrations** | Strava (OAuth), import FIT/GPX/TCX (décodeurs maison), e-mail Resend, Web Push (VAPID), export PDF (OpenPDF) |
-| **Temps réel** | Server-Sent Events (messagerie) |
-| **CI/CD** | GitHub Actions · Docker · Railway (back + DB) · Vercel (front) |
+| Front | Angular 21 (standalone, signals, OnPush), PWA, TypeScript 5.9, Leaflet |
+| Back | Spring Boot 3.5, Java 21, API REST, Springdoc/OpenAPI |
+| Données | PostgreSQL 18, **Liquibase** (`ddl-auto: none`) |
+| Auth | JWT court + jeton de rafraîchissement, sessions révocables, 2FA administrateur |
+| Intégrations | Strava, Garmin Connect (OAuth 2.0 PKCE, Training + Activity API), COROS (COROS MCP), Resend, Web Push, OpenPDF |
+| Temps réel | Server-Sent Events |
+| Hébergement | Railway (back + base), Vercel (front), DNS OVH |
+| CI | GitHub Actions : build, tests, e2e Playwright, CI nocturne (suites complètes + vulnérabilités), sauvegarde et test de restauration hebdomadaire |
 
 ---
 
 ## Démarrage rapide (Docker)
 
-> Trois conteneurs, une commande, **aucun fichier de configuration à créer**. Ni JDK, ni Node,
-> ni PostgreSQL à installer sur le poste : tout est construit dans les images.
-
-### 1. Prérequis
-
-| Outil | Version | Vérifier |
-|---|---|---|
-| **Docker Engine** (ou Docker Desktop) | ≥ 24, **démon démarré** | `docker version` |
-| **Docker Compose v2** (plugin `docker compose`, pas `docker-compose`) | ≥ 2.20 | `docker compose version` |
-
-Prévoir ~**4 Go de RAM** disponibles et ~**3 Go de disque** : le premier lancement compile le
-backend avec Maven et le frontend avec Angular *à l'intérieur* des images.
-
-### 2. Cloner le dépôt
+Prérequis : Docker Engine ≥ 24 démarré, Compose v2 (`docker compose`), ~4 Go de RAM.
+**Aucun fichier de configuration à créer** : `docker-compose.yml` porte ses valeurs de
+développement.
 
 ```bash
-git clone <url-du-repo>
-cd coach-app
+git clone <url-du-repo> && cd coach-app
+docker compose up --build           # 5 à 10 min la première fois
 ```
 
-### 3. Variables d'environnement : rien à créer
+Compose démarre `postgres`, puis `backend` (migrations + jeu de démonstration en profil `dev`),
+puis `frontend` (nginx, qui relaie `/api`). Prêt quand le journal affiche
+`[seed dev] Jeu de démo prêt`.
 
-`docker-compose.yml` porte lui-même tout ce dont la stack locale a besoin (base, secrets de
-développement, CORS, e-mail désactivé). **`.env` n'est ni requis ni lu** par la stack Docker :
-`.env.example` sert au développement **sans** Docker et au déploiement Railway/Vercel.
+| Service | URL |
+|---|---|
+| **Application** | http://localhost:4200 — la seule à ouvrir |
+| API | http://localhost:8081/api (`/public/ping`, `/actuator/health`, `/swagger-ui.html`) |
+| PostgreSQL | `localhost:5432`, `postgres` / `postgres`, base `coachrun` |
 
-Seuls les **ports publiés sur la machine** sont surchargeables, si l'un d'eux est déjà pris :
+Port déjà pris : `FRONTEND_PORT=4300 BACKEND_PORT=8082 POSTGRES_PORT=55432 docker compose up -d`.
 
 ```bash
-FRONTEND_PORT=4300 BACKEND_PORT=8082 POSTGRES_PORT=55432 docker compose up --build
+docker compose logs -f backend          # journaux
+docker compose up -d --build backend    # reconstruire après modification
+docker compose down                     # arrêter (données conservées)
+docker compose down -v                  # ⚠ arrêter et effacer la base
 ```
 
-### 4. Lancer
+| Symptôme | Solution |
+|---|---|
+| `Cannot connect to the Docker daemon` | démarrer Docker |
+| `address already in use` | changer les ports (ci-dessus) |
+| `container coachrun-backend is unhealthy` | `docker compose logs backend` ; le premier démarrage est le plus long |
+| Ancienne version du front après rebuild | service worker : rechargement forcé ou onglet privé |
+| `JavaScript heap out of memory` | donner ~4 Go à Docker |
+| Erreur PostgreSQL après changement d'image | `docker compose down -v` (⚠ données locales perdues) |
 
-```bash
-docker compose up --build          # au premier plan (Ctrl+C arrête la stack)
-docker compose up --build -d       # ou en arrière-plan
-```
-
-Le premier lancement prend **5 à 10 minutes** (téléchargement des images, `mvn package`,
-`npm ci` + build Angular). Les suivants démarrent en quelques secondes.
-
-L'ordre est géré par Compose, sans intervention :
-
-1. **postgres** démarre et devient *healthy* (`pg_isready`) ;
-2. **backend** attend PostgreSQL, applique les **migrations Liquibase** puis génère le
-   **jeu de données de démonstration** (profil `dev`) ; il devient *healthy* quand
-   `/api/actuator/health` répond `UP` ;
-3. **frontend** (nginx) démarre une fois le backend sain et sert le build Angular, en
-   proxifiant `/api/` vers le backend par le réseau interne `coachrun`.
-
-Le backend est prêt quand les journaux affichent :
-
-```
-[seed dev] Jeu de démo prêt — connexion : demo@coachrun.fr / password1234
-Darilab 0.2.0 démarré — profil actif : dev · front : http://localhost:4200
-```
-
-### 5. Accéder à l'application
-
-| Service | URL | Remarque |
-|---|---|---|
-| **Frontend** | http://localhost:4200 | c'est **la seule URL à ouvrir** dans le navigateur |
-| API (accès direct) | http://localhost:8081/api | utile pour `curl` / Postman |
-| Ping API | http://localhost:8081/api/public/ping | → `{"status":"ok","version":"0.2.0"}` |
-| Health | http://localhost:8081/api/actuator/health | → `{"status":"UP",…}` |
-| Swagger UI | http://localhost:8081/api/swagger-ui.html | ouvert en profil `dev` |
-| PostgreSQL | `localhost:5432` (`postgres` / `postgres`, base `coachrun`) | |
-
-> Le navigateur n'appelle **jamais** le port 8081 : le front est construit avec `apiUrl = '/api'`
-> et nginx relaie vers le backend. Le port 8081 n'existe que pour vos propres appels directs.
-
-> 🐞 **Poser des points d'arrêt** (dans le conteneur, ou depuis IntelliJ / VS Code) :
-> [`docs/DEBUG.md`](./docs/DEBUG.md).
+Points d'arrêt, journaux, `correlationId` : [`docs/DEBUG.md`](docs/DEBUG.md).
 
 ---
 
 ## Comptes de démonstration
 
-Mot de passe commun : **`password1234`**
+Mot de passe commun : **`password1234`** (profil `dev` uniquement).
 
-### Le club de démonstration
+| Rôle | E-mail |
+|---|---|
+| Administrateur (2FA à l'enrôlement) | `admin@coachrun.fr` |
+| Responsable de club — **Claire Vasseur** | `demo@coachrun.fr` |
+| Coach adjoint — Hugo Perrin | `coach@coachrun.fr` |
+| Athlète — Chloé Dubois | `athlete@coachrun.fr` |
+| Coachs indépendants, fiche publiée | `sarah@coachrun.fr`, `malik@coachrun.fr` |
+| Coach, fiche en attente de relecture | `julie@coachrun.fr` |
+| Athlète du hub, sans coach / demande en attente | `nina@coachrun.fr` / `tom@coachrun.fr` |
 
-| Rôle | Email | Destination |
-|---|---|---|
-| Admin plateforme | `admin@coachrun.fr` | `/admin` |
-| Responsable de club — **Claire Vasseur**, la coach des démonstrations | `demo@coachrun.fr` | `/app` |
-| Coach assistant — Hugo Perrin | `coach@coachrun.fr` | `/app` |
-| Athlète — Chloé Dubois | `athlete@coachrun.fr` | `/athlete/today` |
-
-### La couche « présentation »
-
-Au démarrage en profil `dev`, `seedShowcase()` fait du club une histoire qu'on peut montrer (démo,
-captures, vidéo) :
-
-- Claire Vasseur a **sa fiche dans l'annuaire** et **une demande qui l'attend** (Léa Garnier,
-  `lea@coachrun.fr`) ;
-- des **conversations** avec quatre athlètes, plus un message dans le groupe et un dans le club ;
-- les **deux semaines suivantes** sont planifiées pour chaque athlète ;
-- seuls **quelques retours récents** restent à traiter (et non plus d'une centaine) ;
-- **quatre coachs de plus** dans l'annuaire : Antoine (Bordeaux), Camille (Annecy), Yanis (Paris),
-  Élodie (Marseille).
-
-Comme `seedHub()`, elle ne tourne pas dans la suite de tests (sauf `ShowcaseDemoSeedTest`).
-
-### Le hub — coachs indépendants et athlètes sans club
-
-| Rôle | Email | Ce qu'il permet d'essayer |
-|---|---|---|
-| Coach indépendante, fiche **publiée** | `sarah@coachrun.fr` | Sa vitrine dans l'annuaire, et **une demande qui l'attend** dans sa file |
-| Coach indépendant, fiche **publiée** | `malik@coachrun.fr` | Trail/ultra, présentiel — sans lui les filtres de l'annuaire n'ont rien à trier |
-| Coach, fiche **en attente** | `julie@coachrun.fr` | Donne son dossier à `Admin › Fiches coachs` |
-| Athlète du hub, **sans coach** | `nina@coachrun.fr` | L'état dans lequel on arrive sur l'annuaire : chercher, puis demander |
-| Athlète du hub, **demande en attente** | `tom@coachrun.fr` | Le pendant de la file de Sarah, côté athlète |
-
-Les deux coachs indépendants ont un espace `soloPractice` : l'interface cesse de leur parler d'un
-club qu'ils n'ont pas.
-
-> Ces cinq comptes viennent de `seedHub()`, **distinct de `seed()`** : ce dernier est appelé par
-> toute la suite de tests, où des fiches publiées changeraient ce que voit l'annuaire dans chaque
-> classe. Ils apparaissent donc au **démarrage** en profil `dev` — après un `git pull`, il faut
-> relancer le backend pour les voir.
-Le compte **admin** demande en plus un code de double authentification. À la première connexion,
-l'écran affiche un QR code à scanner avec une application d'authentification (ou la clé à saisir à
-la main), puis dix codes de secours. Pour repartir de zéro en local :
-`delete from mfa_credentials; delete from mfa_recovery_codes;`.
-
-Une base de démonstration créée avant le 10/11/2026 garde l'ancien mot de passe `password123` : le
-jeu de démo n'est généré qu'une fois.
-
-> Le jeu de démo est **déterministe** (graine fixe) : profils physio, tests lactate, séances course
-> et force structurées, cycles, tests 1RM, charge, objectifs et indisponibilités. Il est produit par
-> `DemoSeedService`, en **profil `dev` uniquement** (`app.seed.enabled`).
->
-> La réinitialisation depuis le back-office a été **retirée** : elle effaçait toutes les données de
-> l'instance et n'avait pour garde-fou qu'un profil actif. Une plateforme qui accueille de vrais
-> clubs n'a pas besoin d'un bouton qui les efface — pour repartir de zéro en local, on recrée la
-> base (`docker compose down -v`).
+Le jeu est déterministe (`DemoSeedService`) : profils, tests, séances course et force, charge,
+objectifs, conversations, deux semaines planifiées, cinq coachs dans l'annuaire. `seedHub()` et
+`seedShowcase()` ne tournent qu'au démarrage, pas dans les tests.
+2FA admin à refaire en local : `delete from mfa_credentials; delete from mfa_recovery_codes;`.
 
 ---
 
-## Commandes Docker utiles
+## Développement sans Docker
 
-Toutes se lancent **à la racine du dépôt** (là où se trouve `docker-compose.yml`).
+Prérequis : JDK 21, Node 20+, PostgreSQL avec une base `coachrun` (ou
+`docker compose up -d postgres`).
 
 ```bash
-# Cycle de vie
-docker compose up --build          # construire (si besoin) puis démarrer, au premier plan
-docker compose up -d               # démarrer en arrière-plan
-docker compose stop                # arrêter les conteneurs (données conservées)
-docker compose start               # les redémarrer
-docker compose restart backend     # redémarrer un seul service
-docker compose down                # arrêter ET supprimer les conteneurs (données conservées)
-docker compose down -v             # ⚠ idem + SUPPRIME la base (volume postgres_data)
+cd back && ./mvnw spring-boot:run       # http://localhost:8080/api, profil dev
+cd front && npm install && npm start    # http://localhost:4200, proxy /api → 8080
+```
 
-# Observation
-docker compose ps                  # état et santé des trois services
-docker compose logs -f             # journaux de toute la stack
-docker compose logs -f backend     # journaux du backend seul
-docker compose top                 # processus de chaque conteneur
+Aucun `.env` requis en dev. Pour brancher Strava, Resend, Sentry… : copier
+[`.env.example`](.env.example) et exporter les variables voulues.
 
-# Reconstruction après modification du code
-docker compose up -d --build backend    # rebuild + redémarrage du backend
-docker compose build --no-cache front   # rebuild complet du front (cache ignoré)
+| Commande front | Usage |
+|---|---|
+| `npm run build` | build de production (Vercel) |
+| `npm run start:pwa` | build PWA + service worker, pour tester le push |
+| `npm test` | tests unitaires |
 
-# Entrer dans un conteneur
-docker compose exec backend sh
+---
+
+## Base de données
+
+- Schéma piloté **uniquement par Liquibase**, appliqué à chaque démarrage. Toute modification
+  passe par un nouveau changeset.
+- Sauvegarde chiffrée quotidienne et **test de restauration automatique** chaque lundi
+  (GitHub Actions) : [`docs/OPERATIONS.md`](docs/OPERATIONS.md) §1-2.
+
+```bash
 docker compose exec postgres psql -U postgres -d coachrun
-```
-
-> Les trois services s'appellent **`postgres`**, **`backend`** et **`frontend`**.
-
----
-
-## Base de données (migrations & réinitialisation)
-
-- **Schéma** : entièrement piloté par **Liquibase** (85 fichiers de changelog, 96 changesets).
-  Aucune commande à lancer : les migrations sont appliquées **à chaque démarrage du backend**,
-  avant l'ouverture du port. `ddl-auto` est sur `none` — Hibernate ne crée jamais rien.
-- **Données de démonstration** : générées au démarrage en profil `dev` (`app.seed.enabled`),
-  de façon **idempotente** — un redémarrage ne duplique rien.
-- **Persistance** : la base vit dans le volume Docker `postgres_data`. `docker compose down`
-  la conserve, `docker compose down -v` la détruit.
-
-```bash
-# Repartir d'une base vierge (re-migrée et re-seedée au prochain démarrage)
-docker compose down -v
-docker compose up -d
-
-# Inspecter la base
-docker compose exec postgres psql -U postgres -d coachrun -c '\dt'
-docker compose exec postgres psql -U postgres -d coachrun -c 'select count(*) from databasechangelog;'
-
-# Sauvegarde / restauration ponctuelle
 docker compose exec -T postgres pg_dump -U postgres coachrun > sauvegarde.sql
-docker compose exec -T postgres psql -U postgres -d coachrun < sauvegarde.sql
 ```
-
-> Un script de sauvegarde prêt à l'emploi pour l'exploitation existe par ailleurs :
-> [`ops/backup-db.sh`](./ops/backup-db.sh) (cf. [`docs/OPERATIONS.md`](./docs/OPERATIONS.md)).
 
 ---
 
-## Problèmes courants
+## Tests et CI
 
-| Symptôme | Cause | Solution |
+```bash
+cd back && ./mvnw -B -ntp clean verify   # ~1 100 tests (moteurs + intégration MockMvc, H2 mode PG)
+cd front && npm run build && npm test    # build AOT + ~500 tests unitaires
+cd e2e && npx playwright test            # parcours de bout en bout (cf. e2e/README.md)
+```
+
+| Workflow | Quand | Quoi |
 |---|---|---|
-| `Cannot connect to the Docker daemon` | Docker Desktop / le démon n'est pas démarré | démarrer Docker, puis `docker version` |
-| `bind: address already in use` sur 4200, 8081 ou 5432 | un PostgreSQL ou un serveur local occupe déjà le port (5432 est le cas le plus fréquent) | `FRONTEND_PORT=4300 BACKEND_PORT=8082 POSTGRES_PORT=55432 docker compose up -d` |
-| `dependency failed to start: container coachrun-backend is unhealthy` | le backend n'a pas démarré à temps, ou a échoué | `docker compose logs backend` — le premier lancement (migrations + seed) est le plus long ; le budget de santé est de 60 s de grâce puis 20 tentatives × 15 s |
-| Le front s'affiche mais toutes les requêtes échouent | le backend n'est pas sain | `docker compose ps` puis `docker compose logs backend` |
-| Page blanche ou ancienne version après un rebuild du front | le **service worker** de la PWA sert une version en cache | rechargement forcé (Ctrl/Cmd + Maj + R), ou onglet privé, ou DevTools → *Application* → *Service Workers* → *Unregister* |
-| Le build du front échoue en `JavaScript heap out of memory` | mémoire allouée à Docker trop faible | augmenter la RAM de Docker Desktop (Settings → Resources), ~4 Go |
-| `docker-compose: command not found` | v1 absente : le projet utilise le plugin v2 | utiliser `docker compose` (deux mots) |
-| Erreur PostgreSQL au démarrage après un changement de version d'image | volume créé par une version majeure différente | `docker compose down -v` (⚠ perte des données locales) |
-| Le build est très lent / retélécharge tout | cache Docker invalidé | ne pas utiliser `--no-cache` sans raison ; `docker compose build` réutilise les couches |
-
----
-
-## Développement local (sans Docker)
-
-Utile pour le rechargement à chaud (`ng serve`) ou pour déboguer le backend dans un IDE.
-
-**Prérequis** : **JDK 21**, **Node 20+** (npm 10+), et un **PostgreSQL** accessible.
-
-### 1. PostgreSQL
-
-Soit la base de la stack Docker, seule :
-
-```bash
-docker compose up -d postgres      # expose localhost:5432, base coachrun
-```
-
-Soit un PostgreSQL installé sur le poste, avec une base `coachrun` accessible par
-`postgres` / `postgres` (valeurs par défaut de `application.yml`, surchargées par
-`JDBC_DATABASE_URL`, `PGUSER`, `PGPASSWORD`).
-
-### 2. Backend (port 8080)
-
-```bash
-cd back
-./mvnw spring-boot:run             # profil dev par défaut → http://localhost:8080/api
-```
-
-Vérification : `curl http://localhost:8080/api/public/ping` → `{"status":"ok","version":"0.2.0"}`.
-
-Aucun `.env` n'est nécessaire en dev : les valeurs par défaut d'`application.yml` suffisent.
-Pour personnaliser (Strava, Resend, Sentry…), copier `.env.example` et exporter les variables
-voulues dans le shell qui lance l'application.
-
-### 3. Frontend (port 4200)
-
-```bash
-cd front
-npm install
-npm start                          # ng serve + proxy /api → http://localhost:8080
-```
-
-`front/proxy.conf.json` renvoie `/api` vers le backend local : le front appelle donc **8080**,
-pas 8081.
-
-> ⚠️ **Les ports diffèrent du mode Docker** : l'API est sur **8080** en local et sur **8081**
-> avec `docker compose` (le conteneur écoute toujours 8080 en interne).
-
-### Autres commandes front
-
-```bash
-npm run build                      # build de production (celui de Vercel)
-npm run build:docker               # build de production sans DSN Sentry (celui de l'image Docker)
-npm run start:pwa                  # build PWA + service worker, pour éprouver le push en local
-npm test                           # tests Karma (Chrome headless)
-```
+| `ci.yml` | chaque push / PR | back, smoke test sur PostgreSQL réel, front, e2e Playwright |
+| `nocturne.yml` | chaque nuit | suites complètes, temps de démarrage, vulnérabilités (dérogations datées dans `vulnerabilites-acceptees.tsv`) |
+| `deploy-tag.yml` | CI de `main` verte | tag `prod-AAAA-MM-JJ-HHMM-<sha>` pour revenir en arrière |
+| `db-backup.yml` / `db-restore-test.yml` | quotidien / lundi | sauvegarde chiffrée, restauration vérifiée |
 
 ---
 
 ## Structure du dépôt
 
 ```
-.
-├── back/                       # API Spring Boot (Java 21, Maven)
-│   └── src/main/java/com/coachrun/
-│       ├── controller/         # 47 contrôleurs REST
-│       ├── service/            # 61 services métier
-│       ├── engine/             # 12 moteurs de calcul (physiologie pure) + PaceUtil
-│       ├── entity/             # entités JPA (héritent de BaseEntity)
-│       ├── dto/                # request/ et response/ séparés
-│       ├── repository/         # Spring Data JPA
-│       ├── security/           # JWT, chiffrement, CORS, rate-limit, anti-IDOR
-│       └── integration/        # Strava, Resend (clients HTTP)
-│   └── src/main/resources/db/changelog/   # 85 changelogs Liquibase (96 changesets)
-├── front/                      # App Angular (PWA)
-│   └── src/app/
-│       ├── core/               # services, models, guards, intercepteurs
-│       └── features/           # 25 modules (athletes, strength, physio, messages, calendar…)
-├── docs/                       # Cahier des charges, design, techno, audits, exploitation
-│   ├── README.md               # index : quel document fait foi, et sur quoi
-│   └── archive/                # historique non maintenu (CDC d'origine, blueprint, wireframes)
-├── docker-compose.yml
-├── .env.example
-└── .github/workflows/ci.yml
+back/    API Spring Boot — controller, service, engine, entity, dto, security,
+         integration (Strava, Garmin, COROS, Resend), trial (essai jetable),
+         resources/db/changelog (Liquibase)
+front/   Angular — core (services, modèles, gardes), features (un dossier par écran),
+         branding (icônes, og-image, vidéo, guides PDF)
+e2e/     Playwright — parcours et script de captures d'écran
+docs/    documentation (index : docs/README.md)
+ops/     scripts d'exploitation (sauvegarde, preflight prod)
 ```
 
-**Multi-tenant** : chaque ressource est scopée par club via `@clubAccessValidator.hasAccess(...)`
-(protection anti-IDOR systématique, couverte par des tests d'accès dédiés).
+---
+
+## Sécurité et RGPD
+
+- Données de santé et jetons OAuth **chiffrés au repos** (AES-256-GCM).
+- Cloisonnement par club et par relation coach-athlète vérifié sur chaque accès (anti-IDOR, tests
+  d'accès dédiés).
+- JWT jamais dans une URL ; jetons d'usage unique d'une minute pour SSE et pièces jointes.
+- Démarrage **refusé en prod** si un secret manque ou garde sa valeur de dev.
+- CSP stricte, CORS en liste blanche, limitation de débit, 2FA administrateur.
+- Consentement santé horodaté, export et suppression de compte par l'athlète, journal d'audit
+  sans donnée de santé ni secret. Aucune donnée n'alimente un système d'IA.
 
 ---
 
-## Qualité, tests & CI
+## Configuration et déploiement
 
-```bash
-# Backend : build + tests + smoke test de démarrage
-cd back && ./mvnw -B -ntp clean verify
+- **Back + PostgreSQL → Railway**, **front → Vercel**, domaine `www.darilab.app`.
+- Variables : modèle commenté dans [`.env.example`](.env.example), tableau complet dans
+  [`docs/DEPLOIEMENT.md`](docs/DEPLOIEMENT.md) §3. La stack Docker n'en demande aucune.
+- Avant de passer en prod : `./ops/preflight-prod.sh`.
+- Exploitation (sauvegardes, Sentry, journaux, version en ligne, retour arrière) :
+  [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 
-# Frontend : build de production (typecheck AOT)
-cd front && npm run build
-```
-
-- **~340 tests backend** (moteurs purs + intégration MockMvc), exécutés sur **H2 en mode PostgreSQL**,
-  et **64 tests front** (Karma headless), tous joués en CI.
-- **Smoke test de démarrage** en CI sur un **PostgreSQL réel** (migrations Liquibase appliquées) pour
-  attraper les écarts H2↔PG.
-- CI GitHub Actions (`.github/workflows/ci.yml`) : jobs back (`mvn verify` + smoke PG) et front (`npm ci` + build).
+Chaque intégration se coupe proprement sans ses variables : sa carte affiche « indisponible »
+ou « Bientôt », rien d'autre ne change.
 
 ---
 
-## Sécurité & RGPD
+## Limites connues
 
-- **Chiffrement au repos** des données sensibles (mesures de santé : lactate, douleur… ; jetons OAuth)
-  en **AES-256-GCM** avec IV aléatoire par valeur (`EncryptionService` + converters JPA).
-- **JWT** stateless, TTL court, en-tête `Authorization: Bearer` — **et jamais dans une URL**.
-- **Jetons de flux** (`StreamTokenService`) pour les deux seules requêtes qui ne peuvent pas porter
-  d'en-tête : l'ouverture d'un `EventSource` et celle d'une pièce jointe dans un onglet. Le client
-  les demande sur `POST /auth/stream-token` (avec l'en-tête, donc), juste avant l'usage ; ils valent
-  **une minute, un seul usage, une seule portée** (`STREAM` ou `ATTACHMENT`) et n'ouvrent aucune
-  autre route ni aucune écriture. Ils remplacent le `?access_token=<JWT>` d'avant, qui déposait une
-  session d'une heure dans les journaux d'accès du relais, l'historique de navigation et le
-  `Referer`. Les vignettes de pièces jointes, elles, sont chargées par le code applicatif avec
-  l'en-tête : leur URL ne porte plus rien du tout.
-- **Garde-fou au démarrage** (`StartupSecretsValidator`) : l'application **refuse de démarrer en prod**
-  si `JWT_SECRET` ou `FIELD_ENCRYPTION_KEY` sont laissés à leurs valeurs par défaut.
-- **En-têtes** : Content-Security-Policy, `frame-options: deny`, `object-src 'none'`. La CSP du
-  front n'ouvre `frame-src` qu'aux **deux domaines de lecture vidéo** (YouTube sans cookie, Vimeo),
-  et le lecteur n'est monté qu'au clic de l'athlète : une séance ouverte ne déclenche aucune
-  requête tierce.
-- **CORS** restreint à une allowlist · **rate-limiting** par fenêtre fixe.
-- **Anti-IDOR** : toute route club passe par `@clubAccessValidator` (privé / club / permissions).
-- **Traçabilité de l'administration** : toute mutation `/admin/**` est consignée dans
-  `admin_audit_log` (acteur, action, cible, adresse d'appel), impersonation comprise — sans
-  aucune donnée de santé ni secret dans le résumé. Consultable sur `/admin/audit`.
-
-> Exploitation (Sentry, sauvegardes, uptime) : [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) et
-> [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md). Ce qui reste à lever avant
-> d'ouvrir : [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md).
-
----
-
-## Back-office d'administration
-
-`/admin`, réservé au rôle `PLATFORM_ADMIN` (garde front `adminGuard`, `@PreAuthorize` de classe sur
-tous les contrôleurs `/admin/**`). Pensé comme un **centre de pilotage** : comprendre l'état de la
-plateforme, retrouver n'importe quelle ressource, aider un utilisateur et diagnostiquer un incident
-**sans ouvrir psql**.
-
-| Zone | Route | Ce qu'on y fait |
-|---|---|---|
-| **Pilotage** | `/admin` | Anomalies actionnables d'abord (plafond d'e-mails, comptes bloqués sur leur vérification, invitations expirées, clubs sans coach), puis photographie, usage réel, intégrations et dernières actions d'administration. |
-| **Utilisateurs** | `/admin/users`, `/admin/users/:id` | Recherche et filtres (rôle, statut, club, vérification). La fiche porte l'identité, les clubs rattachés, l'activité, les appareils, l'historique — et les actions de support. |
-| **Clubs** | `/admin/clubs`, `/admin/clubs/:id` | Composition, activité, connexions de montres, et **aperçu d'impact** avant une suppression en cascade. |
-| **Athlètes & invitations** | `/admin/athletes`, `/admin/invitations` | Filtres par club et statut, athlètes sans coach, invitations expirées, **renvoi** et copie du lien. |
-| **Supervision** | `/admin/mail`, `/admin/feedback`, `/admin/platform` | Consommation du plan d'envoi, retours bêta, et configuration réelle de l'instance. |
-| **Audit** | `/admin/audit` | Qui a fait quoi, quand, sur quelle ressource. Lecture seule. |
-
-**Recherche globale** — <kbd>Ctrl/⌘ K</kbd> (ou `/`) depuis n'importe quel écran d'administration :
-comptes, clubs et athlètes en une saisie, par nom ou adresse e-mail.
-
-### Actions de support disponibles
-
-Toutes confirmées, toutes journalisées. Aucune ne demande d'accès à la base.
-
-| Geste | Effet |
-|---|---|
-| Renvoyer la vérification d'adresse | Nouveau lien de confirmation — le blocage n° 1 des nouveaux coachs. |
-| Envoyer un lien de mot de passe | Lien valable 2 h à l'adresse du compte. **L'administrateur ne choisit ni ne voit le mot de passe.** |
-| Fermer toutes les sessions | Déconnecte tous les appareils sans suspendre le compte. |
-| Suspendre / réactiver | La suspension **ferme aussi les sessions ouvertes** (elle ne bloquait auparavant que la prochaine connexion). |
-| Rattacher / détacher un club | Pilote le modèle multi-club des coachs. |
-| Renvoyer une invitation athlète | Régénère le lien (14 j) et l'envoie ; le lien est aussi rendu à l'écran pour un athlète sans adresse connue. |
-| Voir en tant que | Session au nom d'un coach ou d'un athlète, sans rafraîchissement, jamais sur un compte d'administration. |
-
-### Fiche d'un compte : comment il utilise l'application
-
-La fiche disait **qui** était le compte et **ce qu'on lui avait fait**. Elle ne disait rien de son
-usage — or c'est ce qui décide de la réponse à un ticket. Quatre blocs :
-
-| Bloc | Ce qu'on y lit |
-|---|---|
-| **Avec quoi** | Mobile / Tablette / Ordinateur, système et navigateur, dérivés du dernier `User-Agent` vu. Et la **version du front qu'il fait tourner**, comparée à celle que sert le serveur : le service worker peut laisser un téléphone des jours en arrière, et c'est la première chose à vérifier sur un « ça ne marche pas ». |
-| **Ce qui peut l'atteindre** | **Joignable ou non** — la seule question qui compte, et elle ne se déduit d'aucun champ isolé : il faut un appareil abonné *et* la préférence active. Plus le détail : préférences push/e-mail, familles coupées, appareils abonnés avec leur plateforme et leur dernier push reçu, adresse vérifiée. |
-| **Sa montre** | Strava connecté ou non, depuis quand, dernier import, renommage demandé — et si **Strava a réellement accordé l'écriture** (`activity:write`), distinct du consentement coché dans Darilab : c'est la confusion la plus fréquente au support. |
-| **Signes de vie** | Dernière connexion, dernière visite, et pour un athlète : séances réalisées et sorties importées sur 30 jours, dernier retour de séance. Nuls pour un coach — la question ne se pose pas pour lui, et un zéro se lirait comme un reproche. |
-
-La capture ne coûte rien : le `User-Agent` et l'en-tête `X-App-Version` sont notés par l'écriture
-de « dernière visite », déjà limitée à une fois par quart d'heure et par compte. On stocke la
-**matière brute** et jamais le verdict : « mobile ou ordinateur » se recalcule à la lecture, si
-bien qu'affiner la règle requalifie tout l'historique sans réécrire une seule ligne (§4 bis).
-
-**Aucune donnée de santé** : le bloc compte des séances et des sorties, il ne rend ni RPE, ni
-douleur, ni fatigue, ni commentaire.
-
-### Journal d'audit (`admin_audit_log`)
-
-Toute mutation d'administration y laisse une trace : acteur (identifiant **et** e-mail recopié, pour
-survivre à la suppression de son propre compte), action, cible, résumé, adresse d'appel.
-**Aucune donnée de santé, aucun mot de passe, aucun jeton** n'y transite — le résumé est composé par
-le code, jamais recopié d'une saisie libre. Les modifications de profil athlète sont consignées
-« dont des données physiologiques » **sans les valeurs**.
-
-Chaque ligne porte aussi le contexte qu'on cherche toujours après coup :
-
-- **De quel droit** — le **rôle de l'acteur au moment du geste**, figé comme son e-mail. Un rôle
-  change ; afficher celui d'aujourd'hui en face d'une action d'il y a six mois raconterait autre chose.
-- **Qui vraiment** — l'**administrateur derrière une session empruntée**. Le jeton d'impersonation
-  portait ce renseignement depuis l'origine sans que rien ne le lise : une action faite au nom d'un
-  utilisateur était indiscernable des siennes. Toute **écriture** en session empruntée est désormais
-  consignée (`IMPERSONATED_WRITE`), signalée comme sensible, et retrouvée en cherchant l'adresse de
-  l'administrateur. Les **lectures** ne le sont pas — voir l'application comme l'utilisateur est
-  l'usage revendiqué, et les journaliser noierait les écritures.
-- **Par où** — méthode et chemin HTTP (jamais la chaîne de requête, qui porte des saisies ; jamais
-  le corps, qui porte du ressenti) et le navigateur, enregistré depuis l'origine et affiché
-  seulement maintenant.
-
-> ⚠️ **Rétention à trancher.** Contrairement au journal d'e-mails (purgé à 180 jours), le journal
-> d'audit n'a **pas** de purge automatique : il porte des adresses e-mail et des adresses IP, donc
-> des données personnelles. Un journal de sécurité se conserve plutôt longtemps, mais la durée doit
-> être décidée puis appliquée — voir `docs/AUDIT-ADMIN-2026-08.md` §3 (P2).
-
-### Garde-fous
-
-- Un administrateur ne peut **ni changer son propre rôle, ni se suspendre, ni se supprimer** :
-  aucun chemin du produit ne permettrait de le rétablir.
-- Le **dernier administrateur actif** ne peut être ni suspendu ni supprimé.
-- La suppression d'un compte ou d'un club exige de **recopier un mot** et affiche ce qu'elle détruit.
-- `/admin/platform` rapporte qu'un secret **est posé**, jamais sa valeur.
-
-## Variables d'environnement
-
-> **La stack Docker n'a besoin d'aucune de ces variables** : `docker-compose.yml` fournit lui-même
-> ses valeurs de développement. Cette section concerne le **déploiement** (Railway/Vercel) et le
-> développement **sans** Docker.
-
-Copier `.env.example` → `.env` (local) ou configurer dans Railway/Vercel. Clés principales :
-
-| Variable | Rôle | Prod |
-|---|---|---|
-| `JDBC_DATABASE_URL`, `PGUSER`, `PGPASSWORD` | connexion PostgreSQL | requis |
-| `JWT_SECRET` | secret de signature JWT (≥ 256 bits) | **requis** |
-| `FIELD_ENCRYPTION_KEY` | clé de chiffrement (64 hex / 32 octets) | **requis** |
-| `FRONTEND_URL`, `CORS_ORIGINS` | URL front + allowlist CORS | requis |
-| `MAIL_ENABLED`, `RESEND_API_KEY`, `MAIL_FROM` | notifications e-mail | optionnel |
-| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | notifications push | optionnel |
-| `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET`, `STRAVA_REDIRECT_URI` | intégration Strava | optionnel |
-| `REGISTRATION_MODE` | `request` (demande validée), `invite` (code partagé) ou `open` (libre) | défaut `request` en prod |
-| `REGISTRATION_INVITE_CODE` | code de la cohorte | requis si `invite` |
-| `SENTRY_DSN` | DSN Sentry **backend** (remontée d'erreurs) — no-op si vide | optionnel |
-| `SENTRY_ENV` | environnement Sentry backend (`production` / `staging`…) | défaut `dev` |
-
-### Monitoring (Sentry)
-- **Backend** : `SENTRY_DSN` + `SENTRY_ENV` (variables d'environnement). Sentry est **inactif tant que `SENTRY_DSN` est vide**.
-- **Frontend** : le DSN se renseigne dans `front/src/environments/environment.ts` (clé `sentryDsn`)
-  au moment du build de prod (idéalement injecté via une variable CI), avec `appVersion` pour le suivi par release.
-  L'image Docker, elle, est construite avec `npm run build:docker`
-  (`front/src/environments/environment.docker.ts`) : même build de production, **sans DSN** — une
-  stack locale n'a rien à écrire dans le projet Sentry des utilisateurs réels.
-
-> L'intégration Strava se **désactive proprement** si les identifiants sont absents
-> (l'UI affiche « non configuré » au lieu d'échouer). Tableau complet : [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md).
-> **Mise en place pas-à-pas de Sentry, des sauvegardes BDD et du monitoring : [`docs/OPERATIONS.md`](./docs/OPERATIONS.md).**
-
----
-
-## Déploiement
-
-- **Backend + PostgreSQL → Railway** : service Docker depuis `/back` + plugin PostgreSQL.
-- **Frontend → Vercel** : Root Directory = `front`, build Angular, rewrites SPA.
-
-Procédure pas-à-pas (ordre de déploiement, variables, CORS, redirect URIs) :
-[`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md).
-
----
-
-## Limites connues & pistes d'amélioration
-
-Transparence sur ce qui reste à durcir (détail et priorisation dans
-[`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md), qui porte
-aussi bien l'exploitation que le reliquat produit des audits d'août depuis retirés) :
-
-- **Tests sur PG réel** : les assertions tournent sur H2 (mode PostgreSQL) ; **Testcontainers**
-  fermerait le risque H2↔PG (le CI ne fait qu'un smoke de démarrage sur PG).
-- **Couverture front** : tests unitaires/e2e à étoffer (pas de Playwright/Cypress).
-- **SSE mono-instance** : les émetteurs sont en mémoire → nécessite Redis pub/sub pour le multi-pod.
-  Le registre des **jetons de flux** (`StreamTokenService`) l'est aussi, au même titre que la liste
-  noire des jetons révoqués : à externaliser avant tout passage à plusieurs instances.
-- **Import Strava** par polling (webhook à venir) — le `state` OAuth est désormais signé (HMAC, TTL 10 min).
-- **Pagination** à généraliser sur les listes non bornées (fil de messages, résultats…).
-- **Pièces jointes en base** (`bytea`) → stockage objet (S3) à plus grande échelle.
-
----
-
-## Documentation
-
-> 📑 **[`docs/README.md`](./docs/README.md) est l'index de référence** : il dit quel document fait
-> foi, lesquels sont des audits datés, et ce qui n'est conservé que pour l'historique.
-
-| Document | Contenu |
-|---|---|
-| [`docs/Cahier-des-charges.md`](./docs/Cahier-des-charges.md) | périmètre fonctionnel (référentiel de complétude) |
-| [`docs/Techno.md`](./docs/Techno.md) | référence technique |
-| [`docs/Design.md`](./docs/Design.md) | design system (tokens, composants, états) |
-| [`docs/Claude.md`](./docs/Claude.md) | conventions de code (IA & humains) |
-| [`docs/DEPLOIEMENT.md`](./docs/DEPLOIEMENT.md) | déploiement Railway/Vercel + variables |
-| [`docs/DEBUG.md`](./docs/DEBUG.md) | **mémo de débogage : points d'arrêt en Docker, IntelliJ et VS Code, journaux, correlationId** |
-| [`docs/OPERATIONS.md`](./docs/OPERATIONS.md) | **exploitation : Sentry, sauvegardes BDD, Actuator, CI (pas-à-pas)** |
-| [`docs/BETA-LAUNCH-RUNBOOK.md`](./docs/BETA-LAUNCH-RUNBOOK.md) | **runbook de mise en service : Resend, Sentry, uptime, backups (pas-à-pas)** |
-| [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](./docs/PLAN-CONFORMITE-BETA-2026-08.md) | **plan de mise en conformité** : vagues 0 à 3, check-lists légale/RGPD et opérationnelle, recommandation GO/NO-GO |
-| [`docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md`](./docs/ANALYSE-CONCURRENTIELLE-NOLIO-2026-08.md) | **analyse concurrentielle Nolio** : fonctionnalités, UX, UI, ergonomie, verdict, maturité, feuille de route |
-| [`docs/AUDIT-ADMIN-2026-08.md`](./docs/AUDIT-ADMIN-2026-08.md) | audit du back-office `/admin` : P0/P1 livrés, **P2 encore ouvert** (§3) |
-| [`docs/AUDIT-COACH-INDEPENDANT-2026-08.md`](./docs/AUDIT-COACH-INDEPENDANT-2026-08.md) | audit du coach indépendant : athlètes privés, multi-club |
-| [`docs/PLAN-EVOLUTION-2026-08.md`](./docs/PLAN-EVOLUTION-2026-08.md) · [`docs/PLAN-PRODUIT-2026-08.md`](./docs/PLAN-PRODUIT-2026-08.md) | plans d'évolution : ce que le marché réclame, et ce que le modèle de domaine empêche |
-| [`docs/DEMANDES-API-GARMIN-COROS.md`](./docs/DEMANDES-API-GARMIN-COROS.md) | dossiers d'accès aux API montres (Garmin fermé, COROS ouvert) |
-| [`docs/archive/`](./docs/archive/) | historique non maintenu : le seul blueprint UX, gardé parce que trois fichiers front le citent encore |
-
-> Les audits d'août clos — produit/UX, PWA coach, fonctionnel, technique et bêta ouverte — ont été
-> **retirés du dépôt** une fois leurs constats livrés : leur reliquat vit dans
-> `docs/PLAN-CONFORMITE-BETA-2026-08.md`, leur texte dans l'historique git. `docs/README.md` dit
-> pour chacun ce qu'il est devenu.
-
-> **Aide utilisateur intégrée** : chaque espace dispose d'un **centre d'aide** adapté à son profil
-> (athlète `/athlete/help`, coach `/app/aide`, admin `/admin/aide`), avec **recherche globale**
-> (icône loupe dans chaque en-tête), **liens contextuels** (`<app-help-hint section="…">` ouvre la
-> bonne rubrique depuis un écran) et **export PDF** d'un guide. Le contenu — éditable sans toucher au
-> rendu — vit dans [`front/src/app/features/help/help-content.ts`](./front/src/app/features/help/help-content.ts).
+- Tests d'intégration sur H2 (mode PostgreSQL) ; seul un smoke test tourne sur PostgreSQL réel.
+- SSE, jetons de flux et liste noire de jetons en mémoire : **une seule instance** de back.
+- Pièces jointes en base (`bytea`) ; stockage objet à prévoir à plus grande échelle.
+- Garmin et COROS en bêta : formats à confirmer sur de vrais comptes ; COROS ne permet pas de
+  supprimer une séance envoyée.
+- Reliquat suivi dans [`docs/PLAN-CONFORMITE-BETA-2026-08.md`](docs/PLAN-CONFORMITE-BETA-2026-08.md).
 
 ---
 
 ## Conventions
 
-- Entités héritant de `BaseEntity` · DTOs **Request/Response séparés** · scoping multi-tenant systématique.
-- Composants Angular **standalone** + `inject()` · signals + OnPush · feedback via toasts.
-- **Toute** modification de schéma passe par une migration Liquibase (jamais de `ddl-auto`).
-- **Nommage anglais dans le code, libellés français dans l'UI.**
+- Nommage **anglais dans le code**, libellés **français dans l'interface**.
+- Entités héritant de `BaseEntity`, DTO Request/Response séparés, scoping club systématique.
+- Composants Angular standalone, `inject()`, signals + OnPush.
+- Détail : [`docs/Claude.md`](docs/Claude.md).
 
----
-
-## Licence
-
-_Privée — tous droits réservés (à définir)._
+Licence : privée, tous droits réservés.

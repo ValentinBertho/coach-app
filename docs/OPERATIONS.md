@@ -1,7 +1,7 @@
 # Darilab — Exploitation, fiabilité & suivi
 
-Guide opérationnel : sauvegardes BDD, restauration, monitoring (Sentry,
-Actuator) et CI. À garder à jour avec l'infra réelle.
+Guide opérationnel : sauvegardes, restauration, monitoring, CI, version en ligne, essais
+jetables et montres connectées. À garder à jour avec l'infra réelle.
 
 ---
 
@@ -218,6 +218,12 @@ assumées, et les déclarer fait qu'une **nouvelle** dépendance CommonJS, elle,
   contre un PostgreSQL éphémère (valide les migrations via `/actuator/health`).
 - **Frontend** : `npm ci`, build AOT prod, tests Karma headless.
 
+- **e2e** : parcours Playwright sur l'application complète ([`e2e/README.md`](../e2e/README.md)).
+- **CI nocturne** ([`nocturne.yml`](../.github/workflows/nocturne.yml)) : suites complètes,
+  temps de démarrage, audit des vulnérabilités back et front. Une CVE sans correctif disponible
+  s'accepte par une ligne **datée** dans
+  [`vulnerabilites-acceptees.tsv`](../.github/vulnerabilites-acceptees.tsv), jamais
+  indéfiniment.
 - **Tag de déploiement** ([`deploy-tag.yml`](../.github/workflows/deploy-tag.yml)) : quand la CI
   de `main` est verte, le commit reçoit un tag annoté `prod-AAAA-MM-JJ-HHMM-<sha7>` (heure UTC),
   dont le message liste les fusions depuis le tag précédent. Voir §6 bis pour s'en servir.
@@ -235,16 +241,15 @@ assumées, et les déclarer fait qu'une **nouvelle** dépendance CommonJS, elle,
       compte coach (la seule réponse possible à une demande d'effacement RGPD d'un coach), ni
       lecture des retours de bêta. Vider `PLATFORM_ADMIN_PASSWORD` une fois le compte créé et le
       mot de passe changé depuis l'application.
-- [ ] **`RATE_LIMIT_TRUSTED_PROXY_HOPS` cohérent avec la topologie** : 2 derrière Vercel →
-      Railway (valeur par défaut, refusée en dessous au démarrage), 1 si le front attaque
-      directement l'API. Une valeur fausse fait compter l'adresse d'un proxy, la même pour tous
-      les utilisateurs — le rate limiting devient alors un seau unique partagé.
+- [ ] **`RATE_LIMIT_TRUSTED_PROXY_HOPS=1`** (défaut) : le navigateur appelle l'API Railway
+      directement. Une valeur trop haute fait compter l'adresse d'un proxy, la même pour tous les
+      utilisateurs — le rate limiting devient alors un seau unique partagé.
 - [ ] **Identité de l'éditeur renseignée** dans `LEGAL_OWNER` (`legal.component.ts`) :
       `legalName` et `address`. L'exemption LCEN pour éditeur non professionnel couvre les
       mentions légales, pas l'article 13 du RGPD, qui impose l'identité et les coordonnées du
       responsable de traitement — et le Service traite des données de santé.
 - [ ] Secrets via variables d'env (jamais commités) : `JWT_SECRET`, `FIELD_ENCRYPTION_KEY`,
-      `STRAVA_*`, `VAPID_*`, `SENTRY_DSN`, `PLATFORM_ADMIN_PASSWORD`.
+      `STRAVA_*`, `GARMIN_*`, `VAPID_*`, `SENTRY_DSN`, `PLATFORM_ADMIN_PASSWORD`.
 - [ ] Logs centralisés + rétention.
 - [ ] Dépendances surveillées (Dependabot/Snyk).
 - [ ] HTTPS + en-têtes proxy (déjà : `forward-headers-strategy: framework`).
@@ -274,6 +279,29 @@ un schéma plus récent : c'est sans risque tant que les migrations sont additiv
 tables ou colonnes facultatives), ce qui est la règle du projet. Si une migration a supprimé ou
 renommé quelque chose, revenir en arrière demande une restauration de base (§2), pas un
 redéploiement.
+
+---
+
+## 6 ter. Essais sans inscription
+
+« Essayer sans inscription » crée, pour chaque visiteur, un club rempli comme la démonstration
+(`POST /api/public/trial`, environ 3 s). Ce qu'il faut savoir :
+
+- **Durée de vie** : 24 h (`TRIAL_LIFETIME_HOURS`), puis suppression complète par une tâche
+  horaire (`purgeExpiredTrials`, à la 17e minute). Colonne `clubs.trial_expires_at`.
+- **Plafonds** : 200 essais ouverts (`TRIAL_MAX_ACTIVE`), 3 par adresse IP et par heure
+  (`TRIAL_PER_IP_PER_HOUR`). Au-delà, le visiteur lit « pas disponible pour le moment ».
+- **Cloisonnement** : adresses en `@….essai.invalid`, donc aucun e-mail ne part. Un filtre bloque
+  invitations, Strava et montres, push, changements de compte, fiche publique et demandes de
+  coaching. Les essais sont exclus des listes et des compteurs d'administration.
+- **Fermer l'offre** : `TRIAL_ENABLED=false` et redéployer.
+
+## 6 quater. Montres connectées
+
+Activation, quotas et diagnostic de Strava, Garmin et COROS :
+[`INTEGRATIONS-MONTRES.md`](./INTEGRATIONS-MONTRES.md). À surveiller pendant la bêta :
+les erreurs d'envoi de séances (cartes des athlètes, journaux `GarminWorkoutSyncService` /
+`CorosWorkoutSyncService`) et le quota FIT de COROS.
 
 ---
 

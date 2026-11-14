@@ -23,8 +23,8 @@ import java.util.List;
  *
  * <p>Tout ce qu'on vient essayer fonctionne : planifier, écrire, noter une séance, créer un
  * athlète, modifier la bibliothèque. Est refusé ce qui ferait sortir quelque chose de l'essai ou
- * le rendrait durable : inviter une vraie personne (athlète ou coach), relier Strava ou les
- * notifications, soumettre une fiche à l'annuaire, écrire à un vrai coach de l'annuaire, et tout ce qui touche au compte lui-même
+ * le rendrait durable : inviter une vraie personne (athlète ou coach), relier Strava, Garmin,
+ * COROS ou les notifications, soumettre une fiche à l'annuaire, écrire à un vrai coach de l'annuaire, et tout ce qui touche au compte lui-même
  * (mot de passe, adresse, suppression, consentement).</p>
  *
  * <p>Un compte d'essai se reconnaît à son adresse ({@link TrialService#EMAIL_SUFFIX}), portée par
@@ -45,6 +45,8 @@ public class TrialGuardFilter extends OncePerRequestFilter {
             "/me/account/**",
             "/me/consent/**",
             "/me/strava/**",
+            "/me/garmin/**",
+            "/me/coros/**",
             "/me/coach-profile/**",
             "/me/coach-profile",
             "/clubs/*/athletes/*/strava/**",
