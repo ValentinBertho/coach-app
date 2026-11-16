@@ -150,6 +150,10 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
     }
   `,
   styles: [`
+    /* L'écran vit dans le portail athlète, qui n'ajoute ni marges ni largeur de lecture : sans
+       elles, le titre collait au bord gauche et les cartes s'étiraient sur tout l'écran. */
+    :host { display: block; max-width: 720px; margin-inline: auto; padding: var(--sp-5) var(--sp-4) var(--sp-12); }
+    .page-head h1 { margin: 0 0 var(--sp-1); }
     .mr-past { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-4); text-decoration: none; color: var(--ink); }
     .mr-past span { flex: 1; }
     .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-5); }
