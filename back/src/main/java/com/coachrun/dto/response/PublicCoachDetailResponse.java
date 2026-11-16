@@ -53,13 +53,16 @@ public record PublicCoachDetailResponse(
         boolean certificationsDeclared,
         List<CoachOfferResponse> offers,
         /** Site et réseaux : sur la fiche seulement, jamais dans la liste de résultats. */
-        CoachLinks links) {
+        CoachLinks links,
+        /** Les mots d'athlètes que le coach a choisi de publier (sans note, sans étoiles). */
+        List<com.coachrun.service.CoachTestimonialService.Published> testimonials) {
 
     public static PublicCoachDetailResponse of(CoachProfile p,
                                                String photoUrl,
                                                Integer responseRatePercent,
                                                List<CoachCertificationResponse> certifications,
-                                               List<CoachOfferResponse> offers) {
+                                               List<CoachOfferResponse> offers,
+                                               List<com.coachrun.service.CoachTestimonialService.Published> testimonials) {
         return new PublicCoachDetailResponse(
                 p.getSlug(),
                 p.getCoach() != null ? p.getCoach().getFullName() : null,
@@ -83,6 +86,7 @@ public record PublicCoachDetailResponse(
                 certifications,
                 true,
                 offers,
-                CoachLinks.of(p));
+                CoachLinks.of(p),
+                testimonials);
     }
 }

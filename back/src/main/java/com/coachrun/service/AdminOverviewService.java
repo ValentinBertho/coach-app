@@ -108,7 +108,7 @@ public class AdminOverviewService {
                 userRepository.countByCreatedAtAfter(sevenDaysAgo),
                 userRepository.countByCreatedAtAfter(thirtyDaysAgo),
                 clubRepository.countByCreatedAtAfter(thirtyDaysAgo),
-                athleteRepository.countByCreatedAtAfter(thirtyDaysAgo));
+                athleteRepository.countByCreatedAtAfterAndClubPersonalFalse(thirtyDaysAgo));
 
         AdminOverviewResponse.Engagement engagement = new AdminOverviewResponse.Engagement(
                 userRepository.countByLastSeenAtAfter(now.minus(Duration.ofHours(24))),
@@ -136,7 +136,7 @@ public class AdminOverviewService {
 
     private AdminOverviewResponse.Counts counts() {
         return new AdminOverviewResponse.Counts(
-                clubRepository.countByTrialExpiresAtIsNull(),
+                clubRepository.countByTrialExpiresAtIsNullAndPersonalFalse(),
                 clubRepository.countByStatus(ClubStatus.ACTIVE),
                 clubRepository.countByStatus(ClubStatus.SUSPENDED),
                 userRepository.count(),
@@ -146,10 +146,10 @@ public class AdminOverviewService {
                 userRepository.countByRole(UserRole.ATHLETE),
                 userRepository.countByStatus(UserStatus.SUSPENDED),
                 userRepository.countStaleUnverified(Instant.now()),
-                athleteRepository.count(),
-                athleteRepository.countByStatus(AthleteStatus.ACTIVE),
-                athleteRepository.countByStatus(AthleteStatus.PAUSED),
-                athleteRepository.countByStatus(AthleteStatus.ARCHIVED),
+                athleteRepository.countByClubPersonalFalse(),
+                athleteRepository.countByStatusAndClubPersonalFalse(AthleteStatus.ACTIVE),
+                athleteRepository.countByStatusAndClubPersonalFalse(AthleteStatus.PAUSED),
+                athleteRepository.countByStatusAndClubPersonalFalse(AthleteStatus.ARCHIVED),
                 athleteRepository.countByInviteTokenIsNotNull(),
                 workoutRepository.count(),
                 activityRepository.count());

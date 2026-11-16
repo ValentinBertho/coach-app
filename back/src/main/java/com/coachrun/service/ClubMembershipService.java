@@ -183,24 +183,7 @@ public class ClubMembershipService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    /** Retire un coach du club (désactive l'adhésion). Le propriétaire ne peut pas être retiré. */
-    @Transactional
-    public void removeCoach(UUID clubId, UUID coachId) {
-        ClubMember member = memberRepository.findByClubIdAndCoachIdAndActiveTrue(clubId, coachId)
-                .orElseThrow(() -> new NotFoundException("Membre introuvable."));
-        if (member.getClubRole() == ClubRole.OWNER) {
-            throw new ConflictException("Le propriétaire du club ne peut pas être retiré.");
-        }
-        member.setActive(false);
-        User coach = member.getCoach();
-        if (coach.getClub() == null || !clubId.equals(coach.getClub().getId())) {
-            coach.getAdditionalClubs().removeIf(c -> c.getId().equals(clubId));
-        }
-        audit.record(AdminAuditAction.COACH_REMOVED, AdminAuditTarget.USER,
-                coach.getId(), coach.getEmail(),
-                "Club « " + member.getClub().getName() + " », rôle " + member.getClubRole()
-                        + " — accès aux athlètes du club retiré");
-    }
+    // Le retrait d'un coach vit dans ClubDepartureService : il décide aussi du sort de ses athlètes.
 
     public AthleteAccessResponse access(UUID athleteId) {
         CoachAthleteRelation referent = relationRepository

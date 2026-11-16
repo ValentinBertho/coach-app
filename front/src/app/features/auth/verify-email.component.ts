@@ -33,7 +33,12 @@ type State = 'loading' | 'ok' | 'invalid';
           }
           @case ('ok') {
             <span class="badge badge-success">E-mail confirmé</span>
-            @if (requestSentTo(); as coach) {
+            @if (invitedBy(); as coach) {
+              <p class="field-hint">
+                Votre invitation est prise en compte : <strong>{{ coach }}</strong> en est prévenu.
+              </p>
+              <a class="btn btn-primary btn-lg" [routerLink]="home()">Accéder à mon espace</a>
+            } @else if (requestSentTo(); as coach) {
               <!-- La demande écrite à l'inscription vient de partir : c'est ce que la personne
                    attendait de ce clic, bien plus que la confirmation elle-même. -->
               <p class="field-hint">
@@ -66,6 +71,7 @@ export class VerifyEmailComponent implements OnInit {
 
   readonly state = signal<State>('loading');
   readonly requestSentTo = signal<string | null>(null);
+  readonly invitedBy = signal<string | null>(null);
 
   /** L'accueil du rôle réel : un athlète n'a rien à faire sous /app. */
   home(): string {
@@ -76,6 +82,7 @@ export class VerifyEmailComponent implements OnInit {
     this.auth.verifyEmail(this.token()).subscribe({
       next: (res) => {
         this.requestSentTo.set(res.requestSentTo ?? null);
+        this.invitedBy.set(res.invitedBy ?? null);
         this.auth.markEmailVerified();
         this.state.set('ok');
       },

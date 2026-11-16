@@ -356,13 +356,17 @@ public class ConversationService {
                 // c'est `canPost` qui referme l'écriture.
                 return formerBinomes(principal);
             }
+            // Les fils des coachs passés restent lisibles, y compris une fois revenu dans son
+            // espace personnel ou suivi par quelqu'un d'autre.
+            formerBinomes(principal).forEach(c -> found.put(c.getId(), c));
             conversationRepository.findByAthleteId(principal.athleteId())
                     .forEach(c -> found.put(c.getId(), c));
             athleteRepository.findById(principal.athleteId()).ifPresent(a -> {
                 if (a.getGroup() != null) {
                     found.put(group(a.getGroup().getId()).getId(), group(a.getGroup().getId()));
                 }
-                if (a.getClub() != null) {
+                // Un espace personnel n'a pas de fil d'annonces : personne n'y annonce rien.
+                if (a.getClub() != null && !a.getClub().isPersonal()) {
                     Conversation club = club(a.getClub().getId());
                     found.put(club.getId(), club);
                 }

@@ -1,0 +1,22 @@
+# ============================================================================
+# 124 — Les séances que l'athlète s'ajoute lui-même.
+#
+#   Sans coach, l'athlète construit sa semaine ; avec un coach, il peut y
+#   glisser une sortie de club ou un footing entre amis. Le drapeau dit qui a
+#   posé la séance : le coach la voit marquée « ajoutée par l'athlète », et
+#   l'athlète ne peut modifier ou supprimer que les siennes.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 124-workouts-created-by-athlete
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: workouts
+            columns:
+              - column:
+                  name: created_by_athlete
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false

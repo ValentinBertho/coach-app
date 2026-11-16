@@ -67,10 +67,13 @@ public class AthleteAccount extends BaseEntity {
     /**
      * Sert au contrôle d'âge à l'inscription libre, et au coach une fois la relation nouée.
      *
-     * <p>Non nullable : c'est la seule donnée qui permette d'appliquer la règle des 16 ans, et
-     * une inscription qui l'esquive rendrait la règle décorative.</p>
+     * <p>Exigée à l'inscription libre : c'est la seule donnée qui permette d'appliquer la règle
+     * des 16 ans, et une inscription qui l'esquive rendrait la règle décorative. Elle peut
+     * manquer pour un seul cas : un athlète invité par son coach, dont le compte naît à son
+     * départ à partir d'une fiche où la date n'avait pas été saisie — il a franchi la porte par
+     * son club, pas par l'inscription libre.</p>
      */
-    @Column(name = "birth_date", nullable = false)
+    @Column(name = "birth_date")
     private LocalDate birthDate;
 
     @Enumerated(EnumType.STRING)
@@ -117,6 +120,10 @@ public class AthleteAccount extends BaseEntity {
      * <p>Renseignés ensemble ou pas du tout, et vidés dès que la demande est partie (ou n'a pas pu
      * partir) : ce n'est pas un historique, c'est une salle d'attente de quelques minutes.</p>
      */
+    /** Lien d'invitation ouvert avant la confirmation de l'e-mail : rejoint à la vérification. */
+    @Column(name = "pending_invite_token", length = 32)
+    private String pendingInviteToken;
+
     @Column(name = "pending_request_coach_slug", length = 140)
     private String pendingRequestCoachSlug;
 

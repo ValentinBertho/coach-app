@@ -1600,6 +1600,114 @@ public class NotificationService {
                 byAthlete ? "/app/athletes" : "/coachs");
     }
 
+    /** Le coach annonce la fin du suivi : l'athlète a le préavis pour se retourner. */
+    public void notifyCoachingEndPlanned(User athleteUser, String coachName, java.time.Instant endsAt, String reason) {
+        if (athleteUser == null) {
+            return;
+        }
+        String date = java.time.format.DateTimeFormatter.ofPattern("d MMMM", java.util.Locale.FRENCH)
+                .format(endsAt.atZone(java.time.ZoneId.of("Europe/Paris")));
+        String body = coachName + " mettra fin à votre suivi le " + date + ". D'ici là, rien ne change ; "
+                + "ensuite, vous retrouverez votre espace personnel avec l'historique de vos sorties.";
+        if (reason != null && !reason.isBlank()) {
+            body = body + " Son mot : " + reason;
+        }
+        notifyUser(athleteUser, "COACHING_ENDED", "Fin de suivi annoncée", body, "/athlete/demandes");
+    }
+
+    /** Le coach revient sur la fin annoncée. */
+    public void notifyCoachingEndCancelled(User athleteUser, String coachName) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_ENDED", "Le suivi continue",
+                coachName + " a annulé la fin de votre suivi : il continue normalement.", "/athlete/calendar");
+    }
+
+    /** Rappel, la veille de la fin annoncée. */
+    public void notifyCoachingEndReminder(User athleteUser, String coachName) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_ENDED", "Dernier jour de suivi",
+                "Votre suivi avec " + coachName + " se termine demain. Pensez à chercher un autre coach "
+                        + "si vous le souhaitez : vos sorties vous suivent dans votre espace personnel.",
+                "/coachs");
+    }
+
+    /** Club : le coach référent d'un athlète a quitté le club, un autre coach du club prend le relais. */
+    public void notifyReferentChanged(User athleteUser, String formerCoach, String newCoach, String clubName) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_ENDED", "Nouveau coach au club",
+                formerCoach + " a quitté " + clubName + ". " + newCoach + " prend le relais de votre suivi : "
+                        + "votre historique reste là, rien à faire de votre côté.", "/athlete/calendar");
+    }
+
+    /** Club : le coach d'un athlète privé quitte le club, et l'emmène dans son espace. */
+    public void notifyFollowedCoach(User athleteUser, String coachName, String clubName) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_ENDED", coachName + " continue en indépendant",
+                coachName + " a quitté " + clubName + " et continue de vous suivre dans son propre espace. "
+                        + "Votre montre et vos sorties vous ont suivi ; vos séances à venir seront replanifiées. "
+                        + "Reconnectez-vous si l'application vous le demande.", "/athlete/today");
+    }
+
+    /** Au coach qui reprend des athlètes d'un collègue parti. */
+    public void notifyAthletesHandedOver(User coach, String formerCoach, int count) {
+        if (coach == null || count == 0) {
+            return;
+        }
+        notifyUser(coach, "COACHING_REQUEST", count + " athlète(s) vous sont confiés",
+                formerCoach + " a quitté le club : vous devenez le coach référent de " + count
+                        + " de ses athlètes.", "/app/athletes");
+    }
+
+    /** Au coach qui quitte (ou est retiré d') un club. */
+    public void notifyClubLeft(User coach, String clubName, int followers, boolean newSpace) {
+        if (coach == null) {
+            return;
+        }
+        notifyUser(coach, "COACHING_ENDED", "Vous avez quitté " + clubName,
+                (newSpace ? "Votre espace indépendant est prêt. " : "")
+                        + (followers > 0 ? followers + " athlète(s) privé(s) vous ont suivi. " : "")
+                        + "Les athlètes du club restent au club.", "/app/athletes");
+    }
+
+    /** Un athlète quitte le club mais garde son coach. */
+    public void notifyLeftClubKeptCoach(User coach, String athleteName, String clubName) {
+        if (coach == null) {
+            return;
+        }
+        notifyUser(coach, "COACHING_ENDED", athleteName + " quitte " + clubName,
+                athleteName + " ne fait plus partie du club mais reste suivi par vous, en athlète privé.",
+                "/app/athletes");
+    }
+
+    /** Un athlète a écrit (ou repris) un témoignage : au coach de décider s'il le publie. */
+    public void notifyTestimonialWritten(User coach, String authorName) {
+        if (coach == null) {
+            return;
+        }
+        notifyUser(coach, "COACHING_REQUEST", "Nouveau témoignage",
+                authorName + " a écrit quelques mots sur votre accompagnement. Publiez-le sur votre page "
+                        + "si vous le souhaitez.", "/app/vitrine");
+    }
+
+    /** Le récapitulatif envoyé à l'athlète quand son coaching s'achève. */
+    public void notifyCoachingRecap(User athleteUser, String coachName, long sessionsDone, int activitiesKept) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_ENDED", "Votre suivi avec " + coachName + " en résumé",
+                sessionsDone + " séance(s) réalisée(s) avec " + coachName + ". " + activitiesKept
+                        + " sortie(s) recopiée(s) dans votre espace personnel, où votre montre reste branchée.",
+                "/athlete/progress");
+    }
+
     /** Une demande vient d'arriver : c'est ce qui fait ouvrir la file au coach. */
     public void notifyCoachingRequestReceived(User coach, String athleteName) {
         if (coach == null) {
@@ -1609,6 +1717,18 @@ public class NotificationService {
                 "Nouvelle demande de coaching",
                 athleteName + " aimerait que vous le coachiez.",
                 "/app/demandes");
+    }
+
+    /** Un athlète vient d'entrer par un lien d'invitation à entrée directe : il est déjà suivi. */
+    public void notifyJoinedByInvite(User coach, String athleteName, String linkLabel) {
+        if (coach == null) {
+            return;
+        }
+        notifyUser(coach, "COACHING_REQUEST",
+                "Un athlète vous a rejoint",
+                athleteName + " vous a rejoint par votre lien d'invitation"
+                        + (linkLabel == null || linkLabel.isBlank() ? "." : " « " + linkLabel + " »."),
+                "/app/athletes");
     }
 
     /** Le coach a posé sa question : sans notification, l'athlète ne saurait pas qu'on l'attend. */

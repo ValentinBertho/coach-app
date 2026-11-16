@@ -64,6 +64,7 @@ public class AthleteAccountService {
     private final ClockService clock;
     private final AuthService authService;
     private final CoachProfileRepository profileRepository;
+    private final PersonalSpaceService personalSpace;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -118,10 +119,18 @@ public class AthleteAccountService {
                         ? draft.message().substring(0, 1000) : draft.message());
             }
         }
+        if (StringUtils.hasText(request.inviteToken())) {
+            // Le lien d'invitation ouvert avant l'inscription : il servira à la confirmation de
+            // l'adresse, sans que la personne ait à le rouvrir.
+            account.setPendingInviteToken(request.inviteToken().trim());
+        }
         account.setLookingForCoach(true);
         account.setTermsAcceptedAt(Instant.now());
         account.setHealthDataConsentAt(Instant.now());
         accountRepository.save(account);
+        // Son espace à lui, dès la première minute : calendrier, montre et progrès n'attendent
+        // pas qu'un coach l'accepte.
+        personalSpace.attach(user, account);
 
         notificationService.notifyEmailVerification(user.getEmail(), user.getFullName(),
                 frontendUrl + "/verify-email/" + user.getVerifyToken());

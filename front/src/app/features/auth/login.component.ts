@@ -9,7 +9,7 @@ import {
 import { HttpErrorResponse } from '@angular/common/http';
 import { captureException } from '@sentry/angular';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ToastService } from '../../core/services/toast.service';
 import { authErrorMessage } from '../../core/utils/auth-error';
@@ -39,6 +39,7 @@ export class LoginComponent {
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly toast = inject(ToastService);
 
   readonly submitting = signal(false);
@@ -183,7 +184,16 @@ export class LoginComponent {
           ? '/garmin/callback'
           : readPendingCorosAuth()
             ? '/coros/callback'
-            : this.auth.homeRoute(),
+            : this.nextUrl() ?? this.auth.homeRoute(),
     );
+  }
+
+  /**
+   * Retour vers une invitation après connexion. Seul ce chemin est accepté : une redirection libre
+   * ferait de la page de connexion un tremplin vers n'importe quelle adresse.
+   */
+  private nextUrl(): string | null {
+    const next = this.route.snapshot.queryParamMap.get('next');
+    return next && /^\/rejoindre\/[A-Za-z0-9]{1,32}$/.test(next) ? next : null;
   }
 }

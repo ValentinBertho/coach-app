@@ -24,7 +24,13 @@ public record UserResponse(
          * service worker antérieur l'ignorent simplement et gardent le vocabulaire d'avant, ce qui
          * est un affichage démodé et non un écran cassé.</p>
          */
-        boolean soloPractice) {
+        boolean soloPractice,
+        /**
+         * L'athlète est dans son espace personnel : il n'a pas de coach. Son {@code athleteId} est
+         * celui de sa fiche personnelle, et l'interface lui montre la recherche de coach à côté
+         * de son entraînement. Champ ajouté, comme {@code soloPractice}.
+         */
+        boolean personalSpace) {
 
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -37,6 +43,7 @@ public record UserResponse(
                 user.getAthlete() != null ? user.getAthlete().getId() : null,
                 user.isEmailVerified(),
                 user.getPaceUnit(),
-                user.getClub() != null && user.getClub().isSoloPractice());
+                user.getClub() != null && user.getClub().isSoloPractice(),
+                user.getClub() != null && user.getClub().isPersonal());
     }
 }

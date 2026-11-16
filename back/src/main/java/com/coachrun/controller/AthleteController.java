@@ -80,8 +80,9 @@ public class AthleteController {
     @DeleteMapping("/{athleteId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) and @athleteAccessValidator.canWrite(authentication, #athleteId)")
-    public void archive(@PathVariable UUID clubId, @PathVariable UUID athleteId) {
-        athleteService.archive(clubId, athleteId);
+    public void archive(@AuthenticationPrincipal AuthPrincipal principal,
+                        @PathVariable UUID clubId, @PathVariable UUID athleteId) {
+        athleteService.archive(clubId, athleteId, principal == null ? null : principal.userId());
     }
 
     /**

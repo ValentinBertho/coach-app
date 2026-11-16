@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AthleteAccount, CoachingRequestService, CurrentCoaching, MyTestimonial } from '../../core/services/coaching-request.service';
 import { Router, RouterLink } from '@angular/router';
 import {
   AthletePortalService,
@@ -608,6 +609,95 @@ interface LtPoint {
           }
         </section>
 
+        <!-- Ce que l'athlète dit de lui-même : discipline, niveau, ville, objectif. Le serveur
+             l'acceptait depuis le hub, mais aucun écran ne permettait de le modifier après
+             l'inscription — c'est pourtant ce qu'un coach lit en premier. -->
+        @if (runner(); as r) {
+          <div class="card runner">
+            <h2>Mon profil coureur</h2>
+            <label class="field">
+              <span class="field-label">Discipline</span>
+              <select class="input" [ngModel]="r.discipline" (ngModelChange)="patchRunner({ discipline: $event })">
+                <option [ngValue]="null">Non précisée</option>
+                <option value="ROUTE">Route</option>
+                <option value="TRAIL">Trail</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">Niveau</span>
+              <select class="input" [ngModel]="r.level" (ngModelChange)="patchRunner({ level: $event })">
+                <option [ngValue]="null">Non précisé</option>
+                <option value="BEGINNER">Débutant</option>
+                <option value="INTERMEDIATE">Intermédiaire</option>
+                <option value="ADVANCED">Confirmé</option>
+                <option value="ELITE">Élite</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">Ville</span>
+              <input class="input" [ngModel]="r.city" (ngModelChange)="patchRunner({ city: $event })" maxlength="120" />
+            </label>
+            <label class="field">
+              <span class="field-label">Mon objectif</span>
+              <textarea class="input" rows="3" maxlength="1000" [ngModel]="r.goal"
+                        (ngModelChange)="patchRunner({ goal: $event })"
+                        placeholder="Ex. finir mon premier semi en mars, je cours 3 fois par semaine"></textarea>
+            </label>
+            @if (!hasCoach()) {
+              <label class="field runner__check">
+                <input type="checkbox" [ngModel]="r.lookingForCoach"
+                       (ngModelChange)="patchRunner({ lookingForCoach: $event })" />
+                <span>Je cherche un coach</span>
+              </label>
+            }
+            <button type="button" class="btn btn-primary" [disabled]="runnerBusy()" (click)="saveRunner()">
+              {{ runnerBusy() ? 'Enregistrement…' : 'Enregistrer' }}
+            </button>
+          </div>
+        }
+
+        <!-- La sortie doit se trouver là où l'on cherche ses réglages : l'écran « Mes demandes »,
+             qui la portait, disparaît de la navigation dès qu'un coach accepte — un athlète
+             suivi n'avait donc aucun chemin visible pour mettre fin à son coaching. -->
+        @if (hasCoach()) {
+          <div class="card">
+            <h2>Mon coaching</h2>
+            @if (myCoach(); as c) {
+              <p>Suivi par <strong>{{ c.coachName }}</strong>@if (c.clubName) { au sein de <strong>{{ c.clubName }}</strong>} depuis le {{ c.since | date: 'd MMMM y' : '' : 'fr' }}.</p>
+              @if (c.plannedEndAt) {
+                <p class="coach-end">
+                  {{ c.coachName }} a annoncé la fin de ton suivi pour le
+                  <strong>{{ c.plannedEndAt | date: 'd MMMM' : '' : 'fr' }}</strong>.
+                  @if (c.plannedEndReason) { Son mot : « {{ c.plannedEndReason }} ». }
+                  Ta montre et tes sorties te suivront dans ton espace personnel.
+                </p>
+                <a routerLink="/coachs" class="btn btn-primary">Chercher un autre coach</a>
+              }
+            }
+            @if (testimonial(); as t) {
+              <p class="field-hint">Ton témoignage : {{ t.published ? 'publié sur sa page' : 'en attente de sa validation' }}.</p>
+            }
+            <p class="field-hint">
+              Tu peux mettre fin à ton suivi à tout moment, sans motif. Ta montre et une copie de
+              tes sorties te suivent dans ton espace personnel, et tu redeviens libre de chercher un
+              autre coach. Tu peux aussi changer de coach directement : ton suivi actuel continue
+              jusqu'à ce que le nouveau accepte.
+            </p>
+            <div class="coach-actions">
+              <a routerLink="/athlete/demandes" class="btn btn-ghost">Gérer mon coaching</a>
+              @if (!myCoach()?.plannedEndAt) {
+                <a routerLink="/coachs" class="btn btn-ghost">Changer de coach</a>
+              }
+              <button type="button" class="btn btn-ghost" (click)="writeTestimonial()">
+                {{ testimonial() ? 'Modifier mon témoignage' : 'Écrire un mot sur ' + (myCoach()?.coachName ?? 'mon coach') }}
+              </button>
+              @if (myCoach()?.clubName && !myCoach()?.plannedEndAt) {
+                <button type="button" class="btn btn-ghost" (click)="leaveClub()">Quitter le club, garder mon coach</button>
+              }
+            </div>
+          </div>
+        }
+
         <div class="card">
           <h2>Synchronisation</h2>
           <p class="field-hint">
@@ -913,6 +1003,13 @@ interface LtPoint {
         outline-offset: 2px;
       }
 
+      .coach-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+    .coach-end {
+        padding: var(--sp-3);
+        border-radius: var(--radius-md, 12px);
+        background: var(--warning-bg);
+        color: var(--warning-text);
+      }
       .card h2 {
         margin: 0 0 var(--sp-2);
         font-size: var(--text-lg);
@@ -1133,6 +1230,42 @@ export class AthleteProfileComponent implements OnInit {
 
   private readonly portal = inject(AthletePortalService);
   private readonly auth = inject(AuthService);
+  /** Suivi par un coach : déduit de la fiche, comme la navigation du portail. */
+  readonly hasCoach = computed(() => this.auth.hasCoach());
+  private readonly coachingRequests = inject(CoachingRequestService);
+  /** Le profil coureur (compte athlète). Absent pour un athlète invité sans compte : la carte se tait. */
+  readonly runner = signal<AthleteAccount | null>(null);
+  readonly runnerBusy = signal(false);
+
+  patchRunner(change: Partial<AthleteAccount>): void {
+    const r = this.runner();
+    if (r) {
+      this.runner.set({ ...r, ...change });
+    }
+  }
+
+  saveRunner(): void {
+    const r = this.runner();
+    if (!r) {
+      return;
+    }
+    this.runnerBusy.set(true);
+    this.coachingRequests.updateAccount({
+      firstName: r.firstName, lastName: r.lastName, sex: r.sex, discipline: r.discipline,
+      level: r.level, city: r.city, country: r.country, goal: r.goal,
+      lookingForCoach: r.lookingForCoach,
+    }).subscribe({
+      next: (a) => {
+        this.runner.set(a);
+        this.runnerBusy.set(false);
+        this.toast.success('Profil coureur enregistré');
+      },
+      error: (err) => {
+        this.runnerBusy.set(false);
+        this.toast.error(err?.error?.message ?? 'Enregistrement impossible.');
+      },
+    });
+  }
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
@@ -1287,7 +1420,25 @@ export class AthleteProfileComponent implements OnInit {
     });
   }
 
+  /** Mon coaching en cours, et la fin annoncée par le coach s'il y en a une. */
+  readonly myCoach = signal<CurrentCoaching | null>(null);
+  readonly testimonial = signal<MyTestimonial | null>(null);
+
   ngOnInit(): void {
+    if (this.hasCoach()) {
+      this.coachingRequests.myTestimonial().subscribe({
+        next: (t) => this.testimonial.set(t ?? null),
+        error: () => this.testimonial.set(null),
+      });
+      this.coachingRequests.myCoach().subscribe({
+        next: (c) => this.myCoach.set(c ?? null),
+        error: () => this.myCoach.set(null),
+      });
+    }
+    this.coachingRequests.account().subscribe({
+      next: (a) => this.runner.set(a),
+      error: () => this.runner.set(null),
+    });
     const me = this.auth.currentUser();
     this.acctName.set(me?.fullName ?? '');
     this.acctEmail.set(me?.email ?? '');
@@ -1346,6 +1497,51 @@ export class AthleteProfileComponent implements OnInit {
    * qu'un interrupteur, il détruit les données de santé déjà collectées — l'athlète doit le
    * savoir avant, pas le découvrir après.
    */
+  /**
+   * Quelques mots sur son coach, pour sa page publique. Un texte, pas une note ; le coach choisit
+   * de le publier, et reprendre son texte le repasse en attente.
+   */
+  async writeTestimonial(): Promise<void> {
+    const c = this.myCoach();
+    if (!c) return;
+    const text = await this.confirm.prompt({
+      title: `Un mot sur ${c.coachName}`,
+      message: 'Ce qui a changé pour toi, ce que tu dirais à quelqu’un qui hésite. Signé de ton prénom et '
+        + 'de l’initiale de ton nom ; rien ne paraît sans l’accord de ton coach.',
+      confirmLabel: 'Envoyer',
+      promptLabel: 'Ton témoignage (20 à 600 caractères)',
+      initialValue: this.testimonial()?.body ?? '',
+    });
+    if (text === null) return;
+    this.coachingRequests.writeTestimonial(text.trim()).subscribe({
+      next: (t) => {
+        this.testimonial.set(t);
+        this.toast.success(`Merci ! ${c.coachName} décidera de le publier sur sa page.`);
+      },
+      error: (err) => this.toast.error(err?.error?.message ?? 'Témoignage non envoyé.'),
+    });
+  }
+
+  /** Quitter le club en gardant son coach : il devient son coach « en privé ». */
+  async leaveClub(): Promise<void> {
+    const c = this.myCoach();
+    if (!c?.clubName) return;
+    const ok = await this.confirm.ask({
+      title: `Quitter ${c.clubName} ?`,
+      message: `Tu ne fais plus partie du club, mais ${c.coachName} continue de te suivre. Les autres `
+        + 'coachs du club n’ont plus accès à ta fiche. Ton historique et tes séances restent en place.',
+      confirmLabel: 'Quitter le club',
+    });
+    if (!ok) return;
+    this.coachingRequests.leaveClub().subscribe({
+      next: () => {
+        this.myCoach.set({ ...c, clubName: null });
+        this.toast.success(`Tu as quitté ${c.clubName}. ${c.coachName} continue de te suivre.`);
+      },
+      error: (err) => this.toast.error(err?.error?.message ?? 'Impossible de quitter le club pour le moment.'),
+    });
+  }
+
   async withdrawConsent(): Promise<void> {
     const ok = await this.confirm.ask({
       title: 'Retirer mon consentement',

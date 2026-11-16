@@ -219,4 +219,10 @@ public interface WorkoutRepository extends JpaRepository<Workout, UUID> {
     long countByClubIdAndScheduledDateBetween(UUID clubId, LocalDate from, LocalDate to);
 
     long countByClubId(UUID clubId);
+
+    /** Séances à venir d'une fiche (fin de coaching : elles sont retirées, sauf choix du coach). */
+    List<Workout> findByAthleteIdAndStatusAndScheduledDateGreaterThanEqual(
+            UUID athleteId, WorkoutStatus status, LocalDate from);
+
+    long countByAthleteIdAndStatus(UUID athleteId, WorkoutStatus status);
 }

@@ -48,8 +48,12 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
            « Aujourd'hui », progrès et messages n'ont rien à lui montrer et échoueraient côté
            serveur. On lui propose ce qui a un sens à ce moment-là — chercher, et suivre ses
            demandes — et la navigation complète apparaît le jour où un coach l'accepte. -->
+      <!-- Avec ou sans coach, l'athlète a sa fiche (son espace personnel s'il n'est pas suivi) :
+           calendrier, journée et progrès lui sont ouverts dès l'inscription. Seul le quatrième
+           onglet change : « Messages » quand un coach le suit, « Coach » sinon — chercher un
+           coach et suivre ses demandes, au même endroit. -->
       <nav class="ashell__nav" aria-label="Navigation athlète">
-        @if (hasCoach()) {
+        @if (hasFile()) {
           <a routerLink="/athlete/calendar" routerLinkActive="active">
             <app-icon name="calendar-days" [size]="22" /><span class="lb">Calendrier</span>
           </a>
@@ -59,20 +63,23 @@ import { DebriefPromptComponent } from './debrief-prompt.component';
           <a routerLink="/athlete/progress" routerLinkActive="active">
             <app-icon name="trending-up" [size]="22" /><span class="lb">Progrès</span>
           </a>
+        }
+        @if (hasCoach()) {
           <a routerLink="/athlete/messages" routerLinkActive="active">
             <app-icon name="message-square" [size]="22" /><span class="lb">Messages</span>
           </a>
         } @else {
-          <a routerLink="/coachs" routerLinkActive="active">
-            <app-icon name="search" [size]="22" /><span class="lb">Trouver un coach</span>
-          </a>
           <a routerLink="/athlete/demandes" routerLinkActive="active">
-            <app-icon name="inbox" [size]="22" /><span class="lb">Mes demandes</span>
+            <app-icon name="search" [size]="22" /><span class="lb">Coach</span>
           </a>
-          <!-- Seulement pour qui a déjà été suivi : ses fils restent lisibles après la fin du
-               coaching, et sans cette entrée il n'aurait aucun chemin pour y arriver. Un athlète
-               qui n'a jamais eu de coach n'en a aucun, et l'entrée ne s'affiche pas. -->
-          @if (hasPastThreads()) {
+          @if (!hasFile()) {
+            <a routerLink="/coachs" routerLinkActive="active">
+              <app-icon name="users" [size]="22" /><span class="lb">Annuaire</span>
+            </a>
+          }
+          <!-- Les fils des coachs passés restent lisibles : sans fiche, aucun autre chemin n'y
+               mène. Avec une fiche, l'écran « Coach » les signale. -->
+          @if (!hasFile() && hasPastThreads()) {
             <a routerLink="/athlete/messages" routerLinkActive="active">
               <app-icon name="message-square" [size]="22" /><span class="lb">Messages</span>
             </a>
@@ -135,7 +142,9 @@ export class AthleteShellComponent implements OnInit {
    * progrès et messagerie n'ont rien à montrer et échoueraient côté serveur — mieux vaut ne pas
    * les proposer que les proposer cassés.</p>
    */
-  readonly hasCoach = computed(() => !!this.auth.currentUser()?.athleteId);
+  readonly hasCoach = computed(() => this.auth.hasCoach());
+  /** Une fiche, personnelle ou chez un coach : c'est elle qui ouvre calendrier et progrès. */
+  readonly hasFile = computed(() => !!this.auth.currentUser()?.athleteId);
 
   /**
    * Reste-t-il des fils d'une relation passée ?

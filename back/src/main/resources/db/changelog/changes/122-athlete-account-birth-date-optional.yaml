@@ -1,0 +1,20 @@
+# ============================================================================
+# 122 — La date de naissance du compte athlète devient facultative.
+#
+#   Un athlète invité par son coach (lien magique) n'avait pas de compte
+#   athlète : s'il mettait fin à son coaching, il ne pouvait plus ni chercher
+#   un coach ni envoyer de demande. Son compte naît désormais à son départ, à
+#   partir de sa fiche — où la date de naissance n'a pas toujours été saisie.
+#
+#   La règle des 16 ans ne bouge pas : l'inscription libre exige toujours la
+#   date, et c'est elle seule qui applique ce contrôle.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 122-athlete-account-birth-date-optional
+      author: coachrun
+      changes:
+        - dropNotNullConstraint:
+            tableName: athlete_accounts
+            columnName: birth_date
+            columnDataType: DATE

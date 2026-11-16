@@ -23,6 +23,7 @@ public class EmailVerificationController {
 
     private final AuthService authService;
     private final CoachingRequestService coachingRequests;
+    private final com.coachrun.service.InviteLinkService inviteLinks;
 
     /**
      * Confirme l'adresse, puis envoie la demande de coaching que l'athlète avait préparée en
@@ -39,6 +40,8 @@ public class EmailVerificationController {
         body.put("verified", true);
         coachingRequests.sendPendingAfterVerification(userId)
                 .ifPresent(coach -> body.put("requestSentTo", coach));
+        inviteLinks.joinPendingAfterVerification(userId)
+                .ifPresent(coach -> body.put("invitedBy", coach));
         return body;
     }
 }

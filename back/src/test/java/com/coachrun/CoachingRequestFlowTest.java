@@ -41,6 +41,7 @@ class CoachingRequestFlowTest {
     @Autowired private DemoSeedService demoSeedService;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private com.coachrun.repository.UserRepository userRepository;
+    @Autowired private com.coachrun.service.CoachingRelationService relationService;
 
     private MockMvc mvc;
     private String coachBearer;
@@ -59,17 +60,17 @@ class CoachingRequestFlowTest {
     /**
      * Le parcours nominal, de bout en bout.
      *
-     * <p>Avant l'acceptation, l'athlète n'a <b>pas de fiche</b> : c'est l'inversion que tout le hub
-     * organise, et le compte doit exister sans elle. Après, il en a une, dans l'espace du coach.</p>
+     * <p>Avant l'acceptation, l'athlète n'a que <b>son espace personnel</b> : de quoi s'entraîner
+     * seul, sans coach. Après, sa fiche vit dans l'espace du coach.</p>
      */
     @Test
     void anAthleteSignsUpAloneThenGetsACoach() throws Exception {
         String athlete = registerAthlete("nina@exemple.fr");
 
-        // Un athlète tout neuf n'appartient à personne : ni club, ni fiche.
+        // Un athlète tout neuf n'appartient à aucun coach : il n'a que son espace personnel.
         JsonNode me = json(mvc.perform(get("/me").header("Authorization", athlete)));
-        assertThat(me.get("athleteId").isNull()).as("aucune fiche avant d'avoir un coach").isTrue();
-        assertThat(me.get("clubId").isNull()).as("aucun club non plus").isTrue();
+        assertThat(me.get("personalSpace").asBoolean()).as("espace personnel avant d'avoir un coach").isTrue();
+        String personalClub = me.get("clubId").asText();
 
         String requestId = submitRequest(athlete);
 
@@ -84,7 +85,8 @@ class CoachingRequestFlowTest {
         // Après acceptation, l'athlète a une fiche et un espace.
         JsonNode after = json(mvc.perform(get("/me").header("Authorization", athlete)));
         assertThat(after.get("athleteId").isNull()).as("la fiche existe désormais").isFalse();
-        assertThat(after.get("clubId").isNull()).as("il a rejoint l'espace du coach").isFalse();
+        assertThat(after.get("clubId").asText()).as("il a rejoint l'espace du coach").isNotEqualTo(personalClub);
+        assertThat(after.get("personalSpace").asBoolean()).isFalse();
     }
 
     /**
@@ -237,7 +239,7 @@ class CoachingRequestFlowTest {
     }
 
     /**
-     * La sortie, côté athlète. Rien n'est détruit : il redevient un compte sans coach, libre de
+     * La sortie, côté athlète. Rien n'est détruit : il retrouve son espace personnel, libre de
      * repartir dans l'annuaire, et sa fiche reste chez celui qui l'a tenue.
      */
     @Test
@@ -245,6 +247,8 @@ class CoachingRequestFlowTest {
         String email = "nina@exemple.fr";
         String athlete = registerAthlete(email);
         acceptRequestFrom(athlete);
+        String clubId = json(mvc.perform(get("/me").header("Authorization", athlete)))
+                .get("clubId").asText();
 
         mvc.perform(post("/me/coach/end").header("Authorization", athlete)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -264,11 +268,11 @@ class CoachingRequestFlowTest {
         athlete = bearerFor(email);
 
         JsonNode me = json(mvc.perform(get("/me").header("Authorization", athlete)));
-        assertThat(me.get("athleteId").isNull()).as("plus de fiche courante").isTrue();
-        assertThat(me.get("clubId").isNull()).as("il a quitté l'espace du coach").isTrue();
+        assertThat(me.get("personalSpace").asBoolean()).as("retour à son espace personnel").isTrue();
+        assertThat(me.get("clubId").asText()).as("il a quitté l'espace du coach").isNotEqualTo(clubId);
     }
 
-    /** La même sortie, à l'initiative du coach. Les deux parties peuvent partir. */
+    /** La même sortie, à l'initiative du coach, avec un préavis. Les deux parties peuvent partir. */
     @Test
     void aCoachCanEndTheCoachingToo() throws Exception {
         String email = "nina@exemple.fr";
@@ -278,13 +282,22 @@ class CoachingRequestFlowTest {
         String clubId = me.get("clubId").asText();
         String athleteId = me.get("athleteId").asText();
 
-        mvc.perform(post("/clubs/{c}/athletes/{a}/end-relation", clubId, athleteId)
+        JsonNode planned = json(mvc.perform(post("/clubs/{c}/athletes/{a}/end-relation", clubId, athleteId)
                         .header("Authorization", coachBearer))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk()));
+        assertThat(planned.get("endsAt").isNull()).as("le coach annonce une date de fin").isFalse();
+
+        // Pendant le préavis, rien ne change pour l'athlète.
+        assertThat(json(mvc.perform(get("/me").header("Authorization", athlete)))
+                .get("athleteId").asText()).isEqualTo(athleteId);
+
+        // Le préavis échu, la fin est prononcée.
+        relationService.endDue(java.time.Instant.now().plus(8, java.time.temporal.ChronoUnit.DAYS));
 
         // Reconnexion, pour la raison dite au cas précédent : la sortie ferme les sessions.
-        assertThat(json(mvc.perform(get("/me").header("Authorization", bearerFor(email))))
-                .get("athleteId").isNull()).isTrue();
+        JsonNode after = json(mvc.perform(get("/me").header("Authorization", bearerFor(email))));
+        assertThat(after.get("personalSpace").asBoolean()).isTrue();
+        assertThat(after.get("athleteId").asText()).isNotEqualTo(athleteId);
     }
 
     /**

@@ -96,6 +96,33 @@ public class ClubProvisioningService {
     }
 
     /**
+     * Ouvre un espace indépendant à un coach existant : celui qui quitte un club sans en avoir
+     * d'autre garde ainsi un endroit où travailler, et ses athlètes privés un endroit où le suivre.
+     */
+    @Transactional
+    public Club openSoloSpaceFor(User coach) {
+        String name = workspaceName(null, coach.getFullName(), true);
+        Club club = new Club();
+        club.setName(name);
+        club.setSlug(uniqueSlug(name));
+        club.setStatus(ClubStatus.ACTIVE);
+        club.setSoloPractice(true);
+        club = clubRepository.save(club);
+
+        ClubMember owner = new ClubMember();
+        owner.setClub(club);
+        owner.setCoach(coach);
+        owner.setClubRole(ClubRole.OWNER);
+        owner.setActive(true);
+        clubMemberRepository.save(owner);
+
+        coach.setClub(club);
+        coach.setRole(UserRole.HEAD_COACH);
+        installStarterKit(club.getId());
+        return club;
+    }
+
+    /**
      * Le nom de l'espace : celui qu'on a saisi, ou celui du coach.
      *
      * <p>Un indépendant n'a pas de club à nommer. Lui en réclamer un le forçait à en inventer un,

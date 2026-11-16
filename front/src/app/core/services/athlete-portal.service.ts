@@ -16,7 +16,9 @@ import {
 import { Analytics } from './analytics.service';
 import { LactateTest, Load, StrengthLoadPoint } from '../models/lactate.model';
 import { Injury } from '../models/injury.model';
-import { MissedReason, Workout, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
+import { MissedReason, Workout, WorkoutRequest, WorkoutStatus, awaitsFeedback } from '../models/workout.model';
+import { WorkoutTemplate } from '../models/workout-template.model';
+import { PageResponse } from '../models/athlete.model';
 import { StravaStatus } from '../models/strava.model';
 import { GarminStatus } from '../models/garmin.model';
 import { CorosStatus } from '../models/coros.model';
@@ -312,6 +314,27 @@ export class AthletePortalService {
   /** Ma charge d'entraînement (ACWR, ATL/CTL, monotonie). */
   load(): Observable<Load> {
     return this.http.get<Load>(`${this.base}/load`);
+  }
+  /** J'ajoute moi-même une séance à mon calendrier (« ajoutée par moi »). */
+  addOwnWorkout(req: WorkoutRequest): Observable<Workout> {
+    return this.http.post<Workout>(`${this.base}/own-workouts`, req);
+  }
+  /** Je retire une séance que j'avais ajoutée. */
+  deleteOwnWorkout(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/own-workouts/${id}`);
+  }
+  /** Le catalogue de séances de mon espace personnel (sans coach seulement). */
+  catalog(q?: string): Observable<WorkoutTemplate[]> {
+    const params = q ? new HttpParams().set('q', q) : undefined;
+    return this.http
+      .get<PageResponse<WorkoutTemplate>>(`${this.base}/catalog`, { params })
+      .pipe(map((p) => p.content));
+  }
+  /** Je pose une séance du catalogue à une date. */
+  scheduleFromCatalog(templateId: string, date: string): Observable<Workout> {
+    return this.http.post<Workout>(`${this.base}/catalog/${templateId}/schedule`, null, {
+      params: new HttpParams().set('date', date),
+    });
   }
   /** Mes objectifs (liste complète). */
   races(): Observable<RaceObjective[]> {

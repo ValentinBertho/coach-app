@@ -23,7 +23,7 @@ ENV TZ=Europe/Paris
 
 # curl pour le healthcheck docker-compose / Railway ; utilisateur non-root
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl fontconfig fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --system coachrun && useradd --system --gid coachrun coachrun
 

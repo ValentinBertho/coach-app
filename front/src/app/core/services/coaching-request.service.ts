@@ -33,6 +33,29 @@ export interface CoachingRequest {
   createdAthleteId: string | null;
 }
 
+/** Une fin de suivi annoncée par le coach. */
+export interface PlannedEnd {
+  endsAt: string;
+  note: string | null;
+  keepFutureWorkouts: boolean;
+}
+
+/** Le coaching en cours, vu par l'athlète. */
+export interface MyTestimonial {
+  coachName: string;
+  body: string;
+  published: boolean;
+}
+
+export interface CurrentCoaching {
+  coachName: string;
+  since: string;
+  plannedEndAt: string | null;
+  plannedEndReason: string | null;
+  /** Le club auquel le suivi le rattache ; absent pour un athlète privé. */
+  clubName?: string | null;
+}
+
 export interface AthleteRegistration {
   email: string;
   password: string;
@@ -43,6 +66,8 @@ export interface AthleteRegistration {
   /** Le coach que le visiteur venait de choisir ; la demande part à la confirmation de l'e-mail. */
   coachSlug?: string | null;
   requestMessage?: string | null;
+  /** Lien d'invitation depuis lequel le visiteur s'inscrit : rejoint à la confirmation de l'e-mail. */
+  inviteToken?: string | null;
   termsAccepted: boolean;
   healthDataConsent: boolean;
 }
@@ -93,9 +118,14 @@ export class CoachingRequestService {
     return this.http.get<CoachingRequest[]>(`${this.base}/me/coaching-requests`);
   }
 
-  submit(coachSlug: string, message: string, offerId?: string | null): Observable<CoachingRequest> {
+  /**
+   * Envoie une demande. {@code switchCoach} : l'athlète, déjà suivi, confirme vouloir changer (son
+   * suivi actuel s'arrêtera si ce coach accepte). {@code shareHistory} : il transmet ses sorties.
+   */
+  submit(coachSlug: string, message: string, offerId?: string | null,
+         switchCoach = false, shareHistory = false): Observable<CoachingRequest> {
     return this.http.post<CoachingRequest>(`${this.base}/me/coaching-requests`,
-      { coachSlug, message, offerId: offerId ?? null });
+      { coachSlug, message, offerId: offerId ?? null, switchCoach, shareHistory });
   }
 
   answer(id: string, note: string): Observable<CoachingRequest> {
@@ -116,10 +146,47 @@ export class CoachingRequestService {
     return this.http.post<void>(`${this.base}/me/coach/end`, { note });
   }
 
-  /** Le coach met fin au coaching d'un de ses athlètes. */
-  endCoachingWith(clubId: string, athleteId: string, note: string | null): Observable<void> {
-    return this.http.post<void>(
-      `${this.base}/clubs/${clubId}/athletes/${athleteId}/end-relation`, { note });
+  /**
+   * Le coach annonce la fin du coaching d'un de ses athlètes : 7 jours de préavis quand l'athlète
+   * utilise l'application, fin immédiate sinon. Rend la date de fin.
+   */
+  endCoachingWith(clubId: string, athleteId: string, note: string | null,
+                  keepFutureWorkouts = false): Observable<PlannedEnd> {
+    return this.http.post<PlannedEnd>(
+      `${this.base}/clubs/${clubId}/athletes/${athleteId}/end-relation`, { note, keepFutureWorkouts });
+  }
+
+  /** La fin annoncée, s'il y en a une (null sinon). */
+  plannedEnd(clubId: string, athleteId: string): Observable<PlannedEnd | null> {
+    return this.http.get<PlannedEnd | null>(`${this.base}/clubs/${clubId}/athletes/${athleteId}/end-relation`);
+  }
+
+  /** Le coach revient sur la fin annoncée. */
+  cancelPlannedEnd(clubId: string, athleteId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/clubs/${clubId}/athletes/${athleteId}/end-relation`);
+  }
+
+  /** Mon coaching en cours (athlète) : coach, depuis quand, fin annoncée. Null sans coach. */
+  /** Mon témoignage sur mon coach actuel, s'il y en a un. */
+  myTestimonial(): Observable<MyTestimonial | null> {
+    return this.http.get<MyTestimonial | null>(`${this.base}/me/coach/testimonial`);
+  }
+
+  writeTestimonial(body: string): Observable<MyTestimonial> {
+    return this.http.put<MyTestimonial>(`${this.base}/me/coach/testimonial`, { body });
+  }
+
+  withdrawTestimonial(): Observable<void> {
+    return this.http.delete<void>(`${this.base}/me/coach/testimonial`);
+  }
+
+  /** Quitter le club en gardant son coach (on devient son athlète privé). */
+  leaveClub(): Observable<void> {
+    return this.http.post<void>(`${this.base}/me/coach/leave-club`, {});
+  }
+
+  myCoach(): Observable<CurrentCoaching | null> {
+    return this.http.get<CurrentCoaching | null>(`${this.base}/me/coach`);
   }
 
   // --- Côté coach ---

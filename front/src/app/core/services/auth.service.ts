@@ -236,14 +236,25 @@ export class AuthService {
   homeRoute(): string {
     switch (this.currentUser()?.role) {
       case 'PLATFORM_ADMIN': return '/admin';
-      // Un athlète venu du hub n'a pas encore de fiche : le calendrier n'aurait rien à lui
-      // montrer et échouerait côté serveur. On l'envoie là où il a quelque chose à faire —
-      // chercher un coach — jusqu'à ce qu'une demande soit acceptée.
-      case 'ATHLETE': return this.currentUser()?.athleteId ? '/athlete/calendar' : '/coachs';
+      // Avec ou sans coach, l'athlète a désormais une fiche (son espace personnel s'il n'est pas
+      // suivi) : il arrive sur sa journée. Sans fiche — un client resté sur une ancienne
+      // version du serveur —, on l'envoie chercher un coach comme avant.
+      case 'ATHLETE': return this.currentUser()?.athleteId
+        ? (this.hasCoach() ? '/athlete/calendar' : '/athlete/today')
+        : '/coachs';
       case 'COACH':
       case 'HEAD_COACH': return '/app';
       default: return '/login';
     }
+  }
+
+  /**
+   * L'athlète est-il suivi par un coach ? Il a une fiche, et ce n'est pas celle de son espace
+   * personnel.
+   */
+  hasCoach(): boolean {
+    const u = this.currentUser();
+    return !!u?.athleteId && !u.personalSpace;
   }
 
   /** Le rôle courant a-t-il accès au cockpit coach (`/app`) ? */
@@ -371,8 +382,8 @@ export class AuthService {
 
   /** Confirme l'adresse e-mail à partir du jeton reçu par e-mail. */
   /** `requestSentTo` : le coach à qui vient de partir la demande préparée à l'inscription. */
-  verifyEmail(token: string): Observable<{ verified: boolean; requestSentTo?: string }> {
-    return this.http.post<{ verified: boolean; requestSentTo?: string }>(`${environment.apiUrl}/public/verify-email/${token}`, {});
+  verifyEmail(token: string): Observable<{ verified: boolean; requestSentTo?: string; invitedBy?: string }> {
+    return this.http.post<{ verified: boolean; requestSentTo?: string; invitedBy?: string }>(`${environment.apiUrl}/public/verify-email/${token}`, {});
   }
 
   /** Renvoie l'e-mail de vérification au compte courant. */

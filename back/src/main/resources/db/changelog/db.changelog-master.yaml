@@ -253,3 +253,17 @@ databaseChangeLog:
       file: db/changelog/changes/120-coros-workout-sync.yaml
   - include:
       file: db/changelog/changes/121-coros-activity-import.yaml
+  - include:
+      file: db/changelog/changes/122-athlete-account-birth-date-optional.yaml
+  - include:
+      file: db/changelog/changes/123-personal-space.yaml
+  - include:
+      file: db/changelog/changes/124-workouts-created-by-athlete.yaml
+  - include:
+      file: db/changelog/changes/125-invite-links.yaml
+  - include:
+      file: db/changelog/changes/126-coaching-planned-end.yaml
+  - include:
+      file: db/changelog/changes/127-coach-switch.yaml
+  - include:
+      file: db/changelog/changes/128-coach-testimonials.yaml

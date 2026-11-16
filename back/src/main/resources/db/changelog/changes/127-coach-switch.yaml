@@ -1,0 +1,19 @@
+# ============================================================================
+# 127 — Changer de coach, et partager son historique.
+#
+#   switch_coach  : l'athlète, déjà suivi, demande à changer de coach. Si le
+#                   nouveau coach accepte, le suivi en cours s'arrête de lui-même
+#                   (l'athlète l'a voulu en envoyant la demande).
+#   share_history : l'athlète transmet l'historique de ses sorties au coach qui
+#                   l'accepte. Sur choix de l'athlète (case à cocher), jamais par défaut.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 127-coach-switch
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: coaching_requests
+            columns:
+              - column: { name: switch_coach, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: share_history, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }

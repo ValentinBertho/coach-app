@@ -18,6 +18,9 @@ import {
   UnavailabilityReason,
 } from '../../core/models/unavailability.model';
 import { AthleteService } from '../../core/services/athlete.service';
+import { AuthService } from '../../core/services/auth.service';
+import { CoachingRequestService, PlannedEnd } from '../../core/services/coaching-request.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PhysioPanelComponent } from './physio-panel.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
@@ -63,6 +66,10 @@ export class AthleteDetailComponent implements OnInit {
 
   readonly athlete = signal<Athlete | null>(null);
   readonly loading = signal(true);
+  readonly ending = signal(false);
+  private readonly auth = inject(AuthService);
+  private readonly coaching = inject(CoachingRequestService);
+  private readonly confirm = inject(ConfirmService);
   /** Volet « Rattachements & réglages » (coachs, clubs, Strava) — replié pour aérer la fiche. */
   readonly showAdmin = signal(false);
 
@@ -121,6 +128,7 @@ export class AthleteDetailComponent implements OnInit {
       next: (coaches) => this.assignableCoaches.set(coaches),
     });
     this.loadUnavailabilities();
+    this.loadPlannedEnd();
   }
 
   loadUnavailabilities(): void {
@@ -225,6 +233,74 @@ export class AthleteDetailComponent implements OnInit {
         this.athlete.set(a);
         this.toast.info('Coach retiré.');
       },
+    });
+  }
+
+  /** Fin de suivi annoncée (préavis en cours), affichée sur la fiche avec de quoi l'annuler. */
+  readonly plannedEnd = signal<PlannedEnd | null>(null);
+
+  private loadPlannedEnd(): void {
+    const clubId = this.auth.clubId();
+    if (!clubId) return;
+    this.coaching.plannedEnd(clubId, this.athleteId()).subscribe({
+      next: (p) => this.plannedEnd.set(p ?? null),
+      error: () => this.plannedEnd.set(null),
+    });
+  }
+
+  /**
+   * Annonce la fin du suivi depuis la fiche. L'athlète a sept jours de préavis ; d'ici là le
+   * suivi continue et le coach peut revenir sur sa décision. La confirmation dit ce qui reste — la
+   * fiche, en lecture — parce que c'est la question qu'un coach se pose.
+   */
+  async endCoaching(a: Athlete): Promise<void> {
+    const clubId = this.auth.clubId();
+    if (!clubId) {
+      return;
+    }
+    const choice = await this.confirm.askWithOption({
+      title: `Mettre fin au suivi de ${a.firstName} ${a.lastName} ?`,
+      message: `${a.firstName} sera prévenu et le suivi s'arrêtera dans 7 jours : le temps de se `
+        + 'retourner. Vous pourrez annuler d\'ici là. Ensuite, sa fiche et son historique restent chez '
+        + 'vous, en lecture ; ses séances à venir sont retirées.',
+      confirmLabel: 'Continuer',
+      optionLabel: 'Laisser ses séances à venir sur sa fiche',
+    });
+    if (!choice.confirmed) {
+      return;
+    }
+    const note = await this.confirm.prompt({
+      title: 'Un mot pour l\'accompagner ?',
+      message: 'Facultatif. Il est transmis à l\'athlète avec l\'annonce.',
+      confirmLabel: 'Annoncer la fin',
+      promptLabel: 'Motif (facultatif, transmis à l\'athlète)',
+    });
+    if (note === null) {
+      return;
+    }
+    this.ending.set(true);
+    this.coaching.endCoachingWith(clubId, a.id, note.trim() || null, choice.option).subscribe({
+      next: (p) => {
+        this.ending.set(false);
+        this.plannedEnd.set(p);
+        this.toast.success('Fin du suivi annoncée : l\'athlète est prévenu.');
+      },
+      error: (err) => {
+        this.ending.set(false);
+        this.toast.error(err?.error?.message ?? "Le suivi n'a pas pu être terminé");
+      },
+    });
+  }
+
+  cancelEnd(): void {
+    const clubId = this.auth.clubId();
+    if (!clubId) return;
+    this.coaching.cancelPlannedEnd(clubId, this.athleteId()).subscribe({
+      next: () => {
+        this.plannedEnd.set(null);
+        this.toast.success('Le suivi continue : l\'athlète est prévenu.');
+      },
+      error: (err) => this.toast.error(err?.error?.message ?? 'Annulation impossible'),
     });
   }
 

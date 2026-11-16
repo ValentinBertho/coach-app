@@ -51,6 +51,19 @@ public class CoachingRequest extends BaseEntity {
     @JoinColumn(name = "coach_user_id", nullable = false)
     private User coach;
 
+    /** Le lien d'invitation par lequel la demande est arrivée : il dit club et groupe d'arrivée. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "invite_link_id")
+    private InviteLink inviteLink;
+
+    /** L'athlète, déjà suivi, change de coach : l'acceptation clôt le suivi en cours. */
+    @Column(name = "switch_coach", nullable = false)
+    private boolean switchCoach = false;
+
+    /** L'athlète transmet l'historique de ses sorties au coach qui l'accepte. */
+    @Column(name = "share_history", nullable = false)
+    private boolean shareHistory = false;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 16)
     private CoachingRequestStatus status = CoachingRequestStatus.PENDING;

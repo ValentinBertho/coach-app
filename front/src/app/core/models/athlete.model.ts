@@ -33,6 +33,11 @@ export interface AthleteSummary {
 
 export interface Athlete extends AthleteSummary {
   /**
+   * La personne se connecte-t-elle à l'application ? Décide si « mettre fin au suivi » a un sens :
+   * un athlète saisi par son coach, sans accès, n'a rien à quitter.
+   */
+  appAccount?: boolean;
+  /**
    * L'athlète autorise-t-il actuellement le traitement de ses données de santé (RGPD art. 9) ?
    *
    * <p>Faux tant qu'il n'a pas accepté son invitation, et après un retrait de consentement.

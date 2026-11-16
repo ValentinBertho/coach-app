@@ -25,6 +25,8 @@ import {
   UnavailabilityReason,
 } from '../../core/models/unavailability.model';
 import { CalendarNoteService } from '../../core/services/calendar-note.service';
+import { AuthService } from '../../core/services/auth.service';
+import { AddOwnWorkoutComponent } from './add-own-workout.component';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Activity } from '../../core/models/activity.model';
@@ -151,6 +153,7 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
     AthleteMonthGridComponent,
     CycleBannerComponent,
     FormsModule,
+    AddOwnWorkoutComponent,
   ],
   template: `
     <header class="cal-top">
@@ -516,6 +519,9 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
                   @if (isLate(w)) {
                     <span class="ses-todo">à noter</span>
                   }
+                  @if (w.createdByAthlete) {
+                    <span class="ses-mine">ajoutée par moi</span>
+                  }
                 </span>
                 <span class="ses-zones">
                   @for (z of zonesOf(w); track z) {
@@ -530,6 +536,16 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
               >
                 <app-icon name="move" [size]="13" /> déplacer
               </button>
+              @if (w.createdByAthlete && w.status === 'PLANNED') {
+                <button
+                  type="button"
+                  class="ses-move-btn"
+                  (click)="removeOwn(w)"
+                  [attr.aria-label]="'Retirer ' + w.title"
+                >
+                  <app-icon name="trash-2" [size]="13" /> retirer
+                </button>
+              }
             </div>
           }
           @for (s of d.strength; track s.id) {
@@ -589,6 +605,14 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
               Rien de prévu ni de réalisé ce jour-là.
             </p>
           }
+
+          <!-- Sa propre séance : sans coach, c'est ainsi qu'on construit sa semaine ; avec un
+               coach, une sortie de club ou un footing entre amis trouve sa place. -->
+          <app-add-own-workout
+            [date]="d.date"
+            [withCatalog]="personalSpace()"
+            (added)="onOwnAdded($event)"
+          />
 
           <!-- Une sortie improvisée n'avait aucune porte d'entrée depuis l'agenda : il fallait
                deviner qu'elle se saisit dans l'onglet Activités, puis y ressaisir la date du jour
@@ -1287,6 +1311,14 @@ const REASON_ICON: Record<UnavailabilityReason, string> = {
         color: var(--ink-3);
         font-weight: 600;
       }
+      .ses-mine {
+        padding: 2px 8px;
+        border-radius: var(--radius-full);
+        background: var(--primary-bg, var(--surface-2));
+        color: var(--primary);
+        font-size: var(--text-xs);
+        font-weight: 700;
+      }
       .ses-todo {
         padding: 2px 8px;
         border-radius: var(--radius-full);
@@ -1451,6 +1483,9 @@ export class AthleteCalendarComponent implements OnInit {
   private readonly paceReference = inject(PaceReferenceService);
   private readonly toast = inject(ToastService);
   private readonly noteService = inject(CalendarNoteService);
+  private readonly auth = inject(AuthService);
+  /** Sans coach : le catalogue de l'espace personnel est proposé à l'ajout d'une séance. */
+  readonly personalSpace = computed(() => !!this.auth.currentUser()?.personalSpace);
 
   /** Mon allure d'endurance, seule base admise pour estimer un volume écrit en durée. */
   readonly referencePace = signal<number | null>(null);
@@ -2078,6 +2113,24 @@ export class AthleteCalendarComponent implements OnInit {
   private refreshOpenDay(): void {
     const open = this.daySelected();
     if (open) this.daySelected.set(this.rowFor(open.date));
+  }
+
+  /** Une séance ajoutée par l'athlète arrive aussitôt dans le calendrier et la feuille du jour. */
+  onOwnAdded(w: Workout): void {
+    this.workouts.update((list) => [...list, w]);
+    this.refreshOpenDay();
+  }
+
+  /** Retirer une séance qu'il a ajoutée lui-même — jamais celles du coach. */
+  removeOwn(w: Workout): void {
+    this.portal.deleteOwnWorkout(w.id).subscribe({
+      next: () => {
+        this.workouts.update((list) => list.filter((x) => x.id !== w.id));
+        this.refreshOpenDay();
+        this.toast.info('Séance retirée.');
+      },
+      error: () => this.toast.error('Séance non retirée.'),
+    });
   }
 
   /** Retirer SON mot : celui du coach n'appartient pas à l'athlète. */

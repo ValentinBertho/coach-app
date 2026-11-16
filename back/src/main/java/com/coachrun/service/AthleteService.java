@@ -65,6 +65,7 @@ public class AthleteService {
      * dizaines par jour et se lit déjà sur la fiche de l'athlète.
      */
     private final AdminAuditService audit;
+    private final org.springframework.beans.factory.ObjectProvider<CoachingRelationService> coachingRelations;
 
     @Value("${app.frontend-url}")
     private String frontendUrl;
@@ -100,7 +101,9 @@ public class AthleteService {
     }
 
     public AthleteResponse get(UUID clubId, UUID athleteId) {
-        return AthleteResponse.from(requireAthlete(clubId, athleteId));
+        Athlete athlete = requireAthlete(clubId, athleteId);
+        return AthleteResponse.from(athlete,
+                athlete.getAccount() != null || userRepository.findByAthleteId(athleteId).isPresent());
     }
 
     // ---------------------------------------------------------------------
@@ -236,9 +239,17 @@ public class AthleteService {
 
     @Transactional
     public void archive(UUID clubId, UUID athleteId) {
+        archive(clubId, athleteId, null);
+    }
+
+    @Transactional
+    public void archive(UUID clubId, UUID athleteId, UUID byUserId) {
         Athlete athlete = requireAthlete(clubId, athleteId);
         AthleteStatus previous = athlete.getStatus();
         athlete.setStatus(AthleteStatus.ARCHIVED);
+        // Si la personne se connecte à l'application, archiver met fin à son coaching : elle est
+        // prévenue, ses montres sont débranchées, et elle redevient libre de chercher un coach.
+        coachingRelations.getObject().endOnArchive(byUserId, athlete);
         // Un athlète archivé disparaît des listes du coach sans que rien ne dise qui l'a retiré
         // ni quand. C'est la question qui se pose quand un athlète revient six mois plus tard.
         audit.record(AdminAuditAction.ATHLETE_ARCHIVED, AdminAuditTarget.ATHLETE,

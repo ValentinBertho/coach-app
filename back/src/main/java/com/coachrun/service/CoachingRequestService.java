@@ -7,7 +7,9 @@ import com.coachrun.entity.AthleteAccount;
 import com.coachrun.entity.CoachAthleteRelation;
 import com.coachrun.entity.CoachOffer;
 import com.coachrun.entity.CoachProfile;
+import com.coachrun.entity.Club;
 import com.coachrun.entity.CoachingRequest;
+import com.coachrun.entity.InviteLink;
 import com.coachrun.entity.User;
 import com.coachrun.entity.enums.AthleteStatus;
 import com.coachrun.entity.enums.CoachingRequestStatus;
@@ -83,6 +85,8 @@ public class CoachingRequestService {
     private final AthleteAccountRepository accountRepository;
     private final NotificationService notificationService;
     private final ClockService clock;
+    private final PersonalSpaceService personalSpace;
+    private final org.springframework.beans.factory.ObjectProvider<CoachingRelationService> coachingRelations;
 
     // ---------------------------------------------------------------- côté athlète
 
@@ -98,6 +102,12 @@ public class CoachingRequestService {
                                           String ip, String userAgent) {
         AthleteAccount account = accountService.require(userId);
         User athleteUser = account.getUser();
+        Optional<CoachAthleteRelation> current = currentRelation(athleteUser);
+        if (current.isPresent() && !submission.switchCoach()) {
+            throw new ConflictException("Vous êtes déjà suivi par " + current.get().getCoach().getFullName()
+                    + ". Pour changer de coach, confirmez le changement : votre suivi actuel s'arrêtera "
+                    + "si ce coach accepte.");
+        }
         if (!athleteUser.isEmailVerified()) {
             throw new ApiException(HttpStatus.FORBIDDEN,
                     "Vérifiez votre adresse e-mail avant d'envoyer une demande : le coach doit "
@@ -119,6 +129,10 @@ public class CoachingRequestService {
             // information utile plutôt qu'une fuite.
             throw new ConflictException(
                     profile.getCoach().getFullName() + " ne prend pas de nouveaux athlètes en ce moment.");
+        }
+
+        if (current.isPresent() && current.get().getCoach().getId().equals(profile.getCoach().getId())) {
+            throw new ConflictException("Vous êtes déjà suivi par ce coach.");
         }
 
         Instant now = Instant.now();
@@ -148,6 +162,8 @@ public class CoachingRequestService {
         request.setStatus(CoachingRequestStatus.PENDING);
         request.setMessage(submission.message().trim());
         request.setExpiresAt(now.plus(VALIDITY_DAYS, ChronoUnit.DAYS));
+        request.setSwitchCoach(current.isPresent());
+        request.setShareHistory(submission.sharesHistory());
         request.setIpAddress(truncate(ip, 64));
         request.setUserAgent(truncate(userAgent, 512));
         applyOffer(request, profile, submission.offerId());
@@ -319,8 +335,49 @@ public class CoachingRequestService {
         }
 
         AthleteAccount account = request.getAthleteAccount();
-        Athlete athlete = new Athlete();
-        athlete.setClub(coach.getClub());
+        // Accepter un athlète déjà suivi ailleurs remplaçait sa fiche courante sans clore la
+        // relation précédente : deux coachs écrivaient sur deux fiches, et le premier n'en savait
+        // rien. Tant que le changement de coach n'a pas son propre parcours, on refuse.
+        if (currentRelation(account.getUser()).isPresent()) {
+            if (!request.isSwitchCoach()) {
+                throw new ConflictException("Cet athlète est suivi par un autre coach depuis sa demande. "
+                        + "Il doit d'abord y mettre fin pour que vous puissiez l'accepter.");
+            }
+            // Il a demandé à changer : son suivi actuel s'arrête maintenant que vous acceptez.
+            coachingRelations.getObject().endForSwitch(account.getUser(), coach.getFullName());
+        }
+        startCoaching(request);
+        User athleteUser = account.getUser();
+        notificationService.notifyCoachingRequestAccepted(athleteUser, coach.getFullName());
+        log.info("Demande de coaching {} acceptée (athlète {} créé, relation {})",
+                requestId, request.getCreatedAthleteId(), request.getCreatedRelationId());
+        return render(request);
+    }
+
+    // ---------------------------------------------------------------- interne
+
+    /**
+     * Noue le coaching décrit par la demande : fiche dans l'espace du coach, relation référente,
+     * compte rattaché, montres déplacées. Commun à l'acceptation par le coach et à l'entrée directe
+     * par un lien d'invitation.
+     */
+    void startCoaching(CoachingRequest request) {
+        User coach = request.getCoach();
+        AthleteAccount account = request.getAthleteAccount();
+        InviteLink link = request.getInviteLink();
+        // L'espace du lien : un coach présent dans plusieurs clubs invite dans l'un d'eux.
+        Club space = link != null ? link.getClub() : coach.getClub();
+        User athleteUserNow = account.getUser();
+        Athlete personalFiche = PersonalSpaceService.isPersonal(athleteUserNow.getAthlete())
+                ? athleteUserNow.getAthlete() : null;
+        // Un athlète qui revient chez un coach retrouve sa fiche d'avant, avec son historique, plutôt
+        // qu'une fiche vierge à côté de l'ancienne.
+        Athlete previous = athleteRepository
+                .findFirstByAccountIdAndClubIdOrderByCreatedAtDesc(account.getId(), space.getId())
+                .filter(a -> !PersonalSpaceService.isPersonal(a))
+                .orElse(null);
+        Athlete athlete = previous != null ? previous : new Athlete();
+        athlete.setClub(space);
         athlete.setAccount(account);
         athlete.setFirstName(account.getFirstName());
         athlete.setLastName(account.getLastName());
@@ -335,13 +392,24 @@ public class CoachingRequestService {
         // Le consentement voyage avec la personne : sans lui, la première mesure serait refusée
         // par HealthDataConsentValidator, sur un athlète qui a pourtant consenti à l'inscription.
         athlete.setHealthDataConsentAt(account.getHealthDataConsentAt());
+        if (link != null && link.getGroup() != null) {
+            athlete.setGroup(link.getGroup());
+        }
         athlete = athleteRepository.save(athlete);
+        // L'historique de ses sorties, s'il a choisi de le transmettre.
+        if (request.isShareHistory() && personalFiche != null) {
+            personalSpace.copyHistory(personalFiche, athlete);
+        }
 
-        CoachAthleteRelation relation = new CoachAthleteRelation();
+        CoachAthleteRelation relation = previous == null ? new CoachAthleteRelation()
+                : relationRepository.findFirstByCoachIdAndAthleteId(coach.getId(), athlete.getId())
+                        .orElseGet(CoachAthleteRelation::new);
+        relation.reopen();
         relation.setAthlete(athlete);
         relation.setCoach(coach);
-        // club = null : athlète PRIVÉ. Il a choisi un coach, pas une organisation.
-        relation.setClub(null);
+        // club = null : athlète PRIVÉ. Il a choisi un coach, pas une organisation. Seul un lien
+        // d'invitation « club » le fait entrer dans le club lui-même.
+        relation.setClub(link != null && link.isClubMembership() ? space : null);
         relation.setReferent(true);
         relation.setActive(true);
         relation = relationRepository.save(relation);
@@ -349,7 +417,12 @@ public class CoachingRequestService {
         // Le compte de l'athlète rejoint l'espace du coach : les fils de discussion en dépendent,
         // Conversation.club étant non nullable.
         User athleteUser = account.getUser();
-        athleteUser.setClub(coach.getClub());
+        // Les montres branchées dans son espace personnel suivent : ses sorties doivent désormais
+        // arriver chez son coach.
+        if (PersonalSpaceService.isPersonal(athleteUser.getAthlete())) {
+            personalSpace.moveDevices(athleteUser.getAthlete(), athlete);
+        }
+        athleteUser.setClub(space);
         athleteUser.setAthlete(athlete);
 
         request.setStatus(CoachingRequestStatus.ACCEPTED);
@@ -357,13 +430,25 @@ public class CoachingRequestService {
         request.setCreatedAthleteId(athlete.getId());
         request.setCreatedRelationId(relation.getId());
 
-        notificationService.notifyCoachingRequestAccepted(athleteUser, coach.getFullName());
-        log.info("Demande de coaching {} acceptée (athlète {} créé, relation {})",
-                requestId, athlete.getId(), relation.getId());
-        return render(request);
     }
 
-    // ---------------------------------------------------------------- interne
+    /** Le suivi en cours de la personne (relation référente active), s'il y en a un. */
+    Optional<CoachAthleteRelation> currentRelation(User athleteUser) {
+        Athlete current = athleteUser.getAthlete();
+        if (current == null || PersonalSpaceService.isPersonal(current)) {
+            return Optional.empty();
+        }
+        return relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(current.getId());
+    }
+
+    /** Refuse si la personne a encore une relation référente active. */
+    void requireNoCurrentCoach(User athleteUser, String message) {
+        Athlete current = athleteUser.getAthlete();
+        if (current != null
+                && relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(current.getId()).isPresent()) {
+            throw new ConflictException(message);
+        }
+    }
 
     private CoachingRequest mineAsAthlete(UUID userId, UUID requestId) {
         AthleteAccount account = accountService.require(userId);

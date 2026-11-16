@@ -61,7 +61,9 @@ public record WorkoutResponse(
         /** Charge prévue en UA (sRPE appliqué à la prescription) — total hebdo du calendrier. */
         Integer plannedLoadUa,
         int orderIndex,
-        List<WorkoutStepResponse> steps) {
+        List<WorkoutStepResponse> steps,
+        /** Posée par l'athlète lui-même (« ajoutée par moi »). */
+        boolean createdByAthlete) {
 
     public static WorkoutResponse from(Workout w) {
         return new WorkoutResponse(
@@ -94,6 +96,7 @@ public record WorkoutResponse(
                 w.getSourceTemplateId(),
                 w.getPlannedLoadUa(),
                 w.getOrderIndex(),
-                w.getSteps().stream().map(WorkoutStepResponse::from).toList());
+                w.getSteps().stream().map(WorkoutStepResponse::from).toList(),
+                w.isCreatedByAthlete());
     }
 }

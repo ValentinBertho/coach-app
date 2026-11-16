@@ -16,5 +16,18 @@ public record CoachingRequestSubmission(
          * Le mot de l'athlète. Exigé : une demande sans un mot n'apprend rien au coach, et il ne
          * peut alors que refuser ou poser la question qu'on aurait dû anticiper.
          */
-        @NotBlank @Size(min = 20, max = 2000) String message) {
+        @NotBlank @Size(min = 20, max = 2000) String message,
+        /** Déjà suivi : l'athlète change de coach (le suivi en cours s'arrêtera à l'acceptation). */
+        boolean switchCoach,
+        /** Transmettre l'historique de ses sorties au nouveau coach ; absent = non (choix explicite). */
+        Boolean shareHistory) {
+
+    /** Demande simple : ni changement de coach, ni historique transmis. */
+    public CoachingRequestSubmission(String coachSlug, UUID offerId, String message) {
+        this(coachSlug, offerId, message, false, null);
+    }
+
+    public boolean sharesHistory() {
+        return Boolean.TRUE.equals(shareHistory);
+    }
 }

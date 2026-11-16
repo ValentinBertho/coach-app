@@ -1,5 +1,10 @@
 package com.coachrun.controller;
 
+import jakarta.validation.constraints.Size;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.http.ResponseEntity;
+import java.time.Instant;
 import com.coachrun.dto.request.ClubRequestDecision;
 import com.coachrun.security.AuthPrincipal;
 import com.coachrun.service.CoachingRelationService;
@@ -52,19 +57,72 @@ public class CoachingRelationController {
     }
 
     /**
-     * Le coach met fin au coaching d'un de ses athlètes.
+     * Le coach annonce la fin du coaching d'un de ses athlètes ({@value
+     * com.coachrun.service.CoachingRelationService#NOTICE_DAYS} jours de préavis).
      *
      * <p>Scopé par club comme le reste de la surface coach, et réservé au <b>référent</b> : un
      * coach qui n'est pas celui de l'athlète n'a pas à décider de son suivi.</p>
      */
     @PostMapping("/clubs/{clubId}/athletes/{athleteId}/end-relation")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) "
+            + "and @athleteAccessValidator.canWrite(authentication, #athleteId)")
+    public PlannedEnd endByCoach(@AuthenticationPrincipal AuthPrincipal principal,
+                                 @PathVariable UUID clubId,
+                                 @PathVariable UUID athleteId,
+                                 @Valid @RequestBody(required = false) EndByCoachRequest body) {
+        Instant endsAt = service.endByCoach(principal.userId(), athleteId,
+                body == null ? null : body.note(), body != null && body.keepFutureWorkouts());
+        return new PlannedEnd(endsAt, body == null ? null : body.note(), body != null && body.keepFutureWorkouts());
+    }
+
+    /** La fin prévue, s'il y en a une (204 sinon). */
+    @GetMapping("/clubs/{clubId}/athletes/{athleteId}/end-relation")
+    @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) "
+            + "and @athleteAccessValidator.canRead(authentication, #athleteId)")
+    public ResponseEntity<PlannedEnd> plannedEnd(@AuthenticationPrincipal AuthPrincipal principal,
+                                                 @PathVariable UUID clubId, @PathVariable UUID athleteId) {
+        return service.plannedEnd(principal.userId(), athleteId)
+                .map(r -> ResponseEntity.ok(new PlannedEnd(r.getPlannedEndAt(), r.getPlannedEndReason(),
+                        r.isKeepFutureWorkouts())))
+                .orElse(ResponseEntity.noContent().build());
+    }
+
+    /** Le coach revient sur la fin annoncée. */
+    @DeleteMapping("/clubs/{clubId}/athletes/{athleteId}/end-relation")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("@clubAccessValidator.hasAccess(authentication, #clubId) "
             + "and @athleteAccessValidator.canWrite(authentication, #athleteId)")
-    public void endByCoach(@AuthenticationPrincipal AuthPrincipal principal,
-                           @PathVariable UUID clubId,
-                           @PathVariable UUID athleteId,
-                           @Valid @RequestBody(required = false) ClubRequestDecision body) {
-        service.endByCoach(principal.userId(), athleteId, body == null ? null : body.note());
+    public void cancelEnd(@AuthenticationPrincipal AuthPrincipal principal,
+                          @PathVariable UUID clubId, @PathVariable UUID athleteId) {
+        service.cancelPlannedEnd(principal.userId(), athleteId);
+    }
+
+    /** Quitter le club en gardant son coach : on devient son athlète privé. */
+    @PostMapping("/me/coach/leave-club")
+    @PreAuthorize("hasRole('ATHLETE')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void leaveClub(@AuthenticationPrincipal AuthPrincipal principal) {
+        service.leaveClubKeepCoach(principal.userId());
+    }
+
+    /** Mon coaching en cours : coach, depuis quand, et la fin annoncée s'il y en a une. */
+    @GetMapping("/me/coach")
+    @PreAuthorize("hasRole('ATHLETE')")
+    public ResponseEntity<CurrentCoaching> myCoach(@AuthenticationPrincipal AuthPrincipal principal) {
+        return service.current(principal.userId())
+                .map(r -> ResponseEntity.ok(new CurrentCoaching(r.getCoach().getFullName(), r.getCreatedAt(),
+                        r.getPlannedEndAt(), r.getPlannedEndReason(),
+                        r.getClub() != null ? r.getClub().getName() : null)))
+                .orElse(ResponseEntity.noContent().build());
+    }
+
+    public record EndByCoachRequest(@Size(max = 500) String note, boolean keepFutureWorkouts) {
+    }
+
+    public record PlannedEnd(Instant endsAt, String note, boolean keepFutureWorkouts) {
+    }
+
+    public record CurrentCoaching(String coachName, Instant since, Instant plannedEndAt, String plannedEndReason,
+                                  String clubName) {
     }
 }

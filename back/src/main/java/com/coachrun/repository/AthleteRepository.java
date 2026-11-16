@@ -248,4 +248,17 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from Athlete e where e.id = :id")
     int hardDelete(@Param("id") UUID id);
+
+    /** La fiche personnelle d'un compte athlète : celle de son espace à lui. */
+    java.util.Optional<Athlete> findFirstByAccountIdAndClubPersonalTrue(UUID accountId);
+
+    /** L'ancienne fiche d'une personne dans un espace : elle est reprise si elle y revient. */
+    java.util.Optional<Athlete> findFirstByAccountIdAndClubIdOrderByCreatedAtDesc(UUID accountId, UUID clubId);
+
+    /** Fiches suivies par un coach : les fiches d'espace personnel ne comptent pas comme athlètes. */
+    long countByClubPersonalFalse();
+
+    long countByStatusAndClubPersonalFalse(AthleteStatus status);
+
+    long countByCreatedAtAfterAndClubPersonalFalse(java.time.Instant since);
 }

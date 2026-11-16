@@ -32,6 +32,9 @@ public interface CoachingRequestRepository extends JpaRepository<CoachingRequest
             UUID athleteAccountId, UUID coachId, CoachingRequestStatus status);
 
     /** Combien de demandes cet athlète a-t-il en attente ? Le plafond global anti-spam. */
+    Optional<CoachingRequest> findFirstByAthleteAccountIdAndCoachIdAndStatus(
+            UUID athleteAccountId, UUID coachId, CoachingRequestStatus status);
+
     long countByAthleteAccountIdAndStatus(UUID athleteAccountId, CoachingRequestStatus status);
 
     /** Combien en a-t-il envoyées depuis telle date ? Le plafond glissant. */

@@ -149,6 +149,7 @@ public class DemoSeedService {
     private final com.coachrun.repository.CoachOfferRepository coachOfferRepository;
     private final com.coachrun.repository.CoachCertificationRepository coachCertificationRepository;
     private final com.coachrun.repository.AthleteAccountRepository athleteAccountRepository;
+    private final PersonalSpaceService personalSpace;
     private final com.coachrun.repository.CoachingRequestRepository coachingRequestRepository;
     private final ConversationService conversationService;
     private final PasswordEncoder passwordEncoder;
@@ -777,7 +778,11 @@ public class DemoSeedService {
         a.setGoal(goal);
         a.setTermsAcceptedAt(Instant.now().minus(3, ChronoUnit.DAYS));
         a.setHealthDataConsentAt(Instant.now().minus(3, ChronoUnit.DAYS));
-        return athleteAccountRepository.save(a);
+        a = athleteAccountRepository.save(a);
+        // Comme à toute inscription : sans coach, l'athlète a son espace personnel.
+        personalSpace.attach(user, a);
+        userRepository.save(user);
+        return a;
     }
 
     /** Minuscules, accents retirés, espaces en tirets — assez pour un jeu de démonstration. */

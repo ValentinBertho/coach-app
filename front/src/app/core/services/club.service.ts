@@ -38,6 +38,14 @@ export interface AthleteAccess {
 }
 
 /** Multi-coach / club : membres, statut privé/club et permissions (cf. Darilab). */
+export interface DepartureImpact {
+  coachName: string;
+  handedOver: { athleteId: string; name: string }[];
+  followers: { athleteId: string; name: string }[];
+  successors: { coachId: string; name: string; owner: boolean }[];
+  opensSoloSpace: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ClubService {
   private readonly http = inject(HttpClient);
@@ -64,9 +72,21 @@ export class ClubService {
     return this.http.post<CoachInviteResult>(`${this.club()}/members/${coachId}/resend-invite`, {});
   }
 
-  /** Retire un coach du club. */
-  removeCoach(coachId: string): Observable<void> {
-    return this.http.delete<void>(`${this.club()}/members/${coachId}`);
+  /** Ce que produira le départ d'un coach : athlètes confiés à un collègue, athlètes privés qui le suivent. */
+  departureImpact(coachId: string): Observable<DepartureImpact> {
+    return this.http.get<DepartureImpact>(`${this.club()}/members/${coachId}/departure`);
+  }
+
+  /** Retire un coach du club ; ses athlètes du club passent à {@code successorId} (le propriétaire sinon). */
+  removeCoach(coachId: string, successorId?: string | null): Observable<DepartureImpact> {
+    const params = successorId ? { successorId } : undefined;
+    return this.http.delete<DepartureImpact>(`${this.club()}/members/${coachId}`, { params });
+  }
+
+  /** Le coach connecté quitte le club. */
+  leaveClub(successorId?: string | null): Observable<DepartureImpact> {
+    const params = successorId ? { successorId } : undefined;
+    return this.http.post<DepartureImpact>(`${this.club()}/leave`, {}, { params });
   }
 
   access(athleteId: string): Observable<AthleteAccess> {

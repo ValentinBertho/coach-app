@@ -35,6 +35,8 @@ public record AthleteRegistrationRequest(
          */
         @Size(max = 140) String coachSlug,
         @Size(max = 2000) String requestMessage,
+        /** Lien d'invitation depuis lequel le visiteur s'inscrit : rejoint à la confirmation. */
+        @Size(max = 32) String inviteToken,
         @AssertTrue(message = "L'acceptation des conditions d'utilisation est requise.")
         boolean termsAccepted,
         @AssertTrue(message = "Le consentement au traitement des données de santé est requis.")
