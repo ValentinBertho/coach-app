@@ -8,6 +8,12 @@
       <h1 class="display-sm">Aujourd'hui</h1>
       <app-help-hint section="seance-jour" label="Aide : ma séance du jour" />
     </div>
+
+    <!-- Sans coach, la journée commence par ce qui rend l'application utile : la montre, un
+         objectif, un profil, et — s'il le souhaite — un coach. -->
+    @if (!hasCoach()) {
+      <app-starter-checklist />
+    }
     <p class="subtitle">Bonjour {{ user()?.fullName }}</p>
 
     <!-- Le cycle en cours, posé par le coach sur le calendrier. L'athlète recevait ses séances

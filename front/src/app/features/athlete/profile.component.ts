@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AthleteAccount, CoachingRequestService } from '../../core/services/coaching-request.service';
 import { Router, RouterLink } from '@angular/router';
 import {
   AthletePortalService,
@@ -608,6 +609,53 @@ interface LtPoint {
           }
         </section>
 
+        <!-- Ce que l'athlète dit de lui-même : discipline, niveau, ville, objectif. Le serveur
+             l'acceptait depuis le hub, mais aucun écran ne permettait de le modifier après
+             l'inscription — c'est pourtant ce qu'un coach lit en premier. -->
+        @if (runner(); as r) {
+          <div class="card runner">
+            <h2>Mon profil coureur</h2>
+            <label class="field">
+              <span class="field-label">Discipline</span>
+              <select class="input" [ngModel]="r.discipline" (ngModelChange)="patchRunner({ discipline: $event })">
+                <option [ngValue]="null">Non précisée</option>
+                <option value="ROUTE">Route</option>
+                <option value="TRAIL">Trail</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">Niveau</span>
+              <select class="input" [ngModel]="r.level" (ngModelChange)="patchRunner({ level: $event })">
+                <option [ngValue]="null">Non précisé</option>
+                <option value="BEGINNER">Débutant</option>
+                <option value="INTERMEDIATE">Intermédiaire</option>
+                <option value="ADVANCED">Confirmé</option>
+                <option value="ELITE">Élite</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">Ville</span>
+              <input class="input" [ngModel]="r.city" (ngModelChange)="patchRunner({ city: $event })" maxlength="120" />
+            </label>
+            <label class="field">
+              <span class="field-label">Mon objectif</span>
+              <textarea class="input" rows="3" maxlength="1000" [ngModel]="r.goal"
+                        (ngModelChange)="patchRunner({ goal: $event })"
+                        placeholder="Ex. finir mon premier semi en mars, je cours 3 fois par semaine"></textarea>
+            </label>
+            @if (!hasCoach()) {
+              <label class="field runner__check">
+                <input type="checkbox" [ngModel]="r.lookingForCoach"
+                       (ngModelChange)="patchRunner({ lookingForCoach: $event })" />
+                <span>Je cherche un coach</span>
+              </label>
+            }
+            <button type="button" class="btn btn-primary" [disabled]="runnerBusy()" (click)="saveRunner()">
+              {{ runnerBusy() ? 'Enregistrement…' : 'Enregistrer' }}
+            </button>
+          </div>
+        }
+
         <!-- La sortie doit se trouver là où l'on cherche ses réglages : l'écran « Mes demandes »,
              qui la portait, disparaît de la navigation dès qu'un coach accepte — un athlète
              suivi n'avait donc aucun chemin visible pour mettre fin à son coaching. -->
@@ -1148,7 +1196,41 @@ export class AthleteProfileComponent implements OnInit {
   private readonly portal = inject(AthletePortalService);
   private readonly auth = inject(AuthService);
   /** Suivi par un coach : déduit de la fiche, comme la navigation du portail. */
-  readonly hasCoach = computed(() => !!this.auth.currentUser()?.athleteId);
+  readonly hasCoach = computed(() => this.auth.hasCoach());
+  private readonly coachingRequests = inject(CoachingRequestService);
+  /** Le profil coureur (compte athlète). Absent pour un athlète invité sans compte : la carte se tait. */
+  readonly runner = signal<AthleteAccount | null>(null);
+  readonly runnerBusy = signal(false);
+
+  patchRunner(change: Partial<AthleteAccount>): void {
+    const r = this.runner();
+    if (r) {
+      this.runner.set({ ...r, ...change });
+    }
+  }
+
+  saveRunner(): void {
+    const r = this.runner();
+    if (!r) {
+      return;
+    }
+    this.runnerBusy.set(true);
+    this.coachingRequests.updateAccount({
+      firstName: r.firstName, lastName: r.lastName, sex: r.sex, discipline: r.discipline,
+      level: r.level, city: r.city, country: r.country, goal: r.goal,
+      lookingForCoach: r.lookingForCoach,
+    }).subscribe({
+      next: (a) => {
+        this.runner.set(a);
+        this.runnerBusy.set(false);
+        this.toast.success('Profil coureur enregistré');
+      },
+      error: (err) => {
+        this.runnerBusy.set(false);
+        this.toast.error(err?.error?.message ?? 'Enregistrement impossible.');
+      },
+    });
+  }
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
@@ -1304,6 +1386,10 @@ export class AthleteProfileComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.coachingRequests.account().subscribe({
+      next: (a) => this.runner.set(a),
+      error: () => this.runner.set(null),
+    });
     const me = this.auth.currentUser();
     this.acctName.set(me?.fullName ?? '');
     this.acctEmail.set(me?.email ?? '');

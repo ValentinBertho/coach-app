@@ -52,6 +52,7 @@ public class CoachingRelationService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final AthleteAccountRepository accountRepository;
+    private final PersonalSpaceService personalSpace;
     // Fournisseurs paresseux : les services de montre tirent eux-mêmes une longue chaîne de
     // dépendances, et la fin d'un coaching n'en a besoin qu'à l'instant où elle se produit.
     private final ObjectProvider<StravaService> strava;
@@ -69,7 +70,7 @@ public class CoachingRelationService {
         User athleteUser = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("Compte introuvable."));
         Athlete athlete = athleteUser.getAthlete();
-        if (athlete == null) {
+        if (athlete == null || PersonalSpaceService.isPersonal(athlete)) {
             throw new ConflictException("Vous n'avez pas de coach actuellement.");
         }
         CoachAthleteRelation relation = relationRepository
@@ -171,9 +172,10 @@ public class CoachingRelationService {
      */
     private void detach(User athleteUser, Athlete athlete) {
         releaseDevices(athlete);
-        ensureAccount(athleteUser, athlete);
-        athleteUser.setAthlete(null);
-        athleteUser.setClub(null);
+        AthleteAccount account = ensureAccount(athleteUser, athlete);
+        // Il retrouve son espace personnel — sa fiche, ses objectifs, son historique d'avant —
+        // plutôt qu'un compte vide qui n'aurait plus que l'annuaire.
+        personalSpace.attach(athleteUser, account);
         athleteUser.setSessionsInvalidatedAt(Instant.now());
     }
 
@@ -212,9 +214,10 @@ public class CoachingRelationService {
      * deux supposent ce compte. On le crée ici, à partir de ce que la fiche sait de lui. Le
      * consentement santé ne voyage que s'il est actif sur la fiche.</p>
      */
-    private void ensureAccount(User athleteUser, Athlete athlete) {
-        if (accountRepository.findByUserId(athleteUser.getId()).isPresent()) {
-            return;
+    private AthleteAccount ensureAccount(User athleteUser, Athlete athlete) {
+        AthleteAccount existing = accountRepository.findByUserId(athleteUser.getId()).orElse(null);
+        if (existing != null) {
+            return existing;
         }
         AthleteAccount account = new AthleteAccount();
         account.setUser(athleteUser);
@@ -229,10 +232,11 @@ public class CoachingRelationService {
         if (athlete.isHealthDataConsentActive()) {
             account.setHealthDataConsentAt(athlete.getHealthDataConsentAt());
         }
-        accountRepository.save(account);
+        account = accountRepository.save(account);
         // La fiche garde la trace de la personne, comme pour un athlète venu du hub.
         if (athlete.getAccount() == null) {
             athlete.setAccount(account);
         }
+        return account;
     }
 }

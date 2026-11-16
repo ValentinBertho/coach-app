@@ -545,6 +545,11 @@
                     <app-icon name="move" [size]="11" /> déplacée
                   </span>
                 }
+                @if (w.createdByAthlete) {
+                  <span class="wc-moved" title="Séance ajoutée par l'athlète lui-même">
+                    <app-icon name="user" [size]="11" /> ajoutée par l'athlète
+                  </span>
+                }
               </span>
               <app-zone-bar [steps]="w.steps" />
             </button>

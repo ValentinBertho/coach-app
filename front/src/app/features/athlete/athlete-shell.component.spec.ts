@@ -70,8 +70,29 @@ describe('coquille athlète — ce que la navigation laisse atteindre', () => {
     http.expectOne((r) => r.url.endsWith('/me/conversations')).flush([]);
     fixture.detectChanges();
 
-    expect(labels().join(' ')).toContain('Trouver un coach');
+    expect(labels().join(' ')).toContain('Coach');
     expect(labels().join(' ')).not.toContain('Messages');
+  });
+
+  /**
+   * Sans coach mais avec son espace personnel : calendrier, journée et progrès sont à lui dès
+   * l'inscription, et le quatrième onglet mène à la recherche de coach.
+   */
+  it('ouvre l’entraînement à un athlète dans son espace personnel', () => {
+    auth.token.set('jeton-de-test');
+    auth.currentUser.set({
+      id: 'u1', email: 'x@y.z', fullName: 'Lena', role: 'ATHLETE', athleteId: 'p1',
+      personalSpace: true,
+    } as User);
+    fixture.detectChanges();
+    http.expectOne((r) => r.url.endsWith('/me/conversations')).flush([]);
+    fixture.detectChanges();
+
+    const nav = labels().join(' ');
+    expect(nav).toContain('Calendrier');
+    expect(nav).toContain('Progrès');
+    expect(nav).toContain('Coach');
+    expect(nav).not.toContain('Messages');
   });
 
   /**

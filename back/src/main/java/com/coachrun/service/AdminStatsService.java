@@ -25,10 +25,10 @@ public class AdminStatsService {
 
     public AdminStatsResponse stats() {
         return new AdminStatsResponse(
-                clubRepository.countByTrialExpiresAtIsNull(),
+                clubRepository.countByTrialExpiresAtIsNullAndPersonalFalse(),
                 userRepository.countByRole(UserRole.HEAD_COACH),
                 userRepository.countByRole(UserRole.COACH),
-                athleteRepository.count(),
+                athleteRepository.countByClubPersonalFalse(),
                 athleteRepository.countByInviteTokenIsNotNull(),
                 workoutRepository.count(),
                 activityRepository.count());

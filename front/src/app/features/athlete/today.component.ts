@@ -20,6 +20,7 @@ import {
   needsFeedback,
 } from '../../core/models/workout.model';
 import { WeekSummary } from '../../core/models/activity.model';
+import { StarterChecklistComponent } from './starter-checklist.component';
 import { AthletePortalService } from '../../core/services/athlete-portal.service';
 import { PaceReferenceService } from '../../core/services/pace-reference.service';
 import {
@@ -85,6 +86,7 @@ type State = 'loading' | 'ready' | 'error';
     HelpHintComponent,
     PushPromptComponent,
     CycleBannerComponent,
+    StarterChecklistComponent,
   ],
   templateUrl: './today.component.html',
   styleUrl: './today.component.scss',
@@ -107,6 +109,8 @@ export class TodayComponent implements OnInit {
     );
   }
   private readonly auth = inject(AuthService);
+  /** Sans coach, l'écran ouvre sur la liste de démarrage. */
+  readonly hasCoach = computed(() => this.auth.hasCoach());
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly celebration = inject(CelebrationService);

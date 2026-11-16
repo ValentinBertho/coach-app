@@ -185,6 +185,10 @@ public class Workout extends BaseEntity {
     @Column(name = "moved_by_athlete", nullable = false)
     private boolean movedByAthlete = false;
 
+    /** Séance posée par l'athlète lui-même, pas par un coach : lui seul la modifie. */
+    @Column(name = "created_by_athlete", nullable = false)
+    private boolean createdByAthlete = false;
+
     /** Date initiale avant le premier déplacement par l'athlète. */
     @Column(name = "original_date")
     private LocalDate originalDate;

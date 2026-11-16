@@ -83,6 +83,7 @@ public class CoachingRequestService {
     private final AthleteAccountRepository accountRepository;
     private final NotificationService notificationService;
     private final ClockService clock;
+    private final PersonalSpaceService personalSpace;
 
     // ---------------------------------------------------------------- côté athlète
 
@@ -358,6 +359,11 @@ public class CoachingRequestService {
         // Le compte de l'athlète rejoint l'espace du coach : les fils de discussion en dépendent,
         // Conversation.club étant non nullable.
         User athleteUser = account.getUser();
+        // Les montres branchées dans son espace personnel suivent : ses sorties doivent désormais
+        // arriver chez son coach.
+        if (PersonalSpaceService.isPersonal(athleteUser.getAthlete())) {
+            personalSpace.moveDevices(athleteUser.getAthlete(), athlete);
+        }
         athleteUser.setClub(coach.getClub());
         athleteUser.setAthlete(athlete);
 

@@ -93,6 +93,8 @@ export interface Workout {
   /** Ordre d'affichage au sein d'un même jour (glisser-déposer intra-jour). */
   orderIndex: number;
   steps: WorkoutStep[];
+  /** Posée par l'athlète lui-même : « ajoutée par moi » chez lui, « ajoutée par l'athlète » chez le coach. */
+  createdByAthlete?: boolean;
 }
 
 export interface WorkoutStepRequest {

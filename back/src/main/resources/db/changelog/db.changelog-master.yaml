@@ -255,3 +255,7 @@ databaseChangeLog:
       file: db/changelog/changes/121-coros-activity-import.yaml
   - include:
       file: db/changelog/changes/122-athlete-account-birth-date-optional.yaml
+  - include:
+      file: db/changelog/changes/123-personal-space.yaml
+  - include:
+      file: db/changelog/changes/124-workouts-created-by-athlete.yaml

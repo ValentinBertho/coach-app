@@ -117,8 +117,8 @@ class HubDemoSeedTest {
         JsonNode me = json(mvc.perform(get("/me")
                 .header("Authorization", bearer(DemoSeedService.HUB_ATHLETE_EMAIL)))
                 .andExpect(status().isOk()));
-        assertThat(me.get("athleteId").isNull()).as("aucune fiche tant qu'aucun coach n'a accepté").isTrue();
-        assertThat(me.get("clubId").isNull()).as("ni espace").isTrue();
+        assertThat(me.get("personalSpace").asBoolean())
+                .as("seulement son espace personnel tant qu'aucun coach n'a accepté").isTrue();
     }
 
     /** Et une demande attend déjà dans la file du coach, sinon elle s'ouvrirait vide aussi. */

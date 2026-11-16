@@ -27,6 +27,11 @@ export interface User {
    * champ, et retombe alors sur le vocabulaire « club » d'avant — démodé, jamais cassé.
    */
   soloPractice?: boolean;
+  /**
+   * Athlète dans son espace personnel, sans coach : son `athleteId` est celui de sa fiche
+   * personnelle. Optionnel pour la même raison que `soloPractice`.
+   */
+  personalSpace?: boolean;
 }
 
 /**

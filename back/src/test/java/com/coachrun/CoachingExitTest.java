@@ -161,7 +161,8 @@ class CoachingExitTest {
         mvc.perform(delete("/clubs/{c}/athletes/{a}", clubId, athleteId).header("Authorization", coachBearer))
                 .andExpect(status().isNoContent());
 
-        assertThat(userRepository.findByEmailIgnoreCase(athleteEmail).orElseThrow().getAthlete()).isNull();
+        assertThat(userRepository.findByEmailIgnoreCase(athleteEmail).orElseThrow().getAthlete().getClub().isPersonal())
+                .as("il retrouve son espace personnel").isTrue();
         assertThat(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athleteId)).isEmpty();
     }
 

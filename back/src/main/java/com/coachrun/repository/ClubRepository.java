@@ -22,8 +22,9 @@ public interface ClubRepository extends JpaRepository<Club, UUID> {
     /** Recherche libre bornée (nom ou slug), pour la recherche globale du back-office. */
     @org.springframework.data.jpa.repository.Query("""
             select c from Club c
-            where lower(c.name) like lower(concat('%', :q, '%'))
-               or lower(c.slug) like lower(concat('%', :q, '%'))
+            where c.personal = false
+              and (lower(c.name) like lower(concat('%', :q, '%'))
+               or lower(c.slug) like lower(concat('%', :q, '%')))
             order by c.name
             """)
     java.util.List<Club> quickSearch(@org.springframework.data.repository.query.Param("q") String q,
@@ -37,6 +38,7 @@ public interface ClubRepository extends JpaRepository<Club, UUID> {
     @org.springframework.data.jpa.repository.Query("""
             select c from Club c
             where c.trialExpiresAt is null
+              and c.personal = false
               and (:status is null or c.status = :status)
               and (:q = '' or lower(c.name) like lower(concat('%', :q, '%'))
                    or lower(c.slug) like lower(concat('%', :q, '%')))
@@ -49,6 +51,9 @@ public interface ClubRepository extends JpaRepository<Club, UUID> {
 
     /** Les vrais clubs, sans les espaces d'essai (compteurs de l'administration). */
     long countByTrialExpiresAtIsNull();
+
+    /** Les vrais clubs : ni essais, ni espaces personnels d'athlètes. */
+    long countByTrialExpiresAtIsNullAndPersonalFalse();
 
     /** Espaces d'essai encore ouverts (plafond de {@code TrialService}). */
     long countByTrialExpiresAtAfter(java.time.Instant now);

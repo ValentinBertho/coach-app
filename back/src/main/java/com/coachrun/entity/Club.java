@@ -48,6 +48,14 @@ public class Club extends BaseEntity {
      * Espace d'essai jetable : date à laquelle il est supprimé (cf. {@code TrialService}).
      * Nulle pour tout vrai club.
      */
+    /**
+     * Espace personnel d'un athlète : créé à son inscription, sans coach ni membre. Sa fiche
+     * personnelle y vit, avec sa montre et son historique, tant qu'aucun coach ne le suit. Tenu à
+     * l'écart des listes et des compteurs du back-office, comme les espaces d'essai.
+     */
+    @Column(name = "personal", nullable = false)
+    private boolean personal = false;
+
     @Column(name = "trial_expires_at")
     private java.time.Instant trialExpiresAt;
 

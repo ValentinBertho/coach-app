@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } 
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { ConfirmService } from '../../core/services/confirm.service';
+import { ConversationService } from '../../core/services/conversation.service';
 import {
   AthleteAccount, CoachingRequest, CoachingRequestService,
 } from '../../core/services/coaching-request.service';
@@ -28,11 +29,24 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
   template: `
     <header class="page-head">
       <div>
-        <h1 class="display-sm">Mes demandes</h1>
-        <p class="field-hint">Les coachs que vous avez sollicités, et où en est chaque demande.</p>
+        <h1 class="display-sm">Mon coach</h1>
+        <p class="field-hint">
+          Trouver un coach, suivre vos demandes. En attendant, votre calendrier, votre montre et
+          vos progrès sont déjà à vous.
+        </p>
       </div>
-      <a routerLink="/coachs" class="btn btn-secondary btn-sm">Trouver un coach</a>
+      <a routerLink="/coachs" class="btn btn-primary btn-sm">Trouver un coach</a>
     </header>
+
+    <!-- Les fils des coachs passés : lisibles, en lecture seule. Sans ce lien, un athlète revenu
+         dans son espace personnel n'aurait aucun chemin vers ses anciens échanges. -->
+    @if (!hasCoach() && hasPastThreads()) {
+      <a routerLink="/athlete/messages" class="card mr-past">
+        <app-icon name="message-square" [size]="18" />
+        <span>Relire mes échanges avec mes anciens coachs</span>
+        <app-icon name="chevron-right" [size]="16" />
+      </a>
+    }
 
     <!-- La sortie. Placée ici parce que c'est l'écran où l'athlète gère sa relation, et parce
          qu'une porte de sortie qu'on ne trouve pas n'est pas une porte de sortie. -->
@@ -136,6 +150,8 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
     }
   `,
   styles: [`
+    .mr-past { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); margin-bottom: var(--sp-4); text-decoration: none; color: var(--ink); }
+    .mr-past span { flex: 1; }
     .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-5); }
     .mr-loading { color: var(--ink-3); padding: var(--sp-6) 0; }
     .mr-current { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); padding: var(--sp-4); margin-bottom: var(--sp-4); flex-wrap: wrap; }
@@ -166,6 +182,8 @@ export class MyRequestsComponent implements OnInit {
   private readonly confirm = inject(ConfirmService);
   private readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
+  private readonly conversations = inject(ConversationService);
+  readonly hasPastThreads = signal(false);
 
   readonly requests = signal<CoachingRequest[]>([]);
   readonly loading = signal(true);
@@ -174,10 +192,16 @@ export class MyRequestsComponent implements OnInit {
   readonly resent = signal(false);
 
   /** L'athlète a un coach dès lors qu'il a une fiche : elle naît de l'acceptation. */
-  readonly hasCoach = computed(() => !!this.auth.currentUser()?.athleteId);
+  readonly hasCoach = computed(() => this.auth.hasCoach());
 
   ngOnInit(): void {
     this.load();
+    if (!this.hasCoach()) {
+      this.conversations.inbox().subscribe({
+        next: (list) => this.hasPastThreads.set(list.length > 0),
+        error: () => this.hasPastThreads.set(false),
+      });
+    }
   }
 
   badge(status: CoachingRequest['status']): string {

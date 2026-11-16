@@ -1,6 +1,7 @@
 package com.coachrun.service;
 
 import com.coachrun.repository.AthleteAccountRepository;
+import com.coachrun.repository.ClubRepository;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,7 +25,7 @@ import java.util.UUID;
  * titulaire ne pourrait plus utiliser pour s'inscrire) et des données personnelles sans
  * consentement vérifié. Passé le délai du lien de vérification, ils sont supprimés.</p>
  *
- * <p>Seuls les comptes sans fiche ni club, sans connexion récente, sans demande de coaching ni
+ * <p>Seuls les comptes sans autre fiche que leur espace personnel (qui part avec eux), sans connexion récente, sans demande de coaching ni
  * signalement sont visés (cf. {@link AthleteAccountRepository#findAbandonedUnverifiedUserIds}).
  * Les comptes de coach ne le sont jamais : ils portent un club.</p>
  */
@@ -33,14 +34,17 @@ import java.util.UUID;
 public class UnverifiedAccountPurgeService {
 
     private final AthleteAccountRepository accountRepository;
+    private final ClubRepository clubRepository;
     private final TransactionTemplate tx;
     private final int retentionDays;
 
     public UnverifiedAccountPurgeService(
             AthleteAccountRepository accountRepository,
+            ClubRepository clubRepository,
             PlatformTransactionManager txManager,
             @Value("${app.account.unverified-retention-days:7}") int retentionDays) {
         this.accountRepository = accountRepository;
+        this.clubRepository = clubRepository;
         this.tx = new TransactionTemplate(txManager);
         this.retentionDays = Math.max(1, retentionDays);
     }
@@ -61,6 +65,10 @@ public class UnverifiedAccountPurgeService {
                 // Une transaction par compte : un compte qui résiste n'empêche pas les autres.
                 tx.executeWithoutResult(status -> {
                     accountRepository.deletePushSubscriptionsOf(userId);
+                    // L'espace personnel d'abord : sa fiche pointe vers le compte.
+                    List<UUID> personal = accountRepository.findPersonalClubIdsOfUser(userId);
+                    accountRepository.detachUserNative(userId);
+                    personal.forEach(clubRepository::hardDelete);
                     accountRepository.deleteByUserIdNative(userId);
                     accountRepository.deleteUserNative(userId);
                 });

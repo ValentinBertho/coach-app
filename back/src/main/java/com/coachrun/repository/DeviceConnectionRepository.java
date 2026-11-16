@@ -14,6 +14,8 @@ public interface DeviceConnectionRepository extends JpaRepository<DeviceConnecti
 
     Optional<DeviceConnection> findByAthleteIdAndProvider(UUID athleteId, DeviceProvider provider);
 
+    java.util.List<DeviceConnection> findByAthleteId(UUID athleteId);
+
     /** Identifiants (athlète + club) des connexions d'un provider, pour la synchro planifiée. */
     @Query("""
             select c.athlete.id as athleteId, c.athlete.club.id as clubId

@@ -1,0 +1,27 @@
+# ============================================================================
+# 123 — L'espace personnel de l'athlète.
+#
+#   Un athlète inscrit sans coach n'avait que l'annuaire : toute la partie
+#   entraînement (calendrier, montre, progrès, profil) suppose une fiche, et
+#   la fiche vit dans un espace. Chaque athlète reçoit désormais le sien à
+#   l'inscription — un espace que personne d'autre n'anime, et où vit sa
+#   fiche personnelle, sa montre et son historique tant qu'il n'a pas de coach.
+#
+#   Une colonne plutôt qu'une table : c'est un espace comme un autre pour
+#   toutes les requêtes déjà scopées par club ; seul le back-office doit le
+#   tenir à l'écart de ses listes et de ses compteurs, comme les essais.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 123-personal-space
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: clubs
+            columns:
+              - column:
+                  name: personal
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
