@@ -4,11 +4,13 @@ import com.coachrun.entity.Club;
 import com.coachrun.entity.MetricType;
 import com.coachrun.entity.TrainingZone;
 import com.coachrun.entity.ZoneMetric;
+import com.coachrun.entity.ZoneSet;
 import com.coachrun.entity.enums.ZoneAnchor;
 import com.coachrun.entity.enums.ZoneModel;
 import com.coachrun.entity.enums.ZoneScope;
 import com.coachrun.repository.MetricTypeRepository;
 import com.coachrun.repository.TrainingZoneRepository;
+import com.coachrun.repository.ZoneSetRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -142,6 +144,144 @@ public class TrainingZoneSeedService {
 
     private final TrainingZoneRepository zoneRepository;
     private final MetricTypeRepository metricTypeRepository;
+    private final ZoneSetRepository zoneSetRepository;
+
+    // ------------------------------------------------------------------ modèles VC et VMA
+
+    /**
+     * Les deux modèles de zones du coach pilote (Athlé Vannes), offerts à chaque coach à côté de
+     * son jeu par défaut : la même échelle de 16 zones, mais les allures d'entraînement ancrées sur
+     * la <b>vitesse critique</b> pour l'un, sur la <b>VMA</b> pour l'autre. Les allures de
+     * compétition et l'échelle cardio sont communes aux deux, et identiques au jeu standard.
+     *
+     * <p>Seule la première zone change de nom (« Récupération » / « Régénération »), comme chez le
+     * coach pilote. Les autres gardent les noms du jeu standard, que les séances du kit de départ
+     * retrouvent par leur nom.</p>
+     */
+    public static final String VC_SET_NAME = "Zones Vitesses Critiques";
+    public static final String VMA_SET_NAME = "Zones VMA";
+
+    /** Bande d'entraînement d'un modèle : nom, couleur, % bas et haut de la référence. */
+    private record Band(String name, String color, double low, double high) {
+    }
+
+    private static final List<Band> VC_BANDS = List.of(
+            new Band("Récupération", "#94a3b8", 60, 73),
+            new Band("EF", "#22c55e", 65, 80),
+            new Band("Steady", "#84cc16", 80, 84),
+            new Band("Seuil 1", "#facc15", 83, 88),
+            new Band("Tempo", "#eab308", 91, 94),
+            new Band("Seuil 2 bas", "#f59e0b", 92, 96),
+            new Band("Seuil 2 haut", "#f97316", 98, 103));
+
+    private static final List<Band> VMA_BANDS = List.of(
+            new Band("Régénération", "#94a3b8", 55, 65),
+            new Band("EF", "#22c55e", 65, 72),
+            new Band("Steady", "#84cc16", 72, 78),
+            new Band("Seuil 1", "#facc15", 78, 82),
+            new Band("Tempo", "#eab308", 82, 90),
+            new Band("Seuil 2 bas", "#f59e0b", 88, 92),
+            new Band("Seuil 2 haut", "#f97316", 92, 96));
+
+    /** Allures de compétition communes aux deux modèles : chacune sur sa propre allure de course. */
+    private static final List<ZoneDef> RACE_ZONES = List.of(
+            new ZoneDef("10 km", "#65a30d", PACE_SCALE),
+            new ZoneDef("5 km", "#ca8a04", PACE_SCALE),
+            new ZoneDef("3 km", "#ea580c", PACE_SCALE),
+            new ZoneDef("1500 m", "#dc2626", PACE_SCALE),
+            new ZoneDef("800 m", "#b91c1c", PACE_SCALE));
+
+    private static final Map<String, Rule> RACE_RULES = Map.of(
+            "10 km", new Rule(ZoneAnchor.PACE_10KM, 98, 102, ZoneModel.DANIELS_VDOT),
+            "5 km", new Rule(ZoneAnchor.PACE_5KM, 98, 102, ZoneModel.DANIELS_VDOT),
+            "3 km", new Rule(ZoneAnchor.PACE_3000M, 98, 102, ZoneModel.DANIELS_VDOT),
+            "1500 m", new Rule(ZoneAnchor.PACE_1500M, 98, 103, ZoneModel.DANIELS_VDOT),
+            "800 m", new Rule(ZoneAnchor.PACE_800M, 98, 103, ZoneModel.DANIELS_VDOT));
+
+    /**
+     * Ajoute au club les modèles « Vitesses Critiques » et « VMA » qui lui manquent (par nom).
+     * N'enlève ni ne modifie rien : les zones du coach et son jeu par défaut restent tels quels.
+     *
+     * @return le nombre de modèles ajoutés
+     */
+    @Transactional
+    public int addReferenceModels(Club club) {
+        java.util.Set<String> existing = new java.util.HashSet<>();
+        int nextOrder = 0;
+        for (ZoneSet s : zoneSetRepository.findByClubIdOrderBySortOrderAscNameAsc(club.getId())) {
+            existing.add(s.getName().trim().toLowerCase(java.util.Locale.ROOT));
+            nextOrder = Math.max(nextOrder, s.getSortOrder() + 1);
+        }
+        Map<String, MetricType> byCode = resolveBuiltinMetrics(club.getId());
+        int added = 0;
+        if (!existing.contains(VC_SET_NAME.toLowerCase(java.util.Locale.ROOT))) {
+            seedModel(club, VC_SET_NAME, nextOrder++, VC_BANDS, ZoneAnchor.VC, ZoneModel.VC, byCode);
+            added++;
+        }
+        if (!existing.contains(VMA_SET_NAME.toLowerCase(java.util.Locale.ROOT))) {
+            seedModel(club, VMA_SET_NAME, nextOrder, VMA_BANDS, ZoneAnchor.VMA, ZoneModel.VMA, byCode);
+            added++;
+        }
+        return added;
+    }
+
+    private void seedModel(Club club, String name, int sortOrder, List<Band> bands, ZoneAnchor anchor,
+                           ZoneModel model, Map<String, MetricType> byCode) {
+        ZoneSet set = new ZoneSet();
+        set.setClub(club);
+        set.setName(name);
+        set.setSortOrder(sortOrder);
+        set = zoneSetRepository.save(set);
+        int order = 0;
+        for (Band b : bands) {
+            Rule rule = new Rule(anchor, b.low(), b.high(), model);
+            saveZone(club, set, b.name(), b.color(), order++, PACE_SCALE, code -> rule, byCode);
+        }
+        for (ZoneDef def : RACE_ZONES) {
+            Rule rule = RACE_RULES.get(def.name());
+            saveZone(club, set, def.name(), def.color(), order++, def.metricCodes(), code -> rule, byCode);
+        }
+        for (ZoneDef def : STANDARD_ZONES) {
+            if (def.metricCodes() == HR_SCALE) {
+                saveZone(club, set, def.name(), def.color(), order++, def.metricCodes(),
+                        code -> RULES.get(def.name() + "|" + code), byCode);
+            }
+        }
+    }
+
+    private void saveZone(Club club, ZoneSet set, String name, String color, int order, List<String> codes,
+                          java.util.function.Function<String, Rule> rules, Map<String, MetricType> byCode) {
+        TrainingZone zone = new TrainingZone();
+        zone.setClub(club);
+        zone.setZoneSet(set);
+        zone.setName(name);
+        zone.setColor(color);
+        zone.setSortOrder(order);
+        zone.setScope(ZoneScope.CLUB);
+        zone.setBuiltin(true);
+        int metricOrder = 0;
+        for (String code : codes) {
+            MetricType metric = byCode.get(code);
+            if (metric == null) {
+                continue;
+            }
+            ZoneMetric zm = new ZoneMetric();
+            zm.setZone(zone);
+            zm.setMetricType(metric);
+            zm.setSortOrder(metricOrder++);
+            Rule rule = rules.apply(code);
+            if (rule != null) {
+                zm.setAnchor(rule.anchor());
+                zm.setHighAnchor(rule.highAnchor());
+                zm.setLowPct(rule.low());
+                zm.setHighPct(rule.high());
+                zm.setModel(rule.model());
+            }
+            zone.getMetrics().add(zm);
+        }
+        zoneRepository.save(zone);
+    }
+
 
     /**
      * Seed le club s'il n'a aucune zone. Retourne {@code true} si un seed a été effectué.

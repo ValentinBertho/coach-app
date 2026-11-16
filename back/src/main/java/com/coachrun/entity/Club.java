@@ -56,6 +56,10 @@ public class Club extends BaseEntity {
     @Column(name = "personal", nullable = false)
     private boolean personal = false;
 
+    /** Les modèles de zones « Vitesses Critiques » et « VMA » ont été ajoutés (une seule fois). */
+    @Column(name = "zone_models_seeded", nullable = false)
+    private boolean zoneModelsSeeded = false;
+
     @Column(name = "trial_expires_at")
     private java.time.Instant trialExpiresAt;
 
