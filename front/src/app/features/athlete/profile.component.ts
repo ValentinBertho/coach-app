@@ -617,7 +617,7 @@ interface LtPoint {
             <h2>Mon profil coureur</h2>
             <label class="field">
               <span class="field-label">Discipline</span>
-              <select class="input" [ngModel]="r.discipline" (ngModelChange)="patchRunner({ discipline: $event })">
+              <select class="form-control" [ngModel]="r.discipline" (ngModelChange)="patchRunner({ discipline: $event })">
                 <option [ngValue]="null">Non précisée</option>
                 <option value="ROUTE">Route</option>
                 <option value="TRAIL">Trail</option>
@@ -625,7 +625,7 @@ interface LtPoint {
             </label>
             <label class="field">
               <span class="field-label">Niveau</span>
-              <select class="input" [ngModel]="r.level" (ngModelChange)="patchRunner({ level: $event })">
+              <select class="form-control" [ngModel]="r.level" (ngModelChange)="patchRunner({ level: $event })">
                 <option [ngValue]="null">Non précisé</option>
                 <option value="BEGINNER">Débutant</option>
                 <option value="INTERMEDIATE">Intermédiaire</option>
@@ -635,11 +635,11 @@ interface LtPoint {
             </label>
             <label class="field">
               <span class="field-label">Ville</span>
-              <input class="input" [ngModel]="r.city" (ngModelChange)="patchRunner({ city: $event })" maxlength="120" />
+              <input class="form-control" [ngModel]="r.city" (ngModelChange)="patchRunner({ city: $event })" maxlength="120" />
             </label>
             <label class="field">
               <span class="field-label">Mon objectif</span>
-              <textarea class="input" rows="3" maxlength="1000" [ngModel]="r.goal"
+              <textarea class="form-control" rows="3" maxlength="1000" [ngModel]="r.goal"
                         (ngModelChange)="patchRunner({ goal: $event })"
                         placeholder="Ex. finir mon premier semi en mars, je cours 3 fois par semaine"></textarea>
             </label>
@@ -1004,6 +1004,17 @@ interface LtPoint {
       }
 
       .coach-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+      /* Champs de formulaire du profil : libellé au-dessus, champ pleine largeur. Sans ces
+         règles, libellés et champs s'enchaînaient sur une seule ligne. */
+      .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--sp-3); }
+      .field-label { font-size: var(--text-sm); font-weight: 600; color: var(--ink-2); }
+      .field .form-control { width: 100%; }
+      .runner { display: flex; flex-direction: column; }
+      .runner h2 { margin: 0 0 var(--sp-3); }
+      .runner textarea.form-control { resize: vertical; min-height: 84px; }
+      .runner__check { flex-direction: row; align-items: center; gap: var(--sp-2); }
+      .runner__check input { width: 18px; height: 18px; margin: 0; }
+      .runner .btn { align-self: flex-start; }
     .coach-end {
         padding: var(--sp-3);
         border-radius: var(--radius-md, 12px);
