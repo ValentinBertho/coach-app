@@ -6,6 +6,7 @@ import com.coachrun.dto.request.OwnershipRequest;
 import com.coachrun.dto.response.AthleteAccessResponse;
 import com.coachrun.dto.response.ClubMemberResponse;
 import com.coachrun.security.AuthPrincipal;
+import com.coachrun.service.ClubDepartureService;
 import com.coachrun.service.ClubMembershipService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -36,6 +38,7 @@ import java.util.UUID;
 public class ClubController {
 
     private final ClubMembershipService clubService;
+    private final ClubDepartureService departure;
     private final com.coachrun.service.MessageService messageService;
 
     /**
@@ -91,9 +94,28 @@ public class ClubController {
      */
     @DeleteMapping("/members/{coachId}")
     @PreAuthorize("@clubRoleValidator.isOwner(authentication, #clubId)")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removeCoach(@PathVariable UUID clubId, @PathVariable UUID coachId) {
-        clubService.removeCoach(clubId, coachId);
+    public ClubDepartureService.Impact removeCoach(@AuthenticationPrincipal AuthPrincipal principal,
+                                                   @PathVariable UUID clubId, @PathVariable UUID coachId,
+                                                   @RequestParam(required = false) UUID successorId) {
+        return departure.depart(clubId, coachId, successorId, principal.userId());
+    }
+
+    /**
+     * Ce que produira le départ d'un coach : athlètes confiés à un collègue, athlètes privés qui le
+     * suivent. Lisible par le propriétaire, et par le coach lui-même avant de partir.
+     */
+    @GetMapping("/members/{coachId}/departure")
+    @PreAuthorize("@clubRoleValidator.isOwner(authentication, #clubId) or #coachId == principal.userId()")
+    public ClubDepartureService.Impact departureImpact(@PathVariable UUID clubId, @PathVariable UUID coachId) {
+        return departure.preview(clubId, coachId);
+    }
+
+    /** Un coach quitte le club de lui-même : ses athlètes du club restent, au propriétaire par défaut. */
+    @PostMapping("/leave")
+    public ClubDepartureService.Impact leave(@AuthenticationPrincipal AuthPrincipal principal,
+                                             @PathVariable UUID clubId,
+                                             @RequestParam(required = false) UUID successorId) {
+        return departure.depart(clubId, principal.userId(), successorId, principal.userId());
     }
 
     @GetMapping("/athletes/{athleteId}/access")

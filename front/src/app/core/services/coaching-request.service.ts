@@ -46,6 +46,8 @@ export interface CurrentCoaching {
   since: string;
   plannedEndAt: string | null;
   plannedEndReason: string | null;
+  /** Le club auquel le suivi le rattache ; absent pour un athlète privé. */
+  clubName?: string | null;
 }
 
 export interface AthleteRegistration {
@@ -159,6 +161,11 @@ export class CoachingRequestService {
   }
 
   /** Mon coaching en cours (athlète) : coach, depuis quand, fin annoncée. Null sans coach. */
+  /** Quitter le club en gardant son coach (on devient son athlète privé). */
+  leaveClub(): Observable<void> {
+    return this.http.post<void>(`${this.base}/me/coach/leave-club`, {});
+  }
+
   myCoach(): Observable<CurrentCoaching | null> {
     return this.http.get<CurrentCoaching | null>(`${this.base}/me/coach`);
   }

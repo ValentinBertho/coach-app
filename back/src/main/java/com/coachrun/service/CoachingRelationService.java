@@ -63,6 +63,7 @@ public class CoachingRelationService {
     private final ObjectProvider<ProposalService> proposals;
     private final com.coachrun.repository.WorkoutRepository workoutRepository;
     private final ClockService clock;
+    private final com.coachrun.repository.AthleteCoachPermissionRepository permissionRepository;
 
     /** Préavis du coach : le temps pour l'athlète de se retourner. */
     public static final int NOTICE_DAYS = 7;
@@ -201,6 +202,46 @@ public class CoachingRelationService {
             sent++;
         }
         return sent;
+    }
+
+    /**
+     * Clôt une relation pour la déplacer ailleurs (coach qui quitte son club avec ses athlètes
+     * privés) : l'athlète retrouve un instant son espace personnel, avec sa montre et ses sorties,
+     * avant d'entrer dans le nouvel espace. Pas de récapitulatif : le suivi continue.
+     */
+    @Transactional
+    public void closeForMove(CoachAthleteRelation relation, User athleteUser, UUID byUserId, String reason) {
+        Athlete athlete = relation.getAthlete();
+        close(relation, byUserId, reason);
+        relation.setPlannedEndAt(null);
+        removeFutureWorkouts(athlete);
+        relationRepository.saveAndFlush(relation);
+        if (athleteUser != null && athleteUser.getAthlete() != null
+                && athleteUser.getAthlete().getId().equals(athlete.getId())) {
+            detach(athleteUser, athlete, null);
+        }
+    }
+
+    /**
+     * L'athlète quitte le club mais garde son coach : il devient son athlète privé. Les accès
+     * accordés à d'autres coachs du club tombent, puisqu'un athlète privé n'est pas partagé.
+     */
+    @Transactional
+    public void leaveClubKeepCoach(UUID userId) {
+        User athleteUser = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("Compte introuvable."));
+        Athlete athlete = athleteUser.getAthlete();
+        CoachAthleteRelation relation = athlete == null ? null : relationRepository
+                .findByAthleteIdAndReferentTrueAndActiveTrue(athlete.getId()).orElse(null);
+        if (relation == null || relation.getClub() == null) {
+            throw new ConflictException("Vous n'êtes rattaché à aucun club.");
+        }
+        String clubName = relation.getClub().getName();
+        relation.setClub(null);
+        permissionRepository.deleteAll(permissionRepository.findByAthleteId(athlete.getId()));
+        notificationService.notifyLeftClubKeptCoach(relation.getCoach(),
+                athlete.getFirstName() + " " + athlete.getLastName(), clubName);
+        log.info("Athlète {} : quitte le club, garde son coach", athlete.getId());
     }
 
     /**

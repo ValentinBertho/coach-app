@@ -98,7 +98,7 @@ class ClubCoachManagementTest {
 
         // Retrait OK.
         mvc.perform(delete("/clubs/{c}/members/{id}", clubId, coachId).header("Authorization", bearer))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
         assertThat(members().size()).isEqualTo(before);
     }
 

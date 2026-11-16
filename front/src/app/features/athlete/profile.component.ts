@@ -663,7 +663,7 @@ interface LtPoint {
           <div class="card">
             <h2>Mon coaching</h2>
             @if (myCoach(); as c) {
-              <p>Suivi par <strong>{{ c.coachName }}</strong> depuis le {{ c.since | date: 'd MMMM y' : '' : 'fr' }}.</p>
+              <p>Suivi par <strong>{{ c.coachName }}</strong>@if (c.clubName) { au sein de <strong>{{ c.clubName }}</strong>} depuis le {{ c.since | date: 'd MMMM y' : '' : 'fr' }}.</p>
               @if (c.plannedEndAt) {
                 <p class="coach-end">
                   {{ c.coachName }} a annoncé la fin de ton suivi pour le
@@ -684,6 +684,9 @@ interface LtPoint {
               <a routerLink="/athlete/demandes" class="btn btn-ghost">Gérer mon coaching</a>
               @if (!myCoach()?.plannedEndAt) {
                 <a routerLink="/coachs" class="btn btn-ghost">Changer de coach</a>
+              }
+              @if (myCoach()?.clubName && !myCoach()?.plannedEndAt) {
+                <button type="button" class="btn btn-ghost" (click)="leaveClub()">Quitter le club, garder mon coach</button>
               }
             </div>
           </div>
@@ -1483,6 +1486,26 @@ export class AthleteProfileComponent implements OnInit {
    * qu'un interrupteur, il détruit les données de santé déjà collectées — l'athlète doit le
    * savoir avant, pas le découvrir après.
    */
+  /** Quitter le club en gardant son coach : il devient son coach « en privé ». */
+  async leaveClub(): Promise<void> {
+    const c = this.myCoach();
+    if (!c?.clubName) return;
+    const ok = await this.confirm.ask({
+      title: `Quitter ${c.clubName} ?`,
+      message: `Tu ne fais plus partie du club, mais ${c.coachName} continue de te suivre. Les autres `
+        + 'coachs du club n’ont plus accès à ta fiche. Ton historique et tes séances restent en place.',
+      confirmLabel: 'Quitter le club',
+    });
+    if (!ok) return;
+    this.coachingRequests.leaveClub().subscribe({
+      next: () => {
+        this.myCoach.set({ ...c, clubName: null });
+        this.toast.success(`Tu as quitté ${c.clubName}. ${c.coachName} continue de te suivre.`);
+      },
+      error: (err) => this.toast.error(err?.error?.message ?? 'Impossible de quitter le club pour le moment.'),
+    });
+  }
+
   async withdrawConsent(): Promise<void> {
     const ok = await this.confirm.ask({
       title: 'Retirer mon consentement',

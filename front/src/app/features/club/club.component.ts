@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   OnInit,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -16,6 +17,7 @@ import {
 } from '../../core/services/club.service';
 import { AthleteAccessPanelComponent } from '../../shared/components/athlete-access/athlete-access-panel.component';
 import { ToastService } from '../../core/services/toast.service';
+import { DepartureImpact } from '../../core/services/club.service';
 import { AthleteSummary } from '../../core/models/athlete.model';
 import { WorkoutTemplateService } from '../../core/services/workout-template.service';
 import { StrengthService } from '../../core/services/strength.service';
@@ -143,16 +145,54 @@ export class ClubComponent implements OnInit {
     });
   }
 
+  /** Le coach connecté : « Quitter le club » sur sa ligne, « Retirer » sur les autres s'il est propriétaire. */
+  readonly meId = computed(() => this.auth.currentUser()?.id ?? null);
+  readonly iAmOwner = computed(() =>
+    this.members().some((m) => m.coachId === this.meId() && m.clubRole === 'OWNER'));
+  /** Départ en cours de préparation : on montre ce qu'il produira avant de le confirmer. */
+  readonly departure = signal<{ member: ClubMember; impact: DepartureImpact; self: boolean } | null>(null);
+  successorId: string | null = null;
+  readonly leaving = signal(false);
+
   removeMember(m: ClubMember): void {
     if (m.clubRole === 'OWNER') return;
-    this.clubService.removeCoach(m.coachId).subscribe({
-      next: () => {
-        this.members.update((list) =>
-          list.filter((x) => x.coachId !== m.coachId),
-        );
-        this.toast.info(`${m.name} retiré du club.`);
+    this.clubService.departureImpact(m.coachId).subscribe({
+      next: (impact) => {
+        this.successorId = impact.successors.find((s) => s.owner)?.coachId ?? impact.successors[0]?.coachId ?? null;
+        this.departure.set({ member: m, impact, self: m.coachId === this.meId() });
       },
-      error: () => this.toast.error('Retrait impossible.'),
+      error: () => this.toast.error('Impossible de préparer ce départ.'),
+    });
+  }
+
+  names(list: { name: string }[]): string {
+    return list.map((p) => p.name).join(', ');
+  }
+
+  confirmDeparture(): void {
+    const d = this.departure();
+    if (!d) return;
+    this.leaving.set(true);
+    const call = d.self
+      ? this.clubService.leaveClub(this.successorId)
+      : this.clubService.removeCoach(d.member.coachId, this.successorId);
+    call.subscribe({
+      next: () => {
+        this.leaving.set(false);
+        this.departure.set(null);
+        if (d.self) {
+          // Plus de club dans la session : on se reconnecte dans son espace.
+          this.toast.info('Vous avez quitté le club. Reconnectez-vous pour ouvrir votre espace.');
+          this.auth.logout();
+          return;
+        }
+        this.members.update((list) => list.filter((x) => x.coachId !== d.member.coachId));
+        this.toast.info(`${d.member.name} a quitté le club.`);
+      },
+      error: (err) => {
+        this.leaving.set(false);
+        this.toast.error(err?.error?.message ?? 'Départ impossible.');
+      },
     });
   }
 

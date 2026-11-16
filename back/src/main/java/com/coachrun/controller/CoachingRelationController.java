@@ -97,13 +97,22 @@ public class CoachingRelationController {
         service.cancelPlannedEnd(principal.userId(), athleteId);
     }
 
+    /** Quitter le club en gardant son coach : on devient son athlète privé. */
+    @PostMapping("/me/coach/leave-club")
+    @PreAuthorize("hasRole('ATHLETE')")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void leaveClub(@AuthenticationPrincipal AuthPrincipal principal) {
+        service.leaveClubKeepCoach(principal.userId());
+    }
+
     /** Mon coaching en cours : coach, depuis quand, et la fin annoncée s'il y en a une. */
     @GetMapping("/me/coach")
     @PreAuthorize("hasRole('ATHLETE')")
     public ResponseEntity<CurrentCoaching> myCoach(@AuthenticationPrincipal AuthPrincipal principal) {
         return service.current(principal.userId())
                 .map(r -> ResponseEntity.ok(new CurrentCoaching(r.getCoach().getFullName(), r.getCreatedAt(),
-                        r.getPlannedEndAt(), r.getPlannedEndReason())))
+                        r.getPlannedEndAt(), r.getPlannedEndReason(),
+                        r.getClub() != null ? r.getClub().getName() : null)))
                 .orElse(ResponseEntity.noContent().build());
     }
 
@@ -113,6 +122,7 @@ public class CoachingRelationController {
     public record PlannedEnd(Instant endsAt, String note, boolean keepFutureWorkouts) {
     }
 
-    public record CurrentCoaching(String coachName, Instant since, Instant plannedEndAt, String plannedEndReason) {
+    public record CurrentCoaching(String coachName, Instant since, Instant plannedEndAt, String plannedEndReason,
+                                  String clubName) {
     }
 }

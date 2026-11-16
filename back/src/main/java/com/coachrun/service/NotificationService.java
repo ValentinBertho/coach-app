@@ -1635,6 +1635,58 @@ public class NotificationService {
                 "/coachs");
     }
 
+    /** Club : le coach référent d'un athlète a quitté le club, un autre coach du club prend le relais. */
+    public void notifyReferentChanged(User athleteUser, String formerCoach, String newCoach, String clubName) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_ENDED", "Nouveau coach au club",
+                formerCoach + " a quitté " + clubName + ". " + newCoach + " prend le relais de votre suivi : "
+                        + "votre historique reste là, rien à faire de votre côté.", "/athlete/calendar");
+    }
+
+    /** Club : le coach d'un athlète privé quitte le club, et l'emmène dans son espace. */
+    public void notifyFollowedCoach(User athleteUser, String coachName, String clubName) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_ENDED", coachName + " continue en indépendant",
+                coachName + " a quitté " + clubName + " et continue de vous suivre dans son propre espace. "
+                        + "Votre montre et vos sorties vous ont suivi ; vos séances à venir seront replanifiées. "
+                        + "Reconnectez-vous si l'application vous le demande.", "/athlete/today");
+    }
+
+    /** Au coach qui reprend des athlètes d'un collègue parti. */
+    public void notifyAthletesHandedOver(User coach, String formerCoach, int count) {
+        if (coach == null || count == 0) {
+            return;
+        }
+        notifyUser(coach, "COACHING_REQUEST", count + " athlète(s) vous sont confiés",
+                formerCoach + " a quitté le club : vous devenez le coach référent de " + count
+                        + " de ses athlètes.", "/app/athletes");
+    }
+
+    /** Au coach qui quitte (ou est retiré d') un club. */
+    public void notifyClubLeft(User coach, String clubName, int followers, boolean newSpace) {
+        if (coach == null) {
+            return;
+        }
+        notifyUser(coach, "COACHING_ENDED", "Vous avez quitté " + clubName,
+                (newSpace ? "Votre espace indépendant est prêt. " : "")
+                        + (followers > 0 ? followers + " athlète(s) privé(s) vous ont suivi. " : "")
+                        + "Les athlètes du club restent au club.", "/app/athletes");
+    }
+
+    /** Un athlète quitte le club mais garde son coach. */
+    public void notifyLeftClubKeptCoach(User coach, String athleteName, String clubName) {
+        if (coach == null) {
+            return;
+        }
+        notifyUser(coach, "COACHING_ENDED", athleteName + " quitte " + clubName,
+                athleteName + " ne fait plus partie du club mais reste suivi par vous, en athlète privé.",
+                "/app/athletes");
+    }
+
     /** Le récapitulatif envoyé à l'athlète quand son coaching s'achève. */
     public void notifyCoachingRecap(User athleteUser, String coachName, long sessionsDone, int activitiesKept) {
         if (athleteUser == null) {

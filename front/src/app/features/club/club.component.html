@@ -29,7 +29,11 @@
                   {{ resending() === m.coachId ? 'Envoi…' : "Renvoyer l'invitation" }}
                 </button>
               }
-              @if (m.clubRole !== 'OWNER') {
+              @if (m.clubRole !== 'OWNER' && m.coachId === meId()) {
+                <button type="button" class="btn btn-ghost btn-sm" (click)="removeMember(m)">
+                  <app-icon name="door-open" [size]="14" /> Quitter le club
+                </button>
+              } @else if (m.clubRole !== 'OWNER' && iAmOwner()) {
                 <button type="button" class="btn btn-ghost btn-sm" (click)="removeMember(m)" title="Retirer du club">
                   <app-icon name="x" [size]="14" /> Retirer
                 </button>
@@ -42,6 +46,45 @@
       }
     </tbody>
   </table>
+
+  @if (departure(); as d) {
+    <div class="departure" role="region" aria-label="Départ d'un coach">
+      <h3>{{ d.self ? 'Quitter le club' : 'Retirer ' + d.impact.coachName }}</h3>
+      @if (d.impact.handedOver.length > 0) {
+        <p>
+          {{ d.impact.handedOver.length }} athlète(s) du club restent au club et sont confiés à
+          @if (d.impact.successors.length > 1) {
+            <select class="form-control departure__select" [(ngModel)]="successorId" name="successor" aria-label="Coach qui reprend">
+              @for (s of d.impact.successors; track s.coachId) { <option [ngValue]="s.coachId">{{ s.name }}</option> }
+            </select>
+          } @else {
+            <strong>{{ d.impact.successors[0]?.name }}</strong>.
+          }
+        </p>
+        <p class="field-hint">{{ names(d.impact.handedOver) }}</p>
+      }
+      @if (d.impact.followers.length > 0) {
+        <p>
+          {{ d.impact.followers.length }} athlète(s) privé(s) {{ d.self ? 'vous suivent' : 'suivent ' + d.impact.coachName }}
+          dans {{ d.impact.opensSoloSpace ? 'un espace indépendant ouvert pour l’occasion' : 'son autre espace' }},
+          avec leur montre et leurs sorties.
+        </p>
+        <p class="field-hint">{{ names(d.impact.followers) }}</p>
+      }
+      @if (d.impact.handedOver.length === 0 && d.impact.followers.length === 0) {
+        <p>Aucun athlète n'est concerné.</p>
+      }
+      @if (d.impact.opensSoloSpace) {
+        <p class="field-hint">{{ d.self ? 'Vous gardez' : d.impact.coachName + ' garde' }} un compte : un espace indépendant {{ d.self ? 'vous' : 'lui' }} est ouvert.</p>
+      }
+      <div class="departure__actions">
+        <button type="button" class="btn btn-ghost" (click)="departure.set(null)">Annuler</button>
+        <button type="button" class="btn btn-danger" [disabled]="leaving()" (click)="confirmDeparture()">
+          {{ leaving() ? 'Un instant…' : (d.self ? 'Quitter le club' : 'Retirer du club') }}
+        </button>
+      </div>
+    </div>
+  }
 
   <form class="add-coach" (ngSubmit)="addCoach()">
     <input type="email" class="form-control" name="coachEmail" placeholder="email du coach"
