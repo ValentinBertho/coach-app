@@ -68,6 +68,10 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/annuaire/coach-directory.component').then((m) => m.CoachDirectoryComponent),
   },
+  // Le lien court d'un coach. En production, le serveur web le sert lui-même (page d'aperçu pour
+  // les robots de partage) ; cette route ne sert que lorsque l'application l'intercepte — service
+  // worker installé, ou développement local — et mène alors directement à la fiche.
+  { path: 'c/:slug', redirectTo: 'coachs/:slug' },
   {
     path: 'coachs/:slug',
     loadComponent: () =>

@@ -21,7 +21,7 @@ import {
   LayoutGrid, List, PanelLeft, Menu, GripVertical, ChevronDown, ChevronUp, Type,
   LifeBuoy, Search, Lightbulb, Info, CircleHelp, Rocket, ShieldCheck, Eye, Trash2, Plus, Ellipsis, Inbox, ArrowLeft, ArrowRight, ChevronLeft, RotateCcw, Square, GripHorizontal,
   EyeOff, MapPin, LineChart, Sun, WifiOff, Mail, DoorOpen, Tablet, Monitor, Share, SquarePlus, EllipsisVertical,
-  ExternalLink,
+  ExternalLink, QrCode, Link,
 } from 'lucide-angular';
 
 import { routes } from './app.routes';
@@ -39,7 +39,7 @@ registerLocaleData(localeFr);
  * raison qui n'a rien à voir avec ce qu'il vérifie.
  */
 export const ICONS = {
-  ExternalLink,
+  ExternalLink, QrCode, Link,
   LayoutDashboard, Users, User, UsersRound, Calendar, CalendarDays, Library, GraduationCap,
   Dumbbell, Building2, RefreshCw, Settings, MessageSquare, House, TrendingUp, Footprints,
   Mountain, MountainSnow, Bike, Moon, Timer, Gauge, Flame, Zap, Wind, Target, FlaskConical, Flag,

@@ -12,6 +12,7 @@ import {
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { ShareKitComponent } from '../../shared/components/share-kit/share-kit.component';
 
 /**
  * L'éditeur de la vitrine du coach.
@@ -31,7 +32,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
   selector: 'app-coach-profile',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, IconComponent],
+  imports: [ReactiveFormsModule, IconComponent, ShareKitComponent],
   template: `
     <header class="page-head">
       <div>
@@ -329,6 +330,25 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
         }
       </section>
 
+      <!-- Le partage : un lien court dont l'aperçu montre la photo et le nom du coach dans
+           WhatsApp, un SMS ou Instagram, et un QR code pour les affiches du club. -->
+      @if (p.status === 'PUBLISHED' || p.status === 'CLOSED') {
+        <section class="card cp-share">
+          <h2>Partager ma fiche</h2>
+          <p class="field-hint">
+            Collez ce lien dans votre bio Instagram, votre signature ou un groupe WhatsApp :
+            l'aperçu affiche votre photo, votre nom et vos spécialités.
+          </p>
+          <app-share-kit [url]="shareUrl(p.slug)"
+                         [title]="(p.coachName ?? 'Mon coaching') + ' sur DARI Lab'"
+                         message="Voici ma page de coach sur DARI Lab, pour me demander un suivi :"
+                         [imageUrl]="'/api/public/share/coach/' + p.slug + '/story.png'"
+                         imageLabel="Image pour une story"
+                         [imageName]="'story-' + p.slug + '.png'"
+                         [qrName]="'qr-' + p.slug + '.png'" />
+        </section>
+      }
+
       <!-- La publication. La liste des manques vient du serveur : c'est lui qui refuserait. -->
       <section class="card cp-publish">
         @if (p.status === 'PUBLISHED' || p.status === 'CLOSED') {
@@ -418,6 +438,11 @@ export class CoachProfileComponent implements OnInit {
   readonly uploading = signal(false);
 
   /** L'adresse de la photo courante, composée par le service à partir du chemin de l'API. */
+  /** Le lien court : son aperçu est rendu par le serveur, lisible des robots de partage. */
+  shareUrl(slug: string): string {
+    return `${window.location.origin}/c/${slug}`;
+  }
+
   readonly photoSrc = computed(() => this.service.photoSrc(this.profile()?.photoUrl ?? null));
 
   /** Une fiche en validation est gelée côté serveur : l'écran le montre plutôt que d'échouer. */

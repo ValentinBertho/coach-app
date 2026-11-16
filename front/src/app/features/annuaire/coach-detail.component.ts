@@ -42,6 +42,9 @@ import { FormTrap, FormTrapComponent } from '../../shared/forms/form-trap';
 
       @if (coach(); as c) {
         <article>
+          <!-- Bandeau aux couleurs de la marque : la fiche se lit comme une page de coach, pas
+               comme un formulaire — c'est elle qu'on partage dans une bio Instagram. -->
+          <div class="cd__cover" aria-hidden="true"></div>
           <section class="card cd__hero">
             <div class="cd__avatar">
               @if (photo(); as src) {
@@ -64,6 +67,9 @@ import { FormTrap, FormTrapComponent } from '../../shared/forms/form-trap';
               @if (!c.acceptingAthletes) {
                 <p class="badge badge-neutral">Ne prend plus de nouveaux athlètes</p>
               }
+              <button type="button" class="btn btn-ghost btn-sm cd__share" (click)="share(c)">
+                <app-icon name="share" [size]="15" /> Partager cette fiche
+              </button>
 
               <!-- Les signaux factuels, qui tiennent lieu d'avis tant qu'il n'y en a pas. Mesurés,
                    non déclarés, et absents tant que l'échantillon ne les fonde pas : mieux vaut ne
@@ -181,6 +187,16 @@ import { FormTrap, FormTrapComponent } from '../../shared/forms/form-trap';
             </button>
           </section>
 
+          <!-- Sur téléphone, l'action reste à portée de pouce pendant qu'on lit la fiche. -->
+          @if (c.acceptingAthletes) {
+            <div class="cd__sticky">
+              <button type="button" class="btn btn-primary" [disabled]="sending()"
+                      (click)="requestCoaching(c)">
+                {{ sending() ? 'Envoi…' : 'Demander à être coaché' }}
+              </button>
+            </div>
+          }
+
           <!-- Discret, et en bas : c'est un recours, pas une invitation. Un bouton « signaler »
                mis en évidence à côté du nom d'un coach jette un soupçon sur tous ceux qui n'ont
                rien fait. -->
@@ -242,7 +258,23 @@ import { FormTrap, FormTrapComponent } from '../../shared/forms/form-trap';
     .cd__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--sp-6); }
     .cd__brand { text-decoration: none; }
     .cd__loading { color: var(--ink-3); padding: var(--sp-6) 0; }
-    .cd__hero { display: flex; gap: var(--sp-5); padding: var(--sp-5); margin-bottom: var(--sp-4); align-items: center; }
+    .cd__cover {
+      height: 120px; border-radius: var(--radius-lg) var(--radius-lg) 0 0; margin-bottom: -56px;
+      background:
+        radial-gradient(circle at 85% 120%, rgba(255,255,255,.18) 0 18%, transparent 18.5% 26%, rgba(255,255,255,.12) 26.5% 27%, transparent 27.5%),
+        linear-gradient(135deg, var(--primary), var(--primary-2));
+    }
+    .cd__share { margin-top: var(--sp-2); display: inline-flex; align-items: center; gap: 6px; }
+    .cd__sticky { display: none; }
+    @media (max-width: 560px) {
+      .cd__sticky {
+        display: block; position: sticky; bottom: 0; z-index: 10;
+        padding: var(--sp-3) 0 calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+        background: linear-gradient(to top, var(--canvas) 70%, transparent);
+      }
+      .cd__sticky .btn { width: 100%; }
+    }
+    .cd__hero { position: relative; display: flex; gap: var(--sp-5); padding: var(--sp-5); margin-bottom: var(--sp-4); align-items: center; }
     @media (max-width: 560px) { .cd__hero { flex-direction: column; align-items: flex-start; } }
     .cd__avatar { flex: 0 0 auto; width: 112px; height: 112px; border-radius: var(--radius-lg); background: var(--paper-sunk); display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--ink-4); }
     .cd__avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -419,6 +451,29 @@ export class CoachDetailComponent implements OnInit {
         this.toast.error(err?.error?.message ?? "Le signalement n'a pas pu être envoyé");
       },
     });
+  }
+
+  /**
+   * Partage par la feuille du téléphone quand elle existe, sinon copie du lien court. Le lien
+   * court, et pas l'adresse de cette page : c'est lui dont l'aperçu montre le coach dans
+   * WhatsApp ou un SMS.
+   */
+  async share(c: { slug: string; name: string }): Promise<void> {
+    const url = `${window.location.origin}/c/${c.slug}`;
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: `${c.name} sur DARI Lab`, url });
+      } catch {
+        // Feuille fermée : rien à signaler.
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      this.toast.success('Lien copié');
+    } catch {
+      this.toast.error(url);
+    }
   }
 
   photo(): string | null {
