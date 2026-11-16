@@ -178,10 +178,14 @@ public interface AthleteRepository extends JpaRepository<Athlete, UUID> {
     /**
      * L'adresse entre dans la recherche : un ticket de support arrive presque toujours avec une
      * adresse e-mail, jamais avec l'orthographe exacte du nom.
+     *
+     * <p>Les fiches d'espace personnel n'y figurent pas : c'est l'athlète lui-même, déjà listé par sa
+     * fiche chez son coach, et elles apparaissaient en double (« aucun coach »).</p>
      */
     @Query("""
             select a from Athlete a
             where (:clubId is null or a.club.id = :clubId)
+              and a.club.personal = false
               and (:status is null or a.status = :status)
               and (lower(a.firstName) like lower(concat('%', :q, '%'))
                    or lower(a.lastName) like lower(concat('%', :q, '%'))

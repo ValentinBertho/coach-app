@@ -260,6 +260,47 @@ class CoachingExitTest {
                 com.coachrun.entity.enums.WorkoutStatus.PLANNED, java.time.LocalDate.now())).hasSize(1);
     }
 
+    /**
+     * Un athlète qui part puis revient chez le même coach n'apparaît qu'une fois « suivi ».
+     *
+     * <p>La seconde acceptation retrouve la même fiche ; la première demande restait ACCEPTED et
+     * l'écran des demandes affichait deux fois l'athlète en « Suivi ». Et sa fiche d'espace
+     * personnel ressortait dans la liste des athlètes du back-office, en double, « aucun coach ».</p>
+     */
+    @Test
+    void aReturningAthleteIsFollowedOnceAndHisPersonalSpaceStaysOutOfTheBackOffice() throws Exception {
+        acceptCoachingRequest(sendRequest());
+        UUID coachedId = currentAthleteId();
+        mvc.perform(post("/me/coach/end").header("Authorization", bearer(athleteEmail, "password1234"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isNoContent());
+        athleteBearer = bearer(athleteEmail, "password1234");
+        acceptCoachingRequest(sendRequest());
+        assertThat(currentAthleteId()).as("il retrouve sa fiche d'avant").isEqualTo(coachedId);
+
+        JsonNode received = json(mvc.perform(get("/me/received-requests").header("Authorization", coachBearer))
+                .andExpect(status().isOk()));
+        int accepted = 0;
+        int current = 0;
+        for (JsonNode r : received) {
+            if (!"ACCEPTED".equals(r.get("status").asText())
+                    || !coachedId.toString().equals(r.get("createdAthleteId").asText())) {
+                continue;
+            }
+            accepted++;
+            if (r.get("current").asBoolean()) {
+                current++;
+            }
+        }
+        assertThat(accepted).as("deux acceptations au fil du temps").isEqualTo(2);
+        assertThat(current).as("mais un seul coaching en cours").isEqualTo(1);
+
+        JsonNode admin = json(mvc.perform(get("/admin/athletes").param("q", athleteEmail).param("size", "50")
+                .header("Authorization", adminBearer)).andExpect(status().isOk()));
+        assertThat(admin.get("content")).as("une seule ligne : la fiche chez le coach").hasSize(1);
+        assertThat(admin.get("content").get(0).get("id").asText()).isEqualTo(coachedId.toString());
+    }
+
     private void addActivity(UUID athleteId, String externalId) {
         Athlete a = athleteRepository.findById(athleteId).orElseThrow();
         com.coachrun.entity.Activity act = new com.coachrun.entity.Activity();

@@ -274,8 +274,35 @@ public class CoachingRequestService {
     @Transactional
     public List<CoachingRequestResponse> received(UUID coachId) {
         requestRepository.expireOverdue(clock.instant());
-        return requestRepository.findByCoachIdOrderByCreatedAtDesc(coachId)
-                .stream().map(this::render).toList();
+        List<CoachingRequest> all = requestRepository.findByCoachIdOrderByCreatedAtDesc(coachId);
+        // Une seule acceptation « en cours » par athlète : la plus récente, si sa relation vit encore.
+        // Les précédentes (coaching terminé puis repris, sur la même fiche) passent à l'historique.
+        java.util.Map<UUID, CoachingRequest> latestAccepted = new java.util.HashMap<>();
+        for (CoachingRequest r : all) {
+            if (r.getStatus() != CoachingRequestStatus.ACCEPTED || r.getAthleteAccount() == null) {
+                continue;
+            }
+            latestAccepted.merge(r.getAthleteAccount().getId(), r, (a, b) -> decided(a).isAfter(decided(b)) ? a : b);
+        }
+        String slug = profileRepository.findByCoachId(coachId).map(CoachProfile::getSlug).orElse(null);
+        return all.stream().map(r -> {
+            boolean current = r.getStatus() == CoachingRequestStatus.ACCEPTED
+                    && latestAccepted.get(r.getAthleteAccount().getId()) == r
+                    && relationActive(r);
+            return CoachingRequestResponse.of(r, slug, clock.today(), current);
+        }).toList();
+    }
+
+    private static Instant decided(CoachingRequest r) {
+        return r.getDecidedAt() != null ? r.getDecidedAt() : r.getCreatedAt();
+    }
+
+    private boolean relationActive(CoachingRequest r) {
+        if (r.getCreatedRelationId() == null) {
+            return false;
+        }
+        return relationRepository.findById(r.getCreatedRelationId())
+                .map(CoachAthleteRelation::isActive).orElse(false);
     }
 
     public long pendingCount(UUID coachId) {

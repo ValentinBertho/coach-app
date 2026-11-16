@@ -56,9 +56,23 @@ public record CoachingRequestResponse(
          * champ, l'écran des demandes connaîtrait l'athlète mais pas le dossier, et devrait aller
          * le chercher ailleurs pour un geste qui part pourtant d'ici.</p>
          */
-        UUID createdAthleteId) {
+        UUID createdAthleteId,
+        /**
+         * Le coaching né de cette demande est-il toujours en cours ?
+         *
+         * <p>Une demande acceptée le reste pour toujours, alors que le coaching, lui, peut s'arrêter
+         * puis reprendre par une nouvelle demande — qui retrouve la même fiche. Sans ce drapeau,
+         * l'écran du coach affichait « Suivi » pour chaque acceptation : deux fois le même athlète.
+         * Seule la dernière acceptation d'un athlète, et seulement si sa relation est active, l'est.</p>
+         */
+        boolean current) {
 
     public static CoachingRequestResponse of(CoachingRequest r, String coachSlug, LocalDate today) {
+        return of(r, coachSlug, today, r.getStatus() == com.coachrun.entity.enums.CoachingRequestStatus.ACCEPTED);
+    }
+
+    public static CoachingRequestResponse of(CoachingRequest r, String coachSlug, LocalDate today,
+                                             boolean current) {
         AthleteAccount a = r.getAthleteAccount();
         return new CoachingRequestResponse(
                 r.getId(),
@@ -81,7 +95,8 @@ public record CoachingRequestResponse(
                 r.getCreatedAt(),
                 r.getDecidedAt(),
                 r.getExpiresAt(),
-                r.getCreatedAthleteId());
+                r.getCreatedAthleteId(),
+                current);
     }
 
     private static Integer age(LocalDate birthDate, LocalDate today) {
