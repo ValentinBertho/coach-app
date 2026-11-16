@@ -6,15 +6,18 @@ import com.coachrun.entity.CoachAthleteRelation;
 import com.coachrun.entity.User;
 import com.coachrun.exception.ConflictException;
 import com.coachrun.exception.NotFoundException;
+import com.coachrun.repository.AthleteAccountRepository;
 import com.coachrun.repository.AthleteRepository;
 import com.coachrun.repository.CoachAthleteRelationRepository;
 import com.coachrun.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
@@ -48,6 +51,12 @@ public class CoachingRelationService {
     private final AthleteRepository athleteRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final AthleteAccountRepository accountRepository;
+    // Fournisseurs paresseux : les services de montre tirent eux-mêmes une longue chaîne de
+    // dépendances, et la fin d'un coaching n'en a besoin qu'à l'instant où elle se produit.
+    private final ObjectProvider<StravaService> strava;
+    private final ObjectProvider<GarminService> garmin;
+    private final ObjectProvider<CorosService> coros;
 
     /**
      * L'athlète met fin à son coaching.
@@ -69,7 +78,7 @@ public class CoachingRelationService {
 
         String coachName = relation.getCoach().getFullName();
         close(relation, userId, reason);
-        detach(athleteUser);
+        detach(athleteUser, athlete);
 
         notificationService.notifyCoachingEnded(relation.getCoach(),
                 athlete.getFirstName() + " " + athlete.getLastName(), true, reason);
@@ -97,11 +106,42 @@ public class CoachingRelationService {
 
         // Seul un athlète qui a un compte est « détaché » : les autres n'en ont jamais eu.
         userRepository.findByAthleteId(athlete.getId()).ifPresent(athleteUser -> {
-            detach(athleteUser);
+            detach(athleteUser, athlete);
             notificationService.notifyCoachingEnded(athleteUser,
                     relation.getCoach().getFullName(), false, reason);
         });
         log.info("Coaching terminé à l'initiative du coach (relation={})", relation.getId());
+    }
+
+    /**
+     * L'archivage d'une fiche dont la personne se connecte à l'application.
+     *
+     * <p>Archiver retirait la fiche des listes du coach sans rien dire à l'athlète, qui gardait
+     * son portail, sa montre branchée sur un espace que plus personne n'animait, et aucun moyen
+     * de chercher quelqu'un d'autre. Pour lui, archiver <b>est</b> une fin de coaching : on la
+     * traite comme telle. Une fiche sans accès à l'application n'est pas concernée — ses relations
+     * restent en place, pour qu'un désarchivage rende la fiche au coach telle qu'il l'a laissée.</p>
+     *
+     * @return {@code true} si une personne a été détachée
+     */
+    @Transactional
+    public boolean endOnArchive(UUID byUserId, Athlete athlete) {
+        User athleteUser = userRepository.findByAthleteId(athlete.getId()).orElse(null);
+        if (athleteUser == null) {
+            return false;
+        }
+        String coachName = null;
+        for (CoachAthleteRelation relation : relationRepository.findByAthleteIdAndActiveTrue(athlete.getId())) {
+            if (relation.isReferent()) {
+                coachName = relation.getCoach().getFullName();
+            }
+            close(relation, byUserId, "Fiche archivée");
+        }
+        detach(athleteUser, athlete);
+        notificationService.notifyCoachingEnded(athleteUser,
+                coachName != null ? coachName : athlete.getClub().getName(), false, null);
+        log.info("Fiche {} archivée : l'athlète redevient un compte libre", athlete.getId());
+        return true;
     }
 
     private void close(CoachAthleteRelation relation, UUID byUserId, String reason) {
@@ -129,9 +169,70 @@ public class CoachingRelationService {
      * compte change de nature. Le mécanisme est celui qui existe déjà pour « fermer les sessions »
      * du back-office, honoré par {@code TokenFreshnessValidator}.</p>
      */
-    private void detach(User athleteUser) {
+    private void detach(User athleteUser, Athlete athlete) {
+        releaseDevices(athlete);
+        ensureAccount(athleteUser, athlete);
         athleteUser.setAthlete(null);
         athleteUser.setClub(null);
-        athleteUser.setSessionsInvalidatedAt(java.time.Instant.now());
+        athleteUser.setSessionsInvalidatedAt(Instant.now());
+    }
+
+    /**
+     * Débranche les montres de la fiche que l'athlète quitte.
+     *
+     * <p>La connexion est attachée à la fiche, pas à la personne : laissée en place, elle
+     * continuait d'importer chaque sortie de l'athlète chez un coach qu'il venait de quitter —
+     * l'exact contraire de ce qu'il a demandé. Les déconnexions passent par les gestes
+     * existants : jetons effacés, accès révoqué chez le fournisseur quand il le permet, et
+     * séances à venir retirées de la montre Garmin. L'athlète rebranchera sa montre là où il ira.</p>
+     *
+     * <p>Une panne chez un fournisseur ne doit pas bloquer la sortie : chaque débranchement est
+     * tenté isolément, et l'échec est journalisé plutôt que remonté.</p>
+     */
+    private void releaseDevices(Athlete athlete) {
+        UUID athleteId = athlete.getId();
+        disconnectQuietly("Strava", () -> strava.getObject().disconnectForAthlete(athleteId));
+        disconnectQuietly("Garmin", () -> garmin.getObject().disconnectForAthlete(athleteId));
+        disconnectQuietly("COROS", () -> coros.getObject().disconnectForAthlete(athleteId));
+    }
+
+    private void disconnectQuietly(String provider, Runnable disconnect) {
+        try {
+            disconnect.run();
+        } catch (RuntimeException e) {
+            log.warn("Débranchement {} impossible à la fin du coaching : {}", provider, e.getMessage());
+        }
+    }
+
+    /**
+     * Garantit qu'un athlète qui part a un compte athlète.
+     *
+     * <p>Un athlète invité par son coach (lien magique) entrait avec un accès au portail mais sans
+     * compte : une fois parti, il ne pouvait ni chercher un coach ni envoyer une demande — les
+     * deux supposent ce compte. On le crée ici, à partir de ce que la fiche sait de lui. Le
+     * consentement santé ne voyage que s'il est actif sur la fiche.</p>
+     */
+    private void ensureAccount(User athleteUser, Athlete athlete) {
+        if (accountRepository.findByUserId(athleteUser.getId()).isPresent()) {
+            return;
+        }
+        AthleteAccount account = new AthleteAccount();
+        account.setUser(athleteUser);
+        account.setFirstName(athlete.getFirstName());
+        account.setLastName(athlete.getLastName());
+        account.setBirthDate(athlete.getBirthDate());
+        account.setSex(athlete.getSex());
+        account.setLevel(athlete.getLevel());
+        account.setDiscipline(athlete.getDiscipline());
+        account.setLookingForCoach(true);
+        account.setTermsAcceptedAt(athleteUser.getTermsAcceptedAt());
+        if (athlete.isHealthDataConsentActive()) {
+            account.setHealthDataConsentAt(athlete.getHealthDataConsentAt());
+        }
+        accountRepository.save(account);
+        // La fiche garde la trace de la personne, comme pour un athlète venu du hub.
+        if (athlete.getAccount() == null) {
+            athlete.setAccount(account);
+        }
     }
 }

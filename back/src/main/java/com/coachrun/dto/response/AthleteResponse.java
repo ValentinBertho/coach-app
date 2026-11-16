@@ -41,9 +41,23 @@ public record AthleteResponse(
         java.util.UUID groupId,
         String groupName,
         List<RefResponse> coaches,
-        List<RefResponse> clubs) {
+        List<RefResponse> clubs,
+        boolean appAccount) {
 
+    /**
+     * Sans savoir si la personne a un accès à l'application : on s'en tient au lien de compte du
+     * hub. Les listes n'en ont pas besoin ; seule la fiche détaillée l'interroge vraiment.
+     */
     public static AthleteResponse from(Athlete a) {
+        return from(a, a.getAccount() != null);
+    }
+
+    /**
+     * @param appAccount la personne se connecte-t-elle à l'application ? C'est ce qui décide si
+     *                   « mettre fin au suivi » a un sens : un athlète saisi par son coach, sans
+     *                   accès, n'a rien à quitter — pour lui, l'archivage suffit.
+     */
+    public static AthleteResponse from(Athlete a, boolean appAccount) {
         // Coachs explicitement rattachés (modèle many-to-many).
         List<RefResponse> coaches = a.getCoaches().stream()
                 .map(u -> new RefResponse(u.getId(), u.getFullName()))
@@ -67,6 +81,6 @@ public record AthleteResponse(
                 a.getInviteToken() != null,
                 a.getGroup() != null ? a.getGroup().getId() : null,
                 a.getGroup() != null ? a.getGroup().getName() : null,
-                coaches, clubs);
+                coaches, clubs, appAccount);
     }
 }

@@ -108,10 +108,32 @@
     }
   </section>
 
+  <!-- Mettre fin au suivi vivait seulement dans « Demandes reçues » : un coach qui cherchait
+       le geste sur la fiche de l'athlète, là où il le cherche, ne le trouvait pas. -->
+  @if (a.appAccount && a.canWrite !== false) {
+    <div class="card danger-zone">
+      <div>
+        <strong>Mettre fin au suivi</strong>
+        <p class="field-hint">
+          {{ a.firstName }} sera prévenu, ses montres seront débranchées de votre espace et il
+          redeviendra libre de chercher un autre coach. Sa fiche et son historique restent chez
+          vous, en lecture.
+        </p>
+      </div>
+      <button type="button" class="btn btn-danger btn-sm" [disabled]="ending()"
+              (click)="endCoaching(a)">Mettre fin</button>
+    </div>
+  }
+
   <div class="card danger-zone">
     <div>
       <strong>Archiver l'athlète</strong>
-      <p class="field-hint">L'athlète n'apparaîtra plus dans la liste active.</p>
+      <p class="field-hint">
+        L'athlète n'apparaîtra plus dans la liste active.
+        @if (a.appAccount) {
+          Comme il utilise l'application, archiver met aussi fin à son suivi : il en est prévenu.
+        }
+      </p>
     </div>
     <button type="button" class="btn btn-danger btn-sm" (click)="archive()">Archiver</button>
   </div>

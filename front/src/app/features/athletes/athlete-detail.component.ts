@@ -18,6 +18,9 @@ import {
   UnavailabilityReason,
 } from '../../core/models/unavailability.model';
 import { AthleteService } from '../../core/services/athlete.service';
+import { AuthService } from '../../core/services/auth.service';
+import { CoachingRequestService } from '../../core/services/coaching-request.service';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { PhysioPanelComponent } from './physio-panel.component';
 import { SkeletonComponent } from '../../shared/components/skeleton/skeleton.component';
@@ -63,6 +66,10 @@ export class AthleteDetailComponent implements OnInit {
 
   readonly athlete = signal<Athlete | null>(null);
   readonly loading = signal(true);
+  readonly ending = signal(false);
+  private readonly auth = inject(AuthService);
+  private readonly coaching = inject(CoachingRequestService);
+  private readonly confirm = inject(ConfirmService);
   /** Volet « Rattachements & réglages » (coachs, clubs, Strava) — replié pour aérer la fiche. */
   readonly showAdmin = signal(false);
 
@@ -224,6 +231,39 @@ export class AthleteDetailComponent implements OnInit {
       next: (a) => {
         this.athlete.set(a);
         this.toast.info('Coach retiré.');
+      },
+    });
+  }
+
+  /**
+   * Met fin au suivi depuis la fiche. La confirmation dit ce qui reste — la fiche, en lecture —
+   * parce que c'est la question qu'un coach se pose : « est-ce que je perds son historique ? ».
+   */
+  async endCoaching(a: Athlete): Promise<void> {
+    const clubId = this.auth.clubId();
+    if (!clubId) {
+      return;
+    }
+    const note = await this.confirm.prompt({
+      title: `Mettre fin au suivi de ${a.firstName} ${a.lastName} ?`,
+      message: 'Vous ne pourrez plus lui prescrire de séances, et il redeviendra libre de chercher '
+        + 'un autre coach. Sa fiche et son historique restent chez vous, en lecture.',
+      confirmLabel: 'Mettre fin',
+      promptLabel: 'Motif (facultatif, transmis à l\'athlète)',
+    });
+    if (note === null) {
+      return;
+    }
+    this.ending.set(true);
+    this.coaching.endCoachingWith(clubId, a.id, note.trim() || null).subscribe({
+      next: () => {
+        this.ending.set(false);
+        this.toast.success('Suivi terminé');
+        this.router.navigate(['/app/athletes']);
+      },
+      error: (err) => {
+        this.ending.set(false);
+        this.toast.error(err?.error?.message ?? "Le suivi n'a pas pu être terminé");
       },
     });
   }

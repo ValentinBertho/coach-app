@@ -67,10 +67,13 @@ public class AthleteAccount extends BaseEntity {
     /**
      * Sert au contrôle d'âge à l'inscription libre, et au coach une fois la relation nouée.
      *
-     * <p>Non nullable : c'est la seule donnée qui permette d'appliquer la règle des 16 ans, et
-     * une inscription qui l'esquive rendrait la règle décorative.</p>
+     * <p>Exigée à l'inscription libre : c'est la seule donnée qui permette d'appliquer la règle
+     * des 16 ans, et une inscription qui l'esquive rendrait la règle décorative. Elle peut
+     * manquer pour un seul cas : un athlète invité par son coach, dont le compte naît à son
+     * départ à partir d'une fiche où la date n'avait pas été saisie — il a franchi la porte par
+     * son club, pas par l'inscription libre.</p>
      */
-    @Column(name = "birth_date", nullable = false)
+    @Column(name = "birth_date")
     private LocalDate birthDate;
 
     @Enumerated(EnumType.STRING)

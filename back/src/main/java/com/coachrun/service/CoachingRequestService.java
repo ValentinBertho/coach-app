@@ -98,6 +98,9 @@ public class CoachingRequestService {
                                           String ip, String userAgent) {
         AthleteAccount account = accountService.require(userId);
         User athleteUser = account.getUser();
+        requireNoCurrentCoach(athleteUser,
+                "Vous êtes déjà suivi par un coach. Mettez d'abord fin à ce coaching depuis votre "
+                        + "profil, puis envoyez votre demande.");
         if (!athleteUser.isEmailVerified()) {
             throw new ApiException(HttpStatus.FORBIDDEN,
                     "Vérifiez votre adresse e-mail avant d'envoyer une demande : le coach doit "
@@ -319,6 +322,12 @@ public class CoachingRequestService {
         }
 
         AthleteAccount account = request.getAthleteAccount();
+        // Accepter un athlète déjà suivi ailleurs remplaçait sa fiche courante sans clore la
+        // relation précédente : deux coachs écrivaient sur deux fiches, et le premier n'en savait
+        // rien. Tant que le changement de coach n'a pas son propre parcours, on refuse.
+        requireNoCurrentCoach(account.getUser(),
+                "Cet athlète est suivi par un autre coach depuis sa demande. Il doit d'abord y "
+                        + "mettre fin pour que vous puissiez l'accepter.");
         Athlete athlete = new Athlete();
         athlete.setClub(coach.getClub());
         athlete.setAccount(account);
@@ -364,6 +373,15 @@ public class CoachingRequestService {
     }
 
     // ---------------------------------------------------------------- interne
+
+    /** Refuse si la personne a encore une relation référente active. */
+    private void requireNoCurrentCoach(User athleteUser, String message) {
+        Athlete current = athleteUser.getAthlete();
+        if (current != null
+                && relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(current.getId()).isPresent()) {
+            throw new ConflictException(message);
+        }
+    }
 
     private CoachingRequest mineAsAthlete(UUID userId, UUID requestId) {
         AthleteAccount account = accountService.require(userId);

@@ -608,6 +608,20 @@ interface LtPoint {
           }
         </section>
 
+        <!-- La sortie doit se trouver là où l'on cherche ses réglages : l'écran « Mes demandes »,
+             qui la portait, disparaît de la navigation dès qu'un coach accepte — un athlète
+             suivi n'avait donc aucun chemin visible pour mettre fin à son coaching. -->
+        @if (hasCoach()) {
+          <div class="card">
+            <h2>Mon coaching</h2>
+            <p class="field-hint">
+              Tu peux mettre fin à ton suivi à tout moment, sans motif. Rien n'est supprimé, et tu
+              redeviens libre de chercher un autre coach.
+            </p>
+            <a routerLink="/athlete/demandes" class="btn btn-ghost">Gérer mon coaching</a>
+          </div>
+        }
+
         <div class="card">
           <h2>Synchronisation</h2>
           <p class="field-hint">
@@ -1133,6 +1147,8 @@ export class AthleteProfileComponent implements OnInit {
 
   private readonly portal = inject(AthletePortalService);
   private readonly auth = inject(AuthService);
+  /** Suivi par un coach : déduit de la fiche, comme la navigation du portail. */
+  readonly hasCoach = computed(() => !!this.auth.currentUser()?.athleteId);
   private readonly confirm = inject(ConfirmService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
