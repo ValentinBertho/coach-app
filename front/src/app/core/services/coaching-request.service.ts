@@ -43,6 +43,8 @@ export interface AthleteRegistration {
   /** Le coach que le visiteur venait de choisir ; la demande part à la confirmation de l'e-mail. */
   coachSlug?: string | null;
   requestMessage?: string | null;
+  /** Lien d'invitation depuis lequel le visiteur s'inscrit : rejoint à la confirmation de l'e-mail. */
+  inviteToken?: string | null;
   termsAccepted: boolean;
   healthDataConsent: boolean;
 }

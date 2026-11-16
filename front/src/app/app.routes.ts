@@ -72,6 +72,14 @@ export const routes: Routes = [
   // les robots de partage) ; cette route ne sert que lorsque l'application l'intercepte — service
   // worker installé, ou développement local — et mène alors directement à la fiche.
   { path: 'c/:slug', redirectTo: 'coachs/:slug' },
+  // Le lien court d'une invitation : même principe que /c/ (aperçu servi par le serveur web).
+  { path: 'j/:token', redirectTo: 'rejoindre/:token' },
+  {
+    // La page qu'ouvre un lien d'invitation : qui invite, et le geste qui reste à faire.
+    path: 'rejoindre/:token',
+    loadComponent: () =>
+      import('./features/invite/join-invite.component').then((m) => m.JoinInviteComponent),
+  },
   {
     path: 'coachs/:slug',
     loadComponent: () =>
@@ -299,6 +307,13 @@ export const routes: Routes = [
         path: 'club',
         loadComponent: () =>
           import('./features/club/club.component').then((m) => m.ClubComponent),
+      },
+      {
+        // Les liens d'invitation : ce que le coach envoie par SMS ou WhatsApp pour qu'un athlète
+        // le rejoigne en un geste.
+        path: 'invitations',
+        loadComponent: () =>
+          import('./features/invite/invite-links.component').then((m) => m.InviteLinksComponent),
       },
       {
         // Les demandes reçues : la contrepartie de la vitrine. Sans cet écran, publier une fiche

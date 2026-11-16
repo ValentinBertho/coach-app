@@ -51,6 +51,11 @@ public class CoachingRequest extends BaseEntity {
     @JoinColumn(name = "coach_user_id", nullable = false)
     private User coach;
 
+    /** Le lien d'invitation par lequel la demande est arrivée : il dit club et groupe d'arrivée. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "invite_link_id")
+    private InviteLink inviteLink;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 16)
     private CoachingRequestStatus status = CoachingRequestStatus.PENDING;

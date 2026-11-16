@@ -120,6 +120,10 @@ public class AthleteAccount extends BaseEntity {
      * <p>Renseignés ensemble ou pas du tout, et vidés dès que la demande est partie (ou n'a pas pu
      * partir) : ce n'est pas un historique, c'est une salle d'attente de quelques minutes.</p>
      */
+    /** Lien d'invitation ouvert avant la confirmation de l'e-mail : rejoint à la vérification. */
+    @Column(name = "pending_invite_token", length = 32)
+    private String pendingInviteToken;
+
     @Column(name = "pending_request_coach_slug", length = 140)
     private String pendingRequestCoachSlug;
 

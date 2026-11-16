@@ -118,6 +118,52 @@ public class CoachShareService {
                 CARD_W, CARD_H, esc(c.name()), esc(target));
     }
 
+    /**
+     * L'aperçu d'un lien d'invitation (/j/&lt;jeton&gt;) : ce que WhatsApp ou le SMS affiche sous le
+     * lien. La carte du coach quand sa fiche est publiée, l'image de la marque sinon.
+     */
+    public String invitePreviewHtml(com.coachrun.dto.response.InvitePreviewResponse p, String token) {
+        String target = base() + "/rejoindre/" + token;
+        String title = p.independentCoach() || !p.clubMembership()
+                ? p.coachName() + " vous invite sur DARI Lab"
+                : p.clubName() + " vous invite sur DARI Lab";
+        String description = p.valid()
+                ? (p.directEntry() ? "Créez votre compte et rejoignez " : "Demandez à rejoindre ")
+                        + (p.clubMembership() ? p.clubName() : p.coachName())
+                        + (p.groupName() != null ? " (groupe " + p.groupName() + ")" : "")
+                        + " : calendrier, séances et suivi au même endroit."
+                : p.reason();
+        String image = p.coachSlug() != null
+                ? base() + "/api/public/share/coach/" + p.coachSlug() + "/card.png"
+                : base() + "/assets/og-image.png";
+        return """
+                <!doctype html>
+                <html lang="fr">
+                <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>%1$s</title>
+                <meta name="description" content="%2$s">
+                <meta name="robots" content="noindex">
+                <meta property="og:type" content="website">
+                <meta property="og:site_name" content="DARI Lab">
+                <meta property="og:locale" content="fr_FR">
+                <meta property="og:title" content="%1$s">
+                <meta property="og:description" content="%2$s">
+                <meta property="og:image" content="%3$s">
+                <meta name="twitter:card" content="summary_large_image">
+                <meta name="twitter:title" content="%1$s">
+                <meta name="twitter:description" content="%2$s">
+                <meta name="twitter:image" content="%3$s">
+                <meta http-equiv="refresh" content="0; url=%4$s">
+                </head>
+                <body>
+                <p><a href="%4$s">Ouvrir l'invitation</a></p>
+                </body>
+                </html>
+                """.formatted(esc(title), esc(description), esc(image), esc(target));
+    }
+
     /** Une ligne lisible : titre, puis ville et spécialités, ce qu'un athlète cherche d'abord. */
     static String description(PublicCoachDetailResponse c) {
         List<String> parts = new ArrayList<>();

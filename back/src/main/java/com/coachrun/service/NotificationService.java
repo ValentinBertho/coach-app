@@ -1611,6 +1611,18 @@ public class NotificationService {
                 "/app/demandes");
     }
 
+    /** Un athlète vient d'entrer par un lien d'invitation à entrée directe : il est déjà suivi. */
+    public void notifyJoinedByInvite(User coach, String athleteName, String linkLabel) {
+        if (coach == null) {
+            return;
+        }
+        notifyUser(coach, "COACHING_REQUEST",
+                "Un athlète vous a rejoint",
+                athleteName + " vous a rejoint par votre lien d'invitation"
+                        + (linkLabel == null || linkLabel.isBlank() ? "." : " « " + linkLabel + " »."),
+                "/app/athletes");
+    }
+
     /** Le coach a posé sa question : sans notification, l'athlète ne saurait pas qu'on l'attend. */
     public void notifyCoachingRequestQuestion(User athleteUser, String coachName) {
         if (athleteUser == null) {

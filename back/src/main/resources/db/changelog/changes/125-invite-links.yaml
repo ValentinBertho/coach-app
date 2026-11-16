@@ -1,0 +1,82 @@
+# ============================================================================
+# 125 — Les liens d'invitation.
+#
+#   Un coach (indépendant ou de club) envoie un lien par SMS, WhatsApp ou
+#   e-mail ; l'athlète l'ouvre, crée son compte ou se connecte, et rejoint le
+#   coach en un geste. Le lien dit :
+#     - qui invite (le coach) et dans quel espace (son club) ;
+#     - si l'athlète rejoint le club ou seulement le coach (athlète privé) ;
+#     - le groupe d'entraînement d'arrivée, s'il y en a un ;
+#     - si l'entrée est directe (lien personnel) ou soumise à validation
+#       (lien public, partagé largement) ;
+#     - sa limite d'usages et sa date de fin, et s'il a été révoqué.
+#
+#   La demande née d'un lien en garde la trace (invite_link_id) : c'est elle
+#   qui, à l'acceptation, rattache au club et au groupe prévus.
+#   Le compte retient le lien ouvert avant la confirmation de l'e-mail, pour
+#   rejoindre de lui-même une fois l'adresse vérifiée.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 125-invite-links
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: invite_links
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: token, type: VARCHAR(32), constraints: { nullable: false, unique: true, uniqueConstraintName: uk_invite_links_token } }
+              - column: { name: coach_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: club_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: group_id, type: UUID }
+              - column: { name: label, type: VARCHAR(120) }
+              - column: { name: club_membership, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: direct_entry, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: max_uses, type: INT }
+              - column: { name: uses, type: INT, defaultValueNumeric: 0, constraints: { nullable: false } }
+              - column: { name: expires_at, type: TIMESTAMP }
+              - column: { name: revoked_at, type: TIMESTAMP }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addForeignKeyConstraint:
+            constraintName: fk_invite_links_coach
+            baseTableName: invite_links
+            baseColumnNames: coach_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_invite_links_club
+            baseTableName: invite_links
+            baseColumnNames: club_id
+            referencedTableName: clubs
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_invite_links_group
+            baseTableName: invite_links
+            baseColumnNames: group_id
+            referencedTableName: training_groups
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - createIndex:
+            indexName: idx_invite_links_coach
+            tableName: invite_links
+            columns:
+              - column: { name: coach_id }
+        - addColumn:
+            tableName: coaching_requests
+            columns:
+              - column: { name: invite_link_id, type: UUID }
+        - addForeignKeyConstraint:
+            constraintName: fk_coaching_requests_invite_link
+            baseTableName: coaching_requests
+            baseColumnNames: invite_link_id
+            referencedTableName: invite_links
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - addColumn:
+            tableName: athlete_accounts
+            columns:
+              - column: { name: pending_invite_token, type: VARCHAR(32) }

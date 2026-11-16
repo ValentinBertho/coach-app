@@ -64,7 +64,11 @@ export class AthleteSignupComponent implements OnInit {
     healthDataConsent: [false, [Validators.requiredTrue]],
   });
 
+  /** Jeton du lien d'invitation, quand on arrive de la page « Rejoindre ». */
+  private inviteToken: string | null = null;
+
   ngOnInit(): void {
+    this.inviteToken = this.route.snapshot.queryParamMap.get('invite');
     const slug = this.route.snapshot.queryParamMap.get('coach');
     if (!slug) return;
     // Une fiche introuvable ou fermée n'empêche pas de s'inscrire : on retombe simplement sur
@@ -93,12 +97,18 @@ export class AthleteSignupComponent implements OnInit {
       ...v,
       coachSlug: coach?.slug ?? null,
       requestMessage: coach ? requestMessage.trim() : null,
+      inviteToken: this.inviteToken,
     }, this.trap).subscribe({
       next: () => {
         // Le serveur rend déjà une session ; on se connecte pour la même raison qu'un coach après
         // inscription — renvoyer vers la page de connexion ferait retaper ce qu'on vient de saisir.
         this.auth.login({ email: v.email, password: v.password }).subscribe({
           next: () => {
+            if (this.inviteToken) {
+              // Retour à l'invitation : c'est elle qui dit ce qui reste à faire (confirmer l'e-mail).
+              this.router.navigate(['/rejoindre', this.inviteToken]);
+              return;
+            }
             if (coach) {
               // L'écran des demandes dit ce qui reste à faire : confirmer l'e-mail.
               this.toast.success(`Compte créé — confirmez votre e-mail pour que ${coach.name} reçoive votre demande`);

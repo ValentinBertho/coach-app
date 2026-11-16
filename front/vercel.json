@@ -3,6 +3,7 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "https://coach-app-production-5674.up.railway.app/api/$1" },
     { "source": "/c/:slug", "destination": "https://coach-app-production-5674.up.railway.app/api/public/share/coach/:slug" },
+    { "source": "/j/:token", "destination": "https://coach-app-production-5674.up.railway.app/api/public/share/invite/:token" },
     { "source": "/((?!.*\\.(?:js|mjs|css|map|json|webmanifest|txt|ico|png|jpg|jpeg|gif|svg|webp|avif|woff|woff2|ttf|otf|mp4|webm|pdf)$).*)", "destination": "/index.html" }
   ],
   "headers": [

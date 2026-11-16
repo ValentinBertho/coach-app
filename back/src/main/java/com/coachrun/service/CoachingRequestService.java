@@ -7,7 +7,9 @@ import com.coachrun.entity.AthleteAccount;
 import com.coachrun.entity.CoachAthleteRelation;
 import com.coachrun.entity.CoachOffer;
 import com.coachrun.entity.CoachProfile;
+import com.coachrun.entity.Club;
 import com.coachrun.entity.CoachingRequest;
+import com.coachrun.entity.InviteLink;
 import com.coachrun.entity.User;
 import com.coachrun.entity.enums.AthleteStatus;
 import com.coachrun.entity.enums.CoachingRequestStatus;
@@ -329,8 +331,29 @@ public class CoachingRequestService {
         requireNoCurrentCoach(account.getUser(),
                 "Cet athlète est suivi par un autre coach depuis sa demande. Il doit d'abord y "
                         + "mettre fin pour que vous puissiez l'accepter.");
+        startCoaching(request);
+        User athleteUser = account.getUser();
+        notificationService.notifyCoachingRequestAccepted(athleteUser, coach.getFullName());
+        log.info("Demande de coaching {} acceptée (athlète {} créé, relation {})",
+                requestId, request.getCreatedAthleteId(), request.getCreatedRelationId());
+        return render(request);
+    }
+
+    // ---------------------------------------------------------------- interne
+
+    /**
+     * Noue le coaching décrit par la demande : fiche dans l'espace du coach, relation référente,
+     * compte rattaché, montres déplacées. Commun à l'acceptation par le coach et à l'entrée directe
+     * par un lien d'invitation.
+     */
+    void startCoaching(CoachingRequest request) {
+        User coach = request.getCoach();
+        AthleteAccount account = request.getAthleteAccount();
+        InviteLink link = request.getInviteLink();
+        // L'espace du lien : un coach présent dans plusieurs clubs invite dans l'un d'eux.
+        Club space = link != null ? link.getClub() : coach.getClub();
         Athlete athlete = new Athlete();
-        athlete.setClub(coach.getClub());
+        athlete.setClub(space);
         athlete.setAccount(account);
         athlete.setFirstName(account.getFirstName());
         athlete.setLastName(account.getLastName());
@@ -345,13 +368,17 @@ public class CoachingRequestService {
         // Le consentement voyage avec la personne : sans lui, la première mesure serait refusée
         // par HealthDataConsentValidator, sur un athlète qui a pourtant consenti à l'inscription.
         athlete.setHealthDataConsentAt(account.getHealthDataConsentAt());
+        if (link != null && link.getGroup() != null) {
+            athlete.setGroup(link.getGroup());
+        }
         athlete = athleteRepository.save(athlete);
 
         CoachAthleteRelation relation = new CoachAthleteRelation();
         relation.setAthlete(athlete);
         relation.setCoach(coach);
-        // club = null : athlète PRIVÉ. Il a choisi un coach, pas une organisation.
-        relation.setClub(null);
+        // club = null : athlète PRIVÉ. Il a choisi un coach, pas une organisation. Seul un lien
+        // d'invitation « club » le fait entrer dans le club lui-même.
+        relation.setClub(link != null && link.isClubMembership() ? space : null);
         relation.setReferent(true);
         relation.setActive(true);
         relation = relationRepository.save(relation);
@@ -364,7 +391,7 @@ public class CoachingRequestService {
         if (PersonalSpaceService.isPersonal(athleteUser.getAthlete())) {
             personalSpace.moveDevices(athleteUser.getAthlete(), athlete);
         }
-        athleteUser.setClub(coach.getClub());
+        athleteUser.setClub(space);
         athleteUser.setAthlete(athlete);
 
         request.setStatus(CoachingRequestStatus.ACCEPTED);
@@ -372,16 +399,10 @@ public class CoachingRequestService {
         request.setCreatedAthleteId(athlete.getId());
         request.setCreatedRelationId(relation.getId());
 
-        notificationService.notifyCoachingRequestAccepted(athleteUser, coach.getFullName());
-        log.info("Demande de coaching {} acceptée (athlète {} créé, relation {})",
-                requestId, athlete.getId(), relation.getId());
-        return render(request);
     }
 
-    // ---------------------------------------------------------------- interne
-
     /** Refuse si la personne a encore une relation référente active. */
-    private void requireNoCurrentCoach(User athleteUser, String message) {
+    void requireNoCurrentCoach(User athleteUser, String message) {
         Athlete current = athleteUser.getAthlete();
         if (current != null
                 && relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(current.getId()).isPresent()) {
