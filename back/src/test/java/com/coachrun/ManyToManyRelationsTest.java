@@ -52,8 +52,11 @@ class ManyToManyRelationsTest {
         String clubId = auth.get("user").get("clubId").asText();
 
         // Le seed rattache plusieurs coachs à au moins un athlète et l'inscrit à un club additionnel.
+        // Toute la liste, pas une page : les autres classes de test (non transactionnelles) ajoutent
+        // des athlètes au club de démonstration, et selon l'ordre d'exécution, ceux du seed qui
+        // ont un coach pouvaient tomber au-delà des 50 premiers noms.
         JsonNode athletes = objectMapper.readTree(mvc.perform(
-                        get("/clubs/{c}/athletes?size=50", clubId).header("Authorization", bearer))
+                        get("/clubs/{c}/athletes?size=1000", clubId).header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         // L'ordre de la liste (tri par nom) départage mal les homonymes et diffère entre H2 et
         // PostgreSQL : on cherche l'athlète suivi plutôt que de supposer qu'il est le premier.
