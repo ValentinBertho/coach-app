@@ -41,6 +41,12 @@ export interface PlannedEnd {
 }
 
 /** Le coaching en cours, vu par l'athlète. */
+export interface MyTestimonial {
+  coachName: string;
+  body: string;
+  published: boolean;
+}
+
 export interface CurrentCoaching {
   coachName: string;
   since: string;
@@ -161,6 +167,19 @@ export class CoachingRequestService {
   }
 
   /** Mon coaching en cours (athlète) : coach, depuis quand, fin annoncée. Null sans coach. */
+  /** Mon témoignage sur mon coach actuel, s'il y en a un. */
+  myTestimonial(): Observable<MyTestimonial | null> {
+    return this.http.get<MyTestimonial | null>(`${this.base}/me/coach/testimonial`);
+  }
+
+  writeTestimonial(body: string): Observable<MyTestimonial> {
+    return this.http.put<MyTestimonial>(`${this.base}/me/coach/testimonial`, { body });
+  }
+
+  withdrawTestimonial(): Observable<void> {
+    return this.http.delete<void>(`${this.base}/me/coach/testimonial`);
+  }
+
   /** Quitter le club en gardant son coach (on devient son athlète privé). */
   leaveClub(): Observable<void> {
     return this.http.post<void>(`${this.base}/me/coach/leave-club`, {});

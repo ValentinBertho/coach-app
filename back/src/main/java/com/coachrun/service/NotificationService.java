@@ -1687,6 +1687,16 @@ public class NotificationService {
                 "/app/athletes");
     }
 
+    /** Un athlète a écrit (ou repris) un témoignage : au coach de décider s'il le publie. */
+    public void notifyTestimonialWritten(User coach, String authorName) {
+        if (coach == null) {
+            return;
+        }
+        notifyUser(coach, "COACHING_REQUEST", "Nouveau témoignage",
+                authorName + " a écrit quelques mots sur votre accompagnement. Publiez-le sur votre page "
+                        + "si vous le souhaitez.", "/app/vitrine");
+    }
+
     /** Le récapitulatif envoyé à l'athlète quand son coaching s'achève. */
     public void notifyCoachingRecap(User athleteUser, String coachName, long sessionsDone, int activitiesKept) {
         if (athleteUser == null) {

@@ -75,6 +75,7 @@ public class CoachDirectoryService {
      */
     private static final int MAX_MATCHES = 500;
 
+    private final org.springframework.beans.factory.ObjectProvider<CoachTestimonialService> testimonials;
     private final CoachProfileRepository profileRepository;
     private final CoachOfferRepository offerRepository;
     private final CoachCertificationRepository certificationRepository;
@@ -149,7 +150,8 @@ public class CoachDirectoryService {
                 responsiveness.responseRatePercent(p.getCoach().getId()),
                 certificationRepository.findByProfileIdOrderByObtainedYearDesc(p.getId())
                         .stream().map(CoachCertificationResponse::from).toList(),
-                activeOffers(p.getId()).stream().map(CoachOfferResponse::from).toList());
+                activeOffers(p.getId()).stream().map(CoachOfferResponse::from).toList(),
+                testimonials.getObject().published(p.getCoach().getId()));
     }
 
     /**

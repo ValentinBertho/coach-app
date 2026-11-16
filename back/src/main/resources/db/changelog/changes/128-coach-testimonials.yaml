@@ -1,0 +1,44 @@
+# ============================================================================
+# 128 — Les témoignages d'athlètes sur la page publique d'un coach.
+#
+#   Un mot, pas une note : pas d'étoiles, qui transformeraient la fiche en
+#   classement. Seul un athlète que le coach suit (ou a suivi) peut en écrire
+#   un, un seul par coach, qu'il peut reprendre. Le coach choisit ceux qu'il
+#   publie ; l'athlète peut retirer le sien à tout moment.
+#   Signature : prénom et initiale du nom, rien de plus.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 128-coach-testimonials
+      author: coachrun
+      changes:
+        - createTable:
+            tableName: coach_testimonials
+            columns:
+              - column: { name: id, type: UUID, constraints: { primaryKey: true, nullable: false } }
+              - column: { name: coach_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: athlete_account_id, type: UUID, constraints: { nullable: false } }
+              - column: { name: author_name, type: VARCHAR(80), constraints: { nullable: false } }
+              - column: { name: body, type: VARCHAR(600), constraints: { nullable: false } }
+              - column: { name: published, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: updated_at, type: TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: version, type: BIGINT, defaultValueNumeric: 0, constraints: { nullable: false } }
+        - addUniqueConstraint:
+            tableName: coach_testimonials
+            columnNames: coach_id, athlete_account_id
+            constraintName: uk_coach_testimonials_author
+        - addForeignKeyConstraint:
+            constraintName: fk_coach_testimonials_coach
+            baseTableName: coach_testimonials
+            baseColumnNames: coach_id
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            constraintName: fk_coach_testimonials_account
+            baseTableName: coach_testimonials
+            baseColumnNames: athlete_account_id
+            referencedTableName: athlete_accounts
+            referencedColumnNames: id
+            onDelete: CASCADE

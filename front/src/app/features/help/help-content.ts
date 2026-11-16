@@ -199,6 +199,28 @@ const ATHLETE: HelpGuide = {
       ],
     },
     {
+      id: 'mon-coach',
+      icon: 'users',
+      title: 'Trouver, changer ou quitter son coach',
+      summary: 'Ton espace sans coach, rejoindre par un lien, changer de coach, quitter, ton historique.',
+      blocks: [
+        { kind: 'text', text: 'Sans coach, ton espace fonctionne déjà : agenda, sorties de ta montre, séances que tu ajoutes toi-même (seul ou depuis le catalogue), objectifs et progrès. Tu cherches un coach quand tu veux, dans l\'annuaire « Coachs ».' },
+        { kind: 'steps', items: [
+          'Ton coach t\'a envoyé un lien (SMS, WhatsApp, e-mail) : ouvre-le, crée ton compte ou connecte-toi, puis « Rejoindre ».',
+          'Sans lien : choisis un coach dans l\'annuaire et envoie-lui une demande avec ton objectif. Tu es prévenu de sa réponse.',
+          'Dès qu\'il accepte, tes séances arrivent dans ton agenda et ta montre le suit (Garmin, COROS, Strava).',
+        ] },
+        { kind: 'list', items: [
+          'Changer de coach : envoie ta demande au nouveau coach et confirme le changement. Ton suivi actuel continue jusqu\'à ce qu\'il accepte, puis s\'arrête de lui-même. Ton ancien coach est prévenu.',
+          'Ton historique : tu choisis de le transmettre ou non au nouveau coach (case à cocher, jamais par défaut).',
+          'Quitter ton coach : Profil → « Mon coaching » → « Gérer mon coaching ». C\'est immédiat, sans motif. Ta montre et une copie de tes sorties restent dans ton espace personnel.',
+          'Si ton coach met fin au suivi : il le fait avec 7 jours de préavis, tu reçois un rappel la veille, et ton espace personnel prend le relais.',
+          'Club : tu peux quitter le club en gardant ton coach (Profil → « Quitter le club, garder mon coach »). Si ton coach quitte le club, soit tu le suis dans son nouvel espace (athlète privé), soit un autre coach du club prend le relais (athlète du club) : tu es prévenu dans les deux cas.',
+        ] },
+        { kind: 'callout', tone: 'info', text: 'Tes séances à venir avec un coach que tu quittes sont retirées de ton agenda (elles étaient prévues pour lui). Tes séances passées et tes sorties, elles, restent.' },
+      ],
+    },
+    {
       id: 'faq',
       icon: 'circle-help',
       title: 'Questions fréquentes',
@@ -404,6 +426,36 @@ const COACH: HelpGuide = {
       summary: 'Coachs, groupes et périmètre — pour les responsables de club.',
       blocks: [
         { kind: 'text', text: 'En tant que responsable de club, tu gères les coachs et les groupes d\'entraînement depuis l\'espace Club. Chaque coach ne voit que ses athlètes et ceux du club selon ses permissions ; les données restent cloisonnées par club.' },
+      ],
+    },
+    {
+      id: 'inviter',
+      icon: 'link',
+      title: 'Inviter et se faire connaître',
+      summary: 'Liens d\'invitation par SMS/WhatsApp, QR code, page publique partageable.',
+      blocks: [
+        { kind: 'text', text: 'Athlètes → « Inviter par lien » ouvre vos liens d\'invitation. Deux réglages couvrent l\'essentiel :' },
+        { kind: 'list', items: [
+          'Pour une personne : entrée directe, un seul usage, 30 jours. L\'athlète ouvre le lien, crée son compte, et vous suit aussitôt.',
+          'À partager largement (groupe WhatsApp, affiche, réseaux) : chaque arrivée est une demande que vous validez.',
+          'Options : rejoindre le club ou rester votre athlète privé, groupe d\'arrivée, nombre d\'utilisations, durée. Un lien se désactive à tout moment.',
+        ] },
+        { kind: 'text', text: 'Votre page publique (/c/votre-nom) présente votre accompagnement, avec un aperçu propre dans WhatsApp, Instagram ou par e-mail. Le kit de partage propose le lien, un QR code et une image au format story.' },
+        { kind: 'callout', tone: 'tip', text: 'Un athlète déjà suivi ailleurs peut ouvrir votre lien : il confirme le changement, et son ancien suivi s\'arrête quand il entre chez vous.' },
+      ],
+    },
+    {
+      id: 'fin-suivi',
+      icon: 'door-open',
+      title: 'Fin de suivi et départs',
+      summary: 'Mettre fin à un suivi, préavis, athlète qui part, coach qui quitte le club.',
+      blocks: [
+        { kind: 'list', items: [
+          'Mettre fin au suivi (fiche athlète) : l\'athlète a 7 jours de préavis, avec un rappel la veille. Vous pouvez annuler pendant ce délai, et choisir de laisser ses séances à venir.',
+          'Un athlète qui part (ou change de coach) : vous êtes prévenu. Sa fiche reste chez vous en lecture, avec son historique.',
+          'Un athlète qui revient : il retrouve sa fiche d\'avant, avec tout son historique.',
+          'Un coach qui quitte le club (lui-même, ou retiré par le responsable) : l\'écran Club montre d\'abord ce qui va se passer. Les athlètes du club restent au club et passent au coach choisi ; ses athlètes privés le suivent dans son espace indépendant.',
+        ] },
       ],
     },
     {

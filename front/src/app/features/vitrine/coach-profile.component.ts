@@ -13,6 +13,7 @@ import { ConfirmService } from '../../core/services/confirm.service';
 import { ToastService } from '../../core/services/toast.service';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { ShareKitComponent } from '../../shared/components/share-kit/share-kit.component';
+import { CoachTestimonialsComponent } from './coach-testimonials.component';
 
 /**
  * L'éditeur de la vitrine du coach.
@@ -32,7 +33,7 @@ import { ShareKitComponent } from '../../shared/components/share-kit/share-kit.c
   selector: 'app-coach-profile',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, IconComponent, ShareKitComponent],
+  imports: [ReactiveFormsModule, IconComponent, ShareKitComponent, CoachTestimonialsComponent],
   template: `
     <header class="page-head">
       <div>
@@ -380,6 +381,9 @@ import { ShareKitComponent } from '../../shared/components/share-kit/share-kit.c
       </section>
     } @else if (loading()) {
       <p class="cp-loading">Chargement…</p>
+    }
+    @if (!loading()) {
+      <app-coach-testimonials />
     }
   `,
   styles: [`

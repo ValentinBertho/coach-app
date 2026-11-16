@@ -142,6 +142,20 @@ import { FormTrap, FormTrapComponent } from '../../shared/forms/form-trap';
             </section>
           }
 
+          @if (c.testimonials?.length) {
+            <section class="card cd__block">
+              <h2 class="cd__title">Ses athlètes en parlent</h2>
+              <ul class="cd__quotes">
+                @for (t of c.testimonials; track $index) {
+                  <li>
+                    <blockquote>« {{ t.body }} »</blockquote>
+                    <span class="field-hint">{{ t.authorName }}</span>
+                  </li>
+                }
+              </ul>
+            </section>
+          }
+
           @if (c.certifications.length) {
             <section class="card cd__block">
               <h2 class="cd__title">Diplômes et certifications</h2>
@@ -290,6 +304,8 @@ import { FormTrap, FormTrapComponent } from '../../shared/forms/form-trap';
     .cd__title { font-size: var(--text-lg); margin: 0 0 var(--sp-3); }
     .cd__bio { margin: 0; white-space: pre-wrap; color: var(--ink-2); }
     .cd__tags { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin: 0; }
+    .cd__quotes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+    .cd__quotes blockquote { margin: 0 0 4px; font-style: italic; color: var(--ink-2); line-height: 1.5; }
     .cd__offers { list-style: none; margin: 0 0 var(--sp-3); padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
     .cd__offer { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--hairline); border-radius: var(--radius); }
     .cd__offer p { margin: 2px 0 0; }

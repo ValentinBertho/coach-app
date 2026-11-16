@@ -67,7 +67,11 @@ describe('vitrine — l’éditeur montre l’état réel de la fiche', () => {
     fixture = TestBed.createComponent(CoachProfileComponent);
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    // Les témoignages se chargent à part, sous l'éditeur : hors du sujet de ces tests.
+    http.match((r) => r.url.endsWith('/me/testimonials')).forEach((r) => r.flush([]));
+    http.verify();
+  });
 
   /** Démarre l'écran sur la fiche donnée. */
   function start(profile: Partial<CoachProfile>): HTMLElement {

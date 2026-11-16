@@ -42,6 +42,8 @@ export interface CoachDetail extends CoachSummary {
   /** Toujours vrai : les diplômes sont déclaratifs, et l'écran doit le dire. */
   certificationsDeclared: boolean;
   offers: CoachOffer[];
+  /** Les mots d'athlètes que le coach a choisi de publier : un texte, jamais une note. */
+  testimonials?: { authorName: string; body: string; date: string }[];
   /** Site et réseaux : sur la fiche seulement, jamais dans la liste. */
   links: CoachLinks | null;
 }

@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AthleteAccount, CoachingRequestService, CurrentCoaching } from '../../core/services/coaching-request.service';
+import { AthleteAccount, CoachingRequestService, CurrentCoaching, MyTestimonial } from '../../core/services/coaching-request.service';
 import { Router, RouterLink } from '@angular/router';
 import {
   AthletePortalService,
@@ -674,6 +674,9 @@ interface LtPoint {
                 <a routerLink="/coachs" class="btn btn-primary">Chercher un autre coach</a>
               }
             }
+            @if (testimonial(); as t) {
+              <p class="field-hint">Ton témoignage : {{ t.published ? 'publié sur sa page' : 'en attente de sa validation' }}.</p>
+            }
             <p class="field-hint">
               Tu peux mettre fin à ton suivi à tout moment, sans motif. Ta montre et une copie de
               tes sorties te suivent dans ton espace personnel, et tu redeviens libre de chercher un
@@ -685,6 +688,9 @@ interface LtPoint {
               @if (!myCoach()?.plannedEndAt) {
                 <a routerLink="/coachs" class="btn btn-ghost">Changer de coach</a>
               }
+              <button type="button" class="btn btn-ghost" (click)="writeTestimonial()">
+                {{ testimonial() ? 'Modifier mon témoignage' : 'Écrire un mot sur ' + (myCoach()?.coachName ?? 'mon coach') }}
+              </button>
               @if (myCoach()?.clubName && !myCoach()?.plannedEndAt) {
                 <button type="button" class="btn btn-ghost" (click)="leaveClub()">Quitter le club, garder mon coach</button>
               }
@@ -1416,9 +1422,14 @@ export class AthleteProfileComponent implements OnInit {
 
   /** Mon coaching en cours, et la fin annoncée par le coach s'il y en a une. */
   readonly myCoach = signal<CurrentCoaching | null>(null);
+  readonly testimonial = signal<MyTestimonial | null>(null);
 
   ngOnInit(): void {
     if (this.hasCoach()) {
+      this.coachingRequests.myTestimonial().subscribe({
+        next: (t) => this.testimonial.set(t ?? null),
+        error: () => this.testimonial.set(null),
+      });
       this.coachingRequests.myCoach().subscribe({
         next: (c) => this.myCoach.set(c ?? null),
         error: () => this.myCoach.set(null),
@@ -1486,6 +1497,31 @@ export class AthleteProfileComponent implements OnInit {
    * qu'un interrupteur, il détruit les données de santé déjà collectées — l'athlète doit le
    * savoir avant, pas le découvrir après.
    */
+  /**
+   * Quelques mots sur son coach, pour sa page publique. Un texte, pas une note ; le coach choisit
+   * de le publier, et reprendre son texte le repasse en attente.
+   */
+  async writeTestimonial(): Promise<void> {
+    const c = this.myCoach();
+    if (!c) return;
+    const text = await this.confirm.prompt({
+      title: `Un mot sur ${c.coachName}`,
+      message: 'Ce qui a changé pour toi, ce que tu dirais à quelqu’un qui hésite. Signé de ton prénom et '
+        + 'de l’initiale de ton nom ; rien ne paraît sans l’accord de ton coach.',
+      confirmLabel: 'Envoyer',
+      promptLabel: 'Ton témoignage (20 à 600 caractères)',
+      initialValue: this.testimonial()?.body ?? '',
+    });
+    if (text === null) return;
+    this.coachingRequests.writeTestimonial(text.trim()).subscribe({
+      next: (t) => {
+        this.testimonial.set(t);
+        this.toast.success(`Merci ! ${c.coachName} décidera de le publier sur sa page.`);
+      },
+      error: (err) => this.toast.error(err?.error?.message ?? 'Témoignage non envoyé.'),
+    });
+  }
+
   /** Quitter le club en gardant son coach : il devient son coach « en privé ». */
   async leaveClub(): Promise<void> {
     const c = this.myCoach();
