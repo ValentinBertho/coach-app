@@ -70,10 +70,50 @@ class ZoneSetTest {
                         .header("Authorization", bearer))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
 
-        assertThat(sets).hasSize(1);
+        // Le jeu par défaut, puis les deux modèles de référence (Vitesses Critiques, VMA).
+        assertThat(sets).hasSize(3);
         assertThat(sets.get(0).get("isDefault").asBoolean()).isTrue();
         assertThat(sets.get(0).get("zoneCount").asInt()).isEqualTo(zones.size());
         assertThat(zones.size()).isGreaterThan(0);
+    }
+
+    /**
+     * Chaque club reçoit, une fois, les modèles « Vitesses Critiques » et « VMA » du coach pilote :
+     * 16 zones chacun, ancrées sur la VC ou la VMA. Un modèle supprimé ne revient pas.
+     */
+    @Test
+    void referenceModelsAreOfferedOnce() throws Exception {
+        JsonNode sets = objectMapper.readTree(mvc.perform(get("/clubs/{c}/zone-sets", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        String vcId = null;
+        String vmaId = null;
+        for (JsonNode s : sets) {
+            if (s.get("name").asText().equals("Zones Vitesses Critiques")) {
+                vcId = s.get("id").asText();
+                assertThat(s.get("zoneCount").asInt()).isEqualTo(16);
+            }
+            if (s.get("name").asText().equals("Zones VMA")) {
+                vmaId = s.get("id").asText();
+                assertThat(s.get("zoneCount").asInt()).isEqualTo(16);
+            }
+        }
+        assertThat(vcId).isNotNull();
+        assertThat(vmaId).isNotNull();
+
+        JsonNode vcZones = objectMapper.readTree(mvc.perform(get("/clubs/{c}/training-zones?setId=" + vcId, clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(vcZones.get(0).get("name").asText()).isEqualTo("Récupération");
+        assertThat(vcZones.toString()).contains("\"anchor\":\"VC\"").contains("PACE_10KM");
+
+        mvc.perform(delete("/clubs/{c}/zone-sets/{id}", clubId, vmaId).header("Authorization", bearer))
+                .andExpect(status().is2xxSuccessful());
+        JsonNode again = objectMapper.readTree(mvc.perform(get("/clubs/{c}/zone-sets", clubId)
+                        .header("Authorization", bearer))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertThat(again).hasSize(2);
+        assertThat(again.toString()).doesNotContain("Zones VMA");
     }
 
     /**

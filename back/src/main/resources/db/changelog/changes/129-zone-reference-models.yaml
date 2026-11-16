@@ -1,0 +1,21 @@
+# ============================================================================
+# 129 — Les modèles de zones « Vitesses Critiques » et « VMA » offerts à chaque
+#       coach.
+#
+#   Ajoutés une seule fois par club, à côté de ses zones, au premier passage
+#   sur ses modèles de zones. Ce drapeau retient que c'est fait : un coach qui
+#   supprime l'un des deux ne le voit pas revenir.
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 129-zone-reference-models
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: clubs
+            columns:
+              - column:
+                  name: zone_models_seeded
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints: { nullable: false }

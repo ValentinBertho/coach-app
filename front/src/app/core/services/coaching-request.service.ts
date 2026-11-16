@@ -31,6 +31,8 @@ export interface CoachingRequest {
   expiresAt: string;
   /** La fiche créée à l'acceptation ; c'est par elle que le coach agit sur la relation. */
   createdAthleteId: string | null;
+  /** Côté coach : vrai si ce suivi est en cours (une fiche peut porter plusieurs demandes acceptées). */
+  coachingActive?: boolean | null;
 }
 
 /** Une fin de suivi annoncée par le coach. */

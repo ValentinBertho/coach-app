@@ -3,6 +3,7 @@ package com.coachrun.service;
 import com.coachrun.dto.request.ZoneSetRequest;
 import com.coachrun.dto.response.ZoneSetResponse;
 import com.coachrun.entity.Athlete;
+import com.coachrun.entity.Club;
 import com.coachrun.entity.TrainingZone;
 import com.coachrun.entity.ZoneMetric;
 import com.coachrun.entity.ZoneSet;
@@ -64,6 +65,7 @@ public class ZoneSetService {
         var existing = setRepository.findFirstByClubIdAndDefaultSetTrue(clubId);
         if (existing.isPresent()) {
             attachOrphans(clubId, existing.get());
+            offerReferenceModels(clubId);
             return existing.get();
         }
         if (!zoneRepository.existsByClubId(clubId)) {
@@ -77,7 +79,25 @@ public class ZoneSetService {
         set = setRepository.save(set);
         attachOrphans(clubId, set);
         log.info("Modèle de zones par défaut créé pour le club {}", clubId);
+        offerReferenceModels(clubId);
         return set;
+    }
+
+    /**
+     * Une seule fois par club : ajoute les modèles « Vitesses Critiques » et « VMA » à côté de ses
+     * zones. Le drapeau évite qu'un modèle supprimé par le coach ne revienne. Les espaces
+     * personnels d'athlètes n'en ont pas besoin.
+     */
+    private void offerReferenceModels(UUID clubId) {
+        Club club = clubRepository.findById(clubId).orElse(null);
+        if (club == null || club.isZoneModelsSeeded() || club.isPersonal()) {
+            return;
+        }
+        int added = seedService.addReferenceModels(club);
+        club.setZoneModelsSeeded(true);
+        if (added > 0) {
+            log.info("{} modèle(s) de zones de référence ajouté(s) au club {}", added, clubId);
+        }
     }
 
     private void attachOrphans(UUID clubId, ZoneSet target) {
@@ -158,6 +178,10 @@ public class ZoneSetService {
             a.setZoneSet(null);
             dropStaleValues(clubId, a.getId());
         }
+        // Les zones du modèle partent avec lui, explicitement : laissées à la seule cascade SQL,
+        // une zone déjà chargée dans la transaction pointerait encore vers le modèle supprimé.
+        zoneRepository.deleteAll(zoneRepository.findByClubIdAndZoneSetIdOrderBySortOrderAscNameAsc(clubId, id));
+        zoneRepository.flush();
         setRepository.delete(set);
     }
 

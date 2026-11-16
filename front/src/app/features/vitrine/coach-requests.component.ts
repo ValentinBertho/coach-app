@@ -134,7 +134,7 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
             <li class="card cr cr--past">
               <div class="cr__head">
                 <strong class="cr__name">{{ r.athleteName }}</strong>
-                <span class="badge" [class]="badge(r.status)">{{ r.statusLabel }}</span>
+                <span class="badge" [class]="badge(r.status)">{{ r.status === 'ACCEPTED' ? 'Suivi terminé' : r.statusLabel }}</span>
                 @if (r.decidedAt) {
                   <span class="cr__when">le {{ r.decidedAt | date: 'dd/MM/yyyy' }}</span>
                 }
@@ -180,10 +180,15 @@ export class CoachRequestsComponent implements OnInit {
   readonly busy = signal<string | null>(null);
 
   readonly pending = computed(() => this.requests().filter((r) => r.status === 'PENDING'));
-  readonly accepted = computed(() => this.requests().filter((r) => r.status === 'ACCEPTED'));
+  /** Les suivis en cours. Un ancien serveur n'envoie pas coachingActive : on garde alors tout. */
+  readonly accepted = computed(() => this.requests().filter((r) => this.ongoing(r)));
   /** L'historique, sans les relations en cours : elles ont leur propre section, avec sa sortie. */
   readonly settled = computed(() =>
-    this.requests().filter((r) => r.status !== 'PENDING' && r.status !== 'ACCEPTED'));
+    this.requests().filter((r) => r.status !== 'PENDING' && !this.ongoing(r)));
+
+  private ongoing(r: CoachingRequest): boolean {
+    return r.status === 'ACCEPTED' && r.coachingActive !== false;
+  }
 
   ngOnInit(): void {
     this.load();

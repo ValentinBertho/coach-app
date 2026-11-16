@@ -267,3 +267,5 @@ databaseChangeLog:
       file: db/changelog/changes/127-coach-switch.yaml
   - include:
       file: db/changelog/changes/128-coach-testimonials.yaml
+  - include:
+      file: db/changelog/changes/129-zone-reference-models.yaml
