@@ -110,6 +110,21 @@ class CoachSwitchTest {
         join(athlete, link(clubCoach, "{\"directEntry\":true}"), "{\"switchCoach\":true}").andExpect(status().isOk());
         assertThat(fiche(email).getId()).as("il retrouve sa fiche du club").isEqualTo(clubFiche);
         assertThat(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(clubFiche)).isPresent();
+
+        // L'écran du coach ne montre ce retour qu'une fois en « Suivi », l'ancien passe en historique.
+        int ongoing = 0;
+        int ended = 0;
+        for (JsonNode r : json(mvc.perform(get("/me/received-requests").header("Authorization", clubCoach)))) {
+            if (clubFiche.toString().equals(r.path("createdAthleteId").asText())) {
+                if (r.path("coachingActive").asBoolean()) {
+                    ongoing++;
+                } else {
+                    ended++;
+                }
+            }
+        }
+        assertThat(ongoing).as("un seul suivi en cours").isEqualTo(1);
+        assertThat(ongoing + ended).as("chaque arrivée a laissé une demande").isGreaterThanOrEqualTo(1);
     }
 
     /** Demander à rejoindre le coach qu'on a déjà n'a pas de sens. */

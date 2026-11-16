@@ -274,8 +274,21 @@ public class CoachingRequestService {
     @Transactional
     public List<CoachingRequestResponse> received(UUID coachId) {
         requestRepository.expireOverdue(clock.instant());
-        return requestRepository.findByCoachIdOrderByCreatedAtDesc(coachId)
-                .stream().map(this::render).toList();
+        List<CoachingRequest> requests = requestRepository.findByCoachIdOrderByCreatedAtDesc(coachId);
+        // Une fiche peut porter plusieurs demandes acceptées (l'athlète est parti puis revenu) :
+        // seule la plus récente représente le suivi en cours, et seulement si la relation l'est.
+        java.util.Set<UUID> seen = new java.util.HashSet<>();
+        String slug = profileRepository.findByCoachId(coachId).map(CoachProfile::getSlug).orElse(null);
+        return requests.stream().map(r -> {
+            Boolean active = null;
+            if (r.getStatus() == CoachingRequestStatus.ACCEPTED) {
+                UUID athleteId = r.getCreatedAthleteId();
+                active = athleteId != null && seen.add(athleteId)
+                        && relationRepository.findByCoachIdAndAthleteIdAndActiveTrue(coachId, athleteId)
+                                .isPresent();
+            }
+            return CoachingRequestResponse.of(r, slug, clock.today(), active);
+        }).toList();
     }
 
     public long pendingCount(UUID coachId) {

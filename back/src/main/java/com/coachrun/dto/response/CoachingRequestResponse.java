@@ -56,9 +56,23 @@ public record CoachingRequestResponse(
          * champ, l'écran des demandes connaîtrait l'athlète mais pas le dossier, et devrait aller
          * le chercher ailleurs pour un geste qui part pourtant d'ici.</p>
          */
-        UUID createdAthleteId) {
+        UUID createdAthleteId,
+        /**
+         * Vrai si ce suivi est celui en cours ; {@code null} hors liste du coach.
+         *
+         * <p>Une demande acceptée reste {@code ACCEPTED} pour toujours, même une fois le suivi
+         * terminé. Quand l'athlète revient (nouvelle demande, lien d'invitation), la même fiche est
+         * rouverte et deux demandes acceptées pointent vers elle : sans ce champ, l'écran du coach
+         * montrait deux fois le même athlète « Suivi ».</p>
+         */
+        Boolean coachingActive) {
 
     public static CoachingRequestResponse of(CoachingRequest r, String coachSlug, LocalDate today) {
+        return of(r, coachSlug, today, null);
+    }
+
+    public static CoachingRequestResponse of(CoachingRequest r, String coachSlug, LocalDate today,
+                                             Boolean coachingActive) {
         AthleteAccount a = r.getAthleteAccount();
         return new CoachingRequestResponse(
                 r.getId(),
@@ -81,7 +95,8 @@ public record CoachingRequestResponse(
                 r.getCreatedAt(),
                 r.getDecidedAt(),
                 r.getExpiresAt(),
-                r.getCreatedAthleteId());
+                r.getCreatedAthleteId(),
+                coachingActive);
     }
 
     private static Integer age(LocalDate birthDate, LocalDate today) {
