@@ -42,6 +42,8 @@ class CoachSwitchTest {
     @Autowired private ObjectMapper objectMapper;
     @Autowired private UserRepository userRepository;
     @Autowired private CoachAthleteRelationRepository relationRepository;
+    @Autowired private com.coachrun.repository.AthleteRepository athleteRepository;
+    @Autowired private com.coachrun.repository.ClubRepository clubRepository;
 
     private MockMvc mvc;
     private String clubCoach;
@@ -124,6 +126,10 @@ class CoachSwitchTest {
             }
         }
         assertThat(ongoing).as("un seul suivi en cours").isEqualTo(1);
+        assertThat(athleteRepository.searchAdmin(null, null, email,
+                        org.springframework.data.domain.PageRequest.of(0, 10)).getContent())
+                .as("le back-office ne double pas l'athlète avec son espace personnel")
+                .isNotEmpty().noneMatch(a -> clubRepository.findById(a.getClub().getId()).orElseThrow().isPersonal());
         assertThat(ongoing + ended).as("chaque arrivée a laissé une demande").isGreaterThanOrEqualTo(1);
     }
 
