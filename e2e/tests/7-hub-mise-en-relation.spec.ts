@@ -44,12 +44,14 @@ test('la recherche libre et le tri de l\'annuaire répondent', async ({ page }) 
 });
 
 test('la coach accepte la demande, et l\'athlète entre dans son espace d\'entraînement', async ({ page, browser }) => {
-  // Avant : sans coach, l'athlète n'a que l'annuaire et ses demandes.
+  // Avant : sans coach, l'athlète a son espace personnel (calendrier compris) et l'onglet
+  // « Coach » pour chercher et suivre ses demandes, mais pas de messagerie.
   const athlete = await (await browser.newContext()).newPage();
   await login(athlete, HUB_ATHLETE, /\/athlete|\/coachs/);
   await athlete.goto('/athlete/demandes');
-  await expect(athlete.getByRole('link', { name: 'Mes demandes' })).toBeVisible();
-  await expect(athlete.getByRole('link', { name: 'Calendrier' })).toHaveCount(0);
+  await expect(athlete.getByRole('navigation', { name: 'Navigation athlète' }).getByRole('link', { name: 'Coach', exact: true })).toBeVisible();
+  await expect(athlete.getByRole('navigation', { name: 'Navigation athlète' }).getByRole('link', { name: 'Calendrier' })).toBeVisible();
+  await expect(athlete.getByRole('navigation', { name: 'Navigation athlète' }).getByRole('link', { name: 'Messages' })).toHaveCount(0);
 
   await login(page, SOLO_COACH, /\/app/);
   await page.goto('/app/demandes');
@@ -59,8 +61,9 @@ test('la coach accepte la demande, et l\'athlète entre dans son espace d\'entra
   await page.locator('.dialog').getByRole('button', { name: 'Accepter' }).click();
   await expect(page.getByText(/Tom Bertrand fait maintenant partie de vos athlètes/)).toBeVisible();
 
-  // Après : nouvelle connexion, la navigation complète est là.
+  // Après : nouvelle connexion, la messagerie avec sa coach remplace l'onglet « Coach ».
   const after = await (await browser.newContext()).newPage();
   await login(after, HUB_ATHLETE, /\/athlete/);
-  await expect(after.getByRole('link', { name: 'Calendrier' })).toBeVisible();
+  await expect(after.getByRole('navigation', { name: 'Navigation athlète' }).getByRole('link', { name: 'Messages' })).toBeVisible();
+  await expect(after.getByRole('navigation', { name: 'Navigation athlète' }).getByRole('link', { name: 'Coach', exact: true })).toHaveCount(0);
 });
