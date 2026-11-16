@@ -110,9 +110,14 @@ export class CoachingRequestService {
     return this.http.get<CoachingRequest[]>(`${this.base}/me/coaching-requests`);
   }
 
-  submit(coachSlug: string, message: string, offerId?: string | null): Observable<CoachingRequest> {
+  /**
+   * Envoie une demande. {@code switchCoach} : l'athlète, déjà suivi, confirme vouloir changer (son
+   * suivi actuel s'arrêtera si ce coach accepte). {@code shareHistory} : il transmet ses sorties.
+   */
+  submit(coachSlug: string, message: string, offerId?: string | null,
+         switchCoach = false, shareHistory = false): Observable<CoachingRequest> {
     return this.http.post<CoachingRequest>(`${this.base}/me/coaching-requests`,
-      { coachSlug, message, offerId: offerId ?? null });
+      { coachSlug, message, offerId: offerId ?? null, switchCoach, shareHistory });
   }
 
   answer(id: string, note: string): Observable<CoachingRequest> {

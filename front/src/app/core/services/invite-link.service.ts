@@ -68,9 +68,10 @@ export class InviteLinkService {
     return this.http.get<InvitePreview>(`${this.base}/public/invites/${token}`);
   }
 
-  join(token: string, message?: string | null): Observable<{ outcome: InviteOutcome; coachName: string }> {
+  join(token: string, message?: string | null, switchCoach = false, shareHistory = false):
+    Observable<{ outcome: InviteOutcome; coachName: string }> {
     return this.http.post<{ outcome: InviteOutcome; coachName: string }>(
-      `${this.base}/me/invites/${token}/join`, { message: message || null });
+      `${this.base}/me/invites/${token}/join`, { message: message || null, switchCoach, shareHistory });
   }
 
   photoSrc(path: string | null): string | null {

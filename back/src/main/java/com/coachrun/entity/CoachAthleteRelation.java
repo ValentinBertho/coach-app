@@ -117,6 +117,19 @@ public class CoachAthleteRelation extends BaseEntity {
         endReason = reason;
     }
 
+    /** Un athlète qui revient chez le même coach : la relation d'avant reprend, sans trace de fin. */
+    public void reopen() {
+        active = true;
+        endedAt = null;
+        endedByUserId = null;
+        endReason = null;
+        plannedEndAt = null;
+        plannedEndBy = null;
+        plannedEndReason = null;
+        keepFutureWorkouts = false;
+        endReminderSentAt = null;
+    }
+
     /** Déduit du rattachement club : {@code club == null} ⇒ {@code PRIVATE}. */
     @Transient
     public AthleteOwnershipType getOwnershipType() {

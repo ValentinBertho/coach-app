@@ -263,3 +263,5 @@ databaseChangeLog:
       file: db/changelog/changes/125-invite-links.yaml
   - include:
       file: db/changelog/changes/126-coaching-planned-end.yaml
+  - include:
+      file: db/changelog/changes/127-coach-switch.yaml

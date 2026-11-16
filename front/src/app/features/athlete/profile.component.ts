@@ -677,9 +677,15 @@ interface LtPoint {
             <p class="field-hint">
               Tu peux mettre fin à ton suivi à tout moment, sans motif. Ta montre et une copie de
               tes sorties te suivent dans ton espace personnel, et tu redeviens libre de chercher un
-              autre coach.
+              autre coach. Tu peux aussi changer de coach directement : ton suivi actuel continue
+              jusqu'à ce que le nouveau accepte.
             </p>
-            <a routerLink="/athlete/demandes" class="btn btn-ghost">Gérer mon coaching</a>
+            <div class="coach-actions">
+              <a routerLink="/athlete/demandes" class="btn btn-ghost">Gérer mon coaching</a>
+              @if (!myCoach()?.plannedEndAt) {
+                <a routerLink="/coachs" class="btn btn-ghost">Changer de coach</a>
+              }
+            </div>
           </div>
         }
 
@@ -988,7 +994,8 @@ interface LtPoint {
         outline-offset: 2px;
       }
 
-      .coach-end {
+      .coach-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+    .coach-end {
         padding: var(--sp-3);
         border-radius: var(--radius-md, 12px);
         background: var(--warning-bg);

@@ -82,9 +82,20 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
                   <textarea id="ji-msg" class="form-control" rows="3" maxlength="2000" [(ngModel)]="message"
                             placeholder="Votre objectif, votre niveau, vos disponibilités…"></textarea>
                 }
+                @if (switching()) {
+                  <p class="ji__warn"><app-icon name="info" [size]="16" />
+                    Vous êtes déjà suivi par un coach.
+                    {{ p.directEntry ? 'En rejoignant, ce suivi s’arrête maintenant' : 'Si ' + p.coachName + ' accepte, ce suivi s’arrêtera à ce moment-là' }} :
+                    votre coach actuel en est prévenu, et vous gardez tout votre historique.
+                  </p>
+                }
+                <label class="ji__check">
+                  <input type="checkbox" [(ngModel)]="shareHistory" />
+                  <span>Transmettre l'historique de mes sorties à {{ p.coachName }}</span>
+                </label>
                 @if (error(); as e) { <p class="ji__warn"><app-icon name="info" [size]="16" /> {{ e }}</p> }
                 <button type="button" class="btn btn-primary btn-lg" [disabled]="busy()" (click)="join()">
-                  {{ busy() ? 'Un instant…' : (p.directEntry ? 'Rejoindre ' + target() : 'Demander à rejoindre') }}
+                  {{ busy() ? 'Un instant…' : actionLabel() }}
                 </button>
               }
               @if (p.coachSlug) {
@@ -113,6 +124,7 @@ import { LogoComponent } from '../../shared/components/logo/logo.component';
       padding: var(--sp-3); border-radius: var(--radius-md, 12px); }
     .ji__warn { background: var(--warning-bg); color: var(--warning-text); }
     .ji__ok { background: var(--success-bg, var(--surface-2)); color: var(--success-text, var(--ink)); }
+    .ji__check { display: flex; gap: var(--sp-2); align-items: flex-start; color: var(--ink-2); }
     .ji__profile { text-align: center; color: var(--primary); }
     .btn-lg { width: 100%; justify-content: center; }
   `],
@@ -129,6 +141,7 @@ export class JoinInviteComponent implements OnInit {
   readonly outcome = signal<InviteOutcome | null>(null);
   readonly error = signal<string | null>(null);
   message = '';
+  shareHistory = false;
 
   readonly isAthlete = computed(() => this.auth.currentUser()?.role === 'ATHLETE');
   readonly photo = computed(() => this.invites.photoSrc(this.preview()?.coachPhotoUrl ?? null));
@@ -136,6 +149,16 @@ export class JoinInviteComponent implements OnInit {
     const p = this.preview();
     if (!p) return '';
     return p.clubMembership && !p.independentCoach ? p.clubName : p.coachName;
+  });
+  /** Déjà suivi ailleurs : rejoindre, c'est changer de coach. */
+  readonly switching = computed(() => this.isAthlete() && this.auth.hasCoach());
+  readonly actionLabel = computed(() => {
+    const p = this.preview();
+    if (!p) return '';
+    if (this.switching()) {
+      return p.directEntry ? 'Changer de coach et rejoindre ' + this.target() : 'Demander à changer de coach';
+    }
+    return p.directEntry ? 'Rejoindre ' + this.target() : 'Demander à rejoindre';
   });
   readonly title = computed(() => {
     const p = this.preview();
@@ -164,7 +187,7 @@ export class JoinInviteComponent implements OnInit {
   join(): void {
     this.busy.set(true);
     this.error.set(null);
-    this.invites.join(this.token(), this.message.trim() || null).subscribe({
+    this.invites.join(this.token(), this.message.trim() || null, this.switching(), this.shareHistory).subscribe({
       next: (res) => {
         this.busy.set(false);
         this.outcome.set(res.outcome);

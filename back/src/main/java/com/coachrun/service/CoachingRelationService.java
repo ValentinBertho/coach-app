@@ -204,6 +204,27 @@ public class CoachingRelationService {
     }
 
     /**
+     * Changement de coach : le nouveau coach vient d'accepter, le suivi en cours s'arrête.
+     *
+     * <p>L'athlète l'a voulu en envoyant sa demande de changement : pas de préavis, mais l'ancien
+     * coach est prévenu. La fiche lui reste, en lecture, comme pour toute fin de coaching.</p>
+     */
+    @Transactional
+    public void endForSwitch(User athleteUser, String newCoachName) {
+        Athlete athlete = athleteUser.getAthlete();
+        if (athlete == null || PersonalSpaceService.isPersonal(athlete)) {
+            return;
+        }
+        relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athlete.getId()).ifPresent(relation -> {
+            finish(relation, athleteUser, athleteUser.getId(), "Changement de coach", false);
+            notificationService.notifyCoachingEnded(relation.getCoach(),
+                    athlete.getFirstName() + " " + athlete.getLastName(), true,
+                    "a choisi de continuer avec un autre coach");
+            log.info("Changement de coach : relation {} close", relation.getId());
+        });
+    }
+
+    /**
      * L'archivage d'une fiche dont la personne se connecte à l'application.
      *
      * <p>Archiver retirait la fiche des listes du coach sans rien dire à l'athlète, qui gardait

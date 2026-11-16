@@ -14,6 +14,9 @@ public interface CoachAthleteRelationRepository extends JpaRepository<CoachAthle
     /** Relation active d'un coach donné sur un athlète donné (référent ou non). */
     Optional<CoachAthleteRelation> findByCoachIdAndAthleteIdAndActiveTrue(UUID coachId, UUID athleteId);
 
+    /** Une seule relation par couple coach/fiche (contrainte unique), active ou close. */
+    Optional<CoachAthleteRelation> findFirstByCoachIdAndAthleteId(UUID coachId, UUID athleteId);
+
     /**
      * Identifiants des athlètes ayant <b>déjà eu</b> une relation référente — active ou close.
      *

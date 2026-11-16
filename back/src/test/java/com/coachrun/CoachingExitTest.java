@@ -109,7 +109,7 @@ class CoachingExitTest {
                 .isPresent();
     }
 
-    /** Une fois suivi, une nouvelle demande est refusée avec le chemin à suivre. */
+    /** Une fois suivi, une nouvelle demande sans confirmation est refusée avec le chemin à suivre. */
     @Test
     void aCoachedAthleteIsToldToEndFirst() throws Exception {
         acceptCoachingRequest(sendRequest());
@@ -121,7 +121,7 @@ class CoachingExitTest {
                                 + "Je voudrais changer de coach pour la saison prochaine.\"}"))
                 .andExpect(status().isConflict())
                 .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
-        assertThat(body).contains("Mettez d'abord fin");
+        assertThat(body).contains("confirmez le changement");
     }
 
     /** Un athlète invité par son coach, sans compte athlète, en reçoit un en partant. */

@@ -64,4 +64,18 @@ describe('rejoindre par un lien d’invitation', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Sarah Lemoine vous suit désormais');
   });
+
+  it('athlète déjà suivi : rejoindre, c’est changer de coach', () => {
+    setUp({ role: 'ATHLETE', fullName: 'Léa Martin', athleteId: 'a1', personalSpace: false } as Partial<User>);
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Vous êtes déjà suivi par un coach');
+    const button = fixture.nativeElement.querySelector('button.btn-primary') as HTMLButtonElement;
+    expect(button.textContent).toContain('Changer de coach et rejoindre Athlé Vannes');
+    button.click();
+    const req = http.expectOne((r) => r.url.endsWith('/me/invites/Abc123/join'));
+    expect(req.request.body.switchCoach).toBeTrue();
+    expect(req.request.body.shareHistory).toBeFalse();
+    req.flush({ outcome: 'JOINED', coachName: 'Sarah Lemoine' });
+    http.match((r) => r.url.endsWith('/refresh')).forEach((r) => r.flush({}));
+  });
 });

@@ -74,6 +74,7 @@ public class InviteLinkService {
     private final CoachingRequestRepository requestRepository;
     private final CoachAthleteRelationRepository relationRepository;
     private final CoachingRequestService coachingRequests;
+    private final org.springframework.beans.factory.ObjectProvider<CoachingRelationService> coachingRelations;
     private final NotificationService notificationService;
 
     @Value("${app.frontend-url}")
@@ -154,6 +155,16 @@ public class InviteLinkService {
     /** L'athlète connecté rejoint par le lien. */
     @Transactional
     public InviteJoinResponse join(UUID userId, String token, String message) {
+        return join(userId, token, message, false, false);
+    }
+
+    /**
+     * L'athlète connecté rejoint par le lien. Déjà suivi ailleurs, il doit confirmer le changement
+     * ({@code switchCoach}) : son suivi actuel s'arrête à l'entrée (directe, ou quand le coach accepte).
+     */
+    @Transactional
+    public InviteJoinResponse join(UUID userId, String token, String message, boolean switchCoach,
+                                   boolean shareHistory) {
         AthleteAccount account = accountService.require(userId);
         InviteLink link = requireUsable(token);
         User coach = link.getCoach();
@@ -162,15 +173,17 @@ public class InviteLinkService {
         if (alreadyCoachedBy(athleteUser, coach)) {
             throw new ConflictException("Vous êtes déjà suivi par " + coach.getFullName() + ".");
         }
-        coachingRequests.requireNoCurrentCoach(athleteUser,
-                "Vous êtes déjà suivi par un coach. Mettez d'abord fin à ce coaching depuis votre "
-                        + "profil, puis rouvrez ce lien.");
+        Optional<CoachAthleteRelation> current = coachingRequests.currentRelation(athleteUser);
+        if (current.isPresent() && !switchCoach) {
+            throw new ConflictException("Vous êtes déjà suivi par " + current.get().getCoach().getFullName()
+                    + ". Confirmez le changement de coach pour rejoindre " + coach.getFullName() + ".");
+        }
         if (!athleteUser.isEmailVerified()) {
             // Le lien est retenu : il servira de lui-même à la confirmation de l'adresse.
             account.setPendingInviteToken(link.getToken());
             return new InviteJoinResponse("VERIFY_EMAIL", coach.getFullName());
         }
-        return doJoin(account, link, message);
+        return doJoin(account, link, message, current.isPresent(), shareHistory);
     }
 
     /**
@@ -196,7 +209,8 @@ public class InviteLinkService {
         }
     }
 
-    private InviteJoinResponse doJoin(AthleteAccount account, InviteLink link, String message) {
+    private InviteJoinResponse doJoin(AthleteAccount account, InviteLink link, String message,
+                                      boolean switchCoach, boolean shareHistory) {
         User coach = link.getCoach();
         String athleteName = (account.getFirstName() + " " + account.getLastName()).trim();
         CoachingRequest request = requestRepository
@@ -214,12 +228,17 @@ public class InviteLinkService {
             request.setExpiresAt(Instant.now().plus(REQUEST_VALIDITY_DAYS, ChronoUnit.DAYS));
         }
         request.setInviteLink(link);
+        request.setSwitchCoach(switchCoach);
+        request.setShareHistory(shareHistory);
         request.setMessage(StringUtils.hasText(message) ? message.trim()
                 : "Arrivé par votre lien d'invitation" + (link.getLabel() != null ? " « " + link.getLabel() + " »." : "."));
         request = requestRepository.save(request);
         link.setUses(link.getUses() + 1);
 
         if (link.isDirectEntry()) {
+            if (switchCoach) {
+                coachingRelations.getObject().endForSwitch(account.getUser(), coach.getFullName());
+            }
             coachingRequests.startCoaching(request);
             notificationService.notifyJoinedByInvite(coach, athleteName, link.getLabel());
             log.info("Entrée directe par le lien {} (relation {})", link.getId(), request.getCreatedRelationId());

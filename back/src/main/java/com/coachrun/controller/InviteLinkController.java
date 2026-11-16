@@ -59,6 +59,10 @@ public class InviteLinkController {
     @PreAuthorize("hasRole('ATHLETE')")
     public InviteJoinResponse join(@AuthenticationPrincipal AuthPrincipal principal, @PathVariable String token,
                                    @Valid @RequestBody(required = false) InviteJoinRequest request) {
-        return service.join(principal.userId(), token, request != null ? request.message() : null);
+        if (request == null) {
+            return service.join(principal.userId(), token, null);
+        }
+        return service.join(principal.userId(), token, request.message(), request.switchCoach(),
+                request.sharesHistory());
     }
 }

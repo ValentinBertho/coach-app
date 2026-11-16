@@ -367,6 +367,23 @@ export class CoachDetailComponent implements OnInit {
       return;
     }
 
+    // Déjà suivi : on ne lui demande pas de « quitter puis chercher ». Il confirme le changement,
+    // et son suivi actuel s'arrêtera de lui-même si ce coach accepte.
+    const switching = this.auth.hasCoach();
+    let shareHistory = false;
+    if (switching) {
+      const choice = await this.confirm.askWithOption({
+        title: `Changer de coach pour ${c.name} ?`,
+        message: 'Votre suivi actuel continue tant que ' + c.name + ' n\'a pas répondu. S\'il accepte, '
+          + 'il s\'arrête à ce moment-là : votre coach actuel en est prévenu, vos séances à venir avec '
+          + 'lui sont retirées, et vous gardez tout votre historique.',
+        confirmLabel: 'Oui, changer de coach',
+        optionLabel: `Transmettre l'historique de mes sorties à ${c.name}`,
+      });
+      if (!choice.confirmed) return;
+      shareHistory = choice.option;
+    }
+
     const message = await this.confirm.prompt({
       title: `Demander à ${c.name} de vous coacher`,
       message: 'Dites-lui votre objectif et votre contexte : c\'est sur ce mot qu\'il décidera.',
@@ -381,7 +398,7 @@ export class CoachDetailComponent implements OnInit {
     }
 
     this.sending.set(true);
-    this.requests.submit(c.slug, message.trim()).subscribe({
+    this.requests.submit(c.slug, message.trim(), null, switching, shareHistory).subscribe({
       next: () => {
         this.sending.set(false);
         this.toast.success('Demande envoyée — vous serez prévenu de sa réponse');
