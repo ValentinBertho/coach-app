@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AthleteAccount, CoachingRequestService } from '../../core/services/coaching-request.service';
+import { AthleteAccount, CoachingRequestService, CurrentCoaching } from '../../core/services/coaching-request.service';
 import { Router, RouterLink } from '@angular/router';
 import {
   AthletePortalService,
@@ -662,9 +662,22 @@ interface LtPoint {
         @if (hasCoach()) {
           <div class="card">
             <h2>Mon coaching</h2>
+            @if (myCoach(); as c) {
+              <p>Suivi par <strong>{{ c.coachName }}</strong> depuis le {{ c.since | date: 'd MMMM y' : '' : 'fr' }}.</p>
+              @if (c.plannedEndAt) {
+                <p class="coach-end">
+                  {{ c.coachName }} a annoncé la fin de ton suivi pour le
+                  <strong>{{ c.plannedEndAt | date: 'd MMMM' : '' : 'fr' }}</strong>.
+                  @if (c.plannedEndReason) { Son mot : « {{ c.plannedEndReason }} ». }
+                  Ta montre et tes sorties te suivront dans ton espace personnel.
+                </p>
+                <a routerLink="/coachs" class="btn btn-primary">Chercher un autre coach</a>
+              }
+            }
             <p class="field-hint">
-              Tu peux mettre fin à ton suivi à tout moment, sans motif. Rien n'est supprimé, et tu
-              redeviens libre de chercher un autre coach.
+              Tu peux mettre fin à ton suivi à tout moment, sans motif. Ta montre et une copie de
+              tes sorties te suivent dans ton espace personnel, et tu redeviens libre de chercher un
+              autre coach.
             </p>
             <a routerLink="/athlete/demandes" class="btn btn-ghost">Gérer mon coaching</a>
           </div>
@@ -975,6 +988,12 @@ interface LtPoint {
         outline-offset: 2px;
       }
 
+      .coach-end {
+        padding: var(--sp-3);
+        border-radius: var(--radius-md, 12px);
+        background: var(--warning-bg);
+        color: var(--warning-text);
+      }
       .card h2 {
         margin: 0 0 var(--sp-2);
         font-size: var(--text-lg);
@@ -1385,7 +1404,16 @@ export class AthleteProfileComponent implements OnInit {
     });
   }
 
+  /** Mon coaching en cours, et la fin annoncée par le coach s'il y en a une. */
+  readonly myCoach = signal<CurrentCoaching | null>(null);
+
   ngOnInit(): void {
+    if (this.hasCoach()) {
+      this.coachingRequests.myCoach().subscribe({
+        next: (c) => this.myCoach.set(c ?? null),
+        error: () => this.myCoach.set(null),
+      });
+    }
     this.coachingRequests.account().subscribe({
       next: (a) => this.runner.set(a),
       error: () => this.runner.set(null),

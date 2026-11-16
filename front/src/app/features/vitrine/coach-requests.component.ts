@@ -267,7 +267,7 @@ export class CoachRequestsComponent implements OnInit {
     this.service.endCoachingWith(clubId, r.createdAthleteId, note.trim() || null).subscribe({
       next: () => {
         this.busy.set(null);
-        this.toast.success('Collaboration terminée');
+        this.toast.success('Fin de collaboration annoncée : préavis de 7 jours');
         this.load();
       },
       error: (err) => {

@@ -41,6 +41,7 @@ class CoachingRequestFlowTest {
     @Autowired private DemoSeedService demoSeedService;
     @Autowired private ObjectMapper objectMapper;
     @Autowired private com.coachrun.repository.UserRepository userRepository;
+    @Autowired private com.coachrun.service.CoachingRelationService relationService;
 
     private MockMvc mvc;
     private String coachBearer;
@@ -271,7 +272,7 @@ class CoachingRequestFlowTest {
         assertThat(me.get("clubId").asText()).as("il a quitté l'espace du coach").isNotEqualTo(clubId);
     }
 
-    /** La même sortie, à l'initiative du coach. Les deux parties peuvent partir. */
+    /** La même sortie, à l'initiative du coach, avec un préavis. Les deux parties peuvent partir. */
     @Test
     void aCoachCanEndTheCoachingToo() throws Exception {
         String email = "nina@exemple.fr";
@@ -281,9 +282,17 @@ class CoachingRequestFlowTest {
         String clubId = me.get("clubId").asText();
         String athleteId = me.get("athleteId").asText();
 
-        mvc.perform(post("/clubs/{c}/athletes/{a}/end-relation", clubId, athleteId)
+        JsonNode planned = json(mvc.perform(post("/clubs/{c}/athletes/{a}/end-relation", clubId, athleteId)
                         .header("Authorization", coachBearer))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk()));
+        assertThat(planned.get("endsAt").isNull()).as("le coach annonce une date de fin").isFalse();
+
+        // Pendant le préavis, rien ne change pour l'athlète.
+        assertThat(json(mvc.perform(get("/me").header("Authorization", athlete)))
+                .get("athleteId").asText()).isEqualTo(athleteId);
+
+        // Le préavis échu, la fin est prononcée.
+        relationService.endDue(java.time.Instant.now().plus(8, java.time.temporal.ChronoUnit.DAYS));
 
         // Reconnexion, pour la raison dite au cas précédent : la sortie ferme les sessions.
         JsonNode after = json(mvc.perform(get("/me").header("Authorization", bearerFor(email))));

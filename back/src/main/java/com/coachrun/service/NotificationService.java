@@ -1600,6 +1600,52 @@ public class NotificationService {
                 byAthlete ? "/app/athletes" : "/coachs");
     }
 
+    /** Le coach annonce la fin du suivi : l'athlète a le préavis pour se retourner. */
+    public void notifyCoachingEndPlanned(User athleteUser, String coachName, java.time.Instant endsAt, String reason) {
+        if (athleteUser == null) {
+            return;
+        }
+        String date = java.time.format.DateTimeFormatter.ofPattern("d MMMM", java.util.Locale.FRENCH)
+                .format(endsAt.atZone(java.time.ZoneId.of("Europe/Paris")));
+        String body = coachName + " mettra fin à votre suivi le " + date + ". D'ici là, rien ne change ; "
+                + "ensuite, vous retrouverez votre espace personnel avec l'historique de vos sorties.";
+        if (reason != null && !reason.isBlank()) {
+            body = body + " Son mot : " + reason;
+        }
+        notifyUser(athleteUser, "COACHING_ENDED", "Fin de suivi annoncée", body, "/athlete/demandes");
+    }
+
+    /** Le coach revient sur la fin annoncée. */
+    public void notifyCoachingEndCancelled(User athleteUser, String coachName) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_ENDED", "Le suivi continue",
+                coachName + " a annulé la fin de votre suivi : il continue normalement.", "/athlete/calendar");
+    }
+
+    /** Rappel, la veille de la fin annoncée. */
+    public void notifyCoachingEndReminder(User athleteUser, String coachName) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_ENDED", "Dernier jour de suivi",
+                "Votre suivi avec " + coachName + " se termine demain. Pensez à chercher un autre coach "
+                        + "si vous le souhaitez : vos sorties vous suivent dans votre espace personnel.",
+                "/coachs");
+    }
+
+    /** Le récapitulatif envoyé à l'athlète quand son coaching s'achève. */
+    public void notifyCoachingRecap(User athleteUser, String coachName, long sessionsDone, int activitiesKept) {
+        if (athleteUser == null) {
+            return;
+        }
+        notifyUser(athleteUser, "COACHING_ENDED", "Votre suivi avec " + coachName + " en résumé",
+                sessionsDone + " séance(s) réalisée(s) avec " + coachName + ". " + activitiesKept
+                        + " sortie(s) recopiée(s) dans votre espace personnel, où votre montre reste branchée.",
+                "/athlete/progress");
+    }
+
     /** Une demande vient d'arriver : c'est ce qui fait ouvrir la file au coach. */
     public void notifyCoachingRequestReceived(User coach, String athleteName) {
         if (coach == null) {

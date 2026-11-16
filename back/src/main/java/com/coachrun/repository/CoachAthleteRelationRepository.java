@@ -39,6 +39,13 @@ public interface CoachAthleteRelationRepository extends JpaRepository<CoachAthle
     /** Relation référente active de l'athlète : porte le rattachement privé/club. */
     Optional<CoachAthleteRelation> findByAthleteIdAndReferentTrueAndActiveTrue(UUID athleteId);
 
+    /** Fins annoncées arrivées à échéance. */
+    List<CoachAthleteRelation> findByActiveTrueAndPlannedEndAtLessThanEqual(java.time.Instant now);
+
+    /** Fins annoncées dont le rappel de la veille n'est pas encore parti. */
+    List<CoachAthleteRelation> findByActiveTrueAndEndReminderSentAtIsNullAndPlannedEndAtLessThanEqual(
+            java.time.Instant horizon);
+
     /**
      * L'athlète a-t-il <b>déjà eu</b> un coach référent, la relation fût-elle close ?
      *

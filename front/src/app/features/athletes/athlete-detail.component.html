@@ -112,16 +112,27 @@
        le geste sur la fiche de l'athlète, là où il le cherche, ne le trouvait pas. -->
   @if (a.appAccount && a.canWrite !== false) {
     <div class="card danger-zone">
-      <div>
-        <strong>Mettre fin au suivi</strong>
-        <p class="field-hint">
-          {{ a.firstName }} sera prévenu, ses montres seront débranchées de votre espace et il
-          redeviendra libre de chercher un autre coach. Sa fiche et son historique restent chez
-          vous, en lecture.
-        </p>
-      </div>
-      <button type="button" class="btn btn-danger btn-sm" [disabled]="ending()"
-              (click)="endCoaching(a)">Mettre fin</button>
+      @if (plannedEnd(); as p) {
+        <div>
+          <strong>Fin du suivi prévue le {{ p.endsAt | date: 'd MMMM' : '' : 'fr' }}</strong>
+          <p class="field-hint">
+            {{ a.firstName }} est prévenu. D'ici là, le suivi continue normalement.
+            @if (p.keepFutureWorkouts) { Ses séances à venir resteront sur sa fiche. }
+          </p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-sm" (click)="cancelEnd()">Annuler la fin</button>
+      } @else {
+        <div>
+          <strong>Mettre fin au suivi</strong>
+          <p class="field-hint">
+            {{ a.firstName }} est prévenu et garde 7 jours de suivi pour se retourner. Ensuite, sa
+            montre et une copie de ses sorties le suivent dans son espace personnel ; sa fiche et
+            son historique restent chez vous, en lecture.
+          </p>
+        </div>
+        <button type="button" class="btn btn-danger btn-sm" [disabled]="ending()"
+                (click)="endCoaching(a)">Mettre fin</button>
+      }
     </div>
   }
 

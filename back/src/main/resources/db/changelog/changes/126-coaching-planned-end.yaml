@@ -1,0 +1,32 @@
+# ============================================================================
+# 126 — La fin de coaching annoncée par le coach.
+#
+#   L'athlète peut partir sans préavis. Le coach, lui, annonce la fin : la
+#   relation court encore sept jours, le temps pour l'athlète de se retourner
+#   (garder ses séances, chercher un autre coach). Pendant ce délai, le coach
+#   peut revenir sur sa décision.
+#
+#   planned_end_at       : date de fin annoncée (null = aucune fin prévue)
+#   planned_end_by       : qui l'a annoncée
+#   planned_end_reason   : le mot qui l'accompagne, transmis à l'athlète
+#   keep_future_workouts : le coach laisse les séances à venir sur la fiche
+#   end_reminder_sent_at : le rappel de la veille est parti
+# ============================================================================
+databaseChangeLog:
+  - changeSet:
+      id: 126-coaching-planned-end
+      author: coachrun
+      changes:
+        - addColumn:
+            tableName: coach_athlete_relations
+            columns:
+              - column: { name: planned_end_at, type: TIMESTAMP }
+              - column: { name: planned_end_by, type: UUID }
+              - column: { name: planned_end_reason, type: VARCHAR(500) }
+              - column: { name: keep_future_workouts, type: BOOLEAN, defaultValueBoolean: false, constraints: { nullable: false } }
+              - column: { name: end_reminder_sent_at, type: TIMESTAMP }
+        - createIndex:
+            indexName: idx_relations_planned_end
+            tableName: coach_athlete_relations
+            columns:
+              - column: { name: planned_end_at }

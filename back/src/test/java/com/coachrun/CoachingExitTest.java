@@ -56,6 +56,9 @@ class CoachingExitTest {
     @Autowired private AthleteAccountRepository accountRepository;
     @Autowired private CoachAthleteRelationRepository relationRepository;
     @Autowired private DeviceConnectionRepository connectionRepository;
+    @Autowired private com.coachrun.service.CoachingRelationService relationService;
+    @Autowired private com.coachrun.repository.WorkoutRepository workoutRepository;
+    @Autowired private com.coachrun.repository.ActivityRepository activityRepository;
 
     private MockMvc mvc;
     private String coachBearer;
@@ -178,6 +181,111 @@ class CoachingExitTest {
     }
 
     // ---------------------------------------------------------------- outillage
+
+    /**
+     * Après le départ : la montre suit l'athlète dans son espace personnel, ses sorties y sont
+     * recopiées, et ses séances à venir disparaissent de la fiche du coach.
+     */
+    @Test
+    void leavingTakesTheWatchAndTheHistoryHome() throws Exception {
+        acceptCoachingRequest(sendRequest());
+        UUID coachedId = currentAthleteId();
+        plugStrava(coachedId);
+        addActivity(coachedId, "strava-1");
+        addWorkout(coachedId, java.time.LocalDate.now().plusDays(3));
+
+        mvc.perform(post("/me/coach/end").header("Authorization", bearer(athleteEmail, "password1234"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isNoContent());
+
+        UUID personalId = currentAthleteId();
+        assertThat(personalId).isNotEqualTo(coachedId);
+        assertThat(connectionRepository.findByAthleteIdAndProvider(personalId, DeviceProvider.STRAVA))
+                .as("la montre reste branchée, sur son espace personnel").isPresent();
+        assertThat(activityRepository.existsByAthleteIdAndSourceAndExternalId(personalId,
+                com.coachrun.entity.enums.ActivitySource.STRAVA, "strava-1"))
+                .as("l'athlète garde une copie de ses sorties").isTrue();
+        assertThat(activityRepository.existsByAthleteIdAndSourceAndExternalId(coachedId,
+                com.coachrun.entity.enums.ActivitySource.STRAVA, "strava-1"))
+                .as("le coach garde la sienne").isTrue();
+        assertThat(workoutRepository.findByAthleteIdAndStatusAndScheduledDateGreaterThanEqual(coachedId,
+                com.coachrun.entity.enums.WorkoutStatus.PLANNED, java.time.LocalDate.now()))
+                .as("plus de séances à venir sans coach pour les ajuster").isEmpty();
+    }
+
+    /** Le coach annonce la fin : préavis, rappel la veille, annulation possible. */
+    @Test
+    void theCoachGivesNoticeAndCanChangeHisMind() throws Exception {
+        acceptCoachingRequest(sendRequest());
+        UUID athleteId = currentAthleteId();
+        UUID clubId = athleteRepository.findById(athleteId).orElseThrow().getClub().getId();
+        String athlete = bearer(athleteEmail, "password1234");
+
+        mvc.perform(post("/clubs/{c}/athletes/{a}/end-relation", clubId, athleteId)
+                        .header("Authorization", coachBearer)
+                        .contentType(MediaType.APPLICATION_JSON).characterEncoding(StandardCharsets.UTF_8)
+                        .content("{\"note\":\"Je réduis mon groupe.\"}"))
+                .andExpect(status().isOk());
+        JsonNode mine = json(mvc.perform(get("/me/coach").header("Authorization", athlete)).andExpect(status().isOk()));
+        assertThat(mine.get("plannedEndAt").isNull()).isFalse();
+        assertThat(mine.get("plannedEndReason").asText()).isEqualTo("Je réduis mon groupe.");
+
+        assertThat(relationService.remindDue(java.time.Instant.now().plus(6, java.time.temporal.ChronoUnit.DAYS)
+                .plus(1, java.time.temporal.ChronoUnit.HOURS))).isEqualTo(1);
+
+        mvc.perform(delete("/clubs/{c}/athletes/{a}/end-relation", clubId, athleteId)
+                        .header("Authorization", coachBearer))
+                .andExpect(status().isNoContent());
+        assertThat(relationService.endDue(java.time.Instant.now().plus(30, java.time.temporal.ChronoUnit.DAYS)))
+                .as("annulée, la fin n'est pas prononcée").isZero();
+        assertThat(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athleteId)).isPresent();
+    }
+
+    /** Le coach peut choisir de laisser les séances à venir sur la fiche. */
+    @Test
+    void theCoachCanKeepTheFutureWorkouts() throws Exception {
+        acceptCoachingRequest(sendRequest());
+        UUID athleteId = currentAthleteId();
+        UUID clubId = athleteRepository.findById(athleteId).orElseThrow().getClub().getId();
+        addWorkout(athleteId, java.time.LocalDate.now().plusDays(20));
+
+        mvc.perform(post("/clubs/{c}/athletes/{a}/end-relation", clubId, athleteId)
+                        .header("Authorization", coachBearer)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"keepFutureWorkouts\":true}"))
+                .andExpect(status().isOk());
+        relationService.endDue(java.time.Instant.now().plus(8, java.time.temporal.ChronoUnit.DAYS));
+
+        assertThat(relationRepository.findByAthleteIdAndReferentTrueAndActiveTrue(athleteId)).isEmpty();
+        assertThat(workoutRepository.findByAthleteIdAndStatusAndScheduledDateGreaterThanEqual(athleteId,
+                com.coachrun.entity.enums.WorkoutStatus.PLANNED, java.time.LocalDate.now())).hasSize(1);
+    }
+
+    private void addActivity(UUID athleteId, String externalId) {
+        Athlete a = athleteRepository.findById(athleteId).orElseThrow();
+        com.coachrun.entity.Activity act = new com.coachrun.entity.Activity();
+        act.setClub(a.getClub());
+        act.setAthlete(a);
+        act.setSource(com.coachrun.entity.enums.ActivitySource.STRAVA);
+        act.setExternalId(externalId);
+        act.setActivityDate(java.time.LocalDate.now().minusDays(2));
+        act.setSport(com.coachrun.entity.enums.ActivitySport.RUN);
+        act.setTitle("Footing");
+        act.setDistanceM(10000);
+        act.setDurationS(3000);
+        activityRepository.saveAndFlush(act);
+    }
+
+    private void addWorkout(UUID athleteId, java.time.LocalDate date) {
+        Athlete a = athleteRepository.findById(athleteId).orElseThrow();
+        com.coachrun.entity.Workout w = new com.coachrun.entity.Workout();
+        w.setClub(a.getClub());
+        w.setAthlete(a);
+        w.setStatus(com.coachrun.entity.enums.WorkoutStatus.PLANNED);
+        w.setScheduledDate(date);
+        w.setType(com.coachrun.entity.enums.WorkoutType.ENDURANCE);
+        w.setTitle("Footing");
+        workoutRepository.saveAndFlush(w);
+    }
 
     private UUID currentAthleteId() {
         return userRepository.findByEmailIgnoreCase(athleteEmail).orElseThrow().getAthlete().getId();

@@ -47,6 +47,7 @@ public class PersonalSpaceService {
     private final AthleteRepository athleteRepository;
     private final DeviceConnectionRepository connectionRepository;
     private final ClubStarterKitService starterKitService;
+    private final com.coachrun.repository.ActivityRepository activityRepository;
 
     /** La fiche personnelle du compte, créée si elle n'existe pas encore. */
     @Transactional
@@ -78,7 +79,8 @@ public class PersonalSpaceService {
      * <p>Une connexion est attachée à une fiche, et c'est la fiche qui reçoit les sorties. Quand un
      * coach accepte l'athlète, les sorties doivent arriver chez lui : la connexion est déplacée,
      * sans rien redemander au fournisseur — les jetons restent valides. Une connexion déjà
-     * présente sur la fiche d'arrivée pour le même fournisseur l'emporte.</p>
+     * présente sur la fiche d'arrivée pour le même fournisseur l'emporte, et celle de la fiche
+     * quittée est retirée.</p>
      */
     @Transactional
     public void moveDevices(Athlete from, Athlete to) {
@@ -87,11 +89,47 @@ public class PersonalSpaceService {
         }
         for (DeviceConnection conn : connectionRepository.findByAthleteId(from.getId())) {
             if (connectionRepository.findByAthleteIdAndProvider(to.getId(), conn.getProvider()).isPresent()) {
+                // Laissée sur la fiche quittée, elle continuerait d'y importer les sorties.
+                connectionRepository.delete(conn);
                 continue;
             }
             conn.setAthlete(to);
             connectionRepository.save(conn);
         }
+    }
+
+    /**
+     * L'athlète garde une copie de ce qu'il a fait pendant son coaching.
+     *
+     * <p>La fiche reste chez le coach, qui garde son suivi ; l'athlète, lui, repartait avec un
+     * historique vide. Ses sorties — importées de sa montre ou saisies par lui — sont recopiées
+     * dans son espace personnel. Une sortie déjà présente (même source, même identifiant) n'est pas
+     * dupliquée. Les séances prescrites ne le sont pas : elles sont le travail du coach.</p>
+     *
+     * @return nombre de sorties recopiées
+     */
+    @Transactional
+    public int copyHistory(Athlete from, Athlete to) {
+        if (from == null || to == null || from.getId().equals(to.getId())) {
+            return 0;
+        }
+        int copied = 0;
+        for (com.coachrun.entity.Activity src : activityRepository.findByAthleteIdOrderByActivityDateDesc(from.getId())) {
+            if (src.getExternalId() != null && src.getSource() != null
+                    && activityRepository.existsByAthleteIdAndSourceAndExternalId(to.getId(), src.getSource(), src.getExternalId())) {
+                continue;
+            }
+            com.coachrun.entity.Activity copy = new com.coachrun.entity.Activity();
+            org.springframework.beans.BeanUtils.copyProperties(src, copy,
+                    "id", "createdAt", "updatedAt", "version", "club", "athlete",
+                    "matchedWorkoutId", "manualMatch", "status");
+            copy.setClub(to.getClub());
+            copy.setAthlete(to);
+            copy.setStatus(com.coachrun.entity.enums.ActivityStatus.IMPORTED);
+            activityRepository.save(copy);
+            copied++;
+        }
+        return copied;
     }
 
     private Athlete create(AthleteAccount account) {

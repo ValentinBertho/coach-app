@@ -204,6 +204,25 @@ public class GarminService {
     }
 
     /**
+     * Retire de la montre les séances que nous y avions mises pour cette fiche, sans débrancher le
+     * compte Garmin : à la fin d'un coaching, la connexion suit l'athlète dans son espace personnel,
+     * mais les séances de son ancien coach n'ont plus rien à faire sur son poignet.
+     */
+    public void releaseWorkoutsForAthlete(UUID athleteId) {
+        connectionRepository.findByAthleteIdAndProvider(athleteId, PROVIDER).ifPresent(conn -> {
+            String token = null;
+            if (client.isConfigured()) {
+                try {
+                    token = freshAccessToken(conn);
+                } catch (RuntimeException e) {
+                    log.warn("Jeton Garmin indisponible pour l'athlète {} : {}", athleteId, e.getMessage());
+                }
+            }
+            workoutSync.getObject().removeAllForAthlete(athleteId, token);
+        });
+    }
+
+    /**
      * Garmin signale que l'utilisateur a retiré Darilab depuis son compte (ou que nous l'avons
      * fait). La connexion locale n'a plus de raison d'être ; on ne rappelle surtout pas Garmin.
      *

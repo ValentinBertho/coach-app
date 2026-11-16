@@ -33,6 +33,21 @@ export interface CoachingRequest {
   createdAthleteId: string | null;
 }
 
+/** Une fin de suivi annoncée par le coach. */
+export interface PlannedEnd {
+  endsAt: string;
+  note: string | null;
+  keepFutureWorkouts: boolean;
+}
+
+/** Le coaching en cours, vu par l'athlète. */
+export interface CurrentCoaching {
+  coachName: string;
+  since: string;
+  plannedEndAt: string | null;
+  plannedEndReason: string | null;
+}
+
 export interface AthleteRegistration {
   email: string;
   password: string;
@@ -118,10 +133,29 @@ export class CoachingRequestService {
     return this.http.post<void>(`${this.base}/me/coach/end`, { note });
   }
 
-  /** Le coach met fin au coaching d'un de ses athlètes. */
-  endCoachingWith(clubId: string, athleteId: string, note: string | null): Observable<void> {
-    return this.http.post<void>(
-      `${this.base}/clubs/${clubId}/athletes/${athleteId}/end-relation`, { note });
+  /**
+   * Le coach annonce la fin du coaching d'un de ses athlètes : 7 jours de préavis quand l'athlète
+   * utilise l'application, fin immédiate sinon. Rend la date de fin.
+   */
+  endCoachingWith(clubId: string, athleteId: string, note: string | null,
+                  keepFutureWorkouts = false): Observable<PlannedEnd> {
+    return this.http.post<PlannedEnd>(
+      `${this.base}/clubs/${clubId}/athletes/${athleteId}/end-relation`, { note, keepFutureWorkouts });
+  }
+
+  /** La fin annoncée, s'il y en a une (null sinon). */
+  plannedEnd(clubId: string, athleteId: string): Observable<PlannedEnd | null> {
+    return this.http.get<PlannedEnd | null>(`${this.base}/clubs/${clubId}/athletes/${athleteId}/end-relation`);
+  }
+
+  /** Le coach revient sur la fin annoncée. */
+  cancelPlannedEnd(clubId: string, athleteId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/clubs/${clubId}/athletes/${athleteId}/end-relation`);
+  }
+
+  /** Mon coaching en cours (athlète) : coach, depuis quand, fin annoncée. Null sans coach. */
+  myCoach(): Observable<CurrentCoaching | null> {
+    return this.http.get<CurrentCoaching | null>(`${this.base}/me/coach`);
   }
 
   // --- Côté coach ---

@@ -82,6 +82,24 @@ public class CoachAthleteRelation extends BaseEntity {
     @Column(name = "end_reason", length = 500)
     private String endReason;
 
+    /** Fin annoncée par le coach (préavis) ; {@code null} si aucune fin n'est prévue. */
+    @Column(name = "planned_end_at")
+    private Instant plannedEndAt;
+
+    @Column(name = "planned_end_by")
+    private UUID plannedEndBy;
+
+    /** Le mot du coach qui accompagne l'annonce ; transmis à l'athlète. */
+    @Column(name = "planned_end_reason", length = 500)
+    private String plannedEndReason;
+
+    /** Le coach laisse les séances à venir sur la fiche à la fin (par défaut, elles sont retirées). */
+    @Column(name = "keep_future_workouts", nullable = false)
+    private boolean keepFutureWorkouts = false;
+
+    @Column(name = "end_reminder_sent_at")
+    private Instant endReminderSentAt;
+
     /**
      * Clôt la relation. Idempotent : reclore une relation déjà close ne réécrit ni la date ni
      * l'auteur, une seconde clôture n'étant pas un événement.
