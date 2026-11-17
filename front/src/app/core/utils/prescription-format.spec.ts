@@ -115,3 +115,18 @@ describe('prescription-format — volume d’un bloc', () => {
     });
   });
 });
+
+describe('prescription-format — durée libre (bouton Lap)', () => {
+  it('écrit « libre » seul quand le coach ne donne aucun ordre d’idée', () => {
+    expect(formatBlockVolume(null, null, true)).toBe('libre');
+  });
+
+  it('garde la valeur indicative entre parenthèses', () => {
+    expect(formatBlockVolume(null, 1200, true)).toBe('libre (≈ 20 min)');
+    expect(formatBlockSets({ durationS: 1200, open: true })).toBe('libre (≈ 20 min)');
+  });
+
+  it('ne change rien à un bloc fermé', () => {
+    expect(formatBlockVolume(null, 1200, null)).toBe('20 min');
+  });
+});

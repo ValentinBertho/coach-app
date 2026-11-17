@@ -86,7 +86,7 @@ public class PrescriptionZoneMapper {
                 mapRecovery(b.recovery(), zonesByName, fallback),
                 b.rpe(), b.note(), b.drillIds(),
                 b.sets(), mapRecovery(b.setRecovery(), zonesByName, fallback),
-                mapSteps(b.stepList(), zonesByName, fallback))).toList();
+                mapSteps(b.stepList(), zonesByName, fallback), b.open())).toList();
     }
 
     /** Mêmes règles pour les étapes d'un enchaînement : chacune porte sa propre prescription. */
@@ -99,7 +99,7 @@ public class PrescriptionZoneMapper {
                 st.id(), st.distanceM(), st.durationS(),
                 mapPrescription(st.prescription(), zonesByName, fallback),
                 mapRecovery(st.recovery(), zonesByName, fallback),
-                st.rpe(), st.note())).toList();
+                st.rpe(), st.note(), st.open())).toList();
     }
 
     private CourseRecovery mapRecovery(CourseRecovery r, Map<String, UUID> zonesByName, UUID fallback) {
@@ -107,7 +107,7 @@ public class PrescriptionZoneMapper {
             return null;
         }
         return new CourseRecovery(r.type(), r.durationS(), r.distanceM(),
-                mapPrescription(r.prescription(), zonesByName, fallback));
+                mapPrescription(r.prescription(), zonesByName, fallback), r.open());
     }
 
     /** Ajoute le {@code zoneId} déduit à une prescription legacy ; laisse tout le reste intact. */

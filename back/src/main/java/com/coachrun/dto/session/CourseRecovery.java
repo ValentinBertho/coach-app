@@ -8,6 +8,16 @@ public record CourseRecovery(
         String type,
         Integer durationS,
         Integer distanceM,
-        CoursePrescription prescription
+        CoursePrescription prescription,
+        /** Récup libre : l'athlète repart quand il le veut (bouton Lap). Valeur saisie = indicative. */
+        Boolean open
 ) {
+    public CourseRecovery(String type, Integer durationS, Integer distanceM, CoursePrescription prescription) {
+        this(type, durationS, distanceM, prescription, null);
+    }
+
+    /** Durée libre (bouton Lap) ? */
+    public boolean endsOnLap() {
+        return Boolean.TRUE.equals(open);
+    }
 }

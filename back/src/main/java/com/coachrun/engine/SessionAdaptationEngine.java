@@ -230,6 +230,6 @@ public class SessionAdaptationEngine {
     private CourseBlock withVolume(CourseBlock b, Integer reps, Integer distanceM, Integer durationS) {
         return new CourseBlock(b.id(), b.type(), reps, distanceM, durationS,
                 b.prescription(), b.recovery(), b.rpe(), b.note(), b.drillIds(),
-                b.sets(), b.setRecovery(), b.steps());
+                b.sets(), b.setRecovery(), b.steps(), b.open());
     }
 }

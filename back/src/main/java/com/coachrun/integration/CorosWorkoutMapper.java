@@ -60,9 +60,13 @@ public final class CorosWorkoutMapper {
      */
     public record Vocabulary(int sportRunning, int sectionWarmup, int sectionTraining, int sectionRecovery,
                              int sectionCooldown, int targetDistance, Integer targetTime,
-                             int intensityPace, Integer intensityHeartRate) {
+                             int intensityPace, Integer intensityHeartRate, Integer targetOpen) {
 
-        public static final Vocabulary DEFAULT = new Vocabulary(1, 1, 2, 2, 4, 1, null, 2, null);
+        /**
+         * {@code targetOpen} : fin de section au bouton Lap. Le Training Hub de COROS le propose ;
+         * on ne l'envoie que si le schéma live en donne le code, jamais deviné.
+         */
+        public static final Vocabulary DEFAULT = new Vocabulary(1, 1, 2, 2, 4, 1, null, 2, null, null);
 
         /**
          * Complète les codes par ce que dit le schéma d'entrée de {@code createScheduledWorkout}
@@ -83,7 +87,8 @@ public final class CorosWorkoutMapper {
                     find(targets, d.targetDistance(), "distance"),
                     findOrNull(targets, d.targetTime(), "time", "duration"),
                     find(intensities, d.intensityPace(), "pace"),
-                    findOrNull(intensities, d.intensityHeartRate(), "heart", "hr"));
+                    findOrNull(intensities, d.intensityHeartRate(), "heart", "hr"),
+                    findOrNull(targets, d.targetOpen(), "open", "lap", "manual", "press", "free"));
         }
 
         private static int find(Map<Integer, String> codes, int fallback, String... words) {
@@ -283,19 +288,21 @@ public final class CorosWorkoutMapper {
                 if (st == null) {
                     continue;
                 }
-                addIfPresent(unit, plain(sectionType, st.distanceM(), st.durationS(), se.calc(), v));
-                unitText.add(describe(st.distanceM(), st.durationS(), se.calc(), st.note()));
+                addIfPresent(unit, openOrPlain(st.endsOnLap(), sectionType, st.distanceM(), st.durationS(), se.calc(), v));
+                unitText.add(openable(describe(st.distanceM(), st.durationS(), se.calc(), st.note()),
+                        st.endsOnLap(), st.distanceM(), st.durationS()));
                 if (st.recovery() != null) {
                     addIfPresent(unit, recovery(st.recovery(), se.recoveryCalc(), v));
-                    unitText.add("récup " + describe(st.recovery().distanceM(), st.recovery().durationS(), null, null));
+                    unitText.add("récup " + recoveryText(st.recovery()));
                 }
             }
         } else {
-            addIfPresent(unit, plain(sectionType, b.distanceM(), b.durationS(), e.calc(), v));
-            unitText.add(describe(b.distanceM(), b.durationS(), e.calc(), b.note()));
+            addIfPresent(unit, openOrPlain(b.endsOnLap(), sectionType, b.distanceM(), b.durationS(), e.calc(), v));
+            unitText.add(openable(describe(b.distanceM(), b.durationS(), e.calc(), b.note()),
+                    b.endsOnLap(), b.distanceM(), b.durationS()));
             if (b.recovery() != null && (reps > 1 || sets > 1)) {
                 addIfPresent(unit, recovery(b.recovery(), e.recoveryCalc(), v));
-                unitText.add("récup " + describe(b.recovery().distanceM(), b.recovery().durationS(), null, null));
+                unitText.add("récup " + recoveryText(b.recovery()));
             }
         }
         for (int set = 1; set <= sets; set++) {
@@ -343,7 +350,19 @@ public final class CorosWorkoutMapper {
     }
 
     private static Map<String, Object> recovery(CourseRecovery r, CalculatedBlockResponse calc, Vocabulary v) {
-        return plain(v.sectionRecovery(), r.distanceM(), r.durationS(), calc, v);
+        return openOrPlain(r.endsOnLap(), v.sectionRecovery(), r.distanceM(), r.durationS(), calc, v);
+    }
+
+    /**
+     * Section libre (bouton Lap) quand le schéma COROS en donne le code ; sinon la valeur
+     * indicative, comme une section ordinaire — la description dit alors « libre ».
+     */
+    private static Map<String, Object> openOrPlain(boolean open, int sectionType, Integer distanceM, Integer durationS,
+                                                   CalculatedBlockResponse calc, Vocabulary v) {
+        if (open && v.targetOpen() != null) {
+            return section(sectionType, v.targetOpen(), 0, calc, v);
+        }
+        return plain(sectionType, distanceM, durationS, calc, v);
     }
 
     /**
@@ -416,6 +435,27 @@ public final class CorosWorkoutMapper {
             sb.append(sb.isEmpty() ? "" : " — ").append(note.trim());
         }
         return sb.isEmpty() ? "libre" : sb.toString();
+    }
+
+    /**
+     * Durée libre dans le texte : « libre (≈ 20 min) à 5:00–5:30/km ». COROS ne connaît pas
+     * d'étape ouverte : la section part sur la valeur indicative, et la description dit à
+     * l'athlète qu'il peut passer à la suite quand il le veut.
+     */
+    private static String openable(String text, boolean open, Integer distanceM, Integer durationS) {
+        if (!open) {
+            return text;
+        }
+        boolean hasHint = (distanceM != null && distanceM > 0) || (durationS != null && durationS > 0);
+        if (!hasHint) {
+            return text.equals("libre") ? text : "libre " + text;
+        }
+        String volume = describe(distanceM, durationS, null, null);
+        return "libre (≈ " + volume + ")" + text.substring(volume.length());
+    }
+
+    private static String recoveryText(CourseRecovery r) {
+        return openable(describe(r.distanceM(), r.durationS(), null, null), r.endsOnLap(), r.distanceM(), r.durationS());
     }
 
     private static String trimKm(int meters) {

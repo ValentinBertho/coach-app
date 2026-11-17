@@ -123,6 +123,30 @@ class GarminWorkoutMapperTest {
     }
 
     @Test
+    void uneDureeLibrePartEnEtapeOuverteAuBoutonLap() {
+        CourseBlock warmup = new CourseBlock("w", "warmup", 1, null, 1200, null, null, null, null,
+                null, null, null, null, true);
+        CourseRecovery libre = new CourseRecovery("jog", 90, null, null, true);
+        var calc = new CalculatedSessionResponse(
+                List.of(new CalculatedBlockEntry(warmup, null, null)),
+                List.of(new CalculatedBlockEntry(block(6, 400, null, libre, null, null), pace(80, 84), null)),
+                List.of(), null, null);
+
+        var workout = GarminWorkoutMapper.toGarmin(new Source("6 × 400", null, calc, List.of(), null, null));
+
+        var steps = steps(workout);
+        assertThat(steps.get(0).get("durationType")).isEqualTo("OPEN");
+        assertThat(steps.get(0).get("durationValue")).isNull();
+        assertThat((String) steps.get(0).get("description")).startsWith("Libre (≈ 20 min) : appuie sur Lap");
+        var inner = children(steps.get(1));
+        assertThat(inner.get(0).get("durationType")).as("l'effort reste fermé").isEqualTo("DISTANCE");
+        assertThat(inner.get(1).get("durationType")).isEqualTo("OPEN");
+        assertThat((String) workout.get("description"))
+                .contains("• Échauffement : libre (≈ 20 min)")
+                .contains("récup libre (≈ 1 min 30 s)");
+    }
+
+    @Test
     void lesPasSontNumerotesDansLOrdreDeLecture() {
         var calc = new CalculatedSessionResponse(List.of(),
                 List.of(new CalculatedBlockEntry(

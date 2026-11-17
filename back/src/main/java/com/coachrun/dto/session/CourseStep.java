@@ -26,6 +26,17 @@ public record CourseStep(
         CourseRecovery recovery,
         /** Effort perçu visé pour cette étape (RPE 1–10). */
         Integer rpe,
-        String note
+        String note,
+        /** Durée libre (bouton Lap) ; la valeur saisie reste un ordre d'idée. */
+        Boolean open
 ) {
+    public CourseStep(String id, Integer distanceM, Integer durationS, CoursePrescription prescription,
+                      CourseRecovery recovery, Integer rpe, String note) {
+        this(id, distanceM, durationS, prescription, recovery, rpe, note, null);
+    }
+
+    /** Durée libre (bouton Lap) ? */
+    public boolean endsOnLap() {
+        return Boolean.TRUE.equals(open);
+    }
 }

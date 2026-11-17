@@ -431,13 +431,13 @@ export class CoursePrescriptionViewComponent {
   }
 
   stepVolume(se: CalculatedStepEntry): string | null {
-    return this.distOrTime(se.step.distanceM, se.step.durationS);
+    return this.distOrTime(se.step.distanceM, se.step.durationS, se.step.open);
   }
 
   stepRecoveryVol(se: CalculatedStepEntry): string {
     const r = se.step.recovery;
     return r
-      ? (this.distOrTime(r.distanceM ?? null, r.durationS ?? null) ?? '')
+      ? (this.distOrTime(r.distanceM ?? null, r.durationS ?? null, r.open) ?? '')
       : '';
   }
 
@@ -502,7 +502,7 @@ export class CoursePrescriptionViewComponent {
 
   recoveryVol(e: CalculatedBlockEntry): string {
     const r = e.block.recovery!;
-    return this.distOrTime(r.distanceM ?? null, r.durationS ?? null) ?? '';
+    return this.distOrTime(r.distanceM ?? null, r.durationS ?? null, r.open) ?? '';
   }
 
   /** Récupération entre séries, quand le bloc en porte plusieurs. */
@@ -521,7 +521,8 @@ export class CoursePrescriptionViewComponent {
   private distOrTime(
     distanceM: number | null | undefined,
     durationS: number | null | undefined,
+    open?: boolean | null,
   ): string | null {
-    return formatBlockVolume(distanceM, durationS) || null;
+    return formatBlockVolume(distanceM, durationS, open) || null;
   }
 }

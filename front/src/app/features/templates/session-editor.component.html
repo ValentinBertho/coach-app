@@ -192,6 +192,9 @@
               </select>
               @if (setCount(b) > 1) { <span class="reps-x">)</span> }
             </span>
+              <button type="button" class="open-toggle" [class.open-toggle--on]="b.open" (click)="toggleOpen(b)"
+                      [attr.aria-pressed]="!!b.open"
+                      title="Libre : l'athlète passe à la suite quand il le veut (bouton Lap). La valeur saisie reste un ordre d'idée.">libre</button>
             @if (suspiciousDistance(b)) {
               <span class="vol-warn" role="note">{{ b.distanceM }} mètres ? Pour des minutes, choisis « min ».</span>
             }
@@ -273,6 +276,9 @@
                       @for (u of volumeUnits; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
                     </select>
                   </span>
+              <button type="button" class="open-toggle" [class.open-toggle--on]="st.open" (click)="toggleOpen(st, b)"
+                      [attr.aria-pressed]="!!st.open"
+                      title="Libre : l'athlète passe à la suite quand il le veut (bouton Lap). La valeur saisie reste un ordre d'idée.">libre</button>
 
                   @if (st.prescription) {
                     @if (usesPct(st)) {
@@ -332,6 +338,9 @@
                         @for (u of volumeUnits; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
                       </select>
                     </span>
+              <button type="button" class="open-toggle" [class.open-toggle--on]="r.open" (click)="toggleRecOpen(st)"
+                      [attr.aria-pressed]="!!r.open"
+                      title="Libre : l'athlète passe à la suite quand il le veut (bouton Lap). La valeur saisie reste un ordre d'idée.">libre</button>
                     @if (r.prescription) {
                       @if (recUsesPct(st)) {
                         <span class="block-pct" title="Récup prescrite en % d'un référentiel">
@@ -440,6 +449,9 @@
                   @for (u of volumeUnits; track u.value) { <option [value]="u.value">{{ u.label }}</option> }
                 </select>
               </span>
+              <button type="button" class="open-toggle" [class.open-toggle--on]="r.open" (click)="toggleRecOpen(b)"
+                      [attr.aria-pressed]="!!r.open"
+                      title="Libre : l'athlète passe à la suite quand il le veut (bouton Lap). La valeur saisie reste un ordre d'idée.">libre</button>
               <!-- Intensité de la récup : une zone du club, ou — comme pour un bloc — une
                    fourchette écrite à la main pour cette séance. « Récup à 55–70 % de LT1 » ne
                    rentre dans aucune bande nommée, et les zones ne se retouchent pas séance

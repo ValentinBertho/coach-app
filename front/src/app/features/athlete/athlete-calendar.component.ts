@@ -2291,18 +2291,18 @@ export class AthleteCalendarComponent implements OnInit {
   }
 
   chainStepVolume(se: CalculatedStepEntry): string {
-    return formatBlockVolume(se.step.distanceM, se.step.durationS) || '—';
+    return formatBlockVolume(se.step.distanceM, se.step.durationS, se.step.open) || '—';
   }
 
   chainRecoveryVol(se: CalculatedStepEntry): string {
     const r = se.step.recovery;
-    return r ? formatBlockVolume(r.distanceM, r.durationS) : '';
+    return r ? formatBlockVolume(r.distanceM, r.durationS, r.open) : '';
   }
 
   recoveryVol(e: CalculatedBlockEntry): string {
     const r = e.block.recovery;
     if (!r) return '';
-    return formatBlockVolume(r.distanceM, r.durationS);
+    return formatBlockVolume(r.distanceM, r.durationS, r.open);
   }
 
   /**

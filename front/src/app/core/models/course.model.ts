@@ -63,6 +63,8 @@ export interface CourseRecovery {
   durationS?: number | null;
   distanceM?: number | null;
   prescription?: CoursePrescription | null;
+  /** Récup libre : l'athlète repart quand il le veut (bouton Lap). La valeur n'est qu'indicative. */
+  open?: boolean | null;
 }
 
 /** Types de bloc course (liste fermée). La clé reste en anglais (stockage) ; l'UI affiche le libellé FR. */
@@ -108,6 +110,8 @@ export interface CourseStep {
   recovery?: CourseRecovery | null;
   rpe?: number | null;
   note?: string | null;
+  /** Durée libre (bouton Lap) ; distance ou durée saisie = ordre d'idée pour les totaux. */
+  open?: boolean | null;
 }
 
 export interface CourseBlock {
@@ -137,6 +141,12 @@ export interface CourseBlock {
    * qui porte les siens (cf. {@link CourseStep}).
    */
   steps?: CourseStep[] | null;
+  /**
+   * Durée libre : l'athlète passe à la suite quand il le veut, d'un appui sur Lap — un
+   * échauffement « au feeling ». La distance ou la durée saisie n'est qu'un ordre d'idée, gardé
+   * pour les totaux ; la montre, elle, reçoit une étape ouverte.
+   */
+  open?: boolean | null;
 }
 
 /**
@@ -146,7 +156,7 @@ export interface CourseBlock {
  * contrat plutôt que sur `CourseBlock`, ce qui lui permet d'éditer une étape avec exactement les
  * mêmes commandes qu'un bloc, sans les réécrire une seconde fois.
  */
-export type PrescribedUnit = Pick<CourseBlock, 'id' | 'distanceM' | 'durationS' | 'prescription' | 'recovery'>;
+export type PrescribedUnit = Pick<CourseBlock, 'id' | 'distanceM' | 'durationS' | 'prescription' | 'recovery' | 'open'>;
 
 /** Le bloc enchaîne-t-il plusieurs efforts par répétition ? */
 export function isChainBlock(b: Pick<CourseBlock, 'steps'>): boolean {
