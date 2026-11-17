@@ -8,6 +8,19 @@ spring:
     properties:
       hibernate:
         format_sql: false
+  # Pool réduit (défaut Hikari : 10). Chaque connexion ouverte coûte aussi de la mémoire côté
+  # PostgreSQL, facturée par Railway. Cinq suffisent largement pour la bêta ; relever avec
+  # DB_POOL_MAX si les journaux montrent des attentes de connexion.
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:5}
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+
+# Moins de fils Tomcat (défaut 200) : chacun garde sa pile en mémoire une fois créé.
+server:
+  tomcat:
+    threads:
+      max: ${TOMCAT_THREADS_MAX:50}
 
 # Réglable sans redéploiement : poser LOG_LEVEL_APP=DEBUG le temps d'une mise au point, puis
 # retirer la variable. Le SQL reste à part — c'est le plus volumineux, et on ne l'allume que
