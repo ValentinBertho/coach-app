@@ -132,10 +132,19 @@ public class TrialService {
         return authService.tokensFor(other);
     }
 
-    /** Supprime, avec tout leur contenu, les espaces d'essai arrivés à échéance. */
+    /**
+     * Tâche horaire : purge sous verrou partagé, pour qu'une seule instance la fasse.
+     * Le verrou est tenu au moins une minute : un appel direct pendant cette minute serait
+     * ignoré sans bruit, d'où {@link #deleteExpired} pour qui doit purger tout de suite.
+     */
     @Scheduled(cron = "${app.trial.purge-cron:0 17 * * * *}")
     @SchedulerLock(name = "purgeExpiredTrials", lockAtLeastFor = "PT1M", lockAtMostFor = "PT30M")
     public void purgeExpired() {
+        deleteExpired();
+    }
+
+    /** Supprime, avec tout leur contenu, les espaces d'essai arrivés à échéance. */
+    public void deleteExpired() {
         List<UUID> expired = clubRepository.findIdsByTrialExpiresAtBefore(Instant.now());
         for (UUID id : expired) {
             try {

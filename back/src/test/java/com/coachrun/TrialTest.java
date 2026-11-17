@@ -208,7 +208,9 @@ class TrialTest {
         c.setTrialExpiresAt(Instant.now().minusSeconds(60));
         clubRepository.saveAndFlush(c);
 
-        trialService.purgeExpired();
+        // Sans le verrou de la tâche horaire : si elle vient de tourner (à :17, comme la nuit du
+        // 17/11 à 05:17), un appel à purgeExpired() serait ignoré pendant une minute.
+        trialService.deleteExpired();
 
         assertThat(clubRepository.findById(club)).isEmpty();
         assertThat(jdbc.queryForObject("select count(*) from users where club_id = ?", Integer.class, club))
