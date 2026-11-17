@@ -62,6 +62,7 @@ public class ClubStarterKitService {
     private final RunDrillRepository drillRepository;
     private final TrainingZoneRepository zoneRepository;
     private final TrainingZoneSeedService zoneSeedService;
+    private final ZoneSetService zoneSetService;
     private final com.coachrun.repository.ClubRepository clubRepository;
     private final PpCatalogSeedService ppCatalogSeedService;
     private final PpExerciseRepository exerciseRepository;
@@ -95,6 +96,8 @@ public class ClubStarterKitService {
         // Les séances prescrivent par zone : il faut donc que les zones existent d'abord. C'est le
         // même seed que celui déclenché paresseusement à la première lecture, simplement anticipé.
         zoneSeedService.seedDefaultsIfEmpty(club);
+        // Nouveau club : le modèle Vitesses Critiques devient son modèle par défaut.
+        zoneSetService.setUpForNewClub(clubId);
         Map<String, UUID> zones = zonesByName(clubId);
         if (zones.isEmpty()) {
             // Sans zone, une séance prescrite ne veut rien dire. On pose tout de même les
@@ -632,8 +635,19 @@ public class ClubStarterKitService {
 
     // --- Zones ------------------------------------------------------------------
 
+    /**
+     * Zones par nom, celles du modèle par défaut d'abord : les séances du kit sont écrites sur
+     * l'échelle que verront les athlètes. « Footing facile » s'appelle « Récupération » dans le
+     * modèle Vitesses Critiques.
+     */
     private Map<String, UUID> zonesByName(UUID clubId) {
         Map<String, UUID> byName = new HashMap<>();
+        for (TrainingZone z : zoneSetService.zones(clubId, null)) {
+            byName.putIfAbsent(z.getName(), z.getId());
+        }
+        if (!byName.containsKey("Footing facile") && byName.containsKey("Récupération")) {
+            byName.put("Footing facile", byName.get("Récupération"));
+        }
         for (TrainingZone z : zoneRepository.findByClubIdOrderBySortOrderAscNameAsc(clubId)) {
             byName.putIfAbsent(z.getName(), z.getId());
         }

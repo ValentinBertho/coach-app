@@ -182,6 +182,35 @@ class ClubStarterKitTest {
     }
 
     /**
+     * Un nouveau club travaille d'emblée en vitesse critique : c'est son modèle par défaut, à côté
+     * du modèle VMA et du jeu standard, et les séances du kit sont écrites sur ses zones.
+     */
+    @Test
+    void aNewClubDefaultsToCriticalSpeedZones() {
+        UUID clubId = freshClub();
+        starterKit.install(clubId);
+
+        var sets = zoneSetRepository.findByClubIdOrderBySortOrderAscNameAsc(clubId);
+        assertThat(sets).extracting(s -> s.getName()).containsExactly(
+                "Zones Vitesses Critiques", "Zones VMA", "Zones seuils lactiques");
+        var defaultSet = zoneSetRepository.findFirstByClubIdAndDefaultSetTrue(clubId).orElseThrow();
+        assertThat(defaultSet.getName()).isEqualTo("Zones Vitesses Critiques");
+        assertThat(zoneRepository.findByClubIdAndZoneSetIdOrderBySortOrderAscNameAsc(clubId, defaultSet.getId()))
+                .hasSize(16);
+
+        java.util.Set<String> vcZoneIds = new java.util.HashSet<>();
+        zoneRepository.findByClubIdAndZoneSetIdOrderBySortOrderAscNameAsc(clubId, defaultSet.getId())
+                .forEach(z -> vcZoneIds.add(z.getId().toString()));
+        var zoneIdPattern = java.util.regex.Pattern.compile("\"zoneId\":\"([0-9a-f-]{36})\"");
+        assertThat(templates(clubId)).allSatisfy(t -> {
+            var m = zoneIdPattern.matcher(t.getStructureJson());
+            while (m.find()) {
+                assertThat(vcZoneIds).as("zone de la séance %s", t.getName()).contains(m.group(1));
+            }
+        });
+    }
+
+    /**
      * Idempotent : rejouable sans doublon. C'est ce qui permet de l'appeler après coup sur un club
      * dont l'installation aurait échoué à l'inscription, sans avoir à vérifier quoi que ce soit.
      */

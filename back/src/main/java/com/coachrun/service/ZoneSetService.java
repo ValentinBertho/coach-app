@@ -100,6 +100,44 @@ public class ZoneSetService {
         }
     }
 
+    /** Nom du jeu standard (ancré sur les seuils lactiques) quand il n'est pas le défaut. */
+    static final String LACTATE_SET_NAME = "Zones seuils lactiques";
+
+    /**
+     * Zones d'un club qui vient d'être créé : le modèle <b>Vitesses Critiques</b> est son modèle
+     * par défaut, à côté du modèle VMA et du jeu standard (seuils lactiques).
+     *
+     * <p>Réservé aux nouveaux clubs : un club qui a déjà un modèle par défaut n'est pas touché,
+     * ses athlètes restent sur l'échelle qu'ils connaissent.</p>
+     */
+    @Transactional
+    public void setUpForNewClub(UUID clubId) {
+        if (setRepository.findFirstByClubIdAndDefaultSetTrue(clubId).isPresent()) {
+            return;
+        }
+        Club club = clubRepository.findById(clubId).orElse(null);
+        if (club == null || club.isPersonal() || club.isZoneModelsSeeded()) {
+            return;
+        }
+        seedService.seedDefaultsIfEmpty(club);
+        seedService.addReferenceModels(club);
+        club.setZoneModelsSeeded(true);
+
+        ZoneSet lactate = new ZoneSet();
+        lactate.setClub(club);
+        lactate.setName(LACTATE_SET_NAME);
+        lactate.setSortOrder(setRepository.findByClubIdOrderBySortOrderAscNameAsc(clubId).size());
+        lactate = setRepository.save(lactate);
+        attachOrphans(clubId, lactate);
+
+        for (ZoneSet s : setRepository.findByClubIdOrderBySortOrderAscNameAsc(clubId)) {
+            if (TrainingZoneSeedService.VC_SET_NAME.equals(s.getName())) {
+                s.setDefaultSet(true);
+            }
+        }
+        log.info("Zones du nouveau club {} : modèle Vitesses Critiques par défaut", clubId);
+    }
+
     private void attachOrphans(UUID clubId, ZoneSet target) {
         for (TrainingZone z : zoneRepository.findByClubIdAndZoneSetIsNull(clubId)) {
             z.setZoneSet(target);
