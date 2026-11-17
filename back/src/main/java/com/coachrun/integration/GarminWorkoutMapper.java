@@ -77,15 +77,29 @@ public final class GarminWorkoutMapper {
 
         Map<String, Object> workout = new LinkedHashMap<>();
         workout.put("workoutName", truncate(blankToNull(source.title()) != null ? source.title() : "Séance", 100));
-        String notes = blankToNull(source.notes());
-        if (notes != null) {
-            workout.put("description", truncate(notes, 1024));
+        String description = description(source);
+        if (description != null) {
+            workout.put("description", truncate(description, 1024));
         }
         workout.put("sport", "RUNNING");
         workout.put("workoutProvider", PROVIDER);
         workout.put("workoutSourceId", PROVIDER);
         workout.put("segments", List.of(segment));
         return workout;
+    }
+
+    /**
+     * Notes du coach puis détail bloc par bloc. Garmin Connect n'affiche que cette description
+     * dans l'aperçu du calendrier : sans le détail, une séance structurée y paraît vide.
+     */
+    static String description(Source source) {
+        String notes = blankToNull(source.notes());
+        List<String> lines = CorosWorkoutMapper.summaryLines(source);
+        if (lines.isEmpty()) {
+            return notes;
+        }
+        String detail = String.join("\n", lines);
+        return notes != null ? notes.trim() + "\n\n" + detail : detail;
     }
 
     // --- Construction -------------------------------------------------------------------------

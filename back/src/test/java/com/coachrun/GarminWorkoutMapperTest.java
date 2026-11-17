@@ -104,6 +104,25 @@ class GarminWorkoutMapperTest {
     }
 
     @Test
+    void laDescriptionReprendLesNotesPuisLeDetailBlocParBloc() {
+        var calc = new CalculatedSessionResponse(
+                List.of(new CalculatedBlockEntry(block(1, null, 1200, null, null, null), null, null)),
+                List.of(new CalculatedBlockEntry(
+                        block(8, null, 180, new CourseRecovery("jog", 60, null, null), null, null),
+                        pace(208, 217), null)),
+                List.of(new CalculatedBlockEntry(block(1, null, 600, null, null, null), null, null)),
+                null, null);
+
+        var workout = GarminWorkoutMapper.toGarmin(new Source("Seuil", "Tout à la même allure.", calc, List.of(), null, null));
+
+        assertThat((String) workout.get("description"))
+                .startsWith("Tout à la même allure.\n\n")
+                .contains("• Échauffement : 20 min")
+                .contains("8 × 3 min à 3:28–3:37/km + récup 1 min")
+                .contains("• Retour au calme : 10 min");
+    }
+
+    @Test
     void lesPasSontNumerotesDansLOrdreDeLecture() {
         var calc = new CalculatedSessionResponse(List.of(),
                 List.of(new CalculatedBlockEntry(

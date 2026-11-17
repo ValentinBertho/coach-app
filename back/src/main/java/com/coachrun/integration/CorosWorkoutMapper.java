@@ -181,6 +181,17 @@ public final class CorosWorkoutMapper {
         return course(source, v, List.of(only), lines);
     }
 
+    /**
+     * Le détail lisible de la séance, une ligne par bloc (« • Échauffement : 20 min à 4:10–5:08/km »).
+     * Repris tel quel dans la description Garmin, que Garmin Connect affiche en premier.
+     */
+    public static List<String> summaryLines(GarminWorkoutMapper.Source source) {
+        List<Map<String, Object>> ignored = new ArrayList<>();
+        List<String> lines = new ArrayList<>();
+        build(source, Vocabulary.DEFAULT, ignored, lines);
+        return lines;
+    }
+
     /** Ce qu'on écrit à la place d'une séance retirée : COROS ne permet pas de la supprimer. */
     public static Map<String, Object> cancelledCourse(String originalTitle, Vocabulary v) {
         Map<String, Object> c = new LinkedHashMap<>();
