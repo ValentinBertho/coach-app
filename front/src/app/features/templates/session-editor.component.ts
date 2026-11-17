@@ -1058,6 +1058,22 @@ export class SessionEditorComponent implements OnInit, HasAutosave {
     this.setMeasure(b, isTime(unit) ? 'duration' : 'distance', owner);
   }
 
+  /**
+   * Durée libre : l'athlète passe à la suite d'un appui sur Lap (échauffement au feeling, récup
+   * « jusqu'à être prêt »). La valeur saisie reste, comme ordre d'idée pour les totaux.
+   */
+  toggleOpen(b: PrescribedUnit, owner?: CourseBlock): void {
+    b.open = b.open ? null : true;
+    this.edited(b, owner);
+  }
+
+  toggleRecOpen(b: PrescribedUnit): void {
+    if (!b.recovery) return;
+    b.recovery.open = b.recovery.open ? null : true;
+    this.recalcRecovery(b);
+    this.touch();
+  }
+
   recVolumeValue(b: PrescribedUnit): number | null {
     const r = b.recovery;
     return r

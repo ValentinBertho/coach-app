@@ -284,18 +284,20 @@ public final class CorosWorkoutMapper {
                     continue;
                 }
                 addIfPresent(unit, plain(sectionType, st.distanceM(), st.durationS(), se.calc(), v));
-                unitText.add(describe(st.distanceM(), st.durationS(), se.calc(), st.note()));
+                unitText.add(openable(describe(st.distanceM(), st.durationS(), se.calc(), st.note()),
+                        st.endsOnLap(), st.distanceM(), st.durationS()));
                 if (st.recovery() != null) {
                     addIfPresent(unit, recovery(st.recovery(), se.recoveryCalc(), v));
-                    unitText.add("récup " + describe(st.recovery().distanceM(), st.recovery().durationS(), null, null));
+                    unitText.add("récup " + recoveryText(st.recovery()));
                 }
             }
         } else {
             addIfPresent(unit, plain(sectionType, b.distanceM(), b.durationS(), e.calc(), v));
-            unitText.add(describe(b.distanceM(), b.durationS(), e.calc(), b.note()));
+            unitText.add(openable(describe(b.distanceM(), b.durationS(), e.calc(), b.note()),
+                    b.endsOnLap(), b.distanceM(), b.durationS()));
             if (b.recovery() != null && (reps > 1 || sets > 1)) {
                 addIfPresent(unit, recovery(b.recovery(), e.recoveryCalc(), v));
-                unitText.add("récup " + describe(b.recovery().distanceM(), b.recovery().durationS(), null, null));
+                unitText.add("récup " + recoveryText(b.recovery()));
             }
         }
         for (int set = 1; set <= sets; set++) {
@@ -416,6 +418,27 @@ public final class CorosWorkoutMapper {
             sb.append(sb.isEmpty() ? "" : " — ").append(note.trim());
         }
         return sb.isEmpty() ? "libre" : sb.toString();
+    }
+
+    /**
+     * Durée libre dans le texte : « libre (≈ 20 min) à 5:00–5:30/km ». COROS ne connaît pas
+     * d'étape ouverte : la section part sur la valeur indicative, et la description dit à
+     * l'athlète qu'il peut passer à la suite quand il le veut.
+     */
+    private static String openable(String text, boolean open, Integer distanceM, Integer durationS) {
+        if (!open) {
+            return text;
+        }
+        boolean hasHint = (distanceM != null && distanceM > 0) || (durationS != null && durationS > 0);
+        if (!hasHint) {
+            return text.equals("libre") ? text : "libre " + text;
+        }
+        String volume = describe(distanceM, durationS, null, null);
+        return "libre (≈ " + volume + ")" + text.substring(volume.length());
+    }
+
+    private static String recoveryText(CourseRecovery r) {
+        return openable(describe(r.distanceM(), r.durationS(), null, null), r.endsOnLap(), r.distanceM(), r.durationS());
     }
 
     private static String trimKm(int meters) {

@@ -158,7 +158,7 @@ public final class GarminWorkoutMapper {
                         continue;
                     }
                     u.add(effort(forcedIntensity != null ? forcedIntensity : "INTERVAL",
-                            st.distanceM(), st.durationS(), se.calc(), st.note()));
+                            st.distanceM(), st.durationS(), se.calc(), st.note(), st.endsOnLap()));
                     if (st.recovery() != null) {
                         u.add(recovery(st.recovery(), se.recoveryCalc()));
                     }
@@ -170,7 +170,7 @@ public final class GarminWorkoutMapper {
                     : (reps > 1 || sets > 1 ? "INTERVAL" : "ACTIVE");
             unit = () -> {
                 List<Map<String, Object>> u = new ArrayList<>();
-                u.add(effort(intensity, b.distanceM(), b.durationS(), e.calc(), b.note()));
+                u.add(effort(intensity, b.distanceM(), b.durationS(), e.calc(), b.note(), b.endsOnLap()));
                 if (b.recovery() != null && (reps > 1 || sets > 1)) {
                     u.add(recovery(b.recovery(), e.recoveryCalc()));
                 }
@@ -191,14 +191,32 @@ public final class GarminWorkoutMapper {
     }
 
     private static Map<String, Object> effort(String intensity, Integer distanceM, Integer durationS,
-                                              CalculatedBlockResponse calc, String note) {
+                                              CalculatedBlockResponse calc, String note, boolean open) {
+        if (open) {
+            return step(intensity, LAP, target(calc), openNote(distanceM, durationS, note));
+        }
         Integer estimated = calc != null ? calc.estimatedDurationS() : null;
         return step(intensity, duration(distanceM, durationS, estimated), target(calc), note);
+    }
+
+    /** Étape libre : elle se termine d'un appui sur Lap (durationType OPEN de la Training API). */
+    private static final Duration LAP = new Duration("OPEN", null);
+
+    /** « Libre (≈ 20 min) : appuie sur Lap pour passer à la suite. » suivi de la note du coach. */
+    private static String openNote(Integer distanceM, Integer durationS, String note) {
+        boolean hasHint = (distanceM != null && distanceM > 0) || (durationS != null && durationS > 0);
+        String text = "Libre" + (hasHint ? " (≈ " + CorosWorkoutMapper.describe(distanceM, durationS, null, null) + ")" : "")
+                + " : appuie sur Lap pour passer à la suite.";
+        String n = blankToNull(note);
+        return n == null ? text : text + " " + n;
     }
 
     private static Map<String, Object> recovery(CourseRecovery r, CalculatedBlockResponse calc) {
         // « static » : on s'arrête. Le reste (trot, marche) est une récupération active.
         String intensity = "static".equalsIgnoreCase(r.type()) ? "REST" : "RECOVERY";
+        if (r.endsOnLap()) {
+            return step(intensity, LAP, target(calc), openNote(r.distanceM(), r.durationS(), null));
+        }
         return step(intensity, duration(r.distanceM(), r.durationS(), null), target(calc), null);
     }
 

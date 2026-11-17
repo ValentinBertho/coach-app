@@ -42,8 +42,29 @@ public record CourseBlock(
          * Voir {@link CourseStep} : c'est ce qui permet d'écrire « 8 × (200 m / 400 m) » à deux
          * allures distinctes en un seul bloc.
          */
-        java.util.List<CourseStep> steps
+        java.util.List<CourseStep> steps,
+        /**
+         * Durée libre : l'athlète passe à la suite quand il le veut, d'un appui sur Lap. La
+         * distance ou la durée éventuellement saisie n'est qu'un ordre d'idée (totaux, estimation) ;
+         * la montre reçoit une étape ouverte. {@code null} = étape fermée, comme toute séance
+         * écrite avant.
+         */
+        Boolean open
 ) {
+    /** Bloc à durée fermée — l'écriture de toute séance d'avant la durée libre. */
+    public CourseBlock(String id, String type, Integer reps, Integer distanceM, Integer durationS,
+                       CoursePrescription prescription, CourseRecovery recovery, Integer rpe, String note,
+                       java.util.List<java.util.UUID> drillIds, Integer sets, CourseRecovery setRecovery,
+                       java.util.List<CourseStep> steps) {
+        this(id, type, reps, distanceM, durationS, prescription, recovery, rpe, note, drillIds, sets,
+                setRecovery, steps, null);
+    }
+
+    /** Durée libre (bouton Lap) ? */
+    public boolean endsOnLap() {
+        return Boolean.TRUE.equals(open);
+    }
+
 
     /**
      * Étapes du bloc, jamais {@code null}. Vide = bloc simple, et c'est ce que vaut toute séance

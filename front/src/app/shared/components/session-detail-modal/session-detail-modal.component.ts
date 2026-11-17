@@ -449,7 +449,7 @@ export class SessionDetailModalComponent {
   }
 
   stepVolume(st: CourseStep): string {
-    return formatBlockVolume(st.distanceM, st.durationS) || '—';
+    return formatBlockVolume(st.distanceM, st.durationS, st.open) || '—';
   }
 
   /** Récupération entre séries, à annoncer dès que le bloc est répété. */
@@ -462,8 +462,9 @@ export class SessionDetailModalComponent {
     durationS?: number | null;
     distanceM?: number | null;
     type: string;
+    open?: boolean | null;
   }): string {
-    const v = formatBlockVolume(r.distanceM, r.durationS);
+    const v = formatBlockVolume(r.distanceM, r.durationS, r.open);
     const t =
       r.type === 'walk' ? 'marche' : r.type === 'static' ? 'statique' : 'trot';
     return `${t} ${v}`.trim();

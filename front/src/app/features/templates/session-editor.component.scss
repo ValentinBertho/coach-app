@@ -187,3 +187,23 @@
 }
 .scope-note--template { background: var(--warning-wash, #fef3c7); color: var(--warning-text, #92400e); }
 .scope-note--athlete { background: var(--primary-wash); color: var(--primary); }
+
+// Durée libre (bouton Lap) : une pastille qu'on allume, à côté du volume.
+.open-toggle {
+  font: inherit;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  white-space: nowrap;
+
+  &--on {
+    background: var(--primary-wash);
+    border-color: var(--primary);
+    color: var(--primary);
+    font-weight: 600;
+  }
+}

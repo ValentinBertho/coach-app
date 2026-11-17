@@ -28,7 +28,9 @@ export interface BlockVolume {
   reps?: number | null;
   sets?: number | null;
   /** Étapes d'un enchaînement — « 8 × (200 m / 400 m) ». Absentes pour un bloc simple. */
-  steps?: { distanceM?: number | null; durationS?: number | null }[] | null;
+  steps?: { distanceM?: number | null; durationS?: number | null; open?: boolean | null }[] | null;
+  /** Durée libre : l'athlète passe à la suite quand il le veut (bouton Lap de sa montre). */
+  open?: boolean | null;
 }
 
 /**
@@ -77,8 +79,18 @@ export function formatBlockDistance(meters: number | null | undefined): string {
 export function formatBlockVolume(
   distanceM: number | null | undefined,
   durationS: number | null | undefined,
+  open?: boolean | null,
 ): string {
-  return formatBlockDistance(distanceM) || formatBlockDuration(durationS);
+  const v = formatBlockDistance(distanceM) || formatBlockDuration(durationS);
+  return open ? formatOpen(v) : v;
+}
+
+/**
+ * Durée libre : « libre », ou « libre (≈ 20 min) » quand le coach a donné un ordre d'idée.
+ * La valeur reste affichée parce qu'elle compte dans les totaux de la séance.
+ */
+export function formatOpen(volume: string): string {
+  return volume ? `libre (≈ ${volume})` : 'libre';
 }
 
 /**
@@ -90,7 +102,7 @@ export function formatBlockVolume(
  * @returns chaîne vide si le bloc ne porte aucun volume
  */
 export function formatBlockSets(block: BlockVolume): string {
-  const unit = formatChain(block) || formatBlockVolume(block.distanceM, block.durationS);
+  const unit = formatChain(block) || formatBlockVolume(block.distanceM, block.durationS, block.open);
   if (!unit) {
     return '';
   }
@@ -109,7 +121,7 @@ export function formatBlockSets(block: BlockVolume): string {
  */
 export function formatChain(block: BlockVolume): string {
   const parts = (block.steps ?? [])
-    .map((st) => formatBlockVolume(st.distanceM, st.durationS))
+    .map((st) => formatBlockVolume(st.distanceM, st.durationS, st.open))
     .filter((v) => !!v);
   return parts.length ? `(${parts.join(' / ')})` : '';
 }
