@@ -78,6 +78,31 @@ class CorosWorkoutMapperTest {
     }
 
     @Test
+    void uneRecupLibrePartAuBoutonLapSiLeSchemaLeProposeSinonSurSaValeur() throws Exception {
+        String schema = """
+                {"type":"object","properties":{"course":{"type":"object","properties":{
+                  "sections":{"type":"array","items":{"type":"object","properties":{
+                    "targetType":{"type":"integer","description":"1=Distance, 2=Time, 3=Lap Button"}
+                  }}}}}}}
+                """;
+        Vocabulary v = Vocabulary.fromSchema(new ObjectMapper().readTree(schema));
+        assertThat(v.targetOpen()).isEqualTo(3);
+
+        var calc = new CalculatedSessionResponse(List.of(),
+                List.of(new CalculatedBlockEntry(
+                        block(2, 1000, null, new CourseRecovery("jog", 90, null, null, true), null, null),
+                        pace(240, 250), null)),
+                List.of(), null, null);
+        Source src = new Source("Seuil", null, calc, List.of(), null, null);
+
+        var withLap = sections(CorosWorkoutMapper.toCourse(src, v));
+        assertThat(withLap.get(1)).containsEntry("targetType", 3);
+
+        var without = sections(CorosWorkoutMapper.toCourse(src, V));
+        assertThat(without.get(1)).as("pas de code : la valeur indicative").containsEntry("targetType", 1);
+    }
+
+    @Test
     void avecLesCodesDuSchemaLaRecuperationEnTempsEtLaFcSontPosees() throws Exception {
         String schema = """
                 {"type":"object","properties":{"course":{"type":"object","properties":{
