@@ -256,6 +256,8 @@ Rien ici n'a d'effet sur le démarrage : on les pose après, une fois l'instance
 | `SENTRY_DSN` | back + front | Monitoring erreurs **[OPT]** | `https://...@sentry.io/...` |
 | `BETTER_STACK_SOURCE_TOKEN` | back | Journaux centralisés **[OPT, recommandé]** — sans lui l'appender se désactive seul (un avertissement au démarrage, rien de plus). Cf. [`OPERATIONS.md` §9](./OPERATIONS.md) | source « HTTP » Better Stack |
 | `BETTER_STACK_INGEST_URL` | back | Hôte d'ingestion **de la source** **[OPT]** — ⚠ souvent régional, à recopier depuis les réglages de la source ; le défaut ne convient pas à toutes | `https://sXXXXXX.eu-nbg-2.betterstackdata.com` |
+| `JAVA_OPTS` | back | Options de la JVM **[DÉFAUT dans `back/Dockerfile`]** : tas plafonné à 512 Mo, ramasse-miettes série. Railway facture la mémoire occupée et le conteneur y voit 32 Go : sans plafond absolu, la JVM garde près de 1 Go pour rien. Poser la variable **remplace** toute la valeur par défaut | `-Xms128m -Xmx768m -XX:MaxMetaspaceSize=256m -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError` |
+| `DB_POOL_MAX` / `DB_POOL_MIN_IDLE` / `TOMCAT_THREADS_MAX` | back | Pool de connexions **[DÉFAUT 5 / 2]** et fils Tomcat **[DÉFAUT 50]** en prod, réduits pour la mémoire. À relever si les journaux montrent des attentes de connexion | `5`, `2`, `50` |
 | `apiUrl` (`environment.ts`) | front | URL de l'API | `/api` ou URL Railway |
 
 ---

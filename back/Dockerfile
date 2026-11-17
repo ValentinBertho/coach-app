@@ -31,5 +31,14 @@ COPY --from=build /app/target/coachrun-back.jar app.jar
 RUN chown -R coachrun:coachrun /app
 USER coachrun
 
+# Mémoire : Railway facture la mémoire réellement occupée, et le conteneur y voit 32 Go.
+# Avec un pourcentage de la RAM (ancien réglage MaxRAMPercentage=75), la JVM s'autorisait
+# 24 Go de tas, le laissait grossir et ne le rendait jamais : ~0,9 Go en continu pour
+# quelques coachs. On fixe donc des plafonds absolus. Le ramasse-miettes série est le plus
+# économe pour un petit tas, et MALLOC_ARENA_MAX limite la mémoire native de glibc.
+# Réglable sans recompiler : poser JAVA_OPTS dans les variables Railway (remplace la valeur).
+ENV MALLOC_ARENA_MAX=2 \
+    JAVA_OPTS="-Xms128m -Xmx512m -XX:MaxMetaspaceSize=256m -XX:ReservedCodeCacheSize=64m -Xss512k -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError"
+
 EXPOSE 8080
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
