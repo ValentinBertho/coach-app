@@ -45,7 +45,14 @@
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Barre d'état OPAQUE (« default »), plus « black-translucent ». Depuis iOS 26.1, une app
+       installée en black-translucent ne dessine plus sous la barre d'état : iOS peint par-dessus
+       un dégradé flou qui déborde sur le haut de la page (logo, cloche, avatar flous et difficiles
+       à toucher) et la page est mise en page trop courte d'une hauteur de barre en bas. En mode
+       opaque, la page commence sous la barre d'état et env(safe-area-inset-top) vaut 0 : les
+       retraits max(…, env(safe-area-inset-top)) déjà en place restent justes. Une app déjà
+       installée doit être supprimée puis réinstallée pour prendre en compte ce changement. -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Darilab">
 </head>
 <body>
